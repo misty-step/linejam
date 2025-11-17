@@ -1,26 +1,289 @@
 @import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   Linejam Design System
+   ========================================================================== */
+
+/* Design Philosophy:
+   - Playful yet sophisticated (poetry game)
+   - Analog-digital hybrid aesthetic (paper meets pixels)
+   - Generous whitespace for breathing room
+   - Strong typography creates hierarchy
+   - Restrained color palette with poetic accents
+*/
+
+@theme {
+  /* ==========================================================================
+     Color System - OKLCH for perceptual uniformity
+     ========================================================================== */
+
+  /* Brand Colors - Poetic palette */
+  --color-primary: oklch(0.6 0.15 280); /* Poetic purple */
+  --color-primary-hover: oklch(0.55 0.15 280);
+  --color-primary-active: oklch(0.5 0.15 280);
+
+  --color-secondary: oklch(0.7 0.12 45); /* Warm gold */
+  --color-secondary-hover: oklch(0.65 0.12 45);
+  --color-secondary-active: oklch(0.6 0.12 45);
+
+  --color-accent: oklch(0.75 0.1 160); /* Soft teal */
+  --color-accent-hover: oklch(0.7 0.1 160);
+  --color-accent-active: oklch(0.65 0.1 160);
+
+  /* State Colors */
+  --color-success: oklch(0.65 0.15 140);
+  --color-warning: oklch(0.75 0.18 80);
+  --color-error: oklch(0.6 0.2 25);
+  --color-info: oklch(0.65 0.18 240);
+
+  /* Surface Colors - Light mode */
+  --color-background: oklch(0.98 0.005 280); /* Slight purple tint */
+  --color-foreground: oklch(0.2 0.01 280);
+  --color-surface: oklch(1 0 0); /* Pure white for cards */
+  --color-surface-hover: oklch(0.97 0.005 280);
+  --color-muted: oklch(0.95 0.005 280);
+
+  /* Border & Divider */
+  --color-border: oklch(0.88 0.01 280);
+  --color-border-hover: oklch(0.8 0.01 280);
+  --color-border-focus: var(--color-primary);
+
+  /* Text Colors */
+  --color-text-primary: var(--color-foreground);
+  --color-text-secondary: oklch(0.5 0.01 280);
+  --color-text-muted: oklch(0.65 0.01 280);
+  --color-text-disabled: oklch(0.75 0.01 280);
+
+  /* ==========================================================================
+     Typography System
+     ========================================================================== */
+
+  /* Font Families - Distinctive, not generic */
+  --font-display: 'Space Grotesk', 'Inter Variable', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* Type Scale - Modular scale (1.200 ratio) */
+  --font-size-xs: 0.694rem; /* ~11px */
+  --font-size-sm: 0.833rem; /* ~13px */
+  --font-size-base: 1rem; /* 16px */
+  --font-size-lg: 1.2rem; /* ~19px */
+  --font-size-xl: 1.44rem; /* ~23px */
+  --font-size-2xl: 1.728rem; /* ~28px */
+  --font-size-3xl: 2.074rem; /* ~33px */
+  --font-size-4xl: 2.488rem; /* ~40px */
+  --font-size-5xl: 2.986rem; /* ~48px */
+  --font-size-6xl: 3.583rem; /* ~57px */
+
+  /* Line Heights */
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+  --letter-spacing-wider: 0.05em;
+
+  /* ==========================================================================
+     Spacing System - 8-point grid
+     ========================================================================== */
+
+  --spacing-0: 0;
+  --spacing-0\.5: 0.125rem; /* 2px */
+  --spacing-1: 0.25rem; /* 4px */
+  --spacing-2: 0.5rem; /* 8px */
+  --spacing-3: 0.75rem; /* 12px */
+  --spacing-4: 1rem; /* 16px */
+  --spacing-5: 1.25rem; /* 20px */
+  --spacing-6: 1.5rem; /* 24px */
+  --spacing-8: 2rem; /* 32px */
+  --spacing-10: 2.5rem; /* 40px */
+  --spacing-12: 3rem; /* 48px */
+  --spacing-16: 4rem; /* 64px */
+  --spacing-20: 5rem; /* 80px */
+  --spacing-24: 6rem; /* 96px */
+  --spacing-32: 8rem; /* 128px */
+
+  /* Semantic Spacing */
+  --spacing-xs: var(--spacing-1);
+  --spacing-sm: var(--spacing-2);
+  --spacing-md: var(--spacing-4);
+  --spacing-lg: var(--spacing-6);
+  --spacing-xl: var(--spacing-8);
+  --spacing-2xl: var(--spacing-12);
+  --spacing-3xl: var(--spacing-16);
+
+  /* ==========================================================================
+     Border Radius
+     ========================================================================== */
+
+  --radius-sm: 0.25rem; /* 4px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1rem; /* 16px */
+  --radius-2xl: 1.5rem; /* 24px */
+  --radius-full: 9999px;
+
+  /* ==========================================================================
+     Shadows - Subtle, purposeful
+     ========================================================================== */
+
+  --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --shadow-md:
+    0 4px 6px -1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.05);
+  --shadow-lg:
+    0 10px 15px -3px oklch(0 0 0 / 0.08), 0 4px 6px -4px oklch(0 0 0 / 0.05);
+  --shadow-xl:
+    0 20px 25px -5px oklch(0 0 0 / 0.08), 0 8px 10px -6px oklch(0 0 0 / 0.05);
+
+  /* ==========================================================================
+     Animations - Subtle, purposeful
+     ========================================================================== */
+
+  /* Durations */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+
+  /* Easing */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Combined Transitions */
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-base: var(--duration-base) var(--ease-in-out);
+  --transition-slow: var(--duration-slow) var(--ease-in-out);
+
+  /* ==========================================================================
+     Component Tokens
+     ========================================================================== */
+
+  /* Button */
+  --button-height-sm: 2rem;
+  --button-height-md: 2.5rem;
+  --button-height-lg: 3rem;
+  --button-padding-x: var(--spacing-4);
+  --button-border-radius: var(--radius-lg);
+
+  /* Input */
+  --input-height: 2.75rem;
+  --input-padding-x: var(--spacing-4);
+  --input-border-width: 1px;
+  --input-border-radius: var(--radius-md);
+  --input-border-color: var(--color-border);
+  --input-focus-border-color: var(--color-primary);
+
+  /* Card */
+  --card-padding: var(--spacing-6);
+  --card-border-radius: var(--radius-xl);
+  --card-border-color: var(--color-border);
+  --card-shadow: var(--shadow-sm);
+  --card-shadow-hover: var(--shadow-md);
+
+  /* ==========================================================================
+     Z-Index Layers
+     ========================================================================== */
+
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-overlay: 1200;
+  --z-modal: 1300;
+  --z-popover: 1400;
+  --z-tooltip: 1500;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ==========================================================================
+   Dark Mode Overrides
+   ========================================================================== */
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-background: oklch(0.15 0.015 280);
+    --color-foreground: oklch(0.95 0.005 280);
+    --color-surface: oklch(0.18 0.015 280);
+    --color-surface-hover: oklch(0.22 0.015 280);
+    --color-muted: oklch(0.25 0.015 280);
+
+    --color-border: oklch(0.3 0.015 280);
+    --color-border-hover: oklch(0.4 0.015 280);
+
+    --color-text-primary: var(--color-foreground);
+    --color-text-secondary: oklch(0.7 0.01 280);
+    --color-text-muted: oklch(0.55 0.01 280);
+    --color-text-disabled: oklch(0.4 0.01 280);
   }
 }
 
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Reset - Intentional defaults */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--color-text-primary);
+}
+
+h1 {
+  font-size: var(--font-size-5xl);
+}
+h2 {
+  font-size: var(--font-size-4xl);
+}
+h3 {
+  font-size: var(--font-size-3xl);
+}
+h4 {
+  font-size: var(--font-size-2xl);
+}
+h5 {
+  font-size: var(--font-size-xl);
+}
+h6 {
+  font-size: var(--font-size-lg);
+}
+
+/* Focus States - Accessible and visible */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background-color: oklch(from var(--color-primary) l c h / 0.2);
+  color: var(--color-text-primary);
 }

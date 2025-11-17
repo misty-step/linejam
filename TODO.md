@@ -38,7 +38,7 @@
 
 **Design System**:
 
-- [ ] Setup Tailwind 4 with @theme directive and design tokens
+- [x] Setup Tailwind 4 with @theme directive and design tokens
   ```
   Files: app/globals.css (new), components/ui/* (new)
   Architecture: Design tokens via @theme, OKLCH colors, typography scales
