@@ -1,0 +1,32 @@
+# Lefthook configuration for Linejam
+# Quality gates: pre-commit (fast), pre-push (comprehensive)
+
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.{js,ts,jsx,tsx}"
+      run: pnpm eslint --fix {staged_files}
+      stage_fixed: true
+
+    format:
+      glob: "*.{js,ts,jsx,tsx,json,md,css}"
+      run: pnpm prettier --write {staged_files}
+      stage_fixed: true
+
+    typecheck:
+      glob: "*.{ts,tsx}"
+      run: pnpm typecheck
+
+pre-push:
+  commands:
+    test:
+      run: pnpm test:ci
+
+    build:
+      run: pnpm build
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm commitlint --edit {1}

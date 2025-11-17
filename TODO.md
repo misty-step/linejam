@@ -1,6 +1,7 @@
 # TODO: Linejam v1
 
 ## Context
+
 - **Architecture**: Next.js (App Router) + TypeScript + Convex + Clerk + Tailwind
 - **Game Flow**: 9-round collaborative poetry with exact word counts (pyramid: 1,2,3,4,5,4,3,2,1)
 - **Multiplayer**: Real-time via Convex, 2-8 players per room
@@ -10,7 +11,8 @@
 ## Infrastructure Tasks
 
 **Project Initialization**:
-- [ ] Initialize Next.js project with TypeScript and App Router
+
+- [x] Initialize Next.js project with TypeScript and App Router
   ```
   Files: package.json (new), tsconfig.json (new), next.config.ts (new)
   Architecture: Next.js 15+ with App Router, TypeScript strict mode
@@ -22,7 +24,8 @@
   ```
 
 **Quality Gates**:
-- [ ] Configure Lefthook for pre-commit/pre-push hooks
+
+- [x] Configure Lefthook for pre-commit/pre-push hooks
   ```
   Files: lefthook.yml (new), .github/workflows/ci.yml (new)
   Architecture: Pre-commit: lint+format, Pre-push: typecheck+test
@@ -34,6 +37,7 @@
   ```
 
 **Design System**:
+
 - [ ] Setup Tailwind 4 with @theme directive and design tokens
   ```
   Files: app/globals.css (new), components/ui/* (new)
@@ -53,6 +57,7 @@
   ```
 
 **Structured Logging**:
+
 - [ ] Setup Pino logger with correlation IDs and redaction
   ```
   Files: lib/logger.ts (new)
@@ -70,6 +75,7 @@
   ```
 
 **Error Tracking**:
+
 - [ ] Configure Sentry with source maps and release tracking
   ```
   Files: lib/sentry.ts (new), instrumentation.ts (new), sentry.*.config.ts (new)
@@ -89,6 +95,7 @@
   ```
 
 **Changelog Automation**:
+
 - [ ] Setup Changesets for version management
   ```
   Files: .changeset/config.json (new), .github/workflows/release.yml (new)
@@ -103,6 +110,7 @@
 ## Core Backend (Convex)
 
 **Convex Setup**:
+
 - [ ] Initialize Convex project and define schema
   ```
   Files: convex/schema.ts (new), convex/_generated/* (generated)
@@ -127,6 +135,7 @@
   ```
 
 **User Management Module**:
+
 - [ ] Implement users.ensureUser() mutation
   ```
   Files: convex/users.ts (new)
@@ -148,6 +157,7 @@
   ```
 
 **Room Management Module**:
+
 - [ ] Implement room creation and joining (rooms.ts)
   ```
   Files: convex/rooms.ts (new)
@@ -174,6 +184,7 @@
   ```
 
 **Assignment Matrix Generator**:
+
 - [ ] Implement assignment matrix generation algorithm
   ```
   Files: convex/lib/assignmentMatrix.ts (new)
@@ -207,6 +218,7 @@
   ```
 
 **Game Initialization Module**:
+
 - [ ] Implement startGame mutation
   ```
   Files: convex/game.ts (new)
@@ -230,6 +242,7 @@
   ```
 
 **Round Assignment Module**:
+
 - [ ] Implement getCurrentAssignment query
   ```
   Files: convex/game.ts (modify)
@@ -257,6 +270,7 @@
   ```
 
 **Line Submission Module**:
+
 - [ ] Implement submitLine mutation with validation
   ```
   Files: convex/game.ts (modify), convex/lib/wordCount.ts (new)
@@ -286,6 +300,7 @@
   ```
 
 **Round Progress Query**:
+
 - [ ] Implement getRoundProgress query
   ```
   Files: convex/game.ts (modify)
@@ -310,6 +325,7 @@
   ```
 
 **Poem Queries Module**:
+
 - [ ] Implement poem retrieval queries
   ```
   Files: convex/poems.ts (new)
@@ -339,6 +355,7 @@
   ```
 
 **Favorites Module**:
+
 - [ ] Implement toggleFavorite mutation and getFavorites query
   ```
   Files: convex/favorites.ts (new)
@@ -364,6 +381,7 @@
 ## Frontend (Next.js + React)
 
 **Auth Integration**:
+
 - [ ] Setup Clerk with guest mode fallback
   ```
   Files: app/providers.tsx (new), lib/auth.ts (new), middleware.ts (new)
@@ -386,6 +404,7 @@
   ```
 
 **Convex Client Setup**:
+
 - [ ] Configure Convex provider and hooks
   ```
   Files: app/providers.tsx (modify), lib/convex.ts (new)
@@ -398,6 +417,7 @@
   ```
 
 **Home Page**:
+
 - [ ] Implement home page with Host/Join CTAs
   ```
   Files: app/page.tsx (modify)
@@ -411,6 +431,7 @@
   ```
 
 **Host Flow**:
+
 - [ ] Implement host game page and lobby
   ```
   Files: app/host/page.tsx (new), components/RoomCode.tsx (new)
@@ -427,6 +448,7 @@
   ```
 
 **Join Flow**:
+
 - [ ] Implement join game page
   ```
   Files: app/join/page.tsx (new), components/JoinForm.tsx (new)
@@ -444,6 +466,7 @@
   ```
 
 **Lobby Screen**:
+
 - [ ] Implement lobby UI with player list and host controls
   ```
   Files: app/room/[code]/page.tsx (new), components/Lobby.tsx (new)
@@ -461,6 +484,7 @@
   ```
 
 **Writing Screen**:
+
 - [ ] Implement round writing UI with word count validation
   ```
   Files: app/room/[code]/page.tsx (modify), components/WritingScreen.tsx (new)
@@ -489,6 +513,7 @@
   ```
 
 **Waiting Screen**:
+
 - [ ] Implement waiting for round completion UI
   ```
   Files: components/WaitingScreen.tsx (new)
@@ -505,6 +530,7 @@
   ```
 
 **Reveal Screen**:
+
 - [ ] Implement poem reveal list and detail views
   ```
   Files: components/RevealList.tsx (new), components/PoemDetail.tsx (new)
@@ -538,6 +564,7 @@
   ```
 
 **My Poems Page**:
+
 - [ ] Implement user poem history page
   ```
   Files: app/me/poems/page.tsx (new)
@@ -555,6 +582,7 @@
   ```
 
 **Profile Page**:
+
 - [ ] Implement profile page with display name edit
   ```
   Files: app/me/profile/page.tsx (new)
@@ -573,6 +601,7 @@
 ## UI Components Library
 
 **Base Components**:
+
 - [ ] Create reusable UI component library
   ```
   Files: components/ui/Button.tsx, Input.tsx, Card.tsx, Badge.tsx (new)
@@ -585,6 +614,7 @@
   ```
 
 **Word Count Utility**:
+
 - [ ] Create shared word count utility matching backend
   ```
   Files: lib/wordCount.ts (new)
@@ -602,6 +632,7 @@
 ## Testing
 
 **Vitest Setup**:
+
 - [ ] Configure Vitest for unit and integration tests
   ```
   Files: vitest.config.ts (new), tests/setup.ts (new)
@@ -614,6 +645,7 @@
   ```
 
 **Assignment Matrix Tests**:
+
 - [ ] Write comprehensive tests for assignment matrix generation
   ```
   Files: tests/assignmentMatrix.test.ts (new)
@@ -630,6 +662,7 @@
   ```
 
 **Word Count Tests**:
+
 - [ ] Test word counting edge cases
   ```
   Files: tests/wordCount.test.ts (new)
@@ -645,6 +678,7 @@
   ```
 
 **Game Flow Integration Test**:
+
 - [ ] Write end-to-end game flow test
   ```
   Files: tests/e2e/gameFlow.test.ts (new)
@@ -664,6 +698,7 @@
 ## Polish & Deployment
 
 **Animations**:
+
 - [ ] Add polish animations for key interactions
   ```
   Files: components/*.tsx (modify)
@@ -679,6 +714,7 @@
   ```
 
 **Mobile Responsive**:
+
 - [ ] Test and fix mobile layouts
   ```
   Files: All components (review/modify)
@@ -691,6 +727,7 @@
   ```
 
 **Error States & Loading**:
+
 - [ ] Implement comprehensive error and empty states
   ```
   Files: All pages/components (modify)
@@ -706,6 +743,7 @@
   ```
 
 **Vercel Deployment**:
+
 - [ ] Deploy to Vercel with environment setup
   ```
   Files: vercel.json (new if needed), .env.production (document)
@@ -722,6 +760,7 @@
   ```
 
 **Documentation**:
+
 - [ ] Write README with setup instructions
   ```
   Files: README.md (new)
@@ -740,16 +779,19 @@
 ## Design Iteration Checkpoints
 
 **After Core Backend Complete**:
+
 - Review module boundaries: Are users/rooms/games properly separated?
 - Check interface complexity: Do mutations have minimal surface area?
 - Identify coupling: Can we test game logic without rooms?
 
 **After Core Frontend Complete**:
+
 - Review component hierarchy: Are we repeating ourselves?
 - Check prop drilling: Do we need state management (Zustand)?
 - Assess bundle size: Is code splitting needed?
 
 **Pre-Launch**:
+
 - Full playtest with 4-8 real people
 - Mobile device testing (iOS + Android)
 - Performance audit (Lighthouse, Core Web Vitals)
@@ -758,6 +800,7 @@
 ## Automation Opportunities
 
 After v1 stable:
+
 - Automated E2E tests for critical paths
 - Visual regression testing for UI changes
 - Database backup automation
@@ -769,6 +812,7 @@ After v1 stable:
 ## Validation Checklist
 
 Before finalizing each task:
+
 - [ ] Can engineer implement without questions?
 - [ ] Module boundaries clear, dependencies explicit?
 - [ ] Testable independently?
@@ -776,6 +820,7 @@ Before finalizing each task:
 - [ ] Follows existing patterns from TASK.md?
 
 **Red Flags**:
+
 - Shallow modules (wrapper functions with no added value)
 - Pass-through tasks (just forwarding data)
 - Temporal organization (step1, step2 instead of by responsibility)
@@ -786,20 +831,24 @@ Before finalizing each task:
 ## Implementation Priority
 
 **Phase 1 - Foundation** (Can be parallelized):
+
 1. Project initialization + infrastructure (quality gates, design system, logging, error tracking)
 2. Convex schema + basic queries
 
 **Phase 2 - Backend Core** (Some parallelization possible):
+
 1. User + Room management (blocking)
 2. Assignment matrix (can be parallel)
 3. Game initialization → Round management → Line submission (sequential)
 4. Poem queries + Favorites (can be parallel after line submission)
 
 **Phase 3 - Frontend Core** (High parallelization):
+
 1. Auth + Convex setup (blocking)
 2. All pages can be built in parallel once setup done
 
 **Phase 4 - Polish** (After feature-complete):
+
 1. Testing (parallel with polish)
 2. Animations + responsive + error states
 3. Deployment + docs
