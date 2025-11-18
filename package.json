@@ -14,7 +14,9 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:ci": "vitest run --coverage",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "changeset": "changeset",
+    "version": "changeset version"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.25.0",
@@ -27,6 +29,8 @@
     "require-in-the-middle": "^8.0.1"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
+    "@changesets/cli": "^2.29.7",
     "@commitlint/cli": "^20.1.0",
     "@commitlint/config-conventional": "^20.0.0",
     "@tailwindcss/postcss": "^4",
