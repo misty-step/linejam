@@ -17,11 +17,14 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.25.0",
+    "import-in-the-middle": "^2.0.0",
     "next": "16.0.3",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "require-in-the-middle": "^8.0.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.1.0",
