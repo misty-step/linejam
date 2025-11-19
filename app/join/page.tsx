@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
+import * as Sentry from '@sentry/nextjs';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { logger } from '../../lib/logger';
@@ -42,6 +43,9 @@ export default function JoinPage() {
         { error: err, roomCode: code.toUpperCase() },
         'Failed to join room'
       );
+      Sentry.captureException(err, {
+        contexts: { room: { code: code.toUpperCase() } },
+      });
       setError(err instanceof Error ? err.message : 'Failed to join room');
       setIsJoining(false);
     }

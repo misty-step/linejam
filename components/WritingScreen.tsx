@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import * as Sentry from '@sentry/nextjs';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { countWords } from '../lib/wordCount';
@@ -59,6 +60,9 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         { error, roomCode, poemId: assignment.poemId },
         'Failed to submit line'
       );
+      Sentry.captureException(error, {
+        contexts: { room: { code: roomCode }, poem: { id: assignment.poemId } },
+      });
       setIsSubmitting(false);
       alert('Failed to submit line. Please try again.');
     }

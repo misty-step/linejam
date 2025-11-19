@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import * as Sentry from '@sentry/nextjs';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { logger } from '../lib/logger';
@@ -50,6 +51,9 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         { error, roomCode, poemId: myPoem._id },
         'Failed to reveal poem'
       );
+      Sentry.captureException(error, {
+        contexts: { room: { code: roomCode }, poem: { id: myPoem._id } },
+      });
     }
     setIsRevealing(false);
   };

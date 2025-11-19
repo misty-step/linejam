@@ -25,7 +25,7 @@
   Time: 1h
   ```
 
-- [ ] Wire Sentry error capture in all catch blocks
+- [x] Wire Sentry error capture in all catch blocks
 
   ```
   Files: Same files as logger task
