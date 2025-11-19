@@ -41,6 +41,9 @@ importers:
       require-in-the-middle:
         specifier: ^8.0.1
         version: 8.0.1
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0

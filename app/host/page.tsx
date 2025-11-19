@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
-import * as Sentry from '@sentry/nextjs';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
-import { logger } from '../../lib/logger';
+import { captureError } from '../../lib/error';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import {
@@ -35,8 +34,7 @@ export default function HostPage() {
       });
       router.push(`/room/${code}`);
     } catch (error) {
-      logger.error({ error }, 'Failed to create room');
-      Sentry.captureException(error);
+      captureError(error);
       setIsCreating(false);
     }
   };

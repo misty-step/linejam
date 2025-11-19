@@ -1,8 +1,7 @@
 import { useMutation } from 'convex/react';
-import * as Sentry from '@sentry/nextjs';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
-import { logger } from '../lib/logger';
+import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Doc } from '../convex/_generated/dataModel';
@@ -20,10 +19,7 @@ export function Lobby({ room, players }: LobbyProps) {
     try {
       await startGame({ code: room.code, guestId: guestId || undefined });
     } catch (error) {
-      logger.error({ error, roomCode: room.code }, 'Failed to start game');
-      Sentry.captureException(error, {
-        contexts: { room: { code: room.code } },
-      });
+      captureError(error, { roomCode: room.code });
       alert('Only the host can start the game!');
     }
   };
