@@ -234,7 +234,7 @@
 
 **Game Initialization Module**:
 
-- [ ] Implement startGame mutation
+- [x] Implement startGame mutation
   ```
   Files: convex/game.ts (new)
   Architecture: Orchestrates game creation, poem setup, assignment generation
@@ -258,7 +258,7 @@
 
 **Round Assignment Module**:
 
-- [ ] Implement getCurrentAssignment query
+- [x] Implement getCurrentAssignment query
   ```
   Files: convex/game.ts (modify)
   Architecture: Read-only query, no side effects
@@ -286,7 +286,7 @@
 
 **Line Submission Module**:
 
-- [ ] Implement submitLine mutation with validation
+- [x] Implement submitLine mutation with validation
   ```
   Files: convex/game.ts (modify), convex/lib/wordCount.ts (new)
   Architecture: Validates assignment, word count, then saves line and advances round
@@ -316,7 +316,7 @@
 
 **Round Progress Query**:
 
-- [ ] Implement getRoundProgress query
+- [x] Implement getRoundProgress query
   ```
   Files: convex/game.ts (modify)
   Architecture: Read-only, returns submission status for waiting screen
@@ -341,7 +341,7 @@
 
 **Poem Queries Module**:
 
-- [ ] Implement poem retrieval queries
+- [x] Implement poem retrieval queries
   ```
   Files: convex/poems.ts (new)
   Architecture: Read-only queries for reveal and history
@@ -371,7 +371,7 @@
 
 **Favorites Module**:
 
-- [ ] Implement toggleFavorite mutation and getFavorites query
+- [x] Implement toggleFavorite mutation and getFavorites query
   ```
   Files: convex/favorites.ts (new)
   Architecture: Simple toggle logic, works for guest + auth users
@@ -397,7 +397,7 @@
 
 **Auth Integration**:
 
-- [ ] Setup Clerk with guest mode fallback
+- [x] Setup Clerk with guest mode fallback
   ```
   Files: app/providers.tsx (new), lib/auth.ts (new), middleware.ts (new)
   Architecture: Clerk for auth users, localStorage guestId for guests
@@ -420,7 +420,7 @@
 
 **Convex Client Setup**:
 
-- [ ] Configure Convex provider and hooks
+- [x] Configure Convex provider and hooks
   ```
   Files: app/providers.tsx (modify), lib/convex.ts (new)
   Architecture: ConvexProviderWithClerk for automatic auth token forwarding
@@ -433,7 +433,7 @@
 
 **Home Page**:
 
-- [ ] Implement home page with Host/Join CTAs
+- [x] Implement home page with Host/Join CTAs
   ```
   Files: app/page.tsx (modify)
   Architecture: Landing page with clear game pitch and primary CTAs
@@ -447,7 +447,7 @@
 
 **Host Flow**:
 
-- [ ] Implement host game page and lobby
+- [x] Implement host game page and lobby
   ```
   Files: app/host/page.tsx (new), components/RoomCode.tsx (new)
   Architecture: Create room, show code, redirect to /room/[code]
@@ -464,7 +464,7 @@
 
 **Join Flow**:
 
-- [ ] Implement join game page
+- [x] Implement join game page
   ```
   Files: app/join/page.tsx (new), components/JoinForm.tsx (new)
   Architecture: Form with room code + display name, validation
@@ -482,7 +482,7 @@
 
 **Lobby Screen**:
 
-- [ ] Implement lobby UI with player list and host controls
+- [x] Implement lobby UI with player list and host controls
   ```
   Files: app/room/[code]/page.tsx (new), components/Lobby.tsx (new)
   Architecture: Real-time player list via useQuery("rooms.getRoomState")
@@ -500,7 +500,7 @@
 
 **Writing Screen**:
 
-- [ ] Implement round writing UI with word count validation
+- [x] Implement round writing UI with word count validation
   ```
   Files: app/room/[code]/page.tsx (modify), components/WritingScreen.tsx (new)
   Architecture: Query assignment, show previous line, live word count, submit
@@ -529,7 +529,7 @@
 
 **Waiting Screen**:
 
-- [ ] Implement waiting for round completion UI
+- [x] Implement waiting for round completion UI
   ```
   Files: components/WaitingScreen.tsx (new)
   Architecture: Query getRoundProgress, show player submission status
@@ -546,7 +546,7 @@
 
 **Reveal Screen**:
 
-- [ ] Implement poem reveal list and detail views
+- [x] Implement poem reveal list and detail views
   ```
   Files: components/RevealList.tsx (new), components/PoemDetail.tsx (new)
   Architecture: Query poems for room, show list, detail view with animations
@@ -580,7 +580,7 @@
 
 **My Poems Page**:
 
-- [ ] Implement user poem history page
+- [x] Implement user poem history page
   ```
   Files: app/me/poems/page.tsx (new)
   Architecture: Query user poems, group by game, show favorites section
@@ -598,7 +598,7 @@
 
 **Profile Page**:
 
-- [ ] Implement profile page with display name edit
+- [x] Implement profile page with display name edit
   ```
   Files: app/me/profile/page.tsx (new)
   Architecture: Show/edit display name, auth status
@@ -617,7 +617,7 @@
 
 **Base Components**:
 
-- [ ] Create reusable UI component library
+- [x] Create reusable UI component library
   ```
   Files: components/ui/Button.tsx, Input.tsx, Card.tsx, Badge.tsx (new)
   Architecture: Composable primitives following design tokens
@@ -630,7 +630,7 @@
 
 **Word Count Utility**:
 
-- [ ] Create shared word count utility matching backend
+- [x] Create shared word count utility matching backend
   ```
   Files: lib/wordCount.ts (new)
   Architecture: Exact same logic as backend for consistency
@@ -648,7 +648,7 @@
 
 **Vitest Setup**:
 
-- [ ] Configure Vitest for unit and integration tests
+- [x] Configure Vitest for unit and integration tests
   ```
   Files: vitest.config.ts (new), tests/setup.ts (new)
   Architecture: Fast unit tests, separate integration tests for Convex
@@ -661,7 +661,7 @@
 
 **Assignment Matrix Tests**:
 
-- [ ] Write comprehensive tests for assignment matrix generation
+- [x] Write comprehensive tests for assignment matrix generation
   ```
   Files: tests/assignmentMatrix.test.ts (new)
   Architecture: Pure function testing, property-based where possible
@@ -678,7 +678,7 @@
 
 **Word Count Tests**:
 
-- [ ] Test word counting edge cases
+- [x] Test word counting edge cases
   ```
   Files: tests/wordCount.test.ts (new)
   Tests:
