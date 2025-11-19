@@ -38,7 +38,7 @@
   Time: 1h
   ```
 
-- [ ] Add test-error route for Sentry verification
+- [x] Add test-error route for Sentry verification
 
   ```
   Files: app/test-error/page.tsx (new)
@@ -49,7 +49,7 @@
   Time: 10m
   ```
 
-- [ ] Add health check endpoint
+- [x] Add health check endpoint
   ```
   Files: app/api/health/route.ts (new)
   Pattern: Simple JSON response with status and timestamp
