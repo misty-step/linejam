@@ -1,27 +1,6 @@
 import { v } from 'convex/values';
-import { mutation, query, QueryCtx, MutationCtx } from './_generated/server';
-
-// Helper to get user (duplicated from game.ts, maybe should be shared but simple enough)
-async function getUser(ctx: QueryCtx | MutationCtx, guestId?: string) {
-  const identity = await ctx.auth.getUserIdentity();
-  const clerkUserId = identity?.subject;
-
-  if (clerkUserId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_clerk', (q) => q.eq('clerkUserId', clerkUserId))
-      .first();
-  }
-
-  if (guestId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_guest', (q) => q.eq('guestId', guestId))
-      .first();
-  }
-
-  return null;
-}
+import { mutation, query } from './_generated/server';
+import { getUser } from './lib/auth';
 
 export const toggleFavorite = mutation({
   args: {

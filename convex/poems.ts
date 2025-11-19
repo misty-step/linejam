@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
-import { query, QueryCtx } from './_generated/server';
+import { query } from './_generated/server';
+import { getUser } from './lib/auth';
 
 export const getPoemsForRoom = query({
   args: {
@@ -110,28 +111,6 @@ export const getPoemsForUser = query({
     return poems;
   },
 });
-
-// Helper to get user (duplicated, should be shared)
-async function getUser(ctx: QueryCtx, guestId?: string) {
-  const identity = await ctx.auth.getUserIdentity();
-  const clerkUserId = identity?.subject;
-
-  if (clerkUserId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_clerk', (q) => q.eq('clerkUserId', clerkUserId))
-      .first();
-  }
-
-  if (guestId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_guest', (q) => q.eq('guestId', guestId))
-      .first();
-  }
-
-  return null;
-}
 
 export const getMyPoems = query({
   args: {

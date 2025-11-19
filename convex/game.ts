@@ -1,31 +1,10 @@
 import { v } from 'convex/values';
-import { mutation, query, QueryCtx, MutationCtx } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { generateAssignmentMatrix } from './lib/assignmentMatrix';
 import { countWords } from './lib/wordCount';
+import { getUser } from './lib/auth';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
-
-// Helper to get the current user (Clerk or Guest)
-async function getUser(ctx: QueryCtx | MutationCtx, guestId?: string) {
-  const identity = await ctx.auth.getUserIdentity();
-  const clerkUserId = identity?.subject;
-
-  if (clerkUserId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_clerk', (q) => q.eq('clerkUserId', clerkUserId))
-      .first();
-  }
-
-  if (guestId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_guest', (q) => q.eq('guestId', guestId))
-      .first();
-  }
-
-  return null;
-}
 
 export const startGame = mutation({
   args: {
