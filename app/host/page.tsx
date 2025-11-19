@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
+import { logger } from '../../lib/logger';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import {
@@ -33,7 +34,7 @@ export default function HostPage() {
       });
       router.push(`/room/${code}`);
     } catch (error) {
-      console.error('Failed to create room:', error);
+      logger.error({ error }, 'Failed to create room');
       setIsCreating(false);
     }
   };
