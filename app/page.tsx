@@ -11,22 +11,22 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-            Linejam
-          </h1>
-          <p className="text-lg text-gray-600">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
+      <div className="max-w-sm w-full space-y-10 animate-stagger">
+        {/* Header */}
+        <div className="text-center space-y-3">
+          <h1 className="text-5xl sm:text-6xl tracking-tight">Linejam</h1>
+          <p className="text-[var(--color-text-secondary)] text-lg leading-relaxed">
             Collaborative poetry for friends in the same room.
           </p>
         </div>
 
+        {/* Action Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">Get Started</CardTitle>
+            <CardTitle className="text-center text-xl">Get Started</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             <Link href="/host" className="block w-full">
               <Button className="w-full" size="lg">
                 Host a Game
@@ -40,10 +40,11 @@ export default function Home() {
           </CardContent>
         </Card>
 
+        {/* Footer Link */}
         <div className="text-center">
           <Link
             href="/me/poems"
-            className="text-sm text-gray-500 hover:text-gray-900"
+            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors duration-[var(--duration-fast)]"
           >
             View My Poems
           </Link>

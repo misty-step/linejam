@@ -243,12 +243,131 @@ export const submitLine = mutation({
           completedAt: Date.now(),
         });
 
-        // Mark all poems as completed
-        for (const p of poems) {
-          await ctx.db.patch(p._id, { completedAt: Date.now() });
+        // Mark all poems as completed and assign readers
+        // Each player reads the poem at offset +1 from their seat
+        // (so they don't read the poem they started)
+        for (let i = 0; i < poems.length; i++) {
+          const readerIndex = (i + 1) % players.length;
+          const readerPlayer = players.find((p) => p.seatIndex === readerIndex);
+          await ctx.db.patch(poems[i]._id, {
+            completedAt: Date.now(),
+            assignedReaderId: readerPlayer?.userId,
+          });
         }
       }
     }
+  },
+});
+
+export const getRevealPhaseState = query({
+  args: {
+    roomCode: v.string(),
+    guestId: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, guestId }) => {
+    const user = await getUser(ctx, guestId);
+    if (!user) return null;
+
+    const room = await ctx.db
+      .query('rooms')
+      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
+      .first();
+    if (!room || room.status !== 'COMPLETED') return null;
+
+    const poems = await ctx.db
+      .query('poems')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+
+    const players = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+
+    // Get first line of each poem for preview
+    const poemsWithPreview = await Promise.all(
+      poems.map(async (poem) => {
+        const firstLine = await ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) =>
+            q.eq('poemId', poem._id).eq('indexInPoem', 0)
+          )
+          .first();
+
+        const reader = players.find((p) => p.userId === poem.assignedReaderId);
+
+        return {
+          _id: poem._id,
+          indexInRoom: poem.indexInRoom,
+          preview: firstLine?.text || '',
+          assignedReaderId: poem.assignedReaderId,
+          readerName: reader?.displayName || 'Unknown',
+          revealedAt: poem.revealedAt,
+          isRevealed: !!poem.revealedAt,
+        };
+      })
+    );
+
+    // Find the current user's assigned poem
+    const myPoem = poemsWithPreview.find(
+      (p) => p.assignedReaderId === user._id
+    );
+
+    // Get full lines for user's poem if they want to reveal
+    let myPoemLines: { text: string; authorUserId: string }[] = [];
+    if (myPoem) {
+      const lines = await ctx.db
+        .query('lines')
+        .withIndex('by_poem', (q) => q.eq('poemId', myPoem._id))
+        .collect();
+      myPoemLines = lines
+        .sort((a, b) => a.indexInPoem - b.indexInPoem)
+        .map((l) => ({ text: l.text, authorUserId: l.authorUserId }));
+    }
+
+    const allRevealed = poemsWithPreview.every((p) => p.isRevealed);
+
+    return {
+      poems: poemsWithPreview,
+      myPoem: myPoem
+        ? {
+            ...myPoem,
+            lines: myPoemLines,
+          }
+        : null,
+      allRevealed,
+      isHost: room.hostUserId === user._id,
+      players: players.map((p) => ({
+        userId: p.userId,
+        displayName: p.displayName,
+      })),
+    };
+  },
+});
+
+export const revealPoem = mutation({
+  args: {
+    poemId: v.id('poems'),
+    guestId: v.optional(v.string()),
+  },
+  handler: async (ctx, { poemId, guestId }) => {
+    const user = await getUser(ctx, guestId);
+    if (!user) throw new Error('User not found');
+
+    const poem = await ctx.db.get(poemId);
+    if (!poem) throw new Error('Poem not found');
+
+    if (poem.assignedReaderId !== user._id) {
+      throw new Error('This poem is not assigned to you');
+    }
+
+    if (poem.revealedAt) {
+      throw new Error('Poem already revealed');
+    }
+
+    await ctx.db.patch(poemId, {
+      revealedAt: Date.now(),
+    });
   },
 });
 

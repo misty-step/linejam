@@ -5,7 +5,7 @@ import { api } from '../../../convex/_generated/api';
 import { useParams } from 'next/navigation';
 import { Lobby } from '../../../components/Lobby';
 import { WritingScreen } from '../../../components/WritingScreen';
-import { RevealList } from '../../../components/RevealList';
+import { RevealPhase } from '../../../components/RevealPhase';
 import { useUser } from '../../../lib/auth';
 
 export default function RoomPage() {
@@ -16,16 +16,21 @@ export default function RoomPage() {
 
   if (isLoading || roomState === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <span className="text-[var(--color-text-muted)]">Loading...</span>
       </div>
     );
   }
 
   if (roomState === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Room not found
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4">
+        <span className="text-[var(--color-text-primary)] text-xl">
+          Room not found
+        </span>
+        <span className="text-[var(--color-text-muted)] text-sm">
+          The room code may be incorrect or the room has expired.
+        </span>
       </div>
     );
   }
@@ -41,7 +46,7 @@ export default function RoomPage() {
   }
 
   if (room.status === 'COMPLETED') {
-    return <RevealList roomCode={code} />;
+    return <RevealPhase roomCode={code} />;
   }
 
   return null;

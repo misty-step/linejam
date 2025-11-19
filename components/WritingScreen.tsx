@@ -24,7 +24,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
 
-  // Reset text when assignment changes (new round) - using ref pattern to avoid setState in effect
+  // Reset text when assignment changes (new round)
   const currentRound = assignment?.lineIndex;
   if (currentRound !== undefined && currentRound !== lastSeenRound) {
     setText('');
@@ -32,8 +32,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     setLastSeenRound(currentRound);
   }
 
-  // If we don't have an assignment yet, or we just submitted for this round, show waiting
-  // We track `submittedRound` to optimistically show waiting screen while the backend processes
+  // Show waiting screen if no assignment or just submitted
   if (!assignment || submittedRound === assignment.lineIndex) {
     return <WaitingScreen roomCode={roomCode} />;
   }
@@ -62,14 +61,14 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
+      <Card className="w-full max-w-md animate-fade-in">
         <CardHeader>
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-500">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-medium text-[var(--color-text-muted)]">
               Round {assignment.lineIndex + 1} of 9
             </span>
-            <span className="text-sm font-medium text-gray-500">
+            <span className="text-sm font-medium text-[var(--color-text-muted)]">
               Target: {targetCount} words
             </span>
           </div>
@@ -81,17 +80,19 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         </CardHeader>
         <CardContent className="space-y-6">
           {assignment.previousLineText && (
-            <div className="bg-gray-100 p-4 rounded-lg border border-gray-200">
-              <p className="text-sm text-gray-500 mb-1">Previous line:</p>
-              <p className="text-lg font-medium text-gray-900 italic">
+            <div className="bg-[var(--color-muted)] p-4 rounded-[var(--radius-md)] border border-[var(--color-border)]">
+              <p className="text-xs text-[var(--color-text-muted)] mb-2 uppercase tracking-wider">
+                Previous line
+              </p>
+              <p className="text-lg leading-relaxed text-[var(--color-text-primary)] italic font-[var(--font-display)]">
                 &ldquo;{assignment.previousLineText}&rdquo;
               </p>
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <textarea
-              className="w-full min-h-[100px] p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent resize-none"
+              className="w-full min-h-[120px] p-4 rounded-[var(--input-border-radius)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 resize-none transition-all duration-[var(--duration-fast)]"
               placeholder={`Write exactly ${targetCount} words...`}
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -100,18 +101,20 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
 
             <div className="flex justify-between items-center">
               <span
-                className={`text-sm font-medium transition-colors ${
+                className={`text-sm font-medium transition-colors duration-[var(--duration-fast)] ${
                   isValid
-                    ? 'text-green-600'
+                    ? 'text-[var(--color-success)]'
                     : currentWordCount > targetCount
-                      ? 'text-red-500'
-                      : 'text-gray-500'
+                      ? 'text-[var(--color-error)]'
+                      : 'text-[var(--color-text-muted)]'
                 }`}
               >
                 {currentWordCount} / {targetCount} words
               </span>
               {currentWordCount > targetCount && (
-                <span className="text-xs text-red-500">Too many words!</span>
+                <span className="text-xs text-[var(--color-error)]">
+                  Too many words
+                </span>
               )}
             </div>
           </div>

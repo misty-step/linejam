@@ -51,9 +51,13 @@ export default defineSchema({
     indexInRoom: v.number(),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
+    // Reveal phase
+    assignedReaderId: v.optional(v.id('users')),
+    revealedAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
-    .index('by_room_index', ['roomId', 'indexInRoom']),
+    .index('by_room_index', ['roomId', 'indexInRoom'])
+    .index('by_reader', ['assignedReaderId']),
 
   lines: defineTable({
     poemId: v.id('poems'),

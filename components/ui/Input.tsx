@@ -1,5 +1,5 @@
 import { InputHTMLAttributes, forwardRef } from 'react';
-import { cn } from './Button'; // Reusing cn from Button for now, ideally move to lib/utils
+import { cn } from '@/lib/utils';
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
@@ -9,7 +9,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+          'flex w-full',
+          'h-[var(--input-height)]',
+          'rounded-[var(--input-border-radius)]',
+          'border border-[var(--color-border)]',
+          'bg-[var(--color-surface)]',
+          'px-[var(--input-padding-x)] py-2',
+          'text-sm text-[var(--color-text-primary)]',
+          'placeholder:text-[var(--color-text-muted)]',
+          'transition-colors duration-[var(--duration-fast)]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          'file:border-0 file:bg-transparent file:text-sm file:font-medium',
           className
         )}
         ref={ref}

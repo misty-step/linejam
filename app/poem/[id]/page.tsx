@@ -45,8 +45,8 @@ export default function PoemDetailPage() {
 
   if (!poemData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <span className="text-[var(--color-text-muted)]">Loading...</span>
       </div>
     );
   }
@@ -56,17 +56,25 @@ export default function PoemDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center">
+    <div className="min-h-screen bg-[var(--color-background)] p-6 flex flex-col items-center">
       <div className="w-full max-w-md space-y-6">
+        {/* Navigation */}
         <div className="flex justify-between items-center">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-900">
+          <Link
+            href="/"
+            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors duration-[var(--duration-fast)]"
+          >
             ← Home
           </Link>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleFavorite}
-            className={isFavorited ? 'text-red-500' : 'text-gray-400'}
+            className={
+              isFavorited
+                ? 'text-[var(--color-primary)]'
+                : 'text-[var(--color-text-muted)]'
+            }
           >
             <svg
               className="w-6 h-6"
@@ -84,8 +92,9 @@ export default function PoemDetailPage() {
           </Button>
         </div>
 
+        {/* Poem Card */}
         <Card className="overflow-hidden">
-          <CardHeader className="bg-gray-50 border-b border-gray-100">
+          <CardHeader className="bg-[var(--color-muted)] border-b border-[var(--color-border)]">
             <CardTitle className="text-center">Poem</CardTitle>
           </CardHeader>
           <CardContent className="p-8 space-y-6">
@@ -98,10 +107,10 @@ export default function PoemDetailPage() {
                     : 'opacity-0 translate-y-4'
                 }`}
               >
-                <p className="text-lg font-serif text-gray-900 text-center leading-relaxed">
+                <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)] text-center leading-relaxed">
                   {line.text}
                 </p>
-                <p className="text-xs text-gray-400 text-center mt-1">
+                <p className="text-xs text-[var(--color-text-muted)] text-center mt-1">
                   — {line.authorName}
                 </p>
               </div>

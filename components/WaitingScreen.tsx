@@ -10,22 +10,28 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
   const progress = useQuery(api.game.getRoundProgress, { roomCode });
 
   if (!progress) {
-    return <div className="flex justify-center p-8">Loading progress...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <span className="text-[var(--color-text-muted)]">Loading...</span>
+      </div>
+    );
   }
 
   const { round, players } = progress;
   const submittedCount = players.filter((p) => p.submitted).length;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
+      <Card className="w-full max-w-sm animate-fade-in">
         <CardHeader>
           <CardTitle className="text-center">Round {round + 1}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center space-y-2">
-            <h3 className="text-xl font-medium">Waiting for everyone...</h3>
-            <p className="text-gray-500">
+            <h3 className="text-xl font-medium text-[var(--color-text-primary)]">
+              Waiting for everyone...
+            </h3>
+            <p className="text-[var(--color-text-muted)]">
               {submittedCount} of {players.length} players ready
             </p>
           </div>
@@ -34,13 +40,15 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
             {players.map((player) => (
               <div
                 key={player.userId}
-                className="flex items-center justify-between bg-white border border-gray-200 px-4 py-3 rounded-lg shadow-sm"
+                className="flex items-center justify-between bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3 rounded-[var(--radius-md)]"
               >
-                <span className="font-medium">{player.displayName}</span>
+                <span className="font-medium text-[var(--color-text-primary)]">
+                  {player.displayName}
+                </span>
                 {player.submitted ? (
-                  <span className="text-green-600 flex items-center gap-1">
+                  <span className="text-[var(--color-success)] flex items-center gap-1.5 text-sm">
                     <svg
-                      className="w-5 h-5"
+                      className="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -55,9 +63,9 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
                     Done
                   </span>
                 ) : (
-                  <span className="text-gray-400 flex items-center gap-1">
+                  <span className="text-[var(--color-text-muted)] flex items-center gap-1.5 text-sm">
                     <svg
-                      className="w-5 h-5 animate-pulse"
+                      className="w-4 h-4 animate-pulse"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -69,7 +77,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
                         d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                       />
                     </svg>
-                    Writing...
+                    Writing
                   </span>
                 )}
               </div>

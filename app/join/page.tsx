@@ -45,24 +45,24 @@ export default function JoinPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <span className="text-[var(--color-text-muted)]">Loading...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
+      <Card className="w-full max-w-sm animate-fade-in">
         <CardHeader>
           <CardTitle>Join a Game</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleJoin} className="space-y-4">
+          <form onSubmit={handleJoin} className="space-y-5">
             <div className="space-y-2">
               <label
                 htmlFor="code"
-                className="text-sm font-medium text-gray-700"
+                className="text-sm font-medium text-[var(--color-text-secondary)]"
               >
                 Room Code
               </label>
@@ -74,12 +74,13 @@ export default function JoinPage() {
                 maxLength={4}
                 required
                 autoFocus
+                className="uppercase tracking-widest text-center font-mono"
               />
             </div>
             <div className="space-y-2">
               <label
                 htmlFor="name"
-                className="text-sm font-medium text-gray-700"
+                className="text-sm font-medium text-[var(--color-text-secondary)]"
               >
                 Your Name
               </label>
@@ -91,7 +92,9 @@ export default function JoinPage() {
                 required
               />
             </div>
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && (
+              <p className="text-sm text-[var(--color-error)]">{error}</p>
+            )}
             <Button
               type="submit"
               className="w-full"
