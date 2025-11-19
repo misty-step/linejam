@@ -76,7 +76,8 @@
 
 **Error Tracking**:
 
-- [ ] Configure Sentry with source maps and release tracking
+- [x] Configure Sentry with source maps and release tracking
+
   ```
   Files: lib/sentry.ts (new), instrumentation.ts (new), sentry.*.config.ts (new)
   Architecture: Client+server error capture, source maps, sensitive data scrubbing
@@ -94,9 +95,16 @@
   Time: 45min
   ```
 
+  ```
+  Work Log:
+  - Hardened shared Sentry options with DSN guards, release resolution, and environment defaults so we only boot the SDK when configured.
+  - Expanded scrubbing logic to cover request data, breadcrumbs, and auth headers plus added Vitest coverage for the beforeSend hook + release derivation.
+  - Instrumentation hook now short-circuits when Sentry is disabled to avoid useless imports; next.config already uploads source maps via withSentryConfig.
+  ```
+
 **Changelog Automation**:
 
-- [ ] Setup Changesets for version management
+- [x] Setup Changesets for version management
   ```
   Files: .changeset/config.json (new), .github/workflows/release.yml (new)
   Architecture: Changeset files track changes, bot creates version PRs
@@ -111,7 +119,7 @@
 
 **Convex Setup**:
 
-- [ ] Initialize Convex project and define schema
+- [x] Initialize Convex project and define schema
   ```
   Files: convex/schema.ts (new), convex/_generated/* (generated)
   Architecture: Define tables for users, rooms, roomPlayers, games, poems, lines, favorites
@@ -136,7 +144,8 @@
 
 **User Management Module**:
 
-- [ ] Implement users.ensureUser() mutation
+- [x] Implement users.ensureUser() mutation
+
   ```
   Files: convex/users.ts (new)
   Architecture: Single source of truth for user creation/lookup
@@ -156,9 +165,15 @@
   Time: 30min
   ```
 
+  ```
+  Work Log:
+  - Added lightweight convex/_generated scaffolding for typed Convex helpers.
+  - Normalized displayName server-side to block blank or whitespace-only names.
+  ```
+
 **Room Management Module**:
 
-- [ ] Implement room creation and joining (rooms.ts)
+- [x] Implement room creation and joining (rooms.ts)
   ```
   Files: convex/rooms.ts (new)
   Architecture: Room lifecycle (create, join, kick, start)
@@ -185,7 +200,7 @@
 
 **Assignment Matrix Generator**:
 
-- [ ] Implement assignment matrix generation algorithm
+- [x] Implement assignment matrix generation algorithm
   ```
   Files: convex/lib/assignmentMatrix.ts (new)
   Architecture: Pure function, no side effects, fully tested

@@ -1,3 +1,5 @@
+import { isSentryEnabled } from './lib/sentry';
+
 /**
  * Next.js instrumentation hook
  *
@@ -6,6 +8,8 @@
  */
 
 export async function register() {
+  if (!isSentryEnabled) return;
+
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('./sentry.server.config');
   }
@@ -32,6 +36,8 @@ export const onRequestError = async (
     revalidateReason?: 'on-demand' | 'stale';
   }
 ) => {
+  if (!isSentryEnabled) return;
+
   const { captureRequestError } = await import('@sentry/nextjs');
   await captureRequestError(error, request, context);
 };
