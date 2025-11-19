@@ -61,7 +61,7 @@
 
 ### Performance (Parallel - Convex N+1 Fixes)
 
-- [ ] Parallelize submitLine round completion check
+- [~] Parallelize submitLine round completion check
 
   ```
   Files: convex/game.ts:213-230
