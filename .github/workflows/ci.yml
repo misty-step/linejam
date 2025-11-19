@@ -11,8 +11,9 @@ jobs:
     name: Quality Checks
     runs-on: ubuntu-latest
     env:
-      # Placeholder for build validation - not used at runtime
+      # Placeholders for build validation - not used at runtime
       NEXT_PUBLIC_CONVEX_URL: https://placeholder.convex.cloud
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
 
     steps:
       - name: Checkout code
