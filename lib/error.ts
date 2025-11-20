@@ -16,4 +16,9 @@ export function captureError(
   Sentry.captureException(error, {
     contexts: context ? { custom: context } : undefined,
   });
+
+  // Log to console in development for visibility when Sentry is not configured
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Captured error:', error, context);
+  }
 }

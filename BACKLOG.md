@@ -96,6 +96,57 @@ const allSubmitted = lineChecks.every((line) => line !== null);
 
 ---
 
+### [Maintainability] Extract checkParticipation helper
+
+**Files**: convex/poems.ts:21-27, convex/poems.ts:67-73
+**Perspectives**: maintainability-maven
+**Impact**: Duplicated roomPlayers lookup in getPoemsForRoom and getPoemDetail. Any auth changes need to update both places.
+**Fix**: Extract to `convex/lib/auth.ts`:
+
+```typescript
+export async function checkParticipation(
+  ctx: QueryCtx | MutationCtx,
+  roomId: Id<'rooms'>,
+  userId: Id<'users'>
+): Promise<boolean> {
+  const player = await ctx.db
+    .query('roomPlayers')
+    .withIndex('by_room_user', (q) =>
+      q.eq('roomId', roomId).eq('userId', userId)
+    )
+    .first();
+  return !!player;
+}
+```
+
+**Effort**: 15m | **Impact**: DRY, single source of truth for participation checks
+**Acceptance**: No duplicated roomPlayers queries in poems.ts
+
+---
+
+### [Maintainability] Centralize CI commit SHA env var list
+
+**File**: test/lib/sentry.test.ts:121-126
+**Perspectives**: maintainability-maven
+**Impact**: Test hardcodes list of CI commit SHA env vars to override. If release-derivation logic adds new providers, tests may drift.
+**Fix**: Create shared constant used both in Sentry module and tests:
+
+```typescript
+// lib/sentry.ts or similar
+export const CI_COMMIT_SHA_ENV_VARS = [
+  'VERCEL_GIT_COMMIT_SHA',
+  'GITHUB_SHA',
+  'CI_COMMIT_SHA',
+  'CIRCLE_SHA1',
+  'TRAVIS_COMMIT',
+];
+```
+
+**Effort**: 10m | **Impact**: Tests and implementation stay in sync
+**Acceptance**: Single source of truth for CI commit SHA detection
+
+---
+
 ### [UX] Replace alert() with inline errors ⚠️ MULTI-AGENT
 
 **Files**: components/Lobby.tsx:22, components/WritingScreen.tsx:59

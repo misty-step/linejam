@@ -34,7 +34,7 @@ export default function HostPage() {
       });
       router.push(`/room/${code}`);
     } catch (error) {
-      captureError(error);
+      captureError(error, { displayName: name, guestId });
       setIsCreating(false);
     }
   };

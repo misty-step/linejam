@@ -70,7 +70,7 @@ export const getPoemDetail = query({
         q.eq('roomId', poem.roomId).eq('userId', user._id)
       )
       .first();
-    if (!player) throw new Error('Unauthorized');
+    if (!player) return null;
 
     const lines = await ctx.db
       .query('lines')

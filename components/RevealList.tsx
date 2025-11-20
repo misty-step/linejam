@@ -1,5 +1,6 @@
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import { useUser } from '../lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import Link from 'next/link';
 
@@ -8,7 +9,11 @@ interface RevealListProps {
 }
 
 export function RevealList({ roomCode }: RevealListProps) {
-  const poems = useQuery(api.poems.getPoemsForRoom, { roomCode });
+  const { guestId } = useUser();
+  const poems = useQuery(api.poems.getPoemsForRoom, {
+    roomCode,
+    guestId: guestId || undefined,
+  });
 
   if (!poems) {
     return (

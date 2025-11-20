@@ -10,6 +10,8 @@ import {
 
 export default function TestErrorPage() {
   const triggerError = () => {
+    // Throws directly (not via captureError) to test Sentry's automatic
+    // error capture in event handlers
     throw new Error('Test Sentry capture - this error is intentional');
   };
 
