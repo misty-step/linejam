@@ -1,16 +1,30 @@
 import { v } from 'convex/values';
-import { query, QueryCtx } from './_generated/server';
+import { query } from './_generated/server';
+import { getUser } from './lib/auth';
 
 export const getPoemsForRoom = query({
   args: {
     roomCode: v.string(),
+    guestId: v.optional(v.string()),
   },
-  handler: async (ctx, { roomCode }) => {
+  handler: async (ctx, { roomCode, guestId }) => {
+    const user = await getUser(ctx, guestId);
+    if (!user) return [];
+
     const room = await ctx.db
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
       .first();
     if (!room) return [];
+
+    // Check participation
+    const player = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room_user', (q) =>
+        q.eq('roomId', room._id).eq('userId', user._id)
+      )
+      .first();
+    if (!player) return [];
 
     const poems = await ctx.db
       .query('poems')
@@ -40,10 +54,23 @@ export const getPoemsForRoom = query({
 export const getPoemDetail = query({
   args: {
     poemId: v.id('poems'),
+    guestId: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId }) => {
+  handler: async (ctx, { poemId, guestId }) => {
+    const user = await getUser(ctx, guestId);
+    if (!user) return null;
+
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
+
+    // Check participation
+    const player = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room_user', (q) =>
+        q.eq('roomId', poem.roomId).eq('userId', user._id)
+      )
+      .first();
+    if (!player) return null;
 
     const lines = await ctx.db
       .query('lines')
@@ -69,69 +96,6 @@ export const getPoemDetail = query({
     };
   },
 });
-
-export const getPoemsForUser = query({
-  args: {
-    userId: v.id('users'),
-  },
-  handler: async (ctx, { userId }) => {
-    // Find all lines written by user
-    const lines = await ctx.db
-      .query('lines')
-      .withIndex('by_author', (q) => q.eq('authorUserId', userId))
-      .collect();
-
-    // Get unique poem IDs
-    const poemIds = Array.from(new Set(lines.map((l) => l.poemId)));
-
-    const poems = [];
-    for (const id of poemIds) {
-      const poem = await ctx.db.get(id);
-      if (poem) {
-        const room = await ctx.db.get(poem.roomId);
-        // Get first line for preview
-        const firstLine = await ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', poem._id).eq('indexInPoem', 0)
-          )
-          .first();
-
-        poems.push({
-          ...poem,
-          roomDate: room?.createdAt,
-          preview: firstLine?.text || '...',
-        });
-      }
-    }
-
-    // Sort by date desc
-    poems.sort((a, b) => b.createdAt - a.createdAt);
-    return poems;
-  },
-});
-
-// Helper to get user (duplicated, should be shared)
-async function getUser(ctx: QueryCtx, guestId?: string) {
-  const identity = await ctx.auth.getUserIdentity();
-  const clerkUserId = identity?.subject;
-
-  if (clerkUserId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_clerk', (q) => q.eq('clerkUserId', clerkUserId))
-      .first();
-  }
-
-  if (guestId) {
-    return await ctx.db
-      .query('users')
-      .withIndex('by_guest', (q) => q.eq('guestId', guestId))
-      .first();
-  }
-
-  return null;
-}
 
 export const getMyPoems = query({
   args: {

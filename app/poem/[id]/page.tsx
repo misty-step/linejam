@@ -20,7 +20,10 @@ export default function PoemDetailPage() {
   const poemId = params.id as Id<'poems'>;
   const { guestId } = useUser();
 
-  const poemData = useQuery(api.poems.getPoemDetail, { poemId });
+  const poemData = useQuery(api.poems.getPoemDetail, {
+    poemId,
+    guestId: guestId || undefined,
+  });
   const isFavorited = useQuery(api.favorites.isFavorited, {
     poemId,
     guestId: guestId || undefined,

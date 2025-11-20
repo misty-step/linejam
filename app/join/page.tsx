@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
+import { captureError } from '../../lib/error';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import {
@@ -37,7 +38,7 @@ export default function JoinPage() {
       });
       router.push(`/room/${code.toUpperCase()}`);
     } catch (err) {
-      console.error('Failed to join room:', err);
+      captureError(err, { roomCode: code.toUpperCase() });
       setError(err instanceof Error ? err.message : 'Failed to join room');
       setIsJoining(false);
     }

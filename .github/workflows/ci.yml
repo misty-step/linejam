@@ -10,6 +10,9 @@ jobs:
   quality-checks:
     name: Quality Checks
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
     steps:
       - name: Checkout code
@@ -42,7 +45,7 @@ jobs:
         run: pnpm test:ci
 
       - name: Build
-        run: pnpm build
+        run: pnpm build:check
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

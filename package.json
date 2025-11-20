@@ -6,7 +6,8 @@
     "dev": "npm-run-all --parallel dev:next dev:convex",
     "dev:next": "next dev",
     "dev:convex": "convex dev",
-    "build": "next build",
+    "build": "npx convex deploy && next build",
+    "build:check": "next build",
     "start": "npm-run-all --parallel start:next dev:convex",
     "start:next": "next start",
     "lint": "eslint .",
@@ -33,6 +34,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "require-in-the-middle": "^8.0.1",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

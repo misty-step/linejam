@@ -3,6 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { countWords } from '../lib/wordCount';
+import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { WaitingScreen } from './WaitingScreen';
@@ -54,7 +55,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
       });
       setSubmittedRound(assignment.lineIndex);
     } catch (error) {
-      console.error('Failed to submit line:', error);
+      captureError(error, { roomCode, poemId: assignment.poemId });
       setIsSubmitting(false);
       alert('Failed to submit line. Please try again.');
     }

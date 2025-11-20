@@ -118,6 +118,12 @@ describe('sentryOptions', () => {
     const { sentryOptions } = await loadSentryModule({
       NEXT_PUBLIC_SENTRY_DSN: 'https://public@sentry.io/123',
       npm_package_version: '0.9.0',
+      // Clear all commit SHA env vars to isolate test from CI environment
+      VERCEL_GIT_COMMIT_SHA: undefined,
+      GITHUB_SHA: undefined,
+      CF_PAGES_COMMIT_SHA: undefined,
+      SOURCE_VERSION: undefined,
+      COMMIT_SHA: undefined,
     });
 
     expect(sentryOptions.release).toBe('linejam@0.9.0+local');

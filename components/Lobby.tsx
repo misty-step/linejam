@@ -1,6 +1,7 @@
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
+import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Doc } from '../convex/_generated/dataModel';
@@ -18,7 +19,7 @@ export function Lobby({ room, players }: LobbyProps) {
     try {
       await startGame({ code: room.code, guestId: guestId || undefined });
     } catch (error) {
-      console.error('Failed to start game:', error);
+      captureError(error, { roomCode: room.code });
       alert('Only the host can start the game!');
     }
   };

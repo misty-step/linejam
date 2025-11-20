@@ -14,17 +14,17 @@ pre-commit:
       run: pnpm prettier --write {staged_files}
       stage_fixed: true
 
+pre-push:
+  parallel: true
+  commands:
     typecheck:
-      glob: "*.{ts,tsx}"
       run: pnpm typecheck
 
-pre-push:
-  commands:
     test:
       run: pnpm test:ci
 
     build:
-      run: pnpm build
+      run: pnpm build:check
 
 commit-msg:
   commands:

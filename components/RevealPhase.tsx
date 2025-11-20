@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
+import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
 import { Card, CardContent } from './ui/Card';
 import { PoemDisplay } from './PoemDisplay';
@@ -45,7 +46,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
       });
       setShowingPoem(true);
     } catch (error) {
-      console.error('Failed to reveal poem:', error);
+      captureError(error, { roomCode, poemId: myPoem._id });
     }
     setIsRevealing(false);
   };

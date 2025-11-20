@@ -7,53 +7,6 @@ Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-
 
 ## Now (Sprint-Ready, <2 weeks)
 
-### [Security] Broken Access Control - getPoemDetail allows viewing any poem
-
-**File**: convex/poems.ts:40-71
-**Perspectives**: security-sentinel
-**Severity**: HIGH
-**Attack**: User navigates to `/poem/{anyId}` and views poems from games they didn't participate in. Privacy violation for personal/sensitive content.
-**Fix**: Add participation check before returning poem:
-
-```typescript
-const roomPlayers = await ctx.db
-  .query('roomPlayers')
-  .withIndex('by_room_user', (q) =>
-    q.eq('roomId', poem.roomId).eq('userId', user._id)
-  )
-  .first();
-if (!roomPlayers) throw new Error('Unauthorized');
-```
-
-**Effort**: 30m | **Risk**: HIGH
-**Acceptance**: Unauthorized access returns null/error, only participants can view poems
-
----
-
-### [Security] Broken Access Control - getPoemsForUser/getFavoritesForUser expose any user's data
-
-**Files**: convex/poems.ts:73-112, convex/favorites.ts:54-84
-**Perspectives**: security-sentinel
-**Severity**: HIGH
-**Attack**: Enumerate user IDs to view all their game history and favorites.
-**Fix**: Remove these functions or restrict to owner-only. Use `getMyPoems`/`getMyFavorites` pattern instead.
-**Effort**: 15m each | **Risk**: HIGH
-**Acceptance**: No way to query another user's poems/favorites
-
----
-
-### [Security] Broken Access Control - getPoemsForRoom has no participation check
-
-**File**: convex/poems.ts:4-38
-**Perspectives**: security-sentinel
-**Severity**: HIGH
-**Attack**: Room codes are 4 uppercase letters (456K combinations). Brute-force enumeration finds active/completed rooms.
-**Fix**: Verify caller participated in room before returning poems.
-**Effort**: 20m | **Risk**: HIGH
-**Acceptance**: Only room participants can view room poems
-
----
-
 ### [Infrastructure] Logger configured but never used ⚠️ MULTI-AGENT
 
 **Files**: lib/logger.ts (configured), components/\*.tsx (6x console.error)
@@ -92,29 +45,6 @@ import * as Sentry from '@sentry/nextjs';
 
 **Effort**: 1h | **Impact**: Error visibility in production
 **Acceptance**: All catch blocks capture to Sentry with relevant context
-
----
-
-### [Architecture] Duplicated getUser helper - 3 copies ⚠️ MULTI-AGENT (4 agents)
-
-**Files**: convex/game.ts:8-28, convex/poems.ts:115-134, convex/favorites.ts:5-24
-**Perspectives**: complexity-archaeologist, architecture-guardian, maintainability-maven, performance-pathfinder
-**Impact**: 60+ lines duplicated. Comments acknowledge debt: "duplicated, should be shared but simple enough". Auth logic changes require 3 edits.
-**Fix**: Extract to `convex/lib/auth.ts`:
-
-```typescript
-export async function getUser(
-  ctx: QueryCtx | MutationCtx,
-  guestId?: string
-): Promise<Doc<'users'> | null>;
-export async function requireUser(
-  ctx: QueryCtx | MutationCtx,
-  guestId?: string
-): Promise<Doc<'users'>>;
-```
-
-**Effort**: 30m | **Impact**: Single source of truth for auth
-**Acceptance**: One `getUser` implementation imported by all files
 
 ---
 
@@ -163,6 +93,57 @@ const allSubmitted = lineChecks.every((line) => line !== null);
 **Fix**: Batch fetch with `Promise.all`, create author lookup maps.
 **Effort**: 45m per function | **Speedup**: 5-10x
 **Acceptance**: No for-loops with sequential DB queries
+
+---
+
+### [Maintainability] Extract checkParticipation helper
+
+**Files**: convex/poems.ts:21-27, convex/poems.ts:67-73
+**Perspectives**: maintainability-maven
+**Impact**: Duplicated roomPlayers lookup in getPoemsForRoom and getPoemDetail. Any auth changes need to update both places.
+**Fix**: Extract to `convex/lib/auth.ts`:
+
+```typescript
+export async function checkParticipation(
+  ctx: QueryCtx | MutationCtx,
+  roomId: Id<'rooms'>,
+  userId: Id<'users'>
+): Promise<boolean> {
+  const player = await ctx.db
+    .query('roomPlayers')
+    .withIndex('by_room_user', (q) =>
+      q.eq('roomId', roomId).eq('userId', userId)
+    )
+    .first();
+  return !!player;
+}
+```
+
+**Effort**: 15m | **Impact**: DRY, single source of truth for participation checks
+**Acceptance**: No duplicated roomPlayers queries in poems.ts
+
+---
+
+### [Maintainability] Centralize CI commit SHA env var list
+
+**File**: test/lib/sentry.test.ts:121-126
+**Perspectives**: maintainability-maven
+**Impact**: Test hardcodes list of CI commit SHA env vars to override. If release-derivation logic adds new providers, tests may drift.
+**Fix**: Create shared constant used both in Sentry module and tests:
+
+```typescript
+// lib/sentry.ts or similar
+export const CI_COMMIT_SHA_ENV_VARS = [
+  'VERCEL_GIT_COMMIT_SHA',
+  'GITHUB_SHA',
+  'CI_COMMIT_SHA',
+  'CIRCLE_SHA1',
+  'TRAVIS_COMMIT',
+];
+```
+
+**Effort**: 10m | **Impact**: Tests and implementation stay in sync
+**Acceptance**: Single source of truth for CI commit SHA detection
 
 ---
 
@@ -230,23 +211,6 @@ const [error, setError] = useState('');
 
 **Effort**: 30m | **Impact**: Visual consistency restored
 **Acceptance**: Zero Tailwind color utilities in profile page
-
----
-
-### [Infrastructure] Build command missing Convex deploy - breaks Vercel
-
-**File**: package.json:9
-**Perspectives**: architecture-guardian
-**Severity**: HIGH
-**Impact**: Build is `"build": "next build"` but Vercel needs Convex deployed first. Deployments will fail because Convex schema/functions aren't available when Next.js builds.
-**Fix**: Update build script:
-
-```json
-"build": "npx convex deploy && next build"
-```
-
-**Effort**: 5m | **Risk**: HIGH (deployment blocker)
-**Acceptance**: Vercel builds succeed with Convex functions available
 
 ---
 
