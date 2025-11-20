@@ -37,6 +37,18 @@ pnpm dev          # Next.js on :3000
 npx convex dev    # Convex backend
 ```
 
+## Secret Scanning
+
+Pre-commit hooks automatically scan for leaked credentials (Clerk, Convex, Sentry keys).
+
+```bash
+# Install gitleaks (required for local development)
+brew install gitleaks
+```
+
+**False positives?** Add patterns to `.gitleaks.toml` allowlist section.
+**Hook failing?** Ensure gitleaks is installed: `brew install gitleaks`
+
 ## Design
 
 Zen Garden aesthetic—Kenya Hara minimalism with warm white, near-black text, and vermillion accent. Typography: Cormorant Garamond for display, Inter for body.
