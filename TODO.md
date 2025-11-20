@@ -26,7 +26,7 @@
   - Tests: Manual gitleaks run (above).
   - Estimate: 45m
 
-- [ ] **Task 2: Wire gitleaks into Lefthook pre-commit**
+- [~] **Task 2: Wire gitleaks into Lefthook pre-commit**
   - Files: `lefthook.yml`
   - Goal: Block commits with secrets while keeping pre-commit <5s.
   - Approach: (1) Add `secrets` command under `pre-commit` running `gitleaks protect --staged --redact --no-banner`; (2) Add helpful failure message (install link, allowlist tip); (3) Verify ordering with lint/format (parallel true).

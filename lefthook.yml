@@ -4,6 +4,16 @@
 pre-commit:
   parallel: true
   commands:
+    secrets:
+      run: gitleaks protect --staged --redact --no-banner
+      fail_text: |
+        ⚠️  Secret detected in staged files!
+
+        Install gitleaks: brew install gitleaks
+
+        To suppress false positives, add to .gitleaks.toml allowlist section.
+        See docs/secrets.md or README for details.
+
     lint:
       glob: "*.{js,ts,jsx,tsx}"
       run: pnpm eslint --fix {staged_files}
