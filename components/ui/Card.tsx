@@ -7,11 +7,10 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       <div
         ref={ref}
         className={cn(
-          'rounded-[var(--card-border-radius)]',
-          'border border-[var(--color-border)]',
           'bg-[var(--color-surface)]',
           'text-[var(--color-text-primary)]',
-          'shadow-[var(--card-shadow)]',
+          'border border-[var(--color-border)]',
+          'shadow-[var(--shadow-md)]',
           className
         )}
         {...props}
@@ -29,7 +28,7 @@ export const CardHeader = forwardRef<
     <div
       ref={ref}
       className={cn(
-        'flex flex-col space-y-1.5 p-[var(--card-padding)] pb-0',
+        'flex flex-col space-y-1.5 p-6 pb-4 border-b border-[var(--color-border-subtle)]',
         className
       )}
       {...props}
@@ -46,7 +45,7 @@ export const CardTitle = forwardRef<
     <h3
       ref={ref}
       className={cn(
-        'font-[var(--font-display)] font-semibold leading-none tracking-tight',
+        'font-[var(--font-display)] text-2xl font-medium leading-none tracking-tight',
         className
       )}
       {...props}
@@ -59,12 +58,6 @@ export const CardContent = forwardRef<
   HTMLDivElement,
   HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={cn('p-[var(--card-padding)] pt-4', className)}
-      {...props}
-    />
-  );
+  return <div ref={ref} className={cn('p-6', className)} {...props} />;
 });
 CardContent.displayName = 'CardContent';

@@ -85,7 +85,6 @@ export function generateAssignmentMatrix(
       attempts < MAX_ATTEMPTS
     ) {
       attempts++;
-      let resolvedConflict = false;
 
       // Try to resolve conflicts by swapping
       for (let j = 0; j < numPlayers; j++) {
@@ -97,7 +96,6 @@ export function generateAssignmentMatrix(
               currentPerm[swapTargetIndex],
               currentPerm[j],
             ];
-            resolvedConflict = true;
             // Re-check for conflicts after swap, or continue trying to resolve
             // For simplicity and to avoid complex state tracking, we might reshuffle if still conflicted
           }

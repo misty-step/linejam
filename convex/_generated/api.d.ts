@@ -11,6 +11,7 @@
 import type * as favorites from '../favorites.js';
 import type * as game from '../game.js';
 import type * as lib_assignmentMatrix from '../lib/assignmentMatrix.js';
+import type * as lib_auth from '../lib/auth.js';
 import type * as lib_wordCount from '../lib/wordCount.js';
 import type * as poems from '../poems.js';
 import type * as rooms from '../rooms.js';
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   favorites: typeof favorites;
   game: typeof game;
   'lib/assignmentMatrix': typeof lib_assignmentMatrix;
+  'lib/auth': typeof lib_auth;
   'lib/wordCount': typeof lib_wordCount;
   poems: typeof poems;
   rooms: typeof rooms;

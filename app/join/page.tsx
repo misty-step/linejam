@@ -8,12 +8,7 @@ import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/Card';
+import Link from 'next/link';
 
 export default function JoinPage() {
   const { guestId, isLoading } = useUser();
@@ -45,25 +40,29 @@ export default function JoinPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <span className="text-[var(--color-text-muted)]">Loading...</span>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
-      <Card className="w-full max-w-sm animate-fade-in">
-        <CardHeader>
-          <CardTitle>Join a Game</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleJoin} className="space-y-5">
-            <div className="space-y-2">
+    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-20 flex flex-col">
+      <Link
+        href="/"
+        className="mb-12 text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors w-fit"
+      >
+        ← Return Home
+      </Link>
+
+      <div className="max-w-xl w-full ml-auto">
+        <h1 className="text-5xl md:text-6xl font-[var(--font-display)] mb-8 text-right">
+          Join Session
+        </h1>
+
+        <div className="p-8 border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
+          <form onSubmit={handleJoin} className="space-y-8">
+            <div className="space-y-3">
               <label
                 htmlFor="code"
-                className="text-sm font-medium text-[var(--color-text-secondary)]"
+                className="block text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wide"
               >
                 Room Code
               </label>
@@ -75,37 +74,45 @@ export default function JoinPage() {
                 maxLength={4}
                 required
                 autoFocus
-                className="uppercase tracking-widest text-center font-mono"
+                className="uppercase tracking-[0.5em] text-center font-mono text-2xl h-16 bg-[var(--color-muted)] border-2"
               />
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-3">
               <label
                 htmlFor="name"
-                className="text-sm font-medium text-[var(--color-text-secondary)]"
+                className="block text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wide"
               >
                 Your Name
               </label>
               <Input
                 id="name"
-                placeholder="Enter your name"
+                placeholder="Enter your name..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                className="text-lg h-14"
               />
             </div>
+
             {error && (
-              <p className="text-sm text-[var(--color-error)]">{error}</p>
+              <div className="p-3 border border-[var(--color-error)] bg-[var(--color-error)]/5 text-[var(--color-error)] text-sm">
+                {error}
+              </div>
             )}
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={!name.trim() || !code.trim() || isJoining}
-            >
-              {isJoining ? 'Joining...' : 'Join Game'}
-            </Button>
+
+            <div className="pt-4">
+              <Button
+                type="submit"
+                className="w-full text-lg h-14"
+                disabled={!name.trim() || !code.trim() || isJoining}
+              >
+                {isJoining ? 'Authenticating...' : 'Enter Room'}
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
-import { Card, CardContent } from './ui/Card';
 import { PoemDisplay } from './PoemDisplay';
 import Link from 'next/link';
 import { Id } from '../convex/_generated/dataModel';
@@ -27,11 +26,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
   const [showingPoem, setShowingPoem] = useState(false);
 
   if (!revealState) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <span className="text-[var(--color-text-muted)]">Loading...</span>
-      </div>
-    );
+    return null;
   }
 
   const { myPoem, poems, allRevealed, isHost } = revealState;
@@ -64,130 +59,113 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
   // Main reveal phase UI
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 flex flex-col">
-      <div className="max-w-md mx-auto w-full flex-1 flex flex-col">
-        {/* Header */}
-        <div className="text-center space-y-3 mb-8">
-          <h1 className="text-3xl sm:text-4xl tracking-tight">
-            {allRevealed ? 'All Poems Read' : 'Time to Read'}
+    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24 flex flex-col md:flex-row gap-12 md:gap-24">
+      {/* Left: Status & Instructions */}
+      <div className="md:w-1/3 space-y-12">
+        <div className="space-y-4">
+          <h1 className="text-5xl md:text-6xl font-[var(--font-display)] leading-[0.9]">
+            {allRevealed ? 'Session\nComplete' : 'Reading\nPhase'}
           </h1>
-          <p className="text-[var(--color-text-secondary)]">
+          <p className="text-xl text-[var(--color-text-secondary)] leading-relaxed">
             {allRevealed
-              ? 'Great game!'
-              : 'Each player reveals and reads their poem aloud.'}
+              ? 'The cycle is finished. The poems are sealed.'
+              : 'One by one, unveil the hidden works. Read aloud with conviction.'}
           </p>
         </div>
 
-        {/* My Poem Card */}
+        {/* My Poem Action */}
         {myPoem && !myPoem.isRevealed && (
-          <Card className="mb-8 animate-fade-in">
-            <CardContent className="p-6 text-center space-y-4">
-              <p className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                Your poem to read
+          <div className="p-8 border-2 border-[var(--color-primary)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)] space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-[var(--color-primary)] mb-2">
+                Your Assignment
               </p>
-              <p className="text-xl font-[var(--font-display)] italic text-[var(--color-text-primary)]">
+              <p className="text-2xl font-[var(--font-display)] italic">
                 &ldquo;{myPoem.preview}...&rdquo;
               </p>
-              <Button
-                onClick={handleReveal}
-                size="lg"
-                className="w-full"
-                disabled={isRevealing}
-              >
-                {isRevealing ? 'Revealing...' : 'Reveal & Read'}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Already revealed message */}
-        {myPoem && myPoem.isRevealed && !showingPoem && (
-          <Card className="mb-8">
-            <CardContent className="p-6 text-center space-y-4">
-              <p className="text-[var(--color-text-muted)]">
-                You&apos;ve read your poem
-              </p>
-              <Button
-                onClick={() => setShowingPoem(true)}
-                variant="secondary"
-                size="lg"
-                className="w-full"
-              >
-                View Again
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Progress */}
-        <div className="space-y-3 mb-8">
-          <p className="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-            Progress
-          </p>
-          <div className="space-y-2">
-            {poems
-              .sort((a, b) => a.indexInRoom - b.indexInRoom)
-              .map((poem) => (
-                <div
-                  key={poem._id}
-                  className="flex items-center justify-between bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3 rounded-[var(--radius-md)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        poem.isRevealed
-                          ? 'bg-[var(--color-success)]'
-                          : 'bg-[var(--color-border)]'
-                      }`}
-                    />
-                    <span className="text-sm text-[var(--color-text-primary)]">
-                      {poem.readerName}
-                    </span>
-                  </div>
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    {poem.isRevealed ? 'Read' : 'Waiting'}
-                  </span>
-                </div>
-              ))}
+            </div>
+            <Button
+              onClick={handleReveal}
+              size="lg"
+              className="w-full text-lg h-14"
+              disabled={isRevealing}
+            >
+              {isRevealing ? 'Unsealing...' : 'Reveal & Read'}
+            </Button>
           </div>
+        )}
+
+        {myPoem && myPoem.isRevealed && (
+          <Button
+            onClick={() => setShowingPoem(true)}
+            variant="outline"
+            size="lg"
+            className="w-full text-lg h-14 border-2"
+          >
+            Re-Read My Poem
+          </Button>
+        )}
+
+        {/* Host Actions */}
+        {allRevealed && (
+          <div className="pt-8 border-t border-[var(--color-border)] space-y-4">
+            {isHost && (
+              <Button size="lg" className="w-full h-14">
+                Start New Cycle
+              </Button>
+            )}
+            <Link href="/me/poems" className="block">
+              <Button variant="secondary" size="lg" className="w-full h-14">
+                Archive
+              </Button>
+            </Link>
+            <Link
+              href="/"
+              className="block text-center text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] mt-6"
+            >
+              Exit Room
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Right: Manifest/Status */}
+      <div className="md:w-2/3 max-w-xl">
+        <div className="mb-8 pb-4 border-b border-[var(--color-border)]">
+          <h3 className="font-mono uppercase tracking-widest">Poem Status</h3>
         </div>
 
-        {/* Host Controls */}
-        {allRevealed && isHost && (
-          <div className="space-y-3 mt-auto">
-            <Button size="lg" className="w-full">
-              Play Again
-            </Button>
-            <Link href="/me/poems" className="block">
-              <Button variant="secondary" size="lg" className="w-full">
-                View Collection
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        {/* Non-host after all revealed */}
-        {allRevealed && !isHost && (
-          <div className="space-y-3 mt-auto">
-            <p className="text-center text-sm text-[var(--color-text-muted)]">
-              Waiting for host...
-            </p>
-            <Link href="/me/poems" className="block">
-              <Button variant="secondary" size="lg" className="w-full">
-                View Collection
-              </Button>
-            </Link>
-          </div>
-        )}
-
-        {/* Exit link */}
-        <div className="text-center mt-6">
-          <Link
-            href="/"
-            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors duration-[var(--duration-fast)]"
-          >
-            Exit to Home
-          </Link>
+        <div className="space-y-4">
+          {poems
+            .sort((a, b) => a.indexInRoom - b.indexInRoom)
+            .map((poem, i) => (
+              <div
+                key={poem._id}
+                className={
+                  `flex items-center justify-between p-4 border ` +
+                  (poem.isRevealed
+                    ? 'bg-[var(--color-muted)] border-transparent opacity-60'
+                    : 'bg-[var(--color-surface)] border-[var(--color-border)] shadow-[var(--shadow-sm)]')
+                }
+              >
+                <div className="flex items-center gap-4">
+                  <span className="font-mono text-[var(--color-text-muted)] w-8">
+                    {(i + 1).toString().padStart(2, '0')}
+                  </span>
+                  <span className="text-lg font-medium">{poem.readerName}</span>
+                </div>
+                <span
+                  className={
+                    `text-xs font-mono uppercase tracking-wider px-2 py-1 ` +
+                    (poem.isRevealed
+                      ? 'text-[var(--color-success)] border border-[var(--color-success)]'
+                      : 'text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]')
+                  }
+                >
+                  {poem.isRevealed ? 'Read' : 'Pending'}
+                </span>
+              </div>
+            ))}
         </div>
       </div>
     </div>

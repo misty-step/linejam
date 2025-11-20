@@ -2,7 +2,12 @@
   "name": "linejam",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=10.0.0"
+  },
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "dev": "npm-run-all --parallel dev:next dev:convex",
     "dev:next": "next dev",
     "dev:convex": "convex dev",

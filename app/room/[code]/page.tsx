@@ -11,8 +11,11 @@ import { useUser } from '../../../lib/auth';
 export default function RoomPage() {
   const params = useParams();
   const code = params.code as string;
-  const roomState = useQuery(api.rooms.getRoomState, { code });
-  const { isLoading } = useUser();
+  const { isLoading, guestId } = useUser();
+  const roomState = useQuery(api.rooms.getRoomState, {
+    code,
+    guestId: guestId || undefined,
+  });
 
   if (isLoading || roomState === undefined) {
     return (
@@ -35,10 +38,10 @@ export default function RoomPage() {
     );
   }
 
-  const { room, players } = roomState;
+  const { room, players, isHost } = roomState;
 
   if (room.status === 'LOBBY') {
-    return <Lobby room={room} players={players} />;
+    return <Lobby room={room} players={players} isHost={isHost} />;
   }
 
   if (room.status === 'IN_PROGRESS') {

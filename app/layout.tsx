@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Inter } from 'next/font/google';
+import { Cormorant_Garamond, Instrument_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
@@ -10,7 +10,7 @@ const cormorant = Cormorant_Garamond({
   display: 'swap',
 });
 
-const inter = Inter({
+const instrument = Instrument_Sans({
   variable: '--font-sans',
   subsets: ['latin'],
   display: 'swap',
@@ -39,7 +39,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${cormorant.variable} ${inter.variable}`}>
+      <body
+        className={`${cormorant.variable} ${instrument.variable} antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

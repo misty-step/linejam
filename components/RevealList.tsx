@@ -1,7 +1,6 @@
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import Link from 'next/link';
 
 interface RevealListProps {
@@ -16,51 +15,61 @@ export function RevealList({ roomCode }: RevealListProps) {
   });
 
   if (!poems) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <span className="text-[var(--color-text-muted)]">Loading poems...</span>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6">
-      <div className="max-w-4xl mx-auto space-y-10 animate-stagger">
-        {/* Header */}
-        <div className="text-center space-y-3">
-          <h1 className="text-4xl sm:text-5xl tracking-tight">
-            All Poems Complete
-          </h1>
-          <p className="text-lg text-[var(--color-text-secondary)]">
-            Tap a card to reveal the full poem.
+    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24">
+      <div className="max-w-6xl mx-auto space-y-12">
+        <div className="text-center space-y-6 border-b border-[var(--color-border)] pb-12">
+          <p className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--color-text-muted)]">
+            Session {roomCode}
           </p>
+          <h1 className="text-6xl md:text-8xl font-[var(--font-display)] leading-[0.8]">
+            The Completed
+            <br />
+            Works
+          </h1>
         </div>
 
-        {/* Poem Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {poems.map((poem, index) => (
-            <Link key={poem._id} href={`/poem/${poem._id}`}>
-              <Card className="h-full hover:shadow-[var(--shadow-md)] transition-shadow duration-[var(--duration-base)] cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="text-lg">Poem #{index + 1}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-[var(--color-text-muted)] italic line-clamp-3 font-[var(--font-display)]">
+            <Link
+              key={poem._id}
+              href={`/poem/${poem._id}`}
+              className="group block h-full"
+            >
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-2 transition-all duration-300 h-full flex flex-col relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-[var(--color-primary)] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
+
+                <div className="mb-6 flex justify-between items-start">
+                  <span className="font-mono text-xs text-[var(--color-text-muted)] border border-[var(--color-text-muted)] px-1.5 py-0.5 rounded-[2px]">
+                    No. {(index + 1).toString().padStart(2, '0')}
+                  </span>
+                </div>
+
+                <div className="flex-1">
+                  <p className="text-2xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
                     &ldquo;{poem.preview}...&rdquo;
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+
+                <div className="pt-6 mt-6 border-t border-[var(--color-border-subtle)] text-right">
+                  <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
+                    Read Full Text
+                  </span>
+                </div>
+              </div>
             </Link>
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="text-center">
+        <div className="text-center pt-12">
           <Link
             href="/"
-            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors duration-[var(--duration-fast)]"
+            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
           >
-            Back to Home
+            Exit to Lobby
           </Link>
         </div>
       </div>

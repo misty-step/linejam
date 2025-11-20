@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -12,30 +12,37 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          // Base styles
-          'inline-flex items-center justify-center font-medium',
-          'transition-all duration-[var(--duration-base)]',
-          'rounded-[var(--button-border-radius)]',
+          // Base styles - Brutalist
+          'inline-flex items-center justify-center font-medium transition-all',
+          'border border-transparent', // Placeholder for border width
+          'active:translate-y-[2px] active:shadow-none', // Tactile press
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2',
-          'disabled:pointer-events-none disabled:opacity-50',
+          'disabled:pointer-events-none disabled:opacity-50 disabled:grayscale',
+
           // Variants
           {
-            // Primary - vermillion accent
-            'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] active:bg-[var(--color-primary-active)]':
+            // Primary - Solid Ink Block
+            'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-hover)]':
               variant === 'primary',
-            // Secondary - subtle
-            'bg-[var(--color-muted)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)]':
+
+            // Secondary - Paper Button
+            'bg-[var(--color-surface)] text-[var(--color-text-primary)] border-[var(--color-border)] shadow-[var(--shadow-sm)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]':
               variant === 'secondary',
-            // Ghost - minimal
-            'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-muted)]':
+
+            // Outline - Just the lines
+            'bg-transparent text-[var(--color-text-primary)] border-[var(--color-border)] hover:bg-[var(--color-surface)]':
+              variant === 'outline',
+
+            // Ghost - Minimal
+            'text-[var(--color-text-primary)] hover:bg-[var(--color-muted)] border-transparent':
               variant === 'ghost',
           },
+
           // Sizes
           {
-            'h-[var(--button-height-sm)] px-3 text-sm': size === 'sm',
-            'h-[var(--button-height-md)] px-[var(--button-padding-x)] text-sm':
-              size === 'md',
-            'h-[var(--button-height-lg)] px-6 text-base': size === 'lg',
+            'h-9 px-3 text-sm': size === 'sm',
+            'h-11 px-5 text-base': size === 'md',
+            'h-14 px-8 text-lg': size === 'lg',
           },
           className
         )}

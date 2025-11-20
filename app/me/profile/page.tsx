@@ -1,78 +1,69 @@
 'use client';
 
-import { useState } from 'react';
 import { useUser } from '../../../lib/auth';
 import { Button } from '../../../components/ui/Button';
-import { Input } from '../../../components/ui/Input';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../../components/ui/Card';
 import { SignInButton, SignOutButton } from '@clerk/nextjs';
 import Image from 'next/image';
 import Link from 'next/link';
 
 export default function ProfilePage() {
   const { clerkUser, guestId, displayName, isAuthenticated } = useUser();
-  const [name, setName] = useState('');
 
-  // Sync name when displayName changes - using render-time update pattern
-  if (displayName && name !== displayName) {
-    setName(displayName);
-  }
-
-  // Ideally we would have a mutation to update the user's display name
-  // For now, we just show the current state and allow auth actions.
-  // Updating display name for guests is tricky without a specific mutation,
-  // but we can assume they set it when joining/hosting.
-  // Let's just show read-only for now or implement update later.
+  // Simple state for display purposes
+  const currentName = displayName || '';
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <div className="flex justify-between items-center mb-2">
-            <CardTitle>Profile</CardTitle>
-            <Link
-              href="/"
-              className="text-sm text-gray-500 hover:text-gray-900"
-            >
-              Home
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Display Name
-            </label>
-            <Input value={name} disabled />
-            <p className="text-xs text-gray-500">
-              Name is set when you join a game.
-            </p>
+    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24">
+      <div className="max-w-xl mx-auto space-y-12">
+        {/* Header */}
+        <div className="flex justify-between items-end border-b border-[var(--color-border)] pb-8">
+          <h1 className="text-5xl font-[var(--font-display)]">Identity</h1>
+          <Link
+            href="/"
+            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-2"
+          >
+            ← Home
+          </Link>
+        </div>
+
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-md)] space-y-8 relative overflow-hidden">
+          {/* ID Card Header */}
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+                Current Alias
+              </p>
+              <p className="text-2xl font-[var(--font-display)] font-medium">
+                {currentName || 'Anonymous Poet'}
+              </p>
+            </div>
+            {isAuthenticated && clerkUser?.imageUrl && (
+              <div className="w-16 h-16 border border-[var(--color-border)] p-1 bg-[var(--color-background)]">
+                <Image
+                  src={clerkUser.imageUrl}
+                  alt="Profile"
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all"
+                />
+              </div>
+            )}
           </div>
 
-          <div className="pt-4 border-t border-gray-100">
+          {/* Auth Section */}
+          <div className="pt-8 border-t border-[var(--color-border-subtle)]">
             {isAuthenticated ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  {clerkUser?.imageUrl && (
-                    <Image
-                      src={clerkUser.imageUrl}
-                      alt="Profile"
-                      width={40}
-                      height={40}
-                      className="rounded-full"
-                    />
-                  )}
-                  <div>
-                    <p className="font-medium">{clerkUser?.fullName}</p>
-                    <p className="text-xs text-gray-500">
-                      {clerkUser?.primaryEmailAddress?.emailAddress}
-                    </p>
-                  </div>
+              <div className="space-y-6">
+                <div>
+                  <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+                    Account Status
+                  </p>
+                  <p className="font-medium text-[var(--color-success)]">
+                    Authenticated
+                  </p>
+                  <p className="text-sm text-[var(--color-text-secondary)] mt-1 font-mono">
+                    {clerkUser?.primaryEmailAddress?.emailAddress}
+                  </p>
                 </div>
                 <SignOutButton>
                   <Button variant="secondary" className="w-full">
@@ -81,21 +72,30 @@ export default function ProfilePage() {
                 </SignOutButton>
               </div>
             ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Sign in to save your poems and history across devices.
-                </p>
-                <SignInButton mode="modal">
-                  <Button className="w-full">Sign In</Button>
-                </SignInButton>
-                <p className="text-xs text-gray-400 text-center">
-                  Guest ID: {guestId?.slice(0, 8)}...
-                </p>
+              <div className="space-y-6">
+                <div>
+                  <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-2">
+                    Guest Credentials
+                  </p>
+                  <p className="font-mono text-sm text-[var(--color-text-secondary)] bg-[var(--color-muted)] p-2 border border-[var(--color-border-subtle)]">
+                    ID: {guestId?.slice(0, 12)}...
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm italic text-[var(--color-text-muted)]">
+                    Authenticate to preserve your works in the permanent
+                    archives.
+                  </p>
+                  <SignInButton mode="modal">
+                    <Button className="w-full">Authenticate</Button>
+                  </SignInButton>
+                </div>
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

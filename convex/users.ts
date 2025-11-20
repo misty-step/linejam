@@ -1,6 +1,7 @@
 import { mutation, type MutationCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { ConvexError, v } from 'convex/values';
+import { getUser } from './lib/auth';
 
 type UserDoc = Doc<'users'>;
 type UserInsert = Omit<UserDoc, '_id' | '_creationTime'>;
@@ -8,34 +9,32 @@ type UserInsert = Omit<UserDoc, '_id' | '_creationTime'>;
 export const ensureUserHelper = async (
   ctx: MutationCtx,
   args: {
-    clerkUserId?: string;
     guestId?: string;
     displayName: string;
   }
 ): Promise<UserDoc> => {
   const displayName = normalizeDisplayName(args.displayName);
-  const clerkId = args.clerkUserId?.trim();
+
+  // 1. Try to find existing user
+  const existingUser = await getUser(ctx, args.guestId);
+  if (existingUser) {
+    return existingUser;
+  }
+
+  // 2. If not found, create new user
+  const identity = await ctx.auth.getUserIdentity();
+  const clerkUserId = identity?.subject;
   const guestId = args.guestId?.trim();
 
-  if (!clerkId && !guestId) {
+  if (!clerkUserId && !guestId) {
     throw new ConvexError('Missing user identifier');
   }
 
-  if (clerkId) {
-    const clerkUser = await findByClerkId(ctx.db, clerkId);
-    if (clerkUser) {
-      return clerkUser;
-    }
-
+  if (clerkUserId) {
     return insertUser(ctx.db, {
-      clerkUserId: clerkId,
+      clerkUserId,
       displayName,
     });
-  }
-
-  const guestUser = await findByGuestId(ctx.db, guestId!);
-  if (guestUser) {
-    return guestUser;
   }
 
   return insertUser(ctx.db, {
@@ -46,7 +45,7 @@ export const ensureUserHelper = async (
 
 export const ensureUser = mutation({
   args: {
-    clerkUserId: v.optional(v.string()),
+    clerkUserId: v.optional(v.string()), // Deprecated in signature but kept for compatibility if needed, though unused in helper now
     guestId: v.optional(v.string()),
     displayName: v.string(),
   },
@@ -62,26 +61,6 @@ const normalizeDisplayName = (raw: string): string => {
   }
 
   return normalized;
-};
-
-const findByClerkId = async (
-  db: MutationCtx['db'],
-  clerkUserId: string
-): Promise<UserDoc | null> => {
-  return db
-    .query('users')
-    .withIndex('by_clerk', (q) => q.eq('clerkUserId', clerkUserId))
-    .first();
-};
-
-const findByGuestId = async (
-  db: MutationCtx['db'],
-  guestId: string
-): Promise<UserDoc | null> => {
-  return db
-    .query('users')
-    .withIndex('by_guest', (q) => q.eq('guestId', guestId))
-    .first();
 };
 
 const insertUser = async (

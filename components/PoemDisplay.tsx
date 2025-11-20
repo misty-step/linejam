@@ -12,12 +12,12 @@ interface PoemDisplayProps {
 export function PoemDisplay({ poemNumber, lines, onDone }: PoemDisplayProps) {
   const [revealedCount, setRevealedCount] = useState(0);
 
-  // Staggered reveal animation
+  // Staggered reveal animation - slower, more deliberate
   useEffect(() => {
     if (revealedCount < lines.length) {
       const timer = setTimeout(() => {
         setRevealedCount((prev) => prev + 1);
-      }, 150);
+      }, 2000); // Slower pace for dramatic reading
       return () => clearTimeout(timer);
     }
   }, [revealedCount, lines.length]);
@@ -25,53 +25,50 @@ export function PoemDisplay({ poemNumber, lines, onDone }: PoemDisplayProps) {
   const allRevealed = revealedCount >= lines.length;
 
   return (
-    <div className="fixed inset-0 bg-[var(--color-background)] z-50 flex flex-col items-center justify-center p-6">
-      {/* Subtle vignette */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, transparent 0%, var(--color-background) 100%)',
-          opacity: 0.3,
-        }}
-      />
+    <div className="fixed inset-0 bg-[var(--color-background)] z-50 flex flex-col items-center justify-center p-8 md:p-12 overflow-y-auto">
+      <div className="max-w-2xl w-full space-y-12 relative z-10 my-auto">
+        {/* Header Stamp */}
+        <div className="text-center border-b-2 border-[var(--color-primary)] pb-4 w-fit mx-auto">
+          <p className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">
+            Poem No. {poemNumber}
+          </p>
+        </div>
 
-      <div className="max-w-lg w-full text-center space-y-8 relative z-10">
-        {/* Poem number */}
-        <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
-          Poem {poemNumber}
-        </p>
-
-        {/* Lines */}
-        <div className="space-y-4 min-h-[300px] flex flex-col justify-center">
+        {/* The Poem */}
+        <div className="space-y-6 text-center min-h-[40vh] flex flex-col justify-center">
           {lines.map((line, index) => {
             const isVisible = index < revealedCount;
-            const isDimmed =
-              isVisible && index < revealedCount - 1 && !allRevealed;
 
             return (
-              <p
+              <div
                 key={index}
-                className="text-xl sm:text-2xl md:text-3xl font-[var(--font-display)] leading-relaxed text-[var(--color-text-primary)] transition-all duration-500"
-                style={{
-                  opacity: isVisible ? (isDimmed ? 0.6 : 1) : 0,
-                  transform: isVisible ? 'translateY(0)' : 'translateY(1rem)',
-                }}
+                className={`transition-all duration-1000 transform ${
+                  isVisible
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 translate-y-8'
+                }`}
               >
-                {line}
-              </p>
+                <p className="text-3xl md:text-4xl lg:text-5xl font-[var(--font-display)] leading-tight text-[var(--color-text-primary)]">
+                  {line}
+                </p>
+              </div>
             );
           })}
         </div>
 
         {/* Done button */}
-        {allRevealed && (
-          <div className="animate-fade-in pt-8">
-            <Button onClick={onDone} variant="secondary" size="lg">
-              Done Reading
-            </Button>
-          </div>
-        )}
+        <div
+          className={`text-center transition-opacity duration-1000 ${allRevealed ? 'opacity-100' : 'opacity-0'}`}
+        >
+          <Button
+            onClick={onDone}
+            variant="outline"
+            size="lg"
+            className="min-w-[200px] border-2 h-16 text-lg"
+          >
+            Close Ledger
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
+import { getUser } from './lib/auth';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -17,13 +18,9 @@ export const createRoom = mutation({
     guestId: v.optional(v.string()),
   },
   handler: async (ctx, { displayName, guestId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    const clerkUserId = identity?.subject;
-
     const user = await ensureUserHelper(ctx, {
       displayName,
       guestId,
-      clerkUserId,
     });
 
     let roomCode: string;
@@ -61,13 +58,9 @@ export const joinRoom = mutation({
     guestId: v.optional(v.string()),
   },
   handler: async (ctx, { code, displayName, guestId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    const clerkUserId = identity?.subject;
-
     const user = await ensureUserHelper(ctx, {
       displayName,
       guestId,
-      clerkUserId,
     });
 
     const room = await ctx.db
@@ -130,8 +123,9 @@ export const getRoom = query({
 export const getRoomState = query({
   args: {
     code: v.string(),
+    guestId: v.optional(v.string()),
   },
-  handler: async (ctx, { code }) => {
+  handler: async (ctx, { code, guestId }) => {
     const room = await ctx.db
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
@@ -146,6 +140,9 @@ export const getRoomState = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    return { room, players };
+    const user = await getUser(ctx, guestId);
+    const isHost = !!user && user._id === room.hostUserId;
+
+    return { room, players, isHost };
   },
 });

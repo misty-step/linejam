@@ -5,7 +5,6 @@ import { useUser } from '../lib/auth';
 import { countWords } from '../lib/wordCount';
 import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { WaitingScreen } from './WaitingScreen';
 
 interface WritingScreenProps {
@@ -62,74 +61,82 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
-      <Card className="w-full max-w-md animate-fade-in">
-        <CardHeader>
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-medium text-[var(--color-text-muted)]">
-              Round {assignment.lineIndex + 1} of 9
-            </span>
-            <span className="text-sm font-medium text-[var(--color-text-muted)]">
-              Target: {targetCount} words
+    <div className="min-h-screen bg-[var(--color-background)] flex flex-col items-center pt-12 md:pt-24 p-6">
+      {/* Header / Status */}
+      <div className="w-full max-w-2xl flex justify-between items-end mb-8 border-b border-[var(--color-border)] pb-4">
+        <div className="space-y-1">
+          <h2 className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+            Contribution
+          </h2>
+          <div className="text-3xl font-[var(--font-display)]">
+            Round {assignment.lineIndex + 1} / 9
+          </div>
+        </div>
+        <div className="text-right">
+          <div
+            className={`text-2xl font-mono font-medium ${
+              isValid
+                ? 'text-[var(--color-success)]'
+                : currentWordCount > targetCount
+                  ? 'text-[var(--color-error)]'
+                  : 'text-[var(--color-text-secondary)]'
+            }`}
+          >
+            {currentWordCount}{' '}
+            <span className="text-[var(--color-text-muted)]">
+              / {targetCount}
             </span>
           </div>
-          <CardTitle className="text-center">
-            {assignment.lineIndex === 0
-              ? 'Start the Poem'
-              : 'Continue the Poem'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {assignment.previousLineText && (
-            <div className="bg-[var(--color-muted)] p-4 rounded-[var(--radius-md)] border border-[var(--color-border)]">
-              <p className="text-xs text-[var(--color-text-muted)] mb-2 uppercase tracking-wider">
-                Previous line
-              </p>
-              <p className="text-lg leading-relaxed text-[var(--color-text-primary)] italic font-[var(--font-display)]">
+          <div className="text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
+            Target Count
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full max-w-2xl space-y-12">
+        {/* The Prompt (Previous Line) */}
+        {assignment.previousLineText && (
+          <div className="space-y-3 animate-fade-in-up">
+            <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+              Preceding Line
+            </p>
+            <div className="relative p-8 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-sm)]">
+              <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-text-secondary)]" />
+              <p className="text-2xl md:text-3xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
                 &ldquo;{assignment.previousLineText}&rdquo;
               </p>
             </div>
-          )}
+          </div>
+        )}
 
-          <div className="space-y-3">
+        {/* Input Area */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+              Your Line
+            </label>
             <textarea
-              className="w-full min-h-[120px] p-4 rounded-[var(--input-border-radius)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 resize-none transition-all duration-[var(--duration-fast)]"
-              placeholder={`Write exactly ${targetCount} words...`}
+              className="w-full min-h-[200px] bg-transparent text-3xl md:text-4xl font-[var(--font-display)] placeholder:text-[var(--color-text-muted)]/30 focus:outline-none resize-none leading-tight"
+              placeholder="Type here..."
               value={text}
               onChange={(e) => setText(e.target.value)}
               autoFocus
+              spellCheck={false}
             />
-
-            <div className="flex justify-between items-center">
-              <span
-                className={`text-sm font-medium transition-colors duration-[var(--duration-fast)] ${
-                  isValid
-                    ? 'text-[var(--color-success)]'
-                    : currentWordCount > targetCount
-                      ? 'text-[var(--color-error)]'
-                      : 'text-[var(--color-text-muted)]'
-                }`}
-              >
-                {currentWordCount} / {targetCount} words
-              </span>
-              {currentWordCount > targetCount && (
-                <span className="text-xs text-[var(--color-error)]">
-                  Too many words
-                </span>
-              )}
-            </div>
           </div>
 
-          <Button
-            onClick={handleSubmit}
-            className="w-full"
-            size="lg"
-            disabled={!isValid || isSubmitting}
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit Line'}
-          </Button>
-        </CardContent>
-      </Card>
+          <div className="pt-8 border-t border-[var(--color-border-subtle)] flex justify-end">
+            <Button
+              onClick={handleSubmit}
+              size="lg"
+              className="min-w-[200px] text-lg h-16"
+              disabled={!isValid || isSubmitting}
+            >
+              {isSubmitting ? 'Imprinting...' : 'Stamp Line'}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

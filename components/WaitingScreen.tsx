@@ -1,6 +1,5 @@
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 
 interface WaitingScreenProps {
   roomCode: string;
@@ -12,7 +11,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
   if (!progress) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <span className="text-[var(--color-text-muted)]">Loading...</span>
+        <div className="animate-pulse w-2 h-2 bg-[var(--color-foreground)] rounded-full" />
       </div>
     );
   }
@@ -22,69 +21,53 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
-      <Card className="w-full max-w-sm animate-fade-in">
-        <CardHeader>
-          <CardTitle className="text-center">Round {round + 1}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="text-center space-y-2">
-            <h3 className="text-xl font-medium text-[var(--color-text-primary)]">
-              Waiting for everyone...
-            </h3>
-            <p className="text-[var(--color-text-muted)]">
-              {submittedCount} of {players.length} players ready
-            </p>
-          </div>
+      <div className="w-full max-w-md space-y-12">
+        <div className="text-center space-y-4">
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+            Round {round + 1} Pending
+          </p>
+          <h2 className="text-4xl md:text-5xl font-[var(--font-display)] leading-tight">
+            Awaiting
+            <br />
+            Imprints
+          </h2>
+          <p className="text-lg text-[var(--color-text-secondary)] font-mono">
+            {submittedCount} / {players.length}
+          </p>
+        </div>
 
-          <div className="space-y-2">
-            {players.map((player) => (
-              <div
-                key={player.userId}
-                className="flex items-center justify-between bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3 rounded-[var(--radius-md)]"
+        <div className="border-t border-b border-[var(--color-border)] py-4 space-y-2">
+          {players.map((player) => (
+            <div
+              key={player.userId}
+              className="flex items-center justify-between py-2 px-2"
+            >
+              <span
+                className={`font-medium text-lg ${player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
               >
-                <span className="font-medium text-[var(--color-text-primary)]">
-                  {player.displayName}
+                {player.displayName}
+              </span>
+
+              {player.submitted ? (
+                <span className="text-xs font-mono uppercase tracking-widest text-[var(--color-primary)]">
+                  [SEALED]
                 </span>
-                {player.submitted ? (
-                  <span className="text-[var(--color-success)] flex items-center gap-1.5 text-sm">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Done
-                  </span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)] flex items-center gap-1.5 text-sm">
-                    <svg
-                      className="w-4 h-4 animate-pulse"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                      />
-                    </svg>
-                    Writing
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ) : (
+                <span className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] animate-pulse">
+                  WRITING...
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="text-center">
+          <p className="text-xs text-[var(--color-text-muted)] italic">
+            &ldquo;Poetry is a political act because it involves telling the
+            truth.&rdquo;
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
