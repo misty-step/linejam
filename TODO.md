@@ -26,7 +26,7 @@
   - Tests: Manual gitleaks run (above).
   - Estimate: 45m
 
-- [~] **Task 2: Wire gitleaks into Lefthook pre-commit**
+- [x] **Task 2: Wire gitleaks into Lefthook pre-commit**
   - Files: `lefthook.yml`
   - Goal: Block commits with secrets while keeping pre-commit <5s.
   - Approach: (1) Add `secrets` command under `pre-commit` running `gitleaks protect --staged --redact --no-banner`; (2) Add helpful failure message (install link, allowlist tip); (3) Verify ordering with lint/format (parallel true).
@@ -35,7 +35,7 @@
   - Estimate: 30m
   - depends: Task 1
 
-- [ ] **Task 3: Document secret scanning for devs**
+- [x] **Task 3: Document secret scanning for devs**
   - Files: `README.md` (new section) or `docs/secrets.md` (new)
   - Goal: Reduce friction installing/using gitleaks locally.
   - Approach: (1) Add install command `brew install gitleaks`; (2) Document hook behavior and suppressing false positives via `.gitleaks.toml` allowlist; (3) Include troubleshooting for missing binary.
@@ -44,7 +44,7 @@
   - Estimate: 20m
   - depends: Task 2
 
-- [ ] **Task 4: Parallelize CI and add gitleaks job**
+- [x] **Task 4: Parallelize CI and add gitleaks job**
   - Files: `.github/workflows/ci.yml`
   - Goal: Run lint/format/typecheck/gitleaks in parallel; gate `test+build` on their completion; keep coverage upload.
   - Approach: (1) Split existing `quality-checks` into separate jobs `lint`, `format`, `typecheck`, `gitleaks` with shared setup; (2) Add `test-build` job needing all four; (3) Keep codecov upload after tests; (4) Ensure pnpm caching remains.
@@ -53,7 +53,7 @@
   - Estimate: 1h 30m
   - depends: Task 1
 
-- [ ] **Task 5: Implement `/api/health` route**
+- [x] **Task 5: Implement `/api/health` route**
   - Files: `app/api/health/route.ts` (new)
   - Goal: Minimal healthcheck returning `{ status:'ok', timestamp, env }` with no-store caching and no external deps.
   - Approach: (1) Create GET handler per DESIGN pseudocode; (2) On error, log via `logger.error` and best-effort `Sentry.captureException`; (3) Ensure export works in App Router.
@@ -61,7 +61,7 @@
   - Tests: Covered in Task 6.
   - Estimate: 30m
 
-- [ ] **Task 6: Test health route**
+- [x] **Task 6: Test health route**
   - Files: `tests/app/api/health.test.ts` (new)
   - Goal: Verify success and error paths of health handler.
   - Approach: (1) Import GET, assert 200 JSON payload shape + cache-control; (2) Mock Date to throw to force error path, assert 500 payload and logger/Sentry stubs invoked; (3) Add to `pnpm test:ci`.
@@ -70,7 +70,7 @@
   - Estimate: 45m
   - depends: Task 5
 
-- [ ] **Task 7: Post-change quality pass**
+- [x] **Task 7: Post-change quality pass**
   - Files: n/a (commands)
   - Goal: Ensure repo gates clean after changes.
   - Approach: Run `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test:ci`, `pnpm build:check`; run `gitleaks detect` once for sanity.
