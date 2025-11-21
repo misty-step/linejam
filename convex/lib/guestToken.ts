@@ -1,5 +1,3 @@
-import { subtle } from 'crypto';
-
 const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 interface GuestTokenPayload {
@@ -27,13 +25,9 @@ let keyPromise: Promise<CryptoKey> | null = null;
 async function getKey(): Promise<CryptoKey> {
   if (!keyPromise) {
     const secret = getSecret();
-    // Use Buffer if available (Convex supports it), otherwise TextEncoder
-    const keyData =
-      typeof Buffer !== 'undefined'
-        ? Buffer.from(secret)
-        : new TextEncoder().encode(secret);
+    const keyData = new TextEncoder().encode(secret);
 
-    keyPromise = subtle.importKey(
+    keyPromise = crypto.subtle.importKey(
       'raw',
       keyData,
       { name: 'HMAC', hash: 'SHA-256' },
@@ -54,15 +48,15 @@ export async function verifyGuestToken(token: string): Promise<string> {
 
   const key = await getKey();
 
-  // Handle Base64Url to Uint8Array conversion
-  const signatureBytes = base64UrlToUint8Array(signatureB64);
-  const payloadBytes = new TextEncoder().encode(payloadB64);
+  // Handle Base64Url to ArrayBuffer conversion
+  const signatureBuffer = base64UrlToArrayBuffer(signatureB64);
+  const payloadBuffer = new TextEncoder().encode(payloadB64);
 
-  const isValid = await subtle.verify(
+  const isValid = await crypto.subtle.verify(
     'HMAC',
     key,
-    signatureBytes,
-    payloadBytes
+    signatureBuffer as BufferSource,
+    payloadBuffer as BufferSource
   );
 
   if (!isValid) {
@@ -80,10 +74,14 @@ export async function verifyGuestToken(token: string): Promise<string> {
   return payload.guestId;
 }
 
-function base64UrlToUint8Array(base64Url: string): Uint8Array {
+function base64UrlToArrayBuffer(base64Url: string): Uint8Array {
   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
   const binString = atob(base64);
-  return Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+  const bytes = new Uint8Array(binString.length);
+  for (let i = 0; i < binString.length; i++) {
+    bytes[i] = binString.charCodeAt(i);
+  }
+  return bytes;
 }
 
 function base64UrlToString(base64Url: string): string {
