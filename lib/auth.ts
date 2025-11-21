@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 export function useUser() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useClerkUser();
   const [guestId, setGuestId] = useState<string | null>(null);
+  const [guestToken, setGuestToken] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -16,6 +17,9 @@ export function useUser() {
       .then((data) => {
         if (data.guestId) {
           setGuestId(data.guestId);
+        }
+        if (data.token) {
+          setGuestToken(data.token);
         }
         setIsLoaded(true);
       })
@@ -34,6 +38,7 @@ export function useUser() {
   return {
     clerkUser,
     guestId,
+    guestToken,
     isLoading,
     isAuthenticated: !!clerkUser,
     displayName: clerkUser?.fullName || clerkUser?.firstName || 'Guest',

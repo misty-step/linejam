@@ -11,51 +11,35 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../components/ui/Card';
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Id } from '../../../convex/_generated/dataModel';
 
 export default function PoemDetailPage() {
   const params = useParams();
   const poemId = params.id as Id<'poems'>;
-  const { guestId } = useUser();
-
-  const poemData = useQuery(api.poems.getPoemDetail, {
+  const { guestToken } = useUser();
+  const poemDetail = useQuery(api.poems.getPoemDetail, {
     poemId,
-    guestId: guestId || undefined,
+    guestToken: guestToken || undefined,
   });
   const isFavorited = useQuery(api.favorites.isFavorited, {
     poemId,
-    guestId: guestId || undefined,
+    guestToken: guestToken || undefined,
   });
   const toggleFavorite = useMutation(api.favorites.toggleFavorite);
 
-  const [revealedLines, setRevealedLines] = useState<number>(0);
-
-  // Staggered reveal effect
-  useEffect(() => {
-    if (poemData?.lines) {
-      const interval = setInterval(() => {
-        setRevealedLines((prev) => {
-          if (prev < poemData.lines.length) return prev + 1;
-          clearInterval(interval);
-          return prev;
-        });
-      }, 150);
-      return () => clearInterval(interval);
-    }
-  }, [poemData?.lines]);
-
-  if (!poemData) {
+  if (!poemDetail) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <span className="text-[var(--color-text-muted)]">Loading...</span>
+      <div className="min-h-screen bg-stone-100 flex items-center justify-center">
+        <div className="animate-pulse text-stone-500">Loading...</div>
       </div>
     );
   }
 
-  const handleFavorite = async () => {
-    await toggleFavorite({ poemId, guestId: guestId || undefined });
+  const { lines } = poemDetail;
+
+  const handleToggleFavorite = async () => {
+    await toggleFavorite({ poemId, guestToken: guestToken || undefined });
   };
 
   return (
@@ -72,7 +56,7 @@ export default function PoemDetailPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleFavorite}
+            onClick={handleToggleFavorite}
             className={
               isFavorited
                 ? 'text-[var(--color-primary)]'
@@ -101,14 +85,10 @@ export default function PoemDetailPage() {
             <CardTitle className="text-center">Poem</CardTitle>
           </CardHeader>
           <CardContent className="p-8 space-y-6">
-            {poemData.lines.map((line, index) => (
+            {lines.map((line) => (
               <div
                 key={line._id}
-                className={`transition-all duration-500 transform ${
-                  index < revealedLines
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 translate-y-4'
-                }`}
+                className="transition-all duration-500 transform opacity-100 translate-y-0"
               >
                 <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)] text-center leading-relaxed">
                   {line.text}

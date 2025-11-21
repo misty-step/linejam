@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
     if (existingToken) {
       try {
         const guestId = await verifyGuestToken(existingToken);
-        // Valid token exists, return guestId
-        return NextResponse.json({ guestId });
+        // Valid token exists, return guestId and token
+        return NextResponse.json({ guestId, token: existingToken });
       } catch (error) {
         // Token invalid/expired - will create new one below
         console.log('Invalid guest token, creating new one:', error);
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const guestId = randomUUID();
     const token = await signGuestToken(guestId);
 
-    const response = NextResponse.json({ guestId });
+    const response = NextResponse.json({ guestId, token });
 
     // Set HttpOnly cookie
     response.cookies.set(COOKIE_NAME, token, {

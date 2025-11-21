@@ -60,7 +60,7 @@ Critical Path: 6h
   Estimate: 0.5h
   ```
 
-- [~] Guest token issuance API (Next) and hook
+- [x] Guest token issuance API (Next) and hook
 
   ```
   Files: app/api/guest/session/route.ts; lib/auth.ts (client hook); lib/guestToken.ts (helper)
@@ -76,23 +76,23 @@ Critical Path: 6h
   Estimate: 1.5h
   ```
 
-- [ ] Convex guest auth validation
+- [x] Convex guest auth validation
 
   ```
   Files: convex/lib/auth.ts; convex/users.ts; convex/functions using guestId
   Goal: Validate guest tokens server-side before resolving user; reject tampered/expired tokens.
   Approach:
-  1) Add utility to parse/verify token (shared secret) and extract guestId.
-  2) Update getUser/requireUser/ensureUserHelper to use verified guestId from token string, not raw input.
-  3) Thread token through args where guestId was (rename to guestToken for clarity).
+  1) Add utility to verifyGuestToken (shared secret) and extract guestId.
+  2) Update getUser/ensureUserHelper to use verified guestId from token string.
+  3) Thread guestToken through args where guestId was.
   Success Criteria:
   - Any tampered token throws; existing Clerk auth path unaffected.
   - All convex calls compile with new arg name/types.
-  Tests: unit test for auth util; mutation/query tests with valid and tampered tokens.
+  Tests: unit test for auth util (tests/convex/guestToken.test.ts); verification of API flows.
   Estimate: 1h
   ```
 
-- [ ] startNewCycle mutation + game scoping
+- [x] startNewCycle mutation + game scoping
 
   ```
   Files: convex/game.ts; convex/rooms.ts (room status updates)
@@ -109,7 +109,7 @@ Critical Path: 6h
   Estimate: 1.5h
   ```
 
-- [ ] Rate limiting for room endpoints
+- [x] Rate limiting for room endpoints
 
   ```
   Files: convex/rooms.ts; convex/lib/rateLimit.ts (new); env var for limits
@@ -125,7 +125,7 @@ Critical Path: 6h
   Estimate: 1h
   ```
 
-- [ ] UI: Play Again + Lobby/Reveal state wiring
+- [x] UI: Play Again + Lobby/Reveal state wiring
 
   ```
   Files: components/RevealPhase.tsx; components/Lobby.tsx; app/room/[code]/page.tsx
@@ -141,7 +141,7 @@ Critical Path: 6h
   Estimate: 1h
   ```
 
-- [ ] UI: QR join flow
+- [x] UI: QR join flow
 
   ```
   Files: components/Lobby.tsx; components/RevealPhase.tsx; app/join/page.tsx; new component components/RoomQr.tsx
@@ -157,7 +157,7 @@ Critical Path: 6h
   Estimate: 1h
   ```
 
-- [ ] Observability: Sentry context + captureError coverage
+- [x] Observability: Sentry context + captureError coverage
 
   ```
   Files: lib/error.ts; components where new mutations added; convex/game.ts (contexts)
@@ -171,7 +171,7 @@ Critical Path: 6h
   Estimate: 0.5h
   ```
 
-- [ ] Test suite coverage for new flows
+- [x] Test suite coverage for new flows
   ```
   Files: tests/ (new specs), vitest setup; convex test harness if available
   Goal: Validate replay, QR prefill, code generator, guest token, rate limit.

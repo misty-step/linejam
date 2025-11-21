@@ -12,10 +12,10 @@ interface WritingScreenProps {
 }
 
 export function WritingScreen({ roomCode }: WritingScreenProps) {
-  const { guestId } = useUser();
+  const { guestToken } = useUser();
   const assignment = useQuery(api.game.getCurrentAssignment, {
     roomCode,
-    guestId: guestId || undefined,
+    guestToken: guestToken || undefined,
   });
   const submitLine = useMutation(api.game.submitLine);
 
@@ -50,7 +50,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         poemId: assignment.poemId,
         lineIndex: assignment.lineIndex,
         text,
-        guestId: guestId || undefined,
+        guestToken: guestToken || undefined,
       });
       setSubmittedRound(assignment.lineIndex);
     } catch (error) {

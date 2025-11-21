@@ -1,10 +1,10 @@
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
-import { captureError } from '../lib/error';
 import { formatRoomCode } from '../lib/roomCode';
 import { Button } from './ui/Button';
 import { Doc } from '../convex/_generated/dataModel';
+import { RoomQr } from './RoomQr';
 
 interface LobbyProps {
   room: Doc<'rooms'>;
@@ -13,15 +13,18 @@ interface LobbyProps {
 }
 
 export function Lobby({ room, players, isHost }: LobbyProps) {
-  const { guestId } = useUser();
-  const startGame = useMutation(api.game.startGame);
+  const { guestToken } = useUser();
+  const startGameMutation = useMutation(api.game.startGame);
 
-  const handleStart = async () => {
+  const handleStartGame = async () => {
+    if (!room) return;
     try {
-      await startGame({ code: room.code, guestId: guestId || undefined });
+      await startGameMutation({
+        code: room.code,
+        guestToken: guestToken || undefined,
+      });
     } catch (error) {
-      captureError(error, { roomCode: room.code });
-      alert('Only the host can start the game!');
+      console.error('Failed to start game:', error);
     }
   };
 
@@ -45,6 +48,8 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             write blindly, seeing only the previous line. Trust the process.
           </p>
         </div>
+
+        {isHost && <RoomQr roomCode={room.code} className="mt-8" />}
       </div>
 
       {/* Right: Player Manifest */}
@@ -83,7 +88,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         <div className="flex gap-4 items-center border-t border-[var(--color-border-subtle)] pt-8">
           {isHost ? (
             <Button
-              onClick={handleStart}
+              onClick={handleStartGame}
               size="lg"
               className="flex-1 h-16 text-lg"
               disabled={players.length < 2}

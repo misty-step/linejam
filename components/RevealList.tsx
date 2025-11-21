@@ -1,17 +1,17 @@
 import { useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { useUser } from '../lib/auth';
+import { api } from '@/convex/_generated/api';
+import { useUser } from '@/lib/auth';
 import Link from 'next/link';
 
 interface RevealListProps {
   roomCode: string;
 }
 
-export function RevealList({ roomCode }: RevealListProps) {
-  const { guestId } = useUser();
+export default function RevealList({ roomCode }: RevealListProps) {
+  const { guestToken } = useUser();
   const poems = useQuery(api.poems.getPoemsForRoom, {
     roomCode,
-    guestId: guestId || undefined,
+    guestToken: guestToken || undefined,
   });
 
   if (!poems) {

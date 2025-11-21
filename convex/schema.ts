@@ -91,4 +91,12 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_poem', ['poemId'])
     .index('by_user_poem', ['userId', 'poemId']),
+
+  rateLimits: defineTable({
+    key: v.string(),
+    hits: v.number(),
+    resetTime: v.number(),
+  })
+    .index('by_key', ['key'])
+    .index('by_reset_time', ['resetTime']), // For cleanup if needed
 });

@@ -1,20 +1,23 @@
 'use client';
 
+import { use } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useParams } from 'next/navigation';
 import { Lobby } from '../../../components/Lobby';
 import { WritingScreen } from '../../../components/WritingScreen';
 import { RevealPhase } from '../../../components/RevealPhase';
 import { useUser } from '../../../lib/auth';
 
-export default function RoomPage() {
-  const params = useParams();
-  const code = params.code as string;
-  const { isLoading, guestId } = useUser();
+interface RoomPageProps {
+  params: Promise<{ code: string }>;
+}
+
+export default function RoomPage({ params }: RoomPageProps) {
+  const { code } = use(params);
+  const { isLoading, guestToken } = useUser();
   const roomState = useQuery(api.rooms.getRoomState, {
     code,
-    guestId: guestId || undefined,
+    guestToken: guestToken || undefined,
   });
 
   if (isLoading || roomState === undefined) {

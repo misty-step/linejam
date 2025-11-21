@@ -2,6 +2,7 @@ import { mutation, type MutationCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { ConvexError, v } from 'convex/values';
 import { getUser } from './lib/auth';
+import { verifyGuestToken } from './lib/guestToken';
 
 type UserDoc = Doc<'users'>;
 type UserInsert = Omit<UserDoc, '_id' | '_creationTime'>;
@@ -9,14 +10,14 @@ type UserInsert = Omit<UserDoc, '_id' | '_creationTime'>;
 export const ensureUserHelper = async (
   ctx: MutationCtx,
   args: {
-    guestId?: string;
+    guestToken?: string;
     displayName: string;
   }
 ): Promise<UserDoc> => {
   const displayName = normalizeDisplayName(args.displayName);
 
   // 1. Try to find existing user
-  const existingUser = await getUser(ctx, args.guestId);
+  const existingUser = await getUser(ctx, args.guestToken);
   if (existingUser) {
     return existingUser;
   }
@@ -24,7 +25,15 @@ export const ensureUserHelper = async (
   // 2. If not found, create new user
   const identity = await ctx.auth.getUserIdentity();
   const clerkUserId = identity?.subject;
-  const guestId = args.guestId?.trim();
+
+  let guestId: string | undefined;
+  if (args.guestToken) {
+    try {
+      guestId = await verifyGuestToken(args.guestToken);
+    } catch {
+      throw new ConvexError('Invalid guest token');
+    }
+  }
 
   if (!clerkUserId && !guestId) {
     throw new ConvexError('Missing user identifier');
@@ -45,8 +54,8 @@ export const ensureUserHelper = async (
 
 export const ensureUser = mutation({
   args: {
-    clerkUserId: v.optional(v.string()), // Deprecated in signature but kept for compatibility if needed, though unused in helper now
-    guestId: v.optional(v.string()),
+    clerkUserId: v.optional(v.string()), // Deprecated
+    guestToken: v.optional(v.string()),
     displayName: v.string(),
   },
   handler: async (ctx, args): Promise<UserDoc> => {
