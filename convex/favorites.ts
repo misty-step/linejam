@@ -5,10 +5,10 @@ import { getUser } from './lib/auth';
 export const toggleFavorite = mutation({
   args: {
     poemId: v.id('poems'),
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId, guestId }) => {
-    const user = await getUser(ctx, guestId);
+  handler: async (ctx, { poemId, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
 
     const existing = await ctx.db
@@ -32,10 +32,10 @@ export const toggleFavorite = mutation({
 
 export const getMyFavorites = query({
   args: {
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { guestId }) => {
-    const user = await getUser(ctx, guestId);
+  handler: async (ctx, { guestToken }) => {
+    const user = await getUser(ctx, guestToken);
     if (!user) return [];
 
     const favorites = await ctx.db
@@ -68,10 +68,10 @@ export const getMyFavorites = query({
 export const isFavorited = query({
   args: {
     poemId: v.id('poems'),
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId, guestId }) => {
-    const user = await getUser(ctx, guestId);
+  handler: async (ctx, { poemId, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
     if (!user) return false;
 
     const existing = await ctx.db

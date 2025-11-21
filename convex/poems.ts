@@ -5,10 +5,10 @@ import { getUser } from './lib/auth';
 export const getPoemsForRoom = query({
   args: {
     roomCode: v.string(),
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { roomCode, guestId }) => {
-    const user = await getUser(ctx, guestId);
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
     if (!user) return [];
 
     const room = await ctx.db
@@ -26,10 +26,22 @@ export const getPoemsForRoom = query({
       .first();
     if (!player) return [];
 
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
+    // If the room has a current game, only return poems from that game
+    // This ensures RevealList shows only the current cycle's poems
+    let poems;
+    if (room.currentGameId) {
+      poems = await ctx.db
+        .query('poems')
+        .withIndex('by_game', (q) => q.eq('gameId', room.currentGameId!))
+        .collect();
+    } else {
+      // Fallback (e.g. if in lobby between games? or historic behavior)
+      // Ideally we shouldn't be calling this in Lobby state for content
+      poems = await ctx.db
+        .query('poems')
+        .withIndex('by_room', (q) => q.eq('roomId', room._id))
+        .collect();
+    }
 
     // Enhance with first line preview?
     // For now just return poems, frontend can fetch details or we can enhance here.
@@ -54,10 +66,10 @@ export const getPoemsForRoom = query({
 export const getPoemDetail = query({
   args: {
     poemId: v.id('poems'),
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId, guestId }) => {
-    const user = await getUser(ctx, guestId);
+  handler: async (ctx, { poemId, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
     if (!user) return null;
 
     const poem = await ctx.db.get(poemId);
@@ -99,10 +111,10 @@ export const getPoemDetail = query({
 
 export const getMyPoems = query({
   args: {
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { guestId }) => {
-    const user = await getUser(ctx, guestId);
+  handler: async (ctx, { guestToken }) => {
+    const user = await getUser(ctx, guestToken);
     if (!user) return [];
 
     // Find all lines written by user

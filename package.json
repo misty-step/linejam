@@ -20,7 +20,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:ci": "vitest run --coverage",
     "test:watch": "vitest --watch",
@@ -38,6 +38,7 @@
     "pino-pretty": "^13.1.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-qr-code": "^2.0.18",
     "require-in-the-middle": "^8.0.1",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.4.0"

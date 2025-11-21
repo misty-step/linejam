@@ -2,12 +2,19 @@ import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser } from './lib/auth';
+import { checkRateLimit } from './lib/rateLimit';
 
 const generateRoomCode = (): string => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const codeLength = 6;
+
+  // Use crypto-secure random number generation
+  const randomValues = new Uint8Array(codeLength);
+  crypto.getRandomValues(randomValues);
+
   let result = '';
-  for (let i = 0; i < 4; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  for (let i = 0; i < codeLength; i++) {
+    result += characters.charAt(randomValues[i] % characters.length);
   }
   return result;
 };
@@ -15,12 +22,19 @@ const generateRoomCode = (): string => {
 export const createRoom = mutation({
   args: {
     displayName: v.string(),
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { displayName, guestId }) => {
+  handler: async (ctx, { displayName, guestToken }) => {
     const user = await ensureUserHelper(ctx, {
       displayName,
-      guestId,
+      guestToken,
+    });
+
+    // Rate limit: 3 rooms per 10 minutes per user
+    await checkRateLimit(ctx, {
+      key: `createRoom:${user._id}`,
+      max: 3,
+      windowMs: 10 * 60 * 1000,
     });
 
     let roomCode: string;
@@ -55,12 +69,19 @@ export const joinRoom = mutation({
   args: {
     code: v.string(),
     displayName: v.string(),
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { code, displayName, guestId }) => {
+  handler: async (ctx, { code, displayName, guestToken }) => {
     const user = await ensureUserHelper(ctx, {
       displayName,
-      guestId,
+      guestToken,
+    });
+
+    // Rate limit: 10 joins per 10 minutes per user
+    await checkRateLimit(ctx, {
+      key: `joinRoom:${user._id}`,
+      max: 10,
+      windowMs: 10 * 60 * 1000,
     });
 
     const room = await ctx.db
@@ -123,9 +144,9 @@ export const getRoom = query({
 export const getRoomState = query({
   args: {
     code: v.string(),
-    guestId: v.optional(v.string()),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { code, guestId }) => {
+  handler: async (ctx, { code, guestToken }) => {
     const room = await ctx.db
       .query('rooms')
       .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
@@ -140,7 +161,7 @@ export const getRoomState = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    const user = await getUser(ctx, guestId);
+    const user = await getUser(ctx, guestToken);
     const isHost = !!user && user._id === room.hostUserId;
 
     return { room, players, isHost };

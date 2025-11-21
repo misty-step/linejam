@@ -11,26 +11,29 @@ import { Input } from '../../components/ui/Input';
 import Link from 'next/link';
 
 export default function HostPage() {
-  const { guestId, isLoading } = useUser();
-  const createRoom = useMutation(api.rooms.createRoom);
   const router = useRouter();
+  const { guestToken, isLoading } = useUser();
+  const createRoomMutation = useMutation(api.rooms.createRoom);
   const [name, setName] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name) return;
 
-    setIsCreating(true);
+    setIsSubmitting(true);
+
     try {
-      const { code } = await createRoom({
+      const { code } = await createRoomMutation({
         displayName: name,
-        guestId: guestId || undefined,
+        guestToken: guestToken || undefined,
       });
       router.push(`/room/${code}`);
-    } catch (error) {
-      captureError(error, { displayName: name, guestId });
-      setIsCreating(false);
+    } catch (err) {
+      console.error(err);
+      // Could show toast here
+      captureError(err as Error, { displayName: name, guestToken });
+      setIsSubmitting(false);
     }
   };
 
@@ -76,9 +79,9 @@ export default function HostPage() {
               <Button
                 type="submit"
                 className="w-full text-lg h-14"
-                disabled={!name.trim() || isCreating}
+                disabled={!name.trim() || isSubmitting}
               >
-                {isCreating ? 'Initializing...' : 'Create Room'}
+                {isSubmitting ? 'Initializing...' : 'Create Room'}
               </Button>
             </div>
           </form>

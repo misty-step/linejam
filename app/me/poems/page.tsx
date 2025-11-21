@@ -6,14 +6,13 @@ import { useUser } from '../../../lib/auth';
 import Link from 'next/link';
 
 export default function MyPoemsPage() {
-  const { guestId, isLoading } = useUser();
-
+  const { guestToken, isLoading } = useUser();
   const poems = useQuery(api.poems.getMyPoems, {
-    guestId: guestId || undefined,
+    guestToken: guestToken || undefined,
   });
 
   const favorites = useQuery(api.favorites.getMyFavorites, {
-    guestId: guestId || undefined,
+    guestToken: guestToken || undefined,
   });
 
   if (isLoading) {
