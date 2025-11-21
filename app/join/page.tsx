@@ -68,10 +68,10 @@ export default function JoinPage() {
               </label>
               <Input
                 id="code"
-                placeholder="ABCD"
+                placeholder="AB CD EF"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                maxLength={4}
+                maxLength={6}
                 required
                 autoFocus
                 className="uppercase tracking-[0.5em] text-center font-mono text-2xl h-16 bg-[var(--color-muted)] border-2"

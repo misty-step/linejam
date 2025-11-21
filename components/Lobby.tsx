@@ -2,6 +2,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { captureError } from '../lib/error';
+import { formatRoomCode } from '../lib/roomCode';
 import { Button } from './ui/Button';
 import { Doc } from '../convex/_generated/dataModel';
 
@@ -33,7 +34,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             Room Code
           </span>
           <h1 className="text-6xl md:text-8xl font-[var(--font-display)] text-[var(--color-primary)] tracking-tighter">
-            {room.code}
+            {formatRoomCode(room.code)}
           </h1>
         </div>
 

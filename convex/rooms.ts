@@ -4,10 +4,16 @@ import { ensureUserHelper } from './users';
 import { getUser } from './lib/auth';
 
 const generateRoomCode = (): string => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const codeLength = 6;
+
+  // Use crypto-secure random number generation
+  const randomValues = new Uint8Array(codeLength);
+  crypto.getRandomValues(randomValues);
+
   let result = '';
-  for (let i = 0; i < 4; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  for (let i = 0; i < codeLength; i++) {
+    result += characters.charAt(randomValues[i] % characters.length);
   }
   return result;
 };
