@@ -214,81 +214,6 @@ const [error, setError] = useState('');
 
 ---
 
-### [Infrastructure] Pre-commit typecheck too slow
-
-**File**: lefthook.yml:17-19
-**Perspectives**: maintainability-maven
-**Impact**: Full `pnpm typecheck` runs on every commit regardless of files changed. Pre-commit should be <5s; typecheck alone can take 5-10s.
-**Fix**: Remove typecheck from pre-commit (already runs in pre-push and CI):
-
-```yaml
-pre-commit:
-  parallel: true
-  commands:
-    lint:
-      # ...
-    format:
-      # ...
-    # Remove typecheck - too slow for pre-commit
-```
-
-Add `--incremental` flag to pre-push typecheck for faster subsequent runs.
-**Effort**: 10m | **Impact**: Pre-commit <5s, devs won't bypass hooks
-**Acceptance**: Pre-commit completes in <5s for typical commits
-
----
-
-### [Infrastructure] CI pipeline runs sequentially, wasting time
-
-**File**: .github/workflows/ci.yml:32-45
-**Perspectives**: performance-pathfinder
-**Impact**: Lint → format:check → typecheck → test → build runs sequentially but first three are independent. Wastes 2-3 minutes per CI run.
-**Fix**: Parallelize independent jobs:
-
-```yaml
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps: [checkout, setup, install, lint]
-  format:
-    runs-on: ubuntu-latest
-    steps: [checkout, setup, install, format:check]
-  typecheck:
-    runs-on: ubuntu-latest
-    steps: [checkout, setup, install, typecheck]
-  test-build:
-    needs: [lint, format, typecheck]
-    runs-on: ubuntu-latest
-    steps: [checkout, setup, install, test:ci, build]
-```
-
-**Effort**: 30m | **Speedup**: ~2-3 min saved per run
-**Acceptance**: Lint, format, typecheck run in parallel; test/build wait for all three
-
----
-
-### [Security] No secrets scanning in git hooks
-
-**File**: lefthook.yml
-**Perspectives**: security-sentinel
-**Severity**: MEDIUM
-**Impact**: No pre-commit check for leaked secrets. CLERK_SECRET_KEY, SENTRY_AUTH_TOKEN could be committed accidentally.
-**Fix**: Add gitleaks to pre-commit:
-
-```yaml
-pre-commit:
-  parallel: true
-  commands:
-    secrets:
-      run: gitleaks protect --staged --redact
-```
-
-Requires `brew install gitleaks` or CI installation.
-**Effort**: 15m | **Impact**: Prevents secret leakage
-**Acceptance**: Commits with secrets are blocked with clear error message
-
----
-
 ### [Infrastructure] Test coverage targets global instead of critical paths
 
 **File**: vitest.config.ts:24-29
@@ -384,25 +309,6 @@ export default function TestError() {
 
 **Effort**: 10m | **Impact**: Can verify error tracking in any environment
 **Acceptance**: Visiting /test-error and clicking shows error in Sentry dashboard
-
----
-
-### [Infrastructure] No health check endpoint
-
-**Perspectives**: architecture-guardian
-**Severity**: MEDIUM
-**Impact**: No way for external uptime monitors (UptimeRobot, BetterUptime) to verify app is running. Downtime detection delayed until user reports.
-**Fix**: Create health endpoint:
-
-```typescript
-// app/api/health/route.ts
-export async function GET() {
-  return Response.json({ status: 'ok', timestamp: new Date().toISOString() });
-}
-```
-
-**Effort**: 10m | **Impact**: Enables external uptime monitoring
-**Acceptance**: GET /api/health returns 200 with status ok
 
 ---
 

@@ -1,0 +1,44 @@
+# gitleaks config for Linejam
+# Extends default rule set; adds project-specific allowlist.
+
+extends = "gitleaks:default"
+
+[[rules]]
+id = "linejam-clerk-secret-key"
+description = "Clerk secret API key"
+regex = '''sk_(test|live)_[A-Za-z0-9]{32,}'''
+keywords = ["sk_test", "sk_live", "CLERK_SECRET_KEY"]
+
+[[rules]]
+id = "linejam-clerk-publishable-key"
+description = "Clerk publishable key"
+regex = '''pk_(test|live)_[A-Za-z0-9]{20,}'''
+keywords = ["pk_test", "pk_live", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]
+
+[[rules]]
+id = "linejam-sentry-auth-token"
+description = "Sentry auth token"
+regex = '''SENTRY_AUTH_TOKEN[\\s:=\\\"]*[0-9a-fA-F]{32}'''
+keywords = ["SENTRY_AUTH_TOKEN"]
+
+[[rules]]
+id = "linejam-convex-deploy-key"
+description = "Convex deploy key"
+regex = '''convex_[a-z0-9]{24,}'''
+keywords = ["CONVEX_DEPLOY_KEY", "convex_"]
+
+[[rules]]
+id = "linejam-generic-bearer-token"
+description = "Generic bearer/API token"
+regex = '''(?i)(api|bearer|secret|token)[\\s:=\\\"]*[A-Za-z0-9_\\-]{32,}'''
+keywords = ["token", "secret", "api_key"]
+
+[allowlist]
+description = "Allowlisted patterns for non-sensitive test data"
+regexes = [
+  '''(?i)example_(key|token|secret)''',
+  '''(?i)dummy_(key|token|secret)''',
+]
+paths = [
+  '''tests/fixtures/.*''',
+]
