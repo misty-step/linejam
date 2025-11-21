@@ -44,7 +44,7 @@ Critical Path: 6h
   Estimate: 1h
   ```
 
-- [~] Crypto room code generator + backward-compatible inputs
+- [x] Crypto room code generator + backward-compatible inputs
 
   ```
   Files: convex/rooms.ts; app/join/page.tsx; app/host/page.tsx; components/Lobby.tsx (display); lib (helper if needed)
@@ -60,7 +60,7 @@ Critical Path: 6h
   Estimate: 0.5h
   ```
 
-- [ ] Guest token issuance API (Next) and hook
+- [~] Guest token issuance API (Next) and hook
 
   ```
   Files: app/api/guest/session/route.ts; lib/auth.ts (client hook); lib/guestToken.ts (helper)
