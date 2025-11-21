@@ -30,15 +30,17 @@ function JoinForm() {
     setIsSubmitting(true);
     setError('');
 
+    const normalizedCode = code.replace(/\s/g, '');
+
     try {
       await joinRoomMutation({
-        code,
+        code: normalizedCode,
         displayName: name,
         guestToken: guestToken || undefined,
       });
-      router.push(`/room/${code}`);
+      router.push(`/room/${normalizedCode}`);
     } catch (err) {
-      captureError(err, { roomCode: code.toUpperCase() });
+      captureError(err, { roomCode: normalizedCode });
       setError(err instanceof Error ? err.message : 'Failed to join room');
       setIsSubmitting(false);
     }

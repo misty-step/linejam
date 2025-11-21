@@ -46,7 +46,7 @@ export const startGame = mutation({
     const gameId = await ctx.db.insert('games', {
       roomId: room._id,
       status: 'IN_PROGRESS',
-      cycle: 1,
+      cycle: (room.currentCycle || 0) + 1,
       currentRound: 0,
       assignmentMatrix,
       createdAt: Date.now(),
