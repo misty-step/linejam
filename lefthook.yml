@@ -5,7 +5,7 @@ pre-commit:
   parallel: true
   commands:
     secrets:
-      run: gitleaks protect --staged --redact --no-banner
+      run: gitleaks protect --staged --redact --no-banner --config .gitleaks.toml
       fail_text: |
         ⚠️  Secret detected in staged files!
 
