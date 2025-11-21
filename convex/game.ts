@@ -43,9 +43,10 @@ export const startGame = mutation({
     const assignmentMatrix = generateAssignmentMatrix(playerIds);
 
     // Create Game
-    await ctx.db.insert('games', {
+    const gameId = await ctx.db.insert('games', {
       roomId: room._id,
       status: 'IN_PROGRESS',
+      cycle: 1,
       currentRound: 0,
       assignmentMatrix,
       createdAt: Date.now(),
@@ -55,6 +56,7 @@ export const startGame = mutation({
     for (let i = 0; i < players.length; i++) {
       await ctx.db.insert('poems', {
         roomId: room._id,
+        gameId,
         indexInRoom: i,
         createdAt: Date.now(),
       });
@@ -63,6 +65,8 @@ export const startGame = mutation({
     // Update Room
     await ctx.db.patch(room._id, {
       status: 'IN_PROGRESS',
+      currentGameId: gameId,
+      currentCycle: 1,
       startedAt: Date.now(),
     });
   },

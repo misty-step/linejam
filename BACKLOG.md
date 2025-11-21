@@ -186,17 +186,6 @@ const [error, setError] = useState('');
 
 ---
 
-### [UX] "Play Again" button does nothing ⚠️ MULTI-AGENT
-
-**File**: components/RevealPhase.tsx:157-159
-**Perspectives**: product-visionary, user-experience-advocate
-**Impact**: Button renders with no onClick handler. Game session dead-ends. Users must manually navigate home, re-host, re-share code. High friction destroys replay momentum.
-**Fix**: Implement `playAgain` mutation that creates new game in same room, resets to LOBBY status. OR remove the button.
-**Effort**: 2-3h (implement) or 1m (remove) | **Impact**: CRITICAL for retention
-**Acceptance**: Button either works or doesn't exist
-
----
-
 ### [Design] Profile page uses Tailwind grays instead of design tokens
 
 **File**: app/me/profile/page.tsx
@@ -422,15 +411,6 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 ---
 
-### [Product] Add QR code for room joining
-
-**Perspectives**: product-visionary, user-experience-advocate
-**Why**: Current join flow: navigate URL → click Join → type 4-letter code. QR code goes directly to pre-filled join page.
-**Approach**: QR generation lib (qrcode.js), host displays for scanning
-**Effort**: 2-3h | **Value**: Reduces onboarding friction 80%
-
----
-
 ### [UX] Add basic accessibility
 
 **Perspectives**: user-experience-advocate
@@ -478,26 +458,6 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 **Why**: Each component implements loading state differently. Some "Loading...", some "Loading poems...", no spinners/skeletons.
 **Approach**: Standardized loading screen with customizable message
 **Effort**: 50m | **Impact**: Consistent loading experience
-
----
-
-### [Security] Increase room code entropy
-
-**File**: convex/rooms.ts:5-12
-**Perspectives**: security-sentinel
-**Why**: Only 456K combinations (26^4). Uses `Math.random()` (not cryptographically secure). No rate limiting.
-**Approach**: 6-character alphanumeric (2.1B combinations), add rate limiting to getRoom/joinRoom
-**Effort**: 1h | **Severity**: MEDIUM
-
----
-
-### [Security] Server-side guest session management
-
-**Files**: lib/auth.ts, Convex functions
-**Perspectives**: security-sentinel
-**Why**: Guest ID is client-controlled. User can impersonate another guest by copying localStorage value.
-**Approach**: Generate guestId server-side, use signed/encrypted session tokens
-**Effort**: 2h | **Severity**: MEDIUM
 
 ---
 

@@ -22,6 +22,8 @@ export default defineSchema({
     createdAt: v.number(),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    currentGameId: v.optional(v.id('games')),
+    currentCycle: v.optional(v.number()),
   })
     .index('by_code', ['code'])
     .index('by_host', ['hostUserId']),
@@ -39,15 +41,23 @@ export default defineSchema({
 
   games: defineTable({
     roomId: v.id('rooms'),
-    status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
+    status: v.union(
+      v.literal('LOBBY'),
+      v.literal('IN_PROGRESS'),
+      v.literal('COMPLETED')
+    ),
+    cycle: v.number(),
     currentRound: v.number(),
     assignmentMatrix: v.array(v.array(v.id('users'))),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
-  }).index('by_room', ['roomId']),
+  })
+    .index('by_room', ['roomId'])
+    .index('by_room_cycle', ['roomId', 'cycle']),
 
   poems: defineTable({
     roomId: v.id('rooms'),
+    gameId: v.id('games'),
     indexInRoom: v.number(),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
@@ -57,7 +67,9 @@ export default defineSchema({
   })
     .index('by_room', ['roomId'])
     .index('by_room_index', ['roomId', 'indexInRoom'])
-    .index('by_reader', ['assignedReaderId']),
+    .index('by_reader', ['assignedReaderId'])
+    .index('by_game', ['gameId'])
+    .index('by_room_game_index', ['roomId', 'gameId', 'indexInRoom']),
 
   lines: defineTable({
     poemId: v.id('poems'),
