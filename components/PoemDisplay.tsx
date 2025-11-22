@@ -4,14 +4,12 @@ import { useEffect, useState } from 'react';
 import { Button } from './ui/Button';
 
 interface PoemDisplayProps {
-  poemNumber: number;
   lines: string[];
   onDone: () => void;
   alreadyRevealed?: boolean;
 }
 
 export function PoemDisplay({
-  poemNumber,
   lines,
   onDone,
   alreadyRevealed = false,
