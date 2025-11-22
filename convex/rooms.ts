@@ -6,7 +6,7 @@ import { checkRateLimit } from './lib/rateLimit';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const codeLength = 6;
+  const codeLength = 4;
 
   // Use crypto-secure random number generation
   const randomValues = new Uint8Array(codeLength);
@@ -23,11 +23,13 @@ export const createRoom = mutation({
   args: {
     displayName: v.string(),
     guestToken: v.optional(v.string()),
+    guestId: v.optional(v.string()), // Legacy fallback; prefer guestToken
   },
-  handler: async (ctx, { displayName, guestToken }) => {
+  handler: async (ctx, { displayName, guestToken, guestId }) => {
     const user = await ensureUserHelper(ctx, {
       displayName,
       guestToken,
+      guestId,
     });
 
     // Rate limit: 3 rooms per 10 minutes per user
@@ -70,11 +72,13 @@ export const joinRoom = mutation({
     code: v.string(),
     displayName: v.string(),
     guestToken: v.optional(v.string()),
+    guestId: v.optional(v.string()),
   },
-  handler: async (ctx, { code, displayName, guestToken }) => {
+  handler: async (ctx, { code, displayName, guestToken, guestId }) => {
     const user = await ensureUserHelper(ctx, {
       displayName,
       guestToken,
+      guestId,
     });
 
     // Rate limit: 10 joins per 10 minutes per user
