@@ -27,9 +27,9 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
             Round {round + 1} Pending
           </p>
           <h2 className="text-4xl md:text-5xl font-[var(--font-display)] leading-tight">
-            Awaiting
+            Waiting for
             <br />
-            Imprints
+            Other Poets
           </h2>
           <p className="text-lg text-[var(--color-text-secondary)] font-mono">
             {submittedCount} / {players.length}

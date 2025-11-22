@@ -132,7 +132,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
               className="min-w-[200px] text-lg h-16"
               disabled={!isValid || isSubmitting}
             >
-              {isSubmitting ? 'Imprinting...' : 'Stamp Line'}
+              {isSubmitting ? 'Submitting...' : 'Submit Line'}
             </Button>
           </div>
         </div>
