@@ -2,82 +2,106 @@
 
 import Link from 'next/link';
 import { Button } from '../components/ui/Button';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--color-background)] relative overflow-hidden">
-      {/* Decorative Grid Line */}
-      <div className="absolute top-0 left-6 w-px h-full bg-[var(--color-border-subtle)] hidden md:block" />
-      <div className="absolute top-0 right-6 w-px h-full bg-[var(--color-border-subtle)] hidden md:block" />
+    <div className="min-h-screen flex items-center justify-center p-6 bg-[var(--color-background)] relative">
+      {/* Floating Theme Toggle - Top Right */}
+      <ThemeToggle className="absolute top-6 right-6 z-10" />
 
-      <main className="flex-1 flex flex-col md:flex-row relative z-10">
-        {/* Left Panel: Brand & Manifesto */}
-        <div className="flex-1 p-8 md:p-12 lg:p-20 flex flex-col justify-between border-b md:border-b-0 md:border-r border-[var(--color-border)]">
-          <div className="space-y-8">
-            <h1 className="text-7xl md:text-8xl lg:text-9xl font-[var(--font-display)] tracking-tighter leading-[0.8]">
-              Line
-              <br />
-              jam
-            </h1>
-            <div className="max-w-md space-y-6">
-              <p className="text-xl md:text-2xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-secondary)]">
-                &ldquo;Poetry is the spontaneous overflow of powerful feelings:
-                it takes its origin from emotion recollected in
-                tranquility.&rdquo;
-              </p>
-              <div className="h-px w-12 bg-[var(--color-primary)]" />
-              <p className="text-base md:text-lg text-[var(--color-text-primary)]">
-                A digital parlor game for friends. <br />
-                Write together. Reveal the unexpected.
-              </p>
-            </div>
-          </div>
-
-          <div className="hidden md:block pt-12">
-            <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)]">
-              Est. 2025 — v1.0
-            </span>
+      {/* Main Content - Centered Card */}
+      <div className="max-w-xl w-full text-center space-y-10">
+        {/* Title with Decorative Border */}
+        <div className="space-y-3">
+          <h1 className="text-6xl md:text-7xl font-[var(--font-display)] font-bold tracking-tight leading-[0.9] text-[var(--color-text-primary)]">
+            Linejam
+          </h1>
+          <div
+            className="text-[var(--color-text-muted)] text-sm tracking-[0.2em]"
+            aria-hidden="true"
+          >
+            ═══════════════════
           </div>
         </div>
 
-        {/* Right Panel: Actions */}
-        <div className="flex-1 p-8 md:p-12 lg:p-20 flex flex-col justify-center bg-[var(--color-surface)]/50">
-          <div className="max-w-sm mx-auto w-full space-y-8">
-            <div className="space-y-4">
-              <Link href="/host" className="block w-full group">
-                <Button
-                  className="w-full h-16 text-xl justify-between group-hover:-translate-y-1 transition-transform"
-                  size="lg"
-                >
-                  <span>Host a Game</span>
-                  <span className="opacity-50 group-hover:opacity-100">→</span>
-                </Button>
-              </Link>
+        {/* Tagline */}
+        <p className="text-xl md:text-2xl leading-relaxed text-[var(--color-text-primary)] font-[var(--font-sans)] max-w-md mx-auto">
+          Write poems together.
+          <br />
+          One line at a time.
+          <br />
+          Reveal the unexpected.
+        </p>
 
-              <Link href="/join" className="block w-full group">
-                <Button
-                  variant="secondary"
-                  className="w-full h-16 text-xl justify-between group-hover:-translate-y-1 transition-transform"
-                  size="lg"
-                >
-                  <span>Join Room</span>
-                  <span className="opacity-50 group-hover:opacity-100">→</span>
-                </Button>
-              </Link>
+        {/* Action Buttons */}
+        <div className="space-y-4 pt-4">
+          <Link href="/host" className="block w-full group">
+            <Button
+              className="w-full h-16 text-xl font-[var(--font-sans)] font-medium transition-all duration-300 relative overflow-hidden"
+              size="lg"
+            >
+              <span className="absolute inset-0 bg-[var(--color-primary-hover)] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out" />
+              <span className="relative z-10">Start a Game</span>
+            </Button>
+          </Link>
+
+          <Link href="/join" className="block w-full group">
+            <Button
+              variant="secondary"
+              className="w-full h-14 text-lg font-[var(--font-sans)] transition-all duration-300 relative overflow-hidden"
+              size="lg"
+            >
+              <span className="absolute inset-0 bg-[var(--color-muted)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="relative z-10">Join a Room</span>
+            </Button>
+          </Link>
+
+          {/* Archive Link */}
+          <div className="pt-2">
+            <Link
+              href="/me/poems"
+              className="inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors font-[var(--font-sans)]"
+            >
+              Archive
+            </Link>
+          </div>
+        </div>
+
+        {/* Footer with Decorative Border */}
+        <div className="pt-8 space-y-3">
+          <div
+            className="text-[var(--color-text-muted)] text-sm tracking-[0.15em]"
+            aria-hidden="true"
+          >
+            ━━━━━━━━━━━━━━━
+          </div>
+
+          <div className="space-y-2">
+            <div>
+              <a
+                href="https://mistystep.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors font-[var(--font-sans)]"
+              >
+                A Misty Step project
+              </a>
             </div>
 
-            <div className="pt-8 border-t border-[var(--color-border-subtle)]">
+            <div className="flex items-center justify-center gap-3 text-xs text-[var(--color-text-muted)] font-[var(--font-sans)]">
               <Link
                 href="/me/poems"
-                className="inline-flex items-center space-x-2 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors font-mono text-sm uppercase tracking-wide"
+                className="hover:text-[var(--color-primary)] transition-colors"
               >
-                <span>Archive</span>
-                <span>↗</span>
+                Archive
               </Link>
+              <span>·</span>
+              <span>Est. 2025</span>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

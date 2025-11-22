@@ -1,18 +1,19 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Instrument_Sans } from 'next/font/google';
+import { Libre_Baskerville, IBM_Plex_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
-const cormorant = Cormorant_Garamond({
+const libreBaskerville = Libre_Baskerville({
   variable: '--font-display',
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
+  weight: ['400', '700'],
   display: 'swap',
 });
 
-const instrument = Instrument_Sans({
+const ibmPlex = IBM_Plex_Sans({
   variable: '--font-sans',
   subsets: ['latin'],
+  weight: ['400', '500'],
   display: 'swap',
 });
 
@@ -28,7 +29,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#faf9f7' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a1a1f' },
+    { media: '(prefers-color-scheme: dark)', color: '#1c1917' },
   ],
 };
 
@@ -40,7 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${cormorant.variable} ${instrument.variable} antialiased`}
+        className={`${libreBaskerville.variable} ${ibmPlex.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

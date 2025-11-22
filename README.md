@@ -35,6 +35,9 @@ cp .env.example .env.local
 # Run development servers
 pnpm dev          # Next.js on :3000
 npx convex dev    # Convex backend
+
+# Tips
+- Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, redeploy backend code whenever frontend args change (e.g., guestToken vs guestId) to avoid validator mismatches.
 ```
 
 ## Secret Scanning

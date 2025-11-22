@@ -7,16 +7,38 @@ import { verifyGuestToken } from './lib/guestToken';
 type UserDoc = Doc<'users'>;
 type UserInsert = Omit<UserDoc, '_id' | '_creationTime'>;
 
+const resolveGuestId = async (args: {
+  guestToken?: string;
+  guestId?: string;
+}): Promise<string | null> => {
+  if (args.guestToken) {
+    try {
+      return await verifyGuestToken(args.guestToken);
+    } catch {
+      throw new ConvexError('Invalid guest token');
+    }
+  }
+
+  if (args.guestId) {
+    // Legacy fallback for older clients that still send a raw guestId.
+    // Keep this path temporary; prefer signed guestToken for integrity.
+    return args.guestId;
+  }
+
+  return null;
+};
+
 export const ensureUserHelper = async (
   ctx: MutationCtx,
   args: {
     guestToken?: string;
+    guestId?: string; // Legacy: scheduled for removal once all clients send tokens
     displayName: string;
   }
 ): Promise<UserDoc> => {
   const displayName = normalizeDisplayName(args.displayName);
 
-  // 1. Try to find existing user
+  // 1. Try to find existing user (Clerk or guest token)
   const existingUser = await getUser(ctx, args.guestToken);
   if (existingUser) {
     return existingUser;
@@ -26,13 +48,16 @@ export const ensureUserHelper = async (
   const identity = await ctx.auth.getUserIdentity();
   const clerkUserId = identity?.subject;
 
-  let guestId: string | undefined;
-  if (args.guestToken) {
-    try {
-      guestId = await verifyGuestToken(args.guestToken);
-    } catch {
-      throw new ConvexError('Invalid guest token');
-    }
+  const guestId = await resolveGuestId(args);
+
+  // Legacy guestId path: avoid duplicating users from repeated requests
+  if (!clerkUserId && guestId) {
+    const legacyGuest = await ctx.db
+      .query('users')
+      .withIndex('by_guest', (q) => q.eq('guestId', guestId))
+      .first();
+
+    if (legacyGuest) return legacyGuest;
   }
 
   if (!clerkUserId && !guestId) {
@@ -56,6 +81,7 @@ export const ensureUser = mutation({
   args: {
     clerkUserId: v.optional(v.string()), // Deprecated
     guestToken: v.optional(v.string()),
+    guestId: v.optional(v.string()), // Legacy fallback
     displayName: v.string(),
   },
   handler: async (ctx, args): Promise<UserDoc> => {

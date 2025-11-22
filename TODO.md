@@ -1,199 +1,198 @@
-## Planning Report
-
-Spec: TASK.md (PRD: Replay Loop, QR Join, Secure Rooms)
-Tasks Generated: 10
-Total Estimate: 11h
-Critical Path: 6h
-
-### Task Summary
-
-| Phase          | Tasks | Estimate | Dependencies |
-| -------------- | ----- | -------- | ------------ |
-| Schema/Auth    | 3     | 3h       | None         |
-| Core Game      | 3     | 3.5h     | Schema/Auth  |
-| UX             | 2     | 2h       | Core Game    |
-| Safety/Quality | 2     | 2.5h     | Prior tasks  |
-
-### Critical Path
-
-1. Update Convex schema + migrations (1h) -> 2) Guest token issuance/validation (1.5h) -> 3) Room code generator + input changes (0.5h) -> 4) startNewCycle mutation + query scoping (1.5h) -> 5) Reveal/Lobby wiring + Play Again (1h) -> 6) Tests covering replay/auth/code paths (0.5h)
-
-### Risks
-
-- Missing currentGameId filters could mix cycles; mitigate with integration test gating all queries on currentGameId.
-- Secret for guest token might be absent in envs; mitigate by adding env var with fallback guard and doc.
-- Back-compat for 4-char rooms could regress joins; mitigate by dual-length validation and tests for both.
-
----
-
-### TODO
-
-- [x] Update Convex schema for cycles
+- [x] Refine aesthetic: cleaner, softer, more beautiful design
 
   ```
-  Files: convex/schema.ts; convex/game.ts (types), convex/rooms.ts (types)
-  Goal: Add room.currentGameId/currentCycle, games.cycle/status union (LOBBY|IN_PROGRESS|COMPLETED), poems.gameId indexes.
+  Files:
+  - app/globals.css:14-96 (design token definitions)
+  - components/ui/Button.tsx:14-51 (variant styles)
+  - components/ui/Card.tsx:9-15 (card base styles)
+  - components/Lobby.tsx:32-119 (typography, spacing)
+  - components/WritingScreen.tsx:64-141 (all UI elements)
+  - components/WaitingScreen.tsx:23-72 (quote text)
+
+  Pattern: Follow existing CSS variable system in globals.css, maintain brutalist aesthetic but soften
+
   Approach:
-  1) Extend schema tables with new fields/indexes (by_room_cycle, by_game, by_room_game_index).
-  2) Bump types in generated dataModel if needed (regen convex).
-  3) Document migration strategy (legacy rooms keep null currentGameId until Play Again sets).
+  1. Update color tokens in globals.css
+     - Reduce primary saturation: oklch(0.5 0.22 25) → oklch(0.5 0.16 25)
+     - Soften border color: oklch(0.15 0.02 260) → oklch(0.25 0.02 260)
+     - Adjust shadows to be less stark
+  2. Increase spacing in components
+     - Button padding: px-5 → px-6 in Button.tsx:43-45
+     - Card padding: p-6 → p-8 in relevant components
+  3. Replace generic quotes with poetry-specific content
+     - WaitingScreen.tsx:65-68 (find meaningful poetry quote)
+  4. Soften hard edges
+     - Increase border radius slightly: 2-4px → 3-6px in globals.css:72-75
+
   Success Criteria:
-  - Schema validates; convex code compiles.
-  - New indexes present for game/poem lookups.
-  Tests: typecheck; convex codegen passes.
+  - [ ] Colors feel warmer and less harsh (visual QA)
+  - [ ] Spacing feels more generous (compare before/after)
+  - [ ] Quotes are poetry-relevant and meaningful
+  - [ ] Design maintains editorial/brutalist character while being softer
+
+  Edge Cases:
+  - Dark mode colors must maintain same softening
+  - Accessibility contrast ratios must stay WCAG AA compliant
+
+  NOT in Scope:
+  - Complete design system overhaul
+  - New fonts or typography scale
+  - Animation timing changes (separate task)
+
+  Estimate: 2h
+  ```
+
+- [x] Replace vague "imprints" terminology with clear, direct language
+
+  ```
+  Files:
+  - components/WritingScreen.tsx:135 (button text)
+  - components/WaitingScreen.tsx:32 (heading text)
+
+  Pattern: Use simple, direct verbs throughout UI (see "Begin Session" in Lobby.tsx:96)
+
+  Approach:
+  1. Replace button text in WritingScreen.tsx:135
+     - Change: "Stamp Line" → "Submit Line"
+     - Change: "Imprinting..." → "Submitting..."
+  2. Replace heading in WaitingScreen.tsx:29-32
+     - Change: "Awaiting\nImprints" → "Awaiting\nSubmissions" or "Waiting for\nOther Poets"
+
+  Success Criteria:
+  - [ ] No mentions of "imprint" or "stamp" in user-facing text
+  - [ ] All button/heading text is clear and obvious
+  - [ ] Language matches poetry domain without being precious
+
+  Edge Cases:
+  - None - pure text replacement
+
+  NOT in Scope:
+  - Backend terminology (can keep internal naming)
+  - Comments or variable names
+
+  Estimate: 15m
+  ```
+
+- [x] Reduce room codes from 6 characters to 4 characters
+
+  ```
+  Files:
+  - convex/rooms.ts:7-20 (generateRoomCode function)
+  - lib/roomCode.ts:7-9 (formatRoomCode function)
+  - Tests: may need to update any room code validation tests
+
+  Pattern: Follow existing crypto.getRandomValues pattern in generateRoomCode
+
+  Approach:
+  1. Update generateRoomCode in convex/rooms.ts:9
+     - Change: const codeLength = 6; → const codeLength = 4;
+  2. Verify formatRoomCode still works correctly
+     - 4 chars formats as "AB CD" (2 pairs)
+     - Test with formatRoomCode("ABCD") to confirm
+  3. Update collision check logic (optional)
+     - 36^4 = 1,679,616 combinations
+     - Collision probability with 1000 rooms ≈ 0.03% (acceptable)
+
+  Success Criteria:
+  - [ ] New rooms generate 4-char codes
+  - [ ] Codes format correctly as "AB CD" in UI
+  - [ ] Existing 6-char room codes still work (backward compat)
+  - [ ] No increase in collision errors in logs
+
+  Edge Cases:
+  - Existing 6-char codes must continue working
+  - formatRoomCode must handle both 4 and 6 char codes gracefully
+
+  Dependencies:
+  - None
+
+  NOT in Scope:
+  - Migrating existing 6-char codes to 4-char
+  - Changing character set (keep A-Z0-9)
+
+  Estimate: 30m
+  ```
+
+- [x] Reorganize reading phase: make user's poem primary focus
+
+  ```
+  Files:
+  - components/RevealPhase.tsx:100-236 (entire layout)
+
+  Pattern: Follow Lobby.tsx:32-119 two-column layout (1/3 left, 2/3 right)
+
+  Approach:
+  1. Swap column content in RevealPhase.tsx
+     - Move "My Poem" card (lines 118-151) to right column (md:w-2/3)
+     - Move "Poem Status" manifest (lines 192-234) to left column (md:w-1/3)
+  2. Increase poem preview size
+     - Text size: text-2xl → text-3xl for poem preview (line 126)
+     - Button size already lg, keep as-is
+  3. Update visual hierarchy
+     - Remove border-2 emphasis from poem card (line 120)
+     - Add more spacing around poem content
+  4. Simplify status list styling
+     - Make status indicators more subtle
+     - Reduce padding/spacing to fit narrower column
+
+  Success Criteria:
+  - [ ] User's poem is visually dominant (right side, larger)
+  - [ ] Poem status is visible but secondary (left side, smaller)
+  - [ ] Layout feels balanced and intentional
+  - [ ] Mobile view (single column) still works
+
+  Edge Cases:
+  - Long player names in status list must not overflow
+  - When allRevealed=true, ensure host actions still visible
+
+  NOT in Scope:
+  - Changing PoemDisplay component behavior
+  - Animation changes
+
   Estimate: 1h
   ```
 
-- [x] Crypto room code generator + backward-compatible inputs
+- [x] Improve poem display: faster animation, left-align, prevent re-animation, better title
 
   ```
-  Files: convex/rooms.ts; app/join/page.tsx; app/host/page.tsx; components/Lobby.tsx (display); lib (helper if needed)
-  Goal: Generate 6-char A-Z0-9 codes using crypto RNG; accept 4-6 chars for join; display spaced pairs.
+  Files:
+  - components/PoemDisplay.tsx:15-75 (entire component)
+  - components/RevealPhase.tsx:88-96 (track revealed state)
+
+  Pattern: Follow existing animation system with useEffect + setTimeout
+
   Approach:
-  1) Replace Math.random generator with crypto.getRandomValues based function; allow uppercase letters+digits.
-  2) Enforce uniqueness with loop; keep support for legacy 4-char lookups.
-  3) Update join input maxLength/validation to 6; format display in lobby/reveal as pairs (e.g., AB CD EF).
-  Success Criteria:
-  - New rooms always 6 chars; legacy 4-char rooms still joinable.
-  - Inputs prevent lowercase and >6 chars; display uses spacing without altering stored code.
-  Tests: unit test generator length/charset; integration test join with 4 and 6 chars.
-  Estimate: 0.5h
-  ```
+  1. Speed up animation in PoemDisplay.tsx:20
+     - Change: 2000ms → 800ms
+  2. Left-align poem text in PoemDisplay.tsx:38-56
+     - Change: text-center → text-left in container (line 38)
+     - Change: text-center → text-left in poem lines (implied by parent)
+  3. Prevent re-animation on re-open
+     - Add alreadyRevealed prop to PoemDisplay
+     - If alreadyRevealed, set revealedCount to lines.length immediately
+     - Skip setTimeout loop in useEffect
+  4. Update title logic in PoemDisplay.tsx:30-35
+     - Option A: Remove title entirely (delete div)
+     - Option B: Use first line as title: {lines[0]?.split(' ').slice(0, 3).join(' ')}...
+     - Recommended: Option A (cleaner)
 
-- [x] Guest token issuance API (Next) and hook
-
-  ```
-  Files: app/api/guest/session/route.ts; lib/auth.ts (client hook); lib/guestToken.ts (helper)
-  Goal: Server-mint HttpOnly signed token (guestId + issuedAt) and expose hook to ensure cookie + return guestId to client.
-  Approach:
-  1) Implement HMAC sign/verify helper using GUEST_TOKEN_SECRET; 30d expiry.
-  2) API route: if valid cookie exists, return guestId; else create guestId (uuid/v4), set cookie HttpOnly/SameSite=Lax/path=/, return guestId.
-  3) Update useUser hook to consume guest token instead of client-generated localStorage id; keep Clerk path untouched.
   Success Criteria:
-  - No client-side generation of guestId.
-  - Cookie present after first load; guestId consistent across tabs.
-  Tests: unit verify helper tamper fails; API route test (happy + tampered cookie).
+  - [ ] Animation completes in ~7 seconds for 9-line poem (800ms × 9)
+  - [ ] Poem text is left-aligned
+  - [ ] Re-opening same poem shows instantly (no animation)
+  - [ ] Title is either removed or shows first line fragment
+
+  Edge Cases:
+  - Empty lines array → show loading state
+  - Single-line poem → animation still works
+  - Very long first line as title → truncate to ~3 words
+
+  Dependencies:
+  - Need to pass revealed state from RevealPhase to PoemDisplay
+
+  NOT in Scope:
+  - Different animation styles (fade, slide, etc)
+  - Customizable animation speed
+
   Estimate: 1.5h
   ```
-
-- [x] Convex guest auth validation
-
-  ```
-  Files: convex/lib/auth.ts; convex/users.ts; convex/functions using guestId
-  Goal: Validate guest tokens server-side before resolving user; reject tampered/expired tokens.
-  Approach:
-  1) Add utility to verifyGuestToken (shared secret) and extract guestId.
-  2) Update getUser/ensureUserHelper to use verified guestId from token string.
-  3) Thread guestToken through args where guestId was.
-  Success Criteria:
-  - Any tampered token throws; existing Clerk auth path unaffected.
-  - All convex calls compile with new arg name/types.
-  Tests: unit test for auth util (tests/convex/guestToken.test.ts); verification of API flows.
-  Estimate: 1h
-  ```
-
-- [x] startNewCycle mutation + game scoping
-
-  ```
-  Files: convex/game.ts; convex/rooms.ts (room status updates)
-  Goal: Host-only Play Again mutation that creates new game+poems, bumps currentCycle/currentGameId, resets room to LOBBY; all queries use currentGameId.
-  Approach:
-  1) Add mutation startNewCycle(roomCode, guestToken); authorize host; ensure room.status COMPLETED; create new game (status LOBBY, cycle+1) and poems; reset room status LOBBY/currentGameId/currentCycle; clear seatIndex on roomPlayers.
-  2) Update startGame to target currentGameId and set status IN_PROGRESS; ensure no duplicate games if called twice (idempotent guard).
-  3) Scope getCurrentAssignment/getRevealPhaseState/getRoundProgress/submitLine to currentGameId/game.status.
-  Success Criteria:
-  - Duplicate Play Again clicks do not create multiple games.
-  - Queries never surface previous cycles.
-  - Room transitions: COMPLETED -> LOBBY (new game) -> IN_PROGRESS -> COMPLETED.
-  Tests: convex tests covering mutation happy path, duplicate click idempotency, queries filtered by currentGameId.
-  Estimate: 1.5h
-  ```
-
-- [x] Rate limiting for room endpoints
-
-  ```
-  Files: convex/rooms.ts; convex/lib/rateLimit.ts (new); env var for limits
-  Goal: Throttle createRoom/joinRoom/getRoom per user (guest token or Clerk) per window.
-  Approach:
-  1) Implement rateLimit helper storing counts in Convex table or in-memory per request context windowStart.
-  2) Apply to mutations/queries with configurable env (e.g., MAX_ACTIONS_PER_10M).
-  3) Return typed errors for rate limited state.
-  Success Criteria:
-  - Exceeding threshold returns consistent error without side effects.
-  - Normal paths unaffected latency-wise.
-  Tests: unit/integration for rate limit helper and join/create paths.
-  Estimate: 1h
-  ```
-
-- [x] UI: Play Again + Lobby/Reveal state wiring
-
-  ```
-  Files: components/RevealPhase.tsx; components/Lobby.tsx; app/room/[code]/page.tsx
-  Goal: Wire Start New Cycle button to startNewCycle mutation; ensure clients react to room.status and currentGameId changes.
-  Approach:
-  1) Add mutation call to button (host only), show loading/error; hide button when not host.
-  2) Ensure page refresh logic uses room.status/currentGameId to transition to lobby and then startGame.
-  3) Add inline error handling instead of alert for failures (reuse captureError).
-  Success Criteria:
-  - Play Again triggers new cycle and returns UI to Lobby without manual refresh.
-  - Non-hosts never see actionable controls.
-  Tests: happy-dom integration mocking Convex responses to simulate cycle reset; UI renders new lobby state.
-  Estimate: 1h
-  ```
-
-- [x] UI: QR join flow
-
-  ```
-  Files: components/Lobby.tsx; components/RevealPhase.tsx; app/join/page.tsx; new component components/RoomQr.tsx
-  Goal: Display QR linking to /join?code=XXXXXX; join page pre-fills code and focuses name.
-  Approach:
-  1) Add lightweight QR generator (consider existing dep; add if absent) with token colors matching design tokens; include copy-link fallback.
-  2) Show QR for host in Lobby and on Session Complete section; add alt text/caption.
-  3) Update join page to read query param code and prefill input.
-  Success Criteria:
-  - QR renders instantly; link opens join page with code prefilled.
-  - Works for 4- and 6-char codes.
-  Tests: component test for join page prefill; snapshot for QR component props; manual sanity optional.
-  Estimate: 1h
-  ```
-
-- [x] Observability: Sentry context + captureError coverage
-
-  ```
-  Files: lib/error.ts; components where new mutations added; convex/game.ts (contexts)
-  Goal: Send Sentry errors with roomCode/gameId/cycle context; avoid console.error in prod.
-  Approach:
-  1) Ensure captureError used in new catch blocks; remove console.error usage.
-  2) Add context payloads for startNewCycle/startGame/reveal operations.
-  Success Criteria:
-  - All new error paths hit Sentry with contextual data.
-  Tests: lint for no console.error; unit test for captureError dev logging path if present.
-  Estimate: 0.5h
-  ```
-
-- [x] Test suite coverage for new flows
-  ```
-  Files: tests/ (new specs), vitest setup; convex test harness if available
-  Goal: Validate replay, QR prefill, code generator, guest token, rate limit.
-  Approach:
-  1) Add unit tests: code generator charset/length; guest token verify tamper; rateLimit helper.
-  2) Integration: startNewCycle happy/duplicate; getRevealPhaseState uses current game; join page prefill.
-  3) E2E/happy-dom: replay cycle flow with mocked Convex responses; ensure UI transitions.
-  Success Criteria:
-  - New tests pass and improve coverage over 60% thresholds.
-  - Critical paths (replay, auth, code) covered.
-  Estimate: 1h
-  ```
-
----
-
-Notes / Out of Scope
-
-- Do not expose cycle history UI yet.
-- No analytics sink integration until provider chosen.
-- No auto-start after Play Again; stays in lobby by design.
-
-Quality Gates
-
-- Run pnpm lint, pnpm typecheck, pnpm test, pnpm build before PR.
-- Ensure env wiring for GUEST_TOKEN_SECRET and rate limit values is documented.

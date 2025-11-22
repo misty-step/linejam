@@ -1,52 +1,52 @@
 @import 'tailwindcss';
 
 /* ==========================================================================
-   Linejam Design System — Neo-Inkunabula
+   Linejam Design System — Ink & Anticipation
    ========================================================================== */
 
 /* Design Philosophy:
-   - Digital Incunabula: The early printed book reborn for screens.
-   - Ink on Paper: High contrast, tactile, purposeful.
-   - Brutalist Restraint: Hard edges, raw layout, zero "softness".
-   - Asymmetry: Tension creates interest.
+   - Japanese Editorial Minimalism: Ma (間) - the space between
+   - Ink on Rice Paper: Warm neutrals, organic texture
+   - Persimmon Stamp: One strong accent, confident restraint
+   - Vertical Hierarchy: Mobile-first, generous breathing room
 */
 
 @theme {
   /* ==========================================================================
-     Color System — Ink & Paper
+     Color System — Sumi & Persimmon
      ========================================================================== */
 
-  /* Primary — Vermillion Stamp (The Editor's Mark) */
-  --color-primary: oklch(0.5 0.16 25);
-  --color-primary-hover: oklch(0.45 0.16 25);
-  --color-primary-active: oklch(0.4 0.16 25);
+  /* Primary — Persimmon Stamp (Japanese Seal) */
+  --color-primary: #e85d2b;
+  --color-primary-hover: #c44521;
+  --color-primary-active: #a8391a;
 
-  /* Surface Colors — Parchment & Ink */
-  --color-background: oklch(0.97 0.02 95); /* Warm Parchment */
-  --color-foreground: oklch(0.15 0.02 260); /* Deep Ink Blue-Black */
+  /* Base — Ink on Rice Paper */
+  --color-background: #faf9f7; /* Warm off-white */
+  --color-foreground: #1c1917; /* Deep warm black */
 
-  --color-surface: oklch(0.99 0.005 95); /* Lighter Paper */
-  --color-surface-hover: oklch(1 0 0);
+  --color-surface: #ffffff; /* True white for cards */
+  --color-surface-hover: #f5f5f4;
 
-  --color-muted: oklch(0.94 0.01 95); /* Subtle wash */
+  --color-muted: #f5f5f4; /* Subtle background */
 
-  /* Borders — Softer Ink Lines */
-  --color-border: oklch(0.25 0.02 260); /* Softer than foreground */
-  --color-border-subtle: oklch(0.8 0.02 90);
+  /* Grays — Faded Ink */
+  --color-border: #e7e5e4;
+  --color-border-subtle: #f5f5f4;
 
   /* Text Colors */
-  --color-text-primary: var(--color-foreground);
-  --color-text-secondary: oklch(0.45 0.02 260); /* Faded Ink */
-  --color-text-muted: oklch(0.6 0.02 260);
-  --color-text-inverse: oklch(0.98 0.01 95);
+  --color-text-primary: #1c1917;
+  --color-text-secondary: #57534e;
+  --color-text-muted: #a8a29e;
+  --color-text-inverse: #faf9f7;
 
   /* ==========================================================================
-     Typography System — Editorial Authority
+     Typography System — Editorial Clarity
      ========================================================================== */
 
   /* Font Families */
-  --font-display: 'Cormorant Garamond', serif;
-  --font-sans: 'Instrument Sans', sans-serif;
+  --font-display: 'Libre Baskerville', serif; /* Editorial authority */
+  --font-sans: 'IBM Plex Sans', sans-serif; /* Technical clarity */
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Type Scale — Poster Proportions */
@@ -96,24 +96,41 @@
 }
 
 /* ==========================================================================
-   Dark Mode 
+   Dark Mode - via .dark class OR system preference
    ========================================================================== */
+:root.dark,
+html.dark {
+  --color-background: #1c1917; /* Inverted: warm black */
+  --color-foreground: #faf9f7; /* Inverted: warm white */
+  --color-surface: #292524;
+  --color-surface-hover: #3f3f46;
+  --color-muted: #292524;
+
+  --color-border: #44403c;
+  --color-border-subtle: #292524;
+
+  --color-text-primary: #faf9f7;
+  --color-text-secondary: #d6d3d1;
+  --color-text-muted: #a8a29e;
+  --color-text-inverse: #1c1917;
+}
+
+/* System preference (only if no explicit class) */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: oklch(0.12 0.01 260);
-    --color-foreground: oklch(0.95 0.02 95);
-    --color-surface: oklch(0.14 0.01 260);
-    --color-surface-hover: oklch(0.18 0.01 260);
-    --color-muted: oklch(0.18 0.01 260);
+  :root:not(.light) {
+    --color-background: #1c1917;
+    --color-foreground: #faf9f7;
+    --color-surface: #292524;
+    --color-surface-hover: #3f3f46;
+    --color-muted: #292524;
 
-    --color-border: oklch(
-      0.75 0.02 95
-    ); /* Softer light outlines in dark mode */
-    --color-border-subtle: oklch(0.3 0.01 260);
+    --color-border: #44403c;
+    --color-border-subtle: #292524;
 
-    --color-text-primary: var(--color-foreground);
-    --color-text-secondary: oklch(0.7 0.01 95);
-    --color-text-inverse: oklch(0.12 0.01 260);
+    --color-text-primary: #faf9f7;
+    --color-text-secondary: #d6d3d1;
+    --color-text-muted: #a8a29e;
+    --color-text-inverse: #1c1917;
   }
 }
 
