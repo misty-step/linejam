@@ -7,42 +7,43 @@ interface PoemDisplayProps {
   poemNumber: number;
   lines: string[];
   onDone: () => void;
+  alreadyRevealed?: boolean;
 }
 
-export function PoemDisplay({ poemNumber, lines, onDone }: PoemDisplayProps) {
-  const [revealedCount, setRevealedCount] = useState(0);
+export function PoemDisplay({
+  poemNumber,
+  lines,
+  onDone,
+  alreadyRevealed = false,
+}: PoemDisplayProps) {
+  const [revealedCount, setRevealedCount] = useState(
+    alreadyRevealed ? lines.length : 0
+  );
 
-  // Staggered reveal animation - slower, more deliberate
+  // Staggered reveal animation
   useEffect(() => {
-    if (revealedCount < lines.length) {
+    if (!alreadyRevealed && revealedCount < lines.length) {
       const timer = setTimeout(() => {
         setRevealedCount((prev) => prev + 1);
-      }, 2000); // Slower pace for dramatic reading
+      }, 800);
       return () => clearTimeout(timer);
     }
-  }, [revealedCount, lines.length]);
+  }, [revealedCount, lines.length, alreadyRevealed]);
 
   const allRevealed = revealedCount >= lines.length;
 
   return (
     <div className="fixed inset-0 bg-[var(--color-background)] z-50 flex flex-col items-center justify-center p-8 md:p-12 overflow-y-auto">
       <div className="max-w-2xl w-full space-y-12 relative z-10 my-auto">
-        {/* Header Stamp */}
-        <div className="text-center border-b-2 border-[var(--color-primary)] pb-4 w-fit mx-auto">
-          <p className="text-sm font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">
-            Poem No. {poemNumber}
-          </p>
-        </div>
-
         {/* The Poem */}
-        <div className="space-y-6 text-center min-h-[40vh] flex flex-col justify-center">
+        <div className="space-y-6 flex flex-col justify-center">
           {lines.map((line, index) => {
             const isVisible = index < revealedCount;
 
             return (
               <div
                 key={index}
-                className={`transition-all duration-1000 transform ${
+                className={`transition-all duration-800 transform ${
                   isVisible
                     ? 'opacity-100 translate-y-0'
                     : 'opacity-0 translate-y-8'
