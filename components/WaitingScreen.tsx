@@ -63,8 +63,8 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
 
         <div className="text-center">
           <p className="text-xs text-[var(--color-text-muted)] italic">
-            &ldquo;Poetry is a political act because it involves telling the
-            truth.&rdquo;
+            &ldquo;The poem is a little myth of man&rsquo;s capacity to make
+            life meaningful.&rdquo; — Robert Penn Warren
           </p>
         </div>
       </div>

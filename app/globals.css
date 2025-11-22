@@ -17,9 +17,9 @@
      ========================================================================== */
 
   /* Primary — Vermillion Stamp (The Editor's Mark) */
-  --color-primary: oklch(0.5 0.22 25);
-  --color-primary-hover: oklch(0.45 0.22 25);
-  --color-primary-active: oklch(0.4 0.22 25);
+  --color-primary: oklch(0.5 0.16 25);
+  --color-primary-hover: oklch(0.45 0.16 25);
+  --color-primary-active: oklch(0.4 0.16 25);
 
   /* Surface Colors — Parchment & Ink */
   --color-background: oklch(0.97 0.02 95); /* Warm Parchment */
@@ -30,8 +30,8 @@
 
   --color-muted: oklch(0.94 0.01 95); /* Subtle wash */
 
-  /* Borders — Sharp Ink Lines */
-  --color-border: oklch(0.15 0.02 260); /* Same as foreground - Brutalist */
+  /* Borders — Softer Ink Lines */
+  --color-border: oklch(0.25 0.02 260); /* Softer than foreground */
   --color-border-subtle: oklch(0.8 0.02 90);
 
   /* Text Colors */
@@ -67,11 +67,11 @@
   --spacing-container: 1400px;
 
   /* ==========================================================================
-     Border Radius — Almost Zero
+     Border Radius — Subtle Softness
      ========================================================================== */
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
   --radius-full: 9999px;
 
   /* ==========================================================================
@@ -106,7 +106,9 @@
     --color-surface-hover: oklch(0.18 0.01 260);
     --color-muted: oklch(0.18 0.01 260);
 
-    --color-border: oklch(0.95 0.02 95); /* White outlines in dark mode */
+    --color-border: oklch(
+      0.75 0.02 95
+    ); /* Softer light outlines in dark mode */
     --color-border-subtle: oklch(0.3 0.01 260);
 
     --color-text-primary: var(--color-foreground);
