@@ -1,19 +1,7 @@
+/** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Convex dependencies
-vi.mock('@/convex/_generated/api', () => ({
-  api: {
-    health: {
-      ping: 'health:ping',
-    },
-  },
-}));
-
-vi.mock('convex/browser', () => ({
-  ConvexHttpClient: vi.fn().mockImplementation(() => ({
-    query: vi.fn().mockResolvedValue('pong'),
-  })),
-}));
 
 describe('/api/health', () => {
   beforeEach(() => {
