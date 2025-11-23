@@ -1,8 +1,22 @@
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '../../../convex/_generated/api';
+
 export async function GET() {
   try {
+    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+    let convexStatus = 'skipped';
+
+    if (convexUrl) {
+      const client = new ConvexHttpClient(convexUrl);
+      // @ts-expect-error - api.health might not be generated yet
+      await client.query(api.health.ping);
+      convexStatus = 'connected';
+    }
+
     return Response.json(
       {
         status: 'ok',
+        convex: convexStatus,
         timestamp: new Date().toISOString(),
         env: process.env.NODE_ENV ?? 'development',
       },
