@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+build/
+.vercel/
+
+# Convex (Generated)
+convex/_generated/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Misc
+.DS_Store
+coverage/
+*.pem
+*.log
+.open-next/
+server/
