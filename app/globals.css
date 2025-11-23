@@ -40,6 +40,12 @@
   --color-text-muted: #a8a29e;
   --color-text-inverse: #faf9f7;
 
+  /* State Colors */
+  --color-success: #10b981; /* Green-600 for validation */
+  --color-error: #ef4444; /* Red-600 for errors */
+  --color-warning: #f59e0b; /* Amber-600 for warnings */
+  --color-info: #0ea5e9; /* Sky-600 for info */
+
   /* ==========================================================================
      Typography System — Editorial Clarity
      ========================================================================== */
@@ -113,6 +119,12 @@ html.dark {
   --color-text-secondary: #d6d3d1;
   --color-text-muted: #a8a29e;
   --color-text-inverse: #1c1917;
+
+  /* State Colors (same in dark mode) */
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #0ea5e9;
 }
 
 /* System preference (only if no explicit class) */
