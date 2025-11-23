@@ -1,4 +1,7 @@
+/** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Mock Convex dependencies
 
 describe('/api/health', () => {
   beforeEach(() => {
