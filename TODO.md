@@ -58,7 +58,7 @@
 
   ````
 
-- [ ] Implement Ink Spread on Hover animation
+- [x] Implement Ink Spread on Hover animation
 
   ````
   Files:

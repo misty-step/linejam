@@ -16,13 +16,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           // Base styles - Brutalist
-          'group inline-flex items-center justify-center font-medium',
+          'group relative overflow-hidden inline-flex items-center justify-center font-medium',
           'transition-all duration-[var(--duration-fast)]', // Smooth shadow crush
           'border border-transparent', // Placeholder for border width
           'active:scale-[0.97] active:translate-y-[2px] active:shadow-none', // Tactile press
           'active:animate-[ink-ripple_0.6s_ease-out]', // Ink stamp ripple
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2',
           'disabled:pointer-events-none disabled:opacity-50 disabled:grayscale',
+          // Ink spread effect
+          'before:absolute before:inset-0 before:bg-[var(--gradient-ink-spread)] before:bg-center before:bg-[length:0%_0%] before:opacity-0 before:transition-[background-size,opacity] before:duration-[600ms] before:ease-out',
+          'hover:before:bg-[length:200%_200%] hover:before:opacity-100',
 
           // Variants
           {
@@ -53,7 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        <span className="inline-block transition-transform duration-[var(--duration-fast)] group-hover:-translate-y-[1px] group-active:translate-y-[2px]">
+        <span className="relative z-10 inline-block transition-transform duration-[var(--duration-fast)] group-hover:-translate-y-[1px] group-active:translate-y-[2px]">
           {children}
         </span>
       </button>
