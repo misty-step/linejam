@@ -6,6 +6,7 @@ import { countWords } from '../lib/wordCount';
 import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
 import { Label } from './ui/Label';
+import { Alert } from './ui/Alert';
 import { WaitingScreen } from './WaitingScreen';
 
 interface WritingScreenProps {
@@ -24,6 +25,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Reset text when assignment changes (new round)
   const currentRound = assignment?.lineIndex;
@@ -43,7 +45,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const isValid = currentWordCount === targetCount;
 
   const handleSubmit = async () => {
-    if (!isValid || isSubmitting) return;
+    if (!isValid) return;
 
     setIsSubmitting(true);
     try {
@@ -57,7 +59,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     } catch (error) {
       captureError(error, { roomCode, poemId: assignment.poemId });
       setIsSubmitting(false);
-      alert('Failed to submit line. Please try again.');
+      setError('Failed to submit line. Please try again.');
     }
   };
 
@@ -114,21 +116,31 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
               className="w-full min-h-[200px] bg-transparent text-3xl md:text-4xl font-[var(--font-display)] placeholder:text-[var(--color-text-muted)]/30 focus:outline-none resize-none leading-tight"
               placeholder="Type here..."
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                setError(null);
+              }}
               autoFocus
               spellCheck={false}
             />
           </div>
 
-          <div className="pt-8 border-t border-[var(--color-border-subtle)] flex justify-end">
-            <Button
-              onClick={handleSubmit}
-              size="lg"
-              className="min-w-[200px] text-lg h-16"
-              disabled={!isValid || isSubmitting}
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Line'}
-            </Button>
+          <div className="pt-8 border-t border-[var(--color-border-subtle)]">
+            {error && (
+              <Alert variant="error" className="mb-4">
+                {error}
+              </Alert>
+            )}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSubmit}
+                size="lg"
+                className="min-w-[200px] text-lg h-16"
+                disabled={!isValid || isSubmitting}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Line'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
