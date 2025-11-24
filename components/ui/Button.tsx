@@ -7,13 +7,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
+  (
+    { className, variant = 'primary', size = 'md', children, ...props },
+    ref
+  ) => {
     return (
       <button
         ref={ref}
         className={cn(
           // Base styles - Brutalist
-          'inline-flex items-center justify-center font-medium',
+          'group inline-flex items-center justify-center font-medium',
           'transition-all duration-[var(--duration-fast)]', // Smooth shadow crush
           'border border-transparent', // Placeholder for border width
           'active:scale-[0.97] active:translate-y-[2px] active:shadow-none', // Tactile press
@@ -49,7 +52,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
         {...props}
-      />
+      >
+        <span className="inline-block transition-transform duration-[var(--duration-fast)] group-hover:-translate-y-[1px] group-active:translate-y-[2px]">
+          {children}
+        </span>
+      </button>
     );
   }
 );
