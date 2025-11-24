@@ -1,7 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Button } from './ui/Button';
+import { Ornament } from './ui/Ornament';
+import { cn } from '@/lib/utils';
+
+const ORNAMENT_AFTER_LINE = 5;
 
 interface PoemDisplayProps {
   lines: string[];
@@ -34,30 +38,54 @@ export function PoemDisplay({
     <div className="fixed inset-0 bg-[var(--color-background)] z-50 flex flex-col items-center justify-center p-8 md:p-12 overflow-y-auto">
       <div className="max-w-2xl w-full space-y-12 relative z-10 my-auto">
         {/* The Poem */}
-        <div className="space-y-6 flex flex-col justify-center">
+        <div className="space-y-6 flex flex-col">
           {lines.map((line, index) => {
             const isVisible = index < revealedCount;
+            const isFirst = index === 0;
+
+            // Alternate alignment: left, center, right
+            const alignment = ['text-left', 'text-center', 'text-right'][
+              index % 3
+            ];
 
             return (
-              <div
-                key={index}
-                className={`transition-all duration-800 transform ${
-                  isVisible
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 translate-y-8'
-                }`}
-              >
-                <p className="text-3xl md:text-4xl lg:text-5xl font-[var(--font-display)] leading-tight text-[var(--color-text-primary)]">
-                  {line}
-                </p>
-              </div>
+              <Fragment key={index}>
+                <div
+                  className={cn(
+                    'transition-all duration-800 transform',
+                    alignment,
+                    isVisible
+                      ? 'opacity-100 translate-y-0'
+                      : 'opacity-0 translate-y-8'
+                  )}
+                >
+                  <p
+                    className={cn(
+                      'font-[var(--font-display)] leading-tight text-[var(--color-text-primary)]',
+                      isFirst
+                        ? 'text-5xl first-letter:text-8xl first-letter:text-[var(--color-primary)] first-letter:float-left first-letter:pr-4 first-letter:leading-none'
+                        : 'text-3xl md:text-4xl lg:text-5xl'
+                    )}
+                  >
+                    {line}
+                  </p>
+                </div>
+                {index === ORNAMENT_AFTER_LINE - 1 && isVisible && (
+                  <div className="flex justify-center py-4">
+                    <Ornament type="asterism" />
+                  </div>
+                )}
+              </Fragment>
             );
           })}
         </div>
 
         {/* Done button */}
         <div
-          className={`text-center transition-opacity duration-1000 ${allRevealed ? 'opacity-100' : 'opacity-0'}`}
+          className={cn(
+            'text-center transition-opacity duration-1000',
+            allRevealed ? 'opacity-100' : 'opacity-0'
+          )}
         >
           <Button
             onClick={onDone}
