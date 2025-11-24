@@ -1,6 +1,7 @@
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Label } from './ui/Label';
+import { Stamp } from './ui/Stamp';
 
 interface WaitingScreenProps {
   roomCode: string;
@@ -48,7 +49,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
               </span>
 
               {player.submitted ? (
-                <Label variant="accent">[SEALED]</Label>
+                <Stamp type="sealed" size="sm" />
               ) : (
                 <Label className="animate-pulse">WRITING...</Label>
               )}
