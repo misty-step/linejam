@@ -3,6 +3,7 @@
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '../../../lib/auth';
+import { Label } from '../../../components/ui/Label';
 import Link from 'next/link';
 
 export default function MyPoemsPage() {
@@ -42,9 +43,7 @@ export default function MyPoemsPage() {
         {/* Favorites Section */}
         <section className="space-y-8">
           <div className="flex items-center gap-4">
-            <h2 className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Marked Works
-            </h2>
+            <Label as="h2">Marked Works</Label>
             <div className="h-px bg-[var(--color-border-subtle)] flex-1" />
           </div>
 
@@ -84,9 +83,7 @@ export default function MyPoemsPage() {
         {/* Past Games Section */}
         <section className="space-y-8">
           <div className="flex items-center gap-4">
-            <h2 className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Session History
-            </h2>
+            <Label as="h2">Session History</Label>
             <div className="h-px bg-[var(--color-border-subtle)] flex-1" />
           </div>
 

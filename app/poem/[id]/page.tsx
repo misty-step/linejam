@@ -4,6 +4,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useParams } from 'next/navigation';
 import { useUser } from '../../../lib/auth';
+import { Label } from '../../../components/ui/Label';
 import Link from 'next/link';
 import { Id } from '../../../convex/_generated/dataModel';
 
@@ -86,9 +87,7 @@ export default function PoemDetailPage() {
             <h1 className="text-sm font-mono uppercase tracking-[0.3em] text-[var(--color-primary)] font-medium">
               Poem No. {poem.indexInRoom + 1}
             </h1>
-            <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Created {formattedDate}
-            </p>
+            <Label>Created {formattedDate}</Label>
           </div>
         </div>
 
@@ -112,10 +111,10 @@ export default function PoemDetailPage() {
 
         {/* Footer Stats */}
         <div className="border-t border-[var(--color-border)] pt-6">
-          <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+          <Label>
             {lines.length} Line{lines.length !== 1 ? 's' : ''} · {uniquePoets}{' '}
             Poet{uniquePoets !== 1 ? 's' : ''}
-          </p>
+          </Label>
         </div>
       </div>
     </div>

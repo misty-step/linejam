@@ -3,6 +3,7 @@
 import QRCode from 'react-qr-code';
 import { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
+import { Label } from './ui/Label';
 
 interface RoomQrProps {
   roomCode: string;
@@ -46,9 +47,7 @@ export function RoomQr({ roomCode, className = '' }: RoomQrProps) {
         />
       </div>
       <div className="text-center space-y-2">
-        <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-          Scan to Join
-        </p>
+        <Label>Scan to Join</Label>
         <Button
           variant="ghost"
           size="sm"

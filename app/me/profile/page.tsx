@@ -2,6 +2,7 @@
 
 import { useUser } from '../../../lib/auth';
 import { Button } from '../../../components/ui/Button';
+import { Label } from '../../../components/ui/Label';
 import { SignInButton, SignOutButton } from '@clerk/nextjs';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -30,9 +31,7 @@ export default function ProfilePage() {
           {/* ID Card Header */}
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
-                Current Alias
-              </p>
+              <Label className="block mb-1">Current Alias</Label>
               <p className="text-2xl font-[var(--font-display)] font-medium">
                 {currentName || 'Anonymous Poet'}
               </p>
@@ -55,9 +54,7 @@ export default function ProfilePage() {
             {isAuthenticated ? (
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
-                    Account Status
-                  </p>
+                  <Label className="block mb-1">Account Status</Label>
                   <p className="font-medium text-[var(--color-success)]">
                     Authenticated
                   </p>
@@ -74,9 +71,7 @@ export default function ProfilePage() {
             ) : (
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-2">
-                    Guest Credentials
-                  </p>
+                  <Label className="block mb-2">Guest Credentials</Label>
                   <p className="font-mono text-sm text-[var(--color-text-secondary)] bg-[var(--color-muted)] p-2 border border-[var(--color-border-subtle)]">
                     ID: {guestId?.slice(0, 12)}...
                   </p>

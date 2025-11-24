@@ -1,6 +1,7 @@
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useUser } from '@/lib/auth';
+import { Label } from '@/components/ui/Label';
 import Link from 'next/link';
 
 interface RevealListProps {
@@ -22,9 +23,7 @@ export default function RevealList({ roomCode }: RevealListProps) {
     <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24">
       <div className="max-w-6xl mx-auto space-y-12">
         <div className="text-center space-y-6 border-b border-[var(--color-border)] pb-12">
-          <p className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--color-text-muted)]">
-            Session {roomCode}
-          </p>
+          <Label className="tracking-[0.3em]">Session {roomCode}</Label>
           <h1 className="text-6xl md:text-8xl font-[var(--font-display)] leading-[0.8]">
             The Completed
             <br />

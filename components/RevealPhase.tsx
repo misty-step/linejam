@@ -175,9 +175,9 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
               Exit Room
             </Link>
             <div className="pt-8">
-              <p className="text-center text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-4">
+              <Label className="text-center block mb-4">
                 Invite for Next Cycle
-              </p>
+              </Label>
               <RoomQr roomCode={roomCode} />
             </div>
           </div>
