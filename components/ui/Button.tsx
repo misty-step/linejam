@@ -13,7 +13,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           // Base styles - Brutalist
-          'inline-flex items-center justify-center font-medium transition-all',
+          'inline-flex items-center justify-center font-medium',
+          'transition-all duration-[var(--duration-fast)]', // Smooth shadow crush
           'border border-transparent', // Placeholder for border width
           'active:scale-[0.97] active:translate-y-[2px] active:shadow-none', // Tactile press
           'active:animate-[ink-ripple_0.6s_ease-out]', // Ink stamp ripple
