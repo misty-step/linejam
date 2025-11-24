@@ -208,3 +208,13 @@ h6 {
 .animate-type {
   animation: type-reveal var(--duration-normal) var(--ease-mechanical) forwards;
 }
+
+/* Ink Stamp Press Animation */
+@keyframes ink-ripple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--shadow-color) / 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 20px rgba(var(--shadow-color) / 0);
+  }
+}
