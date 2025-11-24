@@ -16,33 +16,28 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           // Base styles - Brutalist
-          'group relative overflow-hidden inline-flex items-center justify-center font-medium',
-          'transition-all duration-[var(--duration-fast)]', // Smooth shadow crush
-          'border border-transparent', // Placeholder for border width
-          'active:scale-[0.97] active:translate-y-[2px] active:shadow-none', // Tactile press
-          'active:animate-[ink-ripple_0.6s_ease-out]', // Ink stamp ripple
+          'inline-flex items-center justify-center font-medium',
+          'transition-all duration-150',
+          'border border-transparent',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2',
           'disabled:pointer-events-none disabled:opacity-50 disabled:grayscale',
-          // Ink spread effect
-          'before:absolute before:inset-0 before:bg-[var(--gradient-ink-spread)] before:bg-center before:bg-[length:0%_0%] before:opacity-0 before:transition-[background-size,opacity] before:duration-[600ms] before:ease-out',
-          'hover:before:bg-[length:200%_200%] hover:before:opacity-100',
 
           // Variants
           {
-            // Primary - Solid Ink Block
-            'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-hover)] hover:animate-[stamp-hover_1.6s_ease-in-out_infinite]':
+            // Primary - Solid Ink Block (Hanko press: translate + shadow crush)
+            'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-[var(--shadow-sm)] active:translate-y-[2px] active:shadow-none':
               variant === 'primary',
 
-            // Secondary - Paper Button
-            'bg-[var(--color-surface)] text-[var(--color-text-primary)] border-[var(--color-border)] shadow-[var(--shadow-sm)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]':
+            // Secondary - Paper Button (Washi press: scale only)
+            'bg-[var(--color-surface)] text-[var(--color-text-primary)] border-[var(--color-border)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] active:scale-[0.96]':
               variant === 'secondary',
 
-            // Outline - Just the lines
-            'bg-transparent text-[var(--color-text-primary)] border-[var(--color-border)] hover:bg-[var(--color-surface)]':
+            // Outline - Just the lines (Washi press: scale only)
+            'bg-transparent text-[var(--color-text-primary)] border-[var(--color-border)] hover:bg-[var(--color-surface)] active:scale-[0.96]':
               variant === 'outline',
 
-            // Ghost - Minimal
-            'text-[var(--color-text-primary)] hover:bg-[var(--color-muted)] border-transparent':
+            // Ghost - Minimal (Washi press: scale only)
+            'text-[var(--color-text-primary)] hover:bg-[var(--color-muted)] border-transparent active:scale-[0.96]':
               variant === 'ghost',
           },
 
@@ -56,9 +51,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        <span className="relative z-10 inline-block transition-transform duration-[var(--duration-fast)] group-hover:-translate-y-[1px] group-active:translate-y-[2px]">
-          {children}
-        </span>
+        {children}
       </button>
     );
   }
