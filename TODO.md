@@ -704,7 +704,7 @@ Based on comprehensive aesthetic audit - transforming from "good minimalism" to 
 
   ```
 
-- [ ] Add hanko stamp to host badge in Lobby
+- [x] Add hanko stamp to host badge in Lobby
 
   ````
   Files:
@@ -1057,3 +1057,322 @@ Based on comprehensive aesthetic audit - transforming from "good minimalism" to 
   ```
 
   ```
+
+### Micro-Animations & Delight
+
+- [ ] Implement Ink Stamp Press animation
+
+  ````
+  Files:
+  - components/ui/Button.tsx:14-51 (active press state)
+  - app/globals.css (add keyframe animation)
+
+  Pattern: Scale transform on active press with radial ripple effect
+
+  Context: "Start a Game" and "Join a Room" buttons need visceral tactile feedback. Button should compress like rubber stamp pressing into paper, with ink-like ripple emanating from press point.
+
+  Approach:
+  1. Add keyframe animation to globals.css:
+     ```css
+     @keyframes ink-ripple {
+       0% {
+         box-shadow: 0 0 0 0 rgba(232, 93, 43, 0.4);
+       }
+       100% {
+         box-shadow: 0 0 0 20px rgba(232, 93, 43, 0);
+       }
+     }
+     ```
+  2. Update Button.tsx active state (line 43):
+     ```tsx
+     'active:scale-[0.97] active:translate-y-[2px]',
+     'active:animate-[ink-ripple_0.6s_ease-out]',
+     ```
+  3. Ensure animation plays once per click (not on hold)
+
+  Success criteria: Button compresses to 97% scale on active press. Radial ripple expands outward like ink spreading. Animation completes in 600ms. Works on touch and mouse events. No jank or layout shift.
+
+  Edge Cases:
+  - Rapid clicks - each click should trigger new ripple
+  - Long press - ripple plays once, not continuously
+  - Mobile - touch feedback clear despite smaller target
+
+  Dependencies:
+  - Requires --color-primary defined in globals.css
+
+  NOT in Scope:
+  - Click coordinates for ripple origin (uniform radial is fine)
+  - Different ripple colors per variant
+
+  Estimate: 45m
+
+  ```
+
+  ```
+
+  ````
+
+- [ ] Implement Shadow Crushing animation
+
+  ````
+  Files:
+  - components/ui/Button.tsx:14-51 (shadow state transitions)
+  - app/globals.css:79-86 (shadow tokens)
+
+  Pattern: Hard brutalist shadow compresses to zero on active press
+
+  Context: Current buttons have `active:shadow-none` which is instant. Need smooth crushing animation where hard 2px/2px shadow compresses to 0px/0px, reinforcing the stamp pressing metaphor.
+
+  Approach:
+  1. Add transition property to Button base styles (line 42):
+     ```tsx
+     'transition-all duration-[var(--duration-fast)]',
+     'hover:shadow-[var(--shadow-md)]',
+     'active:shadow-none',
+     ```
+  2. Ensure --duration-fast (150ms) creates smooth crush
+  3. Test with different shadow sizes (sm, md, lg variants)
+
+  Success criteria: Shadow smoothly compresses from full size to zero in 150ms. Feels like paper pressing onto surface. No pop or jump. Works with all button variants. Combined with scale animation creates unified stamp press feel.
+
+  Edge Cases:
+  - Dark mode - shadow must be visible before crushing
+  - Disabled state - no shadow crush animation
+  - Focus state - don't interfere with focus ring
+
+  Dependencies:
+  - Requires shadow tokens defined in globals.css
+  - Works best combined with Ink Stamp Press animation
+
+  NOT in Scope:
+  - Elastic bounce back
+  - Different crush speeds per button size
+
+  Estimate: 30m
+
+  ```
+
+  ```
+
+  ````
+
+- [ ] Implement Persimmon Glow Pulse animation
+
+  ````
+  Files:
+  - components/ui/Button.tsx:14-51 (hover state)
+  - app/globals.css (add keyframe animation)
+
+  Pattern: Subtle persimmon-tinted glow pulses around button on hover
+
+  Context: Hover state needs more presence. Pulsing glow creates warm invitation to click while reinforcing persimmon accent color. Should be subtle, not overwhelming.
+
+  Approach:
+  1. Add keyframe animation to globals.css:
+     ```css
+     @keyframes persimmon-pulse {
+       0%, 100% {
+         box-shadow: 0 0 0 0 rgba(232, 93, 43, 0.0),
+                     0 0 20px 0 rgba(232, 93, 43, 0.1);
+       }
+       50% {
+         box-shadow: 0 0 0 4px rgba(232, 93, 43, 0.1),
+                     0 0 30px 4px rgba(232, 93, 43, 0.15);
+       }
+     }
+     ```
+  2. Update Button.tsx hover state (line 41):
+     ```tsx
+     'hover:animate-[persimmon-pulse_2s_ease-in-out_infinite]',
+     ```
+  3. Apply only to primary variant (not secondary/ghost)
+
+  Success criteria: Glow pulses slowly (2s cycle). Creates warm halo around button. Visible but not distracting. Stops on active press. Only applies to primary CTA buttons.
+
+  Edge Cases:
+  - Glow + shadow - must layer correctly (glow behind shadow)
+  - Dark mode - glow should be more visible, may need brighter opacity
+  - Reduced motion preference - disable pulse animation
+
+  Dependencies:
+  - Requires --color-primary
+  - Should respect prefers-reduced-motion
+
+  NOT in Scope:
+  - Different glow colors per variant
+  - Glow animation on focus (keep for hover only)
+
+  Estimate: 40m
+
+  ```
+
+  ```
+
+  ````
+
+- [ ] Implement Typewriter Character Shift animation
+
+  ````
+  Files:
+  - components/ui/Button.tsx:14-51 (text element within button)
+
+  Pattern: Button text shifts vertically on hover/active for mechanical typewriter feel
+
+  Context: Text should feel like typewriter keys striking paper. Subtle vertical shift on hover (preparing to strike) and larger shift on active (striking). Reinforces editorial print aesthetic.
+
+  Approach:
+  1. Wrap button children in span for targeted animation:
+     ```tsx
+     // In Button component render:
+     <button className={buttonClasses} {...props}>
+       <span className="inline-block transition-transform duration-[var(--duration-fast)] group-hover:-translate-y-[1px] group-active:translate-y-[2px]">
+         {children}
+       </span>
+     </button>
+     ```
+  2. Use group/group-hover for parent button state
+  3. Combine with existing button translations for additive effect
+
+  Success criteria: Text lifts 1px on hover (anticipation). Text drops 2px on active (strike). Feels mechanical and deliberate. Doesn't interfere with button scale/shadow animations. Works with multi-line button text.
+
+  Edge Cases:
+  - Icons in buttons - should icons shift too? (yes, wrap all children)
+  - Long text wrapping - each line shifts together
+  - Disabled buttons - no shift animation
+
+  Dependencies:
+  - Requires group utilities from Tailwind
+
+  NOT in Scope:
+  - Horizontal text shift
+  - Character-by-character stagger (too subtle)
+
+  Estimate: 35m
+
+  ```
+
+  ```
+
+  ````
+
+- [ ] Implement Rotation Wiggle animation
+
+  ````
+  Files:
+  - components/ui/Button.tsx:14-51 (hover state)
+  - app/globals.css (add keyframe animation)
+
+  Pattern: Button rotates ±0.5deg on hover, matching stamp -5deg rotation aesthetic
+
+  Context: Stamps in the design system use -5deg rotation. Buttons should subtly wiggle on hover like stamps being positioned before pressing. Creates playful anticipation.
+
+  Approach:
+  1. Add keyframe animation to globals.css:
+     ```css
+     @keyframes stamp-wiggle {
+       0%, 100% {
+         transform: rotate(0deg);
+       }
+       25% {
+         transform: rotate(-0.5deg);
+       }
+       75% {
+         transform: rotate(0.5deg);
+       }
+     }
+     ```
+  2. Update Button.tsx hover state:
+     ```tsx
+     'hover:animate-[stamp-wiggle_0.8s_ease-in-out_infinite]',
+     ```
+  3. Ensure rotation doesn't conflict with scale/translate transforms
+  4. Apply to primary buttons only
+
+  Success criteria: Button wiggles ±0.5deg in 800ms cycle. Feels like stamp being positioned. Subtle and playful, not distracting. Stops on active press. Doesn't cause layout shift of surrounding elements.
+
+  Edge Cases:
+  - Transform composition - rotation must combine with scale/translate
+  - Text readability - 0.5deg should not affect legibility
+  - Mobile - may be too subtle on small screens, consider disabling
+
+  Dependencies:
+  - Must compose with other transform animations
+  - Should respect prefers-reduced-motion
+
+  NOT in Scope:
+  - Different rotation degrees per button size
+  - Direction variation (always ±0.5deg)
+
+  Estimate: 40m
+
+  ```
+
+  ```
+
+  ````
+
+- [ ] Implement Ink Spread on Hover animation
+
+  ````
+  Files:
+  - components/ui/Button.tsx:14-51 (hover background)
+  - app/globals.css (add keyframe animation)
+
+  Pattern: Radial gradient expands from center outward on hover like ink soaking into paper
+
+  Context: Hover state needs background transition that feels organic. Radial gradient spreading creates ink-on-paper metaphor. Should be subtle, visible as darkening/lightening rather than color change.
+
+  Approach:
+  1. Add CSS custom property for hover gradient:
+     ```css
+     /* In @theme section of globals.css */
+     --gradient-ink-spread: radial-gradient(
+       circle at center,
+       rgba(232, 93, 43, 0.08) 0%,
+       rgba(232, 93, 43, 0.04) 50%,
+       transparent 100%
+     );
+     ```
+  2. Add keyframe animation:
+     ```css
+     @keyframes ink-spread {
+       from {
+         background-size: 0% 0%;
+         background-position: center;
+       }
+       to {
+         background-size: 200% 200%;
+         background-position: center;
+       }
+     }
+     ```
+  3. Update Button.tsx hover state:
+     ```tsx
+     'relative overflow-hidden',
+     'before:absolute before:inset-0 before:bg-[var(--gradient-ink-spread)]',
+     'before:animate-[ink-spread_0.6s_ease-out] before:opacity-0',
+     'hover:before:opacity-100',
+     ```
+
+  Success criteria: Gradient expands from button center on hover in 600ms. Creates subtle darkening/tinting effect. Feels like ink spreading. Doesn't obscure button text. Works with existing button backgrounds.
+
+  Edge Cases:
+  - Button variants - gradient tint may need adjustment per variant
+  - Text contrast - ensure text remains WCAG AA compliant
+  - Rapid hover on/off - animation should reset gracefully
+
+  Dependencies:
+  - Requires before: pseudo-element support
+  - Must layer correctly with button content (z-index)
+
+  NOT in Scope:
+  - Click origin tracking for spread direction
+  - Different spread speeds
+  - Color variation per button variant (all use persimmon)
+
+  Estimate: 1h
+
+  ```
+
+  ```
+  ````

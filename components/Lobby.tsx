@@ -4,6 +4,7 @@ import { useUser } from '../lib/auth';
 import { formatRoomCode } from '../lib/roomCode';
 import { Button } from './ui/Button';
 import { Label } from './ui/Label';
+import { Stamp } from './ui/Stamp';
 import { Doc } from '../convex/_generated/dataModel';
 import { RoomQr } from './RoomQr';
 
@@ -76,9 +77,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                 </span>
               </div>
               {player.userId === room.hostUserId && (
-                <span className="text-xs font-mono uppercase tracking-wider border border-[var(--color-primary)] text-[var(--color-primary)] px-2 py-1">
-                  Host
-                </span>
+                <Stamp type="hanko" size="sm" />
               )}
             </li>
           ))}
