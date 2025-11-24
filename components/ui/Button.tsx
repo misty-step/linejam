@@ -27,7 +27,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           // Variants
           {
             // Primary - Solid Ink Block
-            'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-hover)] hover:animate-[persimmon-pulse_2s_ease-in-out_infinite]':
+            'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-hover)] hover:animate-[stamp-hover_1.6s_ease-in-out_infinite]':
               variant === 'primary',
 
             // Secondary - Paper Button

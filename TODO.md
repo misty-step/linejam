@@ -2,7 +2,7 @@
 
 ## Pending Tasks
 
-- [ ] Implement Rotation Wiggle animation
+- [x] Implement Rotation Wiggle animation
 
   ````
   Files:
