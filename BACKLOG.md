@@ -524,3 +524,321 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 - Authorization checks on all poem/favorites queries (1-2h)
 - Without this, any user can view any other user's content
+
+---
+
+# AESTHETIC EVOLUTION: Brutalist Editorial Maximalism
+
+Last groomed: 2025-11-23
+Based on: Comprehensive aesthetic audit with frontend-design framework
+
+## Phase 2: Motion & Interaction (Weeks 2-4, ~16 hours)
+
+### Motion System Enhancements
+
+- **Typewriter placeholder animation** (`WritingScreen.tsx`)
+  - Character-by-character reveal with monospace tracking
+  - Uses CSS `steps()` animation
+  - Estimate: 1h
+
+- **Overshoot button press effect** (`Button.tsx`)
+  - Replace linear translate with spring-like overshoot
+  - Add `--ease-stamp: cubic-bezier(0.68, -0.55, 0.27, 1.55)`
+  - Estimate: 30m
+
+- **Ink bleed focus states** (`Input.tsx`, `Button.tsx`)
+  - Glowing ink spread on focus: `box-shadow: 0 0 0 3px var(--color-primary), 0 0 12px 4px rgba(232, 93, 43, 0.3)`
+  - Replaces standard focus rings
+  - Estimate: 30m
+
+- **Lobby player stagger timing increase** (`Lobby.tsx:69`)
+  - Change from 100ms to 150ms for more theatrical entry
+  - Trivial change but noticeable impact
+  - Estimate: 5m
+
+- **Add motion easing tokens** (`globals.css:91-96`)
+  - Define signature easing curves:
+    - `--ease-stamp`: Overshoot for stamp effects
+    - `--ease-typewriter`: Stepped animation
+    - `--ease-settle`: Smooth settle after motion
+  - Estimate: 30m
+
+### Typography Component Expansion
+
+- **Create Heading component** (`components/ui/Heading.tsx`)
+  - 22 instances of `font-[var(--font-display)]` pattern
+  - Props: `as` (h1-h6), `size` (display, xl, lg, md, sm)
+  - Consolidates responsive typography
+  - Estimate: 1h
+
+- **Migrate heading instances** (13 files)
+  - Replace scattered heading patterns
+  - Achieve 100% typography component coverage
+  - Estimate: 2h
+
+### Dark Mode Enhancement
+
+- **Transform dark mode to ink-on-black**
+  - True black background (`#000` not `#1c1917`)
+  - Text glow: `text-shadow: 0 0 20px rgba(255, 107, 61, 0.1)`
+  - Brighter persimmon: `#ff6b3d`
+  - Inverted grain (white noise on black)
+  - Add vignette: `box-shadow: inset 0 0 200px rgba(0, 0, 0, 0.5)`
+  - Estimate: 1h
+
+### UX Hardening (Deferred from TODO.md)
+
+- **Add `beforeunload` warning** (`WritingScreen.tsx`)
+  - Prevents accidental data loss when typing in progress
+  - Browser prompt: "You have unsaved changes"
+  - Estimate: 20m
+
+- **Improve backend error messages** (`convex/rooms.ts`, `lib/rateLimit.ts`)
+  - "Room not found" → "Room code not found. Check the code and try again..."
+  - "Cannot join a room that is not in LOBBY status" → "This room has already started. Please wait for the next session..."
+  - "Rate limit exceeded" → "Too many rooms created. Please wait [X] minutes..."
+  - Estimate: 30m
+
+- **Add loading states** (`host/page.tsx`, `join/page.tsx`, `me/poems/page.tsx`)
+  - Replace `return null` with elegant loading spinner
+  - Matches WaitingScreen pulse animation
+  - Estimate: 30m
+
+- **Fix clipboard copy feedback** (`RoomQr.tsx`)
+  - Silent failure → inline error message
+  - "Failed to copy. Try manually."
+  - Estimate: 15m
+
+- **Add error recovery UI** (`RevealPhase.tsx`)
+  - Replace silent console.error with inline error display
+  - User can retry failed actions
+  - Estimate: 2h
+
+- **Keyboard navigation for PoemDisplay**
+  - Escape key to close poem modal
+  - Focus management
+  - Estimate: 1h
+
+**Total Phase 2 Estimate**: 16 hours
+
+---
+
+## Phase 3: Advanced Effects (Months 2-3, ~13 hours)
+
+### Spatial Composition Enhancements
+
+- **Vertical word counter sidebar** (`WritingScreen.tsx`)
+  - Move from top-center to right-edge vertical orientation
+  - Japanese-style writing mode
+  - Ink well graphic that fills as approaching target
+  - Estimate: 2h
+
+- **Torn paper edges on cards** (`Card.tsx`)
+  - SVG clip-paths for irregular edges
+  - Adds materiality and print aesthetic
+  - Estimate: 2h
+
+- **Custom cursor** (Global CSS)
+  - Pen nib or ink dot SVG cursor
+  - Changes on hover states (writing mode, selection)
+  - Estimate: 1h
+
+- **Parallax scroll effects** (`PoemDisplay.tsx`)
+  - Multi-layer depth on scrollable poems
+  - Foreground lines move faster than background
+  - Estimate: 3h
+
+### Additional Visual Details
+
+- **Brush stroke decorative elements**
+  - Replace text decorative border on homepage with SVG brush stroke
+  - Calligraphic underlines on headings
+  - Estimate: 2h
+
+- **Embossed text effects**
+  - Subtle letterpress effect on display headings
+  - Via text-shadow: `0 1px 0 rgba(255,255,255,0.3), 0 -1px 0 rgba(0,0,0,0.7)`
+  - Estimate: 30m
+
+- **Custom scrollbars**
+  - Thin scrollbar with persimmon accent
+  - Webkit-scrollbar styling
+  - Estimate: 30m
+
+### Component Polish
+
+- **Component documentation** (JSDoc)
+  - Add usage examples to all 12+ components
+  - IDE autocomplete improvement
+  - Estimate: 2h
+
+- **Component tests** (React Testing Library)
+  - Button, Card, Input, Label, Alert, Stamp, Ornament
+  - 80% coverage target for UI primitives
+  - Estimate: 3h (1h per component × 3 priority components)
+
+**Total Phase 3 Estimate**: 13 hours
+
+---
+
+## Nice-to-Have Aesthetic Improvements
+
+### Animation Choreography
+
+- **Stamp appearance animation**
+  - Rotate + scale + fade-in when stamp appears
+  - Dust particles on "stamp down" moment
+  - Estimate: 2h
+
+- **Page transition effects**
+  - Smooth transitions between game states
+  - Ink wash wipe transitions
+  - Estimate: 4h
+
+- **Scroll-triggered reveals**
+  - Content reveals as user scrolls
+  - Intersection Observer API
+  - Estimate: 3h
+
+### Decorative Language
+
+- **Ink splatter micro-interactions**
+  - Random ink dots on button clicks
+  - Canvas API for organic shapes
+  - Estimate: 3h
+
+- **Calligraphic underlines**
+  - SVG paths under important headings
+  - Animated draw-on effect
+  - Estimate: 2h
+
+- **Marginalia elements**
+  - Editorial side notes, asterisks, hand-drawn arrows
+  - Pure decoration, no functional purpose
+  - Estimate: 4h
+
+### Editorial Typography
+
+- **Pull quote styling**
+  - Preceding line in WritingScreen as editorial pull quote
+  - Large quotation marks, offset layout
+  - Estimate: 1h
+
+- **Typographic hierarchy refinement**
+  - Establish 6-level heading system
+  - Document type scale rationale
+  - Estimate: 2h
+
+- **Vertical text for labels**
+  - Japanese-style vertical orientation on select labels
+  - `writing-mode: vertical-rl`
+  - Estimate: 1h
+
+### Accessibility Enhancements
+
+- **Focus management for errors**
+  - Auto-focus error messages for screen readers
+  - `role="alert"`, `tabIndex={-1}`
+  - Estimate: 45m across all error states
+
+- **Theme toggle aria-live region**
+  - Announce theme changes to screen readers
+  - "Dark mode active" / "Light mode active"
+  - Estimate: 10m
+
+- **Semantic HTML improvements**
+  - Player lists as `<ul>/<li>` instead of `<div>`
+  - Proper heading hierarchy
+  - Estimate: 1h
+
+### Performance & Polish
+
+- **Lazy loading for stamps/ornaments**
+  - Dynamic imports for decorative components
+  - Reduces initial bundle size
+  - Estimate: 30m
+
+- **SVG optimization**
+  - SVGO for stamp/divider SVGs
+  - Reduce file size 30-50%
+  - Estimate: 30m
+
+- **Animation performance**
+  - Use `will-change` for animated elements
+  - Prefer `transform` and `opacity` over layout properties
+  - Estimate: 1h
+
+---
+
+## Design System Technical Debt
+
+### Component Architecture
+
+- **Storybook setup**
+  - Visual component reference
+  - Isolated development environment
+  - Interactive prop testing
+  - Estimate: 4h setup + 30m per component = 10h total
+
+- **Design token documentation**
+  - Markdown file documenting color/typography/spacing philosophy
+  - Usage guidelines for each token
+  - Estimate: 2h
+
+- **Unused token cleanup**
+  - Remove or document custom font-size tokens (rarely used)
+  - Decide: rely on Tailwind scale OR enforce custom tokens
+  - Estimate: 1h
+
+- **Layout primitives** (`Stack`, `Container`)
+  - Extract repeated flex/grid patterns
+  - `<Stack direction="vertical" gap={4}>`
+  - Estimate: 2h
+
+- **Loading component library**
+  - Standardize 3 loading patterns (spinner, skeleton, screen)
+  - Consistent across all loading states
+  - Estimate: 1h
+
+- **Button loading states**
+  - `<Button isLoading>` prop
+  - Spinner replaces button text
+  - Estimate: 30m
+
+### Code Quality
+
+- **Extract magic numbers**
+  - Stagger timings, animation durations as constants
+  - `const POEM_REVEAL_DELAY = 800;`
+  - Estimate: 30m
+
+- **Consolidate repeated classNames**
+  - Create utility classes for common patterns
+  - Example: `.editorial-label`, `.ink-stamp`
+  - Estimate: 1h
+
+---
+
+## Aesthetic Backlog Summary
+
+| Phase          | Focus                                            | Estimated Effort |
+| -------------- | ------------------------------------------------ | ---------------- |
+| Phase 2        | Motion, Typography, Dark Mode, UX Hardening      | 16 hours         |
+| Phase 3        | Advanced Effects, Visual Polish, Tests           | 13 hours         |
+| Nice-to-Have   | Animation, Decorative Elements, Accessibility    | ~25 hours        |
+| Technical Debt | Storybook, Documentation, Component Architecture | ~10 hours        |
+
+**Total Additional Aesthetic Work**: ~64 hours beyond Week 1 foundation (12 hours in TODO.md)
+
+---
+
+## Aesthetic Goals
+
+Transform Linejam from "good minimalism" to "unmistakably intentional design" by:
+
+1. **Executing stated philosophy visually** - Ink stamps, asymmetry, ornaments
+2. **Creating signature motion language** - Typewriter, overshoot, ink bleed
+3. **Hardening editorial aesthetic** - Vertical text, drop caps, pull quotes
+4. **Achieving anti-convergence** - No AI defaults, distinctive choices throughout
+
+**Success Metric**: Users recognize Linejam from a screenshot without seeing logo or title.

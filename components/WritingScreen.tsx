@@ -5,6 +5,7 @@ import { useUser } from '../lib/auth';
 import { countWords } from '../lib/wordCount';
 import { captureError } from '../lib/error';
 import { Button } from './ui/Button';
+import { Label } from './ui/Label';
 import { WaitingScreen } from './WaitingScreen';
 
 interface WritingScreenProps {
@@ -65,9 +66,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
       {/* Header / Status */}
       <div className="w-full max-w-2xl flex justify-between items-end mb-8 border-b border-[var(--color-border)] pb-4">
         <div className="space-y-1">
-          <h2 className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-            Contribution
-          </h2>
+          <Label>Contribution</Label>
           <div className="text-3xl font-[var(--font-display)]">
             Round {assignment.lineIndex + 1} / 9
           </div>
@@ -97,9 +96,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         {/* The Prompt (Previous Line) */}
         {assignment.previousLineText && (
           <div className="space-y-3 animate-fade-in-up">
-            <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Preceding Line
-            </p>
+            <Label>Preceding Line</Label>
             <div className="relative p-8 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-sm)]">
               <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-text-secondary)]" />
               <p className="text-2xl md:text-3xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
@@ -112,9 +109,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         {/* Input Area */}
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Your Line
-            </label>
+            <Label as="label">Your Line</Label>
             <textarea
               className="w-full min-h-[200px] bg-transparent text-3xl md:text-4xl font-[var(--font-display)] placeholder:text-[var(--color-text-muted)]/30 focus:outline-none resize-none leading-tight"
               placeholder="Type here..."

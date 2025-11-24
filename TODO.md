@@ -196,3 +196,864 @@
 
   Estimate: 1.5h
   ```
+
+---
+
+## Aesthetic Evolution: Brutalist Editorial Maximalism
+
+Based on comprehensive aesthetic audit - transforming from "good minimalism" to "unmistakably intentional design" by executing the stated "Japanese Editorial Minimalism" philosophy more boldly.
+
+### Critical Fixes
+
+- [x] Add missing semantic color tokens to design system
+
+  ````
+  Files:
+  - app/globals.css:14-42 (@theme color definitions)
+  - app/globals.css:101-116 (dark mode overrides)
+
+  Pattern: Follow existing CSS custom property pattern with light/dark variants
+
+  Context: --color-success and --color-error are referenced in 4 files (WritingScreen.tsx:79, join/page.tsx:101) but NOT defined in @theme, causing fallback to browser defaults and breaking visual consistency.
+
+  Approach:
+  1. Add state color tokens to @theme in globals.css after line 42:
+     ```css
+     /* State Colors */
+     --color-success: #10b981;  /* Green-600 for validation */
+     --color-error: #ef4444;    /* Red-600 for errors */
+     --color-warning: #f59e0b;  /* Amber-600 for warnings */
+     --color-info: #0ea5e9;     /* Sky-600 for info */
+  ````
+
+  2. Add dark mode overrides in :root.dark section after line 115:
+     ```css
+     --color-success: #10b981;
+     --color-error: #ef4444;
+     --color-warning: #f59e0b;
+     --color-info: #0ea5e9;
+     ```
+
+  Success criteria: All color references resolve to design tokens, no browser fallbacks. Word counter in WritingScreen shows green when valid, red when over count. Error messages in join page use consistent error color.
+
+  Edge Cases:
+  - Dark mode colors may need slight adjustments for WCAG AA contrast
+  - Existing usages must not break (verify WritingScreen, join page)
+
+  Dependencies: None
+
+  NOT in Scope:
+  - Creating Alert component (separate task)
+  - Updating all error messages app-wide
+
+  Estimate: 15m
+
+  ```
+
+  ```
+
+- [x] Create Label component for editorial typography pattern
+
+  ````
+  Files:
+  - components/ui/Label.tsx (new file)
+
+  Pattern: Follow Button.tsx:1-56 forwardRef pattern with variant prop
+
+  Context: The label pattern `text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]` appears 24 times across 11 files. This is the most duplicated UI pattern in the codebase. Extracting it enables typography updates to propagate instantly.
+
+  Approach:
+  1. Create components/ui/Label.tsx with:
+     ```tsx
+     import { HTMLAttributes, forwardRef } from 'react';
+     import { cn } from '@/lib/utils';
+
+     interface LabelProps extends HTMLAttributes<HTMLParagraphElement> {
+       variant?: 'default' | 'accent';
+     }
+
+     export const Label = forwardRef<HTMLParagraphElement, LabelProps>(
+       ({ className, variant = 'default', ...props }, ref) => {
+         return (
+           <p
+             ref={ref}
+             className={cn(
+               'text-xs font-mono uppercase tracking-widest',
+               {
+                 'text-[var(--color-text-muted)]': variant === 'default',
+                 'text-[var(--color-primary)]': variant === 'accent',
+               },
+               className
+             )}
+             {...props}
+           />
+         );
+       }
+     );
+
+     Label.displayName = 'Label';
+  ````
+
+  2. Export from components/ui/index.ts (if exists) or use direct imports
+
+  Success criteria: Component renders with default muted color. Variant="accent" shows persimmon color. Accepts all standard p element props. forwardRef works for parent ref access. className prop merges correctly.
+
+  Edge Cases:
+  - Must accept children (text content)
+  - Must support as={} prop for semantic HTML if needed (h6, span, etc.) - add in future iteration
+
+  Dependencies: None (can be created independently)
+
+  NOT in Scope:
+  - Migration of existing 24 instances (separate tasks)
+  - Additional variants beyond default/accent
+
+  Estimate: 30m
+
+  ```
+
+  ```
+
+- [ ] Migrate high-traffic components to Label component (Phase 1: Game Flow)
+
+  ````
+  Files:
+  - components/WritingScreen.tsx:68, 100, 115 (3 instances)
+  - components/WaitingScreen.tsx:28, 46 (2 instances)
+  - components/Lobby.tsx:36 (1 instance)
+  - components/RevealPhase.tsx:116 (1 instance)
+
+  Pattern: Import Label, replace <p className="text-xs font-mono..."> with <Label>
+
+  Context: These 7 instances are in the core game flow screens (Lobby → WritingScreen → WaitingScreen → RevealPhase). Migrating these first has highest visibility impact.
+
+  Approach:
+  1. Add import to each file: `import { Label } from '../ui/Label';`
+  2. Replace each instance:
+     ```tsx
+     // Before:
+     <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+       Label Text
+     </p>
+
+     // After:
+     <Label>Label Text</Label>
+
+     // For accent variant (primary color):
+     <Label variant="accent">Label Text</Label>
+  ````
+
+  3. Keep any additional className props by passing them through
+
+  Success criteria: All 7 labels render identically to before. No visual regressions. TypeScript compiles without errors. Label text remains readable in light and dark modes.
+
+  Edge Cases:
+  - WritingScreen.tsx:68 has "Contribution" label - check if accent variant needed
+  - Some labels may have additional classes (mb-2, etc.) - preserve these
+  - Verify mobile responsive behavior unchanged
+
+  Dependencies:
+  - Requires Label component created first
+
+  NOT in Scope:
+  - Other 17 label instances (covered in Phase 2)
+  - Changing label text content
+
+  Estimate: 45m
+
+  ```
+
+  ```
+
+- [ ] Migrate utility and static pages to Label component (Phase 2: Complete Coverage)
+
+  ```
+  Files:
+  - components/RoomQr.tsx:19 (1 instance)
+  - app/join/page.tsx:63 (1 instance)
+  - app/host/page.tsx:63 (1 instance)
+  - app/me/poems/page.tsx:38, 88 (2 instances)
+  - app/me/profile/page.tsx:25, 40, 53, 78 (4 instances)
+  - app/poem/[id]/page.tsx:51 (1 instance)
+  - components/RevealList.tsx:30 (1 instance)
+
+  Pattern: Same as Phase 1 - import Label, replace className string
+
+  Context: Remaining 11 instances in lower-traffic pages. Completing migration achieves 100% label consistency and eliminates duplication.
+
+  Approach:
+  1. Add Label import to each file
+  2. Replace label pattern with <Label> component
+  3. Preserve any page-specific styling via className prop
+  4. Run visual QA on each page to verify no regressions
+
+  Success criteria: All 24 label instances migrated. Grep search for "text-xs font-mono uppercase tracking-widest" only finds definition in Label.tsx. No visual differences from before. All pages render correctly in light/dark modes.
+
+  Edge Cases:
+  - Profile page has 4 instances - verify vertical spacing consistent
+  - Some labels may be in flex containers - ensure alignment preserved
+  - Check mobile breakpoints on poems archive page
+
+  Dependencies:
+  - Requires Label component created
+  - Should complete after Phase 1 for risk reduction
+
+  NOT in Scope:
+  - Refactoring non-label text elements
+  - Changing label content or semantics
+
+  Estimate: 1h
+  ```
+
+- [ ] Create Alert component for inline error handling
+
+  ````
+  Files:
+  - components/ui/Alert.tsx (new file)
+
+  Pattern: Follow Card.tsx:1-64 composition pattern with variant styling
+
+  Context: Error messages currently use either browser alert() (breaks aesthetic) or duplicated inline divs with border/background styling. Need consistent, reusable error display component.
+
+  Approach:
+  1. Create components/ui/Alert.tsx:
+     ```tsx
+     import { HTMLAttributes, forwardRef } from 'react';
+     import { cn } from '@/lib/utils';
+
+     interface AlertProps extends HTMLAttributes<HTMLDivElement> {
+       variant?: 'error' | 'success' | 'warning' | 'info';
+     }
+
+     export const Alert = forwardRef<HTMLDivElement, AlertProps>(
+       ({ className, variant = 'info', children, ...props }, ref) => {
+         return (
+           <div
+             ref={ref}
+             role="alert"
+             className={cn(
+               'p-4 border text-sm rounded-[var(--radius-sm)]',
+               {
+                 'border-[var(--color-error)] bg-[var(--color-error)]/5 text-[var(--color-error)]':
+                   variant === 'error',
+                 'border-[var(--color-success)] bg-[var(--color-success)]/5 text-[var(--color-success)]':
+                   variant === 'success',
+                 'border-[var(--color-warning)] bg-[var(--color-warning)]/5 text-[var(--color-warning)]':
+                   variant === 'warning',
+                 'border-[var(--color-info)] bg-[var(--color-info)]/5 text-[var(--color-info)]':
+                   variant === 'info',
+               },
+               className
+             )}
+             {...props}
+           >
+             {children}
+           </div>
+         );
+       }
+     );
+
+     Alert.displayName = 'Alert';
+  ````
+
+  Success criteria: Component renders with correct border/background for each variant. role="alert" announces to screen readers. Text color has sufficient contrast (WCAG AA). Works in light and dark modes.
+
+  Edge Cases:
+  - Empty children - should still render container
+  - Long error messages - text should wrap
+  - Dark mode - 5% opacity backgrounds must be visible
+
+  Dependencies:
+  - Requires semantic color tokens added first
+
+  NOT in Scope:
+  - Dismissible alerts with close button
+  - Icon support (save for future iteration)
+  - Auto-dismiss timers
+
+  Estimate: 30m
+
+  ```
+
+  ```
+
+- [ ] Replace browser alert() with Alert component in WritingScreen
+
+  ````
+  Files:
+  - components/WritingScreen.tsx:22-61 (error state handling)
+
+  Pattern: Follow join/page.tsx:71-75, 100-104 inline error display pattern
+
+  Context: WritingScreen.tsx:59 uses alert('Failed to submit line') which breaks the zen editorial aesthetic with ugly browser modal. Need graceful inline error display.
+
+  Approach:
+  1. Add error state: `const [error, setError] = useState<string | null>(null);`
+  2. Import Alert component
+  3. Update catch block in handleSubmit (line 57-60):
+     ```tsx
+     catch (error) {
+       captureError(error, { roomCode, poemId: assignment.poemId });
+       setIsSubmitting(false);
+       setError('Failed to submit line. Please try again.');
+     }
+  ````
+
+  4. Render Alert above submit button (around line 128):
+     ```tsx
+     {
+       error && (
+         <Alert variant="error" className="mb-4">
+           {error}
+         </Alert>
+       );
+     }
+     ```
+  5. Clear error on successful submit or text change
+
+  Success criteria: Failed submit shows red inline error instead of alert(). Error clears when user types. Error announces to screen readers. Maintains editorial aesthetic. No layout shift when error appears.
+
+  Edge Cases:
+  - Rapid submissions - prevent multiple error states stacking
+  - Network timeout - error message should be clear
+  - Mobile keyboard - error should be visible above keyboard
+
+  Dependencies:
+  - Requires Alert component created
+  - Requires semantic color tokens
+
+  NOT in Scope:
+  - Other alert() instances (RevealPhase, host/join pages)
+  - Error retry logic
+  - Network error classification
+
+  Estimate: 30m
+
+  ```
+
+  ```
+
+### High-Impact Visual Changes
+
+- [ ] Create Stamp component for ink seal graphics
+
+  ````
+  Files:
+  - components/ui/Stamp.tsx (new file)
+
+  Pattern: Custom SVG component with rotation and shadow effects
+
+  Context: The "Persimmon Stamp" design philosophy is stated but not visually executed. Need actual hanko (Japanese seal) graphics to appear on state transitions, executing the ink metaphor.
+
+  Approach:
+  1. Create components/ui/Stamp.tsx with three stamp types:
+     ```tsx
+     import { cn } from '@/lib/utils';
+
+     interface StampProps {
+       type: 'hanko' | 'sealed' | 'approved';
+       size?: 'sm' | 'md' | 'lg';
+       className?: string;
+     }
+
+     const sizeClasses = {
+       sm: 'w-8 h-8',
+       md: 'w-12 h-12',
+       lg: 'w-16 h-16',
+     };
+
+     export function Stamp({ type, size = 'md', className }: StampProps) {
+       return (
+         <div
+           className={cn(
+             'inline-block transform rotate-[-5deg]',
+             'filter drop-shadow-[3px_3px_8px_rgba(232,93,43,0.4)]',
+             sizeClasses[size],
+             className
+           )}
+           aria-hidden="true"
+         >
+           {type === 'hanko' && <HankoSVG />}
+           {type === 'sealed' && <SealedSVG />}
+           {type === 'approved' && <ApprovedSVG />}
+         </div>
+       );
+     }
+
+     // SVG subcomponents with red ink styling:
+     function HankoSVG() {
+       return (
+         <svg viewBox="0 0 100 100" fill="none">
+           <circle cx="50" cy="50" r="45"
+             fill="var(--color-primary)"
+             opacity="0.9"
+           />
+           <text x="50" y="65"
+             textAnchor="middle"
+             fontSize="40"
+             fontFamily="serif"
+             fill="var(--color-text-inverse)"
+             fontWeight="bold"
+           >
+             詩
+           </text>
+         </svg>
+       );
+     }
+
+     function SealedSVG() {
+       return (
+         <svg viewBox="0 0 100 100" fill="none">
+           <rect x="10" y="10" width="80" height="80"
+             fill="var(--color-primary)"
+             opacity="0.9"
+           />
+           <text x="50" y="40"
+             textAnchor="middle"
+             fontSize="16"
+             fontFamily="monospace"
+             fill="var(--color-text-inverse)"
+           >
+             SEALED
+           </text>
+         </svg>
+       );
+     }
+
+     function ApprovedSVG() {
+       return (
+         <svg viewBox="0 0 100 100" fill="none">
+           <circle cx="50" cy="50" r="45"
+             fill="var(--color-primary)"
+             opacity="0.9"
+           />
+           <path d="M30 50 L45 65 L75 35"
+             stroke="var(--color-text-inverse)"
+             strokeWidth="8"
+             strokeLinecap="round"
+             strokeLinejoin="round"
+             fill="none"
+           />
+         </svg>
+       );
+     }
+  ````
+
+  Success criteria: Three stamp variants render with rotation, shadow, and ink aesthetic. Size variants scale correctly. Stamps feel like rubber stamp impressions (slight rotation, ink spread shadow). Work in light and dark modes.
+
+  Edge Cases:
+  - SVG text must render on Safari/Firefox (test font fallbacks)
+  - Japanese character (詩 = poetry) must display correctly
+  - Shadow must be visible but not overwhelming
+
+  Dependencies: None
+
+  NOT in Scope:
+  - Animation on stamp appearance (add in separate task)
+  - Additional stamp types
+  - Stamp click interactions
+
+  Estimate: 1.5h
+
+  ```
+
+  ```
+
+- [ ] Add stamp graphics to WaitingScreen sealed lines
+
+  ````
+  Files:
+  - components/WaitingScreen.tsx:39-62 (sealed lines list)
+
+  Pattern: Add decorative element next to "[SEALED]" text
+
+  Context: WaitingScreen shows which lines are sealed with "[SEALED]" text. Adding actual stamp graphic reinforces the ink metaphor and makes sealed state more visually distinct.
+
+  Approach:
+  1. Import Stamp component
+  2. Replace or augment "[SEALED]" text (line 55) with:
+     ```tsx
+     <div className="flex items-center gap-2">
+       <span className="font-mono text-xs text-[var(--color-text-muted)]">
+         SEALED
+       </span>
+       <Stamp type="sealed" size="sm" />
+     </div>
+  ````
+
+  3. Ensure stamp doesn't break responsive layout
+  4. Add subtle fade-in animation when stamp appears
+
+  Success criteria: Sealed lines show small red stamp next to text. Stamp appears when line is sealed. Layout doesn't shift when stamp renders. Mobile view maintains readable spacing.
+
+  Edge Cases:
+  - Long player names - ensure stamp doesn't get pushed off screen
+  - Rapid sealing - stamps should appear smoothly
+  - Dark mode - stamp shadow must be visible
+
+  Dependencies:
+  - Requires Stamp component created first
+
+  NOT in Scope:
+  - Stamp animation choreography
+  - Different stamp types for different players
+
+  Estimate: 30m
+
+  ```
+
+  ```
+
+- [ ] Add hanko stamp to host badge in Lobby
+
+  ````
+  Files:
+  - components/Lobby.tsx:79-83 (host badge)
+
+  Pattern: Replace or augment "Host" text badge with hanko stamp
+
+  Context: The host badge currently shows "Host" in a border. Adding a hanko stamp with Japanese character creates editorial authority and reinforces the ink aesthetic.
+
+  Approach:
+  1. Import Stamp component
+  2. Update host badge (line 79-83) to show stamp + text:
+     ```tsx
+     {player.userId === room.hostUserId && (
+       <div className="flex items-center gap-2">
+         <Stamp type="hanko" size="sm" />
+         <span className="text-xs font-mono uppercase tracking-wider border border-[var(--color-primary)] text-[var(--color-primary)] px-2 py-1">
+           Host
+         </span>
+       </div>
+     )}
+  ````
+
+  3. Alternatively, replace text entirely with just stamp for minimalism
+
+  Success criteria: Host has distinctive visual marker combining stamp + text OR just stamp. Stamp is visible but doesn't overwhelm player name. Layout works on mobile. Clear which player is host.
+
+  Edge Cases:
+  - Small screens - stamp + text may be too wide, consider stamp-only
+  - Multiple hosts (edge case) - each should get stamp
+  - Self vs other host - no distinction needed
+
+  Dependencies:
+  - Requires Stamp component created
+
+  NOT in Scope:
+  - Hover states on stamp
+  - Tooltip explaining host role
+
+  Estimate: 20m
+
+  ```
+
+  ```
+
+- [ ] Create Ornament component for typographic decorations
+
+  ````
+  Files:
+  - components/ui/Ornament.tsx (new file)
+
+  Pattern: Simple functional component returning decorative character
+
+  Context: Editorial typography uses ornaments (fleurons, daggers, section marks) as decorative dividers. Replace boring " · " separators with characterful editorial marks.
+
+  Approach:
+  1. Create components/ui/Ornament.tsx:
+     ```tsx
+     import { cn } from '@/lib/utils';
+
+     interface OrnamentProps {
+       type: 'dagger' | 'section' | 'fleuron' | 'asterism';
+       className?: string;
+     }
+
+     const ornaments = {
+       dagger: '†',
+       section: '§',
+       fleuron: '❦',
+       asterism: '⁂',
+     };
+
+     export function Ornament({ type, className }: OrnamentProps) {
+       return (
+         <span
+           className={cn(
+             'inline-block px-2 text-[var(--color-text-muted)]',
+             className
+           )}
+           aria-hidden="true"
+         >
+           {ornaments[type]}
+         </span>
+       );
+     }
+  ````
+
+  2. Export from ui/index.ts
+
+  Success criteria: Four ornament types render correctly. Unicode characters display on all browsers. Color matches muted text. Horizontal padding creates breathing room. aria-hidden prevents screen reader announcement.
+
+  Edge Cases:
+  - Font support - characters must render (system fonts should support these)
+  - Vertical alignment - may need align-middle depending on font
+  - RTL languages - spacing may need adjustment (not in scope)
+
+  Dependencies: None
+
+  NOT in Scope:
+  - Animated ornaments
+  - Color variations
+  - Size variations
+
+  Estimate: 20m
+
+  ```
+
+  ```
+
+- [ ] Replace footer separators with Ornament components
+
+  ````
+  Files:
+  - app/page.tsx:119 (footer separator " · ")
+  - app/poem/[id]/page.tsx (if footer exists)
+
+  Pattern: Replace <span>·</span> with <Ornament type="dagger" />
+
+  Context: Footer currently uses " · " which is generic. Using typographic ornaments adds editorial character and reinforces print aesthetic.
+
+  Approach:
+  1. Import Ornament component in app/page.tsx
+  2. Replace line 119 separator:
+     ```tsx
+     // Before:
+     <span>·</span>
+
+     // After:
+     <Ornament type="dagger" />
+  ````
+
+  3. Verify visual spacing - may need to adjust Ornament padding
+  4. Check other pages with separators and replace consistently
+
+  Success criteria: Footer separators use dagger ornament. Spacing feels natural. Ornament color matches surrounding text. No layout shift from before.
+
+  Edge Cases:
+  - Mobile footer - ensure ornament doesn't get too small
+  - Long text items - wrapping should still work
+  - Dark mode - ornament must be visible
+
+  Dependencies:
+  - Requires Ornament component created
+
+  NOT in Scope:
+  - Changing footer content
+  - Different ornament types for different contexts (could vary later)
+
+  Estimate: 15m
+
+  ```
+
+  ```
+
+- [ ] Enhance shadows with persimmon color tint
+
+  ````
+  Files:
+  - app/globals.css:79-86 (shadow definitions)
+
+  Pattern: Replace current shadow tokens with color-tinted versions
+
+  Context: Current shadows use grayscale `var(--color-border)` which feels cold. Adding persimmon tint creates warmth and reinforces the ink stamp metaphor.
+
+  Approach:
+  1. Update shadow tokens in @theme section (lines 79-86):
+     ```css
+     /* Before: */
+     --shadow-sm: 2px 2px 0px var(--color-border);
+     --shadow-md: 4px 4px 0px var(--color-border);
+     --shadow-lg: 8px 8px 0px var(--color-border);
+     --shadow-xl: 12px 12px 0px var(--color-border);
+
+     /* After: */
+     --shadow-sm: 2px 2px 0px rgba(232, 93, 43, 0.15);
+     --shadow-md: 4px 4px 0px rgba(232, 93, 43, 0.1);
+     --shadow-lg: 8px 8px 0px rgba(232, 93, 43, 0.12);
+     --shadow-xl: 12px 12px 0px rgba(232, 93, 43, 0.08);
+
+     /* Add new: */
+     --shadow-stamp: 3px 3px 8px rgba(232, 93, 43, 0.4);
+  ````
+
+  2. Keep --shadow-hover and --shadow-active unchanged (they work with button press)
+  3. Test shadows on light and dark backgrounds
+
+  Success criteria: Shadows show subtle warm persimmon tint. Cards and buttons feel warmer, more organic. Shadows are still subtle (not overwhelming). Dark mode shadows remain visible. No WCAG contrast issues.
+
+  Edge Cases:
+  - Dark mode - may need separate dark mode shadow definitions
+  - Very light backgrounds - ensure shadows still visible
+  - Print styles - shadows may need to be removed for printing
+
+  Dependencies: None
+
+  NOT in Scope:
+  - Changing shadow sizes/offsets
+  - Adding blur to shadows (keep hard edges for brutalism)
+
+  Estimate: 15m
+
+  ```
+
+  ```
+
+- [ ] Implement asymmetric homepage layout with vertical label
+
+  ````
+  Files:
+  - app/page.tsx:34-92 (main content section)
+  - app/globals.css (add vertical text utility if needed)
+
+  Pattern: Follow asymmetric grid layouts from editorial/magazine design
+
+  Context: Homepage currently uses centered card layout which is AI default. Moving title to top-left, adding vertical Japanese label, and breaking symmetry creates distinctive visual identity.
+
+  Approach:
+  1. Replace centered layout with 12-column grid in main (line 34):
+     ```tsx
+     <main className="flex-grow grid grid-cols-12 gap-8 p-6 md:p-12 lg:p-24">
+       {/* Left: Title & Actions (8 cols on desktop) */}
+       <div className="col-span-12 md:col-span-8 space-y-16">
+         <div className="space-y-3">
+           <h1 className="text-7xl md:text-9xl font-[var(--font-display)] font-bold leading-[0.85] text-[var(--color-text-primary)]">
+             Linejam
+           </h1>
+           {/* Keep decorative border or replace with brush stroke */}
+           <div className="text-[var(--color-text-muted)] text-sm tracking-[0.2em]" aria-hidden="true">
+             ═══════════════════
+           </div>
+         </div>
+         {/* Rest of content: tagline, buttons, archive link */}
+       </div>
+
+       {/* Right: Vertical Label (4 cols on desktop, hidden on mobile) */}
+       <div className="hidden md:flex md:col-span-4 justify-end items-center">
+         <div
+           className="text-sm font-mono tracking-[0.3em] text-[var(--color-text-muted)] opacity-60"
+           style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+         >
+           詩的共同創作
+         </div>
+       </div>
+     </main>
+  ````
+
+  2. Adjust spacing and sizing for asymmetric balance
+  3. Test mobile responsive (single column)
+
+  Success criteria: Title is top-left aligned on desktop, not centered. Vertical Japanese text appears on right side (desktop only). Layout feels intentional, not accidental. Mobile view (single column) still works. Japanese characters render correctly.
+
+  Edge Cases:
+  - Mobile - vertical label hidden, layout stacks normally
+  - Wide screens - right label doesn't drift too far from content
+  - Safari - vertical text support (should work with writingMode CSS)
+  - Font support - 詩的共同創作 characters must render
+
+  Dependencies: None
+
+  NOT in Scope:
+  - Translating existing English text to Japanese
+  - Adding brush stroke SVG (can be future enhancement)
+  - Parallax effects
+
+  Estimate: 1.5h
+
+  ```
+
+  ```
+
+- [ ] Implement staggered asymmetric poem reveal
+
+  ````
+  Files:
+  - components/PoemDisplay.tsx:36-56 (poem lines rendering)
+
+  Pattern: Editorial layout with alternating alignment and drop cap
+
+  Context: Poem reveal currently uses uniform center-aligned lines. Asymmetric alignment creates visual rhythm and reinforces editorial aesthetic. Drop cap on first line adds print magazine character.
+
+  Approach:
+  1. Update line rendering logic (lines 38-56) with asymmetric alignment:
+     ```tsx
+     <div className="space-y-6 flex flex-col">
+       {lines.map((line, index) => {
+         const isVisible = index < revealedCount;
+         const isFirst = index === 0;
+
+         // Alternate alignment: left, center, right
+         const alignment =
+           index % 3 === 0 ? 'text-left' :
+           index % 3 === 1 ? 'text-center' :
+           'text-right';
+
+         return (
+           <div
+             key={index}
+             className={cn(
+               'transition-all duration-800 transform',
+               alignment,
+               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+             )}
+           >
+             {isFirst && (
+               <span className="float-left text-8xl pr-4 leading-none text-[var(--color-primary)] font-[var(--font-display)]">
+                 {line[0]}
+               </span>
+             )}
+             <p className={cn(
+               'font-[var(--font-display)] leading-tight text-[var(--color-text-primary)]',
+               isFirst ? 'text-5xl' : 'text-3xl md:text-4xl lg:text-5xl'
+             )}>
+               {isFirst ? line.slice(1) : line}
+             </p>
+           </div>
+         );
+       })}
+     </div>
+  ````
+
+  2. Add ink stamp ornament after line 5 (between stanzas):
+     ```tsx
+     {
+       index === 4 && (
+         <div className="flex justify-center py-4">
+           <Ornament type="asterism" />
+         </div>
+       );
+     }
+     ```
+
+  Success criteria: First line has drop cap in persimmon color. Lines alternate left/center/right alignment. Visual rhythm feels intentional. Stagger animation (800ms) still works. Mid-poem ornament creates visual break. Mobile view remains readable.
+
+  Edge Cases:
+  - Single-character first word - drop cap still works
+  - Empty first line - handle gracefully (no drop cap)
+  - Very long lines - wrapping should preserve alignment
+  - Mobile - may need different alignment pattern (all left?)
+
+  Dependencies:
+  - Ornament component if adding mid-poem separator
+
+  NOT in Scope:
+  - Different font sizes based on line position
+  - Varying stagger timing
+  - Parallax scroll effects
+
+  Estimate: 2h
+
+  ```
+
+  ```

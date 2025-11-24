@@ -3,6 +3,7 @@ import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { formatRoomCode } from '../lib/roomCode';
 import { Button } from './ui/Button';
+import { Label } from './ui/Label';
 import { Doc } from '../convex/_generated/dataModel';
 import { RoomQr } from './RoomQr';
 
@@ -33,9 +34,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
       {/* Left: Room Info (Sticky) */}
       <div className="md:w-1/3 space-y-8">
         <div>
-          <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-muted)] block mb-2">
-            Room Code
-          </span>
+          <Label className="block mb-2">Room Code</Label>
           <h1 className="text-6xl md:text-8xl font-[var(--font-display)] text-[var(--color-primary)] tracking-tighter">
             {formatRoomCode(room.code)}
           </h1>

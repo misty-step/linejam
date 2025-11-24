@@ -12,6 +12,8 @@ import { captureError } from '../lib/error';
 
 import { Button } from './ui/Button';
 
+import { Label } from './ui/Label';
+
 import { PoemDisplay } from './PoemDisplay';
 
 import Link from 'next/link';
@@ -113,9 +115,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         </div>
 
         <div className="border-t border-[var(--color-border)] pt-8">
-          <h3 className="font-mono text-sm uppercase tracking-widest mb-4 text-[var(--color-text-muted)]">
-            Poem Status
-          </h3>
+          <Label className="block mb-4">Poem Status</Label>
           <div className="space-y-2">
             {poems
               .sort((a, b) => a.indexInRoom - b.indexInRoom)

@@ -1,14 +1,15 @@
-import { HTMLAttributes, forwardRef } from 'react';
+import { HTMLAttributes, forwardRef, ElementType } from 'react';
 import { cn } from '@/lib/utils';
 
-interface LabelProps extends HTMLAttributes<HTMLParagraphElement> {
+interface LabelProps extends HTMLAttributes<HTMLElement> {
   variant?: 'default' | 'accent';
+  as?: ElementType;
 }
 
-export const Label = forwardRef<HTMLParagraphElement, LabelProps>(
-  ({ className, variant = 'default', ...props }, ref) => {
+export const Label = forwardRef<HTMLElement, LabelProps>(
+  ({ className, variant = 'default', as: Component = 'p', ...props }, ref) => {
     return (
-      <p
+      <Component
         ref={ref}
         className={cn(
           'text-xs font-mono uppercase tracking-widest',
