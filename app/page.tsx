@@ -31,12 +31,13 @@ export default function Home() {
         <ThemeToggle />
       </header>
 
-      {/* Main Content - Centered Card */}
-      <main className="flex-grow flex items-center justify-center p-6 -mt-20">
-        <div className="max-w-xl w-full text-center space-y-10">
+      {/* Main Content - Asymmetric Editorial Grid */}
+      <main className="flex-grow grid grid-cols-12 gap-8 p-6 md:p-12 lg:p-24">
+        {/* Left: Title & Actions (8 cols on desktop) */}
+        <div className="col-span-12 md:col-span-8 space-y-16">
           {/* Title with Decorative Border */}
           <div className="space-y-3">
-            <h1 className="text-6xl md:text-7xl font-[var(--font-display)] font-bold tracking-tight leading-[0.9] text-[var(--color-text-primary)]">
+            <h1 className="text-7xl md:text-9xl font-[var(--font-display)] font-bold leading-[0.85] text-[var(--color-text-primary)]">
               Linejam
             </h1>
             <div
@@ -48,7 +49,7 @@ export default function Home() {
           </div>
 
           {/* Tagline */}
-          <p className="text-xl md:text-2xl leading-relaxed text-[var(--color-text-primary)] font-[var(--font-sans)] max-w-md mx-auto">
+          <p className="text-xl md:text-2xl leading-relaxed text-[var(--color-text-primary)] font-[var(--font-sans)] max-w-md">
             Write poems together.
             <br />
             One line at a time.
@@ -57,7 +58,7 @@ export default function Home() {
           </p>
 
           {/* Action Buttons */}
-          <div className="space-y-4 pt-4">
+          <div className="space-y-4 max-w-md">
             <Link href="/host" className="block w-full group">
               <Button
                 className="w-full h-16 text-xl font-[var(--font-sans)] font-medium transition-all duration-300 relative overflow-hidden"
@@ -88,6 +89,16 @@ export default function Home() {
                 Archive
               </Link>
             </div>
+          </div>
+        </div>
+
+        {/* Right: Vertical Japanese Label (4 cols on desktop, hidden on mobile) */}
+        <div className="hidden md:flex md:col-span-4 justify-end items-center">
+          <div
+            className="text-sm font-mono tracking-[0.3em] text-[var(--color-text-muted)] opacity-60"
+            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+          >
+            詩的共同創作
           </div>
         </div>
       </main>
