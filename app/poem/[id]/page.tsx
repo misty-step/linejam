@@ -5,6 +5,7 @@ import { api } from '../../../convex/_generated/api';
 import { useParams } from 'next/navigation';
 import { useUser } from '../../../lib/auth';
 import { Label } from '../../../components/ui/Label';
+import { Ornament } from '../../../components/ui/Ornament';
 import Link from 'next/link';
 import { Id } from '../../../convex/_generated/dataModel';
 
@@ -112,8 +113,9 @@ export default function PoemDetailPage() {
         {/* Footer Stats */}
         <div className="border-t border-[var(--color-border)] pt-6">
           <Label>
-            {lines.length} Line{lines.length !== 1 ? 's' : ''} · {uniquePoets}{' '}
-            Poet{uniquePoets !== 1 ? 's' : ''}
+            {lines.length} Line{lines.length !== 1 ? 's' : ''}{' '}
+            <Ornament type="dagger" /> {uniquePoets} Poet
+            {uniquePoets !== 1 ? 's' : ''}
           </Label>
         </div>
       </div>

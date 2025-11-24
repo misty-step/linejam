@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { SignInButton, UserButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { Button } from '../components/ui/Button';
 import { Divider } from '../components/ui/Divider';
+import { Ornament } from '../components/ui/Ornament';
 import { ThemeToggle } from '../components/ThemeToggle';
 
 export default function Home() {
@@ -116,7 +117,7 @@ export default function Home() {
             >
               Archive
             </Link>
-            <span>·</span>
+            <Ornament type="dagger" />
             <span>Est. 2025</span>
           </div>
         </div>
