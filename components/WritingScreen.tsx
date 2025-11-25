@@ -113,8 +113,8 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
           <div className="space-y-2">
             <Label as="label">Your Line</Label>
             <textarea
-              className="w-full min-h-[200px] bg-transparent text-3xl md:text-4xl font-[var(--font-display)] placeholder:text-[var(--color-text-muted)]/30 focus:outline-none resize-none leading-tight"
-              placeholder="Type here..."
+              className="w-full min-h-[200px] bg-[var(--color-surface)] border-2 border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 px-6 py-4 rounded-[var(--radius-sm)] text-3xl md:text-4xl font-[var(--font-display)] placeholder:text-[var(--color-text-muted)]/40 resize-none leading-tight transition-all duration-150"
+              placeholder="Type your line here..."
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
