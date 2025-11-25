@@ -296,14 +296,15 @@
   - Estimated effort: 2h | Actual: ~25m (cleaner codebase than expected)
   - **Commit**: 06c0445
 
-- [~] **Reserve persimmon hover for primary actions only**
-  - Audit all `hover:text-[var(--color-primary)]` uses
-  - Keep: Primary buttons, main navigation
-  - Remove: Footer metadata links, secondary archive links
-  - Replace with: `hover:underline` or subtle opacity change
-  - Rationale: Persimmon should signal "primary action", not decorate all links
-  - Success criteria: Color hierarchy clearer (persimmon = important action)
-  - Estimated effort: 2h
+- [x] **Reserve persimmon hover for primary actions only** ✅
+  - Audited all `hover:text-[var(--color-primary)]` uses (14 total) ✅
+  - Kept: Header logo (primary nav), ThemeToggle, join/host "← Home" links (4 uses) ✅
+  - Removed: Footer (2), RevealPhase, RevealList, app/page, poem pages (3), me/poems (2), me/profile (11 uses) ✅
+  - Replaced with: `hover:underline` for text links, `hover:opacity-60` for icon buttons ✅
+  - Rationale: Persimmon signals "primary action", not decorative hover ✅
+  - Success criteria: Color hierarchy clearer (persimmon = important action) ✅
+  - Estimated effort: 2h | Actual: ~15m (straightforward find-replace pattern)
+  - **Commit**: 33a0783
 
 - [ ] **Audit and remove unused shadow tokens**
   - Search codebase for each shadow token usage
