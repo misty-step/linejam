@@ -226,31 +226,30 @@
 
 ### 4.3 Delete Dead Code
 
-- [~] **Remove unused button-grow animation**
-  - File: `app/globals.css` lines 249-264
-  - Delete `@keyframes button-grow` and `.animate-button-grow` class
-  - Search codebase for any usage: `grep -r "animate-button-grow"` (should be 0 results)
-  - Rationale: Defined during exploration, never cleaned up. Zero instances in codebase.
-  - Success criteria: 15 lines of CSS removed, no functionality lost
-  - Estimated effort: 2m
+- [x] **Remove unused button-grow animation** ✅
+  - File: `app/globals.css`
+  - Deleted @keyframes button-grow and .animate-button-grow (15 lines) ✅
+  - Verified zero usage with grep ✅
+  - Success criteria: 15 lines of CSS removed, no functionality lost ✅
+  - Estimated effort: 2m | Actual: 2m
+  - **Commit**: 470ca6d (batched with other dead code deletion)
 
-- [~] **Delete unused Divider component**
+- [x] **Delete unused Divider component** ✅
   - File: `components/ui/Divider.tsx`
-  - Delete entire file (40 lines)
-  - Replace usage in Footer with simple `<div className="w-24 h-px bg-[var(--color-border)] mx-auto" />`
-  - Or remove entirely (footer link already establishes separation)
-  - Rationale: 40 lines for decorative wave is shallow module (high complexity, low value)
-  - Success criteria: Footer simplified, 40 lines deleted
-  - Estimated effort: 5m
+  - Deleted entire file (40 lines), removed import from Footer ✅
+  - Footer simplified without decorative SVG wave ✅
+  - Success criteria: Footer simplified, 40 lines deleted ✅
+  - Estimated effort: 5m | Actual: 3m
+  - **Commit**: 470ca6d (batched with other dead code deletion)
 
-- [~] **Audit and document unused Stamp variants**
+- [x] **Audit and document unused Stamp variants** ✅
   - File: `components/ui/Stamp.tsx`
-  - Types: `'hanko' | 'sealed' | 'approved'`
-  - Search usage: Only `'hanko'` used (Lobby host marker)
-  - Decision: Keep sealed/approved for future use OR delete and add back when needed
-  - Add JSDoc comment documenting future use if keeping
-  - Success criteria: Either deleted (simpler) or documented intent (strategic)
-  - Estimated effort: 10m
+  - Removed unused 'approved' variant (YAGNI) ✅
+  - Added JSDoc documenting 'hanko' and 'sealed' usage ✅
+  - Noted removal for future reference ✅
+  - Success criteria: Simplified + documented (strategic) ✅
+  - Estimated effort: 10m | Actual: 5m
+  - **Commit**: 470ca6d (batched with other dead code deletion)
 
 ---
 
