@@ -75,6 +75,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         </div>
         <div className="text-right">
           <div
+            id="word-count-status"
             className={`text-2xl font-mono font-medium ${
               isValid
                 ? 'text-[var(--color-success)]'
@@ -82,6 +83,8 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
                   ? 'text-[var(--color-error)]'
                   : 'text-[var(--color-text-secondary)]'
             }`}
+            aria-live="polite"
+            aria-atomic="true"
           >
             {currentWordCount}{' '}
             <span className="text-[var(--color-text-muted)]">
@@ -113,6 +116,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
           <div className="space-y-2">
             <Label as="label">Your Line</Label>
             <textarea
+              id="line-input"
               className="w-full min-h-[200px] bg-[var(--color-surface)] border-2 border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 px-6 py-4 rounded-[var(--radius-sm)] text-3xl md:text-4xl font-[var(--font-display)] placeholder:text-[var(--color-text-muted)]/40 resize-none leading-tight transition-all duration-150"
               placeholder="Type your line here..."
               value={text}
@@ -122,6 +126,10 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
               }}
               autoFocus
               spellCheck={false}
+              aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
+              aria-required="true"
+              aria-invalid={!isValid}
+              aria-describedby="word-count-status"
             />
           </div>
 
