@@ -1,38 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { SignInButton, UserButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { Button } from '../components/ui/Button';
-import { Divider } from '../components/ui/Divider';
-import { Ornament } from '../components/ui/Ornament';
-import { ThemeToggle } from '../components/ThemeToggle';
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--color-background)] relative">
-      {/* Header - Top Right */}
-      <header className="w-full p-6 flex justify-end items-center gap-4 z-10">
-        <SignedOut>
-          <SignInButton mode="modal">
-            <Button variant="ghost" size="sm">
-              Sign In
-            </Button>
-          </SignInButton>
-        </SignedOut>
-        <SignedIn>
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: 'w-10 h-10 border border-[var(--color-border)]',
-              },
-            }}
-          />
-        </SignedIn>
-        <ThemeToggle />
-      </header>
-
-      {/* Main Content - Asymmetric Editorial Grid */}
-      <main className="flex-grow grid grid-cols-12 gap-8 p-6 md:p-12 lg:p-24">
+    <div className="flex flex-col bg-[var(--color-background)] relative">
+      <main className="grid grid-cols-12 gap-8 p-6 md:p-12 lg:p-24">
         {/* Left: Title & Actions (8 cols on desktop) */}
         <div className="col-span-12 md:col-span-8 space-y-16">
           {/* Title with Decorative Border */}
@@ -102,37 +76,6 @@ export default function Home() {
           </div>
         </div>
       </main>
-
-      {/* Footer with Decorative Border */}
-      <footer className="w-full p-8 text-center space-y-3">
-        <div aria-hidden="true">
-          <Divider className="max-w-[120px] mx-auto text-[var(--color-text-muted)] opacity-40" />
-        </div>
-
-        <div className="space-y-2">
-          <div>
-            <a
-              href="https://mistystep.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors font-[var(--font-sans)]"
-            >
-              A Misty Step project
-            </a>
-          </div>
-
-          <div className="flex items-center justify-center gap-3 text-xs text-[var(--color-text-muted)] font-[var(--font-sans)]">
-            <Link
-              href="/me/poems"
-              className="hover:text-[var(--color-primary)] transition-colors"
-            >
-              Archive
-            </Link>
-            <Ornament type="dagger" />
-            <span>Est. 2025</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -69,10 +69,10 @@ function JoinForm() {
             </label>
             <Input
               id="code"
-              placeholder="AB CD EF"
+              placeholder="ABCD"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              maxLength={6}
+              maxLength={4}
               required
               autoFocus={!hasCode}
               className="uppercase tracking-[0.5em] text-center font-mono text-2xl h-16 bg-[var(--color-muted)] border-2"

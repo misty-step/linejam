@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // SVG Icon Components
 const SunIcon = () => (
@@ -36,25 +36,21 @@ const MoonIcon = () => (
 );
 
 export function ThemeToggle({ className = '' }: { className?: string }) {
-  const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
-    // Initialize theme from localStorage or system preference
-    if (typeof window === 'undefined') return null;
-
+  // Initialize state from localStorage/system preference (lazy initialization)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
     const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    if (stored) {
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(stored);
-      return stored;
-    }
-
-    // Use system preference
     const prefersDark = window.matchMedia(
       '(prefers-color-scheme: dark)'
     ).matches;
-    const systemTheme = prefersDark ? 'dark' : 'light';
-    document.documentElement.classList.add(systemTheme);
-    return systemTheme;
+    return stored || (prefersDark ? 'dark' : 'light');
   });
+
+  // Sync DOM with state (external system synchronization)
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -63,9 +59,6 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(newTheme);
   };
-
-  // Don't render until theme is determined (prevents flash)
-  if (!theme) return <div className="w-10 h-10" />;
 
   return (
     <button

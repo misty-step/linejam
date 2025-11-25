@@ -81,7 +81,7 @@ export default function HostPage() {
                 className="w-full text-lg h-14"
                 disabled={!name.trim() || isSubmitting}
               >
-                {isSubmitting ? 'Initializing...' : 'Create Room'}
+                {isSubmitting ? 'One moment...' : 'Create Room'}
               </Button>
             </div>
           </form>
