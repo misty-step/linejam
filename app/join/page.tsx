@@ -6,6 +6,8 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
+import { errorToFeedback } from '../../lib/errorFeedback';
+import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import Link from 'next/link';
@@ -40,8 +42,9 @@ function JoinForm() {
       });
       router.push(`/room/${normalizedCode}`);
     } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
       captureError(err, { roomCode: normalizedCode });
-      setError(err instanceof Error ? err.message : 'Failed to join room');
       setIsSubmitting(false);
     }
   };
@@ -98,9 +101,9 @@ function JoinForm() {
           </div>
 
           {error && (
-            <div className="p-3 border border-[var(--color-error)] bg-[var(--color-error)]/5 text-[var(--color-error)] text-sm">
+            <Alert variant="error" className="mt-4">
               {error}
-            </div>
+            </Alert>
           )}
 
           <div className="pt-4">
