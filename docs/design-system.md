@@ -223,7 +223,8 @@ Traditional Japanese woodblock prints use flat colors with hard edges—no gradi
 --shadow-sm: 2px 2px 0px rgba(var(--shadow-color) / 0.15);
 --shadow-md: 4px 4px 0px rgba(var(--shadow-color) / 0.1);
 --shadow-lg: 8px 8px 0px rgba(var(--shadow-color) / 0.12);
---shadow-stamp: 3px 3px 8px rgba(var(--shadow-color) / 0.4);
+
+--shadow-active: 0px 0px 0px var(--color-border);
 ```
 
 **Characteristics:**
@@ -234,21 +235,22 @@ Traditional Japanese woodblock prints use flat colors with hard edges—no gradi
 
 **Usage:**
 
-| Shadow  | When             | Why                |
-| ------- | ---------------- | ------------------ |
-| `sm`    | Cards, inputs    | Subtle elevation   |
-| `md`    | Focused cards    | Moderate elevation |
-| `lg`    | Modals, popovers | Clear hierarchy    |
-| `stamp` | Hanko stamps     | Ink stamp blur     |
+| Shadow   | When                       | Why                |
+| -------- | -------------------------- | ------------------ |
+| `sm`     | Cards, inputs              | Subtle elevation   |
+| `md`     | Focused cards, hover state | Moderate elevation |
+| `lg`     | Modals, popovers           | Clear hierarchy    |
+| `active` | Button press state         | No shadow (press)  |
 
-**Hover/Active States:**
+**Note on removed tokens:**
 
-```css
---shadow-hover: 2px 2px 0px var(--color-border); /* Lift */
---shadow-active: 0px 0px 0px var(--color-border); /* Press */
-```
+- `--shadow-xl`: Removed (0 uses, unnecessary fourth scale)
+- `--shadow-stamp`: Removed (Stamp component uses inline drop-shadow for specificity)
+- `--shadow-hover`: Removed (buttons use `--shadow-md` for hover)
 
-Buttons "lift" on hover (border shadow), "press" on active (no shadow).
+**Hover/Active Pattern:**
+
+Buttons transition from base shadow → `--shadow-md` on hover → `--shadow-active` (none) on press.
 
 **Why not soft shadows:**
 

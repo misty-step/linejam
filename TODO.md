@@ -306,7 +306,7 @@
   - Estimated effort: 2h | Actual: ~15m (straightforward find-replace pattern)
   - **Commit**: 33a0783
 
-- [ ] **Audit and remove unused shadow tokens**
+- [~] **Audit and remove unused shadow tokens**
   - Search codebase for each shadow token usage
   - Found: `--shadow-xl` has 0 uses
   - Decision: Remove from `app/globals.css` OR document future use

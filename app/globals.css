@@ -88,10 +88,7 @@
   --shadow-sm: 2px 2px 0px rgba(var(--shadow-color) / 0.15);
   --shadow-md: 4px 4px 0px rgba(var(--shadow-color) / 0.1);
   --shadow-lg: 8px 8px 0px rgba(var(--shadow-color) / 0.12);
-  --shadow-xl: 12px 12px 0px rgba(var(--shadow-color) / 0.08);
-  --shadow-stamp: 3px 3px 8px rgba(var(--shadow-color) / 0.4);
 
-  --shadow-hover: 2px 2px 0px var(--color-border);
   --shadow-active: 0px 0px 0px var(--color-border);
 
   /* ==========================================================================
