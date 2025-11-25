@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
@@ -28,6 +28,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [liveRegionMessage, setLiveRegionMessage] = useState('');
 
   // Reset text when assignment changes (new round)
   const currentRound = assignment?.lineIndex;
@@ -37,14 +38,36 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     setLastSeenRound(currentRound);
   }
 
+  // Calculate validation state (needed for live region, even when showing waiting screen)
+  const currentWordCount = assignment ? countWords(text) : 0;
+  const targetCount = assignment?.targetWordCount ?? 0;
+  const isValid = currentWordCount === targetCount;
+
+  // Announce validation state changes to screen readers (debounced)
+  useEffect(() => {
+    if (!assignment) return; // Don't announce when no assignment
+
+    const timeoutId = setTimeout(() => {
+      if (isValid) {
+        setLiveRegionMessage('Ready to submit');
+      } else if (currentWordCount > targetCount) {
+        const diff = currentWordCount - targetCount;
+        setLiveRegionMessage(`Remove ${diff} word${diff !== 1 ? 's' : ''}`);
+      } else if (currentWordCount < targetCount && currentWordCount > 0) {
+        const diff = targetCount - currentWordCount;
+        setLiveRegionMessage(`Add ${diff} word${diff !== 1 ? 's' : ''}`);
+      } else {
+        setLiveRegionMessage('');
+      }
+    }, 500); // Debounce 500ms to avoid announcing every keystroke
+
+    return () => clearTimeout(timeoutId);
+  }, [assignment, isValid, currentWordCount, targetCount]);
+
   // Show waiting screen if no assignment or just submitted
   if (!assignment || submittedRound === assignment.lineIndex) {
     return <WaitingScreen roomCode={roomCode} />;
   }
-
-  const currentWordCount = countWords(text);
-  const targetCount = assignment.targetWordCount;
-  const isValid = currentWordCount === targetCount;
 
   const handleSubmit = async () => {
     if (!isValid) return;
@@ -75,6 +98,16 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] flex flex-col items-center pt-12 md:pt-24 p-6">
+      {/* Screen reader live region for validation announcements */}
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {liveRegionMessage}
+      </div>
+
       {/* Header / Status */}
       <div className="w-full max-w-2xl flex justify-between items-end mb-8 border-b border-[var(--color-border)] pb-4">
         <div className="space-y-1">
