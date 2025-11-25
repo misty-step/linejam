@@ -269,15 +269,16 @@
   - Estimated effort: 4h | Actual: ~2.5h
   - **Commit**: cb511c0
 
-- [ ] **Add architectural decision records to component docs**
-  - Files: Update JSDoc in `components/ui/Button.tsx`, `components/Lobby.tsx`, `components/RoomQr.tsx`
-  - Document WHY decisions made, not WHAT code does:
-    - Button: Why Hanko press vs Washi compress per variant
-    - Lobby: Why split-view information architecture
-    - RoomQr: Why material metaphor overrides dark mode token usage
-  - Follow existing pattern in RoomQr.tsx (lines 12-23) as template
-  - Success criteria: Strategic decisions documented inline, readable by future maintainers
-  - Estimated effort: 2h
+- [x] **Add architectural decision records to component docs** ✅
+  - Files: Updated JSDoc in `components/ui/Button.tsx` (Lobby.tsx and RoomQr.tsx already had comprehensive docs)
+  - Documented WHY decisions made, not WHAT code does:
+    - Button: Why Hanko press (translate + shadow) vs Washi compress (scale) per variant ✅
+    - Lobby: Why split-view information architecture (already documented, lines 14-41) ✅
+    - RoomQr: Why material metaphor overrides dark mode token usage (already documented, lines 7-22) ✅
+  - Followed existing pattern from RoomQr.tsx and Lobby.tsx
+  - Success criteria: Strategic decisions documented inline, readable by future maintainers ✅
+  - Estimated effort: 2h | Actual: ~20m (2 components already complete)
+  - **Commit**: fad9941
 
 ---
 
