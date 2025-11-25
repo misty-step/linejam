@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { countWords } from '../lib/wordCount';
 import { captureError } from '../lib/error';
+import { cn } from '../lib/utils';
 import { Button } from './ui/Button';
-import { Label } from './ui/Label';
 import { Alert } from './ui/Alert';
+import { EnsoCounter } from './ui/EnsoCounter';
 import { WaitingScreen } from './WaitingScreen';
 
 interface WritingScreenProps {
@@ -29,6 +30,8 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [liveRegionMessage, setLiveRegionMessage] = useState('');
+  const [hasFocus, setHasFocus] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset text when assignment changes (new round)
   const currentRound = assignment?.lineIndex;
@@ -97,7 +100,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] flex flex-col items-center pt-12 md:pt-24 p-6">
+    <div className="relative min-h-screen bg-[var(--color-background)] flex flex-col items-center pt-12 md:pt-24 p-6">
       {/* Screen reader live region for validation announcements */}
       <div
         className="sr-only"
@@ -108,127 +111,98 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         {liveRegionMessage}
       </div>
 
-      {/* Header / Status */}
-      <div className="w-full max-w-2xl flex justify-between items-end mb-8 border-b border-[var(--color-border)] pb-4">
-        <div className="space-y-1">
-          <Label>Contribution</Label>
-          <div className="text-3xl font-[var(--font-display)]">
+      <div className="w-full max-w-3xl space-y-16">
+        {/* Status Row - Right-aligned with normal flow */}
+        <div className="flex items-center justify-end gap-6 mb-12">
+          <div className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
             Round {assignment.lineIndex + 1} / 9
           </div>
+          <EnsoCounter current={currentWordCount} target={targetCount} />
         </div>
-        <div className="text-right">
-          <div
-            id="word-count-status"
-            className={`text-2xl font-mono font-medium ${
-              isValid
-                ? 'text-[var(--color-success)]'
-                : currentWordCount > targetCount
-                  ? 'text-[var(--color-error)]'
-                  : 'text-[var(--color-text-secondary)]'
-            }`}
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {currentWordCount}{' '}
-            <span className="text-[var(--color-text-muted)]">
-              / {targetCount}
-            </span>
-          </div>
-          <div className="text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
-            Target Count
-          </div>
-          {!isValid && (
-            <div className="text-xs mt-2 font-medium">
-              {currentWordCount > targetCount ? (
-                <span className="text-[var(--color-error)]">
-                  Remove {currentWordCount - targetCount} word
-                  {currentWordCount - targetCount !== 1 ? 's' : ''}
-                </span>
-              ) : (
-                <span className="text-[var(--color-text-secondary)]">
-                  Add {targetCount - currentWordCount} word
-                  {targetCount - currentWordCount !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
 
-      <div className="w-full max-w-2xl space-y-12">
-        {/* The Prompt (Previous Line) */}
+        {/* The Memory - No container */}
         {assignment.previousLineText && (
-          <div className="space-y-3 animate-fade-in-up">
-            <Label>Preceding Line</Label>
-            <div className="relative p-8 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-sm)]">
-              <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-text-secondary)]" />
-              <p className="text-2xl md:text-3xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
-                {assignment.previousLineText}
-              </p>
-            </div>
+          <div className="mb-16 animate-fade-in-up">
+            <p className="text-4xl md:text-5xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-secondary)]">
+              {assignment.previousLineText}
+            </p>
           </div>
         )}
 
         {/* Submission Confirmation */}
         {submissionState === 'confirmed' && (
-          <div className="mb-8 p-6 border-2 border-[var(--color-success)] bg-[var(--color-success)]/5 rounded-[var(--radius-sm)] animate-fade-in-up">
-            <Label className="text-[var(--color-success)] mb-2">
+          <div className="mb-12 p-6 border-2 border-[var(--color-success)] bg-[var(--color-success)]/5 rounded-[var(--radius-sm)] animate-fade-in-up">
+            <div className="text-sm font-medium text-[var(--color-success)] mb-2 uppercase tracking-wide">
               ✓ Your Line Submitted
-            </Label>
+            </div>
             <p className="text-lg italic font-[var(--font-display)] text-[var(--color-text-primary)]">
               &ldquo;{text}&rdquo;
             </p>
           </div>
         )}
 
-        {/* Input Area */}
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Label as="label">Your Line</Label>
-            <textarea
-              id="line-input"
-              className="w-full min-h-[200px] bg-[var(--color-surface)] border-2 border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 px-6 py-4 rounded-[var(--radius-sm)] text-3xl md:text-4xl font-[var(--font-display)] placeholder:text-[var(--color-text-muted)]/40 resize-none leading-tight transition-all duration-150"
-              placeholder="Type your line here..."
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setError(null);
-              }}
-              autoFocus
-              spellCheck={false}
-              aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
-              aria-required="true"
-              aria-invalid={!isValid}
-              aria-describedby="word-count-status"
-            />
-          </div>
+        {/* The Canvas - Borderless, blends with page */}
+        <div className="relative">
+          {/* Focus marker (marginalia bar) */}
+          {hasFocus && (
+            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[var(--color-primary)]" />
+          )}
 
-          <div className="pt-8 border-t border-[var(--color-border-subtle)]">
-            {error && (
-              <Alert variant="error" className="mb-4">
-                {error}
-              </Alert>
+          <textarea
+            ref={textareaRef}
+            className={cn(
+              'w-full min-h-[280px] bg-transparent border-none outline-none resize-none',
+              'text-5xl md:text-6xl font-[var(--font-display)] leading-tight',
+              'text-[var(--color-text-primary)]',
+              'placeholder:text-[var(--color-text-muted)]/20',
+              'pl-6'
             )}
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSubmit}
-                size="lg"
-                className="min-w-[200px] text-lg h-16"
-                disabled={
-                  !isValid ||
-                  submissionState === 'submitting' ||
-                  submissionState === 'confirmed'
-                }
-                stampAnimate={submissionState === 'confirmed'}
-              >
-                {submissionState === 'submitting'
-                  ? 'Submitting...'
-                  : submissionState === 'confirmed'
-                    ? 'Submitted!'
-                    : 'Submit Line'}
-              </Button>
-            </div>
-          </div>
+            placeholder="Type your line here..."
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              setError(null);
+            }}
+            onFocus={() => setHasFocus(true)}
+            onBlur={() => setHasFocus(false)}
+            autoFocus
+            spellCheck={false}
+            aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
+            aria-required="true"
+            aria-invalid={!isValid}
+            aria-describedby="enso-counter"
+          />
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <Alert variant="error" className="mt-8">
+            {error}
+          </Alert>
+        )}
+
+        {/* The Seal - Submit Button */}
+        <div className="mt-16 flex justify-center">
+          <Button
+            onClick={handleSubmit}
+            size="lg"
+            disabled={
+              !isValid ||
+              submissionState === 'submitting' ||
+              submissionState === 'confirmed'
+            }
+            stampAnimate={submissionState === 'confirmed'}
+            className={cn(
+              'min-w-[240px] text-xl h-20',
+              isValid && 'shadow-[4px_4px_0px_rgba(232,93,43,0.2)]'
+            )}
+          >
+            {submissionState === 'submitting'
+              ? 'Sealing...'
+              : submissionState === 'confirmed'
+                ? 'Sealed!'
+                : 'Seal Your Line'}
+          </Button>
         </div>
       </div>
     </div>

@@ -10,8 +10,8 @@ describe('formatRoomCode', () => {
     expect(formatRoomCode('ABCDEF')).toBe('AB CD EF');
   });
 
-  it('preserves alphanumeric characters', () => {
-    expect(formatRoomCode('AB12CD')).toBe('AB 12 CD');
-    expect(formatRoomCode('XY99')).toBe('XY 99');
+  it('preserves letter-only codes', () => {
+    expect(formatRoomCode('ABCDEF')).toBe('AB CD EF');
+    expect(formatRoomCode('XYZW')).toBe('XY ZW');
   });
 });

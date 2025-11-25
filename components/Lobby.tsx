@@ -6,7 +6,7 @@ import { formatRoomCode } from '../lib/roomCode';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
-import { Stamp } from './ui/Stamp';
+import { HostBadge } from './ui/HostBadge';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
 import { RoomQr } from './RoomQr';
@@ -137,9 +137,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                     <span className="text-2xl md:text-3xl font-medium text-[var(--color-text-primary)]">
                       {player.displayName}
                     </span>
-                    {player.userId === room.hostUserId && (
-                      <Stamp type="hanko" size="sm" />
-                    )}
+                    {player.userId === room.hostUserId && <HostBadge />}
                   </li>
                 </StampAnimation>
               ))}

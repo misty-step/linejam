@@ -453,6 +453,71 @@ Good design systems have **intentional violations**—moments where the rules br
 - Generic `<Icon>` component with text prop
 - SVG icon library (stamps are metaphorically distinct)
 
+### Icon Library Standard
+
+**Library:** lucide-react
+
+**Why lucide-react:**
+
+- Industry-standard icon library (19.7k GitHub stars, battle-tested)
+- Tree-shakeable: only imported icons add to bundle size
+- Stroke-based design matches Japanese Editorial Minimalism aesthetic
+- Easy icon swapping: change import instead of hunting SVG paths
+- Consistent with design system philosophy
+
+**Usage pattern:**
+
+```tsx
+import { Crown, Sun, Moon } from 'lucide-react';
+
+<Crown className="w-4 h-4 text-[var(--color-primary)]" />;
+```
+
+**Components using lucide-react:**
+
+- `HostBadge` (Crown icon)
+- `ThemeToggle` (Sun/Moon icons)
+
+**Do not:**
+
+- Create inline SVG components (use lucide-react instead)
+- Install additional icon libraries (maintain single standard)
+
+### Host Badge Component
+
+**File:** `components/ui/HostBadge.tsx`
+
+**The Break:**
+
+```tsx
+<div
+  role="status"
+  aria-label="Room host"
+  className="inline-flex items-center gap-2 px-2 py-1
+             bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20
+             dark:bg-[var(--color-primary)]/10 dark:border-[var(--color-primary)]/30"
+>
+  <Crown className="w-4 h-4 text-[var(--color-primary)]" aria-hidden="true" />
+  <span>HOST</span>
+</div>
+```
+
+**Why:**
+
+- Universal symbol (crown = authority) without cultural specificity
+- Horizontal layout integrates better inline with player names
+- Icon + text provides immediate clarity
+- Badge is informational label, not ceremonial stamp
+- Semantically distinct from submission stamps (sealed)
+- Uses lucide-react Crown icon (professional, recognizable)
+
+**Do not refactor to:**
+
+- Extend Stamp component (different semantic meaning)
+- Icon-only badge (reduces clarity)
+- Full background fill (too prominent, violates "use accent sparingly")
+- Custom SVG paths (use lucide-react for all icons)
+
 ---
 
 ## 8. Implementation Notes

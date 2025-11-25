@@ -13,6 +13,12 @@ type HeaderProps = {
 export function Header({ className = '' }: HeaderProps) {
   const pathname = usePathname();
   const isHomepage = pathname === '/';
+  const isRoomPage = pathname?.startsWith('/room/');
+
+  // Hide header entirely during game experience (Lobby → Writing → Reveal)
+  if (isRoomPage) {
+    return null;
+  }
 
   return (
     <header

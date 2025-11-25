@@ -5,7 +5,7 @@ import { getUser } from './lib/auth';
 import { checkRateLimit } from './lib/rateLimit';
 
 const generateRoomCode = (): string => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const codeLength = 4;
 
   // Use crypto-secure random number generation
