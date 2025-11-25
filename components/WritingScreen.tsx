@@ -136,6 +136,18 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
           </div>
         )}
 
+        {/* Submission Confirmation */}
+        {submissionState === 'confirmed' && (
+          <div className="mb-8 p-6 border-2 border-[var(--color-success)] bg-[var(--color-success)]/5 rounded-[var(--radius-sm)] animate-fade-in-up">
+            <Label className="text-[var(--color-success)] mb-2">
+              ✓ Your Line Submitted
+            </Label>
+            <p className="text-lg italic font-[var(--font-display)] text-[var(--color-text-primary)]">
+              &ldquo;{text}&rdquo;
+            </p>
+          </div>
+        )}
+
         {/* Input Area */}
         <div className="space-y-6">
           <div className="space-y-2">
