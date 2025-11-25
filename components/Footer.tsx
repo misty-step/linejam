@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Divider } from './ui/Divider';
-import { Ornament } from './ui/Ornament';
 
 type FooterProps = {
   className?: string;
@@ -34,7 +33,7 @@ export function Footer({ className = '' }: FooterProps) {
           >
             Archive
           </Link>
-          <Ornament type="dagger" />
+          <span>·</span>
           <span>Est. 2025</span>
         </div>
       </div>

@@ -130,7 +130,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
             <div className="relative p-8 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-sm)]">
               <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-text-secondary)]" />
               <p className="text-2xl md:text-3xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
-                &ldquo;{assignment.previousLineText}&rdquo;
+                {assignment.previousLineText}
               </p>
             </div>
           </div>

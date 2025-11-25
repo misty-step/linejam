@@ -60,16 +60,12 @@ export function RoomQr({ roomCode, className = '' }: RoomQrProps) {
     <div className={`flex flex-col items-center gap-6 ${className}`}>
       {/* QR Paper Slip - Enhanced Washi with Dark Mode Illumination */}
       <div
-        className="p-6 rounded-[var(--radius-sm)] relative overflow-hidden
+        className="p-6 rounded-[var(--radius-sm)]
                    border border-stone-200 dark:border-[var(--color-primary)]/30
                    shadow-[var(--shadow-md)]
                    dark:shadow-[0_0_32px_rgba(232,93,43,0.15)]"
         style={{ backgroundColor: PAPER_COLOR }}
       >
-        {/* Persimmon corner accents - subtle brand touch */}
-        <div className="absolute top-0 right-0 w-8 h-8 bg-[var(--color-primary)] opacity-10" />
-        <div className="absolute bottom-0 left-0 w-8 h-8 bg-[var(--color-primary)] opacity-10" />
-
         <QRCode
           value={joinUrl}
           size={180}
