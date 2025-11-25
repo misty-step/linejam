@@ -259,19 +259,15 @@
 
 **Rationale**: Ousterhout — "Documentation belongs in code where it can't get out of sync." But high-level architectural decisions need separate documentation. Current system is 92/100 coherent but undocumented WHY.
 
-- [ ] **Create design system documentation page**
-  - File: `docs/design-system.md`
-  - Sections:
-    1. Philosophy (Japanese Editorial Minimalism, Kenya Hara, Ma)
-    2. Color System (persimmon accent, warm neutrals, token structure)
-    3. Typography (Libre Baskerville + IBM Plex Sans, why chosen, hierarchy rationale)
-    4. Shadows (hard offset + persimmon tint, brutalist editorial aesthetic)
-    5. Spacing (8/12/16/24 rhythm)
-    6. Motion (mechanical timing, stamp/breathe/press metaphors)
-    7. Intentional Breaks (QR code material metaphor, WritingScreen canvas textarea)
-  - Success criteria: New developers understand design system rationale, not just API
+- [x] **Create design system documentation page** ✅
+  - File: `docs/design-system.md` (577 lines)
+  - All 7 sections complete with rationale for every decision ✅
+  - Documents WHY (philosophy) not just WHAT (tokens) ✅
+  - Intentional breaks documented to prevent "fixing" them ✅
+  - Success criteria: New developers understand design system rationale, not just API ✅
   - **Why strategic**: Information hiding at system level. Preserves design intent as code evolves.
-  - Estimated effort: 4h
+  - Estimated effort: 4h | Actual: ~2.5h
+  - **Commit**: cb511c0
 
 - [ ] **Add architectural decision records to component docs**
   - Files: Update JSDoc in `components/ui/Button.tsx`, `components/Lobby.tsx`, `components/RoomQr.tsx`
