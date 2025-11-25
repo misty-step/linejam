@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { formatRoomCode } from '../lib/roomCode';
+import { errorToFeedback } from '../lib/errorFeedback';
+import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { Stamp } from './ui/Stamp';
 import { StampAnimation } from './ui/StampAnimation';
@@ -46,16 +49,19 @@ interface LobbyProps {
 export function Lobby({ room, players, isHost }: LobbyProps) {
   const { guestToken } = useUser();
   const startGameMutation = useMutation(api.game.startGame);
+  const [error, setError] = useState<string | null>(null);
 
   const handleStartGame = async () => {
     if (!room) return;
+    setError(null); // Clear error before retry
     try {
       await startGameMutation({
         code: room.code,
         guestToken: guestToken || undefined,
       });
-    } catch (error) {
-      console.error('Failed to start game:', error);
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
     }
   };
 
@@ -111,7 +117,14 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             {isHost && <RoomQr roomCode={room.code} />}
 
             {/* Desktop: Inline Button (visible above fold) */}
-            <div className="hidden md:block w-full">{renderButton()}</div>
+            <div className="hidden md:block w-full">
+              {error && (
+                <Alert variant="error" className="mb-4">
+                  {error}
+                </Alert>
+              )}
+              {renderButton()}
+            </div>
           </div>
 
           {/* GUEST REGISTRY: Dynamic Arrival Tracking */}
@@ -134,6 +147,11 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
 
             {/* Mobile: Sticky Footer (native pattern) */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-[var(--color-background)]/95 backdrop-blur-md border-t-2 border-[var(--color-primary)]/20 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+              {error && (
+                <Alert variant="error" className="mb-4">
+                  {error}
+                </Alert>
+              )}
               {renderButton()}
             </div>
           </div>
