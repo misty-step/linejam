@@ -10,6 +10,10 @@ import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import {
+  LoadingState,
+  LoadingMessages,
+} from '../../components/ui/LoadingState';
 import Link from 'next/link';
 
 function JoinForm() {
@@ -50,7 +54,11 @@ function JoinForm() {
   };
 
   if (isLoading) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.JOINING_SESSION} />
+      </div>
+    );
   }
 
   const hasCode = !!searchParams.get('code');

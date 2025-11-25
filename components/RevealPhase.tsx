@@ -24,6 +24,8 @@ import Link from 'next/link';
 
 import { RoomQr } from './RoomQr';
 
+import { LoadingState, LoadingMessages } from './ui/LoadingState';
+
 interface RevealPhaseProps {
   roomCode: string;
 }
@@ -88,7 +90,12 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
     }
   };
 
-  if (!state) return <div>Loading...</div>;
+  if (!state)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.UNSEALING_POEMS} />
+      </div>
+    );
 
   const { myPoem, allRevealed, isHost, poems } = state;
 

@@ -10,6 +10,10 @@ import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import {
+  LoadingState,
+  LoadingMessages,
+} from '../../components/ui/LoadingState';
 import Link from 'next/link';
 
 export default function HostPage() {
@@ -42,7 +46,11 @@ export default function HostPage() {
   };
 
   if (isLoading) {
-    return null; // Minimal loader
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.SETTING_UP_ROOM} />
+      </div>
+    );
   }
 
   return (

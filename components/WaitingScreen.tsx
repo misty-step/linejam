@@ -2,6 +2,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Label } from './ui/Label';
 import { Stamp } from './ui/Stamp';
+import { LoadingState, LoadingMessages } from './ui/LoadingState';
 
 interface WaitingScreenProps {
   roomCode: string;
@@ -13,7 +14,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
   if (!progress) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <div className="animate-pulse w-2 h-2 bg-[var(--color-foreground)] rounded-full" />
+        <LoadingState message={LoadingMessages.LOADING_ROOM} />
       </div>
     );
   }
