@@ -4,11 +4,20 @@ import { cn } from '@/lib/utils';
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
+  /** Trigger hanko stamp animation (for success celebrations) */
+  stampAnimate?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    { className, variant = 'primary', size = 'md', children, ...props },
+    {
+      className,
+      variant = 'primary',
+      size = 'md',
+      stampAnimate = false,
+      children,
+      ...props
+    },
     ref
   ) => {
     return (
@@ -21,6 +30,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'border border-transparent',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2',
           'disabled:pointer-events-none disabled:opacity-50 disabled:grayscale',
+
+          // Stamp animation (success celebration)
+          stampAnimate && 'animate-stamp',
 
           // Variants
           {

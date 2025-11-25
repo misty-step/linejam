@@ -186,6 +186,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
                   submissionState === 'submitting' ||
                   submissionState === 'confirmed'
                 }
+                stampAnimate={submissionState === 'confirmed'}
               >
                 {submissionState === 'submitting'
                   ? 'Submitting...'
