@@ -10,6 +10,10 @@ import { useUser } from '../lib/auth';
 
 import { captureError } from '../lib/error';
 
+import { errorToFeedback } from '../lib/errorFeedback';
+
+import { Alert } from './ui/Alert';
+
 import { Button } from './ui/Button';
 
 import { Label } from './ui/Label';
@@ -31,6 +35,8 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
   const [isRevealing, setIsRevealing] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+
   const state = useQuery(api.game.getRevealPhaseState, {
     roomCode,
 
@@ -45,6 +51,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
     if (!state?.myPoem) return;
 
     setIsRevealing(true);
+    setError(null); // Clear error before retry
 
     try {
       await revealPoemMutation({
@@ -54,16 +61,18 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
       });
 
       setShowingPoem(true);
-    } catch (error) {
-      console.error('Failed to reveal poem:', error);
-
-      captureError(error, { roomCode });
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+      captureError(err, { roomCode });
     } finally {
       setIsRevealing(false);
     }
   };
 
   const handleStartNewCycle = async () => {
+    setError(null); // Clear error before retry
+
     try {
       await startNewCycleMutation({
         roomCode,
@@ -72,12 +81,10 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
       });
 
       // The page will automatically transition to Lobby due to query updates
-    } catch (error) {
-      console.error('Failed to start new cycle:', error);
-
-      captureError(error, { roomCode });
-
-      // You might want to show an error toast here
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+      captureError(err, { roomCode });
     }
   };
 
@@ -154,6 +161,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
         {allRevealed && (
           <div className="pt-8 border-t border-[var(--color-border)] space-y-4">
+            {error && <Alert variant="error">{error}</Alert>}
             {isHost && (
               <Button
                 onClick={handleStartNewCycle}
@@ -196,6 +204,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                 &ldquo;{myPoem.preview}...&rdquo;
               </p>
             </div>
+            {error && <Alert variant="error">{error}</Alert>}
             <Button
               onClick={handleReveal}
               size="lg"
