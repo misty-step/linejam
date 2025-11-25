@@ -6,6 +6,8 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
+import { errorToFeedback } from '../../lib/errorFeedback';
+import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import Link from 'next/link';
@@ -16,12 +18,14 @@ export default function HostPage() {
   const createRoomMutation = useMutation(api.rooms.createRoom);
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
     setIsSubmitting(true);
+    setError(null); // Clear error before retry
 
     try {
       const { code } = await createRoomMutation({
@@ -30,8 +34,8 @@ export default function HostPage() {
       });
       router.push(`/room/${code}`);
     } catch (err) {
-      console.error(err);
-      // Could show toast here
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
       captureError(err as Error, { displayName: name, guestToken });
       setIsSubmitting(false);
     }
@@ -74,6 +78,12 @@ export default function HostPage() {
                 className="text-lg h-14"
               />
             </div>
+
+            {error && (
+              <Alert variant="error" className="mt-4">
+                {error}
+              </Alert>
+            )}
 
             <div className="pt-4">
               <Button
