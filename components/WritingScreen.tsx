@@ -22,7 +22,9 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const submitLine = useMutation(api.game.submitLine);
 
   const [text, setText] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionState, setSubmissionState] = useState<
+    'idle' | 'submitting' | 'confirmed' | 'waiting'
+  >('idle');
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const currentRound = assignment?.lineIndex;
   if (currentRound !== undefined && currentRound !== lastSeenRound) {
     setText('');
-    setIsSubmitting(false);
+    setSubmissionState('idle');
     setLastSeenRound(currentRound);
   }
 
@@ -47,7 +49,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const handleSubmit = async () => {
     if (!isValid) return;
 
-    setIsSubmitting(true);
+    setSubmissionState('submitting');
     try {
       await submitLine({
         poemId: assignment.poemId,
@@ -55,10 +57,18 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         text,
         guestToken: guestToken || undefined,
       });
-      setSubmittedRound(assignment.lineIndex);
+
+      // Show confirmation state briefly before transitioning to waiting
+      setSubmissionState('confirmed');
+
+      // After 1500ms, transition to waiting screen
+      setTimeout(() => {
+        setSubmittedRound(assignment.lineIndex);
+        setSubmissionState('waiting');
+      }, 1500);
     } catch (error) {
       captureError(error, { roomCode, poemId: assignment.poemId });
-      setIsSubmitting(false);
+      setSubmissionState('idle');
       setError('Failed to submit line. Please try again.');
     }
   };
@@ -159,9 +169,17 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
                 onClick={handleSubmit}
                 size="lg"
                 className="min-w-[200px] text-lg h-16"
-                disabled={!isValid || isSubmitting}
+                disabled={
+                  !isValid ||
+                  submissionState === 'submitting' ||
+                  submissionState === 'confirmed'
+                }
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Line'}
+                {submissionState === 'submitting'
+                  ? 'Submitting...'
+                  : submissionState === 'confirmed'
+                    ? 'Submitted!'
+                    : 'Submit Line'}
               </Button>
             </div>
           </div>
