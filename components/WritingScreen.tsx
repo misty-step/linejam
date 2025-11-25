@@ -94,6 +94,21 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
           <div className="text-xs uppercase tracking-wide text-[var(--color-text-muted)] mt-1">
             Target Count
           </div>
+          {!isValid && (
+            <div className="text-xs mt-2 font-medium">
+              {currentWordCount > targetCount ? (
+                <span className="text-[var(--color-error)]">
+                  Remove {currentWordCount - targetCount} word
+                  {currentWordCount - targetCount !== 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span className="text-[var(--color-text-secondary)]">
+                  Add {targetCount - currentWordCount} word
+                  {targetCount - currentWordCount !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
