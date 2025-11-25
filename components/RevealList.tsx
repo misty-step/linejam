@@ -38,9 +38,7 @@ export default function RevealList({ roomCode }: RevealListProps) {
               href={`/poem/${poem._id}`}
               className="group block h-full"
             >
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-2 transition-all duration-300 h-full flex flex-col relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-[var(--color-primary)] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-2 transition-all duration-300 h-full flex flex-col">
                 <div className="mb-6 flex justify-between items-start">
                   <span className="font-mono text-xs text-[var(--color-text-muted)] border border-[var(--color-text-muted)] px-1.5 py-0.5 rounded-[2px]">
                     No. {(index + 1).toString().padStart(2, '0')}
