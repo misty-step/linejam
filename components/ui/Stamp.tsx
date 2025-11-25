@@ -1,7 +1,16 @@
 import { cn } from '@/lib/utils';
 
+/**
+ * Stamp component for Japanese hanko seal metaphor
+ *
+ * Variants:
+ * - 'hanko': Host marker (詩 character) - used in Lobby
+ * - 'sealed': Submission marker (square with SEALED text) - used in WaitingScreen
+ *
+ * Note: 'approved' variant removed (unused). Add back if needed for future features.
+ */
 interface StampProps {
-  type: 'hanko' | 'sealed' | 'approved';
+  type: 'hanko' | 'sealed';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
@@ -64,17 +73,6 @@ export function Stamp({ type, size = 'md', className }: StampProps) {
           >
             SEALED
           </text>
-        )}
-
-        {type === 'approved' && (
-          <path
-            d="M30 50 L45 65 L75 35"
-            stroke="var(--color-text-inverse)"
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
         )}
       </svg>
     </div>

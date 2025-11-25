@@ -842,3 +842,224 @@ Transform Linejam from "good minimalism" to "unmistakably intentional design" by
 4. **Achieving anti-convergence** - No AI defaults, distinctive choices throughout
 
 **Success Metric**: Users recognize Linejam from a screenshot without seeing logo or title.
+
+---
+
+# AESTHETIC REFINEMENT 2.0: Interaction Kindness & System Polish
+
+Last added: 2025-11-24
+Based on: Creative Council aesthetic review (Rams, Hara, Norman, Vignelli lenses)
+
+> **Context**: November 2024 aesthetic audit identified visual excellence (92/100 system coherence) undermined by interaction gaps. The design system is intentional; the interaction design needs to match that care.
+
+## Delight Micro-Interactions (Nice-to-Have)
+
+### First Word Typed Celebration
+
+- **Description**: Brief encouraging message when user types first word of line in WritingScreen
+- **Implementation**: Track `previousWordCount` in state, trigger on 0 → 1 transition
+- **Message**: Subtle "✓ Beautiful start..." in success color, fades after 2s
+- **Value**: Positive reinforcement, reduces intimidation of blank canvas
+- **Estimated effort**: 1h
+- **Priority**: Medium
+- **File**: `components/WritingScreen.tsx`
+
+### Exact Word Count Reached Animation
+
+- **Description**: Button celebrates with animation when word count validation passes
+- **Implementation**: Watch `isValid` state transition false → true, trigger stamp animation
+- **Effect**: Trigger `animate-stamp` class on Button for satisfying "click" moment
+- **Value**: Clear feedback when constraint satisfied
+- **Estimated effort**: 1h
+- **Priority**: Medium
+- **File**: `components/WritingScreen.tsx`, `components/ui/Button.tsx`
+
+### All Players Ready Celebration
+
+- **Description**: Waiting screen shows visual celebration when last player submits
+- **Implementation**: Watch `submittedCount === totalPlayers`, trigger confetti or stamp burst
+- **Effect**: Brief animation acknowledging group coordination
+- **Value**: Builds anticipation for reveal, acknowledges collaboration
+- **Estimated effort**: 2h
+- **Priority**: Low
+- **File**: `components/WaitingScreen.tsx`
+
+## Enhanced Waiting Experience
+
+### Estimated Wait Time Display
+
+- **Description**: Show "Average wait: ~45s" on waiting screen based on historical data
+- **Implementation**:
+  - Track submission timestamps in Convex
+  - Calculate rolling average per round
+  - Display in waiting screen UI
+- **Value**: Reduces perceived wait time, manages expectations
+- **Estimated effort**: 3h (backend tracking + frontend display)
+- **Priority**: Medium
+- **Files**: `convex/game.ts`, `components/WaitingScreen.tsx`
+
+### Rotating Poetry Quotes
+
+- **Description**: Cycle through 10-15 literary quotes instead of single static one
+- **Implementation**: Array of quote objects, `useMemo` to select random on mount
+- **Value**: Reduces boredom during wait, educational/inspiring
+- **Estimated effort**: 1h
+- **Priority**: Low
+- **File**: `components/WaitingScreen.tsx`
+
+### "What We're Creating" Context
+
+- **Description**: Show "5 poets crafting 5 unique poems. Round 3 of 9 complete."
+- **Implementation**: Simple text interpolation with player count and round number
+- **Value**: Reminds users of collaborative creation happening in real-time
+- **Estimated effort**: 30m
+- **Priority**: Low
+- **File**: `components/WaitingScreen.tsx`
+
+## Focus Management & Accessibility
+
+### Focus Trap in PoemDisplay Modal
+
+- **Description**: Prevent tab key from cycling to background content when poem modal open
+- **Implementation**: Use `@react-aria/focus` or custom trap with event listeners
+- **Value**: WCAG 2.1 Level A compliance (2.4.3 Focus Order)
+- **Estimated effort**: 2h
+- **Priority**: High (move to TODO.md if WCAG compliance required)
+- **File**: `components/PoemDisplay.tsx`
+
+### Prefers-Reduced-Motion Testing
+
+- **Description**: Thoroughly test all animations respect `prefers-reduced-motion: reduce`
+- **Current state**: Global CSS rule exists but needs comprehensive testing
+- **Value**: Better experience for vestibular disorder users
+- **Estimated effort**: 1h testing + fixes
+- **Priority**: Medium
+
+## Design System Expansion (Future)
+
+### Storybook Component Catalog
+
+- **Description**: Visual catalog of all components with interactive prop testing
+- **Value**: Discoverability for designers/developers, visual regression testing
+- **Setup**: Storybook 7+ with Next.js integration
+- **Estimated effort**: 1d setup + 30m per component
+- **Priority**: Low (only if team grows beyond solo developer)
+- **When**: Team reaches 2+ frontend developers OR designer joins
+
+### Figma Design Token Sync
+
+- **Description**: Export design tokens from globals.css to Figma variables
+- **Tools**: Style Dictionary + Figma Tokens plugin
+- **Value**: Design-dev workflow stays in sync, single source of truth
+- **Estimated effort**: 2-3d (Style Dictionary setup + Figma plugin config)
+- **Priority**: Low (only if designer joins team)
+- **When**: Designer collaboration begins
+
+### Component Library Extraction
+
+- **Description**: Extract `components/ui/*` to `@linejam/ui` npm package
+- **Value**: Reusability if building second app with same aesthetic
+- **Estimated effort**: 1-2d (package setup, exports, build config)
+- **Priority**: Very Low
+- **When**: Building second application that needs same design system
+
+## Technical Debt Opportunities
+
+### Input Component Size Variants
+
+- **Current**: Size overridden via `className="h-14 text-lg"`
+- **Proposal**: Add `size` prop matching Button's API (`sm | md | lg | xl`)
+- **Benefit**: API consistency across form components
+- **Trade-off**: Adds API surface, most inputs use default size
+- **Estimated effort**: 1h
+- **Decision**: Defer until multiple input sizes needed in practice
+
+### Typography Component Abstraction
+
+- **Current**: Direct className usage like `className="text-5xl font-[var(--font-display)]"`
+- **Proposal**: `<Hero>Linejam</Hero>` or `<Display>Join Session</Display>`
+- **Benefit**: Semantic component API, centralized responsive logic
+- **Trade-off**: Adds indirection, Tailwind classes already semantic
+- **Module analysis**: Would be shallow module (interface ≈ implementation)
+- **Estimated effort**: 2h
+- **Decision**: Defer — only valuable if typography requires complex responsive logic
+
+### Ceremonial Animation Hook
+
+- **Current**: Declarative CSS animations with utility classes
+- **Proposal**: `const { trigger } = useCeremonialAnimation('stamp')`
+- **Benefit**: Centralized animation orchestration, easier sequencing
+- **Trade-off**: Adds JavaScript complexity for what CSS handles simply
+- **Estimated effort**: 3h
+- **Priority**: Low — current approach simpler and more performant
+- **Decision**: Keep CSS-first approach
+
+## Option C: Editorial Maximalism (Alternate Aesthetic Direction)
+
+> **Warning**: Only pursue if intentionally pivoting from current minimalism to maximalism. Requires 5-6 weeks and radical aesthetic shift.
+
+### Typography Expansion (1 week)
+
+- Add third display serif for poetry (EB Garamond or Cormorant Garamond)
+- Extreme poster scale headlines: `text-[12rem]` on desktop
+- Drop caps on first line of every revealed poem
+- Vertical text orientation for ALL section labels (not just decoration)
+- **Risk**: Could overwhelm poetry content (content should sing, not design)
+
+### Color System Expansion (3 days)
+
+- Add secondary accent: Indigo (traditional Japanese ink #4f46e5)
+- Two-color stamp system (persimmon primary, indigo secondary)
+- Alternating poem card colors in archive (persimmon/indigo rotation)
+- **Risk**: Dilutes current color restraint (violates Vignelli's "one color" principle)
+
+### Layout Drama (2 weeks)
+
+- Asymmetric grids everywhere (break centered max-width containers)
+- Overlapping card layers with z-index depth
+- Magazine-style text wrapping around visual elements
+- Full-bleed sections with edge-to-edge content
+- **Risk**: Mobile adaptation complexity, accessibility concerns with overlapping content
+
+### Motion Expansion (1 week)
+
+- Page transition animations (slide reveals between game rounds)
+- Parallax scroll effects on poem reveal
+- Ink ripple effects on all interactions (Canvas API or SVG filters)
+- More aggressive stamp rotations (-15deg instead of -8deg)
+- **Risk**: Performance on low-end mobile devices
+
+### Texture & Detail (1 week)
+
+- Halftone texture overlays (SVG filters)
+- Ink splatters on hover states
+- Torn paper edges on cards (CSS clip-path)
+- Japanese woodblock print patterns as backgrounds
+- **Risk**: Visual weight could overwhelm minimalist core aesthetic
+
+**Total Effort**: 5-6 weeks
+**Recommendation**: Only pursue if user wants radical aesthetic pivot from current minimalism. Option B (The Craftsperson) preserves excellent 92/100 design system while fixing interaction gaps.
+
+---
+
+## Aesthetic Refinement Summary
+
+| Category                   | Items   | Total Effort | Priority                       |
+| -------------------------- | ------- | ------------ | ------------------------------ |
+| Delight Micro-Interactions | 3       | 4h           | Medium-Low                     |
+| Enhanced Waiting           | 3       | 4.5h         | Medium-Low                     |
+| Accessibility              | 2       | 3h           | High (if WCAG required)        |
+| Design System Expansion    | 3       | 4-6 days     | Very Low (team-size dependent) |
+| Technical Debt             | 3       | 6h           | Low (defer until needed)       |
+| Option C Maximalism        | 5 areas | 5-6 weeks    | Special (alternate direction)  |
+
+**Key Insight**: Most "future enhancement" items are LOW priority because the current aesthetic foundation is already excellent (92/100 system coherence). The CRITICAL work is in TODO.md (making invisible interactions visible and kind). These backlog items are polish, not foundation.
+
+**Decision Framework**: Promote backlog item to TODO.md only when:
+
+1. User explicitly requests feature
+2. Team size grows (Storybook, Figma sync)
+3. WCAG compliance becomes requirement (focus trap, screen reader enhancements)
+4. Performance data shows need (estimated wait times reduce perceived lag)
+
+---

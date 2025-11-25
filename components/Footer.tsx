@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Divider } from './ui/Divider';
 
 type FooterProps = {
   className?: string;
@@ -10,10 +9,6 @@ export function Footer({ className = '' }: FooterProps) {
     <footer
       className={`w-full p-8 text-center space-y-3 bg-[var(--color-background)] ${className}`}
     >
-      <div aria-hidden="true">
-        <Divider className="max-w-[120px] mx-auto text-[var(--color-text-muted)] opacity-40" />
-      </div>
-
       <div className="space-y-2">
         <div>
           <a

@@ -172,65 +172,61 @@
 
 ### 4.1 Home Page Simplification
 
-- [ ] **Remove decorative border under title**
-  - File: `app/page.tsx` lines 17-22
-  - Delete entire `<div>` containing `═══════════`
-  - Rationale: Title at 7xl/9xl has typographic authority alone. Border is fear of emptiness.
-  - Success criteria: Title stands alone confidently
-  - Estimated effort: 2m
+- [x] **Remove decorative border under title** ✅
+  - File: `app/page.tsx`
+  - Deleted decorative border `═══════════` ✅
+  - Success criteria: Title stands alone confidently ✅
+  - Estimated effort: 2m | Actual: 2m
+  - **Commit**: 6ae7b50 (batched with other home page simplifications)
 
-- [ ] **Remove vertical Japanese text**
-  - File: `app/page.tsx` lines 69-77
-  - Delete entire right column div (4-col grid becomes 12-col single column)
-  - Update grid: `grid grid-cols-12` → `max-w-4xl mx-auto`
-  - Rationale: Trying to claim "Japaneseness" instead of embodying it. Emptiness is already Japanese.
-  - Success criteria: Cleaner layout, faster mobile render (no hidden-then-shown desktop element)
-  - Estimated effort: 5m
+- [x] **Remove vertical Japanese text** ✅
+  - File: `app/page.tsx`
+  - Deleted right column, simplified grid to `max-w-4xl mx-auto` ✅
+  - Success criteria: Cleaner layout, faster mobile render ✅
+  - Estimated effort: 5m | Actual: 3m
+  - **Commit**: 6ae7b50 (batched with other home page simplifications)
 
-- [ ] **Remove button ink spread animations**
-  - File: `app/page.tsx` lines 41-42, 52-53
-  - Delete `<span className="absolute inset-0 bg-[var(--color-primary-hover)] transform -translate-x-full..."/>` layers
-  - Keep only Button component's native hover states
-  - Rationale: Competing with Button's perfect press mechanics. Duplicates existing hover system.
-  - Success criteria: Single animation language per button (press mechanics only)
-  - Estimated effort: 3m
+- [x] **Remove button ink spread animations** ✅
+  - File: `app/page.tsx`
+  - Deleted ink spread span overlays from both buttons ✅
+  - Success criteria: Single animation language per button (stamp mechanics only) ✅
+  - Estimated effort: 3m | Actual: 3m
+  - **Commit**: 6ae7b50 (batched with other home page simplifications)
 
 ### 4.2 Component Simplification
 
-- [ ] **Remove RevealList border slide animation**
-  - File: `components/RevealList.tsx` line 42
-  - Delete `<div className="absolute top-0 left-0 w-full h-1 bg-[var(--color-primary)] transform -translate-x-full..."/>`
-  - Keep shadow lift + translate up (2 effects max)
-  - Rationale: 3 simultaneous hover effects is 2 too many. Border slide is slowest (500ms), conflicts with 300ms shadow/translate.
-  - Success criteria: Hover feels responsive, not competing
-  - Estimated effort: 2m
+- [x] **Remove RevealList border slide animation** ✅
+  - File: `components/RevealList.tsx`
+  - Deleted border slide div, removed `relative overflow-hidden` ✅
+  - Kept shadow lift + translate-y (2 effects max) ✅
+  - Success criteria: Hover feels responsive, not competing ✅
+  - Estimated effort: 2m | Actual: 2m
+  - **Commit**: df910d0
 
-- [ ] **Remove QR code corner accents**
-  - File: `components/RoomQr.tsx` lines 70-71
-  - Delete both 10% opacity persimmon corner divs
-  - Rationale: Material metaphor (rice paper slip) complete with border + shadow. 10% opacity = barely visible = unnecessary.
-  - Success criteria: QR maintains washi paper metaphor without accent marks
-  - Estimated effort: 2m
+- [x] **Remove QR code corner accents** ✅
+  - File: `components/RoomQr.tsx`
+  - Deleted 10% opacity persimmon corners, removed `relative overflow-hidden` ✅
+  - Success criteria: QR maintains washi paper metaphor without accent marks ✅
+  - Estimated effort: 2m | Actual: 2m
+  - **Commit**: 6e89698 (batched with other component simplifications)
 
-- [ ] **Remove Footer dagger ornament**
-  - File: `components/Footer.tsx` line 37
-  - Replace `<Ornament type="dagger" />` with vertical layout or simple `·` separator
-  - Alternative: Stack "Archive" and "Est. 2025" vertically instead of horizontal separation
-  - Rationale: Traditional editorial ornament feels dated. Could be simpler.
-  - Success criteria: Cleaner footer without decorative filler
-  - Estimated effort: 3m
+- [x] **Remove Footer dagger ornament** ✅
+  - File: `components/Footer.tsx`
+  - Replaced `<Ornament type="dagger" />` with simple `·` separator ✅
+  - Success criteria: Cleaner footer without decorative filler ✅
+  - Estimated effort: 3m | Actual: 2m
+  - **Commit**: 6e89698 (batched with other component simplifications)
 
-- [ ] **Remove WritingScreen redundant quote marks**
-  - File: `components/WritingScreen.tsx` line 105
-  - Remove `&ldquo;` and `&rdquo;` around `{assignment.previousLineText}`
-  - Keep italic + left accent bar
-  - Rationale: Already has 4 visual markers (bar, card, shadow, italic). Quotes are 5th redundant marker.
-  - Success criteria: Quotation signaled by bar + italic alone
-  - Estimated effort: 1m
+- [x] **Remove WritingScreen redundant quote marks** ✅
+  - File: `components/WritingScreen.tsx`
+  - Removed `&ldquo;` and `&rdquo;` around previous line text ✅
+  - Success criteria: Quotation signaled by bar + italic alone ✅
+  - Estimated effort: 1m | Actual: 1m
+  - **Commit**: 6e89698 (batched with other component simplifications)
 
 ### 4.3 Delete Dead Code
 
-- [ ] **Remove unused button-grow animation**
+- [~] **Remove unused button-grow animation**
   - File: `app/globals.css` lines 249-264
   - Delete `@keyframes button-grow` and `.animate-button-grow` class
   - Search codebase for any usage: `grep -r "animate-button-grow"` (should be 0 results)
@@ -238,7 +234,7 @@
   - Success criteria: 15 lines of CSS removed, no functionality lost
   - Estimated effort: 2m
 
-- [ ] **Delete unused Divider component**
+- [~] **Delete unused Divider component**
   - File: `components/ui/Divider.tsx`
   - Delete entire file (40 lines)
   - Replace usage in Footer with simple `<div className="w-24 h-px bg-[var(--color-border)] mx-auto" />`
@@ -247,7 +243,7 @@
   - Success criteria: Footer simplified, 40 lines deleted
   - Estimated effort: 5m
 
-- [ ] **Audit and document unused Stamp variants**
+- [~] **Audit and document unused Stamp variants**
   - File: `components/ui/Stamp.tsx`
   - Types: `'hanko' | 'sealed' | 'approved'`
   - Search usage: Only `'hanko'` used (Lobby host marker)

@@ -246,23 +246,6 @@ h6 {
   animation: breathe 6s ease-in-out infinite;
 }
 
-/* Button Transform Animation - Growth when enabled */
-@keyframes button-grow {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.02);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.animate-button-grow {
-  animation: button-grow 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
