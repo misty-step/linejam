@@ -306,13 +306,14 @@
   - Estimated effort: 2h | Actual: ~15m (straightforward find-replace pattern)
   - **Commit**: 33a0783
 
-- [~] **Audit and remove unused shadow tokens**
-  - Search codebase for each shadow token usage
-  - Found: `--shadow-xl` has 0 uses
-  - Decision: Remove from `app/globals.css` OR document future use
-  - Also audit: `--shadow-stamp` defined but stamp uses inline drop-shadow
-  - Success criteria: Design tokens reflect actual system usage
-  - Estimated effort: 1h
+- [x] **Audit and remove unused shadow tokens** ✅
+  - Audited all shadow token usage across codebase ✅
+  - Usage: sm (5), md (5), lg (4), active (1), xl (0), stamp (0), hover (0) ✅
+  - Removed 3 unused tokens: `--shadow-xl`, `--shadow-stamp`, `--shadow-hover` ✅
+  - Updated docs/design-system.md with removal rationale and usage table ✅
+  - Success criteria: Design tokens reflect actual system usage (4 vs 7 tokens) ✅
+  - Estimated effort: 1h | Actual: ~10m (straightforward audit + deletion)
+  - **Commit**: eb9db42
 
 ---
 
