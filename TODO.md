@@ -286,13 +286,15 @@
 
 **Rationale**: System currently uses 6 different animation durations (75/150/250/300/400/500ms) without semantic meaning. Consolidate to token values for consistency.
 
-- [~] **Consolidate animation durations to design tokens**
-  - Audit all `duration-*` and `transition-*` values across codebase
-  - Map to tokens: `--duration-instant` (75ms), `--duration-fast` (150ms), `--duration-normal` (250ms)
-  - Replace arbitrary values: 300ms → `--duration-normal`, 400ms → custom if ceremonial
-  - Files affected: `app/page.tsx`, `components/RevealList.tsx`, possibly others
-  - Success criteria: Only token values OR documented exceptional ceremonial timing (500ms+ for stamps)
-  - Estimated effort: 2h
+- [x] **Consolidate animation durations to design tokens** ✅
+  - Audited all `duration-*` and `transition-*` values across codebase ✅
+  - Mapped to tokens: `--duration-instant` (75ms), `--duration-fast` (150ms), `--duration-normal` (250ms) ✅
+  - Replaced arbitrary values: 300ms → `--duration-normal` (250ms) ✅
+  - Files affected: ThemeToggle.tsx, RevealList.tsx, app/me/poems/page.tsx ✅
+  - Documented ceremonial exceptions: PoemDisplay (800ms/1000ms reveal), globals.css (500ms stamp) ✅
+  - Success criteria: All UI uses token values, ceremonial timing documented as intentional ✅
+  - Estimated effort: 2h | Actual: ~25m (cleaner codebase than expected)
+  - **Commit**: 06c0445
 
 - [ ] **Reserve persimmon hover for primary actions only**
   - Audit all `hover:text-[var(--color-primary)]` uses
