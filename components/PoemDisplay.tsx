@@ -5,6 +5,26 @@ import { Button } from './ui/Button';
 import { Ornament } from './ui/Ornament';
 import { cn } from '@/lib/utils';
 
+/**
+ * PoemDisplay: Ceremonial Reveal Animation
+ *
+ * Timing Philosophy:
+ * This component uses exceptionally slow animation durations (800ms, 1000ms)
+ * that deliberately break the standard design token timing:
+ *
+ * - Line reveal: 800ms (vs standard 250ms)
+ * - Button fade: 1000ms (vs standard 250ms)
+ *
+ * Why ceremonial timing?
+ * - Context: This is the ONLY moment users see the complete collaborative poem
+ * - Purpose: Create anticipation and weight for each line's appearance
+ * - Metaphor: Unsealing a scroll, not clicking through UI
+ * - Trade-off: Sacrifices efficiency for emotional impact
+ *
+ * These durations are intentional exceptions, not technical debt.
+ * Do not "fix" them to match --duration-normal.
+ */
+
 const ORNAMENT_AFTER_LINE = 5;
 
 interface PoemDisplayProps {

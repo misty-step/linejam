@@ -286,7 +286,7 @@
 
 **Rationale**: System currently uses 6 different animation durations (75/150/250/300/400/500ms) without semantic meaning. Consolidate to token values for consistency.
 
-- [ ] **Consolidate animation durations to design tokens**
+- [~] **Consolidate animation durations to design tokens**
   - Audit all `duration-*` and `transition-*` values across codebase
   - Map to tokens: `--duration-instant` (75ms), `--duration-fast` (150ms), `--duration-normal` (250ms)
   - Replace arbitrary values: 300ms → `--duration-normal`, 400ms → custom if ceremonial

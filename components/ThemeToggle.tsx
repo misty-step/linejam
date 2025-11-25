@@ -63,10 +63,10 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   return (
     <button
       onClick={toggleTheme}
-      className={`w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-300 ${className}`}
+      className={`w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)] ${className}`}
       aria-label="Toggle theme"
     >
-      <span className="transition-opacity duration-300">
+      <span className="transition-opacity duration-[var(--duration-normal)]">
         {theme === 'light' ? <SunIcon /> : <MoonIcon />}
       </span>
     </button>

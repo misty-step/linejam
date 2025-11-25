@@ -55,7 +55,7 @@ export default function MyPoemsPage() {
                   href={`/poem/${poem._id}`}
                   className="group"
                 >
-                  <div className="h-full bg-[var(--color-surface)] border border-[var(--color-border)] p-6 shadow-[var(--shadow-sm)] group-hover:shadow-[var(--shadow-md)] group-hover:-translate-y-1 transition-all duration-300 flex flex-col">
+                  <div className="h-full bg-[var(--color-surface)] border border-[var(--color-border)] p-6 shadow-[var(--shadow-sm)] group-hover:shadow-[var(--shadow-md)] group-hover:-translate-y-1 transition-all duration-[var(--duration-normal)] flex flex-col">
                     <div className="flex-1 mb-6">
                       <p className="text-xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
                         &ldquo;{poem.preview}...&rdquo;
