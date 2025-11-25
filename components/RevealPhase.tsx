@@ -185,7 +185,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
             </Link>
             <Link
               href="/"
-              className="block text-center text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] mt-6"
+              className="block text-center text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline mt-6"
             >
               Exit Room
             </Link>

@@ -34,7 +34,7 @@ export default function MyPoemsPage() {
           </div>
           <Link
             href="/"
-            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-2"
+            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline transition-colors mb-2"
           >
             ← Return Home
           </Link>
@@ -102,11 +102,11 @@ export default function MyPoemsPage() {
                           poem.roomDate || poem.createdAt
                         ).toLocaleDateString()}
                       </span>
-                      <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
+                      <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)] group-hover:underline transition-colors">
                         &ldquo;{poem.preview}...&rdquo;
                       </p>
                     </div>
-                    <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)]">
+                    <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:underline">
                       Open
                     </span>
                   </div>

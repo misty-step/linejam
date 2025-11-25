@@ -47,7 +47,7 @@ export default function Home() {
             <div className="pt-2">
               <Link
                 href="/me/poems"
-                className="inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors font-[var(--font-sans)]"
+                className="inline-block text-sm text-[var(--color-text-secondary)] hover:underline transition-colors font-[var(--font-sans)]"
               >
                 Archive
               </Link>

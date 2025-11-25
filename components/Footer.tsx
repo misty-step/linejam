@@ -15,17 +15,14 @@ export function Footer({ className = '' }: FooterProps) {
             href="https://mistystep.io"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors font-[var(--font-sans)]"
+            className="text-sm text-[var(--color-text-secondary)] hover:underline transition-colors font-[var(--font-sans)]"
           >
             A Misty Step project
           </a>
         </div>
 
         <div className="flex items-center justify-center gap-3 text-xs text-[var(--color-text-muted)] font-[var(--font-sans)]">
-          <Link
-            href="/me/poems"
-            className="hover:text-[var(--color-primary)] transition-colors"
-          >
+          <Link href="/me/poems" className="hover:underline transition-colors">
             Archive
           </Link>
           <span>·</span>

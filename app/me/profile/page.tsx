@@ -21,7 +21,7 @@ export default function ProfilePage() {
           <h1 className="text-5xl font-[var(--font-display)]">Identity</h1>
           <Link
             href="/"
-            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-2"
+            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline transition-colors mb-2"
           >
             ← Home
           </Link>

@@ -53,7 +53,7 @@ export default function PoemDetailPage() {
         <div className="flex justify-between items-center">
           <Link
             href="/me/poems"
-            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline transition-colors"
           >
             ← Home
           </Link>
@@ -62,7 +62,7 @@ export default function PoemDetailPage() {
             className={`transition-colors ${
               isFavorited
                 ? 'text-[var(--color-primary)]'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-primary)]'
+                : 'text-[var(--color-text-muted)] hover:opacity-60'
             }`}
             aria-label="Toggle favorite"
           >

@@ -296,7 +296,7 @@
   - Estimated effort: 2h | Actual: ~25m (cleaner codebase than expected)
   - **Commit**: 06c0445
 
-- [ ] **Reserve persimmon hover for primary actions only**
+- [~] **Reserve persimmon hover for primary actions only**
   - Audit all `hover:text-[var(--color-primary)]` uses
   - Keep: Primary buttons, main navigation
   - Remove: Footer metadata links, secondary archive links

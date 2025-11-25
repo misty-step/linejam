@@ -52,7 +52,7 @@ export default function RevealList({ roomCode }: RevealListProps) {
                 </div>
 
                 <div className="pt-6 mt-6 border-t border-[var(--color-border-subtle)] text-right">
-                  <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
+                  <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:underline transition-colors">
                     Read Full Text
                   </span>
                 </div>
