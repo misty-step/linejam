@@ -1,5 +1,10 @@
 # Linejam
 
+[![Lines](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-lines.json)](https://github.com/misty-step/linejam/actions)
+[![Branches](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-branches.json)](https://github.com/misty-step/linejam/actions)
+[![Functions](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-functions.json)](https://github.com/misty-step/linejam/actions)
+[![Statements](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-statements.json)](https://github.com/misty-step/linejam/actions)
+
 Pass-the-poem party game for friends in the same room.
 
 ## What It Is

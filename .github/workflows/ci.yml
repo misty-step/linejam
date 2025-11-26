@@ -129,13 +129,133 @@ jobs:
       - name: Test
         run: pnpm test:ci
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
+      - name: Vitest Coverage Report
+        uses: davelosert/vitest-coverage-report-action@v2
         if: always()
         with:
-          files: ./coverage/coverage-final.json
-          fail_ci_if_error: false
-        continue-on-error: true
+          json-summary-path: ./coverage/coverage-summary.json
+          json-final-path: ./coverage/coverage-final.json
+          vite-config-path: ./vitest.config.ts
 
       - name: Build
         run: pnpm build:check
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [lint, format, typecheck]
+    env:
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+  badges:
+    name: Update Coverage Badges
+    runs-on: ubuntu-latest
+    needs: [test-build]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        run: pnpm test:ci
+
+      - name: Extract coverage values
+        id: coverage
+        run: |
+          LINES=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+          BRANCHES=$(jq '.total.branches.pct' coverage/coverage-summary.json)
+          FUNCTIONS=$(jq '.total.functions.pct' coverage/coverage-summary.json)
+          STATEMENTS=$(jq '.total.statements.pct' coverage/coverage-summary.json)
+
+          echo "lines=$LINES" >> $GITHUB_OUTPUT
+          echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
+
+      - name: Update Lines Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: coverage-lines.json
+          label: Lines
+          message: ${{ steps.coverage.outputs.lines }}%
+          color: ${{ steps.coverage.outputs.lines >= 80 && 'brightgreen' || (steps.coverage.outputs.lines >= 70 && 'yellow' || 'red') }}
+
+      - name: Update Branches Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: coverage-branches.json
+          label: Branches
+          message: ${{ steps.coverage.outputs.branches }}%
+          color: ${{ steps.coverage.outputs.branches >= 80 && 'brightgreen' || (steps.coverage.outputs.branches >= 70 && 'yellow' || 'red') }}
+
+      - name: Update Functions Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: coverage-functions.json
+          label: Functions
+          message: ${{ steps.coverage.outputs.functions }}%
+          color: ${{ steps.coverage.outputs.functions >= 80 && 'brightgreen' || (steps.coverage.outputs.functions >= 70 && 'yellow' || 'red') }}
+
+      - name: Update Statements Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: coverage-statements.json
+          label: Statements
+          message: ${{ steps.coverage.outputs.statements }}%
+          color: ${{ steps.coverage.outputs.statements >= 80 && 'brightgreen' || (steps.coverage.outputs.statements >= 70 && 'yellow' || 'red') }}

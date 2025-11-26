@@ -33,6 +33,24 @@ pre-push:
     test:
       run: pnpm test:ci
 
+    coverage-info:
+      run: |
+        if [ -f coverage/coverage-summary.json ]; then
+          LINES=$(jq '.total.lines.pct' coverage/coverage-summary.json 2>/dev/null || echo "N/A")
+          BRANCHES=$(jq '.total.branches.pct' coverage/coverage-summary.json 2>/dev/null || echo "N/A")
+          FUNCTIONS=$(jq '.total.functions.pct' coverage/coverage-summary.json 2>/dev/null || echo "N/A")
+          STATEMENTS=$(jq '.total.statements.pct' coverage/coverage-summary.json 2>/dev/null || echo "N/A")
+          echo ""
+          echo "📊 Current Test Coverage:"
+          echo "  Lines:      ${LINES}% (target: 80%)"
+          echo "  Branches:   ${BRANCHES}% (target: 80%)"
+          echo "  Functions:  ${FUNCTIONS}% (target: 80%)"
+          echo "  Statements: ${STATEMENTS}% (target: 80%)"
+          echo ""
+        else
+          echo "ℹ️  No coverage data found. Run 'pnpm test:ci' to generate coverage."
+        fi
+
     build:
       run: pnpm build:check
 

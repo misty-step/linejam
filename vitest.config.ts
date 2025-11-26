@@ -12,7 +12,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
+      reporter: ['text', 'json', 'html', 'lcov', 'json-summary'],
       exclude: [
         '**/node_modules/**',
         '**/dist/**',
@@ -22,10 +22,10 @@ export default defineConfig({
         '**/*.d.ts',
       ],
       thresholds: {
-        lines: 60,
-        functions: 60,
-        branches: 60,
-        statements: 60,
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
       },
     },
   },
