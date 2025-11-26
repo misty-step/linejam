@@ -10,13 +10,21 @@ import { useUser } from '../lib/auth';
 
 import { captureError } from '../lib/error';
 
+import { errorToFeedback } from '../lib/errorFeedback';
+
+import { Alert } from './ui/Alert';
+
 import { Button } from './ui/Button';
+
+import { Label } from './ui/Label';
 
 import { PoemDisplay } from './PoemDisplay';
 
 import Link from 'next/link';
 
 import { RoomQr } from './RoomQr';
+
+import { LoadingState, LoadingMessages } from './ui/LoadingState';
 
 interface RevealPhaseProps {
   roomCode: string;
@@ -28,6 +36,8 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
   const [showingPoem, setShowingPoem] = useState(false);
 
   const [isRevealing, setIsRevealing] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
 
   const state = useQuery(api.game.getRevealPhaseState, {
     roomCode,
@@ -43,6 +53,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
     if (!state?.myPoem) return;
 
     setIsRevealing(true);
+    setError(null); // Clear error before retry
 
     try {
       await revealPoemMutation({
@@ -52,16 +63,18 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
       });
 
       setShowingPoem(true);
-    } catch (error) {
-      console.error('Failed to reveal poem:', error);
-
-      captureError(error, { roomCode });
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+      captureError(err, { roomCode });
     } finally {
       setIsRevealing(false);
     }
   };
 
   const handleStartNewCycle = async () => {
+    setError(null); // Clear error before retry
+
     try {
       await startNewCycleMutation({
         roomCode,
@@ -70,16 +83,19 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
       });
 
       // The page will automatically transition to Lobby due to query updates
-    } catch (error) {
-      console.error('Failed to start new cycle:', error);
-
-      captureError(error, { roomCode });
-
-      // You might want to show an error toast here
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+      captureError(err, { roomCode });
     }
   };
 
-  if (!state) return <div>Loading...</div>;
+  if (!state)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.UNSEALING_POEMS} />
+      </div>
+    );
 
   const { myPoem, allRevealed, isHost, poems } = state;
 
@@ -113,9 +129,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         </div>
 
         <div className="border-t border-[var(--color-border)] pt-8">
-          <h3 className="font-mono text-sm uppercase tracking-widest mb-4 text-[var(--color-text-muted)]">
-            Poem Status
-          </h3>
+          <Label className="block mb-4">Poem Status</Label>
           <div className="space-y-2">
             {poems
               .sort((a, b) => a.indexInRoom - b.indexInRoom)
@@ -154,6 +168,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
         {allRevealed && (
           <div className="pt-8 border-t border-[var(--color-border)] space-y-4">
+            {error && <Alert variant="error">{error}</Alert>}
             {isHost && (
               <Button
                 onClick={handleStartNewCycle}
@@ -170,14 +185,14 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
             </Link>
             <Link
               href="/"
-              className="block text-center text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] mt-6"
+              className="block text-center text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline mt-6"
             >
               Exit Room
             </Link>
             <div className="pt-8">
-              <p className="text-center text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] mb-4">
+              <Label className="text-center block mb-4">
                 Invite for Next Cycle
-              </p>
+              </Label>
               <RoomQr roomCode={roomCode} />
             </div>
           </div>
@@ -196,6 +211,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                 &ldquo;{myPoem.preview}...&rdquo;
               </p>
             </div>
+            {error && <Alert variant="error">{error}</Alert>}
             <Button
               onClick={handleReveal}
               size="lg"

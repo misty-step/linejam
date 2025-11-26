@@ -40,6 +40,12 @@
   --color-text-muted: #a8a29e;
   --color-text-inverse: #faf9f7;
 
+  /* State Colors */
+  --color-success: #10b981; /* Green-600 for validation */
+  --color-error: #ef4444; /* Red-600 for errors */
+  --color-warning: #f59e0b; /* Amber-600 for warnings */
+  --color-info: #0ea5e9; /* Sky-600 for info */
+
   /* ==========================================================================
      Typography System — Editorial Clarity
      ========================================================================== */
@@ -75,14 +81,14 @@
   --radius-full: 9999px;
 
   /* ==========================================================================
-     Shadows — Hard Graphic Offset
+     Shadows — Hard Graphic Offset with Persimmon Tint
      ========================================================================== */
-  --shadow-sm: 2px 2px 0px var(--color-border);
-  --shadow-md: 4px 4px 0px var(--color-border);
-  --shadow-lg: 8px 8px 0px var(--color-border);
-  --shadow-xl: 12px 12px 0px var(--color-border);
+  --shadow-color: 232 93 43; /* Persimmon RGB for rgba() */
 
-  --shadow-hover: 2px 2px 0px var(--color-border);
+  --shadow-sm: 2px 2px 0px rgba(var(--shadow-color) / 0.15);
+  --shadow-md: 4px 4px 0px rgba(var(--shadow-color) / 0.1);
+  --shadow-lg: 8px 8px 0px rgba(var(--shadow-color) / 0.12);
+
   --shadow-active: 0px 0px 0px var(--color-border);
 
   /* ==========================================================================
@@ -113,6 +119,12 @@ html.dark {
   --color-text-secondary: #d6d3d1;
   --color-text-muted: #a8a29e;
   --color-text-inverse: #1c1917;
+
+  /* State Colors (same in dark mode) */
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #0ea5e9;
 }
 
 /* System preference (only if no explicit class) */
@@ -192,4 +204,92 @@ h6 {
 
 .animate-type {
   animation: type-reveal var(--duration-normal) var(--ease-mechanical) forwards;
+}
+
+/* Hanko Stamp Animation */
+@keyframes stamp-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-8deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.animate-stamp {
+  animation: stamp-reveal 500ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Breathing Animation - Subtle pulse for room code */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 6s ease-in-out infinite;
+}
+
+/* Fade-in-up Animation - Element reveals from below */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up var(--duration-normal) var(--ease-mechanical) forwards;
+}
+
+/* Wipe Reveal Animation - Document unsealing (clip-path) */
+@keyframes wipe-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Custom Caret - Persimmon color for ceremonial typing */
+textarea:focus {
+  caret-color: var(--color-primary);
+}
+
+/* Accessibility - Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

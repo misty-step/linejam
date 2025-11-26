@@ -1,5 +1,8 @@
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import { Label } from './ui/Label';
+import { Stamp } from './ui/Stamp';
+import { LoadingState, LoadingMessages } from './ui/LoadingState';
 
 interface WaitingScreenProps {
   roomCode: string;
@@ -11,7 +14,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
   if (!progress) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <div className="animate-pulse w-2 h-2 bg-[var(--color-foreground)] rounded-full" />
+        <LoadingState message={LoadingMessages.LOADING_ROOM} />
       </div>
     );
   }
@@ -23,9 +26,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
       <div className="w-full max-w-md space-y-12">
         <div className="text-center space-y-4">
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
-            Round {round + 1} Pending
-          </p>
+          <Label className="tracking-[0.2em]">Round {round + 1} Pending</Label>
           <h2 className="text-4xl md:text-5xl font-[var(--font-display)] leading-tight">
             Waiting for
             <br />
@@ -49,13 +50,9 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
               </span>
 
               {player.submitted ? (
-                <span className="text-xs font-mono uppercase tracking-widest text-[var(--color-primary)]">
-                  [SEALED]
-                </span>
+                <Stamp type="sealed" size="sm" />
               ) : (
-                <span className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] animate-pulse">
-                  WRITING...
-                </span>
+                <Label className="animate-pulse">WRITING...</Label>
               )}
             </div>
           ))}

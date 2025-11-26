@@ -6,8 +6,14 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
+import { errorToFeedback } from '../../lib/errorFeedback';
+import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import {
+  LoadingState,
+  LoadingMessages,
+} from '../../components/ui/LoadingState';
 import Link from 'next/link';
 
 function JoinForm() {
@@ -40,14 +46,19 @@ function JoinForm() {
       });
       router.push(`/room/${normalizedCode}`);
     } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
       captureError(err, { roomCode: normalizedCode });
-      setError(err instanceof Error ? err.message : 'Failed to join room');
       setIsSubmitting(false);
     }
   };
 
   if (isLoading) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.JOINING_SESSION} />
+      </div>
+    );
   }
 
   const hasCode = !!searchParams.get('code');
@@ -69,10 +80,10 @@ function JoinForm() {
             </label>
             <Input
               id="code"
-              placeholder="AB CD EF"
+              placeholder="ABCD"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              maxLength={6}
+              maxLength={4}
               required
               autoFocus={!hasCode}
               className="uppercase tracking-[0.5em] text-center font-mono text-2xl h-16 bg-[var(--color-muted)] border-2"
@@ -98,9 +109,9 @@ function JoinForm() {
           </div>
 
           {error && (
-            <div className="p-3 border border-[var(--color-error)] bg-[var(--color-error)]/5 text-[var(--color-error)] text-sm">
+            <Alert variant="error" className="mt-4">
               {error}
-            </div>
+            </Alert>
           )}
 
           <div className="pt-4">

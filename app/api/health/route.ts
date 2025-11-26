@@ -33,7 +33,6 @@ async function checkConvex() {
 
   try {
     const client = new ConvexHttpClient(convexUrl);
-    // @ts-expect-error - api.health might not be generated yet
     await client.query(api.health.ping);
     return 'connected';
   } catch (error) {

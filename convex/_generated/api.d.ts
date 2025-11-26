@@ -8,32 +8,34 @@
  * @module
  */
 
-import type * as favorites from '../favorites.js';
-import type * as game from '../game.js';
-import type * as lib_assignmentMatrix from '../lib/assignmentMatrix.js';
-import type * as lib_auth from '../lib/auth.js';
-import type * as lib_guestToken from '../lib/guestToken.js';
-import type * as lib_rateLimit from '../lib/rateLimit.js';
-import type * as lib_wordCount from '../lib/wordCount.js';
-import type * as migrations from '../migrations.js';
-import type * as poems from '../poems.js';
-import type * as rooms from '../rooms.js';
-import type * as users from '../users.js';
+import type * as favorites from "../favorites.js";
+import type * as game from "../game.js";
+import type * as health from "../health.js";
+import type * as lib_assignmentMatrix from "../lib/assignmentMatrix.js";
+import type * as lib_auth from "../lib/auth.js";
+import type * as lib_guestToken from "../lib/guestToken.js";
+import type * as lib_rateLimit from "../lib/rateLimit.js";
+import type * as lib_wordCount from "../lib/wordCount.js";
+import type * as migrations from "../migrations.js";
+import type * as poems from "../poems.js";
+import type * as rooms from "../rooms.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
-} from 'convex/server';
+} from "convex/server";
 
 declare const fullApi: ApiFromModules<{
   favorites: typeof favorites;
   game: typeof game;
-  'lib/assignmentMatrix': typeof lib_assignmentMatrix;
-  'lib/auth': typeof lib_auth;
-  'lib/guestToken': typeof lib_guestToken;
-  'lib/rateLimit': typeof lib_rateLimit;
-  'lib/wordCount': typeof lib_wordCount;
+  health: typeof health;
+  "lib/assignmentMatrix": typeof lib_assignmentMatrix;
+  "lib/auth": typeof lib_auth;
+  "lib/guestToken": typeof lib_guestToken;
+  "lib/rateLimit": typeof lib_rateLimit;
+  "lib/wordCount": typeof lib_wordCount;
   migrations: typeof migrations;
   poems: typeof poems;
   rooms: typeof rooms;
@@ -50,7 +52,7 @@ declare const fullApi: ApiFromModules<{
  */
 export declare const api: FilterApi<
   typeof fullApi,
-  FunctionReference<any, 'public'>
+  FunctionReference<any, "public">
 >;
 
 /**
@@ -63,7 +65,7 @@ export declare const api: FilterApi<
  */
 export declare const internal: FilterApi<
   typeof fullApi,
-  FunctionReference<any, 'internal'>
+  FunctionReference<any, "internal">
 >;
 
 export declare const components: {};

@@ -1,6 +1,7 @@
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useUser } from '@/lib/auth';
+import { Label } from '@/components/ui/Label';
 import Link from 'next/link';
 
 interface RevealListProps {
@@ -22,9 +23,7 @@ export default function RevealList({ roomCode }: RevealListProps) {
     <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24">
       <div className="max-w-6xl mx-auto space-y-12">
         <div className="text-center space-y-6 border-b border-[var(--color-border)] pb-12">
-          <p className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--color-text-muted)]">
-            Session {roomCode}
-          </p>
+          <Label className="tracking-[0.3em]">Session {roomCode}</Label>
           <h1 className="text-6xl md:text-8xl font-[var(--font-display)] leading-[0.8]">
             The Completed
             <br />
@@ -39,9 +38,7 @@ export default function RevealList({ roomCode }: RevealListProps) {
               href={`/poem/${poem._id}`}
               className="group block h-full"
             >
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-2 transition-all duration-300 h-full flex flex-col relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-[var(--color-primary)] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-2 transition-all duration-[var(--duration-normal)] h-full flex flex-col">
                 <div className="mb-6 flex justify-between items-start">
                   <span className="font-mono text-xs text-[var(--color-text-muted)] border border-[var(--color-text-muted)] px-1.5 py-0.5 rounded-[2px]">
                     No. {(index + 1).toString().padStart(2, '0')}
@@ -55,7 +52,7 @@ export default function RevealList({ roomCode }: RevealListProps) {
                 </div>
 
                 <div className="pt-6 mt-6 border-t border-[var(--color-border-subtle)] text-right">
-                  <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-colors">
+                  <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:underline transition-colors">
                     Read Full Text
                   </span>
                 </div>

@@ -4,6 +4,8 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useParams } from 'next/navigation';
 import { useUser } from '../../../lib/auth';
+import { Label } from '../../../components/ui/Label';
+import { Ornament } from '../../../components/ui/Ornament';
 import Link from 'next/link';
 import { Id } from '../../../convex/_generated/dataModel';
 
@@ -51,7 +53,7 @@ export default function PoemDetailPage() {
         <div className="flex justify-between items-center">
           <Link
             href="/me/poems"
-            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline transition-colors"
           >
             ← Home
           </Link>
@@ -60,7 +62,7 @@ export default function PoemDetailPage() {
             className={`transition-colors ${
               isFavorited
                 ? 'text-[var(--color-primary)]'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-primary)]'
+                : 'text-[var(--color-text-muted)] hover:opacity-60'
             }`}
             aria-label="Toggle favorite"
           >
@@ -86,9 +88,7 @@ export default function PoemDetailPage() {
             <h1 className="text-sm font-mono uppercase tracking-[0.3em] text-[var(--color-primary)] font-medium">
               Poem No. {poem.indexInRoom + 1}
             </h1>
-            <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Created {formattedDate}
-            </p>
+            <Label>Created {formattedDate}</Label>
           </div>
         </div>
 
@@ -112,10 +112,11 @@ export default function PoemDetailPage() {
 
         {/* Footer Stats */}
         <div className="border-t border-[var(--color-border)] pt-6">
-          <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-            {lines.length} Line{lines.length !== 1 ? 's' : ''} · {uniquePoets}{' '}
-            Poet{uniquePoets !== 1 ? 's' : ''}
-          </p>
+          <Label>
+            {lines.length} Line{lines.length !== 1 ? 's' : ''}{' '}
+            <Ornament type="dagger" /> {uniquePoets} Poet
+            {uniquePoets !== 1 ? 's' : ''}
+          </Label>
         </div>
       </div>
     </div>

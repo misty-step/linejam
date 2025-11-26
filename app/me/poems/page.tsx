@@ -3,6 +3,7 @@
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '../../../lib/auth';
+import { Label } from '../../../components/ui/Label';
 import Link from 'next/link';
 
 export default function MyPoemsPage() {
@@ -33,7 +34,7 @@ export default function MyPoemsPage() {
           </div>
           <Link
             href="/"
-            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-2"
+            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline transition-colors mb-2"
           >
             ← Return Home
           </Link>
@@ -42,9 +43,7 @@ export default function MyPoemsPage() {
         {/* Favorites Section */}
         <section className="space-y-8">
           <div className="flex items-center gap-4">
-            <h2 className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Marked Works
-            </h2>
+            <Label as="h2">Marked Works</Label>
             <div className="h-px bg-[var(--color-border-subtle)] flex-1" />
           </div>
 
@@ -56,7 +55,7 @@ export default function MyPoemsPage() {
                   href={`/poem/${poem._id}`}
                   className="group"
                 >
-                  <div className="h-full bg-[var(--color-surface)] border border-[var(--color-border)] p-6 shadow-[var(--shadow-sm)] group-hover:shadow-[var(--shadow-md)] group-hover:-translate-y-1 transition-all duration-300 flex flex-col">
+                  <div className="h-full bg-[var(--color-surface)] border border-[var(--color-border)] p-6 shadow-[var(--shadow-sm)] group-hover:shadow-[var(--shadow-md)] group-hover:-translate-y-1 transition-all duration-[var(--duration-normal)] flex flex-col">
                     <div className="flex-1 mb-6">
                       <p className="text-xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
                         &ldquo;{poem.preview}...&rdquo;
@@ -84,9 +83,7 @@ export default function MyPoemsPage() {
         {/* Past Games Section */}
         <section className="space-y-8">
           <div className="flex items-center gap-4">
-            <h2 className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-              Session History
-            </h2>
+            <Label as="h2">Session History</Label>
             <div className="h-px bg-[var(--color-border-subtle)] flex-1" />
           </div>
 
@@ -105,11 +102,11 @@ export default function MyPoemsPage() {
                           poem.roomDate || poem.createdAt
                         ).toLocaleDateString()}
                       </span>
-                      <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
+                      <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)] group-hover:underline transition-colors">
                         &ldquo;{poem.preview}...&rdquo;
                       </p>
                     </div>
-                    <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)]">
+                    <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:underline">
                       Open
                     </span>
                   </div>
