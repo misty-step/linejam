@@ -48,9 +48,12 @@ export function LoadingState({ message, className = '' }: LoadingStateProps) {
   return (
     <div
       className={`flex flex-col items-center justify-center gap-4 ${className}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
     >
       {/* Pulsing persimmon dot */}
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center" aria-hidden="true">
         <div className="w-3 h-3 bg-[var(--color-primary)] rounded-full animate-pulse" />
       </div>
 

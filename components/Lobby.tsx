@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
@@ -47,6 +48,7 @@ interface LobbyProps {
 }
 
 export function Lobby({ room, players, isHost }: LobbyProps) {
+  const router = useRouter();
   const { guestToken } = useUser();
   const startGameMutation = useMutation(api.game.startGame);
   const [error, setError] = useState<string | null>(null);
@@ -69,33 +71,57 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const needsMore = minPlayers - players.length;
   const canStart = players.length >= minPlayers;
 
+  const handleLeaveLobby = () => {
+    router.push('/');
+  };
+
   // Extract button rendering logic (DRY principle for strategic duplication)
   const renderButton = (className?: string) => {
     if (isHost) {
       return (
-        <Button
-          onClick={handleStartGame}
-          size="lg"
-          className={`w-full h-16 text-lg ${className || ''}`}
-          disabled={!canStart}
-          variant={canStart ? 'primary' : 'secondary'}
-        >
-          {canStart
-            ? 'Start Linejam'
-            : `Need ${needsMore} more Poet${needsMore !== 1 ? 's' : ''} to Jam`}
-        </Button>
+        <div className="space-y-3">
+          <Button
+            onClick={handleStartGame}
+            size="lg"
+            className={`w-full h-16 text-lg ${className || ''}`}
+            disabled={!canStart}
+            variant={canStart ? 'primary' : 'secondary'}
+          >
+            {canStart
+              ? 'Start Linejam'
+              : `Need ${needsMore} more Poet${needsMore !== 1 ? 's' : ''} to Jam`}
+          </Button>
+          <Button
+            onClick={handleLeaveLobby}
+            size="md"
+            className="w-full"
+            variant="ghost"
+          >
+            Leave Lobby
+          </Button>
+        </div>
       );
     }
 
     return (
-      <Button
-        disabled
-        size="lg"
-        className={`w-full h-16 text-lg opacity-50 cursor-not-allowed ${className || ''}`}
-        variant="secondary"
-      >
-        Waiting for Host...
-      </Button>
+      <div className="space-y-3">
+        <Button
+          disabled
+          size="lg"
+          className={`w-full h-16 text-lg opacity-50 cursor-not-allowed ${className || ''}`}
+          variant="secondary"
+        >
+          Waiting for Host...
+        </Button>
+        <Button
+          onClick={handleLeaveLobby}
+          size="md"
+          className="w-full"
+          variant="ghost"
+        >
+          Leave Lobby
+        </Button>
+      </div>
     );
   };
 

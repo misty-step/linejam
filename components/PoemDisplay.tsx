@@ -44,8 +44,9 @@ export function PoemDisplay({
   // Staggered reveal with rhythmic pause after line 4
   useEffect(() => {
     if (!alreadyRevealed && revealedCount < lines.length) {
-      // Calculate delay: base delay + extra pause after line 4
-      const extraDelay = revealedCount > PAUSE_AFTER_LINE ? PAUSE_DURATION : 0;
+      // Calculate delay: base delay + extra pause after line 4 (only when revealing line 5)
+      const extraDelay =
+        revealedCount === PAUSE_AFTER_LINE + 1 ? PAUSE_DURATION : 0;
       const delay = BASE_REVEAL_DELAY + extraDelay;
 
       const timer = setTimeout(() => {

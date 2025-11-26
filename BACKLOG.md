@@ -347,6 +347,70 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 ## Next (This Quarter, <3 months)
 
+### [UX] Mid-Game Exit Strategy
+
+**Status**: Needs UX decision
+**Complexity**: Medium
+**Perspectives**: user-experience-advocate, design-systems-architect
+**Description**: Add ability to leave room during WritingScreen and RevealPhase. Players currently have no way to abandon game mid-round or exit after viewing completed poem.
+
+**Current State**: Only Lobby has "Leave Lobby" button. Once game starts, no exit option.
+
+**Implementation Options**:
+
+1. **WritingScreen**: "Abandon Game" button with confirmation modal
+   - Warning: "Abandon game? Your submitted lines will remain."
+   - Navigates to `/` (home)
+   - Clear exit path for accidental joins
+
+2. **RevealPhase**: "Return Home" button after poem completion
+   - Placed with "Close" button
+   - Allows exit without browser back button
+
+**Blocked by**: Product decision on mid-game exit policy:
+
+- Should players be able to leave during active gameplay?
+- What happens to submitted lines if player leaves?
+- Should host have different permissions (can't abandon, must end game for all)?
+
+**Effort**: 2-3h (WritingScreen + RevealPhase + confirmation modal)
+**Impact**: Prevents user frustration from accidental joins, provides clear exit paths
+**Acceptance**: Players can leave from any game phase, appropriate warnings shown
+**Priority**: Medium
+
+---
+
+### [Documentation] Docstring Coverage Improvement
+
+**Status**: Deferred (warning-level, not blocking)
+**Complexity**: Low
+**Current**: 16.13% docstring coverage | **Target**: 80%
+**Perspectives**: maintainability-maven
+**Triggered by**: CodeRabbit pre-merge check on PR #6
+
+**Analysis**: This is a design system/UI PR, not API/library code. Most files are React components with JSX where docstrings provide limited value. Strategic focus should be on deep modules (errorFeedback.ts, LoadingState.tsx, etc.) rather than global percentage.
+
+**Approach**:
+
+1. Run `@coderabbitai generate docstrings` command in PR after merge
+2. Review generated docstrings for accuracy
+3. Focus on deep modules and exported utilities
+4. Accept lower coverage for pure UI components
+
+**Defer Rationale**:
+
+- Not blocking merge (warning-level check)
+- Better addressed systematically across codebase post-merge
+- Higher ROI to fix functional bugs first (pause logic, ARIA attributes)
+- UI components have self-documenting component APIs
+
+**Effort**: 1-2h (automated generation + review)
+**Impact**: Improved IDE autocomplete, onboarding documentation
+**Acceptance**: Critical modules (errorFeedback, LoadingState, deep modules) have comprehensive docstrings
+**Priority**: P3
+
+---
+
 ### [Architecture] Split game.ts god object into focused modules
 
 **File**: convex/game.ts (436 lines, 8 exports, 6 responsibilities)
