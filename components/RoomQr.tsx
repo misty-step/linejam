@@ -3,6 +3,7 @@
 import QRCode from 'react-qr-code';
 import { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
+import { captureError } from '@/lib/error';
 
 /**
  * Material Metaphor: QR as Physical Paper Artifact
@@ -50,7 +51,8 @@ export function RoomQr({ roomCode, className = '' }: RoomQrProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      captureError(err, { operation: 'clipboardCopy', joinUrl });
+      // Client-side error - Sentry will capture, no need for server logger
     }
   };
 

@@ -1,5 +1,6 @@
 import { useUser as useClerkUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
+import { captureError } from '@/lib/error';
 
 export function useUser() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useClerkUser();
@@ -24,7 +25,8 @@ export function useUser() {
         setIsLoaded(true);
       })
       .catch((error) => {
-        console.error('Failed to fetch guest session:', error);
+        captureError(error, { operation: 'fetchGuestSession' });
+        // Client-side error - Sentry will capture, no need for server logger
         setIsLoaded(true);
       });
   }, [isClerkLoaded]);

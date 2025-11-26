@@ -30,6 +30,8 @@
   "dependencies": {
     "@clerk/nextjs": "^6.35.2",
     "@sentry/nextjs": "^10.25.0",
+    "@vercel/analytics": "^1.5.0",
+    "@vercel/speed-insights": "^1.2.0",
     "clsx": "^2.1.1",
     "convex": "^1.29.2",
     "import-in-the-middle": "^2.0.0",

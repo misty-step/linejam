@@ -28,7 +28,10 @@ export async function getUser(
         .withIndex('by_guest', (q) => q.eq('guestId', guestId))
         .first();
     } catch (e) {
-      console.error('Invalid guest token:', e);
+      console.error('Invalid guest token:', {
+        error: e,
+        hasToken: !!guestToken,
+      });
       return null;
     }
   }
