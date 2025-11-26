@@ -259,6 +259,16 @@ h6 {
   animation: fade-in-up var(--duration-normal) var(--ease-mechanical) forwards;
 }
 
+/* Wipe Reveal Animation - Document unsealing (clip-path) */
+@keyframes wipe-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 /* Custom Caret - Persimmon color for ceremonial typing */
 textarea:focus {
   caret-color: var(--color-primary);
