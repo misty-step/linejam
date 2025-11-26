@@ -9,7 +9,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev": "npm-run-all --parallel dev:next dev:convex",
-    "dev:next": "next dev",
+    "dev:next": "next dev --turbopack",
     "dev:convex": "convex dev",
     "build": "npx convex deploy --cmd 'pnpm run build:check'",
     "build:check": "next build",

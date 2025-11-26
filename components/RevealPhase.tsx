@@ -175,7 +175,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                 size="lg"
                 className="w-full h-14"
               >
-                Start New Cycle
+                New Round
               </Button>
             )}
             <Link href="/me/poems" className="block">

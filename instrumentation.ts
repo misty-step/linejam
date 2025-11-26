@@ -8,6 +8,9 @@ import { isSentryEnabled } from './lib/sentry';
  */
 
 export async function register() {
+  // Skip Sentry in development entirely for faster startup
+  if (process.env.NODE_ENV === 'development') return;
+
   if (!isSentryEnabled) return;
 
   if (process.env.NEXT_RUNTIME === 'nodejs') {

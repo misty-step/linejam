@@ -18,8 +18,6 @@ export default function Home() {
             Write poems together.
             <br />
             One line at a time.
-            <br />
-            Reveal the unexpected.
           </p>
 
           {/* Action Buttons */}

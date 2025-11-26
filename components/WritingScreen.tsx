@@ -26,6 +26,14 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const [submissionState, setSubmissionState] = useState<
     'idle' | 'submitting' | 'confirmed' | 'waiting'
   >('idle');
+
+  // Pre-fetch waiting screen data during confirmation for smooth transition
+  // When submissionState becomes 'confirmed', Convex starts fetching getRoundProgress
+  // By the time we transition to WaitingScreen, data is already cached → no loading flash
+  const prefetchWaitingData = useQuery(
+    api.game.getRoundProgress,
+    submissionState === 'confirmed' ? { roomCode } : 'skip'
+  );
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -112,8 +120,8 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
       </div>
 
       <div className="w-full max-w-3xl space-y-16">
-        {/* Status Row - Right-aligned with normal flow */}
-        <div className="flex items-center justify-end gap-6 mb-12">
+        {/* Status Row - Justified between (left: round, right: counter) */}
+        <div className="flex items-center justify-between mb-12">
           <div className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
             Round {assignment.lineIndex + 1} / 9
           </div>
