@@ -1,9 +1,24 @@
-import { describe, it, expect } from 'vitest';
-import { GET } from '../../../app/api/guest/session/route';
+/** @vitest-environment node */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
+// Mock logger to avoid server-only import issues
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 describe('GET /api/guest/session', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   it('creates new guest session when no cookie exists', async () => {
+    const { GET } = await import('../../../app/api/guest/session/route');
     const request = new NextRequest('http://localhost:3000/api/guest/session');
     const response = await GET(request);
 
@@ -21,6 +36,7 @@ describe('GET /api/guest/session', () => {
   });
 
   it('returns existing guestId when valid cookie exists', async () => {
+    const { GET } = await import('../../../app/api/guest/session/route');
     // First request to create session
     const request1 = new NextRequest('http://localhost:3000/api/guest/session');
     const response1 = await GET(request1);
@@ -41,6 +57,7 @@ describe('GET /api/guest/session', () => {
   });
 
   it('creates new session when cookie is tampered', async () => {
+    const { GET } = await import('../../../app/api/guest/session/route');
     const request = new NextRequest('http://localhost:3000/api/guest/session');
     request.cookies.set('linejam_guest_token', 'tampered-invalid-token');
 

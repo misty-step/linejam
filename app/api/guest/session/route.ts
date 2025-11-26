@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signGuestToken, verifyGuestToken } from '@/lib/guestToken';
 import { randomUUID } from 'crypto';
+import { logger } from '@/lib/logger';
+import { captureError } from '@/lib/error';
 
 const COOKIE_NAME = 'linejam_guest_token';
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
@@ -17,7 +19,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ guestId, token: existingToken });
       } catch (error) {
         // Token invalid/expired - will create new one below
-        console.log('Invalid guest token, creating new one:', error);
+        logger.debug(
+          { error, operation: 'verifyGuestToken' },
+          'Invalid guest token, creating new one'
+        );
       }
     }
 
@@ -38,7 +43,11 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Guest session API error:', error);
+    captureError(error, { operation: 'createGuestSession' });
+    logger.error(
+      { error, operation: 'createGuestSession' },
+      'Guest session API error'
+    );
     return NextResponse.json(
       { error: 'Failed to create guest session' },
       { status: 500 }

@@ -13,7 +13,10 @@ function getSecret(): string {
     if (process.env.NODE_ENV === 'production') {
       // We can't easily throw here without crashing everything if env is missing,
       // but it will fail signature verification anyway if keys don't match.
-      console.error('GUEST_TOKEN_SECRET must be set in production environment');
+      console.error(
+        'GUEST_TOKEN_SECRET must be set in production environment',
+        { env: process.env.NODE_ENV }
+      );
     }
     return 'dev-only-insecure-secret-change-in-production';
   }
