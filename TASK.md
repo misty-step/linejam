@@ -15,7 +15,7 @@ logger.error({ error, roomCode, poemId }, 'Failed to submit line');
 ```
 
 **Effort**: 1h | **Impact**: Production debugging enabled
-**Acceptance**: Zero console.error in production code, all errors logged with context
+**Acceptance**: Zero console.error in Next.js production code (app/, lib/, components/). Convex functions use structured console.error due to v8 isolate runtime constraints. All errors logged with context
 
 ---
 
