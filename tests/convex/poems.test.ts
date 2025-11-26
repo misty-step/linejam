@@ -410,7 +410,11 @@ describe('poems', () => {
 
       // Assert
       expect(result).toHaveLength(3);
-      expect(result.map((p) => p.roomId)).toEqual(['room1', 'room2', 'room1']);
+      expect(result.map((p: { roomId: string }) => p.roomId)).toEqual([
+        'room1',
+        'room2',
+        'room1',
+      ]);
     });
 
     it('sorts poems by date descending', async () => {
@@ -456,7 +460,11 @@ describe('poems', () => {
       });
 
       // Assert
-      expect(result.map((p) => p._id)).toEqual(['poem2', 'poem3', 'poem1']);
+      expect(result.map((p: { _id: string }) => p._id)).toEqual([
+        'poem2',
+        'poem3',
+        'poem1',
+      ]);
     });
 
     it('includes roomDate from room', async () => {
