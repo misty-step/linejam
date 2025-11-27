@@ -164,6 +164,29 @@ describe('game', () => {
   });
 
   describe('getCurrentAssignment', () => {
+    it('returns null if user not found', async () => {
+      mockGetUser.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+      expect(result).toBeNull();
+    });
+
+    it('returns null if room not found', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.first.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+      expect(result).toBeNull();
+    });
+
     it('returns null if no game in progress', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockDb.first.mockResolvedValue({
@@ -177,6 +200,108 @@ describe('game', () => {
         guestToken: 'token',
       });
       expect(result).toBeNull();
+    });
+
+    it('returns null if game status not IN_PROGRESS', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.first.mockResolvedValue({
+        _id: 'room1',
+        currentGameId: 'game1',
+      });
+      mockDb.get.mockResolvedValue({
+        _id: 'game1',
+        status: 'COMPLETED',
+      });
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+      expect(result).toBeNull();
+    });
+
+    it('returns null if user not in assignment matrix', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user3' });
+      mockDb.first.mockResolvedValue({
+        _id: 'room1',
+        currentGameId: 'game1',
+      });
+      mockDb.get.mockResolvedValue({
+        _id: 'game1',
+        status: 'IN_PROGRESS',
+        currentRound: 0,
+        assignmentMatrix: [['user1', 'user2']], // user3 not in matrix
+      });
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+      expect(result).toBeNull();
+    });
+
+    it('returns null if poem not found', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      // First call returns room
+      mockDb.first.mockResolvedValueOnce({
+        _id: 'room1',
+        currentGameId: 'game1',
+      });
+      mockDb.get.mockResolvedValue({
+        _id: 'game1',
+        status: 'IN_PROGRESS',
+        currentRound: 0,
+        assignmentMatrix: [['user1', 'user2']],
+      });
+      // Second call returns null for poem
+      mockDb.first.mockResolvedValueOnce(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+      expect(result).toBeNull();
+    });
+
+    it('returns assignment with previous line for round > 0', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      // First call returns room
+      mockDb.first
+        .mockResolvedValueOnce({
+          _id: 'room1',
+          currentGameId: 'game1',
+        })
+        // Second call returns poem
+        .mockResolvedValueOnce({
+          _id: 'poem1',
+        })
+        // Third call returns previous line
+        .mockResolvedValueOnce({
+          text: 'Previous line text',
+        });
+
+      mockDb.get.mockResolvedValue({
+        _id: 'game1',
+        status: 'IN_PROGRESS',
+        currentRound: 2, // Round 2
+        assignmentMatrix: [[], [], ['user1', 'user2']],
+      });
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toEqual({
+        poemId: 'poem1',
+        lineIndex: 2,
+        targetWordCount: 3, // WORD_COUNTS[2]
+        previousLineText: 'Previous line text',
+      });
     });
   });
 
@@ -197,6 +322,144 @@ describe('game', () => {
           guestToken: 'token',
         })
       ).rejects.toThrow('Game not in progress');
+    });
+
+    it('throws if word count is incorrect', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 2, // Round 2 expects 3 words
+          assignmentMatrix: [[], [], ['user1', 'user2']],
+        }); // game
+
+      await expect(
+        // @ts-expect-error - calling handler
+        submitLine.handler(mockCtx, {
+          poemId: 'poem1',
+          lineIndex: 2,
+          text: 'hello world', // Only 2 words, expected 3
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Expected 3 words, got 2');
+    });
+
+    it('throws if line already submitted', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user1', 'user2']],
+        }); // game
+
+      // Mock duplicate check - line already exists
+      mockDb.first.mockResolvedValue({ _id: 'existing-line' });
+
+      await expect(
+        // @ts-expect-error - calling handler
+        submitLine.handler(mockCtx, {
+          poemId: 'poem1',
+          lineIndex: 0,
+          text: 'hello',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Already submitted');
+    });
+
+    it('throws if user not assigned to this poem', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user2', 'user3']], // user1 not assigned
+        }); // game
+
+      await expect(
+        // @ts-expect-error - calling handler
+        submitLine.handler(mockCtx, {
+          poemId: 'poem1',
+          lineIndex: 0,
+          text: 'hello',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Not your turn');
+    });
+
+    it('throws if wrong round', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0, // Currently round 0
+          assignmentMatrix: [['user1', 'user2']],
+        }); // game
+
+      await expect(
+        // @ts-expect-error - calling handler
+        submitLine.handler(mockCtx, {
+          poemId: 'poem1',
+          lineIndex: 1, // Trying to submit for round 1
+          text: 'hello world',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Wrong round');
+    });
+
+    it('throws if poem from different game', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game-different', // Poem belongs to different game
+        }) // poem
+        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user1', 'user2']],
+        }); // game
+
+      await expect(
+        // @ts-expect-error - calling handler
+        submitLine.handler(mockCtx, {
+          poemId: 'poem1',
+          lineIndex: 0,
+          text: 'hello',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Poem from different game');
     });
 
     it('submits line successfully', async () => {
@@ -240,6 +503,94 @@ describe('game', () => {
   });
 
   describe('getRevealPhaseState', () => {
+    it('returns null if user not found', async () => {
+      mockGetUser.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getRevealPhaseState.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null if room not completed', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.first.mockResolvedValue({
+        _id: 'room1',
+        status: 'IN_PROGRESS',
+        currentGameId: 'game1',
+      });
+
+      // @ts-expect-error - calling handler
+      const result = await getRevealPhaseState.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null if game not found', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.first.mockResolvedValue({
+        _id: 'room1',
+        status: 'COMPLETED',
+        currentGameId: 'game1',
+      });
+      mockDb.get.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getRevealPhaseState.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns state with no assigned poem for user', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+
+      // Mock sequence of calls
+      // 1. Room query
+      mockDb.first.mockResolvedValueOnce({
+        _id: 'room1',
+        status: 'COMPLETED',
+        currentGameId: 'game1',
+        hostUserId: 'user2', // user1 is not host
+      });
+
+      // 2. Game get
+      mockDb.get.mockResolvedValueOnce({ _id: 'game1' });
+
+      // 3. Poems query - no poems assigned to user1
+      mockDb.collect.mockResolvedValueOnce([
+        { _id: 'poem1', assignedReaderId: 'user2', indexInRoom: 0 },
+      ]);
+
+      // 4. Players query
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: 'user1', displayName: 'User 1' },
+        { userId: 'user2', displayName: 'User 2' },
+      ]);
+
+      // 5. First line query (preview)
+      mockDb.first.mockResolvedValueOnce({ text: 'Line 1' });
+
+      // @ts-expect-error - calling handler
+      const result = await getRevealPhaseState.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toBeTruthy();
+      expect(result.isHost).toBe(false);
+      expect(result.poems).toHaveLength(1);
+      expect(result.myPoem).toBeNull();
+    });
+
     it('returns state when room is completed', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
 

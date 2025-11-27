@@ -96,4 +96,73 @@ describe('ensureUserHelper', () => {
       ensureUserHelper(mockCtx, { displayName: 'Nameless' })
     ).rejects.toBeInstanceOf(ConvexError);
   });
+
+  it('creates Clerk user when Clerk identity present', async () => {
+    mockGetUser.mockResolvedValue(null);
+    mockCtx.auth.getUserIdentity.mockResolvedValue({
+      subject: 'clerk_user_123',
+      email: 'test@example.com',
+    });
+    mockDb.insert.mockResolvedValue('user3');
+    mockDb.get.mockResolvedValue({
+      _id: 'user3',
+      clerkUserId: 'clerk_user_123',
+      displayName: 'Clerk User',
+      createdAt: 123,
+    });
+
+    const user = await ensureUserHelper(mockCtx, {
+      displayName: 'Clerk User',
+    });
+
+    expect(mockDb.insert).toHaveBeenCalledWith(
+      'users',
+      expect.objectContaining({
+        clerkUserId: 'clerk_user_123',
+        displayName: 'Clerk User',
+      })
+    );
+    expect(user.clerkUserId).toBe('clerk_user_123');
+  });
+
+  it('normalizes displayName with multiple spaces', async () => {
+    const guestId = 'multi-space-guest';
+    const guestToken = await signGuestToken(guestId);
+
+    mockGetUser.mockResolvedValue(null);
+    mockDb.insert.mockResolvedValue('user4');
+    mockDb.get.mockResolvedValue({
+      _id: 'user4',
+      guestId,
+      displayName: 'John Doe',
+      createdAt: 123,
+    });
+
+    const user = await ensureUserHelper(mockCtx, {
+      displayName: '  John   Doe  ',
+      guestToken,
+    });
+
+    expect(mockDb.insert).toHaveBeenCalledWith(
+      'users',
+      expect.objectContaining({
+        displayName: 'John Doe', // Multiple spaces collapsed to single
+      })
+    );
+    expect(user.displayName).toBe('John Doe');
+  });
+
+  it('throws when displayName is empty after trimming', async () => {
+    const guestId = 'empty-name-guest';
+    const guestToken = await signGuestToken(guestId);
+
+    mockGetUser.mockResolvedValue(null);
+
+    await expect(
+      ensureUserHelper(mockCtx, {
+        displayName: '   ',
+        guestToken,
+      })
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
 });
