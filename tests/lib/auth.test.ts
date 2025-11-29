@@ -34,7 +34,7 @@ describe('useUser hook', () => {
     mockFetch = vi.fn().mockResolvedValue({
       json: async () => ({ guestId: 'default-guest', token: 'default-token' }),
     });
-    global.fetch = mockFetch;
+    global.fetch = mockFetch as typeof fetch;
   });
 
   afterEach(() => {
