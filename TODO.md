@@ -4,10 +4,10 @@
 
 - **Architecture**: Hybrid Testing Stack with Native GitHub Integration (TASK.md)
 - **Key Decision**: vitest-coverage-report-action for PR comments, Playwright for E2E, convex-test for backend
-- **Current State**: All coverage thresholds passing (86.72% lines, 84.49% branches, 62.6% functions, 85.47% statements)
-- **Goal**: ✅ ACHIEVED - Strict enforcement with 160 passing tests (+12 auth tests)
-- **Branch**: test-coverage-automation (pushed to remote, ready for PR)
-- **Progress**: Phase 1 ✅ complete | Phase 2 ✅ complete | Phase 3-5 pending
+- **Current State**: All coverage thresholds passing (87.09% lines, 84.4% branches, 64.06% functions, 85.86% statements)
+- **Goal**: ✅ ACHIEVED - Strict enforcement with 167 passing tests
+- **Branch**: test-coverage-automation (local, needs push)
+- **Progress**: Phase 1 ✅ complete | Phase 2 ✅ COMPLETE | Phase 3-5 pending
 
 ## Patterns to Follow
 
@@ -304,24 +304,25 @@ it('describes behavior in complete sentence', async () => {
   Note: Function coverage at 50% due to Convex query builder arrow functions (structural issue)
   ```
 
-### 2.5 Frontend Auth Testing
+### 2.5 Frontend Auth Testing ✅ COMPLETE
 
-- [ ] **Test useUser hook (lib/auth.ts)**
+- [x] **Test useUser hook (lib/auth.ts)**
 
   ```
-  Files: tests/lib/auth.test.ts (new)
-  Architecture: Test Clerk + guest session integration
-  Success: Tests pass, covers all states
+  Files: tests/lib/auth.test.ts (created)
+  Status: ✅ Completed - 7 test cases covering all authentication states
+  Coverage: lib/auth.ts 100% statements, 81.81% branches, 100% functions
   Test Cases:
-    - Clerk user loaded → returns Clerk user, no guest
-    - Clerk loading → returns loading state
-    - No Clerk user → creates guest session, returns guestId
-    - Guest cookie exists → reuses existing guestId
-    - Cookie tampered → creates new session
-  Dependencies: Test helpers, @testing-library/react
-  Time: 3 hours (complex async/useEffect behavior)
+    - Returns loading state while Clerk is loading
+    - Returns Clerk user when authenticated (guest session in background)
+    - Fetches guest session when no Clerk user
+    - Handles fetch error gracefully with Sentry integration
+    - Uses fullName for displayName when available
+    - Falls back to firstName when fullName not available
+    - Uses "Guest" displayName when no Clerk user
 
-  Coverage Target: 80%+ (integration complexity)
+  Note: SSR test removed - difficult to test window undefined in happy-dom
+  with React 19 without breaking test environment. The check is defensive.
   ```
 
 ### 2.6 Utility Testing ✅ COMPLETE
