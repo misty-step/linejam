@@ -5,9 +5,9 @@
 - **Architecture**: Hybrid Testing Stack with Native GitHub Integration (TASK.md)
 - **Key Decision**: vitest-coverage-report-action for PR comments, Playwright for E2E, convex-test for backend
 - **Current State**: All coverage thresholds passing (87.09% lines, 84.4% branches, 64.06% functions, 85.86% statements)
-- **Goal**: ✅ ACHIEVED - Strict enforcement with 193 passing tests
+- **Goal**: ✅ ACHIEVED - Strict enforcement with 211 passing tests
 - **Branch**: test-coverage-automation
-- **Progress**: Phase 1 ✅ | Phase 2 ✅ | Phase 3.1-3.2 ✅ | Phase 3.3-5 pending
+- **Progress**: Phase 1 ✅ | Phase 2 ✅ | Phase 3.1-3.3 ✅ | Phase 3.4-5 pending
 
 ## Patterns to Follow
 
@@ -462,21 +462,33 @@ it('describes behavior in complete sentence', async () => {
   Notes: Mocks Convex useQuery/useMutation, auth hook, error capture
   ```
 
-- [ ] **Test RevealPhase component**
+- [x] **Test RevealPhase component** ✅ COMPLETE
 
   ```
-  Files: tests/components/RevealPhase.test.tsx (new)
-  Architecture: Test poem display, favorite toggle
-  Success: Tests pass, validates reveal logic
+  Files: tests/components/RevealPhase.test.tsx (created)
+  Architecture: Test poem display, reveal flow, host actions
+  Success: 18 tests passing, validates all reveal phase logic
   Test Cases:
-    - Displays poem with lines in order
-    - Favorite toggle updates UI optimistically
-    - Navigation between poems works
-    - Author names displayed correctly
-  Dependencies: @testing-library/react, user-event
-  Time: 2.5 hours
-
-  Coverage Target: 70%+ (components lower ROI than logic)
+    ✅ Displays loading state while fetching
+    ✅ Displays poem status list with reader names
+    ✅ Shows revealed status with checkmark for revealed poems
+    ✅ Shows unrevealed status with dot for unrevealed poems
+    ✅ Displays my poem preview when not revealed
+    ✅ Shows Reveal & Read button for unrevealed poem
+    ✅ Calls revealPoem mutation when Reveal button clicked
+    ✅ Shows Unsealing... during reveal mutation
+    ✅ Displays Session Complete when all revealed
+    ✅ Shows New Round button for host when all revealed
+    ✅ Does not show New Round button for non-host
+    ✅ Calls startNewCycle mutation when New Round clicked
+    ✅ Shows Archive link when all revealed
+    ✅ Shows Exit Room link when all revealed
+    ✅ Shows Re-Read My Poem button when poem already revealed
+    ✅ Displays error when reveal mutation fails
+    ✅ Displays error when startNewCycle mutation fails
+    ✅ Shows QR code when all revealed for inviting to next cycle
+  Dependencies: @testing-library/react, @testing-library/user-event
+  Notes: Uses call-order tracking for useMutation mock
   ```
 
 ### 3.2 UI Primitive Testing (Selective)
