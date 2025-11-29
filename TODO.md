@@ -493,20 +493,22 @@ it('describes behavior in complete sentence', async () => {
 
 ### 3.2 UI Primitive Testing (Selective)
 
-- [ ] **Test complex UI primitives only**
+- [x] **Test complex UI primitives only** ✅ COMPLETE
 
   ```
-  Files: tests/components/EnsoCounter.test.tsx (new, if needed)
-  Architecture: Test components with animation state or complex logic
-  Success: Tests pass for components with logic
-  Test Cases (if applicable):
-    - EnsoCounter: animation state transitions
-    - StampAnimation: SVG manipulation logic
-  Skip: Button, Card, Input, Alert (pure wrappers)
+  Files: tests/components/ui/EnsoCounter.test.tsx (created)
+  Architecture: Test components with complex logic only
+  Success: 7 tests passing, 100% coverage on EnsoCounter
+  Test Cases:
+    ✅ Displays current and target counts
+    ✅ Shows success color when current equals target
+    ✅ Shows error color when current exceeds target
+    ✅ Shows muted color when current is less than target
+    ✅ Handles zero target gracefully
+    ✅ Accepts custom className
+    ✅ Renders SVG progress circle
+  Skipped: StampAnimation (pure CSS wrapper), Button, Card, Input, Alert (pure wrappers)
   Dependencies: @testing-library/react
-  Time: 2 hours
-
-  Coverage Target: 50%+ (selective testing)
   ```
 
 ### 3.3 API Route Testing Completion

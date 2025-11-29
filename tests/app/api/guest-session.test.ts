@@ -72,4 +72,31 @@ describe('GET /api/guest/session', () => {
     const guestCookie = cookies.find((c) => c.name === 'linejam_guest_token');
     expect(guestCookie?.value).not.toBe('tampered-invalid-token');
   });
+
+  it('returns 500 when token signing fails', async () => {
+    // Mock signGuestToken to throw
+    vi.doMock('@/lib/guestToken', () => ({
+      signGuestToken: vi.fn().mockRejectedValue(new Error('Signing failed')),
+      verifyGuestToken: vi.fn().mockRejectedValue(new Error('Invalid token')),
+    }));
+
+    // Mock captureError
+    const mockCaptureError = vi.fn();
+    vi.doMock('@/lib/error', () => ({
+      captureError: mockCaptureError,
+    }));
+
+    const { GET } = await import('../../../app/api/guest/session/route');
+    const request = new NextRequest('http://localhost:3000/api/guest/session');
+
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.error).toBe('Failed to create guest session');
+    expect(mockCaptureError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ operation: 'createGuestSession' })
+    );
+  });
 });
