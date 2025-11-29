@@ -5,9 +5,9 @@
 - **Architecture**: Hybrid Testing Stack with Native GitHub Integration (TASK.md)
 - **Key Decision**: vitest-coverage-report-action for PR comments, Playwright for E2E, convex-test for backend
 - **Current State**: All coverage thresholds passing (87.09% lines, 84.4% branches, 64.06% functions, 85.86% statements)
-- **Goal**: ✅ ACHIEVED - Strict enforcement with 178 passing tests
+- **Goal**: ✅ ACHIEVED - Strict enforcement with 193 passing tests
 - **Branch**: test-coverage-automation
-- **Progress**: Phase 1 ✅ complete | Phase 2 ✅ COMPLETE | Phase 3.1 ✅ COMPLETE | Phase 3.2-5 pending
+- **Progress**: Phase 1 ✅ | Phase 2 ✅ | Phase 3.1-3.2 ✅ | Phase 3.3-5 pending
 
 ## Patterns to Follow
 
@@ -437,21 +437,29 @@ it('describes behavior in complete sentence', async () => {
   Notes: Handles dual button rendering (desktop + mobile)
   ```
 
-- [ ] **Test WritingScreen component**
+- [x] **Test WritingScreen component** ✅ COMPLETE
 
   ```
-  Files: tests/components/WritingScreen.test.tsx (new)
+  Files: tests/components/WritingScreen.test.tsx (created)
   Architecture: Test word count validation, submit state
-  Success: Tests pass, validates user input logic
+  Success: 15 tests passing, validates all user input logic
   Test Cases:
-    - Word count validation: "hello world" → 2 words
-    - Submit button disabled when word count wrong
-    - Submit button enabled when word count correct
-    - Previous line displays correctly
-    - Error feedback shown for over/under word count
-    - Correct round constraint enforced (1,2,3,4,5,4,3,2,1)
-  Dependencies: @testing-library/react, user-event
-  Time: 3.5 hours
+    ✅ Round information displays correctly
+    ✅ Textarea has correct aria-label for word count
+    ✅ EnsoCounter shows word count validation
+    ✅ Word count updates as user types
+    ✅ Submit button disabled when word count wrong
+    ✅ Submit button enabled when word count correct
+    ✅ Previous line displays correctly
+    ✅ Diamond pattern round constraint enforced (1,2,3,4,5,4,3,2,1)
+    ✅ submitLine mutation called with correct args
+    ✅ "Sealing..." shown during submission
+    ✅ Confirmation message after success (with curly quotes)
+    ✅ Error feedback shown on submission failure
+    ✅ WaitingScreen rendered when no assignment
+    ✅ aria-invalid attribute states
+  Dependencies: @testing-library/react, @testing-library/user-event
+  Notes: Mocks Convex useQuery/useMutation, auth hook, error capture
   ```
 
 - [ ] **Test RevealPhase component**
