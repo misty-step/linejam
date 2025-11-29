@@ -5,9 +5,9 @@
 - **Architecture**: Hybrid Testing Stack with Native GitHub Integration (TASK.md)
 - **Key Decision**: vitest-coverage-report-action for PR comments, Playwright for E2E, convex-test for backend
 - **Current State**: All coverage thresholds passing (87.09% lines, 84.4% branches, 64.06% functions, 85.86% statements)
-- **Goal**: ✅ ACHIEVED - Strict enforcement with 167 passing tests
-- **Branch**: test-coverage-automation (local, needs push)
-- **Progress**: Phase 1 ✅ complete | Phase 2 ✅ COMPLETE | Phase 3-5 pending
+- **Goal**: ✅ ACHIEVED - Strict enforcement with 178 passing tests
+- **Branch**: test-coverage-automation
+- **Progress**: Phase 1 ✅ complete | Phase 2 ✅ COMPLETE | Phase 3.1 ✅ COMPLETE | Phase 3.2-5 pending
 
 ## Patterns to Follow
 
@@ -415,20 +415,26 @@ it('describes behavior in complete sentence', async () => {
 
 ### 3.1 Game Component Testing
 
-- [ ] **Test Lobby component**
+- [x] **Test Lobby component** ✅ COMPLETE
 
   ```
-  Files: tests/components/Lobby.test.tsx (new)
+  Files: tests/components/Lobby.test.tsx (created)
   Architecture: Test room code display, player list, Start Game button
-  Success: Tests pass, covers stateful logic
+  Success: 11 tests passing, covers all stateful logic
   Test Cases:
-    - Displays room code correctly
-    - Renders player list from room state
-    - Start Game button disabled with <2 players
-    - Start Game button enabled with ≥2 players
-    - QR code component rendered when requested
-  Dependencies: @testing-library/react
-  Time: 3 hours
+    ✅ Displays room code correctly (formatted with space)
+    ✅ Renders player list from room state
+    ✅ Start Game button disabled with <2 players
+    ✅ Start Game button enabled with ≥2 players
+    ✅ QR code component rendered when host (via "Scan to Join" text)
+    ✅ QR code not rendered when not host
+    ✅ Calls startGame mutation on click
+    ✅ Error message displays via errorToFeedback
+    ✅ Waiting for Host button for non-hosts
+    ✅ Leave Lobby navigation
+    ✅ Host badge rendering
+  Dependencies: @testing-library/react, @testing-library/user-event
+  Notes: Handles dual button rendering (desktop + mobile)
   ```
 
 - [ ] **Test WritingScreen component**
