@@ -610,7 +610,7 @@ it('describes behavior in complete sentence', async () => {
 
 ### 4.4 Favorites Flow E2E
 
-- [ ] **Test favorite toggle and list**
+- [x] **Test favorite toggle and list**
 
   ```
   Files: tests/e2e/favorites.spec.ts (new)
