@@ -146,7 +146,7 @@ jobs:
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      GUEST_TOKEN_SECRET: 'dev-only-insecure-secret-change-in-production'
+      GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -164,6 +164,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Require GUEST_TOKEN_SECRET
+        run: |
+          if [ -z "$GUEST_TOKEN_SECRET" ]; then
+            echo "GUEST_TOKEN_SECRET is not set; add it to repository secrets."
+            exit 1
+          fi
 
       - name: Build
         run: pnpm build:check

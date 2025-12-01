@@ -15,8 +15,12 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
 // Run tests serially since they depend on shared state (cookies)
 test.describe.configure({ mode: 'serial' });
 
-// TODO: Enable when GUEST_TOKEN_SECRET is synchronized in Convex Dashboard
-test.fixme();
+// Require matching guest token secret so Convex can verify tokens issued by Next
+const missingGuestTokenSecret = !process.env.GUEST_TOKEN_SECRET;
+test.skip(
+  missingGuestTokenSecret,
+  'Set GUEST_TOKEN_SECRET (same as Convex dashboard) to run auth E2E'
+);
 
 test.describe('Guest Session API', () => {
   test('returns guestId and token on first request', async ({ page }) => {
