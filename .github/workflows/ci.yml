@@ -146,7 +146,7 @@ jobs:
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      GUEST_TOKEN_SECRET: 'linejam-secret-key-for-development'
+      GUEST_TOKEN_SECRET: 'dev-only-insecure-secret-change-in-production'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

@@ -21,9 +21,9 @@ function getSecret(): string {
         env: process.env.NODE_ENV,
       });
       // Fallback for CI if env var propagation fails, to avoid 500
-      return 'linejam-secret-key-for-development';
+      return 'dev-only-insecure-secret-change-in-production';
     }
-    return 'linejam-secret-key-for-development';
+    return 'dev-only-insecure-secret-change-in-production';
   }
   console.log(`GUEST_TOKEN_SECRET loaded (length: ${secret.length})`);
   return secret;

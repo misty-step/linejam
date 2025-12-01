@@ -13,7 +13,7 @@ function getSecret(): string {
     console.warn(
       'GUEST_TOKEN_SECRET not set - using development default (INSECURE)'
     );
-    return 'linejam-secret-key-for-development';
+    return 'dev-only-insecure-secret-change-in-production';
   }
   return secret;
 }
