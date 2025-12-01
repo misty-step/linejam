@@ -8,8 +8,16 @@ interface GuestTokenPayload {
 function getSecret(): string {
   const secret = process.env.GUEST_TOKEN_SECRET;
   if (!secret) {
-    // In production, this should probably be strict, but for dev/local consistency
-    // we'll match the Next.js behavior or use a default for dev.
+    // Detect Convex production via CONVEX_CLOUD_URL
+    const isProduction = process.env.CONVEX_CLOUD_URL?.includes('convex.cloud');
+
+    if (isProduction) {
+      throw new Error(
+        'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
+          'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
+      );
+    }
+
     console.warn(
       'GUEST_TOKEN_SECRET not set - using development default (INSECURE)'
     );
