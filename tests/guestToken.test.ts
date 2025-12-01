@@ -40,9 +40,9 @@ describe('guestToken', () => {
       const guestId = 'test-guest-abc';
       const token = await signGuestToken(guestId);
 
-      // Tamper with signature
+      // Tamper with signature (reverse it to ensure it's invalid)
       const [payload, signature] = token.split('.');
-      const tamperedSignature = 'X' + signature.slice(1);
+      const tamperedSignature = signature.split('').reverse().join('');
       const tamperedToken = `${payload}.${tamperedSignature}`;
 
       await expect(verifyGuestToken(tamperedToken)).rejects.toThrow(

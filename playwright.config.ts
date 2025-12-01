@@ -54,7 +54,7 @@ export default defineConfig({
 
   webServer: {
     command: process.env.CI
-      ? `PORT=${PORT} pnpm start:next`
+      ? `PORT=${PORT} GUEST_TOKEN_SECRET=${process.env.GUEST_TOKEN_SECRET} pnpm start:next`
       : `PORT=${PORT} pnpm dev`,
 
     url: `http://localhost:${PORT}`,
