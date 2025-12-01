@@ -14,14 +14,10 @@ interface GuestTokenPayload {
 function getSecret(): string {
   const secret = process.env.GUEST_TOKEN_SECRET;
   if (!secret) {
-    // In production, this should probably be strict, but for dev/local consistency
-    // we'll match the Next.js behavior or use a default for dev.
     if (process.env.NODE_ENV === 'production') {
-      console.error('GUEST_TOKEN_SECRET missing in production', {
-        env: process.env.NODE_ENV,
-      });
-      // Fallback for CI if env var propagation fails, to avoid 500
-      return 'dev-only-insecure-secret-change-in-production';
+      throw new Error(
+        'GUEST_TOKEN_SECRET must be set in production environment'
+      );
     }
     return 'dev-only-insecure-secret-change-in-production';
   }
