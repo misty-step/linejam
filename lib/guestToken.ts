@@ -25,7 +25,6 @@ function getSecret(): string {
     }
     return 'dev-only-insecure-secret-change-in-production';
   }
-  console.log(`GUEST_TOKEN_SECRET loaded (length: ${secret.length})`);
   return secret;
 }
 
