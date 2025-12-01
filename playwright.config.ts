@@ -54,7 +54,7 @@ export default defineConfig({
 
   webServer: {
     command: process.env.CI
-      ? `PORT=${PORT} NEXT_PUBLIC_CONVEX_URL=${process.env.NEXT_PUBLIC_CONVEX_URL} NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} pnpm dev:next`
+      ? `PORT=${PORT} pnpm start:next`
       : `PORT=${PORT} pnpm dev`,
 
     url: `http://localhost:${PORT}`,
