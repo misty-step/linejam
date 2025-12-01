@@ -106,23 +106,6 @@ export const CI_COMMIT_SHA_ENV_VARS = [
 
 ---
 
-### [UX] Replace alert() with inline errors ⚠️ MULTI-AGENT
-
-**Files**: components/Lobby.tsx:22, components/WritingScreen.tsx:59
-**Perspectives**: user-experience-advocate, design-systems-architect
-**Impact**: Browser alerts are jarring, break Zen aesthetic, can't be styled. Current: `alert('Only the host can start the game!')`
-**Fix**: Add error state and inline error display:
-
-```typescript
-const [error, setError] = useState('');
-// Show: <p className="text-sm text-[var(--color-error)]">{error}</p>
-```
-
-**Effort**: 30m total | **Impact**: Maintains aesthetic, better UX
-**Acceptance**: Zero alert() calls in codebase
-
----
-
 ### [UX] Silent failure on room creation
 
 **File**: app/host/page.tsx:35-38
