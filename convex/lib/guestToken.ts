@@ -10,15 +10,10 @@ function getSecret(): string {
   if (!secret) {
     // In production, this should probably be strict, but for dev/local consistency
     // we'll match the Next.js behavior or use a default for dev.
-    if (process.env.NODE_ENV === 'production') {
-      // We can't easily throw here without crashing everything if env is missing,
-      // but it will fail signature verification anyway if keys don't match.
-      console.error(
-        'GUEST_TOKEN_SECRET must be set in production environment',
-        { env: process.env.NODE_ENV }
-      );
-    }
-    return 'dev-only-insecure-secret-change-in-production';
+    console.warn(
+      'GUEST_TOKEN_SECRET not set - using development default (INSECURE)'
+    );
+    return 'linejam-secret-key-for-development';
   }
   return secret;
 }
