@@ -16,6 +16,9 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Join Room Error Handling', () => {
+  // TODO: Enable when GUEST_TOKEN_SECRET is synchronized in Convex Dashboard
+  test.fixme();
+
   test('shows error for invalid room code', async ({ page }) => {
     // Navigate to join page with invalid code
     await page.goto('/join?code=ZZZZ', { waitUntil: 'networkidle' });
