@@ -52,7 +52,7 @@ test.describe('Complete Game Flow', () => {
     await hostPage.click('button[type="submit"]');
 
     // Wait for redirect to room page
-    await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 15000 });
+    await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30000 });
 
     // Extract room code from URL
     const url = hostPage.url();

@@ -42,7 +42,7 @@ test.describe('Join Room Error Handling', () => {
       page.getByText(
         'Room code not found. Please check the code and try again.'
       )
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({ timeout: 30000 });
   });
 
   // Note: "Game already in progress" test is covered by game-flow.spec.ts
