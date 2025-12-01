@@ -36,6 +36,11 @@ test.describe('Complete Game Flow', () => {
   });
 
   test('host creates room and gets room code', async () => {
+    // Enable console logging for debugging CI failures
+    hostPage.on('console', (msg) =>
+      console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`)
+    );
+
     // Navigate to host page
     await hostPage.goto('/host', { waitUntil: 'networkidle' });
 
