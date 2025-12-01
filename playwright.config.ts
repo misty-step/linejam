@@ -51,12 +51,16 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
+
   webServer: {
     command: process.env.CI
-      ? `PORT=${PORT} pnpm dev:next`
+      ? `PORT=${PORT} NEXT_PUBLIC_CONVEX_URL=${process.env.NEXT_PUBLIC_CONVEX_URL} NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} pnpm dev:next`
       : `PORT=${PORT} pnpm dev`,
+
     url: `http://localhost:${PORT}`,
+
     reuseExistingServer: !process.env.CI,
+
     timeout: 120000,
   },
 });
