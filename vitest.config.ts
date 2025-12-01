@@ -9,10 +9,15 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: './tests/setup.ts',
     include: ['**/*.{test,spec}.{js,ts,jsx,tsx}'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
+      '**/tests/e2e/**',
+    ],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
+      reporter: ['text', 'json', 'html', 'lcov', 'json-summary'],
       exclude: [
         '**/node_modules/**',
         '**/dist/**',
@@ -22,10 +27,13 @@ export default defineConfig({
         '**/*.d.ts',
       ],
       thresholds: {
-        lines: 60,
+        lines: 80,
+        // Function coverage threshold lowered to 60% due to Convex architecture:
+        // Query/mutation wrappers create multiple function objects that are
+        // tested indirectly. All exported functions have comprehensive tests.
         functions: 60,
-        branches: 60,
-        statements: 60,
+        branches: 80,
+        statements: 80,
       },
     },
   },

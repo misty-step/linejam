@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { checkRateLimit } from '../../convex/lib/rateLimit';
+import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
 
 describe('checkRateLimit', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -8,14 +9,8 @@ describe('checkRateLimit', () => {
   let mockCtx: any;
 
   beforeEach(() => {
-    mockDb = {
-      query: vi.fn(() => mockDb),
-      withIndex: vi.fn(() => mockDb),
-      first: vi.fn(),
-      patch: vi.fn(),
-      insert: vi.fn(),
-    };
-    mockCtx = { db: mockDb };
+    mockDb = createMockDb();
+    mockCtx = createMockCtx(mockDb);
   });
 
   it('allows request when no limit exists', async () => {

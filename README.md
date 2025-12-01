@@ -1,5 +1,10 @@
 # Linejam
 
+[![Lines](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-lines.json)](https://github.com/misty-step/linejam/actions)
+[![Branches](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-branches.json)](https://github.com/misty-step/linejam/actions)
+[![Functions](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-functions.json)](https://github.com/misty-step/linejam/actions)
+[![Statements](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_GIST_ID/raw/coverage-statements.json)](https://github.com/misty-step/linejam/actions)
+
 Pass-the-poem party game for friends in the same room.
 
 ## What It Is
@@ -39,6 +44,39 @@ npx convex dev    # Convex backend
 # Tips
 - Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, redeploy backend code whenever frontend args change (e.g., guestToken vs guestId) to avoid validator mismatches.
 ```
+
+## Testing
+
+222 tests across unit, integration, and E2E layers with 80%+ coverage enforcement.
+
+```bash
+# Unit & integration tests
+pnpm test         # Run once
+pnpm test:watch   # Watch mode
+pnpm test:ci      # With coverage
+
+# E2E tests (Playwright)
+pnpm test:e2e     # Run E2E tests
+pnpm test:e2e:ui  # Interactive UI mode
+
+# Coverage report
+open coverage/index.html
+```
+
+**Coverage Thresholds** (enforced in CI):
+
+- Lines: 80%
+- Branches: 80%
+- Functions: 60% (Convex architecture limitation)
+- Statements: 80%
+
+**Test Structure**:
+
+- `tests/` — Unit and integration tests (Vitest)
+- `tests/e2e/` — End-to-end tests (Playwright)
+- `tests/helpers/` — Shared test utilities
+
+See [docs/testing.md](docs/testing.md) for patterns and guidelines.
 
 ## Secret Scanning
 

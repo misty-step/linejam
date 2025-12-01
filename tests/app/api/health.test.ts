@@ -1,15 +1,19 @@
 /** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock Convex dependencies
+// Store original env
+const originalEnv = { ...process.env };
 
 describe('/api/health', () => {
   beforeEach(() => {
     vi.resetModules();
+    // Reset env
+    process.env = { ...originalEnv };
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    process.env = originalEnv;
   });
 
   it('returns 200 with status, timestamp, and env', async () => {
@@ -109,6 +113,97 @@ describe('/api/health', () => {
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.objectContaining({ error: expect.any(Error) }),
       'Healthcheck failed'
+    );
+
+    // Restore
+    Date.prototype.toISOString = originalToISOString;
+  });
+
+  it('returns connected when Convex ping succeeds', async () => {
+    // Set Convex URL
+    process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
+
+    // Mock ConvexHttpClient as a class
+    const mockQuery = vi.fn().mockResolvedValue({ ok: true });
+    class MockConvexHttpClient {
+      query = mockQuery;
+    }
+    vi.doMock('convex/browser', () => ({
+      ConvexHttpClient: MockConvexHttpClient,
+    }));
+
+    const { GET } = await import('@/app/api/health/route');
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.convex).toBe('connected');
+    expect(mockQuery).toHaveBeenCalled();
+  });
+
+  it('returns unreachable when Convex ping fails', async () => {
+    // Set Convex URL
+    process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
+
+    // Mock ConvexHttpClient as a class that throws on query
+    const mockQuery = vi
+      .fn()
+      .mockRejectedValue(new Error('Connection refused'));
+    class MockConvexHttpClient {
+      query = mockQuery;
+    }
+    vi.doMock('convex/browser', () => ({
+      ConvexHttpClient: MockConvexHttpClient,
+    }));
+
+    // Suppress console.warn
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { GET } = await import('@/app/api/health/route');
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.convex).toBe('unreachable');
+  });
+
+  it('handles logger import failure with console.error fallback', async () => {
+    // Mock Date.toISOString to throw
+    const originalToISOString = Date.prototype.toISOString;
+    vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
+      throw new Error('Date serialization failed');
+    });
+
+    // Mock logger to fail on import
+    vi.doMock('@/lib/logger', () => {
+      throw new Error('Logger not available');
+    });
+
+    // Mock Sentry to succeed
+    const mockCaptureException = vi.fn();
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: mockCaptureException,
+    }));
+
+    // Spy on console.error
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    const { GET } = await import('@/app/api/health/route');
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data).toEqual({ status: 'error' });
+
+    // console.error should be called as fallback
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Healthcheck failed',
+      expect.any(Error)
     );
 
     // Restore

@@ -54,6 +54,7 @@ export default function MyPoemsPage() {
                   key={poem._id}
                   href={`/poem/${poem._id}`}
                   className="group"
+                  data-testid="favorite-card"
                 >
                   <div className="h-full bg-[var(--color-surface)] border border-[var(--color-border)] p-6 shadow-[var(--shadow-sm)] group-hover:shadow-[var(--shadow-md)] group-hover:-translate-y-1 transition-all duration-[var(--duration-normal)] flex flex-col">
                     <div className="flex-1 mb-6">

@@ -44,3 +44,8 @@ next-env.d.ts
 
 # sentry
 .sentryclirc
+
+# playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/

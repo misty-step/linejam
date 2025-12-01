@@ -19,9 +19,6 @@ function getSecret(): string {
         'GUEST_TOKEN_SECRET must be set in production environment'
       );
     }
-    console.warn(
-      'GUEST_TOKEN_SECRET not set - using development default (INSECURE)'
-    );
     return 'dev-only-insecure-secret-change-in-production';
   }
   return secret;
