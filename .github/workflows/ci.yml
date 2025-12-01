@@ -6,7 +6,13 @@ on:
   push:
     branches: [master]
 
+# Concurrent CI runs: cancel in-progress runs on same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Quality gates run in parallel (no dependencies)
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -101,6 +107,7 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
           GITLEAKS_CONFIG: .gitleaks.toml
 
+  # Test & Build waits for quality gates
   test-build:
     name: Test & Build
     runs-on: ubuntu-latest
@@ -140,9 +147,11 @@ jobs:
       - name: Build
         run: pnpm build:check
 
+  # E2E runs after quality gates (parallel with test-build)
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    needs: [lint, format, typecheck, gitleaks]
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -189,6 +198,7 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  # Badge updates only on master push
   badges:
     name: Update Coverage Badges
     runs-on: ubuntu-latest
