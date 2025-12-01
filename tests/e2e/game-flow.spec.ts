@@ -14,10 +14,10 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
 // Run tests serially since they depend on shared state
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Complete Game Flow', () => {
-  // TODO: Enable when GUEST_TOKEN_SECRET is synchronized in Convex Dashboard
-  test.fixme();
+// TODO: Enable when GUEST_TOKEN_SECRET is synchronized in Convex Dashboard
+test.fixme();
 
+test.describe('Complete Game Flow', () => {
   let hostContext: BrowserContext;
   let guestContext: BrowserContext;
   let hostPage: Page;

@@ -15,10 +15,10 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
 // Run tests serially since they depend on shared state (cookies)
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Guest Session API', () => {
-  // TODO: Enable when GUEST_TOKEN_SECRET is synchronized in Convex Dashboard
-  test.fixme();
+// TODO: Enable when GUEST_TOKEN_SECRET is synchronized in Convex Dashboard
+test.fixme();
 
+test.describe('Guest Session API', () => {
   test('returns guestId and token on first request', async ({ page }) => {
     // Navigate to trigger guest session creation
     await page.goto('/', { waitUntil: 'networkidle' });
