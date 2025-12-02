@@ -249,9 +249,15 @@ jobs:
             echo "{\"schemaVersion\":1,\"label\":\"$LABEL\",\"message\":\"${VALUE}%\",\"color\":\"$COLOR\"}" > /tmp/coverage-${metric}.json
           done
           
-          # Update all badge files in a single gist edit (avoids 409 conflicts)
-          gh gist edit ${{ vars.COVERAGE_GIST_ID }} \
-            -f coverage-lines.json=/tmp/coverage-lines.json \
-            -f coverage-branches.json=/tmp/coverage-branches.json \
-            -f coverage-functions.json=/tmp/coverage-functions.json \
-            -f coverage-statements.json=/tmp/coverage-statements.json
+          # Update all badge files atomically via API (avoids 409 conflicts)
+          jq -n \
+            --arg lines "$(cat /tmp/coverage-lines.json)" \
+            --arg branches "$(cat /tmp/coverage-branches.json)" \
+            --arg functions "$(cat /tmp/coverage-functions.json)" \
+            --arg statements "$(cat /tmp/coverage-statements.json)" \
+            '{files: {
+              "coverage-lines.json": {content: $lines},
+              "coverage-branches.json": {content: $branches},
+              "coverage-functions.json": {content: $functions},
+              "coverage-statements.json": {content: $statements}
+            }}' | gh api --method PATCH /gists/${{ vars.COVERAGE_GIST_ID }} --input -
