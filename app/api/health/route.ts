@@ -4,15 +4,25 @@ import { api } from '@/convex/_generated/api';
 export async function GET() {
   try {
     const convexStatus = await checkConvex();
+    const envChecks = checkEnvVars();
+
+    // Consider unhealthy if critical env vars are missing
+    const healthy = envChecks.guestTokenSecret && envChecks.convexUrl;
 
     return Response.json(
       {
-        status: 'ok',
+        status: healthy ? 'ok' : 'unhealthy',
         convex: convexStatus,
+        env: {
+          nodeEnv: process.env.NODE_ENV ?? 'development',
+          ...envChecks,
+        },
         timestamp: new Date().toISOString(),
-        env: process.env.NODE_ENV ?? 'development',
       },
-      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+      {
+        status: healthy ? 200 : 503,
+        headers: { 'Cache-Control': 'no-store' },
+      }
     );
   } catch (error) {
     await logFailure(error);
@@ -21,6 +31,18 @@ export async function GET() {
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }
+}
+
+/**
+ * Check presence of critical environment variables.
+ * Does not expose actual values, only boolean presence.
+ */
+function checkEnvVars() {
+  return {
+    guestTokenSecret: !!process.env.GUEST_TOKEN_SECRET,
+    convexUrl: !!process.env.NEXT_PUBLIC_CONVEX_URL,
+    clerkPublishableKey: !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  };
 }
 
 /**

@@ -1,5 +1,12 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+import { validateEnv } from './lib/env';
+
+// Validate required env vars during production builds
+// This prevents deploying with missing configuration
+if (process.env.NODE_ENV === 'production') {
+  validateEnv();
+}
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],

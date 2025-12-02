@@ -4,6 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Store original env
 const originalEnv = { ...process.env };
 
+// Common env vars needed for healthy responses
+const HEALTHY_ENV = {
+  GUEST_TOKEN_SECRET: 'test-secret-for-health-checks',
+  NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+};
+
 describe('/api/health', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -16,7 +22,11 @@ describe('/api/health', () => {
     process.env = originalEnv;
   });
 
-  it('returns 200 with status, timestamp, and env', async () => {
+  it('returns 200 with status, timestamp, and env checks', async () => {
+    // Set required env vars for healthy response
+    process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
+    process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
+
     const { GET } = await import('@/app/api/health/route');
 
     const response = await GET();
@@ -26,7 +36,11 @@ describe('/api/health', () => {
     expect(data).toMatchObject({
       status: 'ok',
       timestamp: expect.any(String),
-      env: expect.stringMatching(/^(development|test|production)$/),
+      env: {
+        nodeEnv: expect.stringMatching(/^(development|test|production)$/),
+        guestTokenSecret: true,
+        convexUrl: true,
+      },
     });
 
     // Verify timestamp is valid ISO 8601
@@ -34,7 +48,31 @@ describe('/api/health', () => {
     expect(timestamp.toISOString()).toBe(data.timestamp);
   });
 
+  it('returns 503 unhealthy when critical env vars are missing', async () => {
+    // Don't set GUEST_TOKEN_SECRET or NEXT_PUBLIC_CONVEX_URL
+    delete process.env.GUEST_TOKEN_SECRET;
+    delete process.env.NEXT_PUBLIC_CONVEX_URL;
+
+    const { GET } = await import('@/app/api/health/route');
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(data).toMatchObject({
+      status: 'unhealthy',
+      env: {
+        guestTokenSecret: false,
+        convexUrl: false,
+      },
+    });
+  });
+
   it('includes Cache-Control: no-store header', async () => {
+    // Set required env vars
+    process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
+    process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
+
     const { GET } = await import('@/app/api/health/route');
 
     const response = await GET();
@@ -120,8 +158,9 @@ describe('/api/health', () => {
   });
 
   it('returns connected when Convex ping succeeds', async () => {
-    // Set Convex URL
-    process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
+    // Set required env vars
+    process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
+    process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
 
     // Mock ConvexHttpClient as a class
     const mockQuery = vi.fn().mockResolvedValue({ ok: true });
@@ -143,8 +182,9 @@ describe('/api/health', () => {
   });
 
   it('returns unreachable when Convex ping fails', async () => {
-    // Set Convex URL
-    process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
+    // Set required env vars
+    process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
+    process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
 
     // Mock ConvexHttpClient as a class that throws on query
     const mockQuery = vi

@@ -14,6 +14,7 @@ export default defineConfig({
       '**/dist/**',
       '**/.next/**',
       '**/tests/e2e/**',
+      '**/.worktrees/**', // Exclude git worktrees - they have their own test environments
     ],
     coverage: {
       provider: 'v8',
