@@ -82,12 +82,16 @@ export async function verifyGuestToken(token: string): Promise<string> {
 
 function base64UrlToArrayBuffer(base64Url: string): Uint8Array {
   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const binString = atob(base64);
-  const bytes = new Uint8Array(binString.length);
-  for (let i = 0; i < binString.length; i++) {
-    bytes[i] = binString.charCodeAt(i);
+  try {
+    const binString = atob(base64);
+    const bytes = new Uint8Array(binString.length);
+    for (let i = 0; i < binString.length; i++) {
+      bytes[i] = binString.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    throw new Error('Invalid base64url encoding');
   }
-  return bytes;
 }
 
 function base64UrlToString(base64Url: string): string {
