@@ -32,9 +32,12 @@ let keyPromise: Promise<CryptoKey> | null = null;
 async function getKey(): Promise<CryptoKey> {
   if (!keyPromise) {
     const secret = getSecret();
+    // Use TextEncoder for explicit cross-platform compatibility with Convex
+    const keyData = new TextEncoder().encode(secret);
+
     keyPromise = subtle.importKey(
       'raw',
-      Buffer.from(secret),
+      keyData,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign', 'verify']
@@ -44,7 +47,42 @@ async function getKey(): Promise<CryptoKey> {
 }
 
 /**
+ * Base64url encode (Web API compatible)
+ */
+function arrayBufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+/**
+ * Base64url decode to ArrayBuffer
+ */
+function base64UrlToArrayBuffer(base64Url: string): Uint8Array {
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const binString = atob(base64);
+  const bytes = new Uint8Array(binString.length);
+  for (let i = 0; i < binString.length; i++) {
+    bytes[i] = binString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Base64url decode to string
+ */
+function base64UrlToString(base64Url: string): string {
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  return atob(base64);
+}
+
+/**
  * Sign a guest token payload with HMAC-SHA256
+ * Uses Web APIs for cross-platform compatibility with Convex
  */
 export async function signGuestToken(guestId: string): Promise<string> {
   const payload: GuestTokenPayload = {
@@ -53,11 +91,13 @@ export async function signGuestToken(guestId: string): Promise<string> {
   };
 
   const payloadJson = JSON.stringify(payload);
-  const payloadB64 = Buffer.from(payloadJson).toString('base64url');
+  const payloadBytes = new TextEncoder().encode(payloadJson);
+  const payloadB64 = arrayBufferToBase64Url(payloadBytes);
 
   const key = await getKey();
-  const signature = await subtle.sign('HMAC', key, Buffer.from(payloadB64));
-  const signatureB64 = Buffer.from(signature).toString('base64url');
+  const payloadBuffer = new TextEncoder().encode(payloadB64);
+  const signature = await subtle.sign('HMAC', key, payloadBuffer);
+  const signatureB64 = arrayBufferToBase64Url(signature);
 
   return `${payloadB64}.${signatureB64}`;
 }
@@ -65,6 +105,7 @@ export async function signGuestToken(guestId: string): Promise<string> {
 /**
  * Verify and parse a guest token
  * Returns guestId if valid, throws if invalid/expired/tampered
+ * Uses Web APIs for cross-platform compatibility with Convex
  */
 export async function verifyGuestToken(token: string): Promise<string> {
   const parts = token.split('.');
@@ -76,11 +117,14 @@ export async function verifyGuestToken(token: string): Promise<string> {
 
   // Verify signature
   const key = await getKey();
+  const signatureBuffer = base64UrlToArrayBuffer(signatureB64);
+  const payloadBuffer = new TextEncoder().encode(payloadB64);
+
   const isValid = await subtle.verify(
     'HMAC',
     key,
-    Buffer.from(signatureB64, 'base64url'),
-    Buffer.from(payloadB64)
+    signatureBuffer as BufferSource,
+    payloadBuffer as BufferSource
   );
 
   if (!isValid) {
@@ -88,7 +132,7 @@ export async function verifyGuestToken(token: string): Promise<string> {
   }
 
   // Parse payload and check expiry
-  const payloadJson = Buffer.from(payloadB64, 'base64url').toString();
+  const payloadJson = base64UrlToString(payloadB64);
   const payload: GuestTokenPayload = JSON.parse(payloadJson);
 
   // Check expiry (HMAC already guarantees payload integrity)

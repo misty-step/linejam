@@ -36,30 +36,28 @@ export const getPoemsForRoom = query({
         .collect();
     } else {
       // Fallback (e.g. if in lobby between games? or historic behavior)
-      // Ideally we shouldn't be calling this in Lobby state for content
       poems = await ctx.db
         .query('poems')
         .withIndex('by_room', (q) => q.eq('roomId', room._id))
         .collect();
     }
 
-    // Enhance with first line preview?
-    // For now just return poems, frontend can fetch details or we can enhance here.
-    // Let's fetch the first line for preview.
-    const results = [];
-    for (const poem of poems) {
-      const firstLine = await ctx.db
-        .query('lines')
-        .withIndex('by_poem_index', (q) =>
-          q.eq('poemId', poem._id).eq('indexInPoem', 0)
-        )
-        .first();
-      results.push({
-        ...poem,
-        preview: firstLine?.text || '...',
-      });
-    }
-    return results;
+    // Parallelize first line fetches
+    const firstLines = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) =>
+            q.eq('poemId', poem._id).eq('indexInPoem', 0)
+          )
+          .first()
+      )
+    );
+
+    return poems.map((poem, i) => ({
+      ...poem,
+      preview: firstLines[i]?.text || '...',
+    }));
   },
 });
 
@@ -92,15 +90,19 @@ export const getPoemDetail = query({
     // Sort lines
     lines.sort((a, b) => a.indexInPoem - b.indexInPoem);
 
-    // Get authors
-    const linesWithAuthors = [];
-    for (const line of lines) {
-      const author = await ctx.db.get(line.authorUserId);
-      linesWithAuthors.push({
-        ...line,
-        authorName: author?.displayName || 'Unknown',
-      });
-    }
+    // Batch fetch all unique authors in parallel
+    const uniqueAuthorIds = [...new Set(lines.map((l) => l.authorUserId))];
+    const authors = await Promise.all(
+      uniqueAuthorIds.map((id) => ctx.db.get(id))
+    );
+    const authorMap = new Map(
+      uniqueAuthorIds.map((id, i) => [id, authors[i]?.displayName || 'Unknown'])
+    );
+
+    const linesWithAuthors = lines.map((line) => ({
+      ...line,
+      authorName: authorMap.get(line.authorUserId) || 'Unknown',
+    }));
 
     return {
       poem,
@@ -124,31 +126,45 @@ export const getMyPoems = query({
       .collect();
 
     // Get unique poem IDs
-    const poemIds = Array.from(new Set(lines.map((l) => l.poemId)));
+    const poemIds = [...new Set(lines.map((l) => l.poemId))];
+    if (poemIds.length === 0) return [];
 
-    const poems = [];
-    for (const id of poemIds) {
-      const poem = await ctx.db.get(id);
-      if (poem) {
-        const room = await ctx.db.get(poem.roomId);
-        // Get first line for preview
-        const firstLine = await ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', poem._id).eq('indexInPoem', 0)
-          )
-          .first();
+    // Batch fetch all poems in parallel
+    const poemsRaw = await Promise.all(poemIds.map((id) => ctx.db.get(id)));
+    const poems = poemsRaw.filter(
+      (p): p is NonNullable<typeof p> => p !== null
+    );
 
-        poems.push({
-          ...poem,
-          roomDate: room?.createdAt,
-          preview: firstLine?.text || '...',
-        });
-      }
-    }
+    // Batch fetch all rooms and first lines in parallel
+    const uniqueRoomIds = [...new Set(poems.map((p) => p.roomId))];
+    const [rooms, firstLines] = await Promise.all([
+      Promise.all(uniqueRoomIds.map((id) => ctx.db.get(id))),
+      Promise.all(
+        poems.map((poem) =>
+          ctx.db
+            .query('lines')
+            .withIndex('by_poem_index', (q) =>
+              q.eq('poemId', poem._id).eq('indexInPoem', 0)
+            )
+            .first()
+        )
+      ),
+    ]);
+
+    // Create lookup maps
+    const roomMap = new Map(uniqueRoomIds.map((id, i) => [id, rooms[i]]));
+    const firstLineMap = new Map(
+      poems.map((p, i) => [p._id, firstLines[i]?.text || '...'])
+    );
+
+    const result = poems.map((poem) => ({
+      ...poem,
+      roomDate: roomMap.get(poem.roomId)?.createdAt,
+      preview: firstLineMap.get(poem._id) || '...',
+    }));
 
     // Sort by date desc
-    poems.sort((a, b) => b.createdAt - a.createdAt);
-    return poems;
+    result.sort((a, b) => b.createdAt - a.createdAt);
+    return result;
   },
 });

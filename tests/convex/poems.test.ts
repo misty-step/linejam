@@ -331,25 +331,26 @@ describe('poems', () => {
         { poemId: 'poem2', authorUserId: 'user1' },
       ];
 
-      mockDb.collect
-        .mockResolvedValueOnce(lines) // User's lines
-        .mockResolvedValueOnce([]) // No lines for poem (shouldn't happen)
-        .mockResolvedValueOnce([]); // No lines for poem (shouldn't happen)
+      // 1. Lines by author
+      mockDb.collect.mockResolvedValueOnce(lines);
 
+      // 2. Batch fetch poems (Promise.all with get)
       mockDb.get
         .mockResolvedValueOnce({
           _id: 'poem1',
           roomId: 'room1',
           createdAt: 1000,
         })
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
         .mockResolvedValueOnce({
           _id: 'poem2',
           roomId: 'room2',
           createdAt: 2000,
         })
+        // 3. Batch fetch rooms (Promise.all with get)
+        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
         .mockResolvedValueOnce({ _id: 'room2', createdAt: 1500 });
 
+      // 4. Batch fetch first lines (Promise.all with first)
       mockDb.first
         .mockResolvedValueOnce({ text: 'First line of poem 1' })
         .mockResolvedValueOnce({ text: 'First line of poem 2' });
@@ -375,28 +376,31 @@ describe('poems', () => {
         { poemId: 'poem3', authorUserId: 'user1' },
       ];
 
+      // 1. Lines by author
       mockDb.collect.mockResolvedValueOnce(lines);
 
+      // 2. Batch fetch poems
       mockDb.get
         .mockResolvedValueOnce({
           _id: 'poem1',
           roomId: 'room1',
           createdAt: 1000,
         })
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
         .mockResolvedValueOnce({
           _id: 'poem2',
           roomId: 'room2',
           createdAt: 2000,
         })
-        .mockResolvedValueOnce({ _id: 'room2', createdAt: 1500 })
         .mockResolvedValueOnce({
           _id: 'poem3',
           roomId: 'room1',
           createdAt: 3000,
         })
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 });
+        // 3. Batch fetch unique rooms (room1 and room2)
+        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
+        .mockResolvedValueOnce({ _id: 'room2', createdAt: 1500 });
 
+      // 4. Batch fetch first lines
       mockDb.first
         .mockResolvedValueOnce({ text: 'Line 1' })
         .mockResolvedValueOnce({ text: 'Line 2' })
@@ -410,10 +414,11 @@ describe('poems', () => {
 
       // Assert
       expect(result).toHaveLength(3);
+      // Note: poems are sorted by createdAt desc: poem3 (3000), poem2 (2000), poem1 (1000)
       expect(result.map((p: { roomId: string }) => p.roomId)).toEqual([
-        'room1',
-        'room2',
-        'room1',
+        'room1', // poem3
+        'room2', // poem2
+        'room1', // poem1
       ]);
     });
 
@@ -426,28 +431,30 @@ describe('poems', () => {
         { poemId: 'poem3', authorUserId: 'user1' },
       ];
 
+      // 1. Lines by author
       mockDb.collect.mockResolvedValueOnce(lines);
 
+      // 2. Batch fetch poems
       mockDb.get
         .mockResolvedValueOnce({
           _id: 'poem1',
           roomId: 'room1',
           createdAt: 1000,
         })
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
         .mockResolvedValueOnce({
           _id: 'poem2',
           roomId: 'room1',
           createdAt: 3000,
         })
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
         .mockResolvedValueOnce({
           _id: 'poem3',
           roomId: 'room1',
           createdAt: 2000,
         })
+        // 3. Batch fetch unique rooms
         .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 });
 
+      // 4. Batch fetch first lines
       mockDb.first
         .mockResolvedValueOnce({ text: 'Line 1' })
         .mockResolvedValueOnce({ text: 'Line 2' })
@@ -472,16 +479,20 @@ describe('poems', () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       const lines = [{ poemId: 'poem1', authorUserId: 'user1' }];
 
+      // 1. Lines by author
       mockDb.collect.mockResolvedValueOnce(lines);
 
+      // 2. Batch fetch poems
       mockDb.get
         .mockResolvedValueOnce({
           _id: 'poem1',
           roomId: 'room1',
           createdAt: 1000,
         })
+        // 3. Batch fetch rooms
         .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 });
 
+      // 4. Batch fetch first lines
       mockDb.first.mockResolvedValueOnce({ text: 'Line 1' });
 
       // Act

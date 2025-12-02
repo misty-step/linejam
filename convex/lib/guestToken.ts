@@ -8,8 +8,16 @@ interface GuestTokenPayload {
 function getSecret(): string {
   const secret = process.env.GUEST_TOKEN_SECRET;
   if (!secret) {
-    // In production, this should probably be strict, but for dev/local consistency
-    // we'll match the Next.js behavior or use a default for dev.
+    // Detect Convex production via CONVEX_CLOUD_URL
+    const isProduction = process.env.CONVEX_CLOUD_URL?.includes('convex.cloud');
+
+    if (isProduction) {
+      throw new Error(
+        'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
+          'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
+      );
+    }
+
     console.warn(
       'GUEST_TOKEN_SECRET not set - using development default (INSECURE)'
     );
@@ -74,12 +82,16 @@ export async function verifyGuestToken(token: string): Promise<string> {
 
 function base64UrlToArrayBuffer(base64Url: string): Uint8Array {
   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const binString = atob(base64);
-  const bytes = new Uint8Array(binString.length);
-  for (let i = 0; i < binString.length; i++) {
-    bytes[i] = binString.charCodeAt(i);
+  try {
+    const binString = atob(base64);
+    const bytes = new Uint8Array(binString.length);
+    for (let i = 0; i < binString.length; i++) {
+      bytes[i] = binString.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    throw new Error('Invalid base64url encoding');
   }
-  return bytes;
 }
 
 function base64UrlToString(base64Url: string): string {
