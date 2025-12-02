@@ -7,6 +7,10 @@ Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-
 
 ## Now (Sprint-Ready, <2 weeks)
 
+### [Product] Sound/audio feedback\*\* - Ambient music, submit/round/reveal effects. "Feels like a real game" polish.
+
+### [Product] Player avatars\*\* - Emoji or preset images, color assignments. Identity and fun, premium candidate.
+
 ### [Maintainability] Extract checkParticipation helper
 
 **Files**: convex/poems.ts:21-27, convex/poems.ts:67-73
@@ -239,21 +243,6 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 ---
 
-### [Product] Implement Share/Export poems
-
-**Perspectives**: product-visionary
-**Why**: Primary growth vector. Poems exist only in-app. "Look what we made" moment dies in the room. Zero organic viral growth.
-**Approach**:
-
-- Share to social media with branded overlay
-- Copy to clipboard for Discord/Slack
-- Download as image for keepsakes
-- Public poem permalink with OG tags
-  **Effort**: 3-5d | **Value**: CRITICAL growth feature
-  **Business Case**: Each share could bring 1-3 new players
-
----
-
 ### [Product] Add timer/pace control system
 
 **Perspectives**: product-visionary
@@ -317,8 +306,6 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 ## Soon (Exploring, 3-6 months)
 
 - **[Product] Game mode variations** - Haiku (5-7-5), Limerick (AABBA), Speed mode (30s timer), Theme mode (random prompts). Major replay value. Premium tier candidate.
-- **[Product] Sound/audio feedback** - Ambient music, submit/round/reveal effects. "Feels like a real game" polish.
-- **[Product] Player avatars** - Emoji or preset images, color assignments. Identity and fun, premium candidate.
 - **[Product] Spectator mode** - Non-players watch reveal phase. Good for events/streams, larger groups.
 - **[Architecture] Create React hook abstractions for Convex** - Components directly import `api` generated types. Can't swap backend without changing all components.
 - **[Security] Implement rate limiting** - Room creation, joining, line submission. Prevents DoS and enumeration.
