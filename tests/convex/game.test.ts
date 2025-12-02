@@ -681,17 +681,15 @@ describe('game', () => {
         { userId: 'user2', displayName: 'User 2' },
       ]);
 
-      // Loop for Player 1
-      // 4. Poem query
-      mockDb.first.mockResolvedValueOnce({ _id: 'poem1' });
-      // 5. Line query
-      mockDb.first.mockResolvedValueOnce(null); // Not submitted
+      // 4. Poems batch fetch (collect)
+      mockDb.collect.mockResolvedValueOnce([
+        { _id: 'poem1', indexInRoom: 0 },
+        { _id: 'poem2', indexInRoom: 1 },
+      ]);
 
-      // Loop for Player 2
-      // 6. Poem query
-      mockDb.first.mockResolvedValueOnce({ _id: 'poem2' });
-      // 7. Line query
-      mockDb.first.mockResolvedValueOnce({ _id: 'line1' }); // Submitted
+      // 5. Parallel line checks (first)
+      mockDb.first.mockResolvedValueOnce(null); // User 1 not submitted
+      mockDb.first.mockResolvedValueOnce({ _id: 'line1' }); // User 2 submitted
 
       // @ts-expect-error - calling handler
       const result = await getRoundProgress.handler(mockCtx, {

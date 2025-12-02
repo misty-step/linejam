@@ -250,19 +250,18 @@ export const submitLine = mutation({
       .withIndex('by_game', (q) => q.eq('gameId', game._id))
       .collect();
 
-    let allSubmitted = true;
-    for (const p of poems) {
-      const line = await ctx.db
-        .query('lines')
-        .withIndex('by_poem_index', (q) =>
-          q.eq('poemId', p._id).eq('indexInPoem', lineIndex)
-        )
-        .first();
-      if (!line) {
-        allSubmitted = false;
-        break;
-      }
-    }
+    // Parallelize line checks to avoid N+1
+    const lineChecks = await Promise.all(
+      poems.map((p) =>
+        ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) =>
+            q.eq('poemId', p._id).eq('indexInPoem', lineIndex)
+          )
+          .first()
+      )
+    );
+    const allSubmitted = lineChecks.every((line) => line !== null);
 
     if (allSubmitted) {
       if (lineIndex < 8) {
@@ -430,42 +429,46 @@ export const getRoundProgress = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    const progress = [];
-    for (const player of players) {
-      // Find which poem this player is assigned to in the current round
+    // Batch fetch all poems for this game (O(1) instead of per-player)
+    const poems = await ctx.db
+      .query('poems')
+      .withIndex('by_game', (q) => q.eq('gameId', game._id))
+      .collect();
+
+    // Create poemIndex -> poem lookup map
+    const poemByIndex = new Map(poems.map((p) => [p.indexInRoom, p]));
+
+    // Build player -> poem assignments for current round
+    const playerAssignments = players.map((player) => {
       const poemIndex = game.assignmentMatrix[game.currentRound].findIndex(
         (uid) => uid === player.userId
       );
+      return {
+        player,
+        poemIndex,
+        poem: poemIndex !== -1 ? poemByIndex.get(poemIndex) : undefined,
+      };
+    });
 
-      let submitted = false;
-      if (poemIndex !== -1) {
-        const poem = await ctx.db
-          .query('poems')
-          .withIndex('by_room_game_index', (q) =>
-            q
-              .eq('roomId', room._id)
-              .eq('gameId', game._id)
-              .eq('indexInRoom', poemIndex)
-          )
-          .first();
+    // Parallelize line checks for all players
+    const lineChecks = await Promise.all(
+      playerAssignments.map(({ poem }) =>
+        poem
+          ? ctx.db
+              .query('lines')
+              .withIndex('by_poem_index', (q) =>
+                q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
+              )
+              .first()
+          : Promise.resolve(null)
+      )
+    );
 
-        if (poem) {
-          const line = await ctx.db
-            .query('lines')
-            .withIndex('by_poem_index', (q) =>
-              q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
-            )
-            .first();
-          if (line) submitted = true;
-        }
-      }
-
-      progress.push({
-        displayName: player.displayName,
-        submitted,
-        userId: player.userId,
-      });
-    }
+    const progress = playerAssignments.map(({ player }, i) => ({
+      displayName: player.displayName,
+      submitted: lineChecks[i] !== null,
+      userId: player.userId,
+    }));
 
     return {
       round: game.currentRound,
