@@ -21,9 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,9 +43,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -72,9 +68,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -121,9 +115,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -162,9 +154,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -212,9 +202,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -241,42 +229,29 @@ jobs:
           echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
           echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
 
-      - name: Update Lines Badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
-        with:
-          auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ vars.COVERAGE_GIST_ID }}
-          filename: coverage-lines.json
-          label: Lines
-          message: ${{ steps.coverage.outputs.lines }}%
-          color: ${{ steps.coverage.outputs.lines >= 80 && 'brightgreen' || (steps.coverage.outputs.lines >= 70 && 'yellow' || 'red') }}
-
-      - name: Update Branches Badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
-        with:
-          auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ vars.COVERAGE_GIST_ID }}
-          filename: coverage-branches.json
-          label: Branches
-          message: ${{ steps.coverage.outputs.branches }}%
-          color: ${{ steps.coverage.outputs.branches >= 80 && 'brightgreen' || (steps.coverage.outputs.branches >= 70 && 'yellow' || 'red') }}
-
-      - name: Update Functions Badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
-        with:
-          auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ vars.COVERAGE_GIST_ID }}
-          filename: coverage-functions.json
-          label: Functions
-          message: ${{ steps.coverage.outputs.functions }}%
-          color: ${{ steps.coverage.outputs.functions >= 80 && 'brightgreen' || (steps.coverage.outputs.functions >= 70 && 'yellow' || 'red') }}
-
-      - name: Update Statements Badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
-        with:
-          auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ vars.COVERAGE_GIST_ID }}
-          filename: coverage-statements.json
-          label: Statements
-          message: ${{ steps.coverage.outputs.statements }}%
-          color: ${{ steps.coverage.outputs.statements >= 80 && 'brightgreen' || (steps.coverage.outputs.statements >= 70 && 'yellow' || 'red') }}
+      - name: Update Coverage Badges
+        env:
+          GH_TOKEN: ${{ secrets.GIST_SECRET }}
+        run: |
+          # Generate badge JSON files
+          for metric in lines branches functions statements; do
+            VALUE=$(jq ".total.${metric}.pct" coverage/coverage-summary.json)
+            # Determine color based on threshold
+            if (( $(echo "$VALUE >= 80" | bc -l) )); then
+              COLOR="brightgreen"
+            elif (( $(echo "$VALUE >= 70" | bc -l) )); then
+              COLOR="yellow"
+            else
+              COLOR="red"
+            fi
+            # Capitalize first letter for label
+            LABEL=$(echo "$metric" | sed 's/.*/\u&/')
+            echo "{\"schemaVersion\":1,\"label\":\"$LABEL\",\"message\":\"${VALUE}%\",\"color\":\"$COLOR\"}" > /tmp/coverage-${metric}.json
+          done
+          
+          # Update all badge files in a single gist edit (avoids 409 conflicts)
+          gh gist edit ${{ vars.COVERAGE_GIST_ID }} \
+            -f coverage-lines.json=/tmp/coverage-lines.json \
+            -f coverage-branches.json=/tmp/coverage-branches.json \
+            -f coverage-functions.json=/tmp/coverage-functions.json \
+            -f coverage-statements.json=/tmp/coverage-statements.json
