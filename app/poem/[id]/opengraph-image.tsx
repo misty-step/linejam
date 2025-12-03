@@ -14,7 +14,11 @@ const libreBaskervilleUrl =
 const ibmPlexSansUrl =
   'https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKhdHeFaxO.woff2';
 
-export default async function Image({ params }: { params: { id: string } }) {
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   // 1. Load fonts
   const [libreBaskerville, ibmPlexSans] = await Promise.all([
     fetch(libreBaskervilleUrl).then((res) => res.arrayBuffer()),
@@ -22,7 +26,9 @@ export default async function Image({ params }: { params: { id: string } }) {
   ]);
 
   // 2. Fetch Data
-  const poemId = params.id as Id<'poems'>;
+  const { id } = await params;
+  const poemId = id as Id<'poems'>;
+
   const preview = await fetchQuery(
     api.poems.getPublicPoemPreview,
     { poemId },
