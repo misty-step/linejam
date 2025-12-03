@@ -218,7 +218,7 @@
 
 ### Phase 5: Testing & Polish
 
-- [ ] Add tests for shares module
+- [x] Add tests for shares module
 
   ```
   Files: tests/convex/shares.test.ts (new)
@@ -232,7 +232,7 @@
   Time: 20min
   ```
 
-- [ ] Add tests for getPublicPoemPreview
+- [x] Add tests for getPublicPoemPreview
 
   ```
   Files: tests/convex/poems.test.ts (modify, add describe block ~L508)
@@ -249,7 +249,7 @@
   Time: 30min
   ```
 
-- [ ] Verify OG image on social platforms
+- [x] Verify OG image on social platforms
   ```
   Files: None (manual testing)
   Test:
