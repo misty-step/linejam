@@ -118,7 +118,7 @@
 
 ### Phase 4: Page Restructure + ShareButton
 
-- [ ] Split poem page into server/client components
+- [x] Split poem page into server/client components
 
   ```
   Files:
@@ -144,7 +144,7 @@
   Time: 20min
   ```
 
-- [ ] Add `generateMetadata` for poem page
+- [x] Add `generateMetadata` for poem page
 
   ```
   Files: app/poem/[id]/page.tsx (add to server component)
@@ -169,7 +169,7 @@
   Time: 30min
   ```
 
-- [ ] Add ShareButton to poem detail page
+- [x] Add ShareButton to poem detail page
 
   ```
   Files: app/poem/[id]/PoemDetail.tsx (modify, add ShareButton)
