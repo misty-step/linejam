@@ -104,6 +104,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
   if (showingPoem && myPoem) {
     return (
       <PoemDisplay
+        poemId={myPoem._id}
         lines={myPoem.lines.map((l) => l.text)}
         onDone={() => setShowingPoem(false)}
         alreadyRevealed={myPoem.isRevealed}

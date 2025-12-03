@@ -3,6 +3,10 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Button } from './ui/Button';
 import { cn } from '@/lib/utils';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
+import { captureError } from '@/lib/sentry';
 
 /**
  * PoemDisplay: The Galley (Editorial Reveal)
@@ -27,12 +31,14 @@ const PAUSE_AFTER_LINE = 4; // Add extra delay after this line (the turn)
 const PAUSE_DURATION = 1200; // ms (extended breath at the turn)
 
 interface PoemDisplayProps {
+  poemId: Id<'poems'>;
   lines: string[];
   onDone: () => void;
   alreadyRevealed?: boolean;
 }
 
 export function PoemDisplay({
+  poemId,
   lines,
   onDone,
   alreadyRevealed = false,
@@ -40,6 +46,8 @@ export function PoemDisplay({
   const [revealedCount, setRevealedCount] = useState(
     alreadyRevealed ? lines.length : 0
   );
+  const [copied, setCopied] = useState(false);
+  const logShare = useMutation(api.shares.logShare);
 
   // Staggered reveal with rhythmic pause after line 4
   useEffect(() => {
@@ -55,6 +63,20 @@ export function PoemDisplay({
       return () => clearTimeout(timer);
     }
   }, [revealedCount, lines.length, alreadyRevealed]);
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/poem/${poemId}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      // Fire-and-forget analytics
+      logShare({ poemId }).catch(() => {});
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      captureError(err, { operation: 'sharePoem', poemId });
+    }
+  };
 
   const allRevealed = revealedCount >= lines.length;
 
@@ -125,18 +147,28 @@ export function PoemDisplay({
           )}
         </div>
 
-        {/* Footer / Close */}
+        {/* Footer / Actions */}
         <div
           className={cn(
-            'text-center mt-16 transition-opacity duration-1000',
+            'flex flex-col sm:flex-row items-center justify-center gap-4 mt-16 transition-opacity duration-1000',
             allRevealed ? 'opacity-100' : 'opacity-0'
           )}
         >
           <Button
-            onClick={onDone}
-            variant="outline"
+            onClick={handleShare}
+            variant="primary"
             size="lg"
-            className="min-w-[140px] border-2 h-14 text-lg"
+            className="min-w-[160px] h-14 text-lg"
+            stampAnimate={copied}
+            aria-label="Copy poem link to clipboard"
+          >
+            {copied ? 'Copied!' : 'Share This'}
+          </Button>
+          <Button
+            onClick={onDone}
+            variant="ghost"
+            size="lg"
+            className="min-w-[140px] h-14 text-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
           >
             Close
           </Button>
