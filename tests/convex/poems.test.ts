@@ -7,7 +7,12 @@ vi.mock('../../convex/_generated/server', () => ({
   query: (args: unknown) => args,
 }));
 
-import { getPoemsForRoom, getPoemDetail, getMyPoems } from '../../convex/poems';
+import {
+  getPoemsForRoom,
+  getPoemDetail,
+  getMyPoems,
+  getPublicPoemPreview,
+} from '../../convex/poems';
 
 // Mock getUser
 const mockGetUser = vi.fn();
@@ -503,6 +508,71 @@ describe('poems', () => {
 
       // Assert
       expect(result[0].roomDate).toBe(500);
+    });
+  });
+
+  describe('getPublicPoemPreview', () => {
+    it('returns null when poem not found', async () => {
+      // Arrange
+      mockDb.get.mockResolvedValue(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemPreview.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('returns preview data correctly', async () => {
+      // Arrange
+      const poem = { _id: 'poem1', indexInRoom: 4 };
+      const lines = [
+        { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
+        { text: 'Line 2', indexInPoem: 1, authorUserId: 'u2' },
+        { text: 'Line 3', indexInPoem: 2, authorUserId: 'u1' },
+        { text: 'Line 4', indexInPoem: 3, authorUserId: 'u3' },
+      ];
+
+      mockDb.get.mockResolvedValue(poem);
+      mockDb.collect.mockResolvedValue(lines);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemPreview.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).toEqual({
+        lines: ['Line 1', 'Line 2', 'Line 3'],
+        poetCount: 3, // u1, u2, u3
+        poemNumber: 5, // 4 + 1
+      });
+    });
+
+    it('sorts lines before truncating', async () => {
+      // Arrange
+      const poem = { _id: 'poem1', indexInRoom: 0 };
+      const lines = [
+        { text: 'Line 4', indexInPoem: 3, authorUserId: 'u1' },
+        { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
+        { text: 'Line 2', indexInPoem: 1, authorUserId: 'u1' },
+      ];
+
+      mockDb.get.mockResolvedValue(poem);
+      mockDb.collect.mockResolvedValue(lines);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemPreview.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result?.lines).toEqual(['Line 1', 'Line 2', 'Line 4']);
     });
   });
 });

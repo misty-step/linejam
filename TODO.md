@@ -65,7 +65,7 @@
 
 ### Phase 2: Public Query
 
-- [ ] Add `getPublicPoemPreview` query (`convex/poems.ts`)
+- [x] Add `getPublicPoemPreview` query (`convex/poems.ts`)
   ```
   Files: convex/poems.ts (modify, add export after getMyPoems ~L171)
   Architecture: Public query (no auth) for OG image per DESIGN.md

@@ -168,3 +168,30 @@ export const getMyPoems = query({
     return result;
   },
 });
+
+export const getPublicPoemPreview = query({
+  args: {
+    poemId: v.id('poems'),
+  },
+  handler: async (ctx, { poemId }) => {
+    const poem = await ctx.db.get(poemId);
+    if (!poem) return null;
+
+    const lines = await ctx.db
+      .query('lines')
+      .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+      .collect();
+
+    // Sort by index
+    lines.sort((a, b) => a.indexInPoem - b.indexInPoem);
+
+    // Count unique poets
+    const uniqueAuthorIds = new Set(lines.map((l) => l.authorUserId));
+
+    return {
+      lines: lines.slice(0, 3).map((l) => l.text),
+      poetCount: uniqueAuthorIds.size,
+      poemNumber: poem.indexInRoom + 1,
+    };
+  },
+});
