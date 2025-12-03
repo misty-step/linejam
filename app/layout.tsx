@@ -26,6 +26,7 @@ export const metadata: Metadata = {
   description: 'Collaborative poetry for friends in the same room',
   keywords: ['poetry', 'game', 'collaborative', 'writing', 'friends'],
   authors: [{ name: 'Linejam' }],
+  manifest: '/site.webmanifest',
 };
 
 export const viewport: Viewport = {
