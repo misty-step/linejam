@@ -89,7 +89,7 @@
 
 ### Phase 3: OG Image Generation
 
-- [ ] Create dynamic OG image (`app/poem/[id]/opengraph-image.tsx`)
+- [x] Create dynamic OG image (`app/poem/[id]/opengraph-image.tsx`)
   ```
   Files: app/poem/[id]/opengraph-image.tsx (new)
   Architecture: Next.js file-convention OG image per DESIGN.md
