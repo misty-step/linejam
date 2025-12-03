@@ -8,11 +8,11 @@ export const runtime = 'edge';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
 
-// Fonts
+// Fonts (WOFF via jsDelivr to avoid wOF2 signature errors in some environments)
 const libreBaskervilleUrl =
-  'https://fonts.gstatic.com/s/librebaskerville/v14/kmKnZrc3Hgbbcjq75U4uslyuy4kn0qNXaxM.woff2';
+  'https://cdn.jsdelivr.net/npm/@fontsource/libre-baskerville/files/libre-baskerville-latin-400-normal.woff';
 const ibmPlexSansUrl =
-  'https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKhdHeFaxO.woff2';
+  'https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff';
 
 export default async function Image({
   params,
@@ -23,7 +23,16 @@ export default async function Image({
   const [libreBaskerville, ibmPlexSans] = await Promise.all([
     fetch(libreBaskervilleUrl).then((res) => res.arrayBuffer()),
     fetch(ibmPlexSansUrl).then((res) => res.arrayBuffer()),
-  ]);
+  ]).catch((err) => {
+    console.error('Failed to load fonts for OG image:', err);
+    return [null, null];
+  });
+
+  if (!libreBaskerville || !ibmPlexSans) {
+    // Fallback if fonts fail (system fonts or empty - usually implies network issue)
+    // We continue, but ImageResponse might fall back to default sans-serif
+    console.warn('Proceeding with OG generation without custom fonts');
+  }
 
   // 2. Fetch Data
   const { id } = await params;
@@ -77,16 +86,24 @@ export default async function Image({
       {
         ...size,
         fonts: [
-          {
-            name: 'Libre Baskerville',
-            data: libreBaskerville,
-            style: 'normal',
-          },
-          {
-            name: 'IBM Plex Sans',
-            data: ibmPlexSans,
-            style: 'normal',
-          },
+          ...(libreBaskerville
+            ? [
+                {
+                  name: 'Libre Baskerville',
+                  data: libreBaskerville,
+                  style: 'normal' as const,
+                },
+              ]
+            : []),
+          ...(ibmPlexSans
+            ? [
+                {
+                  name: 'IBM Plex Sans',
+                  data: ibmPlexSans,
+                  style: 'normal' as const,
+                },
+              ]
+            : []),
         ],
       }
     );
@@ -182,16 +199,24 @@ export default async function Image({
     {
       ...size,
       fonts: [
-        {
-          name: 'Libre Baskerville',
-          data: libreBaskerville,
-          style: 'normal',
-        },
-        {
-          name: 'IBM Plex Sans',
-          data: ibmPlexSans,
-          style: 'normal',
-        },
+        ...(libreBaskerville
+          ? [
+              {
+                name: 'Libre Baskerville',
+                data: libreBaskerville,
+                style: 'normal' as const,
+              },
+            ]
+          : []),
+        ...(ibmPlexSans
+          ? [
+              {
+                name: 'IBM Plex Sans',
+                data: ibmPlexSans,
+                style: 'normal' as const,
+              },
+            ]
+          : []),
       ],
     }
   );
