@@ -20,10 +20,12 @@ export async function generateMetadata({
   }
 
   const title = `Poem No. ${preview.poemNumber} | Linejam`;
-  // Truncate description nicely
+  // Truncate description nicely, with fallback for empty poems
   const description =
-    preview.lines.slice(0, 2).join(' / ') +
-    (preview.lines.length > 2 ? '...' : '');
+    preview.lines.length > 0
+      ? preview.lines.slice(0, 2).join(' / ') +
+        (preview.lines.length > 2 ? '...' : '')
+      : 'A collaborative poem created on Linejam';
 
   return {
     title,

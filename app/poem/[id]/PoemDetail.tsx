@@ -8,24 +8,30 @@ import { Ornament } from '../../../components/ui/Ornament';
 import Link from 'next/link';
 import { Id } from '../../../convex/_generated/dataModel';
 import { Button } from '../../../components/ui/Button';
-import { useState } from 'react';
-import { captureError } from '../../../lib/sentry';
+import { useSharePoem } from '../../../hooks/useSharePoem';
 
 export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
   const { guestToken } = useUser();
+  // Try authenticated query first (includes favorite capability)
   const poemDetail = useQuery(api.poems.getPoemDetail, {
     poemId,
     guestToken: guestToken || undefined,
   });
-  const isFavorited = useQuery(api.favorites.isFavorited, {
-    poemId,
-    guestToken: guestToken || undefined,
-  });
-  const toggleFavorite = useMutation(api.favorites.toggleFavorite);
-  const logShare = useMutation(api.shares.logShare);
-  const [copied, setCopied] = useState(false);
+  // Fallback to public query for outsiders
+  const publicPoem = useQuery(api.poems.getPublicPoemFull, { poemId });
 
-  if (!poemDetail) {
+  // Use authenticated data if available, else public
+  const data = poemDetail || publicPoem;
+  const isParticipant = !!poemDetail;
+
+  const isFavorited = useQuery(
+    api.favorites.isFavorited,
+    isParticipant ? { poemId, guestToken: guestToken || undefined } : 'skip'
+  );
+  const toggleFavorite = useMutation(api.favorites.toggleFavorite);
+  const { handleShare, copied } = useSharePoem(poemId);
+
+  if (!data) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
         <div className="animate-pulse text-[var(--color-text-muted)]">
@@ -35,24 +41,10 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
     );
   }
 
-  const { poem, lines } = poemDetail;
+  const { poem, lines } = data;
 
   const handleToggleFavorite = async () => {
     await toggleFavorite({ poemId, guestToken: guestToken || undefined });
-  };
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}/poem/${poemId}`;
-
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      // Fire-and-forget analytics
-      logShare({ poemId }).catch(() => {});
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      captureError(err, { operation: 'sharePoem', poemId });
-    }
   };
 
   // Calculate unique poets
@@ -68,34 +60,36 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
         {/* Header Navigation */}
         <div className="flex justify-between items-center">
           <Link
-            href="/me/poems"
+            href={isParticipant ? '/me/poems' : '/'}
             className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline transition-colors"
           >
-            ← Home
+            {isParticipant ? '← Home' : '← Linejam'}
           </Link>
-          <button
-            onClick={handleToggleFavorite}
-            className={`transition-colors ${
-              isFavorited
-                ? 'text-[var(--color-primary)]'
-                : 'text-[var(--color-text-muted)] hover:opacity-60'
-            }`}
-            aria-label="Toggle favorite"
-          >
-            <svg
-              className="w-6 h-6"
-              fill={isFavorited ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {isParticipant && (
+            <button
+              onClick={handleToggleFavorite}
+              className={`transition-colors ${
+                isFavorited
+                  ? 'text-[var(--color-primary)]'
+                  : 'text-[var(--color-text-muted)] hover:opacity-60'
+              }`}
+              aria-label="Toggle favorite"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-6 h-6"
+                fill={isFavorited ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Metadata Header */}

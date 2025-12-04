@@ -3,10 +3,8 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Button } from './ui/Button';
 import { cn } from '@/lib/utils';
-import { useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { captureError } from '@/lib/sentry';
+import { useSharePoem } from '@/hooks/useSharePoem';
 
 /**
  * PoemDisplay: The Galley (Editorial Reveal)
@@ -46,8 +44,7 @@ export function PoemDisplay({
   const [revealedCount, setRevealedCount] = useState(
     alreadyRevealed ? lines.length : 0
   );
-  const [copied, setCopied] = useState(false);
-  const logShare = useMutation(api.shares.logShare);
+  const { handleShare, copied } = useSharePoem(poemId);
 
   // Staggered reveal with rhythmic pause after line 4
   useEffect(() => {
@@ -63,20 +60,6 @@ export function PoemDisplay({
       return () => clearTimeout(timer);
     }
   }, [revealedCount, lines.length, alreadyRevealed]);
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}/poem/${poemId}`;
-
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      // Fire-and-forget analytics
-      logShare({ poemId }).catch(() => {});
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      captureError(err, { operation: 'sharePoem', poemId });
-    }
-  };
 
   const allRevealed = revealedCount >= lines.length;
 
