@@ -323,6 +323,14 @@ export const getRevealPhaseState = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
+    // Batch fetch user records for stable IDs (for avatar colors)
+    const playerUserRecords = await Promise.all(
+      players.map((p) => ctx.db.get(p.userId))
+    );
+    const userRecordById = new Map(
+      players.map((p, i) => [p.userId, playerUserRecords[i]])
+    );
+
     // Get first line of each poem for preview
     const poemsWithPreview = await Promise.all(
       poems.map(async (poem) => {
@@ -334,6 +342,9 @@ export const getRevealPhaseState = query({
           .first();
 
         const reader = players.find((p) => p.userId === poem.assignedReaderId);
+        const readerUserRecord = poem.assignedReaderId
+          ? userRecordById.get(poem.assignedReaderId)
+          : null;
 
         return {
           _id: poem._id,
@@ -341,6 +352,11 @@ export const getRevealPhaseState = query({
           preview: firstLine?.text || '',
           assignedReaderId: poem.assignedReaderId,
           readerName: reader?.displayName || 'Unknown',
+          readerStableId:
+            readerUserRecord?.clerkUserId ||
+            readerUserRecord?.guestId ||
+            poem.assignedReaderId ||
+            '',
           revealedAt: poem.revealedAt,
           isRevealed: !!poem.revealedAt,
         };
@@ -376,10 +392,14 @@ export const getRevealPhaseState = query({
         : null,
       allRevealed,
       isHost: room.hostUserId === user._id,
-      players: players.map((p) => ({
-        userId: p.userId,
-        displayName: p.displayName,
-      })),
+      players: players.map((p) => {
+        const userRecord = userRecordById.get(p.userId);
+        return {
+          userId: p.userId,
+          displayName: p.displayName,
+          stableId: userRecord?.clerkUserId || userRecord?.guestId || p.userId,
+        };
+      }),
     };
   },
 });
@@ -424,7 +444,7 @@ export const getRoundProgress = query({
     const game = await ctx.db.get(room.currentGameId);
     if (!game) return null;
 
-    const players = await ctx.db
+    const roomPlayers = await ctx.db
       .query('roomPlayers')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
@@ -438,8 +458,16 @@ export const getRoundProgress = query({
     // Create poemIndex -> poem lookup map
     const poemByIndex = new Map(poems.map((p) => [p.indexInRoom, p]));
 
+    // Fetch user records to get stable IDs for avatar colors
+    const userRecords = await Promise.all(
+      roomPlayers.map((rp) => ctx.db.get(rp.userId))
+    );
+    const userById = new Map(
+      roomPlayers.map((rp, i) => [rp.userId, userRecords[i]])
+    );
+
     // Build player -> poem assignments for current round
-    const playerAssignments = players.map((player) => {
+    const playerAssignments = roomPlayers.map((player) => {
       const poemIndex = game.assignmentMatrix[game.currentRound].findIndex(
         (uid) => uid === player.userId
       );
@@ -464,11 +492,16 @@ export const getRoundProgress = query({
       )
     );
 
-    const progress = playerAssignments.map(({ player }, i) => ({
-      displayName: player.displayName,
-      submitted: lineChecks[i] !== null,
-      userId: player.userId,
-    }));
+    const progress = playerAssignments.map(({ player }, i) => {
+      const userRecord = userById.get(player.userId);
+      return {
+        displayName: player.displayName,
+        submitted: lineChecks[i] !== null,
+        userId: player.userId,
+        stableId:
+          userRecord?.clerkUserId || userRecord?.guestId || player.userId,
+      };
+    });
 
     return {
       round: game.currentRound,

@@ -34,7 +34,7 @@ describe('Lobby component', () => {
     status: 'LOBBY',
   };
 
-  const mockPlayers: Doc<'roomPlayers'>[] = [
+  const mockPlayers = [
     {
       _id: 'player_1' as Id<'roomPlayers'>,
       _creationTime: Date.now(),
@@ -42,6 +42,7 @@ describe('Lobby component', () => {
       userId: 'user_host' as Id<'users'>,
       displayName: 'Host Player',
       joinedAt: Date.now(),
+      stableId: 'stable_host_123',
     },
     {
       _id: 'player_2' as Id<'roomPlayers'>,
@@ -50,6 +51,7 @@ describe('Lobby component', () => {
       userId: 'user_guest' as Id<'users'>,
       displayName: 'Guest Player',
       joinedAt: Date.now(),
+      stableId: 'stable_guest_456',
     },
   ];
 

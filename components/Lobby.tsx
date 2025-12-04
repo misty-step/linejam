@@ -6,6 +6,7 @@ import { useUser } from '../lib/auth';
 import { formatRoomCode } from '../lib/roomCode';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
+import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { HostBadge } from './ui/HostBadge';
 import { StampAnimation } from './ui/StampAnimation';
@@ -41,9 +42,13 @@ import { RoomQr } from './RoomQr';
  * This is a deep module: Simple interface (props), complex responsive layout inside.
  */
 
+interface LobbyPlayer extends Doc<'roomPlayers'> {
+  stableId: string;
+}
+
 interface LobbyProps {
   room: Doc<'rooms'>;
-  players: Doc<'roomPlayers'>[];
+  players: LobbyPlayer[];
   isHost: boolean;
 }
 
@@ -52,6 +57,9 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const { guestToken } = useUser();
   const startGameMutation = useMutation(api.game.startGame);
   const [error, setError] = useState<string | null>(null);
+
+  // For unique avatar colors
+  const allStableIds = players.map((p) => p.stableId);
 
   const handleStartGame = async () => {
     if (!room) return;
@@ -160,9 +168,17 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               {players.map((player, i) => (
                 <StampAnimation key={player._id} delay={i * 150}>
                   <li className="flex items-center justify-between py-2">
-                    <span className="text-2xl md:text-3xl font-medium text-[var(--color-text-primary)]">
-                      {player.displayName}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <Avatar
+                        stableId={player.stableId}
+                        displayName={player.displayName}
+                        allStableIds={allStableIds}
+                        size="md"
+                      />
+                      <span className="text-2xl md:text-3xl font-medium text-[var(--color-text-primary)]">
+                        {player.displayName}
+                      </span>
+                    </div>
                     {player.userId === room.hostUserId && <HostBadge />}
                   </li>
                 </StampAnimation>

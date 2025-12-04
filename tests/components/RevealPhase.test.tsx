@@ -83,12 +83,14 @@ describe('RevealPhase component', () => {
       _id: 'poem_123' as Id<'poems'>,
       indexInRoom: 0,
       readerName: 'Alice',
+      readerStableId: 'stable_alice_123',
       isRevealed: false,
     },
     {
       _id: 'poem_456' as Id<'poems'>,
       indexInRoom: 1,
       readerName: 'Bob',
+      readerStableId: 'stable_bob_456',
       isRevealed: true,
     },
   ];

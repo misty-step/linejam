@@ -1,17 +1,20 @@
 'use client';
 
 import { useUser } from '../../../lib/auth';
+import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
 import { Label } from '../../../components/ui/Label';
 import { SignInButton, SignOutButton } from '@clerk/nextjs';
 import Image from 'next/image';
 import Link from 'next/link';
+import { getStableId } from '../../../lib/avatarColor';
 
 export default function ProfilePage() {
   const { clerkUser, guestId, displayName, isAuthenticated } = useUser();
 
   // Simple state for display purposes
   const currentName = displayName || '';
+  const stableId = getStableId(clerkUser?.id, guestId);
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24">
@@ -30,19 +33,26 @@ export default function ProfilePage() {
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-md)] space-y-8 relative overflow-hidden">
           {/* ID Card Header */}
           <div className="flex justify-between items-start">
-            <div>
-              <Label className="block mb-1">Current Alias</Label>
-              <p className="text-2xl font-[var(--font-display)] font-medium">
-                {currentName || 'Anonymous Poet'}
-              </p>
+            <div className="flex items-center gap-4">
+              <Avatar
+                stableId={stableId}
+                displayName={currentName || 'Anonymous Poet'}
+                size="xl"
+              />
+              <div>
+                <Label className="block mb-1">Current Alias</Label>
+                <p className="text-2xl font-[var(--font-display)] font-medium">
+                  {currentName || 'Anonymous Poet'}
+                </p>
+              </div>
             </div>
             {isAuthenticated && clerkUser?.imageUrl && (
-              <div className="w-16 h-16 border border-[var(--color-border)] p-1 bg-[var(--color-background)]">
+              <div className="w-12 h-12 border border-[var(--color-border)] p-1 bg-[var(--color-background)]">
                 <Image
                   src={clerkUser.imageUrl}
                   alt="Profile"
-                  width={64}
-                  height={64}
+                  width={48}
+                  height={48}
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all"
                 />
               </div>
