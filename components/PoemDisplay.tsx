@@ -3,6 +3,8 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Button } from './ui/Button';
 import { cn } from '@/lib/utils';
+import { Id } from '@/convex/_generated/dataModel';
+import { useSharePoem } from '@/hooks/useSharePoem';
 
 /**
  * PoemDisplay: The Galley (Editorial Reveal)
@@ -27,12 +29,14 @@ const PAUSE_AFTER_LINE = 4; // Add extra delay after this line (the turn)
 const PAUSE_DURATION = 1200; // ms (extended breath at the turn)
 
 interface PoemDisplayProps {
+  poemId: Id<'poems'>;
   lines: string[];
   onDone: () => void;
   alreadyRevealed?: boolean;
 }
 
 export function PoemDisplay({
+  poemId,
   lines,
   onDone,
   alreadyRevealed = false,
@@ -40,6 +44,7 @@ export function PoemDisplay({
   const [revealedCount, setRevealedCount] = useState(
     alreadyRevealed ? lines.length : 0
   );
+  const { handleShare, copied } = useSharePoem(poemId);
 
   // Staggered reveal with rhythmic pause after line 4
   useEffect(() => {
@@ -125,18 +130,28 @@ export function PoemDisplay({
           )}
         </div>
 
-        {/* Footer / Close */}
+        {/* Footer / Actions */}
         <div
           className={cn(
-            'text-center mt-16 transition-opacity duration-1000',
+            'flex flex-col sm:flex-row items-center justify-center gap-4 mt-16 transition-opacity duration-1000',
             allRevealed ? 'opacity-100' : 'opacity-0'
           )}
         >
           <Button
-            onClick={onDone}
-            variant="outline"
+            onClick={handleShare}
+            variant="primary"
             size="lg"
-            className="min-w-[140px] border-2 h-14 text-lg"
+            className="min-w-[160px] h-14 text-lg"
+            stampAnimate={copied}
+            aria-label="Copy poem link to clipboard"
+          >
+            {copied ? 'Copied!' : 'Share This'}
+          </Button>
+          <Button
+            onClick={onDone}
+            variant="ghost"
+            size="lg"
+            className="min-w-[140px] h-14 text-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
           >
             Close
           </Button>

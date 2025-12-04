@@ -19,6 +19,7 @@ import type * as lib_wordCount from "../lib/wordCount.js";
 import type * as migrations from "../migrations.js";
 import type * as poems from "../poems.js";
 import type * as rooms from "../rooms.js";
+import type * as shares from "../shares.js";
 import type * as users from "../users.js";
 
 import type {
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   poems: typeof poems;
   rooms: typeof rooms;
+  shares: typeof shares;
   users: typeof users;
 }>;
 

@@ -14,6 +14,9 @@ export function createMockDb() {
     withIndex: vi.fn(function (this: typeof mockDb) {
       return this;
     }),
+    order: vi.fn(function (this: typeof mockDb) {
+      return this;
+    }),
     first: vi.fn(),
     collect: vi.fn(),
     patch: vi.fn(),

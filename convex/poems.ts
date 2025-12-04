@@ -168,3 +168,61 @@ export const getMyPoems = query({
     return result;
   },
 });
+
+export const getPublicPoemPreview = query({
+  args: {
+    poemId: v.id('poems'),
+  },
+  handler: async (ctx, { poemId }) => {
+    const poem = await ctx.db.get(poemId);
+    if (!poem) return null;
+
+    const lines = await ctx.db
+      .query('lines')
+      .withIndex('by_poem_index', (q) => q.eq('poemId', poemId))
+      .order('asc')
+      .collect();
+
+    // Count unique poets
+    const uniqueAuthorIds = new Set(lines.map((l) => l.authorUserId));
+
+    return {
+      lines: lines.slice(0, 3).map((l) => l.text),
+      poetCount: uniqueAuthorIds.size,
+      poemNumber: poem.indexInRoom + 1,
+    };
+  },
+});
+
+export const getPublicPoemFull = query({
+  args: {
+    poemId: v.id('poems'),
+  },
+  handler: async (ctx, { poemId }) => {
+    const poem = await ctx.db.get(poemId);
+    if (!poem) return null;
+
+    const lines = await ctx.db
+      .query('lines')
+      .withIndex('by_poem_index', (q) => q.eq('poemId', poemId))
+      .order('asc')
+      .collect();
+
+    // Batch fetch all unique authors in parallel
+    const uniqueAuthorIds = [...new Set(lines.map((l) => l.authorUserId))];
+    const authors = await Promise.all(
+      uniqueAuthorIds.map((id) => ctx.db.get(id))
+    );
+    const authorMap = new Map(
+      uniqueAuthorIds.map((id, i) => [id, authors[i]?.displayName || 'Unknown'])
+    );
+
+    return {
+      poem,
+      lines: lines.map((line) => ({
+        ...line,
+        authorName: authorMap.get(line.authorUserId) || 'Unknown',
+      })),
+    };
+  },
+});

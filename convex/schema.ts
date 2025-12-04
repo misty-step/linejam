@@ -92,6 +92,13 @@ export default defineSchema({
     .index('by_poem', ['poemId'])
     .index('by_user_poem', ['userId', 'poemId']),
 
+  shares: defineTable({
+    poemId: v.id('poems'),
+    createdAt: v.number(),
+  })
+    .index('by_poem', ['poemId'])
+    .index('by_created', ['createdAt']),
+
   rateLimits: defineTable({
     key: v.string(),
     hits: v.number(),

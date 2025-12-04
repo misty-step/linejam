@@ -7,7 +7,13 @@ vi.mock('../../convex/_generated/server', () => ({
   query: (args: unknown) => args,
 }));
 
-import { getPoemsForRoom, getPoemDetail, getMyPoems } from '../../convex/poems';
+import {
+  getPoemsForRoom,
+  getPoemDetail,
+  getMyPoems,
+  getPublicPoemPreview,
+  getPublicPoemFull,
+} from '../../convex/poems';
 
 // Mock getUser
 const mockGetUser = vi.fn();
@@ -503,6 +509,144 @@ describe('poems', () => {
 
       // Assert
       expect(result[0].roomDate).toBe(500);
+    });
+  });
+
+  describe('getPublicPoemPreview', () => {
+    it('returns null when poem not found', async () => {
+      // Arrange
+      mockDb.get.mockResolvedValue(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemPreview.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('returns preview data correctly', async () => {
+      // Arrange
+      const poem = { _id: 'poem1', indexInRoom: 4 };
+      const lines = [
+        { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
+        { text: 'Line 2', indexInPoem: 1, authorUserId: 'u2' },
+        { text: 'Line 3', indexInPoem: 2, authorUserId: 'u1' },
+        { text: 'Line 4', indexInPoem: 3, authorUserId: 'u3' },
+      ];
+
+      mockDb.get.mockResolvedValue(poem);
+      mockDb.collect.mockResolvedValue(lines);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemPreview.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).toEqual({
+        lines: ['Line 1', 'Line 2', 'Line 3'],
+        poetCount: 3, // u1, u2, u3
+        poemNumber: 5, // 4 + 1
+      });
+    });
+
+    it('returns lines in database order (using by_poem_index)', async () => {
+      // Arrange - lines returned in index order from DB (simulating .order('asc'))
+      const poem = { _id: 'poem1', indexInRoom: 0 };
+      const lines = [
+        { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
+        { text: 'Line 2', indexInPoem: 1, authorUserId: 'u1' },
+        { text: 'Line 4', indexInPoem: 3, authorUserId: 'u1' },
+      ];
+
+      mockDb.get.mockResolvedValue(poem);
+      mockDb.collect.mockResolvedValue(lines);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemPreview.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert - should return first 3 lines in DB order
+      expect(result?.lines).toEqual(['Line 1', 'Line 2', 'Line 4']);
+    });
+  });
+
+  describe('getPublicPoemFull', () => {
+    it('returns null when poem not found', async () => {
+      // Arrange
+      mockDb.get.mockResolvedValue(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemFull.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('returns full poem with lines and author names', async () => {
+      // Arrange
+      const poem = { _id: 'poem1', indexInRoom: 2, roomId: 'room1' };
+      const lines = [
+        { _id: 'l1', text: 'First line', indexInPoem: 0, authorUserId: 'u1' },
+        { _id: 'l2', text: 'Second line', indexInPoem: 1, authorUserId: 'u2' },
+        { _id: 'l3', text: 'Third line', indexInPoem: 2, authorUserId: 'u1' },
+      ];
+      const user1 = { _id: 'u1', displayName: 'Alice' };
+      const user2 = { _id: 'u2', displayName: 'Bob' };
+
+      mockDb.get.mockResolvedValueOnce(poem); // poem lookup
+      mockDb.collect.mockResolvedValue(lines); // lines query
+      mockDb.get.mockResolvedValueOnce(user1); // author 1
+      mockDb.get.mockResolvedValueOnce(user2); // author 2
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemFull.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).not.toBeNull();
+      expect(result?.poem).toEqual(poem);
+      expect(result?.lines).toHaveLength(3);
+      expect(result?.lines[0].authorName).toBe('Alice');
+      expect(result?.lines[1].authorName).toBe('Bob');
+      expect(result?.lines[2].authorName).toBe('Alice');
+    });
+
+    it('uses "Unknown" for missing author names', async () => {
+      // Arrange
+      const poem = { _id: 'poem1', indexInRoom: 0 };
+      const lines = [
+        {
+          _id: 'l1',
+          text: 'Solo line',
+          indexInPoem: 0,
+          authorUserId: 'missing',
+        },
+      ];
+
+      mockDb.get.mockResolvedValueOnce(poem); // poem lookup
+      mockDb.collect.mockResolvedValue(lines); // lines query
+      mockDb.get.mockResolvedValueOnce(null); // missing author
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemFull.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result?.lines[0].authorName).toBe('Unknown');
     });
   });
 });
