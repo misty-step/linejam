@@ -33,7 +33,7 @@ export default function ProfilePage() {
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-md)] space-y-8 relative overflow-hidden">
           {/* ID Card Header */}
           <div className="flex justify-between items-start">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Avatar
                 stableId={stableId}
                 displayName={currentName || 'Anonymous Poet'}

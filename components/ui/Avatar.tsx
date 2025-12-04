@@ -14,20 +14,18 @@ interface AvatarProps {
   className?: string;
 }
 
+// Tiny accent dots - name is primary, color is secondary identifier
 const SIZES = {
-  xs: 'w-5 h-5', // 20px (reduced from 24px)
-  sm: 'w-7 h-7', // 28px (reduced from 32px)
-  md: 'w-9 h-9', // 36px (reduced from 40px)
-  lg: 'w-12 h-12', // 48px (reduced from 56px)
-  xl: 'w-16 h-16', // 64px (reduced from 80px)
+  xs: 'w-2 h-2', // 8px - RevealPhase lists
+  sm: 'w-2.5 h-2.5', // 10px - WaitingScreen indicators
+  md: 'w-3 h-3', // 12px - Lobby player list
+  lg: 'w-4 h-4', // 16px - Emphasized contexts
+  xl: 'w-5 h-5', // 20px - Profile page
 } as const;
 
-// SVG noise texture for ink-on-paper effect
-const NOISE_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.12'/%3E%3C/svg%3E")`;
-
 /**
- * Player avatar as colored circle.
- * Color derived from stableId with collision resolution when allStableIds provided.
+ * Color accent dot for player identification.
+ * Tiny marker where name is primary; color provides multiplayer distinction.
  */
 export function Avatar({
   stableId,
@@ -42,18 +40,9 @@ export function Avatar({
 
   return (
     <div
-      className={cn(
-        'rounded-full shrink-0',
-        'shadow-[var(--shadow-sm)]', // Hanko seal: hard graphic shadow
-        SIZES[size],
-        className
-      )}
-      style={{
-        backgroundColor: color,
-        backgroundImage: NOISE_TEXTURE,
-        backgroundBlendMode: 'overlay',
-      }}
-      aria-label={`${displayName}'s avatar`}
+      className={cn('rounded-full shrink-0', SIZES[size], className)}
+      style={{ backgroundColor: color }}
+      aria-label={`${displayName}'s color marker`}
       role="img"
     />
   );

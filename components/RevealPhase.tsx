@@ -149,7 +149,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                       : 'bg-[var(--color-surface)] border-[var(--color-border)]')
                   }
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <span className="font-mono text-xs text-[var(--color-text-muted)] w-6">
                       {(i + 1).toString().padStart(2, '0')}
                     </span>

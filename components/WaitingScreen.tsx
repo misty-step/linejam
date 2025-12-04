@@ -53,7 +53,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
 
         {/* Center-bottom: Poet presence indicators */}
         <div className="flex-1 flex items-start justify-center w-full mb-20">
-          <div className="flex flex-wrap gap-6 md:gap-8 justify-center max-w-xl">
+          <div className="flex flex-wrap gap-4 md:gap-5 justify-center max-w-xl">
             {players.map((player, index) => (
               <div
                 key={player.userId}
@@ -81,9 +81,9 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
                       allStableIds={allStableIds}
                       size="sm"
                     />
-                    {/* Pulse ring */}
+                    {/* Pulse ring - scaled for tiny dots */}
                     <div
-                      className="absolute inset-0 -m-1 rounded-full border-2 border-current opacity-0"
+                      className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
                       style={{
                         animation: 'avatar-pulse 2s ease-out infinite',
                         color: 'var(--color-primary)',

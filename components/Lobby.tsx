@@ -168,7 +168,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               {players.map((player, i) => (
                 <StampAnimation key={player._id} delay={i * 150}>
                   <li className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <Avatar
                         stableId={player.stableId}
                         displayName={player.displayName}
