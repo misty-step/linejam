@@ -391,8 +391,12 @@ describe('rooms', () => {
         guestToken: 'token123',
       });
 
-      // Assert
-      expect(result).toEqual({ room, players, isHost: true });
+      // Assert - stableId falls back to userId when db.get returns undefined
+      const expectedPlayers = players.map((p) => ({
+        ...p,
+        stableId: p.userId,
+      }));
+      expect(result).toEqual({ room, players: expectedPlayers, isHost: true });
     });
 
     it('returns isHost=false for non-host player', async () => {

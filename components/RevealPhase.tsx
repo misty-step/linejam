@@ -26,6 +26,8 @@ import { RoomQr } from './RoomQr';
 
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 
+import { Avatar } from './ui/Avatar';
+
 interface RevealPhaseProps {
   roomCode: string;
 }
@@ -99,6 +101,9 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
   const { myPoem, allRevealed, isHost, poems } = state;
 
+  // For unique avatar colors
+  const allStableIds = poems.map((p) => p.readerStableId);
+
   // If showing the full poem after reveal
 
   if (showingPoem && myPoem) {
@@ -144,10 +149,16 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                       : 'bg-[var(--color-surface)] border-[var(--color-border)]')
                   }
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <span className="font-mono text-xs text-[var(--color-text-muted)] w-6">
                       {(i + 1).toString().padStart(2, '0')}
                     </span>
+                    <Avatar
+                      stableId={poem.readerStableId}
+                      displayName={poem.readerName}
+                      allStableIds={allStableIds}
+                      size="xs"
+                    />
                     <span className="text-sm font-medium">
                       {poem.readerName}
                     </span>

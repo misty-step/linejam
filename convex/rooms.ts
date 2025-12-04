@@ -160,10 +160,21 @@ export const getRoomState = query({
       return null;
     }
 
-    const players = await ctx.db
+    const roomPlayers = await ctx.db
       .query('roomPlayers')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
+
+    // Fetch user records to get stable IDs for avatar colors
+    const players = await Promise.all(
+      roomPlayers.map(async (rp) => {
+        const userRecord = await ctx.db.get(rp.userId);
+        return {
+          ...rp,
+          stableId: userRecord?.clerkUserId || userRecord?.guestId || rp.userId,
+        };
+      })
+    );
 
     const user = await getUser(ctx, guestToken);
     const isHost = !!user && user._id === room.hostUserId;

@@ -9,7 +9,20 @@ Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-
 
 ### [Product] Sound/audio feedback\*\* - Ambient music, submit/round/reveal effects. "Feels like a real game" polish.
 
-### [Product] Player avatars\*\* - Emoji or preset images, color assignments. Identity and fun, premium candidate.
+### [Product] Add timer/pace control system
+
+**Perspectives**: product-visionary
+**Why**: No time pressure. Games can stall indefinitely. One slow player kills energy.
+**Approach**: Configurable round timer (30/60/90s), visual countdown, auto-submit on expiry
+**Effort**: 4-6h | **Value**: Transforms game feel
+**Business Case**: Timers create energy and laughs
+
+### [Product] Support adding an AI player to a game
+
+- should use gemini 3 via google gen ai sdk
+- should adopt some kind of random persona; we should have a set of established personas we randomly choose, including chaotic casual personas as well as real poets
+
+### [Monetization] Add premium avatars and color themes
 
 ### [Maintainability] Extract checkParticipation helper
 
@@ -240,16 +253,6 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 - `submitLine`: word count validation, assignment validation
 - `joinRoom`: room full, already started, existing player
   **Effort**: 4-6h | **Impact**: Refactoring confidence
-
----
-
-### [Product] Add timer/pace control system
-
-**Perspectives**: product-visionary
-**Why**: No time pressure. Games can stall indefinitely. One slow player kills energy.
-**Approach**: Configurable round timer (30/60/90s), visual countdown, auto-submit on expiry
-**Effort**: 4-6h | **Value**: Transforms game feel
-**Business Case**: Timers create energy and laughs
 
 ---
 
