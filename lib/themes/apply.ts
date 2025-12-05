@@ -62,6 +62,16 @@ export function applyTheme(
   root.style.setProperty('--radius-lg', styleProps.radius.lg);
   root.style.setProperty('--radius-full', styleProps.radius.full);
 
+  // Apply spacing variables
+  root.style.setProperty('--space-1', styleProps.spacing[1]);
+  root.style.setProperty('--space-2', styleProps.spacing[2]);
+  root.style.setProperty('--space-3', styleProps.spacing[3]);
+  root.style.setProperty('--space-4', styleProps.spacing[4]);
+  root.style.setProperty('--space-5', styleProps.spacing[5]);
+  root.style.setProperty('--space-6', styleProps.spacing[6]);
+  root.style.setProperty('--space-7', styleProps.spacing[7]);
+  root.style.setProperty('--space-8', styleProps.spacing[8]);
+
   // Apply transition variables
   root.style.setProperty('--duration-instant', styleProps.transitions.instant);
   root.style.setProperty('--duration-fast', styleProps.transitions.fast);

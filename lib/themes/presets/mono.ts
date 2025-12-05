@@ -49,6 +49,16 @@ export const monoTheme: ThemePreset = {
         lg: '0px',
         full: '9999px',
       },
+      spacing: {
+        1: '0.125rem', // 2px - ultra tight
+        2: '0.25rem', // 4px
+        3: '0.5rem', // 8px - compact base
+        4: '1rem', // 16px
+        5: '1.5rem', // 24px
+        6: '2rem', // 32px
+        7: '3rem', // 48px
+        8: '4rem', // 64px
+      },
       transitions: {
         instant: '0ms', // Instant feedback
         fast: '50ms', // Subliminal snap
@@ -93,6 +103,16 @@ export const monoTheme: ThemePreset = {
         md: '0px',
         lg: '0px',
         full: '9999px',
+      },
+      spacing: {
+        1: '0.125rem', // 2px - ultra tight
+        2: '0.25rem', // 4px
+        3: '0.5rem', // 8px - compact base
+        4: '1rem', // 16px
+        5: '1.5rem', // 24px
+        6: '2rem', // 32px
+        7: '3rem', // 48px
+        8: '4rem', // 64px
       },
       transitions: {
         instant: '0ms', // Instant feedback

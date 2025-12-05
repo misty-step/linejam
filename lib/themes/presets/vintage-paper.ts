@@ -55,6 +55,16 @@ export const vintagePaperTheme: ThemePreset = {
         lg: '12px',
         full: '9999px',
       },
+      spacing: {
+        1: '0.375rem', // 6px - soft
+        2: '0.75rem', // 12px
+        3: '1.25rem', // 20px - friendly base
+        4: '2rem', // 32px
+        5: '3rem', // 48px - relaxed
+        6: '4.5rem', // 72px
+        7: '7rem', // 112px - luxurious
+        8: '10rem', // 160px - indulgent
+      },
       transitions: {
         instant: '150ms', // Noticeably leisurely
         fast: '300ms',
@@ -103,6 +113,16 @@ export const vintagePaperTheme: ThemePreset = {
         md: '8px',
         lg: '12px',
         full: '9999px',
+      },
+      spacing: {
+        1: '0.375rem', // 6px - soft
+        2: '0.75rem', // 12px
+        3: '1.25rem', // 20px - friendly base
+        4: '2rem', // 32px
+        5: '3rem', // 48px - relaxed
+        6: '4.5rem', // 72px
+        7: '7rem', // 112px - luxurious
+        8: '10rem', // 160px - indulgent
       },
       transitions: {
         instant: '150ms', // Noticeably leisurely

@@ -55,6 +55,18 @@ export interface ThemeRadius {
   full: string;
 }
 
+// Spacing scale - creates distinct spatial DNA per theme
+export interface ThemeSpacing {
+  1: string; // Tight
+  2: string;
+  3: string; // Base
+  4: string;
+  5: string; // Comfortable
+  6: string;
+  7: string; // Generous
+  8: string; // Monument
+}
+
 // Animation timing
 export interface ThemeTransitions {
   instant: string;
@@ -72,6 +84,7 @@ export interface ThemeStyleProps {
   fonts: ThemeFonts;
   shadows: ThemeShadows;
   radius: ThemeRadius;
+  spacing: ThemeSpacing;
   transitions: ThemeTransitions;
 }
 

@@ -52,6 +52,16 @@ export const kenyaTheme: ThemePreset = {
         lg: '6px',
         full: '9999px',
       },
+      spacing: {
+        1: '0.25rem', // 4px
+        2: '0.5rem', // 8px
+        3: '1rem', // 16px - base
+        4: '1.5rem', // 24px
+        5: '2.5rem', // 40px
+        6: '4rem', // 64px
+        7: '6rem', // 96px
+        8: '9rem', // 144px
+      },
       transitions: {
         instant: '75ms',
         fast: '150ms',
@@ -100,6 +110,16 @@ export const kenyaTheme: ThemePreset = {
         md: '4px',
         lg: '6px',
         full: '9999px',
+      },
+      spacing: {
+        1: '0.25rem', // 4px
+        2: '0.5rem', // 8px
+        3: '1rem', // 16px - base
+        4: '1.5rem', // 24px
+        5: '2.5rem', // 40px
+        6: '4rem', // 64px
+        7: '6rem', // 96px
+        8: '9rem', // 144px
       },
       transitions: {
         instant: '75ms',
