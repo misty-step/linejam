@@ -65,7 +65,7 @@ export function RoomQr({ roomCode, className = '' }: RoomQrProps) {
         className="p-6 rounded-[var(--radius-sm)]
                    border border-stone-200 dark:border-[var(--color-primary)]/30
                    shadow-[var(--shadow-md)]
-                   dark:shadow-[0_0_32px_rgba(232,93,43,0.15)]"
+                   dark:shadow-[0_0_32px_rgb(var(--shadow-color)/0.15)]"
         style={{ backgroundColor: PAPER_COLOR }}
       >
         <QRCode

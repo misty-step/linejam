@@ -27,7 +27,7 @@ export function HostBadge({ className }: HostBadgeProps) {
 
         // Shape & Shadow
         'rounded-[var(--radius-sm)]',
-        'shadow-[1px_1px_0px_rgba(232,93,43,0.15)]',
+        'shadow-[var(--shadow-sm)]',
 
         className
       )}

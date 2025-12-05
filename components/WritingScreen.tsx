@@ -202,7 +202,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
             stampAnimate={submissionState === 'confirmed'}
             className={cn(
               'min-w-[240px] text-xl h-20',
-              isValid && 'shadow-[4px_4px_0px_rgba(232,93,43,0.2)]'
+              isValid && 'shadow-[var(--shadow-md)]'
             )}
           >
             {submissionState === 'submitting'

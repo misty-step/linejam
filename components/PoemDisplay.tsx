@@ -71,7 +71,7 @@ export function PoemDisplay({
           'relative w-full max-w-2xl my-auto',
           'ml-0 md:ml-[10vw] lg:ml-[20vw]',
           'bg-[var(--color-surface)] p-8 md:p-12 lg:p-16',
-          'shadow-[8px_8px_0px_rgba(232,93,43,0.15)]',
+          'shadow-[var(--shadow-lg)]',
           'border border-[var(--color-border)]'
         )}
       >

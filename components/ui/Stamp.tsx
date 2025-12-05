@@ -22,7 +22,7 @@ export function Stamp({ type, size = 'md', className }: StampProps) {
   return (
     <div
       className={cn(
-        'inline-block -rotate-[5deg] drop-shadow-[3px_3px_8px_rgba(232,93,43,0.4)]',
+        'inline-block -rotate-[5deg] drop-shadow-[3px_3px_8px_rgb(var(--shadow-color)/0.4)]',
         sizeClass,
         className
       )}
