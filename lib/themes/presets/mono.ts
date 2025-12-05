@@ -38,9 +38,9 @@ export const monoTheme: ThemePreset = {
         mono: 'var(--font-jetbrains-mono)',
       },
       shadows: {
-        sm: '2px 2px 0px rgba(0, 0, 0, 0.2)',
-        md: '4px 4px 0px rgba(0, 0, 0, 0.15)',
-        lg: '6px 6px 0px rgba(0, 0, 0, 0.1)',
+        sm: 'none', // Swiss modernism: no shadows, use borders
+        md: 'none',
+        lg: 'none',
         color: '0 0 0',
       },
       radius: {
@@ -50,10 +50,13 @@ export const monoTheme: ThemePreset = {
         full: '9999px',
       },
       transitions: {
-        instant: '50ms',
-        fast: '100ms',
-        normal: '200ms',
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        instant: '0ms', // Instant feedback
+        fast: '50ms', // Subliminal snap
+        normal: '100ms', // Just perceptible
+        slow: '150ms', // Still fast
+        easing: 'cubic-bezier(0.4, 0, 1, 1)', // Sharp deceleration
+        easingIn: 'cubic-bezier(0.4, 0, 1, 1)',
+        easingOut: 'cubic-bezier(0, 0, 0.2, 1)', // Material snap
       },
     },
     dark: {
@@ -80,9 +83,9 @@ export const monoTheme: ThemePreset = {
         mono: 'var(--font-jetbrains-mono)',
       },
       shadows: {
-        sm: '2px 2px 0px rgba(255, 255, 255, 0.15)',
-        md: '4px 4px 0px rgba(255, 255, 255, 0.1)',
-        lg: '6px 6px 0px rgba(255, 255, 255, 0.08)',
+        sm: 'none', // Swiss modernism: no shadows, use borders
+        md: 'none',
+        lg: 'none',
         color: '255 255 255',
       },
       radius: {
@@ -92,10 +95,13 @@ export const monoTheme: ThemePreset = {
         full: '9999px',
       },
       transitions: {
-        instant: '50ms',
-        fast: '100ms',
-        normal: '200ms',
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        instant: '0ms', // Instant feedback
+        fast: '50ms', // Subliminal snap
+        normal: '100ms', // Just perceptible
+        slow: '150ms', // Still fast
+        easing: 'cubic-bezier(0.4, 0, 1, 1)', // Sharp deceleration
+        easingIn: 'cubic-bezier(0.4, 0, 1, 1)',
+        easingOut: 'cubic-bezier(0, 0, 0.2, 1)', // Material snap
       },
     },
   },

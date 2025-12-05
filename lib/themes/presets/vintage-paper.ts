@@ -56,10 +56,13 @@ export const vintagePaperTheme: ThemePreset = {
         full: '9999px',
       },
       transitions: {
-        instant: '100ms',
-        fast: '200ms',
-        normal: '400ms',
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        instant: '150ms', // Noticeably leisurely
+        fast: '300ms',
+        normal: '500ms',
+        slow: '800ms', // Luxuriously slow
+        easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Organic spring bounce
+        easingIn: 'cubic-bezier(0.16, 1, 0.3, 1)', // Gentle entry
+        easingOut: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Playful overshoot
       },
     },
     dark: {
@@ -102,10 +105,13 @@ export const vintagePaperTheme: ThemePreset = {
         full: '9999px',
       },
       transitions: {
-        instant: '100ms',
-        fast: '200ms',
-        normal: '400ms',
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        instant: '150ms', // Noticeably leisurely
+        fast: '300ms',
+        normal: '500ms',
+        slow: '800ms', // Luxuriously slow
+        easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Organic spring bounce
+        easingIn: 'cubic-bezier(0.16, 1, 0.3, 1)', // Gentle entry
+        easingOut: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Playful overshoot
       },
     },
   },

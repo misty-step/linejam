@@ -60,7 +60,10 @@ export interface ThemeTransitions {
   instant: string;
   fast: string;
   normal: string;
-  easing: string;
+  slow: string;
+  easing: string; // Default easing for most transitions
+  easingIn: string; // For entering elements
+  easingOut: string; // For exiting elements
 }
 
 // Complete style props for one mode

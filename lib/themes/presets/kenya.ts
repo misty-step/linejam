@@ -56,7 +56,10 @@ export const kenyaTheme: ThemePreset = {
         instant: '75ms',
         fast: '150ms',
         normal: '250ms',
-        easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+        slow: '400ms',
+        easing: 'cubic-bezier(0.25, 1, 0.5, 1)', // Mechanical, decisive
+        easingIn: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        easingOut: 'cubic-bezier(0.25, 1, 0.5, 1)',
       },
     },
     dark: {
@@ -102,7 +105,10 @@ export const kenyaTheme: ThemePreset = {
         instant: '75ms',
         fast: '150ms',
         normal: '250ms',
-        easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+        slow: '400ms',
+        easing: 'cubic-bezier(0.25, 1, 0.5, 1)', // Mechanical, decisive
+        easingIn: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        easingOut: 'cubic-bezier(0.25, 1, 0.5, 1)',
       },
     },
   },

@@ -66,7 +66,10 @@ export function applyTheme(
   root.style.setProperty('--duration-instant', styleProps.transitions.instant);
   root.style.setProperty('--duration-fast', styleProps.transitions.fast);
   root.style.setProperty('--duration-normal', styleProps.transitions.normal);
+  root.style.setProperty('--duration-slow', styleProps.transitions.slow);
   root.style.setProperty('--ease-theme', styleProps.transitions.easing);
+  root.style.setProperty('--ease-in', styleProps.transitions.easingIn);
+  root.style.setProperty('--ease-out', styleProps.transitions.easingOut);
 
   // Set data attributes and classes
   root.setAttribute('data-theme', themeId);
