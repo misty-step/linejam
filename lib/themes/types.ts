@@ -39,6 +39,31 @@ export interface ThemeFonts {
   mono: string; // e.g., 'var(--font-jetbrains-mono)'
 }
 
+// Typography scale - creates distinct typographic voice per theme
+export interface ThemeTypography {
+  // Font sizes (using different scale ratios)
+  textXs: string;
+  textSm: string;
+  textBase: string;
+  textMd: string;
+  textLg: string;
+  textXl: string;
+  text2xl: string;
+  text3xl: string;
+  text4xl: string;
+  text5xl: string;
+  // Line heights
+  leadingTight: string;
+  leadingNormal: string;
+  leadingRelaxed: string;
+  // Letter spacing
+  trackingTighter: string;
+  trackingTight: string;
+  trackingNormal: string;
+  trackingWide: string;
+  trackingWider: string;
+}
+
 // Shadow definitions
 export interface ThemeShadows {
   sm: string;
@@ -82,6 +107,7 @@ export interface ThemeTransitions {
 export interface ThemeStyleProps {
   colors: ThemeColors;
   fonts: ThemeFonts;
+  typography: ThemeTypography;
   shadows: ThemeShadows;
   radius: ThemeRadius;
   spacing: ThemeSpacing;

@@ -40,6 +40,27 @@ export const kenyaTheme: ThemePreset = {
         sans: 'var(--font-ibm-plex)',
         mono: 'var(--font-jetbrains-mono)',
       },
+      typography: {
+        // 1.333 ratio (Perfect Fourth) - editorial
+        textXs: '0.75rem', // 12px
+        textSm: '0.875rem', // 14px
+        textBase: '1rem', // 16px
+        textMd: '1.125rem', // 18px
+        textLg: '1.333rem', // 21px
+        textXl: '1.777rem', // 28px
+        text2xl: '2.369rem', // 38px
+        text3xl: '3.157rem', // 51px
+        text4xl: '4.209rem', // 67px
+        text5xl: '5.61rem', // 90px
+        leadingTight: '1.1',
+        leadingNormal: '1.5',
+        leadingRelaxed: '1.75',
+        trackingTighter: '-0.05em',
+        trackingTight: '-0.025em',
+        trackingNormal: '0',
+        trackingWide: '0.025em',
+        trackingWider: '0.05em',
+      },
       shadows: {
         sm: '2px 2px 0px rgba(232, 93, 43, 0.15)',
         md: '4px 4px 0px rgba(232, 93, 43, 0.1)',
@@ -98,6 +119,27 @@ export const kenyaTheme: ThemePreset = {
         display: 'var(--font-libre-baskerville)',
         sans: 'var(--font-ibm-plex)',
         mono: 'var(--font-jetbrains-mono)',
+      },
+      typography: {
+        // 1.333 ratio (Perfect Fourth) - editorial
+        textXs: '0.75rem',
+        textSm: '0.875rem',
+        textBase: '1rem',
+        textMd: '1.125rem',
+        textLg: '1.333rem',
+        textXl: '1.777rem',
+        text2xl: '2.369rem',
+        text3xl: '3.157rem',
+        text4xl: '4.209rem',
+        text5xl: '5.61rem',
+        leadingTight: '1.1',
+        leadingNormal: '1.5',
+        leadingRelaxed: '1.75',
+        trackingTighter: '-0.05em',
+        trackingTight: '-0.025em',
+        trackingNormal: '0',
+        trackingWide: '0.025em',
+        trackingWider: '0.05em',
       },
       shadows: {
         sm: '2px 2px 0px rgba(232, 93, 43, 0.2)',

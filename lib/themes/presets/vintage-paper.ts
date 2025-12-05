@@ -43,6 +43,27 @@ export const vintagePaperTheme: ThemePreset = {
         sans: 'var(--font-source-serif)',
         mono: 'var(--font-jetbrains-mono)',
       },
+      typography: {
+        // 1.414 ratio (Augmented Fourth) - dramatic, literary
+        textXs: '0.707rem', // 11px - delicate
+        textSm: '0.85rem', // 14px
+        textBase: '1rem', // 16px
+        textMd: '1.2rem', // 19px
+        textLg: '1.414rem', // 23px
+        textXl: '2rem', // 32px
+        text2xl: '2.828rem', // 45px
+        text3xl: '4rem', // 64px
+        text4xl: '5.657rem', // 91px
+        text5xl: '8rem', // 128px - monument scale
+        leadingTight: '1.2', // Breathable even tight
+        leadingNormal: '1.6', // Luxurious
+        leadingRelaxed: '1.9', // Indulgent
+        trackingTighter: '-0.02em',
+        trackingTight: '-0.01em',
+        trackingNormal: '0.01em', // Slight openness
+        trackingWide: '0.08em',
+        trackingWider: '0.15em', // Old-style letterspacing
+      },
       shadows: {
         sm: '0 1px 3px rgba(61, 54, 50, 0.08)',
         md: '0 4px 6px rgba(61, 54, 50, 0.06)',
@@ -101,6 +122,27 @@ export const vintagePaperTheme: ThemePreset = {
         display: 'var(--font-cormorant)',
         sans: 'var(--font-source-serif)',
         mono: 'var(--font-jetbrains-mono)',
+      },
+      typography: {
+        // 1.414 ratio (Augmented Fourth) - dramatic, literary
+        textXs: '0.707rem',
+        textSm: '0.85rem',
+        textBase: '1rem',
+        textMd: '1.2rem',
+        textLg: '1.414rem',
+        textXl: '2rem',
+        text2xl: '2.828rem',
+        text3xl: '4rem',
+        text4xl: '5.657rem',
+        text5xl: '8rem',
+        leadingTight: '1.2',
+        leadingNormal: '1.6',
+        leadingRelaxed: '1.9',
+        trackingTighter: '-0.02em',
+        trackingTight: '-0.01em',
+        trackingNormal: '0.01em',
+        trackingWide: '0.08em',
+        trackingWider: '0.15em',
       },
       shadows: {
         sm: '0 1px 3px rgba(0, 0, 0, 0.2)',

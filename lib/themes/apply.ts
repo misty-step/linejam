@@ -48,6 +48,44 @@ export function applyTheme(
   root.style.setProperty('--font-sans', styleProps.fonts.sans);
   root.style.setProperty('--font-mono', styleProps.fonts.mono);
 
+  // Apply typography variables
+  root.style.setProperty('--text-xs', styleProps.typography.textXs);
+  root.style.setProperty('--text-sm', styleProps.typography.textSm);
+  root.style.setProperty('--text-base', styleProps.typography.textBase);
+  root.style.setProperty('--text-md', styleProps.typography.textMd);
+  root.style.setProperty('--text-lg', styleProps.typography.textLg);
+  root.style.setProperty('--text-xl', styleProps.typography.textXl);
+  root.style.setProperty('--text-2xl', styleProps.typography.text2xl);
+  root.style.setProperty('--text-3xl', styleProps.typography.text3xl);
+  root.style.setProperty('--text-4xl', styleProps.typography.text4xl);
+  root.style.setProperty('--text-5xl', styleProps.typography.text5xl);
+  root.style.setProperty('--leading-tight', styleProps.typography.leadingTight);
+  root.style.setProperty(
+    '--leading-normal',
+    styleProps.typography.leadingNormal
+  );
+  root.style.setProperty(
+    '--leading-relaxed',
+    styleProps.typography.leadingRelaxed
+  );
+  root.style.setProperty(
+    '--tracking-tighter',
+    styleProps.typography.trackingTighter
+  );
+  root.style.setProperty(
+    '--tracking-tight',
+    styleProps.typography.trackingTight
+  );
+  root.style.setProperty(
+    '--tracking-normal',
+    styleProps.typography.trackingNormal
+  );
+  root.style.setProperty('--tracking-wide', styleProps.typography.trackingWide);
+  root.style.setProperty(
+    '--tracking-wider',
+    styleProps.typography.trackingWider
+  );
+
   // Apply shadow variables
   root.style.setProperty('--shadow-sm', styleProps.shadows.sm);
   root.style.setProperty('--shadow-md', styleProps.shadows.md);

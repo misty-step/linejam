@@ -37,6 +37,27 @@ export const monoTheme: ThemePreset = {
         sans: 'var(--font-inter)',
         mono: 'var(--font-jetbrains-mono)',
       },
+      typography: {
+        // 1.25 ratio (Major Third) - compact, systematic
+        textXs: '0.64rem', // 10px - fine print
+        textSm: '0.8rem', // 13px
+        textBase: '1rem', // 16px
+        textMd: '1.125rem', // 18px
+        textLg: '1.25rem', // 20px
+        textXl: '1.563rem', // 25px
+        text2xl: '1.953rem', // 31px
+        text3xl: '2.441rem', // 39px
+        text4xl: '3.052rem', // 49px
+        text5xl: '3.815rem', // 61px - sharp, not huge
+        leadingTight: '1.0', // Touching headlines
+        leadingNormal: '1.3', // Compact
+        leadingRelaxed: '1.5',
+        trackingTighter: '-0.03em',
+        trackingTight: '-0.015em',
+        trackingNormal: '0',
+        trackingWide: '0.05em',
+        trackingWider: '0.1em', // Architectural
+      },
       shadows: {
         sm: 'none', // Swiss modernism: no shadows, use borders
         md: 'none',
@@ -91,6 +112,27 @@ export const monoTheme: ThemePreset = {
         display: 'var(--font-noto-serif)',
         sans: 'var(--font-inter)',
         mono: 'var(--font-jetbrains-mono)',
+      },
+      typography: {
+        // 1.25 ratio (Major Third) - compact, systematic
+        textXs: '0.64rem',
+        textSm: '0.8rem',
+        textBase: '1rem',
+        textMd: '1.125rem',
+        textLg: '1.25rem',
+        textXl: '1.563rem',
+        text2xl: '1.953rem',
+        text3xl: '2.441rem',
+        text4xl: '3.052rem',
+        text5xl: '3.815rem',
+        leadingTight: '1.0',
+        leadingNormal: '1.3',
+        leadingRelaxed: '1.5',
+        trackingTighter: '-0.03em',
+        trackingTight: '-0.015em',
+        trackingNormal: '0',
+        trackingWide: '0.05em',
+        trackingWider: '0.1em',
       },
       shadows: {
         sm: 'none', // Swiss modernism: no shadows, use borders
