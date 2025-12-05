@@ -307,3 +307,103 @@ textarea:focus {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ==========================================================================
+   Theme Signatures — Unique Visual DNA per Theme
+   ========================================================================== */
+
+/* --- Kenya: Japanese Editorial --- */
+/* Vertical text option for labels */
+[data-theme='kenya'] .theme-vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* Brush stroke divider */
+[data-theme='kenya'] .theme-divider::after {
+  content: '';
+  display: block;
+  width: 60%;
+  height: 2px;
+  margin: 2rem auto;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-primary) 20%,
+    var(--color-primary) 80%,
+    transparent 100%
+  );
+  opacity: 0.4;
+}
+
+/* --- Mono: Swiss Modernism --- */
+/* No stamp rotation - geometric purity */
+[data-theme='mono'] .animate-stamp {
+  animation: stamp-reveal-mono var(--duration-fast) var(--ease-theme) forwards;
+}
+
+@keyframes stamp-reveal-mono {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Pure geometric divider */
+[data-theme='mono'] .theme-divider::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 1px;
+  margin: 1rem 0;
+  background: var(--color-border);
+}
+
+/* Bold borders instead of shadows */
+[data-theme='mono'] .paper {
+  box-shadow: none;
+  border-width: 2px;
+}
+
+/* --- Vintage Paper: Literary Warmth --- */
+/* Drop cap for first letter */
+[data-theme='vintage-paper'] .theme-drop-cap::first-letter {
+  float: left;
+  font-family: var(--font-display);
+  font-size: 3.5em;
+  line-height: 0.8;
+  margin-right: 0.1em;
+  margin-top: 0.1em;
+  color: var(--color-primary);
+}
+
+/* Elegant swash divider */
+[data-theme='vintage-paper'] .theme-divider::after {
+  content: '❦';
+  display: block;
+  text-align: center;
+  font-size: 1.5rem;
+  color: var(--color-text-muted);
+  margin: 2rem 0;
+}
+
+/* Vignette overlay for aged paper feel */
+[data-theme='vintage-paper'] .theme-vignette {
+  position: relative;
+}
+
+[data-theme='vintage-paper'] .theme-vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 50%,
+    rgba(61, 54, 50, 0.08) 100%
+  );
+}
