@@ -180,6 +180,20 @@ h6 {
 }
 
 /* ==========================================================================
+   Theme Transitions
+   ========================================================================== */
+
+/* Smooth crossfade for theme switching */
+.theme-transitioning,
+.theme-transitioning * {
+  transition:
+    background-color 300ms ease,
+    color 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease !important;
+}
+
+/* ==========================================================================
    Utilities
    ========================================================================== */
 

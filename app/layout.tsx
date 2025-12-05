@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from 'next';
-import { Libre_Baskerville, IBM_Plex_Sans } from 'next/font/google';
+import {
+  Libre_Baskerville,
+  IBM_Plex_Sans,
+  Noto_Serif,
+  Inter,
+  Cormorant_Garamond,
+  Source_Serif_4,
+  JetBrains_Mono,
+} from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
@@ -7,17 +15,56 @@ import { Providers } from './providers';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
+// Kenya theme fonts
 const libreBaskerville = Libre_Baskerville({
-  variable: '--font-display',
+  variable: '--font-libre-baskerville',
   subsets: ['latin'],
   weight: ['400', '700'],
   display: 'swap',
 });
 
 const ibmPlex = IBM_Plex_Sans({
-  variable: '--font-sans',
+  variable: '--font-ibm-plex',
   subsets: ['latin'],
   weight: ['400', '500'],
+  display: 'swap',
+});
+
+// Mono theme fonts
+const notoSerif = Noto_Serif({
+  variable: '--font-noto-serif',
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  display: 'swap',
+});
+
+const inter = Inter({
+  variable: '--font-inter',
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  display: 'swap',
+});
+
+// Vintage Paper theme fonts
+const cormorant = Cormorant_Garamond({
+  variable: '--font-cormorant',
+  subsets: ['latin'],
+  weight: ['400', '600'],
+  display: 'swap',
+});
+
+const sourceSerif = Source_Serif_4({
+  variable: '--font-source-serif',
+  subsets: ['latin'],
+  weight: ['400', '600'],
+  display: 'swap',
+});
+
+// Shared mono font
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
+  subsets: ['latin'],
+  weight: ['400'],
   display: 'swap',
 });
 
@@ -43,14 +90,30 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Blocking script: apply theme before first paint to prevent FOUC
   const themeInitScript = `
     (function() {
       try {
-        const stored = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const theme = stored || (prefersDark ? 'dark' : 'light');
+        var THEME_KEY = 'linejam-theme-id';
+        var MODE_KEY = 'linejam-theme-mode';
+        var VALID_THEMES = ['kenya', 'mono', 'vintage-paper'];
+        var DEFAULT_THEME = 'kenya';
+
+        var storedTheme = localStorage.getItem(THEME_KEY);
+        var storedMode = localStorage.getItem(MODE_KEY);
+
+        var themeId = VALID_THEMES.indexOf(storedTheme) >= 0 ? storedTheme : DEFAULT_THEME;
+
+        var mode;
+        if (storedMode === 'light' || storedMode === 'dark') {
+          mode = storedMode;
+        } else {
+          mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        document.documentElement.setAttribute('data-theme', themeId);
         document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(theme);
+        document.documentElement.classList.add(mode);
       } catch (e) {}
     })();
   `;
@@ -58,7 +121,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${libreBaskerville.variable} ${ibmPlex.variable} antialiased`}
+        className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <Providers>
