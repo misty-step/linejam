@@ -144,10 +144,11 @@ export default function RootLayout({
   `;
 
   return (
-    <html lang="en">
-      <body
-        className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable} antialiased`}
-      >
+    <html
+      lang="en"
+      className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable}`}
+    >
+      <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <Providers>
           <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
