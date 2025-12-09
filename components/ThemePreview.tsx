@@ -93,6 +93,22 @@ export function ThemePreview({
           </p>
         </div>
 
+        {/* Color palette swatches - always visible */}
+        <div className="flex-shrink-0 flex items-center gap-1">
+          {[
+            tokens['color-primary'],
+            tokens['color-background'],
+            tokens['color-surface'],
+            tokens['color-text-primary'],
+          ].map((color, i) => (
+            <span
+              key={i}
+              className="w-2.5 h-2.5 rounded-full border border-black/10"
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+
         {/* Selection indicator */}
         {isSelected && (
           <div
