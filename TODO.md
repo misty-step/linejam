@@ -7,17 +7,25 @@
   - [x] Commit updated presets (`kenya.ts`, `mono.ts`, `vintage-paper.ts`) and `types.ts`
   - [x] Commit `globals.css` base changes with new theme transition logic
 
-- [ ] **Visual Polish (Theme Signatures)** - [ ] **Kenya Theme**
-  - [ ] Add vertical text utility `.theme-vertical-text` in `globals.css`
-  - [ ] Add brush stroke divider styling `.theme-divider`
-  - [ ] **Mono Theme**
-    - [ ] Add "Instant" stamp animation override (no rotation)
-    - [ ] Add geometric divider styling
-    - [ ] Force bold borders instead of shadows (CSS override)
-  - [ ] **Vintage Paper Theme**
-    - [ ] Add drop cap styling `.theme-drop-cap`
-    - [ ] Add swash/ornamental divider
-    - [ ] Add vignette overlay effect `.theme-vignette`
+- [x] **Visual Polish (Theme Signatures)**
+  - [x] **Kenya Theme**
+    - [x] Add vertical text utility `.theme-vertical-text` in `globals.css`
+
+    - [x] Add brush stroke divider styling `.theme-divider`
+
+  - [x] **Mono Theme**
+    - [x] Add "Instant" stamp animation override (no rotation)
+
+    - [x] Add geometric divider styling
+
+    - [x] Force bold borders instead of shadows (CSS override)
+
+  - [x] **Vintage Paper Theme**
+    - [x] Add drop cap styling `.theme-drop-cap`
+
+    - [x] Add swash/ornamental divider
+
+    - [x] Add vignette overlay effect `.theme-vignette`
 
 - [ ] **Component Integration**
   - [ ] Verify `ThemeSelector` properly lists all themes from registry
