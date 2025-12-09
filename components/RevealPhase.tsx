@@ -124,10 +124,10 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
       {/* Left: Status Manifest */}
       <div className="md:w-1/3 space-y-8">
         <div className="space-y-4">
-          <h1 className="text-4xl md:text-5xl font-[var(--font-display)] leading-[0.9]">
+          <h1 className="text-[var(--text-4xl)] md:text-[var(--text-5xl)] font-[var(--font-display)] leading-[0.9]">
             {allRevealed ? 'Session\nComplete' : 'Reading\nPhase'}
           </h1>
-          <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed">
+          <p className="text-[var(--text-lg)] text-[var(--color-text-secondary)] leading-[var(--leading-relaxed)]">
             {allRevealed
               ? 'The cycle is finished. The poems are sealed.'
               : 'One by one, unveil the hidden works. Read aloud with conviction.'}
@@ -150,7 +150,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                   }
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-[var(--color-text-muted)] w-6">
+                    <span className="font-mono text-[var(--text-xs)] text-[var(--color-text-muted)] w-6">
                       {(i + 1).toString().padStart(2, '0')}
                     </span>
                     <Avatar
@@ -159,13 +159,13 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                       allStableIds={allStableIds}
                       size="xs"
                     />
-                    <span className="text-sm font-medium">
+                    <span className="text-[var(--text-sm)] font-medium">
                       {poem.readerName}
                     </span>
                   </div>
                   <span
                     className={
-                      `text-xs font-mono uppercase tracking-wider px-2 py-1 ` +
+                      `text-[var(--text-xs)] font-mono uppercase tracking-[var(--tracking-wider)] px-2 py-1 ` +
                       (poem.isRevealed
                         ? 'text-[var(--color-success)]'
                         : 'text-[var(--color-text-muted)]')
@@ -197,7 +197,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
             </Link>
             <Link
               href="/"
-              className="block text-center text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline mt-6"
+              className="block text-center text-[var(--text-sm)] font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline mt-6"
             >
               Exit Room
             </Link>
@@ -216,10 +216,10 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         {myPoem && !myPoem.isRevealed && (
           <div className="p-12 border border-[var(--color-primary)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)] space-y-8">
             <div>
-              <p className="text-sm font-mono uppercase tracking-widest text-[var(--color-primary)] mb-4">
+              <p className="text-[var(--text-sm)] font-mono uppercase tracking-widest text-[var(--color-primary)] mb-4">
                 Your Assignment
               </p>
-              <p className="text-3xl font-[var(--font-display)] italic leading-relaxed">
+              <p className="text-[var(--text-3xl)] font-[var(--font-display)] italic leading-[var(--leading-relaxed)]">
                 &ldquo;{myPoem.preview}...&rdquo;
               </p>
             </div>
@@ -227,7 +227,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
             <Button
               onClick={handleReveal}
               size="lg"
-              className="w-full text-lg h-16"
+              className="w-full text-[var(--text-lg)] h-16"
               disabled={isRevealing}
             >
               {isRevealing ? 'Unsealing...' : 'Reveal & Read'}
@@ -240,7 +240,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
             onClick={() => setShowingPoem(true)}
             variant="outline"
             size="lg"
-            className="w-full text-xl h-20 border-2"
+            className="w-full text-[var(--text-xl)] h-20 border-2"
           >
             Re-Read My Poem
           </Button>

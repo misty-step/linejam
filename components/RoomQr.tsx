@@ -80,14 +80,14 @@ export function RoomQr({ roomCode, className = '' }: RoomQrProps) {
 
       {/* Actions */}
       <div className="flex flex-col items-center gap-2">
-        <p className="text-sm text-[var(--color-text-secondary)] font-mono uppercase tracking-wider">
+        <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] font-mono uppercase tracking-[var(--tracking-wider)]">
           Scan to Join
         </p>
         <Button
           variant="ghost"
           size="sm"
           onClick={handleCopy}
-          className="text-xs h-8"
+          className="text-[var(--text-xs)] h-8"
         >
           {copied ? 'Copied!' : 'Copy Invite Link'}
         </Button>

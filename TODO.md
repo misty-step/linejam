@@ -20,24 +20,24 @@
     - [x] Add swash/ornamental divider
     - [x] Add vignette overlay effect `.theme-vignette`
 
-- [ ] **Hyper Maximalism Theme**
-  - [ ] **Foundation**
-    - [ ] Create `lib/themes/presets/hyper.ts` (Neon palette, hard shadows, tight spacing)
-    - [ ] Register theme in `lib/themes/registry.ts`
-  - [ ] **Typography**
-    - [ ] Import fonts in `app/layout.tsx`: `Righteous` (Display), `Outfit` (Sans), `Space Mono` (Mono)
-    - [ ] Map to `--font-display`, `--font-sans`, `--font-mono`
-  - [ ] **Signatures (`globals.css`)**
-    - [ ] Add `.theme-glitch` text shadow effect
-    - [ ] Add `.theme-static` background pattern (overrides noise)
-    - [ ] Add `.theme-zig-zag` divider styling
-    - [ ] Add "Brutalist" paper styling (thick borders, no shadow blur)
+- [x] **Hyper Maximalism Theme**
+  - [x] **Foundation**
+    - [x] Create `lib/themes/presets/hyper.ts` (Neon palette, hard shadows, tight spacing)
+    - [x] Register theme in `lib/themes/registry.ts`
+  - [x] **Typography**
+    - [x] Import fonts in `app/layout.tsx`: `Righteous` (Display), `Outfit` (Sans), `Space Mono` (Mono)
+    - [x] Map to `--font-display`, `--font-sans`, `--font-mono`
+  - [x] **Signatures (`globals.css`)**
+    - [x] Add `.theme-glitch` text shadow effect
+    - [x] Add `.theme-static` background pattern (overrides noise)
+    - [x] Add `.theme-zig-zag` divider styling
+    - [x] Add "Brutalist" paper styling (thick borders, no shadow blur)
 
-- [ ] **Component Integration**
-  - [ ] Verify `ThemeSelector` properly lists all themes from registry
-  - [ ] Verify `ThemePreview` renders correct tokens for new themes
+- [x] **Component Integration**
+  - [x] Verify `ThemeSelector` properly lists all themes from registry
+  - [x] Verify `ThemePreview` renders correct tokens for new themes
 
-- [ ] **Verification**
-  - [ ] Run `pnpm typecheck`
-  - [ ] Run `pnpm test`
+- [x] **Verification**
+  - [x] Run `pnpm typecheck`
+  - [x] Run `pnpm test`
   - [ ] Manual check of theme switching in browser (via `ThemeToggle`)

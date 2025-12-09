@@ -40,19 +40,19 @@ export default function RevealList({ roomCode }: RevealListProps) {
             >
               <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-8 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-2 transition-all duration-[var(--duration-normal)] h-full flex flex-col">
                 <div className="mb-6 flex justify-between items-start">
-                  <span className="font-mono text-xs text-[var(--color-text-muted)] border border-[var(--color-text-muted)] px-1.5 py-0.5 rounded-[2px]">
+                  <span className="font-mono text-[var(--text-xs)] text-[var(--color-text-muted)] border border-[var(--color-text-muted)] px-1.5 py-0.5 rounded-[2px]">
                     No. {(index + 1).toString().padStart(2, '0')}
                   </span>
                 </div>
 
                 <div className="flex-1">
-                  <p className="text-2xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
+                  <p className="text-[var(--text-2xl)] font-[var(--font-display)] italic leading-[var(--leading-relaxed)] text-[var(--color-text-primary)]">
                     &ldquo;{poem.preview}...&rdquo;
                   </p>
                 </div>
 
                 <div className="pt-6 mt-6 border-t border-[var(--color-border-subtle)] text-right">
-                  <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:underline transition-colors">
+                  <span className="text-[var(--text-xs)] uppercase tracking-widest text-[var(--color-text-muted)] group-hover:underline transition-colors">
                     Read Full Text
                   </span>
                 </div>
@@ -64,7 +64,7 @@ export default function RevealList({ roomCode }: RevealListProps) {
         <div className="text-center pt-12">
           <Link
             href="/"
-            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="text-[var(--text-sm)] font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
           >
             Exit to Lobby
           </Link>

@@ -122,7 +122,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
       <div className="w-full max-w-3xl space-y-16">
         {/* Status Row - Justified between (left: round, right: counter) */}
         <div className="flex items-center justify-between mb-12">
-          <div className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+          <div className="text-[var(--text-xs)] font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
             Round {assignment.lineIndex + 1} / 9
           </div>
           <EnsoCounter current={currentWordCount} target={targetCount} />
@@ -131,7 +131,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         {/* The Memory - No container */}
         {assignment.previousLineText && (
           <div className="mb-16 animate-fade-in-up">
-            <p className="text-4xl md:text-5xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-secondary)]">
+            <p className="text-[var(--text-4xl)] md:text-[var(--text-5xl)] font-[var(--font-display)] italic leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
               {assignment.previousLineText}
             </p>
           </div>
@@ -140,10 +140,10 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         {/* Submission Confirmation */}
         {submissionState === 'confirmed' && (
           <div className="mb-12 p-6 border-2 border-[var(--color-success)] bg-[var(--color-success)]/5 rounded-[var(--radius-sm)] animate-fade-in-up">
-            <div className="text-sm font-medium text-[var(--color-success)] mb-2 uppercase tracking-wide">
+            <div className="text-[var(--text-sm)] font-medium text-[var(--color-success)] mb-2 uppercase tracking-[var(--tracking-wide)]">
               ✓ Your Line Submitted
             </div>
-            <p className="text-lg italic font-[var(--font-display)] text-[var(--color-text-primary)]">
+            <p className="text-[var(--text-lg)] italic font-[var(--font-display)] text-[var(--color-text-primary)]">
               &ldquo;{text}&rdquo;
             </p>
           </div>
@@ -160,7 +160,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
             ref={textareaRef}
             className={cn(
               'w-full min-h-[280px] bg-transparent border-none outline-none resize-none',
-              'text-5xl md:text-6xl font-[var(--font-display)] leading-tight',
+              'text-5xl md:text-6xl font-[var(--font-display)] leading-[var(--leading-tight)]',
               'text-[var(--color-text-primary)]',
               'placeholder:text-[var(--color-text-muted)]/20',
               'pl-6'
@@ -201,7 +201,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
             }
             stampAnimate={submissionState === 'confirmed'}
             className={cn(
-              'min-w-[240px] text-xl h-20',
+              'min-w-[240px] text-[var(--text-xl)] h-20',
               isValid && 'shadow-[var(--shadow-md)]'
             )}
           >
