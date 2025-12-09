@@ -65,7 +65,7 @@ export function Header({ className = '' }: HeaderProps) {
       {!isHomepage && (
         <Link
           href="/"
-          className="text-2xl md:text-3xl font-[var(--font-display)] text-[var(--color-text-primary)] hover:text-[var(--color-primary)] transition-colors"
+          className="text-[var(--text-2xl)] md:text-[var(--text-3xl)] font-[var(--font-display)] text-[var(--color-text-primary)] hover:text-[var(--color-primary)] transition-colors"
         >
           Linejam
         </Link>
@@ -104,7 +104,7 @@ export function Header({ className = '' }: HeaderProps) {
           </button>
 
           {showThemes && (
-            <div className="absolute top-full right-0 mt-2 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-[var(--shadow-lg)] z-50 min-w-[320px] sm:min-w-[540px]">
+            <div className="absolute top-full right-0 mt-2 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] z-50 min-w-[320px] sm:min-w-[540px]">
               <ThemeSelector onClose={() => setShowThemes(false)} />
             </div>
           )}

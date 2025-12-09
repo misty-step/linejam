@@ -52,7 +52,7 @@ export function ThemePreview({
       tabIndex={tabIndex}
       style={previewStyle}
       className={cn(
-        'relative p-4 rounded-lg border-2 transition-all duration-200 text-left w-full',
+        'relative p-4 rounded-[var(--radius-lg)] border-2 transition-all duration-[var(--duration-normal)] text-left w-full',
         'bg-[var(--preview-bg)] text-[var(--preview-text)]',
         'border-[var(--preview-border)]',
         isSelected && 'ring-2 ring-[var(--color-primary)] ring-offset-2',
