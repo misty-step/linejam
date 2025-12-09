@@ -9,6 +9,7 @@ import type { ThemePreset } from './types';
 import { kenyaTheme } from './presets/kenya';
 import { monoTheme } from './presets/mono';
 import { vintagePaperTheme } from './presets/vintage-paper';
+import { hyperTheme } from './presets/hyper';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Theme Registration — Add new themes here
@@ -18,6 +19,7 @@ const themeArray: ThemePreset[] = [
   kenyaTheme,
   monoTheme,
   vintagePaperTheme,
+  hyperTheme,
   // Add new themes here:
   // newTheme,
 ];
@@ -56,3 +58,4 @@ export function getThemeIdsForScript(): string {
 export { kenyaTheme } from './presets/kenya';
 export { monoTheme } from './presets/mono';
 export { vintagePaperTheme } from './presets/vintage-paper';
+export { hyperTheme } from './presets/hyper';

@@ -7,6 +7,9 @@ import {
   Cormorant_Garamond,
   Source_Serif_4,
   JetBrains_Mono,
+  Righteous,
+  Outfit,
+  Space_Mono,
 } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -60,7 +63,29 @@ const sourceSerif = Source_Serif_4({
   display: 'swap',
 });
 
-// Shared mono font
+// Hyper theme fonts
+const righteous = Righteous({
+  variable: '--font-righteous',
+  subsets: ['latin'],
+  weight: ['400'],
+  display: 'swap',
+});
+
+const outfit = Outfit({
+  variable: '--font-outfit',
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  display: 'swap',
+});
+
+const spaceMono = Space_Mono({
+  variable: '--font-space-mono',
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  display: 'swap',
+});
+
+// Shared mono font (legacy/fallback)
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
   subsets: ['latin'],
@@ -96,7 +121,7 @@ export default function RootLayout({
       try {
         var THEME_KEY = 'linejam-theme-id';
         var MODE_KEY = 'linejam-theme-mode';
-        var VALID_THEMES = ['kenya', 'mono', 'vintage-paper'];
+        var VALID_THEMES = ['kenya', 'mono', 'vintage-paper', 'hyper'];
         var DEFAULT_THEME = 'kenya';
 
         var storedTheme = localStorage.getItem(THEME_KEY);
@@ -121,7 +146,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <Providers>

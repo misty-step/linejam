@@ -274,3 +274,54 @@ textarea:focus {
     rgba(61, 54, 50, 0.08) 100%
   );
 }
+
+/* --- Hyper: Digital Chaos --- */
+/* Glitch effect for headings */
+[data-theme='hyper'] h1:hover,
+[data-theme='hyper'] h2:hover {
+  text-shadow:
+    2px 0 var(--color-primary),
+    -2px 0 var(--color-info);
+  transition: text-shadow 75ms step-end;
+}
+
+/* Static background pattern (polka dot) */
+[data-theme='hyper'] body {
+  background-image: radial-gradient(
+    var(--color-border-subtle) 1px,
+    transparent 1px
+  );
+  background-size: 20px 20px;
+}
+
+/* Zig-zag divider */
+[data-theme='hyper'] .theme-divider::after {
+  content: '';
+  display: block;
+  height: 10px;
+  margin: 2rem 0;
+  background-image:
+    linear-gradient(45deg, var(--color-primary) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-primary) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-primary) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-primary) 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
+  opacity: 0.5;
+}
+
+/* Brutalist paper: thick borders, no shadow blur */
+[data-theme='hyper'] .paper {
+  box-shadow: 8px 8px 0px var(--color-border);
+  border-width: 2px;
+}
+
+[data-theme='hyper'] .paper:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 10px 10px 0px var(--color-primary);
+  transition: all 75ms step-end;
+}
