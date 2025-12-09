@@ -70,7 +70,7 @@ export function ThemePreview({
         <div className="min-w-0 flex-1">
           {/* Theme name - uses theme's display font */}
           <h3
-            className="font-semibold truncate"
+            className="font-semibold leading-normal"
             style={{
               fontFamily: tokens['font-display'],
               color: tokens['color-text-primary'],
@@ -80,9 +80,9 @@ export function ThemePreview({
             {theme.label}
           </h3>
 
-          {/* Description - truncated to single line */}
+          {/* Description - full text, natural wrapping */}
           <p
-            className="truncate"
+            className="leading-normal"
             style={{
               fontFamily: tokens['font-sans'],
               color: tokens['color-text-secondary'],
@@ -93,7 +93,7 @@ export function ThemePreview({
           </p>
         </div>
 
-        {/* Color palette swatches - always visible */}
+        {/* Color palette swatches with selection indicator on first */}
         <div className="flex-shrink-0 flex items-center gap-1">
           {[
             tokens['color-primary'],
@@ -103,24 +103,19 @@ export function ThemePreview({
           ].map((color, i) => (
             <span
               key={i}
-              className="w-2.5 h-2.5 rounded-full border border-black/10"
+              className="relative w-2.5 h-2.5 rounded-full border border-black/10 flex items-center justify-center"
               style={{ backgroundColor: color }}
-            />
+            >
+              {/* Checkmark overlay on first swatch when selected */}
+              {i === 0 && isSelected && (
+                <Check
+                  className="w-2 h-2"
+                  style={{ color: tokens['color-text-inverse'] }}
+                />
+              )}
+            </span>
           ))}
         </div>
-
-        {/* Selection indicator */}
-        {isSelected && (
-          <div
-            className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: tokens['color-primary'] }}
-          >
-            <Check
-              className="w-3 h-3"
-              style={{ color: tokens['color-text-inverse'] }}
-            />
-          </div>
-        )}
       </div>
     </button>
   );
