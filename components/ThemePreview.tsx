@@ -11,12 +11,11 @@ interface ThemePreviewProps {
   currentMode: ThemeMode;
   onSelect: () => void;
   tabIndex?: number;
-  index?: number;
 }
 
 /**
- * Mini preview card showing a theme's visual style.
- * Uses inline CSS custom properties for preview isolation.
+ * Self-styling theme row.
+ * The row itself IS the preview - rendered using that theme's own tokens.
  */
 export function ThemePreview({
   themeId,
@@ -30,16 +29,14 @@ export function ThemePreview({
 
   const tokens = theme.tokens[currentMode];
 
-  // Inline CSS vars for preview isolation (doesn't affect rest of page)
-  const previewStyle = {
-    '--preview-bg': tokens['color-background'],
-    '--preview-fg': tokens['color-foreground'],
-    '--preview-primary': tokens['color-primary'],
-    '--preview-surface': tokens['color-surface'],
+  // Inline CSS vars for complete preview isolation
+  const rowStyle = {
+    '--preview-bg': tokens['color-surface'],
     '--preview-border': tokens['color-border'],
     '--preview-text': tokens['color-text-primary'],
-    '--preview-text-muted': tokens['color-text-muted'],
+    '--preview-text-muted': tokens['color-text-secondary'],
     '--preview-radius': tokens['radius-md'],
+    '--preview-primary': tokens['color-primary'],
     '--preview-shadow': tokens['shadow-sm'],
   } as React.CSSProperties;
 
@@ -48,73 +45,67 @@ export function ThemePreview({
       type="button"
       role="radio"
       aria-checked={isSelected}
+      aria-label={`${theme.label} theme: ${theme.description}`}
       onClick={onSelect}
       tabIndex={tabIndex}
-      style={previewStyle}
+      style={rowStyle}
       className={cn(
-        'relative p-4 rounded-[var(--radius-lg)] border-2 transition-all duration-[var(--duration-normal)] text-left w-full',
-        'bg-[var(--preview-bg)] text-[var(--preview-text)]',
-        'border-[var(--preview-border)]',
-        isSelected && 'ring-2 ring-[var(--color-primary)] ring-offset-2',
-        'hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]'
+        // Layout
+        'relative w-full px-4 py-3 text-left',
+        // Self-styling with theme tokens
+        'bg-[var(--preview-bg)]',
+        'border border-[var(--preview-border)]',
+        'rounded-[var(--preview-radius)]',
+        // Transitions
+        'transition-all duration-[var(--duration-normal)]',
+        // Selection state
+        isSelected &&
+          'ring-2 ring-[var(--preview-primary)] ring-offset-2 ring-offset-[var(--color-background)]',
+        // Hover/focus
+        'hover:shadow-[var(--preview-shadow)]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--preview-primary)]'
       )}
     >
-      {/* Theme name */}
-      <h3
-        className="text-lg font-semibold mb-1"
-        style={{ fontFamily: tokens['font-display'] }}
-      >
-        {theme.label}
-      </h3>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {/* Theme name - uses theme's display font */}
+          <h3
+            className="font-semibold truncate"
+            style={{
+              fontFamily: tokens['font-display'],
+              color: tokens['color-text-primary'],
+              fontSize: tokens['text-base'],
+            }}
+          >
+            {theme.label}
+          </h3>
 
-      {/* Description */}
-      <p className="text-sm mb-3" style={{ color: tokens['color-text-muted'] }}>
-        {theme.description}
-      </p>
-
-      {/* Sample color swatches */}
-      <div className="flex gap-2 mb-2">
-        <div
-          className="w-8 h-8"
-          style={{
-            backgroundColor: tokens['color-primary'],
-            borderRadius: tokens['radius-md'],
-          }}
-        />
-        <div
-          className="w-8 h-8 border"
-          style={{
-            backgroundColor: tokens['color-surface'],
-            borderColor: tokens['color-border'],
-            borderRadius: tokens['radius-md'],
-          }}
-        />
-        <div
-          className="w-8 h-8"
-          style={{
-            backgroundColor: tokens['color-muted'],
-            borderRadius: tokens['radius-md'],
-          }}
-        />
-      </div>
-
-      {/* Sample text with theme font */}
-      <p
-        className="text-xs"
-        style={{
-          fontFamily: tokens['font-sans'],
-          color: tokens['color-text-secondary'],
-        }}
-      >
-        The quick brown fox
-      </p>
-
-      {/* Selected indicator */}
-      {isSelected && (
-        <div className="absolute top-2 right-2">
-          <Check className="w-5 h-5 text-[var(--color-primary)]" />
+          {/* Description - truncated to single line */}
+          <p
+            className="truncate"
+            style={{
+              fontFamily: tokens['font-sans'],
+              color: tokens['color-text-secondary'],
+              fontSize: tokens['text-sm'],
+            }}
+          >
+            {theme.description}
+          </p>
         </div>
-      )}
+
+        {/* Selection indicator */}
+        {isSelected && (
+          <div
+            className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: tokens['color-primary'] }}
+          >
+            <Check
+              className="w-3 h-3"
+              style={{ color: tokens['color-text-inverse'] }}
+            />
+          </div>
+        )}
+      </div>
     </button>
   );
 }

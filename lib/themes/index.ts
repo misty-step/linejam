@@ -1,5 +1,11 @@
 // Types
-export type { ThemeId, ThemeMode, ThemeTokens, ThemePreset } from './types';
+export type {
+  ThemeId,
+  ThemeMode,
+  ThemeModePreference,
+  ThemeTokens,
+  ThemePreset,
+} from './types';
 
 // Schema
 export { defineTheme, validateTheme, REQUIRED_TOKENS } from './schema';

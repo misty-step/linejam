@@ -5,7 +5,11 @@
  * No nested objects = no manual mapping in apply.ts.
  */
 
+/** The resolved/effective mode used for rendering */
 export type ThemeMode = 'light' | 'dark';
+
+/** User's mode preference (includes 'system' option) */
+export type ThemeModePreference = 'light' | 'dark' | 'system';
 
 /**
  * Flat token interface - keys ARE CSS variable names (without --)

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 import { Palette } from 'lucide-react';
-import { ThemeToggle } from './ThemeToggle';
 import { ThemeSelector } from './ThemeSelector';
 import { Button } from './ui/Button';
 
@@ -104,13 +103,11 @@ export function Header({ className = '' }: HeaderProps) {
           </button>
 
           {showThemes && (
-            <div className="absolute top-full right-0 mt-2 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] z-50 min-w-[320px] sm:min-w-[540px]">
+            <div className="absolute top-full right-0 mt-2 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] z-50 w-[320px]">
               <ThemeSelector onClose={() => setShowThemes(false)} />
             </div>
           )}
         </div>
-
-        <ThemeToggle />
       </div>
     </header>
   );

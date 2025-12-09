@@ -1,40 +1,53 @@
 'use client';
 
 import { useRef, useCallback } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme, themeIds } from '@/lib/themes';
-import type { ThemeId } from '@/lib/themes';
+import type { ThemeModePreference } from '@/lib/themes';
 import { ThemePreview } from './ThemePreview';
-import { Button } from './ui/Button';
+import { cn } from '@/lib/utils';
 
 interface ThemeSelectorProps {
   className?: string;
   onClose?: () => void;
 }
 
+const MODE_OPTIONS: {
+  value: ThemeModePreference;
+  label: string;
+  icon: typeof Sun;
+}[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+];
+
 /**
- * Theme picker with preview cards for all available themes.
- * Includes light/dark mode toggle and keyboard navigation.
+ * Theme picker with self-styling theme rows and unified mode control.
+ *
+ * Structure:
+ * 1. Mode segmented control (Light/Dark/System) at top
+ * 2. Vertical list of theme rows
  */
 export function ThemeSelector({ className = '', onClose }: ThemeSelectorProps) {
-  const { themeId, mode, setTheme, toggleMode } = useTheme();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const { themeId, mode, modePreference, setTheme, setModePreference } =
+    useTheme();
+  const themeListRef = useRef<HTMLDivElement>(null);
 
-  const handleSelect = (id: ThemeId) => {
+  const handleThemeSelect = (id: string) => {
     setTheme(id);
   };
 
   const focusTheme = useCallback((index: number) => {
-    const buttons = containerRef.current?.querySelectorAll('[role="radio"]');
+    const buttons = themeListRef.current?.querySelectorAll('[role="radio"]');
     (buttons?.[index] as HTMLElement)?.focus();
   }, []);
 
-  const handleKeyDown = useCallback(
+  const handleThemeKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
       const currentIndex = themeIds.indexOf(themeId);
 
       switch (event.key) {
-        case 'ArrowRight':
         case 'ArrowDown': {
           event.preventDefault();
           const nextIndex = (currentIndex + 1) % themeIds.length;
@@ -42,7 +55,6 @@ export function ThemeSelector({ className = '', onClose }: ThemeSelectorProps) {
           focusTheme(nextIndex);
           break;
         }
-        case 'ArrowLeft':
         case 'ArrowUp': {
           event.preventDefault();
           const prevIndex =
@@ -74,48 +86,56 @@ export function ThemeSelector({ className = '', onClose }: ThemeSelectorProps) {
   );
 
   return (
-    <div className={className}>
-      {/* Theme grid */}
+    <div className={cn('space-y-4', className)}>
+      {/* Mode segmented control */}
       <div
-        ref={containerRef}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"
+        className="flex p-1 bg-[var(--color-muted)] rounded-[var(--radius-md)]"
+        role="tablist"
+        aria-label="Color mode"
+      >
+        {MODE_OPTIONS.map(({ value, label, icon: Icon }) => {
+          const isActive = modePreference === value;
+          return (
+            <button
+              key={value}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setModePreference(value)}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 px-3 py-2',
+                'text-[var(--text-sm)] font-medium',
+                'rounded-[var(--radius-sm)]',
+                'transition-all duration-[var(--duration-normal)]',
+                isActive
+                  ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-[var(--shadow-sm)]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Theme list */}
+      <div
+        ref={themeListRef}
+        className="flex flex-col gap-2"
         role="radiogroup"
         aria-label="Select theme"
-        onKeyDown={handleKeyDown}
+        onKeyDown={handleThemeKeyDown}
       >
-        {themeIds.map((id, index) => (
+        {themeIds.map((id) => (
           <ThemePreview
             key={id}
             themeId={id}
             isSelected={id === themeId}
             currentMode={mode}
-            onSelect={() => handleSelect(id)}
+            onSelect={() => handleThemeSelect(id)}
             tabIndex={id === themeId ? 0 : -1}
-            index={index}
           />
         ))}
-      </div>
-
-      {/* Mode toggle */}
-      <div className="flex justify-center">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleMode}
-          aria-label={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {mode === 'light' ? (
-            <>
-              <Moon className="w-4 h-4 mr-2" />
-              Dark Mode
-            </>
-          ) : (
-            <>
-              <Sun className="w-4 h-4 mr-2" />
-              Light Mode
-            </>
-          )}
-        </Button>
       </div>
     </div>
   );
