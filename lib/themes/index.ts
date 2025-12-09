@@ -1,28 +1,21 @@
 // Types
-export type {
-  ThemeId,
-  ThemeMode,
-  ThemeColors,
-  ThemeFonts,
-  ThemeShadows,
-  ThemeRadius,
-  ThemeTransitions,
-  ThemeStyleProps,
-  ThemePreset,
-  ThemeRegistry,
-} from './types';
+export type { ThemeId, ThemeMode, ThemeTokens, ThemePreset } from './types';
 
-// Presets
+// Schema
+export { defineTheme, validateTheme, REQUIRED_TOKENS } from './schema';
+
+// Registry
 export {
   themes,
   themeIds,
   defaultThemeId,
   getTheme,
   isValidThemeId,
+  getThemeIdsForScript,
   kenyaTheme,
   monoTheme,
   vintagePaperTheme,
-} from './presets';
+} from './registry';
 
 // Apply
 export { applyTheme, getAppliedTheme } from './apply';

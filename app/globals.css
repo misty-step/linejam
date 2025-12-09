@@ -1,150 +1,17 @@
 @import 'tailwindcss';
 
 /* ==========================================================================
-   Linejam Design System — Ink & Anticipation
+   Linejam Design System — Theme-Driven
    ========================================================================== */
 
 /* Design Philosophy:
-   - Japanese Editorial Minimalism: Ma (間) - the space between
-   - Ink on Rice Paper: Warm neutrals, organic texture
-   - Persimmon Stamp: One strong accent, confident restraint
-   - Vertical Hierarchy: Mobile-first, generous breathing room
+   All visual tokens (colors, fonts, spacing, timing) are injected at runtime
+   by the theme system. This CSS file contains only:
+   - Base styles that reference CSS variables
+   - Theme transition utility
+   - Theme signature styles
+   - Animations and utilities
 */
-
-@theme {
-  /* ==========================================================================
-     Color System — Sumi & Persimmon
-     ========================================================================== */
-
-  /* Primary — Persimmon Stamp (Japanese Seal) */
-  --color-primary: #e85d2b;
-  --color-primary-hover: #c44521;
-  --color-primary-active: #a8391a;
-
-  /* Base — Ink on Rice Paper */
-  --color-background: #faf9f7; /* Warm off-white */
-  --color-foreground: #1c1917; /* Deep warm black */
-
-  --color-surface: #ffffff; /* True white for cards */
-  --color-surface-hover: #f5f5f4;
-
-  --color-muted: #f5f5f4; /* Subtle background */
-
-  /* Grays — Faded Ink */
-  --color-border: #e7e5e4;
-  --color-border-subtle: #f5f5f4;
-
-  /* Text Colors */
-  --color-text-primary: #1c1917;
-  --color-text-secondary: #57534e;
-  --color-text-muted: #a8a29e;
-  --color-text-inverse: #faf9f7;
-
-  /* State Colors */
-  --color-success: #10b981; /* Green-600 for validation */
-  --color-error: #ef4444; /* Red-600 for errors */
-  --color-warning: #f59e0b; /* Amber-600 for warnings */
-  --color-info: #0ea5e9; /* Sky-600 for info */
-
-  /* ==========================================================================
-     Typography System — Editorial Clarity
-     ========================================================================== */
-
-  /* Font Families */
-  --font-display: 'Libre Baskerville', serif; /* Editorial authority */
-  --font-sans: 'IBM Plex Sans', sans-serif; /* Technical clarity */
-  --font-mono: 'JetBrains Mono', monospace;
-
-  /* Type Scale — Poster Proportions */
-  --font-size-xs: 0.75rem; /* 12px */
-  --font-size-sm: 0.875rem; /* 14px */
-  --font-size-base: 1rem; /* 16px */
-  --font-size-lg: 1.25rem; /* 20px */
-  --font-size-xl: 1.5rem; /* 24px */
-  --font-size-2xl: 2rem; /* 32px */
-  --font-size-3xl: 3rem; /* 48px */
-  --font-size-4xl: 4rem; /* 64px */
-  --font-size-5xl: 6rem; /* 96px - Headline */
-  --font-size-6xl: 8rem; /* 128px - Super */
-
-  /* ==========================================================================
-     Spacing System — Rhythm
-     ========================================================================== */
-  --spacing-container: 1400px;
-
-  /* ==========================================================================
-     Border Radius — Subtle Softness
-     ========================================================================== */
-  --radius-sm: 3px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
-  --radius-full: 9999px;
-
-  /* ==========================================================================
-     Shadows — Hard Graphic Offset with Persimmon Tint
-     ========================================================================== */
-  --shadow-color: 232 93 43; /* Persimmon RGB for rgba() */
-
-  --shadow-sm: 2px 2px 0px rgba(var(--shadow-color) / 0.15);
-  --shadow-md: 4px 4px 0px rgba(var(--shadow-color) / 0.1);
-  --shadow-lg: 8px 8px 0px rgba(var(--shadow-color) / 0.12);
-
-  --shadow-active: 0px 0px 0px var(--color-border);
-
-  /* ==========================================================================
-     Animations — Mechanical
-     ========================================================================== */
-  --duration-instant: 75ms;
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-
-  --ease-mechanical: cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* ==========================================================================
-   Dark Mode - via .dark class OR system preference
-   ========================================================================== */
-:root.dark,
-html.dark {
-  --color-background: #1c1917; /* Inverted: warm black */
-  --color-foreground: #faf9f7; /* Inverted: warm white */
-  --color-surface: #292524;
-  --color-surface-hover: #3f3f46;
-  --color-muted: #292524;
-
-  --color-border: #44403c;
-  --color-border-subtle: #292524;
-
-  --color-text-primary: #faf9f7;
-  --color-text-secondary: #d6d3d1;
-  --color-text-muted: #a8a29e;
-  --color-text-inverse: #1c1917;
-
-  /* State Colors (same in dark mode) */
-  --color-success: #10b981;
-  --color-error: #ef4444;
-  --color-warning: #f59e0b;
-  --color-info: #0ea5e9;
-}
-
-/* System preference (only if no explicit class) */
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --color-background: #1c1917;
-    --color-foreground: #faf9f7;
-    --color-surface: #292524;
-    --color-surface-hover: #3f3f46;
-    --color-muted: #292524;
-
-    --color-border: #44403c;
-    --color-border-subtle: #292524;
-
-    --color-text-primary: #faf9f7;
-    --color-text-secondary: #d6d3d1;
-    --color-text-muted: #a8a29e;
-    --color-text-inverse: #1c1917;
-  }
-}
 
 /* ==========================================================================
    Base Styles
@@ -154,7 +21,7 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
-  line-height: 1.5;
+  line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
 
   /* Global Grain Texture */
@@ -169,8 +36,8 @@ h5,
 h6 {
   font-family: var(--font-display);
   font-weight: 500;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
 }
 
 /* Selection — High Contrast */
@@ -283,7 +150,7 @@ h6 {
   }
 }
 
-/* Custom Caret - Persimmon color for ceremonial typing */
+/* Custom Caret - Theme color for ceremonial typing */
 textarea:focus {
   caret-color: var(--color-primary);
 }

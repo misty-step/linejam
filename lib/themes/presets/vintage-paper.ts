@@ -1,4 +1,4 @@
-import type { ThemePreset } from '../types';
+import { defineTheme } from '../schema';
 
 /**
  * Vintage Paper Theme — Aged Literary Warmth
@@ -9,172 +9,172 @@ import type { ThemePreset } from '../types';
  * - Muted burgundy accent
  * - Soft blur shadows
  * - Rounded, friendly corners
- * - Slow, gentle transitions
+ * - Slow, organic transitions with spring bounce
+ *
+ * Motion: Leisurely (500ms default)
+ * Spacing: Luxurious (1.25x base)
+ * Typography: 1.414 ratio (Augmented Fourth)
  */
-export const vintagePaperTheme: ThemePreset = {
+export const vintagePaperTheme = defineTheme({
   id: 'vintage-paper',
   label: 'Vintage Paper',
   description: 'Aged literary warmth',
-  styles: {
+  tokens: {
     light: {
-      colors: {
-        primary: '#8b3a3a',
-        primaryHover: '#722e2e',
-        primaryActive: '#5c2424',
-        background: '#f5efe6',
-        foreground: '#3d3632',
-        surface: '#fffdf8',
-        surfaceHover: '#f0ebe2',
-        muted: '#ebe5da',
-        border: '#d4cdc2',
-        borderSubtle: '#e8e2d8',
-        textPrimary: '#3d3632',
-        textSecondary: '#5c5650',
-        textMuted: '#8a837a',
-        textInverse: '#fffdf8',
-        focusRing: '#8b3a3a',
-        success: '#5a7a5a',
-        error: '#9a4a4a',
-        warning: '#8a6a3a',
-        info: '#4a6a8a',
-      },
-      fonts: {
-        display: 'var(--font-cormorant)',
-        sans: 'var(--font-source-serif)',
-        mono: 'var(--font-jetbrains-mono)',
-      },
-      typography: {
-        // 1.414 ratio (Augmented Fourth) - dramatic, literary
-        textXs: '0.707rem', // 11px - delicate
-        textSm: '0.85rem', // 14px
-        textBase: '1rem', // 16px
-        textMd: '1.2rem', // 19px
-        textLg: '1.414rem', // 23px
-        textXl: '2rem', // 32px
-        text2xl: '2.828rem', // 45px
-        text3xl: '4rem', // 64px
-        text4xl: '5.657rem', // 91px
-        text5xl: '8rem', // 128px - monument scale
-        leadingTight: '1.2', // Breathable even tight
-        leadingNormal: '1.6', // Luxurious
-        leadingRelaxed: '1.9', // Indulgent
-        trackingTighter: '-0.02em',
-        trackingTight: '-0.01em',
-        trackingNormal: '0.01em', // Slight openness
-        trackingWide: '0.08em',
-        trackingWider: '0.15em', // Old-style letterspacing
-      },
-      shadows: {
-        sm: '0 1px 3px rgba(61, 54, 50, 0.08)',
-        md: '0 4px 6px rgba(61, 54, 50, 0.06)',
-        lg: '0 10px 20px rgba(61, 54, 50, 0.08)',
-        color: '61 54 50',
-      },
-      radius: {
-        sm: '6px',
-        md: '8px',
-        lg: '12px',
-        full: '9999px',
-      },
-      spacing: {
-        1: '0.375rem', // 6px - soft
-        2: '0.75rem', // 12px
-        3: '1.25rem', // 20px - friendly base
-        4: '2rem', // 32px
-        5: '3rem', // 48px - relaxed
-        6: '4.5rem', // 72px
-        7: '7rem', // 112px - luxurious
-        8: '10rem', // 160px - indulgent
-      },
-      transitions: {
-        instant: '150ms', // Noticeably leisurely
-        fast: '300ms',
-        normal: '500ms',
-        slow: '800ms', // Luxuriously slow
-        easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Organic spring bounce
-        easingIn: 'cubic-bezier(0.16, 1, 0.3, 1)', // Gentle entry
-        easingOut: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Playful overshoot
-      },
+      // Colors - Sepia tints with burgundy accent
+      'color-primary': '#8b3a3a',
+      'color-primary-hover': '#722e2e',
+      'color-primary-active': '#5c2424',
+      'color-background': '#f5efe6',
+      'color-foreground': '#3d3632',
+      'color-surface': '#fffdf8',
+      'color-surface-hover': '#f0ebe2',
+      'color-muted': '#ebe5da',
+      'color-border': '#d4cdc2',
+      'color-border-subtle': '#e8e2d8',
+      'color-text-primary': '#3d3632',
+      'color-text-secondary': '#5c5650',
+      'color-text-muted': '#8a837a',
+      'color-text-inverse': '#fffdf8',
+      'color-focus-ring': '#8b3a3a',
+      'color-success': '#5a7a5a',
+      'color-error': '#9a4a4a',
+      'color-warning': '#8a6a3a',
+      'color-info': '#4a6a8a',
+
+      // Fonts
+      'font-display': 'var(--font-cormorant)',
+      'font-sans': 'var(--font-source-serif)',
+      'font-mono': 'var(--font-jetbrains-mono)',
+
+      // Typography - 1.414 ratio (Augmented Fourth) - dramatic, literary
+      'text-xs': '0.707rem',
+      'text-sm': '0.85rem',
+      'text-base': '1rem',
+      'text-md': '1.2rem',
+      'text-lg': '1.414rem',
+      'text-xl': '2rem',
+      'text-2xl': '2.828rem',
+      'text-3xl': '4rem',
+      'text-4xl': '5.657rem',
+      'text-5xl': '8rem',
+      'leading-tight': '1.2',
+      'leading-normal': '1.6',
+      'leading-relaxed': '1.9',
+      'tracking-tighter': '-0.02em',
+      'tracking-tight': '-0.01em',
+      'tracking-normal': '0.01em',
+      'tracking-wide': '0.08em',
+      'tracking-wider': '0.15em',
+
+      // Shadows - Soft blur with warm brown tint
+      'shadow-sm': '0 1px 3px rgba(61, 54, 50, 0.08)',
+      'shadow-md': '0 4px 6px rgba(61, 54, 50, 0.06)',
+      'shadow-lg': '0 10px 20px rgba(61, 54, 50, 0.08)',
+      'shadow-color': '61 54 50',
+
+      // Radius - Rounded, friendly
+      'radius-sm': '6px',
+      'radius-md': '8px',
+      'radius-lg': '12px',
+      'radius-full': '9999px',
+
+      // Spacing - 1.25x base (luxurious)
+      'space-1': '0.375rem',
+      'space-2': '0.75rem',
+      'space-3': '1.25rem',
+      'space-4': '2rem',
+      'space-5': '3rem',
+      'space-6': '4.5rem',
+      'space-7': '7rem',
+      'space-8': '10rem',
+
+      // Transitions - Leisurely with organic spring
+      'duration-instant': '150ms',
+      'duration-fast': '300ms',
+      'duration-normal': '500ms',
+      'duration-slow': '800ms',
+      'ease-theme': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      'ease-in': 'cubic-bezier(0.16, 1, 0.3, 1)',
+      'ease-out': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
     },
     dark: {
-      colors: {
-        primary: '#c76b6b',
-        primaryHover: '#d47a7a',
-        primaryActive: '#b85c5c',
-        background: '#2a2521',
-        foreground: '#e8e2d8',
-        surface: '#352f2a',
-        surfaceHover: '#403834',
-        muted: '#352f2a',
-        border: '#504840',
-        borderSubtle: '#403834',
-        textPrimary: '#e8e2d8',
-        textSecondary: '#c4bdb4',
-        textMuted: '#8a837a',
-        textInverse: '#2a2521',
-        focusRing: '#c76b6b',
-        success: '#7a9a7a',
-        error: '#ba6a6a',
-        warning: '#aa8a5a',
-        info: '#6a8aaa',
-      },
-      fonts: {
-        display: 'var(--font-cormorant)',
-        sans: 'var(--font-source-serif)',
-        mono: 'var(--font-jetbrains-mono)',
-      },
-      typography: {
-        // 1.414 ratio (Augmented Fourth) - dramatic, literary
-        textXs: '0.707rem',
-        textSm: '0.85rem',
-        textBase: '1rem',
-        textMd: '1.2rem',
-        textLg: '1.414rem',
-        textXl: '2rem',
-        text2xl: '2.828rem',
-        text3xl: '4rem',
-        text4xl: '5.657rem',
-        text5xl: '8rem',
-        leadingTight: '1.2',
-        leadingNormal: '1.6',
-        leadingRelaxed: '1.9',
-        trackingTighter: '-0.02em',
-        trackingTight: '-0.01em',
-        trackingNormal: '0.01em',
-        trackingWide: '0.08em',
-        trackingWider: '0.15em',
-      },
-      shadows: {
-        sm: '0 1px 3px rgba(0, 0, 0, 0.2)',
-        md: '0 4px 6px rgba(0, 0, 0, 0.15)',
-        lg: '0 10px 20px rgba(0, 0, 0, 0.2)',
-        color: '0 0 0',
-      },
-      radius: {
-        sm: '6px',
-        md: '8px',
-        lg: '12px',
-        full: '9999px',
-      },
-      spacing: {
-        1: '0.375rem', // 6px - soft
-        2: '0.75rem', // 12px
-        3: '1.25rem', // 20px - friendly base
-        4: '2rem', // 32px
-        5: '3rem', // 48px - relaxed
-        6: '4.5rem', // 72px
-        7: '7rem', // 112px - luxurious
-        8: '10rem', // 160px - indulgent
-      },
-      transitions: {
-        instant: '150ms', // Noticeably leisurely
-        fast: '300ms',
-        normal: '500ms',
-        slow: '800ms', // Luxuriously slow
-        easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Organic spring bounce
-        easingIn: 'cubic-bezier(0.16, 1, 0.3, 1)', // Gentle entry
-        easingOut: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Playful overshoot
-      },
+      // Colors - Warm dark with lighter burgundy
+      'color-primary': '#c76b6b',
+      'color-primary-hover': '#d47a7a',
+      'color-primary-active': '#b85c5c',
+      'color-background': '#2a2521',
+      'color-foreground': '#e8e2d8',
+      'color-surface': '#352f2a',
+      'color-surface-hover': '#403834',
+      'color-muted': '#352f2a',
+      'color-border': '#504840',
+      'color-border-subtle': '#403834',
+      'color-text-primary': '#e8e2d8',
+      'color-text-secondary': '#c4bdb4',
+      'color-text-muted': '#8a837a',
+      'color-text-inverse': '#2a2521',
+      'color-focus-ring': '#c76b6b',
+      'color-success': '#7a9a7a',
+      'color-error': '#ba6a6a',
+      'color-warning': '#aa8a5a',
+      'color-info': '#6a8aaa',
+
+      // Fonts
+      'font-display': 'var(--font-cormorant)',
+      'font-sans': 'var(--font-source-serif)',
+      'font-mono': 'var(--font-jetbrains-mono)',
+
+      // Typography
+      'text-xs': '0.707rem',
+      'text-sm': '0.85rem',
+      'text-base': '1rem',
+      'text-md': '1.2rem',
+      'text-lg': '1.414rem',
+      'text-xl': '2rem',
+      'text-2xl': '2.828rem',
+      'text-3xl': '4rem',
+      'text-4xl': '5.657rem',
+      'text-5xl': '8rem',
+      'leading-tight': '1.2',
+      'leading-normal': '1.6',
+      'leading-relaxed': '1.9',
+      'tracking-tighter': '-0.02em',
+      'tracking-tight': '-0.01em',
+      'tracking-normal': '0.01em',
+      'tracking-wide': '0.08em',
+      'tracking-wider': '0.15em',
+
+      // Shadows - Softer in dark mode
+      'shadow-sm': '0 1px 3px rgba(0, 0, 0, 0.2)',
+      'shadow-md': '0 4px 6px rgba(0, 0, 0, 0.15)',
+      'shadow-lg': '0 10px 20px rgba(0, 0, 0, 0.2)',
+      'shadow-color': '0 0 0',
+
+      // Radius
+      'radius-sm': '6px',
+      'radius-md': '8px',
+      'radius-lg': '12px',
+      'radius-full': '9999px',
+
+      // Spacing
+      'space-1': '0.375rem',
+      'space-2': '0.75rem',
+      'space-3': '1.25rem',
+      'space-4': '2rem',
+      'space-5': '3rem',
+      'space-6': '4.5rem',
+      'space-7': '7rem',
+      'space-8': '10rem',
+
+      // Transitions
+      'duration-instant': '150ms',
+      'duration-fast': '300ms',
+      'duration-normal': '500ms',
+      'duration-slow': '800ms',
+      'ease-theme': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      'ease-in': 'cubic-bezier(0.16, 1, 0.3, 1)',
+      'ease-out': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
     },
   },
-};
+});

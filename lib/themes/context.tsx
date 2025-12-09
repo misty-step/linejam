@@ -9,8 +9,8 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
-import type { ThemeId, ThemeMode, ThemePreset } from './types';
-import { getTheme, isValidThemeId, defaultThemeId } from './presets';
+import type { ThemeMode, ThemePreset } from './types';
+import { getTheme, isValidThemeId, defaultThemeId } from './registry';
 import { applyTheme } from './apply';
 
 // Storage keys
@@ -18,9 +18,9 @@ const STORAGE_KEY_THEME = 'linejam-theme-id';
 const STORAGE_KEY_MODE = 'linejam-theme-mode';
 
 export interface ThemeContextValue {
-  themeId: ThemeId;
+  themeId: string;
   mode: ThemeMode;
-  setTheme: (id: ThemeId) => void;
+  setTheme: (id: string) => void;
   setMode: (mode: ThemeMode) => void;
   toggleMode: () => void;
   theme: ThemePreset;
@@ -31,7 +31,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 /**
  * Read initial theme from localStorage with fallbacks.
  */
-function getInitialTheme(): ThemeId {
+function getInitialTheme(): string {
   if (typeof window === 'undefined') return defaultThemeId;
   try {
     const stored = localStorage.getItem(STORAGE_KEY_THEME);
@@ -58,7 +58,7 @@ function getInitialMode(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeId, setThemeId] = useState<ThemeId>(getInitialTheme);
+  const [themeId, setThemeId] = useState<string>(getInitialTheme);
   const [mode, setModeState] = useState<ThemeMode>(getInitialMode);
 
   // Apply theme on mount (without transition — blocking script handles initial)
@@ -81,7 +81,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [themeId, mode]);
 
-  const setTheme = useCallback((id: ThemeId) => {
+  const setTheme = useCallback((id: string) => {
     setThemeId(id);
   }, []);
 
@@ -100,7 +100,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme,
       setMode,
       toggleMode,
-      theme: getTheme(themeId),
+      // Safe: themeId is validated via isValidThemeId in getInitialTheme
+      theme: getTheme(themeId)!,
     }),
     [themeId, mode, setTheme, setMode, toggleMode]
   );

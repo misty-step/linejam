@@ -1,12 +1,12 @@
 'use client';
 
 import { Check } from 'lucide-react';
-import type { ThemeId, ThemeMode } from '@/lib/themes';
+import type { ThemeMode } from '@/lib/themes';
 import { getTheme } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 
 interface ThemePreviewProps {
-  themeId: ThemeId;
+  themeId: string;
   isSelected: boolean;
   currentMode: ThemeMode;
   onSelect: () => void;
@@ -26,19 +26,21 @@ export function ThemePreview({
   tabIndex = 0,
 }: ThemePreviewProps) {
   const theme = getTheme(themeId);
-  const styles = theme.styles[currentMode];
+  if (!theme) return null;
+
+  const tokens = theme.tokens[currentMode];
 
   // Inline CSS vars for preview isolation (doesn't affect rest of page)
   const previewStyle = {
-    '--preview-bg': styles.colors.background,
-    '--preview-fg': styles.colors.foreground,
-    '--preview-primary': styles.colors.primary,
-    '--preview-surface': styles.colors.surface,
-    '--preview-border': styles.colors.border,
-    '--preview-text': styles.colors.textPrimary,
-    '--preview-text-muted': styles.colors.textMuted,
-    '--preview-radius': styles.radius.md,
-    '--preview-shadow': styles.shadows.sm,
+    '--preview-bg': tokens['color-background'],
+    '--preview-fg': tokens['color-foreground'],
+    '--preview-primary': tokens['color-primary'],
+    '--preview-surface': tokens['color-surface'],
+    '--preview-border': tokens['color-border'],
+    '--preview-text': tokens['color-text-primary'],
+    '--preview-text-muted': tokens['color-text-muted'],
+    '--preview-radius': tokens['radius-md'],
+    '--preview-shadow': tokens['shadow-sm'],
   } as React.CSSProperties;
 
   return (
@@ -60,13 +62,13 @@ export function ThemePreview({
       {/* Theme name */}
       <h3
         className="text-lg font-semibold mb-1"
-        style={{ fontFamily: styles.fonts.display }}
+        style={{ fontFamily: tokens['font-display'] }}
       >
         {theme.label}
       </h3>
 
       {/* Description */}
-      <p className="text-sm mb-3" style={{ color: styles.colors.textMuted }}>
+      <p className="text-sm mb-3" style={{ color: tokens['color-text-muted'] }}>
         {theme.description}
       </p>
 
@@ -75,23 +77,23 @@ export function ThemePreview({
         <div
           className="w-8 h-8"
           style={{
-            backgroundColor: styles.colors.primary,
-            borderRadius: styles.radius.md,
+            backgroundColor: tokens['color-primary'],
+            borderRadius: tokens['radius-md'],
           }}
         />
         <div
           className="w-8 h-8 border"
           style={{
-            backgroundColor: styles.colors.surface,
-            borderColor: styles.colors.border,
-            borderRadius: styles.radius.md,
+            backgroundColor: tokens['color-surface'],
+            borderColor: tokens['color-border'],
+            borderRadius: tokens['radius-md'],
           }}
         />
         <div
           className="w-8 h-8"
           style={{
-            backgroundColor: styles.colors.muted,
-            borderRadius: styles.radius.md,
+            backgroundColor: tokens['color-muted'],
+            borderRadius: tokens['radius-md'],
           }}
         />
       </div>
@@ -100,8 +102,8 @@ export function ThemePreview({
       <p
         className="text-xs"
         style={{
-          fontFamily: styles.fonts.sans,
-          color: styles.colors.textSecondary,
+          fontFamily: tokens['font-sans'],
+          color: tokens['color-text-secondary'],
         }}
       >
         The quick brown fox

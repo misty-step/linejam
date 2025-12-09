@@ -1,129 +1,139 @@
 /**
  * Theme System Type Definitions
  *
- * Single source of truth for theme shape. All theme presets
- * and runtime code reference these types.
+ * Flat token structure where keys map directly to CSS variable names.
+ * No nested objects = no manual mapping in apply.ts.
  */
 
-// Theme identifiers
-export type ThemeId = 'kenya' | 'mono' | 'vintage-paper';
 export type ThemeMode = 'light' | 'dark';
 
-// Color palette for a single mode
-export interface ThemeColors {
-  primary: string;
-  primaryHover: string;
-  primaryActive: string;
-  background: string;
-  foreground: string;
-  surface: string;
-  surfaceHover: string;
-  muted: string;
-  border: string;
-  borderSubtle: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  textInverse: string;
-  focusRing: string;
-  success?: string;
-  error?: string;
-  warning?: string;
-  info?: string;
-}
+/**
+ * Flat token interface - keys ARE CSS variable names (without --)
+ *
+ * @example
+ * 'color-primary' -> --color-primary
+ * 'text-xl' -> --text-xl
+ */
+export interface ThemeTokens {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Colors (15 required + 4 optional)
+  // ═══════════════════════════════════════════════════════════════════════════
+  'color-primary': string;
+  'color-primary-hover': string;
+  'color-primary-active': string;
+  'color-background': string;
+  'color-foreground': string;
+  'color-surface': string;
+  'color-surface-hover': string;
+  'color-muted': string;
+  'color-border': string;
+  'color-border-subtle': string;
+  'color-text-primary': string;
+  'color-text-secondary': string;
+  'color-text-muted': string;
+  'color-text-inverse': string;
+  'color-focus-ring': string;
+  // Optional semantic colors
+  'color-success'?: string;
+  'color-error'?: string;
+  'color-warning'?: string;
+  'color-info'?: string;
 
-// Font references (CSS variable names set by next/font)
-export interface ThemeFonts {
-  display: string; // e.g., 'var(--font-libre-baskerville)'
-  sans: string; // e.g., 'var(--font-ibm-plex)'
-  mono: string; // e.g., 'var(--font-jetbrains-mono)'
-}
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Fonts (3)
+  // ═══════════════════════════════════════════════════════════════════════════
+  'font-display': string;
+  'font-sans': string;
+  'font-mono': string;
 
-// Typography scale - creates distinct typographic voice per theme
-export interface ThemeTypography {
-  // Font sizes (using different scale ratios)
-  textXs: string;
-  textSm: string;
-  textBase: string;
-  textMd: string;
-  textLg: string;
-  textXl: string;
-  text2xl: string;
-  text3xl: string;
-  text4xl: string;
-  text5xl: string;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Typography (18)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Font sizes
+  'text-xs': string;
+  'text-sm': string;
+  'text-base': string;
+  'text-md': string;
+  'text-lg': string;
+  'text-xl': string;
+  'text-2xl': string;
+  'text-3xl': string;
+  'text-4xl': string;
+  'text-5xl': string;
   // Line heights
-  leadingTight: string;
-  leadingNormal: string;
-  leadingRelaxed: string;
+  'leading-tight': string;
+  'leading-normal': string;
+  'leading-relaxed': string;
   // Letter spacing
-  trackingTighter: string;
-  trackingTight: string;
-  trackingNormal: string;
-  trackingWide: string;
-  trackingWider: string;
+  'tracking-tighter': string;
+  'tracking-tight': string;
+  'tracking-normal': string;
+  'tracking-wide': string;
+  'tracking-wider': string;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Shadows (4)
+  // ═══════════════════════════════════════════════════════════════════════════
+  'shadow-sm': string;
+  'shadow-md': string;
+  'shadow-lg': string;
+  'shadow-color': string; // RGB values for rgba() composition
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Radius (4)
+  // ═══════════════════════════════════════════════════════════════════════════
+  'radius-sm': string;
+  'radius-md': string;
+  'radius-lg': string;
+  'radius-full': string;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Spacing (8)
+  // ═══════════════════════════════════════════════════════════════════════════
+  'space-1': string;
+  'space-2': string;
+  'space-3': string;
+  'space-4': string;
+  'space-5': string;
+  'space-6': string;
+  'space-7': string;
+  'space-8': string;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Transitions (7)
+  // ═══════════════════════════════════════════════════════════════════════════
+  'duration-instant': string;
+  'duration-fast': string;
+  'duration-normal': string;
+  'duration-slow': string;
+  'ease-theme': string;
+  'ease-in': string;
+  'ease-out': string;
 }
 
-// Shadow definitions
-export interface ThemeShadows {
-  sm: string;
-  md: string;
-  lg: string;
-  color?: string; // RGB values for rgba() composition
-}
-
-// Border radius definitions
-export interface ThemeRadius {
-  sm: string;
-  md: string;
-  lg: string;
-  full: string;
-}
-
-// Spacing scale - creates distinct spatial DNA per theme
-export interface ThemeSpacing {
-  1: string; // Tight
-  2: string;
-  3: string; // Base
-  4: string;
-  5: string; // Comfortable
-  6: string;
-  7: string; // Generous
-  8: string; // Monument
-}
-
-// Animation timing
-export interface ThemeTransitions {
-  instant: string;
-  fast: string;
-  normal: string;
-  slow: string;
-  easing: string; // Default easing for most transitions
-  easingIn: string; // For entering elements
-  easingOut: string; // For exiting elements
-}
-
-// Complete style props for one mode
-export interface ThemeStyleProps {
-  colors: ThemeColors;
-  fonts: ThemeFonts;
-  typography: ThemeTypography;
-  shadows: ThemeShadows;
-  radius: ThemeRadius;
-  spacing: ThemeSpacing;
-  transitions: ThemeTransitions;
-}
-
-// Complete theme preset
+/**
+ * Complete theme preset definition
+ */
 export interface ThemePreset {
-  id: ThemeId;
+  /** Unique identifier (used in localStorage, data-theme attribute) */
+  id: string;
+  /** Display name for UI */
   label: string;
+  /** Short description for theme picker */
   description: string;
-  styles: {
-    light: ThemeStyleProps;
-    dark: ThemeStyleProps;
+  /** Token definitions for light and dark modes */
+  tokens: {
+    light: ThemeTokens;
+    dark: ThemeTokens;
   };
 }
 
-// Theme registry (all presets)
-export type ThemeRegistry = Record<ThemeId, ThemePreset>;
+// ═══════════════════════════════════════════════════════════════════════════
+// Legacy type aliases (for gradual migration)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** @deprecated Use ThemeTokens directly */
+export type ThemeStyleProps = ThemeTokens;
+
+/** @deprecated Theme IDs are now strings, validated at runtime */
+export type ThemeId = string;
