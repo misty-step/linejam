@@ -30,6 +30,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   // Pre-fetch waiting screen data during confirmation for smooth transition
   // When submissionState becomes 'confirmed', Convex starts fetching getRoundProgress
   // By the time we transition to WaitingScreen, data is already cached → no loading flash
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const prefetchWaitingData = useQuery(
     api.game.getRoundProgress,
     submissionState === 'confirmed' ? { roomCode } : 'skip'
