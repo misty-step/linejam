@@ -2,15 +2,14 @@
 
 ## Premium Themes - Implementation Plan
 
-- [ ] **Infrastructure Finalization**
-  - [ ] Commit `lib/themes/registry.ts` and `lib/themes/schema.ts` (currently untracked)
-  - [ ] Commit updated presets (`kenya.ts`, `mono.ts`, `vintage-paper.ts`) and `types.ts`
-  - [ ] Commit `globals.css` base changes with new theme transition logic
+- [x] **Infrastructure Finalization**
+  - [x] Commit `lib/themes/registry.ts` and `lib/themes/schema.ts` (currently untracked)
+  - [x] Commit updated presets (`kenya.ts`, `mono.ts`, `vintage-paper.ts`) and `types.ts`
+  - [x] Commit `globals.css` base changes with new theme transition logic
 
-- [ ] **Visual Polish (Theme Signatures)**
-  - [ ] **Kenya Theme**
-    - [ ] Add vertical text utility `.theme-vertical-text` in `globals.css`
-    - [ ] Add brush stroke divider styling `.theme-divider`
+- [ ] **Visual Polish (Theme Signatures)** - [ ] **Kenya Theme**
+  - [ ] Add vertical text utility `.theme-vertical-text` in `globals.css`
+  - [ ] Add brush stroke divider styling `.theme-divider`
   - [ ] **Mono Theme**
     - [ ] Add "Instant" stamp animation override (no rotation)
     - [ ] Add geometric divider styling
