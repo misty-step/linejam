@@ -22,8 +22,6 @@ Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-
 - should use gemini 3 via google gen ai sdk
 - should adopt some kind of random persona; we should have a set of established personas we randomly choose, including chaotic casual personas as well as real poets
 
-### [Monetization] Add premium avatars and color themes
-
 ### [Maintainability] Extract checkParticipation helper
 
 **Files**: convex/poems.ts:21-27, convex/poems.ts:67-73
