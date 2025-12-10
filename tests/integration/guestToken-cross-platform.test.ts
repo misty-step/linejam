@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { randomUUID } from 'crypto';
+import { randomUUID, subtle } from 'crypto';
 
 // Next.js implementation (signs tokens)
 import {
@@ -9,6 +9,49 @@ import {
 
 // Convex implementation (verifies tokens)
 import { verifyGuestToken as convexVerifyGuestToken } from '../../convex/lib/guestToken';
+
+function arrayBufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function createTokenWithCustomTimestamp(
+  guestId: string,
+  issuedAt: number
+): Promise<string> {
+  const payload = {
+    guestId,
+    issuedAt,
+  };
+
+  const payloadJson = JSON.stringify(payload);
+  const payloadBytes = new TextEncoder().encode(payloadJson);
+  const payloadB64 = arrayBufferToBase64Url(payloadBytes);
+
+  const secret =
+    process.env.GUEST_TOKEN_SECRET ||
+    'test-secret-for-cross-platform-validation';
+  const keyData = new TextEncoder().encode(secret);
+
+  const key = await subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const payloadBuffer = new TextEncoder().encode(payloadB64);
+  const signature = await subtle.sign('HMAC', key, payloadBuffer);
+  const signatureB64 = arrayBufferToBase64Url(signature);
+
+  return `${payloadB64}.${signatureB64}`;
+}
 
 describe('Cross-platform Guest Token Compatibility', () => {
   beforeAll(() => {
@@ -147,7 +190,9 @@ describe('Cross-platform Guest Token Compatibility', () => {
       const [payload, signature] = token.split('.');
 
       // Tamper with signature
-      const tamperedSignature = signature.slice(0, -1) + 'x';
+      const lastChar = signature.slice(-1);
+      const replacement = lastChar === 'x' ? 'y' : 'x';
+      const tamperedSignature = signature.slice(0, -1) + replacement;
       const tamperedToken = `${payload}.${tamperedSignature}`;
 
       await expect(convexVerifyGuestToken(tamperedToken)).rejects.toThrow(
@@ -155,15 +200,16 @@ describe('Cross-platform Guest Token Compatibility', () => {
       );
     });
 
-    it.skip('rejects expired tokens', async () => {
-      // TODO: Implement test helper to create tokens with custom issuedAt timestamp
-      // const guestId = randomUUID();
-      // const expiredToken = await createTokenWithCustomTimestamp(
-      //   guestId,
-      //   Date.now() - 31 * 24 * 60 * 60 * 1000
-      // );
-      // await expect(convexVerifyGuestToken(expiredToken)).rejects.toThrow('Token expired');
-      expect(true).toBe(true); // Placeholder
+    it('rejects expired tokens', async () => {
+      const guestId = randomUUID();
+      // 31 days ago (expiry is 30 days)
+      const expiredToken = await createTokenWithCustomTimestamp(
+        guestId,
+        Date.now() - 31 * 24 * 60 * 60 * 1000
+      );
+      await expect(convexVerifyGuestToken(expiredToken)).rejects.toThrow(
+        'Token expired'
+      );
     });
   });
 
