@@ -27,7 +27,7 @@ export function HostBadge({ className }: HostBadgeProps) {
 
         // Shape & Shadow
         'rounded-[var(--radius-sm)]',
-        'shadow-[1px_1px_0px_rgba(232,93,43,0.15)]',
+        'shadow-[var(--shadow-sm)]',
 
         className
       )}
@@ -39,7 +39,7 @@ export function HostBadge({ className }: HostBadgeProps) {
       />
 
       {/* Text Label */}
-      <span className="text-xs font-medium tracking-wide text-[var(--color-primary)] uppercase font-[var(--font-sans)]">
+      <span className="text-[var(--text-xs)] font-medium tracking-[var(--tracking-wide)] text-[var(--color-primary)] uppercase font-[var(--font-sans)]">
         HOST
       </span>
     </div>

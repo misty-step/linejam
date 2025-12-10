@@ -46,7 +46,7 @@ export function EnsoCounter({ current, target, className }: EnsoCounterProps) {
           strokeDashoffset={strokeOffset}
           strokeLinecap="round"
           className={cn(
-            'transition-all duration-300',
+            'transition-all duration-[var(--duration-slow)]',
             isValid && 'animate-breathe'
           )}
         />
@@ -56,7 +56,7 @@ export function EnsoCounter({ current, target, className }: EnsoCounterProps) {
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span
           className={cn(
-            'text-sm font-mono font-medium',
+            'text-[var(--text-sm)] font-mono font-medium',
             isValid && 'text-[var(--color-success)]',
             isOver && 'text-[var(--color-error)]',
             !isValid && !isOver && 'text-[var(--color-text-secondary)]'

@@ -71,7 +71,7 @@ export function PoemDisplay({
           'relative w-full max-w-2xl my-auto',
           'ml-0 md:ml-[10vw] lg:ml-[20vw]',
           'bg-[var(--color-surface)] p-8 md:p-12 lg:p-16',
-          'shadow-[8px_8px_0px_rgba(232,93,43,0.15)]',
+          'shadow-[var(--shadow-lg)]',
           'border border-[var(--color-border)]'
         )}
       >
@@ -88,8 +88,8 @@ export function PoemDisplay({
                   {/* Line Number - Right Aligned in Gutter */}
                   <div
                     className={cn(
-                      'font-mono text-sm text-right select-none',
-                      'transition-opacity duration-500',
+                      'font-mono text-[var(--text-sm)] text-right select-none',
+                      'transition-opacity duration-[var(--duration-normal)]',
                       isVisible ? 'opacity-100' : 'opacity-0',
                       index === 0
                         ? 'text-[var(--color-primary)]'
@@ -102,8 +102,8 @@ export function PoemDisplay({
                   {/* Line Text - Clip Path Wipe */}
                   <p
                     className={cn(
-                      'font-[var(--font-display)] leading-tight text-left',
-                      'text-2xl md:text-3xl lg:text-4xl',
+                      'font-[var(--font-display)] leading-[var(--leading-tight)] text-left',
+                      'text-[var(--text-2xl)] md:text-[var(--text-3xl)] lg:text-[var(--text-4xl)]',
                       'text-[var(--color-text-primary)]'
                     )}
                     style={{
@@ -133,7 +133,7 @@ export function PoemDisplay({
         {/* Footer / Actions */}
         <div
           className={cn(
-            'flex flex-col sm:flex-row items-center justify-center gap-4 mt-16 transition-opacity duration-1000',
+            'flex flex-col sm:flex-row items-center justify-center gap-4 mt-16 transition-opacity duration-[var(--duration-slow)]',
             allRevealed ? 'opacity-100' : 'opacity-0'
           )}
         >
@@ -141,7 +141,7 @@ export function PoemDisplay({
             onClick={handleShare}
             variant="primary"
             size="lg"
-            className="min-w-[160px] h-14 text-lg"
+            className="min-w-[160px] h-14 text-[var(--text-lg)]"
             stampAnimate={copied}
             aria-label="Copy poem link to clipboard"
           >
@@ -151,7 +151,7 @@ export function PoemDisplay({
             onClick={onDone}
             variant="ghost"
             size="lg"
-            className="min-w-[140px] h-14 text-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            className="min-w-[140px] h-14 text-[var(--text-lg)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
           >
             Close
           </Button>

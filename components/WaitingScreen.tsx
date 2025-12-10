@@ -34,7 +34,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
       >
         {/* Top: Round indicator */}
         <div className="flex-none mb-32 md:mb-40">
-          <div className="text-sm font-mono text-[var(--color-text-muted)] uppercase tracking-[0.4em] text-center">
+          <div className="text-[var(--text-sm)] font-mono text-[var(--color-text-muted)] uppercase tracking-[0.4em] text-center">
             Round {round + 1}
           </div>
         </div>
@@ -45,7 +45,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
             {allSubmitted ? 'Ready' : 'Others are writing...'}
           </h2>
           {!allSubmitted && (
-            <p className="text-lg font-mono text-[var(--color-text-secondary)]">
+            <p className="text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
               {submittedCount} of {players.length} ready
             </p>
           )}
@@ -64,7 +64,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
               >
                 {player.submitted ? (
                   // Settled - subdued avatar
-                  <div className="opacity-50 transition-opacity duration-500">
+                  <div className="opacity-50 transition-opacity duration-[var(--duration-normal)]">
                     <Avatar
                       stableId={player.stableId}
                       displayName={player.displayName}
@@ -95,7 +95,7 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
                   <div className="bg-[var(--color-background)] border border-[var(--color-border)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
                     <span
-                      className={`text-xs font-medium ${player.submitted ? 'text-[var(--color-text-secondary)] line-through' : 'text-[var(--color-text-primary)]'}`}
+                      className={`text-[var(--text-xs)] font-medium ${player.submitted ? 'text-[var(--color-text-secondary)] line-through' : 'text-[var(--color-text-primary)]'}`}
                     >
                       {player.displayName}
                     </span>

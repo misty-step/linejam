@@ -91,7 +91,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           <Button
             onClick={handleStartGame}
             size="lg"
-            className={`w-full h-16 text-lg ${className || ''}`}
+            className={`w-full h-16 text-[var(--text-lg)] ${className || ''}`}
             disabled={!canStart}
             variant={canStart ? 'primary' : 'secondary'}
           >
@@ -116,7 +116,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         <Button
           disabled
           size="lg"
-          className={`w-full h-16 text-lg opacity-50 cursor-not-allowed ${className || ''}`}
+          className={`w-full h-16 text-[var(--text-lg)] opacity-50 cursor-not-allowed ${className || ''}`}
           variant="secondary"
         >
           Waiting for Host...
@@ -175,7 +175,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                         allStableIds={allStableIds}
                         size="md"
                       />
-                      <span className="text-2xl md:text-3xl font-medium text-[var(--color-text-primary)]">
+                      <span className="text-[var(--text-2xl)] md:text-[var(--text-3xl)] font-medium text-[var(--color-text-primary)]">
                         {player.displayName}
                       </span>
                     </div>
