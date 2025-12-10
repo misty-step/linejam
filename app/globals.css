@@ -271,7 +271,7 @@ textarea:focus {
   background: radial-gradient(
     ellipse at center,
     transparent 50%,
-    rgba(61, 54, 50, 0.08) 100%
+    rgb(var(--shadow-color) / 0.08) 100%
   );
 }
 
@@ -323,5 +323,5 @@ textarea:focus {
 [data-theme='hyper'] .paper:hover {
   transform: translate(-2px, -2px);
   box-shadow: 10px 10px 0px var(--color-primary);
-  transition: all 75ms step-end;
+  transition: all var(--duration-fast) step-end;
 }

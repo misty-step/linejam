@@ -21,6 +21,7 @@ export {
   kenyaTheme,
   monoTheme,
   vintagePaperTheme,
+  hyperTheme,
 } from './registry';
 
 // Apply

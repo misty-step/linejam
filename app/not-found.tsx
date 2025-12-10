@@ -32,7 +32,7 @@ export default function NotFound() {
         {/* Minimalist Copy */}
         <div
           className="space-y-6 animate-fade-in-up"
-          style={{ animationDelay: '150ms' }}
+          style={{ animationDelay: 'var(--duration-fast)' }}
         >
           <div className="space-y-2">
             <h2 className="text-xl md:text-2xl font-[var(--font-display)] text-[var(--color-text-primary)]">

@@ -39,7 +39,7 @@ export const CardHeader = forwardRef<
 CardHeader.displayName = 'CardHeader';
 
 export const CardTitle = forwardRef<
-  HTMLParagraphElement,
+  HTMLHeadingElement,
   HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => {
   return (

@@ -17,6 +17,7 @@ import './globals.css';
 import { Providers } from './providers';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { themeIds, defaultThemeId } from '@/lib/themes';
 
 // Kenya theme fonts
 const libreBaskerville = Libre_Baskerville({
@@ -116,13 +117,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   // Blocking script: apply theme before first paint to prevent FOUC
+  // Theme IDs injected from registry to avoid duplication
   const themeInitScript = `
     (function() {
       try {
         var THEME_KEY = 'linejam-theme-id';
         var MODE_KEY = 'linejam-theme-mode';
-        var VALID_THEMES = ['kenya', 'mono', 'vintage-paper', 'hyper'];
-        var DEFAULT_THEME = 'kenya';
+        var VALID_THEMES = ${JSON.stringify(themeIds)};
+        var DEFAULT_THEME = ${JSON.stringify(defaultThemeId)};
 
         var storedTheme = localStorage.getItem(THEME_KEY);
         var storedMode = localStorage.getItem(MODE_KEY);
