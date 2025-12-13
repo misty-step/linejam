@@ -1,5 +1,5 @@
 import { QueryCtx, MutationCtx } from '../_generated/server';
-import { Doc } from '../_generated/dataModel';
+import { Doc, Id } from '../_generated/dataModel';
 import { verifyGuestToken } from './guestToken';
 
 /**
@@ -52,4 +52,22 @@ export async function requireUser(
     throw new Error('Unauthorized: User not found');
   }
   return user;
+}
+
+/**
+ * Checks if a user is a participant in a room.
+ * Returns true if the user has a roomPlayers record for the room, false otherwise.
+ */
+export async function checkParticipation(
+  ctx: QueryCtx | MutationCtx,
+  roomId: Id<'rooms'>,
+  userId: Id<'users'>
+): Promise<boolean> {
+  const player = await ctx.db
+    .query('roomPlayers')
+    .withIndex('by_room_user', (q) =>
+      q.eq('roomId', roomId).eq('userId', userId)
+    )
+    .first();
+  return !!player;
 }

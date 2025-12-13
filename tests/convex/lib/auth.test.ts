@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 // Mock Convex server
 vi.mock('../../../convex/_generated/server', () => ({
@@ -12,7 +13,11 @@ vi.mock('../../../convex/lib/guestToken', () => ({
   verifyGuestToken: (...args: unknown[]) => mockVerifyGuestToken(...args),
 }));
 
-import { getUser, requireUser } from '../../../convex/lib/auth';
+import {
+  getUser,
+  requireUser,
+  checkParticipation,
+} from '../../../convex/lib/auth';
 
 describe('convex/lib/auth', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,6 +249,44 @@ describe('convex/lib/auth', () => {
       await expect(requireUser(mockCtx, 'valid-token')).rejects.toThrow(
         'Unauthorized: User not found'
       );
+    });
+  });
+
+  describe('checkParticipation', () => {
+    it('returns true when player record exists', async () => {
+      // Arrange
+      const player = { roomId: 'room1', userId: 'user1' };
+      mockDb.first.mockResolvedValue(player);
+
+      // Act
+      const result = await checkParticipation(
+        mockCtx,
+        'room1' as Id<'rooms'>,
+        'user1' as Id<'users'>
+      );
+
+      // Assert
+      expect(result).toBe(true);
+      expect(mockDb.query).toHaveBeenCalledWith('roomPlayers');
+      expect(mockDb.withIndex).toHaveBeenCalledWith(
+        'by_room_user',
+        expect.any(Function)
+      );
+    });
+
+    it('returns false when no player record exists', async () => {
+      // Arrange
+      mockDb.first.mockResolvedValue(null);
+
+      // Act
+      const result = await checkParticipation(
+        mockCtx,
+        'room1' as Id<'rooms'>,
+        'user1' as Id<'users'>
+      );
+
+      // Assert
+      expect(result).toBe(false);
     });
   });
 });

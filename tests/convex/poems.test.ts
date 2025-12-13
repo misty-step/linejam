@@ -15,10 +15,12 @@ import {
   getPublicPoemFull,
 } from '../../convex/poems';
 
-// Mock getUser
+// Mock auth helpers
 const mockGetUser = vi.fn();
+const mockCheckParticipation = vi.fn();
 vi.mock('../../convex/lib/auth', () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
+  checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
 }));
 
 describe('poems', () => {
@@ -31,6 +33,7 @@ describe('poems', () => {
     mockDb = createMockDb();
     mockCtx = createMockCtx(mockDb);
     mockGetUser.mockReset();
+    mockCheckParticipation.mockReset();
   });
 
   describe('getPoemsForRoom', () => {
@@ -68,9 +71,8 @@ describe('poems', () => {
     it('returns empty array when user is not participant', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockDb.first
-        .mockResolvedValueOnce({ _id: 'room1', code: 'ABCD' }) // Room lookup
-        .mockResolvedValueOnce(null); // No player record
+      mockDb.first.mockResolvedValueOnce({ _id: 'room1', code: 'ABCD' }); // Room lookup
+      mockCheckParticipation.mockResolvedValue(false);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -81,13 +83,18 @@ describe('poems', () => {
 
       // Assert
       expect(result).toEqual([]);
+      expect(mockCheckParticipation).toHaveBeenCalledWith(
+        mockCtx,
+        'room1',
+        'user2'
+      );
     });
 
     it('returns poems for room where user participated', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockCheckParticipation.mockResolvedValue(true);
       const room = { _id: 'room1', code: 'ABCD', currentGameId: 'game1' };
-      const player = { roomId: 'room1', userId: 'user1' };
       const poems = [
         { _id: 'poem1', roomId: 'room1', gameId: 'game1' },
         { _id: 'poem2', roomId: 'room1', gameId: 'game1' },
@@ -95,7 +102,6 @@ describe('poems', () => {
 
       mockDb.first
         .mockResolvedValueOnce(room) // Room lookup
-        .mockResolvedValueOnce(player) // Player check
         .mockResolvedValueOnce({ text: 'First line of poem 1' }) // First line for poem1
         .mockResolvedValueOnce({ text: 'First line of poem 2' }); // First line for poem2
 
@@ -123,13 +129,12 @@ describe('poems', () => {
     it('filters by roomId when no currentGameId', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockCheckParticipation.mockResolvedValue(true);
       const room = { _id: 'room1', code: 'ABCD', currentGameId: null };
-      const player = { roomId: 'room1', userId: 'user1' };
       const poems = [{ _id: 'poem1', roomId: 'room1' }];
 
       mockDb.first
         .mockResolvedValueOnce(room)
-        .mockResolvedValueOnce(player)
         .mockResolvedValueOnce({ text: 'First line' });
 
       mockDb.collect.mockResolvedValueOnce(poems);
@@ -153,14 +158,11 @@ describe('poems', () => {
     it('uses fallback preview when no first line exists', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockCheckParticipation.mockResolvedValue(true);
       const room = { _id: 'room1', code: 'ABCD', currentGameId: 'game1' };
-      const player = { roomId: 'room1', userId: 'user1' };
       const poems = [{ _id: 'poem1', roomId: 'room1', gameId: 'game1' }];
 
-      mockDb.first
-        .mockResolvedValueOnce(room)
-        .mockResolvedValueOnce(player)
-        .mockResolvedValueOnce(null); // No first line
+      mockDb.first.mockResolvedValueOnce(room).mockResolvedValueOnce(null); // No first line
 
       mockDb.collect.mockResolvedValueOnce(poems);
 
@@ -212,7 +214,7 @@ describe('poems', () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user2' });
       mockDb.get.mockResolvedValue({ _id: 'poem1', roomId: 'room1' });
-      mockDb.first.mockResolvedValue(null); // No player record
+      mockCheckParticipation.mockResolvedValue(false);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -223,13 +225,18 @@ describe('poems', () => {
 
       // Assert
       expect(result).toBeNull();
+      expect(mockCheckParticipation).toHaveBeenCalledWith(
+        mockCtx,
+        'room1',
+        'user2'
+      );
     });
 
     it('returns poem with lines in correct order', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockCheckParticipation.mockResolvedValue(true);
       const poem = { _id: 'poem1', roomId: 'room1' };
-      const player = { roomId: 'room1', userId: 'user1' };
       const lines = [
         { _id: 'line3', indexInPoem: 2, authorUserId: 'user3', text: 'Third' },
         { _id: 'line1', indexInPoem: 0, authorUserId: 'user1', text: 'First' },
@@ -238,11 +245,10 @@ describe('poems', () => {
 
       mockDb.get
         .mockResolvedValueOnce(poem) // Poem lookup
-        .mockResolvedValueOnce({ displayName: 'Alice' }) // Author for line1
-        .mockResolvedValueOnce({ displayName: 'Bob' }) // Author for line2
-        .mockResolvedValueOnce({ displayName: 'Charlie' }); // Author for line3
+        .mockResolvedValueOnce({ displayName: 'Alice' }) // Author for user1
+        .mockResolvedValueOnce({ displayName: 'Bob' }) // Author for user2
+        .mockResolvedValueOnce({ displayName: 'Charlie' }); // Author for user3
 
-      mockDb.first.mockResolvedValue(player);
       mockDb.collect.mockResolvedValue(lines);
 
       // Act
@@ -275,15 +281,14 @@ describe('poems', () => {
     it('handles missing/deleted authors gracefully', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockCheckParticipation.mockResolvedValue(true);
       const poem = { _id: 'poem1', roomId: 'room1' };
-      const player = { roomId: 'room1', userId: 'user1' };
       const lines = [
         { _id: 'line1', indexInPoem: 0, authorUserId: 'user1', text: 'First' },
       ];
 
       mockDb.get.mockResolvedValueOnce(poem).mockResolvedValueOnce(null); // Author deleted
 
-      mockDb.first.mockResolvedValue(player);
       mockDb.collect.mockResolvedValue(lines);
 
       // Act

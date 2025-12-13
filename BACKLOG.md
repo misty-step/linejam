@@ -1,7 +1,31 @@
 # BACKLOG.md
 
-Last groomed: 2025-11-18
+Last groomed: 2025-12-12
 Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-guardian, security-sentinel, performance-pathfinder, maintainability-maven, user-experience-advocate, product-visionary, design-systems-architect)
+
+---
+
+## Strategic Direction
+
+**Primary Focus**: Party game for friends in the same room
+
+- Low-friction join via QR
+- Shareable poem artifacts drive organic discovery
+- "Jackbox for poetry" positioning
+
+**Future Expansion** (when demand validated): Teacher/facilitator mode
+
+- Defer classroom features until user research validates demand
+
+**North Star Metric**: Completed sessions per week
+
+- Captures activation + engagement + retention + sharing
+
+**Key Unlocks**:
+
+1. GameRules centralization (enables paid mode packs, variants)
+2. Growth hooks (viral distribution after every session)
+3. Moderation basics (kick player—table stakes for multiplayer)
 
 ---
 
@@ -21,34 +45,6 @@ Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-
 
 - should use gemini 3 via google gen ai sdk
 - should adopt some kind of random persona; we should have a set of established personas we randomly choose, including chaotic casual personas as well as real poets
-
-### [Maintainability] Extract checkParticipation helper
-
-**Files**: convex/poems.ts:21-27, convex/poems.ts:67-73
-**Perspectives**: maintainability-maven
-**Impact**: Duplicated roomPlayers lookup in getPoemsForRoom and getPoemDetail. Any auth changes need to update both places.
-**Fix**: Extract to `convex/lib/auth.ts`:
-
-```typescript
-export async function checkParticipation(
-  ctx: QueryCtx | MutationCtx,
-  roomId: Id<'rooms'>,
-  userId: Id<'users'>
-): Promise<boolean> {
-  const player = await ctx.db
-    .query('roomPlayers')
-    .withIndex('by_room_user', (q) =>
-      q.eq('roomId', roomId).eq('userId', userId)
-    )
-    .first();
-  return !!player;
-}
-```
-
-**Effort**: 15m | **Impact**: DRY, single source of truth for participation checks
-**Acceptance**: No duplicated roomPlayers queries in poems.ts
-
----
 
 ### [Maintainability] Centralize CI commit SHA env var list
 
@@ -149,6 +145,69 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 ---
 
+### [Architecture] Centralize GameRules in games table
+
+**Files**: convex/schema.ts, convex/game.ts, components/WritingScreen.tsx
+**Perspectives**: architecture-guardian, product-visionary
+**Why**: 9 rounds, word counts, assignment rules are scattered across assignmentMatrix generator, UI, and tests. Any "new mode" change requires touching 4+ files. This is the #1 architecture unlock for monetization.
+**Approach**:
+
+1. Add `rules` field to `games` table: `{ totalRounds, wordCounts[], mode, constraints }`
+2. startGame accepts optional rules (defaults to classic mode)
+3. UI renders from `games.rules` not hardcoded constants
+4. Backfill existing games with classic rules
+   **Unlocks**: Haiku mode, speed mode, paid mode packs
+   **Effort**: 3-4h | **Impact**: Monetization foundation
+   **Acceptance**: Zero hardcoded game rules outside `games.rules`
+
+---
+
+### [Testing] Add E2E full game completion test
+
+**File**: e2e/full-session.spec.ts (new)
+**Perspectives**: maintainability-maven
+**Why**: Can't refactor with confidence. Unit tests cover pieces; nothing validates the full flow.
+**Approach**: Playwright test that:
+
+1. Creates room (host)
+2. Joins 2 players
+3. Starts game
+4. All players submit 9 rounds
+5. Reveals all poems
+6. Starts new cycle
+   **Effort**: 3-4h | **Impact**: 80% of regression coverage
+   **Acceptance**: CI blocks on full-session test failure
+
+---
+
+### [Product] Post-reveal growth hook
+
+**File**: components/RevealPhase.tsx
+**Perspectives**: product-visionary
+**Why**: After reveal, users just... leave. No invitation to replay, share, or invite others. Wasted distribution opportunity.
+**Approach**: After final poem reveal, show:
+
+1. QR code: "Start your own Linejam" (deep-link to host flow)
+2. "Copy invite link" button
+3. "Share your favorite poem" with OG card preview
+   **Effort**: 2h | **Value**: Viral loop activation
+   **Acceptance**: Every completed session surfaces 3 growth CTAs
+
+---
+
+### [Product] Moderation primitives (kick player)
+
+**Perspectives**: user-experience-advocate
+**Why**: Can't remove disruptive player or troll. Table stakes for any multiplayer party game (Jackbox has this).
+**Approach**:
+
+1. Host can kick player (removes from roomPlayers, player sees "You were removed")
+2. Kicked player can rejoin with new name (not permanent ban—keep it lightweight)
+   **Effort**: 1-2h | **Value**: Basic troll defense
+   **Acceptance**: Host has kick button next to each player in lobby
+
+---
+
 ## Next (This Quarter, <3 months)
 
 ### [UX] Mid-Game Exit Strategy
@@ -230,16 +289,6 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 ---
 
-### [Maintainability] Document WORD_COUNTS magic constant ⚠️ MULTI-AGENT
-
-**File**: convex/game.ts:6
-**Perspectives**: complexity-archaeologist, maintainability-maven
-**Why**: `const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1]` defines entire game mechanic with no explanation. Why pyramid? Why 9 rounds? Is this tunable?
-**Fix**: Add comprehensive JSDoc explaining design intent, game balance, and change impact.
-**Effort**: 5m | **Impact**: Core design documented
-
----
-
 ### [Maintainability] Add tests for Convex mutations/queries
 
 **Files**: convex/\*.ts
@@ -304,6 +353,43 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 ---
 
+### [UX] Player presence / ghost seat cleanup
+
+**Perspectives**: user-experience-advocate
+**Why**: If player closes tab, their seat persists forever. Confuses host ("who is 'Anonymous'?"), blocks capacity.
+**Approach**:
+
+1. Add `lastSeenAt` to roomPlayers (updated on any action)
+2. Host sees "inactive" indicator after 2 min silence
+3. Host can remove inactive players
+   **Effort**: 2-3h | **Value**: Clean room state
+   **Acceptance**: Inactive players visually distinguished, removable by host
+
+---
+
+### [Infrastructure] Instrument completion funnel
+
+**Perspectives**: product-visionary
+**Why**: No visibility into drop-off. Don't know if users abandon in lobby, round 3, or reveal.
+**Approach**: Add events table or send to analytics:
+
+- room_created, room_joined, game_started
+- round_completed (per round)
+- game_completed, poem_shared
+  **Effort**: 2-3h | **Value**: Data-driven prioritization
+  **Acceptance**: Can answer "what % of started games reach reveal?"
+
+---
+
+### [Security] Codify privacy policy
+
+**Perspectives**: security-sentinel
+**Why**: Mixed model—some queries are public, some participant-only. No single source of truth. Not urgent for party game, but good hygiene.
+**Approach**: Document endpoint-by-endpoint access levels; add helpers for consistent enforcement.
+**Effort**: 2h | **Impact**: Clarity for future development
+
+---
+
 ## Soon (Exploring, 3-6 months)
 
 - **[Product] Game mode variations** - Haiku (5-7-5), Limerick (AABBA), Speed mode (30s timer), Theme mode (random prompts). Major replay value. Premium tier candidate.
@@ -324,6 +410,7 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 - **[Product] AI-assisted mode** - AI completes lines when stuck. Premium differentiator.
 - **[Platform] Mobile app** - iOS/Android native or React Native
 - **[Platform] Plugin system** - User-extensible commands
+- **[Product] Export poems as PDF/printable** - Teachers/facilitators want tangible outputs. Lower priority until teacher demand validated. Trigger: teacher/facilitator demand signal.
 
 ---
 
@@ -343,28 +430,42 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 6. **Quality gates exist but aren't optimized** - Lefthook is configured but runs full typecheck on every commit (too slow). CI runs sequentially despite independent steps. No secrets scanning. Pattern: quality infrastructure setup without performance tuning.
 
+**From external consultation (Dec 2025):**
+
+1. **"Rules" are the monetization unlock** — Every scattered game constant (9 rounds, word counts) is a future paid mode you can't sell. Centralizing rules in the database is infrastructure investment.
+
+2. **Artifacts are distribution** — Poem pages with OG images are not vanity; they're the viral loop. Lean into sharing and beautiful outputs.
+
+3. **Room codes are fine for party games** — Jackbox, Wavelength, and similar games use 4-letter codes without issue. The threat model accepts trolls joining random rooms—that's an annoyance, not a privacy breach. Real mitigations: short-lived rooms, kick functionality, rate limiting.
+
+4. **Moderation is table stakes** — Any multiplayer game needs basic kick/remove. This isn't a "teacher feature"—it's baseline troll defense.
+
+5. **Growth hooks are free distribution** — Post-reveal is a wasted moment. Every completed session should surface CTAs to start another game, share poems, invite others.
+
 ---
 
 ## Summary
 
-| Priority | Count    | Effort  | Key Theme                                                                            |
-| -------- | -------- | ------- | ------------------------------------------------------------------------------------ |
-| Now      | 26 items | ~18-24h | Security, infrastructure usage, N+1 queries, UX basics, quality gates, observability |
-| Next     | 12 items | ~40-50h | Architecture refactoring, product growth features, testing                           |
-| Soon     | 8 items  | ~60h    | Game variations, polish, advanced features                                           |
-| Later    | 7 items  | 100h+   | Monetization, verticals, platform plays                                              |
+| Priority | Count    | Effort  | Key Theme                                                                                 |
+| -------- | -------- | ------- | ----------------------------------------------------------------------------------------- |
+| Now      | 30 items | ~26-32h | GameRules centralization, E2E testing, growth hooks, moderation, UX basics, quality gates |
+| Next     | 14 items | ~44-54h | Architecture refactoring, funnel instrumentation, privacy policy, product features        |
+| Soon     | 8 items  | ~60h    | Game variations, polish, advanced features                                                |
+| Later    | 8 items  | 100h+   | Monetization, verticals, platform plays, PDF export                                       |
 
-**Most impactful quick wins:**
+**Highest-impact new items (from consultation):**
+
+1. Centralize GameRules in games table (3-4h) - monetization foundation, enables mode packs
+2. E2E full game completion test (3-4h) - 80% regression coverage
+3. Post-reveal growth hook (2h) - viral loop activation
+4. Kick player moderation (1-2h) - table stakes troll defense
+
+**Most impactful quick wins (existing):**
 
 1. Extract `getUser` helper (30m) - eliminates 60 lines of duplication
 2. Replace `alert()` with inline errors (30m) - fixes jarring UX
 3. Migrate profile page to design tokens (30m) - restores visual coherence
 4. Parallelize N+1 queries (2h) - 5-10x performance improvement
-
-**Critical security work:**
-
-- Authorization checks on all poem/favorites queries (1-2h)
-- Without this, any user can view any other user's content
 
 ---
 

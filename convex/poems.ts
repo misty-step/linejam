@@ -1,6 +1,6 @@
 import { v } from 'convex/values';
 import { query } from './_generated/server';
-import { getUser } from './lib/auth';
+import { getUser, checkParticipation } from './lib/auth';
 
 export const getPoemsForRoom = query({
   args: {
@@ -17,14 +17,7 @@ export const getPoemsForRoom = query({
       .first();
     if (!room) return [];
 
-    // Check participation
-    const player = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room_user', (q) =>
-        q.eq('roomId', room._id).eq('userId', user._id)
-      )
-      .first();
-    if (!player) return [];
+    if (!(await checkParticipation(ctx, room._id, user._id))) return [];
 
     // If the room has a current game, only return poems from that game
     // This ensures RevealList shows only the current cycle's poems
@@ -73,14 +66,7 @@ export const getPoemDetail = query({
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
 
-    // Check participation
-    const player = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room_user', (q) =>
-        q.eq('roomId', poem.roomId).eq('userId', user._id)
-      )
-      .first();
-    if (!player) return null;
+    if (!(await checkParticipation(ctx, poem.roomId, user._id))) return null;
 
     const lines = await ctx.db
       .query('lines')
