@@ -367,6 +367,16 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 
 ---
 
+### [Security] Add authorization to favorites queries
+
+**Perspectives**: security-sentinel
+**Why**: Favorites queries (`getFavorites`, `toggleFavorite`) don't verify user owns the favorites they're accessing. While poems queries now have participation checks (via `checkParticipation`), favorites remain unprotected.
+**Approach**: Add user ownership checks to favorites queries in `convex/favorites.ts`
+**Effort**: 1h | **Impact**: Prevents viewing/modifying other users' favorites
+**Acceptance**: All favorites queries verify `userId` matches authenticated user
+
+---
+
 ### [Infrastructure] Instrument completion funnel
 
 **Perspectives**: product-visionary
