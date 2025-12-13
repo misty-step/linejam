@@ -2,6 +2,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
+import { BotBadge } from './ui/BotBadge';
 
 interface WaitingScreenProps {
   roomCode: string;
@@ -93,12 +94,13 @@ export function WaitingScreen({ roomCode }: WaitingScreenProps) {
                 )}
                 {/* Name tooltip on hover */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-                  <div className="bg-[var(--color-background)] border border-[var(--color-border)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                  <div className="bg-[var(--color-background)] border border-[var(--color-border)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap flex items-center gap-1.5">
                     <span
                       className={`text-[var(--text-xs)] font-medium ${player.submitted ? 'text-[var(--color-text-secondary)] line-through' : 'text-[var(--color-text-primary)]'}`}
                     >
                       {player.displayName}
                     </span>
+                    {player.isBot && <BotBadge showLabel={false} />}
                   </div>
                 </div>
               </div>

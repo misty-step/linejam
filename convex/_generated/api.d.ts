@@ -8,9 +8,13 @@
  * @module
  */
 
+import type * as ai from "../ai.js";
 import type * as favorites from "../favorites.js";
 import type * as game from "../game.js";
 import type * as health from "../health.js";
+import type * as lib_ai_gemini from "../lib/ai/gemini.js";
+import type * as lib_ai_personas from "../lib/ai/personas.js";
+import type * as lib_ai_wordCountGuard from "../lib/ai/wordCountGuard.js";
 import type * as lib_assignmentMatrix from "../lib/assignmentMatrix.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_guestToken from "../lib/guestToken.js";
@@ -29,9 +33,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   favorites: typeof favorites;
   game: typeof game;
   health: typeof health;
+  "lib/ai/gemini": typeof lib_ai_gemini;
+  "lib/ai/personas": typeof lib_ai_personas;
+  "lib/ai/wordCountGuard": typeof lib_ai_wordCountGuard;
   "lib/assignmentMatrix": typeof lib_assignmentMatrix;
   "lib/auth": typeof lib_auth;
   "lib/guestToken": typeof lib_guestToken;

@@ -9,9 +9,11 @@ import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { HostBadge } from './ui/HostBadge';
+import { BotBadge } from './ui/BotBadge';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
 import { RoomQr } from './RoomQr';
+import { Bot, UserMinus } from 'lucide-react';
 
 /**
  * Information Architecture: The Split-View Strategy
@@ -44,6 +46,8 @@ import { RoomQr } from './RoomQr';
 
 interface LobbyPlayer extends Doc<'roomPlayers'> {
   stableId: string;
+  isBot?: boolean;
+  aiPersonaId?: string;
 }
 
 interface LobbyProps {
@@ -56,7 +60,10 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const router = useRouter();
   const { guestToken } = useUser();
   const startGameMutation = useMutation(api.game.startGame);
+  const addAiMutation = useMutation(api.ai.addAiPlayer);
+  const removeAiMutation = useMutation(api.ai.removeAiPlayer);
   const [error, setError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // For unique avatar colors
   const allStableIds = players.map((p) => p.stableId);
@@ -78,6 +85,44 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const minPlayers = 2;
   const needsMore = minPlayers - players.length;
   const canStart = players.length >= minPlayers;
+
+  // Check if room has an AI player
+  const hasAi = players.some((p) => p.isBot);
+  const canAddAi = isHost && !hasAi && players.length < 8;
+
+  const handleAddAi = async () => {
+    if (!room || aiLoading) return;
+    setError(null);
+    setAiLoading(true);
+    try {
+      await addAiMutation({
+        code: room.code,
+        guestToken: guestToken || undefined,
+      });
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleRemoveAi = async () => {
+    if (!room || aiLoading) return;
+    setError(null);
+    setAiLoading(true);
+    try {
+      await removeAiMutation({
+        code: room.code,
+        guestToken: guestToken || undefined,
+      });
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleLeaveLobby = () => {
     router.push('/');
@@ -150,6 +195,20 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             {/* QR Code Invitation */}
             {isHost && <RoomQr roomCode={room.code} />}
 
+            {/* Add AI Player Button - Host only */}
+            {canAddAi && (
+              <Button
+                onClick={handleAddAi}
+                disabled={aiLoading}
+                variant="secondary"
+                size="md"
+                className="w-full"
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                {aiLoading ? 'Adding...' : 'Add AI Poet'}
+              </Button>
+            )}
+
             {/* Desktop: Inline Button (visible above fold) */}
             <div className="hidden md:block w-full">
               {error && (
@@ -179,7 +238,24 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                         {player.displayName}
                       </span>
                     </div>
-                    {player.userId === room.hostUserId && <HostBadge />}
+                    <div className="flex items-center gap-2">
+                      {player.isBot && (
+                        <>
+                          <BotBadge />
+                          {isHost && (
+                            <button
+                              onClick={handleRemoveAi}
+                              disabled={aiLoading}
+                              className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors disabled:opacity-50"
+                              aria-label="Remove AI player"
+                            >
+                              <UserMinus className="w-4 h-4" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {player.userId === room.hostUserId && <HostBadge />}
+                    </div>
                   </li>
                 </StampAnimation>
               ))}

@@ -392,9 +392,12 @@ describe('rooms', () => {
       });
 
       // Assert - stableId falls back to userId when db.get returns undefined
+      // Also includes isBot and aiPersonaId from user record lookup
       const expectedPlayers = players.map((p) => ({
         ...p,
         stableId: p.userId,
+        isBot: false,
+        aiPersonaId: undefined,
       }));
       expect(result).toEqual({ room, players: expectedPlayers, isHost: true });
     });

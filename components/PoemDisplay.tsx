@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { Button } from './ui/Button';
+import { BotBadge } from './ui/BotBadge';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
@@ -28,11 +29,18 @@ const BASE_REVEAL_DELAY = 1000; // ms per line (very slow, ceremonial)
 const PAUSE_AFTER_LINE = 4; // Add extra delay after this line (the turn)
 const PAUSE_DURATION = 1200; // ms (extended breath at the turn)
 
+export interface PoemLine {
+  text: string;
+  authorName?: string;
+  isBot?: boolean;
+}
+
 interface PoemDisplayProps {
   poemId: Id<'poems'>;
-  lines: string[];
+  lines: string[] | PoemLine[];
   onDone: () => void;
   alreadyRevealed?: boolean;
+  showAttribution?: boolean;
 }
 
 export function PoemDisplay({
@@ -40,11 +48,17 @@ export function PoemDisplay({
   lines,
   onDone,
   alreadyRevealed = false,
+  showAttribution = false,
 }: PoemDisplayProps) {
   const [revealedCount, setRevealedCount] = useState(
     alreadyRevealed ? lines.length : 0
   );
   const { handleShare, copied } = useSharePoem(poemId);
+
+  // Normalize lines to PoemLine format
+  const normalizedLines: PoemLine[] = lines.map((line) =>
+    typeof line === 'string' ? { text: line } : line
+  );
 
   // Staggered reveal with rhythmic pause after line 4
   useEffect(() => {
@@ -77,14 +91,21 @@ export function PoemDisplay({
       >
         {/* The Poem - Grid Layout */}
         <div className="relative space-y-4">
-          {lines.map((line, index) => {
+          {normalizedLines.map((line, index) => {
             const isVisible = index < revealedCount;
             const lineNumber = (index + 1).toString().padStart(2, '0');
 
             return (
               <Fragment key={index}>
-                {/* Grid: [Line Number column] [Text column] */}
-                <div className="grid grid-cols-[2.5rem_1fr] md:grid-cols-[3rem_1fr] gap-4 md:gap-6 items-baseline">
+                {/* Grid: [Line Number column] [Text column] [Attribution column] */}
+                <div
+                  className={cn(
+                    'grid gap-4 md:gap-6 items-baseline',
+                    showAttribution
+                      ? 'grid-cols-[2.5rem_1fr_auto] md:grid-cols-[3rem_1fr_auto]'
+                      : 'grid-cols-[2.5rem_1fr] md:grid-cols-[3rem_1fr]'
+                  )}
+                >
                   {/* Line Number - Right Aligned in Gutter */}
                   <div
                     className={cn(
@@ -113,8 +134,23 @@ export function PoemDisplay({
                       clipPath: isVisible ? undefined : 'inset(0 100% 0 0)',
                     }}
                   >
-                    {line}
+                    {line.text}
                   </p>
+
+                  {/* Author Attribution (optional) */}
+                  {showAttribution && (
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 transition-opacity duration-[var(--duration-normal)]',
+                        isVisible ? 'opacity-100' : 'opacity-0'
+                      )}
+                    >
+                      <span className="text-[var(--text-xs)] font-mono text-[var(--color-text-muted)] whitespace-nowrap">
+                        {line.authorName || 'Unknown'}
+                      </span>
+                      {line.isBot && <BotBadge showLabel={false} />}
+                    </div>
+                  )}
                 </div>
               </Fragment>
             );

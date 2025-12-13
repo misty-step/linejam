@@ -110,9 +110,14 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
     return (
       <PoemDisplay
         poemId={myPoem._id}
-        lines={myPoem.lines.map((l) => l.text)}
+        lines={myPoem.lines.map((l) => ({
+          text: l.text,
+          authorName: l.authorName,
+          isBot: l.isBot,
+        }))}
         onDone={() => setShowingPoem(false)}
         alreadyRevealed={myPoem.isRevealed}
+        showAttribution={true}
       />
     );
   }

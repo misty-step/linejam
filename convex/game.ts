@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import { internal } from './_generated/api';
 import { generateAssignmentMatrix } from './lib/assignmentMatrix';
 import { countWords } from './lib/wordCount';
 import { getUser } from './lib/auth';
@@ -68,6 +69,13 @@ export const startGame = mutation({
       currentGameId: gameId,
       currentCycle: (room.currentCycle || 0) + 1, // Increment cycle on start if not set, or if set (redundant if startNewCycle handles it, but safe)
       startedAt: Date.now(),
+    });
+
+    // Schedule AI turn if AI player present
+    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
+      roomId: room._id,
+      gameId,
+      round: 0,
     });
   },
 });
@@ -266,6 +274,13 @@ export const submitLine = mutation({
     if (allSubmitted) {
       if (lineIndex < 8) {
         await ctx.db.patch(game._id, { currentRound: lineIndex + 1 });
+
+        // Schedule AI turn for next round
+        await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
+          roomId: poem.roomId,
+          gameId: game._id,
+          round: lineIndex + 1,
+        });
       } else {
         // Game Complete
         await ctx.db.patch(game._id, {
@@ -369,15 +384,36 @@ export const getRevealPhaseState = query({
     );
 
     // Get full lines for user's poem if they want to reveal
-    let myPoemLines: { text: string; authorUserId: string }[] = [];
+    let myPoemLines: {
+      text: string;
+      authorUserId: string;
+      authorName: string;
+      isBot: boolean;
+      aiPersonaId?: string;
+    }[] = [];
     if (myPoem) {
       const lines = await ctx.db
         .query('lines')
         .withIndex('by_poem', (q) => q.eq('poemId', myPoem._id))
         .collect();
+
+      // Get author info for each line
+      const lineAuthors = await Promise.all(
+        lines.map((l) => ctx.db.get(l.authorUserId))
+      );
+
       myPoemLines = lines
         .sort((a, b) => a.indexInPoem - b.indexInPoem)
-        .map((l) => ({ text: l.text, authorUserId: l.authorUserId }));
+        .map((l, i) => {
+          const author = lineAuthors[i];
+          return {
+            text: l.text,
+            authorUserId: l.authorUserId,
+            authorName: author?.displayName || 'Unknown',
+            isBot: author?.kind === 'AI',
+            aiPersonaId: author?.aiPersonaId,
+          };
+        });
     }
 
     const allRevealed = poemsWithPreview.every((p) => p.isRevealed);
@@ -398,6 +434,8 @@ export const getRevealPhaseState = query({
           userId: p.userId,
           displayName: p.displayName,
           stableId: userRecord?.clerkUserId || userRecord?.guestId || p.userId,
+          isBot: userRecord?.kind === 'AI',
+          aiPersonaId: userRecord?.aiPersonaId,
         };
       }),
     };
@@ -500,6 +538,8 @@ export const getRoundProgress = query({
         userId: player.userId,
         stableId:
           userRecord?.clerkUserId || userRecord?.guestId || player.userId,
+        isBot: userRecord?.kind === 'AI',
+        aiPersonaId: userRecord?.aiPersonaId,
       };
     });
 
