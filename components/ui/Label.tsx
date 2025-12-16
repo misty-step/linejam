@@ -14,8 +14,8 @@ export const Label = forwardRef<HTMLElement, LabelProps>(
         className={cn(
           'text-xs font-mono uppercase tracking-widest',
           {
-            'text-[var(--color-text-muted)]': variant === 'default',
-            'text-[var(--color-primary)]': variant === 'accent',
+            'text-text-muted': variant === 'default',
+            'text-primary': variant === 'accent',
           },
           className
         )}

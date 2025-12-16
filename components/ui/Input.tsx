@@ -9,15 +9,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          'flex h-11 w-full bg-[var(--color-surface)] px-3 py-2',
-          'text-[var(--text-base)] ring-offset-background',
-          'border border-[var(--color-border)]',
-          'rounded-[var(--radius-sm)]',
-          'shadow-[var(--shadow-sm)]', // Hard shadow on inputs too
-          'placeholder:text-[var(--color-text-muted)]',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:border-transparent',
+          'flex h-11 w-full bg-surface px-3 py-2',
+          'text-base ring-offset-background',
+          'border border-border',
+          'rounded-sm shadow-sm',
+          'placeholder:text-text-muted',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent',
           'disabled:cursor-not-allowed disabled:opacity-50',
-          'transition-all duration-[var(--duration-fast)]',
+          'transition-all duration-150', // Standard Tailwind duration
           className
         )}
         ref={ref}

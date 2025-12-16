@@ -15,7 +15,7 @@ import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
-import { generateLine } from './lib/ai/gemini';
+import { generateLine, getFallbackLine } from './lib/ai/gemini';
 import { countWords } from './lib/wordCount';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
@@ -265,19 +265,11 @@ export const generateLineForRound = internalAction({
     const targetWordCount = WORD_COUNTS[round];
 
     // Generate line
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      console.error('GOOGLE_GENAI_API_KEY not set');
-      // Use fallback
-      await ctx.runMutation(internal.ai.commitAiLine, {
-        poemId: poem._id,
-        lineIndex: round,
-        text: getFallbackLine(targetWordCount),
-        aiUserId: aiPlayer._id,
-        roomId,
-        gameId,
-      });
-      return;
+      throw new Error(
+        'OPENROUTER_API_KEY not configured - cannot generate AI line'
+      );
     }
 
     const result = await generateLine(
@@ -287,7 +279,7 @@ export const generateLineForRound = internalAction({
         targetWordCount,
       },
       apiKey,
-      process.env.AI_MODEL || 'gemini-2.0-flash'
+      process.env.AI_MODEL || 'google/gemini-2.5-flash'
     );
 
     // Commit the line
@@ -417,12 +409,28 @@ export const commitAiLine = internalMutation({
         });
 
         // Mark all poems as completed and assign readers
+        // Fetch user records to check if readers are AI
+        const playerUserRecords = await Promise.all(
+          players.map((p) => ctx.db.get(p.userId))
+        );
+        const userById = new Map(
+          players.map((p, i) => [p.userId, playerUserRecords[i]])
+        );
+
         for (let i = 0; i < poems.length; i++) {
           const readerIndex = (i + 1) % players.length;
           const readerPlayer = players.find((p) => p.seatIndex === readerIndex);
+          const readerUser = readerPlayer
+            ? userById.get(readerPlayer.userId)
+            : null;
+
+          // If natural reader is AI, assign to host instead
+          const finalReaderId =
+            readerUser?.kind === 'AI' ? room.hostUserId : readerPlayer?.userId;
+
           await ctx.db.patch(poems[i]._id, {
             completedAt: Date.now(),
-            assignedReaderId: readerPlayer?.userId,
+            assignedReaderId: finalReaderId,
           });
         }
       }
@@ -508,15 +516,3 @@ export const getPreviousLine = internalQuery({
       .first();
   },
 });
-
-// Fallback lines
-function getFallbackLine(wordCount: number): string {
-  const fallbacks: Record<number, string> = {
-    1: 'silence',
-    2: 'words linger',
-    3: 'the path continues',
-    4: 'we write in circles',
-    5: 'the poem finds its way',
-  };
-  return fallbacks[wordCount] || 'silence';
-}

@@ -136,7 +136,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           <Button
             onClick={handleStartGame}
             size="lg"
-            className={`w-full h-16 text-[var(--text-lg)] ${className || ''}`}
+            className={`w-full h-16 text-lg ${className || ''}`}
             disabled={!canStart}
             variant={canStart ? 'primary' : 'secondary'}
           >
@@ -161,7 +161,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         <Button
           disabled
           size="lg"
-          className={`w-full h-16 text-[var(--text-lg)] opacity-50 cursor-not-allowed ${className || ''}`}
+          className={`w-full h-16 text-lg opacity-50 cursor-not-allowed ${className || ''}`}
           variant="secondary"
         >
           Waiting for Host...
@@ -179,7 +179,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12">
+    <div className="min-h-screen bg-background p-6 md:p-12">
       <div className="w-full max-w-6xl mx-auto">
         {/* Split-View Grid: Control Desk (left/sticky) + Guest Registry (right/scroll) */}
         <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
@@ -187,7 +187,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           <div className="flex flex-col items-center md:items-start space-y-8 md:sticky md:top-12 md:self-start">
             {/* Room Code - Breathing Beacon */}
             <div className="text-center md:text-left">
-              <h1 className="text-7xl md:text-9xl font-[var(--font-display)] text-[var(--color-primary)] tracking-tighter animate-breathe">
+              <h1 className="text-7xl md:text-9xl font-[var(--font-display)] text-primary tracking-tighter animate-breathe">
                 {formatRoomCode(room.code)}
               </h1>
             </div>
@@ -234,7 +234,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                         allStableIds={allStableIds}
                         size="md"
                       />
-                      <span className="text-[var(--text-2xl)] md:text-[var(--text-3xl)] font-medium text-[var(--color-text-primary)]">
+                      <span className="text-2xl md:text-3xl font-medium text-text-primary">
                         {player.displayName}
                       </span>
                     </div>
@@ -246,7 +246,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                             <button
                               onClick={handleRemoveAi}
                               disabled={aiLoading}
-                              className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors disabled:opacity-50"
+                              className="p-1.5 text-text-muted hover:text-primary transition-colors disabled:opacity-50"
                               aria-label="Remove AI player"
                             >
                               <UserMinus className="w-4 h-4" />
@@ -262,7 +262,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             </ul>
 
             {/* Mobile: Sticky Footer (native pattern) */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-[var(--color-background)]/95 backdrop-blur-md border-t-2 border-[var(--color-primary)]/20 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
               {error && (
                 <Alert variant="error" className="mb-4">
                   {error}

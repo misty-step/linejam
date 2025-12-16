@@ -273,7 +273,7 @@ Data shape changes (queries)
 
 - `convex/ai.ts` – `addAiPlayer`, `removeAiPlayer`, `generateLineForRound`, `commitAiLine`
 - `convex/lib/ai/personas.ts` – persona catalog + picker
-- `convex/lib/ai/gemini.ts` – Google GenAI SDK wrapper (`generateLine(...)`)
+- `convex/lib/ai/gemini.ts` – OpenRouter API wrapper (`generateLine(...)`)
 - `convex/lib/ai/wordCountGuard.ts` – normalize/validate/retry/fallback
 - `components/ui/BotBadge.tsx` – shared bot pill/icon
 
@@ -292,22 +292,21 @@ Data shape changes (queries)
 
 ## Integration Points
 
-### External Service: Google Gen AI (Gemini 3)
+### External Service: OpenRouter (Gemini)
 
 **Env vars (Convex)**
 
-- `GOOGLE_GENAI_API_KEY` (required)
-- `AI_MODEL` (default: `gemini-3`, overridable)
-- `AI_INTERNAL_TOKEN` (required; random 32+ bytes)
+- `OPENROUTER_API_KEY` (required)
+- `AI_MODEL` (default: `google/gemini-2.5-flash`, overridable)
 
-**Dependency**
+**Implementation**
 
-- Add Google GenAI SDK to `package.json` (exact package per “Google Gen AI SDK” doc chosen during implementation).
+- Uses OpenRouter's OpenAI-compatible API via fetch (no SDK dependency).
 
 ### Build/Deploy
 
 - Convex deploy must include new env vars; update `docs/deployment.md` + `.env.example`.
-- CI: add presence checks for `GOOGLE_GENAI_API_KEY` only where needed (don’t block unit tests; mock in tests).
+- CI: add presence checks for `OPENROUTER_API_KEY` only where needed (don't block unit tests; mock in tests).
 
 ### Observability
 

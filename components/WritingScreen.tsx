@@ -109,7 +109,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   };
 
   return (
-    <div className="relative min-h-screen bg-[var(--color-background)] flex flex-col items-center pt-12 md:pt-24 p-6">
+    <div className="relative min-h-screen bg-background flex flex-col items-center pt-12 md:pt-24 p-6">
       {/* Screen reader live region for validation announcements */}
       <div
         className="sr-only"
@@ -123,7 +123,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
       <div className="w-full max-w-3xl space-y-16">
         {/* Status Row - Justified between (left: round, right: counter) */}
         <div className="flex items-center justify-between mb-12">
-          <div className="text-[var(--text-xs)] font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+          <div className="text-xs font-mono uppercase tracking-widest text-text-muted">
             Round {assignment.lineIndex + 1} / 9
           </div>
           <EnsoCounter current={currentWordCount} target={targetCount} />
@@ -132,7 +132,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         {/* The Memory - No container */}
         {assignment.previousLineText && (
           <div className="mb-16 animate-fade-in-up">
-            <p className="text-[var(--text-4xl)] md:text-[var(--text-5xl)] font-[var(--font-display)] italic leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
+            <p className="text-4xl md:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
               {assignment.previousLineText}
             </p>
           </div>
@@ -140,11 +140,11 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
 
         {/* Submission Confirmation */}
         {submissionState === 'confirmed' && (
-          <div className="mb-12 p-6 border-2 border-[var(--color-success)] bg-[var(--color-success)]/5 rounded-[var(--radius-sm)] animate-fade-in-up">
-            <div className="text-[var(--text-sm)] font-medium text-[var(--color-success)] mb-2 uppercase tracking-[var(--tracking-wide)]">
+          <div className="mb-12 p-6 border-2 border-success bg-success/5 rounded-sm animate-fade-in-up">
+            <div className="text-sm font-medium text-success mb-2 uppercase tracking-wide">
               ✓ Your Line Submitted
             </div>
-            <p className="text-[var(--text-lg)] italic font-[var(--font-display)] text-[var(--color-text-primary)]">
+            <p className="text-lg italic font-[var(--font-display)] text-text-primary">
               &ldquo;{text}&rdquo;
             </p>
           </div>
@@ -154,16 +154,16 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         <div className="relative">
           {/* Focus marker (marginalia bar) */}
           {hasFocus && (
-            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[var(--color-primary)]" />
+            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />
           )}
 
           <textarea
             ref={textareaRef}
             className={cn(
-              'w-full min-h-[280px] bg-transparent border-none outline-none resize-none',
-              'text-5xl md:text-6xl font-[var(--font-display)] leading-[var(--leading-tight)]',
-              'text-[var(--color-text-primary)]',
-              'placeholder:text-[var(--color-text-muted)]/20',
+              'w-full min-h-[280px] md:min-h-[320px] lg:min-h-[360px] bg-transparent border-none outline-none resize-none',
+              'text-5xl md:text-6xl font-[var(--font-display)] leading-tight',
+              'text-text-primary',
+              'placeholder:text-text-muted/20',
               'pl-6'
             )}
             placeholder="Type your line here..."
@@ -201,10 +201,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
               submissionState === 'confirmed'
             }
             stampAnimate={submissionState === 'confirmed'}
-            className={cn(
-              'min-w-[240px] text-[var(--text-xl)] h-20',
-              isValid && 'shadow-[var(--shadow-md)]'
-            )}
+            className={cn('min-w-[240px] text-xl h-20', isValid && 'shadow-md')}
           >
             {submissionState === 'submitting'
               ? 'Sealing...'

@@ -104,7 +104,7 @@ export const monoTheme = defineTheme({
       'color-surface': '#171717',
       'color-surface-hover': '#262626',
       'color-muted': '#171717',
-      'color-border': '#ffffff',
+      'color-border': '#404040',
       'color-border-subtle': '#262626',
       'color-text-primary': '#ffffff',
       'color-text-secondary': '#d4d4d4',

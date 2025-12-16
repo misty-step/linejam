@@ -78,15 +78,16 @@ export function PoemDisplay({
   const allRevealed = revealedCount >= lines.length;
 
   return (
-    <div className="fixed inset-0 bg-[var(--color-background)] z-50 flex flex-col items-start justify-center p-4 md:p-8 lg:p-12 overflow-y-auto">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col items-start justify-start p-4 md:p-8 lg:p-12 overflow-y-auto">
       {/* Paper Document Container */}
       <div
         className={cn(
-          'relative w-full max-w-2xl my-auto',
-          'ml-0 md:ml-[10vw] lg:ml-[20vw]',
-          'bg-[var(--color-surface)] p-8 md:p-12 lg:p-16',
-          'shadow-[var(--shadow-lg)]',
-          'border border-[var(--color-border)]'
+          'relative w-full max-w-2xl md:max-w-3xl lg:max-w-4xl',
+          'my-8 md:my-12 lg:my-16',
+          'ml-0 md:ml-[5vw] lg:ml-[10vw]',
+          'bg-surface p-8 md:p-12 lg:p-16',
+          'shadow-lg',
+          'border border-border'
         )}
       >
         {/* The Poem - Grid Layout */}
@@ -109,12 +110,10 @@ export function PoemDisplay({
                   {/* Line Number - Right Aligned in Gutter */}
                   <div
                     className={cn(
-                      'font-mono text-[var(--text-sm)] text-right select-none',
-                      'transition-opacity duration-[var(--duration-normal)]',
+                      'font-mono text-sm text-right select-none',
+                      'transition-opacity duration-300',
                       isVisible ? 'opacity-100' : 'opacity-0',
-                      index === 0
-                        ? 'text-[var(--color-primary)]'
-                        : 'text-[var(--color-text-muted)]'
+                      index === 0 ? 'text-primary' : 'text-text-muted'
                     )}
                   >
                     {lineNumber}
@@ -123,9 +122,9 @@ export function PoemDisplay({
                   {/* Line Text - Clip Path Wipe */}
                   <p
                     className={cn(
-                      'font-[var(--font-display)] leading-[var(--leading-tight)] text-left',
-                      'text-[var(--text-2xl)] md:text-[var(--text-3xl)] lg:text-[var(--text-4xl)]',
-                      'text-[var(--color-text-primary)]'
+                      'font-[var(--font-display)] leading-tight text-left',
+                      'text-2xl md:text-3xl lg:text-4xl',
+                      'text-text-primary'
                     )}
                     style={{
                       animation: isVisible
@@ -141,11 +140,11 @@ export function PoemDisplay({
                   {showAttribution && (
                     <div
                       className={cn(
-                        'flex items-center gap-1.5 transition-opacity duration-[var(--duration-normal)]',
+                        'flex items-center gap-1.5 transition-opacity duration-300',
                         isVisible ? 'opacity-100' : 'opacity-0'
                       )}
                     >
-                      <span className="text-[var(--text-xs)] font-mono text-[var(--color-text-muted)] whitespace-nowrap">
+                      <span className="text-xs font-mono text-text-muted whitespace-nowrap">
                         {line.authorName || 'Unknown'}
                       </span>
                       {line.isBot && <BotBadge showLabel={false} />}
@@ -160,7 +159,7 @@ export function PoemDisplay({
           {allRevealed && (
             <div className="flex justify-end pt-10 md:pt-14">
               <div className="animate-stamp origin-center" aria-hidden="true">
-                <div className="h-4 w-4 rounded-full bg-[var(--color-primary)] mix-blend-multiply opacity-90" />
+                <div className="h-4 w-4 rounded-full bg-primary mix-blend-multiply opacity-90" />
               </div>
             </div>
           )}
@@ -169,7 +168,7 @@ export function PoemDisplay({
         {/* Footer / Actions */}
         <div
           className={cn(
-            'flex flex-col sm:flex-row items-center justify-center gap-4 mt-16 transition-opacity duration-[var(--duration-slow)]',
+            'flex flex-col sm:flex-row items-center justify-center gap-4 mt-16 transition-opacity duration-500',
             allRevealed ? 'opacity-100' : 'opacity-0'
           )}
         >
@@ -177,7 +176,7 @@ export function PoemDisplay({
             onClick={handleShare}
             variant="primary"
             size="lg"
-            className="min-w-[160px] h-14 text-[var(--text-lg)]"
+            className="min-w-[160px] h-14 text-lg"
             stampAnimate={copied}
             aria-label="Copy poem link to clipboard"
           >
@@ -187,7 +186,7 @@ export function PoemDisplay({
             onClick={onDone}
             variant="ghost"
             size="lg"
-            className="min-w-[140px] h-14 text-[var(--text-lg)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            className="min-w-[140px] h-14 text-lg text-text-muted hover:text-text-primary"
           >
             Close
           </Button>

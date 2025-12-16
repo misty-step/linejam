@@ -1,14 +1,14 @@
 /**
- * Gemini Line Generator
+ * Gemini Line Generator (via OpenRouter)
  *
- * Wrapper for Google GenAI SDK to generate poetry lines.
+ * Wrapper for OpenRouter API to generate poetry lines using Gemini models.
  * Used by the AI Turn Engine to create lines in the persona's style.
  */
 
 import { AiPersona } from './personas';
 
-// We'll use dynamic import in the action since @google/generative-ai
-// needs to be imported at runtime in Convex actions
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 
 export interface GenerateLineParams {
   persona: AiPersona;
@@ -53,50 +53,67 @@ Your ${targetWordCount}-word line:`;
 }
 
 /**
- * Generate a line using the Gemini API.
+ * Generate a line using OpenRouter API (Gemini model).
  * This function should be called from a Convex action (not mutation).
  */
 export async function generateLine(
   params: GenerateLineParams,
   apiKey: string,
-  model: string = 'gemini-2.0-flash'
+  model: string = DEFAULT_MODEL
 ): Promise<GenerateLineResult> {
-  // Dynamic import for Convex action compatibility
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const gemini = genAI.getGenerativeModel({
-    model,
-    generationConfig: {
-      temperature: 0.9, // Creative but not too wild
-      maxOutputTokens: 50, // We only need a few words
-    },
-  });
-
   const prompt = buildPrompt(params);
 
   // Try up to 3 times
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const result = await gemini.generateContent(prompt);
-      const response = result.response;
-      const text = response.text().trim();
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://linejam.app',
+          'X-Title': 'Linejam',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.9,
+          max_tokens: 100,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `OpenRouter API error: ${response.status} ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content?.trim() || '';
+      const finishReason = data.choices?.[0]?.finish_reason;
 
       // Validate word count
       const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+      // Log response details for debugging
+      console.log(
+        `AI response: model=${data.model}, wordCount=${wordCount}, target=${params.targetWordCount}, finishReason=${finishReason}, contentLength=${text.length}`
+      );
+
       if (wordCount === params.targetWordCount) {
         return { text, fallbackUsed: false };
       }
 
-      // If wrong word count and this isn't the last attempt, add stricter instruction
+      // If wrong word count and this isn't the last attempt, retry
       if (attempt < maxAttempts) {
         console.log(
           `AI line attempt ${attempt}: got ${wordCount} words, expected ${params.targetWordCount}. Retrying...`
         );
       }
     } catch (error) {
-      console.error(`Gemini API error on attempt ${attempt}:`, error);
+      console.error(`OpenRouter API error on attempt ${attempt}:`, error);
       if (attempt === maxAttempts) {
         // Fall through to fallback
       }
@@ -114,7 +131,7 @@ export async function generateLine(
  * Fallback lines when API fails or returns wrong word count.
  * These are deterministic and always match the target word count.
  */
-function getFallbackLine(wordCount: number): string {
+export function getFallbackLine(wordCount: number): string {
   const fallbacks: Record<number, string> = {
     1: 'silence',
     2: 'words linger',

@@ -56,29 +56,31 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'inline-flex items-center justify-center font-medium',
           'transition-all duration-[var(--duration-normal)]',
           'border border-transparent',
-          'rounded-[var(--radius-md)]',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2',
-          'disabled:pointer-events-none disabled:opacity-50 disabled:grayscale',
+          'rounded-md', // Uses @theme --radius-md
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          'opacity-100', // Always fully opaque
+          'disabled:pointer-events-none disabled:grayscale disabled:brightness-75',
 
           // Stamp animation (success celebration)
           stampAnimate && 'animate-stamp',
 
-          // Variants
+          // Variants - Using @theme utilities (not arbitrary values)
+          // This ensures tailwind-merge handles them correctly
           {
             // Primary - Solid Ink Block (Hanko press: translate + shadow crush)
-            'bg-[var(--color-primary)] text-[var(--color-text-inverse)] border-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] shadow-[var(--shadow-sm)] active:translate-y-[2px] active:shadow-none':
+            'bg-primary text-text-inverse border-primary hover:bg-primary-hover shadow-sm active:translate-y-[2px] active:shadow-none':
               variant === 'primary',
 
             // Secondary - Paper Button (Washi press: scale only)
-            'bg-[var(--color-surface)] text-[var(--color-text-primary)] border-[var(--color-border)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] active:scale-[0.96]':
+            'bg-surface text-text-primary border-border shadow-sm hover:shadow-md active:scale-[0.96]':
               variant === 'secondary',
 
-            // Outline - Just the lines (Washi press: scale only)
-            'bg-transparent text-[var(--color-text-primary)] border-[var(--color-border)] hover:bg-[var(--color-surface)] active:scale-[0.96]':
+            // Outline - Subtle background (Washi press: scale only)
+            'bg-surface/10 text-text-primary border-border hover:bg-surface/20 active:scale-[0.96]':
               variant === 'outline',
 
             // Ghost - Minimal (Washi press: scale only)
-            'text-[var(--color-text-primary)] hover:bg-[var(--color-muted)] border-transparent active:scale-[0.96]':
+            'bg-transparent text-text-primary hover:bg-muted border-transparent active:scale-[0.96]':
               variant === 'ghost',
           },
 

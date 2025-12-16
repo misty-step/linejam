@@ -7,11 +7,11 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
       <div
         ref={ref}
         className={cn(
-          'bg-[var(--color-surface)]',
-          'text-[var(--color-text-primary)]',
-          'border border-[var(--color-border)]',
-          'shadow-[var(--shadow-md)]',
-          'rounded-[var(--radius-md)]',
+          'bg-surface',
+          'text-text-primary',
+          'border border-border',
+          'shadow-md',
+          'rounded-md',
           className
         )}
         {...props}
@@ -29,7 +29,7 @@ export const CardHeader = forwardRef<
     <div
       ref={ref}
       className={cn(
-        'flex flex-col space-y-1.5 p-6 pb-4 border-b border-[var(--color-border-subtle)]',
+        'flex flex-col space-y-1.5 p-6 pb-4 border-b border-border-subtle',
         className
       )}
       {...props}
@@ -46,7 +46,7 @@ export const CardTitle = forwardRef<
     <h3
       ref={ref}
       className={cn(
-        'font-[var(--font-display)] text-[var(--text-2xl)] font-medium leading-none tracking-[var(--tracking-tight)]',
+        'font-[var(--font-display)] text-2xl font-medium leading-none tracking-tight',
         className
       )}
       {...props}
