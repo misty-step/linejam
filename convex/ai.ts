@@ -432,7 +432,8 @@ export const commitAiLine = internalMutation({
         const readerAssignments = assignPoemReaders(
           poems.map((p) => ({
             _id: p._id,
-            authorUserId: p.authorUserId,
+            // Author = user who wrote first line (from assignment matrix)
+            authorUserId: game.assignmentMatrix[0][p.indexInRoom],
           })),
           playerUserRecords
             .filter((u) => u !== null)

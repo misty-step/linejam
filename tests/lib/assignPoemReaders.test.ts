@@ -15,8 +15,8 @@ function makePoem(
 
 function makePlayer(
   userId: string,
-  kind: 'AI' | 'HUMAN' = 'HUMAN'
-): { userId: Id<'users'>; kind: 'AI' | 'HUMAN' } {
+  kind: 'AI' | 'human' = 'human'
+): { userId: Id<'users'>; kind: 'AI' | 'human' } {
   return {
     userId: userId as Id<'users'>,
     kind,

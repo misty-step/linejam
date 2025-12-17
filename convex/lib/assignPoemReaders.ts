@@ -19,7 +19,7 @@ interface Poem {
 
 interface Player {
   userId: Id<'users'>;
-  kind?: 'AI' | 'HUMAN';
+  kind?: 'AI' | 'human';
 }
 
 /**
