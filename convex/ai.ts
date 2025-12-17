@@ -15,7 +15,7 @@ import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
-import { generateLine, getFallbackLine } from './lib/ai/gemini';
+import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
@@ -264,23 +264,36 @@ export const generateLineForRound = internalAction({
     const persona = getPersona(aiPlayer.aiPersonaId as AiPersonaId);
     const targetWordCount = WORD_COUNTS[round];
 
-    // Generate line
+    // Generate line - graceful fallback if API key missing
     const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        'OPENROUTER_API_KEY not configured - cannot generate AI line'
-      );
-    }
+    const result = await (async () => {
+      if (!apiKey) {
+        console.error(
+          'OPENROUTER_API_KEY not configured - using fallback line'
+        );
+        return {
+          text: getFallbackLine(targetWordCount),
+          fallbackUsed: true,
+        };
+      }
 
-    const result = await generateLine(
-      {
-        persona,
-        previousLineText: previousLine?.text,
-        targetWordCount,
-      },
-      apiKey,
-      process.env.AI_MODEL || 'google/gemini-2.5-flash'
-    );
+      const config: LLMConfig = {
+        provider: 'openrouter',
+        model: process.env.AI_MODEL || 'google/gemini-2.5-flash',
+        apiKey,
+        timeoutMs: 10000,
+        maxRetries: 3,
+      };
+
+      return generateLine(
+        {
+          persona,
+          previousLineText: previousLine?.text,
+          targetWordCount,
+        },
+        config
+      );
+    })();
 
     // Commit the line
     await ctx.runMutation(internal.ai.commitAiLine, {

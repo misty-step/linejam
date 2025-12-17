@@ -3,7 +3,8 @@ import {
   buildPrompt,
   generateLine,
   getFallbackLine,
-} from '../../../convex/lib/ai/gemini';
+  type LLMConfig,
+} from '../../../convex/lib/ai/llm';
 
 // Shared test persona
 const bashoPersona = {
@@ -14,7 +15,16 @@ const bashoPersona = {
   tags: ['real-poet' as const],
 };
 
-describe('Gemini Line Generator', () => {
+// Default test config
+const testConfig: LLMConfig = {
+  provider: 'openrouter',
+  model: 'google/gemini-2.5-flash',
+  apiKey: 'test-api-key',
+  timeoutMs: 10000,
+  maxRetries: 3,
+};
+
+describe('LLM Provider', () => {
   describe('buildPrompt', () => {
     it('builds prompt for first line (no previous line)', () => {
       const prompt = buildPrompt({
@@ -85,10 +95,10 @@ describe('Gemini Line Generator', () => {
       expect(getFallbackLine(5)).toBe('the poem finds its way');
     });
 
-    it('returns "silence" for unknown word count', () => {
-      expect(getFallbackLine(10)).toBe('silence');
-      expect(getFallbackLine(0)).toBe('silence');
-      expect(getFallbackLine(-1)).toBe('silence');
+    it('returns 5-word fallback for unknown word count (defensive)', () => {
+      expect(getFallbackLine(10)).toBe('the poem finds its way');
+      expect(getFallbackLine(0)).toBe('the poem finds its way');
+      expect(getFallbackLine(-1)).toBe('the poem finds its way');
     });
   });
 
@@ -125,7 +135,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 3,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(result.text).toBe('cherry blossoms fall');
@@ -168,7 +178,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 3,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -192,7 +202,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 3,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(result.text).toBe('the path continues');
@@ -211,7 +221,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 3,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(result.text).toBe('the path continues');
@@ -240,7 +250,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 3,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -266,7 +276,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 1,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(result.fallbackUsed).toBe(true);
@@ -287,7 +297,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 2,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(result.fallbackUsed).toBe(true);
@@ -312,7 +322,7 @@ describe('Gemini Line Generator', () => {
           previousLineText: undefined,
           targetWordCount: 2,
         },
-        'test-api-key'
+        testConfig
       );
 
       expect(fetchMock).toHaveBeenCalledWith(
@@ -323,6 +333,7 @@ describe('Gemini Line Generator', () => {
             Authorization: 'Bearer test-api-key',
             'Content-Type': 'application/json',
           }),
+          signal: expect.any(AbortSignal),
         })
       );
 
@@ -330,6 +341,93 @@ describe('Gemini Line Generator', () => {
       expect(callBody.model).toBe('google/gemini-2.5-flash');
       expect(callBody.temperature).toBe(0.9);
       expect(callBody.max_tokens).toBe(100);
+    });
+
+    it('respects custom timeout from config', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [{ message: { content: 'test' }, finish_reason: 'stop' }],
+          }),
+      });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      const customConfig: LLMConfig = {
+        ...testConfig,
+        timeoutMs: 5000,
+      };
+
+      await generateLine(
+        {
+          persona: bashoPersona,
+          previousLineText: undefined,
+          targetWordCount: 1,
+        },
+        customConfig
+      );
+
+      // Verify AbortSignal was passed (timeout is set)
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        })
+      );
+    });
+
+    it('respects custom maxRetries from config', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            choices: [
+              {
+                message: { content: 'wrong count' },
+                finish_reason: 'stop',
+              },
+            ],
+          }),
+      });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      const customConfig: LLMConfig = {
+        ...testConfig,
+        maxRetries: 2,
+      };
+
+      await generateLine(
+        {
+          persona: bashoPersona,
+          previousLineText: undefined,
+          targetWordCount: 1,
+        },
+        customConfig
+      );
+
+      // Should only retry twice
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses fallback on timeout (AbortError)', async () => {
+      const abortError = new Error('Request timed out');
+      abortError.name = 'AbortError';
+
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+      const result = await generateLine(
+        {
+          persona: bashoPersona,
+          previousLineText: undefined,
+          targetWordCount: 3,
+        },
+        testConfig
+      );
+
+      expect(result.text).toBe('the path continues');
+      expect(result.fallbackUsed).toBe(true);
     });
   });
 });

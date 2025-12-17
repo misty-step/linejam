@@ -1,25 +1,20 @@
 /**
- * Gemini Line Generator (via OpenRouter)
+ * OpenRouter Provider
  *
- * Wrapper for OpenRouter API to generate poetry lines using Gemini models.
- * Used by the AI Turn Engine to create lines in the persona's style.
+ * Implements LLM line generation via OpenRouter API.
+ * Supports multiple models (Gemini, Claude, GPT, etc.) through a unified interface.
  */
 
-import { AiPersona } from './personas';
+import type {
+  GenerateLineParams,
+  GenerateLineResult,
+  LLMConfig,
+} from './types';
+import { getFallbackLine } from '../fallbacks';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = 'google/gemini-2.5-flash';
-
-export interface GenerateLineParams {
-  persona: AiPersona;
-  previousLineText?: string;
-  targetWordCount: number;
-}
-
-export interface GenerateLineResult {
-  text: string;
-  fallbackUsed: boolean;
-}
+const DEFAULT_TIMEOUT_MS = 10000;
+const DEFAULT_MAX_RETRIES = 3;
 
 /**
  * Build the prompt for line generation.
@@ -53,35 +48,40 @@ Your ${targetWordCount}-word line:`;
 }
 
 /**
- * Generate a line using OpenRouter API (Gemini model).
- * This function should be called from a Convex action (not mutation).
+ * Generate a line using OpenRouter API.
+ * Includes timeout, retry logic, and fallback handling.
  */
 export async function generateLine(
   params: GenerateLineParams,
-  apiKey: string,
-  model: string = DEFAULT_MODEL
+  config: LLMConfig
 ): Promise<GenerateLineResult> {
   const prompt = buildPrompt(params);
+  const maxAttempts = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+  const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  // Try up to 3 times
-  const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const response = await fetch(OPENROUTER_API_URL, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://linejam.app',
           'X-Title': 'Linejam',
         },
         body: JSON.stringify({
-          model,
+          model: config.model,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.9,
           max_tokens: 100,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -113,7 +113,16 @@ export async function generateLine(
         );
       }
     } catch (error) {
-      console.error(`OpenRouter API error on attempt ${attempt}:`, error);
+      clearTimeout(timeoutId);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error(
+          `OpenRouter API timeout on attempt ${attempt} (${timeoutMs}ms)`
+        );
+      } else {
+        console.error(`OpenRouter API error on attempt ${attempt}:`, error);
+      }
+
       if (attempt === maxAttempts) {
         // Fall through to fallback
       }
@@ -125,20 +134,4 @@ export async function generateLine(
     text: getFallbackLine(params.targetWordCount),
     fallbackUsed: true,
   };
-}
-
-/**
- * Fallback lines when API fails or returns wrong word count.
- * These are deterministic and always match the target word count.
- */
-export function getFallbackLine(wordCount: number): string {
-  const fallbacks: Record<number, string> = {
-    1: 'silence',
-    2: 'words linger',
-    3: 'the path continues',
-    4: 'we write in circles',
-    5: 'the poem finds its way',
-  };
-
-  return fallbacks[wordCount] || 'silence';
 }
