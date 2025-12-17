@@ -15,8 +15,15 @@ export function Alert({
     <div
       role="alert"
       className={cn(
-        'p-4 border text-sm rounded-[var(--radius-sm)]',
-        `border-[var(--color-${variant})] bg-[var(--color-${variant})]/5 text-[var(--color-${variant})]`,
+        'p-4 border text-sm rounded-sm',
+        // Use theme utilities instead of arbitrary values
+        // This prevents tailwind-merge from stripping color classes
+        {
+          'border-error bg-error/5 text-error': variant === 'error',
+          'border-success bg-success/5 text-success': variant === 'success',
+          'border-warning bg-warning/5 text-warning': variant === 'warning',
+          'border-info bg-info/5 text-info': variant === 'info',
+        },
         className
       )}
       {...props}

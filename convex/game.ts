@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+import { internal } from './_generated/api';
 import { generateAssignmentMatrix } from './lib/assignmentMatrix';
 import { countWords } from './lib/wordCount';
 import { getUser } from './lib/auth';
@@ -68,6 +69,13 @@ export const startGame = mutation({
       currentGameId: gameId,
       currentCycle: (room.currentCycle || 0) + 1, // Increment cycle on start if not set, or if set (redundant if startNewCycle handles it, but safe)
       startedAt: Date.now(),
+    });
+
+    // Schedule AI turn if AI player present
+    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
+      roomId: room._id,
+      gameId,
+      round: 0,
     });
   },
 });
@@ -266,6 +274,13 @@ export const submitLine = mutation({
     if (allSubmitted) {
       if (lineIndex < 8) {
         await ctx.db.patch(game._id, { currentRound: lineIndex + 1 });
+
+        // Schedule AI turn for next round
+        await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
+          roomId: poem.roomId,
+          gameId: game._id,
+          round: lineIndex + 1,
+        });
       } else {
         // Game Complete
         await ctx.db.patch(game._id, {
@@ -280,12 +295,28 @@ export const submitLine = mutation({
         // Mark all poems as completed and assign readers
         // Each player reads the poem at offset +1 from their seat
         // (so they don't read the poem they started)
+        // Fetch user records to check if readers are AI
+        const playerUserRecords = await Promise.all(
+          players.map((p) => ctx.db.get(p.userId))
+        );
+        const userById = new Map(
+          players.map((p, i) => [p.userId, playerUserRecords[i]])
+        );
+
         for (let i = 0; i < poems.length; i++) {
           const readerIndex = (i + 1) % players.length;
           const readerPlayer = players.find((p) => p.seatIndex === readerIndex);
+          const readerUser = readerPlayer
+            ? userById.get(readerPlayer.userId)
+            : null;
+
+          // If natural reader is AI, assign to host instead
+          const finalReaderId =
+            readerUser?.kind === 'AI' ? room.hostUserId : readerPlayer?.userId;
+
           await ctx.db.patch(poems[i]._id, {
             completedAt: Date.now(),
-            assignedReaderId: readerPlayer?.userId,
+            assignedReaderId: finalReaderId,
           });
         }
       }
@@ -363,33 +394,73 @@ export const getRevealPhaseState = query({
       })
     );
 
-    // Find the current user's assigned poem
-    const myPoem = poemsWithPreview.find(
+    // Find ALL poems assigned to current user (host may have multiple if AI reassigned)
+    const myPoemsRaw = poemsWithPreview.filter(
       (p) => p.assignedReaderId === user._id
     );
 
-    // Get full lines for user's poem if they want to reveal
-    let myPoemLines: { text: string; authorUserId: string }[] = [];
-    if (myPoem) {
-      const lines = await ctx.db
-        .query('lines')
-        .withIndex('by_poem', (q) => q.eq('poemId', myPoem._id))
-        .collect();
-      myPoemLines = lines
-        .sort((a, b) => a.indexInPoem - b.indexInPoem)
-        .map((l) => ({ text: l.text, authorUserId: l.authorUserId }));
-    }
+    // Find current user's seat
+    const currentPlayer = players.find((p) => p.userId === user._id);
+    const currentUserSeat = currentPlayer?.seatIndex;
+
+    // Get full lines for ALL user's poems
+    const myPoems = await Promise.all(
+      myPoemsRaw.map(async (poem) => {
+        const lines = await ctx.db
+          .query('lines')
+          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
+          .collect();
+
+        // Get author info for each line
+        const lineAuthors = await Promise.all(
+          lines.map((l) => ctx.db.get(l.authorUserId))
+        );
+
+        const poemLines = lines
+          .sort((a, b) => a.indexInPoem - b.indexInPoem)
+          .map((l, i) => {
+            const author = lineAuthors[i];
+            return {
+              text: l.text,
+              authorUserId: l.authorUserId,
+              authorName: author?.displayName || 'Unknown',
+              isBot: author?.kind === 'AI',
+              aiPersonaId: author?.aiPersonaId,
+            };
+          });
+
+        // Determine poem's origin: which player started this poem?
+        const poemStarterPlayer = players.find(
+          (p) => p.seatIndex === poem.indexInRoom
+        );
+        const poemStarterUserRecord = poemStarterPlayer
+          ? userRecordById.get(poemStarterPlayer.userId)
+          : null;
+
+        const isOwnPoem = poem.indexInRoom === currentUserSeat;
+        const isForAi = poemStarterUserRecord?.kind === 'AI';
+
+        return {
+          ...poem,
+          lines: poemLines,
+          isOwnPoem,
+          isForAi,
+          aiPersonaName: isForAi
+            ? poemStarterUserRecord?.displayName
+            : undefined,
+        };
+      })
+    );
 
     const allRevealed = poemsWithPreview.every((p) => p.isRevealed);
 
+    // For backward compatibility, also return singular myPoem (first one)
+    const myPoem = myPoems.length > 0 ? myPoems[0] : null;
+
     return {
       poems: poemsWithPreview,
-      myPoem: myPoem
-        ? {
-            ...myPoem,
-            lines: myPoemLines,
-          }
-        : null,
+      myPoem,
+      myPoems,
       allRevealed,
       isHost: room.hostUserId === user._id,
       players: players.map((p) => {
@@ -398,6 +469,8 @@ export const getRevealPhaseState = query({
           userId: p.userId,
           displayName: p.displayName,
           stableId: userRecord?.clerkUserId || userRecord?.guestId || p.userId,
+          isBot: userRecord?.kind === 'AI',
+          aiPersonaId: userRecord?.aiPersonaId,
         };
       }),
     };
@@ -500,6 +573,8 @@ export const getRoundProgress = query({
         userId: player.userId,
         stableId:
           userRecord?.clerkUserId || userRecord?.guestId || player.userId,
+        isBot: userRecord?.kind === 'AI',
+        aiPersonaId: userRecord?.aiPersonaId,
       };
     });
 

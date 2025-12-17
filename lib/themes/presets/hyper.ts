@@ -110,7 +110,7 @@ export const hyperTheme = defineTheme({
       'color-surface': '#111111',
       'color-surface-hover': '#222222',
       'color-muted': '#222222',
-      'color-border': '#ffffff',
+      'color-border': '#666666',
       'color-border-subtle': '#444444',
       'color-text-primary': '#ffffff',
       'color-text-secondary': '#eeeeee',

@@ -1,168 +1,405 @@
-# Design: Extract `checkParticipation` helper
+# AI Player Support (Gemini 3)
 
 ## Architecture Overview
 
-**Selected Approach**: `convex/lib/auth.ts` exports `checkParticipation(ctx, roomId, userId): Promise<boolean>`
-
-**Rationale**: keep poems access policy in 1 place, w/ smallest new surface. `convex/lib/auth.ts` already owns “who is this user?”; extend to “can this user see this room’s data?”.
+**Selected Approach**: Convex Action + Scheduler (“AI Turn Engine”)
+**Rationale**: AI is backend behavior tied to realtime game state; keep it beside the state (Convex), not in clients or Next routes. Actions own network IO (Gemini); mutations stay deterministic + validate game rules.
 
 **Core Modules**
 
-- `convex/poems.ts` — poem read queries; stays domain-y, no auth query internals
-- `convex/lib/auth.ts` — identity + room participation check (deep module)
-- `convex/schema.ts` — `roomPlayers` + index `by_room_user` (data contract)
+- `AiPersonaCatalog` – fixed persona set + random pick (no UI selection).
+- `AiLobbyService` – host-only add/remove AI player in LOBBY.
+- `AiTurnEngine` – schedules AI turns, calls Gemini, commits line, advances round.
+- `LineCommit` – shared “insert line + maybe advance game” logic for human+AI.
+- `AttributionUI` – bot visuals in lobby/wait/reveal/poem.
 
 **Data Flow**
-Client `useQuery(api.poems.*)` → `getUser(ctx, guestToken)` → `checkParticipation(ctx, roomId, userId)` → DB query (`poems`, `lines`) → return DTO
+Host → `ai.addAiPlayer` → (create AI `users` row + `roomPlayers` row) → Lobby shows bot  
+Host → `game.startGame` → `AiTurnEngine.schedule(round=0)`  
+Round N → humans submit via `game.submitLine` → on round advance → `AiTurnEngine.schedule(round=N+1)`  
+Scheduled → `ai.generateLineForRound` (action) → Gemini → `ai.commitAiLine` (mutation) → `LineCommit` → round advance / game complete
 
 **Key Decisions**
 
-1. `checkParticipation` returns boolean, no throw — callers keep current “return [] / null” semantics
-2. Use `roomPlayers` index `by_room_user` — perf stable, matches existing schema
+1. **AI is a real `users` row** (`kind: 'AI'`) so existing author-name queries keep working.
+2. **Persona is immutable per AI add** (stored on that AI user row); removing+re-adding creates a new AI user (history stays correct).
+3. **No client dependency**: AI turn generation runs server-side; gameplay never waits on a browser tab.
+4. **Internal capability token** gates AI-only mutations (clients can’t forge “bot submits”).
 
-## Module: `convex/lib/auth`
+---
 
-Responsibility: hide “who are you?” and “may you access this room?” behind tiny APIs.
+## Module: AiPersonaCatalog
+
+Responsibility: define personas + hide selection rules.
 
 Public Interface:
 
 ```ts
-import type { MutationCtx, QueryCtx } from '../_generated/server';
-import type { Doc, Id } from '../_generated/dataModel';
+export type AiPersonaId =
+  | 'bashō'
+  | 'dickinson'
+  | 'cummings'
+  | 'chaotic-gremlin'
+  | 'overcaffeinated-pal'
+  | 'deadpan-oracle';
 
-export async function getUser(
-  ctx: QueryCtx | MutationCtx,
-  guestToken?: string
-): Promise<Doc<'users'> | null>;
+export type AiPersona = {
+  id: AiPersonaId;
+  displayName: string; // shown to players
+  prompt: string; // style + constraints, no quoted poems
+  tags: Array<'real-poet' | 'chaotic'>;
+};
 
-export async function requireUser(
-  ctx: QueryCtx | MutationCtx,
-  guestToken?: string
-): Promise<Doc<'users'>>;
-
-export async function checkParticipation(
-  ctx: QueryCtx | MutationCtx,
-  roomId: Id<'rooms'>,
-  userId: Id<'users'>
-): Promise<boolean>;
+export function getPersona(id: AiPersonaId): AiPersona;
+export function pickRandomPersona(): AiPersona; // crypto-secure
 ```
 
 Internal Implementation
 
-- `getUser`: Clerk identity → `users.by_clerk`, else guest token → `users.by_guest`
-- `checkParticipation`: `roomPlayers.by_room_user(roomId, userId)` → truthy/falsey
+- Persona list is static data (no DB).
+- `pickRandomPersona()` uses `crypto.getRandomValues` (Convex runtime supports Web Crypto).
+- Prompts forbid quoting real poems; “inspired by” only.
 
-Dependencies
+---
 
-- Reads: `users`, `roomPlayers`
-- Used by: `convex/poems.ts` (now); future: other room-gated queries/mutations
+## Module: AiLobbyService
 
-Data Structures
+Responsibility: add/remove exactly one AI player in a room lobby.
 
-- `roomPlayers` row is the “membership” fact; no extra policy layer yet
+Public Interface (Convex):
 
-Error Handling
+```ts
+export const addAiPlayer: Mutation<
+  {
+    code: string;
+    guestToken?: string;
+  },
+  {
+    aiUserId: Id<'users'>;
+    personaId: AiPersonaId;
+    displayName: string;
+  }
+>;
 
-- `checkParticipation`: never throws (DB errors bubble like today)
-- `requireUser`: throws `Error('Unauthorized: User not found')` (existing)
+export const removeAiPlayer: Mutation<
+  {
+    code: string;
+    guestToken?: string;
+  },
+  { removed: boolean }
+>;
+```
 
-## Module: `convex/poems`
+Internal Implementation
 
-Responsibility: fetch poem lists + details, gated by room participation.
+- Auth: `requireUser(ctx, guestToken)` then verify `room.hostUserId === user._id`.
+- Guardrails:
+  - room must be `status: 'LOBBY'`
+  - max players still 8
+  - if an AI already exists in `roomPlayers`, reject (or return existing)
+- On add:
+  1. `persona = pickRandomPersona()`
+  2. create AI user row:
+     - `clerkUserId: "system:ai:" + randomUUID()` (cannot be impersonated via legacy `guestId`)
+     - `displayName: persona.displayName`
+     - `kind: 'AI'`, `aiPersonaId: persona.id`
+  3. insert `roomPlayers` with `userId = aiUserId`, `displayName = persona.displayName`
+- On remove:
+  - only allowed in `LOBBY`
+  - delete that AI’s `roomPlayers` row (keep `users` row for attribution history).
 
-Changes
+---
 
-- Replace 2 inline `roomPlayers.by_room_user` lookups w/ `checkParticipation(...)`.
+## Module: AiTurnEngine
 
-Acceptance
+Responsibility: schedule + generate + commit AI lines with a “typing delay”.
 
-- `convex/poems.ts` has 0 direct `roomPlayers.by_room_user` lookups (use helper)
+Public Interface (Convex):
+
+```ts
+// called only by scheduler
+export const generateLineForRound: Action<
+  {
+    roomId: Id<'rooms'>;
+    gameId: Id<'games'>;
+    round: number; // 0..8
+  },
+  void
+>;
+```
+
+Supporting internal mutation (capability-gated):
+
+```ts
+export const commitAiLine: Mutation<
+  {
+    internalToken: string;
+    poemId: Id<'poems'>;
+    lineIndex: number;
+    text: string;
+  },
+  void
+>;
+```
+
+Internal Implementation
+
+- Scheduling points:
+  - `game.startGame` schedules round 0 if AI present.
+  - `LineCommit.advanceIfRoundComplete` schedules next round when round advances.
+- Delay:
+  - random `delayMs` ∈ [2000, 4000]
+  - scheduler: `ctx.scheduler.runAfter(delayMs, api.ai.generateLineForRound, {roomId, gameId, round})`
+- Action flow:
+  1. load room+game; abort if mismatch (`room.currentGameId !== gameId`, `game.status !== 'IN_PROGRESS'`, `game.currentRound !== round`)
+  2. find AI player in room: `roomPlayers` join to `users.kind === 'AI'` (expect ≤1)
+  3. compute assigned poem for AI this round:
+     - `poemIndex = game.assignmentMatrix[round].findIndex(uid === aiUserId)`
+     - `poem = poems.by_game + indexInRoom`
+  4. gather context: previous line text (round-1) only (mirrors human constraint)
+  5. call `GeminiLineGenerator.generate({ persona, previousLineText, targetWordCount })`
+  6. run `ctx.runMutation(api.ai.commitAiLine, { internalToken: env.AI_INTERNAL_TOKEN, poemId, lineIndex: round, text })`
+
+Gemini prompt contract
+
+- Output MUST be a single line of text.
+- MUST be exactly N whitespace-separated words.
+- No JSON, no quotes, no leading/trailing whitespace.
+
+Word-count enforcement
+
+- Validate `countWords(text) === targetWordCount`.
+- Retry up to 2 times with a stricter prompt.
+- Final fallback: deterministic word-bank line that always meets N words (never blocks round).
+
+---
+
+## Module: LineCommit
+
+Responsibility: one place to enforce game invariants for “a line got written”.
+
+Public Interface (internal helpers; called by `game.submitLine` and `ai.commitAiLine`)
+
+```ts
+type CommitLineArgs = {
+  poemId: Id<'poems'>;
+  lineIndex: number;
+  text: string;
+  authorUserId: Id<'users'>;
+};
+
+export async function commitLine(
+  ctx: MutationCtx,
+  args: CommitLineArgs
+): Promise<void>;
+```
+
+Invariants enforced
+
+- Room has active game; poem belongs to current game.
+- `game.currentRound === lineIndex`.
+- Assignment matrix matches `authorUserId` for `{lineIndex, poem.indexInRoom}`.
+- Word count exact.
+- No duplicate line for `{poemId, indexInPoem}`.
+
+Advance rules
+
+- After insert, check if ALL poems have a line for that round.
+- If complete and round < 8 → increment round, then `AiTurnEngine.schedule(nextRound)` if AI present.
+- If complete and round == 8 → mark game+room+poems completed (existing logic), no AI scheduling.
+
+---
+
+## Module: AttributionUI
+
+Responsibility: make bot presence unmistakable everywhere.
+
+UI rules
+
+- Lobby player row: bot badge + icon (no extra copy).
+- Waiting screen: bot avatar badge + tooltip includes “(bot)”.
+- Reveal + poem views: each line shows author name; AI lines show bot badge and persona name.
+
+Data shape changes (queries)
+
+- `rooms.getRoomState` adds per-player fields: `{ isBot: boolean; personaId?: AiPersonaId }`
+- `game.getRoundProgress` adds `{ isBot: boolean }`
+- `game.getRevealPhaseState` returns `myPoem.lines: Array<{ text; authorName; isBot; personaId? }>`
+- `poems.getPoemDetail` + `poems.getPublicPoemFull` add `isBot/personaId` per line (reuse `users.kind/aiPersonaId`)
+
+---
 
 ## Core Algorithms (Pseudocode)
 
-### checkParticipation(ctx, roomId, userId)
+### addAiPlayer(code, guestToken)
 
-1. `player = db.query('roomPlayers').withIndex('by_room_user', q => q.eq('roomId', roomId).eq('userId', userId)).first()`
-2. return `player != null`
+1. user = requireUser(guestToken)
+2. room = rooms.by_code(code); assert room.status == LOBBY; assert room.hostUserId == user.\_id
+3. assert roomPlayers.count(roomId) < 8
+4. if room has AI already → throw or return existing
+5. persona = pickRandomPersona()
+6. aiUserId = db.insert('users', { clerkUserId: systemId(), displayName: persona.displayName, kind:'AI', aiPersonaId: persona.id, createdAt: now })
+7. db.insert('roomPlayers', { roomId, userId: aiUserId, displayName: persona.displayName, joinedAt: now })
+8. return { aiUserId, personaId, displayName }
 
-### getPoemsForRoom(roomCode, guestToken)
+### scheduleAiIfNeeded(roomId, gameId, round)
 
-1. `user = getUser(ctx, guestToken)`; if null → `[]`
-2. `room = rooms.by_code(roomCode.toUpperCase()).first()`; if null → `[]`
-3. if `!checkParticipation(ctx, room._id, user._id)` → `[]`
-4. load poems: if `room.currentGameId` → `poems.by_game(room.currentGameId)` else `poems.by_room(room._id)`
-5. fetch preview first line per poem (`lines.by_poem_index(poemId, 0)`)
-6. return poems + `{preview: firstLine ?? '...'}`.
+1. if no AI player in room → return
+2. if line already exists for AI-assigned poem at {round} → return
+3. delay = random(2000..4000)
+4. scheduler.runAfter(delay, ai.generateLineForRound, { roomId, gameId, round })
 
-### getPoemDetail(poemId, guestToken)
+### generateLineForRound(roomId, gameId, round)
 
-1. `user = getUser(ctx, guestToken)`; if null → `null`
-2. `poem = db.get(poemId)`; if null → `null`
-3. if `!checkParticipation(ctx, poem.roomId, user._id)` → `null`
-4. `lines = lines.by_poem(poemId).collect()`; sort by `indexInPoem`
-5. batch fetch authors; map `authorUserId -> displayName || 'Unknown'`
-6. return `{ poem, lines: linesWithAuthors }`
+1. load room+game; abort if not current or round changed
+2. ai = find AI user in room; persona = AiPersonaCatalog.get(ai.aiPersonaId)
+3. poemId = resolve AI’s assigned poem for this round
+4. previous = (round>0) ? line(poemId, round-1).text : undefined
+5. target = WORD_COUNTS[round]
+6. text = GeminiLineGenerator.generate(persona, previous, target)
+7. runMutation(ai.commitAiLine, { internalToken, poemId, lineIndex: round, text })
+
+### commitAiLine(internalToken, poemId, lineIndex, text)
+
+1. assert internalToken == env.AI_INTERNAL_TOKEN
+2. aiUserId = resolve AI userId for this room (via roomPlayers/users.kind)
+3. commitLine({ poemId, lineIndex, text, authorUserId: aiUserId })
+
+---
 
 ## File Organization
 
-Edits:
+**New**
 
-- `convex/lib/auth.ts` — add `checkParticipation` export
-- `convex/poems.ts` — import + use `checkParticipation`, delete duplicate query blocks
+- `convex/ai.ts` – `addAiPlayer`, `removeAiPlayer`, `generateLineForRound`, `commitAiLine`
+- `convex/lib/ai/personas.ts` – persona catalog + picker
+- `convex/lib/ai/gemini.ts` – OpenRouter API wrapper (`generateLine(...)`)
+- `convex/lib/ai/wordCountGuard.ts` – normalize/validate/retry/fallback
+- `components/ui/BotBadge.tsx` – shared bot pill/icon
 
-Tests (to keep CI green)
+**Modified**
 
-- `tests/convex/lib/auth.test.ts` — add unit coverage for `checkParticipation`
-- `tests/convex/poems.test.ts` — mock `checkParticipation` in `vi.mock('../../convex/lib/auth', ...)` (current mock only exports `getUser`)
+- `convex/schema.ts` – add `users.kind`, `users.aiPersonaId`
+- `convex/game.ts` – call `scheduleAiIfNeeded` on start + round advance; refactor `submitLine` to use `LineCommit`
+- `convex/rooms.ts` – extend `getRoomState` to include `isBot/personaId`
+- `convex/game.ts` – extend `getRoundProgress` + `getRevealPhaseState` for bot attribution
+- `convex/poems.ts` – extend line author payload with `isBot/personaId`
+- `components/Lobby.tsx` – Add/Remove AI controls (host-only), bot row styling
+- `components/WaitingScreen.tsx` – bot visuals
+- `components/PoemDisplay.tsx` (or new `PoemDisplayWithAttribution`) – render author attributions per line
+
+---
 
 ## Integration Points
 
-- No schema change; relies on `convex/schema.ts` index: `roomPlayers.by_room_user`
-- No new env vars
-- No deploy changes (still `pnpm build:check` → `npx convex deploy` + `next build`)
+### External Service: OpenRouter (Gemini)
+
+**Env vars (Convex)**
+
+- `OPENROUTER_API_KEY` (required)
+- `AI_MODEL` (default: `google/gemini-2.5-flash`, overridable)
+
+**Implementation**
+
+- Uses OpenRouter's OpenAI-compatible API via fetch (no SDK dependency).
+
+### Build/Deploy
+
+- Convex deploy must include new env vars; update `docs/deployment.md` + `.env.example`.
+- CI: add presence checks for `OPENROUTER_API_KEY` only where needed (don't block unit tests; mock in tests).
+
+### Observability
+
+- Convex action logs:
+  - `roomCode/roomId`, `gameId`, `round`, `personaId`, `model`, `latencyMs`, `fallbackUsed`
+  - never log raw prompt/poem text (keep content out of logs)
+- Next/Sentry:
+  - UI failures on add/remove AI captured via existing `captureError`.
+
+---
 
 ## State Management
 
-Server-side only; no new persisted state. Query behavior unchanged.
+- **Server state**: AI presence (via `roomPlayers` + `users.kind`), persona (`users.aiPersonaId`), lines in `lines`.
+- **Client state**: none; clients only render.
+- **Cache**: Convex realtime handles fanout; no extra client cache.
+- **Concurrency**: scheduler jobs are idempotent via “abort if round changed” + “abort if line exists”.
+
+---
 
 ## Error Handling Strategy
 
-- Authn missing (`getUser` null): poems queries return `[]` / `null` (existing behavior)
-- Authz fail (`checkParticipation` false): same return values (no new error strings)
+Categories
+
+- **Auth**: host-only add/remove → throw user-facing errors (“Only host…”).
+- **Validation**: bad word count, wrong round, not assigned → existing errors.
+- **External (Gemini)**: retry ≤2; then fallback line (never blocks game).
+- **System**: missing env vars → action logs error + uses fallback line.
+
+User-visible behavior
+
+- Add/remove AI failures show alert in Lobby.
+- In-game: AI failures are invisible; it still submits a valid fallback line within budget.
+
+---
 
 ## Testing Strategy
 
-- Unit: `checkParticipation` returns `true/false`, asserts `withIndex('by_room_user', ...)` called once
-- Regression: poems tests keep their current cases, but drive membership via mocked helper
+Unit (Vitest)
 
-Patch coverage targets (new code)
+- `tests/convex/ai.test.ts`
+  - add/remove guardrails (host-only, only in LOBBY, only one AI)
+  - AI user creation fields (`kind`, `aiPersonaId`) set correctly
+- `tests/convex/game.test.ts`
+  - round advance triggers scheduler call when AI present
+  - AI commit path uses shared `LineCommit` and advances game
+- `tests/lib/ai/*.test.ts`
+  - persona picker returns valid persona
+  - word-count guard: retries then falls back, always exact N
 
-- `convex/lib/auth.ts`: 90%+ branches (true/false path)
+UI (Testing Library)
+
+- Lobby: shows “Add AI Player” only for host; disables after added; can remove in lobby; bot badge renders.
+- Waiting: bot badge renders; progress counts include AI.
+- PoemDisplay: author attribution renders; bot lines flagged.
+
+Coverage targets (new code)
+
+- AI core logic (persona/guard/commit): 90%+ branches.
+- UI additions: 70%+.
+
+---
 
 ## Performance & Security Notes
 
-- Perf: single indexed lookup per gated handler; net query count same, code simpler
-- Security: single source of truth for membership check reduces drift risk
-- Logging/PII: `checkParticipation` does not log; avoids leaking room/user ids in logs by default
+- **Latency budget**: target “AI line appears” < 5s:
+  - 2–4s intentional delay + ≤1s generation average; hard-timeout + fallback if slow.
+- **Cost control**: 9 generations per AI per game; log usage; add optional per-room rate limit if abused.
+- **Secrets**: API key + internal token only in Convex env; never exposed to client.
+- **Prompt safety**: forbid quoting real poems; keep content PG-ish via Gemini safety settings (implementation-time).
+
+---
 
 ## Alternative Architectures Considered
 
-| Option | Summary                               | Simplicity (40) | Depth (30) | Explicit (20) | Robust (10) | Verdict                            |
-| ------ | ------------------------------------- | --------------: | ---------: | ------------: | ----------: | ---------------------------------- |
-| A      | Leave duplication in `poems.ts`       |              10 |          0 |             5 |           2 | reject: drift risk                 |
-| B      | Local helper inside `poems.ts` only   |              25 |         10 |            10 |           4 | ok, but no reuse                   |
-| C      | Shared helper in `convex/lib/auth.ts` |              35 |         22 |            16 |           7 | **chosen**                         |
-| D      | New `convex/lib/participation.ts`     |              28 |         24 |            16 |           7 | good, extra file + naming bikeshed |
-| E      | Full “policy” module w/ typed errors  |              10 |         28 |            18 |           8 | overkill for 2 call sites          |
+| Option                    | Pros                                                         | Cons                                                  | Verdict    |
+| ------------------------- | ------------------------------------------------------------ | ----------------------------------------------------- | ---------- |
+| Convex action + scheduler | single backend boundary; no client dependency; natural delay | introduces actions + secret gating                    | **Chosen** |
+| Next.js API route worker  | easy Node SDK; can reuse Next logger/Sentry                  | splits backend; needs Convex auth; scheduling awkward | reject     |
+| Client-side Gemini        | simplest code                                                | leaks keys; unreliable; easy abuse                    | reject     |
+| External worker/queue     | scalable                                                     | too much infra for MVP                                | reject     |
+
+---
+
+## ADR
+
+Not required (TASK.md doesn’t request). Revisit if we add multi-bot, queueing, or vendor abstraction.
+
+---
 
 ## Open Questions / Assumptions
 
-- Scope: only `convex/poems.ts` de-dup (TASK acceptance); follow-up can adopt helper in `convex/rooms.ts` + `convex/game.ts`.
-- Naming: `auth.ts` becomes “authn + room authz”; acceptable now, revisit if it grows (option D).
-
-## Validation Pass (Checklist)
-
-- Deep module: callers know “participation?”, not query/index shape
-- No pass-through wrappers added beyond 1 function
-- Tests updated for new export + mock shape
-- No behavior change: same `[]/null` returns on authn/authz fail
+- **Min players**: code currently allows 2; SPEC.md implies “3+”. Keep 2 for now unless product wants to hard-enforce 3.
+- **Persona set**: initial list above; confirm which real poets are acceptable.
+- **Context window**: AI sees previous line only (mirrors human constraint). Confirm if AI may see more.
+- **Post-game removal**: allow remove AI in next-cycle lobby; keep AI `users` row for historic attribution.

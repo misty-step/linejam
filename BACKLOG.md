@@ -41,11 +41,6 @@ Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-
 **Effort**: 4-6h | **Value**: Transforms game feel
 **Business Case**: Timers create energy and laughs
 
-### [Product] Support adding an AI player to a game
-
-- should use gemini 3 via google gen ai sdk
-- should adopt some kind of random persona; we should have a set of established personas we randomly choose, including chaotic casual personas as well as real poets
-
 ### [Maintainability] Centralize CI commit SHA env var list
 
 **File**: test/lib/sentry.test.ts:121-126

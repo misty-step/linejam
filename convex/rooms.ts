@@ -165,13 +165,15 @@ export const getRoomState = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    // Fetch user records to get stable IDs for avatar colors
+    // Fetch user records to get stable IDs for avatar colors and bot status
     const players = await Promise.all(
       roomPlayers.map(async (rp) => {
         const userRecord = await ctx.db.get(rp.userId);
         return {
           ...rp,
           stableId: userRecord?.clerkUserId || userRecord?.guestId || rp.userId,
+          isBot: userRecord?.kind === 'AI',
+          aiPersonaId: userRecord?.aiPersonaId,
         };
       })
     );

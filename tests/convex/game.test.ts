@@ -53,6 +53,7 @@ describe('game', () => {
     mockCtx = {
       db: mockDb,
       auth: { getUserIdentity: vi.fn() },
+      scheduler: { runAfter: vi.fn() },
     };
     mockGetUser.mockReset();
   });

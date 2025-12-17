@@ -13,7 +13,7 @@ import { defineTheme } from '../schema';
  *
  * Motion: Leisurely (500ms default)
  * Spacing: Luxurious (1.25x base)
- * Typography: 1.414 ratio (Augmented Fourth)
+ * Typography: 1.333 ratio (Perfect Fourth) - balanced, literary
  */
 export const vintagePaperTheme = defineTheme({
   id: 'vintage-paper',
@@ -47,17 +47,17 @@ export const vintagePaperTheme = defineTheme({
       'font-sans': 'var(--font-source-serif)',
       'font-mono': 'var(--font-jetbrains-mono)',
 
-      // Typography - 1.414 ratio (Augmented Fourth) - dramatic, literary
-      'text-xs': '0.707rem',
-      'text-sm': '0.85rem',
+      // Typography - 1.333 ratio (Perfect Fourth) - balanced, literary
+      'text-xs': '0.75rem',
+      'text-sm': '0.875rem',
       'text-base': '1rem',
-      'text-md': '1.2rem',
-      'text-lg': '1.414rem',
-      'text-xl': '2rem',
-      'text-2xl': '2.828rem',
-      'text-3xl': '4rem',
-      'text-4xl': '5.657rem',
-      'text-5xl': '8rem',
+      'text-md': '1.125rem',
+      'text-lg': '1.333rem',
+      'text-xl': '1.777rem',
+      'text-2xl': '2.369rem',
+      'text-3xl': '3.157rem',
+      'text-4xl': '4.209rem',
+      'text-5xl': '5.61rem',
       'leading-tight': '1.2',
       'leading-normal': '1.6',
       'leading-relaxed': '1.9',
@@ -125,17 +125,17 @@ export const vintagePaperTheme = defineTheme({
       'font-sans': 'var(--font-source-serif)',
       'font-mono': 'var(--font-jetbrains-mono)',
 
-      // Typography
-      'text-xs': '0.707rem',
-      'text-sm': '0.85rem',
+      // Typography - 1.333 ratio (Perfect Fourth) - balanced, literary
+      'text-xs': '0.75rem',
+      'text-sm': '0.875rem',
       'text-base': '1rem',
-      'text-md': '1.2rem',
-      'text-lg': '1.414rem',
-      'text-xl': '2rem',
-      'text-2xl': '2.828rem',
-      'text-3xl': '4rem',
-      'text-4xl': '5.657rem',
-      'text-5xl': '8rem',
+      'text-md': '1.125rem',
+      'text-lg': '1.333rem',
+      'text-xl': '1.777rem',
+      'text-2xl': '2.369rem',
+      'text-3xl': '3.157rem',
+      'text-4xl': '4.209rem',
+      'text-5xl': '5.61rem',
       'leading-tight': '1.2',
       'leading-normal': '1.6',
       'leading-relaxed': '1.9',

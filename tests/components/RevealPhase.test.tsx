@@ -60,16 +60,18 @@ describe('RevealPhase component', () => {
     _id: 'poem_123' as Id<'poems'>,
     preview: 'The stars align above',
     isRevealed: false,
+    isOwnPoem: true,
+    isForAi: false,
     lines: [
-      { text: 'One' },
-      { text: 'Two words' },
-      { text: 'Three simple words' },
-      { text: 'Four words in line' },
-      { text: 'Five words make this line' },
-      { text: 'Four words in poem' },
-      { text: 'Three words here' },
-      { text: 'Two words' },
-      { text: 'End' },
+      { text: 'One', authorName: 'Alice', isBot: false },
+      { text: 'Two words', authorName: 'Bob', isBot: false },
+      { text: 'Three simple words', authorName: 'Alice', isBot: false },
+      { text: 'Four words in line', authorName: 'Bob', isBot: false },
+      { text: 'Five words make this line', authorName: 'Alice', isBot: false },
+      { text: 'Four words in poem', authorName: 'Bob', isBot: false },
+      { text: 'Three words here', authorName: 'Alice', isBot: false },
+      { text: 'Two words', authorName: 'Bob', isBot: false },
+      { text: 'End', authorName: 'Alice', isBot: false },
     ],
   };
 
@@ -97,6 +99,7 @@ describe('RevealPhase component', () => {
 
   const mockStateNotRevealed = {
     myPoem: mockMyPoem,
+    myPoems: [mockMyPoem],
     allRevealed: false,
     isHost: true,
     poems: mockPoems,
@@ -104,6 +107,7 @@ describe('RevealPhase component', () => {
 
   const mockStateAllRevealed = {
     myPoem: mockRevealedPoem,
+    myPoems: [mockRevealedPoem],
     allRevealed: true,
     isHost: true,
     poems: mockPoems.map((p) => ({ ...p, isRevealed: true })),
@@ -315,6 +319,7 @@ describe('RevealPhase component', () => {
     mockUseQuery.mockReturnValue({
       ...mockStateNotRevealed,
       myPoem: mockRevealedPoem,
+      myPoems: [mockRevealedPoem],
     });
 
     // Act
@@ -369,5 +374,63 @@ describe('RevealPhase component', () => {
     // Assert - RoomQr shows "Scan to Join" text
     expect(screen.getByText(/Invite for Next Cycle/i)).toBeInTheDocument();
     expect(screen.getByText(/Scan to Join/i)).toBeInTheDocument();
+  });
+
+  it('displays AI attribution only for AI-started poems, not all poems', () => {
+    // Arrange - User has 2 poems: their own + AI's
+    const mockAiPoem = {
+      _id: 'poem_ai_789' as Id<'poems'>,
+      preview: 'Mountains stand silent',
+      isRevealed: false,
+      isOwnPoem: false,
+      isForAi: true,
+      aiPersonaName: 'Bashō',
+      lines: [
+        { text: 'Mountains', authorName: 'Bashō', isBot: true },
+        { text: 'Stand silent', authorName: 'Alice', isBot: false },
+        { text: 'In the moonlight', authorName: 'Bashō', isBot: true },
+        { text: 'Reflected in the pond', authorName: 'Alice', isBot: false },
+        { text: 'Frogs jump from lily pads', authorName: 'Bashō', isBot: true },
+        {
+          text: 'Ripples spread wide outward',
+          authorName: 'Alice',
+          isBot: false,
+        },
+        { text: 'Still waters', authorName: 'Bashō', isBot: true },
+        { text: 'Now calm', authorName: 'Alice', isBot: false },
+        { text: 'Peace', authorName: 'Bashō', isBot: true },
+      ],
+    };
+
+    const mockStateWithBothPoems = {
+      ...mockStateNotRevealed,
+      myPoems: [mockMyPoem, mockAiPoem],
+      poems: [
+        ...mockPoems,
+        {
+          _id: 'poem_ai_789' as Id<'poems'>,
+          indexInRoom: 2,
+          readerName: 'Alice',
+          readerStableId: 'stable_alice_123',
+          isRevealed: false,
+        },
+      ],
+    };
+
+    mockUseQuery.mockReturnValue(mockStateWithBothPoems);
+
+    // Act
+    render(<RevealPhase roomCode="ABCD" />);
+
+    // Assert
+    // User's own poem shows standard label
+    expect(screen.getByText('Your Assignment')).toBeInTheDocument();
+
+    // AI's poem shows AI attribution
+    expect(screen.getByText(/Read for Bashō/i)).toBeInTheDocument();
+
+    // Only ONE poem should have AI attribution (not both)
+    const aiLabels = screen.getAllByText(/Read for/i);
+    expect(aiLabels).toHaveLength(1);
   });
 });

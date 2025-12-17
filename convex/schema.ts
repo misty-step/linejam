@@ -7,6 +7,9 @@ export default defineSchema({
     guestId: v.optional(v.string()),
     displayName: v.string(),
     createdAt: v.number(),
+    // AI player fields
+    kind: v.optional(v.union(v.literal('human'), v.literal('AI'))),
+    aiPersonaId: v.optional(v.string()),
   })
     .index('by_clerk', ['clerkUserId'])
     .index('by_guest', ['guestId']),

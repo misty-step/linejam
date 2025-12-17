@@ -8,10 +8,21 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-// Mock Convex
+// Mock Convex - use call order to return different mocks
+// Component order: startGame, addAiPlayer, removeAiPlayer
 const mockStartGameMutation = vi.fn();
+const mockAddAiMutation = vi.fn();
+const mockRemoveAiMutation = vi.fn();
+let useMutationCallCount = 0;
+
 vi.mock('convex/react', () => ({
-  useMutation: () => mockStartGameMutation,
+  useMutation: () => {
+    const count = useMutationCallCount++;
+    if (count === 0) return mockStartGameMutation;
+    if (count === 1) return mockAddAiMutation;
+    if (count === 2) return mockRemoveAiMutation;
+    return mockStartGameMutation;
+  },
 }));
 
 // Mock auth hook
@@ -57,12 +68,15 @@ describe('Lobby component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useMutationCallCount = 0; // Reset counter for mutation mock order
     mockUseUser.mockReturnValue({
       guestToken: 'mock-token',
       isLoading: false,
     });
     mockPush.mockClear();
     mockStartGameMutation.mockClear();
+    mockAddAiMutation.mockClear();
+    mockRemoveAiMutation.mockClear();
   });
 
   it('displays room code correctly', () => {
@@ -214,5 +228,83 @@ describe('Lobby component', () => {
     expect(hostPlayerItem).toBeInTheDocument();
     // Check that host badge exists in the document (it renders for host player)
     // We don't assert on specific badge content as that's HostBadge's responsibility
+  });
+
+  it('calls addAiPlayer mutation when Add AI button clicked', async () => {
+    // Arrange
+    mockAddAiMutation.mockResolvedValue({ aiUserId: 'ai_123' });
+    const user = userEvent.setup();
+
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    // Find Add AI button (has Bot icon)
+    const addAiButtons = screen.getAllByRole('button', { name: /Add AI/i });
+
+    // Act
+    await user.click(addAiButtons[0]);
+
+    // Assert
+    await waitFor(() => {
+      expect(mockAddAiMutation).toHaveBeenCalledWith({
+        code: 'ABCD',
+        guestToken: 'mock-token',
+      });
+    });
+  });
+
+  it('displays error when addAiPlayer fails', async () => {
+    // Arrange
+    mockAddAiMutation.mockRejectedValue(new Error('AI add failed'));
+    const user = userEvent.setup();
+
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    const addAiButtons = screen.getAllByRole('button', { name: /Add AI/i });
+
+    // Act
+    await user.click(addAiButtons[0]);
+
+    // Assert
+    await waitFor(() => {
+      const alerts = screen.getAllByText(/unexpected error/i);
+      expect(alerts.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('calls removeAiPlayer mutation when Remove AI button clicked', async () => {
+    // Arrange - include an AI player
+    const playersWithAi = [
+      ...mockPlayers,
+      {
+        _id: 'player_ai' as Id<'roomPlayers'>,
+        _creationTime: Date.now(),
+        roomId: 'room_123' as Id<'rooms'>,
+        userId: 'user_ai' as Id<'users'>,
+        displayName: 'Bashō',
+        joinedAt: Date.now(),
+        stableId: 'stable_ai_789',
+        isBot: true,
+      },
+    ];
+    mockRemoveAiMutation.mockResolvedValue({ removed: true });
+    const user = userEvent.setup();
+
+    render(<Lobby room={mockRoom} players={playersWithAi} isHost={true} />);
+
+    // Find Remove AI button (appears when AI is present)
+    const removeAiButtons = screen.getAllByRole('button', {
+      name: /Remove AI/i,
+    });
+
+    // Act
+    await user.click(removeAiButtons[0]);
+
+    // Assert
+    await waitFor(() => {
+      expect(mockRemoveAiMutation).toHaveBeenCalledWith({
+        code: 'ABCD',
+        guestToken: 'mock-token',
+      });
+    });
   });
 });

@@ -28,6 +28,10 @@ import { LoadingState, LoadingMessages } from './ui/LoadingState';
 
 import { Avatar } from './ui/Avatar';
 
+import { BotBadge } from './ui/BotBadge';
+
+import { Id } from '../convex/_generated/dataModel';
+
 interface RevealPhaseProps {
   roomCode: string;
 }
@@ -35,9 +39,9 @@ interface RevealPhaseProps {
 export function RevealPhase({ roomCode }: RevealPhaseProps) {
   const { guestToken } = useUser();
 
-  const [showingPoem, setShowingPoem] = useState(false);
+  const [showingPoemId, setShowingPoemId] = useState<Id<'poems'> | null>(null);
 
-  const [isRevealing, setIsRevealing] = useState(false);
+  const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -51,26 +55,23 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
   const startNewCycleMutation = useMutation(api.game.startNewCycle);
 
-  const handleReveal = async () => {
-    if (!state?.myPoem) return;
-
-    setIsRevealing(true);
+  const handleReveal = async (poemId: Id<'poems'>) => {
+    setIsRevealingId(poemId);
     setError(null); // Clear error before retry
 
     try {
       await revealPoemMutation({
-        poemId: state.myPoem._id,
-
+        poemId,
         guestToken: guestToken || undefined,
       });
 
-      setShowingPoem(true);
+      setShowingPoemId(poemId);
     } catch (err) {
       const feedback = errorToFeedback(err);
       setError(feedback.message);
       captureError(err, { roomCode });
     } finally {
-      setIsRevealing(false);
+      setIsRevealingId(null);
     }
   };
 
@@ -94,25 +95,34 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
   if (!state)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <LoadingState message={LoadingMessages.UNSEALING_POEMS} />
       </div>
     );
 
-  const { myPoem, allRevealed, isHost, poems } = state;
+  const { myPoems, allRevealed, isHost, poems } = state;
 
   // For unique avatar colors
   const allStableIds = poems.map((p) => p.readerStableId);
 
-  // If showing the full poem after reveal
+  // Find the poem being displayed (if any)
+  const displayingPoem = showingPoemId
+    ? myPoems?.find((p) => p._id === showingPoemId)
+    : null;
 
-  if (showingPoem && myPoem) {
+  // If showing the full poem after reveal
+  if (displayingPoem) {
     return (
       <PoemDisplay
-        poemId={myPoem._id}
-        lines={myPoem.lines.map((l) => l.text)}
-        onDone={() => setShowingPoem(false)}
-        alreadyRevealed={myPoem.isRevealed}
+        poemId={displayingPoem._id}
+        lines={displayingPoem.lines.map((l) => ({
+          text: l.text,
+          authorName: l.authorName,
+          isBot: l.isBot,
+        }))}
+        onDone={() => setShowingPoemId(null)}
+        alreadyRevealed={displayingPoem.isRevealed}
+        showAttribution={true}
       />
     );
   }
@@ -120,21 +130,21 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
   // Main reveal phase UI
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24 flex flex-col md:flex-row gap-12 md:gap-24">
+    <div className="min-h-screen bg-background p-6 md:p-12 lg:p-24 flex flex-col md:flex-row gap-12 md:gap-24">
       {/* Left: Status Manifest */}
       <div className="md:w-1/3 space-y-8">
         <div className="space-y-4">
-          <h1 className="text-[var(--text-4xl)] md:text-[var(--text-5xl)] font-[var(--font-display)] leading-[0.9]">
+          <h1 className="text-4xl md:text-5xl font-[var(--font-display)] leading-[0.9]">
             {allRevealed ? 'Session\nComplete' : 'Reading\nPhase'}
           </h1>
-          <p className="text-[var(--text-lg)] text-[var(--color-text-secondary)] leading-[var(--leading-relaxed)]">
+          <p className="text-lg text-text-secondary leading-relaxed">
             {allRevealed
               ? 'The cycle is finished. The poems are sealed.'
               : 'One by one, unveil the hidden works. Read aloud with conviction.'}
           </p>
         </div>
 
-        <div className="border-t border-[var(--color-border)] pt-8">
+        <div className="border-t border-border pt-8">
           <Label className="block mb-4">Poem Status</Label>
           <div className="space-y-2">
             {poems
@@ -145,12 +155,12 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                   className={
                     `flex items-center justify-between p-3 border ` +
                     (poem.isRevealed
-                      ? 'bg-[var(--color-muted)] border-transparent opacity-60'
-                      : 'bg-[var(--color-surface)] border-[var(--color-border)]')
+                      ? 'bg-muted border-transparent opacity-60'
+                      : 'bg-surface border-border')
                   }
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[var(--text-xs)] text-[var(--color-text-muted)] w-6">
+                    <span className="font-mono text-xs text-text-muted w-6">
                       {(i + 1).toString().padStart(2, '0')}
                     </span>
                     <Avatar
@@ -159,16 +169,14 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                       allStableIds={allStableIds}
                       size="xs"
                     />
-                    <span className="text-[var(--text-sm)] font-medium">
+                    <span className="text-sm font-medium">
                       {poem.readerName}
                     </span>
                   </div>
                   <span
                     className={
-                      `text-[var(--text-xs)] font-mono uppercase tracking-[var(--tracking-wider)] px-2 py-1 ` +
-                      (poem.isRevealed
-                        ? 'text-[var(--color-success)]'
-                        : 'text-[var(--color-text-muted)]')
+                      `text-xs font-mono uppercase tracking-wider px-2 py-1 ` +
+                      (poem.isRevealed ? 'text-success' : 'text-text-muted')
                     }
                   >
                     {poem.isRevealed ? '✓' : '·'}
@@ -179,7 +187,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         </div>
 
         {allRevealed && (
-          <div className="pt-8 border-t border-[var(--color-border)] space-y-4">
+          <div className="pt-8 border-t border-border space-y-4">
             {error && <Alert variant="error">{error}</Alert>}
             {isHost && (
               <Button
@@ -197,7 +205,7 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
             </Link>
             <Link
               href="/"
-              className="block text-center text-[var(--text-sm)] font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline mt-6"
+              className="block text-center text-sm font-mono uppercase tracking-widest text-text-muted hover:underline mt-6"
             >
               Exit Room
             </Link>
@@ -211,39 +219,69 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         )}
       </div>
 
-      {/* Right: My Poem (Primary Focus) */}
-      <div className="md:w-2/3">
-        {myPoem && !myPoem.isRevealed && (
-          <div className="p-12 border border-[var(--color-primary)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)] space-y-8">
-            <div>
-              <p className="text-[var(--text-sm)] font-mono uppercase tracking-widest text-[var(--color-primary)] mb-4">
-                Your Assignment
-              </p>
-              <p className="text-[var(--text-3xl)] font-[var(--font-display)] italic leading-[var(--leading-relaxed)]">
-                &ldquo;{myPoem.preview}...&rdquo;
-              </p>
-            </div>
-            {error && <Alert variant="error">{error}</Alert>}
-            <Button
-              onClick={handleReveal}
-              size="lg"
-              className="w-full text-[var(--text-lg)] h-16"
-              disabled={isRevealing}
-            >
-              {isRevealing ? 'Unsealing...' : 'Reveal & Read'}
-            </Button>
-          </div>
-        )}
+      {/* Right: My Poems (Primary Focus) */}
+      <div className="md:w-2/3 space-y-6">
+        {myPoems && myPoems.length > 0 && (
+          <>
+            {/* Unrevealed poems - show as actionable cards */}
+            {myPoems
+              .filter((poem) => !poem.isRevealed)
+              .map((poem) => (
+                <div
+                  key={poem._id}
+                  className="p-12 border border-primary bg-surface shadow-lg space-y-8"
+                >
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <p className="text-sm font-mono uppercase tracking-widest text-primary">
+                        {poem.isForAi
+                          ? `Read for ${poem.aiPersonaName}`
+                          : 'Your Assignment'}
+                      </p>
+                      {poem.isForAi && <BotBadge />}
+                    </div>
+                    <p className="text-3xl font-[var(--font-display)] italic leading-relaxed">
+                      &ldquo;{poem.preview}...&rdquo;
+                    </p>
+                  </div>
+                  {error && <Alert variant="error">{error}</Alert>}
+                  <Button
+                    onClick={() => handleReveal(poem._id)}
+                    size="lg"
+                    className="w-full text-lg h-16"
+                    disabled={isRevealingId === poem._id}
+                  >
+                    {isRevealingId === poem._id
+                      ? 'Unsealing...'
+                      : 'Reveal & Read'}
+                  </Button>
+                </div>
+              ))}
 
-        {myPoem && myPoem.isRevealed && (
-          <Button
-            onClick={() => setShowingPoem(true)}
-            variant="outline"
-            size="lg"
-            className="w-full text-[var(--text-xl)] h-20 border-2"
-          >
-            Re-Read My Poem
-          </Button>
+            {/* Revealed poems - show as re-read buttons */}
+            {myPoems
+              .filter((poem) => poem.isRevealed)
+              .map((poem) => (
+                <Button
+                  key={poem._id}
+                  onClick={() => setShowingPoemId(poem._id)}
+                  variant="outline"
+                  size="lg"
+                  className="w-full text-xl h-20 border-2"
+                >
+                  <span className="flex items-center gap-3">
+                    {poem.isForAi ? (
+                      <>
+                        Re-Read {poem.aiPersonaName}&apos;s Poem
+                        <BotBadge showLabel={false} />
+                      </>
+                    ) : (
+                      'Re-Read My Poem'
+                    )}
+                  </span>
+                </Button>
+              ))}
+          </>
         )}
       </div>
     </div>

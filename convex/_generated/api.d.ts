@@ -8,9 +8,16 @@
  * @module
  */
 
+import type * as ai from "../ai.js";
 import type * as favorites from "../favorites.js";
 import type * as game from "../game.js";
 import type * as health from "../health.js";
+import type * as lib_ai_fallbacks from "../lib/ai/fallbacks.js";
+import type * as lib_ai_llm from "../lib/ai/llm.js";
+import type * as lib_ai_personas from "../lib/ai/personas.js";
+import type * as lib_ai_providers_openrouter from "../lib/ai/providers/openrouter.js";
+import type * as lib_ai_providers_types from "../lib/ai/providers/types.js";
+import type * as lib_ai_wordCountGuard from "../lib/ai/wordCountGuard.js";
 import type * as lib_assignmentMatrix from "../lib/assignmentMatrix.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_guestToken from "../lib/guestToken.js";
@@ -29,9 +36,16 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   favorites: typeof favorites;
   game: typeof game;
   health: typeof health;
+  "lib/ai/fallbacks": typeof lib_ai_fallbacks;
+  "lib/ai/llm": typeof lib_ai_llm;
+  "lib/ai/personas": typeof lib_ai_personas;
+  "lib/ai/providers/openrouter": typeof lib_ai_providers_openrouter;
+  "lib/ai/providers/types": typeof lib_ai_providers_types;
+  "lib/ai/wordCountGuard": typeof lib_ai_wordCountGuard;
   "lib/assignmentMatrix": typeof lib_assignmentMatrix;
   "lib/auth": typeof lib_auth;
   "lib/guestToken": typeof lib_guestToken;
