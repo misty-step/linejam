@@ -12,7 +12,6 @@ import { HostBadge } from './ui/HostBadge';
 import { BotBadge } from './ui/BotBadge';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
-import { RoomQr } from './RoomQr';
 import { Bot, UserMinus } from 'lucide-react';
 
 /**
@@ -24,7 +23,6 @@ import { Bot, UserMinus } from 'lucide-react';
  *
  * 1. "Control Desk" (Static): Room identity + primary action
  *    - Room code (beacon)
- *    - QR code (invitation)
  *    - Start button (action)
  *
  * 2. "Guest Registry" (Dynamic): Arrival tracking
@@ -191,9 +189,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                 {formatRoomCode(room.code)}
               </h1>
             </div>
-
-            {/* QR Code Invitation */}
-            {isHost && <RoomQr roomCode={room.code} />}
 
             {/* Add AI Player Button - Host only */}
             {canAddAi && (

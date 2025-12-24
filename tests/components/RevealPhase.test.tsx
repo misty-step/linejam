@@ -364,18 +364,6 @@ describe('RevealPhase component', () => {
     });
   });
 
-  it('shows QR code when all revealed for inviting to next cycle', () => {
-    // Arrange
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
-
-    // Assert - RoomQr shows "Scan to Join" text
-    expect(screen.getByText(/Invite for Next Cycle/i)).toBeInTheDocument();
-    expect(screen.getByText(/Scan to Join/i)).toBeInTheDocument();
-  });
-
   it('displays AI attribution only for AI-started poems, not all poems', () => {
     // Arrange - User has 2 poems: their own + AI's
     const mockAiPoem = {

@@ -9,7 +9,7 @@ Analyzed by: 8 specialized perspectives (complexity-archaeologist, architecture-
 
 **Primary Focus**: Party game for friends in the same room
 
-- Low-friction join via QR
+- Low-friction join via room code
 - Shareable poem artifacts drive organic discovery
 - "Jackbox for poetry" positioning
 
@@ -182,9 +182,8 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 **Why**: After reveal, users just... leave. No invitation to replay, share, or invite others. Wasted distribution opportunity.
 **Approach**: After final poem reveal, show:
 
-1. QR code: "Start your own Linejam" (deep-link to host flow)
-2. "Copy invite link" button
-3. "Share your favorite poem" with OG card preview
+1. "Copy invite link" button
+2. "Share your favorite poem" with OG card preview
    **Effort**: 2h | **Value**: Viral loop activation
    **Acceptance**: Every completed session surfaces 3 growth CTAs
 
@@ -550,11 +549,6 @@ Based on: Comprehensive aesthetic audit with frontend-design framework
   - Replace `return null` with elegant loading spinner
   - Matches WaitingScreen pulse animation
   - Estimate: 30m
-
-- **Fix clipboard copy feedback** (`RoomQr.tsx`)
-  - Silent failure → inline error message
-  - "Failed to copy. Try manually."
-  - Estimate: 15m
 
 - **Add error recovery UI** (`RevealPhase.tsx`)
   - Replace silent console.error with inline error display

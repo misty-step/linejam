@@ -124,23 +124,6 @@ describe('Lobby component', () => {
     expect(startButtons[0]).not.toBeDisabled();
   });
 
-  it('QR code component rendered when user is host', () => {
-    // Arrange & Act
-    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    // Assert - RoomQr component has "Scan to Join" text
-    expect(screen.getByText('Scan to Join')).toBeInTheDocument();
-  });
-
-  it('QR code not rendered when user is not host', () => {
-    // Arrange & Act
-    render(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
-
-    // Assert - RoomQr component should not be present
-    // Note: We check for "Scan to Join" text which is unique to RoomQr
-    expect(screen.queryByText('Scan to Join')).not.toBeInTheDocument();
-  });
-
   it('calls startGame mutation when Start button clicked', async () => {
     // Arrange
     mockStartGameMutation.mockResolvedValue(undefined);

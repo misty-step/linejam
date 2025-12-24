@@ -22,8 +22,6 @@ import { PoemDisplay } from './PoemDisplay';
 
 import Link from 'next/link';
 
-import { RoomQr } from './RoomQr';
-
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 
 import { Avatar } from './ui/Avatar';
@@ -209,12 +207,6 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
             >
               Exit Room
             </Link>
-            <div className="pt-8">
-              <Label className="text-center block mb-4">
-                Invite for Next Cycle
-              </Label>
-              <RoomQr roomCode={roomCode} />
-            </div>
           </div>
         )}
       </div>
