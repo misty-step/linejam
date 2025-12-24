@@ -80,6 +80,7 @@ export default defineSchema({
     text: v.string(),
     wordCount: v.number(),
     authorUserId: v.id('users'),
+    authorDisplayName: v.optional(v.string()), // Captured at write-time for pen name support
     createdAt: v.number(),
   })
     .index('by_poem', ['poemId'])

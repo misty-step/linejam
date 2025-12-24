@@ -351,6 +351,10 @@ export const commitAiLine = internalMutation({
       .first();
     if (existing) return;
 
+    // Get AI user for displayName
+    const aiUser = await ctx.db.get(aiUserId);
+    const aiDisplayName = aiUser?.displayName ?? 'AI';
+
     // Validate word count
     const wordCount = countWords(text);
     const expectedCount = WORD_COUNTS[lineIndex];
@@ -363,6 +367,7 @@ export const commitAiLine = internalMutation({
         text: fallbackText,
         wordCount: expectedCount,
         authorUserId: aiUserId,
+        authorDisplayName: aiDisplayName,
         createdAt: Date.now(),
       });
     } else {
@@ -372,6 +377,7 @@ export const commitAiLine = internalMutation({
         text: text.trim(),
         wordCount,
         authorUserId: aiUserId,
+        authorDisplayName: aiDisplayName,
         createdAt: Date.now(),
       });
     }

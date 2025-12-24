@@ -237,6 +237,7 @@ export const submitLine = mutation({
       text: text.trim(),
       wordCount,
       authorUserId: user._id,
+      authorDisplayName: user.displayName,
       createdAt: Date.now(),
     });
 
@@ -423,7 +424,9 @@ export const getRevealPhaseState = query({
             return {
               text: l.text,
               authorUserId: l.authorUserId,
-              authorName: author?.displayName || 'Unknown',
+              // Prefer captured pen name, fall back to current user name for legacy data
+              authorName:
+                l.authorDisplayName || author?.displayName || 'Unknown',
               isBot: author?.kind === 'AI',
               aiPersonaId: author?.aiPersonaId,
             };
