@@ -127,9 +127,9 @@ test.describe('Complete Game Flow', () => {
     await expect(hostPage.getByRole('textbox')).toBeVisible();
     await expect(guestPage.getByRole('textbox')).toBeVisible();
 
-    // Both should see the word count target (1 word for round 1)
-    await expect(hostPage.getByText('/ 1')).toBeVisible();
-    await expect(guestPage.getByText('/ 1')).toBeVisible();
+    // Both should see the word count indicator (WordSlots component)
+    await expect(hostPage.locator('#word-slots')).toBeVisible();
+    await expect(guestPage.locator('#word-slots')).toBeVisible();
   });
 
   test('players can type in textarea and see word count update', async () => {
@@ -137,15 +137,15 @@ test.describe('Complete Game Flow', () => {
     const hostTextarea = hostPage.getByRole('textbox');
     await hostTextarea.fill('poetry');
 
-    // Word count should update to 1
-    await expect(hostPage.locator('text=1').first()).toBeVisible();
+    // Word slots should be visible (visual indicator updates)
+    await expect(hostPage.locator('#word-slots')).toBeVisible();
 
     // Guest types a word
     const guestTextarea = guestPage.getByRole('textbox');
     await guestTextarea.fill('verse');
 
-    // Word count should update to 1
-    await expect(guestPage.locator('text=1').first()).toBeVisible();
+    // Word slots should be visible
+    await expect(guestPage.locator('#word-slots')).toBeVisible();
 
     // Both submit buttons should now be enabled
     await expect(

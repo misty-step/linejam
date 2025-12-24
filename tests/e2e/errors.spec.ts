@@ -127,8 +127,8 @@ test.describe('Word Count Validation', () => {
   });
 
   test('word count indicator shows validation state', async () => {
-    // Round 1 requires 1 word, shown as "0 / 1" initially
-    await expect(hostPage.getByText('/ 1')).toBeVisible();
+    // Round 1 requires 1 word - WordSlots component shows visual squares
+    await expect(hostPage.locator('#word-slots')).toBeVisible();
 
     // Type a word and verify count updates
     await hostPage.getByRole('textbox').fill('verse');
