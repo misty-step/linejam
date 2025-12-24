@@ -279,7 +279,7 @@ export const generateLineForRound = internalAction({
 
       const config: LLMConfig = {
         provider: 'openrouter',
-        model: process.env.AI_MODEL || 'google/gemini-2.5-flash',
+        model: process.env.AI_MODEL || 'google/gemini-3-flash-preview',
         apiKey,
         timeoutMs: 10000,
         maxRetries: 3,

@@ -152,22 +152,22 @@ describe('RevealPhase component', () => {
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
 
-  it('shows revealed status with checkmark for revealed poems', () => {
+  it('shows revealed status with READ label for revealed poems', () => {
     // Arrange & Act
     render(<RevealPhase roomCode="ABCD" />);
 
-    // Assert - Bob's poem is revealed, should have checkmark
+    // Assert - Bob's poem is revealed, should have READ label
     const bobRow = screen.getByText('Bob').closest('div');
-    expect(bobRow?.parentElement?.textContent).toContain('✓');
+    expect(bobRow?.parentElement?.textContent).toContain('READ');
   });
 
-  it('shows unrevealed status with dot for unrevealed poems', () => {
+  it('shows unrevealed status without READ label for unrevealed poems', () => {
     // Arrange & Act
     render(<RevealPhase roomCode="ABCD" />);
 
-    // Assert - Alice's poem is not revealed, should have dot
+    // Assert - Alice's poem is not revealed, should not have READ label
     const aliceRow = screen.getByText('Alice').closest('div');
-    expect(aliceRow?.parentElement?.textContent).toContain('·');
+    expect(aliceRow?.parentElement?.textContent).not.toContain('READ');
   });
 
   it('displays my poem preview when not revealed', () => {

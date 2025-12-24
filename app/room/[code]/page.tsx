@@ -1,13 +1,11 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use } from 'react';
 import { useQuery } from 'convex/react';
-import { HelpCircle } from 'lucide-react';
 import { api } from '../../../convex/_generated/api';
 import { Lobby } from '../../../components/Lobby';
 import { WritingScreen } from '../../../components/WritingScreen';
 import { RevealPhase } from '../../../components/RevealPhase';
-import { HelpModal } from '../../../components/HelpModal';
 import { useUser } from '../../../lib/auth';
 
 interface RoomPageProps {
@@ -17,7 +15,6 @@ interface RoomPageProps {
 export default function RoomPage({ params }: RoomPageProps) {
   const { code } = use(params);
   const { isLoading, guestToken } = useUser();
-  const [showHelp, setShowHelp] = useState(false);
   const roomState = useQuery(api.rooms.getRoomState, {
     code,
     guestToken: guestToken || undefined,
@@ -56,20 +53,5 @@ export default function RoomPage({ params }: RoomPageProps) {
     content = <RevealPhase roomCode={code} />;
   }
 
-  return (
-    <>
-      {/* Floating help button */}
-      <button
-        onClick={() => setShowHelp(true)}
-        className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-sm flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-colors duration-[var(--duration-fast)]"
-        aria-label="How to play"
-      >
-        <HelpCircle className="w-5 h-5" />
-      </button>
-
-      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
-
-      {content}
-    </>
-  );
+  return content;
 }

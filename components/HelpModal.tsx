@@ -111,10 +111,9 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               The Word Counter
             </h3>
             <p className="text-sm leading-relaxed">
-              The squares show your word count. When all squares are filled and
-              turn{' '}
+              The squares show your word count. When they all{' '}
               <span className="text-[var(--color-primary)] font-medium">
-                orange
+                fill
               </span>
               , you&apos;re ready to seal your line.
             </p>

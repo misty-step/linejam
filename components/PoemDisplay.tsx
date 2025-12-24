@@ -2,36 +2,29 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { Button } from './ui/Button';
-import { BotBadge } from './ui/BotBadge';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
+import { getUserColor } from '@/lib/avatarColor';
 
 /**
- * PoemDisplay: The Galley (Editorial Reveal)
+ * PoemDisplay: The Hanko (Sigil) Approach
  *
- * Design Refinements (Gemini-guided):
- * - Grid Layout: Rigid [2.5rem_1fr] architecture for perfect vertical rhythm
- * - Hanko Seal: Persimmon circle replaces generic section mark
- * - Zero-latency reveal: React timing + CSS motion (no animation-delay conflict)
- * - Ma (Negative Space): Removed mid-poem ornaments for cleaner flow
- *
- * Timing Philosophy:
- * - Base reveal: 1000ms between lines (very slow, ceremonial)
- * - Wipe animation: 800ms per line (deliberate unveiling)
- * - Pause after line 4: 1200ms breath (the turn)
- * - Button fade: 1000ms
- * - Hanko stamp: 500ms bounce animation
- * - Total reveal time: ~11 seconds (9 lines + pause)
+ * Design:
+ * - Full-screen immersive (no card)
+ * - Colored dots represent authors (tap for name)
+ * - Reduced typography for mobile reading
+ * - Clean verse presentation
  */
 
-const BASE_REVEAL_DELAY = 1000; // ms per line (very slow, ceremonial)
-const PAUSE_AFTER_LINE = 4; // Add extra delay after this line (the turn)
-const PAUSE_DURATION = 1200; // ms (extended breath at the turn)
+const BASE_REVEAL_DELAY = 1000;
+const PAUSE_AFTER_LINE = 4;
+const PAUSE_DURATION = 1200;
 
 export interface PoemLine {
   text: string;
   authorName?: string;
+  authorUserId?: string;
   isBot?: boolean;
 }
 
@@ -48,14 +41,13 @@ export function PoemDisplay({
   lines,
   onDone,
   alreadyRevealed = false,
-  showAttribution = false,
 }: PoemDisplayProps) {
   const [revealedCount, setRevealedCount] = useState(
     alreadyRevealed ? lines.length : 0
   );
+  const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const { handleShare, copied } = useSharePoem(poemId);
 
-  // Normalize lines to PoemLine format
   const normalizedLines: PoemLine[] = lines.map((line) =>
     typeof line === 'string' ? { text: line } : line
   );
@@ -63,7 +55,6 @@ export function PoemDisplay({
   // Staggered reveal with rhythmic pause after line 4
   useEffect(() => {
     if (!alreadyRevealed && revealedCount < lines.length) {
-      // Calculate delay: base delay + extra pause after line 4 (only when revealing line 5)
       const extraDelay =
         revealedCount === PAUSE_AFTER_LINE + 1 ? PAUSE_DURATION : 0;
       const delay = BASE_REVEAL_DELAY + extraDelay;
@@ -75,122 +66,108 @@ export function PoemDisplay({
     }
   }, [revealedCount, lines.length, alreadyRevealed]);
 
+  // Clear selected line after 2s
+  useEffect(() => {
+    if (selectedLine !== null) {
+      const timer = setTimeout(() => setSelectedLine(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedLine]);
+
   const allRevealed = revealedCount >= lines.length;
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col items-start justify-start p-4 md:p-8 lg:p-12 overflow-y-auto">
-      {/* Paper Document Container */}
-      <div
-        className={cn(
-          'relative w-full max-w-2xl md:max-w-3xl lg:max-w-4xl',
-          'my-8 md:my-12 lg:my-16',
-          'ml-0 md:ml-[5vw] lg:ml-[10vw]',
-          'bg-surface p-8 md:p-12 lg:p-16',
-          'shadow-lg',
-          'border border-border'
-        )}
-      >
-        {/* The Poem - Grid Layout */}
-        <div className="relative space-y-4">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-y-auto">
+      {/* Poem Content - Full screen, no card */}
+      <div className="flex-1 px-6 md:px-12 lg:px-24 py-12 md:py-16 lg:py-24 max-w-3xl mx-auto w-full">
+        {/* The Poem - Grid with dot gutter */}
+        <div className="space-y-6">
           {normalizedLines.map((line, index) => {
             const isVisible = index < revealedCount;
-            const lineNumber = (index + 1).toString().padStart(2, '0');
+            const isSelected = selectedLine === index;
+            const dotColor = line.authorUserId
+              ? getUserColor(line.authorUserId)
+              : 'var(--color-text-muted)';
 
             return (
               <Fragment key={index}>
-                {/* Grid: [Line Number column] [Text column] [Attribution column] */}
-                <div
-                  className={cn(
-                    'grid gap-4 md:gap-6 items-baseline',
-                    showAttribution
-                      ? 'grid-cols-[2.5rem_1fr_auto] md:grid-cols-[3rem_1fr_auto]'
-                      : 'grid-cols-[2.5rem_1fr] md:grid-cols-[3rem_1fr]'
-                  )}
-                >
-                  {/* Line Number - Right Aligned in Gutter */}
+                <div className="grid grid-cols-[1rem_1fr] gap-4 items-center">
+                  {/* Author Dot (Hanko) */}
                   <div
                     className={cn(
-                      'font-mono text-sm text-right select-none',
-                      'transition-opacity duration-300',
-                      isVisible ? 'opacity-100' : 'opacity-0',
-                      index === 0 ? 'text-primary' : 'text-text-muted'
+                      'w-2 h-2 rounded-full cursor-pointer transition-all',
+                      isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
                     )}
-                  >
-                    {lineNumber}
-                  </div>
+                    style={{ backgroundColor: dotColor }}
+                    onClick={() => setSelectedLine(index)}
+                    title={line.authorName}
+                  />
 
-                  {/* Line Text - Clip Path Wipe */}
-                  <p
-                    className={cn(
-                      'font-[var(--font-display)] leading-tight text-left',
-                      'text-2xl md:text-3xl lg:text-4xl',
-                      'text-text-primary'
-                    )}
-                    style={{
-                      animation: isVisible
-                        ? `wipe-reveal 800ms ease-out forwards`
-                        : 'none',
-                      clipPath: isVisible ? undefined : 'inset(0 100% 0 0)',
-                    }}
-                  >
-                    {line.text}
-                  </p>
-
-                  {/* Author Attribution (optional) */}
-                  {showAttribution && (
-                    <div
+                  {/* Line Text */}
+                  <div className="relative">
+                    <p
                       className={cn(
-                        'flex items-center gap-1.5 transition-opacity duration-300',
-                        isVisible ? 'opacity-100' : 'opacity-0'
+                        'font-[var(--font-display)] leading-relaxed',
+                        'text-lg md:text-xl lg:text-2xl',
+                        'text-text-primary'
                       )}
+                      style={{
+                        animation: isVisible
+                          ? `wipe-reveal 800ms ease-out forwards`
+                          : 'none',
+                        clipPath: isVisible ? undefined : 'inset(0 100% 0 0)',
+                      }}
                     >
-                      <span className="text-xs font-mono text-text-muted whitespace-nowrap">
-                        {line.authorName || 'Unknown'}
+                      {line.text}
+                    </p>
+
+                    {/* Author byline on tap */}
+                    {line.authorName && (
+                      <span
+                        className={cn(
+                          'absolute top-full left-0 text-sm italic text-text-muted',
+                          'transition-opacity duration-300',
+                          isSelected ? 'opacity-100' : 'opacity-0'
+                        )}
+                      >
+                        — {line.authorName}
+                        {line.isBot && ' (AI)'}
                       </span>
-                      {line.isBot && <BotBadge showLabel={false} />}
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </Fragment>
             );
           })}
-
-          {/* End Mark: The Hanko (Seal) */}
-          {allRevealed && (
-            <div className="flex justify-end pt-10 md:pt-14">
-              <div className="animate-stamp origin-center" aria-hidden="true">
-                <div className="h-4 w-4 rounded-full bg-primary mix-blend-multiply opacity-90" />
-              </div>
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* Footer / Actions */}
-        <div
-          className={cn(
-            'flex flex-col sm:flex-row items-center justify-center gap-4 mt-16 transition-opacity duration-500',
-            allRevealed ? 'opacity-100' : 'opacity-0'
-          )}
+      {/* Footer / Actions - Fixed at bottom */}
+      <div
+        className={cn(
+          'px-6 md:px-12 lg:px-24 py-6 border-t border-border-subtle',
+          'flex items-center justify-center gap-4',
+          'transition-opacity duration-500',
+          allRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        )}
+      >
+        <Button
+          onClick={handleShare}
+          variant="primary"
+          size="lg"
+          className="min-w-[140px] h-12"
+          stampAnimate={copied}
         >
-          <Button
-            onClick={handleShare}
-            variant="primary"
-            size="lg"
-            className="min-w-[160px] h-14 text-lg"
-            stampAnimate={copied}
-            aria-label="Copy poem link to clipboard"
-          >
-            {copied ? 'Copied!' : 'Share This'}
-          </Button>
-          <Button
-            onClick={onDone}
-            variant="ghost"
-            size="lg"
-            className="min-w-[140px] h-14 text-lg text-text-muted hover:text-text-primary"
-          >
-            Close
-          </Button>
-        </div>
+          {copied ? 'Copied!' : 'Share'}
+        </Button>
+        <Button
+          onClick={onDone}
+          variant="ghost"
+          size="lg"
+          className="min-w-[100px] h-12 text-text-muted hover:text-text-primary"
+        >
+          Close
+        </Button>
       </div>
     </div>
   );
