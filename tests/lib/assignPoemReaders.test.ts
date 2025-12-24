@@ -109,11 +109,11 @@ describe('assignPoemReaders', () => {
 
       // User1 should not read poem1, User2 should not read poem2
       const user1Poems = Array.from(assignments.entries())
-        .filter(([_, reader]) => reader === 'user1')
+        .filter(([, reader]) => reader === 'user1')
         .map(([poemId]) => poemId);
 
       const user2Poems = Array.from(assignments.entries())
-        .filter(([_, reader]) => reader === 'user2')
+        .filter(([, reader]) => reader === 'user2')
         .map(([poemId]) => poemId);
 
       expect(user1Poems).not.toContain('poem1' as Id<'poems'>);
@@ -325,15 +325,6 @@ describe('assignPoemReaders', () => {
       ];
 
       const assignments2 = assignPoemReaders(poems2, players2);
-
-      // Assignments might differ due to shuffling
-      // (Not guaranteed to be different, but likely with different random values)
-      const assignments1Str = JSON.stringify(
-        Array.from(assignments1.entries())
-      );
-      const assignments2Str = JSON.stringify(
-        Array.from(assignments2.entries())
-      );
 
       // At minimum, the function executes without error
       expect(assignments1.size).toBe(3);
