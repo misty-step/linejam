@@ -31,8 +31,8 @@ pre-push:
       run: pnpm typecheck
 
     test:
-      run: pnpm vitest run --changed HEAD~1
-      # Only tests affected by changes - CI runs full suite
+      run: pnpm vitest run --changed origin/master
+      # Tests affected by ALL branch changes - CI runs full suite
 
 commit-msg:
   commands:
