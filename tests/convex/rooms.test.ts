@@ -12,6 +12,7 @@ import {
   joinRoom,
   getRoom,
   getRoomState,
+  leaveLobby,
 } from '../../convex/rooms';
 
 // Mock ensureUserHelper
@@ -438,6 +439,114 @@ describe('rooms', () => {
 
       // Assert
       expect(result).toBeNull();
+    });
+  });
+
+  describe('leaveLobby', () => {
+    it('deletes roomPlayer record when non-host leaves', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+        status: 'LOBBY',
+      };
+      const roomPlayer = {
+        _id: 'player2',
+        roomId: 'room1',
+        userId: 'user2',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockDb.first
+        .mockResolvedValueOnce(room) // Room lookup
+        .mockResolvedValueOnce(roomPlayer); // RoomPlayer lookup
+      mockDb.delete.mockResolvedValue(undefined);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      await leaveLobby.handler(mockCtx, {
+        roomCode: 'ABCD',
+        guestToken: 'token456',
+      });
+
+      // Assert
+      expect(mockDb.delete).toHaveBeenCalledWith('player2');
+    });
+
+    it('does nothing when user is host', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+        status: 'LOBBY',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user1' }); // User is host
+      mockDb.first.mockResolvedValueOnce(room);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      await leaveLobby.handler(mockCtx, {
+        roomCode: 'ABCD',
+        guestToken: 'token123',
+      });
+
+      // Assert - should not query for roomPlayer or delete
+      expect(mockDb.delete).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when room is not in LOBBY status', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+        status: 'IN_PROGRESS',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockDb.first.mockResolvedValueOnce(room);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      await leaveLobby.handler(mockCtx, {
+        roomCode: 'ABCD',
+        guestToken: 'token456',
+      });
+
+      // Assert
+      expect(mockDb.delete).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when user not found', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      await leaveLobby.handler(mockCtx, {
+        roomCode: 'ABCD',
+        guestToken: 'invalid',
+      });
+
+      // Assert
+      expect(mockDb.query).not.toHaveBeenCalled();
+      expect(mockDb.delete).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when room not found', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockDb.first.mockResolvedValueOnce(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      await leaveLobby.handler(mockCtx, {
+        roomCode: 'ZZZZ',
+        guestToken: 'token456',
+      });
+
+      // Assert
+      expect(mockDb.delete).not.toHaveBeenCalled();
     });
   });
 });

@@ -60,6 +60,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const startGameMutation = useMutation(api.game.startGame);
   const addAiMutation = useMutation(api.ai.addAiPlayer);
   const removeAiMutation = useMutation(api.ai.removeAiPlayer);
+  const leaveLobbyMutation = useMutation(api.rooms.leaveLobby);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -122,7 +123,11 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
     }
   };
 
-  const handleLeaveLobby = () => {
+  const handleLeaveLobby = async () => {
+    await leaveLobbyMutation({
+      roomCode: room.code,
+      guestToken: guestToken || undefined,
+    });
     router.push('/');
   };
 

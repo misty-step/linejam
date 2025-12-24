@@ -184,3 +184,34 @@ export const getRoomState = query({
     return { room, players, isHost };
   },
 });
+
+export const leaveLobby = mutation({
+  args: {
+    roomCode: v.string(),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return;
+
+    const room = await ctx.db
+      .query('rooms')
+      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
+      .first();
+    if (!room || room.status !== 'LOBBY') return;
+
+    // Don't let host leave (they should close the room instead)
+    if (room.hostUserId === user._id) return;
+
+    const roomPlayer = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room_user', (q) =>
+        q.eq('roomId', room._id).eq('userId', user._id)
+      )
+      .first();
+
+    if (roomPlayer) {
+      await ctx.db.delete(roomPlayer._id);
+    }
+  },
+});

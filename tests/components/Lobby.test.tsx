@@ -9,10 +9,11 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Convex - use call order to return different mocks
-// Component order: startGame, addAiPlayer, removeAiPlayer
+// Component order: startGame, addAiPlayer, removeAiPlayer, leaveLobby
 const mockStartGameMutation = vi.fn();
 const mockAddAiMutation = vi.fn();
 const mockRemoveAiMutation = vi.fn();
+const mockLeaveLobbyMutation = vi.fn().mockResolvedValue(undefined);
 let useMutationCallCount = 0;
 
 vi.mock('convex/react', () => ({
@@ -21,6 +22,7 @@ vi.mock('convex/react', () => ({
     if (count === 0) return mockStartGameMutation;
     if (count === 1) return mockAddAiMutation;
     if (count === 2) return mockRemoveAiMutation;
+    if (count === 3) return mockLeaveLobbyMutation;
     return mockStartGameMutation;
   },
 }));
@@ -77,6 +79,8 @@ describe('Lobby component', () => {
     mockStartGameMutation.mockClear();
     mockAddAiMutation.mockClear();
     mockRemoveAiMutation.mockClear();
+    mockLeaveLobbyMutation.mockClear();
+    mockLeaveLobbyMutation.mockResolvedValue(undefined);
   });
 
   it('displays room code correctly', () => {
@@ -184,7 +188,7 @@ describe('Lobby component', () => {
     expect(waitingButtons[0]).toHaveClass('opacity-50', 'cursor-not-allowed');
   });
 
-  it('Leave Lobby button navigates to home', async () => {
+  it('Leave Lobby button calls mutation and navigates to home', async () => {
     // Arrange
     const user = userEvent.setup();
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
@@ -197,8 +201,14 @@ describe('Lobby component', () => {
     // Act
     await user.click(leaveButtons[0]);
 
-    // Assert
-    expect(mockPush).toHaveBeenCalledWith('/');
+    // Assert - mutation called with room code, then navigates
+    await waitFor(() => {
+      expect(mockLeaveLobbyMutation).toHaveBeenCalledWith({
+        roomCode: 'ABCD',
+        guestToken: 'mock-token',
+      });
+      expect(mockPush).toHaveBeenCalledWith('/');
+    });
   });
 
   it('shows host badge for host player', () => {
