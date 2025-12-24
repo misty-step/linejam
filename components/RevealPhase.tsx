@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
+import { cn } from '../lib/utils';
 import { captureError } from '../lib/error';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
@@ -94,7 +95,6 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         }))}
         onDone={() => setShowingPoemId(null)}
         alreadyRevealed={displayingPoem.isRevealed}
-        showAttribution={true}
       />
     );
   }
@@ -203,7 +203,10 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
                       outlined={!poem.isRevealed}
                     />
                     <span
-                      className={`text-sm font-medium ${poem.isRevealed ? 'opacity-50' : ''}`}
+                      className={cn(
+                        'text-sm font-medium',
+                        poem.isRevealed && 'opacity-50'
+                      )}
                     >
                       {poem.readerName}
                     </span>

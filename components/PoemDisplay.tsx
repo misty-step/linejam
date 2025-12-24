@@ -33,7 +33,6 @@ interface PoemDisplayProps {
   lines: string[] | PoemLine[];
   onDone: () => void;
   alreadyRevealed?: boolean;
-  showAttribution?: boolean;
 }
 
 export function PoemDisplay({
