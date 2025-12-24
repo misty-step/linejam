@@ -73,6 +73,7 @@ vercel env ls
 | `SENTRY_ORG`                        | Production, Preview              | Sentry organization slug                       |
 | `SENTRY_PROJECT`                    | Production, Preview              | Sentry project slug                            |
 | `SENTRY_AUTH_TOKEN`                 | Production, Preview              | Sentry auth token for sourcemaps               |
+| `OPENROUTER_API_KEY`                | Convex only (Production)         | OpenRouter API key for AI player LLM access    |
 
 ### 3. Configure Convex Environment Variables
 
