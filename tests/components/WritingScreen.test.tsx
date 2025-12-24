@@ -80,14 +80,15 @@ describe('WritingScreen component', () => {
     );
   });
 
-  it('shows word count validation via EnsoCounter', () => {
+  it('shows word count validation via WordSlots', () => {
     // Arrange & Act
     render(<WritingScreen roomCode="ABCD" />);
 
-    // Assert - EnsoCounter shows current count and "/ target" format
-    // Current count is 0, target is "/ 1"
-    expect(screen.getByText('0')).toBeInTheDocument();
-    expect(screen.getByText('/ 1')).toBeInTheDocument();
+    // Assert - WordSlots shows "words" label and has correct aria-label
+    expect(screen.getByText('words')).toBeInTheDocument();
+    // Use testId since there are multiple role="status" elements (live region + WordSlots)
+    const wordSlots = document.getElementById('word-slots');
+    expect(wordSlots).toHaveAttribute('aria-label', '0 of 1 words');
   });
 
   it('updates word count as user types', async () => {
@@ -99,10 +100,10 @@ describe('WritingScreen component', () => {
     // Act - Type one word
     await user.type(textarea, 'Hello');
 
-    // Assert - Word count should update to 1
-    // The EnsoCounter shows current/target, so we check for the updated current count
+    // Assert - Word count should update (WordSlots aria-label reflects count)
     await waitFor(() => {
-      expect(screen.getByText('1')).toBeInTheDocument();
+      const wordSlots = document.getElementById('word-slots');
+      expect(wordSlots).toHaveAttribute('aria-label', '1 of 1 words');
     });
   });
 
