@@ -14,10 +14,14 @@ interface WordSlotsProps {
  * Displays word count as a row of manuscript squares that fill with "ink"
  * as words are typed. Inspired by Japanese manuscript paper.
  */
+const MAX_OVERFLOW_DISPLAY = 10;
+
 export function WordSlots({ current, target, className }: WordSlotsProps) {
   const isValid = current === target;
   const isOver = current > target;
   const overflowCount = isOver ? current - target : 0;
+  const displayedOverflow = Math.min(overflowCount, MAX_OVERFLOW_DISPLAY);
+  const extraOverflow = overflowCount - displayedOverflow;
 
   return (
     <div
@@ -48,9 +52,9 @@ export function WordSlots({ current, target, className }: WordSlotsProps) {
         );
       })}
 
-      {/* Overflow slots (if over limit) */}
-      {overflowCount > 0 &&
-        Array.from({ length: overflowCount }).map((_, i) => (
+      {/* Overflow slots (if over limit, capped for performance) */}
+      {displayedOverflow > 0 &&
+        Array.from({ length: displayedOverflow }).map((_, i) => (
           <div
             key={`over-${i}`}
             className={cn(
@@ -60,6 +64,13 @@ export function WordSlots({ current, target, className }: WordSlotsProps) {
             )}
           />
         ))}
+
+      {/* +N indicator if overflow exceeds cap */}
+      {extraOverflow > 0 && (
+        <span className="ml-0.5 text-[9px] md:text-[10px] font-mono text-[var(--color-error)]">
+          +{extraOverflow}
+        </span>
+      )}
 
       {/* "words" label */}
       <span

@@ -124,11 +124,17 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   };
 
   const handleLeaveLobby = async () => {
-    await leaveLobbyMutation({
-      roomCode: room.code,
-      guestToken: guestToken || undefined,
-    });
-    router.push('/');
+    setError(null);
+    try {
+      await leaveLobbyMutation({
+        roomCode: room.code,
+        guestToken: guestToken || undefined,
+      });
+      router.push('/');
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+    }
   };
 
   // Extract button rendering logic (DRY principle for strategic duplication)

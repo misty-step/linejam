@@ -94,13 +94,23 @@ export function PoemDisplay({
                 <div className="grid grid-cols-[1rem_1fr] gap-4 items-center">
                   {/* Author Dot (Hanko) */}
                   <div
+                    role="button"
+                    tabIndex={isVisible ? 0 : -1}
                     className={cn(
                       'w-2 h-2 rounded-full cursor-pointer transition-all',
+                      'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                       isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
                     )}
                     style={{ backgroundColor: dotColor }}
                     onClick={() => setSelectedLine(index)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedLine(index);
+                      }
+                    }}
                     title={line.authorName}
+                    aria-label={`Show author for line ${index + 1}`}
                   />
 
                   {/* Line Text */}

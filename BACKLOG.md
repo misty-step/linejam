@@ -402,6 +402,8 @@ replaysOnErrorSampleRate: 1.0,  // Keep at 100%
 - **[Security] Implement rate limiting** - Room creation, joining, line submission. Prevents DoS and enumeration.
 - **[Design] Enhance Input component** - Add label, error, hint props with accessibility attributes. Transform shallow wrapper into deep module.
 - **[Testing] Visual regression via Playwright** - Screenshots for key states. Refactoring confidence.
+- **[Reliability] Add AI model fallback strategy** - `google/gemini-3-flash-preview` in `convex/ai.ts` has documented stability issues (OpenRouter community reports periodic failures). Configure fallback model (e.g., `openai/gpt-5-mini`) and monitor `fallbackFrom` metrics. Source: PR #18 review (coderabbitai).
+- **[Cleanup] Remove unused `showAttribution` prop from PoemDisplay** - Prop declared but unused in implementation; callers like RevealPhase still pass it. Source: PR #18 review (coderabbitai outside-diff comment).
 
 ---
 
@@ -859,14 +861,16 @@ Based on: Creative Council aesthetic review (Rams, Hara, Norman, Vignelli lenses
 
 ## Focus Management & Accessibility
 
-### Focus Trap in PoemDisplay Modal
+### Focus Trap in HelpModal and PoemDisplay Modal
 
-- **Description**: Prevent tab key from cycling to background content when poem modal open
-- **Implementation**: Use `@react-aria/focus` or custom trap with event listeners
+- **Description**: Prevent tab key from cycling to background content when modals are open
+- **Components affected**: `HelpModal.tsx`, `PoemDisplay.tsx`
+- **Implementation**: Use `focus-trap-react` library for robust focus trapping
+- **Current state**: Escape key and scroll lock implemented in HelpModal, but Tab key still allows focus to escape to background elements
 - **Value**: WCAG 2.1 Level A compliance (2.4.3 Focus Order)
 - **Estimated effort**: 2h
 - **Priority**: High (move to TODO.md if WCAG compliance required)
-- **File**: `components/PoemDisplay.tsx`
+- **Source**: PR #18 review feedback (gemini-code-assist, coderabbitai)
 
 ### Prefers-Reduced-Motion Testing
 

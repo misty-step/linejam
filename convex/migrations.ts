@@ -60,11 +60,13 @@ export const backfillAuthorDisplayNames = mutation({
       throw new Error('Migrations disabled; set ALLOW_CONVEX_MIGRATIONS=true');
     }
 
-    // Get lines missing authorDisplayName
-    const allLines = await ctx.db.query('lines').collect();
-    const linesToUpdate = allLines.filter((l) => !l.authorDisplayName);
+    // Get a batch of lines missing authorDisplayName (avoid loading all into memory)
+    const linesToUpdate = await ctx.db
+      .query('lines')
+      .filter((q) => q.eq(q.field('authorDisplayName'), undefined))
+      .take(batchSize);
 
-    // Batch fetch unique authors
+    // Batch fetch unique authors for this batch
     const uniqueAuthorIds = [
       ...new Set(linesToUpdate.map((l) => l.authorUserId)),
     ];
@@ -76,9 +78,7 @@ export const backfillAuthorDisplayNames = mutation({
     );
 
     let patched = 0;
-    const toProcess = linesToUpdate.slice(0, batchSize);
-
-    for (const line of toProcess) {
+    for (const line of linesToUpdate) {
       const displayName = authorMap.get(line.authorUserId) || 'Unknown';
 
       if (!dryRun) {
@@ -87,10 +87,7 @@ export const backfillAuthorDisplayNames = mutation({
       patched += 1;
     }
 
-    return {
-      patched,
-      remaining: linesToUpdate.length - patched,
-      dryRun,
-    };
+    // Run repeatedly until patched returns 0
+    return { patched, dryRun };
   },
 });

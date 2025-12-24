@@ -55,6 +55,17 @@
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-full: var(--radius-full);
+
+  /* Durations - registered for tailwind-merge compatibility */
+  --duration-instant: var(--duration-instant);
+  --duration-fast: var(--duration-fast);
+  --duration-normal: var(--duration-normal);
+  --duration-slow: var(--duration-slow);
+
+  /* Easing - registered for tailwind-merge compatibility */
+  --ease-theme: var(--ease-theme);
+  --ease-in: var(--ease-in);
+  --ease-out: var(--ease-out);
 }
 
 /* ==========================================================================
