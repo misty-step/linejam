@@ -5,6 +5,14 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   test: {
+    pool: 'forks', // Required: tests that modify process.env deadlock with threads pool
+    poolOptions: {
+      forks: {
+        singleFork: false,
+        isolate: true,
+      },
+    },
+    teardownTimeout: 1000, // Force exit after 1s teardown
     globals: true,
     environment: 'happy-dom',
     setupFiles: './tests/setup.ts',
