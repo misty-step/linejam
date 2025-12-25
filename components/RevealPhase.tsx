@@ -90,11 +90,12 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         lines={displayingPoem.lines.map((l) => ({
           text: l.text,
           authorName: l.authorName,
-          authorUserId: l.authorUserId,
+          authorStableId: l.authorStableId,
           isBot: l.isBot,
         }))}
         onDone={() => setShowingPoemId(null)}
         alreadyRevealed={displayingPoem.isRevealed}
+        allStableIds={allStableIds}
       />
     );
   }

@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
-import { getUserColor } from '@/lib/avatarColor';
+import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
 
 /**
  * PoemDisplay: The Hanko (Sigil) Approach
@@ -24,7 +24,7 @@ const PAUSE_DURATION = 1200;
 export interface PoemLine {
   text: string;
   authorName?: string;
-  authorUserId?: string;
+  authorStableId?: string;
   isBot?: boolean;
 }
 
@@ -33,6 +33,7 @@ interface PoemDisplayProps {
   lines: string[] | PoemLine[];
   onDone: () => void;
   alreadyRevealed?: boolean;
+  allStableIds?: string[];
 }
 
 export function PoemDisplay({
@@ -40,6 +41,7 @@ export function PoemDisplay({
   lines,
   onDone,
   alreadyRevealed = false,
+  allStableIds,
 }: PoemDisplayProps) {
   const [revealedCount, setRevealedCount] = useState(
     alreadyRevealed ? lines.length : 0
@@ -84,8 +86,10 @@ export function PoemDisplay({
           {normalizedLines.map((line, index) => {
             const isVisible = index < revealedCount;
             const isSelected = selectedLine === index;
-            const dotColor = line.authorUserId
-              ? getUserColor(line.authorUserId)
+            const dotColor = line.authorStableId
+              ? allStableIds
+                ? getUniqueColor(line.authorStableId, allStableIds)
+                : getUserColor(line.authorStableId)
               : 'var(--color-text-muted)';
 
             return (

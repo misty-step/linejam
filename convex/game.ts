@@ -424,6 +424,7 @@ export const getRevealPhaseState = query({
             return {
               text: l.text,
               authorUserId: l.authorUserId,
+              authorStableId: author?.clerkUserId || author?.guestId || '',
               // Prefer captured pen name, fall back to current user name for legacy data
               authorName:
                 l.authorDisplayName || author?.displayName || 'Unknown',
