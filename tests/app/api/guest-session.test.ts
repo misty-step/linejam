@@ -2,16 +2,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock logger to avoid server-only import issues
-vi.mock('@/lib/logger', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
 /**
  * Tests grouped by mock configuration to minimize module reloads.
  * Each describe block reloads the module once in beforeAll.

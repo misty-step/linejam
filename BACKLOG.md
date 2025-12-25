@@ -29,16 +29,15 @@ Analyzed by: 15 specialized perspectives (complexity-archaeologist, architecture
 
 ### [PRODUCT] Paginate the archive, and style it better
 
-### 🔴 [CRITICAL - 4 Agents] Delete or use logger.ts
+### [PRODUCT] Better AI poets
 
-**Cross-validated by**: Grug, Torvalds, Ousterhout, Beck
-**File**: lib/logger.ts (111 lines)
-**Why**: 111 lines of Pino logger with PII redaction and correlation IDs—used by exactly 1 file. Meanwhile 28 `console.error` calls scattered across codebase bypass it entirely.
-**Fix**: DELETE logger.ts. Use `console.error` + existing `captureError()` in lib/error.ts. Serverless functions don't need structured logging.
-**Effort**: 1h | **Impact**: Removes 111 lines of dead code, clarifies error strategy
-**Acceptance**: Zero imports of logger.ts, consistent error handling
+- better prompts
+- more personas
+- more robust implementation
+- no fallbacks (or at least better fallbacks)
+- smoother poem reveal screen
 
----
+### [PRODUCT] More exquisite corpse poetry game variants
 
 ### 🔴 [CRITICAL - 3 Agents] Extract getRoomByCode helper
 
@@ -468,7 +467,7 @@ if (attempts >= MAX_ATTEMPTS) {
 
 **Highest-impact cross-validated items (multiple agents agree):**
 
-1. Delete logger.ts (4 agents, 1h) - clarifies error strategy
+1. ~~Delete logger.ts (4 agents, 1h) - clarifies error strategy~~ ✅ DONE
 2. Extract getRoomByCode (3 agents, 2h) - eliminates 14 duplication sites
 3. Fix E2E test skipping (2 agents, 2-3h) - unblocks refactoring
 4. Replace Math.random() (2 agents, 30m) - security

@@ -142,58 +142,7 @@ describe('/api/health', () => {
 
   describe('with error injection', () => {
     let GET: typeof import('@/app/api/health/route').GET;
-    let mockLogger: { error: ReturnType<typeof vi.fn> };
     let mockCaptureException: ReturnType<typeof vi.fn>;
-
-    beforeAll(async () => {
-      vi.resetModules();
-      process.env = { ...originalEnv };
-
-      // Mock Date.toISOString to throw
-      vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
-        throw new Error('Date serialization failed');
-      });
-
-      // Mock logger
-      mockLogger = { error: vi.fn() };
-      vi.doMock('@/lib/logger', () => ({ logger: mockLogger }));
-
-      // Mock Sentry
-      mockCaptureException = vi.fn();
-      vi.doMock('@sentry/nextjs', () => ({
-        captureException: mockCaptureException,
-      }));
-
-      // Mock Convex
-      vi.doMock('convex/browser', () => ({
-        ConvexHttpClient: MockConvexHttpClient,
-      }));
-
-      const mod = await import('@/app/api/health/route');
-      GET = mod.GET;
-    });
-
-    afterAll(() => {
-      vi.restoreAllMocks();
-    });
-
-    it('returns 500 on internal error and logs to logger and Sentry', async () => {
-      const response = await GET();
-      const data = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(data).toEqual({ status: 'error' });
-      expect(response.headers.get('Cache-Control')).toBe('no-store');
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.any(Error) }),
-        'Healthcheck failed'
-      );
-      expect(mockCaptureException).toHaveBeenCalledWith(expect.any(Error));
-    });
-  });
-
-  describe('with logger failure', () => {
-    let GET: typeof import('@/app/api/health/route').GET;
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
     beforeAll(async () => {
@@ -205,14 +154,10 @@ describe('/api/health', () => {
         throw new Error('Date serialization failed');
       });
 
-      // Mock logger to fail on import
-      vi.doMock('@/lib/logger', () => {
-        throw new Error('Logger not available');
-      });
-
-      // Mock Sentry to succeed
+      // Mock Sentry
+      mockCaptureException = vi.fn();
       vi.doMock('@sentry/nextjs', () => ({
-        captureException: vi.fn(),
+        captureException: mockCaptureException,
       }));
 
       // Mock Convex
@@ -230,22 +175,24 @@ describe('/api/health', () => {
       vi.restoreAllMocks();
     });
 
-    it('handles logger import failure with console.error fallback', async () => {
+    it('returns 500 on internal error and logs to console and Sentry', async () => {
       const response = await GET();
       const data = await response.json();
 
       expect(response.status).toBe(500);
       expect(data).toEqual({ status: 'error' });
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Healthcheck failed',
         expect.any(Error)
       );
+      expect(mockCaptureException).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 
   describe('with Sentry failure', () => {
     let GET: typeof import('@/app/api/health/route').GET;
-    let mockLogger: { error: ReturnType<typeof vi.fn> };
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
     beforeAll(async () => {
       vi.resetModules();
@@ -256,10 +203,6 @@ describe('/api/health', () => {
         throw new Error('Date serialization failed');
       });
 
-      // Mock logger
-      mockLogger = { error: vi.fn() };
-      vi.doMock('@/lib/logger', () => ({ logger: mockLogger }));
-
       // Mock Sentry to fail on import
       vi.doMock('@sentry/nextjs', () => {
         throw new Error('Sentry not available');
@@ -269,6 +212,8 @@ describe('/api/health', () => {
       vi.doMock('convex/browser', () => ({
         ConvexHttpClient: MockConvexHttpClient,
       }));
+
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const mod = await import('@/app/api/health/route');
       GET = mod.GET;
@@ -284,9 +229,9 @@ describe('/api/health', () => {
 
       expect(response.status).toBe(500);
       expect(data).toEqual({ status: 'error' });
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.any(Error) }),
-        'Healthcheck failed'
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Healthcheck failed',
+        expect.any(Error)
       );
     });
   });
