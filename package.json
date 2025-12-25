@@ -13,7 +13,6 @@
     "dev:convex": "convex dev",
     "build": "npx convex deploy --cmd 'pnpm run build:check'",
     "build:check": "next build",
-    "start": "npm-run-all --parallel start:next dev:convex",
     "start:next": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

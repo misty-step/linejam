@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -8,22 +9,30 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-// Mock Convex - use call order to return different mocks
-// Component order: startGame, addAiPlayer, removeAiPlayer, leaveLobby
-const mockStartGameMutation = vi.fn();
-const mockAddAiMutation = vi.fn();
-const mockRemoveAiMutation = vi.fn();
-const mockLeaveLobbyMutation = vi.fn().mockResolvedValue(undefined);
-let useMutationCallCount = 0;
+// Hoisted mocks - created before module loading
+const mockMutations = {
+  startGame: vi.fn(),
+  addAi: vi.fn(),
+  removeAi: vi.fn(),
+  leaveLobby: vi.fn().mockResolvedValue(undefined),
+};
+
+// Mock Convex - use call order tracking but with explicit documentation
+// Note: Order matches component's useMutation call order in Lobby.tsx:60-63
+// If component order changes, update this mapping accordingly
+let callIndex = 0;
+const MUTATION_ORDER = [
+  mockMutations.startGame, // api.game.startGame
+  mockMutations.addAi, // api.ai.addAiPlayer
+  mockMutations.removeAi, // api.ai.removeAiPlayer
+  mockMutations.leaveLobby, // api.rooms.leaveLobby
+];
 
 vi.mock('convex/react', () => ({
   useMutation: () => {
-    const count = useMutationCallCount++;
-    if (count === 0) return mockStartGameMutation;
-    if (count === 1) return mockAddAiMutation;
-    if (count === 2) return mockRemoveAiMutation;
-    if (count === 3) return mockLeaveLobbyMutation;
-    return mockStartGameMutation;
+    const mock = MUTATION_ORDER[callIndex % MUTATION_ORDER.length];
+    callIndex++;
+    return mock;
   },
 }));
 
@@ -70,17 +79,17 @@ describe('Lobby component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useMutationCallCount = 0; // Reset counter for mutation mock order
+    callIndex = 0; // Reset mutation call order tracking
     mockUseUser.mockReturnValue({
       guestToken: 'mock-token',
       isLoading: false,
     });
     mockPush.mockClear();
-    mockStartGameMutation.mockClear();
-    mockAddAiMutation.mockClear();
-    mockRemoveAiMutation.mockClear();
-    mockLeaveLobbyMutation.mockClear();
-    mockLeaveLobbyMutation.mockResolvedValue(undefined);
+    mockMutations.startGame.mockClear();
+    mockMutations.addAi.mockClear();
+    mockMutations.removeAi.mockClear();
+    mockMutations.leaveLobby.mockClear();
+    mockMutations.leaveLobby.mockResolvedValue(undefined);
   });
 
   it('displays room code correctly', () => {
@@ -130,7 +139,7 @@ describe('Lobby component', () => {
 
   it('calls startGame mutation when Start button clicked', async () => {
     // Arrange
-    mockStartGameMutation.mockResolvedValue(undefined);
+    mockMutations.startGame.mockResolvedValue(undefined);
     const user = userEvent.setup();
 
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
@@ -145,7 +154,7 @@ describe('Lobby component', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockStartGameMutation).toHaveBeenCalledWith({
+      expect(mockMutations.startGame).toHaveBeenCalledWith({
         code: 'ABCD',
         guestToken: 'mock-token',
       });
@@ -154,7 +163,7 @@ describe('Lobby component', () => {
 
   it('displays error message when startGame mutation fails', async () => {
     // Arrange
-    mockStartGameMutation.mockRejectedValue(new Error('Game start failed'));
+    mockMutations.startGame.mockRejectedValue(new Error('Game start failed'));
     const user = userEvent.setup();
 
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
@@ -203,7 +212,7 @@ describe('Lobby component', () => {
 
     // Assert - mutation called with room code, then navigates
     await waitFor(() => {
-      expect(mockLeaveLobbyMutation).toHaveBeenCalledWith({
+      expect(mockMutations.leaveLobby).toHaveBeenCalledWith({
         roomCode: 'ABCD',
         guestToken: 'mock-token',
       });
@@ -225,7 +234,7 @@ describe('Lobby component', () => {
 
   it('calls addAiPlayer mutation when Add AI button clicked', async () => {
     // Arrange
-    mockAddAiMutation.mockResolvedValue({ aiUserId: 'ai_123' });
+    mockMutations.addAi.mockResolvedValue({ aiUserId: 'ai_123' });
     const user = userEvent.setup();
 
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
@@ -238,7 +247,7 @@ describe('Lobby component', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockAddAiMutation).toHaveBeenCalledWith({
+      expect(mockMutations.addAi).toHaveBeenCalledWith({
         code: 'ABCD',
         guestToken: 'mock-token',
       });
@@ -247,7 +256,7 @@ describe('Lobby component', () => {
 
   it('displays error when addAiPlayer fails', async () => {
     // Arrange
-    mockAddAiMutation.mockRejectedValue(new Error('AI add failed'));
+    mockMutations.addAi.mockRejectedValue(new Error('AI add failed'));
     const user = userEvent.setup();
 
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
@@ -279,7 +288,7 @@ describe('Lobby component', () => {
         isBot: true,
       },
     ];
-    mockRemoveAiMutation.mockResolvedValue({ removed: true });
+    mockMutations.removeAi.mockResolvedValue({ removed: true });
     const user = userEvent.setup();
 
     render(<Lobby room={mockRoom} players={playersWithAi} isHost={true} />);
@@ -294,7 +303,7 @@ describe('Lobby component', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockRemoveAiMutation).toHaveBeenCalledWith({
+      expect(mockMutations.removeAi).toHaveBeenCalledWith({
         code: 'ABCD',
         guestToken: 'mock-token',
       });

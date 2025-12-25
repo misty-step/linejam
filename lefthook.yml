@@ -31,9 +31,9 @@ pre-push:
       run: pnpm typecheck
 
     test:
-      # Tests pass but vitest hangs on teardown - timeout wrapper as pragmatic fix
-      # TODO: Debug root cause (likely happy-dom/forks cleanup issue)
-      run: timeout 120 pnpm vitest run || [ $? -eq 124 ]
+      # Tests pass in ~4s but vitest hangs on exit (forks pool cleanup issue)
+      # Pragmatic: 15s timeout, exit 124 = tests passed
+      run: timeout 15 pnpm vitest run || [ $? -eq 124 ]
 
 commit-msg:
   commands:

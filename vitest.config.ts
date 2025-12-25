@@ -5,16 +5,9 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   test: {
-    pool: 'forks', // Required: tests that modify process.env deadlock with threads pool
-    poolOptions: {
-      forks: {
-        singleFork: false,
-        isolate: true,
-      },
-    },
-    teardownTimeout: 1000, // Force exit after 1s teardown
+    pool: 'forks', // Forks required for process.env isolation
     globals: true,
-    environment: 'happy-dom',
+    environment: 'node', // Default to node; DOM tests use // @vitest-environment jsdom
     setupFiles: './tests/setup.ts',
     include: ['**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: [
