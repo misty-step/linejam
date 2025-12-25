@@ -126,7 +126,7 @@ Commit messages: Conventional Commits (commitlint)
 
 ## Testing
 
-303 tests across Vitest (unit/integration) and Playwright (E2E). Coverage threshold: 80% lines/branches, 60% functions.
+316 tests across Vitest (unit/integration) and Playwright (E2E). Coverage threshold: 80% lines/branches, 70% functions.
 
 ```bash
 pnpm test:watch       # Development
@@ -134,6 +134,13 @@ pnpm test:ci          # CI with coverage
 pnpm test:e2e         # Playwright E2E
 pnpm test:e2e:ui      # Playwright interactive mode
 ```
+
+### Debugging Test Hangs
+
+1. **Isolate first** - run single file: `pnpm vitest run path/to/file.test.ts`
+2. **Binary search** - if file hangs, comment out half the tests to find culprit
+3. **Check for infinite loops** - while loops without termination guards
+4. **Don't assume systemic issues** - verify on specific failing case before assuming framework bug
 
 ## Environment Variables
 
@@ -154,6 +161,24 @@ PUBLIC_SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
 - **Help Modal**: Floating "?" button explains gameplay
 - **WordSlots**: Genkoyoushi-inspired word count indicator
 - **Pen Names**: Author display name captured at write-time
+
+## Code Patterns
+
+### Loop Safety
+
+All `while` loops must have a termination guard to prevent infinite loops:
+
+```typescript
+// BAD - can infinite loop
+while (condition) { ... }
+
+// GOOD - bounded iterations
+let attempts = 0;
+while (condition && attempts < MAX_ATTEMPTS) {
+  attempts++;
+  ...
+}
+```
 
 ## Known Issues
 

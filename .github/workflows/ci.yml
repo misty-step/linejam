@@ -128,6 +128,7 @@ jobs:
 
       - name: Test
         run: pnpm test:ci
+        timeout-minutes: 5
 
       - name: Vitest Coverage Report
         uses: davelosert/vitest-coverage-report-action@v2
