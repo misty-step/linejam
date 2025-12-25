@@ -27,6 +27,8 @@ Analyzed by: 15 specialized perspectives (complexity-archaeologist, architecture
 
 ## Now (Sprint-Ready, <2 weeks)
 
+### [PRODUCT] Paginate the archive, and style it better
+
 ### 🔴 [CRITICAL - 4 Agents] Delete or use logger.ts
 
 **Cross-validated by**: Grug, Torvalds, Ousterhout, Beck
