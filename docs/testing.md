@@ -1,6 +1,6 @@
 # Testing Guide
 
-Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playwright for E2E tests.
+Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playwright for E2E tests. 303 tests total with 80%+ coverage enforcement.
 
 ## Quick Reference
 
@@ -189,12 +189,12 @@ const guestContext = await browser.newContext();
 
 ### Thresholds
 
-| Metric     | Threshold | Rationale                              |
-| ---------- | --------- | -------------------------------------- |
-| Lines      | 80%       | Standard coverage target               |
-| Branches   | 80%       | Ensures conditional logic tested       |
-| Functions  | 60%       | Convex wrappers inflate function count |
-| Statements | 80%       | Standard coverage target               |
+| Metric     | Threshold | Current | Rationale                              |
+| ---------- | --------- | ------- | -------------------------------------- |
+| Lines      | 80%       | 88%     | Standard coverage target               |
+| Branches   | 80%       | 81%     | Ensures conditional logic tested       |
+| Functions  | 60%       | 72%     | Convex wrappers inflate function count |
+| Statements | 80%       | 87%     | Standard coverage target               |
 
 ### Viewing Coverage
 

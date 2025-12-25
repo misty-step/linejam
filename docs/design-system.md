@@ -28,7 +28,6 @@ Linejam's aesthetic draws from Japanese editorial design traditions—the restra
    - Single vermillion accent (#e85d2b) like a hanko seal
    - Confident restraint: color signals action, not decoration
    - Reserved for primary interactions and host identity
-   - Overwhelming presence when needed (QR code dark mode glow)
 
 4. **Vertical Hierarchy**
    - Mobile-first: portrait orientation is primary
@@ -69,7 +68,6 @@ Traditional Japanese ink painting (sumi-e) uses minimal color: black ink on whit
 - Primary action buttons (host game, submit line)
 - Host marker stamp in lobby
 - Focus rings and active states
-- QR code dark mode glow (overrides normal token usage)
 
 **Never use for:**
 
@@ -125,13 +123,6 @@ Traditional Japanese ink painting (sumi-e) uses minimal color: black ink on whit
 ### Dark Mode
 
 Dark mode inverts the ink-and-paper metaphor: white ink on black paper.
-
-**Special case: QR code**
-
-- Light mode: subtle border, standard shadow
-- Dark mode: persimmon border glow (#e85d2b/30), 32px glow shadow
-- **Why break pattern:** QR codes must be highly visible in dark rooms during physical meetups
-- Material metaphor: "lit from behind" like a glowing slip of paper
 
 ---
 
@@ -382,31 +373,6 @@ Animation should feel **mechanical**, not organic. We're not simulating physics�
 ## 7. Intentional Breaks
 
 Good design systems have **intentional violations**—moments where the rules break for good reason. Document these to prevent "fixing" them.
-
-### QR Code Material Metaphor
-
-**File:** `components/RoomQr.tsx`
-
-**The Break:**
-
-```tsx
-<div
-  style={{ backgroundColor: PAPER_COLOR }} // Hardcoded #f8f7f4
-  className="border dark:border-[var(--color-primary)]/30
-             dark:shadow-[0_0_32px_rgba(232,93,43,0.15)]"
->
-```
-
-**Why:**
-
-- Light mode: Subtle paper texture (slight cream, not pure white)
-- Dark mode: Persimmon glow border breaks normal token usage
-- **Rationale:** QR codes must be scannable in dark venues. The glow makes it "lit from behind" like a glowing slip of paper.
-
-**Do not refactor to:**
-
-- `bg-[var(--color-surface)]` (loses paper texture)
-- Remove dark mode glow (QR codes become invisible in dark rooms)
 
 ### WritingScreen Canvas Textarea
 

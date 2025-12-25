@@ -1,46 +1,41 @@
 /**
- * TEMPORARY PLACEHOLDER - FOR PHASE 2 MIGRATION
+ * CONVEX-TEST MIGRATION NOTES
  *
- * This file demonstrates the planned convex-test API.
- * convex-test is installed (v0.0.30) but requires additional setup/config.
+ * convex-test is installed (v0.0.30) but requires Vite environment configuration.
  *
- * BENEFITS OF CONVEX-TEST (vs manual mocking):
- * - 100x faster execution (JS mock vs Docker)
- * - Simpler API: just insert data, call mutation, assert
- * - More reliable: uses real Convex runtime
- * - Better DX: no mock setup boilerplate
+ * BLOCKER: import.meta.glob
+ * convex-test internally uses `import.meta.glob` to discover Convex modules.
+ * This is a Vite-specific feature not available in Node test environment.
+ * Error: "TypeError: (intermediate value).glob is not a function"
  *
- * EXAMPLE USAGE (from docs):
+ * SOLUTIONS (pick one):
+ * 1. Configure Vitest to use Vite environment for convex tests
+ * 2. Pass modules explicitly via second argument to convexTest()
+ * 3. Wait for convex-test to support non-Vite environments
  *
+ * BENEFITS (when working):
+ * - No mock setup needed - test real Convex behavior
+ * - Simpler API: insert data, call mutation, assert
+ * - ~1000 lines of mock code deleted
+ *
+ * EXAMPLE (from docs):
  * ```typescript
- * import { convexTest } from 'convex-test';
- * import { api } from '../convex/_generated/api';
- * import schema from '../convex/schema';
- *
  * const t = convexTest(schema);
- *
- * // Insert test data
- * const userId = await t.run(async (ctx) => {
- *   return await ctx.db.insert('users', { name: 'Alice' });
- * });
- *
- * // Call mutation
+ * const userId = await t.run(ctx => ctx.db.insert('users', { name: 'Alice' }));
  * await t.mutation(api.game.startGame, { roomId });
- *
- * // Assert
- * const room = await t.run(async (ctx) => ctx.db.get(roomId));
+ * const room = await t.run(ctx => ctx.db.get(roomId));
  * expect(room?.status).toBe('IN_PROGRESS');
  * ```
  *
- * TODO: Phase 2 will configure convex-test properly and migrate existing tests.
- * DELETE this file after migration complete.
+ * CURRENT STATE: Manual mocking works, migration deferred until Vite config sorted.
+ * See: https://docs.convex.dev/testing/convex-test
  */
 
 import { describe, it, expect } from 'vitest';
 import { convexTest } from 'convex-test';
 
-describe('convex-test placeholder', () => {
-  it('is installed and ready for Phase 2', () => {
+describe('convex-test', () => {
+  it('is installed', () => {
     expect(convexTest).toBeDefined();
     expect(typeof convexTest).toBe('function');
   });

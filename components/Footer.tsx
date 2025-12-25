@@ -1,31 +1,41 @@
+'use client';
+
+import { useState } from 'react';
+import { HelpModal } from './HelpModal';
+
 type FooterProps = {
   className?: string;
 };
 
 export function Footer({ className = '' }: FooterProps) {
-  return (
-    <footer
-      className={`w-full bg-[var(--color-background)] border-t border-[var(--color-border-subtle)] ${className}`}
-    >
-      <div className="max-w-[var(--spacing-container)] mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4 text-[var(--text-xs)] font-[var(--font-sans)] text-[var(--color-text-muted)]">
-        <div className="flex items-center gap-4">
-          <span className="font-medium text-[var(--color-text-secondary)]">
-            Linejam
-          </span>
-          <span>&copy; {new Date().getFullYear()}</span>
-        </div>
+  const [showHelp, setShowHelp] = useState(false);
 
-        <div className="flex items-center gap-4">
+  return (
+    <>
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <footer
+        className={`w-full bg-[var(--color-background)] border-t border-[var(--color-border-subtle)] ${className}`}
+      >
+        <div className="flex items-center justify-center gap-3 px-4 py-3 text-[10px] font-mono uppercase tracking-wide text-[var(--color-text-muted)]">
+          <button
+            onClick={() => setShowHelp(true)}
+            className="hover:text-[var(--color-primary)] transition-colors"
+          >
+            HELP
+          </button>
+          <span className="text-[var(--color-border)]">·</span>
+          <span>LINEJAM © {new Date().getFullYear()}</span>
+          <span className="text-[var(--color-border)]">·</span>
           <a
             href="https://mistystep.io"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-[var(--color-primary)] transition-colors"
           >
-            A Misty Step project
+            A MISTY STEP PROJECT
           </a>
         </div>
-      </div>
-    </footer>
+      </footer>
+    </>
   );
 }

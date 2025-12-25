@@ -7,7 +7,7 @@ import { captureError } from '../lib/error';
 import { cn } from '../lib/utils';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
-import { EnsoCounter } from './ui/EnsoCounter';
+import { WordSlots } from './ui/WordSlots';
 import { WaitingScreen } from './WaitingScreen';
 
 interface WritingScreenProps {
@@ -126,13 +126,13 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
           <div className="text-xs font-mono uppercase tracking-widest text-text-muted">
             Round {assignment.lineIndex + 1} / 9
           </div>
-          <EnsoCounter current={currentWordCount} target={targetCount} />
+          <WordSlots current={currentWordCount} target={targetCount} />
         </div>
 
         {/* The Memory - No container */}
         {assignment.previousLineText && (
           <div className="mb-16 animate-fade-in-up">
-            <p className="text-4xl md:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
+            <p className="text-2xl md:text-4xl lg:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
               {assignment.previousLineText}
             </p>
           </div>
@@ -161,7 +161,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
             ref={textareaRef}
             className={cn(
               'w-full min-h-[280px] md:min-h-[320px] lg:min-h-[360px] bg-transparent border-none outline-none resize-none',
-              'text-5xl md:text-6xl font-[var(--font-display)] leading-tight',
+              'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
               'text-text-primary',
               'placeholder:text-text-muted/20',
               'pl-6'
@@ -179,7 +179,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
             aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
             aria-required="true"
             aria-invalid={!isValid}
-            aria-describedby="enso-counter"
+            aria-describedby="word-slots"
           />
         </div>
 

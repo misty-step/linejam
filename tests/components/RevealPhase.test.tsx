@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// @vitest-environment happy-dom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 
-// Mock Next.js Link
+// Mock Next.js Link (external)
 vi.mock('next/link', () => ({
   default: ({
     children,
@@ -13,7 +14,7 @@ vi.mock('next/link', () => ({
   }) => <a href={href}>{children}</a>,
 }));
 
-// Mock Convex hooks
+// Mock Convex hooks (external)
 const mockRevealPoemMutation = vi.fn();
 const mockStartNewCycleMutation = vi.fn();
 const mockUseQuery = vi.fn();
@@ -32,23 +33,24 @@ vi.mock('convex/react', () => ({
   },
 }));
 
-// Mock auth hook
-const mockUseUser = vi.fn();
-vi.mock('@/lib/auth', () => ({
-  useUser: () => mockUseUser(),
+// Mock Clerk (external) - let useUser hook use real implementation
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null, isLoaded: true }),
 }));
 
-// Mock error utilities
-vi.mock('@/lib/error', () => ({
-  captureError: vi.fn(),
+// Mock Sentry (external) - let captureError use real implementation
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
+  withScope: vi.fn((cb) => cb({ setExtra: vi.fn() })),
 }));
 
-vi.mock('@/lib/errorFeedback', () => ({
-  errorToFeedback: (err: Error) => ({
-    message: err.message || 'An unexpected error occurred',
-    variant: 'error',
-  }),
-}));
+// Mock fetch for guest session API (external boundary)
+const mockFetch = vi.fn();
+const originalFetch = global.fetch;
+
+// Internal modules use real implementations:
+// - @/lib/error (calls mocked Sentry)
+// - @/lib/errorFeedback (pure function)
 
 // Import after mocking
 import { RevealPhase } from '@/components/RevealPhase';
@@ -121,15 +123,22 @@ describe('RevealPhase component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mutationCallCount = 0; // Reset mutation counter
-    mockUseUser.mockReturnValue({
-      guestToken: 'mock-token',
-      isLoading: false,
-    });
     mockRevealPoemMutation.mockClear();
     mockStartNewCycleMutation.mockClear();
 
     // Default state
     mockUseQuery.mockReturnValue(mockStateNotRevealed);
+
+    // Mock fetch at boundary - useUser calls /api/guest/session
+    mockFetch.mockResolvedValue({
+      json: () =>
+        Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
+    });
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('displays loading state while fetching', () => {
@@ -152,22 +161,22 @@ describe('RevealPhase component', () => {
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
 
-  it('shows revealed status with checkmark for revealed poems', () => {
+  it('shows revealed status with READ label for revealed poems', () => {
     // Arrange & Act
     render(<RevealPhase roomCode="ABCD" />);
 
-    // Assert - Bob's poem is revealed, should have checkmark
+    // Assert - Bob's poem is revealed, should have READ label
     const bobRow = screen.getByText('Bob').closest('div');
-    expect(bobRow?.parentElement?.textContent).toContain('✓');
+    expect(bobRow?.parentElement?.textContent).toContain('READ');
   });
 
-  it('shows unrevealed status with dot for unrevealed poems', () => {
+  it('shows unrevealed status without READ label for unrevealed poems', () => {
     // Arrange & Act
     render(<RevealPhase roomCode="ABCD" />);
 
-    // Assert - Alice's poem is not revealed, should have dot
+    // Assert - Alice's poem is not revealed, should not have READ label
     const aliceRow = screen.getByText('Alice').closest('div');
-    expect(aliceRow?.parentElement?.textContent).toContain('·');
+    expect(aliceRow?.parentElement?.textContent).not.toContain('READ');
   });
 
   it('displays my poem preview when not revealed', () => {
@@ -332,7 +341,7 @@ describe('RevealPhase component', () => {
   });
 
   it('displays error when reveal mutation fails', async () => {
-    // Arrange
+    // Arrange - "Network error" is transformed by errorToFeedback
     mockRevealPoemMutation.mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
     render(<RevealPhase roomCode="ABCD" />);
@@ -341,16 +350,16 @@ describe('RevealPhase component', () => {
     const revealButton = screen.getByRole('button', { name: /Reveal & Read/i });
     await user.click(revealButton);
 
-    // Assert
+    // Assert - Check for user-facing message from real errorToFeedback
     await waitFor(() => {
-      expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+      expect(screen.getByText(/Unable to connect/i)).toBeInTheDocument();
     });
   });
 
   it('displays error when startNewCycle mutation fails', async () => {
-    // Arrange
+    // Arrange - Generic error gets user-friendly message from errorToFeedback
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
-    mockStartNewCycleMutation.mockRejectedValue(new Error('Cycle error'));
+    mockStartNewCycleMutation.mockRejectedValue(new Error('Server error'));
     const user = userEvent.setup();
     render(<RevealPhase roomCode="ABCD" />);
 
@@ -358,22 +367,10 @@ describe('RevealPhase component', () => {
     const newRoundButton = screen.getByRole('button', { name: /New Round/i });
     await user.click(newRoundButton);
 
-    // Assert
+    // Assert - Check for user-facing message from real errorToFeedback
     await waitFor(() => {
-      expect(screen.getByText(/Cycle error/i)).toBeInTheDocument();
+      expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
     });
-  });
-
-  it('shows QR code when all revealed for inviting to next cycle', () => {
-    // Arrange
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
-
-    // Assert - RoomQr shows "Scan to Join" text
-    expect(screen.getByText(/Invite for Next Cycle/i)).toBeInTheDocument();
-    expect(screen.getByText(/Scan to Join/i)).toBeInTheDocument();
   });
 
   it('displays AI attribution only for AI-started poems, not all poems', () => {

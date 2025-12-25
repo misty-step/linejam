@@ -12,7 +12,6 @@ import { HostBadge } from './ui/HostBadge';
 import { BotBadge } from './ui/BotBadge';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
-import { RoomQr } from './RoomQr';
 import { Bot, UserMinus } from 'lucide-react';
 
 /**
@@ -24,7 +23,6 @@ import { Bot, UserMinus } from 'lucide-react';
  *
  * 1. "Control Desk" (Static): Room identity + primary action
  *    - Room code (beacon)
- *    - QR code (invitation)
  *    - Start button (action)
  *
  * 2. "Guest Registry" (Dynamic): Arrival tracking
@@ -62,6 +60,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const startGameMutation = useMutation(api.game.startGame);
   const addAiMutation = useMutation(api.ai.addAiPlayer);
   const removeAiMutation = useMutation(api.ai.removeAiPlayer);
+  const leaveLobbyMutation = useMutation(api.rooms.leaveLobby);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -124,8 +123,18 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
     }
   };
 
-  const handleLeaveLobby = () => {
-    router.push('/');
+  const handleLeaveLobby = async () => {
+    setError(null);
+    try {
+      await leaveLobbyMutation({
+        roomCode: room.code,
+        guestToken: guestToken || undefined,
+      });
+      router.push('/');
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+    }
   };
 
   // Extract button rendering logic (DRY principle for strategic duplication)
@@ -191,9 +200,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                 {formatRoomCode(room.code)}
               </h1>
             </div>
-
-            {/* QR Code Invitation */}
-            {isHost && <RoomQr roomCode={room.code} />}
 
             {/* Add AI Player Button - Host only */}
             {canAddAi && (

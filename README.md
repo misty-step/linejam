@@ -20,6 +20,8 @@ Players take turns adding lines to poems they can't fully see. Each round, you s
 
 The constraint is the game. You see only the line before yours. The result is collaborative absurdity—poems that no single person could have written.
 
+**Features**: AI players (fill empty seats), 4 visual themes, poem sharing, in-game help
+
 ## Tech Stack
 
 - **Frontend**: Next.js 16, React, TypeScript
@@ -47,7 +49,7 @@ npx convex dev    # Convex backend
 
 ## Testing
 
-222 tests across unit, integration, and E2E layers with 80%+ coverage enforcement.
+303 tests across unit, integration, and E2E layers with 80%+ coverage enforcement.
 
 ```bash
 # Unit & integration tests

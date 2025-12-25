@@ -13,7 +13,6 @@
     "dev:convex": "convex dev",
     "build": "npx convex deploy --cmd 'pnpm run build:check'",
     "build:check": "next build",
-    "start": "npm-run-all --parallel start:next dev:convex",
     "start:next": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -43,7 +42,6 @@
     "pino-pretty": "^13.1.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-qr-code": "^2.0.18",
     "require-in-the-middle": "^8.0.1",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.4.0"

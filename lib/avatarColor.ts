@@ -57,16 +57,21 @@ export function getUniqueColor(
 
   for (const id of sorted) {
     let idx = hashToIndex(id);
-    // Find next available color if collision
-    while (takenIndices.has(idx)) {
+    // Find next available color if collision (with loop guard)
+    let attempts = 0;
+    while (takenIndices.has(idx) && attempts < AVATAR_PALETTE.length) {
       idx = (idx + 1) % AVATAR_PALETTE.length;
+      attempts++;
     }
 
     if (id === stableId) {
       return AVATAR_PALETTE[idx];
     }
 
-    takenIndices.add(idx);
+    // Only add if we found an available index (prevents infinite loop when users > colors)
+    if (attempts < AVATAR_PALETTE.length) {
+      takenIndices.add(idx);
+    }
   }
 
   // Fallback (stableId not in list - shouldn't happen)

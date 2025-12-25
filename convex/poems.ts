@@ -87,7 +87,9 @@ export const getPoemDetail = query({
 
     const linesWithAuthors = lines.map((line) => ({
       ...line,
-      authorName: authorMap.get(line.authorUserId) || 'Unknown',
+      // Prefer captured pen name, fall back to current user name for legacy data
+      authorName:
+        line.authorDisplayName || authorMap.get(line.authorUserId) || 'Unknown',
     }));
 
     return {
@@ -207,7 +209,11 @@ export const getPublicPoemFull = query({
       poem,
       lines: lines.map((line) => ({
         ...line,
-        authorName: authorMap.get(line.authorUserId) || 'Unknown',
+        // Prefer captured pen name, fall back to current user name for legacy data
+        authorName:
+          line.authorDisplayName ||
+          authorMap.get(line.authorUserId) ||
+          'Unknown',
       })),
     };
   },

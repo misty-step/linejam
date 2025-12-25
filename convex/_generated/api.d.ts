@@ -18,6 +18,7 @@ import type * as lib_ai_personas from "../lib/ai/personas.js";
 import type * as lib_ai_providers_openrouter from "../lib/ai/providers/openrouter.js";
 import type * as lib_ai_providers_types from "../lib/ai/providers/types.js";
 import type * as lib_ai_wordCountGuard from "../lib/ai/wordCountGuard.js";
+import type * as lib_assignPoemReaders from "../lib/assignPoemReaders.js";
 import type * as lib_assignmentMatrix from "../lib/assignmentMatrix.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_guestToken from "../lib/guestToken.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   "lib/ai/providers/openrouter": typeof lib_ai_providers_openrouter;
   "lib/ai/providers/types": typeof lib_ai_providers_types;
   "lib/ai/wordCountGuard": typeof lib_ai_wordCountGuard;
+  "lib/assignPoemReaders": typeof lib_assignPoemReaders;
   "lib/assignmentMatrix": typeof lib_assignmentMatrix;
   "lib/auth": typeof lib_auth;
   "lib/guestToken": typeof lib_guestToken;

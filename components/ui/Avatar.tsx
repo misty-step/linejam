@@ -10,6 +10,8 @@ interface AvatarProps {
   allStableIds?: string[];
   /** Size variant */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  /** Show as outline only (hollow) instead of filled */
+  outlined?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -32,6 +34,7 @@ export function Avatar({
   displayName,
   allStableIds,
   size = 'md',
+  outlined = false,
   className,
 }: AvatarProps) {
   const color = allStableIds
@@ -40,8 +43,17 @@ export function Avatar({
 
   return (
     <div
-      className={cn('rounded-full shrink-0', SIZES[size], className)}
-      style={{ backgroundColor: color }}
+      className={cn(
+        'rounded-full shrink-0 transition-colors',
+        SIZES[size],
+        outlined && 'border-2 box-border',
+        className
+      )}
+      style={
+        outlined
+          ? { borderColor: color, backgroundColor: 'transparent' }
+          : { backgroundColor: color }
+      }
       aria-label={`${displayName}'s color marker`}
       role="img"
     />

@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
@@ -115,6 +116,29 @@ describe('useUser hook', () => {
     expect(result.current.guestToken).toBe('signed-jwt-token');
     expect(result.current.isAuthenticated).toBe(false);
     expect(result.current.displayName).toBe('Guest');
+  });
+
+  it('handles API response with guestId but no token', async () => {
+    // Arrange - API returns guestId only, no token
+    mockFetch.mockResolvedValue({
+      json: async () => ({ guestId: 'guest-no-token' }),
+    });
+
+    mockUseClerkUser.mockReturnValue({
+      user: null,
+      isLoaded: true,
+    });
+
+    // Act
+    const { result } = renderHook(() => useUser());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Assert
+    expect(result.current.guestId).toBe('guest-no-token');
+    expect(result.current.guestToken).toBeNull();
   });
 
   it('handles fetch error gracefully', async () => {

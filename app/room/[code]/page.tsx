@@ -43,17 +43,15 @@ export default function RoomPage({ params }: RoomPageProps) {
 
   const { room, players, isHost } = roomState;
 
+  // Determine which screen to show
+  let content = null;
   if (room.status === 'LOBBY') {
-    return <Lobby room={room} players={players} isHost={isHost} />;
+    content = <Lobby room={room} players={players} isHost={isHost} />;
+  } else if (room.status === 'IN_PROGRESS') {
+    content = <WritingScreen roomCode={code} />;
+  } else if (room.status === 'COMPLETED') {
+    content = <RevealPhase roomCode={code} />;
   }
 
-  if (room.status === 'IN_PROGRESS') {
-    return <WritingScreen roomCode={code} />;
-  }
-
-  if (room.status === 'COMPLETED') {
-    return <RevealPhase roomCode={code} />;
-  }
-
-  return null;
+  return content;
 }
