@@ -22,17 +22,15 @@ vi.mock('../../convex/lib/auth', () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
 }));
 
+// assignmentMatrix uses Math.random internally - mock at non-deterministic boundary
 vi.mock('../../convex/lib/assignmentMatrix', () => ({
   generateAssignmentMatrix: () => [
     [0, 1],
     [1, 0],
-  ], // Mock matrix
+  ],
 }));
 
-// Mock word count to avoid import issues or complex logic
-vi.mock('../../convex/lib/wordCount', () => ({
-  countWords: (text: string) => text.split(' ').length,
-}));
+// wordCount is deterministic - use real implementation (no mock)
 
 describe('game', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

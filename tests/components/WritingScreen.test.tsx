@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 
-// Mock Next.js router
+// Mock Next.js router (external)
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-// Mock Convex hooks - use a mock function we can configure per-test
+// Mock Convex hooks (external) - use a mock function we can configure per-test
 const mockSubmitLineMutation = vi.fn();
 const mockUseQuery = vi.fn();
 
@@ -17,16 +17,19 @@ vi.mock('convex/react', () => ({
   useMutation: () => mockSubmitLineMutation,
 }));
 
-// Mock auth hook
-const mockUseUser = vi.fn();
-vi.mock('@/lib/auth', () => ({
-  useUser: () => mockUseUser(),
+// Mock Clerk (external) - let useUser hook use real implementation
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null, isLoaded: true }),
 }));
 
-// Mock error capture
-vi.mock('@/lib/error', () => ({
-  captureError: vi.fn(),
+// Mock Sentry (external) - let captureError use real implementation
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
 }));
+
+// Mock fetch for guest session API (external boundary)
+const mockFetch = vi.fn();
+const originalFetch = global.fetch;
 
 // Import after mocking
 import { WritingScreen } from '@/components/WritingScreen';
@@ -50,15 +53,22 @@ describe('WritingScreen component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseUser.mockReturnValue({
-      guestToken: 'mock-token',
-      isLoading: false,
-    });
     mockSubmitLineMutation.mockClear();
 
     // Default: return assignment for all queries
     // WritingScreen calls useQuery twice but only uses first result for rendering
     mockUseQuery.mockReturnValue(mockAssignment);
+
+    // Mock fetch at boundary - useUser calls /api/guest/session
+    mockFetch.mockResolvedValue({
+      json: () =>
+        Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
+    });
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('displays round information correctly', () => {

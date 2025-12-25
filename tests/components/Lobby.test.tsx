@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 
-// Mock Next.js router
+// Mock Next.js router (external)
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -17,9 +17,8 @@ const mockMutations = {
   leaveLobby: vi.fn().mockResolvedValue(undefined),
 };
 
-// Mock Convex - use call order tracking but with explicit documentation
+// Mock Convex (external) - use call order tracking
 // Note: Order matches component's useMutation call order in Lobby.tsx:60-63
-// If component order changes, update this mapping accordingly
 let callIndex = 0;
 const MUTATION_ORDER = [
   mockMutations.startGame, // api.game.startGame
@@ -36,11 +35,14 @@ vi.mock('convex/react', () => ({
   },
 }));
 
-// Mock auth hook
-const mockUseUser = vi.fn();
-vi.mock('@/lib/auth', () => ({
-  useUser: () => mockUseUser(),
+// Mock Clerk (external) - let useUser hook use real implementation
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null, isLoaded: true }),
 }));
+
+// Mock fetch for guest session API (external boundary)
+const mockFetch = vi.fn();
+const originalFetch = global.fetch;
 
 // Import after mocking
 import { Lobby } from '@/components/Lobby';
@@ -80,16 +82,23 @@ describe('Lobby component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     callIndex = 0; // Reset mutation call order tracking
-    mockUseUser.mockReturnValue({
-      guestToken: 'mock-token',
-      isLoading: false,
-    });
     mockPush.mockClear();
     mockMutations.startGame.mockClear();
     mockMutations.addAi.mockClear();
     mockMutations.removeAi.mockClear();
     mockMutations.leaveLobby.mockClear();
     mockMutations.leaveLobby.mockResolvedValue(undefined);
+
+    // Mock fetch at boundary - useUser calls /api/guest/session
+    mockFetch.mockResolvedValue({
+      json: () =>
+        Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
+    });
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('displays room code correctly', () => {

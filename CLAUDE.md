@@ -142,6 +142,18 @@ pnpm test:e2e:ui      # Playwright interactive mode
 3. **Check for infinite loops** - while loops without termination guards
 4. **Don't assume systemic issues** - verify on specific failing case before assuming framework bug
 
+### Mocking Rules
+
+**Mock at system boundaries only:**
+
+- ✅ External APIs, third-party libraries (convex/react, @clerk/nextjs, @sentry/nextjs)
+- ✅ Network requests, browser APIs (fetch, localStorage, clipboard)
+- ✅ Non-deterministic behavior (Date.now, Math.random)
+- ❌ Internal modules (@/lib/_, @/hooks/_, convex/lib/\*)
+- ❌ Internal utilities (avatarColor, wordCount, auth helpers)
+
+**Red flag:** If you're mocking `@/` or `../../` paths, you're mocking internal collaborators. Use the real implementation instead.
+
 ## Environment Variables
 
 ```bash

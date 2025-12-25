@@ -258,6 +258,29 @@ if (attempts >= MAX_ATTEMPTS) {
 
 ---
 
+### [Testing] Remove internal mocks from remaining tests
+
+**Files**:
+
+- `tests/convex/*.test.ts` (5 files mock `convex/lib/auth`)
+- `tests/convex/rooms.test.ts` (mocks `convex/lib/rateLimit`, `convex/users`)
+- `tests/convex/lib/auth.test.ts` (mocks `convex/lib/guestToken`)
+- `tests/hooks/useSharePoem.test.ts` (mocks `lib/sentry`)
+- `tests/lib/auth.test.ts` (mocks `@/lib/error`)
+- `tests/app/api/guest-session.test.ts` (mocks `@/lib/logger`)
+
+**Why**: Tests mock internal collaborators, hiding integration bugs. Component tests were fixed (Dec 2025), but Convex and utility tests remain.
+
+**Approach**:
+
+1. **Quick fixes** (non-Convex tests): Mock external libraries (`@sentry/nextjs`, `pino`) instead of internal wrappers
+2. **Convex tests**: Either use `convex-test` library to set up proper auth context, or accept current mocks as "auth boundary" (pragmatic)
+
+**Effort**: 2-4h for quick fixes, 6-8h if adding convex-test | **Impact**: True integration testing
+**Acceptance**: No `vi.mock()` calls with `@/` or `../../` paths targeting internal modules
+
+---
+
 ### [Maintainability] Add tests for Convex mutations/queries
 
 **Files**: convex/\*.ts
