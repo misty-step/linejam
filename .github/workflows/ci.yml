@@ -107,6 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, format, typecheck, gitleaks]
     permissions:
+      contents: read # Required for actions/checkout
       pull-requests: write # Required for vitest-coverage-report-action to comment
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
