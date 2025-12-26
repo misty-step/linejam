@@ -14,6 +14,7 @@ import {
 import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
+import { requireRoomByCode } from './lib/room';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
@@ -32,12 +33,7 @@ export const addAiPlayer = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
-      .first();
-
-    if (!room) throw new Error('Room not found');
+    const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can add AI player');
     if (room.status !== 'LOBBY') throw new Error('Can only add AI in lobby');
@@ -98,12 +94,7 @@ export const removeAiPlayer = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
-      .first();
-
-    if (!room) throw new Error('Room not found');
+    const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can remove AI player');
     if (room.status !== 'LOBBY') throw new Error('Can only remove AI in lobby');

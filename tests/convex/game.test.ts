@@ -22,12 +22,13 @@ vi.mock('../../convex/lib/auth', () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
 }));
 
-// assignmentMatrix uses Math.random internally - mock at non-deterministic boundary
+// assignmentMatrix uses crypto.getRandomValues internally - mock at non-deterministic boundary
 vi.mock('../../convex/lib/assignmentMatrix', () => ({
   generateAssignmentMatrix: () => [
     [0, 1],
     [1, 0],
   ],
+  secureShuffle: <T>(arr: T[]) => arr, // Identity for deterministic tests
 }));
 
 // wordCount is deterministic - use real implementation (no mock)
