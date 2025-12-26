@@ -65,16 +65,10 @@ async function checkConvex() {
 }
 
 /**
- * Best-effort logging that tolerates environments where server-only modules
- * are unavailable (e.g., Vitest).
+ * Best-effort logging that tolerates environments where Sentry is unavailable.
  */
 async function logFailure(error: unknown) {
-  try {
-    const { logger } = await import('@/lib/logger');
-    logger.error({ error }, 'Healthcheck failed');
-  } catch {
-    console.error('Healthcheck failed', error);
-  }
+  console.error('Healthcheck failed', error);
 
   try {
     await import('@sentry/nextjs')
