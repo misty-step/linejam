@@ -1,9 +1,13 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
-import { generateAssignmentMatrix } from './lib/assignmentMatrix';
+import {
+  generateAssignmentMatrix,
+  secureShuffle,
+} from './lib/assignmentMatrix';
 import { countWords } from './lib/wordCount';
 import { getUser } from './lib/auth';
+import { getRoomByCode, requireRoomByCode } from './lib/room';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
 
@@ -16,12 +20,7 @@ export const startGame = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
-      .first();
-
-    if (!room) throw new Error('Room not found');
+    const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can start game');
     if (room.status !== 'LOBBY') throw new Error('Game already started');
@@ -33,8 +32,8 @@ export const startGame = mutation({
 
     if (players.length < 2) throw new Error('Need at least 2 players');
 
-    // Assign seats (random shuffle)
-    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+    // Assign seats (cryptographically secure random shuffle)
+    const shuffledPlayers = secureShuffle([...players]);
     for (let i = 0; i < shuffledPlayers.length; i++) {
       await ctx.db.patch(shuffledPlayers[i]._id, { seatIndex: i });
     }
@@ -89,12 +88,7 @@ export const startNewCycle = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
-      .first();
-
-    if (!room) throw new Error('Room not found');
+    const room = await requireRoomByCode(ctx, roomCode);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can start new cycle');
     if (room.status !== 'COMPLETED')
@@ -135,10 +129,7 @@ export const getCurrentAssignment = query({
     const user = await getUser(ctx, guestToken);
     if (!user) return null;
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
-      .first();
+    const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
     // If no current game (Lobby), return null
@@ -334,10 +325,7 @@ export const getRevealPhaseState = query({
     const user = await getUser(ctx, guestToken);
     if (!user) return null;
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
-      .first();
+    const room = await getRoomByCode(ctx, roomCode);
     if (!room || room.status !== 'COMPLETED' || !room.currentGameId)
       return null;
 
@@ -512,10 +500,7 @@ export const getRoundProgress = query({
     roomCode: v.string(),
   },
   handler: async (ctx, { roomCode }) => {
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
-      .first();
+    const room = await getRoomByCode(ctx, roomCode);
     if (!room || !room.currentGameId) return null;
 
     const game = await ctx.db.get(room.currentGameId);

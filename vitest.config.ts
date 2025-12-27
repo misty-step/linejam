@@ -35,12 +35,13 @@ export default defineConfig({
         '**/tests/**',
         '**/*.config.{js,ts}',
         '**/*.d.ts',
+        '**/convex/migrations.ts', // One-time migration scripts, not runtime code
       ],
       thresholds: {
-        lines: 80,
-        functions: 70, // v8 counts arrow callbacks as functions, inflating denominator
-        branches: 80,
-        statements: 80,
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
       },
     },
   },

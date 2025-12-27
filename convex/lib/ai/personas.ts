@@ -94,12 +94,42 @@ export function getPersona(id: AiPersonaId): AiPersona {
 }
 
 /**
- * Pick a random persona using crypto-secure randomness.
+ * Default crypto-secure random function.
+ * Returns a random uint32.
  */
-export function pickRandomPersona(): AiPersona {
+function defaultRandomFn(): number {
   const randomBytes = new Uint32Array(1);
   crypto.getRandomValues(randomBytes);
-  const index = randomBytes[0] % PERSONA_IDS.length;
+  return randomBytes[0];
+}
+
+/**
+ * Pick a random persona.
+ *
+ * Uses rejection sampling to avoid modulo bias (matches assignmentMatrix pattern).
+ *
+ * @param randomFn - Optional random number generator (default: crypto-secure).
+ *                   Tests can inject a deterministic function for reproducibility.
+ */
+export function pickRandomPersona(
+  randomFn: () => number = defaultRandomFn
+): AiPersona {
+  // Rejection sampling: find largest multiple of count that fits in uint32
+  const count = PERSONA_IDS.length;
+  const limit = Math.floor(0xffffffff / count) * count;
+
+  let value: number;
+  let iterations = 0;
+  do {
+    if (iterations++ >= 100) {
+      throw new Error(
+        'pickRandomPersona: Failed to generate unbiased random after 100 attempts'
+      );
+    }
+    value = randomFn();
+  } while (value >= limit);
+
+  const index = value % count;
   return PERSONAS[PERSONA_IDS[index]];
 }
 

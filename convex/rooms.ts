@@ -3,6 +3,7 @@ import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser } from './lib/auth';
 import { checkRateLimit } from './lib/rateLimit';
+import { getRoomByCode, requireRoomByCode } from './lib/room';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -43,10 +44,7 @@ export const createRoom = mutation({
     let existingRoom;
     do {
       roomCode = generateRoomCode();
-      existingRoom = await ctx.db
-        .query('rooms')
-        .withIndex('by_code', (q) => q.eq('code', roomCode))
-        .first();
+      existingRoom = await getRoomByCode(ctx, roomCode);
     } while (existingRoom); // Ensure uniqueness
 
     const roomId = await ctx.db.insert('rooms', {
@@ -88,14 +86,7 @@ export const joinRoom = mutation({
       windowMs: 10 * 60 * 1000,
     });
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
-      .first();
-
-    if (!room) {
-      throw new Error('Room not found');
-    }
+    const room = await requireRoomByCode(ctx, code);
 
     if (room.status !== 'LOBBY') {
       throw new Error('Cannot join a room that is not in LOBBY status');
@@ -138,10 +129,7 @@ export const getRoom = query({
     code: v.string(),
   },
   handler: async (ctx, { code }) => {
-    return await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
-      .first();
+    return await getRoomByCode(ctx, code);
   },
 });
 
@@ -151,14 +139,8 @@ export const getRoomState = query({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { code, guestToken }) => {
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
-      .first();
-
-    if (!room) {
-      return null;
-    }
+    const room = await getRoomByCode(ctx, code);
+    if (!room) return null;
 
     const roomPlayers = await ctx.db
       .query('roomPlayers')
@@ -194,10 +176,7 @@ export const leaveLobby = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) return;
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
-      .first();
+    const room = await getRoomByCode(ctx, roomCode);
     if (!room || room.status !== 'LOBBY') return;
 
     // Don't let host leave (they should close the room instead)

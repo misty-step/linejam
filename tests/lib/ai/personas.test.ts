@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   getPersona,
   pickRandomPersona,
@@ -51,16 +51,6 @@ describe('AI Personas', () => {
   });
 
   describe('pickRandomPersona', () => {
-    let originalGetRandomValues: typeof crypto.getRandomValues;
-
-    beforeEach(() => {
-      originalGetRandomValues = crypto.getRandomValues;
-    });
-
-    afterEach(() => {
-      crypto.getRandomValues = originalGetRandomValues;
-    });
-
     it('returns a valid persona', () => {
       const persona = pickRandomPersona();
       expect(persona.id).toBeTruthy();
@@ -69,32 +59,40 @@ describe('AI Personas', () => {
       expect(getAllPersonaIds()).toContain(persona.id);
     });
 
-    it('uses crypto.getRandomValues for randomness', () => {
-      // Mock crypto to always return 0 -> first persona
-      crypto.getRandomValues = vi.fn((arr) => {
-        if (arr instanceof Uint32Array) {
-          arr[0] = 0;
-        }
-        return arr;
-      });
-
-      const persona = pickRandomPersona();
-      expect(crypto.getRandomValues).toHaveBeenCalled();
-      // First persona in the list
+    it('uses injected randomFn for deterministic selection', () => {
+      // Value 0 % 6 = 0 -> first persona (bashō)
+      const persona = pickRandomPersona(() => 0);
       expect(persona.id).toBe('bashō');
     });
 
     it('picks different personas based on random value', () => {
-      // Mock crypto to return value that picks second persona
-      crypto.getRandomValues = vi.fn((arr) => {
-        if (arr instanceof Uint32Array) {
-          arr[0] = 1; // 1 % 6 = 1 -> second persona
-        }
-        return arr;
-      });
-
-      const persona = pickRandomPersona();
+      // Value 1 % 6 = 1 -> second persona (dickinson)
+      const persona = pickRandomPersona(() => 1);
       expect(persona.id).toBe('dickinson');
+    });
+
+    it('uses rejection sampling to avoid modulo bias', () => {
+      // 6 personas, limit = floor(0xffffffff / 6) * 6 = 4294967292
+      // Values >= 4294967292 should be rejected and retry
+      let callCount = 0;
+      const mockRandom = () => {
+        callCount++;
+        // First call returns value above limit (rejected), second returns valid value
+        return callCount === 1 ? 0xffffffff : 2; // 2 % 6 = 2 -> cummings
+      };
+
+      const persona = pickRandomPersona(mockRandom);
+      expect(callCount).toBe(2); // Had to retry once
+      expect(persona.id).toBe('cummings');
+    });
+
+    it('throws after 100 failed attempts (bias detection)', () => {
+      // Always return value above the rejection limit
+      const alwaysAboveLimit = () => 0xffffffff;
+
+      expect(() => pickRandomPersona(alwaysAboveLimit)).toThrow(
+        'pickRandomPersona: Failed to generate unbiased random after 100 attempts'
+      );
     });
   });
 });

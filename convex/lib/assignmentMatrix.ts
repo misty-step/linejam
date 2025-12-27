@@ -1,17 +1,41 @@
 import { Id } from '../_generated/dataModel';
 
-// Helper to shuffle an array (Fisher-Yates algorithm)
-function shuffle<T>(array: T[]): T[] {
-  let currentIndex = array.length,
-    randomIndex;
+/**
+ * Generate a cryptographically secure random integer in [0, max).
+ * Uses rejection sampling to avoid modulo bias.
+ */
+function secureRandomInt(max: number): number {
+  if (max <= 0) return 0;
 
-  // While there remain elements to shuffle.
+  // Find the largest multiple of max that fits in uint32
+  const limit = Math.floor(0xffffffff / max) * max;
+  const randomValues = new Uint32Array(1);
+
+  let value: number;
+  let iterations = 0;
+  do {
+    if (iterations++ >= 100) {
+      throw new Error(
+        'secureRandomInt: Failed to generate unbiased random after 100 attempts'
+      );
+    }
+    crypto.getRandomValues(randomValues);
+    value = randomValues[0];
+  } while (value >= limit);
+
+  return value % max;
+}
+
+/**
+ * Cryptographically secure Fisher-Yates shuffle.
+ * Exported for use in other modules that need secure shuffling.
+ */
+export function secureShuffle<T>(array: T[]): T[] {
+  let currentIndex = array.length;
+
   while (currentIndex !== 0) {
-    // Pick a remaining element.
-    randomIndex = Math.floor(Math.random() * currentIndex);
+    const randomIndex = secureRandomInt(currentIndex);
     currentIndex--;
-
-    // And swap it with the current element.
     [array[currentIndex], array[randomIndex]] = [
       array[randomIndex],
       array[currentIndex],
@@ -72,11 +96,11 @@ export function generateAssignmentMatrix(
   }
 
   // Round 0: random permutation
-  matrix[0] = shuffle([...userIds]);
+  matrix[0] = secureShuffle([...userIds]);
 
   // Rounds 1-8: ensure no consecutive assignments
   for (let r = 1; r < 9; r++) {
-    let currentPerm = shuffle([...userIds]);
+    let currentPerm = secureShuffle([...userIds]);
     let attempts = 0;
     const MAX_ATTEMPTS = 1000; // Prevent infinite loops for impossible configurations
 
@@ -104,7 +128,7 @@ export function generateAssignmentMatrix(
 
       // Fallback: if conflicts persist or couldn't be resolved by simple swaps, reshuffle
       if (hasConflicts(currentPerm, matrix[r - 1])) {
-        currentPerm = shuffle([...userIds]);
+        currentPerm = secureShuffle([...userIds]);
       }
     }
 

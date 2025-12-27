@@ -23,6 +23,7 @@ import type * as lib_assignmentMatrix from "../lib/assignmentMatrix.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_guestToken from "../lib/guestToken.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
+import type * as lib_room from "../lib/room.js";
 import type * as lib_wordCount from "../lib/wordCount.js";
 import type * as migrations from "../migrations.js";
 import type * as poems from "../poems.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/guestToken": typeof lib_guestToken;
   "lib/rateLimit": typeof lib_rateLimit;
+  "lib/room": typeof lib_room;
   "lib/wordCount": typeof lib_wordCount;
   migrations: typeof migrations;
   poems: typeof poems;

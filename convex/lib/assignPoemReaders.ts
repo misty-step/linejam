@@ -34,13 +34,16 @@ interface Player {
  *
  * @param poems - All completed poems with author info
  * @param allPlayers - All players (human + AI)
+ * @param shuffler - Optional shuffle function (default: crypto-secure).
+ *                   Tests can inject an identity or deterministic shuffler.
  * @returns Map of poemId → readerId
  *
  * @throws Error if no human players (can't assign readers)
  */
 export function assignPoemReaders(
   poems: Poem[],
-  allPlayers: Player[]
+  allPlayers: Player[],
+  shuffler: <T>(arr: T[]) => T[] = shuffle
 ): Map<Id<'poems'>, Id<'users'>> {
   // Filter human players (AI can't read aloud)
   const humanPlayers = allPlayers.filter((p) => p.kind !== 'AI');
@@ -50,7 +53,7 @@ export function assignPoemReaders(
   }
 
   // Shuffle poems for randomness (avoid predictable patterns)
-  const shuffledPoems = shuffle([...poems]);
+  const shuffledPoems = shuffler([...poems]);
 
   // Round-robin assignment with derangement constraint
   const assignments = new Map<Id<'poems'>, Id<'users'>>();

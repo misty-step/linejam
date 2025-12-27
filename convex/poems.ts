@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { getUser, checkParticipation } from './lib/auth';
+import { getRoomByCode } from './lib/room';
 
 export const getPoemsForRoom = query({
   args: {
@@ -11,10 +12,7 @@ export const getPoemsForRoom = query({
     const user = await getUser(ctx, guestToken);
     if (!user) return [];
 
-    const room = await ctx.db
-      .query('rooms')
-      .withIndex('by_code', (q) => q.eq('code', roomCode.toUpperCase()))
-      .first();
+    const room = await getRoomByCode(ctx, roomCode);
     if (!room) return [];
 
     if (!(await checkParticipation(ctx, room._id, user._id))) return [];
