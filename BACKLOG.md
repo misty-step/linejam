@@ -39,46 +39,6 @@ Analyzed by: 15 specialized perspectives (complexity-archaeologist, architecture
 
 ### [PRODUCT] More exquisite corpse poetry game variants
 
-### 🔴 [CRITICAL - 3 Agents] Extract getRoomByCode helper
-
-**Cross-validated by**: complexity-archaeologist, architecture-guardian, fowler
-**Files**: convex/game.ts, convex/rooms.ts, convex/ai.ts, convex/poems.ts
-**Why**: 14 occurrences of identical room lookup boilerplate:
-
-```typescript
-const room = await ctx.db
-  .query('rooms')
-  .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
-  .first();
-```
-
-**Fix**: Extract to `convex/lib/room.ts`:
-
-```typescript
-export async function getRoomByCode(ctx, code): Promise<Doc<'rooms'> | null>;
-export async function requireRoomByCode(
-  ctx,
-  code,
-  guestToken
-): Promise<{ room; user }>;
-```
-
-**Effort**: 2h | **Impact**: Eliminates 14 duplication sites, enables evolution (caching, soft-delete)
-**Acceptance**: Zero raw room queries outside helper
-
----
-
-### 🟠 [HIGH - 2 Agents] Replace Math.random() with crypto.getRandomValues()
-
-**Cross-validated by**: security-sentinel, architecture-guardian
-**File**: convex/lib/assignmentMatrix.ts
-**Why**: Shuffle function uses `Math.random()` which is predictable. Assignment matrix determines poem authorship—theoretically exploitable.
-**Fix**: Use `crypto.getRandomValues()` for cryptographically secure shuffling.
-**Effort**: 30m | **Impact**: Secure randomization
-**Acceptance**: No Math.random() in security-relevant code
-
----
-
 ### 🟠 [HIGH - 2 Agents] Fix E2E test skipping
 
 **Cross-validated by**: Beck, maintainability-maven
