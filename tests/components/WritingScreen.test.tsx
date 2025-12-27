@@ -61,6 +61,7 @@ describe('WritingScreen component', () => {
 
     // Mock fetch at boundary - useUser calls /api/guest/session
     mockFetch.mockResolvedValue({
+      ok: true,
       json: () =>
         Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
     });

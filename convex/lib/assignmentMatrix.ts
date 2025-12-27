@@ -14,11 +14,14 @@ function secureRandomInt(max: number): number {
   let value: number;
   let iterations = 0;
   do {
+    if (iterations++ >= 100) {
+      throw new Error(
+        'secureRandomInt: Failed to generate unbiased random after 100 attempts'
+      );
+    }
     crypto.getRandomValues(randomValues);
     value = randomValues[0];
-    iterations++;
-    // Safety: prevent infinite loop (extremely unlikely - ~0.000023% rejection rate for worst case)
-  } while (value >= limit && iterations < 100);
+  } while (value >= limit);
 
   return value % max;
 }

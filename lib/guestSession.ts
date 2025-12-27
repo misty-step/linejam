@@ -23,11 +23,20 @@ export interface GuestSessionFetcher {
  */
 export const defaultGuestSessionFetcher: GuestSessionFetcher = {
   async fetch(): Promise<GuestSessionData> {
-    const res = await fetch('/api/guest/session');
-    const data = await res.json();
-    return {
-      guestId: data.guestId ?? null,
-      token: data.token ?? null,
-    };
+    try {
+      const res = await fetch('/api/guest/session');
+      if (!res.ok) {
+        throw new Error(`Guest session API returned ${res.status}`);
+      }
+      const data = await res.json();
+      return {
+        guestId: typeof data.guestId === 'string' ? data.guestId : null,
+        token: typeof data.token === 'string' ? data.token : null,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch guest session: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   },
 };

@@ -31,8 +31,9 @@ describe('useUser hook', () => {
     });
     mockCaptureError.mockImplementation(() => {});
 
-    // Mock fetch with default success response
+    // Mock fetch with default success response (include ok: true for proper HTTP response)
     mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
       json: async () => ({ guestId: 'default-guest', token: 'default-token' }),
     });
     global.fetch = mockFetch as typeof fetch;
@@ -94,6 +95,7 @@ describe('useUser hook', () => {
       token: 'signed-jwt-token',
     };
     mockFetch.mockResolvedValue({
+      ok: true,
       json: async () => mockGuestData,
     });
 
@@ -121,6 +123,7 @@ describe('useUser hook', () => {
   it('handles API response with guestId but no token', async () => {
     // Arrange - API returns guestId only, no token
     mockFetch.mockResolvedValue({
+      ok: true,
       json: async () => ({ guestId: 'guest-no-token' }),
     });
 
@@ -143,8 +146,7 @@ describe('useUser hook', () => {
 
   it('handles fetch error gracefully', async () => {
     // Arrange
-    const fetchError = new Error('Network error');
-    mockFetch.mockRejectedValue(fetchError);
+    mockFetch.mockRejectedValue(new Error('Network error'));
 
     mockUseClerkUser.mockReturnValue({
       user: null,
@@ -159,10 +161,13 @@ describe('useUser hook', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Assert
-    expect(mockCaptureError).toHaveBeenCalledWith(fetchError, {
-      operation: 'fetchGuestSession',
-    });
+    // Assert - error is wrapped by guestSession fetcher
+    expect(mockCaptureError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining('Failed to fetch guest session'),
+      }),
+      { operation: 'fetchGuestSession' }
+    );
     expect(result.current.guestId).toBeNull();
     expect(result.current.guestToken).toBeNull();
     // Hook should still mark as loaded even on error
@@ -218,6 +223,7 @@ describe('useUser hook', () => {
   it('uses "Guest" displayName when no Clerk user', async () => {
     // Arrange
     mockFetch.mockResolvedValue({
+      ok: true,
       json: async () => ({ guestId: 'guest-xyz', token: 'token-xyz' }),
     });
 
