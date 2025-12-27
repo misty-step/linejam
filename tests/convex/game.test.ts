@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
 
 // Mock Convex server functions
 vi.mock('../../convex/_generated/server', () => ({
@@ -40,18 +41,9 @@ describe('game', () => {
   let mockCtx: any;
 
   beforeEach(() => {
-    mockDb = {
-      query: vi.fn(() => mockDb),
-      withIndex: vi.fn(() => mockDb),
-      first: vi.fn(),
-      collect: vi.fn(),
-      patch: vi.fn(),
-      insert: vi.fn(),
-      get: vi.fn(),
-    };
+    mockDb = createMockDb();
     mockCtx = {
-      db: mockDb,
-      auth: { getUserIdentity: vi.fn() },
+      ...createMockCtx(mockDb),
       scheduler: { runAfter: vi.fn() },
     };
     mockGetUser.mockReset();
@@ -658,9 +650,108 @@ describe('game', () => {
         })
       );
     });
+
+    it('throws if user not found', async () => {
+      mockGetUser.mockResolvedValue(null);
+
+      await expect(
+        // @ts-expect-error - calling handler
+        revealPoem.handler(mockCtx, {
+          poemId: 'poem1',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('User not found');
+    });
+
+    it('throws if poem not found', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get.mockResolvedValue(null);
+
+      await expect(
+        // @ts-expect-error - calling handler
+        revealPoem.handler(mockCtx, {
+          poemId: 'poem1',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Poem not found');
+    });
+
+    it('throws if poem not assigned to user', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get.mockResolvedValue({
+        _id: 'poem1',
+        assignedReaderId: 'user2', // Different user
+        revealedAt: null,
+      });
+
+      await expect(
+        // @ts-expect-error - calling handler
+        revealPoem.handler(mockCtx, {
+          poemId: 'poem1',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('This poem is not assigned to you');
+    });
+
+    it('throws if poem already revealed', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get.mockResolvedValue({
+        _id: 'poem1',
+        assignedReaderId: 'user1',
+        revealedAt: 1234567890, // Already revealed
+      });
+
+      await expect(
+        // @ts-expect-error - calling handler
+        revealPoem.handler(mockCtx, {
+          poemId: 'poem1',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Poem already revealed');
+    });
   });
 
   describe('getRoundProgress', () => {
+    it('returns null when room not found', async () => {
+      mockDb.first.mockResolvedValueOnce(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getRoundProgress.handler(mockCtx, {
+        roomCode: 'TEST',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when no current game', async () => {
+      mockDb.first.mockResolvedValueOnce({
+        _id: 'room1',
+        currentGameId: null,
+      });
+
+      // @ts-expect-error - calling handler
+      const result = await getRoundProgress.handler(mockCtx, {
+        roomCode: 'TEST',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when game not found', async () => {
+      mockDb.first.mockResolvedValueOnce({
+        _id: 'room1',
+        currentGameId: 'game1',
+      });
+      mockDb.get.mockResolvedValueOnce(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getRoundProgress.handler(mockCtx, {
+        roomCode: 'TEST',
+      });
+
+      expect(result).toBeNull();
+    });
+
     it('returns progress', async () => {
       // 1. Room query
       mockDb.first.mockResolvedValueOnce({

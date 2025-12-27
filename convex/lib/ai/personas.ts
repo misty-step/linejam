@@ -94,12 +94,25 @@ export function getPersona(id: AiPersonaId): AiPersona {
 }
 
 /**
- * Pick a random persona using crypto-secure randomness.
+ * Default crypto-secure random function.
+ * Returns a random uint32.
  */
-export function pickRandomPersona(): AiPersona {
+function defaultRandomFn(): number {
   const randomBytes = new Uint32Array(1);
   crypto.getRandomValues(randomBytes);
-  const index = randomBytes[0] % PERSONA_IDS.length;
+  return randomBytes[0];
+}
+
+/**
+ * Pick a random persona.
+ *
+ * @param randomFn - Optional random number generator (default: crypto-secure).
+ *                   Tests can inject a deterministic function for reproducibility.
+ */
+export function pickRandomPersona(
+  randomFn: () => number = defaultRandomFn
+): AiPersona {
+  const index = randomFn() % PERSONA_IDS.length;
   return PERSONAS[PERSONA_IDS[index]];
 }
 

@@ -1,8 +1,20 @@
 import { useUser as useClerkUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { captureError } from '@/lib/error';
+import {
+  GuestSessionFetcher,
+  defaultGuestSessionFetcher,
+} from '@/lib/guestSession';
 
-export function useUser() {
+/**
+ * Hook for managing user identity (Clerk or guest).
+ *
+ * @param fetcher - Injectable fetcher for guest session (default: API fetch).
+ *                  Tests can inject a mock to avoid network calls.
+ */
+export function useUser(
+  fetcher: GuestSessionFetcher = defaultGuestSessionFetcher
+) {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useClerkUser();
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
@@ -12,9 +24,9 @@ export function useUser() {
     // Wait for Clerk to load first
     if (!isClerkLoaded || typeof window === 'undefined') return;
 
-    // Fetch guest session from API
-    fetch('/api/guest/session')
-      .then((res) => res.json())
+    // Fetch guest session via injectable fetcher
+    fetcher
+      .fetch()
       .then((data) => {
         if (data.guestId) {
           setGuestId(data.guestId);
@@ -29,7 +41,7 @@ export function useUser() {
         // Client-side error - Sentry will capture, no need for server logger
         setIsLoaded(true);
       });
-  }, [isClerkLoaded]);
+  }, [isClerkLoaded, fetcher]);
 
   const isLoading = !isLoaded;
 

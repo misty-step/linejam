@@ -1,8 +1,24 @@
 import { vi } from 'vitest';
 
 /**
+ * Creates a mock query builder for withIndex callbacks.
+ * Calling methods returns this, enabling chained eq() calls.
+ */
+function createMockQueryBuilder() {
+  const builder: { eq: ReturnType<typeof vi.fn> } = {
+    eq: vi.fn(function (this: typeof builder) {
+      return this;
+    }),
+  };
+  return builder;
+}
+
+/**
  * Creates a mock Convex database with chainable query methods.
  * Used for testing Convex mutations and queries without a real database.
+ *
+ * The withIndex mock calls the provided callback to ensure arrow functions
+ * are executed for proper function coverage tracking.
  *
  * @returns Mock database object with spy functions
  */
@@ -11,7 +27,15 @@ export function createMockDb() {
     query: vi.fn(function (this: typeof mockDb) {
       return this;
     }),
-    withIndex: vi.fn(function (this: typeof mockDb) {
+    withIndex: vi.fn(function (
+      this: typeof mockDb,
+      _indexName: string,
+      callback?: (q: ReturnType<typeof createMockQueryBuilder>) => unknown
+    ) {
+      // Call the callback to ensure arrow functions are executed (for coverage)
+      if (callback) {
+        callback(createMockQueryBuilder());
+      }
       return this;
     }),
     order: vi.fn(function (this: typeof mockDb) {
