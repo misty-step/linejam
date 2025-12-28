@@ -176,7 +176,7 @@ test.describe('Complete Game Flow', () => {
       await hostPage.getByRole('button', { name: /Seal Your Line/i }).click();
 
       // Wait for host's waiting state (submitted but waiting for others)
-      await expect(hostPage.getByText(/Waiting/i)).toBeVisible({
+      await expect(hostPage.getByText(/Others are writing/i)).toBeVisible({
         timeout: 15000,
       });
 
