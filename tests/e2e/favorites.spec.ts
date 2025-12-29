@@ -1,32 +1,14 @@
-import { test, expect, Locator } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 /**
  * E2E Test: Favorites Flow
  *
- * Tests the personal archive page and favorites display.
- *
- * Note: Full favorites testing (toggle, persist, unfavorite) requires seeded data.
- * Opt-in by providing:
- *  - E2E_FAVORITES_ENABLED=true
- *  - E2E_FAVORITES_POEM_ID=<poem Id<'poems'> visible to the guest>
- *  - E2E_FAVORITES_POEM_PREVIEW=<preview snippet shown on archive card>
- *  - E2E_FAVORITES_GUEST_TOKEN=<linejam_guest_token cookie for a player who wrote in that room>
- *
- * Without these env vars, the toggle tests are skipped; structural archive tests still run.
+ * Tests the personal archive page structure and navigation.
+ * Favorites toggle/persistence is covered by unit tests (tests/convex/favorites.test.ts).
  */
 
 // Run tests serially for consistent state
 test.describe.configure({ mode: 'serial' });
-
-const favoritesEnabled =
-  process.env.E2E_FAVORITES_ENABLED === 'true' &&
-  !!process.env.E2E_FAVORITES_POEM_ID &&
-  !!process.env.E2E_FAVORITES_GUEST_TOKEN &&
-  !!process.env.E2E_FAVORITES_POEM_PREVIEW;
-
-const POEM_ID = process.env.E2E_FAVORITES_POEM_ID!;
-const GUEST_TOKEN = process.env.E2E_FAVORITES_GUEST_TOKEN!;
-const POEM_PREVIEW = process.env.E2E_FAVORITES_POEM_PREVIEW!;
 
 test.describe('Personal Archive Page', () => {
   test('archive page loads and shows empty state', async ({ page }) => {
@@ -120,75 +102,4 @@ test.describe('Favorites Feature Structure', () => {
   //
   // For now, the favorites toggle/persistence is covered by unit tests:
   // - tests/convex/favorites.test.ts (16 tests)
-});
-
-const favoritesSuite = favoritesEnabled ? test.describe : test.describe.skip;
-
-favoritesSuite('Favorites toggle (requires seeded poem + guest token)', () => {
-  const isFavorited = async (heart: Locator) =>
-    (await heart.getAttribute('fill')) === 'currentColor';
-
-  const setFavoriteState = async (
-    heart: Locator,
-    toggleButton: Locator,
-    shouldBeFavorited: boolean
-  ) => {
-    const currentlyFavorited = await isFavorited(heart);
-    if (currentlyFavorited !== shouldBeFavorited) {
-      await toggleButton.click();
-      await expect
-        .poll(() => isFavorited(heart), { timeout: 10000 })
-        .toBe(shouldBeFavorited);
-    }
-  };
-
-  test.beforeEach(async ({ context }) => {
-    await context.addCookies([
-      {
-        name: 'linejam_guest_token',
-        value: GUEST_TOKEN,
-        domain: 'localhost',
-        path: '/',
-        httpOnly: true,
-        sameSite: 'Lax',
-      },
-    ]);
-  });
-
-  test('user can favorite a poem and see it in Marked Works', async ({
-    page,
-  }) => {
-    await page.goto(`/poem/${POEM_ID}`, { waitUntil: 'networkidle' });
-
-    const toggleButton = page.getByLabel('Toggle favorite');
-    const heart = toggleButton.locator('svg');
-
-    await setFavoriteState(heart, toggleButton, true);
-
-    await page.goto('/me/poems', { waitUntil: 'networkidle' });
-
-    const favorites = page
-      .locator('[data-testid="favorite-card"]')
-      .filter({ hasText: POEM_PREVIEW });
-
-    await expect(favorites).toHaveCount(1);
-  });
-
-  test('user can unfavorite a poem and it disappears from Marked Works', async ({
-    page,
-  }) => {
-    await page.goto(`/poem/${POEM_ID}`, { waitUntil: 'networkidle' });
-    const toggleButton = page.getByLabel('Toggle favorite');
-    const heart = toggleButton.locator('svg');
-
-    await setFavoriteState(heart, toggleButton, false);
-
-    await page.goto('/me/poems', { waitUntil: 'networkidle' });
-
-    const favorites = page
-      .locator('[data-testid="favorite-card"]')
-      .filter({ hasText: POEM_PREVIEW });
-
-    await expect(favorites).toHaveCount(0);
-  });
 });
