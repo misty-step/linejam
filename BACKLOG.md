@@ -39,17 +39,6 @@ Analyzed by: 15 specialized perspectives (complexity-archaeologist, architecture
 
 ### [PRODUCT] More exquisite corpse poetry game variants
 
-### 🟠 [HIGH - 2 Agents] Fix E2E test skipping
-
-**Cross-validated by**: Beck, maintainability-maven
-**Files**: tests/e2e/\*.spec.ts (5 files with test.skip)
-**Why**: Skipped tests destroy refactoring confidence. Can't split game.ts safely without E2E coverage.
-**Fix**: Either fix skipped tests or delete them. No `test.skip` in CI.
-**Effort**: 2-3h | **Impact**: Refactoring confidence restored
-**Acceptance**: Zero test.skip in E2E tests
-
----
-
 ### 🟠 [HIGH] Add beforeunload warning in WritingScreen
 
 **File**: components/WritingScreen.tsx
