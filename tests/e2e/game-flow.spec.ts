@@ -170,7 +170,7 @@ test.describe('Complete Game Flow', () => {
       'end', // Round 9: 1 word
     ];
 
-    for (let round = 0; round < 9; round++) {
+    for (let round = 0; round < lines.length; round++) {
       // Host submits
       await hostPage.getByRole('textbox').fill(lines[round]);
       await hostPage.getByRole('button', { name: /Seal Your Line/i }).click();
@@ -185,31 +185,37 @@ test.describe('Complete Game Flow', () => {
       await guestPage.getByRole('button', { name: /Seal Your Line/i }).click();
 
       // Wait for next round or reveal
-      if (round < 8) {
-        await expect(hostPage.getByText(`Round ${round + 2} / 9`)).toBeVisible({
-          timeout: 15000,
-        });
-        await expect(guestPage.getByText(`Round ${round + 2} / 9`)).toBeVisible(
-          { timeout: 15000 }
-        );
+      if (round < lines.length - 1) {
+        await Promise.all([
+          expect(hostPage.getByText(`Round ${round + 2} / 9`)).toBeVisible({
+            timeout: 15000,
+          }),
+          expect(guestPage.getByText(`Round ${round + 2} / 9`)).toBeVisible({
+            timeout: 15000,
+          }),
+        ]);
       }
     }
 
     // After round 9, both should see reveal phase
-    await expect(
-      hostPage.getByRole('heading', { name: /Reading Phase/i })
-    ).toBeVisible({ timeout: 30000 });
-    await expect(
-      guestPage.getByRole('heading', { name: /Reading Phase/i })
-    ).toBeVisible({ timeout: 30000 });
+    await Promise.all([
+      expect(
+        hostPage.getByRole('heading', { name: /Reading Phase/i })
+      ).toBeVisible({ timeout: 30000 }),
+      expect(
+        guestPage.getByRole('heading', { name: /Reading Phase/i })
+      ).toBeVisible({ timeout: 30000 }),
+    ]);
 
     // Both players should have poems to reveal (each player reads one poem in 2-player game)
-    await expect(
-      hostPage.getByRole('button', { name: /Reveal & Read/i })
-    ).toBeVisible();
-    await expect(
-      guestPage.getByRole('button', { name: /Reveal & Read/i })
-    ).toBeVisible();
+    await Promise.all([
+      expect(
+        hostPage.getByRole('button', { name: /Reveal & Read/i })
+      ).toBeVisible(),
+      expect(
+        guestPage.getByRole('button', { name: /Reveal & Read/i })
+      ).toBeVisible(),
+    ]);
 
     // Host reveals their assigned poem
     await hostPage.getByRole('button', { name: /Reveal & Read/i }).click();
@@ -224,11 +230,17 @@ test.describe('Complete Game Flow', () => {
     // Guest reveals their assigned poem
     await guestPage.getByRole('button', { name: /Reveal & Read/i }).click();
     await expect(guestPage.getByText('poetry')).toBeVisible({ timeout: 10000 });
+    await expect(guestPage.getByText('end')).toBeVisible();
     await guestPage.getByRole('button', { name: /Close|Done|Back/i }).click();
 
     // After both reveal, should show "Session Complete"
-    await expect(
-      hostPage.getByRole('heading', { name: /Session Complete/i })
-    ).toBeVisible({ timeout: 15000 });
+    await Promise.all([
+      expect(
+        hostPage.getByRole('heading', { name: /Session Complete/i })
+      ).toBeVisible({ timeout: 15000 }),
+      expect(
+        guestPage.getByRole('heading', { name: /Session Complete/i })
+      ).toBeVisible({ timeout: 15000 }),
+    ]);
   });
 });
