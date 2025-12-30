@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+import { mutation, query, internalMutation } from './_generated/server';
 import { internal } from './_generated/api';
 import {
   generateAssignmentMatrix,
@@ -7,7 +7,12 @@ import {
 } from './lib/assignmentMatrix';
 import { countWords } from './lib/wordCount';
 import { getUser } from './lib/auth';
-import { getRoomByCode, requireRoomByCode } from './lib/room';
+import {
+  getRoomByCode,
+  requireRoomByCode,
+  getActiveGame,
+  getCompletedGame,
+} from './lib/room';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
 
@@ -23,7 +28,10 @@ export const startGame = mutation({
     const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can start game');
-    if (room.status !== 'LOBBY') throw new Error('Game already started');
+
+    // Check no game is currently in progress (authoritative check)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) throw new Error('Game already in progress');
 
     const players = await ctx.db
       .query('roomPlayers')
@@ -91,31 +99,19 @@ export const startNewCycle = mutation({
     const room = await requireRoomByCode(ctx, roomCode);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can start new cycle');
-    if (room.status !== 'COMPLETED')
-      throw new Error('Current cycle not completed');
+
+    // Check that there's a completed game (authoritative check)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) throw new Error('Game still in progress');
+
+    const completedGame = await getCompletedGame(ctx, room._id);
+    if (!completedGame) throw new Error('No completed game to continue from');
 
     // Reset room to LOBBY for the next cycle
-    // We do NOT create the game here; startGame handles that when the host clicks "Start"
-    // This allows players to join/leave in the lobby before the next cycle begins.
+    // Keep room.status for backward compatibility with frontend
     await ctx.db.patch(room._id, {
       status: 'LOBBY',
-      // We keep the currentCycle count; startGame will increment it or we can increment it here?
-      // Let's increment it here to indicate we are preparing for the next one.
-      // But startGame above does `(room.currentCycle || 0) + 1`.
-      // If we increment here, startGame should just use it.
-      // Let's standardise:
-      // 1. First game: currentCycle undefined -> startGame sets to 1.
-      // 2. Replay: currentCycle 1. startNewCycle -> sets to 1 (no change? or 2?).
-      //    If we set to 2 here, startGame shouldn't increment again.
-      //    Let's make startGame use `room.currentCycle || 1`.
-      //    And startNewCycle increments it? No, wait.
-      //    If room is LOBBY, currentCycle should be the *pending* cycle?
-      //    Or currentCycle is the *last* cycle?
-      //    Let's say currentCycle tracks the *active* or *last completed* cycle.
-      //    Safest: startGame determines the cycle number.
-      //    New Cycle Number = (room.currentCycle || 0) + 1.
-      //    So startNewCycle just resets status.
-      currentGameId: undefined, // Clear current game so clients show Lobby
+      currentGameId: undefined,
     });
   },
 });
@@ -132,11 +128,9 @@ export const getCurrentAssignment = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
-    // If no current game (Lobby), return null
-    if (!room.currentGameId) return null;
-
-    const game = await ctx.db.get(room.currentGameId);
-    if (!game || game.status !== 'IN_PROGRESS') return null;
+    // Get active game (authoritative source)
+    const game = await getActiveGame(ctx, room._id);
+    if (!game) return null;
 
     const currentRound = game.currentRound;
     const roundAssignments = game.assignmentMatrix[currentRound];
@@ -187,22 +181,44 @@ export const submitLine = mutation({
     const poem = await ctx.db.get(poemId);
     if (!poem) throw new Error('Poem not found');
 
+    // Get game directly from poem (stable, immutable reference)
+    // This avoids race conditions from room.currentGameId pointer
+    const game = await ctx.db.get(poem.gameId);
+    if (!game) throw new Error('Game not found');
+
+    // Fetch room for completion logic (host assignment)
     const room = await ctx.db.get(poem.roomId);
     if (!room) throw new Error('Room not found');
 
-    if (!room.currentGameId) throw new Error('No active game');
+    // Check if already submitted (idempotent - silently succeed if already done)
+    const existing = await ctx.db
+      .query('lines')
+      .withIndex('by_poem_index', (q) =>
+        q.eq('poemId', poemId).eq('indexInPoem', lineIndex)
+      )
+      .first();
+    if (existing) {
+      // Already submitted - idempotent success
+      return;
+    }
 
-    const game = await ctx.db.get(room.currentGameId);
+    // Validate game state with grace for race conditions:
+    // - Allow submissions for current round OR past rounds (late arrivals)
+    // - For final round (8), also accept if game just became COMPLETED
+    const isFinalRound = lineIndex === 8;
+    const gameInProgress = game.status === 'IN_PROGRESS';
+    const gameJustCompleted = game.status === 'COMPLETED' && isFinalRound;
 
-    if (!game || game.status !== 'IN_PROGRESS')
+    if (!gameInProgress && !gameJustCompleted) {
       throw new Error('Game not in progress');
+    }
 
-    // Ensure the poem belongs to the current game
-    if (poem.gameId !== game._id) throw new Error('Poem from different game');
+    // Prevent early submissions (future rounds)
+    if (lineIndex > game.currentRound && gameInProgress) {
+      throw new Error('Round not started yet');
+    }
 
-    if (game.currentRound !== lineIndex) throw new Error('Wrong round');
-
-    // Validate assignment
+    // Validate assignment (immutable matrix - always stable)
     const assignedUserId = game.assignmentMatrix[lineIndex][poem.indexInRoom];
     if (assignedUserId !== user._id) throw new Error('Not your turn');
 
@@ -212,15 +228,6 @@ export const submitLine = mutation({
     if (wordCount !== expectedCount) {
       throw new Error(`Expected ${expectedCount} words, got ${wordCount}`);
     }
-
-    // Check if already submitted
-    const existing = await ctx.db
-      .query('lines')
-      .withIndex('by_poem_index', (q) =>
-        q.eq('poemId', poemId).eq('indexInPoem', lineIndex)
-      )
-      .first();
-    if (existing) throw new Error('Already submitted');
 
     await ctx.db.insert('lines', {
       poemId,
@@ -311,6 +318,13 @@ export const submitLine = mutation({
             assignedReaderId: finalReaderId,
           });
         }
+
+        // Schedule auto-start of next game after reveal period (30 seconds)
+        // This can be cancelled by host going to lobby via startNewCycle
+        await ctx.scheduler.runAfter(30_000, internal.game.autoStartNextGame, {
+          roomId: poem.roomId,
+          previousGameId: game._id,
+        });
       }
     }
   },
@@ -326,11 +340,10 @@ export const getRevealPhaseState = query({
     if (!user) return null;
 
     const room = await getRoomByCode(ctx, roomCode);
-    if (!room || room.status !== 'COMPLETED' || !room.currentGameId)
-      return null;
+    if (!room) return null;
 
-    // Get game to verify it's the one we expect (optional but good for consistency)
-    const game = await ctx.db.get(room.currentGameId);
+    // Get most recently completed game (authoritative source)
+    const game = await getCompletedGame(ctx, room._id);
     if (!game) return null;
 
     const poems = await ctx.db
@@ -465,6 +478,9 @@ export const getRevealPhaseState = query({
           aiPersonaId: userRecord?.aiPersonaId,
         };
       }),
+      // For auto-start countdown (30s after game completion)
+      gameCompletedAt: game.completedAt,
+      autoStartDelayMs: 30_000,
     };
   },
 });
@@ -501,9 +517,10 @@ export const getRoundProgress = query({
   },
   handler: async (ctx, { roomCode }) => {
     const room = await getRoomByCode(ctx, roomCode);
-    if (!room || !room.currentGameId) return null;
+    if (!room) return null;
 
-    const game = await ctx.db.get(room.currentGameId);
+    // Get active game (authoritative source)
+    const game = await getActiveGame(ctx, room._id);
     if (!game) return null;
 
     const roomPlayers = await ctx.db
@@ -571,5 +588,87 @@ export const getRoundProgress = query({
       round: game.currentRound,
       players: progress,
     };
+  },
+});
+
+/**
+ * Auto-start a new game after the reveal period.
+ * Called by a scheduler after game completion.
+ * Silently skips if:
+ * - A game is already in progress (host started manually)
+ * - Not enough players remain
+ * - Room was reset to lobby (host chose not to continue)
+ */
+export const autoStartNextGame = internalMutation({
+  args: {
+    roomId: v.id('rooms'),
+    previousGameId: v.id('games'),
+  },
+  handler: async (ctx, { roomId, previousGameId }) => {
+    const room = await ctx.db.get(roomId);
+    if (!room) return;
+
+    // Check the previous game is still the most recent completed game
+    // (host hasn't already started a new game)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) return; // Already started
+
+    const completedGame = await getCompletedGame(ctx, room._id);
+    if (!completedGame || completedGame._id !== previousGameId) return;
+
+    // Check room is still in COMPLETED state (host hasn't reset to lobby)
+    if (room.status === 'LOBBY') return;
+
+    // Check enough players
+    const players = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+
+    if (players.length < 2) return; // Not enough players
+
+    // Auto-start the new game!
+    // Re-shuffle seats for variety
+    const shuffledPlayers = secureShuffle([...players]);
+    for (let i = 0; i < shuffledPlayers.length; i++) {
+      await ctx.db.patch(shuffledPlayers[i]._id, { seatIndex: i });
+    }
+
+    const playerIds = shuffledPlayers.map((p) => p.userId);
+    const assignmentMatrix = generateAssignmentMatrix(playerIds);
+
+    const gameId = await ctx.db.insert('games', {
+      roomId: room._id,
+      status: 'IN_PROGRESS',
+      cycle: (room.currentCycle || 0) + 1,
+      currentRound: 0,
+      assignmentMatrix,
+      createdAt: Date.now(),
+    });
+
+    // Create poems
+    for (let i = 0; i < players.length; i++) {
+      await ctx.db.insert('poems', {
+        roomId: room._id,
+        gameId,
+        indexInRoom: i,
+        createdAt: Date.now(),
+      });
+    }
+
+    // Update room
+    await ctx.db.patch(room._id, {
+      status: 'IN_PROGRESS',
+      currentGameId: gameId,
+      currentCycle: (room.currentCycle || 0) + 1,
+      startedAt: Date.now(),
+    });
+
+    // Schedule AI turn
+    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
+      roomId: room._id,
+      gameId,
+      round: 0,
+    });
   },
 });

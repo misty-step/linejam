@@ -320,4 +320,49 @@ describe('WritingScreen component', () => {
       expect(textarea).toHaveAttribute('aria-invalid', 'false');
     });
   });
+
+  describe('live region announcements', () => {
+    // Helper to find the screen reader live region (not WordSlots)
+    const getLiveRegion = (container: HTMLElement) => {
+      return container.querySelector('[aria-live="polite"][class*="sr-only"]');
+    };
+
+    it('announces "Remove 1 word" when exactly 1 word over target', async () => {
+      // Arrange - Round 1 requires 1 word (default mock)
+      const user = userEvent.setup();
+      const { container } = render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Act - Type 2 words (1 over the target of 1)
+      await user.type(textarea, 'Hello world');
+
+      // Assert - Wait for debounced live region to update
+      await waitFor(
+        () => {
+          const liveRegion = getLiveRegion(container);
+          expect(liveRegion).toHaveTextContent('Remove 1 word');
+        },
+        { timeout: 1000 }
+      );
+    });
+
+    it('announces "Remove X words" when multiple words over target', async () => {
+      // Arrange - Round 1 requires 1 word (default mock)
+      const user = userEvent.setup();
+      const { container } = render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Act - Type 3 words (2 over the target of 1)
+      await user.type(textarea, 'One two three');
+
+      // Assert - Wait for debounced live region to update
+      await waitFor(
+        () => {
+          const liveRegion = getLiveRegion(container);
+          expect(liveRegion).toHaveTextContent('Remove 2 words');
+        },
+        { timeout: 1000 }
+      );
+    });
+  });
 });

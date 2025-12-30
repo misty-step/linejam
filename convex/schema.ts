@@ -44,11 +44,7 @@ export default defineSchema({
 
   games: defineTable({
     roomId: v.id('rooms'),
-    status: v.union(
-      v.literal('LOBBY'),
-      v.literal('IN_PROGRESS'),
-      v.literal('COMPLETED')
-    ),
+    status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
     cycle: v.number(),
     currentRound: v.number(),
     assignmentMatrix: v.array(v.array(v.id('users'))),
@@ -56,7 +52,8 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
-    .index('by_room_cycle', ['roomId', 'cycle']),
+    .index('by_room_cycle', ['roomId', 'cycle'])
+    .index('by_room_status', ['roomId', 'status']),
 
   poems: defineTable({
     roomId: v.id('rooms'),

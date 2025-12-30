@@ -33,6 +33,16 @@ vi.mock('../../convex/lib/rateLimit', () => ({
   checkRateLimit: (...args: unknown[]) => mockCheckRateLimit(...args),
 }));
 
+// Mock room helpers
+const mockGetRoomByCode = vi.fn();
+const mockRequireRoomByCode = vi.fn();
+const mockGetActiveGame = vi.fn();
+vi.mock('../../convex/lib/room', () => ({
+  getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
+  requireRoomByCode: (...args: unknown[]) => mockRequireRoomByCode(...args),
+  getActiveGame: (...args: unknown[]) => mockGetActiveGame(...args),
+}));
+
 describe('rooms', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockDb: any;
@@ -45,6 +55,9 @@ describe('rooms', () => {
     mockEnsureUserHelper.mockReset();
     mockGetUser.mockReset();
     mockCheckRateLimit.mockReset();
+    mockGetRoomByCode.mockReset();
+    mockRequireRoomByCode.mockReset();
+    mockGetActiveGame.mockReset();
   });
 
   describe('createRoom', () => {
@@ -52,7 +65,7 @@ describe('rooms', () => {
       // Arrange
       mockEnsureUserHelper.mockResolvedValue({ _id: 'user1' });
       mockCheckRateLimit.mockResolvedValue(undefined);
-      mockDb.first.mockResolvedValue(null); // No existing room with this code
+      mockGetRoomByCode.mockResolvedValue(null); // No existing room with this code
       mockDb.insert
         .mockResolvedValueOnce('room1') // room insert
         .mockResolvedValueOnce('player1'); // roomPlayer insert
@@ -82,7 +95,7 @@ describe('rooms', () => {
       // Arrange
       mockEnsureUserHelper.mockResolvedValue({ _id: 'user1' });
       mockCheckRateLimit.mockResolvedValue(undefined);
-      mockDb.first.mockResolvedValue(null);
+      mockGetRoomByCode.mockResolvedValue(null);
       mockDb.insert
         .mockResolvedValueOnce('room1')
         .mockResolvedValueOnce('player1');
@@ -131,7 +144,7 @@ describe('rooms', () => {
       // Arrange
       mockEnsureUserHelper.mockResolvedValue({ _id: 'user1' });
       mockCheckRateLimit.mockResolvedValue(undefined);
-      mockDb.first
+      mockGetRoomByCode
         .mockResolvedValueOnce({ _id: 'existingRoom' }) // First code collides
         .mockResolvedValueOnce(null); // Second code is unique
       mockDb.insert
@@ -146,14 +159,14 @@ describe('rooms', () => {
       });
 
       // Assert
-      expect(mockDb.first).toHaveBeenCalledTimes(2);
+      expect(mockGetRoomByCode).toHaveBeenCalledTimes(2);
     });
 
     it('returns room ID and code on success', async () => {
       // Arrange
       mockEnsureUserHelper.mockResolvedValue({ _id: 'user1' });
       mockCheckRateLimit.mockResolvedValue(undefined);
-      mockDb.first.mockResolvedValue(null);
+      mockGetRoomByCode.mockResolvedValue(null);
       mockDb.insert
         .mockResolvedValueOnce('room1')
         .mockResolvedValueOnce('player1');
@@ -182,11 +195,10 @@ describe('rooms', () => {
         _id: 'room1',
         code: 'ABCD',
         hostUserId: 'user1',
-        status: 'LOBBY',
       };
-      mockDb.first
-        .mockResolvedValueOnce(room) // Room lookup
-        .mockResolvedValueOnce(null); // No existing roomPlayer
+      mockRequireRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null); // No game in progress (lobby)
+      mockDb.first.mockResolvedValueOnce(null); // No existing roomPlayer
       mockDb.collect.mockResolvedValue([{ userId: 'user1' }]); // Current players
       mockDb.insert.mockResolvedValue('player2');
 
@@ -211,14 +223,15 @@ describe('rooms', () => {
       );
     });
 
-    it('throws error when room is IN_PROGRESS', async () => {
+    it('throws error when room has game in progress', async () => {
       // Arrange
       mockEnsureUserHelper.mockResolvedValue({ _id: 'user2' });
       mockCheckRateLimit.mockResolvedValue(undefined);
-      mockDb.first.mockResolvedValue({
-        _id: 'room1',
-        status: 'IN_PROGRESS',
-      });
+      const room = { _id: 'room1', code: 'ABCD' };
+      const activeGame = { _id: 'game1', status: 'IN_PROGRESS' };
+
+      mockRequireRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(activeGame);
 
       // Act & Assert
       await expect(
@@ -228,16 +241,17 @@ describe('rooms', () => {
           displayName: 'Bob',
           guestToken: 'token456',
         })
-      ).rejects.toThrow('Cannot join a room that is not in LOBBY status');
+      ).rejects.toThrow('Cannot join a room with a game in progress');
     });
 
     it('throws error when room is at capacity (8 players)', async () => {
       // Arrange
       mockEnsureUserHelper.mockResolvedValue({ _id: 'user9' });
       mockCheckRateLimit.mockResolvedValue(undefined);
-      mockDb.first
-        .mockResolvedValueOnce({ _id: 'room1', status: 'LOBBY' })
-        .mockResolvedValueOnce(null); // No existing roomPlayer
+      const room = { _id: 'room1', code: 'ABCD' };
+      mockRequireRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null); // No game in progress
+      mockDb.first.mockResolvedValueOnce(null); // No existing roomPlayer
       mockDb.collect.mockResolvedValue(
         Array.from({ length: 8 }, (_, i) => ({ userId: `user${i + 1}` }))
       );
@@ -279,7 +293,7 @@ describe('rooms', () => {
       // Arrange
       mockEnsureUserHelper.mockResolvedValue({ _id: 'user2' });
       mockCheckRateLimit.mockResolvedValue(undefined);
-      mockDb.first.mockResolvedValue(null); // Room not found
+      mockRequireRoomByCode.mockRejectedValue(new Error('Room not found'));
 
       // Act & Assert
       await expect(
@@ -299,11 +313,11 @@ describe('rooms', () => {
       const room = {
         _id: 'room1',
         code: 'ABCD',
-        status: 'LOBBY',
       };
-      mockDb.first
-        .mockResolvedValueOnce(room) // Room lookup
-        .mockResolvedValueOnce({ userId: 'user1', roomId: 'room1' }); // Existing roomPlayer
+
+      mockRequireRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null); // No game in progress (lobby)
+      mockDb.first.mockResolvedValueOnce({ userId: 'user1', roomId: 'room1' }); // Existing roomPlayer
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -328,7 +342,7 @@ describe('rooms', () => {
         hostUserId: 'user1',
         status: 'LOBBY',
       };
-      mockDb.first.mockResolvedValue(room);
+      mockGetRoomByCode.mockResolvedValue(room);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -336,12 +350,12 @@ describe('rooms', () => {
 
       // Assert
       expect(result).toEqual(room);
-      expect(mockDb.query).toHaveBeenCalledWith('rooms');
+      expect(mockGetRoomByCode).toHaveBeenCalledWith(mockCtx, 'ABCD');
     });
 
     it('returns null when room not found', async () => {
       // Arrange
-      mockDb.first.mockResolvedValue(null);
+      mockGetRoomByCode.mockResolvedValue(null);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -354,17 +368,14 @@ describe('rooms', () => {
     it('normalizes code to uppercase', async () => {
       // Arrange
       const room = { _id: 'room1', code: 'ABCD' };
-      mockDb.first.mockResolvedValue(room);
+      mockGetRoomByCode.mockResolvedValue(room);
 
       // Act
       // @ts-expect-error - calling handler directly for test
       await getRoom.handler(mockCtx, { code: 'abcd' });
 
-      // Assert
-      expect(mockDb.withIndex).toHaveBeenCalledWith(
-        'by_code',
-        expect.any(Function)
-      );
+      // Assert - getRoomByCode is called with the original input; it normalizes internally
+      expect(mockGetRoomByCode).toHaveBeenCalledWith(mockCtx, 'abcd');
     });
   });
 
@@ -381,7 +392,7 @@ describe('rooms', () => {
         { userId: 'user1', displayName: 'Alice' },
         { userId: 'user2', displayName: 'Bob' },
       ];
-      mockDb.first.mockResolvedValue(room);
+      mockGetRoomByCode.mockResolvedValue(room);
       mockDb.collect.mockResolvedValue(players);
       mockGetUser.mockResolvedValue({ _id: 'user1' });
 
@@ -411,7 +422,7 @@ describe('rooms', () => {
         hostUserId: 'user1',
       };
       const players = [{ userId: 'user2', displayName: 'Bob' }];
-      mockDb.first.mockResolvedValue(room);
+      mockGetRoomByCode.mockResolvedValue(room);
       mockDb.collect.mockResolvedValue(players);
       mockGetUser.mockResolvedValue({ _id: 'user2' });
 
@@ -428,7 +439,7 @@ describe('rooms', () => {
 
     it('returns null when room not found', async () => {
       // Arrange
-      mockDb.first.mockResolvedValue(null);
+      mockGetRoomByCode.mockResolvedValue(null);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -449,7 +460,6 @@ describe('rooms', () => {
         _id: 'room1',
         code: 'ABCD',
         hostUserId: 'user1',
-        status: 'LOBBY',
       };
       const roomPlayer = {
         _id: 'player2',
@@ -457,9 +467,9 @@ describe('rooms', () => {
         userId: 'user2',
       };
       mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockDb.first
-        .mockResolvedValueOnce(room) // Room lookup
-        .mockResolvedValueOnce(roomPlayer); // RoomPlayer lookup
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null); // No game in progress (lobby)
+      mockDb.first.mockResolvedValueOnce(roomPlayer); // RoomPlayer lookup
       mockDb.delete.mockResolvedValue(undefined);
 
       // Act
@@ -479,10 +489,10 @@ describe('rooms', () => {
         _id: 'room1',
         code: 'ABCD',
         hostUserId: 'user1',
-        status: 'LOBBY',
       };
       mockGetUser.mockResolvedValue({ _id: 'user1' }); // User is host
-      mockDb.first.mockResolvedValueOnce(room);
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null); // No game in progress
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -495,16 +505,17 @@ describe('rooms', () => {
       expect(mockDb.delete).not.toHaveBeenCalled();
     });
 
-    it('does nothing when room is not in LOBBY status', async () => {
+    it('does nothing when game is in progress', async () => {
       // Arrange
       const room = {
         _id: 'room1',
         code: 'ABCD',
         hostUserId: 'user1',
-        status: 'IN_PROGRESS',
       };
+      const activeGame = { _id: 'game1', status: 'IN_PROGRESS' };
       mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockDb.first.mockResolvedValueOnce(room);
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(activeGame);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -536,7 +547,7 @@ describe('rooms', () => {
     it('does nothing when room not found', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockDb.first.mockResolvedValueOnce(null);
+      mockGetRoomByCode.mockResolvedValue(null);
 
       // Act
       // @ts-expect-error - calling handler directly for test
