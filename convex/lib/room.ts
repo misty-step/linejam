@@ -44,9 +44,10 @@ export async function getCompletedGame(
 ): Promise<Doc<'games'> | null> {
   return await ctx.db
     .query('games')
-    .withIndex('by_room', (q) => q.eq('roomId', roomId))
+    .withIndex('by_room_status', (q) =>
+      q.eq('roomId', roomId).eq('status', 'COMPLETED')
+    )
     .order('desc')
-    .filter((q) => q.eq(q.field('status'), 'COMPLETED'))
     .first();
 }
 
