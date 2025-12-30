@@ -219,6 +219,18 @@ h6 {
   }
 }
 
+/* Shape Bar Reveal - For poem shape visualization */
+@keyframes shape-bar-reveal {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 /* Custom Caret - Theme color for ceremonial typing */
 textarea:focus {
   caret-color: var(--color-primary);

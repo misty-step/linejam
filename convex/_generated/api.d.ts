@@ -9,6 +9,7 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as archive from "../archive.js";
 import type * as favorites from "../favorites.js";
 import type * as game from "../game.js";
 import type * as health from "../health.js";
@@ -39,6 +40,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  archive: typeof archive;
   favorites: typeof favorites;
   game: typeof game;
   health: typeof health;
