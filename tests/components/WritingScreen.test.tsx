@@ -320,4 +320,82 @@ describe('WritingScreen component', () => {
       expect(textarea).toHaveAttribute('aria-invalid', 'false');
     });
   });
+
+  describe('placeholder text', () => {
+    it('shows "write one word…" for round 1 (singular)', () => {
+      // Arrange - Round 1 requires 1 word
+      mockUseQuery.mockReturnValue({
+        ...mockAssignment,
+        lineIndex: 0,
+        targetWordCount: 1,
+      });
+
+      // Act
+      render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Assert
+      expect(textarea).toHaveAttribute('placeholder', 'write one word…');
+    });
+
+    it('shows "write two words…" for round 2 (plural)', () => {
+      // Arrange - Round 2 requires 2 words
+      mockUseQuery.mockReturnValue({
+        ...mockAssignment,
+        lineIndex: 1,
+        targetWordCount: 2,
+      });
+
+      // Act
+      render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Assert
+      expect(textarea).toHaveAttribute('placeholder', 'write two words…');
+    });
+
+    it('shows "write five words…" for round 5 (peak of diamond)', () => {
+      // Arrange - Round 5 requires 5 words
+      mockUseQuery.mockReturnValue(mockAssignmentRound5);
+
+      // Act
+      render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Assert
+      expect(textarea).toHaveAttribute('placeholder', 'write five words…');
+    });
+
+    it('shows "write three words…" for round 3', () => {
+      // Arrange - Round 3 requires 3 words
+      mockUseQuery.mockReturnValue({
+        ...mockAssignment,
+        lineIndex: 2,
+        targetWordCount: 3,
+      });
+
+      // Act
+      render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Assert
+      expect(textarea).toHaveAttribute('placeholder', 'write three words…');
+    });
+
+    it('shows "write four words…" for round 4', () => {
+      // Arrange - Round 4 requires 4 words
+      mockUseQuery.mockReturnValue({
+        ...mockAssignment,
+        lineIndex: 3,
+        targetWordCount: 4,
+      });
+
+      // Act
+      render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Assert
+      expect(textarea).toHaveAttribute('placeholder', 'write four words…');
+    });
+  });
 });
