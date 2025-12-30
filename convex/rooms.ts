@@ -3,11 +3,7 @@ import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser } from './lib/auth';
 import { checkRateLimit } from './lib/rateLimit';
-import {
-  getRoomByCode,
-  requireRoomByCode,
-  getActiveGame,
-} from './lib/room';
+import { getRoomByCode, requireRoomByCode, getActiveGame } from './lib/room';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';

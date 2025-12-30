@@ -113,7 +113,10 @@ describe('game', () => {
         _id: 'room1',
         hostUserId: 'user1',
       });
-      mockGetActiveGame.mockResolvedValue({ _id: 'game1', status: 'IN_PROGRESS' });
+      mockGetActiveGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'IN_PROGRESS',
+      });
 
       await expect(
         // @ts-expect-error - calling handler directly for test
@@ -152,7 +155,10 @@ describe('game', () => {
       };
       mockRequireRoomByCode.mockResolvedValue(room);
       mockGetActiveGame.mockResolvedValue(null);
-      mockGetCompletedGame.mockResolvedValue({ _id: 'game1', status: 'COMPLETED' });
+      mockGetCompletedGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'COMPLETED',
+      });
 
       // @ts-expect-error - calling handler directly for test
       await startNewCycle.handler(mockCtx, {
@@ -422,7 +428,10 @@ describe('game', () => {
           _id: 'game1',
           status: 'IN_PROGRESS',
           currentRound: 0, // Currently round 0
-          assignmentMatrix: [['user1', 'user2'], ['user2', 'user1']],
+          assignmentMatrix: [
+            ['user1', 'user2'],
+            ['user2', 'user1'],
+          ],
         }) // game (via poem.gameId)
         .mockResolvedValueOnce({ _id: 'room1' }); // room
 

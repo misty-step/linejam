@@ -291,7 +291,9 @@ describe('RevealPhase component', () => {
     render(<RevealPhase roomCode="ABCD" />);
 
     // Act
-    const newRoundButton = screen.getByRole('button', { name: /Back to Lobby/i });
+    const newRoundButton = screen.getByRole('button', {
+      name: /Back to Lobby/i,
+    });
     await user.click(newRoundButton);
 
     // Assert
@@ -370,7 +372,9 @@ describe('RevealPhase component', () => {
     render(<RevealPhase roomCode="ABCD" />);
 
     // Act
-    const newRoundButton = screen.getByRole('button', { name: /Back to Lobby/i });
+    const newRoundButton = screen.getByRole('button', {
+      name: /Back to Lobby/i,
+    });
     await user.click(newRoundButton);
 
     // Assert - Check for user-facing message from real errorToFeedback

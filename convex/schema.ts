@@ -44,10 +44,7 @@ export default defineSchema({
 
   games: defineTable({
     roomId: v.id('rooms'),
-    status: v.union(
-      v.literal('IN_PROGRESS'),
-      v.literal('COMPLETED')
-    ),
+    status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
     cycle: v.number(),
     currentRound: v.number(),
     assignmentMatrix: v.array(v.array(v.id('users'))),
