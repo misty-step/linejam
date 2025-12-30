@@ -14,7 +14,7 @@ import {
 import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
-import { requireRoomByCode } from './lib/room';
+import { requireRoomByCode, getActiveGame } from './lib/room';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
@@ -36,7 +36,10 @@ export const addAiPlayer = mutation({
     const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can add AI player');
-    if (room.status !== 'LOBBY') throw new Error('Can only add AI in lobby');
+
+    // Can only add AI in lobby (no active game)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) throw new Error('Can only add AI in lobby');
 
     // Check player count
     const players = await ctx.db
@@ -97,7 +100,10 @@ export const removeAiPlayer = mutation({
     const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
       throw new Error('Only host can remove AI player');
-    if (room.status !== 'LOBBY') throw new Error('Can only remove AI in lobby');
+
+    // Can only remove AI in lobby (no active game)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) throw new Error('Can only remove AI in lobby');
 
     // Find AI player
     const players = await ctx.db
@@ -132,14 +138,13 @@ export const scheduleAiTurn = internalMutation({
     round: v.number(),
   },
   handler: async (ctx, { roomId, gameId, round }) => {
-    // Verify game state
-    const room = await ctx.db.get(roomId);
+    // Verify game state - use game directly, not room.currentGameId (race-prone)
     const game = await ctx.db.get(gameId);
 
-    if (!room || !game) return;
-    if (room.currentGameId !== gameId) return;
+    if (!game) return;
     if (game.status !== 'IN_PROGRESS') return;
-    if (game.currentRound !== round) return;
+    // Allow scheduling for current round or past rounds (late arrivals OK)
+    if (round > game.currentRound) return;
 
     // Find AI player in room
     const players = await ctx.db
@@ -206,15 +211,12 @@ export const generateLineForRound = internalAction({
     round: v.number(),
   },
   handler: async (ctx, { roomId, gameId, round }) => {
-    // Load current state
-    const room = await ctx.runQuery(internal.ai.getRoomState, { roomId });
-    if (!room) return;
-    if (room.currentGameId !== gameId) return;
-
+    // Load game state directly (not through room.currentGameId which is race-prone)
     const game = await ctx.runQuery(internal.ai.getGameState, { gameId });
     if (!game) return;
     if (game.status !== 'IN_PROGRESS') return;
-    if (game.currentRound !== round) return;
+    // Allow generation for current round or past rounds (late arrivals OK)
+    if (round > game.currentRound) return;
 
     // Find AI player
     const aiPlayer = await ctx.runQuery(internal.ai.getAiPlayerInRoom, {
@@ -319,21 +321,14 @@ export const commitAiLine = internalMutation({
     ctx,
     { poemId, lineIndex, text, aiUserId, roomId, gameId }
   ) => {
-    // Verify state again (defense in depth)
+    // Get entities
     const room = await ctx.db.get(roomId);
     const game = await ctx.db.get(gameId);
     const poem = await ctx.db.get(poemId);
 
     if (!room || !game || !poem) return;
-    if (room.currentGameId !== gameId) return;
-    if (game.status !== 'IN_PROGRESS') return;
-    if (game.currentRound !== lineIndex) return;
 
-    // Check assignment
-    const assignedUserId = game.assignmentMatrix[lineIndex][poem.indexInRoom];
-    if (assignedUserId !== aiUserId) return;
-
-    // Check for duplicate
+    // Check for duplicate first (idempotent)
     const existing = await ctx.db
       .query('lines')
       .withIndex('by_poem_index', (q) =>
@@ -341,6 +336,22 @@ export const commitAiLine = internalMutation({
       )
       .first();
     if (existing) return;
+
+    // Validate game state with grace for race conditions:
+    // - Allow submissions for current round OR past rounds (late arrivals)
+    // - For final round (8), also accept if game just became COMPLETED
+    const isFinalRound = lineIndex === 8;
+    const gameInProgress = game.status === 'IN_PROGRESS';
+    const gameJustCompleted = game.status === 'COMPLETED' && isFinalRound;
+
+    if (!gameInProgress && !gameJustCompleted) return;
+
+    // Prevent early submissions (future rounds)
+    if (lineIndex > game.currentRound && gameInProgress) return;
+
+    // Check assignment (immutable matrix - always stable)
+    const assignedUserId = game.assignmentMatrix[lineIndex][poem.indexInRoom];
+    if (assignedUserId !== aiUserId) return;
 
     // Get AI user for displayName
     const aiUser = await ctx.db.get(aiUserId);
@@ -444,6 +455,12 @@ export const commitAiLine = internalMutation({
             assignedReaderId: readerAssignments.get(poem._id),
           });
         }
+
+        // Schedule auto-start of next game after reveal period (30 seconds)
+        await ctx.scheduler.runAfter(30_000, internal.game.autoStartNextGame, {
+          roomId,
+          previousGameId: gameId,
+        });
       }
     }
   },

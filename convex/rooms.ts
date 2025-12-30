@@ -3,7 +3,11 @@ import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser } from './lib/auth';
 import { checkRateLimit } from './lib/rateLimit';
-import { getRoomByCode, requireRoomByCode } from './lib/room';
+import {
+  getRoomByCode,
+  requireRoomByCode,
+  getActiveGame,
+} from './lib/room';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -88,8 +92,10 @@ export const joinRoom = mutation({
 
     const room = await requireRoomByCode(ctx, code);
 
-    if (room.status !== 'LOBBY') {
-      throw new Error('Cannot join a room that is not in LOBBY status');
+    // Check no game is in progress (authoritative check)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) {
+      throw new Error('Cannot join a room with a game in progress');
     }
 
     const roomPlayers = await ctx.db
@@ -177,7 +183,11 @@ export const leaveLobby = mutation({
     if (!user) return;
 
     const room = await getRoomByCode(ctx, roomCode);
-    if (!room || room.status !== 'LOBBY') return;
+    if (!room) return;
+
+    // Can only leave during lobby (no active game)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) return;
 
     // Don't let host leave (they should close the room instead)
     if (room.hostUserId === user._id) return;

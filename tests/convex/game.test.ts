@@ -5,6 +5,7 @@ import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
 vi.mock('../../convex/_generated/server', () => ({
   mutation: (args: unknown) => args,
   query: (args: unknown) => args,
+  internalMutation: (args: unknown) => args,
 }));
 
 import {
@@ -21,6 +22,18 @@ import {
 const mockGetUser = vi.fn();
 vi.mock('../../convex/lib/auth', () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
+}));
+
+// Mock room helpers
+const mockGetRoomByCode = vi.fn();
+const mockRequireRoomByCode = vi.fn();
+const mockGetActiveGame = vi.fn();
+const mockGetCompletedGame = vi.fn();
+vi.mock('../../convex/lib/room', () => ({
+  getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
+  requireRoomByCode: (...args: unknown[]) => mockRequireRoomByCode(...args),
+  getActiveGame: (...args: unknown[]) => mockGetActiveGame(...args),
+  getCompletedGame: (...args: unknown[]) => mockGetCompletedGame(...args),
 }));
 
 // assignmentMatrix uses crypto.getRandomValues internally - mock at non-deterministic boundary
@@ -47,6 +60,10 @@ describe('game', () => {
       scheduler: { runAfter: vi.fn() },
     };
     mockGetUser.mockReset();
+    mockGetRoomByCode.mockReset();
+    mockRequireRoomByCode.mockReset();
+    mockGetActiveGame.mockReset();
+    mockGetCompletedGame.mockReset();
   });
 
   describe('startNewCycle', () => {
@@ -63,7 +80,7 @@ describe('game', () => {
 
     it('throws if room not found', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null);
+      mockRequireRoomByCode.mockRejectedValue(new Error('Room not found'));
 
       await expect(
         // @ts-expect-error - calling handler directly for test
@@ -76,10 +93,9 @@ describe('game', () => {
 
     it('throws if user is not host', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockDb.first.mockResolvedValue({
+      mockRequireRoomByCode.mockResolvedValue({
         _id: 'room1',
         hostUserId: 'user1',
-        status: 'COMPLETED',
       });
 
       await expect(
@@ -91,13 +107,13 @@ describe('game', () => {
       ).rejects.toThrow('Only host can start new cycle');
     });
 
-    it('throws if room not completed', async () => {
+    it('throws if game still in progress', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue({
+      mockRequireRoomByCode.mockResolvedValue({
         _id: 'room1',
         hostUserId: 'user1',
-        status: 'IN_PROGRESS',
       });
+      mockGetActiveGame.mockResolvedValue({ _id: 'game1', status: 'IN_PROGRESS' });
 
       await expect(
         // @ts-expect-error - calling handler directly for test
@@ -105,7 +121,25 @@ describe('game', () => {
           roomCode: 'TEST',
           guestToken: 'token',
         })
-      ).rejects.toThrow('Current cycle not completed');
+      ).rejects.toThrow('Game still in progress');
+    });
+
+    it('throws if no completed game', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'user1',
+      });
+      mockGetActiveGame.mockResolvedValue(null);
+      mockGetCompletedGame.mockResolvedValue(null);
+
+      await expect(
+        // @ts-expect-error - calling handler directly for test
+        startNewCycle.handler(mockCtx, {
+          roomCode: 'TEST',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('No completed game to continue from');
     });
 
     it('resets room to LOBBY on success', async () => {
@@ -113,11 +147,12 @@ describe('game', () => {
       const room = {
         _id: 'room1',
         hostUserId: 'user1',
-        status: 'COMPLETED',
         currentCycle: 1,
         currentGameId: 'game1',
       };
-      mockDb.first.mockResolvedValue(room);
+      mockRequireRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null);
+      mockGetCompletedGame.mockResolvedValue({ _id: 'game1', status: 'COMPLETED' });
 
       // @ts-expect-error - calling handler directly for test
       await startNewCycle.handler(mockCtx, {
@@ -135,12 +170,12 @@ describe('game', () => {
   describe('startGame', () => {
     it('starts game successfully', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue({
+      mockRequireRoomByCode.mockResolvedValue({
         _id: 'room1',
         hostUserId: 'user1',
-        status: 'LOBBY',
         code: 'TEST',
       });
+      mockGetActiveGame.mockResolvedValue(null); // No game in progress
       mockDb.collect.mockResolvedValue([
         { _id: 'p1', userId: 'user1' },
         { _id: 'p2', userId: 'user2' },
@@ -169,7 +204,7 @@ describe('game', () => {
 
     it('returns null if room not found', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null);
+      mockGetRoomByCode.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getCurrentAssignment.handler(mockCtx, {
@@ -181,29 +216,8 @@ describe('game', () => {
 
     it('returns null if no game in progress', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue({
-        _id: 'room1',
-        currentGameId: null,
-      });
-
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-      expect(result).toBeNull();
-    });
-
-    it('returns null if game status not IN_PROGRESS', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue({
-        _id: 'room1',
-        currentGameId: 'game1',
-      });
-      mockDb.get.mockResolvedValue({
-        _id: 'game1',
-        status: 'COMPLETED',
-      });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetActiveGame.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getCurrentAssignment.handler(mockCtx, {
@@ -215,11 +229,8 @@ describe('game', () => {
 
     it('returns null if user not in assignment matrix', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user3' });
-      mockDb.first.mockResolvedValue({
-        _id: 'room1',
-        currentGameId: 'game1',
-      });
-      mockDb.get.mockResolvedValue({
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetActiveGame.mockResolvedValue({
         _id: 'game1',
         status: 'IN_PROGRESS',
         currentRound: 0,
@@ -236,19 +247,15 @@ describe('game', () => {
 
     it('returns null if poem not found', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      // First call returns room
-      mockDb.first.mockResolvedValueOnce({
-        _id: 'room1',
-        currentGameId: 'game1',
-      });
-      mockDb.get.mockResolvedValue({
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetActiveGame.mockResolvedValue({
         _id: 'game1',
         status: 'IN_PROGRESS',
         currentRound: 0,
         assignmentMatrix: [['user1', 'user2']],
       });
-      // Second call returns null for poem
-      mockDb.first.mockResolvedValueOnce(null);
+      // Poem query returns null
+      mockDb.first.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getCurrentAssignment.handler(mockCtx, {
@@ -260,27 +267,18 @@ describe('game', () => {
 
     it('returns assignment with previous line for round > 0', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      // First call returns room
-      mockDb.first
-        .mockResolvedValueOnce({
-          _id: 'room1',
-          currentGameId: 'game1',
-        })
-        // Second call returns poem
-        .mockResolvedValueOnce({
-          _id: 'poem1',
-        })
-        // Third call returns previous line
-        .mockResolvedValueOnce({
-          text: 'Previous line text',
-        });
-
-      mockDb.get.mockResolvedValue({
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetActiveGame.mockResolvedValue({
         _id: 'game1',
         status: 'IN_PROGRESS',
         currentRound: 2, // Round 2
         assignmentMatrix: [[], [], ['user1', 'user2']],
       });
+
+      // Poem query
+      mockDb.first.mockResolvedValueOnce({ _id: 'poem1' });
+      // Previous line query
+      mockDb.first.mockResolvedValueOnce({ text: 'Previous line text' });
 
       // @ts-expect-error - calling handler
       const result = await getCurrentAssignment.handler(mockCtx, {
@@ -300,10 +298,14 @@ describe('game', () => {
   describe('submitLine', () => {
     it('throws if game not in progress', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      // submitLine now uses poem.gameId directly
       mockDb.get
-        .mockResolvedValueOnce({ roomId: 'room1' }) // poem
-        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
-        .mockResolvedValueOnce({ status: 'COMPLETED' }); // game
+        .mockResolvedValueOnce({ roomId: 'room1', gameId: 'game1' }) // poem
+        .mockResolvedValueOnce({ status: 'COMPLETED' }) // game (via poem.gameId)
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
+
+      // Duplicate check - no existing line
+      mockDb.first.mockResolvedValue(null);
 
       await expect(
         // @ts-expect-error - calling handler
@@ -324,13 +326,16 @@ describe('game', () => {
           indexInRoom: 0,
           gameId: 'game1',
         }) // poem
-        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
         .mockResolvedValueOnce({
           _id: 'game1',
           status: 'IN_PROGRESS',
           currentRound: 2, // Round 2 expects 3 words
           assignmentMatrix: [[], [], ['user1', 'user2']],
-        }); // game
+        }) // game (via poem.gameId)
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
+
+      // Duplicate check - no existing line
+      mockDb.first.mockResolvedValue(null);
 
       await expect(
         // @ts-expect-error - calling handler
@@ -343,7 +348,7 @@ describe('game', () => {
       ).rejects.toThrow('Expected 3 words, got 2');
     });
 
-    it('throws if line already submitted', async () => {
+    it('succeeds silently if line already submitted (idempotent)', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockDb.get
         .mockResolvedValueOnce({
@@ -351,26 +356,28 @@ describe('game', () => {
           indexInRoom: 0,
           gameId: 'game1',
         }) // poem
-        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
         .mockResolvedValueOnce({
           _id: 'game1',
           status: 'IN_PROGRESS',
           currentRound: 0,
           assignmentMatrix: [['user1', 'user2']],
-        }); // game
+        }) // game
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
 
       // Mock duplicate check - line already exists
       mockDb.first.mockResolvedValue({ _id: 'existing-line' });
 
-      await expect(
-        // @ts-expect-error - calling handler
-        submitLine.handler(mockCtx, {
-          poemId: 'poem1',
-          lineIndex: 0,
-          text: 'hello',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Already submitted');
+      // Should not throw - idempotent success
+      // @ts-expect-error - calling handler
+      await submitLine.handler(mockCtx, {
+        poemId: 'poem1',
+        lineIndex: 0,
+        text: 'hello',
+        guestToken: 'token',
+      });
+
+      // Should not have inserted anything
+      expect(mockDb.insert).not.toHaveBeenCalled();
     });
 
     it('throws if user not assigned to this poem', async () => {
@@ -381,13 +388,16 @@ describe('game', () => {
           indexInRoom: 0,
           gameId: 'game1',
         }) // poem
-        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
         .mockResolvedValueOnce({
           _id: 'game1',
           status: 'IN_PROGRESS',
           currentRound: 0,
           assignmentMatrix: [['user2', 'user3']], // user1 not assigned
-        }); // game
+        }) // game
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
+
+      // Duplicate check - no existing line
+      mockDb.first.mockResolvedValue(null);
 
       await expect(
         // @ts-expect-error - calling handler
@@ -400,7 +410,7 @@ describe('game', () => {
       ).rejects.toThrow('Not your turn');
     });
 
-    it('throws if wrong round', async () => {
+    it('throws if submitting for future round', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockDb.get
         .mockResolvedValueOnce({
@@ -408,50 +418,26 @@ describe('game', () => {
           indexInRoom: 0,
           gameId: 'game1',
         }) // poem
-        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
         .mockResolvedValueOnce({
           _id: 'game1',
           status: 'IN_PROGRESS',
           currentRound: 0, // Currently round 0
-          assignmentMatrix: [['user1', 'user2']],
-        }); // game
+          assignmentMatrix: [['user1', 'user2'], ['user2', 'user1']],
+        }) // game (via poem.gameId)
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
+
+      // Duplicate check - no existing line
+      mockDb.first.mockResolvedValue(null);
 
       await expect(
         // @ts-expect-error - calling handler
         submitLine.handler(mockCtx, {
           poemId: 'poem1',
-          lineIndex: 1, // Trying to submit for round 1
+          lineIndex: 1, // Trying to submit for round 1 (future round)
           text: 'hello world',
           guestToken: 'token',
         })
-      ).rejects.toThrow('Wrong round');
-    });
-
-    it('throws if poem from different game', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game-different', // Poem belongs to different game
-        }) // poem
-        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        }); // game
-
-      await expect(
-        // @ts-expect-error - calling handler
-        submitLine.handler(mockCtx, {
-          poemId: 'poem1',
-          lineIndex: 0,
-          text: 'hello',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Poem from different game');
+      ).rejects.toThrow('Round not started yet');
     });
 
     it('submits line successfully', async () => {
@@ -462,13 +448,13 @@ describe('game', () => {
           indexInRoom: 0,
           gameId: 'game1',
         }) // poem
-        .mockResolvedValueOnce({ currentGameId: 'game1' }) // room
         .mockResolvedValueOnce({
           _id: 'game1',
           status: 'IN_PROGRESS',
           currentRound: 0,
           assignmentMatrix: [['user1', 'user2']],
-        }); // game
+        }) // game (via poem.gameId)
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
 
       // Mock duplicate check
       mockDb.first.mockResolvedValue(null);
@@ -507,13 +493,9 @@ describe('game', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null if room not completed', async () => {
+    it('returns null if room not found', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue({
-        _id: 'room1',
-        status: 'IN_PROGRESS',
-        currentGameId: 'game1',
-      });
+      mockGetRoomByCode.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getRevealPhaseState.handler(mockCtx, {
@@ -524,14 +506,10 @@ describe('game', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null if game not found', async () => {
+    it('returns null if no completed game', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue({
-        _id: 'room1',
-        status: 'COMPLETED',
-        currentGameId: 'game1',
-      });
-      mockDb.get.mockResolvedValue(null);
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetCompletedGame.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getRevealPhaseState.handler(mockCtx, {
@@ -544,31 +522,24 @@ describe('game', () => {
 
     it('returns state with no assigned poem for user', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-
-      // Mock sequence of calls
-      // 1. Room query
-      mockDb.first.mockResolvedValueOnce({
+      mockGetRoomByCode.mockResolvedValue({
         _id: 'room1',
-        status: 'COMPLETED',
-        currentGameId: 'game1',
         hostUserId: 'user2', // user1 is not host
       });
+      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
 
-      // 2. Game get
-      mockDb.get.mockResolvedValueOnce({ _id: 'game1' });
-
-      // 3. Poems query - no poems assigned to user1
+      // Poems query - no poems assigned to user1
       mockDb.collect.mockResolvedValueOnce([
         { _id: 'poem1', assignedReaderId: 'user2', indexInRoom: 0 },
       ]);
 
-      // 4. Players query
+      // Players query
       mockDb.collect.mockResolvedValueOnce([
         { userId: 'user1', displayName: 'User 1' },
         { userId: 'user2', displayName: 'User 2' },
       ]);
 
-      // 5. First line query (preview)
+      // First line query (preview)
       mockDb.first.mockResolvedValueOnce({ text: 'Line 1' });
 
       // @ts-expect-error - calling handler
@@ -583,35 +554,28 @@ describe('game', () => {
       expect(result.myPoem).toBeNull();
     });
 
-    it('returns state when room is completed', async () => {
+    it('returns state when game is completed', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-
-      // Mock sequence of calls
-      // 1. Room query
-      mockDb.first.mockResolvedValueOnce({
+      mockGetRoomByCode.mockResolvedValue({
         _id: 'room1',
-        status: 'COMPLETED',
-        currentGameId: 'game1',
         hostUserId: 'user1',
       });
+      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
 
-      // 2. Game get
-      mockDb.get.mockResolvedValueOnce({ _id: 'game1' });
-
-      // 3. Poems query
+      // Poems query
       mockDb.collect.mockResolvedValueOnce([
         { _id: 'poem1', assignedReaderId: 'user1', indexInRoom: 0 },
       ]);
 
-      // 4. Players query
+      // Players query
       mockDb.collect.mockResolvedValueOnce([
         { userId: 'user1', displayName: 'User 1' },
       ]);
 
-      // 5. First line query (preview)
+      // First line query (preview)
       mockDb.first.mockResolvedValueOnce({ text: 'Line 1' });
 
-      // 6. User poem lines query (for myPoem details)
+      // User poem lines query (for myPoem details)
       mockDb.collect.mockResolvedValueOnce([
         { text: 'Line 1', authorUserId: 'user1', indexInPoem: 0 },
       ]);
@@ -713,7 +677,7 @@ describe('game', () => {
 
   describe('getRoundProgress', () => {
     it('returns null when room not found', async () => {
-      mockDb.first.mockResolvedValueOnce(null);
+      mockGetRoomByCode.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getRoundProgress.handler(mockCtx, {
@@ -723,26 +687,9 @@ describe('game', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null when no current game', async () => {
-      mockDb.first.mockResolvedValueOnce({
-        _id: 'room1',
-        currentGameId: null,
-      });
-
-      // @ts-expect-error - calling handler
-      const result = await getRoundProgress.handler(mockCtx, {
-        roomCode: 'TEST',
-      });
-
-      expect(result).toBeNull();
-    });
-
-    it('returns null when game not found', async () => {
-      mockDb.first.mockResolvedValueOnce({
-        _id: 'room1',
-        currentGameId: 'game1',
-      });
-      mockDb.get.mockResolvedValueOnce(null);
+    it('returns null when no active game', async () => {
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetActiveGame.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getRoundProgress.handler(mockCtx, {
@@ -753,32 +700,26 @@ describe('game', () => {
     });
 
     it('returns progress', async () => {
-      // 1. Room query
-      mockDb.first.mockResolvedValueOnce({
-        _id: 'room1',
-        currentGameId: 'game1',
-      });
-
-      // 2. Game get
-      mockDb.get.mockResolvedValueOnce({
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetActiveGame.mockResolvedValue({
         _id: 'game1',
         currentRound: 0,
         assignmentMatrix: [['user1', 'user2']],
       });
 
-      // 3. Players query
+      // Players query
       mockDb.collect.mockResolvedValueOnce([
         { userId: 'user1', displayName: 'User 1' },
         { userId: 'user2', displayName: 'User 2' },
       ]);
 
-      // 4. Poems batch fetch (collect)
+      // Poems batch fetch (collect)
       mockDb.collect.mockResolvedValueOnce([
         { _id: 'poem1', indexInRoom: 0 },
         { _id: 'poem2', indexInRoom: 1 },
       ]);
 
-      // 5. Parallel line checks (first)
+      // Parallel line checks (first)
       mockDb.first.mockResolvedValueOnce(null); // User 1 not submitted
       mockDb.first.mockResolvedValueOnce({ _id: 'line1' }); // User 2 submitted
 
