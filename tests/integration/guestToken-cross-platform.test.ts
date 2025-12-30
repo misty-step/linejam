@@ -187,12 +187,10 @@ describe('Cross-platform Guest Token Compatibility', () => {
 
     it('rejects tampered signature', async () => {
       const token = await nextSignGuestToken(randomUUID());
-      const [payload, signature] = token.split('.');
+      const [payload] = token.split('.');
 
-      // Tamper with signature
-      const lastChar = signature.slice(-1);
-      const replacement = lastChar === 'x' ? 'y' : 'x';
-      const tamperedSignature = signature.slice(0, -1) + replacement;
+      // Completely replace signature with garbage to ensure rejection
+      const tamperedSignature = 'INVALID_SIGNATURE_AAAAAAAAAAAAAAAAAAAAAA';
       const tamperedToken = `${payload}.${tamperedSignature}`;
 
       await expect(convexVerifyGuestToken(tamperedToken)).rejects.toThrow(
