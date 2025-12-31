@@ -55,6 +55,13 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   const targetCount = assignment?.targetWordCount ?? 0;
   const isValid = currentWordCount === targetCount;
 
+  // Convert number to words for placeholder
+  const numberToWord = (n: number): string => {
+    const words = ['zero', 'one', 'two', 'three', 'four', 'five'];
+    return words[n] ?? String(n);
+  };
+  const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
+
   // Announce validation state changes to screen readers (debounced)
   useEffect(() => {
     if (!assignment) return; // Don't announce when no assignment
@@ -166,7 +173,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
               'placeholder:text-text-muted/20',
               'pl-6'
             )}
-            placeholder="Type your line here..."
+            placeholder={placeholderText}
             value={text}
             onChange={(e) => {
               setText(e.target.value);
