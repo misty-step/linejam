@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
@@ -26,6 +26,8 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
   const [showingPoemId, setShowingPoemId] = useState<Id<'poems'> | null>(null);
   const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [isStartingNow, setIsStartingNow] = useState(false);
 
   const state = useQuery(api.game.getRevealPhaseState, {
     roomCode,
@@ -34,6 +36,43 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
 
   const revealPoemMutation = useMutation(api.game.revealPoem);
   const startNewCycleMutation = useMutation(api.game.startNewCycle);
+  const startGameMutation = useMutation(api.game.startGame);
+
+  // Countdown timer for auto-start
+  useEffect(() => {
+    if (!state?.gameCompletedAt || !state?.autoStartDelayMs) {
+      setCountdown(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const elapsed = Date.now() - state.gameCompletedAt!;
+      const remaining = Math.max(0, state.autoStartDelayMs - elapsed);
+      setCountdown(Math.ceil(remaining / 1000));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [state?.gameCompletedAt, state?.autoStartDelayMs]);
+
+  const handleStartNow = async () => {
+    setError(null);
+    setIsStartingNow(true);
+
+    try {
+      await startGameMutation({
+        code: roomCode,
+        guestToken: guestToken || undefined,
+      });
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+      captureError(err, { roomCode });
+    } finally {
+      setIsStartingNow(false);
+    }
+  };
 
   const handleReveal = async (poemId: Id<'poems'>) => {
     setIsRevealingId(poemId);
@@ -222,19 +261,52 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
           </div>
         </section>
 
-        {/* 4. ACTIONS - When complete */}
+        {/* 4. ACTIONS - Countdown and controls */}
         {allRevealed && (
           <section className="space-y-4 pt-8 border-t border-border">
             {error && <Alert variant="error">{error}</Alert>}
-            {isHost && (
-              <Button
-                onClick={handleStartNewCycle}
-                size="lg"
-                className="w-full h-14"
-              >
-                New Round
-              </Button>
+
+            {/* Auto-start countdown banner */}
+            {countdown !== null && countdown > 0 && (
+              <div className="p-4 bg-surface border border-border-subtle text-center space-y-2">
+                <p className="text-sm text-text-secondary">
+                  Next round starts automatically in
+                </p>
+                <p className="text-3xl font-mono font-bold text-primary">
+                  {countdown}s
+                </p>
+              </div>
             )}
+
+            {/* Host controls */}
+            {isHost && (
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={handleStartNow}
+                  size="lg"
+                  className="h-14"
+                  disabled={isStartingNow}
+                >
+                  {isStartingNow ? 'Starting...' : 'Start Now'}
+                </Button>
+                <Button
+                  onClick={handleStartNewCycle}
+                  variant="outline"
+                  size="lg"
+                  className="h-14"
+                >
+                  Back to Lobby
+                </Button>
+              </div>
+            )}
+
+            {/* Non-host message */}
+            {!isHost && countdown !== null && countdown > 0 && (
+              <p className="text-sm text-text-muted text-center">
+                Waiting for next round to begin...
+              </p>
+            )}
+
             <Link href="/me/poems" className="block">
               <Button variant="secondary" size="lg" className="w-full h-14">
                 Archive

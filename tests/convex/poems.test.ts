@@ -23,6 +23,16 @@ vi.mock('../../convex/lib/auth', () => ({
   checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
 }));
 
+// Mock room helpers
+const mockGetRoomByCode = vi.fn();
+const mockGetActiveGame = vi.fn();
+const mockGetCompletedGame = vi.fn();
+vi.mock('../../convex/lib/room', () => ({
+  getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
+  getActiveGame: (...args: unknown[]) => mockGetActiveGame(...args),
+  getCompletedGame: (...args: unknown[]) => mockGetCompletedGame(...args),
+}));
+
 describe('poems', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockDb: any;
@@ -34,6 +44,9 @@ describe('poems', () => {
     mockCtx = createMockCtx(mockDb);
     mockGetUser.mockReset();
     mockCheckParticipation.mockReset();
+    mockGetRoomByCode.mockReset();
+    mockGetActiveGame.mockReset();
+    mockGetCompletedGame.mockReset();
   });
 
   describe('getPoemsForRoom', () => {
@@ -55,7 +68,7 @@ describe('poems', () => {
     it('returns empty array when room not found', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null);
+      mockGetRoomByCode.mockResolvedValue(null);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -71,7 +84,7 @@ describe('poems', () => {
     it('returns empty array when user is not participant', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockDb.first.mockResolvedValueOnce({ _id: 'room1', code: 'ABCD' }); // Room lookup
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1', code: 'ABCD' });
       mockCheckParticipation.mockResolvedValue(false);
 
       // Act
@@ -94,14 +107,18 @@ describe('poems', () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockCheckParticipation.mockResolvedValue(true);
-      const room = { _id: 'room1', code: 'ABCD', currentGameId: 'game1' };
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = { _id: 'game1', roomId: 'room1', status: 'IN_PROGRESS' };
       const poems = [
         { _id: 'poem1', roomId: 'room1', gameId: 'game1' },
         { _id: 'poem2', roomId: 'room1', gameId: 'game1' },
       ];
 
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(game);
+      mockGetCompletedGame.mockResolvedValue(null);
+
       mockDb.first
-        .mockResolvedValueOnce(room) // Room lookup
         .mockResolvedValueOnce({ text: 'First line of poem 1' }) // First line for poem1
         .mockResolvedValueOnce({ text: 'First line of poem 2' }); // First line for poem2
 
@@ -126,18 +143,15 @@ describe('poems', () => {
       });
     });
 
-    it('filters by roomId when no currentGameId', async () => {
+    it('returns empty array when no active or completed game', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockCheckParticipation.mockResolvedValue(true);
-      const room = { _id: 'room1', code: 'ABCD', currentGameId: null };
-      const poems = [{ _id: 'poem1', roomId: 'room1' }];
+      const room = { _id: 'room1', code: 'ABCD' };
 
-      mockDb.first
-        .mockResolvedValueOnce(room)
-        .mockResolvedValueOnce({ text: 'First line' });
-
-      mockDb.collect.mockResolvedValueOnce(poems);
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null);
+      mockGetCompletedGame.mockResolvedValue(null);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -147,22 +161,22 @@ describe('poems', () => {
       });
 
       // Assert
-      expect(result).toHaveLength(1);
-      expect(mockDb.query).toHaveBeenCalledWith('poems');
-      expect(mockDb.withIndex).toHaveBeenCalledWith(
-        'by_room',
-        expect.any(Function)
-      );
+      expect(result).toEqual([]);
     });
 
     it('uses fallback preview when no first line exists', async () => {
       // Arrange
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockCheckParticipation.mockResolvedValue(true);
-      const room = { _id: 'room1', code: 'ABCD', currentGameId: 'game1' };
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = { _id: 'game1', roomId: 'room1', status: 'IN_PROGRESS' };
       const poems = [{ _id: 'poem1', roomId: 'room1', gameId: 'game1' }];
 
-      mockDb.first.mockResolvedValueOnce(room).mockResolvedValueOnce(null); // No first line
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(game);
+      mockGetCompletedGame.mockResolvedValue(null);
+
+      mockDb.first.mockResolvedValueOnce(null); // No first line
 
       mockDb.collect.mockResolvedValueOnce(poems);
 

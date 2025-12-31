@@ -17,19 +17,23 @@ vi.mock('next/link', () => ({
 // Mock Convex hooks (external)
 const mockRevealPoemMutation = vi.fn();
 const mockStartNewCycleMutation = vi.fn();
+const mockStartGameMutation = vi.fn();
 const mockUseQuery = vi.fn();
 
-// Track which mutation is requested by call order (revealPoem is called first, startNewCycle second)
+// Track which mutation is requested by call order
 let mutationCallCount = 0;
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
   useMutation: () => {
     mutationCallCount++;
-    // RevealPhase component calls useMutation twice:
-    // 1. revealPoemMutation (line 48)
-    // 2. startNewCycleMutation (line 50)
-    if (mutationCallCount % 2 === 1) return mockRevealPoemMutation;
-    return mockStartNewCycleMutation;
+    // RevealPhase component calls useMutation three times:
+    // 1. revealPoemMutation (line 37)
+    // 2. startNewCycleMutation (line 38)
+    // 3. startGameMutation (line 39)
+    const index = (mutationCallCount - 1) % 3;
+    if (index === 0) return mockRevealPoemMutation;
+    if (index === 1) return mockStartNewCycleMutation;
+    return mockStartGameMutation;
   },
 }));
 
@@ -125,6 +129,7 @@ describe('RevealPhase component', () => {
     mutationCallCount = 0; // Reset mutation counter
     mockRevealPoemMutation.mockClear();
     mockStartNewCycleMutation.mockClear();
+    mockStartGameMutation.mockClear();
 
     // Default state
     mockUseQuery.mockReturnValue(mockStateNotRevealed);
@@ -252,7 +257,7 @@ describe('RevealPhase component', () => {
     expect(screen.getByText(/Complete/i)).toBeInTheDocument();
   });
 
-  it('shows New Round button for host when all revealed', () => {
+  it('shows Back to Lobby button for host when all revealed', () => {
     // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
@@ -261,11 +266,11 @@ describe('RevealPhase component', () => {
 
     // Assert
     expect(
-      screen.getByRole('button', { name: /New Round/i })
+      screen.getByRole('button', { name: /Back to Lobby/i })
     ).toBeInTheDocument();
   });
 
-  it('does not show New Round button for non-host', () => {
+  it('does not show Back to Lobby button for non-host', () => {
     // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealedNotHost);
 
@@ -274,11 +279,11 @@ describe('RevealPhase component', () => {
 
     // Assert
     expect(
-      screen.queryByRole('button', { name: /New Round/i })
+      screen.queryByRole('button', { name: /Back to Lobby/i })
     ).not.toBeInTheDocument();
   });
 
-  it('calls startNewCycle mutation when New Round clicked', async () => {
+  it('calls startNewCycle mutation when Back to Lobby clicked', async () => {
     // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
     mockStartNewCycleMutation.mockResolvedValue(undefined);
@@ -286,7 +291,9 @@ describe('RevealPhase component', () => {
     render(<RevealPhase roomCode="ABCD" />);
 
     // Act
-    const newRoundButton = screen.getByRole('button', { name: /New Round/i });
+    const newRoundButton = screen.getByRole('button', {
+      name: /Back to Lobby/i,
+    });
     await user.click(newRoundButton);
 
     // Assert
@@ -365,7 +372,9 @@ describe('RevealPhase component', () => {
     render(<RevealPhase roomCode="ABCD" />);
 
     // Act
-    const newRoundButton = screen.getByRole('button', { name: /New Round/i });
+    const newRoundButton = screen.getByRole('button', {
+      name: /Back to Lobby/i,
+    });
     await user.click(newRoundButton);
 
     // Assert - Check for user-facing message from real errorToFeedback

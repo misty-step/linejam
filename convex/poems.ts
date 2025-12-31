@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { getUser, checkParticipation } from './lib/auth';
-import { getRoomByCode } from './lib/room';
+import { getRoomByCode, getActiveGame, getCompletedGame } from './lib/room';
 
 export const getPoemsForRoom = query({
   args: {
@@ -17,21 +17,21 @@ export const getPoemsForRoom = query({
 
     if (!(await checkParticipation(ctx, room._id, user._id))) return [];
 
-    // If the room has a current game, only return poems from that game
+    // Get the current game (active or most recently completed)
     // This ensures RevealList shows only the current cycle's poems
-    let poems;
-    if (room.currentGameId) {
-      poems = await ctx.db
-        .query('poems')
-        .withIndex('by_game', (q) => q.eq('gameId', room.currentGameId!))
-        .collect();
-    } else {
-      // Fallback (e.g. if in lobby between games? or historic behavior)
-      poems = await ctx.db
-        .query('poems')
-        .withIndex('by_room', (q) => q.eq('roomId', room._id))
-        .collect();
+    const activeGame = await getActiveGame(ctx, room._id);
+    const completedGame = await getCompletedGame(ctx, room._id);
+    const currentGame = activeGame || completedGame;
+
+    // No games yet - return empty
+    if (!currentGame) {
+      return [];
     }
+
+    const poems = await ctx.db
+      .query('poems')
+      .withIndex('by_game', (q) => q.eq('gameId', currentGame._id))
+      .collect();
 
     // Parallelize first line fetches
     const firstLines = await Promise.all(
