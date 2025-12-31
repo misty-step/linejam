@@ -442,5 +442,44 @@ describe('WritingScreen component', () => {
         { timeout: 1000 }
       );
     });
+
+    it('announces "Ready to submit" when word count is valid', async () => {
+      // Arrange - Round 1 requires 1 word (default mock)
+      const user = userEvent.setup();
+      const { container } = render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Act - Type exactly 1 word (matches target)
+      await user.type(textarea, 'Poetry');
+
+      // Assert - Wait for debounced live region to update
+      await waitFor(
+        () => {
+          const liveRegion = getLiveRegion(container);
+          expect(liveRegion).toHaveTextContent('Ready to submit');
+        },
+        { timeout: 1000 }
+      );
+    });
+
+    it('announces "Add X words" when under target', async () => {
+      // Arrange - Round 5 requires 5 words
+      mockUseQuery.mockReturnValue(mockAssignmentRound5);
+      const user = userEvent.setup();
+      const { container } = render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox');
+
+      // Act - Type only 2 words (3 under the target of 5)
+      await user.type(textarea, 'Two words');
+
+      // Assert - Wait for debounced live region to update
+      await waitFor(
+        () => {
+          const liveRegion = getLiveRegion(container);
+          expect(liveRegion).toHaveTextContent('Add 3 words');
+        },
+        { timeout: 1000 }
+      );
+    });
   });
 });
