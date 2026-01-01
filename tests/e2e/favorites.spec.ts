@@ -25,8 +25,10 @@ test.describe('Personal Archive Page', () => {
       { timeout: 10000 }
     );
 
-    // Verify page title
-    await expect(page.getByRole('heading', { name: /Archive/i })).toBeVisible();
+    // Verify page title (exact match to avoid matching "Your archive awaits")
+    await expect(
+      page.getByRole('heading', { name: 'Archive', exact: true })
+    ).toBeVisible();
 
     // Verify empty state for new user
     await expect(
@@ -61,8 +63,10 @@ test.describe('Personal Archive Page', () => {
     await archiveLink.click();
     await page.waitForURL('/me/poems', { timeout: 10000 });
 
-    // Verify we're on the archive page
-    await expect(page.getByRole('heading', { name: /Archive/i })).toBeVisible();
+    // Verify we're on the archive page (exact match to avoid matching "Your archive awaits")
+    await expect(
+      page.getByRole('heading', { name: 'Archive', exact: true })
+    ).toBeVisible();
   });
 });
 
