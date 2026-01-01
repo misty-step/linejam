@@ -14,7 +14,6 @@ import {
   LoadingState,
   LoadingMessages,
 } from '../../components/ui/LoadingState';
-import Link from 'next/link';
 
 export default function HostPage() {
   const router = useRouter();
@@ -55,13 +54,6 @@ export default function HostPage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-20 flex flex-col">
-      <Link
-        href="/"
-        className="mb-12 text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors w-fit"
-      >
-        ← Return Home
-      </Link>
-
       <div className="max-w-xl w-full">
         <h1 className="text-5xl md:text-6xl font-[var(--font-display)] mb-8">
           Host Session

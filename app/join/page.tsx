@@ -14,7 +14,6 @@ import {
   LoadingState,
   LoadingMessages,
 } from '../../components/ui/LoadingState';
-import Link from 'next/link';
 
 function JoinForm() {
   const router = useRouter();
@@ -132,13 +131,6 @@ function JoinForm() {
 export default function JoinPage() {
   return (
     <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-20 flex flex-col">
-      <Link
-        href="/"
-        className="mb-12 text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors w-fit"
-      >
-        ← Return Home
-      </Link>
-
       <Suspense fallback={<div>Loading...</div>}>
         <JoinForm />
       </Suspense>

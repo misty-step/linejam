@@ -1,10 +1,11 @@
 /**
- * ArchiveStats: Summary statistics header
+ * ArchiveStats: Vertical stats list with icons
  *
- * Displays key metrics about the user's poetry collection.
- * Design: Stripe-inspired stat blocks with semantic grouping.
+ * Quiet metadata display - one stat per line, small font, icon anchors.
+ * Kenya Hara minimalism: information without visual weight.
  */
 
+import { ScrollText, Heart, Users, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ArchiveStatsProps {
@@ -17,28 +18,26 @@ interface ArchiveStatsProps {
   className?: string;
 }
 
-interface StatBlockProps {
-  label: string;
+interface StatLineProps {
+  icon: React.ReactNode;
   value: number;
+  label: string;
   accent?: boolean;
 }
 
-function StatBlock({ label, value, accent = false }: StatBlockProps) {
+function StatLine({ icon, value, label, accent = false }: StatLineProps) {
   return (
-    <div className="flex flex-col">
-      <span
-        className={cn(
-          'text-3xl md:text-4xl font-[var(--font-display)] tabular-nums',
-          accent
-            ? 'text-[var(--color-primary)]'
-            : 'text-[var(--color-text-primary)]'
-        )}
-      >
-        {value.toLocaleString()}
-      </span>
-      <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-text-muted)]">
-        {label}
-      </span>
+    <div
+      className={cn(
+        'flex items-center gap-2 text-sm font-mono',
+        accent
+          ? 'text-[var(--color-primary)]'
+          : 'text-[var(--color-text-muted)]'
+      )}
+    >
+      {icon}
+      <span className="tabular-nums">{value.toLocaleString()}</span>
+      <span>{label}</span>
     </div>
   );
 }
@@ -46,24 +45,40 @@ function StatBlock({ label, value, accent = false }: StatBlockProps) {
 /**
  * ArchiveStats component
  *
- * Deep module: Handles all stat formatting and layout.
- * Simple interface: just pass stats object.
+ * Vertical list of stats with icons - quiet, marginalia-style.
  */
 export function ArchiveStats({ stats, className }: ArchiveStatsProps) {
+  const iconClass = 'w-4 h-4';
+
   return (
     <div
-      className={cn(
-        'flex flex-wrap gap-8 md:gap-12 py-6',
-        'border-y border-[var(--color-border-subtle)]',
-        className
-      )}
+      className={cn('flex flex-col gap-1.5', className)}
       role="region"
       aria-label="Archive statistics"
     >
-      <StatBlock label="Poems" value={stats.totalPoems} accent />
-      <StatBlock label="Favorites" value={stats.totalFavorites} />
-      <StatBlock label="Collaborators" value={stats.uniqueCollaborators} />
-      <StatBlock label="Lines Written" value={stats.totalLinesWritten} />
+      <StatLine
+        icon={<ScrollText className={iconClass} />}
+        value={stats.totalPoems}
+        label={stats.totalPoems === 1 ? 'poem' : 'poems'}
+        accent
+      />
+      <StatLine
+        icon={<Heart className={iconClass} />}
+        value={stats.totalFavorites}
+        label={stats.totalFavorites === 1 ? 'favorite' : 'favorites'}
+      />
+      <StatLine
+        icon={<Users className={iconClass} />}
+        value={stats.uniqueCollaborators}
+        label={
+          stats.uniqueCollaborators === 1 ? 'collaborator' : 'collaborators'
+        }
+      />
+      <StatLine
+        icon={<PenLine className={iconClass} />}
+        value={stats.totalLinesWritten}
+        label={stats.totalLinesWritten === 1 ? 'line written' : 'lines written'}
+      />
     </div>
   );
 }
@@ -73,11 +88,11 @@ export function ArchiveStats({ stats, className }: ArchiveStatsProps) {
  */
 export function ArchiveStatsSkeleton() {
   return (
-    <div className="flex flex-wrap gap-8 md:gap-12 py-6 border-y border-[var(--color-border-subtle)] animate-pulse">
+    <div className="flex flex-col gap-1.5 animate-pulse">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="flex flex-col gap-1">
-          <div className="h-10 w-16 bg-[var(--color-muted)] rounded" />
-          <div className="h-3 w-20 bg-[var(--color-muted)] rounded" />
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-[var(--color-muted)] rounded" />
+          <div className="h-4 w-24 bg-[var(--color-muted)] rounded" />
         </div>
       ))}
     </div>
