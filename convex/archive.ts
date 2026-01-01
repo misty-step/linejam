@@ -186,7 +186,10 @@ export const getArchiveData = query({
     const allCollaboratorIds = new Set<string>();
     for (const poem of enrichedPoems) {
       for (const line of poem.lines) {
-        if (line.authorStableId !== user.clerkUserId && line.authorStableId !== user.guestId) {
+        if (
+          line.authorStableId !== user.clerkUserId &&
+          line.authorStableId !== user.guestId
+        ) {
           allCollaboratorIds.add(line.authorStableId);
         }
       }

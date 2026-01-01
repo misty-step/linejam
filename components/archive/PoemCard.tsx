@@ -151,7 +151,9 @@ export function PoemCard({
               'focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)] focus:ring-offset-2',
               isFavoriting && 'opacity-50 cursor-not-allowed'
             )}
-            aria-label={localFavorited ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={
+              localFavorited ? 'Remove from favorites' : 'Add to favorites'
+            }
           >
             <svg
               className={cn(

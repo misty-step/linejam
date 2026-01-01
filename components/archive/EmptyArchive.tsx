@@ -42,10 +42,7 @@ export function EmptyArchive({ variant = 'default' }: EmptyArchiveProps) {
     <div className="py-16 md:py-24 flex flex-col items-center text-center">
       {/* Ghosted poem shape - preview of what's to come */}
       <div className="mb-8 opacity-20">
-        <PoemShape
-          wordCounts={[1, 2, 3, 4, 5, 4, 3, 2, 1]}
-          size="lg"
-        />
+        <PoemShape wordCounts={[1, 2, 3, 4, 5, 4, 3, 2, 1]} size="lg" />
       </div>
 
       {/* Inviting headline */}
