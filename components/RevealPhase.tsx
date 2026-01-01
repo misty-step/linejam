@@ -123,6 +123,10 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
     : null;
 
   if (displayingPoem) {
+    // Count unique poets for this poem
+    const uniquePoets = new Set(displayingPoem.lines.map((l) => l.authorName))
+      .size;
+
     return (
       <PoemDisplay
         poemId={displayingPoem._id}
@@ -135,6 +139,11 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
         onDone={() => setShowingPoemId(null)}
         alreadyRevealed={displayingPoem.isRevealed}
         allStableIds={allStableIds}
+        metadata={{
+          createdAt: displayingPoem.createdAt,
+          firstLine: displayingPoem.preview,
+          uniquePoets,
+        }}
       />
     );
   }

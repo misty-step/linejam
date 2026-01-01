@@ -382,6 +382,7 @@ export const getRevealPhaseState = query({
         return {
           _id: poem._id,
           indexInRoom: poem.indexInRoom,
+          createdAt: poem.createdAt,
           preview: firstLine?.text || '',
           assignedReaderId: poem.assignedReaderId,
           readerName: reader?.displayName || 'Unknown',
