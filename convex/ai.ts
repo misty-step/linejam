@@ -455,12 +455,6 @@ export const commitAiLine = internalMutation({
             assignedReaderId: readerAssignments.get(poem._id),
           });
         }
-
-        // Schedule auto-start of next game after reveal period (30 seconds)
-        await ctx.scheduler.runAfter(30_000, internal.game.autoStartNextGame, {
-          roomId,
-          previousGameId: gameId,
-        });
       }
     }
   },
