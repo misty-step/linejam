@@ -34,7 +34,10 @@ test.describe('Personal Archive Page', () => {
     await expect(
       page.getByRole('heading', { name: /Your archive awaits/i })
     ).toBeVisible();
-    await expect(page.getByText(/Start a Game/i)).toBeVisible();
+    // Use role to select the actual button, not paragraph text
+    await expect(
+      page.getByRole('link', { name: 'Start a Game' })
+    ).toBeVisible();
   });
 
   test('archive page has navigation back to home via wordmark', async ({
