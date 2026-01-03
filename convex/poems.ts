@@ -79,16 +79,18 @@ export const getPoemDetail = query({
     const authors = await Promise.all(
       uniqueAuthorIds.map((id) => ctx.db.get(id))
     );
-    const authorMap = new Map(
-      uniqueAuthorIds.map((id, i) => [id, authors[i]?.displayName || 'Unknown'])
-    );
+    const authorMap = new Map(uniqueAuthorIds.map((id, i) => [id, authors[i]]));
 
-    const linesWithAuthors = lines.map((line) => ({
-      ...line,
-      // Prefer captured pen name, fall back to current user name for legacy data
-      authorName:
-        line.authorDisplayName || authorMap.get(line.authorUserId) || 'Unknown',
-    }));
+    const linesWithAuthors = lines.map((line) => {
+      const author = authorMap.get(line.authorUserId);
+      return {
+        ...line,
+        // Prefer captured pen name, fall back to current user name for legacy data
+        authorName: line.authorDisplayName || author?.displayName || 'Unknown',
+        authorStableId: author?.clerkUserId || author?.guestId || '',
+        isBot: author?.kind === 'AI',
+      };
+    });
 
     return {
       poem,
@@ -199,20 +201,21 @@ export const getPublicPoemFull = query({
     const authors = await Promise.all(
       uniqueAuthorIds.map((id) => ctx.db.get(id))
     );
-    const authorMap = new Map(
-      uniqueAuthorIds.map((id, i) => [id, authors[i]?.displayName || 'Unknown'])
-    );
+    const authorMap = new Map(uniqueAuthorIds.map((id, i) => [id, authors[i]]));
 
     return {
       poem,
-      lines: lines.map((line) => ({
-        ...line,
-        // Prefer captured pen name, fall back to current user name for legacy data
-        authorName:
-          line.authorDisplayName ||
-          authorMap.get(line.authorUserId) ||
-          'Unknown',
-      })),
+      lines: lines.map((line) => {
+        const author = authorMap.get(line.authorUserId);
+        return {
+          ...line,
+          // Prefer captured pen name, fall back to current user name for legacy data
+          authorName:
+            line.authorDisplayName || author?.displayName || 'Unknown',
+          authorStableId: author?.clerkUserId || author?.guestId || '',
+          isBot: author?.kind === 'AI',
+        };
+      }),
     };
   },
 });

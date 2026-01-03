@@ -1,125 +1,124 @@
+/**
+ * Personal Archive Page
+ *
+ * Manuscript Gallery layout - poems as artifacts in a personal collection.
+ *
+ * Design Philosophy (Stripe-inspired):
+ * - Information density with clear hierarchy
+ * - Purposeful animation (staggered entrance)
+ * - Progressive disclosure (hover reveals)
+ * - Semantic color (author dots)
+ *
+ * Architecture (Ousterhout):
+ * - Single enriched query (no N+1)
+ * - Deep components (PoemCard handles everything)
+ * - Simple page composition
+ */
+
 'use client';
 
 import { useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import { useUser } from '../../../lib/auth';
-import { Label } from '../../../components/ui/Label';
-import Link from 'next/link';
+import { api } from '@/convex/_generated/api';
+import { useUser } from '@/lib/auth';
+import {
+  PoemCard,
+  PoemCardSkeleton,
+  ArchiveStats,
+  ArchiveStatsSkeleton,
+  EmptyArchive,
+} from '@/components/archive';
 
-export default function MyPoemsPage() {
-  const { guestToken, isLoading } = useUser();
-  const poems = useQuery(api.poems.getMyPoems, {
+export default function ArchivePage() {
+  const { guestToken, isLoading: authLoading } = useUser();
+
+  const archiveData = useQuery(api.archive.getArchiveData, {
     guestToken: guestToken || undefined,
   });
 
-  const favorites = useQuery(api.favorites.getMyFavorites, {
-    guestToken: guestToken || undefined,
+  const isLoading = authLoading || archiveData === undefined;
+  const poems = archiveData?.poems ?? [];
+  const stats = archiveData?.stats ?? null;
+
+  // Sort: favorites first, then by date descending within each group
+  const sortedPoems = [...poems].sort((a, b) => {
+    if (a.isFavorited && !b.isFavorited) return -1;
+    if (!a.isFavorited && b.isFavorited) return 1;
+    return b.createdAt - a.createdAt;
   });
 
-  if (isLoading) {
-    return null;
-  }
+  // Featured poem is always first (which will be most recent favorite, or most recent overall)
+  const featuredPoem = sortedPoems[0];
+  const remainingPoems = sortedPoems.slice(1);
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-24">
-      <div className="max-w-5xl mx-auto space-y-16">
+    <div className="min-h-screen bg-[var(--color-background)]">
+      <div className="max-w-6xl mx-auto px-6 md:px-12 lg:px-16 py-12 md:py-16 lg:py-24">
         {/* Header */}
-        <div className="flex justify-between items-end border-b border-[var(--color-border)] pb-8">
-          <div>
-            <h1 className="text-5xl md:text-6xl font-[var(--font-display)] leading-tight">
-              Personal
-              <br />
-              Archive
-            </h1>
-          </div>
-          <Link
-            href="/"
-            className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:underline transition-colors mb-2"
-          >
-            ← Return Home
-          </Link>
-        </div>
+        <header className="mb-8 md:mb-12">
+          {/* Title */}
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-[var(--font-display)] leading-[0.9] tracking-tight text-[var(--color-text-primary)]">
+            Archive
+          </h1>
 
-        {/* Favorites Section */}
-        <section className="space-y-8">
-          <div className="flex items-center gap-4">
-            <Label as="h2">Marked Works</Label>
-            <div className="h-px bg-[var(--color-border-subtle)] flex-1" />
+          {/* Stats */}
+          <div className="mt-6">
+            {isLoading ? (
+              <ArchiveStatsSkeleton />
+            ) : stats && stats.totalPoems > 0 ? (
+              <ArchiveStats stats={stats} />
+            ) : null}
           </div>
 
-          {favorites && favorites.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {favorites.map((poem) => (
-                <Link
-                  key={poem._id}
-                  href={`/poem/${poem._id}`}
-                  className="group"
-                  data-testid="favorite-card"
-                >
-                  <div className="h-full bg-[var(--color-surface)] border border-[var(--color-border)] p-6 shadow-[var(--shadow-sm)] group-hover:shadow-[var(--shadow-md)] group-hover:-translate-y-1 transition-all duration-[var(--duration-normal)] flex flex-col">
-                    <div className="flex-1 mb-6">
-                      <p className="text-xl font-[var(--font-display)] italic leading-relaxed text-[var(--color-text-primary)]">
-                        &ldquo;{poem.preview}...&rdquo;
-                      </p>
-                    </div>
-                    <div className="flex justify-between items-end pt-4 border-t border-[var(--color-border-subtle)]">
-                      <span className="text-xs font-mono text-[var(--color-text-muted)]">
-                        {new Date(poem.favoritedAt).toLocaleDateString()}
-                      </span>
-                      <span className="text-[var(--color-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
-                        Read →
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+          {/* Hint Text - sandwiched between hairlines */}
+          {!isLoading && poems.length > 0 && (
+            <div className="mt-8 py-4 border-y border-[var(--color-border-subtle)]">
+              <p className="text-sm text-[var(--color-text-muted)] font-mono">
+                Tap any poem to reveal the full verse
+              </p>
+            </div>
+          )}
+        </header>
+
+        {/* Main Content */}
+        <main>
+          {isLoading ? (
+            // Loading State
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <PoemCardSkeleton key={i} />
               ))}
             </div>
+          ) : poems.length === 0 ? (
+            // Empty State
+            <EmptyArchive />
           ) : (
-            <p className="text-[var(--color-text-muted)] italic pl-4 border-l-2 border-[var(--color-border-subtle)]">
-              No marked works yet.
-            </p>
-          )}
-        </section>
+            // Manuscript Gallery
+            <section>
+              {/* Gallery Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                {/* Featured Card (spans 2 cols on larger screens) */}
+                {featuredPoem && (
+                  <PoemCard
+                    poem={featuredPoem}
+                    guestToken={guestToken}
+                    variant="featured"
+                    animationDelay={0}
+                  />
+                )}
 
-        {/* Past Games Section */}
-        <section className="space-y-8">
-          <div className="flex items-center gap-4">
-            <Label as="h2">Session History</Label>
-            <div className="h-px bg-[var(--color-border-subtle)] flex-1" />
-          </div>
-
-          {poems && poems.length > 0 ? (
-            <div className="divide-y divide-[var(--color-border-subtle)]">
-              {poems.map((poem) => (
-                <Link
-                  key={poem._id}
-                  href={`/poem/${poem._id}`}
-                  className="group block"
-                >
-                  <div className="py-6 flex items-center justify-between hover:bg-[var(--color-surface)] px-4 -mx-4 transition-colors rounded-sm">
-                    <div className="space-y-1">
-                      <span className="text-xs font-mono text-[var(--color-text-muted)] block">
-                        {new Date(
-                          poem.roomDate || poem.createdAt
-                        ).toLocaleDateString()}
-                      </span>
-                      <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)] group-hover:underline transition-colors">
-                        &ldquo;{poem.preview}...&rdquo;
-                      </p>
-                    </div>
-                    <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] group-hover:underline">
-                      Open
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[var(--color-text-muted)] italic pl-4 border-l-2 border-[var(--color-border-subtle)]">
-              No sessions recorded.
-            </p>
+                {/* Remaining Cards */}
+                {remainingPoems.map((poem, index) => (
+                  <PoemCard
+                    key={poem._id}
+                    poem={poem}
+                    guestToken={guestToken}
+                    animationDelay={(index + 1) * 50}
+                  />
+                ))}
+              </div>
+            </section>
           )}
-        </section>
+        </main>
       </div>
     </div>
   );

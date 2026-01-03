@@ -25,33 +25,32 @@ test.describe('Personal Archive Page', () => {
       { timeout: 10000 }
     );
 
-    // Verify page title (heading contains both words)
+    // Verify page title (exact match to avoid matching "Your archive awaits")
     await expect(
-      page.getByRole('heading', { name: /Personal.*Archive/i })
+      page.getByRole('heading', { name: 'Archive', exact: true })
     ).toBeVisible();
 
-    // Verify sections exist (use heading role to be specific)
+    // Verify empty state for new user
     await expect(
-      page.getByRole('heading', { name: 'Marked Works' })
+      page.getByRole('heading', { name: /Your archive awaits/i })
     ).toBeVisible();
+    // Use role to select the actual button, not paragraph text
     await expect(
-      page.getByRole('heading', { name: 'Session History' })
+      page.getByRole('link', { name: 'Start a Game' })
     ).toBeVisible();
-
-    // Verify empty state messages for new user
-    await expect(page.getByText(/No marked works yet/i)).toBeVisible();
-    await expect(page.getByText(/No sessions recorded/i)).toBeVisible();
   });
 
-  test('archive page has navigation back to home', async ({ page }) => {
+  test('archive page has navigation back to home via wordmark', async ({
+    page,
+  }) => {
     await page.goto('/me/poems', { waitUntil: 'networkidle' });
 
-    // Find and click "Return Home" link
-    const returnHomeLink = page.getByRole('link', { name: /Return Home/i });
-    await expect(returnHomeLink).toBeVisible();
+    // Find and click "Linejam" wordmark in header
+    const wordmark = page.getByRole('link', { name: /Linejam/i });
+    await expect(wordmark).toBeVisible();
 
     // Click and verify navigation
-    await returnHomeLink.click();
+    await wordmark.click();
     await page.waitForURL('/', { timeout: 10000 });
   });
 
@@ -67,35 +66,37 @@ test.describe('Personal Archive Page', () => {
     await archiveLink.click();
     await page.waitForURL('/me/poems', { timeout: 10000 });
 
-    // Verify we're on the archive page
+    // Verify we're on the archive page (exact match to avoid matching "Your archive awaits")
     await expect(
-      page.getByRole('heading', { name: /Personal/i })
+      page.getByRole('heading', { name: 'Archive', exact: true })
     ).toBeVisible();
   });
 });
 
 test.describe('Favorites Feature Structure', () => {
-  test('marked works section exists with proper styling', async ({ page }) => {
+  test('archive page shows empty state for new user', async ({ page }) => {
     await page.goto('/me/poems', { waitUntil: 'networkidle' });
 
     // Wait for page to load
     await page.waitForSelector('h1', { state: 'visible', timeout: 10000 });
 
-    // Verify the "Marked Works" section heading exists
+    // Verify empty state is shown (new user has no poems)
     await expect(
-      page.getByRole('heading', { name: 'Marked Works' })
+      page.getByRole('heading', { name: /Your archive awaits/i })
     ).toBeVisible();
 
-    // Verify "Session History" section heading exists
+    // Verify CTAs exist
     await expect(
-      page.getByRole('heading', { name: 'Session History' })
+      page.getByRole('link', { name: /Start a Game/i })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: /Join a Room/i })
     ).toBeVisible();
   });
 
   // Note: The following tests would require completed poems in the database:
   // - Toggle favorite on poem → heart icon updates
-  // - Favorited poem appears in Marked Works section
-  // - Unfavorite → poem removed from Marked Works
+  // - Favorited poems sorted to top of archive
   //
   // These scenarios require GUEST_TOKEN_SECRET for the submitLine mutation
   // which allows completing a 9-round game and creating poems.
