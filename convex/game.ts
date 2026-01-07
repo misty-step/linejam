@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { mutation, query, internalMutation } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
 import {
   generateAssignmentMatrix,
@@ -318,13 +318,6 @@ export const submitLine = mutation({
             assignedReaderId: finalReaderId,
           });
         }
-
-        // Schedule auto-start of next game after reveal period (30 seconds)
-        // This can be cancelled by host going to lobby via startNewCycle
-        await ctx.scheduler.runAfter(30_000, internal.game.autoStartNextGame, {
-          roomId: poem.roomId,
-          previousGameId: game._id,
-        });
       }
     }
   },
@@ -479,9 +472,6 @@ export const getRevealPhaseState = query({
           aiPersonaId: userRecord?.aiPersonaId,
         };
       }),
-      // For auto-start countdown (30s after game completion)
-      gameCompletedAt: game.completedAt,
-      autoStartDelayMs: 30_000,
     };
   },
 });
@@ -589,87 +579,5 @@ export const getRoundProgress = query({
       round: game.currentRound,
       players: progress,
     };
-  },
-});
-
-/**
- * Auto-start a new game after the reveal period.
- * Called by a scheduler after game completion.
- * Silently skips if:
- * - A game is already in progress (host started manually)
- * - Not enough players remain
- * - Room was reset to lobby (host chose not to continue)
- */
-export const autoStartNextGame = internalMutation({
-  args: {
-    roomId: v.id('rooms'),
-    previousGameId: v.id('games'),
-  },
-  handler: async (ctx, { roomId, previousGameId }) => {
-    const room = await ctx.db.get(roomId);
-    if (!room) return;
-
-    // Check the previous game is still the most recent completed game
-    // (host hasn't already started a new game)
-    const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) return; // Already started
-
-    const completedGame = await getCompletedGame(ctx, room._id);
-    if (!completedGame || completedGame._id !== previousGameId) return;
-
-    // Check room is still in COMPLETED state (host hasn't reset to lobby)
-    if (room.status === 'LOBBY') return;
-
-    // Check enough players
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
-
-    if (players.length < 2) return; // Not enough players
-
-    // Auto-start the new game!
-    // Re-shuffle seats for variety
-    const shuffledPlayers = secureShuffle([...players]);
-    for (let i = 0; i < shuffledPlayers.length; i++) {
-      await ctx.db.patch(shuffledPlayers[i]._id, { seatIndex: i });
-    }
-
-    const playerIds = shuffledPlayers.map((p) => p.userId);
-    const assignmentMatrix = generateAssignmentMatrix(playerIds);
-
-    const gameId = await ctx.db.insert('games', {
-      roomId: room._id,
-      status: 'IN_PROGRESS',
-      cycle: (room.currentCycle || 0) + 1,
-      currentRound: 0,
-      assignmentMatrix,
-      createdAt: Date.now(),
-    });
-
-    // Create poems
-    for (let i = 0; i < players.length; i++) {
-      await ctx.db.insert('poems', {
-        roomId: room._id,
-        gameId,
-        indexInRoom: i,
-        createdAt: Date.now(),
-      });
-    }
-
-    // Update room
-    await ctx.db.patch(room._id, {
-      status: 'IN_PROGRESS',
-      currentGameId: gameId,
-      currentCycle: (room.currentCycle || 0) + 1,
-      startedAt: Date.now(),
-    });
-
-    // Schedule AI turn
-    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
-      roomId: room._id,
-      gameId,
-      round: 0,
-    });
   },
 });
