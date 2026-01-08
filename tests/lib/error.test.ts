@@ -6,6 +6,11 @@ vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
 }));
 
+// Mock isSentryEnabled to true so we test the Sentry path
+vi.mock('@/lib/sentry', () => ({
+  isSentryEnabled: true,
+}));
+
 // Import after mocking
 import { captureError } from '@/lib/error';
 
@@ -101,5 +106,39 @@ describe('captureError', () => {
     expect(Sentry.captureException).toHaveBeenCalledWith(error, {
       contexts: undefined,
     });
+  });
+});
+
+describe('captureError when Sentry disabled', () => {
+  it('logs to console and skips Sentry when disabled', async () => {
+    vi.resetModules();
+
+    // Mock Sentry disabled
+    vi.doMock('@/lib/sentry', () => ({
+      isSentryEnabled: false,
+    }));
+
+    vi.doMock('@sentry/nextjs', () => ({
+      captureException: vi.fn(),
+    }));
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const testError = new Error('Test error');
+    const context = { userId: 'user_123' };
+
+    const { captureError: captureErrorDisabled } = await import('@/lib/error');
+    const SentryMock = await import('@sentry/nextjs');
+
+    captureErrorDisabled(testError, context);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error captured (Sentry disabled):',
+      testError,
+      context
+    );
+    expect(SentryMock.captureException).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+    vi.resetModules();
   });
 });

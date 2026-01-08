@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/nextjs';
 import type { ErrorEvent } from '@sentry/nextjs';
 
 /**
@@ -20,20 +19,6 @@ const RAW_DSN =
 const isProduction = process.env.NODE_ENV === 'production';
 
 export const isSentryEnabled = RAW_DSN.length > 0;
-
-export function captureError(
-  error: unknown,
-  context?: Record<string, unknown>
-) {
-  if (!isSentryEnabled) {
-    console.error('Error captured (Sentry disabled):', error, context);
-    return;
-  }
-
-  Sentry.captureException(error, {
-    extra: context,
-  });
-}
 
 export const sentryOptions = {
   dsn: RAW_DSN || undefined,

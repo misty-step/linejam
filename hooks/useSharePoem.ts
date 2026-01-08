@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
-import { captureError } from '../lib/sentry';
+import { captureError } from '@/lib/error';
 
 export function useSharePoem(poemId: Id<'poems'>) {
   const [copied, setCopied] = useState(false);
