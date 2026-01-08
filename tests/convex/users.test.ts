@@ -64,29 +64,15 @@ describe('ensureUserHelper', () => {
     expect(user.guestId).toBe(guestId);
   });
 
-  it('accepts legacy guestId when no token is provided', async () => {
+  it('rejects legacy guestId with deprecation error', async () => {
     mockGetUser.mockResolvedValue(null);
-    mockDb.insert.mockResolvedValue('user2');
-    mockDb.get.mockResolvedValue({
-      _id: 'user2',
-      guestId: 'legacy-guest',
-      displayName: 'Legacy',
-      createdAt: 123,
-    });
 
-    const user = await ensureUserHelper(mockCtx, {
-      displayName: ' Legacy  ',
-      guestId: 'legacy-guest',
-    });
-
-    expect(mockDb.insert).toHaveBeenCalledWith(
-      'users',
-      expect.objectContaining({
+    await expect(
+      ensureUserHelper(mockCtx, {
+        displayName: 'Legacy',
         guestId: 'legacy-guest',
-        displayName: 'Legacy', // trimmed
       })
-    );
-    expect(user.displayName).toBe('Legacy');
+    ).rejects.toThrow('guestId auth deprecated. Please refresh browser.');
   });
 
   it('throws when no identity information supplied', async () => {

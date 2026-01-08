@@ -20,9 +20,7 @@ const resolveGuestId = async (args: {
   }
 
   if (args.guestId) {
-    // Legacy fallback for older clients that still send a raw guestId.
-    // Keep this path temporary; prefer signed guestToken for integrity.
-    return args.guestId;
+    throw new ConvexError('guestId auth deprecated. Please refresh browser.');
   }
 
   return null;
@@ -50,16 +48,6 @@ export const ensureUserHelper = async (
 
   const guestId = await resolveGuestId(args);
 
-  // Legacy guestId path: avoid duplicating users from repeated requests
-  if (!clerkUserId && guestId) {
-    const legacyGuest = await ctx.db
-      .query('users')
-      .withIndex('by_guest', (q) => q.eq('guestId', guestId))
-      .first();
-
-    if (legacyGuest) return legacyGuest;
-  }
-
   if (!clerkUserId && !guestId) {
     throw new ConvexError('Missing user identifier');
   }
@@ -81,7 +69,7 @@ export const ensureUser = mutation({
   args: {
     clerkUserId: v.optional(v.string()), // Deprecated
     guestToken: v.optional(v.string()),
-    guestId: v.optional(v.string()), // Legacy fallback
+    guestId: v.optional(v.string()), // Deprecated: throws error, kept for clear messaging
     displayName: v.string(),
   },
   handler: async (ctx, args): Promise<UserDoc> => {
