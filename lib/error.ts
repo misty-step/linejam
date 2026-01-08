@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { isSentryEnabled } from './sentry';
 
 /**
  * Capture an error to Sentry with optional context.
@@ -13,11 +14,16 @@ export function captureError(
   error: unknown,
   context?: Record<string, unknown>
 ) {
+  if (!isSentryEnabled) {
+    console.error('Error captured (Sentry disabled):', error, context);
+    return;
+  }
+
   Sentry.captureException(error, {
     contexts: context ? { custom: context } : undefined,
   });
 
-  // Log to console in development for visibility when Sentry is not configured
+  // Log to console in development for visibility
   if (process.env.NODE_ENV === 'development') {
     console.error('Captured error:', error, context);
   }

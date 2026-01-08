@@ -10,9 +10,9 @@ vi.mock('convex/react', () => ({
   useMutation: () => mockLogShare,
 }));
 
-// Mock sentry
+// Mock lib/error's captureError
 const mockCaptureError = vi.fn();
-vi.mock('../../lib/sentry', () => ({
+vi.mock('@/lib/error', () => ({
   captureError: (err: unknown, context: unknown) =>
     mockCaptureError(err, context),
 }));

@@ -16,7 +16,6 @@ describe('sentryOptions', () => {
   describe('without DSN', () => {
     let sentryOptions: typeof import('@/lib/sentry').sentryOptions;
     let isSentryEnabled: typeof import('@/lib/sentry').isSentryEnabled;
-    let captureError: typeof import('@/lib/sentry').captureError;
 
     beforeAll(async () => {
       vi.resetModules();
@@ -27,7 +26,6 @@ describe('sentryOptions', () => {
       const mod = await import('@/lib/sentry');
       sentryOptions = mod.sentryOptions;
       isSentryEnabled = mod.isSentryEnabled;
-      captureError = mod.captureError;
 
       process.env = ORIGINAL_ENV;
     });
@@ -35,23 +33,6 @@ describe('sentryOptions', () => {
     it('disables instrumentation when no DSN is configured', () => {
       expect(isSentryEnabled).toBe(false);
       expect(sentryOptions.enabled).toBe(false);
-    });
-
-    it('captureError logs to console when Sentry is disabled', () => {
-      const consoleSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-      const testError = new Error('Test error');
-      const context = { userId: 'user_123' };
-
-      captureError(testError, context);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error captured (Sentry disabled):',
-        testError,
-        context
-      );
-      consoleSpy.mockRestore();
     });
   });
 
