@@ -24,7 +24,7 @@ export const createRoom = mutation({
   args: {
     displayName: v.string(),
     guestToken: v.optional(v.string()),
-    guestId: v.optional(v.string()), // Legacy fallback; prefer guestToken
+    guestId: v.optional(v.string()), // Deprecated: throws error, kept for clear messaging
   },
   handler: async (ctx, { displayName, guestToken, guestId }) => {
     const user = await ensureUserHelper(ctx, {
@@ -70,7 +70,7 @@ export const joinRoom = mutation({
     code: v.string(),
     displayName: v.string(),
     guestToken: v.optional(v.string()),
-    guestId: v.optional(v.string()),
+    guestId: v.optional(v.string()), // Deprecated: throws error, kept for clear messaging
   },
   handler: async (ctx, { code, displayName, guestToken, guestId }) => {
     const user = await ensureUserHelper(ctx, {
