@@ -18,6 +18,7 @@ import { Providers } from './providers';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { themeIds, defaultThemeId } from '@/lib/themes';
+import { siteConfig } from '@/lib/config';
 
 // Kenya theme fonts
 const libreBaskerville = Libre_Baskerville({
@@ -95,11 +96,30 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Linejam',
-  description: 'Collaborative poetry for friends in the same room',
-  keywords: ['poetry', 'game', 'collaborative', 'writing', 'friends'],
-  authors: [{ name: 'Linejam' }],
+  title: siteConfig.title,
+  description: siteConfig.description,
+  keywords: [
+    'poetry',
+    'game',
+    'collaborative',
+    'writing',
+    'party game',
+    'friends',
+  ],
+  authors: [{ name: siteConfig.title }],
   manifest: '/site.webmanifest',
+  metadataBase: new URL(siteConfig.url),
+  openGraph: {
+    title: siteConfig.title,
+    description: siteConfig.description,
+    siteName: siteConfig.title,
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteConfig.title,
+    description: siteConfig.description,
+  },
 };
 
 export const viewport: Viewport = {
