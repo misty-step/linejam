@@ -18,6 +18,7 @@ import { Providers } from './providers';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { themeIds, defaultThemeId } from '@/lib/themes';
+import { siteConfig } from '@/lib/config';
 
 // Kenya theme fonts
 const libreBaskerville = Libre_Baskerville({
@@ -95,9 +96,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Linejam',
-  description:
-    'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
+  title: siteConfig.title,
+  description: siteConfig.description,
   keywords: [
     'poetry',
     'game',
@@ -106,21 +106,19 @@ export const metadata: Metadata = {
     'party game',
     'friends',
   ],
-  authors: [{ name: 'Linejam' }],
+  authors: [{ name: siteConfig.title }],
   manifest: '/site.webmanifest',
-  metadataBase: new URL('https://linejam.app'),
+  metadataBase: new URL(siteConfig.url),
   openGraph: {
-    title: 'Linejam',
-    description:
-      'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
-    siteName: 'Linejam',
+    title: siteConfig.title,
+    description: siteConfig.description,
+    siteName: siteConfig.title,
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Linejam',
-    description:
-      'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
+    title: siteConfig.title,
+    description: siteConfig.description,
   },
 };
 

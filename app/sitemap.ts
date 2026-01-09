@@ -1,25 +1,26 @@
 import type { MetadataRoute } from 'next';
+import { siteConfig } from '@/lib/config';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://linejam.app';
+  const lastModified = new Date();
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
     {
-      url: baseUrl,
-      lastModified: new Date(),
+      url: siteConfig.url,
+      lastModified,
       changeFrequency: 'weekly',
       priority: 1,
     },
     {
-      url: `${baseUrl}/host`,
-      lastModified: new Date(),
+      url: `${siteConfig.url}/host`,
+      lastModified,
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/join`,
-      lastModified: new Date(),
+      url: `${siteConfig.url}/join`,
+      lastModified,
       changeFrequency: 'monthly',
       priority: 0.8,
     },

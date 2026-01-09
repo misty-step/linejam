@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { tokens } from '../lib/tokens';
+import { tokens } from '@/lib/tokens';
 
 export const runtime = 'edge';
 export const contentType = 'image/png';
@@ -12,12 +12,24 @@ const libreBaskervilleUrl =
 const ibmPlexSansUrl =
   'https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff';
 
+async function fetchFont(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return res.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image() {
-  // Load fonts
-  const [libreBaskerville, ibmPlexSans] = await Promise.all([
-    fetch(libreBaskervilleUrl).then((res) => res.arrayBuffer()),
-    fetch(ibmPlexSansUrl).then((res) => res.arrayBuffer()),
-  ]).catch(() => [null, null]);
+  // Load fonts with individual error handling (allows partial success)
+  const [libreBaskerville, ibmPlexSans] = await Promise.allSettled([
+    fetchFont(libreBaskervilleUrl),
+    fetchFont(ibmPlexSansUrl),
+  ]).then((results) =>
+    results.map((r) => (r.status === 'fulfilled' ? r.value : null))
+  );
 
   // Diamond shape representing the 1-2-3-4-5-4-3-2-1 word pattern
   const wordCounts = [1, 2, 3, 4, 5, 4, 3, 2, 1];
@@ -34,7 +46,7 @@ export default async function Image() {
           width: '100%',
           height: '100%',
           backgroundColor: tokens.colors.background,
-          fontFamily: 'Libre Baskerville',
+          fontFamily: tokens.fonts.display,
           position: 'relative',
         }}
       >
@@ -55,7 +67,7 @@ export default async function Image() {
           style={{
             fontSize: 32,
             color: tokens.colors.textMuted,
-            fontFamily: 'IBM Plex Sans',
+            fontFamily: tokens.fonts.sans,
             marginBottom: 48,
           }}
         >
