@@ -5,6 +5,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Id } from '../convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
+import { trackPoemShared } from '@/lib/analytics';
 
 export function useSharePoem(poemId: Id<'poems'>) {
   const [copied, setCopied] = useState(false);
@@ -18,6 +19,7 @@ export function useSharePoem(poemId: Id<'poems'>) {
       setCopied(true);
       // Fire-and-forget analytics
       logShare({ poemId }).catch(() => {});
+      trackPoemShared({ method: 'clipboard' });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       captureError(err, { operation: 'sharePoem', poemId });

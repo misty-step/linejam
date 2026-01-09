@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
@@ -16,6 +16,7 @@ import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { BotBadge } from './ui/BotBadge';
 import { Id } from '../convex/_generated/dataModel';
+import { trackGameCompleted } from '../lib/analytics';
 
 interface RevealPhaseProps {
   roomCode: string;
@@ -36,6 +37,26 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
   const revealPoemMutation = useMutation(api.game.revealPoem);
   const startNewCycleMutation = useMutation(api.game.startNewCycle);
   const startGameMutation = useMutation(api.game.startGame);
+
+  // Track game completion once when all poems are revealed
+  const hasTrackedCompletion = useRef(false);
+  useEffect(() => {
+    if (!state) return;
+    const { allRevealed, poems, myPoems } = state;
+    const allStableIds = poems.map((p) => p.readerStableId);
+
+    if (allRevealed && !hasTrackedCompletion.current) {
+      hasTrackedCompletion.current = true;
+      const hasAi = poems.some((p) =>
+        myPoems?.find((mp) => mp._id === p._id)?.lines.some((l) => l.isBot)
+      );
+      trackGameCompleted({
+        playerCount: allStableIds.length,
+        poemCount: poems.length,
+        hasAi: hasAi ?? false,
+      });
+    }
+  }, [state]);
 
   const handleStartNow = async () => {
     setError(null);

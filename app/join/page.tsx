@@ -6,6 +6,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
+import { trackGameJoined } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -43,6 +44,7 @@ function JoinForm() {
         displayName: name,
         guestToken: guestToken || undefined,
       });
+      trackGameJoined({ roomCode: normalizedCode });
       router.push(`/room/${normalizedCode}`);
     } catch (err) {
       const feedback = errorToFeedback(err);
