@@ -96,10 +96,32 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Linejam',
-  description: 'Collaborative poetry for friends in the same room',
-  keywords: ['poetry', 'game', 'collaborative', 'writing', 'friends'],
+  description:
+    'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
+  keywords: [
+    'poetry',
+    'game',
+    'collaborative',
+    'writing',
+    'party game',
+    'friends',
+  ],
   authors: [{ name: 'Linejam' }],
   manifest: '/site.webmanifest',
+  metadataBase: new URL('https://linejam.app'),
+  openGraph: {
+    title: 'Linejam',
+    description:
+      'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
+    siteName: 'Linejam',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Linejam',
+    description:
+      'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
+  },
 };
 
 export const viewport: Viewport = {
