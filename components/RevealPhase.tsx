@@ -42,18 +42,15 @@ export function RevealPhase({ roomCode }: RevealPhaseProps) {
   const hasTrackedCompletion = useRef(false);
   useEffect(() => {
     if (!state) return;
-    const { allRevealed, poems, myPoems } = state;
-    const allStableIds = poems.map((p) => p.readerStableId);
+    const { allRevealed, poems, players } = state;
 
     if (allRevealed && !hasTrackedCompletion.current) {
       hasTrackedCompletion.current = true;
-      const hasAi = poems.some((p) =>
-        myPoems?.find((mp) => mp._id === p._id)?.lines.some((l) => l.isBot)
-      );
+      const hasAi = players.some((p) => p.isBot);
       trackGameCompleted({
-        playerCount: allStableIds.length,
+        playerCount: players.length,
         poemCount: poems.length,
-        hasAi: hasAi ?? false,
+        hasAi,
       });
     }
   }, [state]);

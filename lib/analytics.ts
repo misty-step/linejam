@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Lightweight analytics tracking for key user actions.
  *
