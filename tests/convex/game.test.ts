@@ -354,6 +354,82 @@ describe('game', () => {
       ).rejects.toThrow('Expected 3 words, got 2');
     });
 
+    it('throws if line text exceeds 500 characters', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user1', 'user2']],
+        }) // game (via poem.gameId)
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
+
+      // Duplicate check - no existing line
+      mockDb.first.mockResolvedValue(null);
+
+      // 501 character "word" (exceeds limit)
+      const longText = 'a'.repeat(501);
+
+      await expect(
+        // @ts-expect-error - calling handler
+        submitLine.handler(mockCtx, {
+          poemId: 'poem1',
+          lineIndex: 0,
+          text: longText,
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Line must be 500 characters or less');
+    });
+
+    it('accepts line text at exactly 500 characters', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1', displayName: 'Test User' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user1', 'user2']],
+        }) // game (via poem.gameId)
+        .mockResolvedValueOnce({ _id: 'room1' }); // room
+
+      // Duplicate check - no existing line
+      mockDb.first.mockResolvedValue(null);
+
+      // Mock checking round completion
+      mockDb.collect.mockResolvedValue([{ _id: 'poem1' }, { _id: 'poem2' }]);
+
+      // 500 character word passes length check but the word count is 1
+      // Round 0 expects 1 word, so it should succeed
+      const exactLengthText = 'a'.repeat(500);
+
+      // @ts-expect-error - calling handler
+      await submitLine.handler(mockCtx, {
+        poemId: 'poem1',
+        lineIndex: 0,
+        text: exactLengthText,
+        guestToken: 'token',
+      });
+
+      expect(mockDb.insert).toHaveBeenCalledWith(
+        'lines',
+        expect.objectContaining({
+          text: exactLengthText,
+          wordCount: 1,
+        })
+      );
+    });
+
     it('succeeds silently if line already submitted (idempotent)', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockDb.get

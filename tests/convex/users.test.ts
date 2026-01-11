@@ -151,4 +151,43 @@ describe('ensureUserHelper', () => {
       })
     ).rejects.toBeInstanceOf(ConvexError);
   });
+
+  it('throws when displayName exceeds 50 characters', async () => {
+    const guestId = 'long-name-guest';
+    const guestToken = await signGuestToken(guestId);
+
+    mockGetUser.mockResolvedValue(null);
+
+    const longName = 'a'.repeat(51);
+
+    await expect(
+      ensureUserHelper(mockCtx, {
+        displayName: longName,
+        guestToken,
+      })
+    ).rejects.toThrow('Display name must be 50 characters or less');
+  });
+
+  it('accepts displayName at exactly 50 characters', async () => {
+    const guestId = 'exact-length-guest';
+    const guestToken = await signGuestToken(guestId);
+
+    mockGetUser.mockResolvedValue(null);
+    mockDb.insert.mockResolvedValue('user5');
+
+    const exactName = 'a'.repeat(50);
+    mockDb.get.mockResolvedValue({
+      _id: 'user5',
+      guestId,
+      displayName: exactName,
+      createdAt: 123,
+    });
+
+    const user = await ensureUserHelper(mockCtx, {
+      displayName: exactName,
+      guestToken,
+    });
+
+    expect(user.displayName).toBe(exactName);
+  });
 });
