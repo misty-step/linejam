@@ -40,16 +40,6 @@ export default function Home() {
                 Join a Room
               </Button>
             </Link>
-
-            {/* Archive Link */}
-            <div className="pt-2">
-              <Link
-                href="/me/poems"
-                className="inline-block text-sm text-[var(--color-text-secondary)] hover:underline transition-colors font-[var(--font-sans)]"
-              >
-                Archive
-              </Link>
-            </div>
           </div>
         </div>
       </main>
