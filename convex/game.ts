@@ -300,30 +300,29 @@ export const submitLine = mutation({
         });
 
         // Mark all poems as completed and assign readers
-        // Each player reads the poem at offset +1 from their seat
-        // (so they don't read the poem they started)
-        // Fetch user records to check if readers are AI
+        // Uses assignPoemReaders for consistent derangement + AI handling
         const playerUserRecords = await Promise.all(
           players.map((p) => ctx.db.get(p.userId))
         );
-        const userById = new Map(
-          players.map((p, i) => [p.userId, playerUserRecords[i]])
+
+        // Deep module: assigns readers with fairness + derangement
+        const { assignPoemReaders } = await import('./lib/assignPoemReaders');
+        const readerAssignments = assignPoemReaders(
+          poems.map((p) => ({
+            _id: p._id,
+            // Author = user who wrote first line (from assignment matrix)
+            authorUserId: game.assignmentMatrix[0][p.indexInRoom],
+          })),
+          playerUserRecords
+            .filter((u) => u !== null)
+            .map((u) => ({ userId: u!._id, kind: u!.kind }))
         );
 
-        for (let i = 0; i < poems.length; i++) {
-          const readerIndex = (i + 1) % players.length;
-          const readerPlayer = players.find((p) => p.seatIndex === readerIndex);
-          const readerUser = readerPlayer
-            ? userById.get(readerPlayer.userId)
-            : null;
-
-          // If natural reader is AI, assign to host instead
-          const finalReaderId =
-            readerUser?.kind === 'AI' ? room.hostUserId : readerPlayer?.userId;
-
-          await ctx.db.patch(poems[i]._id, {
+        // Patch all poems with assigned readers
+        for (const poem of poems) {
+          await ctx.db.patch(poem._id, {
             completedAt: Date.now(),
-            assignedReaderId: finalReaderId,
+            assignedReaderId: readerAssignments.get(poem._id),
           });
         }
       }
