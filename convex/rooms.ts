@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser } from './lib/auth';
@@ -209,23 +209,23 @@ export const closeRoom = mutation({
   handler: async (ctx, { roomCode, guestToken }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) {
-      throw new Error('Not authenticated');
+      throw new ConvexError('Not authenticated');
     }
 
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) {
-      throw new Error('Room not found');
+      throw new ConvexError('Room not found');
     }
 
     // Only host can close the room
     if (room.hostUserId !== user._id) {
-      throw new Error('Only the host can close the room');
+      throw new ConvexError('Only the host can close the room');
     }
 
     // Can only close during lobby (no active game)
     const activeGame = await getActiveGame(ctx, room._id);
     if (activeGame) {
-      throw new Error('Cannot close room while game is in progress');
+      throw new ConvexError('Cannot close room while game is in progress');
     }
 
     // Remove all players from the room
