@@ -305,17 +305,18 @@ export const submitLine = mutation({
           players.map((p) => ctx.db.get(p.userId))
         );
 
-        // Deep module: assigns readers with fairness + derangement
         const { assignPoemReaders } = await import('./lib/assignPoemReaders');
+        const humanAndAiPlayers = playerUserRecords
+          .filter((u): u is NonNullable<typeof u> => u !== null)
+          .map((u) => ({ userId: u._id, kind: u.kind }));
+
         const readerAssignments = assignPoemReaders(
           poems.map((p) => ({
             _id: p._id,
-            // Author = user who wrote first line (from assignment matrix)
+            // Author = first line writer from assignment matrix
             authorUserId: game.assignmentMatrix[0][p.indexInRoom],
           })),
-          playerUserRecords
-            .filter((u) => u !== null)
-            .map((u) => ({ userId: u!._id, kind: u!.kind }))
+          humanAndAiPlayers
         );
 
         // Patch all poems with assigned readers
