@@ -64,6 +64,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const addAiMutation = useMutation(api.ai.addAiPlayer);
   const removeAiMutation = useMutation(api.ai.removeAiPlayer);
   const leaveLobbyMutation = useMutation(api.rooms.leaveLobby);
+  const closeRoomMutation = useMutation(api.rooms.closeRoom);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -145,6 +146,20 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
     }
   };
 
+  const handleCloseRoom = async () => {
+    setError(null);
+    try {
+      await closeRoomMutation({
+        roomCode: room.code,
+        guestToken: guestToken || undefined,
+      });
+      router.push('/');
+    } catch (err) {
+      const feedback = errorToFeedback(err);
+      setError(feedback.message);
+    }
+  };
+
   // Extract button rendering logic (DRY principle for strategic duplication)
   const renderButton = (className?: string) => {
     if (isHost) {
@@ -162,12 +177,12 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               : `Need ${needsMore} more Poet${needsMore !== 1 ? 's' : ''} to Jam`}
           </Button>
           <Button
-            onClick={handleLeaveLobby}
+            onClick={handleCloseRoom}
             size="md"
             className="w-full"
             variant="ghost"
           >
-            Leave Lobby
+            Close Room
           </Button>
         </div>
       );

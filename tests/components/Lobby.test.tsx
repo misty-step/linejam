@@ -15,16 +15,18 @@ const mockMutations = {
   addAi: vi.fn(),
   removeAi: vi.fn(),
   leaveLobby: vi.fn().mockResolvedValue(undefined),
+  closeRoom: vi.fn().mockResolvedValue(undefined),
 };
 
 // Mock Convex (external) - use call order tracking
-// Note: Order matches component's useMutation call order in Lobby.tsx:60-63
+// Note: Order matches component's useMutation call order in Lobby.tsx:63-67
 let callIndex = 0;
 const MUTATION_ORDER = [
   mockMutations.startGame, // api.game.startGame
   mockMutations.addAi, // api.ai.addAiPlayer
   mockMutations.removeAi, // api.ai.removeAiPlayer
   mockMutations.leaveLobby, // api.rooms.leaveLobby
+  mockMutations.closeRoom, // api.rooms.closeRoom
 ];
 
 vi.mock('convex/react', () => ({
@@ -88,6 +90,8 @@ describe('Lobby component', () => {
     mockMutations.removeAi.mockClear();
     mockMutations.leaveLobby.mockClear();
     mockMutations.leaveLobby.mockResolvedValue(undefined);
+    mockMutations.closeRoom.mockClear();
+    mockMutations.closeRoom.mockResolvedValue(undefined);
 
     // Mock fetch at boundary - useUser calls /api/guest/session
     mockFetch.mockResolvedValue({
@@ -207,10 +211,33 @@ describe('Lobby component', () => {
     expect(waitingButtons[0]).toHaveClass('opacity-50', 'cursor-not-allowed');
   });
 
-  it('Leave Lobby button calls mutation and navigates to home', async () => {
+  it('Close Room button calls mutation and navigates to home (host)', async () => {
     // Arrange
     const user = userEvent.setup();
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    // Component renders button twice (desktop + mobile), get first one
+    const closeButtons = screen.getAllByRole('button', {
+      name: /Close Room/i,
+    });
+
+    // Act
+    await user.click(closeButtons[0]);
+
+    // Assert - mutation called with room code, then navigates
+    await waitFor(() => {
+      expect(mockMutations.closeRoom).toHaveBeenCalledWith({
+        roomCode: 'ABCD',
+        guestToken: 'mock-token',
+      });
+      expect(mockPush).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('Leave Lobby button calls mutation and navigates to home (guest)', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
 
     // Component renders button twice (desktop + mobile), get first one
     const leaveButtons = screen.getAllByRole('button', {
