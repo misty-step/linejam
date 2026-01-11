@@ -165,7 +165,7 @@ describe('ensureUserHelper', () => {
         displayName: longName,
         guestToken,
       })
-    ).rejects.toBeInstanceOf(ConvexError);
+    ).rejects.toThrow('Display name must be 50 characters or less');
   });
 
   it('accepts displayName at exactly 50 characters', async () => {

@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
 import {
@@ -225,7 +225,9 @@ export const submitLine = mutation({
 
     // Validate line length (prevent storage abuse)
     if (text.length > MAX_LINE_LENGTH) {
-      throw new Error(`Line must be ${MAX_LINE_LENGTH} characters or less`);
+      throw new ConvexError(
+        `Line must be ${MAX_LINE_LENGTH} characters or less`
+      );
     }
 
     // Validate word count
