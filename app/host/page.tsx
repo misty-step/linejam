@@ -6,6 +6,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
+import { trackGameCreated } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -35,6 +36,7 @@ export default function HostPage() {
         displayName: name,
         guestToken: guestToken || undefined,
       });
+      trackGameCreated();
       router.push(`/room/${code}`);
     } catch (err) {
       const feedback = errorToFeedback(err);

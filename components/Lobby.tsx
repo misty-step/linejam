@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
@@ -13,6 +15,7 @@ import { BotBadge } from './ui/BotBadge';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
 import { Bot, UserMinus } from 'lucide-react';
+import { trackGameStarted, trackAiPlayerAdded } from '../lib/analytics';
 
 /**
  * Information Architecture: The Split-View Strategy
@@ -75,6 +78,10 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         code: room.code,
         guestToken: guestToken || undefined,
       });
+      trackGameStarted({
+        playerCount: players.length,
+        hasAi: players.some((p) => p.isBot),
+      });
     } catch (err) {
       const feedback = errorToFeedback(err);
       setError(feedback.message);
@@ -98,6 +105,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         code: room.code,
         guestToken: guestToken || undefined,
       });
+      trackAiPlayerAdded({ playerCount: players.length + 1 });
     } catch (err) {
       const feedback = errorToFeedback(err);
       setError(feedback.message);

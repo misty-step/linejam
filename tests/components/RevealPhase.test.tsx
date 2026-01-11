@@ -103,12 +103,28 @@ describe('RevealPhase component', () => {
     },
   ];
 
+  const mockPlayers = [
+    {
+      userId: 'user_alice',
+      displayName: 'Alice',
+      stableId: 'stable_alice_123',
+      isBot: false,
+    },
+    {
+      userId: 'user_bob',
+      displayName: 'Bob',
+      stableId: 'stable_bob_456',
+      isBot: false,
+    },
+  ];
+
   const mockStateNotRevealed = {
     myPoem: mockMyPoem,
     myPoems: [mockMyPoem],
     allRevealed: false,
     isHost: true,
     poems: mockPoems,
+    players: mockPlayers,
   };
 
   const mockStateAllRevealed = {
@@ -117,6 +133,7 @@ describe('RevealPhase component', () => {
     allRevealed: true,
     isHost: true,
     poems: mockPoems.map((p) => ({ ...p, isRevealed: true })),
+    players: mockPlayers,
   };
 
   const mockStateAllRevealedNotHost = {
