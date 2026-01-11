@@ -319,13 +319,15 @@ export const submitLine = mutation({
           humanAndAiPlayers
         );
 
-        // Patch all poems with assigned readers
-        for (const poem of poems) {
-          await ctx.db.patch(poem._id, {
-            completedAt: Date.now(),
-            assignedReaderId: readerAssignments.get(poem._id),
-          });
-        }
+        // Patch all poems with assigned readers (parallel for performance)
+        await Promise.all(
+          poems.map((poem) =>
+            ctx.db.patch(poem._id, {
+              completedAt: Date.now(),
+              assignedReaderId: readerAssignments.get(poem._id),
+            })
+          )
+        );
       }
     }
   },
