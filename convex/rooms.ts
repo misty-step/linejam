@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser } from './lib/auth';
@@ -198,5 +198,45 @@ export const leaveLobby = mutation({
     if (roomPlayer) {
       await ctx.db.delete(roomPlayer._id);
     }
+  },
+});
+
+export const closeRoom = mutation({
+  args: {
+    roomCode: v.string(),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) {
+      throw new ConvexError('Not authenticated');
+    }
+
+    const room = await getRoomByCode(ctx, roomCode);
+    if (!room) {
+      throw new ConvexError('Room not found');
+    }
+
+    // Only host can close the room
+    if (room.hostUserId !== user._id) {
+      throw new ConvexError('Only the host can close the room');
+    }
+
+    // Can only close during lobby (no active game)
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) {
+      throw new ConvexError('Cannot close room while game is in progress');
+    }
+
+    // Remove all players from the room
+    const roomPlayers = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+
+    await Promise.all(roomPlayers.map((rp) => ctx.db.delete(rp._id)));
+
+    // Mark room as completed
+    await ctx.db.patch(room._id, { status: 'COMPLETED' });
   },
 });
