@@ -15,6 +15,7 @@ import {
 } from './lib/room';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
+const MAX_LINE_LENGTH = 500; // More than enough for 5 words
 
 export const startGame = mutation({
   args: {
@@ -221,6 +222,11 @@ export const submitLine = mutation({
     // Validate assignment (immutable matrix - always stable)
     const assignedUserId = game.assignmentMatrix[lineIndex][poem.indexInRoom];
     if (assignedUserId !== user._id) throw new Error('Not your turn');
+
+    // Validate line length (prevent storage abuse)
+    if (text.length > MAX_LINE_LENGTH) {
+      throw new Error(`Line must be ${MAX_LINE_LENGTH} characters or less`);
+    }
 
     // Validate word count
     const wordCount = countWords(text);
