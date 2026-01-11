@@ -49,40 +49,38 @@ export default async function Image({
   // 3. Define Fallback UI
   if (!preview) {
     return new ImageResponse(
-      (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          height: '100%',
+          backgroundColor: tokens.colors.background,
+          fontFamily: 'Libre Baskerville',
+        }}
+      >
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            backgroundColor: tokens.colors.background,
-            fontFamily: 'Libre Baskerville',
+            fontSize: 80,
+            color: tokens.colors.primary,
+            letterSpacing: '-0.02em',
           }}
         >
-          <div
-            style={{
-              fontSize: 80,
-              color: tokens.colors.primary,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Linejam
-          </div>
-          <div
-            style={{
-              fontSize: 32,
-              color: tokens.colors.textMuted,
-              marginTop: 20,
-              fontFamily: 'IBM Plex Sans',
-            }}
-          >
-            Collaborative Poetry
-          </div>
+          Linejam
         </div>
-      ),
+        <div
+          style={{
+            fontSize: 32,
+            color: tokens.colors.textMuted,
+            marginTop: 20,
+            fontFamily: 'IBM Plex Sans',
+          }}
+        >
+          Collaborative Poetry
+        </div>
+      </div>,
       {
         ...size,
         fonts: [
@@ -116,86 +114,84 @@ export default async function Image({
 
   // 5. Render Poem UI
   return new ImageResponse(
-    (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        height: '100%',
+        backgroundColor: tokens.colors.background,
+        padding: '60px 80px',
+        fontFamily: 'Libre Baskerville',
+        position: 'relative',
+      }}
+    >
+      {/* Poem Lines */}
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
-          width: '100%',
-          height: '100%',
-          backgroundColor: tokens.colors.background,
-          padding: '60px 80px',
-          fontFamily: 'Libre Baskerville',
-          position: 'relative',
+          gap: '12px',
+          marginBottom: 'auto',
         }}
       >
-        {/* Poem Lines */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            marginBottom: 'auto',
-          }}
-        >
-          {lines.map((line, i) => (
-            <p
-              key={i}
-              style={{
-                fontSize: '40px',
-                lineHeight: '1.3',
-                color: tokens.colors.foreground,
-                margin: 0,
-                padding: 0,
-              }}
-            >
-              {line}
-            </p>
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div
-          style={{
-            width: '120px',
-            height: '2px',
-            backgroundColor: tokens.colors.primary,
-            marginTop: '40px',
-            marginBottom: '24px',
-          }}
-        />
-
-        {/* Metadata */}
-        <div
-          style={{
-            fontSize: '24px',
-            fontFamily: 'IBM Plex Sans',
-            color: tokens.colors.textMuted,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          By {preview.poetCount} poet{preview.poetCount !== 1 ? 's' : ''} ·
-          linejam.com
-        </div>
-
-        {/* Stamp */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '60px',
-            right: '80px',
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            backgroundColor: tokens.colors.primary,
-            opacity: 0.9,
-            // Mimic stamp rotation
-            transform: 'rotate(-5deg)',
-          }}
-        />
+        {lines.map((line, i) => (
+          <p
+            key={i}
+            style={{
+              fontSize: '40px',
+              lineHeight: '1.3',
+              color: tokens.colors.foreground,
+              margin: 0,
+              padding: 0,
+            }}
+          >
+            {line}
+          </p>
+        ))}
       </div>
-    ),
+
+      {/* Divider */}
+      <div
+        style={{
+          width: '120px',
+          height: '2px',
+          backgroundColor: tokens.colors.primary,
+          marginTop: '40px',
+          marginBottom: '24px',
+        }}
+      />
+
+      {/* Metadata */}
+      <div
+        style={{
+          fontSize: '24px',
+          fontFamily: 'IBM Plex Sans',
+          color: tokens.colors.textMuted,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        By {preview.poetCount} poet{preview.poetCount !== 1 ? 's' : ''} ·
+        linejam.com
+      </div>
+
+      {/* Stamp */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '60px',
+          right: '80px',
+          width: '64px',
+          height: '64px',
+          borderRadius: '50%',
+          backgroundColor: tokens.colors.primary,
+          opacity: 0.9,
+          // Mimic stamp rotation
+          transform: 'rotate(-5deg)',
+        }}
+      />
+    </div>,
     {
       ...size,
       fonts: [
