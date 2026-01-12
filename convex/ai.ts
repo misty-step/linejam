@@ -415,6 +415,7 @@ export const commitAiLine = internalMutation({
         });
       } else {
         // Game Complete
+        const completionTime = Date.now();
         const players = await ctx.db
           .query('roomPlayers')
           .withIndex('by_room', (q) => q.eq('roomId', roomId))
@@ -422,11 +423,11 @@ export const commitAiLine = internalMutation({
 
         await ctx.db.patch(gameId, {
           status: 'COMPLETED',
-          completedAt: Date.now(),
+          completedAt: completionTime,
         });
         await ctx.db.patch(roomId, {
           status: 'COMPLETED',
-          completedAt: Date.now(),
+          completedAt: completionTime,
         });
 
         // Mark all poems as completed and assign readers
@@ -448,13 +449,15 @@ export const commitAiLine = internalMutation({
             .map((u) => ({ userId: u!._id, kind: u!.kind }))
         );
 
-        // Patch all poems with assigned readers
-        for (const poem of poems) {
-          await ctx.db.patch(poem._id, {
-            completedAt: Date.now(),
-            assignedReaderId: readerAssignments.get(poem._id),
-          });
-        }
+        // Patch all poems with assigned readers (parallel for performance)
+        await Promise.all(
+          poems.map((poem) =>
+            ctx.db.patch(poem._id, {
+              completedAt: completionTime,
+              assignedReaderId: readerAssignments.get(poem._id),
+            })
+          )
+        );
       }
     }
   },
