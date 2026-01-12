@@ -43,9 +43,11 @@ export const startGame = mutation({
 
     // Assign seats (cryptographically secure random shuffle)
     const shuffledPlayers = secureShuffle([...players]);
-    for (let i = 0; i < shuffledPlayers.length; i++) {
-      await ctx.db.patch(shuffledPlayers[i]._id, { seatIndex: i });
-    }
+    await Promise.all(
+      shuffledPlayers.map((player, i) =>
+        ctx.db.patch(player._id, { seatIndex: i })
+      )
+    );
 
     // Generate assignment matrix
     const playerIds = shuffledPlayers.map((p) => p.userId);
@@ -62,14 +64,16 @@ export const startGame = mutation({
     });
 
     // Create Poems
-    for (let i = 0; i < players.length; i++) {
-      await ctx.db.insert('poems', {
-        roomId: room._id,
-        gameId,
-        indexInRoom: i,
-        createdAt: Date.now(),
-      });
-    }
+    await Promise.all(
+      players.map((_, i) =>
+        ctx.db.insert('poems', {
+          roomId: room._id,
+          gameId,
+          indexInRoom: i,
+          createdAt: Date.now(),
+        })
+      )
+    );
 
     // Update Room
     await ctx.db.patch(room._id, {
