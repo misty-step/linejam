@@ -300,32 +300,34 @@ export const submitLine = mutation({
         });
 
         // Mark all poems as completed and assign readers
-        // Each player reads the poem at offset +1 from their seat
-        // (so they don't read the poem they started)
-        // Fetch user records to check if readers are AI
+        // Uses assignPoemReaders for consistent derangement + AI handling
         const playerUserRecords = await Promise.all(
           players.map((p) => ctx.db.get(p.userId))
         );
-        const userById = new Map(
-          players.map((p, i) => [p.userId, playerUserRecords[i]])
+
+        const { assignPoemReaders } = await import('./lib/assignPoemReaders');
+        const humanAndAiPlayers = playerUserRecords
+          .filter((u): u is NonNullable<typeof u> => u !== null)
+          .map((u) => ({ userId: u._id, kind: u.kind }));
+
+        const readerAssignments = assignPoemReaders(
+          poems.map((p) => ({
+            _id: p._id,
+            // Author = first line writer from assignment matrix
+            authorUserId: game.assignmentMatrix[0][p.indexInRoom],
+          })),
+          humanAndAiPlayers
         );
 
-        for (let i = 0; i < poems.length; i++) {
-          const readerIndex = (i + 1) % players.length;
-          const readerPlayer = players.find((p) => p.seatIndex === readerIndex);
-          const readerUser = readerPlayer
-            ? userById.get(readerPlayer.userId)
-            : null;
-
-          // If natural reader is AI, assign to host instead
-          const finalReaderId =
-            readerUser?.kind === 'AI' ? room.hostUserId : readerPlayer?.userId;
-
-          await ctx.db.patch(poems[i]._id, {
-            completedAt: Date.now(),
-            assignedReaderId: finalReaderId,
-          });
-        }
+        // Patch all poems with assigned readers (parallel for performance)
+        await Promise.all(
+          poems.map((poem) =>
+            ctx.db.patch(poem._id, {
+              completedAt: Date.now(),
+              assignedReaderId: readerAssignments.get(poem._id),
+            })
+          )
+        );
       }
     }
   },
