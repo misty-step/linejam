@@ -64,13 +64,14 @@ export const startGame = mutation({
     });
 
     // Create Poems
+    const poemCreationTime = Date.now();
     await Promise.all(
       players.map((_, i) =>
         ctx.db.insert('poems', {
           roomId: room._id,
           gameId,
           indexInRoom: i,
-          createdAt: Date.now(),
+          createdAt: poemCreationTime,
         })
       )
     );
@@ -294,13 +295,14 @@ export const submitLine = mutation({
         });
       } else {
         // Game Complete
+        const completionTime = Date.now();
         await ctx.db.patch(game._id, {
           status: 'COMPLETED',
-          completedAt: Date.now(),
+          completedAt: completionTime,
         });
         await ctx.db.patch(poem.roomId, {
           status: 'COMPLETED',
-          completedAt: Date.now(),
+          completedAt: completionTime,
         });
 
         // Mark all poems as completed and assign readers
@@ -327,7 +329,7 @@ export const submitLine = mutation({
         await Promise.all(
           poems.map((poem) =>
             ctx.db.patch(poem._id, {
-              completedAt: Date.now(),
+              completedAt: completionTime,
               assignedReaderId: readerAssignments.get(poem._id),
             })
           )
