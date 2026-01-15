@@ -126,7 +126,7 @@ Commit messages: Conventional Commits (commitlint)
 
 ## Testing
 
-316 tests across Vitest (unit/integration) and Playwright (E2E). Coverage threshold: 80% lines/branches, 70% functions.
+500+ tests across Vitest (unit/integration) and Playwright (E2E). Coverage threshold: 80% lines/branches, 60% functions.
 
 ```bash
 pnpm test:watch       # Development

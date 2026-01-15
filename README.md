@@ -39,9 +39,8 @@ pnpm install
 cp .env.example .env.local
 # Add your Convex and Clerk keys
 
-# Run development servers
-pnpm dev          # Next.js on :3000
-npx convex dev    # Convex backend
+# Run development servers (parallel)
+pnpm dev          # Next.js :3000 + Convex backend
 
 # Tips
 - Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, redeploy backend code whenever frontend args change (e.g., guestToken vs guestId) to avoid validator mismatches.
@@ -49,7 +48,7 @@ npx convex dev    # Convex backend
 
 ## Testing
 
-303 tests across unit, integration, and E2E layers with 80%+ coverage enforcement.
+500+ tests across unit, integration, and E2E layers with 80%+ coverage enforcement.
 
 ```bash
 # Unit & integration tests
@@ -91,6 +90,10 @@ brew install gitleaks
 
 **False positives?** Add patterns to `.gitleaks.toml` allowlist section.
 **Hook failing?** Ensure gitleaks is installed: `brew install gitleaks`
+
+## Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain modules, data flow, and where to start reading code.
 
 ## Design
 

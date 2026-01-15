@@ -35,7 +35,7 @@
 - Framework: Vitest + Testing Library + happy-dom for unit/integration; Playwright for E2E.
 - File pattern: `**/*.{test,spec}.{ts,tsx}` near source or under `tests/`; E2E in `tests/e2e/`.
 - Coverage thresholds: 80% lines/branches/statements, 60% functions; see `vitest.config.ts`.
-- 303 tests total across unit, integration, and E2E layers.
+- 500+ tests total across unit, integration, and E2E layers.
 - Mock external calls (Clerk, Convex) at module boundary; avoid reaching network.
 
 ## Commit & PR Guidelines

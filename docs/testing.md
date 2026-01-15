@@ -1,6 +1,6 @@
 # Testing Guide
 
-Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playwright for E2E tests. 303 tests total with 80%+ coverage enforcement.
+Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playwright for E2E tests. 500+ tests with 80%+ coverage enforcement.
 
 ## Quick Reference
 
