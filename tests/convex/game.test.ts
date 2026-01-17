@@ -789,8 +789,11 @@ describe('game', () => {
     it('returns null when user is not a participant', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Participation check - no player record found
-      mockDb.first.mockResolvedValueOnce(null);
+      // Room players list - user1 not included (only user2 and user3)
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: 'user2', displayName: 'User 2' },
+        { userId: 'user3', displayName: 'User 3' },
+      ]);
 
       // @ts-expect-error - calling handler
       const result = await getRoundProgress.handler(mockCtx, {
@@ -804,8 +807,11 @@ describe('game', () => {
     it('returns null when no active game', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Participation check - user is a participant
-      mockDb.first.mockResolvedValueOnce({ roomId: 'room1', userId: 'user1' });
+      // Room players list - user is a participant
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: 'user1', displayName: 'User 1' },
+        { userId: 'user2', displayName: 'User 2' },
+      ]);
       mockGetActiveGame.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
@@ -820,19 +826,16 @@ describe('game', () => {
     it('returns progress', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Participation check - user is a participant
-      mockDb.first.mockResolvedValueOnce({ roomId: 'room1', userId: 'user1' });
+      // Room players (used for both participation check and progress display)
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: 'user1', displayName: 'User 1' },
+        { userId: 'user2', displayName: 'User 2' },
+      ]);
       mockGetActiveGame.mockResolvedValue({
         _id: 'game1',
         currentRound: 0,
         assignmentMatrix: [['user1', 'user2']],
       });
-
-      // Players query
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user1', displayName: 'User 1' },
-        { userId: 'user2', displayName: 'User 2' },
-      ]);
 
       // Poems batch fetch (collect)
       mockDb.collect.mockResolvedValueOnce([

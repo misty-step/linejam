@@ -530,23 +530,18 @@ export const getRoundProgress = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
-    // Verify user is a participant in this room
-    const player = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room_user', (q) =>
-        q.eq('roomId', room._id).eq('userId', user._id)
-      )
-      .first();
-    if (!player) return null;
-
-    // Get active game (authoritative source)
-    const game = await getActiveGame(ctx, room._id);
-    if (!game) return null;
-
+    // Fetch all room players and verify user is a participant
     const roomPlayers = await ctx.db
       .query('roomPlayers')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
+
+    const isParticipant = roomPlayers.some((p) => p.userId === user._id);
+    if (!isParticipant) return null;
+
+    // Get active game (authoritative source)
+    const game = await getActiveGame(ctx, room._id);
+    if (!game) return null;
 
     // Batch fetch all poems for this game (O(1) instead of per-player)
     const poems = await ctx.db
