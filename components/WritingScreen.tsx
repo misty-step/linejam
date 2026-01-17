@@ -33,7 +33,9 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const prefetchWaitingData = useQuery(
     api.game.getRoundProgress,
-    submissionState === 'confirmed' ? { roomCode } : 'skip'
+    submissionState === 'confirmed'
+      ? { roomCode, guestToken: guestToken || undefined }
+      : 'skip'
   );
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);

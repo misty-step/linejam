@@ -1,5 +1,6 @@
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import { useUser } from '../lib/auth';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { BotBadge } from './ui/BotBadge';
@@ -9,7 +10,11 @@ interface WaitingScreenProps {
 }
 
 export function WaitingScreen({ roomCode }: WaitingScreenProps) {
-  const progress = useQuery(api.game.getRoundProgress, { roomCode });
+  const { guestToken } = useUser();
+  const progress = useQuery(api.game.getRoundProgress, {
+    roomCode,
+    guestToken: guestToken || undefined,
+  });
 
   if (!progress) {
     return (

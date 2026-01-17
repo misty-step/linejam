@@ -761,31 +761,67 @@ describe('game', () => {
   });
 
   describe('getRoundProgress', () => {
+    it('returns null when user not authenticated', async () => {
+      mockGetUser.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getRoundProgress.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'invalid-token',
+      });
+
+      expect(result).toBeNull();
+    });
+
     it('returns null when room not found', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getRoundProgress.handler(mockCtx, {
         roomCode: 'TEST',
+        guestToken: 'valid-token',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when user is not a participant', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      // Participation check - no player record found
+      mockDb.first.mockResolvedValueOnce(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getRoundProgress.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'valid-token',
       });
 
       expect(result).toBeNull();
     });
 
     it('returns null when no active game', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      // Participation check - user is a participant
+      mockDb.first.mockResolvedValueOnce({ roomId: 'room1', userId: 'user1' });
       mockGetActiveGame.mockResolvedValue(null);
 
       // @ts-expect-error - calling handler
       const result = await getRoundProgress.handler(mockCtx, {
         roomCode: 'TEST',
+        guestToken: 'valid-token',
       });
 
       expect(result).toBeNull();
     });
 
     it('returns progress', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      // Participation check - user is a participant
+      mockDb.first.mockResolvedValueOnce({ roomId: 'room1', userId: 'user1' });
       mockGetActiveGame.mockResolvedValue({
         _id: 'game1',
         currentRound: 0,
@@ -811,6 +847,7 @@ describe('game', () => {
       // @ts-expect-error - calling handler
       const result = await getRoundProgress.handler(mockCtx, {
         roomCode: 'TEST',
+        guestToken: 'valid-token',
       });
 
       expect(result).toBeTruthy();

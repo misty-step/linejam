@@ -521,10 +521,23 @@ export const revealPoem = mutation({
 export const getRoundProgress = query({
   args: {
     roomCode: v.string(),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { roomCode }) => {
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return null;
+
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
+
+    // Verify user is a participant in this room
+    const player = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room_user', (q) =>
+        q.eq('roomId', room._id).eq('userId', user._id)
+      )
+      .first();
+    if (!player) return null;
 
     // Get active game (authoritative source)
     const game = await getActiveGame(ctx, room._id);

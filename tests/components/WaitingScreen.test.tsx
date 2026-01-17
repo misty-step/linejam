@@ -9,16 +9,33 @@ vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
 }));
 
+// Mock Clerk (external) - so useUser hook works
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null, isLoaded: true }),
+}));
+
+// Mock fetch for guest session API (external boundary)
+const mockFetch = vi.fn();
+const originalFetch = global.fetch;
+
 // Import after mocking
 import { WaitingScreen } from '@/components/WaitingScreen';
 
 describe('WaitingScreen component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Setup fetch mock for guest session
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ guestId: 'guest_123', token: 'test-token' }),
+    });
+    global.fetch = mockFetch;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    global.fetch = originalFetch;
   });
 
   it('displays loading state when progress is null', () => {
