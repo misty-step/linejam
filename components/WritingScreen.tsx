@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
 import { WordSlots } from './ui/WordSlots';
+import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { WaitingScreen } from './WaitingScreen';
 
 interface WritingScreenProps {
@@ -87,8 +88,17 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     return () => clearTimeout(timeoutId);
   }, [assignment, isValid, currentWordCount, targetCount]);
 
+  // Show loading state while auth is initializing
+  if (isAuthLoading || assignment === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.LOADING_ROOM} />
+      </div>
+    );
+  }
+
   // Show waiting screen if no assignment or just submitted
-  if (!assignment || submittedRound === assignment.lineIndex) {
+  if (assignment === null || submittedRound === assignment.lineIndex) {
     return <WaitingScreen roomCode={roomCode} />;
   }
 
