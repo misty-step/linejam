@@ -18,10 +18,12 @@ interface WritingScreenProps {
 export function WritingScreen({ roomCode }: WritingScreenProps) {
   const { guestToken, isLoading: isAuthLoading } = useUser();
 
-  // Skip query until auth is loaded to avoid race condition
+  // Skip query only if auth is loading AND we don't have a token yet
+  // (If we have a token from a previous render, use it immediately)
+  const shouldSkip = isAuthLoading && !guestToken;
   const assignment = useQuery(
     api.game.getCurrentAssignment,
-    isAuthLoading ? 'skip' : { roomCode, guestToken: guestToken || undefined }
+    shouldSkip ? 'skip' : { roomCode, guestToken: guestToken || undefined }
   );
   const submitLine = useMutation(api.game.submitLine);
 
@@ -88,8 +90,8 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     return () => clearTimeout(timeoutId);
   }, [assignment, isValid, currentWordCount, targetCount]);
 
-  // Show loading state while auth is initializing
-  if (isAuthLoading || assignment === undefined) {
+  // Show loading state while auth is initializing (only if we don't have a token yet)
+  if (shouldSkip || assignment === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
         <LoadingState message={LoadingMessages.LOADING_ROOM} />

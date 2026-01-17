@@ -12,10 +12,12 @@ interface WaitingScreenProps {
 export function WaitingScreen({ roomCode }: WaitingScreenProps) {
   const { guestToken, isLoading: isAuthLoading } = useUser();
 
-  // Skip query until auth is loaded to avoid race condition
+  // Skip query only if auth is loading AND we don't have a token yet
+  // (If we have a token from a previous render, use it immediately)
+  const shouldSkip = isAuthLoading && !guestToken;
   const progress = useQuery(
     api.game.getRoundProgress,
-    isAuthLoading ? 'skip' : { roomCode, guestToken: guestToken || undefined }
+    shouldSkip ? 'skip' : { roomCode, guestToken: guestToken || undefined }
   );
 
   if (!progress) {
