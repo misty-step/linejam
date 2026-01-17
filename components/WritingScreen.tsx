@@ -101,7 +101,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
 
   // Show waiting screen if no assignment or just submitted
   if (assignment === null || submittedRound === assignment.lineIndex) {
-    return <WaitingScreen roomCode={roomCode} />;
+    return <WaitingScreen roomCode={roomCode} guestToken={guestToken} />;
   }
 
   const handleSubmit = async () => {

@@ -7,13 +7,21 @@ import { BotBadge } from './ui/BotBadge';
 
 interface WaitingScreenProps {
   roomCode: string;
+  guestToken?: string | null;
 }
 
-export function WaitingScreen({ roomCode }: WaitingScreenProps) {
-  const { guestToken, isLoading: isAuthLoading } = useUser();
+export function WaitingScreen({
+  roomCode,
+  guestToken: propToken,
+}: WaitingScreenProps) {
+  const { guestToken: hookToken, isLoading: isAuthLoading } = useUser();
+
+  // Use prop token if provided (from parent component), otherwise use hook token
+  // This allows immediate query execution when transitioning from WritingScreen
+  const guestToken = propToken ?? hookToken;
 
   // Skip query only if auth is loading AND we don't have a token yet
-  // (If we have a token from a previous render, use it immediately)
+  // (If we have a token from a previous render or prop, use it immediately)
   const shouldSkip = isAuthLoading && !guestToken;
   const progress = useQuery(
     api.game.getRoundProgress,
