@@ -15,11 +15,13 @@ interface WritingScreenProps {
 }
 
 export function WritingScreen({ roomCode }: WritingScreenProps) {
-  const { guestToken } = useUser();
-  const assignment = useQuery(api.game.getCurrentAssignment, {
-    roomCode,
-    guestToken: guestToken || undefined,
-  });
+  const { guestToken, isLoading: isAuthLoading } = useUser();
+
+  // Skip query until auth is loaded to avoid race condition
+  const assignment = useQuery(
+    api.game.getCurrentAssignment,
+    isAuthLoading ? 'skip' : { roomCode, guestToken: guestToken || undefined }
+  );
   const submitLine = useMutation(api.game.submitLine);
 
   const [text, setText] = useState('');

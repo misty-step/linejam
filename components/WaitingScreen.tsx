@@ -10,11 +10,13 @@ interface WaitingScreenProps {
 }
 
 export function WaitingScreen({ roomCode }: WaitingScreenProps) {
-  const { guestToken } = useUser();
-  const progress = useQuery(api.game.getRoundProgress, {
-    roomCode,
-    guestToken: guestToken || undefined,
-  });
+  const { guestToken, isLoading: isAuthLoading } = useUser();
+
+  // Skip query until auth is loaded to avoid race condition
+  const progress = useQuery(
+    api.game.getRoundProgress,
+    isAuthLoading ? 'skip' : { roomCode, guestToken: guestToken || undefined }
+  );
 
   if (!progress) {
     return (
