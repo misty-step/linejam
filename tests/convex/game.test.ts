@@ -594,7 +594,27 @@ describe('game', () => {
     it('returns null if no completed game', async () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      // Room players - user is a participant (checked before getCompletedGame)
+      mockDb.collect.mockResolvedValueOnce([{ userId: 'user1' }]);
       mockGetCompletedGame.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler
+      const result = await getRevealPhaseState.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null if user is not a participant', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      // Room players - user1 NOT in list
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: 'user2' },
+        { userId: 'user3' },
+      ]);
 
       // @ts-expect-error - calling handler
       const result = await getRevealPhaseState.handler(mockCtx, {
@@ -611,6 +631,11 @@ describe('game', () => {
         _id: 'room1',
         hostUserId: 'user2', // user1 is not host
       });
+      // Room players - user is a participant (checked before getCompletedGame)
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: 'user1' },
+        { userId: 'user2' },
+      ]);
       mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
 
       // Poems query - no poems assigned to user1
@@ -645,6 +670,8 @@ describe('game', () => {
         _id: 'room1',
         hostUserId: 'user1',
       });
+      // Room players - user is a participant (checked before getCompletedGame)
+      mockDb.collect.mockResolvedValueOnce([{ userId: 'user1' }]);
       mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
 
       // Poems query

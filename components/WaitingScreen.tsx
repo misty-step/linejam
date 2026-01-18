@@ -28,10 +28,20 @@ export function WaitingScreen({
     shouldSkip ? 'skip' : { roomCode, guestToken: guestToken || undefined }
   );
 
-  if (!progress) {
+  // Loading state (query in flight or skipped)
+  if (progress === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
         <LoadingState message={LoadingMessages.LOADING_ROOM} />
+      </div>
+    );
+  }
+
+  // Unauthorized or room not found (query returned null)
+  if (progress === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <p className="text-[var(--color-text-secondary)]">Room not found</p>
       </div>
     );
   }

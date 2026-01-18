@@ -351,6 +351,13 @@ export const getRevealPhaseState = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
+    // Verify user is a participant
+    const players = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+    if (!players.some((p) => p.userId === user._id)) return null;
+
     // Get most recently completed game (authoritative source)
     const game = await getCompletedGame(ctx, room._id);
     if (!game) return null;
@@ -358,11 +365,6 @@ export const getRevealPhaseState = query({
     const poems = await ctx.db
       .query('poems')
       .withIndex('by_game', (q) => q.eq('gameId', game._id))
-      .collect();
-
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
     // Batch fetch user records for stable IDs (for avatar colors)

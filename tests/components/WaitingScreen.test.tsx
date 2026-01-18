@@ -38,8 +38,8 @@ describe('WaitingScreen component', () => {
     vi.restoreAllMocks();
   });
 
-  it('displays loading state when progress is null', () => {
-    mockUseQuery.mockReturnValue(null);
+  it('displays loading state when progress is undefined', () => {
+    mockUseQuery.mockReturnValue(undefined);
 
     render(<WaitingScreen roomCode="ABCD" />);
 
@@ -47,6 +47,14 @@ describe('WaitingScreen component', () => {
     expect(
       screen.getByText(/Preparing your writing desk/i)
     ).toBeInTheDocument();
+  });
+
+  it('displays error state when progress is null (unauthorized)', () => {
+    mockUseQuery.mockReturnValue(null);
+
+    render(<WaitingScreen roomCode="ABCD" />);
+
+    expect(screen.getByText(/Room not found/i)).toBeInTheDocument();
   });
 
   it('displays round information when progress is available', () => {
