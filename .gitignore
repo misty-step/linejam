@@ -50,3 +50,6 @@ next-env.d.ts
 /playwright-report/
 /playwright/.cache/
 .worktrees
+
+thinktank.log
+thinktank_*/
