@@ -18,6 +18,7 @@ import { requireRoomByCode, getActiveGame } from './lib/room';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
+import { assignPoemReaders } from './lib/assignPoemReaders';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
 
@@ -437,7 +438,6 @@ export const commitAiLine = internalMutation({
         );
 
         // Deep module: assigns readers with fairness + derangement
-        const { assignPoemReaders } = await import('./lib/assignPoemReaders');
         const readerAssignments = assignPoemReaders(
           poems.map((p) => ({
             _id: p._id,

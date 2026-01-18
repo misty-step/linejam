@@ -13,6 +13,7 @@ import {
   getActiveGame,
   getCompletedGame,
 } from './lib/room';
+import { assignPoemReaders } from './lib/assignPoemReaders';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
 const MAX_LINE_LENGTH = 500; // More than enough for 5 words
@@ -311,7 +312,6 @@ export const submitLine = mutation({
           players.map((p) => ctx.db.get(p.userId))
         );
 
-        const { assignPoemReaders } = await import('./lib/assignPoemReaders');
         const humanAndAiPlayers = playerUserRecords
           .filter((u): u is NonNullable<typeof u> => u !== null)
           .map((u) => ({ userId: u._id, kind: u.kind }));
