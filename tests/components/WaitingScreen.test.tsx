@@ -9,6 +9,23 @@ vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
 }));
 
+// Mock Clerk (external)
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null, isLoaded: true }),
+}));
+
+// Mock useUser hook to return pre-loaded state with guestToken
+vi.mock('@/lib/auth', () => ({
+  useUser: () => ({
+    clerkUser: null,
+    guestId: 'guest_123',
+    guestToken: 'mock-token',
+    isLoading: false,
+    isAuthenticated: false,
+    displayName: 'Guest',
+  }),
+}));
+
 // Import after mocking
 import { WaitingScreen } from '@/components/WaitingScreen';
 
@@ -21,8 +38,8 @@ describe('WaitingScreen component', () => {
     vi.restoreAllMocks();
   });
 
-  it('displays loading state when progress is null', () => {
-    mockUseQuery.mockReturnValue(null);
+  it('displays loading state when progress is undefined', () => {
+    mockUseQuery.mockReturnValue(undefined);
 
     render(<WaitingScreen roomCode="ABCD" />);
 
@@ -30,6 +47,14 @@ describe('WaitingScreen component', () => {
     expect(
       screen.getByText(/Preparing your writing desk/i)
     ).toBeInTheDocument();
+  });
+
+  it('displays error state when progress is null (unauthorized)', () => {
+    mockUseQuery.mockReturnValue(null);
+
+    render(<WaitingScreen roomCode="ABCD" />);
+
+    expect(screen.getByText(/Room not found/i)).toBeInTheDocument();
   });
 
   it('displays round information when progress is available', () => {

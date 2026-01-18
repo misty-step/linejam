@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
 import { WordSlots } from './ui/WordSlots';
+import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { WaitingScreen } from './WaitingScreen';
 
 interface WritingScreenProps {
@@ -15,11 +16,15 @@ interface WritingScreenProps {
 }
 
 export function WritingScreen({ roomCode }: WritingScreenProps) {
-  const { guestToken } = useUser();
-  const assignment = useQuery(api.game.getCurrentAssignment, {
-    roomCode,
-    guestToken: guestToken || undefined,
-  });
+  const { guestToken, isLoading: isAuthLoading } = useUser();
+
+  // Skip query only if auth is loading AND we don't have a token yet
+  // (If we have a token from a previous render, use it immediately)
+  const shouldSkip = isAuthLoading && !guestToken;
+  const assignment = useQuery(
+    api.game.getCurrentAssignment,
+    shouldSkip ? 'skip' : { roomCode, guestToken: guestToken || undefined }
+  );
   const submitLine = useMutation(api.game.submitLine);
 
   const [text, setText] = useState('');
@@ -33,7 +38,9 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const prefetchWaitingData = useQuery(
     api.game.getRoundProgress,
-    submissionState === 'confirmed' ? { roomCode } : 'skip'
+    submissionState === 'confirmed'
+      ? { roomCode, guestToken: guestToken || undefined }
+      : 'skip'
   );
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
@@ -83,9 +90,18 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     return () => clearTimeout(timeoutId);
   }, [assignment, isValid, currentWordCount, targetCount]);
 
+  // Show loading state while auth is initializing (only if we don't have a token yet)
+  if (shouldSkip || assignment === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.LOADING_ROOM} />
+      </div>
+    );
+  }
+
   // Show waiting screen if no assignment or just submitted
-  if (!assignment || submittedRound === assignment.lineIndex) {
-    return <WaitingScreen roomCode={roomCode} />;
+  if (assignment === null || submittedRound === assignment.lineIndex) {
+    return <WaitingScreen roomCode={roomCode} guestToken={guestToken} />;
   }
 
   const handleSubmit = async () => {

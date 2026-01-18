@@ -17,9 +17,21 @@ vi.mock('convex/react', () => ({
   useMutation: () => mockSubmitLineMutation,
 }));
 
-// Mock Clerk (external) - let useUser hook use real implementation
+// Mock Clerk (external)
 vi.mock('@clerk/nextjs', () => ({
   useUser: () => ({ user: null, isLoaded: true }),
+}));
+
+// Mock useUser hook to return pre-loaded state with guestToken
+vi.mock('@/lib/auth', () => ({
+  useUser: () => ({
+    clerkUser: null,
+    guestId: 'guest_123',
+    guestToken: 'mock-token',
+    isLoading: false,
+    isAuthenticated: false,
+    displayName: 'Guest',
+  }),
 }));
 
 // Mock Sentry (external) - let captureError use real implementation

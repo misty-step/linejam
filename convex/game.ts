@@ -13,6 +13,7 @@ import {
   getActiveGame,
   getCompletedGame,
 } from './lib/room';
+import { assignPoemReaders } from './lib/assignPoemReaders';
 
 const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
 const MAX_LINE_LENGTH = 500; // More than enough for 5 words
@@ -311,7 +312,6 @@ export const submitLine = mutation({
           players.map((p) => ctx.db.get(p.userId))
         );
 
-        const { assignPoemReaders } = await import('./lib/assignPoemReaders');
         const humanAndAiPlayers = playerUserRecords
           .filter((u): u is NonNullable<typeof u> => u !== null)
           .map((u) => ({ userId: u._id, kind: u.kind }));
@@ -351,6 +351,13 @@ export const getRevealPhaseState = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
+    // Verify user is a participant
+    const players = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+    if (!players.some((p) => p.userId === user._id)) return null;
+
     // Get most recently completed game (authoritative source)
     const game = await getCompletedGame(ctx, room._id);
     if (!game) return null;
@@ -358,11 +365,6 @@ export const getRevealPhaseState = query({
     const poems = await ctx.db
       .query('poems')
       .withIndex('by_game', (q) => q.eq('gameId', game._id))
-      .collect();
-
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
     // Batch fetch user records for stable IDs (for avatar colors)
@@ -521,19 +523,27 @@ export const revealPoem = mutation({
 export const getRoundProgress = query({
   args: {
     roomCode: v.string(),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { roomCode }) => {
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return null;
+
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
-    // Get active game (authoritative source)
-    const game = await getActiveGame(ctx, room._id);
-    if (!game) return null;
-
+    // Fetch all room players and verify user is a participant
     const roomPlayers = await ctx.db
       .query('roomPlayers')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
+
+    const isParticipant = roomPlayers.some((p) => p.userId === user._id);
+    if (!isParticipant) return null;
+
+    // Get active game (authoritative source)
+    const game = await getActiveGame(ctx, room._id);
+    if (!game) return null;
 
     // Batch fetch all poems for this game (O(1) instead of per-player)
     const poems = await ctx.db

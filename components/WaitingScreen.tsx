@@ -1,20 +1,47 @@
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import { useUser } from '../lib/auth';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { BotBadge } from './ui/BotBadge';
 
 interface WaitingScreenProps {
   roomCode: string;
+  guestToken?: string | null;
 }
 
-export function WaitingScreen({ roomCode }: WaitingScreenProps) {
-  const progress = useQuery(api.game.getRoundProgress, { roomCode });
+export function WaitingScreen({
+  roomCode,
+  guestToken: propToken,
+}: WaitingScreenProps) {
+  const { guestToken: hookToken, isLoading: isAuthLoading } = useUser();
 
-  if (!progress) {
+  // Use prop token if provided (from parent component), otherwise use hook token
+  // This allows immediate query execution when transitioning from WritingScreen
+  const guestToken = propToken ?? hookToken;
+
+  // Skip query only if auth is loading AND we don't have a token yet
+  // (If we have a token from a previous render or prop, use it immediately)
+  const shouldSkip = isAuthLoading && !guestToken;
+  const progress = useQuery(
+    api.game.getRoundProgress,
+    shouldSkip ? 'skip' : { roomCode, guestToken: guestToken || undefined }
+  );
+
+  // Loading state (query in flight or skipped)
+  if (progress === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
         <LoadingState message={LoadingMessages.LOADING_ROOM} />
+      </div>
+    );
+  }
+
+  // Unauthorized or room not found (query returned null)
+  if (progress === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <p className="text-[var(--color-text-secondary)]">Room not found</p>
       </div>
     );
   }
