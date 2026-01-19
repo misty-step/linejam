@@ -14,6 +14,12 @@ export default defineSchema({
     .index('by_clerk', ['clerkUserId'])
     .index('by_guest', ['guestId']),
 
+  migrations: defineTable({
+    guestUserId: v.id('users'),
+    clerkUserId: v.string(),
+    migratedAt: v.number(),
+  }).index('by_clerk', ['clerkUserId']),
+
   rooms: defineTable({
     code: v.string(),
     hostUserId: v.id('users'),

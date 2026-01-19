@@ -4,55 +4,83 @@ vi.mock('../../convex/_generated/server', () => ({
   mutation: (config: { args: unknown; handler: unknown }) => config,
 }));
 
-import { backfillMissingGameCycles } from '../../convex/migrations';
+vi.mock('../../convex/lib/guestToken', () => ({
+  verifyGuestToken: vi.fn(),
+}));
 
-describe('backfillMissingGameCycles', () => {
+import { migrateGuestToUser } from '../../convex/migrations';
+import { verifyGuestToken } from '../../convex/lib/guestToken';
+
+describe('migrateGuestToUser', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockDb: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockCtx: any;
 
   beforeEach(() => {
-    process.env.ALLOW_CONVEX_MIGRATIONS = 'true';
+    vi.clearAllMocks();
+
     mockDb = {
       query: vi.fn(),
       get: vi.fn(),
       patch: vi.fn(),
+      delete: vi.fn(),
+      insert: vi.fn(),
     };
-    mockCtx = { db: mockDb };
+    mockCtx = {
+      db: mockDb,
+      auth: {
+        getUserIdentity: vi.fn(),
+      },
+    };
   });
 
-  it('patches games without cycles using room.currentCycle when present', async () => {
-    const games = [
-      { _id: 'g1', roomId: 'r1' },
-      { _id: 'g2', roomId: 'r2', cycle: 2 },
-    ];
-    mockDb.query.mockReturnValue({ collect: vi.fn().mockResolvedValue(games) });
-    mockDb.get
-      .mockResolvedValueOnce({ currentCycle: 4 })
-      .mockResolvedValueOnce(undefined); // Should fall back to 1
+  it('throws error when not authenticated', async () => {
+    mockCtx.auth.getUserIdentity.mockResolvedValue(null);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (backfillMissingGameCycles as any).handler(
-      mockCtx,
-      {}
+    const handler = (migrateGuestToUser as any).handler;
+    await expect(handler(mockCtx, { guestToken: 'token' })).rejects.toThrow(
+      'Not authenticated'
     );
-
-    expect(mockDb.patch).toHaveBeenCalledWith('g1', { cycle: 4 });
-    expect(result).toEqual({ patched: 1, dryRun: false });
   });
 
-  it('dryRun avoids patching while reporting count', async () => {
-    const games = [{ _id: 'g3', roomId: 'r3' }];
-    mockDb.query.mockReturnValue({ collect: vi.fn().mockResolvedValue(games) });
-    mockDb.get.mockResolvedValue({ currentCycle: 2 });
+  it('returns alreadyMigrated when migration exists', async () => {
+    mockCtx.auth.getUserIdentity.mockResolvedValue({ subject: 'clerk_123' });
+    vi.mocked(verifyGuestToken).mockResolvedValue('guest_abc');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (backfillMissingGameCycles as any).handler(mockCtx, {
-      dryRun: true,
+    mockDb.query.mockReturnValue({
+      withIndex: vi.fn().mockReturnValue({
+        first: vi
+          .fn()
+          .mockResolvedValueOnce({ _id: 'guest_user_id', displayName: 'Guest' }) // guest user
+          .mockResolvedValueOnce({ _id: 'existing_migration' }), // migration exists
+      }),
     });
 
-    expect(mockDb.patch).not.toHaveBeenCalled();
-    expect(result).toEqual({ patched: 1, dryRun: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (migrateGuestToUser as any).handler(mockCtx, {
+      guestToken: 'token',
+    });
+
+    expect(result).toEqual({ alreadyMigrated: true });
+  });
+
+  it('throws error when guest user not found', async () => {
+    mockCtx.auth.getUserIdentity.mockResolvedValue({ subject: 'clerk_123' });
+    vi.mocked(verifyGuestToken).mockResolvedValue('guest_abc');
+
+    // Guest user query returns null, migration check returns null
+    mockDb.query.mockReturnValue({
+      withIndex: vi.fn().mockReturnValue({
+        first: vi.fn().mockResolvedValue(null),
+      }),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler = (migrateGuestToUser as any).handler;
+    await expect(handler(mockCtx, { guestToken: 'token' })).rejects.toThrow(
+      'Guest user not found'
+    );
   });
 });

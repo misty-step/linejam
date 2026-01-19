@@ -205,3 +205,86 @@ export const getArchiveData = query({
     return { poems: enrichedPoems, stats };
   },
 });
+
+/**
+ * Get recent public poems for showcase (auth pages, landing page).
+ * No authentication required - returns anonymized preview data.
+ */
+export const getRecentPublicPoems = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { limit = 5 }) => {
+    // Get recent poems from rooms that are completed
+    const rooms = await ctx.db
+      .query('rooms')
+      .filter((q) => q.eq(q.field('status'), 'COMPLETED'))
+      .order('desc')
+      .take(20);
+
+    if (rooms.length === 0) {
+      return [];
+    }
+
+    // Batch fetch all poems for these rooms in a single query
+    const roomIdSet = new Set(rooms.map((r) => r._id));
+    const allRoomPoems = await ctx.db
+      .query('poems')
+      .filter((q) =>
+        q.or(...rooms.map((room) => q.eq(q.field('roomId'), room._id)))
+      )
+      .collect();
+
+    // Group poems by room and take up to 2 per room
+    const poemsByRoom = new Map<Id<'rooms'>, typeof allRoomPoems>();
+    for (const poem of allRoomPoems) {
+      if (!roomIdSet.has(poem.roomId)) continue;
+      const existing = poemsByRoom.get(poem.roomId) || [];
+      if (existing.length < 2) {
+        poemsByRoom.set(poem.roomId, [...existing, poem]);
+      }
+    }
+    const poems = [...poemsByRoom.values()].flat().slice(0, limit * 2);
+
+    if (poems.length === 0) {
+      return [];
+    }
+
+    // Batch fetch all lines for all poems in a single query
+    const poemIdSet = new Set(poems.map((p) => p._id));
+    const allLines = await ctx.db
+      .query('lines')
+      .filter((q) =>
+        q.or(...poems.map((poem) => q.eq(q.field('poemId'), poem._id)))
+      )
+      .collect();
+
+    // Group lines by poemId for O(1) lookup
+    const linesByPoemId = new Map<Id<'poems'>, typeof allLines>();
+    for (const line of allLines) {
+      if (!poemIdSet.has(line.poemId)) continue;
+      const existing = linesByPoemId.get(line.poemId) || [];
+      linesByPoemId.set(line.poemId, [...existing, line]);
+    }
+
+    // Build poemsWithLines without additional database calls
+    const poemsWithLines = poems.map((poem) => {
+      const lines = (linesByPoemId.get(poem._id) || []).sort(
+        (a, b) => a.indexInPoem - b.indexInPoem
+      );
+      const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
+
+      return {
+        _id: poem._id,
+        lines: lines.slice(0, 5).map((l) => l.text), // First 5 lines for preview
+        poetCount: uniqueAuthors.size,
+        createdAt: poem.createdAt,
+      };
+    });
+
+    // Filter to only poems with at least 3 lines (looks better in showcase)
+    const qualityPoems = poemsWithLines.filter((p) => p.lines.length >= 3);
+
+    return qualityPoems.slice(0, limit);
+  },
+});

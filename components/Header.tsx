@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { Palette, Archive, LogIn } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { ThemeSelector } from './ThemeSelector';
@@ -76,14 +76,13 @@ export function Header({ className = '' }: HeaderProps) {
         {/* Right: Auth + Theme */}
         <div className="flex items-center gap-4 ml-auto">
           <SignedOut>
-            <SignInButton mode="modal">
-              <button
-                className="w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
-                aria-label="Sign in"
-              >
-                <LogIn className="w-5 h-5" />
-              </button>
-            </SignInButton>
+            <Link
+              href="/sign-in"
+              className="w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
+              aria-label="Sign in"
+            >
+              <LogIn className="w-5 h-5" />
+            </Link>
           </SignedOut>
 
           <SignedIn>

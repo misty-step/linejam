@@ -5,12 +5,25 @@ import { test, expect } from '@playwright/test';
  *
  * Tests the personal archive page structure and navigation.
  * Favorites toggle/persistence is covered by unit tests (tests/convex/favorites.test.ts).
+ *
+ * Note: These tests require Clerk authentication. When CLERK_SECRET_KEY is not
+ * configured (guest-only mode), the /me/* routes redirect to home, so these
+ * tests are skipped.
  */
 
 // Run tests serially for consistent state
 test.describe.configure({ mode: 'serial' });
 
+// Skip all archive tests if Clerk is not configured
+const isClerkConfigured = !!process.env.CLERK_SECRET_KEY;
+
 test.describe('Personal Archive Page', () => {
+  test.beforeEach(async ({}, testInfo) => {
+    if (!isClerkConfigured) {
+      testInfo.skip(true, 'Clerk auth not configured (guest-only mode)');
+    }
+  });
+
   test('archive page loads and shows empty state', async ({ page }) => {
     // Navigate to archive page
     await page.goto('/me/poems', { waitUntil: 'networkidle' });
@@ -74,6 +87,12 @@ test.describe('Personal Archive Page', () => {
 });
 
 test.describe('Favorites Feature Structure', () => {
+  test.beforeEach(async ({}, testInfo) => {
+    if (!isClerkConfigured) {
+      testInfo.skip(true, 'Clerk auth not configured (guest-only mode)');
+    }
+  });
+
   test('archive page shows empty state for new user', async ({ page }) => {
     await page.goto('/me/poems', { waitUntil: 'networkidle' });
 

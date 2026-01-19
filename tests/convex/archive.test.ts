@@ -6,7 +6,7 @@ vi.mock('../../convex/_generated/server', () => ({
   query: (args: unknown) => args,
 }));
 
-import { getArchiveData } from '../../convex/archive';
+import { getArchiveData, getRecentPublicPoems } from '../../convex/archive';
 
 // Mock getUser
 const mockGetUser = vi.fn();
@@ -763,6 +763,370 @@ describe('archive', () => {
 
       // Should use clerkUserId as stableId
       expect(result.poems[0].lines[0].authorStableId).toBe('clerk_author_1');
+    });
+  });
+
+  describe('getRecentPublicPoems', () => {
+    it('returns empty array when no completed rooms exist', async () => {
+      mockDb.take.mockResolvedValue([]);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, {});
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when completed rooms have no poems', async () => {
+      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
+      mockDb.take.mockResolvedValue([mockRoom]);
+      mockDb.collect.mockResolvedValue([]); // No poems
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, {});
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns poems with line counts and poet counts', async () => {
+      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
+      const mockPoem = {
+        _id: 'poem1',
+        roomId: 'room1',
+        createdAt: Date.now(),
+      };
+      const mockLines = [
+        {
+          _id: 'l1',
+          poemId: 'poem1',
+          authorUserId: 'user1',
+          text: 'Line one',
+          indexInPoem: 0,
+        },
+        {
+          _id: 'l2',
+          poemId: 'poem1',
+          authorUserId: 'user2',
+          text: 'Line two',
+          indexInPoem: 1,
+        },
+        {
+          _id: 'l3',
+          poemId: 'poem1',
+          authorUserId: 'user1',
+          text: 'Line three',
+          indexInPoem: 2,
+        },
+      ];
+
+      mockDb.take.mockResolvedValue([mockRoom]);
+
+      let collectCount = 0;
+      mockDb.collect.mockImplementation(() => {
+        collectCount++;
+        if (collectCount === 1) return [mockPoem]; // Poems
+        if (collectCount === 2) return mockLines; // Lines
+        return [];
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, { limit: 5 });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        _id: 'poem1',
+        poetCount: 2, // Two unique authors
+      });
+      expect(result[0].lines).toHaveLength(3);
+    });
+
+    it('filters out poems with fewer than 3 lines', async () => {
+      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
+      const mockPoem = {
+        _id: 'poem1',
+        roomId: 'room1',
+        createdAt: Date.now(),
+      };
+      const mockLines = [
+        {
+          _id: 'l1',
+          poemId: 'poem1',
+          authorUserId: 'user1',
+          text: 'Short',
+          indexInPoem: 0,
+        },
+        {
+          _id: 'l2',
+          poemId: 'poem1',
+          authorUserId: 'user1',
+          text: 'poem',
+          indexInPoem: 1,
+        },
+      ];
+
+      mockDb.take.mockResolvedValue([mockRoom]);
+
+      let collectCount = 0;
+      mockDb.collect.mockImplementation(() => {
+        collectCount++;
+        if (collectCount === 1) return [mockPoem];
+        if (collectCount === 2) return mockLines; // Only 2 lines
+        return [];
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, { limit: 5 });
+
+      // Poem with < 3 lines filtered out
+      expect(result).toHaveLength(0);
+    });
+
+    it('respects limit parameter', async () => {
+      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
+      const mockPoems = [
+        { _id: 'poem1', roomId: 'room1', createdAt: Date.now() },
+        { _id: 'poem2', roomId: 'room1', createdAt: Date.now() - 1000 },
+      ];
+      const mockLines = [
+        {
+          _id: 'l1',
+          poemId: 'poem1',
+          authorUserId: 'u1',
+          text: 'a',
+          indexInPoem: 0,
+        },
+        {
+          _id: 'l2',
+          poemId: 'poem1',
+          authorUserId: 'u1',
+          text: 'b',
+          indexInPoem: 1,
+        },
+        {
+          _id: 'l3',
+          poemId: 'poem1',
+          authorUserId: 'u1',
+          text: 'c',
+          indexInPoem: 2,
+        },
+        {
+          _id: 'l4',
+          poemId: 'poem2',
+          authorUserId: 'u1',
+          text: 'd',
+          indexInPoem: 0,
+        },
+        {
+          _id: 'l5',
+          poemId: 'poem2',
+          authorUserId: 'u1',
+          text: 'e',
+          indexInPoem: 1,
+        },
+        {
+          _id: 'l6',
+          poemId: 'poem2',
+          authorUserId: 'u1',
+          text: 'f',
+          indexInPoem: 2,
+        },
+      ];
+
+      mockDb.take.mockResolvedValue([mockRoom]);
+
+      let collectCount = 0;
+      mockDb.collect.mockImplementation(() => {
+        collectCount++;
+        if (collectCount === 1) return mockPoems;
+        if (collectCount === 2) return mockLines;
+        return [];
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, { limit: 1 });
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('limits to 5 preview lines per poem', async () => {
+      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
+      const mockPoem = { _id: 'poem1', roomId: 'room1', createdAt: Date.now() };
+      const mockLines = Array.from({ length: 9 }, (_, i) => ({
+        _id: `l${i}`,
+        poemId: 'poem1',
+        authorUserId: 'u1',
+        text: `Line ${i + 1}`,
+        indexInPoem: i,
+      }));
+
+      mockDb.take.mockResolvedValue([mockRoom]);
+
+      let collectCount = 0;
+      mockDb.collect.mockImplementation(() => {
+        collectCount++;
+        if (collectCount === 1) return [mockPoem];
+        if (collectCount === 2) return mockLines;
+        return [];
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, {});
+
+      // Should only have first 5 lines in preview
+      expect(result[0].lines).toHaveLength(5);
+      expect(result[0].lines[0]).toBe('Line 1');
+      expect(result[0].lines[4]).toBe('Line 5');
+    });
+
+    it('limits to 2 poems per room', async () => {
+      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
+      const mockPoems = [
+        { _id: 'poem1', roomId: 'room1', createdAt: Date.now() },
+        { _id: 'poem2', roomId: 'room1', createdAt: Date.now() - 1000 },
+        { _id: 'poem3', roomId: 'room1', createdAt: Date.now() - 2000 },
+      ];
+      const mockLines = mockPoems.flatMap((poem) =>
+        Array.from({ length: 3 }, (_, i) => ({
+          _id: `l_${poem._id}_${i}`,
+          poemId: poem._id,
+          authorUserId: 'u1',
+          text: `Line ${i}`,
+          indexInPoem: i,
+        }))
+      );
+
+      mockDb.take.mockResolvedValue([mockRoom]);
+
+      let collectCount = 0;
+      mockDb.collect.mockImplementation(() => {
+        collectCount++;
+        if (collectCount === 1) return mockPoems;
+        if (collectCount === 2) return mockLines;
+        return [];
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, { limit: 10 });
+
+      // Should only include poem1 and poem2 (2 per room limit)
+      expect(result).toHaveLength(2);
+      expect(result.map((p: { _id: string }) => p._id)).toEqual([
+        'poem1',
+        'poem2',
+      ]);
+    });
+
+    it('uses default limit of 5', async () => {
+      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
+      const mockPoems = Array.from({ length: 10 }, (_, i) => ({
+        _id: `poem${i}`,
+        roomId: `room${i}`,
+        createdAt: Date.now() - i * 1000,
+      }));
+      const mockLines = mockPoems.flatMap((poem) =>
+        Array.from({ length: 3 }, (_, i) => ({
+          _id: `l_${poem._id}_${i}`,
+          poemId: poem._id,
+          authorUserId: 'u1',
+          text: `Line ${i}`,
+          indexInPoem: i,
+        }))
+      );
+
+      mockDb.take.mockResolvedValue(
+        Array.from({ length: 10 }, (_, i) => ({
+          _id: `room${i}`,
+          status: 'COMPLETED',
+        }))
+      );
+
+      let collectCount = 0;
+      mockDb.collect.mockImplementation(() => {
+        collectCount++;
+        if (collectCount === 1) return mockPoems;
+        if (collectCount === 2) return mockLines;
+        return [];
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, {});
+
+      // Default limit is 5
+      expect(result.length).toBeLessThanOrEqual(5);
+    });
+
+    it('handles poems from different rooms', async () => {
+      const mockRooms = [
+        { _id: 'room1', status: 'COMPLETED' },
+        { _id: 'room2', status: 'COMPLETED' },
+      ];
+      const mockPoems = [
+        { _id: 'poem1', roomId: 'room1', createdAt: Date.now() },
+        { _id: 'poem2', roomId: 'room2', createdAt: Date.now() - 1000 },
+      ];
+      const mockLines = [
+        {
+          _id: 'l1',
+          poemId: 'poem1',
+          authorUserId: 'u1',
+          text: 'a',
+          indexInPoem: 0,
+        },
+        {
+          _id: 'l2',
+          poemId: 'poem1',
+          authorUserId: 'u1',
+          text: 'b',
+          indexInPoem: 1,
+        },
+        {
+          _id: 'l3',
+          poemId: 'poem1',
+          authorUserId: 'u1',
+          text: 'c',
+          indexInPoem: 2,
+        },
+        {
+          _id: 'l4',
+          poemId: 'poem2',
+          authorUserId: 'u2',
+          text: 'd',
+          indexInPoem: 0,
+        },
+        {
+          _id: 'l5',
+          poemId: 'poem2',
+          authorUserId: 'u2',
+          text: 'e',
+          indexInPoem: 1,
+        },
+        {
+          _id: 'l6',
+          poemId: 'poem2',
+          authorUserId: 'u2',
+          text: 'f',
+          indexInPoem: 2,
+        },
+      ];
+
+      mockDb.take.mockResolvedValue(mockRooms);
+
+      let collectCount = 0;
+      mockDb.collect.mockImplementation(() => {
+        collectCount++;
+        if (collectCount === 1) return mockPoems;
+        if (collectCount === 2) return mockLines;
+        return [];
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRecentPublicPoems.handler(mockCtx, { limit: 5 });
+
+      expect(result).toHaveLength(2);
+      // Each poem has its correct author count
+      const poem1 = result.find((p: { _id: string }) => p._id === 'poem1');
+      const poem2 = result.find((p: { _id: string }) => p._id === 'poem2');
+      expect(poem1?.poetCount).toBe(1);
+      expect(poem2?.poetCount).toBe(1);
     });
   });
 });

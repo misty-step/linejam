@@ -176,6 +176,33 @@ PUBLIC_SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
 
 ## Code Patterns
 
+### Parallel Database Operations
+
+Always use `Promise.all` for multiple independent database operations:
+
+```typescript
+// BAD - sequential (slow)
+for (const item of items) {
+  await ctx.db.patch(item._id, { field: value });
+}
+
+// GOOD - parallel (fast)
+await Promise.all(
+  items.map((item) => ctx.db.patch(item._id, { field: value }))
+);
+```
+
+For N+1 query patterns, batch with `q.or()` when possible:
+
+```typescript
+// Fetch all poems for multiple rooms in one query
+const allPoems = await ctx.db
+  .query('poems')
+  .filter((q) => q.or(...roomIds.map((id) => q.eq(q.field('roomId'), id))))
+  .collect();
+// Then group in application code
+```
+
 ### Loop Safety
 
 All `while` loops must have a termination guard to prevent infinite loops:
