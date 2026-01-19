@@ -4,7 +4,7 @@ import { useUser } from '../../../lib/auth';
 import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
 import { Label } from '../../../components/ui/Label';
-import { SignInButton, SignOutButton } from '@clerk/nextjs';
+import { SignOutButton } from '@clerk/nextjs';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getStableId } from '../../../lib/avatarColor';
@@ -92,9 +92,9 @@ export default function ProfilePage() {
                     Authenticate to preserve your works in the permanent
                     archives.
                   </p>
-                  <SignInButton mode="modal">
+                  <Link href="/sign-in" className="block">
                     <Button className="w-full">Authenticate</Button>
-                  </SignInButton>
+                  </Link>
                 </div>
               </div>
             )}

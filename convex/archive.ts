@@ -205,3 +205,67 @@ export const getArchiveData = query({
     return { poems: enrichedPoems, stats };
   },
 });
+
+/**
+ * Get recent public poems for showcase (auth pages, landing page).
+ * No authentication required - returns anonymized preview data.
+ */
+export const getRecentPublicPoems = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { limit = 5 }) => {
+    // Get recent poems from rooms that are completed
+    const rooms = await ctx.db
+      .query('rooms')
+      .filter((q) => q.eq(q.field('status'), 'COMPLETED'))
+      .order('desc')
+      .take(20);
+
+    if (rooms.length === 0) {
+      return [];
+    }
+
+    // Get poems from these rooms
+    const poemsNested = await Promise.all(
+      rooms.map((room) =>
+        ctx.db
+          .query('poems')
+          .withIndex('by_room', (q) => q.eq('roomId', room._id))
+          .take(2)
+      )
+    );
+
+    const poems = poemsNested.flat().slice(0, limit * 2);
+
+    if (poems.length === 0) {
+      return [];
+    }
+
+    // Get lines for each poem
+    const poemsWithLines = await Promise.all(
+      poems.map(async (poem) => {
+        const lines = await ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
+          .order('asc')
+          .collect();
+
+        // Get unique author count
+        const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
+
+        return {
+          _id: poem._id,
+          lines: lines.slice(0, 5).map((l) => l.text), // First 5 lines for preview
+          poetCount: uniqueAuthors.size,
+          createdAt: poem.createdAt,
+        };
+      })
+    );
+
+    // Filter to only poems with at least 3 lines (looks better in showcase)
+    const qualityPoems = poemsWithLines.filter((p) => p.lines.length >= 3);
+
+    return qualityPoems.slice(0, limit);
+  },
+});
