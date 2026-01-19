@@ -10,8 +10,42 @@ import Link from 'next/link';
  * The [[...sign-up]] catch-all route handles OAuth callbacks.
  *
  * Theme-aware: Clerk appearance uses CSS variables for multi-theme support.
+ *
+ * When Clerk is not configured (no CLERK_SECRET_KEY), shows a message
+ * that authentication is unavailable and guests can play without an account.
  */
+
+// Check if Clerk is configured (publishable key available on client)
+const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
 export default function SignUpPage() {
+  // Show fallback when Clerk is not configured
+  if (!isClerkConfigured) {
+    return (
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl md:text-4xl font-[var(--font-display)] text-[var(--color-text-primary)]">
+            Authentication unavailable
+          </h1>
+          <p className="text-[var(--color-text-secondary)] font-[var(--font-sans)]">
+            Sign-up is not available in this environment.
+          </p>
+        </div>
+        <div className="p-4 rounded-[var(--radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)]">
+          <p className="text-[var(--color-text-secondary)] font-[var(--font-sans)] text-sm">
+            You can still play as a guest! Your poems will be saved locally.
+          </p>
+        </div>
+        <Link
+          href="/"
+          className="inline-block px-6 py-3 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-[var(--radius-md)] font-[var(--font-sans)] font-medium hover:bg-[var(--color-primary-hover)] transition-colors"
+        >
+          Play as guest
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
