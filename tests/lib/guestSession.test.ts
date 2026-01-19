@@ -1,5 +1,10 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { defaultGuestSessionFetcher } from '@/lib/guestSession';
+import {
+  defaultGuestSessionFetcher,
+  getGuestToken,
+  clearGuestSession,
+} from '@/lib/guestSession';
 
 describe('defaultGuestSessionFetcher', () => {
   const originalFetch = global.fetch;
@@ -76,5 +81,60 @@ describe('defaultGuestSessionFetcher', () => {
     await expect(defaultGuestSessionFetcher.fetch()).rejects.toThrow(
       'Failed to fetch guest session: Unknown error'
     );
+  });
+});
+
+describe('getGuestToken', () => {
+  const STORAGE_KEY = 'linejam_guest_token';
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns null when localStorage has no token', () => {
+    expect(getGuestToken()).toBeNull();
+  });
+
+  it('returns token when localStorage has valid token', () => {
+    localStorage.setItem(STORAGE_KEY, 'valid_token_123');
+    expect(getGuestToken()).toBe('valid_token_123');
+  });
+
+  it('returns null when token is empty string', () => {
+    localStorage.setItem(STORAGE_KEY, '');
+    expect(getGuestToken()).toBeNull();
+  });
+
+  it('returns null when token is whitespace only', () => {
+    localStorage.setItem(STORAGE_KEY, '   ');
+    expect(getGuestToken()).toBeNull();
+  });
+
+  it('trims whitespace from valid token', () => {
+    localStorage.setItem(STORAGE_KEY, '  token_with_spaces  ');
+    expect(getGuestToken()).toBe('  token_with_spaces  ');
+  });
+});
+
+describe('clearGuestSession', () => {
+  const STORAGE_KEY = 'linejam_guest_token';
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('removes token from localStorage', () => {
+    localStorage.setItem(STORAGE_KEY, 'token_to_clear');
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('token_to_clear');
+
+    clearGuestSession();
+
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('does nothing when no token exists', () => {
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    clearGuestSession();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 });
