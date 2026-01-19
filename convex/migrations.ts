@@ -52,27 +52,33 @@ export const migrateGuestToUser = mutation({
       .withIndex('by_author', (q) => q.eq('authorUserId', guestUser._id))
       .collect();
 
-    for (const line of lines) {
-      await ctx.db.patch(line._id, { authorUserId: authUser._id });
-    }
+    await Promise.all(
+      lines.map((line) =>
+        ctx.db.patch(line._id, { authorUserId: authUser._id })
+      )
+    );
 
     const favorites = await ctx.db
       .query('favorites')
       .withIndex('by_user', (q) => q.eq('userId', guestUser._id))
       .collect();
 
-    for (const favorite of favorites) {
-      await ctx.db.patch(favorite._id, { userId: authUser._id });
-    }
+    await Promise.all(
+      favorites.map((favorite) =>
+        ctx.db.patch(favorite._id, { userId: authUser._id })
+      )
+    );
 
     const roomPlayers = await ctx.db
       .query('roomPlayers')
       .withIndex('by_user', (q) => q.eq('userId', guestUser._id))
       .collect();
 
-    for (const player of roomPlayers) {
-      await ctx.db.patch(player._id, { userId: authUser._id });
-    }
+    await Promise.all(
+      roomPlayers.map((player) =>
+        ctx.db.patch(player._id, { userId: authUser._id })
+      )
+    );
 
     await ctx.db.delete(guestUser._id);
 

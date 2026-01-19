@@ -226,42 +226,61 @@ export const getRecentPublicPoems = query({
       return [];
     }
 
-    // Get poems from these rooms
-    const poemsNested = await Promise.all(
-      rooms.map((room) =>
-        ctx.db
-          .query('poems')
-          .withIndex('by_room', (q) => q.eq('roomId', room._id))
-          .take(2)
+    // Batch fetch all poems for these rooms in a single query
+    const roomIdSet = new Set(rooms.map((r) => r._id));
+    const allRoomPoems = await ctx.db
+      .query('poems')
+      .filter((q) =>
+        q.or(...rooms.map((room) => q.eq(q.field('roomId'), room._id)))
       )
-    );
+      .collect();
 
-    const poems = poemsNested.flat().slice(0, limit * 2);
+    // Group poems by room and take up to 2 per room
+    const poemsByRoom = new Map<Id<'rooms'>, typeof allRoomPoems>();
+    for (const poem of allRoomPoems) {
+      if (!roomIdSet.has(poem.roomId)) continue;
+      const existing = poemsByRoom.get(poem.roomId) || [];
+      if (existing.length < 2) {
+        poemsByRoom.set(poem.roomId, [...existing, poem]);
+      }
+    }
+    const poems = [...poemsByRoom.values()].flat().slice(0, limit * 2);
 
     if (poems.length === 0) {
       return [];
     }
 
-    // Get lines for each poem
-    const poemsWithLines = await Promise.all(
-      poems.map(async (poem) => {
-        const lines = await ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
-          .order('asc')
-          .collect();
+    // Batch fetch all lines for all poems in a single query
+    const poemIdSet = new Set(poems.map((p) => p._id));
+    const allLines = await ctx.db
+      .query('lines')
+      .filter((q) =>
+        q.or(...poems.map((poem) => q.eq(q.field('poemId'), poem._id)))
+      )
+      .collect();
 
-        // Get unique author count
-        const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
+    // Group lines by poemId for O(1) lookup
+    const linesByPoemId = new Map<Id<'poems'>, typeof allLines>();
+    for (const line of allLines) {
+      if (!poemIdSet.has(line.poemId)) continue;
+      const existing = linesByPoemId.get(line.poemId) || [];
+      linesByPoemId.set(line.poemId, [...existing, line]);
+    }
 
-        return {
-          _id: poem._id,
-          lines: lines.slice(0, 5).map((l) => l.text), // First 5 lines for preview
-          poetCount: uniqueAuthors.size,
-          createdAt: poem.createdAt,
-        };
-      })
-    );
+    // Build poemsWithLines without additional database calls
+    const poemsWithLines = poems.map((poem) => {
+      const lines = (linesByPoemId.get(poem._id) || []).sort(
+        (a, b) => a.indexInPoem - b.indexInPoem
+      );
+      const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
+
+      return {
+        _id: poem._id,
+        lines: lines.slice(0, 5).map((l) => l.text), // First 5 lines for preview
+        poetCount: uniqueAuthors.size,
+        createdAt: poem.createdAt,
+      };
+    });
 
     // Filter to only poems with at least 3 lines (looks better in showcase)
     const qualityPoems = poemsWithLines.filter((p) => p.lines.length >= 3);
