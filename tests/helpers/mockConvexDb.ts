@@ -22,6 +22,22 @@ function createMockQueryBuilder() {
  *
  * @returns Mock database object with spy functions
  */
+/**
+ * Creates a mock filter query builder for filter callbacks.
+ */
+function createMockFilterBuilder() {
+  const builder: {
+    eq: ReturnType<typeof vi.fn>;
+    or: ReturnType<typeof vi.fn>;
+    field: ReturnType<typeof vi.fn>;
+  } = {
+    eq: vi.fn(),
+    or: vi.fn(),
+    field: vi.fn(),
+  };
+  return builder;
+}
+
 export function createMockDb() {
   const mockDb = {
     query: vi.fn(function (this: typeof mockDb) {
@@ -38,9 +54,20 @@ export function createMockDb() {
       }
       return this;
     }),
+    filter: vi.fn(function (
+      this: typeof mockDb,
+      callback?: (q: ReturnType<typeof createMockFilterBuilder>) => unknown
+    ) {
+      // Call the callback to ensure arrow functions are executed (for coverage)
+      if (callback) {
+        callback(createMockFilterBuilder());
+      }
+      return this;
+    }),
     order: vi.fn(function (this: typeof mockDb) {
       return this;
     }),
+    take: vi.fn(),
     first: vi.fn(),
     collect: vi.fn(),
     patch: vi.fn(),
