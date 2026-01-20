@@ -1,7 +1,7 @@
 import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
-import { getUser } from './lib/auth';
+import { getUser, checkParticipation } from './lib/auth';
 import { checkRateLimit } from './lib/rateLimit';
 import { getRoomByCode, requireRoomByCode, getActiveGame } from './lib/room';
 
@@ -129,9 +129,32 @@ export const joinRoom = mutation({
 export const getRoom = query({
   args: {
     code: v.string(),
+    guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { code }) => {
-    return await getRoomByCode(ctx, code);
+  handler: async (ctx, { code, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return null;
+
+    const room = await getRoomByCode(ctx, code);
+    if (!room) return null;
+
+    const isParticipant = await checkParticipation(ctx, room._id, user._id);
+    if (isParticipant) return room;
+
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) return null;
+
+    const roomPlayers = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+
+    if (roomPlayers.length >= 8) return null;
+
+    return {
+      code: room.code,
+      status: room.status,
+    };
   },
 });
 
@@ -141,8 +164,14 @@ export const getRoomState = query({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { code, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return null;
+
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
+
+    const isParticipant = await checkParticipation(ctx, room._id, user._id);
+    if (!isParticipant) return null;
 
     const roomPlayers = await ctx.db
       .query('roomPlayers')
@@ -162,8 +191,7 @@ export const getRoomState = query({
       })
     );
 
-    const user = await getUser(ctx, guestToken);
-    const isHost = !!user && user._id === room.hostUserId;
+    const isHost = user._id === room.hostUserId;
 
     return { room, players, isHost };
   },

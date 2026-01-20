@@ -23,8 +23,10 @@ vi.mock('../../convex/users', () => ({
 
 // Mock getUser
 const mockGetUser = vi.fn();
+const mockCheckParticipation = vi.fn();
 vi.mock('../../convex/lib/auth', () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
+  checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
 }));
 
 // Mock checkRateLimit
@@ -54,6 +56,7 @@ describe('rooms', () => {
     mockCtx = createMockCtx(mockDb);
     mockEnsureUserHelper.mockReset();
     mockGetUser.mockReset();
+    mockCheckParticipation.mockReset();
     mockCheckRateLimit.mockReset();
     mockGetRoomByCode.mockReset();
     mockRequireRoomByCode.mockReset();
@@ -334,7 +337,7 @@ describe('rooms', () => {
   });
 
   describe('getRoom', () => {
-    it('returns room data for valid code', async () => {
+    it('returns room data for participant', async () => {
       // Arrange
       const room = {
         _id: 'room1',
@@ -342,24 +345,128 @@ describe('rooms', () => {
         hostUserId: 'user1',
         status: 'LOBBY',
       };
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(true);
 
       // Act
       // @ts-expect-error - calling handler directly for test
-      const result = await getRoom.handler(mockCtx, { code: 'ABCD' });
+      const result = await getRoom.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'token123',
+      });
 
       // Assert
       expect(result).toEqual(room);
       expect(mockGetRoomByCode).toHaveBeenCalledWith(mockCtx, 'ABCD');
     });
 
+    it('returns null when user not found', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoom.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'missing',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockGetRoomByCode).not.toHaveBeenCalled();
+    });
+
     it('returns null when room not found', async () => {
       // Arrange
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue(null);
 
       // Act
       // @ts-expect-error - calling handler directly for test
-      const result = await getRoom.handler(mockCtx, { code: 'ZZZZ' });
+      const result = await getRoom.handler(mockCtx, {
+        code: 'ZZZZ',
+        guestToken: 'token123',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('returns limited data for joinable room when not participant', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+        status: 'LOBBY',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(false);
+      mockGetActiveGame.mockResolvedValue(null);
+      mockDb.collect.mockResolvedValue([{ userId: 'user1' }]);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoom.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'token456',
+      });
+
+      // Assert
+      expect(result).toEqual({
+        code: 'ABCD',
+        status: 'LOBBY',
+      });
+    });
+
+    it('returns null when non-participant and game in progress', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+        status: 'IN_PROGRESS',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(false);
+      mockGetActiveGame.mockResolvedValue({ _id: 'game1' });
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoom.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'token456',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('returns null when non-participant and room is full', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+        status: 'LOBBY',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(false);
+      mockGetActiveGame.mockResolvedValue(null);
+      mockDb.collect.mockResolvedValue(
+        Array.from({ length: 8 }, (_, i) => ({ userId: `user${i}` }))
+      );
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoom.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'token456',
+      });
 
       // Assert
       expect(result).toBeNull();
@@ -368,11 +475,16 @@ describe('rooms', () => {
     it('normalizes code to uppercase', async () => {
       // Arrange
       const room = { _id: 'room1', code: 'ABCD' };
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(true);
 
       // Act
       // @ts-expect-error - calling handler directly for test
-      await getRoom.handler(mockCtx, { code: 'abcd' });
+      await getRoom.handler(mockCtx, {
+        code: 'abcd',
+        guestToken: 'token123',
+      });
 
       // Assert - getRoomByCode is called with the original input; it normalizes internally
       expect(mockGetRoomByCode).toHaveBeenCalledWith(mockCtx, 'abcd');
@@ -395,6 +507,7 @@ describe('rooms', () => {
       mockGetRoomByCode.mockResolvedValue(room);
       mockDb.collect.mockResolvedValue(players);
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockCheckParticipation.mockResolvedValue(true);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -425,6 +538,7 @@ describe('rooms', () => {
       mockGetRoomByCode.mockResolvedValue(room);
       mockDb.collect.mockResolvedValue(players);
       mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockCheckParticipation.mockResolvedValue(true);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -440,6 +554,7 @@ describe('rooms', () => {
     it('returns null when room not found', async () => {
       // Arrange
       mockGetRoomByCode.mockResolvedValue(null);
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -450,6 +565,45 @@ describe('rooms', () => {
 
       // Assert
       expect(result).toBeNull();
+    });
+
+    it('returns null when user not found', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoomState.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'missing',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockGetRoomByCode).not.toHaveBeenCalled();
+    });
+
+    it('returns null when user is not a participant', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(false);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoomState.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'token456',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockDb.collect).not.toHaveBeenCalled();
     });
   });
 
