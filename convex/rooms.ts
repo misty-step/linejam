@@ -152,7 +152,6 @@ export const getRoom = query({
     if (roomPlayers.length >= 8) return null;
 
     return {
-      _id: room._id,
       code: room.code,
       status: room.status,
     };
@@ -165,8 +164,14 @@ export const getRoomState = query({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { code, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return null;
+
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
+
+    const isParticipant = await checkParticipation(ctx, room._id, user._id);
+    if (!isParticipant) return null;
 
     const roomPlayers = await ctx.db
       .query('roomPlayers')
@@ -186,8 +191,7 @@ export const getRoomState = query({
       })
     );
 
-    const user = await getUser(ctx, guestToken);
-    const isHost = !!user && user._id === room.hostUserId;
+    const isHost = user._id === room.hostUserId;
 
     return { room, players, isHost };
   },

@@ -416,7 +416,6 @@ describe('rooms', () => {
 
       // Assert
       expect(result).toEqual({
-        _id: 'room1',
         code: 'ABCD',
         status: 'LOBBY',
       });
@@ -508,6 +507,7 @@ describe('rooms', () => {
       mockGetRoomByCode.mockResolvedValue(room);
       mockDb.collect.mockResolvedValue(players);
       mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockCheckParticipation.mockResolvedValue(true);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -538,6 +538,7 @@ describe('rooms', () => {
       mockGetRoomByCode.mockResolvedValue(room);
       mockDb.collect.mockResolvedValue(players);
       mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockCheckParticipation.mockResolvedValue(true);
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -553,6 +554,7 @@ describe('rooms', () => {
     it('returns null when room not found', async () => {
       // Arrange
       mockGetRoomByCode.mockResolvedValue(null);
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -563,6 +565,45 @@ describe('rooms', () => {
 
       // Assert
       expect(result).toBeNull();
+    });
+
+    it('returns null when user not found', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue(null);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoomState.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'missing',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockGetRoomByCode).not.toHaveBeenCalled();
+    });
+
+    it('returns null when user is not a participant', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(false);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getRoomState.handler(mockCtx, {
+        code: 'ABCD',
+        guestToken: 'token456',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockDb.collect).not.toHaveBeenCalled();
     });
   });
 
