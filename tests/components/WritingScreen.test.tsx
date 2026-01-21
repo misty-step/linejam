@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { getFunctionName } from 'convex/server';
 
 // Mock Next.js router (external)
 vi.mock('next/navigation', () => ({
@@ -48,13 +49,14 @@ import { WritingScreen } from '@/components/WritingScreen';
 import { Id } from '@/convex/_generated/dataModel';
 
 describe('WritingScreen component', () => {
-  const setupUser = () =>
-    userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-  const advanceLiveRegion = async () => {
+  const setupUser = () => userEvent.setup();
+  const flushTimers = async (ms: number) => {
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(600);
+      await new Promise((resolve) => setTimeout(resolve, ms));
     });
   };
+  const flushDebounce = () => flushTimers(600);
+  const flushSubmitTransition = () => flushTimers(1600);
 
   // Mock assignment data matching the getCurrentAssignment return type
   const mockAssignment = {
@@ -70,15 +72,27 @@ describe('WritingScreen component', () => {
     targetWordCount: 5,
     previousLineText: 'The moon rises silently tonight',
   };
+  const mockRoundProgress = {
+    round: 0,
+    players: [],
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSubmitLineMutation.mockClear();
-    vi.useFakeTimers();
+    mockUseQuery.mockReset();
+    mockSubmitLineMutation.mockReset();
 
     // Default: return assignment for all queries
     // WritingScreen calls useQuery twice but only uses first result for rendering
-    mockUseQuery.mockReturnValue(mockAssignment);
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+      if (functionName === 'game:getRoundProgress') {
+        return mockRoundProgress;
+      }
+      return mockAssignment;
+    });
 
     // Mock fetch at boundary - useUser calls /api/guest/session
     mockFetch.mockResolvedValue({
@@ -90,8 +104,6 @@ describe('WritingScreen component', () => {
   });
 
   afterEach(() => {
-    vi.clearAllTimers();
-    vi.useRealTimers();
     global.fetch = originalFetch;
   });
 
@@ -140,6 +152,7 @@ describe('WritingScreen component', () => {
       const wordSlots = document.getElementById('word-slots');
       expect(wordSlots).toHaveAttribute('aria-label', '1 of 1 words');
     });
+    await flushDebounce();
   });
 
   it('submit button disabled when word count is wrong', () => {
@@ -169,6 +182,7 @@ describe('WritingScreen component', () => {
       });
       expect(submitButton).not.toBeDisabled();
     });
+    await flushDebounce();
   });
 
   it('displays previous line when available', () => {
@@ -213,6 +227,7 @@ describe('WritingScreen component', () => {
       });
       expect(submitButton).not.toBeDisabled();
     });
+    await flushDebounce();
   });
 
   it('calls submitLine mutation with correct args on submit', async () => {
@@ -238,6 +253,7 @@ describe('WritingScreen component', () => {
         guestToken: 'mock-token',
       });
     });
+    await flushSubmitTransition();
   });
 
   it('shows "Sealing..." during submission', async () => {
@@ -262,6 +278,7 @@ describe('WritingScreen component', () => {
         screen.getByRole('button', { name: /Sealing/i })
       ).toBeInTheDocument();
     });
+    await flushSubmitTransition();
   });
 
   it('shows confirmation message after successful submit', async () => {
@@ -284,6 +301,7 @@ describe('WritingScreen component', () => {
       // Confirmation text is rendered inside a paragraph with curly quotes
       expect(screen.getByText(/\u201cBeautiful\u201d/)).toBeInTheDocument();
     });
+    await flushSubmitTransition();
   });
 
   it('shows error message when submission fails', async () => {
@@ -304,6 +322,7 @@ describe('WritingScreen component', () => {
     await waitFor(() => {
       expect(screen.getByText(/Failed to submit line/i)).toBeInTheDocument();
     });
+    await flushDebounce();
   });
 
   it('renders WaitingScreen when no assignment', () => {
@@ -342,6 +361,7 @@ describe('WritingScreen component', () => {
     await waitFor(() => {
       expect(textarea).toHaveAttribute('aria-invalid', 'false');
     });
+    await flushDebounce();
   });
 
   describe('placeholder text', () => {
@@ -436,7 +456,7 @@ describe('WritingScreen component', () => {
 
       // Act - Type 2 words (1 over the target of 1)
       await user.type(textarea, 'Hello world');
-      await advanceLiveRegion();
+      await flushDebounce();
 
       // Assert - Wait for debounced live region to update
       const liveRegion = getLiveRegion(container);
@@ -451,7 +471,7 @@ describe('WritingScreen component', () => {
 
       // Act - Type 3 words (2 over the target of 1)
       await user.type(textarea, 'One two three');
-      await advanceLiveRegion();
+      await flushDebounce();
 
       // Assert - Wait for debounced live region to update
       const liveRegion = getLiveRegion(container);
@@ -466,7 +486,7 @@ describe('WritingScreen component', () => {
 
       // Act - Type exactly 1 word (matches target)
       await user.type(textarea, 'Poetry');
-      await advanceLiveRegion();
+      await flushDebounce();
 
       // Assert - Wait for debounced live region to update
       const liveRegion = getLiveRegion(container);
@@ -482,7 +502,7 @@ describe('WritingScreen component', () => {
 
       // Act - Type only 2 words (3 under the target of 5)
       await user.type(textarea, 'Two words');
-      await advanceLiveRegion();
+      await flushDebounce();
 
       // Assert - Wait for debounced live region to update
       const liveRegion = getLiveRegion(container);
