@@ -146,14 +146,14 @@ roomPlayers ──── rooms ──── games
 
 ## Where to Start Reading
 
-| Goal                     | Start here                           |
-| ------------------------ | ------------------------------------ |
-| Understand game rules    | `convex/game.ts:WORD_COUNTS`         |
-| Trace a line submission  | `convex/game.ts:submitLine`          |
-| See assignment algorithm | `convex/lib/assignmentMatrix.ts`     |
-| Understand auth flow     | `lib/auth.ts` → `convex/lib/auth.ts` |
-| Add new theme            | `lib/themes/` (copy existing)        |
-| Debug AI player          | `convex/ai.ts:generateAiTurn`        |
+| Goal                     | Start here                            |
+| ------------------------ | ------------------------------------- |
+| Understand game rules    | `convex/lib/gameRules.ts:WORD_COUNTS` |
+| Trace a line submission  | `convex/game.ts:submitLine`           |
+| See assignment algorithm | `convex/lib/assignmentMatrix.ts`      |
+| Understand auth flow     | `lib/auth.ts` → `convex/lib/auth.ts`  |
+| Add new theme            | `lib/themes/` (copy existing)         |
+| Debug AI player          | `convex/ai.ts:generateAiTurn`         |
 
 ## Shallow Modules (Complexity Exposed)
 
