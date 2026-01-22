@@ -51,7 +51,9 @@ export default defineSchema({
   games: defineTable({
     roomId: v.id('rooms'),
     status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
+    /** Game session count for this room. First game = 1. */
     cycle: v.number(),
+    /** Round index within current game (0-8). See convex/lib/gameRules.ts. */
     currentRound: v.number(),
     assignmentMatrix: v.array(v.array(v.id('users'))),
     createdAt: v.number(),
@@ -64,6 +66,7 @@ export default defineSchema({
   poems: defineTable({
     roomId: v.id('rooms'),
     gameId: v.id('games'),
+    /** Poem ordinal within game (0-based). One poem per player. */
     indexInRoom: v.number(),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
