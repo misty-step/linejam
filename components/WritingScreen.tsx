@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { useUser } from '../lib/auth';
+import { useRoomQueryArgs } from '../hooks/useRoomQueryArgs';
 import { countWords } from '../lib/wordCount';
 import { captureError } from '../lib/error';
 import { cn } from '../lib/utils';
@@ -16,15 +16,8 @@ interface WritingScreenProps {
 }
 
 export function WritingScreen({ roomCode }: WritingScreenProps) {
-  const { guestToken, isLoading: isAuthLoading } = useUser();
-
-  // Skip query only if auth is loading AND we don't have a token yet
-  // (If we have a token from a previous render, use it immediately)
-  const shouldSkip = isAuthLoading && !guestToken;
-  const assignment = useQuery(
-    api.game.getCurrentAssignment,
-    shouldSkip ? 'skip' : { roomCode, guestToken: guestToken || undefined }
-  );
+  const { guestToken, shouldSkip, queryArgs } = useRoomQueryArgs(roomCode);
+  const assignment = useQuery(api.game.getCurrentAssignment, queryArgs);
   const submitLine = useMutation(api.game.submitLine);
 
   const [text, setText] = useState('');
@@ -38,9 +31,7 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const prefetchWaitingData = useQuery(
     api.game.getRoundProgress,
-    submissionState === 'confirmed'
-      ? { roomCode, guestToken: guestToken || undefined }
-      : 'skip'
+    submissionState === 'confirmed' ? queryArgs : 'skip'
   );
   const [submittedRound, setSubmittedRound] = useState<number | null>(null);
   const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
