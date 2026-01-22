@@ -5,6 +5,7 @@ import {
   generateAssignmentMatrix,
   secureShuffle,
 } from './lib/assignmentMatrix';
+import { WORD_COUNTS } from './lib/gameRules';
 import { countWords } from './lib/wordCount';
 import { getUser } from './lib/auth';
 import {
@@ -15,7 +16,6 @@ import {
 } from './lib/room';
 import { assignPoemReaders } from './lib/assignPoemReaders';
 
-const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
 const MAX_LINE_LENGTH = 500; // More than enough for 5 words
 
 export const startGame = mutation({

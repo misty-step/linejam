@@ -15,12 +15,11 @@ import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
 import { requireRoomByCode, getActiveGame } from './lib/room';
+import { WORD_COUNTS } from './lib/gameRules';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
 import { assignPoemReaders } from './lib/assignPoemReaders';
-
-const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1];
 
 /**
  * Add an AI player to a room (host-only, lobby-only).
