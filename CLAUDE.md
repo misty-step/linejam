@@ -219,7 +219,57 @@ while (condition && attempts < MAX_ATTEMPTS) {
 }
 ```
 
+## Observability
+
+### Error Tracking
+
+**Frontend (Next.js):**
+
+- Sentry SDK captures errors automatically
+- Use `captureError()` from `lib/error.ts` for explicit error capture with context
+- PII scrubbing configured in `lib/sentry.ts`
+
+**Backend (Convex):**
+
+- Use `log` and `logError` from `convex/lib/errors.ts`
+- Outputs structured JSON to stdout for Convex dashboard parsing
+- Sentry doesn't run in Convex runtime—structured logs are the observability layer
+
+**Structured Logging:**
+
+```typescript
+// Next.js
+import { log } from '@/lib/logger';
+log.error('Operation failed', { userId, operation: 'submitLine' });
+
+// Convex
+import { log, logError } from './lib/errors';
+logError('API call failed', error, { roomId, round });
+```
+
+### Sentry CLI Scripts
+
+```bash
+# List recent issues
+./scripts/sentry/list-issues.sh --limit 10
+
+# Get issue details for AI analysis
+./scripts/sentry/issue-detail.sh LINEJAM-123
+
+# Prioritize issues by triage score
+./scripts/sentry/triage-score.sh --json
+
+# Resolve after fixing
+./scripts/sentry/resolve-issue.sh LINEJAM-123
+```
+
+Requires `SENTRY_AUTH_TOKEN` in environment.
+
+### Alert Rules
+
+1. **Alert on new issues** - Email on first occurrence
+2. **High frequency spike** - Email when >10 events/hour
+
 ## Known Issues
 
-1. **Logger unused**: Pino configured (lib/logger.ts) but all errors use console.error
-2. **Sentry partially integrated**: Error tracking configured, captureError() available but not consistently used
+(None currently tracked)
