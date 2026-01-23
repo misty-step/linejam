@@ -11,6 +11,7 @@ import type {
   LLMConfig,
 } from './types';
 import { getFallbackLine } from '../fallbacks';
+import { log, logError } from '../../errors';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_TIMEOUT_MS = 10000;
@@ -98,9 +99,13 @@ export async function generateLine(
       const wordCount = text.split(/\s+/).filter(Boolean).length;
 
       // Log response details for debugging
-      console.log(
-        `AI response: model=${data.model}, wordCount=${wordCount}, target=${params.targetWordCount}, finishReason=${finishReason}, contentLength=${text.length}`
-      );
+      log.info('AI response received', {
+        model: data.model,
+        wordCount,
+        targetWordCount: params.targetWordCount,
+        finishReason,
+        contentLength: text.length,
+      });
 
       if (wordCount === params.targetWordCount) {
         return { text, fallbackUsed: false };
@@ -108,19 +113,28 @@ export async function generateLine(
 
       // If wrong word count and this isn't the last attempt, retry
       if (attempt < maxAttempts) {
-        console.log(
-          `AI line attempt ${attempt}: got ${wordCount} words, expected ${params.targetWordCount}. Retrying...`
-        );
+        log.warn('AI line word count mismatch, retrying', {
+          attempt,
+          maxAttempts,
+          wordCount,
+          targetWordCount: params.targetWordCount,
+        });
       }
     } catch (error) {
       clearTimeout(timeoutId);
 
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error(
-          `OpenRouter API timeout on attempt ${attempt} (${timeoutMs}ms)`
-        );
+        log.error('OpenRouter API timeout', {
+          attempt,
+          maxAttempts,
+          timeoutMs,
+        });
       } else {
-        console.error(`OpenRouter API error on attempt ${attempt}:`, error);
+        logError('OpenRouter API error', error, {
+          attempt,
+          maxAttempts,
+          model: config.model,
+        });
       }
 
       if (attempt === maxAttempts) {

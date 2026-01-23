@@ -1,6 +1,7 @@
 import { QueryCtx, MutationCtx } from '../_generated/server';
 import { Doc, Id } from '../_generated/dataModel';
 import { verifyGuestToken } from './guestToken';
+import { logError } from './errors';
 
 /**
  * Retrieves the user based on the current auth context (Clerk) or provided guest token.
@@ -28,10 +29,7 @@ export async function getUser(
         .withIndex('by_guest', (q) => q.eq('guestId', guestId))
         .first();
     } catch (e) {
-      console.error('Invalid guest token:', {
-        error: e,
-        hasToken: !!guestToken,
-      });
+      logError('Invalid guest token', e, { hasToken: !!guestToken });
       return null;
     }
   }
