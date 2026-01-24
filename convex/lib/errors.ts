@@ -1,76 +1,30 @@
 /**
- * Convex Error Tracking
+ * Convex Structured Logging
  *
- * Structured error logging for Convex backend. Outputs JSON to stdout/stderr
- * for Convex dashboard log parsing.
- *
- * Since Sentry SDK doesn't run in Convex, this provides structured logging
- * that surfaces errors clearly in the Convex dashboard.
+ * JSON logging for Convex dashboard. Errors go to stderr, rest to stdout.
  *
  * @example
- * import { logError, log } from './errors';
- *
- * try {
- *   await riskyOperation();
- * } catch (err) {
- *   logError('Failed to complete operation', err, { userId, roomCode });
- *   throw err; // Re-throw if needed
- * }
+ * log.info('User joined', { roomCode: 'ABCD' });
+ * logError('Operation failed', err, { userId });
  */
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-export interface ConvexLogEntry {
-  level: LogLevel;
-  message: string;
-  timestamp: string;
-  service: 'convex';
-  [key: string]: unknown;
-}
-
-/**
- * Create a structured log entry.
- */
-function write(
-  level: LogLevel,
-  message: string,
-  context?: Record<string, unknown>
-): void {
-  const entry: ConvexLogEntry = {
-    level,
-    message,
-    timestamp: new Date().toISOString(),
-    service: 'convex',
-    ...sanitizeContext(context),
+function serializeError(error: Error): Record<string, unknown> {
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack?.split('\n').slice(0, 5).join('\n'),
   };
-
-  const json = JSON.stringify(entry);
-
-  if (level === 'error') {
-    console.error(json);
-  } else {
-    console.log(json);
-  }
 }
 
-/**
- * Sanitize context for logging - handle Error objects safely.
- */
-function sanitizeContext(
-  context?: Record<string, unknown>
-): Record<string, unknown> {
-  if (!context) return {};
+function sanitize(data?: Record<string, unknown>): Record<string, unknown> {
+  if (!data) return {};
 
   const result: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(context)) {
+  for (const [key, value] of Object.entries(data)) {
     if (value instanceof Error) {
-      result[key] = {
-        name: value.name,
-        message: value.message,
-        // Truncate stack to first 5 lines
-        stack: value.stack?.split('\n').slice(0, 5).join('\n'),
-      };
+      result[key] = serializeError(value);
     } else if (typeof value === 'object' && value !== null) {
       try {
         JSON.stringify(value);
@@ -82,23 +36,35 @@ function sanitizeContext(
       result[key] = value;
     }
   }
-
   return result;
 }
 
+function write(
+  level: LogLevel,
+  message: string,
+  context?: Record<string, unknown>
+): void {
+  const entry = {
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+    service: 'convex',
+    ...sanitize(context),
+  };
+
+  const output = level === 'error' ? console.error : console.log;
+  output(JSON.stringify(entry));
+}
+
 /**
- * Log an error with context. Use for caught exceptions.
- *
- * @param message - Human-readable description of what failed
- * @param error - The caught error
- * @param context - Additional context (userId, roomCode, etc.)
+ * Log a caught error with context.
  */
 export function logError(
   message: string,
   error: unknown,
   context?: Record<string, unknown>
 ): void {
-  const errorObj =
+  const errorData =
     error instanceof Error
       ? {
           errorName: error.name,
@@ -107,19 +73,14 @@ export function logError(
         }
       : { errorValue: String(error) };
 
-  write('error', message, { ...errorObj, ...context });
+  write('error', message, { ...errorData, ...context });
 }
 
-/**
- * Structured logger with level methods.
- */
 export const log = {
-  debug: (message: string, context?: Record<string, unknown>) =>
-    write('debug', message, context),
-  info: (message: string, context?: Record<string, unknown>) =>
-    write('info', message, context),
-  warn: (message: string, context?: Record<string, unknown>) =>
-    write('warn', message, context),
-  error: (message: string, context?: Record<string, unknown>) =>
-    write('error', message, context),
+  debug: (msg: string, ctx?: Record<string, unknown>) =>
+    write('debug', msg, ctx),
+  info: (msg: string, ctx?: Record<string, unknown>) => write('info', msg, ctx),
+  warn: (msg: string, ctx?: Record<string, unknown>) => write('warn', msg, ctx),
+  error: (msg: string, ctx?: Record<string, unknown>) =>
+    write('error', msg, ctx),
 };

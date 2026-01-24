@@ -1,91 +1,89 @@
 /**
- * Structured Logger
+ * Next.js Structured Logging
  *
- * JSON logging for Vercel log parsing. Works in both Next.js and Convex.
- * All output goes to stdout/stderr as parseable JSON.
+ * JSON logging for Vercel log parsing. Errors go to stderr, rest to stdout.
  *
  * @example
- * log.info('User joined room', { roomCode: 'ABCD', userId: '123' });
- * log.error('Failed to generate AI line', { error: err, roomId });
+ * log.info('User joined', { roomCode: 'ABCD' });
+ * log.error('Operation failed', { error: err });
  */
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-export interface LogEntry {
-  level: LogLevel;
-  message: string;
-  timestamp: string;
-  [key: string]: unknown;
-}
-
-/**
- * Create a structured log entry and write to console.
- * Errors go to stderr, everything else to stdout.
- */
-function write(
-  level: LogLevel,
-  message: string,
-  data?: Record<string, unknown>
-): void {
-  const entry: LogEntry = {
-    level,
-    message,
-    timestamp: new Date().toISOString(),
-    ...sanitizeData(data),
+function serializeError(error: Error): Record<string, unknown> {
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack?.split('\n').slice(0, 5).join('\n'),
   };
-
-  const json = JSON.stringify(entry);
-
-  if (level === 'error') {
-    console.error(json);
-  } else {
-    console.log(json);
-  }
 }
 
-/**
- * Sanitize data for logging - handle Error objects and circular refs.
- */
-function sanitizeData(data?: Record<string, unknown>): Record<string, unknown> {
+function sanitize(data?: Record<string, unknown>): Record<string, unknown> {
   if (!data) return {};
 
   const result: Record<string, unknown> = {};
-
   for (const [key, value] of Object.entries(data)) {
     if (value instanceof Error) {
-      result[key] = {
-        name: value.name,
-        message: value.message,
-        stack: value.stack?.split('\n').slice(0, 5).join('\n'),
-      };
+      result[key] = serializeError(value);
     } else if (typeof value === 'object' && value !== null) {
       try {
-        // Test for circular references
         JSON.stringify(value);
         result[key] = value;
       } catch {
-        result[key] = '[Circular or non-serializable]';
+        result[key] = '[Non-serializable]';
       }
     } else {
       result[key] = value;
     }
   }
-
   return result;
 }
 
+function write(
+  level: LogLevel,
+  message: string,
+  data?: Record<string, unknown>
+): void {
+  const entry = {
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+    ...sanitize(data),
+  };
+
+  const output = level === 'error' ? console.error : console.log;
+  output(JSON.stringify(entry));
+}
+
 /**
- * Structured logger with level methods.
+ * Log a caught error with context. Consistent interface with Convex logger.
  */
+export function logError(
+  message: string,
+  error: unknown,
+  context?: Record<string, unknown>
+): void {
+  const errorData =
+    error instanceof Error
+      ? {
+          errorName: error.name,
+          errorMessage: error.message,
+          errorStack: error.stack?.split('\n').slice(0, 5).join('\n'),
+        }
+      : { errorValue: String(error) };
+
+  write('error', message, { ...errorData, ...context });
+}
+
 export const log = {
-  debug: (message: string, data?: Record<string, unknown>) =>
-    write('debug', message, data),
-  info: (message: string, data?: Record<string, unknown>) =>
-    write('info', message, data),
-  warn: (message: string, data?: Record<string, unknown>) =>
-    write('warn', message, data),
-  error: (message: string, data?: Record<string, unknown>) =>
-    write('error', message, data),
+  debug: (msg: string, data?: Record<string, unknown>) =>
+    write('debug', msg, data),
+  info: (msg: string, data?: Record<string, unknown>) =>
+    write('info', msg, data),
+  warn: (msg: string, data?: Record<string, unknown>) =>
+    write('warn', msg, data),
+  error: (msg: string, data?: Record<string, unknown>) =>
+    write('error', msg, data),
 };
 
 export default log;
