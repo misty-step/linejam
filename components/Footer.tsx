@@ -1,3 +1,6 @@
+import Link from 'next/link';
+import packageJson from '../package.json';
+
 type FooterProps = {
   className?: string;
 };
@@ -8,6 +11,13 @@ export function Footer({ className = '' }: FooterProps) {
       className={`w-full bg-[var(--color-background)] border-t border-[var(--color-border-subtle)] ${className}`}
     >
       <div className="flex items-center justify-center gap-3 px-4 py-3 text-[10px] font-mono uppercase tracking-wide text-[var(--color-text-muted)]">
+        <Link
+          href="/changelog"
+          className="hover:text-[var(--color-primary)] transition-colors"
+        >
+          v{packageJson.version}
+        </Link>
+        <span className="text-[var(--color-border)]">·</span>
         <span>LINEJAM © {new Date().getFullYear()}</span>
         <span className="text-[var(--color-border)]">·</span>
         <a
