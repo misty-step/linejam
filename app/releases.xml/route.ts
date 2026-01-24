@@ -14,7 +14,7 @@ export async function GET() {
 
   try {
     const response = await fetch(
-      'https://api.github.com/repos/phaedrus/linejam/releases?per_page=20',
+      `https://api.github.com/repos/${siteConfig.githubRepo}/releases?per_page=20`,
       {
         headers: {
           Accept: 'application/vnd.github+json',
@@ -68,11 +68,11 @@ export async function GET() {
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${siteConfig.title} Changelog</title>
-    <link>${siteConfig.url}/changelog</link>
-    <description>New features, improvements, and fixes for ${siteConfig.title}.</description>
+    <title>${siteConfig.title} Releases</title>
+    <link>${siteConfig.url}/releases</link>
+    <description>What's new in ${siteConfig.title}.</description>
     <language>en-us</language>
-    <atom:link href="${siteConfig.url}/changelog.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="${siteConfig.url}/releases.xml" rel="self" type="application/rss+xml"/>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     ${items}
   </channel>

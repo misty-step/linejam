@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { siteConfig } from '@/lib/config';
 
 interface Release {
   id: number;
@@ -69,7 +70,7 @@ function extractUserFriendlyNotes(body: string): string {
   return body;
 }
 
-export default function ChangelogPage() {
+export default function ReleasesPage() {
   const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +79,7 @@ export default function ChangelogPage() {
     async function fetchReleases() {
       try {
         const response = await fetch(
-          'https://api.github.com/repos/phaedrus/linejam/releases?per_page=50',
+          `https://api.github.com/repos/${siteConfig.githubRepo}/releases?per_page=50`,
           {
             headers: {
               Accept: 'application/vnd.github+json',
@@ -125,13 +126,13 @@ export default function ChangelogPage() {
               &larr; Back to Linejam
             </Link>
             <h1 className="text-4xl md:text-5xl font-[var(--font-display)] font-bold text-[var(--color-text-primary)]">
-              Changelog
+              Releases
             </h1>
             <p className="text-lg text-[var(--color-text-secondary)] font-[var(--font-sans)]">
-              New features, improvements, and fixes.
+              What&apos;s new in Linejam
             </p>
             <a
-              href="/changelog.xml"
+              href="/releases.xml"
               className="inline-flex items-center gap-2 text-sm text-[var(--color-accent)] hover:underline"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -150,7 +151,7 @@ export default function ChangelogPage() {
 
           {error && (
             <div className="text-[var(--color-error)] font-[var(--font-sans)]">
-              Error loading changelog: {error}
+              Error loading releases: {error}
             </div>
           )}
 
