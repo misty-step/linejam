@@ -26,7 +26,8 @@ export async function GET() {
     if (response.ok) {
       releases = await response.json();
     }
-  } catch {
+  } catch (error) {
+    console.error('Failed to fetch releases for RSS feed:', error);
     // Return empty feed on error
   }
 

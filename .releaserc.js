@@ -6,7 +6,7 @@
  * - fix: → patch version bump
  * - feat!: or BREAKING CHANGE: → major version bump
  */
-export default {
+module.exports = {
   branches: ['master'],
   plugins: [
     '@semantic-release/commit-analyzer',

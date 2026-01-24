@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 interface Release {
   id: number;
@@ -102,6 +104,8 @@ export default function ChangelogPage() {
 
   const grouped = groupReleasesByMinor(releases);
   const sortedMinorVersions = Object.keys(grouped).sort((a, b) => {
+    if (a === 'Other') return 1;
+    if (b === 'Other') return -1;
     const [aMajor, aMinor] = a.split('.').map(Number);
     const [bMajor, bMinor] = b.split('.').map(Number);
     if (bMajor !== aMajor) return bMajor - aMajor;
@@ -194,8 +198,10 @@ export default function ChangelogPage() {
                             [&_a]:text-[var(--color-accent)] [&_a]:hover:underline
                             [&_code]:bg-[var(--color-surface)] [&_code]:px-1 [&_code]:rounded"
                           dangerouslySetInnerHTML={{
-                            __html: markdownToHtml(
-                              extractUserFriendlyNotes(release.body || '')
+                            __html: DOMPurify.sanitize(
+                              marked.parse(
+                                extractUserFriendlyNotes(release.body || '')
+                              ) as string
                             ),
                           }}
                         />
@@ -209,51 +215,5 @@ export default function ChangelogPage() {
         </div>
       </main>
     </div>
-  );
-}
-
-/**
- * Simple markdown to HTML converter for release notes.
- * Handles: headers, lists, bold, italic, links, code.
- */
-function markdownToHtml(markdown: string): string {
-  if (!markdown) return '';
-
-  return (
-    markdown
-      // Escape HTML first
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      // Headers
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      // Bold and italic
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      // Inline code
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // Links
-      .replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener">$1</a>'
-      )
-      // Lists (simple)
-      .replace(/^[\*\-] (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-      // Paragraphs
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/^(.+)$/gm, (match) => {
-        if (
-          match.startsWith('<h') ||
-          match.startsWith('<ul') ||
-          match.startsWith('<li') ||
-          match.startsWith('</p')
-        ) {
-          return match;
-        }
-        return match;
-      })
   );
 }

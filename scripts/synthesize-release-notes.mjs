@@ -111,7 +111,8 @@ async function main() {
   }
 
   console.log('Synthesizing user-friendly notes...');
-  const userFriendlyNotes = await synthesizeNotes(release.body, release.tag_name);
+  const technicalNotes = release.body ?? '';
+  const userFriendlyNotes = await synthesizeNotes(technicalNotes, release.tag_name);
 
   if (!userFriendlyNotes) {
     console.log('No synthesized notes generated.');
@@ -124,7 +125,7 @@ async function main() {
 <details>
 <summary>Technical Details</summary>
 
-${release.body}
+${technicalNotes}
 
 </details>
 
