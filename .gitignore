@@ -53,3 +53,4 @@ next-env.d.ts
 
 thinktank.log
 thinktank_*/
+.env*.local
