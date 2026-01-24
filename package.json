@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.0.0",
     "pnpm": ">=10.0.0"
   },
   "scripts": {
@@ -24,9 +24,7 @@
     "test:ci": "vitest run --coverage",
     "test:watch": "vitest --watch",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "changeset": "changeset",
-    "version": "changeset version"
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.7",
