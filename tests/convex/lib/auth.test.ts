@@ -38,6 +38,7 @@ describe('convex/lib/auth', () => {
     mockVerifyGuestToken.mockReset();
     mockDb.first.mockResolvedValue(null);
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.clearAllMocks();
   });
 
   describe('getUser', () => {
@@ -117,13 +118,17 @@ describe('convex/lib/auth', () => {
 
       // Assert
       expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith(
-        'Invalid guest token:',
-        expect.objectContaining({
-          error: expect.any(Error),
-          hasToken: true,
-        })
-      );
+      // Structured JSON logging - verify it was called with JSON containing expected fields
+      expect(console.error).toHaveBeenCalled();
+      const logCall = vi.mocked(console.error).mock.calls[0][0];
+      const logEntry = JSON.parse(logCall as string);
+      expect(logEntry).toMatchObject({
+        level: 'error',
+        message: 'Invalid guest token',
+        service: 'convex',
+        hasToken: true,
+        errorMessage: 'Invalid token signature',
+      });
     });
 
     it('returns null when expired guest token provided', async () => {
@@ -136,13 +141,17 @@ describe('convex/lib/auth', () => {
 
       // Assert
       expect(result).toBeNull();
-      expect(console.error).toHaveBeenCalledWith(
-        'Invalid guest token:',
-        expect.objectContaining({
-          error: expect.any(Error),
-          hasToken: true,
-        })
-      );
+      // Structured JSON logging - verify it was called with JSON containing expected fields
+      expect(console.error).toHaveBeenCalled();
+      const logCall = vi.mocked(console.error).mock.calls[0][0];
+      const logEntry = JSON.parse(logCall as string);
+      expect(logEntry).toMatchObject({
+        level: 'error',
+        message: 'Invalid guest token',
+        service: 'convex',
+        hasToken: true,
+        errorMessage: 'Token expired',
+      });
     });
 
     it('prioritizes Clerk user over guest token when both present', async () => {

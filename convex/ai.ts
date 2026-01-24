@@ -20,6 +20,7 @@ import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
 import { assignPoemReaders } from './lib/assignPoemReaders';
+import { log } from './lib/errors';
 
 /**
  * Add an AI player to a room (host-only, lobby-only).
@@ -261,9 +262,11 @@ export const generateLineForRound = internalAction({
     const apiKey = process.env.OPENROUTER_API_KEY;
     const result = await (async () => {
       if (!apiKey) {
-        console.error(
-          'OPENROUTER_API_KEY not configured - using fallback line'
-        );
+        log.error('OPENROUTER_API_KEY not configured - using fallback line', {
+          roomId,
+          gameId,
+          round,
+        });
         return {
           text: getFallbackLine(targetWordCount),
           fallbackUsed: true,
@@ -299,7 +302,7 @@ export const generateLineForRound = internalAction({
     });
 
     if (result.fallbackUsed) {
-      console.log(`AI fallback used for room ${roomId}, round ${round}`);
+      log.warn('AI fallback used', { roomId, gameId, round });
     }
   },
 });

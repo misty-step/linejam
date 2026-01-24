@@ -1,3 +1,5 @@
+import { log } from './errors';
+
 const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 interface GuestTokenPayload {
@@ -18,9 +20,9 @@ function getSecret(): string {
       );
     }
 
-    console.warn(
-      'GUEST_TOKEN_SECRET not set - using development default (INSECURE)'
-    );
+    log.warn('GUEST_TOKEN_SECRET not set - using development default', {
+      security: 'INSECURE',
+    });
     return 'dev-only-insecure-secret-change-in-production';
   }
   return secret;
