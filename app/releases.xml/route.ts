@@ -1,35 +1,10 @@
 import { siteConfig } from '@/lib/config';
+import { loadAllReleases } from '@/lib/releases/loader';
 
-interface Release {
-  id: number;
-  tag_name: string;
-  name: string;
-  body: string;
-  published_at: string;
-  html_url: string;
-}
+export const dynamic = 'force-static';
 
 export async function GET() {
-  let releases: Release[] = [];
-
-  try {
-    const response = await fetch(
-      `https://api.github.com/repos/${siteConfig.githubRepo}/releases?per_page=20`,
-      {
-        headers: {
-          Accept: 'application/vnd.github+json',
-        },
-        next: { revalidate: 3600 }, // Cache for 1 hour
-      }
-    );
-
-    if (response.ok) {
-      releases = await response.json();
-    }
-  } catch (error) {
-    console.error('Failed to fetch releases for RSS feed:', error);
-    // Return empty feed on error
-  }
+  const releases = loadAllReleases();
 
   const escapeXml = (str: string) =>
     str
@@ -39,28 +14,15 @@ export async function GET() {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&apos;');
 
-  const extractSummary = (body: string): string => {
-    if (!body) return '';
-    // If synthesized, take only the user-friendly part
-    if (body.includes('<!-- synthesized -->')) {
-      const detailsStart = body.indexOf('<details>');
-      if (detailsStart > 0) {
-        return body.slice(0, detailsStart).trim();
-      }
-    }
-    // Truncate to first 500 chars
-    return body.slice(0, 500) + (body.length > 500 ? '...' : '');
-  };
-
   const items = releases
     .map(
       (release) => `
     <item>
-      <title>${escapeXml(release.tag_name)}${release.name ? ` - ${escapeXml(release.name)}` : ''}</title>
-      <link>${escapeXml(release.html_url)}</link>
-      <guid isPermaLink="true">${escapeXml(release.html_url)}</guid>
-      <pubDate>${new Date(release.published_at).toUTCString()}</pubDate>
-      <description>${escapeXml(extractSummary(release.body || ''))}</description>
+      <title>v${escapeXml(release.version)}</title>
+      <link>${siteConfig.url}/releases#v${escapeXml(release.version)}</link>
+      <guid isPermaLink="false">${escapeXml(release.version)}</guid>
+      <pubDate>${new Date(release.date).toUTCString()}</pubDate>
+      <description>${escapeXml(release.productNotes || `Release ${release.version}`)}</description>
     </item>`
     )
     .join('');

@@ -1,0 +1,59 @@
+{
+  "version": "0.1.0",
+  "date": "2025-01-24",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "game",
+      "description": "Real-time collaborative poetry game with 9-round structure",
+      "breaking": false
+    },
+    {
+      "type": "feat",
+      "scope": "ai",
+      "description": "AI players powered by Gemini for solo or small group play",
+      "breaking": false
+    },
+    {
+      "type": "feat",
+      "scope": "themes",
+      "description": "Four premium visual themes (Kenya, Mono, Vintage Paper, Hyper)",
+      "breaking": false
+    },
+    {
+      "type": "feat",
+      "scope": "auth",
+      "description": "Hybrid authentication with Clerk and guest UUID fallback",
+      "breaking": false
+    },
+    {
+      "type": "feat",
+      "scope": "share",
+      "description": "Poem sharing with clipboard copy and analytics tracking",
+      "breaking": false
+    },
+    {
+      "type": "feat",
+      "scope": "help",
+      "description": "Floating help modal explaining gameplay rules",
+      "breaking": false
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "description": "WordSlots genkoyoushi-inspired word count indicator",
+      "breaking": false
+    },
+    {
+      "type": "refactor",
+      "scope": "releases",
+      "description": "Static file-based releases infrastructure",
+      "breaking": false
+    },
+    {
+      "type": "fix",
+      "description": "Ensure proper word counting for multi-space inputs",
+      "breaking": false
+    }
+  ]
+}
