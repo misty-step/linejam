@@ -38,4 +38,5 @@ export const siteConfig = {
   title: 'Linejam',
   description:
     'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
+  githubRepo: 'misty-step/linejam',
 } as const;
