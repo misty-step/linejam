@@ -22,6 +22,8 @@ import type * as lib_ai_wordCountGuard from "../lib/ai/wordCountGuard.js";
 import type * as lib_assignPoemReaders from "../lib/assignPoemReaders.js";
 import type * as lib_assignmentMatrix from "../lib/assignmentMatrix.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_errors from "../lib/errors.js";
+import type * as lib_gameRules from "../lib/gameRules.js";
 import type * as lib_guestToken from "../lib/guestToken.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_room from "../lib/room.js";
@@ -53,6 +55,8 @@ declare const fullApi: ApiFromModules<{
   "lib/assignPoemReaders": typeof lib_assignPoemReaders;
   "lib/assignmentMatrix": typeof lib_assignmentMatrix;
   "lib/auth": typeof lib_auth;
+  "lib/errors": typeof lib_errors;
+  "lib/gameRules": typeof lib_gameRules;
   "lib/guestToken": typeof lib_guestToken;
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/room": typeof lib_room;
