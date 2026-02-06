@@ -1016,7 +1016,6 @@ describe('archive', () => {
     });
 
     it('uses default limit of 5', async () => {
-      const mockRoom = { _id: 'room1', status: 'COMPLETED' };
       const mockPoems = Array.from({ length: 10 }, (_, i) => ({
         _id: `poem${i}`,
         roomId: `room${i}`,

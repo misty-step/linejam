@@ -1,0 +1,9 @@
+CI quality gates fixed:
+
+1. Removed unused `mockRoom` variable in tests/convex/archive.test.ts:1019
+2. Added convex/_generated/** to eslint ignore list in eslint.config.mjs
+
+All checks now pass:
+- pnpm run lint: PASS
+- pnpm run typecheck: PASS
+- pnpm test: PASS
