@@ -45,5 +45,5 @@ Print-on-demand poetry booklets via Lulu API:
 
 ---
 
-_Last updated: 2026-01-25_
-_Updated during: /groom session_
+_Last updated: 2026-02-16_
+_Updated during: /groom session (vision confirmed, no changes)_
