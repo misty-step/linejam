@@ -1,4 +1,4 @@
-import { subtle } from 'crypto';
+const subtle = globalThis.crypto.subtle;
 
 const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -62,7 +62,7 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
 /**
  * Base64url decode to ArrayBuffer
  */
-function base64UrlToArrayBuffer(base64Url: string): Uint8Array {
+function base64UrlToArrayBuffer(base64Url: string): Uint8Array<ArrayBuffer> {
   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
   const binString = atob(base64);
   const bytes = new Uint8Array(binString.length);
@@ -123,8 +123,8 @@ export async function verifyGuestToken(token: string): Promise<string> {
   const isValid = await subtle.verify(
     'HMAC',
     key,
-    signatureBuffer as BufferSource,
-    payloadBuffer as BufferSource
+    signatureBuffer,
+    payloadBuffer
   );
 
   if (!isValid) {
