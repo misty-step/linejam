@@ -17,7 +17,7 @@ concurrency:
 jobs:
   review:
     name: "${{ matrix.reviewer }}"
-    if: github.event.pull_request.head.repo.full_name == github.repository && secrets.MOONSHOT_API_KEY != ''
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -45,7 +45,7 @@ jobs:
   verdict:
     name: "Council Verdict"
     needs: review
-    if: always() && github.event.pull_request.head.repo.full_name == github.repository && secrets.MOONSHOT_API_KEY != ''
+    if: always() && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: misty-step/cerberus/verdict@v1

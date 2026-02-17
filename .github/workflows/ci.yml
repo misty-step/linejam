@@ -31,13 +31,19 @@ jobs:
     name: Quality Gates
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'http://localhost:8187' }}
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Required for gitleaks
+
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -77,12 +83,18 @@ jobs:
       contents: read
       pull-requests: write
     env:
-      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'http://localhost:8187' }}
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -129,12 +141,18 @@ jobs:
       github.event_name == 'push' ||
       github.event.pull_request.draft == false
     env:
-      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'http://localhost:8187' }}
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -147,14 +165,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Require GUEST_TOKEN_SECRET
-        if: secrets.GUEST_TOKEN_SECRET != ''
-        run: |
-          if [ -z "$GUEST_TOKEN_SECRET" ]; then
-            echo "GUEST_TOKEN_SECRET is not set; add it to repository secrets."
-            exit 1
-          fi
 
       - name: Build
         run: pnpm build:check
