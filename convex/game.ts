@@ -291,6 +291,13 @@ export const submitLine = mutation({
     const allSubmitted = lineChecks.every((line) => line !== null);
 
     if (allSubmitted) {
+      // Idempotent guard: re-read game to prevent double-advancement
+      // when concurrent mutations (human + AI) both see allSubmitted.
+      // Convex serializes mutations on the same document, so the second
+      // caller sees the already-advanced state.
+      const freshGame = await ctx.db.get(game._id);
+      if (!freshGame || freshGame.currentRound !== lineIndex) return;
+
       if (lineIndex < 8) {
         await ctx.db.patch(game._id, { currentRound: lineIndex + 1 });
 
