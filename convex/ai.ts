@@ -406,6 +406,11 @@ export const commitAiLine = internalMutation({
     const allSubmitted = lineChecks.every((line) => line !== null);
 
     if (allSubmitted) {
+      // Idempotent guard: re-read game to prevent double-advancement.
+      // See convex/game.ts submitLine for detailed rationale.
+      const freshGame = await ctx.db.get(gameId);
+      if (!freshGame || freshGame.currentRound !== lineIndex) return;
+
       if (lineIndex < 8) {
         // Advance round
         await ctx.db.patch(gameId, { currentRound: lineIndex + 1 });
