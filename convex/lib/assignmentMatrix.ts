@@ -1,3 +1,4 @@
+import { ConvexError } from 'convex/values';
 import { Id } from '../_generated/dataModel';
 
 /**
@@ -82,6 +83,22 @@ function findSwapTarget<T>(
     }
   }
   return -1; // No suitable swap target found
+}
+
+/**
+ * Bounds-checked access to an assignment matrix row.
+ * Throws ConvexError if round is out of bounds (corrupted state or logic bug).
+ */
+export function getMatrixRound(
+  matrix: Id<'users'>[][],
+  round: number
+): Id<'users'>[] {
+  if (round < 0 || round >= matrix.length) {
+    throw new ConvexError(
+      `Invalid game state: round ${round} out of bounds (matrix has ${matrix.length} rounds)`
+    );
+  }
+  return matrix[round];
 }
 
 // Implements the assignment matrix generation algorithm from TASK.md 2.3.2
