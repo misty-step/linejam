@@ -3,6 +3,7 @@ import { mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
 import {
   generateAssignmentMatrix,
+  getMatrixRound,
   secureShuffle,
 } from './lib/assignmentMatrix';
 import { WORD_COUNTS } from './lib/gameRules';
@@ -140,7 +141,10 @@ export const getCurrentAssignment = query({
     if (!game) return null;
 
     const currentRound = game.currentRound;
-    const roundAssignments = game.assignmentMatrix[currentRound];
+    const roundAssignments = getMatrixRound(
+      game.assignmentMatrix,
+      currentRound
+    );
 
     // Find which poem index this user is assigned to
     const poemIndex = roundAssignments.findIndex((uid) => uid === user._id);
@@ -226,7 +230,9 @@ export const submitLine = mutation({
     }
 
     // Validate assignment (immutable matrix - always stable)
-    const assignedUserId = game.assignmentMatrix[lineIndex][poem.indexInRoom];
+    const assignedUserId = getMatrixRound(game.assignmentMatrix, lineIndex)[
+      poem.indexInRoom
+    ];
     if (assignedUserId !== user._id) throw new Error('Not your turn');
 
     // Validate line length (prevent storage abuse)
@@ -285,6 +291,13 @@ export const submitLine = mutation({
     const allSubmitted = lineChecks.every((line) => line !== null);
 
     if (allSubmitted) {
+      // Idempotent guard: re-read game to prevent double-advancement
+      // when concurrent mutations (human + AI) both see allSubmitted.
+      // Convex serializes mutations on the same document, so the second
+      // caller sees the already-advanced state.
+      const freshGame = await ctx.db.get(game._id);
+      if (!freshGame || freshGame.currentRound !== lineIndex) return;
+
       if (lineIndex < 8) {
         await ctx.db.patch(game._id, { currentRound: lineIndex + 1 });
 
@@ -320,7 +333,9 @@ export const submitLine = mutation({
           poems.map((p) => ({
             _id: p._id,
             // Author = first line writer from assignment matrix
-            authorUserId: game.assignmentMatrix[0][p.indexInRoom],
+            authorUserId: getMatrixRound(game.assignmentMatrix, 0)[
+              p.indexInRoom
+            ],
           })),
           humanAndAiPlayers
         );
@@ -564,9 +579,10 @@ export const getRoundProgress = query({
 
     // Build player -> poem assignments for current round
     const playerAssignments = roomPlayers.map((player) => {
-      const poemIndex = game.assignmentMatrix[game.currentRound].findIndex(
-        (uid) => uid === player.userId
-      );
+      const poemIndex = getMatrixRound(
+        game.assignmentMatrix,
+        game.currentRound
+      ).findIndex((uid) => uid === player.userId);
       return {
         player,
         poemIndex,
