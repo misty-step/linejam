@@ -15,27 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  preflight:
-    name: Preflight (Cerberus)
-    runs-on: ubuntu-latest
-    outputs:
-      has_openrouter_key: ${{ steps.keys.outputs.has_openrouter_key }}
-    steps:
-      - id: keys
-        name: Detect OPENROUTER_API_KEY
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: |
-          if [ -n "${OPENROUTER_API_KEY}" ]; then
-            echo "has_openrouter_key=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_openrouter_key=false" >> "$GITHUB_OUTPUT"
-          fi
-
   review:
     name: "${{ matrix.reviewer }}"
-    needs: preflight
-    if: needs.preflight.outputs.has_openrouter_key == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -48,10 +30,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: misty-step/cerberus@v1
+      - uses: misty-step/cerberus@v2
         with:
           perspective: ${{ matrix.perspective }}
           github-token: ${{ github.token }}
@@ -59,10 +38,10 @@ jobs:
 
   verdict:
     name: "Council Verdict"
-    needs: [preflight, review]
-    if: always() && needs.preflight.outputs.has_openrouter_key == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: review
+    if: always() && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: misty-step/cerberus/verdict@v1
+      - uses: misty-step/cerberus/verdict@v2
         with:
           github-token: ${{ github.token }}
