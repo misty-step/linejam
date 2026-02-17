@@ -43,25 +43,40 @@ export const getMyFavorites = query({
       .withIndex('by_user', (q) => q.eq('userId', user._id))
       .collect();
 
-    const poems = [];
-    for (const fav of favorites) {
-      const poem = await ctx.db.get(fav.poemId);
-      if (poem) {
-        const firstLine = await ctx.db
+    // Batch 1: fetch all poems in parallel
+    const poemResults = await Promise.all(
+      favorites.map((fav) => ctx.db.get(fav.poemId))
+    );
+
+    // Filter nulls, keep fav metadata aligned
+    const validEntries = favorites
+      .map((fav, i) => ({ fav, poem: poemResults[i] }))
+      .filter(
+        (
+          entry
+        ): entry is {
+          fav: (typeof favorites)[0];
+          poem: NonNullable<(typeof poemResults)[0]>;
+        } => entry.poem !== null
+      );
+
+    // Batch 2: fetch first lines in parallel
+    const firstLines = await Promise.all(
+      validEntries.map(({ poem }) =>
+        ctx.db
           .query('lines')
           .withIndex('by_poem_index', (q) =>
             q.eq('poemId', poem._id).eq('indexInPoem', 0)
           )
-          .first();
-        poems.push({
-          ...poem,
-          preview: firstLine?.text || '...',
-          favoritedAt: fav.createdAt,
-        });
-      }
-    }
+          .first()
+      )
+    );
 
-    return poems;
+    return validEntries.map(({ fav, poem }, i) => ({
+      ...poem,
+      preview: firstLines[i]?.text || '...',
+      favoritedAt: fav.createdAt,
+    }));
   },
 });
 

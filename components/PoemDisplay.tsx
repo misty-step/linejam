@@ -236,7 +236,7 @@ export function PoemDisplay({
                     tabIndex={isVisible ? 0 : -1}
                     className={cn(
                       'w-2 h-2 rounded-full cursor-pointer transition-all',
-                      'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+                      'focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2',
                       isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
                     )}
                     style={{ backgroundColor: dotColor }}

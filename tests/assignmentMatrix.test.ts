@@ -1,5 +1,8 @@
 import { test, expect, describe } from 'vitest';
-import { generateAssignmentMatrix } from '../convex/lib/assignmentMatrix';
+import {
+  generateAssignmentMatrix,
+  getMatrixRound,
+} from '../convex/lib/assignmentMatrix';
 import { Id } from '../convex/_generated/dataModel';
 
 // Helper to create mock user IDs
@@ -98,5 +101,38 @@ describe('generateAssignmentMatrix', () => {
     // The `hasConflicts` will always be true for 1 player.
     // The test mainly ensures it doesn't crash or run forever.
     // Further refinement of the algorithm's conflict handling for N=1 might be needed.
+  });
+});
+
+describe('getMatrixRound', () => {
+  const matrix = [
+    ['u0', 'u1'],
+    ['u1', 'u0'],
+  ] as Id<'users'>[][];
+
+  test('returns the correct round row for valid index', () => {
+    expect(getMatrixRound(matrix, 0)).toEqual(['u0', 'u1']);
+    expect(getMatrixRound(matrix, 1)).toEqual(['u1', 'u0']);
+  });
+
+  test('throws ConvexError for round >= matrix length', () => {
+    expect(() => getMatrixRound(matrix, 2)).toThrow(
+      'Invalid game state: round 2 out of bounds'
+    );
+    expect(() => getMatrixRound(matrix, 9)).toThrow(
+      'Invalid game state: round 9 out of bounds'
+    );
+  });
+
+  test('throws ConvexError for negative round', () => {
+    expect(() => getMatrixRound(matrix, -1)).toThrow(
+      'Invalid game state: round -1 out of bounds'
+    );
+  });
+
+  test('throws ConvexError for empty matrix', () => {
+    expect(() => getMatrixRound([], 0)).toThrow(
+      'Invalid game state: round 0 out of bounds'
+    );
   });
 });
