@@ -144,7 +144,7 @@ describe('useUser hook', () => {
     expect(result.current.guestToken).toBeNull();
   });
 
-  it('handles fetch error gracefully', async () => {
+  it('sets authError on fetch failure instead of silent success', async () => {
     // Arrange
     mockFetch.mockRejectedValue(new Error('Network error'));
 
@@ -161,17 +161,56 @@ describe('useUser hook', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Assert - error is wrapped by guestSession fetcher
+    // Assert - error is captured by Sentry
     expect(mockCaptureError).toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.stringContaining('Failed to fetch guest session'),
       }),
       { operation: 'fetchGuestSession' }
     );
+    // Auth error is set for UI display
+    expect(result.current.authError).toBe(
+      'Unable to connect. Please check your connection.'
+    );
     expect(result.current.guestId).toBeNull();
     expect(result.current.guestToken).toBeNull();
-    // Hook should still mark as loaded even on error
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it('retryAuth clears error and retries fetch', async () => {
+    // Arrange - first call fails, second succeeds
+    mockFetch
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ guestId: 'guest-retry', token: 'token-retry' }),
+      });
+
+    mockUseClerkUser.mockReturnValue({
+      user: null,
+      isLoaded: true,
+    });
+
+    // Act - initial render fails
+    const { result } = renderHook(() => useUser());
+
+    await waitFor(() => {
+      expect(result.current.authError).toBe(
+        'Unable to connect. Please check your connection.'
+      );
+    });
+
+    // Act - retry
+    result.current.retryAuth();
+
+    await waitFor(() => {
+      expect(result.current.authError).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Assert - retry succeeded
+    expect(result.current.guestId).toBe('guest-retry');
+    expect(result.current.guestToken).toBe('token-retry');
   });
 
   it('uses fullName for displayName when available', async () => {

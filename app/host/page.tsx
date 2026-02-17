@@ -18,7 +18,7 @@ import {
 
 export default function HostPage() {
   const router = useRouter();
-  const { guestToken, isLoading } = useUser();
+  const { guestToken, isLoading, authError, retryAuth } = useUser();
   const createRoomMutation = useMutation(api.rooms.createRoom);
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,6 +45,15 @@ export default function HostPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (authError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4">
+        <Alert variant="error">{authError}</Alert>
+        <Button onClick={retryAuth}>Try again</Button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

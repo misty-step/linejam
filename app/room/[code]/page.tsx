@@ -14,11 +14,30 @@ interface RoomPageProps {
 
 export default function RoomPage({ params }: RoomPageProps) {
   const { code } = use(params);
-  const { isLoading, guestToken } = useUser();
+  const { isLoading, guestToken, authError, retryAuth } = useUser();
   const roomState = useQuery(api.rooms.getRoomState, {
     code,
     guestToken: guestToken || undefined,
   });
+
+  if (authError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4">
+        <span className="text-[var(--color-text-primary)] text-xl">
+          Connection error
+        </span>
+        <span className="text-[var(--color-text-muted)] text-sm">
+          {authError}
+        </span>
+        <button
+          onClick={retryAuth}
+          className="px-4 py-2 bg-[var(--color-accent)] text-white rounded hover:opacity-90 transition-opacity"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading || roomState === undefined) {
     return (
