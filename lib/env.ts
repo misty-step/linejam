@@ -17,9 +17,10 @@ const REQUIRED_PUBLIC_ENV = ['NEXT_PUBLIC_CONVEX_URL'] as const;
  */
 export function validateEnv(): void {
   const missing: string[] = [];
+  const isDependabot = process.env.GITHUB_ACTOR === 'dependabot[bot]';
 
   for (const key of REQUIRED_SERVER_ENV) {
-    if (!process.env[key]) {
+    if (!isDependabot && !process.env[key]) {
       missing.push(key);
     }
   }

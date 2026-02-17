@@ -17,6 +17,7 @@ concurrency:
 jobs:
   review:
     name: "${{ matrix.reviewer }}"
+    if: github.event.pull_request.head.repo.full_name == github.repository && secrets.MOONSHOT_API_KEY != ''
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,15 +39,15 @@ jobs:
       - uses: misty-step/cerberus@v1
         with:
           perspective: ${{ matrix.perspective }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           api-key: ${{ secrets.MOONSHOT_API_KEY }}
 
   verdict:
     name: "Council Verdict"
     needs: review
-    if: always()
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository && secrets.MOONSHOT_API_KEY != ''
     runs-on: ubuntu-latest
     steps:
       - uses: misty-step/cerberus/verdict@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
