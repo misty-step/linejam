@@ -563,6 +563,105 @@ describe('game', () => {
         })
       );
     });
+
+    it('does not double-advance round when concurrent submissions both see allSubmitted', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user1', 'user2']],
+        }) // game
+        .mockResolvedValueOnce({ _id: 'room1' }) // room
+        // Idempotent guard re-read: round already advanced by concurrent mutation
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 1,
+          assignmentMatrix: [['user1', 'user2']],
+        });
+
+      // No duplicate line
+      mockDb.first
+        .mockResolvedValueOnce(null) // duplicate check
+        .mockResolvedValueOnce({ _id: 'line1' }) // poem1 line check
+        .mockResolvedValueOnce({ _id: 'line2' }); // poem2 line check
+
+      // Poems in game
+      mockDb.collect.mockResolvedValue([{ _id: 'poem1' }, { _id: 'poem2' }]);
+
+      // @ts-expect-error - calling handler
+      await submitLine.handler(mockCtx, {
+        poemId: 'poem1',
+        lineIndex: 0,
+        text: 'hello',
+        guestToken: 'token',
+      });
+
+      // Line should still be inserted
+      expect(mockDb.insert).toHaveBeenCalled();
+      // But round should NOT be advanced (guard detected concurrent advancement)
+      expect(mockDb.patch).not.toHaveBeenCalledWith(
+        'game1',
+        expect.objectContaining({ currentRound: 1 })
+      );
+      // And AI turn should NOT be scheduled
+      expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
+    });
+
+    it('advances round when guard confirms no concurrent advancement', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user1', 'user2']],
+        }) // game
+        .mockResolvedValueOnce({ _id: 'room1' }) // room
+        // Idempotent guard re-read: round still at 0, safe to advance
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [['user1', 'user2']],
+        });
+
+      // No duplicate line
+      mockDb.first
+        .mockResolvedValueOnce(null) // duplicate check
+        .mockResolvedValueOnce({ _id: 'line1' }) // poem1 line check
+        .mockResolvedValueOnce({ _id: 'line2' }); // poem2 line check
+
+      // Poems in game
+      mockDb.collect.mockResolvedValue([{ _id: 'poem1' }, { _id: 'poem2' }]);
+
+      // @ts-expect-error - calling handler
+      await submitLine.handler(mockCtx, {
+        poemId: 'poem1',
+        lineIndex: 0,
+        text: 'hello',
+        guestToken: 'token',
+      });
+
+      // Round SHOULD be advanced
+      expect(mockDb.patch).toHaveBeenCalledWith('game1', {
+        currentRound: 1,
+      });
+      // AI turn SHOULD be scheduled
+      expect(mockCtx.scheduler.runAfter).toHaveBeenCalled();
+    });
   });
 
   describe('getRevealPhaseState', () => {
