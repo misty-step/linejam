@@ -6,6 +6,7 @@ import { api } from '../../../convex/_generated/api';
 import { Lobby } from '../../../components/Lobby';
 import { WritingScreen } from '../../../components/WritingScreen';
 import { RevealPhase } from '../../../components/RevealPhase';
+import { AuthErrorState } from '../../../components/AuthErrorState';
 import { useUser } from '../../../lib/auth';
 
 interface RoomPageProps {
@@ -21,22 +22,7 @@ export default function RoomPage({ params }: RoomPageProps) {
   });
 
   if (authError) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4">
-        <span className="text-[var(--color-text-primary)] text-xl">
-          Connection error
-        </span>
-        <span className="text-[var(--color-text-muted)] text-sm">
-          {authError}
-        </span>
-        <button
-          onClick={retryAuth}
-          className="px-4 py-2 bg-[var(--color-accent)] text-white rounded hover:opacity-90 transition-opacity"
-        >
-          Try again
-        </button>
-      </div>
-    );
+    return <AuthErrorState message={authError} onRetry={retryAuth} />;
   }
 
   if (isLoading || roomState === undefined) {

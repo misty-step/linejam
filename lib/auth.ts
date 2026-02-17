@@ -25,23 +25,33 @@ export function useUser(
   useEffect(() => {
     if (!isClerkLoaded || typeof window === 'undefined') return;
 
+    // Signed-in users don't need guest-session setup to proceed.
+    if (clerkUser) {
+      queueMicrotask(() => {
+        setGuestId(null);
+        setGuestToken(null);
+        setAuthError(null);
+        setIsLoaded(true);
+      });
+      return;
+    }
+
     fetcher
       .fetch()
       .then((data) => {
-        if (data.guestId) {
-          setGuestId(data.guestId);
-        }
-        if (data.token) {
-          setGuestToken(data.token);
-        }
+        setGuestId(data.guestId);
+        setGuestToken(data.token);
+        setAuthError(null);
         setIsLoaded(true);
       })
       .catch((error) => {
         captureError(error, { operation: 'fetchGuestSession' });
+        setGuestId(null);
+        setGuestToken(null);
         setAuthError('Unable to connect. Please check your connection.');
         setIsLoaded(true);
       });
-  }, [isClerkLoaded, fetcher, retryCount]);
+  }, [isClerkLoaded, clerkUser, fetcher, retryCount]);
 
   const retryAuth = useCallback(() => {
     setAuthError(null);
