@@ -14,7 +14,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           'border border-border',
           'rounded-sm shadow-sm',
           'placeholder:text-text-muted',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:border-transparent',
           'disabled:cursor-not-allowed disabled:opacity-50',
           'transition-all duration-150', // Standard Tailwind duration
           className
