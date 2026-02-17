@@ -15,6 +15,7 @@ import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
 import { requireRoomByCode, getActiveGame } from './lib/room';
+import { getMatrixRound } from './lib/assignmentMatrix';
 import { WORD_COUNTS } from './lib/gameRules';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
@@ -161,7 +162,7 @@ export const scheduleAiTurn = internalMutation({
     if (!aiPlayer) return; // No AI in this room
 
     // Check if AI already submitted for this round
-    const aiPoemIndex = game.assignmentMatrix[round].findIndex(
+    const aiPoemIndex = getMatrixRound(game.assignmentMatrix, round).findIndex(
       (uid) => uid === aiPlayer._id
     );
     if (aiPoemIndex === -1) return; // AI not assigned this round (shouldn't happen)
@@ -226,7 +227,7 @@ export const generateLineForRound = internalAction({
     if (!aiPlayer) return;
 
     // Find AI's assigned poem
-    const aiPoemIndex = game.assignmentMatrix[round].findIndex(
+    const aiPoemIndex = getMatrixRound(game.assignmentMatrix, round).findIndex(
       (uid: Id<'users'>) => uid === aiPlayer._id
     );
     if (aiPoemIndex === -1) return;
@@ -353,7 +354,9 @@ export const commitAiLine = internalMutation({
     if (lineIndex > game.currentRound && gameInProgress) return;
 
     // Check assignment (immutable matrix - always stable)
-    const assignedUserId = game.assignmentMatrix[lineIndex][poem.indexInRoom];
+    const assignedUserId = getMatrixRound(game.assignmentMatrix, lineIndex)[
+      poem.indexInRoom
+    ];
     if (assignedUserId !== aiUserId) return;
 
     // Get AI user for displayName
@@ -444,7 +447,9 @@ export const commitAiLine = internalMutation({
           poems.map((p) => ({
             _id: p._id,
             // Author = user who wrote first line (from assignment matrix)
-            authorUserId: game.assignmentMatrix[0][p.indexInRoom],
+            authorUserId: getMatrixRound(game.assignmentMatrix, 0)[
+              p.indexInRoom
+            ],
           })),
           playerUserRecords
             .filter((u) => u !== null)

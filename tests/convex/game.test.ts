@@ -37,13 +37,19 @@ vi.mock('../../convex/lib/room', () => ({
 }));
 
 // assignmentMatrix uses crypto.getRandomValues internally - mock at non-deterministic boundary
-vi.mock('../../convex/lib/assignmentMatrix', () => ({
-  generateAssignmentMatrix: () => [
-    [0, 1],
-    [1, 0],
-  ],
-  secureShuffle: <T>(arr: T[]) => arr, // Identity for deterministic tests
-}));
+// getMatrixRound is deterministic, so use real implementation
+vi.mock('../../convex/lib/assignmentMatrix', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../convex/lib/assignmentMatrix')>();
+  return {
+    ...actual,
+    generateAssignmentMatrix: () => [
+      [0, 1],
+      [1, 0],
+    ],
+    secureShuffle: <T>(arr: T[]) => arr, // Identity for deterministic tests
+  };
+});
 
 // wordCount is deterministic - use real implementation (no mock)
 
