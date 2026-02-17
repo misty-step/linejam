@@ -64,7 +64,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^4.0.16",
     "convex-test": "^0.0.41",
-    "eslint": "^10",
+    "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "happy-dom": "^20.1.0",
     "lefthook": "^2.0.13",
