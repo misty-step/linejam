@@ -57,7 +57,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'transition-all duration-[var(--duration-normal)]',
           'border border-transparent',
           'rounded-md', // Uses @theme --radius-md
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2',
           'opacity-100', // Always fully opaque
           'disabled:pointer-events-none disabled:grayscale disabled:brightness-75',
 
