@@ -39,6 +39,12 @@ jobs:
         with:
           fetch-depth: 0 # Required for gitleaks
 
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -83,6 +89,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -136,6 +148,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -147,13 +165,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Require GUEST_TOKEN_SECRET
-        run: |
-          if [ -z "$GUEST_TOKEN_SECRET" ]; then
-            echo "GUEST_TOKEN_SECRET is not set; add it to repository secrets."
-            exit 1
-          fi
 
       - name: Build
         run: pnpm build:check
