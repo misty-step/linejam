@@ -19,7 +19,7 @@ import {
 function JoinForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { guestToken, isLoading } = useUser();
+  const { guestToken, isLoading, authError, retryAuth } = useUser();
   const joinRoomMutation = useMutation(api.rooms.joinRoom);
 
   const [code, setCode] = useState(
@@ -53,6 +53,15 @@ function JoinForm() {
       setIsSubmitting(false);
     }
   };
+
+  if (authError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4">
+        <Alert variant="error">{authError}</Alert>
+        <Button onClick={retryAuth}>Try again</Button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
