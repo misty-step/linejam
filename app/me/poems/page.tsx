@@ -20,6 +20,7 @@
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useUser } from '@/lib/auth';
+import { AuthErrorState } from '@/components/AuthErrorState';
 import {
   PoemCard,
   PoemCardSkeleton,
@@ -29,15 +30,20 @@ import {
 } from '@/components/archive';
 
 export default function ArchivePage() {
-  const { guestToken, isLoading: authLoading } = useUser();
+  const { guestToken, isLoading: authLoading, authError, retryAuth } = useUser();
 
-  const archiveData = useQuery(api.archive.getArchiveData, {
-    guestToken: guestToken || undefined,
-  });
+  const archiveData = useQuery(
+    api.archive.getArchiveData,
+    authLoading || authError ? 'skip' : { guestToken: guestToken || undefined }
+  );
 
   const isLoading = authLoading || archiveData === undefined;
   const poems = archiveData?.poems ?? [];
   const stats = archiveData?.stats ?? null;
+
+  if (authError) {
+    return <AuthErrorState message={authError} onRetry={retryAuth} />;
+  }
 
   // Sort: favorites first, then by date descending within each group
   const sortedPoems = [...poems].sort((a, b) => {
