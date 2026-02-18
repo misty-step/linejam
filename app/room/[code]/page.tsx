@@ -6,6 +6,7 @@ import { api } from '../../../convex/_generated/api';
 import { Lobby } from '../../../components/Lobby';
 import { WritingScreen } from '../../../components/WritingScreen';
 import { RevealPhase } from '../../../components/RevealPhase';
+import { AuthErrorState } from '../../../components/AuthErrorState';
 import { useUser } from '../../../lib/auth';
 
 interface RoomPageProps {
@@ -14,11 +15,15 @@ interface RoomPageProps {
 
 export default function RoomPage({ params }: RoomPageProps) {
   const { code } = use(params);
-  const { isLoading, guestToken } = useUser();
+  const { isLoading, guestToken, authError, retryAuth } = useUser();
   const roomState = useQuery(api.rooms.getRoomState, {
     code,
     guestToken: guestToken || undefined,
   });
+
+  if (authError) {
+    return <AuthErrorState message={authError} onRetry={retryAuth} />;
+  }
 
   if (isLoading || roomState === undefined) {
     return (
