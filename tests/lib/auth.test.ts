@@ -85,7 +85,10 @@ describe('useUser hook', () => {
     expect(result.current.clerkUser).toEqual(clerkUser);
     expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.displayName).toBe('John Doe');
-    expect(result.current.guestId).not.toBeNull(); // Guest session fetched in background
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(result.current.guestId).toBeNull();
+    expect(result.current.guestToken).toBeNull();
+    expect(result.current.authError).toBeNull();
   });
 
   it('fetches guest session when no Clerk user', async () => {

@@ -17,7 +17,7 @@ concurrency:
 jobs:
   review:
     name: "${{ matrix.reviewer }}"
-    if: github.event.pull_request.head.repo.full_name == github.repository && secrets.MOONSHOT_API_KEY != ''
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -30,24 +30,18 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - uses: misty-step/cerberus@v1
+      - uses: misty-step/cerberus@v2
         with:
           perspective: ${{ matrix.perspective }}
           github-token: ${{ github.token }}
-          api-key: ${{ secrets.MOONSHOT_API_KEY }}
+          api-key: ${{ secrets.OPENROUTER_API_KEY }}
 
   verdict:
     name: "Council Verdict"
     needs: review
-    if: always() && github.event.pull_request.head.repo.full_name == github.repository && secrets.MOONSHOT_API_KEY != ''
+    if: always() && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: misty-step/cerberus/verdict@v1
+      - uses: misty-step/cerberus/verdict@v2
         with:
           github-token: ${{ github.token }}

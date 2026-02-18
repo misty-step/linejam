@@ -11,6 +11,7 @@ import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { AuthErrorState } from '../../components/AuthErrorState';
 import {
   LoadingState,
   LoadingMessages,
@@ -55,12 +56,7 @@ function JoinForm() {
   };
 
   if (authError) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4">
-        <Alert variant="error">{authError}</Alert>
-        <Button onClick={retryAuth}>Try again</Button>
-      </div>
-    );
+    return <AuthErrorState message={authError} onRetry={retryAuth} />;
   }
 
   if (isLoading) {
