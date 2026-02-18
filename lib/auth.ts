@@ -1,5 +1,5 @@
 import { useUser as useClerkUser } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { captureError } from '@/lib/error';
 import {
   GuestSessionFetcher,
@@ -19,35 +19,47 @@ export function useUser(
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    // Wait for Clerk to load first
     if (!isClerkLoaded || typeof window === 'undefined') return;
 
-    // Fetch guest session via injectable fetcher
+    // Signed-in users don't need guest-session setup to proceed.
+    if (clerkUser) {
+      queueMicrotask(() => {
+        setGuestId(null);
+        setGuestToken(null);
+        setAuthError(null);
+        setIsLoaded(true);
+      });
+      return;
+    }
+
     fetcher
       .fetch()
       .then((data) => {
-        if (data.guestId) {
-          setGuestId(data.guestId);
-        }
-        if (data.token) {
-          setGuestToken(data.token);
-        }
+        setGuestId(data.guestId);
+        setGuestToken(data.token);
+        setAuthError(null);
         setIsLoaded(true);
       })
       .catch((error) => {
         captureError(error, { operation: 'fetchGuestSession' });
-        // Client-side error - Sentry will capture, no need for server logger
+        setGuestId(null);
+        setGuestToken(null);
+        setAuthError('Unable to connect. Please check your connection.');
         setIsLoaded(true);
       });
-  }, [isClerkLoaded, fetcher]);
+  }, [isClerkLoaded, clerkUser, fetcher, retryCount]);
+
+  const retryAuth = useCallback(() => {
+    setAuthError(null);
+    setIsLoaded(false);
+    setRetryCount((c) => c + 1);
+  }, []);
 
   const isLoading = !isLoaded;
-
-  // If clerkUser is present, we use that.
-  // If not, we use guestId from server-signed token.
-  // We always return guestId because we might need it for "ensureUser" if the user is not logged in.
 
   return {
     clerkUser,
@@ -56,5 +68,7 @@ export function useUser(
     isLoading,
     isAuthenticated: !!clerkUser,
     displayName: clerkUser?.fullName || clerkUser?.firstName || 'Guest',
+    authError,
+    retryAuth,
   };
 }

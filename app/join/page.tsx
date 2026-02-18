@@ -11,6 +11,7 @@ import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { AuthErrorState } from '../../components/AuthErrorState';
 import {
   LoadingState,
   LoadingMessages,
@@ -19,7 +20,7 @@ import {
 function JoinForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { guestToken, isLoading } = useUser();
+  const { guestToken, isLoading, authError, retryAuth } = useUser();
   const joinRoomMutation = useMutation(api.rooms.joinRoom);
 
   const [code, setCode] = useState(
@@ -53,6 +54,10 @@ function JoinForm() {
       setIsSubmitting(false);
     }
   };
+
+  if (authError) {
+    return <AuthErrorState message={authError} onRetry={retryAuth} />;
+  }
 
   if (isLoading) {
     return (

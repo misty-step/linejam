@@ -8,9 +8,10 @@ import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
 import { trackGameCreated } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
-import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Alert } from '../../components/ui/Alert';
+import { AuthErrorState } from '../../components/AuthErrorState';
 import {
   LoadingState,
   LoadingMessages,
@@ -18,7 +19,7 @@ import {
 
 export default function HostPage() {
   const router = useRouter();
-  const { guestToken, isLoading } = useUser();
+  const { guestToken, isLoading, authError, retryAuth } = useUser();
   const createRoomMutation = useMutation(api.rooms.createRoom);
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,6 +46,10 @@ export default function HostPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (authError) {
+    return <AuthErrorState message={authError} onRetry={retryAuth} />;
+  }
 
   if (isLoading) {
     return (
