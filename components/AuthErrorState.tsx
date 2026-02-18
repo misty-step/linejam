@@ -1,7 +1,7 @@
 'use client';
 
-import { Alert } from './ui/Alert';
-import { Button } from './ui/Button';
+import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
 
 type Props = {
   message: string;

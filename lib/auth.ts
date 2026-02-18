@@ -24,33 +24,42 @@ export function useUser(
 
   useEffect(() => {
     if (!isClerkLoaded || typeof window === 'undefined') return;
+    let isStale = false;
 
     // Signed-in users don't need guest-session setup to proceed.
     if (clerkUser) {
       queueMicrotask(() => {
+        if (isStale) return;
         setGuestId(null);
         setGuestToken(null);
         setAuthError(null);
         setIsLoaded(true);
       });
-      return;
+      return () => {
+        isStale = true;
+      };
     }
 
     fetcher
       .fetch()
       .then((data) => {
+        if (isStale) return;
         setGuestId(data.guestId);
         setGuestToken(data.token);
         setAuthError(null);
         setIsLoaded(true);
       })
       .catch((error) => {
+        if (isStale) return;
         captureError(error, { operation: 'fetchGuestSession' });
         setGuestId(null);
         setGuestToken(null);
         setAuthError('Unable to connect. Please check your connection.');
         setIsLoaded(true);
       });
+    return () => {
+      isStale = true;
+    };
   }, [isClerkLoaded, clerkUser, fetcher, retryCount]);
 
   const retryAuth = useCallback(() => {
