@@ -30,7 +30,12 @@ import {
 } from '@/components/archive';
 
 export default function ArchivePage() {
-  const { guestToken, isLoading: authLoading, authError, retryAuth } = useUser();
+  const {
+    guestToken,
+    isLoading: authLoading,
+    authError,
+    retryAuth,
+  } = useUser();
 
   const archiveData = useQuery(
     api.archive.getArchiveData,

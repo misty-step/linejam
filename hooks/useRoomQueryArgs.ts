@@ -16,7 +16,7 @@ export function useRoomQueryArgs(roomCode: string, propToken?: string | null) {
     authError,
   } = useUser();
   const guestToken = propToken ?? hookToken;
-  const shouldSkip = Boolean(authError) || (isAuthLoading && !guestToken);
+  const shouldSkip = !guestToken && (Boolean(authError) || isAuthLoading);
   const queryArgs: RoomQueryArgs = shouldSkip
     ? 'skip'
     : { roomCode, guestToken: guestToken || undefined };

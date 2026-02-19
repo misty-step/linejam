@@ -4,6 +4,23 @@ import { render, screen } from '@testing-library/react';
 
 // Mock Convex hooks (external)
 const mockUseQuery = vi.fn();
+const mockAuthState: {
+  clerkUser: null;
+  guestId: string;
+  guestToken: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  displayName: string;
+  authError: string | null;
+} = {
+  clerkUser: null,
+  guestId: 'guest_123',
+  guestToken: 'mock-token',
+  isLoading: false,
+  isAuthenticated: false,
+  displayName: 'Guest',
+  authError: null as string | null,
+};
 
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
@@ -16,14 +33,7 @@ vi.mock('@clerk/nextjs', () => ({
 
 // Mock useUser hook to return pre-loaded state with guestToken
 vi.mock('@/lib/auth', () => ({
-  useUser: () => ({
-    clerkUser: null,
-    guestId: 'guest_123',
-    guestToken: 'mock-token',
-    isLoading: false,
-    isAuthenticated: false,
-    displayName: 'Guest',
-  }),
+  useUser: () => mockAuthState,
 }));
 
 // Import after mocking
@@ -32,6 +42,9 @@ import { WaitingScreen } from '@/components/WaitingScreen';
 describe('WaitingScreen component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthState.authError = null;
+    mockAuthState.isLoading = false;
+    mockAuthState.guestToken = 'mock-token';
   });
 
   afterEach(() => {
@@ -47,6 +60,32 @@ describe('WaitingScreen component', () => {
     expect(
       screen.getByText(/Preparing your writing desk/i)
     ).toBeInTheDocument();
+  });
+
+  it('skips query when auth is in error and no token is available', () => {
+    mockAuthState.authError = 'Unable to connect';
+    mockAuthState.guestToken = null;
+    mockUseQuery.mockReturnValue(undefined);
+
+    render(<WaitingScreen roomCode="ABCD" />);
+
+    expect(mockUseQuery).toHaveBeenCalledWith(expect.anything(), 'skip');
+  });
+
+  it('uses provided token even when auth is in error', () => {
+    mockAuthState.authError = 'Unable to connect';
+    mockAuthState.guestToken = null;
+    mockUseQuery.mockReturnValue(undefined);
+
+    render(<WaitingScreen roomCode="ABCD" guestToken="prop-token" />);
+
+    expect(mockUseQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        roomCode: 'ABCD',
+        guestToken: 'prop-token',
+      })
+    );
   });
 
   it('displays error state when progress is null (unauthorized)', () => {
