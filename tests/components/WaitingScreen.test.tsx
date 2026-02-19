@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 // Mock Convex hooks (external)
 const mockUseQuery = vi.fn();
@@ -14,17 +14,9 @@ vi.mock('@clerk/nextjs', () => ({
   useUser: () => ({ user: null, isLoaded: true }),
 }));
 
-// Mock useUser hook to return pre-loaded state with guestToken
-vi.mock('@/lib/auth', () => ({
-  useUser: () => ({
-    clerkUser: null,
-    guestId: 'guest_123',
-    guestToken: 'mock-token',
-    isLoading: false,
-    isAuthenticated: false,
-    displayName: 'Guest',
-  }),
-}));
+// Mock fetch for guest session API (external boundary)
+const mockFetch = vi.fn();
+const originalFetch = global.fetch;
 
 // Import after mocking
 import { WaitingScreen } from '@/components/WaitingScreen';
@@ -32,10 +24,17 @@ import { WaitingScreen } from '@/components/WaitingScreen';
 describe('WaitingScreen component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
+    });
+    global.fetch = mockFetch;
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    global.fetch = originalFetch;
   });
 
   it('displays loading state when progress is undefined', () => {
@@ -47,6 +46,42 @@ describe('WaitingScreen component', () => {
     expect(
       screen.getByText(/Preparing your writing desk/i)
     ).toBeInTheDocument();
+  });
+
+  it('skips query when auth is in error and no token is available', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('Unable to connect'));
+    mockUseQuery.mockReturnValue(undefined);
+
+    render(<WaitingScreen roomCode="ABCD" />);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+    expect(mockUseQuery).toHaveBeenCalledWith(expect.anything(), 'skip');
+    expect(mockUseQuery.mock.calls.every((call) => call[1] === 'skip')).toBe(
+      true
+    );
+  });
+
+  it('uses provided token even when auth is in error', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('Unable to connect'));
+    mockUseQuery.mockReturnValue(undefined);
+
+    render(<WaitingScreen roomCode="ABCD" guestToken="prop-token" />);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+    expect(mockUseQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        roomCode: 'ABCD',
+        guestToken: 'prop-token',
+      })
+    );
+    expect(mockUseQuery.mock.calls.some((call) => call[1] === 'skip')).toBe(
+      false
+    );
   });
 
   it('displays error state when progress is null (unauthorized)', () => {
