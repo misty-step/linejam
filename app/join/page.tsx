@@ -11,7 +11,7 @@ import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { AuthErrorState } from '../../components/AuthErrorState';
+import { AuthErrorState } from '@/components/AuthErrorState';
 import {
   LoadingState,
   LoadingMessages,

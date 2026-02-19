@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 // Mock Clerk
 const mockUseClerkUser = vi.fn();
@@ -16,6 +16,16 @@ vi.mock('@/lib/error', () => ({
 
 // Import after mocking
 import { useUser } from '@/lib/auth';
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 describe('useUser hook', () => {
   // Store original fetch
@@ -204,7 +214,9 @@ describe('useUser hook', () => {
     });
 
     // Act - retry
-    result.current.retryAuth();
+    act(() => {
+      result.current.retryAuth();
+    });
 
     await waitFor(() => {
       expect(result.current.authError).toBeNull();
@@ -214,6 +226,57 @@ describe('useUser hook', () => {
     // Assert - retry succeeded
     expect(result.current.guestId).toBe('guest-retry');
     expect(result.current.guestToken).toBe('token-retry');
+  });
+
+  it('ignores stale fetch results from earlier retries', async () => {
+    const first = createDeferred<{
+      guestId: string | null;
+      token: string | null;
+    }>();
+    const second = createDeferred<{
+      guestId: string | null;
+      token: string | null;
+    }>();
+    const fetcher = {
+      fetch: vi
+        .fn()
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise),
+    };
+
+    const { result } = renderHook(() => useUser(fetcher));
+
+    await waitFor(() => {
+      expect(fetcher.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.retryAuth();
+    });
+
+    await waitFor(() => {
+      expect(fetcher.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      second.resolve({ guestId: 'guest-fresh', token: 'token-fresh' });
+      await second.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.guestId).toBe('guest-fresh');
+      expect(result.current.guestToken).toBe('token-fresh');
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      first.resolve({ guestId: 'guest-stale', token: 'token-stale' });
+      await first.promise;
+    });
+
+    expect(result.current.guestId).toBe('guest-fresh');
+    expect(result.current.guestToken).toBe('token-fresh');
+    expect(result.current.authError).toBeNull();
   });
 
   it('uses fullName for displayName when available', async () => {
