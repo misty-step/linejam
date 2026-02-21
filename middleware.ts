@@ -71,7 +71,14 @@ if (isClerkConfigured) {
   middleware = guestOnlyMiddleware;
 }
 
-export default middleware;
+// Wrap middleware to bypass analytics proxy routes before auth
+const innerMiddleware = middleware;
+export default function (req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith('/ingest')) {
+    return NextResponse.next();
+  }
+  return innerMiddleware(req);
+}
 
 export const config = {
   matcher: [
