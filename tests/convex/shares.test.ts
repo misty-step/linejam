@@ -37,16 +37,16 @@ describe('shares', () => {
       });
     });
 
-    it('does nothing silently when poem does not exist', async () => {
+    it('throws ConvexError when poem does not exist', async () => {
       // Arrange
       const poemId = 'invalid-poem';
       mockDb.get.mockResolvedValue(null);
 
-      // Act
+      // Act & Assert
       // @ts-expect-error - calling handler directly for test
-      await logShare.handler(mockCtx, { poemId });
-
-      // Assert
+      await expect(logShare.handler(mockCtx, { poemId })).rejects.toThrow(
+        'Poem not found'
+      );
       expect(mockDb.get).toHaveBeenCalledWith(poemId);
       expect(mockDb.insert).not.toHaveBeenCalled();
     });
