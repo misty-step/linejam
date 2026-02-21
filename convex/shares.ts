@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { mutation } from './_generated/server';
 
 export const logShare = mutation({
@@ -8,8 +8,7 @@ export const logShare = mutation({
   handler: async (ctx, { poemId }) => {
     const poem = await ctx.db.get(poemId);
     if (!poem) {
-      // Silent fail if poem doesn't exist
-      return;
+      throw new ConvexError('Poem not found');
     }
 
     await ctx.db.insert('shares', {
