@@ -71,19 +71,12 @@ if (isClerkConfigured) {
   middleware = guestOnlyMiddleware;
 }
 
-// Wrap middleware to bypass analytics proxy routes before auth
-const innerMiddleware = middleware;
-export default function (req: NextRequest) {
-  if (req.nextUrl.pathname.startsWith('/ingest')) {
-    return NextResponse.next();
-  }
-  return innerMiddleware(req);
-}
+export default middleware;
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and static files
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Skip Next.js internals, static files, and analytics proxy routes
+    '/((?!_next|ingest|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     // Always run for API routes
     '/(api|trpc)(.*)',
   ],

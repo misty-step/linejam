@@ -7,16 +7,19 @@ import posthog from 'posthog-js';
 function PostHogPageviewInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // Stable primitive — URLSearchParams object identity changes every render
+  const search = searchParams.toString();
 
   useEffect(() => {
-    if (pathname && posthog) {
+    // Guard: skip if posthog isn't initialized yet (first render races init)
+    if (pathname && posthog.__loaded) {
       let url = window.origin + pathname;
-      if (searchParams.toString()) {
-        url = url + '?' + searchParams.toString();
+      if (search) {
+        url = url + '?' + search;
       }
       posthog.capture('$pageview', { $current_url: url });
     }
-  }, [pathname, searchParams]);
+  }, [pathname, search]);
 
   return null;
 }
