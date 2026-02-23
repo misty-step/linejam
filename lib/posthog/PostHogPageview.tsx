@@ -3,6 +3,7 @@
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, Suspense } from 'react';
 import posthog from 'posthog-js';
+import { posthogIsReady } from './posthogReady';
 
 function PostHogPageviewInner() {
   const pathname = usePathname();
@@ -12,7 +13,7 @@ function PostHogPageviewInner() {
 
   useEffect(() => {
     // Guard: skip if posthog isn't initialized yet (first render races init)
-    if (pathname && posthog.__loaded) {
+    if (pathname && posthogIsReady()) {
       let url = window.origin + pathname;
       if (search) {
         url = url + '?' + search;
