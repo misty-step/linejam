@@ -183,6 +183,21 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  # Rollup job — this is what branch protection checks for ("CI")
+  # Job name must match exactly. Workflow name: is a display label only.
+  CI:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [quality-gates, test-build, e2e]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \
+             [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            exit 1
+          fi
+
   # Badge updates only on master push
   badges:
     name: Update Coverage Badges
