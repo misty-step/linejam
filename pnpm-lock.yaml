@@ -47,9 +47,6 @@ importers:
       posthog-js:
         specifier: ^1.352.0
         version: 1.352.0
-      posthog-node:
-        specifier: ^5.24.17
-        version: 5.24.17
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -4377,10 +4374,6 @@ packages:
 
   posthog-js@1.352.0:
     resolution: {integrity: sha512-LxLKyoE+Y2z+WQ8CTO3PqQQDBuz64mHLJUoRuAYNXmp3vtxzrygZEz7UNnCT+BZ4/G44Qeq6JDYk1TRS7pIRDA==}
-
-  posthog-node@5.24.17:
-    resolution: {integrity: sha512-mdb8TKt+YCRbGQdYar3AKNUPCyEiqcprScF4unYpGALF6HlBaEuO6wPuIqXXpCWkw4VclJYCKbb6lq6pH6bJeA==}
-    engines: {node: ^20.20.0 || >=22.22.0}
 
   preact@10.28.4:
     resolution: {integrity: sha512-uKFfOHWuSNpRFVTnljsCluEFq57OKT+0QdOiQo8XWnQ/pSvg7OpX5eNOejELXJMWy+BwM2nobz0FkvzmnpCNsQ==}
@@ -9692,10 +9685,6 @@ snapshots:
       preact: 10.28.4
       query-selector-shadow-dom: 1.0.1
       web-vitals: 5.1.0
-
-  posthog-node@5.24.17:
-    dependencies:
-      '@posthog/core': 1.23.1
 
   preact@10.28.4: {}
 

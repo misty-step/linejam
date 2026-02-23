@@ -55,6 +55,7 @@ describe('sentryOptions', () => {
     it('enables instrumentation when DSN is present', () => {
       expect(isSentryEnabled).toBe(true);
       expect(sentryOptions.enabled).toBe(true);
+      expect(sentryOptions.sendDefaultPii).toBe(false);
     });
 
     it('scrubs poem text and display names before events are sent', () => {
