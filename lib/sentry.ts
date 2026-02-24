@@ -28,6 +28,7 @@ export const sentryOptions = {
   release: resolveRelease(),
   tracesSampleRate: isProduction ? 0.1 : 1.0,
   profilesSampleRate: isProduction ? 0.1 : 1.0,
+  sendDefaultPii: false,
 
   beforeSend(event: ErrorEvent): ErrorEvent | null {
     return scrubSensitiveData(event);

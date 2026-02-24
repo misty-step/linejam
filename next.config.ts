@@ -10,6 +10,20 @@ if (process.env.NODE_ENV === 'production') {
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
+
+  // PostHog reverse proxy (bypass ad blockers)
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://us.i.posthog.com/:path*',
+      },
+    ];
+  },
 };
 
 // Only wrap with Sentry in production builds for faster dev startup
