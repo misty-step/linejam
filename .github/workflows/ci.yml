@@ -1,4 +1,4 @@
-name: CI
+name: Quality Checks
 
 on:
   pull_request:
@@ -183,10 +183,9 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  # Rollup job — this is what branch protection checks for ("CI")
-  # Job name must match exactly. Workflow name: is a display label only.
-  CI:
-    name: CI
+  # Rollup job — this is what branch protection checks for.
+  merge-gate:
+    name: merge-gate
     runs-on: ubuntu-latest
     needs: [quality-gates, test-build, e2e]
     if: always()
