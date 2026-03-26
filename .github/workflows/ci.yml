@@ -187,10 +187,10 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  # Rollup job — this is what branch protection checks for ("CI")
+  # Rollup job — branch protection requires this exact name to merge.
   # Job name must match exactly. Workflow name: is a display label only.
-  CI:
-    name: CI
+  merge-gate:
+    name: merge-gate
     runs-on: ubuntu-latest
     needs: [quality-gates, test-build, e2e]
     if: always()
