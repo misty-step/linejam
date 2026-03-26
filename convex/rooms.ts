@@ -46,7 +46,7 @@ export const createRoom = mutation({
     let attempts = 0;
     do {
       if (attempts >= MAX_CODE_ATTEMPTS) {
-        throw new Error('Could not generate unique room code. Try again.');
+        throw new ConvexError('Could not generate unique room code. Try again.');
       }
       roomCode = generateRoomCode();
       existingRoom = await getRoomByCode(ctx, roomCode);
