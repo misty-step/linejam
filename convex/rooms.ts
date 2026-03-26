@@ -40,12 +40,18 @@ export const createRoom = mutation({
       windowMs: 10 * 60 * 1000,
     });
 
+    const MAX_CODE_ATTEMPTS = 20;
     let roomCode: string;
     let existingRoom;
+    let attempts = 0;
     do {
+      if (attempts >= MAX_CODE_ATTEMPTS) {
+        throw new Error('Could not generate unique room code. Try again.');
+      }
       roomCode = generateRoomCode();
       existingRoom = await getRoomByCode(ctx, roomCode);
-    } while (existingRoom); // Ensure uniqueness
+      attempts++;
+    } while (existingRoom);
 
     const roomId = await ctx.db.insert('rooms', {
       code: roomCode,

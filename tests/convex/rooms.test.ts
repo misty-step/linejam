@@ -13,6 +13,7 @@ import {
   getRoom,
   getRoomState,
   leaveLobby,
+  closeRoom,
 } from '../../convex/rooms';
 
 // Mock ensureUserHelper
@@ -712,6 +713,118 @@ describe('rooms', () => {
 
       // Assert
       expect(mockDb.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createRoom - loop safety', () => {
+    it('throws after 20 failed attempts to generate unique code', async () => {
+      // Arrange
+      mockEnsureUserHelper.mockResolvedValue({ _id: 'user1' });
+      mockCheckRateLimit.mockResolvedValue(undefined);
+      // Every code collides
+      mockGetRoomByCode.mockResolvedValue({ _id: 'existingRoom' });
+
+      // Act & Assert
+      await expect(
+        // @ts-expect-error - calling handler directly for test
+        createRoom.handler(mockCtx, {
+          displayName: 'Alice',
+          guestToken: 'token123',
+        })
+      ).rejects.toThrow('Could not generate unique room code');
+
+      // Should have tried exactly 20 times
+      expect(mockGetRoomByCode).toHaveBeenCalledTimes(20);
+    });
+  });
+
+  describe('closeRoom', () => {
+    it('marks room as COMPLETED and removes all players', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+        status: 'LOBBY',
+      };
+      const players = [
+        { _id: 'rp1', userId: 'user1' },
+        { _id: 'rp2', userId: 'user2' },
+      ];
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue(null);
+      mockDb.collect.mockResolvedValue(players);
+      mockDb.delete.mockResolvedValue(undefined);
+      mockDb.patch.mockResolvedValue(undefined);
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      await closeRoom.handler(mockCtx, {
+        roomCode: 'ABCD',
+        guestToken: 'token123',
+      });
+
+      // Assert
+      expect(mockDb.delete).toHaveBeenCalledTimes(2);
+      expect(mockDb.patch).toHaveBeenCalledWith('room1', {
+        status: 'COMPLETED',
+      });
+    });
+
+    it('throws when non-host tries to close room', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockGetRoomByCode.mockResolvedValue(room);
+
+      // Act & Assert
+      await expect(
+        // @ts-expect-error - calling handler directly for test
+        closeRoom.handler(mockCtx, {
+          roomCode: 'ABCD',
+          guestToken: 'token456',
+        })
+      ).rejects.toThrow('Only the host can close the room');
+    });
+
+    it('throws when game is in progress', async () => {
+      // Arrange
+      const room = {
+        _id: 'room1',
+        code: 'ABCD',
+        hostUserId: 'user1',
+      };
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetActiveGame.mockResolvedValue({ _id: 'game1' });
+
+      // Act & Assert
+      await expect(
+        // @ts-expect-error - calling handler directly for test
+        closeRoom.handler(mockCtx, {
+          roomCode: 'ABCD',
+          guestToken: 'token123',
+        })
+      ).rejects.toThrow('Cannot close room while game is in progress');
+    });
+
+    it('throws when user not authenticated', async () => {
+      // Arrange
+      mockGetUser.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        // @ts-expect-error - calling handler directly for test
+        closeRoom.handler(mockCtx, {
+          roomCode: 'ABCD',
+          guestToken: 'invalid',
+        })
+      ).rejects.toThrow('Not authenticated');
     });
   });
 });
