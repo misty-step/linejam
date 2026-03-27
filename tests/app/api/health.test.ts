@@ -235,4 +235,51 @@ describe('/api/health', () => {
       );
     });
   });
+
+  describe('when Canary reporting stays pending', () => {
+    let GET: typeof import('@/app/api/health/route').GET;
+    const pendingFetch = vi.fn(() => new Promise<Response>(() => undefined));
+
+    beforeAll(async () => {
+      vi.resetModules();
+      process.env = { ...originalEnv };
+      process.env.NEXT_PUBLIC_CANARY_API_KEY = 'sk_test_canary';
+      process.env.NEXT_PUBLIC_CANARY_ENDPOINT = 'https://canary.test/';
+
+      vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
+        throw new Error('Date serialization failed');
+      });
+
+      vi.doMock('@sentry/nextjs', () => ({
+        captureException: vi.fn(),
+      }));
+
+      vi.doMock('convex/browser', () => ({
+        ConvexHttpClient: MockConvexHttpClient,
+      }));
+
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.stubGlobal('fetch', pendingFetch);
+
+      const mod = await import('@/app/api/health/route');
+      GET = mod.GET;
+    });
+
+    afterAll(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('returns the error response without waiting for Canary', async () => {
+      const response = await Promise.race([
+        GET(),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('health route timed out')), 100);
+        }),
+      ]);
+
+      expect(response.status).toBe(500);
+      expect(pendingFetch).toHaveBeenCalledTimes(1);
+    });
+  });
 });

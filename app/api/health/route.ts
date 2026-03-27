@@ -1,5 +1,6 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
+import { captureCanaryException } from '@/lib/canary';
 
 export async function GET() {
   try {
@@ -69,6 +70,10 @@ async function checkConvex() {
  */
 async function logFailure(error: unknown) {
   console.error('Healthcheck failed', error);
+
+  void captureCanaryException(error, {
+    source: 'api.health',
+  });
 
   try {
     await import('@sentry/nextjs')

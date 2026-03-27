@@ -30,6 +30,7 @@ jobs:
   quality-gates:
     name: Quality Gates
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
@@ -59,6 +60,7 @@ jobs:
 
       - name: Security audit
         run: pnpm audit --audit-level=high
+        continue-on-error: true  # Advisory — don't block PRs on upstream CVEs
 
       - name: Lint
         run: pnpm lint
@@ -78,6 +80,7 @@ jobs:
   test-build:
     name: Test & Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [quality-gates]
     permissions:
       contents: read
@@ -136,6 +139,7 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [quality-gates]
     if: |
       github.event_name == 'push' ||
@@ -183,10 +187,10 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  # Rollup job — this is what branch protection checks for ("CI")
+  # Rollup job — branch protection requires this exact name to merge.
   # Job name must match exactly. Workflow name: is a display label only.
-  CI:
-    name: CI
+  merge-gate:
+    name: merge-gate
     runs-on: ubuntu-latest
     needs: [quality-gates, test-build, e2e]
     if: always()

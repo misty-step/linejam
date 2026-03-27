@@ -16,25 +16,20 @@ export async function checkRateLimit(
     .withIndex('by_key', (q) => q.eq('key', key))
     .first();
 
-  if (existing && existing.resetTime > now) {
-    if (existing.hits >= max) {
-      throw new Error(`Rate limit exceeded. Please try again later.`);
-    }
-    await ctx.db.patch(existing._id, {
-      hits: existing.hits + 1,
-    });
-  } else {
+  // Window expired or no record — reset to fresh window
+  if (!existing || existing.resetTime <= now) {
+    const fields = { key, hits: 1, resetTime: now + windowMs };
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        hits: 1,
-        resetTime: now + windowMs,
-      });
+      await ctx.db.patch(existing._id, fields);
     } else {
-      await ctx.db.insert('rateLimits', {
-        key,
-        hits: 1,
-        resetTime: now + windowMs,
-      });
+      await ctx.db.insert('rateLimits', fields);
     }
+    return;
   }
+
+  // Within active window — enforce limit before incrementing
+  if (existing.hits >= max) {
+    throw new Error('Rate limit exceeded. Please try again later.');
+  }
+  await ctx.db.patch(existing._id, { hits: existing.hits + 1 });
 }
