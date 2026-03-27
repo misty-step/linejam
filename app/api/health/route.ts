@@ -71,7 +71,7 @@ async function checkConvex() {
 async function logFailure(error: unknown) {
   console.error('Healthcheck failed', error);
 
-  await captureCanaryException(error, {
+  void captureCanaryException(error, {
     source: 'api.health',
   });
 

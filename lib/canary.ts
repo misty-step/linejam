@@ -47,10 +47,11 @@ export async function captureCanaryException(
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-  } catch {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Canary capture failed:', error, context);
-    }
+  } catch (reportingError) {
+    console.error('Canary capture failed:', reportingError, {
+      originalError: error,
+      context,
+    });
   }
 }
 
