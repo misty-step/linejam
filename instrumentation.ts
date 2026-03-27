@@ -1,5 +1,5 @@
-import { captureCanaryException } from './lib/canary';
-import { isSentryEnabled } from './lib/sentry';
+import { captureCanaryException } from '@/lib/canary';
+import { isSentryEnabled } from '@/lib/sentry';
 
 /**
  * Next.js instrumentation hook
@@ -40,7 +40,7 @@ export const onRequestError = async (
     revalidateReason?: 'on-demand' | 'stale';
   }
 ) => {
-  await captureCanaryException(error, {
+  void captureCanaryException(error, {
     source: 'nextjs.onRequestError',
     path: request.path,
     method: request.method,

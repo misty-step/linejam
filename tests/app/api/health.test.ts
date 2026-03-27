@@ -238,18 +238,17 @@ describe('/api/health', () => {
 
   describe('when Canary reporting stays pending', () => {
     let GET: typeof import('@/app/api/health/route').GET;
+    const pendingFetch = vi.fn(() => new Promise<Response>(() => undefined));
 
     beforeAll(async () => {
       vi.resetModules();
       process.env = { ...originalEnv };
+      process.env.NEXT_PUBLIC_CANARY_API_KEY = 'sk_test_canary';
+      process.env.NEXT_PUBLIC_CANARY_ENDPOINT = 'https://canary.test/';
 
       vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
         throw new Error('Date serialization failed');
       });
-
-      vi.doMock('@/lib/canary', () => ({
-        captureCanaryException: vi.fn(() => new Promise<void>(() => undefined)),
-      }));
 
       vi.doMock('@sentry/nextjs', () => ({
         captureException: vi.fn(),
@@ -260,12 +259,14 @@ describe('/api/health', () => {
       }));
 
       vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.stubGlobal('fetch', pendingFetch);
 
       const mod = await import('@/app/api/health/route');
       GET = mod.GET;
     });
 
     afterAll(() => {
+      vi.unstubAllGlobals();
       vi.restoreAllMocks();
     });
 
@@ -278,6 +279,7 @@ describe('/api/health', () => {
       ]);
 
       expect(response.status).toBe(500);
+      expect(pendingFetch).toHaveBeenCalledTimes(1);
     });
   });
 });

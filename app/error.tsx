@@ -11,7 +11,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    captureError(error, { boundary: 'app/error.tsx' });
+    captureError(error, {
+      boundary: 'app/error.tsx',
+      ...(error.digest ? { digest: error.digest } : {}),
+    });
   }, [error]);
 
   return (

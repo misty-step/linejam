@@ -1,6 +1,10 @@
 import * as Sentry from '@sentry/nextjs';
-import { captureCanaryException, isCanaryEnabled } from './canary';
-import { isSentryEnabled } from './sentry';
+import {
+  captureCanaryException,
+  isCanaryEnabled,
+  scrubCanaryContext,
+} from '@/lib/canary';
+import { isSentryEnabled } from '@/lib/sentry';
 
 /**
  * Capture an error to Sentry with optional context.
@@ -15,23 +19,42 @@ export function captureError(
   error: unknown,
   context?: Record<string, unknown>
 ) {
+  const scrubbedContext = scrubCanaryContext(context);
+
   if (isSentryEnabled) {
     Sentry.captureException(error, {
-      contexts: context ? { custom: context } : undefined,
+      contexts: scrubbedContext ? { custom: scrubbedContext } : undefined,
     });
   }
 
   if (isCanaryEnabled()) {
-    void captureCanaryException(error, context);
+    void captureCanaryException(error, scrubbedContext);
   }
 
   if (!isSentryEnabled && !isCanaryEnabled()) {
-    console.error('Error captured (Sentry disabled):', error, context);
+    logCapturedError(
+      'Error captured (Sentry disabled):',
+      error,
+      scrubbedContext
+    );
     return;
   }
 
   // Log to console in development for visibility
   if (process.env.NODE_ENV === 'development') {
-    console.error('Captured error:', error, context);
+    logCapturedError('Captured error:', error, scrubbedContext);
   }
+}
+
+function logCapturedError(
+  message: string,
+  error: unknown,
+  context?: Record<string, unknown>
+) {
+  if (context) {
+    console.error(message, error, context);
+    return;
+  }
+
+  console.error(message, error);
 }
