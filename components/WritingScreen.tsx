@@ -1,16 +1,18 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
-import type { Id } from '../convex/_generated/dataModel';
-import { api } from '../convex/_generated/api';
-import { useRoomQueryArgs } from '../hooks/useRoomQueryArgs';
-import { countWords } from '../lib/wordCount';
-import { captureError } from '../lib/error';
-import { cn } from '../lib/utils';
-import { Button } from './ui/Button';
-import { Alert } from './ui/Alert';
-import { WordSlots } from './ui/WordSlots';
-import { LoadingState, LoadingMessages } from './ui/LoadingState';
-import { WaitingScreen } from './WaitingScreen';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { useRoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { captureError } from '@/lib/error';
+import { cn } from '@/lib/utils';
+import { countWords } from '@/lib/wordCount';
+import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
+import { WordSlots } from '@/components/ui/WordSlots';
+import { WaitingScreen } from '@/components/WaitingScreen';
 
 interface WritingScreenProps {
   roomCode: string;

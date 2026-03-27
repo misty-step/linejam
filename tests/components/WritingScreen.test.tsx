@@ -339,6 +339,16 @@ describe('WritingScreen component', () => {
     expect(screen.getByText(/Ready|Others are writing/i)).toBeInTheDocument();
   });
 
+  it('renders the loading state while the assignment query is unresolved', () => {
+    mockUseQuery.mockReturnValue(undefined);
+
+    render(<WritingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.getByText(/Preparing your writing desk/i)
+    ).toBeInTheDocument();
+  });
+
   it('textarea has aria-invalid when word count is wrong', () => {
     // Arrange & Act - Empty textarea with target of 1 word
     render(<WritingScreen roomCode="ABCD" />);
@@ -507,6 +517,15 @@ describe('WritingScreen component', () => {
       // Assert - Wait for debounced live region to update
       const liveRegion = getLiveRegion(container);
       expect(liveRegion).toHaveTextContent('Add 3 words');
+    });
+
+    it('keeps the live region silent before the player starts typing', async () => {
+      const { container } = render(<WritingScreen roomCode="ABCD" />);
+
+      await flushDebounce();
+
+      const liveRegion = getLiveRegion(container);
+      expect(liveRegion).toHaveTextContent('');
     });
   });
 

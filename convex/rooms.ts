@@ -150,12 +150,12 @@ export const getRoom = query({
 
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
-    const status = await deriveRoomStatus(ctx, room._id);
+    const activeGame = await getActiveGame(ctx, room._id);
+    const status = await deriveRoomStatus(ctx, room._id, activeGame);
 
     const isParticipant = await checkParticipation(ctx, room._id, user._id);
     if (isParticipant) return { ...room, status };
 
-    const activeGame = await getActiveGame(ctx, room._id);
     if (activeGame) return null;
 
     const roomPlayers = await ctx.db

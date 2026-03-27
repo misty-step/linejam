@@ -1,11 +1,11 @@
 'use client';
 
 import { useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { Id } from '../convex/_generated/dataModel';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
 import { trackPoemShared } from '@/lib/analytics';
-import { useShareLink } from './useShareLink';
+import { useShareLink } from '@/hooks/useShareLink';
 
 export function useSharePoem(poemId: Id<'poems'>) {
   const logShare = useMutation(api.shares.logShare);

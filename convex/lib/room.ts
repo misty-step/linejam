@@ -59,10 +59,12 @@ export async function getCompletedGame(
  */
 export async function deriveRoomStatus(
   ctx: QueryCtx | MutationCtx,
-  roomId: Id<'rooms'>
+  roomId: Id<'rooms'>,
+  activeGame?: Doc<'games'> | null
 ): Promise<'LOBBY' | 'IN_PROGRESS' | 'COMPLETED'> {
-  const activeGame = await getActiveGame(ctx, roomId);
-  if (activeGame) return 'IN_PROGRESS';
+  const resolvedActiveGame =
+    activeGame === undefined ? await getActiveGame(ctx, roomId) : activeGame;
+  if (resolvedActiveGame) return 'IN_PROGRESS';
 
   const completedGame = await getCompletedGame(ctx, roomId);
   if (completedGame) return 'COMPLETED';

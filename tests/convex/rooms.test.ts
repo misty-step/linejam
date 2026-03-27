@@ -426,6 +426,8 @@ describe('rooms', () => {
         code: 'ABCD',
         status: 'COMPLETED',
       });
+      expect(mockGetActiveGame).toHaveBeenCalledWith(mockCtx, 'room1');
+      expect(mockDeriveRoomStatus).toHaveBeenCalledWith(mockCtx, 'room1', null);
     });
 
     it('returns null when non-participant and game in progress', async () => {

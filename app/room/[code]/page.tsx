@@ -2,17 +2,14 @@
 
 import { use } from 'react';
 import { useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import { Lobby } from '../../../components/Lobby';
-import { WritingScreen } from '../../../components/WritingScreen';
-import { RevealPhase } from '../../../components/RevealPhase';
-import { RoomChrome } from '../../../components/RoomChrome';
-import { AuthErrorState } from '../../../components/AuthErrorState';
-import {
-  LoadingMessages,
-  LoadingState,
-} from '../../../components/ui/LoadingState';
-import { useUser } from '../../../lib/auth';
+import { api } from '@/convex/_generated/api';
+import { AuthErrorState } from '@/components/AuthErrorState';
+import { Lobby } from '@/components/Lobby';
+import { RevealPhase } from '@/components/RevealPhase';
+import { RoomChrome } from '@/components/RoomChrome';
+import { WritingScreen } from '@/components/WritingScreen';
+import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
+import { useUser } from '@/lib/auth';
 
 interface RoomPageProps {
   params: Promise<{ code: string }>;

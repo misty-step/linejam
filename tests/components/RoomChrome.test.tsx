@@ -7,7 +7,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { userEvent } from '@testing-library/user-event';
+import userEvent from '@testing-library/user-event';
 
 const mockTrackRoomInviteShared = vi.fn();
 
@@ -21,7 +21,14 @@ vi.mock('@/components/HelpModal', () => ({
 }));
 
 vi.mock('@/components/ThemeSelector', () => ({
-  ThemeSelector: () => <div>Theme chooser</div>,
+  ThemeSelector: ({ onClose }: { onClose: () => void }) => (
+    <div>
+      <div>Theme chooser</div>
+      <button type="button" onClick={onClose}>
+        Close theme chooser
+      </button>
+    </div>
+  ),
 }));
 
 import { RoomChrome } from '@/components/RoomChrome';
@@ -150,5 +157,42 @@ describe('RoomChrome component', () => {
 
     await user.click(screen.getByRole('button', { name: /Choose theme/i }));
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+  });
+
+  it('closes the theme chooser on outside click and escape', async () => {
+    const user = userEvent.setup();
+    render(<RoomChrome roomCode="ABCD" />);
+
+    await user.click(screen.getByRole('button', { name: /Choose theme/i }));
+    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    await waitFor(() => {
+      expect(screen.queryByText('Theme chooser')).not.toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /Choose theme/i }));
+    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByText('Theme chooser')).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes the theme chooser when the selector requests it', async () => {
+    const user = userEvent.setup();
+    render(<RoomChrome roomCode="ABCD" />);
+
+    await user.click(screen.getByRole('button', { name: /Choose theme/i }));
+    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: /Close theme chooser/i })
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Theme chooser')).not.toBeInTheDocument();
+    });
   });
 });
