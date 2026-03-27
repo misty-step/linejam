@@ -183,8 +183,7 @@ describe('PoemDisplay component', () => {
       );
 
       // Initially footer should be hidden (opacity-0 pointer-events-none)
-      const shareButton = screen.getByRole('button', { name: /Share/i });
-      expect(shareButton.parentElement).toHaveClass('opacity-0');
+      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-0');
 
       // Reveal all 9 lines one by one (with extra pause after line 4)
       for (let i = 0; i < 9; i++) {
@@ -195,7 +194,7 @@ describe('PoemDisplay component', () => {
       }
 
       // Footer should now be visible
-      expect(shareButton.parentElement).toHaveClass('opacity-100');
+      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-100');
     });
   });
 

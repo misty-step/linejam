@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import type { Id } from '../convex/_generated/dataModel';
 import { api } from '../convex/_generated/api';
 import { useRoomQueryArgs } from '../hooks/useRoomQueryArgs';
 import { countWords } from '../lib/wordCount';
@@ -15,15 +16,39 @@ interface WritingScreenProps {
   roomCode: string;
 }
 
-export function WritingScreen({ roomCode }: WritingScreenProps) {
-  const { guestToken, shouldSkip, queryArgs } = useRoomQueryArgs(roomCode);
-  const assignment = useQuery(api.game.getCurrentAssignment, queryArgs);
-  const submitLine = useMutation(api.game.submitLine);
+type RoomQueryArgs = ReturnType<typeof useRoomQueryArgs>['queryArgs'];
 
+interface WritingAssignment {
+  poemId: Id<'poems'>;
+  lineIndex: number;
+  targetWordCount: number;
+  previousLineText?: string | null;
+}
+
+interface WritingComposerProps {
+  assignment: WritingAssignment;
+  guestToken?: string | null;
+  queryArgs: RoomQueryArgs;
+  roomCode: string;
+}
+
+function numberToWord(n: number): string {
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five'];
+  return words[n] ?? String(n);
+}
+
+function WritingComposer({
+  assignment,
+  guestToken,
+  queryArgs,
+  roomCode,
+}: WritingComposerProps) {
+  const submitLine = useMutation(api.game.submitLine);
   const [text, setText] = useState('');
   const [submissionState, setSubmissionState] = useState<
-    'idle' | 'submitting' | 'confirmed' | 'waiting'
+    'idle' | 'submitting' | 'confirmed'
   >('idle');
+  const [showWaitingScreen, setShowWaitingScreen] = useState(false);
 
   // Pre-fetch waiting screen data during confirmation for smooth transition
   // When submissionState becomes 'confirmed', Convex starts fetching getRoundProgress
@@ -33,37 +58,19 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     api.game.getRoundProgress,
     submissionState === 'confirmed' ? queryArgs : 'skip'
   );
-  const [submittedRound, setSubmittedRound] = useState<number | null>(null);
-  const [lastSeenRound, setLastSeenRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [liveRegionMessage, setLiveRegionMessage] = useState('');
   const [hasFocus, setHasFocus] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset text when assignment changes (new round)
-  const currentRound = assignment?.lineIndex;
-  if (currentRound !== undefined && currentRound !== lastSeenRound) {
-    setText('');
-    setSubmissionState('idle');
-    setLastSeenRound(currentRound);
-  }
-
-  // Calculate validation state (needed for live region, even when showing waiting screen)
-  const currentWordCount = assignment ? countWords(text) : 0;
-  const targetCount = assignment?.targetWordCount ?? 0;
+  const currentWordCount = countWords(text);
+  const targetCount = assignment.targetWordCount;
   const isValid = currentWordCount === targetCount;
-
-  // Convert number to words for placeholder
-  const numberToWord = (n: number): string => {
-    const words = ['zero', 'one', 'two', 'three', 'four', 'five'];
-    return words[n] ?? String(n);
-  };
   const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
 
   // Announce validation state changes to screen readers (debounced)
   useEffect(() => {
-    if (!assignment) return; // Don't announce when no assignment
-
     const timeoutId = setTimeout(() => {
       if (isValid) {
         setLiveRegionMessage('Ready to submit');
@@ -79,19 +86,17 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
     }, 500); // Debounce 500ms to avoid announcing every keystroke
 
     return () => clearTimeout(timeoutId);
-  }, [assignment, isValid, currentWordCount, targetCount]);
+  }, [isValid, currentWordCount, targetCount]);
 
-  // Show loading state while auth is initializing (only if we don't have a token yet)
-  if (shouldSkip || assignment === undefined) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <LoadingState message={LoadingMessages.LOADING_ROOM} />
-      </div>
-    );
-  }
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+      }
+    };
+  }, []);
 
-  // Show waiting screen if no assignment or just submitted
-  if (assignment === null || submittedRound === assignment.lineIndex) {
+  if (showWaitingScreen) {
     return <WaitingScreen roomCode={roomCode} guestToken={guestToken} />;
   }
 
@@ -111,9 +116,9 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
       setSubmissionState('confirmed');
 
       // After 1500ms, transition to waiting screen
-      setTimeout(() => {
-        setSubmittedRound(assignment.lineIndex);
-        setSubmissionState('waiting');
+      submitTimeoutRef.current = setTimeout(() => {
+        setShowWaitingScreen(true);
+        submitTimeoutRef.current = null;
       }, 1500);
     } catch (error) {
       captureError(error, { roomCode, poemId: assignment.poemId });
@@ -226,5 +231,32 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+export function WritingScreen({ roomCode }: WritingScreenProps) {
+  const { guestToken, shouldSkip, queryArgs } = useRoomQueryArgs(roomCode);
+  const assignment = useQuery(api.game.getCurrentAssignment, queryArgs);
+
+  if (shouldSkip || assignment === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+        <LoadingState message={LoadingMessages.LOADING_ROOM} />
+      </div>
+    );
+  }
+
+  if (assignment === null) {
+    return <WaitingScreen roomCode={roomCode} guestToken={guestToken} />;
+  }
+
+  return (
+    <WritingComposer
+      key={`${assignment.poemId}:${assignment.lineIndex}`}
+      assignment={assignment}
+      guestToken={guestToken}
+      queryArgs={queryArgs}
+      roomCode={roomCode}
+    />
   );
 }

@@ -509,4 +509,38 @@ describe('WritingScreen component', () => {
       expect(liveRegion).toHaveTextContent('Add 3 words');
     });
   });
+
+  describe('round transitions', () => {
+    it('resets the draft when the assignment advances to the next round', async () => {
+      const user = setupUser();
+      const { rerender } = render(<WritingScreen roomCode="ABCD" />);
+      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+
+      await user.type(textarea, 'Word');
+      expect(textarea.value).toBe('Word');
+
+      mockUseQuery.mockImplementation((query) => {
+        const functionName = getFunctionName(
+          query as Parameters<typeof getFunctionName>[0]
+        );
+        if (functionName === 'game:getRoundProgress') {
+          return { round: 1, players: [] };
+        }
+        return {
+          ...mockAssignmentRound5,
+          lineIndex: 1,
+          targetWordCount: 2,
+        };
+      });
+
+      rerender(<WritingScreen roomCode="ABCD" />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Round 2 \/ 9/)).toBeInTheDocument();
+        expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+          ''
+        );
+      });
+    });
+  });
 });

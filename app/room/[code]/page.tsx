@@ -6,7 +6,12 @@ import { api } from '../../../convex/_generated/api';
 import { Lobby } from '../../../components/Lobby';
 import { WritingScreen } from '../../../components/WritingScreen';
 import { RevealPhase } from '../../../components/RevealPhase';
+import { RoomChrome } from '../../../components/RoomChrome';
 import { AuthErrorState } from '../../../components/AuthErrorState';
+import {
+  LoadingMessages,
+  LoadingState,
+} from '../../../components/ui/LoadingState';
 import { useUser } from '../../../lib/auth';
 
 interface RoomPageProps {
@@ -28,7 +33,7 @@ export default function RoomPage({ params }: RoomPageProps) {
   if (isLoading || roomState === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <span className="text-[var(--color-text-muted)]">Loading...</span>
+        <LoadingState message={LoadingMessages.LOADING_ROOM} />
       </div>
     );
   }
@@ -58,5 +63,10 @@ export default function RoomPage({ params }: RoomPageProps) {
     content = <RevealPhase roomCode={code} />;
   }
 
-  return content;
+  return (
+    <>
+      <RoomChrome roomCode={code} />
+      {content}
+    </>
+  );
 }

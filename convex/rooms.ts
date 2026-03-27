@@ -3,7 +3,12 @@ import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser, checkParticipation } from './lib/auth';
 import { checkRateLimit } from './lib/rateLimit';
-import { getRoomByCode, requireRoomByCode, getActiveGame } from './lib/room';
+import {
+  deriveRoomStatus,
+  getRoomByCode,
+  requireRoomByCode,
+  getActiveGame,
+} from './lib/room';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -145,9 +150,10 @@ export const getRoom = query({
 
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
+    const status = await deriveRoomStatus(ctx, room._id);
 
     const isParticipant = await checkParticipation(ctx, room._id, user._id);
-    if (isParticipant) return room;
+    if (isParticipant) return { ...room, status };
 
     const activeGame = await getActiveGame(ctx, room._id);
     if (activeGame) return null;
@@ -161,7 +167,7 @@ export const getRoom = query({
 
     return {
       code: room.code,
-      status: room.status,
+      status,
     };
   },
 });
@@ -177,6 +183,7 @@ export const getRoomState = query({
 
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
+    const status = await deriveRoomStatus(ctx, room._id);
 
     const isParticipant = await checkParticipation(ctx, room._id, user._id);
     if (!isParticipant) return null;
@@ -201,7 +208,7 @@ export const getRoomState = query({
 
     const isHost = user._id === room.hostUserId;
 
-    return { room, players, isHost };
+    return { room: { ...room, status }, players, isHost };
   },
 });
 

@@ -17,10 +17,16 @@ vi.mock('@/lib/error', () => ({
     mockCaptureError(err, context),
 }));
 
+const mockTrackPoemShared = vi.fn();
+vi.mock('@/lib/analytics', () => ({
+  trackPoemShared: (props: unknown) => mockTrackPoemShared(props),
+}));
+
 describe('useSharePoem', () => {
   const testPoemId = 'poem123' as Id<'poems'>;
   let originalClipboard: Clipboard;
   let originalLocation: Location;
+  let originalShare: Navigator['share'];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,12 +35,19 @@ describe('useSharePoem', () => {
     // Store originals
     originalClipboard = navigator.clipboard;
     originalLocation = window.location;
+    originalShare = navigator.share;
 
     // Mock clipboard
     Object.defineProperty(navigator, 'clipboard', {
       value: {
         writeText: vi.fn().mockResolvedValue(undefined),
       },
+      writable: true,
+      configurable: true,
+    });
+
+    Object.defineProperty(navigator, 'share', {
+      value: undefined,
       writable: true,
       configurable: true,
     });
@@ -58,6 +71,10 @@ describe('useSharePoem', () => {
     });
     Object.defineProperty(window, 'location', {
       value: originalLocation,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'share', {
+      value: originalShare,
       configurable: true,
     });
   });
@@ -116,6 +133,7 @@ describe('useSharePoem', () => {
     });
 
     expect(mockLogShare).toHaveBeenCalledWith({ poemId: testPoemId });
+    expect(mockTrackPoemShared).toHaveBeenCalledWith({ method: 'clipboard' });
   });
 
   it('handles logShare mutation failure gracefully', async () => {
@@ -147,6 +165,9 @@ describe('useSharePoem', () => {
       poemId: testPoemId,
     });
     expect(result.current.copied).toBe(false); // Copy failed, so copied stays false
+    expect(result.current.shareError).toBe(
+      'Failed to share poem. Please try again.'
+    );
   });
 
   it('does not log share when clipboard fails', async () => {
@@ -161,5 +182,66 @@ describe('useSharePoem', () => {
 
     // logShare should not be called since clipboard failed
     expect(mockLogShare).not.toHaveBeenCalled();
+  });
+
+  it('uses native share when available', async () => {
+    const nativeShare = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', {
+      value: nativeShare,
+      writable: true,
+      configurable: true,
+    });
+    const { result } = renderHook(() => useSharePoem(testPoemId));
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(nativeShare).toHaveBeenCalledWith({
+      title: 'Linejam poem',
+      text: 'Read this poem from our Linejam session.',
+      url: 'https://example.com/poem/poem123',
+    });
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(result.current.shared).toBe(true);
+    expect(mockTrackPoemShared).toHaveBeenCalledWith({
+      method: 'native-share',
+    });
+  });
+
+  it('falls back to clipboard when native share fails', async () => {
+    Object.defineProperty(navigator, 'share', {
+      value: vi.fn().mockRejectedValue(new Error('Share sheet unavailable')),
+      writable: true,
+      configurable: true,
+    });
+    const { result } = renderHook(() => useSharePoem(testPoemId));
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      'https://example.com/poem/poem123'
+    );
+    expect(result.current.copied).toBe(true);
+  });
+
+  it('does not surface an error when native share is cancelled', async () => {
+    const abortError = new DOMException('Cancelled', 'AbortError');
+    Object.defineProperty(navigator, 'share', {
+      value: vi.fn().mockRejectedValue(abortError),
+      writable: true,
+      configurable: true,
+    });
+    const { result } = renderHook(() => useSharePoem(testPoemId));
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(result.current.shareError).toBeNull();
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(mockCaptureError).not.toHaveBeenCalled();
   });
 });
