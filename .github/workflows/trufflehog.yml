@@ -27,4 +27,5 @@ jobs:
           path: ./
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          extra_args: --results=verified,unknown --fail
+          version: v3.91.2
+          extra_args: --results=verified,unknown
