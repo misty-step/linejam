@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Sentry from '@sentry/nextjs';
+
+const fetchMock = vi.fn();
 
 // Mock Sentry
 vi.mock('@sentry/nextjs', () => ({
@@ -17,10 +19,18 @@ import { captureError } from '@/lib/error';
 describe('captureError', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
-  it('calls Sentry.captureException with error and context', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('calls Sentry.captureException with scrubbed error context', () => {
     // Arrange
     const error = new Error('Test error');
     const context = { roomCode: 'ABCD', userId: '123' };
@@ -30,7 +40,7 @@ describe('captureError', () => {
 
     // Assert
     expect(Sentry.captureException).toHaveBeenCalledWith(error, {
-      contexts: { custom: context },
+      contexts: { custom: { roomCode: 'ABCD' } },
     });
   });
 
@@ -51,20 +61,15 @@ describe('captureError', () => {
     // Arrange
     vi.stubEnv('NODE_ENV', 'development');
     const error = new Error('Dev error');
-    const context = { operation: 'test' };
+    const context = { operation: 'test', guestToken: 'secret-token' };
 
     // Act
     captureError(error, context);
 
     // Assert
-    expect(console.error).toHaveBeenCalledWith(
-      'Captured error:',
-      error,
-      context
-    );
-
-    // Cleanup
-    vi.unstubAllEnvs();
+    expect(console.error).toHaveBeenCalledWith('Captured error:', error, {
+      operation: 'test',
+    });
   });
 
   it('does not log to console.error in production mode', () => {
@@ -77,9 +82,6 @@ describe('captureError', () => {
 
     // Assert
     expect(console.error).not.toHaveBeenCalled();
-
-    // Cleanup
-    vi.unstubAllEnvs();
   });
 
   it('handles string errors', () => {
@@ -107,6 +109,25 @@ describe('captureError', () => {
       contexts: undefined,
     });
   });
+
+  it('forwards scrubbed context to Canary when enabled', () => {
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const error = new Error('Canary error');
+    const context = { route: '/room/ABCD', userId: 'user_123' };
+
+    captureError(error, context);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [, request] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(request?.body)) as {
+      context?: Record<string, unknown>;
+    };
+
+    expect(body.context).toEqual({ route: '/room/ABCD' });
+  });
 });
 
 describe('captureError when Sentry disabled', () => {
@@ -124,7 +145,7 @@ describe('captureError when Sentry disabled', () => {
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const testError = new Error('Test error');
-    const context = { userId: 'user_123' };
+    const context = { operation: 'submitLine', userId: 'user_123' };
 
     const { captureError: captureErrorDisabled } = await import('@/lib/error');
     const SentryMock = await import('@sentry/nextjs');
@@ -134,7 +155,7 @@ describe('captureError when Sentry disabled', () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       'Error captured (Sentry disabled):',
       testError,
-      context
+      { operation: 'submitLine' }
     );
     expect(SentryMock.captureException).not.toHaveBeenCalled();
 

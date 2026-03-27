@@ -17,6 +17,27 @@ const eslintConfig = defineConfig([
     // Test coverage output
     "coverage/**",
   ]),
+  // Catch stray console.* calls — use structured logger instead.
+  // Allowed in logger.ts (implements the logger), error.ts (dev fallback),
+  // and errors.ts (Convex structured output).
+  {
+    rules: {
+      "no-console": ["error", { allow: ["warn", "error"] }],
+    },
+  },
+  // Relax no-console in files that legitimately need it
+  {
+    files: [
+      "lib/logger.ts",
+      "lib/error.ts",
+      "convex/lib/errors.ts",
+      "scripts/**",
+      "tests/**",
+    ],
+    rules: {
+      "no-console": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

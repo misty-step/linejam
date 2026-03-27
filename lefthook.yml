@@ -35,6 +35,9 @@ pre-push:
     test:
       run: pnpm vitest run
 
+    build:
+      run: pnpm build:check
+
 commit-msg:
   commands:
     commitlint:
