@@ -73,4 +73,53 @@ describe('checkRateLimit', () => {
       })
     );
   });
+
+  it('resets when resetTime equals current time (boundary)', async () => {
+    const now = Date.now();
+    mockDb.first.mockResolvedValue({
+      _id: 'limit1',
+      key: 'test:1',
+      hits: 5,
+      resetTime: now, // Exactly at boundary — should reset
+    });
+
+    await checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 });
+
+    expect(mockDb.patch).toHaveBeenCalledWith(
+      'limit1',
+      expect.objectContaining({
+        hits: 1,
+      })
+    );
+  });
+
+  it('allows request at max-1 hits and increments to max', async () => {
+    mockDb.first.mockResolvedValue({
+      _id: 'limit1',
+      key: 'test:1',
+      hits: 4,
+      resetTime: Date.now() + 10000,
+    });
+
+    await checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 });
+
+    expect(mockDb.patch).toHaveBeenCalledWith('limit1', { hits: 5 });
+  });
+
+  it('sets correct resetTime on fresh window', async () => {
+    mockDb.first.mockResolvedValue(null);
+
+    const before = Date.now();
+    await checkRateLimit(mockCtx, {
+      key: 'test:1',
+      max: 5,
+      windowMs: 60000,
+    });
+    const after = Date.now();
+
+    const insertCall = mockDb.insert.mock.calls[0];
+    const resetTime = insertCall[1].resetTime;
+    expect(resetTime).toBeGreaterThanOrEqual(before + 60000);
+    expect(resetTime).toBeLessThanOrEqual(after + 60000);
+  });
 });
