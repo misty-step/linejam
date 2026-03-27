@@ -1,6 +1,9 @@
 import { QueryCtx, MutationCtx } from '../_generated/server';
 import { Doc, Id } from '../_generated/dataModel';
 
+type RoomStatus = Doc<'rooms'>['status'];
+type RoomActivityInput = Pick<Doc<'rooms'>, '_id' | 'status'>;
+
 /**
  * Look up a room by its code (case-insensitive).
  * Returns null if not found.
@@ -51,25 +54,32 @@ export async function getCompletedGame(
     .first();
 }
 
+function deriveIdleRoomStatus(room: Pick<Doc<'rooms'>, 'status'>): RoomStatus {
+  return room.status === 'COMPLETED' ? 'COMPLETED' : 'LOBBY';
+}
+
 /**
- * Derive room status from game state.
- * - If there's an IN_PROGRESS game → 'IN_PROGRESS'
- * - If there are COMPLETED games but no IN_PROGRESS → 'COMPLETED' (reveal phase)
- * - Otherwise → 'LOBBY'
+ * Resolve the authoritative room activity view.
+ * The room document owns idle state (`LOBBY` vs `COMPLETED`);
+ * an active game is the only source that can override it.
  */
+export async function getRoomActivity(
+  ctx: QueryCtx | MutationCtx,
+  room: RoomActivityInput
+): Promise<{ activeGame: Doc<'games'> | null; status: RoomStatus }> {
+  const activeGame = await getActiveGame(ctx, room._id);
+  return {
+    activeGame,
+    status: activeGame ? 'IN_PROGRESS' : deriveIdleRoomStatus(room),
+  };
+}
+
 export async function deriveRoomStatus(
   ctx: QueryCtx | MutationCtx,
-  roomId: Id<'rooms'>,
-  activeGame?: Doc<'games'> | null
-): Promise<'LOBBY' | 'IN_PROGRESS' | 'COMPLETED'> {
-  const resolvedActiveGame =
-    activeGame === undefined ? await getActiveGame(ctx, roomId) : activeGame;
-  if (resolvedActiveGame) return 'IN_PROGRESS';
-
-  const completedGame = await getCompletedGame(ctx, roomId);
-  if (completedGame) return 'COMPLETED';
-
-  return 'LOBBY';
+  room: RoomActivityInput
+): Promise<RoomStatus> {
+  const { status } = await getRoomActivity(ctx, room);
+  return status;
 }
 
 /**

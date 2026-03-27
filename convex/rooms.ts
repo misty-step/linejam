@@ -4,8 +4,8 @@ import { ensureUserHelper } from './users';
 import { getUser, checkParticipation } from './lib/auth';
 import { checkRateLimit } from './lib/rateLimit';
 import {
-  deriveRoomStatus,
   getRoomByCode,
+  getRoomActivity,
   requireRoomByCode,
   getActiveGame,
 } from './lib/room';
@@ -150,8 +150,7 @@ export const getRoom = query({
 
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
-    const activeGame = await getActiveGame(ctx, room._id);
-    const status = await deriveRoomStatus(ctx, room._id, activeGame);
+    const { activeGame, status } = await getRoomActivity(ctx, room);
 
     const isParticipant = await checkParticipation(ctx, room._id, user._id);
     if (isParticipant) return { ...room, status };
@@ -183,7 +182,7 @@ export const getRoomState = query({
 
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
-    const status = await deriveRoomStatus(ctx, room._id);
+    const { status } = await getRoomActivity(ctx, room);
 
     const isParticipant = await checkParticipation(ctx, room._id, user._id);
     if (!isParticipant) return null;
