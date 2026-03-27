@@ -1,3 +1,4 @@
+import { captureCanaryException } from './lib/canary';
 import { isSentryEnabled } from './lib/sentry';
 
 /**
@@ -39,6 +40,17 @@ export const onRequestError = async (
     revalidateReason?: 'on-demand' | 'stale';
   }
 ) => {
+  await captureCanaryException(error, {
+    source: 'nextjs.onRequestError',
+    path: request.path,
+    method: request.method,
+    routerKind: context.routerKind,
+    routePath: context.routePath,
+    routeType: context.routeType,
+    renderSource: context.renderSource,
+    revalidateReason: context.revalidateReason,
+  });
+
   if (!isSentryEnabled) return;
 
   const { captureRequestError } = await import('@sentry/nextjs');

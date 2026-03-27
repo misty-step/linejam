@@ -11,8 +11,14 @@ vi.mock('@/lib/sentry', () => ({
   isSentryEnabled: true,
 }));
 
+vi.mock('@/lib/canary', () => ({
+  captureCanaryException: vi.fn(),
+  isCanaryEnabled: vi.fn(() => false),
+}));
+
 // Import after mocking
 import { captureError } from '@/lib/error';
+import * as Canary from '@/lib/canary';
 
 describe('captureError', () => {
   beforeEach(() => {
@@ -107,6 +113,16 @@ describe('captureError', () => {
       contexts: undefined,
     });
   });
+
+  it('forwards to Canary when enabled', () => {
+    vi.mocked(Canary.isCanaryEnabled).mockReturnValue(true);
+    const error = new Error('Canary error');
+    const context = { route: '/room/ABCD' };
+
+    captureError(error, context);
+
+    expect(Canary.captureCanaryException).toHaveBeenCalledWith(error, context);
+  });
 });
 
 describe('captureError when Sentry disabled', () => {
@@ -116,6 +132,11 @@ describe('captureError when Sentry disabled', () => {
     // Mock Sentry disabled
     vi.doMock('@/lib/sentry', () => ({
       isSentryEnabled: false,
+    }));
+
+    vi.doMock('@/lib/canary', () => ({
+      captureCanaryException: vi.fn(),
+      isCanaryEnabled: vi.fn(() => false),
     }));
 
     vi.doMock('@sentry/nextjs', () => ({

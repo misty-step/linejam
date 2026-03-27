@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { captureCanaryException, isCanaryEnabled } from './canary';
 import { isSentryEnabled } from './sentry';
 
 /**
@@ -14,14 +15,20 @@ export function captureError(
   error: unknown,
   context?: Record<string, unknown>
 ) {
-  if (!isSentryEnabled) {
+  if (isSentryEnabled) {
+    Sentry.captureException(error, {
+      contexts: context ? { custom: context } : undefined,
+    });
+  }
+
+  if (isCanaryEnabled()) {
+    void captureCanaryException(error, context);
+  }
+
+  if (!isSentryEnabled && !isCanaryEnabled()) {
     console.error('Error captured (Sentry disabled):', error, context);
     return;
   }
-
-  Sentry.captureException(error, {
-    contexts: context ? { custom: context } : undefined,
-  });
 
   // Log to console in development for visibility
   if (process.env.NODE_ENV === 'development') {
