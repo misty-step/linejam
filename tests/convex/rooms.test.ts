@@ -40,8 +40,10 @@ vi.mock('../../convex/lib/rateLimit', () => ({
 const mockGetRoomByCode = vi.fn();
 const mockRequireRoomByCode = vi.fn();
 const mockGetActiveGame = vi.fn();
+const mockGetRoomActivity = vi.fn();
 vi.mock('../../convex/lib/room', () => ({
   getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
+  getRoomActivity: (...args: unknown[]) => mockGetRoomActivity(...args),
   requireRoomByCode: (...args: unknown[]) => mockRequireRoomByCode(...args),
   getActiveGame: (...args: unknown[]) => mockGetActiveGame(...args),
 }));
@@ -62,6 +64,11 @@ describe('rooms', () => {
     mockGetRoomByCode.mockReset();
     mockRequireRoomByCode.mockReset();
     mockGetActiveGame.mockReset();
+    mockGetRoomActivity.mockReset();
+    mockGetRoomActivity.mockResolvedValue({
+      activeGame: null,
+      status: 'LOBBY',
+    });
   });
 
   describe('createRoom', () => {
@@ -349,6 +356,10 @@ describe('rooms', () => {
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockGetRoomByCode.mockResolvedValue(room);
       mockCheckParticipation.mockResolvedValue(true);
+      mockGetRoomActivity.mockResolvedValue({
+        activeGame: { _id: 'game1' },
+        status: 'IN_PROGRESS',
+      });
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -358,7 +369,7 @@ describe('rooms', () => {
       });
 
       // Assert
-      expect(result).toEqual(room);
+      expect(result).toEqual({ ...room, status: 'IN_PROGRESS' });
       expect(mockGetRoomByCode).toHaveBeenCalledWith(mockCtx, 'ABCD');
     });
 
@@ -405,8 +416,11 @@ describe('rooms', () => {
       mockGetUser.mockResolvedValue({ _id: 'user2' });
       mockGetRoomByCode.mockResolvedValue(room);
       mockCheckParticipation.mockResolvedValue(false);
-      mockGetActiveGame.mockResolvedValue(null);
       mockDb.collect.mockResolvedValue([{ userId: 'user1' }]);
+      mockGetRoomActivity.mockResolvedValue({
+        activeGame: null,
+        status: 'COMPLETED',
+      });
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -418,8 +432,9 @@ describe('rooms', () => {
       // Assert
       expect(result).toEqual({
         code: 'ABCD',
-        status: 'LOBBY',
+        status: 'COMPLETED',
       });
+      expect(mockGetRoomActivity).toHaveBeenCalledWith(mockCtx, room);
     });
 
     it('returns null when non-participant and game in progress', async () => {
@@ -433,7 +448,10 @@ describe('rooms', () => {
       mockGetUser.mockResolvedValue({ _id: 'user2' });
       mockGetRoomByCode.mockResolvedValue(room);
       mockCheckParticipation.mockResolvedValue(false);
-      mockGetActiveGame.mockResolvedValue({ _id: 'game1' });
+      mockGetRoomActivity.mockResolvedValue({
+        activeGame: { _id: 'game1' },
+        status: 'IN_PROGRESS',
+      });
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -509,6 +527,10 @@ describe('rooms', () => {
       mockDb.collect.mockResolvedValue(players);
       mockGetUser.mockResolvedValue({ _id: 'user1' });
       mockCheckParticipation.mockResolvedValue(true);
+      mockGetRoomActivity.mockResolvedValue({
+        activeGame: { _id: 'game1' },
+        status: 'IN_PROGRESS',
+      });
 
       // Act
       // @ts-expect-error - calling handler directly for test
@@ -525,7 +547,11 @@ describe('rooms', () => {
         isBot: false,
         aiPersonaId: undefined,
       }));
-      expect(result).toEqual({ room, players: expectedPlayers, isHost: true });
+      expect(result).toEqual({
+        room: { ...room, status: 'IN_PROGRESS' },
+        players: expectedPlayers,
+        isHost: true,
+      });
     });
 
     it('returns isHost=false for non-host player', async () => {

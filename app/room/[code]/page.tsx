@@ -2,12 +2,14 @@
 
 import { use } from 'react';
 import { useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import { Lobby } from '../../../components/Lobby';
-import { WritingScreen } from '../../../components/WritingScreen';
-import { RevealPhase } from '../../../components/RevealPhase';
-import { AuthErrorState } from '../../../components/AuthErrorState';
-import { useUser } from '../../../lib/auth';
+import { api } from '@/convex/_generated/api';
+import { AuthErrorState } from '@/components/AuthErrorState';
+import { Lobby } from '@/components/Lobby';
+import { RevealPhase } from '@/components/RevealPhase';
+import { RoomChrome } from '@/components/RoomChrome';
+import { WritingScreen } from '@/components/WritingScreen';
+import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
+import { useUser } from '@/lib/auth';
 
 interface RoomPageProps {
   params: Promise<{ code: string }>;
@@ -28,7 +30,7 @@ export default function RoomPage({ params }: RoomPageProps) {
   if (isLoading || roomState === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
-        <span className="text-[var(--color-text-muted)]">Loading...</span>
+        <LoadingState message={LoadingMessages.LOADING_ROOM} />
       </div>
     );
   }
@@ -58,5 +60,10 @@ export default function RoomPage({ params }: RoomPageProps) {
     content = <RevealPhase roomCode={code} />;
   }
 
-  return content;
+  return (
+    <>
+      <RoomChrome roomCode={code} />
+      {content}
+    </>
+  );
 }

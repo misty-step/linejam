@@ -32,7 +32,12 @@ type GameCompletedProps = {
 };
 
 type PoemSharedProps = {
-  method: 'clipboard';
+  method: 'clipboard' | 'native-share';
+};
+
+type RoomInviteSharedProps = {
+  method: 'clipboard' | 'native-share';
+  roomCode: string;
 };
 
 type AiPlayerAddedProps = {
@@ -72,6 +77,13 @@ export function trackGameCompleted(props: GameCompletedProps) {
  */
 export function trackPoemShared(props: PoemSharedProps) {
   track('poem_shared', props);
+}
+
+/**
+ * Track room invite sharing from the in-room chrome.
+ */
+export function trackRoomInviteShared(props: RoomInviteSharedProps) {
+  track('room_invite_shared', props);
 }
 
 /**

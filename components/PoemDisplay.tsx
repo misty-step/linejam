@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { Button } from './ui/Button';
+import { Alert } from './ui/Alert';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
@@ -78,7 +79,7 @@ export function PoemDisplay({
     effectiveAlreadyRevealed ? lines.length : 0
   );
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
-  const { handleShare, copied } = useSharePoem(poemId);
+  const { handleShare, copied, shared, shareError } = useSharePoem(poemId);
 
   const normalizedLines: PoemLine[] = lines.map((line) =>
     typeof line === 'string' ? { text: line } : line
@@ -292,33 +293,41 @@ export function PoemDisplay({
 
       {/* Footer / Actions - Fixed at bottom */}
       <div
+        data-testid="poem-actions"
         className={cn(
           'px-6 md:px-12 lg:px-24 py-6 border-t border-border-subtle',
-          'flex items-center justify-center gap-4',
+          'flex flex-col items-center gap-4',
           'transition-opacity duration-500',
           allRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
       >
-        <Button
-          onClick={handleShare}
-          variant="primary"
-          size="lg"
-          className="min-w-[140px] h-12"
-          stampAnimate={copied}
-        >
-          {copied ? 'Copied!' : 'Share'}
-        </Button>
-        {/* Reveal variant: Close button; Archive variant: navigation handles close */}
-        {!isArchive && onDone && (
-          <Button
-            onClick={onDone}
-            variant="ghost"
-            size="lg"
-            className="min-w-[100px] h-12 text-text-muted hover:text-text-primary"
-          >
-            Close
-          </Button>
+        {shareError && (
+          <Alert variant="error" className="w-full max-w-md">
+            {shareError}
+          </Alert>
         )}
+        <div className="flex items-center justify-center gap-4">
+          <Button
+            onClick={handleShare}
+            variant="primary"
+            size="lg"
+            className="min-w-[140px] h-12"
+            stampAnimate={copied}
+          >
+            {shared ? 'Shared!' : copied ? 'Copied!' : 'Share'}
+          </Button>
+          {/* Reveal variant: Close button; Archive variant: navigation handles close */}
+          {!isArchive && onDone && (
+            <Button
+              onClick={onDone}
+              variant="ghost"
+              size="lg"
+              className="min-w-[100px] h-12 text-text-muted hover:text-text-primary"
+            >
+              Close
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
