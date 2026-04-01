@@ -190,6 +190,22 @@ describe('useUser hook', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it('clears stale guest token from localStorage when guest bootstrap fails', async () => {
+    localStorage.setItem('linejam_guest_token', 'stale-token');
+    mockFetch.mockRejectedValue(new Error('Network error'));
+
+    const { result } = renderHook(() => useUser());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(localStorage.getItem('linejam_guest_token')).toBeNull();
+    expect(result.current.authError).toBe(
+      'Unable to connect. Please check your connection.'
+    );
+  });
+
   it('retryAuth clears error and retries fetch', async () => {
     // Arrange - first call fails, second succeeds
     mockFetch
