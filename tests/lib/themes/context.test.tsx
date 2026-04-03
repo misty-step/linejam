@@ -3,34 +3,7 @@ import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider, useTheme } from '@/lib/themes';
-
-function installMatchMedia(initialMatches = false) {
-  let changeListener: ((event: MediaQueryListEvent) => void) | null = null;
-  const mediaQuery = {
-    matches: initialMatches,
-    addEventListener: vi.fn(
-      (event: string, listener: (event: MediaQueryListEvent) => void) => {
-        if (event === 'change') {
-          changeListener = listener;
-        }
-      }
-    ),
-    removeEventListener: vi.fn(() => {
-      changeListener = null;
-    }),
-    dispatch(matches: boolean) {
-      mediaQuery.matches = matches;
-      changeListener?.({ matches } as MediaQueryListEvent);
-    },
-  };
-
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: vi.fn().mockReturnValue(mediaQuery),
-  });
-
-  return mediaQuery;
-}
+import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 function wrapper({ children }: { children: ReactNode }) {
   return <ThemeProvider>{children}</ThemeProvider>;
@@ -134,11 +107,8 @@ describe('theme context', () => {
     installMatchMedia(false);
     const storageError = new Error('quota exceeded');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    Object.defineProperty(window.localStorage, 'setItem', {
-      configurable: true,
-      value: () => {
-        throw storageError;
-      },
+    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+      throw storageError;
     });
 
     renderHook(() => useTheme(), { wrapper });

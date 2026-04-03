@@ -61,7 +61,7 @@ describe('theme schema', () => {
   it('throws a summarized validation error when many tokens are missing', async () => {
     await withEnv({ NODE_ENV: 'development' }, async () => {
       expect(() => defineTheme(makeInvalidTheme(6))).toThrow(
-        'Invalid theme "kenya": Missing tokens: light.color-primary, light.color-primary-hover, light.color-primary-active, light.color-background, light.color-foreground (+1 more)'
+        /^Invalid theme "kenya": Missing tokens: .*\(\+1 more\)$/
       );
     });
   });

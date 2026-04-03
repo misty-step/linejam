@@ -10,37 +10,10 @@ import {
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { ThemePreview } from '@/components/ThemePreview';
 import { ThemeProvider } from '@/lib/themes';
+import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 const STORAGE_KEY_THEME = 'linejam-theme-id';
 const STORAGE_KEY_MODE = 'linejam-theme-mode';
-
-function installMatchMedia(initialMatches = false) {
-  let changeListener: ((event: MediaQueryListEvent) => void) | null = null;
-  const mediaQuery = {
-    matches: initialMatches,
-    addEventListener: vi.fn(
-      (event: string, listener: (event: MediaQueryListEvent) => void) => {
-        if (event === 'change') {
-          changeListener = listener;
-        }
-      }
-    ),
-    removeEventListener: vi.fn(() => {
-      changeListener = null;
-    }),
-    dispatch(matches: boolean) {
-      mediaQuery.matches = matches;
-      changeListener?.({ matches } as MediaQueryListEvent);
-    },
-  };
-
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: vi.fn().mockReturnValue(mediaQuery),
-  });
-
-  return mediaQuery;
-}
 
 function renderThemeSelector(props: { onClose?: () => void } = {}) {
   return render(
