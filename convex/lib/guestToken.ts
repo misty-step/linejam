@@ -20,7 +20,11 @@ if (!initialSecret && isProductionConvexEnv()) {
 }
 
 function getSecret(): string {
-  return getGuestTokenSecretFromEnv() ?? initialSecret ?? DEV_FALLBACK_SECRET;
+  if (isProductionConvexEnv()) {
+    return initialSecret!;
+  }
+
+  return getGuestTokenSecretFromEnv() ?? DEV_FALLBACK_SECRET;
 }
 
 let keyPromise: Promise<CryptoKey> | null = null;

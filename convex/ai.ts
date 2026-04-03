@@ -269,7 +269,7 @@ export const generateLineForRound = internalAction({
     const targetWordCount = WORD_COUNTS[round];
 
     // Generate line - graceful fallback if API key missing
-    const apiKey = getOpenRouterApiKeyFromEnv() ?? initialOpenRouterApiKey;
+    const apiKey = initialOpenRouterApiKey;
     const result = await (async () => {
       if (!apiKey) {
         log.error('OPENROUTER_API_KEY not configured - using fallback line', {
