@@ -39,7 +39,7 @@ describe('convex/http health route', () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it('registers GET /api/health and returns 500 when production env is incomplete', async () => {
+  it('registers GET /api/health and returns 500 when required capabilities are missing', async () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
@@ -67,7 +67,18 @@ describe('convex/http health route', () => {
           ok: false,
           status: 500,
           environment: 'production',
-          missing: ['guestTokenSecret', 'openRouterApiKey'],
+          capabilities: {
+            guestTokenVerification: {
+              status: 'missing_required',
+              available: false,
+              required: true,
+            },
+            aiLineGeneration: {
+              status: 'missing_required',
+              available: false,
+              required: true,
+            },
+          },
         });
       }
     );
@@ -95,7 +106,56 @@ describe('convex/http health route', () => {
           ok: true,
           status: 200,
           environment: 'production',
-          missing: [],
+          capabilities: {
+            guestTokenVerification: {
+              status: 'ready',
+              available: true,
+              required: true,
+            },
+            aiLineGeneration: {
+              status: 'ready',
+              available: true,
+              required: true,
+            },
+          },
+        });
+      }
+    );
+  });
+
+  it('returns 500 when only one required capability is missing', async () => {
+    await withEnv(
+      {
+        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        GUEST_TOKEN_SECRET: 'test-secret',
+        OPENROUTER_API_KEY: undefined,
+      },
+      async () => {
+        await import('../../convex/http');
+
+        const route = routeSpy.mock.calls[0][0];
+        const response = await route.handler(
+          {} as never,
+          new Request('https://example.com/api/health')
+        );
+
+        expect(response.status).toBe(500);
+        await expect(response.json()).resolves.toMatchObject({
+          ok: false,
+          status: 500,
+          environment: 'production',
+          capabilities: {
+            guestTokenVerification: {
+              status: 'ready',
+              available: true,
+              required: true,
+            },
+            aiLineGeneration: {
+              status: 'missing_required',
+              available: false,
+              required: true,
+            },
+          },
         });
       }
     );

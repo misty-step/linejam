@@ -21,16 +21,11 @@ import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
 import { assignPoemReaders } from './lib/assignPoemReaders';
-import { getOpenRouterApiKeyFromEnv, isProductionConvexEnv } from './lib/env';
+import { getConvexRuntimeConfig } from './lib/env';
 import { log } from './lib/errors';
 
-const initialOpenRouterApiKey = getOpenRouterApiKeyFromEnv();
-
-if (!initialOpenRouterApiKey && isProductionConvexEnv()) {
-  log.error('OPENROUTER_API_KEY not configured at module load', {
-    source: 'convex/ai',
-  });
-}
+const runtimeConfig = getConvexRuntimeConfig();
+const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
 
 /**
  * Add an AI player to a room (host-only, lobby-only).

@@ -57,7 +57,7 @@ describe('Convex env validation', () => {
         OPENROUTER_API_KEY: undefined,
       },
       async () => {
-        await import('../../convex/ai');
+        await import('../../convex/lib/env');
       }
     );
 
@@ -70,10 +70,11 @@ describe('Convex env validation', () => {
       level: 'error',
       message: 'OPENROUTER_API_KEY not configured at module load',
       service: 'convex',
+      source: 'convex/env',
     });
   });
 
-  it('does not log an AI module-load error when OPENROUTER_API_KEY is present', async () => {
+  it('does not log module-load error when OPENROUTER_API_KEY is present', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
@@ -85,7 +86,7 @@ describe('Convex env validation', () => {
         OPENROUTER_API_KEY: 'test-openrouter-key',
       },
       async () => {
-        await import('../../convex/ai');
+        await import('../../convex/lib/env');
       }
     );
 
@@ -98,7 +99,7 @@ describe('Convex env validation', () => {
     ).toBeUndefined();
   });
 
-  it('reports production env as unhealthy when required Convex vars are missing', async () => {
+  it('reports production env as unhealthy when required Convex capabilities are missing', async () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
@@ -113,17 +114,56 @@ describe('Convex env validation', () => {
           ok: false,
           status: 500,
           environment: 'production',
-          missing: ['guestTokenSecret', 'openRouterApiKey'],
-          checks: {
-            guestTokenSecret: { configured: false, required: true },
-            openRouterApiKey: { configured: false, required: true },
+          capabilities: {
+            guestTokenVerification: {
+              status: 'missing_required',
+              available: false,
+              required: true,
+            },
+            aiLineGeneration: {
+              status: 'missing_required',
+              available: false,
+              required: true,
+            },
           },
         });
       }
     );
   });
 
-  it('reports development env as healthy when only production-only Convex vars are missing', async () => {
+  it('reports production env as unhealthy when only guest token secret is missing', async () => {
+    await withEnv(
+      {
+        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        GUEST_TOKEN_SECRET: undefined,
+        OPENROUTER_API_KEY: 'test-openrouter-key',
+      },
+      async () => {
+        const { getConvexEnvHealthReport } =
+          await import('../../convex/lib/env');
+
+        expect(getConvexEnvHealthReport()).toMatchObject({
+          ok: false,
+          status: 500,
+          environment: 'production',
+          capabilities: {
+            guestTokenVerification: {
+              status: 'missing_required',
+              available: false,
+              required: true,
+            },
+            aiLineGeneration: {
+              status: 'ready',
+              available: true,
+              required: true,
+            },
+          },
+        });
+      }
+    );
+  });
+
+  it('reports development env as healthy with optional capabilities disabled', async () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: undefined,
@@ -138,10 +178,56 @@ describe('Convex env validation', () => {
           ok: true,
           status: 200,
           environment: 'development',
-          missing: [],
-          checks: {
-            guestTokenSecret: { configured: false, required: false },
-            openRouterApiKey: { configured: false, required: false },
+          capabilities: {
+            guestTokenVerification: {
+              status: 'disabled',
+              available: false,
+              required: false,
+            },
+            aiLineGeneration: {
+              status: 'disabled',
+              available: false,
+              required: false,
+            },
+          },
+        });
+      }
+    );
+  });
+
+  it('keeps runtime config and health report stable after module load', async () => {
+    await withEnv(
+      {
+        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        GUEST_TOKEN_SECRET: 'first-secret',
+        OPENROUTER_API_KEY: undefined,
+      },
+      async () => {
+        const { getConvexRuntimeConfig, getConvexEnvHealthReport } =
+          await import('../../convex/lib/env');
+
+        process.env.GUEST_TOKEN_SECRET = 'second-secret';
+        process.env.OPENROUTER_API_KEY = 'late-openrouter-key';
+
+        expect(getConvexRuntimeConfig()).toMatchObject({
+          environment: 'production',
+          guestTokenSecret: 'first-secret',
+          openRouterApiKey: undefined,
+        });
+        expect(getConvexEnvHealthReport()).toMatchObject({
+          ok: false,
+          status: 500,
+          capabilities: {
+            guestTokenVerification: {
+              status: 'ready',
+              available: true,
+              required: true,
+            },
+            aiLineGeneration: {
+              status: 'missing_required',
+              available: false,
+              required: true,
+            },
           },
         });
       }
