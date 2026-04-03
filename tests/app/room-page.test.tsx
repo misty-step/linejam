@@ -5,6 +5,7 @@ import { render, screen } from '@testing-library/react';
 const mockReactUse = vi.fn();
 const mockUseQuery = vi.fn();
 const mockUseUser = vi.fn();
+const mockCaptureError = vi.fn();
 
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
@@ -20,6 +21,10 @@ vi.mock('convex/react', () => ({
 
 vi.mock('@/lib/auth', () => ({
   useUser: () => mockUseUser(),
+}));
+
+vi.mock('@/lib/error', () => ({
+  captureError: (...args: unknown[]) => mockCaptureError(...args),
 }));
 
 vi.mock('@/components/AuthErrorState', () => ({
@@ -89,6 +94,14 @@ describe('RoomPage', () => {
       '/'
     );
     expect(screen.queryByText('Lobby screen')).not.toBeInTheDocument();
+    expect(mockCaptureError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        operation: 'renderRoomPage',
+        roomCode: 'ABCD',
+        status: 'BROKEN_STATE',
+      })
+    );
   });
 
   it('still renders the lobby for a known lobby state', () => {

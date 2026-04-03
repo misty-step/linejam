@@ -2,7 +2,6 @@ import { useUser as useClerkUser } from '@clerk/nextjs';
 import { useCallback, useEffect, useState } from 'react';
 import { captureError } from '@/lib/error';
 import {
-  clearGuestSession,
   GuestSessionFetcher,
   defaultGuestSessionFetcher,
 } from '@/lib/guestSession';
@@ -52,7 +51,6 @@ export function useUser(
       })
       .catch((error) => {
         if (isStale) return;
-        clearGuestSession();
         captureError(error, { operation: 'fetchGuestSession' });
         setGuestId(null);
         setGuestToken(null);
