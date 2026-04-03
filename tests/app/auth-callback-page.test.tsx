@@ -57,6 +57,15 @@ describe('AuthCallbackPage', () => {
     expect(mockMigrateGuestToUser).not.toHaveBeenCalled();
   });
 
+  it('marks the initial migration state as busy', () => {
+    mockMigrateGuestToUser.mockReturnValue(new Promise(() => {}));
+
+    render(<AuthCallbackPage />);
+
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent(/completing sign in/i);
+  });
+
   it('shows a recovery state instead of silently redirecting when migration fails', async () => {
     mockMigrateGuestToUser.mockRejectedValueOnce(new Error('migration failed'));
 

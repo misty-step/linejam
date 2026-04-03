@@ -1,28 +1,46 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
-
 CLAIMS_DIR="${CLAIMS_DIR:-.claims}"
 
+validate_claim_id() {
+  local item_id="${1-}"
+
+  case "$item_id" in
+    ''|*/*|*'..'*|*[!A-Za-z0-9._-]*)
+      printf 'invalid claim id: %s\n' "$item_id" >&2
+      return 1
+      ;;
+  esac
+}
+
 claim_path() {
-  printf '%s/%s.lock' "$CLAIMS_DIR" "$1"
+  local item_id="${1-}"
+  validate_claim_id "$item_id" || return 1
+  printf '%s/%s.lock' "$CLAIMS_DIR" "$item_id"
 }
 
 claim_acquire() {
-  local item_id="$1"
+  local item_id="${1-}"
+  local created_at
   local path
-  path="$(claim_path "$item_id")"
+  path="$(claim_path "$item_id")" || return 1
 
-  /bin/mkdir -p "$CLAIMS_DIR"
+  mkdir -p "$CLAIMS_DIR" || return 1
 
-  if /bin/mkdir "$path" 2>/dev/null; then
-    {
+  if mkdir "$path" 2>/dev/null; then
+    created_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    if {
       printf 'item=%s\n' "$item_id"
       printf 'pid=%s\n' "$$"
-      printf 'created_at=%s\n' "$(/bin/date -u +"%Y-%m-%dT%H:%M:%SZ")"
+      printf 'created_at=%s\n' "$created_at"
       printf 'host=%s\n' "${HOSTNAME:-unknown}"
-    } >"$path/metadata"
-    return 0
+    } >"$path/metadata"; then
+      return 0
+    fi
+
+    rm -rf -- "$path"
+    printf 'failed to write claim metadata for %s\n' "$item_id" >&2
+    return 1
   fi
 
   printf 'claim already held for %s\n' "$item_id" >&2
@@ -30,8 +48,9 @@ claim_acquire() {
 }
 
 claim_release() {
-  local item_id="$1"
-  /bin/rm -rf "$(claim_path "$item_id")"
+  local path
+  path="$(claim_path "${1-}")" || return 1
+  rm -rf -- "$path"
 }
 
 claim_list() {
@@ -39,8 +58,8 @@ claim_list() {
     return 0
   fi
 
-  /usr/bin/find "$CLAIMS_DIR" -mindepth 1 -maxdepth 1 -type d -name '*.lock' -print \
-    | /usr/bin/sed "s#^$CLAIMS_DIR/##" \
-    | /usr/bin/sed 's/\.lock$//' \
-    | /usr/bin/sort
+  find "$CLAIMS_DIR" -mindepth 1 -maxdepth 1 -type d -name '*.lock' -print \
+    | sed "s#^$CLAIMS_DIR/##" \
+    | sed 's/\.lock$//' \
+    | sort
 }

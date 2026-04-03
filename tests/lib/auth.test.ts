@@ -35,6 +35,7 @@ describe('useUser hook', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
+    localStorage.clear();
     mockUseClerkUser.mockReturnValue({
       user: null,
       isLoaded: true,
@@ -52,6 +53,7 @@ describe('useUser hook', () => {
   afterEach(() => {
     // Restore original fetch
     global.fetch = originalFetch;
+    localStorage.clear();
   });
 
   it('returns loading state while Clerk is loading', () => {

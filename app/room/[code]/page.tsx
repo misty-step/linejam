@@ -1,13 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { use, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { AuthErrorState } from '@/components/AuthErrorState';
 import { Lobby } from '@/components/Lobby';
 import { RevealPhase } from '@/components/RevealPhase';
 import { RoomChrome } from '@/components/RoomChrome';
+import { Button } from '@/components/ui/Button';
 import { WritingScreen } from '@/components/WritingScreen';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { useUser } from '@/lib/auth';
@@ -20,6 +21,8 @@ function UnexpectedRoomState({
   code: string;
   status: string;
 }) {
+  const router = useRouter();
+
   useEffect(() => {
     captureError(new Error('Unexpected room status'), {
       operation: 'renderRoomPage',
@@ -38,11 +41,13 @@ function UnexpectedRoomState({
         understand yet. Refresh or head home and rejoin the room.
       </span>
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-        <Link href="/" className="w-full">
-          <span className="inline-flex items-center justify-center w-full h-11 px-4 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
-            Go home
-          </span>
-        </Link>
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={() => router.push('/')}
+        >
+          Go home
+        </Button>
       </div>
     </div>
   );

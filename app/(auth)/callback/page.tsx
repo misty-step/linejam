@@ -42,7 +42,7 @@ export default function AuthCallbackPage() {
     });
   }, [isLoaded, isSignedIn, migrateGuestSession, router]);
 
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     const guestToken = getGuestToken();
     if (!isSignedIn || !guestToken) {
       router.replace('/');
@@ -54,7 +54,7 @@ export default function AuthCallbackPage() {
       captureError(error, { operation: 'migrateGuestToUser' });
       setStatus('error');
     });
-  };
+  }, [isSignedIn, migrateGuestSession, router]);
 
   if (status === 'error') {
     return (
@@ -89,8 +89,22 @@ export default function AuthCallbackPage() {
   }
 
   return (
-    <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)]">
-      Completing sign in...
-    </p>
+    <div
+      className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-6"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="flex items-center gap-3 text-[var(--color-text-primary)]">
+        <span
+          className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]"
+          aria-hidden="true"
+        />
+        <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)]">
+          Completing sign in...
+        </p>
+        <span className="sr-only">Completing sign in</span>
+      </div>
+    </div>
   );
 }
