@@ -21,7 +21,16 @@ import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
 import { assignPoemReaders } from './lib/assignPoemReaders';
+import { getOpenRouterApiKeyFromEnv, isProductionConvexEnv } from './lib/env';
 import { log } from './lib/errors';
+
+const initialOpenRouterApiKey = getOpenRouterApiKeyFromEnv();
+
+if (!initialOpenRouterApiKey && isProductionConvexEnv()) {
+  log.error('OPENROUTER_API_KEY not configured at module load', {
+    source: 'convex/ai',
+  });
+}
 
 /**
  * Add an AI player to a room (host-only, lobby-only).
@@ -260,7 +269,7 @@ export const generateLineForRound = internalAction({
     const targetWordCount = WORD_COUNTS[round];
 
     // Generate line - graceful fallback if API key missing
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = getOpenRouterApiKeyFromEnv() ?? initialOpenRouterApiKey;
     const result = await (async () => {
       if (!apiKey) {
         log.error('OPENROUTER_API_KEY not configured - using fallback line', {
