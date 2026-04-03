@@ -35,6 +35,7 @@ describe('useUser hook', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
+    localStorage.clear();
     mockUseClerkUser.mockReturnValue({
       user: null,
       isLoaded: true,
@@ -52,6 +53,7 @@ describe('useUser hook', () => {
   afterEach(() => {
     // Restore original fetch
     global.fetch = originalFetch;
+    localStorage.clear();
   });
 
   it('returns loading state while Clerk is loading', () => {
@@ -188,6 +190,22 @@ describe('useUser hook', () => {
     expect(result.current.guestId).toBeNull();
     expect(result.current.guestToken).toBeNull();
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it('preserves existing guest token in localStorage when guest bootstrap fails', async () => {
+    localStorage.setItem('linejam_guest_token', 'stale-token');
+    mockFetch.mockRejectedValue(new Error('Network error'));
+
+    const { result } = renderHook(() => useUser());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(localStorage.getItem('linejam_guest_token')).toBe('stale-token');
+    expect(result.current.authError).toBe(
+      'Unable to connect. Please check your connection.'
+    );
   });
 
   it('retryAuth clears error and retries fetch', async () => {
