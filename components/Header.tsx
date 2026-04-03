@@ -98,6 +98,7 @@ export function Header({ className = '' }: HeaderProps) {
           {/* Archive link */}
           <Link
             href="/me/poems"
+            prefetch={false}
             className="w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
             aria-label="View your poem archive"
           >

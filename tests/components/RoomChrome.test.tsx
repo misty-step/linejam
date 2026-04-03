@@ -9,6 +9,23 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+vi.mock('next/link', () => ({
+  default: ({
+    children,
+    href,
+    prefetch,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    prefetch?: boolean;
+  }) => (
+    <a href={href} data-prefetch={String(prefetch)} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 const mockTrackRoomInviteShared = vi.fn();
 
 vi.mock('@/lib/analytics', () => ({
@@ -100,9 +117,11 @@ describe('RoomChrome component', () => {
     expect(
       screen.getByRole('button', { name: /Share room invite/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: /View your poem archive/i })
-    ).toHaveAttribute('href', '/me/poems');
+    const archiveLink = screen.getByRole('link', {
+      name: /View your poem archive/i,
+    });
+    expect(archiveLink).toHaveAttribute('href', '/me/poems');
+    expect(archiveLink).toHaveAttribute('data-prefetch', 'false');
     expect(
       screen.getByRole('button', { name: /How to play/i })
     ).toBeInTheDocument();

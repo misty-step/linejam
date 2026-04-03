@@ -8,10 +8,16 @@ vi.mock('next/link', () => ({
   default: ({
     children,
     href,
+    prefetch,
   }: {
     children: React.ReactNode;
     href: string;
-  }) => <a href={href}>{children}</a>,
+    prefetch?: boolean;
+  }) => (
+    <a href={href} data-prefetch={String(prefetch)}>
+      {children}
+    </a>
+  ),
 }));
 
 // Mock Convex hooks (external)
@@ -317,6 +323,17 @@ describe('RevealPhase component', () => {
         guestToken: 'mock-token',
       });
     });
+  });
+
+  it('disables archive prefetch on the session-complete screen', () => {
+    mockUseQuery.mockReturnValue(mockStateAllRevealed);
+
+    render(<RevealPhase roomCode="ABCD" />);
+
+    expect(screen.getByRole('link', { name: /Archive/i })).toHaveAttribute(
+      'data-prefetch',
+      'false'
+    );
   });
 
   it('shows Archive link when all revealed', () => {

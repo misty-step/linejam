@@ -43,6 +43,7 @@
     "canary:responder": "node ./scripts/canary/responder.mjs",
     "canary:smoke": "node ./scripts/canary/trigger-smoke.mjs",
     "canary:webhook:setup": "./scripts/canary/setup-webhook.sh",
+    "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs",
     "generate:releases": "npx tsx scripts/generate-releases.ts"
   },
   "dependencies": {
