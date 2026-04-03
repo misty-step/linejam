@@ -140,6 +140,111 @@ jobs:
       - name: Run E2E mirror
         run: ./scripts/ci/dagger-call.sh e2e
 
+  # Artifact capture is advisory. It should prove the branch build visually
+  # without becoming part of the required merge gate.
+  qa-evidence:
+    name: QA Evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality-gates]
+    if: |
+      github.event_name == 'push' ||
+      github.event.pull_request.draft == false
+    env:
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CI_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CI_CLERK_SECRET_KEY || secrets.CLERK_SECRET_KEY }}
+      CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
+      GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
+      CANARY_ENDPOINT: ${{ secrets.CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
+      LINEJAM_BASE_URL: http://127.0.0.1:3333
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Prepare evidence directories
+        run: |
+          echo "LINEJAM_EVIDENCE_DIR=$RUNNER_TEMP/linejam-evidence" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:check
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Start app server
+        run: |
+          PORT=3333 pnpm start:next > "$RUNNER_TEMP/linejam-evidence-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/linejam-evidence-server.pid"
+
+          for attempt in {1..60}; do
+            if curl -sf "$LINEJAM_BASE_URL" >/dev/null; then
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          cat "$RUNNER_TEMP/linejam-evidence-server.log"
+          exit 1
+
+      - name: Capture QA evidence
+        run: pnpm evidence:guest-flow
+
+      - name: Upload QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-evidence
+          path: ${{ runner.temp }}/linejam-evidence/
+          retention-days: 14
+
+      - name: Upload QA evidence raw test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-evidence-test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload QA evidence server log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-evidence-server-log
+          path: ${{ runner.temp }}/linejam-evidence-server.log
+          retention-days: 14
+
+      - name: Stop app server
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/linejam-evidence-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/linejam-evidence-server.pid")" || true
+          fi
+
+  # Rollup job — branch protection requires this exact name to merge.
+  # Job name must match exactly. Workflow name: is a display label only.
   merge-gate:
     name: merge-gate
     runs-on: ubuntu-latest

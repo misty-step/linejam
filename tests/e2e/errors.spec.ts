@@ -1,5 +1,6 @@
-import { test, expect, BrowserContext, Page } from '@playwright/test';
-import { WORD_COUNTS } from '@/convex/lib/gameRules';
+import { test, expect } from '@playwright/test';
+
+import { GuestFlowSession } from './support/guestFlow';
 
 /**
  * E2E Test: Error Scenarios and Validation
@@ -17,10 +18,11 @@ import { WORD_COUNTS } from '@/convex/lib/gameRules';
 test.describe.configure({ mode: 'serial' });
 
 // Require matching guest token secret so Convex can verify tokens issued by Next
-const missingGuestTokenSecret = !process.env.GUEST_TOKEN_SECRET;
+const missingGuestTokenSecret =
+  !process.env.GUEST_TOKEN_SECRET && !process.env.E2E_BASE_URL;
 test.skip(
   missingGuestTokenSecret,
-  'Set GUEST_TOKEN_SECRET to the active Convex deployment secret to run error E2E'
+  'Set GUEST_TOKEN_SECRET for local E2E, or E2E_BASE_URL for a remote target'
 );
 
 test.describe('Join Room Error Handling', () => {
@@ -59,87 +61,39 @@ test.describe('Join Room Error Handling', () => {
 });
 
 test.describe('Word Count Validation', () => {
-  let hostContext: BrowserContext;
-  let guestContext: BrowserContext;
-  let hostPage: Page;
-  let guestPage: Page;
-  let roomCode: string;
+  let session: GuestFlowSession;
 
   test.beforeAll(async ({ browser }) => {
-    // Setup: Create room and start game with 2 players
-    hostContext = await browser.newContext();
-    guestContext = await browser.newContext();
-    hostPage = await hostContext.newPage();
-    guestPage = await guestContext.newPage();
-
-    // Host creates room
-    await hostPage.goto('/host', { waitUntil: 'networkidle' });
-    await hostPage.waitForSelector('input#name', {
-      state: 'visible',
-      timeout: 10000,
+    session = await GuestFlowSession.create(browser, {
+      guestName: 'Guest',
+      hostName: 'Host',
     });
-    await hostPage.fill('input#name', 'Host');
-    await hostPage.click('button[type="submit"]');
-    await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 15000 });
-
-    const url = hostPage.url();
-    roomCode = url.match(/\/room\/([A-Z]{4})$/)?.[1] || '';
-
-    // Guest joins room
-    await guestPage.goto(`/join?code=${roomCode}`, {
-      waitUntil: 'networkidle',
-    });
-    await guestPage.fill('input#name', 'Guest');
-    await guestPage.click('button[type="submit"]');
-    await guestPage.waitForURL(`/room/${roomCode}`, { timeout: 15000 });
-
-    // Host starts game
-    await hostPage.click('button:has-text("Start Linejam")');
-    await expect(
-      hostPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
-    ).toBeVisible({
-      timeout: 15000,
-    });
+    await session.createRoom();
+    await session.joinRoom();
+    await session.startGame();
   });
 
   test.afterAll(async () => {
-    await hostContext.close();
-    await guestContext.close();
+    await session.close();
   });
 
   test('submit button is disabled when word count is wrong', async () => {
-    // Round 1 requires exactly 1 word
-    const submitButton = hostPage.getByRole('button', {
-      name: /Seal Your Line/i,
-    });
+    await session.expectSealDisabled('host');
 
-    // Initially disabled (0 words)
-    await expect(submitButton).toBeDisabled();
+    await session.fillCurrentLine('host', 'two words');
+    await session.expectSealDisabled('host');
 
-    // Type 2 words - should still be disabled (too many)
-    await hostPage.getByRole('textbox').fill('two words');
-    await expect(submitButton).toBeDisabled();
+    await session.fillCurrentLine('host', 'poetry');
+    await session.expectSealEnabled('host');
 
-    // Type exactly 1 word - should be enabled
-    await hostPage.getByRole('textbox').fill('poetry');
-    await expect(submitButton).toBeEnabled();
-
-    // Clear and verify disabled again
-    await hostPage.getByRole('textbox').fill('');
-    await expect(submitButton).toBeDisabled();
+    await session.fillCurrentLine('host', '');
+    await session.expectSealDisabled('host');
   });
 
   test('word count indicator shows validation state', async () => {
-    // Round 1 requires 1 word - WordSlots component shows visual squares
-    await expect(hostPage.locator('#word-slots')).toBeVisible();
-
-    // Type a word and verify count updates
-    await hostPage.getByRole('textbox').fill('verse');
-
-    // Submit button should now be enabled (valid word count)
-    await expect(
-      hostPage.getByRole('button', { name: /Seal Your Line/i })
-    ).toBeEnabled();
+    await session.expectWordSlotsVisible('host');
+    await session.fillCurrentLine('host', 'verse');
+    await session.expectSealEnabled('host');
   });
 });
 

@@ -8,7 +8,8 @@ import { defineConfig, devices } from '@playwright/test';
  *   PORT_E2E=3334 pnpm test:e2e
  */
 const PORT = process.env.PORT_E2E || '3333';
-const BASE_URL = `http://localhost:${PORT}`;
+const EXTERNAL_BASE_URL = process.env.E2E_BASE_URL;
+const BASE_URL = EXTERNAL_BASE_URL || `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -55,15 +56,19 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
 
-  webServer: {
-    command: process.env.CI
-      ? `PORT=${PORT} pnpm start:next`
-      : `PORT=${PORT} pnpm dev`,
+  ...(EXTERNAL_BASE_URL
+    ? {}
+    : {
+        webServer: {
+          command: process.env.CI
+            ? `PORT=${PORT} pnpm start:next`
+            : `PORT=${PORT} pnpm dev`,
 
-    url: `http://localhost:${PORT}`,
+          url: BASE_URL,
 
-    reuseExistingServer: !process.env.CI,
+          reuseExistingServer: !process.env.CI,
 
-    timeout: 120000,
-  },
+          timeout: 120000,
+        },
+      }),
 });

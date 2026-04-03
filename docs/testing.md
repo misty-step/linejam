@@ -9,9 +9,11 @@ pnpm test          # Run unit tests once
 pnpm test:watch    # Watch mode for development
 pnpm test:ci       # CI mode with coverage
 pnpm ci:dagger:all # Local-first CI contract
-pnpm test:e2e      # Local Playwright suite
+pnpm test:e2e      # Run deterministic E2E tests (excludes @evidence)
 pnpm test:e2e:smoke # Remote preview/prod smoke
+pnpm test:e2e:evidence # Run the tagged evidence capture spec
 pnpm test:e2e:ui   # Playwright UI mode
+pnpm evidence:guest-flow # Package screenshots, video, GIF, and summary
 ```
 
 ## Test Structure
@@ -180,6 +182,7 @@ test('host creates room', async ({ page }) => {
 - Screenshots: on failure only
 - Port: 3333 (avoids conflicts with dev server)
 - Browser base URL: `http://localhost:${PORT_E2E:-3333}`
+- `E2E_BASE_URL=https://...` targets a remote deployment and skips the local web server bootstrap
 - `prod-smoke.spec.ts` is excluded from the local suite and runs only through `playwright.smoke.config.ts`
 
 **Environment contract**:
@@ -202,6 +205,19 @@ test('host creates room', async ({ page }) => {
 const hostContext = await browser.newContext();
 const guestContext = await browser.newContext();
 ```
+
+### Evidence Capture
+
+The visual QA/demo path is a tagged Playwright spec plus a packaging wrapper:
+
+```bash
+pnpm test:e2e:evidence
+pnpm evidence:guest-flow
+```
+
+- `pnpm test:e2e` excludes the `@evidence` suite so merge-gating stays deterministic.
+- `pnpm evidence:guest-flow` runs the canonical guest flow, then writes screenshots, `guest-flow.webm`, `guest-flow.gif`, `qa-summary.md`, and `manifest.json`.
+- When local Convex/Clerk wiring is unavailable, point the evidence run at a deployed target with `LINEJAM_BASE_URL=https://www.linejam.app`.
 
 ## Coverage
 
