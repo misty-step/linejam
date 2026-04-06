@@ -7,8 +7,9 @@ import {
   verifyGuestToken as nextVerifyGuestToken,
 } from '@/lib/guestToken';
 
-// Convex implementation (verifies tokens)
-import { verifyGuestToken as convexVerifyGuestToken } from '../../convex/lib/guestToken';
+let convexVerifyGuestToken: (token: string) => Promise<string> = async () => {
+  throw new Error('convexVerifyGuestToken not initialized');
+};
 
 function arrayBufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -54,12 +55,15 @@ async function createTokenWithCustomTimestamp(
 }
 
 describe('Cross-platform Guest Token Compatibility', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     // Ensure GUEST_TOKEN_SECRET is set for tests
     if (!process.env.GUEST_TOKEN_SECRET) {
       process.env.GUEST_TOKEN_SECRET =
         'test-secret-for-cross-platform-validation';
     }
+
+    const mod = await import('../../convex/lib/guestToken');
+    convexVerifyGuestToken = mod.verifyGuestToken;
   });
 
   describe('Encoding Compatibility', () => {

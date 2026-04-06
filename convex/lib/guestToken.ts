@@ -1,31 +1,28 @@
-import { log } from './errors';
+import { getConvexRuntimeConfig } from './env';
 
 const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
 
 interface GuestTokenPayload {
   guestId: string;
   issuedAt: number;
 }
 
+const runtimeConfig = getConvexRuntimeConfig();
+
+// Production must fail before the first auth request if token verification
+// cannot be initialized.
+const initialSecret = runtimeConfig.guestTokenSecret;
+
+if (runtimeConfig.environment === 'production' && !initialSecret) {
+  throw new Error(
+    'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
+      'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
+  );
+}
+
 function getSecret(): string {
-  const secret = process.env.GUEST_TOKEN_SECRET;
-  if (!secret) {
-    // Detect Convex production via CONVEX_CLOUD_URL
-    const isProduction = process.env.CONVEX_CLOUD_URL?.includes('convex.cloud');
-
-    if (isProduction) {
-      throw new Error(
-        'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
-          'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
-      );
-    }
-
-    log.warn('GUEST_TOKEN_SECRET not set - using development default', {
-      security: 'INSECURE',
-    });
-    return 'dev-only-insecure-secret-change-in-production';
-  }
-  return secret;
+  return initialSecret ?? DEV_FALLBACK_SECRET;
 }
 
 let keyPromise: Promise<CryptoKey> | null = null;
