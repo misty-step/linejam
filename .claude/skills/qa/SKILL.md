@@ -46,7 +46,7 @@ pnpm dev
 
 | Flow             | Steps                                                                                                                                             |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Guest flow smoke | Run `LINEJAM_BASE_URL=<url> pnpm evidence:guest-flow` and review the generated summary, screenshots, GIF, and console log.                        |
+| Guest flow smoke | Run `LINEJAM_BASE_URL=<url> pnpm evidence:guest-flow` and review `qa-summary.md`, `manifest.json`, the screenshots, and the packaged GIF/WebM.    |
 | Validation check | On round 1, verify `Seal Your Line` is disabled at 0 words, disabled at 2 words, and enabled at exactly 1 word.                                   |
 | Chrome check     | In the lobby, open `How to play`, open theme picker, switch to `Hyper`, and confirm the room still works after the theme change.                  |
 | Clerk boundary   | If a PR touches `/me/*`, confirm behavior both with Clerk configured and in guest-only mode, because middleware redirects guests away from `/me`. |
@@ -59,21 +59,23 @@ pnpm dev
 LINEJAM_BASE_URL=https://www.linejam.app pnpm evidence:guest-flow
 ```
 
-- Evidence lands in `/tmp/linejam-evidence-*`.
+- Evidence lands in the system temp directory, typically `/tmp/linejam-evidence-*` on Unix hosts.
 - Required artifacts for UI-affecting PRs:
   - `guest-flow.gif`
   - `guest-flow.webm`
   - route screenshots for lobby, writing, reveal, and session complete
   - `qa-summary.md`
+  - `manifest.json`
+  - `guest-flow.result.json`
 
 ## Output
 
-- Status: PASS / FAIL
+- Status: PASS / PASS WITH ERRORS / FAIL
 - Base URL used
 - Critical path checklist
-- Console and page errors seen during the run
+- Runtime errors seen during the run
 - Evidence directory and artifact names
-- Merge recommendation
+- Manifest path for downstream tooling
 
 ## Gotchas
 

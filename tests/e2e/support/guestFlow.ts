@@ -7,6 +7,7 @@ import type {
   Video,
   ViewportSize,
 } from '@playwright/test';
+import { WORD_COUNTS } from '@/convex/lib/gameRules';
 
 export const CANONICAL_GUEST_FLOW_LINES = [
   'poetry',
@@ -19,6 +20,14 @@ export const CANONICAL_GUEST_FLOW_LINES = [
   'two more',
   'end',
 ] as const;
+
+export const TOTAL_ROUNDS = WORD_COUNTS.length;
+
+if (CANONICAL_GUEST_FLOW_LINES.length !== TOTAL_ROUNDS) {
+  throw new Error(
+    `Canonical guest flow expects ${TOTAL_ROUNDS} rounds, received ${CANONICAL_GUEST_FLOW_LINES.length}.`
+  );
+}
 
 export const GUEST_FLOW_EVIDENCE_FILES = {
   hostLobby: '01-host-lobby.png',
@@ -46,10 +55,17 @@ type GuestFlowSessionOptions = {
   viewport?: ViewportSize;
 };
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function ensureVisible(locator: Locator, label: string) {
-  await locator.waitFor({ state: 'visible', timeout: 30000 });
-  if (!(await locator.isVisible())) {
-    throw new Error(`Expected visible: ${label}`);
+  try {
+    await locator.waitFor({ state: 'visible', timeout: 30000 });
+  } catch (error) {
+    throw new Error(
+      `Expected visible: ${label}${error instanceof Error ? ` (${error.message})` : ''}`
+    );
   }
 }
 
@@ -152,7 +168,7 @@ export class GuestFlowSession {
   }
 
   async createRoom() {
-    await this.hostPage.goto('/host', { waitUntil: 'networkidle' });
+    await this.hostPage.goto('/host');
     await ensureVisible(this.hostPage.locator('input#name'), 'host name input');
     await this.hostPage.fill('input#name', this.hostName);
     await this.hostPage.getByRole('button', { name: /Create Room/i }).click();
@@ -171,7 +187,7 @@ export class GuestFlowSession {
   }
 
   async expectHostLobby() {
-    await expect(this.hostPage.getByText(this.hostName)).toBeVisible();
+    await expect(this.playerName(this.hostPage, this.hostName)).toBeVisible();
     await expect(
       this.hostPage.getByRole('button', { name: /Need.*player/i })
     ).toBeVisible();
@@ -205,9 +221,7 @@ export class GuestFlowSession {
       throw new Error('Create the room before joining it.');
     }
 
-    await this.guestPage.goto(`/join?code=${this.roomCode}`, {
-      waitUntil: 'networkidle',
-    });
+    await this.guestPage.goto(`/join?code=${this.roomCode}`);
     await ensureVisible(
       this.guestPage.locator('input#name'),
       'guest name input'
@@ -219,9 +233,9 @@ export class GuestFlowSession {
   }
 
   async expectJoinedLobby() {
-    await expect(this.guestPage.getByText(this.guestName)).toBeVisible();
-    await expect(this.guestPage.getByText(this.hostName)).toBeVisible();
-    await expect(this.hostPage.getByText(this.guestName)).toBeVisible({
+    await expect(this.playerName(this.guestPage, this.guestName)).toBeVisible();
+    await expect(this.playerName(this.guestPage, this.hostName)).toBeVisible();
+    await expect(this.playerName(this.hostPage, this.guestName)).toBeVisible({
       timeout: 10000,
     });
     await expect(
@@ -239,10 +253,11 @@ export class GuestFlowSession {
   }
 
   async expectRound(round: number) {
-    await expect(this.hostPage.getByText(`Round ${round} of 9`)).toBeVisible({
+    const roundLabel = `Round ${round} of ${TOTAL_ROUNDS}`;
+    await expect(this.hostPage.getByText(roundLabel)).toBeVisible({
       timeout: 15000,
     });
-    await expect(this.guestPage.getByText(`Round ${round} of 9`)).toBeVisible({
+    await expect(this.guestPage.getByText(roundLabel)).toBeVisible({
       timeout: 15000,
     });
   }
@@ -305,6 +320,12 @@ export class GuestFlowSession {
     lines: readonly string[] = CANONICAL_GUEST_FLOW_LINES,
     options: { onHostWaiting?: (roundIndex: number) => Promise<void> } = {}
   ) {
+    if (lines.length !== TOTAL_ROUNDS) {
+      throw new Error(
+        `Expected ${TOTAL_ROUNDS} lines for the canonical flow, received ${lines.length}.`
+      );
+    }
+
     for (let roundIndex = 0; roundIndex < lines.length; roundIndex += 1) {
       await this.submitCurrentLine('host', lines[roundIndex]);
       await this.waitForWaitingState('host');
@@ -389,5 +410,11 @@ export class GuestFlowSession {
 
   private page(actor: Actor) {
     return actor === 'host' ? this.hostPage : this.guestPage;
+  }
+
+  private playerName(page: Page, name: string) {
+    return page.locator('li span').filter({
+      hasText: new RegExp(`^${escapeRegex(name)}$`),
+    });
   }
 }

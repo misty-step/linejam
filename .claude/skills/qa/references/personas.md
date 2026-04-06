@@ -10,7 +10,9 @@ the lobby without explaining the UI.
 - Starts from `/` and taps `Start a Game`
 - Reads the 4-letter code aloud and watches the roster update
 - Opens help or theme controls before starting
-  **Edge cases:**
+
+**Edge cases:**
+
 - Starts with only one player and needs the disabled start-state copy
 - Switches themes before the second player joins
 
@@ -24,7 +26,9 @@ guessing the word-count rules.
 - Lands on `/join?code=ABCD`
 - Enters a display name and confirms the join worked
 - Uses the round indicator, WordSlots, and waiting screen to stay in sync
-  **Edge cases:**
+
+**Edge cases:**
+
 - Mistypes a room code and needs friendly recovery
 - Enters too many or too few words and must understand why submit is disabled
 
@@ -37,6 +41,8 @@ guessing the word-count rules.
 - Uses header/archive navigation after a session
 - Sorts mentally by favorites and recency
 - Opens a poem and uses share/favorite controls
-  **Edge cases:**
+
+**Edge cases:**
+
 - Clerk is not configured and middleware redirects `/me/*` to `/`
 - A PR changes shared components used by both archive and reveal views

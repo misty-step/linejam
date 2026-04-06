@@ -7,7 +7,7 @@ import {
   CANONICAL_GUEST_FLOW_LINES,
   GuestFlowSession,
   GUEST_FLOW_EVIDENCE_FILES,
-} from './support/guestFlow';
+} from '@/tests/e2e/support/guestFlow';
 
 type GuestFlowEvidenceResult = {
   baseUrl: string;
@@ -47,80 +47,82 @@ test('captures canonical guest-flow evidence @evidence', async ({
   const runtimeErrors: string[] = [];
   const checks: string[] = [];
   const screenshots: string[] = [];
-  const session = await GuestFlowSession.create(browser, {
-    recordHostVideoDir: path.join(outDir, 'raw-video'),
-    runtimeErrors,
-  });
-  const hostVideo = session.recordedHostVideo;
+  let session: GuestFlowSession | null = null;
   let flowError: Error | null = null;
 
   try {
-    await session.createRoom();
+    session = await GuestFlowSession.create(browser, {
+      recordHostVideoDir: path.join(outDir, 'raw-video'),
+      runtimeErrors,
+    });
+    const activeSession = session;
+
+    await activeSession.createRoom();
     checks.push('Host can create a room and land in the lobby.');
     screenshots.push(
       path.basename(
-        await session.capture(
+        await activeSession.capture(
           'host',
           path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.hostLobby)
         )
       )
     );
 
-    await session.openHelpModal();
+    await activeSession.openHelpModal();
     checks.push('Lobby help modal opens from room chrome.');
     screenshots.push(
       path.basename(
-        await session.capture(
+        await activeSession.capture(
           'host',
           path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.helpModal)
         )
       )
     );
-    await session.closeHelpModal();
+    await activeSession.closeHelpModal();
 
-    await session.chooseHyperTheme();
+    await activeSession.chooseHyperTheme();
     checks.push(
       'Theme picker can switch the room to Hyper without breaking the lobby.'
     );
     screenshots.push(
       path.basename(
-        await session.capture(
+        await activeSession.capture(
           'host',
           path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.themeHyperLobby)
         )
       )
     );
 
-    await session.joinRoom();
+    await activeSession.joinRoom();
     checks.push(
       'Guest can join from a separate browser context and appears in real time.'
     );
     screenshots.push(
       path.basename(
-        await session.capture(
+        await activeSession.capture(
           'host',
           path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.twoPlayerLobby)
         )
       )
     );
 
-    await session.startGame();
+    await activeSession.startGame();
     checks.push('Host can start a live 2-player game.');
 
-    await session.verifyRoundOneValidation('host');
+    await activeSession.verifyRoundOneValidation('host');
     checks.push(
       'Word-count validation disables invalid submissions and enables exact matches.'
     );
     screenshots.push(
       path.basename(
-        await session.capture(
+        await activeSession.capture(
           'host',
           path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.writingValid)
         )
       )
     );
 
-    await session.playCanonicalGame(CANONICAL_GUEST_FLOW_LINES, {
+    await activeSession.playCanonicalGame(CANONICAL_GUEST_FLOW_LINES, {
       onHostWaiting: async (roundIndex) => {
         if (roundIndex !== 0) {
           return;
@@ -128,7 +130,7 @@ test('captures canonical guest-flow evidence @evidence', async ({
 
         screenshots.push(
           path.basename(
-            await session.capture(
+            await activeSession.capture(
               'host',
               path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.waiting)
             )
@@ -140,18 +142,18 @@ test('captures canonical guest-flow evidence @evidence', async ({
       'A full 9-round game reaches the reading phase for both players.'
     );
 
-    await session.revealAssignedPoem('host', CANONICAL_GUEST_FLOW_LINES);
+    await activeSession.revealAssignedPoem('host', CANONICAL_GUEST_FLOW_LINES);
     screenshots.push(
       path.basename(
-        await session.capture(
+        await activeSession.capture(
           'host',
           path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.reveal)
         )
       )
     );
 
-    await session.revealAssignedPoem('guest', CANONICAL_GUEST_FLOW_LINES);
-    await session.expectSessionComplete();
+    await activeSession.revealAssignedPoem('guest', CANONICAL_GUEST_FLOW_LINES);
+    await activeSession.expectSessionComplete();
     checks.push('Both players can finish reveal and reach Session Complete.');
     screenshots.push(
       path.basename(
@@ -164,24 +166,48 @@ test('captures canonical guest-flow evidence @evidence', async ({
   } catch (error) {
     flowError = error instanceof Error ? error : new Error(String(error));
   } finally {
-    await session.close();
+    try {
+      await session?.close();
+    } catch (error) {
+      const closeError =
+        error instanceof Error ? error : new Error(String(error));
+
+      if (!flowError) {
+        flowError = closeError;
+      } else {
+        runtimeErrors.push(`[teardown] ${closeError.message}`);
+      }
+    }
+
+    const hostVideo = session?.recordedHostVideo ?? null;
+    let rawVideoPath: string | null = null;
+
+    if (hostVideo) {
+      try {
+        rawVideoPath = await hostVideo.path();
+      } catch (error) {
+        runtimeErrors.push(
+          `[artifact] ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
+    const result: GuestFlowEvidenceResult = {
+      baseUrl: (testInfo.project.use.baseURL as string | undefined) ?? '',
+      checks,
+      flowError: flowError?.message ?? null,
+      rawVideoPath,
+      roomCode: session?.roomCode ?? '',
+      runtimeErrors,
+      screenshots,
+    };
+
+    await fs.writeFile(
+      resultFile,
+      `${JSON.stringify(result, null, 2)}\n`,
+      'utf8'
+    );
   }
-
-  const result: GuestFlowEvidenceResult = {
-    baseUrl: (testInfo.project.use.baseURL as string | undefined) ?? '',
-    checks,
-    flowError: flowError?.message ?? null,
-    rawVideoPath: hostVideo ? await hostVideo.path() : null,
-    roomCode: session.roomCode,
-    runtimeErrors,
-    screenshots,
-  };
-
-  await fs.writeFile(
-    resultFile,
-    `${JSON.stringify(result, null, 2)}\n`,
-    'utf8'
-  );
 
   if (flowError) {
     throw flowError;

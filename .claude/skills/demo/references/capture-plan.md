@@ -4,7 +4,7 @@
 
 | #   | Feature                   | Route                               | Before State                      | After State                                   | Artifact                                         |
 | --- | ------------------------- | ----------------------------------- | --------------------------------- | --------------------------------------------- | ------------------------------------------------ |
-| 1   | Host creates a live room  | `/host` -> `/room/[code]`           | Empty host form                   | Lobby with generated room code                | GIF + `01-host-lobby.png`                        |
+| 1   | Host creates a live room  | `/` -> `/room/[code]`               | Empty host form                   | Lobby with generated room code                | GIF + `01-host-lobby.png`                        |
 | 2   | Guest joins in real time  | `/join?code=ABCD` -> `/room/[code]` | Host alone in lobby               | Host and guest both visible                   | GIF + `04-two-player-lobby.png`                  |
 | 3   | Word-count writing flow   | `/room/[code]` in progress          | Disabled submit on invalid counts | Enabled submit on exact count + waiting state | GIF + `05-writing-valid.png`, `06-waiting.png`   |
 | 4   | Reveal ceremony completes | `/room/[code]` completed            | Hidden poem                       | Revealed poem and `Session Complete`          | GIF + `07-reveal.png`, `08-session-complete.png` |

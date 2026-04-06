@@ -13,11 +13,16 @@ vi.mock('next/link', () => ({
     children: React.ReactNode;
     href: string;
     prefetch?: boolean;
-  }) => (
-    <a href={href} data-prefetch={String(prefetch)}>
-      {children}
-    </a>
-  ),
+  }) => {
+    const prefetchProps =
+      prefetch === undefined ? {} : { 'data-prefetch': String(prefetch) };
+
+    return (
+      <a href={href} {...prefetchProps}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 // Mock Convex hooks (external)

@@ -2,6 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { constants as fsConstants, promises as fs } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -13,7 +14,7 @@ function parseArgs(argv) {
     baseUrl: process.env.LINEJAM_BASE_URL || DEFAULT_BASE_URL,
     outDir:
       process.env.LINEJAM_EVIDENCE_DIR ||
-      path.join('/tmp', `linejam-evidence-${timestamp}`),
+      path.join(tmpdir(), `linejam-evidence-${timestamp}`),
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -99,6 +100,33 @@ function errorMessage(error) {
   return String(error);
 }
 
+function normalizeEvidenceResult(baseUrl, result, testError) {
+  return {
+    baseUrl:
+      typeof result?.baseUrl === 'string' && result.baseUrl
+        ? result.baseUrl
+        : baseUrl,
+    checks: Array.isArray(result?.checks)
+      ? result.checks.map((check) => String(check))
+      : [],
+    flowError:
+      typeof result?.flowError === 'string'
+        ? result.flowError
+        : testError
+          ? errorMessage(testError)
+          : null,
+    rawVideoPath:
+      typeof result?.rawVideoPath === 'string' ? result.rawVideoPath : null,
+    roomCode: typeof result?.roomCode === 'string' ? result.roomCode : '',
+    runtimeErrors: Array.isArray(result?.runtimeErrors)
+      ? result.runtimeErrors.map((runtimeError) => String(runtimeError))
+      : [],
+    screenshots: Array.isArray(result?.screenshots)
+      ? result.screenshots.map((screenshot) => String(screenshot))
+      : [],
+  };
+}
+
 async function writeSummary({
   artifactErrors,
   baseUrl,
@@ -165,6 +193,7 @@ async function main() {
   await fs.mkdir(outDir, { recursive: true });
 
   let testError = null;
+  let rawResult = null;
 
   try {
     await run(pnpmCommand(), ['test:e2e:evidence'], {
@@ -180,15 +209,19 @@ async function main() {
     testError = error;
   }
 
-  if (!(await exists(resultFile))) {
-    if (testError) {
-      throw testError;
+  if (await exists(resultFile)) {
+    try {
+      rawResult = JSON.parse(await fs.readFile(resultFile, 'utf8'));
+    } catch (error) {
+      if (!testError) {
+        testError = error instanceof Error ? error : new Error(String(error));
+      }
     }
-
-    throw new Error(`Evidence run did not produce ${resultFile}`);
+  } else if (!testError) {
+    testError = new Error(`Evidence run did not produce ${resultFile}`);
   }
 
-  const result = JSON.parse(await fs.readFile(resultFile, 'utf8'));
+  const result = normalizeEvidenceResult(baseUrl, rawResult, testError);
   const artifactErrors = [];
   const resolvedResult = resolveResult(result.flowError, result.runtimeErrors);
   let videoPath = null;
@@ -269,6 +302,7 @@ async function main() {
       {
         outDir,
         result: resolvedResult,
+        manifest: path.join(outDir, 'manifest.json'),
         summary: summaryPath,
       },
       null,
@@ -278,6 +312,10 @@ async function main() {
 
   if (testError) {
     throw testError;
+  }
+
+  if (result.flowError) {
+    throw new Error(result.flowError);
   }
 }
 

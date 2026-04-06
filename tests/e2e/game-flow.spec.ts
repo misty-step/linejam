@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import {
   CANONICAL_GUEST_FLOW_LINES,
   GuestFlowSession,
-} from './support/guestFlow';
+} from '@/tests/e2e/support/guestFlow';
 
 /**
  * E2E Test: Complete Game Flow
@@ -28,7 +28,14 @@ test.skip(
 );
 
 test.describe('Complete Game Flow', () => {
-  let session: GuestFlowSession;
+  let session: GuestFlowSession | null = null;
+  const activeSession = () => {
+    if (!session) {
+      throw new Error('Guest flow session was not created.');
+    }
+
+    return session;
+  };
 
   test.beforeAll(async ({ browser }) => {
     session = await GuestFlowSession.create(browser, {
@@ -39,35 +46,38 @@ test.describe('Complete Game Flow', () => {
   });
 
   test.afterAll(async () => {
-    await session.close();
+    await session?.close();
   });
 
   test('host creates room and gets room code', async () => {
-    const roomCode = await session.createRoom();
+    const roomCode = await activeSession().createRoom();
 
     expect(roomCode).toMatch(/^[A-Z]{4}$/);
   });
 
   test('guest joins room and appears in lobby', async () => {
-    await session.joinRoom();
+    await activeSession().joinRoom();
   });
 
   test('host starts game and both players see round 1', async () => {
-    await session.startGame();
+    await activeSession().startGame();
   });
 
   test('players can type in textarea and see word count update', async () => {
-    await session.fillCurrentLine('host', CANONICAL_GUEST_FLOW_LINES[0]);
-    await session.expectWordSlotsVisible('host');
-    await session.expectSealEnabled('host');
+    await activeSession().fillCurrentLine(
+      'host',
+      CANONICAL_GUEST_FLOW_LINES[0]
+    );
+    await activeSession().expectWordSlotsVisible('host');
+    await activeSession().expectSealEnabled('host');
 
-    await session.fillCurrentLine('guest', 'verse');
-    await session.expectWordSlotsVisible('guest');
-    await session.expectSealEnabled('guest');
+    await activeSession().fillCurrentLine('guest', 'verse');
+    await activeSession().expectWordSlotsVisible('guest');
+    await activeSession().expectSealEnabled('guest');
   });
 
   test('complete 9-round game and reveal poems', async () => {
-    await session.playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
-    await session.revealAllPoems(CANONICAL_GUEST_FLOW_LINES);
+    await activeSession().playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
+    await activeSession().revealAllPoems(CANONICAL_GUEST_FLOW_LINES);
   });
 });

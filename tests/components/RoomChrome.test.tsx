@@ -19,11 +19,16 @@ vi.mock('next/link', () => ({
     children: React.ReactNode;
     href: string;
     prefetch?: boolean;
-  }) => (
-    <a href={href} data-prefetch={String(prefetch)} {...props}>
-      {children}
-    </a>
-  ),
+  }) => {
+    const prefetchProps =
+      prefetch === undefined ? {} : { 'data-prefetch': String(prefetch) };
+
+    return (
+      <a href={href} {...prefetchProps} {...props}>
+        {children}
+      </a>
+    );
+  },
 }));
 
 const mockTrackRoomInviteShared = vi.fn();
