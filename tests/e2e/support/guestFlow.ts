@@ -175,7 +175,10 @@ export class GuestFlowSession {
     await waitForRoomPath(this.hostPage, 'host room');
 
     const roomCode =
-      new URL(this.hostPage.url()).pathname.split('/').pop() ?? '';
+      new URL(this.hostPage.url()).pathname
+        .replace(/\/+$/, '')
+        .split('/')
+        .pop() ?? '';
     if (!/^[A-Z]{4}$/.test(roomCode)) {
       throw new Error(`Unexpected room code: ${roomCode}`);
     }
