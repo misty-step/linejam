@@ -59,6 +59,24 @@ function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function toError(error: unknown) {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+async function closeContexts(
+  ...contexts: Array<BrowserContext | null | undefined>
+) {
+  const results = await Promise.allSettled(
+    contexts
+      .filter((context): context is BrowserContext => context != null)
+      .map((context) => context.close())
+  );
+
+  return results.flatMap((result) =>
+    result.status === 'rejected' ? [toError(result.reason)] : []
+  );
+}
+
 async function ensureVisible(locator: Locator, label: string) {
   try {
     await locator.waitFor({ state: 'visible', timeout: 30000 });
@@ -71,7 +89,7 @@ async function ensureVisible(locator: Locator, label: string) {
 
 async function waitForRoomPath(page: Page, label: string, roomCode?: string) {
   const pathPattern = roomCode
-    ? new RegExp(`/room/${roomCode}$`)
+    ? new RegExp(`/room/${escapeRegex(roomCode)}$`)
     : /\/room\/[A-Z]{4}$/;
 
   await page.waitForURL(pathPattern, { timeout: 30000 });
@@ -125,31 +143,51 @@ export class GuestFlowSession {
 
   static async create(browser: Browser, options: GuestFlowSessionOptions = {}) {
     const viewport = options.viewport ?? DEFAULT_VIEWPORT;
-    const hostContext = await browser.newContext({
-      viewport,
-      ...(options.recordHostVideoDir
-        ? {
-            recordVideo: {
-              dir: options.recordHostVideoDir,
-              size: viewport,
-            },
-          }
-        : {}),
-    });
-    const guestContext = await browser.newContext({ viewport });
-    const hostPage = await hostContext.newPage();
-    const guestPage = await guestContext.newPage();
-    const timestamp = Math.floor(Date.now() / 1000);
+    let hostContext: BrowserContext | null = null;
+    let guestContext: BrowserContext | null = null;
 
-    return new GuestFlowSession({
-      guestContext,
-      guestName: options.guestName ?? `Guest ${timestamp}`,
-      guestPage,
-      hostContext,
-      hostName: options.hostName ?? `Host ${timestamp}`,
-      hostPage,
-      runtimeErrors: options.runtimeErrors ?? [],
-    });
+    try {
+      hostContext = await browser.newContext({
+        viewport,
+        ...(options.recordHostVideoDir
+          ? {
+              recordVideo: {
+                dir: options.recordHostVideoDir,
+                size: viewport,
+              },
+            }
+          : {}),
+      });
+      guestContext = await browser.newContext({ viewport });
+
+      const [hostPage, guestPage] = await Promise.all([
+        hostContext.newPage(),
+        guestContext.newPage(),
+      ]);
+      const timestamp = Math.floor(Date.now() / 1000);
+
+      return new GuestFlowSession({
+        guestContext,
+        guestName: options.guestName ?? `Guest ${timestamp}`,
+        guestPage,
+        hostContext,
+        hostName: options.hostName ?? `Host ${timestamp}`,
+        hostPage,
+        runtimeErrors: options.runtimeErrors ?? [],
+      });
+    } catch (error) {
+      const setupError = toError(error);
+      const closeErrors = await closeContexts(guestContext, hostContext);
+
+      if (closeErrors.length > 0) {
+        throw new AggregateError(
+          [setupError, ...closeErrors],
+          'GuestFlowSession.create failed'
+        );
+      }
+
+      throw setupError;
+    }
   }
 
   get recordedHostVideo() {
@@ -163,8 +201,21 @@ export class GuestFlowSession {
   }
 
   async close() {
-    await this.guestContext.close();
-    await this.hostContext.close();
+    const closeErrors = await closeContexts(
+      this.guestContext,
+      this.hostContext
+    );
+
+    if (closeErrors.length === 1) {
+      throw closeErrors[0];
+    }
+
+    if (closeErrors.length > 1) {
+      throw new AggregateError(
+        closeErrors,
+        'Failed to close guest flow session'
+      );
+    }
   }
 
   async createRoom() {
