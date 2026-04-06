@@ -170,6 +170,12 @@ jobs:
             echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
           fi
 
+      - name: Set QA evidence paths
+        run: |
+          echo "LINEJAM_EVIDENCE_DIR=$RUNNER_TEMP/linejam-evidence" >> "$GITHUB_ENV"
+          echo "LINEJAM_EVIDENCE_SERVER_LOG=$RUNNER_TEMP/linejam-evidence-server.log" >> "$GITHUB_ENV"
+          echo "LINEJAM_EVIDENCE_SERVER_PID=$RUNNER_TEMP/linejam-evidence-server.pid" >> "$GITHUB_ENV"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -178,10 +184,6 @@ jobs:
         with:
           node-version: '22'
           cache: 'pnpm'
-
-      - name: Prepare evidence directories
-        run: |
-          echo "LINEJAM_EVIDENCE_DIR=$RUNNER_TEMP/linejam-evidence" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -194,8 +196,8 @@ jobs:
 
       - name: Start app server
         run: |
-          PORT=3333 pnpm start:next > "$RUNNER_TEMP/linejam-evidence-server.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/linejam-evidence-server.pid"
+          PORT=3333 pnpm start:next > "$LINEJAM_EVIDENCE_SERVER_LOG" 2>&1 &
+          echo $! > "$LINEJAM_EVIDENCE_SERVER_PID"
 
           for attempt in {1..60}; do
             if curl -sf "$LINEJAM_BASE_URL" >/dev/null; then
@@ -205,7 +207,7 @@ jobs:
             sleep 2
           done
 
-          cat "$RUNNER_TEMP/linejam-evidence-server.log"
+          cat "$LINEJAM_EVIDENCE_SERVER_LOG"
           exit 1
 
       - name: Capture QA evidence
@@ -216,7 +218,7 @@ jobs:
         if: always()
         with:
           name: qa-evidence
-          path: ${{ runner.temp }}/linejam-evidence/
+          path: ${{ env.LINEJAM_EVIDENCE_DIR }}/
           retention-days: 14
 
       - name: Upload QA evidence raw test results
@@ -233,14 +235,14 @@ jobs:
         if: always()
         with:
           name: qa-evidence-server-log
-          path: ${{ runner.temp }}/linejam-evidence-server.log
+          path: ${{ env.LINEJAM_EVIDENCE_SERVER_LOG }}
           retention-days: 14
 
       - name: Stop app server
         if: always()
         run: |
-          if [ -f "$RUNNER_TEMP/linejam-evidence-server.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/linejam-evidence-server.pid")" || true
+          if [ -f "$LINEJAM_EVIDENCE_SERVER_PID" ]; then
+            kill "$(cat "$LINEJAM_EVIDENCE_SERVER_PID")" || true
           fi
 
   # Rollup job — branch protection requires this exact name to merge.
