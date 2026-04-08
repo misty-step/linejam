@@ -35,6 +35,7 @@ vi.mock('convex/react', () => ({
     if (index === 1) return mockStartNewCycleMutation;
     return mockStartGameMutation;
   },
+  useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
 }));
 
 // Mock Clerk (external) - let useUser hook use real implementation

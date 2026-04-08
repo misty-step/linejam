@@ -35,6 +35,7 @@ vi.mock('convex/react', () => ({
     callIndex++;
     return mock;
   },
+  useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
 }));
 
 // Mock Clerk (external) - let useUser hook use real implementation

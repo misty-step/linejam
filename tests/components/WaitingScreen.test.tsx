@@ -7,6 +7,7 @@ const mockUseQuery = vi.fn();
 
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
 }));
 
 // Mock Clerk (external)

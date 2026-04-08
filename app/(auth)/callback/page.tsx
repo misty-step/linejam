@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from 'convex/react';
-import { useUser } from '@clerk/nextjs';
+import { useConvexAuth, useMutation } from 'convex/react';
+import { useUser as useClerkUser } from '@clerk/nextjs';
 import { api } from '@/convex/_generated/api';
 import { clearGuestSession, getGuestToken } from '@/lib/guestSession';
 import { captureError } from '@/lib/error';
@@ -12,10 +12,15 @@ import { Button } from '@/components/ui/Button';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded, isSignedIn } = useClerkUser();
+  const {
+    isLoading: isConvexAuthLoading,
+    isAuthenticated: isConvexAuthenticated,
+  } = useConvexAuth();
   const migrateGuestToUser = useMutation(api.migrations.migrateGuestToUser);
   const hasRun = useRef(false);
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
+  const [retryCount, setRetryCount] = useState(0);
 
   const migrateGuestSession = useCallback(
     async (guestToken: string) => {
@@ -27,20 +32,45 @@ export default function AuthCallbackPage() {
   );
 
   useEffect(() => {
-    if (!isLoaded || hasRun.current) return;
-    hasRun.current = true;
-
+    if (!isLoaded || isConvexAuthLoading || hasRun.current) return;
     const guestToken = getGuestToken();
     if (!isSignedIn || !guestToken) {
+      hasRun.current = true;
       router.replace('/');
       return;
     }
 
+    if (!isConvexAuthenticated) {
+      hasRun.current = true;
+      captureError(
+        new Error(
+          'Signed-in user missing Convex auth session during migration'
+        ),
+        {
+          operation: 'migrateGuestToUser',
+          phase: 'convexAuthUnavailable',
+        }
+      );
+      queueMicrotask(() => {
+        setStatus('error');
+      });
+      return;
+    }
+
+    hasRun.current = true;
     void migrateGuestSession(guestToken).catch((error) => {
       captureError(error, { operation: 'migrateGuestToUser' });
       setStatus('error');
     });
-  }, [isLoaded, isSignedIn, migrateGuestSession, router]);
+  }, [
+    isLoaded,
+    isSignedIn,
+    isConvexAuthLoading,
+    isConvexAuthenticated,
+    migrateGuestSession,
+    router,
+    retryCount,
+  ]);
 
   const handleRetry = useCallback(() => {
     const guestToken = getGuestToken();
@@ -50,11 +80,9 @@ export default function AuthCallbackPage() {
     }
 
     setStatus('loading');
-    void migrateGuestSession(guestToken).catch((error) => {
-      captureError(error, { operation: 'migrateGuestToUser' });
-      setStatus('error');
-    });
-  }, [isSignedIn, migrateGuestSession, router]);
+    hasRun.current = false;
+    setRetryCount((count) => count + 1);
+  }, [isSignedIn, router]);
 
   if (status === 'error') {
     return (

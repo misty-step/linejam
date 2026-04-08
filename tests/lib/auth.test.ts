@@ -8,6 +8,11 @@ vi.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseClerkUser(),
 }));
 
+const mockUseConvexAuth = vi.fn();
+vi.mock('convex/react', () => ({
+  useConvexAuth: () => mockUseConvexAuth(),
+}));
+
 // Mock captureError
 const mockCaptureError = vi.fn();
 vi.mock('@/lib/error', () => ({
@@ -39,6 +44,10 @@ describe('useUser hook', () => {
     mockUseClerkUser.mockReturnValue({
       user: null,
       isLoaded: true,
+    });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: false,
     });
     mockCaptureError.mockImplementation(() => {});
 
@@ -83,6 +92,10 @@ describe('useUser hook', () => {
     mockUseClerkUser.mockReturnValue({
       user: clerkUser,
       isLoaded: true,
+    });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
     });
 
     // Act
@@ -308,6 +321,10 @@ describe('useUser hook', () => {
       user: clerkUser,
       isLoaded: true,
     });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
+    });
 
     // Act
     const { result } = renderHook(() => useUser());
@@ -330,6 +347,10 @@ describe('useUser hook', () => {
     mockUseClerkUser.mockReturnValue({
       user: clerkUser,
       isLoaded: true,
+    });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
     });
 
     // Act
@@ -364,6 +385,61 @@ describe('useUser hook', () => {
 
     // Assert
     expect(result.current.displayName).toBe('Guest');
+  });
+
+  it('keeps signed-in users loading until Convex auth finishes', () => {
+    const clerkUser = {
+      id: 'clerk_pending',
+      fullName: 'Pending User',
+      firstName: 'Pending',
+    };
+    mockUseClerkUser.mockReturnValue({
+      user: clerkUser,
+      isLoaded: true,
+    });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: true,
+      isAuthenticated: false,
+    });
+
+    const { result } = renderHook(() => useUser());
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.authError).toBeNull();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a signed-in auth error when Convex auth is unavailable', async () => {
+    const clerkUser = {
+      id: 'clerk_broken',
+      fullName: 'Broken User',
+      firstName: 'Broken',
+    };
+    mockUseClerkUser.mockReturnValue({
+      user: clerkUser,
+      isLoaded: true,
+    });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: false,
+    });
+
+    const { result } = renderHook(() => useUser());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.authError).toBe(
+      'Your account signed in, but the game server could not verify it. Please refresh and try again.'
+    );
+    expect(mockCaptureError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Signed-in user missing Convex auth session',
+      }),
+      { operation: 'convexAuthUnavailable' }
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   // Note: SSR test (window undefined) removed - difficult to test properly in happy-dom
