@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const mockReplace = vi.fn();
 const mockUseClerkUser = vi.fn();
+const mockUseConvexAuth = vi.fn();
 const mockUseMutation = vi.fn();
 const mockMigrateGuestToUser = vi.fn();
 const mockGetGuestToken = vi.fn();
@@ -17,6 +18,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('convex/react', () => ({
+  useConvexAuth: () => mockUseConvexAuth(),
   useMutation: (...args: unknown[]) => mockUseMutation(...args),
 }));
 
@@ -43,6 +45,10 @@ describe('AuthCallbackPage', () => {
       isLoaded: true,
       isSignedIn: true,
     });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
+    });
     mockGetGuestToken.mockReturnValue('guest-token');
   });
 
@@ -64,6 +70,43 @@ describe('AuthCallbackPage', () => {
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('status')).toHaveTextContent(/completing sign in/i);
+  });
+
+  it('waits for Convex auth before attempting migration', () => {
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: true,
+      isAuthenticated: false,
+    });
+
+    render(<AuthCallbackPage />);
+
+    expect(mockMigrateGuestToUser).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('shows recovery state when Clerk is ready but Convex auth is unavailable', async () => {
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: false,
+    });
+
+    render(<AuthCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockCaptureError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            'Signed-in user missing Convex auth session during migration',
+        }),
+        expect.objectContaining({
+          operation: 'migrateGuestToUser',
+          phase: 'convexAuthUnavailable',
+        })
+      );
+    });
+
+    expect(mockMigrateGuestToUser).not.toHaveBeenCalled();
+    expect(screen.getByText(/could not finish sign in/i)).toBeInTheDocument();
   });
 
   it('shows a recovery state instead of silently redirecting when migration fails', async () => {
