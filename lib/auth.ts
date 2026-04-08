@@ -1,4 +1,5 @@
 import { useUser as useClerkUser } from '@clerk/nextjs';
+import { useConvexAuth } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 import { captureError } from '@/lib/error';
 import {
@@ -16,6 +17,10 @@ export function useUser(
   fetcher: GuestSessionFetcher = defaultGuestSessionFetcher
 ) {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useClerkUser();
+  const {
+    isLoading: isConvexAuthLoading,
+    isAuthenticated: isConvexAuthenticated,
+  } = useConvexAuth();
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -28,10 +33,36 @@ export function useUser(
 
     // Signed-in users don't need guest-session setup to proceed.
     if (clerkUser) {
+      if (isConvexAuthLoading) {
+        queueMicrotask(() => {
+          if (isStale) return;
+          setAuthError(null);
+          setIsLoaded(false);
+        });
+        return () => {
+          isStale = true;
+        };
+      }
+
       queueMicrotask(() => {
         if (isStale) return;
         setGuestId(null);
         setGuestToken(null);
+
+        if (!isConvexAuthenticated) {
+          captureError(
+            new Error('Signed-in user missing Convex auth session'),
+            {
+              operation: 'convexAuthUnavailable',
+            }
+          );
+          setAuthError(
+            'Your account signed in, but the game server could not verify it. Please refresh and try again.'
+          );
+          setIsLoaded(true);
+          return;
+        }
+
         setAuthError(null);
         setIsLoaded(true);
       });
@@ -60,7 +91,14 @@ export function useUser(
     return () => {
       isStale = true;
     };
-  }, [isClerkLoaded, clerkUser, fetcher, retryCount]);
+  }, [
+    isClerkLoaded,
+    clerkUser,
+    fetcher,
+    retryCount,
+    isConvexAuthLoading,
+    isConvexAuthenticated,
+  ]);
 
   const retryAuth = useCallback(() => {
     setAuthError(null);

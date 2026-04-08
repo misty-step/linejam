@@ -27,6 +27,7 @@ vi.mock('next/navigation', async () => {
 
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
 }));
 
 vi.mock('@clerk/nextjs', () => ({
