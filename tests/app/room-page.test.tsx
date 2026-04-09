@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { getFunctionName } from 'convex/server';
 
 const mockReactUse = vi.fn();
 const mockUseClerkUser = vi.fn();
@@ -31,6 +32,38 @@ vi.mock('convex/react', () => ({
 
 vi.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseClerkUser(),
+}));
+
+vi.mock('@/components/Lobby', () => ({
+  Lobby: () => <div>Lobby view</div>,
+}));
+
+vi.mock('@/components/WritingScreen', () => ({
+  WritingScreen: ({
+    roomCode,
+    showChrome,
+  }: {
+    roomCode: string;
+    showChrome?: boolean;
+  }) => (
+    <div>
+      Writing view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
+    </div>
+  ),
+}));
+
+vi.mock('@/components/RevealPhase', () => ({
+  RevealPhase: ({
+    roomCode,
+    showChrome,
+  }: {
+    roomCode: string;
+    showChrome?: boolean;
+  }) => (
+    <div>
+      Reveal view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
+    </div>
+  ),
 }));
 
 import RoomPage from '@/app/room/[code]/page';
@@ -86,13 +119,23 @@ describe('RoomPage', () => {
   }
 
   it('renders an explicit recovery state when room status is unknown', async () => {
-    mockUseQuery.mockReturnValue({
-      room: {
-        code: 'ABCD',
-        status: 'BROKEN_STATE',
-      },
-      players: [],
-      isHost: false,
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+
+      if (functionName === 'rooms:getRoomState') {
+        return {
+          room: {
+            code: 'ABCD',
+            status: 'BROKEN_STATE',
+          },
+          players: [],
+          isHost: false,
+        };
+      }
+
+      return null;
     });
 
     renderRoomPage();
@@ -109,7 +152,15 @@ describe('RoomPage', () => {
   });
 
   it('renders the shared auth recovery state when guest bootstrap fails', async () => {
-    mockUseQuery.mockReturnValue(undefined);
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+      if (functionName === 'rooms:getRoomState') {
+        return undefined;
+      }
+      return null;
+    });
     mockFetch.mockRejectedValue(new Error('Network error'));
 
     renderRoomPage();
@@ -123,6 +174,110 @@ describe('RoomPage', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /try again/i })
+    ).toBeInTheDocument();
+  });
+
+  it('renders the room chrome copy for the lobby state', async () => {
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+
+      if (functionName === 'rooms:getRoomState') {
+        return {
+          room: {
+            _id: 'room_1',
+            _creationTime: Date.now(),
+            code: 'ABCD',
+            hostUserId: 'user_1',
+            createdAt: Date.now(),
+            status: 'LOBBY',
+          },
+          players: [
+            {
+              _id: 'player_1',
+              _creationTime: Date.now(),
+              roomId: 'room_1',
+              userId: 'user_1',
+              joinedAt: Date.now(),
+              stableId: 'stable-1',
+            },
+          ],
+          isHost: true,
+        };
+      }
+
+      return null;
+    });
+
+    renderRoomPage();
+
+    expect(await screen.findByText(/Room AB CD/i)).toBeInTheDocument();
+    expect(screen.getByText(/room open/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/share AB CD and gather 1 more poet/i)
+    ).toBeInTheDocument();
+  });
+
+  it('routes in-progress rooms through the writing phase with shared chrome enabled', async () => {
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+
+      if (functionName === 'rooms:getRoomState') {
+        return {
+          room: {
+            _id: 'room_1',
+            _creationTime: Date.now(),
+            code: 'ABCD',
+            hostUserId: 'user_1',
+            createdAt: Date.now(),
+            status: 'IN_PROGRESS',
+          },
+          players: [],
+          isHost: true,
+        };
+      }
+
+      return null;
+    });
+
+    renderRoomPage();
+
+    expect(
+      await screen.findByText(/Writing view ABCD chrome on/i)
+    ).toBeInTheDocument();
+  });
+
+  it('routes completed rooms through the reveal phase with shared chrome enabled', async () => {
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+
+      if (functionName === 'rooms:getRoomState') {
+        return {
+          room: {
+            _id: 'room_1',
+            _creationTime: Date.now(),
+            code: 'ABCD',
+            hostUserId: 'user_1',
+            createdAt: Date.now(),
+            status: 'COMPLETED',
+          },
+          players: [],
+          isHost: true,
+        };
+      }
+
+      return null;
+    });
+
+    renderRoomPage();
+
+    expect(
+      await screen.findByText(/Reveal view ABCD chrome on/i)
     ).toBeInTheDocument();
   });
 });

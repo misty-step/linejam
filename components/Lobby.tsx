@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
-import { formatRoomCode } from '../lib/roomCode';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
@@ -217,11 +216,17 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
           {/* CONTROL DESK: Room Identity + Primary Action */}
           <div className="flex flex-col items-center md:items-start space-y-8 md:sticky md:top-12 md:self-start">
-            {/* Room Code - Breathing Beacon */}
-            <div className="text-center md:text-left">
-              <h1 className="text-7xl md:text-9xl font-[var(--font-display)] text-primary tracking-tighter animate-breathe">
-                {formatRoomCode(room.code)}
-              </h1>
+            <div className="max-w-md space-y-4 text-center md:text-left">
+              <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
+                Control desk
+              </p>
+              <h2 className="text-4xl md:text-5xl font-[var(--font-display)] leading-none text-text-primary">
+                Let the room fill, then strike the first line.
+              </h2>
+              <p className="text-base leading-relaxed text-text-secondary">
+                Share the code from the room bar, add an AI poet if the circle
+                needs one, and start once everyone is in place.
+              </p>
             </div>
 
             {/* Add AI Player Button - Host only */}

@@ -200,10 +200,10 @@ test.describe('Complete Game Flow', () => {
     // After round 9, both should see reveal phase
     await Promise.all([
       expect(
-        hostPage.getByRole('heading', { name: /Reading Phase/i })
+        hostPage.getByRole('heading', { name: /Reveal each poem in turn/i })
       ).toBeVisible({ timeout: 30000 }),
       expect(
-        guestPage.getByRole('heading', { name: /Reading Phase/i })
+        guestPage.getByRole('heading', { name: /Reveal each poem in turn/i })
       ).toBeVisible({ timeout: 30000 }),
     ]);
 
@@ -233,13 +233,13 @@ test.describe('Complete Game Flow', () => {
     await expect(guestPage.getByText('end')).toBeVisible();
     await guestPage.getByRole('button', { name: /Close|Done|Back/i }).click();
 
-    // After both reveal, should show "Session Complete"
+    // After both reveals, the completed reveal chrome should appear
     await Promise.all([
       expect(
-        hostPage.getByRole('heading', { name: /Session Complete/i })
+        hostPage.getByRole('heading', { name: /The poems are unsealed/i })
       ).toBeVisible({ timeout: 15000 }),
       expect(
-        guestPage.getByRole('heading', { name: /Session Complete/i })
+        guestPage.getByRole('heading', { name: /The poems are unsealed/i })
       ).toBeVisible({ timeout: 15000 }),
     ]);
   });

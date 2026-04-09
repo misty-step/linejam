@@ -9,23 +9,39 @@ import { Alert } from './ui/Alert';
 import { cn } from '@/lib/utils';
 import { useShareLink } from '@/hooks/useShareLink';
 import { trackRoomInviteShared } from '@/lib/analytics';
+import { formatRoomCode } from '@/lib/roomCode';
 
 interface RoomChromeProps {
   roomCode: string;
+  statusLabel: string;
+  title: string;
+  subtitle: string;
 }
 
-function chromeButtonClasses(emphasized = false) {
+function chromeButtonClasses({
+  emphasized = false,
+  iconOnly = false,
+}: {
+  emphasized?: boolean;
+  iconOnly?: boolean;
+} = {}) {
   return cn(
-    'inline-flex h-10 items-center justify-center rounded-full border px-3',
+    'inline-flex h-11 items-center justify-center rounded-full border',
     'transition-all duration-[var(--duration-normal)]',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2',
+    iconOnly ? 'w-11' : 'px-4',
     emphasized
       ? 'border-primary bg-primary text-text-inverse hover:bg-primary-hover'
       : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
   );
 }
 
-export function RoomChrome({ roomCode }: RoomChromeProps) {
+export function RoomChrome({
+  roomCode,
+  statusLabel,
+  title,
+  subtitle,
+}: RoomChromeProps) {
   const [showThemes, setShowThemes] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -71,61 +87,90 @@ export function RoomChrome({ roomCode }: RoomChromeProps) {
     <>
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-      <div className="pointer-events-none fixed right-4 top-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
-        {shareError && (
-          <Alert
-            variant="error"
-            className="pointer-events-auto max-w-sm bg-[var(--color-surface)]/95 shadow-[var(--shadow-lg)] backdrop-blur"
-          >
-            {shareError}
-          </Alert>
-        )}
-
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/92 p-2 shadow-[var(--shadow-lg)] backdrop-blur">
-          <button
-            type="button"
-            onClick={handleShare}
-            className={chromeButtonClasses(true)}
-            aria-label="Share room invite"
-          >
-            <Share2 className="mr-2 h-4 w-4" />
-            <span>{shared ? 'Shared!' : copied ? 'Copied!' : 'Invite'}</span>
-          </button>
-
-          <Link
-            href="/me/poems"
-            className={chromeButtonClasses()}
-            aria-label="View your poem archive"
-          >
-            <Archive className="h-4 w-4" />
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => setShowHelp(true)}
-            className={chromeButtonClasses()}
-            aria-label="How to play"
-          >
-            <span className="text-lg font-medium">?</span>
-          </button>
-
-          <div className="relative" ref={dropdownRef}>
-            <button
-              type="button"
-              onClick={() => setShowThemes((current) => !current)}
-              className={chromeButtonClasses()}
-              aria-label="Choose theme"
-              aria-expanded={showThemes}
-              aria-haspopup="true"
+      <div className="sticky top-0 z-40 px-4 pt-4 md:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
+          {shareError && (
+            <Alert
+              variant="error"
+              className="max-w-xl bg-[var(--color-surface)]/95 shadow-[var(--shadow-lg)] backdrop-blur"
             >
-              <Palette className="h-4 w-4" />
-            </button>
+              {shareError}
+            </Alert>
+          )}
 
-            {showThemes && (
-              <div className="absolute right-0 top-full mt-2 w-[320px] max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
-                <ThemeSelector onClose={() => setShowThemes(false)} />
+          <div
+            data-testid="room-chrome"
+            className="grid gap-4 rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 px-4 py-4 shadow-[var(--shadow-lg)] backdrop-blur-xl md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-6"
+          >
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.32em] text-[var(--color-text-muted)]">
+                  Room {formatRoomCode(roomCode)}
+                </span>
+                <span className="rounded-full border border-[var(--color-border-subtle)] px-3 py-1 text-[11px] font-mono uppercase tracking-[0.28em] text-[var(--color-text-secondary)]">
+                  {statusLabel}
+                </span>
               </div>
-            )}
+
+              <div className="space-y-1">
+                <h1 className="truncate text-2xl font-[var(--font-display)] leading-none text-[var(--color-text-primary)] md:text-3xl">
+                  {title}
+                </h1>
+                <p className="max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] md:text-base">
+                  {subtitle}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 md:justify-end">
+              <button
+                type="button"
+                onClick={handleShare}
+                className={chromeButtonClasses({ emphasized: true })}
+                aria-label="Share room invite"
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                <span>
+                  {shared ? 'Shared!' : copied ? 'Copied!' : 'Invite'}
+                </span>
+              </button>
+
+              <Link
+                href="/me/poems"
+                className={chromeButtonClasses({ iconOnly: true })}
+                aria-label="View your poem archive"
+              >
+                <Archive className="h-4 w-4" />
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setShowHelp(true)}
+                className={chromeButtonClasses({ iconOnly: true })}
+                aria-label="How to play"
+              >
+                <span className="text-lg font-medium">?</span>
+              </button>
+
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowThemes((current) => !current)}
+                  className={chromeButtonClasses({ iconOnly: true })}
+                  aria-label="Choose theme"
+                  aria-expanded={showThemes}
+                  aria-haspopup="true"
+                >
+                  <Palette className="h-4 w-4" />
+                </button>
+
+                {showThemes && (
+                  <div className="absolute right-0 top-full z-50 mt-3 w-[320px] max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
+                    <ThemeSelector onClose={() => setShowThemes(false)} />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -8,16 +8,32 @@ import { BotBadge } from './ui/BotBadge';
 interface WaitingScreenProps {
   roomCode: string;
   guestToken?: string | null;
+  progressOverride?: {
+    round: number;
+    players: Array<{
+      submitted: boolean;
+      userId: string;
+      stableId: string;
+      displayName: string;
+      isBot?: boolean;
+    }>;
+  } | null;
 }
 
 export function WaitingScreen({
   roomCode,
   guestToken: propToken,
+  progressOverride,
 }: WaitingScreenProps) {
   // Use prop token if provided (from parent component), otherwise use hook token
   // This allows immediate query execution when transitioning from WritingScreen
   const { queryArgs } = useRoomQueryArgs(roomCode, propToken);
-  const progress = useQuery(api.game.getRoundProgress, queryArgs);
+  const queriedProgress = useQuery(
+    api.game.getRoundProgress,
+    progressOverride === undefined ? queryArgs : 'skip'
+  );
+  const progress =
+    progressOverride === undefined ? queriedProgress : progressOverride;
 
   // Loading state (query in flight or skipped)
   if (progress === undefined) {
@@ -49,23 +65,16 @@ export function WaitingScreen({
       {/* Floating vertical composition - massive breathing space */}
       <div
         className="w-full max-w-2xl flex flex-col items-center"
-        style={{ minHeight: '80vh' }}
+        style={{ minHeight: '72vh' }}
       >
-        {/* Top: Round indicator */}
-        <div className="flex-none mb-32 md:mb-40">
-          <div className="text-[var(--text-sm)] font-mono text-[var(--color-text-muted)] uppercase tracking-[0.4em] text-center">
-            Round {round + 1}
-          </div>
-        </div>
-
         {/* Center: Headline */}
-        <div className="flex-none mb-24 md:mb-32 text-center space-y-6">
+        <div className="flex-none mb-24 md:mb-28 text-center space-y-6">
           <h2 className="text-6xl md:text-8xl font-[var(--font-display)] leading-[1.05]">
             {allSubmitted ? 'Ready' : 'Others are writing...'}
           </h2>
           {!allSubmitted && (
             <p className="text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
-              {submittedCount} of {players.length} ready
+              Round {round + 1} · {submittedCount} of {players.length} ready
             </p>
           )}
         </div>

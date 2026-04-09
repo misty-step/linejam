@@ -102,12 +102,49 @@ describe('WritingScreen component', () => {
     global.fetch = originalFetch;
   });
 
-  it('displays round information correctly', () => {
+  it('keeps the word counter visible in the composer flow', () => {
     // Arrange & Act
     render(<WritingScreen roomCode="ABCD" />);
 
-    // Assert - Round 1 / 9 should be visible
-    expect(screen.getByText(/Round 1 \/ 9/)).toBeInTheDocument();
+    const wordSlots = document.getElementById('word-slots');
+    expect(wordSlots).toBeInTheDocument();
+  });
+
+  it('resets scroll when the active assignment changes', () => {
+    const scrollToSpy = vi
+      .spyOn(window, 'scrollTo')
+      .mockImplementation(() => undefined);
+    let activeAssignment: typeof mockAssignment | typeof mockAssignmentRound5 =
+      mockAssignment;
+
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+      if (functionName === 'game:getRoundProgress') {
+        return mockRoundProgress;
+      }
+      return activeAssignment;
+    });
+
+    const { rerender } = render(<WritingScreen roomCode="ABCD" />);
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: 0,
+      left: 0,
+      behavior: 'auto',
+    });
+
+    scrollToSpy.mockClear();
+    activeAssignment = mockAssignmentRound5;
+    rerender(<WritingScreen roomCode="ABCD" />);
+
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: 0,
+      left: 0,
+      behavior: 'auto',
+    });
+
+    scrollToSpy.mockRestore();
   });
 
   it('shows textarea with correct aria label for word count', () => {
@@ -550,7 +587,10 @@ describe('WritingScreen component', () => {
       rerender(<WritingScreen roomCode="ABCD" />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Round 2 \/ 9/)).toBeInTheDocument();
+        expect(screen.getByRole('textbox')).toHaveAttribute(
+          'aria-label',
+          'Write your line for round 2. Target: 2 words.'
+        );
         expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
           ''
         );
