@@ -1,3 +1,14 @@
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -275,26 +286,12 @@ describe('bootstrap-convex-env', () => {
       },
       {
         bin: 'pnpm',
-        args: [
-          'exec',
-          'convex',
-          'deploy',
-          '--cmd',
-          'pnpm run build:check',
-          '--prod',
-        ],
+        args: ['exec', 'convex', 'deploy', '--cmd', 'pnpm run build:check'],
       },
     ]);
     expect(calls.at(-1)).toEqual({
       bin: 'pnpm',
-      args: [
-        'exec',
-        'convex',
-        'deploy',
-        '--cmd',
-        'pnpm run build:check',
-        '--prod',
-      ],
+      args: ['exec', 'convex', 'deploy', '--cmd', 'pnpm run build:check'],
     });
   });
 
@@ -396,5 +393,105 @@ describe('bootstrap-convex-env', () => {
         args: ['-lc', 'pnpm run build:check'],
       },
     ]);
+  });
+
+  it('executes the CLI bootstrap path without a temporal dead zone crash', () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), 'linejam-bootstrap-convex-env-')
+    );
+    const fakePnpm = join(tempDir, 'pnpm');
+    const logPath = join(tempDir, 'pnpm.log');
+
+    try {
+      writeFileSync(
+        fakePnpm,
+        `#!/bin/sh
+printf '%s\n' "$*" >> "${logPath}"
+exit 0
+`
+      );
+      chmodSync(fakePnpm, 0o755);
+
+      const result = spawnSync(
+        process.execPath,
+        [resolve(process.cwd(), 'scripts/ci/bootstrap-convex-env.mjs')],
+        {
+          env: {
+            ...process.env,
+            PATH: `${tempDir}:${process.env.PATH ?? ''}`,
+            CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
+            VERCEL_ENV: 'preview',
+            VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+            GUEST_TOKEN_SECRET: 'guest-secret',
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
+              'test',
+              'solid-beetle-24.clerk.accounts.dev'
+            ),
+          },
+          encoding: 'utf8',
+        }
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(readFileSync(logPath, 'utf8').trim().split('\n')).toEqual([
+        'exec convex env --preview-name codex/canary-local-ci-agentic-qa set GUEST_TOKEN_SECRET guest-secret',
+        'exec convex env --preview-name codex/canary-local-ci-agentic-qa set CLERK_JWT_ISSUER_DOMAIN https://solid-beetle-24.clerk.accounts.dev',
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('executes the CLI deploy path without passing an unsupported --prod flag', () => {
+    const tempDir = mkdtempSync(
+      join(tmpdir(), 'linejam-bootstrap-convex-deploy-')
+    );
+    const fakePnpm = join(tempDir, 'pnpm');
+    const logPath = join(tempDir, 'pnpm.log');
+
+    try {
+      writeFileSync(
+        fakePnpm,
+        `#!/bin/sh
+printf '%s\n' "$*" >> "${logPath}"
+exit 0
+`
+      );
+      chmodSync(fakePnpm, 0o755);
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          resolve(process.cwd(), 'scripts/ci/bootstrap-convex-env.mjs'),
+          '--deploy',
+        ],
+        {
+          env: {
+            ...process.env,
+            PATH: `${tempDir}:${process.env.PATH ?? ''}`,
+            CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
+            VERCEL_ENV: 'production',
+            GUEST_TOKEN_SECRET: 'guest-secret',
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
+              'live',
+              'clerk.linejam.app'
+            ),
+            CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+          },
+          encoding: 'utf8',
+        }
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(readFileSync(logPath, 'utf8').trim().split('\n')).toEqual([
+        'exec convex env --prod set GUEST_TOKEN_SECRET guest-secret',
+        'exec convex env --prod set CLERK_JWT_ISSUER_DOMAIN https://clerk.linejam.app',
+        'exec convex deploy --cmd pnpm run build:check',
+      ]);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

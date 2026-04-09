@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
  * @typedef {{ log: (...args: unknown[]) => void }} BootstrapLogger
  */
 
+const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];
+
 /**
  * @param {EnvShape} [env]
  */
@@ -272,10 +274,6 @@ export function buildHostedConvexDeployArgs(
   const target = resolveConvexEnvTarget(env);
   const args = ['exec', 'convex', 'deploy', '--cmd', buildCommand];
 
-  if (target.status === 'prod') {
-    args.push('--prod');
-  }
-
   if (target.status === 'preview') {
     const previewName = target.args[1];
     if (previewName) {
@@ -368,4 +366,3 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   });
 }
-const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];
