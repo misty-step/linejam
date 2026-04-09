@@ -213,10 +213,8 @@ describe('RoomPage', () => {
     renderRoomPage();
 
     expect(await screen.findByText(/Room AB CD/i)).toBeInTheDocument();
-    expect(screen.getByText(/room open/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/share AB CD and gather 1 more poet/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/need 1 more player/i)).toBeInTheDocument();
+    expect(screen.getByText(/share AB CD to start/i)).toBeInTheDocument();
   });
 
   it('routes in-progress rooms through the writing phase with shared chrome enabled', async () => {

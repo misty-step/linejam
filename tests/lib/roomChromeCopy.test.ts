@@ -10,8 +10,16 @@ describe('roomChromeCopy', () => {
   it('builds lobby copy while the room still needs players', () => {
     expect(buildLobbyChromeCopy({ code: 'ABCD', playerCount: 1 })).toEqual({
       statusLabel: 'Lobby',
-      title: 'Room open',
-      subtitle: 'Share AB CD and gather 1 more poet before the first line.',
+      title: 'Need 1 more player',
+      subtitle: 'Share AB CD to start.',
+    });
+  });
+
+  it('builds lobby copy when enough players are ready', () => {
+    expect(buildLobbyChromeCopy({ code: 'ABCD', playerCount: 3 })).toEqual({
+      statusLabel: 'Lobby',
+      title: '3 players ready',
+      subtitle: 'Start when you are ready.',
     });
   });
 
@@ -24,10 +32,9 @@ describe('roomChromeCopy', () => {
         },
       })
     ).toEqual({
-      statusLabel: 'In Progress',
-      title: `Round 5 / ${WORD_COUNTS.length}`,
-      subtitle:
-        'Write exactly 5 words. You can only see the line before yours.',
+      statusLabel: 'Writing',
+      title: `Round 5 of ${WORD_COUNTS.length}`,
+      subtitle: 'Write exactly 5 words. You only see the previous line.',
     });
   });
 
@@ -44,26 +51,23 @@ describe('roomChromeCopy', () => {
         },
       })
     ).toEqual({
-      statusLabel: 'In Progress',
-      title: `Round 3 / ${WORD_COUNTS.length}`,
-      subtitle:
-        '2 of 3 poets are ready. Hold the cadence while the room catches up.',
+      statusLabel: 'Waiting',
+      title: `Round 3 of ${WORD_COUNTS.length}`,
+      subtitle: '2 of 3 ready.',
     });
   });
 
   it('builds reveal copy for both active reading and completed sessions', () => {
     expect(buildRevealChromeCopy({ allRevealed: false })).toEqual({
-      statusLabel: 'Reading Phase',
-      title: 'Reveal each poem in turn',
-      subtitle:
-        'One reader at a time. Let the room hear the full poem before moving on.',
+      statusLabel: 'Reveal',
+      title: 'Reveal poems',
+      subtitle: 'Read one poem at a time.',
     });
 
     expect(buildRevealChromeCopy({ allRevealed: true })).toEqual({
-      statusLabel: 'Session Complete',
-      title: 'The poems are unsealed',
-      subtitle:
-        'Return to the lobby, revisit the session, or head to the archive.',
+      statusLabel: 'Done',
+      title: 'All poems revealed',
+      subtitle: 'Start again, open the archive, or leave the room.',
     });
   });
 });

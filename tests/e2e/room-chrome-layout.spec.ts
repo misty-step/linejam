@@ -104,7 +104,7 @@ test('room chrome does not cover lobby or writing content on desktop and mobile'
     );
     await expectBelow(
       mobileChrome,
-      mobilePage.getByRole('button', { name: /Waiting for Host/i }).first()
+      mobilePage.getByRole('button', { name: /Waiting for host/i }).first()
     );
 
     await hostPage.screenshot({

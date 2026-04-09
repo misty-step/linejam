@@ -28,11 +28,14 @@ export function buildLobbyChromeCopy({
 
   return {
     statusLabel: 'Lobby',
-    title: 'Room open',
+    title:
+      needsMore > 0
+        ? `Need ${needsMore} more player${needsMore === 1 ? '' : 's'}`
+        : `${playerCount} players ready`,
     subtitle:
       needsMore > 0
-        ? `Share ${formatRoomCode(code)} and gather ${needsMore} more poet${needsMore === 1 ? '' : 's'} before the first line.`
-        : `${playerCount} poets are here. Start when the room feels ready.`,
+        ? `Share ${formatRoomCode(code)} to start.`
+        : 'Start when you are ready.',
   };
 }
 
@@ -46,16 +49,16 @@ export function buildInProgressChromeCopy({
   const roundIndex = assignment?.lineIndex ?? roundProgress?.round ?? null;
   const roundNumber = roundIndex === null ? null : roundIndex + 1;
   const roundTitle = roundNumber
-    ? `Round ${roundNumber} / ${WORD_COUNTS.length}`
-    : 'Writing in progress';
+    ? `Round ${roundNumber} of ${WORD_COUNTS.length}`
+    : 'Writing';
 
   if (assignment) {
     const { targetWordCount } = assignment;
 
     return {
-      statusLabel: 'In Progress',
+      statusLabel: 'Writing',
       title: roundTitle,
-      subtitle: `Write exactly ${targetWordCount} word${targetWordCount === 1 ? '' : 's'}. You can only see the line before yours.`,
+      subtitle: `Write exactly ${targetWordCount} word${targetWordCount === 1 ? '' : 's'}. You only see the previous line.`,
     };
   }
 
@@ -65,16 +68,16 @@ export function buildInProgressChromeCopy({
     ).length;
 
     return {
-      statusLabel: 'In Progress',
+      statusLabel: 'Waiting',
       title: roundTitle,
-      subtitle: `${submittedCount} of ${roundProgress.players.length} poets are ready. Hold the cadence while the room catches up.`,
+      subtitle: `${submittedCount} of ${roundProgress.players.length} ready.`,
     };
   }
 
   return {
-    statusLabel: 'In Progress',
-    title: 'Writing in progress',
-    subtitle: 'Keep the room steady while the next prompt resolves.',
+    statusLabel: 'Writing',
+    title: 'Writing',
+    subtitle: 'Loading the next step.',
   };
 }
 
@@ -84,10 +87,10 @@ export function buildRevealChromeCopy({
   allRevealed: boolean;
 }): RoomChromeCopy {
   return {
-    statusLabel: allRevealed ? 'Session Complete' : 'Reading Phase',
-    title: allRevealed ? 'The poems are unsealed' : 'Reveal each poem in turn',
+    statusLabel: allRevealed ? 'Done' : 'Reveal',
+    title: allRevealed ? 'All poems revealed' : 'Reveal poems',
     subtitle: allRevealed
-      ? 'Return to the lobby, revisit the session, or head to the archive.'
-      : 'One reader at a time. Let the room hear the full poem before moving on.',
+      ? 'Start again, open the archive, or leave the room.'
+      : 'Read one poem at a time.',
   };
 }

@@ -1,4 +1,5 @@
 import { test, expect, BrowserContext, Page } from '@playwright/test';
+import { WORD_COUNTS } from '@/convex/lib/gameRules';
 
 /**
  * E2E Test: Complete Game Flow
@@ -74,7 +75,7 @@ test.describe('Complete Game Flow', () => {
     // Verify we're in the lobby
     await expect(hostPage.getByText('Host Player')).toBeVisible();
     await expect(
-      hostPage.getByRole('button', { name: /Need.*Poet.*to Jam/i })
+      hostPage.getByRole('button', { name: /Need.*player/i })
     ).toBeVisible();
   });
 
@@ -105,9 +106,9 @@ test.describe('Complete Game Flow', () => {
       hostPage.getByRole('button', { name: /Start Linejam/i })
     ).toBeEnabled();
 
-    // Guest sees "Waiting for Host" button
+    // Guest sees "Waiting for host" button
     await expect(
-      guestPage.getByRole('button', { name: /Waiting for Host/i })
+      guestPage.getByRole('button', { name: /Waiting for host/i })
     ).toBeVisible();
   });
 
@@ -115,11 +116,15 @@ test.describe('Complete Game Flow', () => {
     // Host clicks Start Linejam
     await hostPage.click('button:has-text("Start Linejam")');
 
-    // Both players should see Round 1 / 9
-    await expect(hostPage.getByText(/Round 1 \/ 9/)).toBeVisible({
+    // Both players should see the first round
+    await expect(
+      hostPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
+    ).toBeVisible({
       timeout: 15000,
     });
-    await expect(guestPage.getByText(/Round 1 \/ 9/)).toBeVisible({
+    await expect(
+      guestPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
+    ).toBeVisible({
       timeout: 15000,
     });
 
@@ -187,10 +192,14 @@ test.describe('Complete Game Flow', () => {
       // Wait for next round or reveal
       if (round < lines.length - 1) {
         await Promise.all([
-          expect(hostPage.getByText(`Round ${round + 2} / 9`)).toBeVisible({
+          expect(
+            hostPage.getByText(`Round ${round + 2} of ${WORD_COUNTS.length}`)
+          ).toBeVisible({
             timeout: 15000,
           }),
-          expect(guestPage.getByText(`Round ${round + 2} / 9`)).toBeVisible({
+          expect(
+            guestPage.getByText(`Round ${round + 2} of ${WORD_COUNTS.length}`)
+          ).toBeVisible({
             timeout: 15000,
           }),
         ]);
@@ -200,10 +209,10 @@ test.describe('Complete Game Flow', () => {
     // After round 9, both should see reveal phase
     await Promise.all([
       expect(
-        hostPage.getByRole('heading', { name: /Reveal each poem in turn/i })
+        hostPage.getByRole('heading', { name: /Reveal poems/i })
       ).toBeVisible({ timeout: 30000 }),
       expect(
-        guestPage.getByRole('heading', { name: /Reveal each poem in turn/i })
+        guestPage.getByRole('heading', { name: /Reveal poems/i })
       ).toBeVisible({ timeout: 30000 }),
     ]);
 
@@ -236,10 +245,10 @@ test.describe('Complete Game Flow', () => {
     // After both reveals, the completed reveal chrome should appear
     await Promise.all([
       expect(
-        hostPage.getByRole('heading', { name: /The poems are unsealed/i })
+        hostPage.getByRole('heading', { name: /All poems revealed/i })
       ).toBeVisible({ timeout: 15000 }),
       expect(
-        guestPage.getByRole('heading', { name: /The poems are unsealed/i })
+        guestPage.getByRole('heading', { name: /All poems revealed/i })
       ).toBeVisible({ timeout: 15000 }),
     ]);
   });

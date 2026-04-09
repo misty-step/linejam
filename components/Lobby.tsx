@@ -17,31 +17,8 @@ import { Bot, UserMinus } from 'lucide-react';
 import { trackGameStarted, trackAiPlayerAdded } from '../lib/analytics';
 
 /**
- * Information Architecture: The Split-View Strategy
- *
- * Strategic Design Decision (Ousterhout: Deep Module):
- * This component presents two conceptually distinct zones that reflect
- * the host's mental model during a gathering:
- *
- * 1. "Control Desk" (Static): Room identity + primary action
- *    - Room code (beacon)
- *    - Start button (action)
- *
- * 2. "Guest Registry" (Dynamic): Arrival tracking
- *    - Player list (grows)
- *    - Stamps mark arrivals
- *
- * Why this structure?
- * - Problem: Vertical stacking pushed critical action below fold
- * - Tactical fix: Add sticky positioning
- * - Strategic fix: Restructure information architecture
- *
- * Implementation:
- * - Desktop: Two-column grid (control desk sticky left, registry scrolls right)
- * - Mobile: Single column + sticky footer (native iOS/Android pattern)
- * - Button rendered twice (desktop inline, mobile sticky) - complexity hidden from parent
- *
- * This is a deep module: Simple interface (props), complex responsive layout inside.
+ * Lobby layout keeps actions separate from the live player list.
+ * Room identity and phase status live in RoomChrome above this component.
  */
 
 interface LobbyPlayer extends Doc<'roomPlayers'> {
@@ -173,7 +150,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           >
             {canStart
               ? 'Start Linejam'
-              : `Need ${needsMore} more Poet${needsMore !== 1 ? 's' : ''} to Jam`}
+              : `Need ${needsMore} more player${needsMore === 1 ? '' : 's'}`}
           </Button>
           <Button
             onClick={handleCloseRoom}
@@ -181,7 +158,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             className="w-full"
             variant="ghost"
           >
-            Close Room
+            Close room
           </Button>
         </div>
       );
@@ -195,7 +172,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           className={`w-full h-16 text-lg opacity-50 cursor-not-allowed ${className || ''}`}
           variant="secondary"
         >
-          Waiting for Host...
+          Waiting for host
         </Button>
         <Button
           onClick={handleLeaveLobby}
@@ -203,7 +180,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           className="w-full"
           variant="ghost"
         >
-          Leave Lobby
+          Leave room
         </Button>
       </div>
     );
@@ -212,24 +189,20 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   return (
     <div className="min-h-screen bg-background p-6 md:p-12">
       <div className="w-full max-w-6xl mx-auto">
-        {/* Split-View Grid: Control Desk (left/sticky) + Guest Registry (right/scroll) */}
         <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
-          {/* CONTROL DESK: Room Identity + Primary Action */}
-          <div className="flex flex-col items-center md:items-start space-y-8 md:sticky md:top-12 md:self-start">
+          <div className="flex flex-col items-center md:items-start space-y-8 md:self-start">
             <div className="max-w-md space-y-4 text-center md:text-left">
               <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
-                Control desk
+                Room actions
               </p>
-              <h2 className="text-4xl md:text-5xl font-[var(--font-display)] leading-none text-text-primary">
-                Let the room fill, then strike the first line.
+              <h2 className="text-2xl md:text-3xl font-[var(--font-display)] leading-tight text-text-primary">
+                Start when everyone is here.
               </h2>
               <p className="text-base leading-relaxed text-text-secondary">
-                Share the code from the room bar, add an AI poet if the circle
-                needs one, and start once everyone is in place.
+                Share the code from the top bar. Add an AI player if needed.
               </p>
             </div>
 
-            {/* Add AI Player Button - Host only */}
             {canAddAi && (
               <Button
                 onClick={handleAddAi}
@@ -239,11 +212,10 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                 className="w-full"
               >
                 <Bot className="w-4 h-4 mr-2" />
-                {aiLoading ? 'Adding...' : 'Add AI Poet'}
+                {aiLoading ? 'Adding...' : 'Add AI player'}
               </Button>
             )}
 
-            {/* Desktop: Inline Button (visible above fold) */}
             <div className="hidden md:block w-full">
               {error && (
                 <Alert variant="error" className="mb-4">
@@ -254,9 +226,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             </div>
           </div>
 
-          {/* GUEST REGISTRY: Dynamic Arrival Tracking */}
           <div className="relative">
-            {/* Player List - Scrollable */}
             <ul className="space-y-6 pb-24 md:pb-0">
               {players.map((player, i) => (
                 <StampAnimation key={player._id} delay={i * 150}>
@@ -295,7 +265,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               ))}
             </ul>
 
-            {/* Mobile: Sticky Footer (native pattern) */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
               {error && (
                 <Alert variant="error" className="mb-4">

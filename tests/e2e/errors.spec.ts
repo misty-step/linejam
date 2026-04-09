@@ -1,4 +1,5 @@
 import { test, expect, BrowserContext, Page } from '@playwright/test';
+import { WORD_COUNTS } from '@/convex/lib/gameRules';
 
 /**
  * E2E Test: Error Scenarios and Validation
@@ -94,7 +95,9 @@ test.describe('Word Count Validation', () => {
 
     // Host starts game
     await hostPage.click('button:has-text("Start Linejam")');
-    await expect(hostPage.getByText(/Round 1 \/ 9/)).toBeVisible({
+    await expect(
+      hostPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
+    ).toBeVisible({
       timeout: 15000,
     });
   });

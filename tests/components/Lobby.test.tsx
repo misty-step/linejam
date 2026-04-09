@@ -112,7 +112,7 @@ describe('Lobby component', () => {
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     expect(
-      screen.getByText(/let the room fill, then strike the first line/i)
+      screen.getByText(/start when everyone is here/i)
     ).toBeInTheDocument();
   });
 
@@ -135,10 +135,10 @@ describe('Lobby component', () => {
     // Assert - Button should be disabled and show "need more" message
     // Component renders button twice (desktop + mobile), get first one
     const startButtons = screen.getAllByRole('button', {
-      name: /Need .* Poet.*to Jam/i,
+      name: /Need .* player/i,
     });
     expect(startButtons[0]).toBeDisabled();
-    expect(startButtons[0]).toHaveTextContent('Need 1 more Poet to Jam');
+    expect(startButtons[0]).toHaveTextContent('Need 1 more player');
   });
 
   it('Start Game button enabled with ≥2 players', () => {
@@ -200,27 +200,27 @@ describe('Lobby component', () => {
     });
   });
 
-  it('shows "Waiting for Host" button when not host', () => {
+  it('shows "Waiting for host" button when not host', () => {
     // Arrange & Act
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
 
     // Assert - Non-host sees waiting message
     // Component renders button twice (desktop + mobile), get first one
     const waitingButtons = screen.getAllByRole('button', {
-      name: /Waiting for Host/i,
+      name: /Waiting for host/i,
     });
     expect(waitingButtons[0]).toBeDisabled();
     expect(waitingButtons[0]).toHaveClass('opacity-50', 'cursor-not-allowed');
   });
 
-  it('Close Room button calls mutation and navigates to home (host)', async () => {
+  it('Close room button calls mutation and navigates to home (host)', async () => {
     // Arrange
     const user = userEvent.setup();
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     // Component renders button twice (desktop + mobile), get first one
     const closeButtons = screen.getAllByRole('button', {
-      name: /Close Room/i,
+      name: /Close room/i,
     });
 
     // Act
@@ -236,14 +236,14 @@ describe('Lobby component', () => {
     });
   });
 
-  it('Leave Lobby button calls mutation and navigates to home (guest)', async () => {
+  it('Leave room button calls mutation and navigates to home (guest)', async () => {
     // Arrange
     const user = userEvent.setup();
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
 
     // Component renders button twice (desktop + mobile), get first one
     const leaveButtons = screen.getAllByRole('button', {
-      name: /Leave Lobby/i,
+      name: /Leave room/i,
     });
 
     // Act
