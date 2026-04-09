@@ -88,8 +88,8 @@ describe('RoomChrome component', () => {
       <RoomChrome
         roomCode="ABCD"
         statusLabel="Lobby"
-        title="Room open"
-        subtitle="Share the code and gather the poets."
+        title="Need 1 more player"
+        subtitle="Share the code to start."
       />
     );
   }
@@ -110,7 +110,7 @@ describe('RoomChrome component', () => {
       screen.getByRole('button', { name: /Choose theme/i })
     ).toBeInTheDocument();
     expect(screen.getByText('Room AB CD')).toBeInTheDocument();
-    expect(screen.getByText('Room open')).toBeInTheDocument();
+    expect(screen.getByText('Need 1 more player')).toBeInTheDocument();
   });
 
   it('copies a join link when native share is unavailable', async () => {
