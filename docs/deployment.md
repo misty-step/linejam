@@ -52,29 +52,29 @@ echo 'your-guest-token-secret' | vercel env add GUEST_TOKEN_SECRET preview
 vercel env ls
 ```
 
-#### Required Vercel Variables
+#### Required Variables by Surface
 
-| Variable                                   | Environments                     | Description                                       |
-| ------------------------------------------ | -------------------------------- | ------------------------------------------------- |
-| `GUEST_TOKEN_SECRET`                       | Production, Preview              | Guest token signing secret (must match Convex)    |
-| `NEXT_PUBLIC_CONVEX_URL`                   | Production, Preview, Development | Convex deployment URL                             |
-| `CONVEX_DEPLOYMENT`                        | Production, Preview, Development | Convex deployment name                            |
-| `CONVEX_DEPLOY_KEY`                        | Production, Preview              | Deploy key for hosted builds                      |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`        | Production, Preview, Development | Clerk publishable key                             |
-| `CLERK_SECRET_KEY`                         | Production, Preview, Development | Clerk secret key                                  |
-| `PLAYWRIGHT_CLERK_TEST_EMAIL`              | Production, Preview              | Optional override for the Clerk smoke user email  |
-| `PLAYWRIGHT_REQUIRE_AUTH_E2E`              | Hosted CI mirror                 | Keep at `1` to mirror the local Dagger contract   |
-| `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE` | Local only                       | Keep at `0`; live Clerk mutation must be explicit |
-| `CANARY_ENDPOINT`                          | Production, Preview              | Canary API base URL                               |
-| `CANARY_API_KEY`                           | Production, Preview              | Canary server ingest/query key                    |
-| `NEXT_PUBLIC_CANARY_ENDPOINT`              | Production, Preview              | Canary browser ingest URL                         |
-| `NEXT_PUBLIC_CANARY_API_KEY`               | Production, Preview              | Canary browser write-only ingest key              |
-| `LINEJAM_CANARY_WEBHOOK_SECRET`            | Production, Preview              | Shared secret for signed Canary deliveries        |
-| `LINEJAM_CANARY_WEBHOOK_URL`               | Production, Preview              | URL registered with Canary webhook subscriptions  |
-| `LINEJAM_SMOKE_RUNNER`                     | Responder only                   | Use `playwright` for hosted responders            |
-| `CANARY_WEBHOOK_SEND_TEST`                 | Local only                       | Set to `1` to send Canary's test ping after setup |
-| `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`            | Production, Preview              | Keep at `1` unless you intentionally skip auth    |
-| `OPENROUTER_API_KEY`                       | Convex only (Production)         | OpenRouter API key for AI player LLM access       |
+| Variable                                   | Environments                     | Description                                                                |
+| ------------------------------------------ | -------------------------------- | -------------------------------------------------------------------------- |
+| `GUEST_TOKEN_SECRET`                       | Production, Preview              | Guest token signing secret (must match Convex)                             |
+| `NEXT_PUBLIC_CONVEX_URL`                   | Production, Preview, Development | Convex deployment URL                                                      |
+| `CONVEX_DEPLOYMENT`                        | Production, Preview, Development | Convex deployment name                                                     |
+| `CONVEX_DEPLOY_KEY`                        | Production, Preview if forced    | Required for hosted production deploys; optional for compile-only previews |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`        | Production, Preview, Development | Clerk publishable key                                                      |
+| `CLERK_SECRET_KEY`                         | Production, Preview, Development | Clerk secret key                                                           |
+| `PLAYWRIGHT_CLERK_TEST_EMAIL`              | Production, Preview              | Optional override for the Clerk smoke user email                           |
+| `PLAYWRIGHT_REQUIRE_AUTH_E2E`              | Hosted CI mirror                 | Keep at `1` to mirror the local Dagger contract                            |
+| `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE` | Local only                       | Keep at `0`; live Clerk mutation must be explicit                          |
+| `CANARY_ENDPOINT`                          | Production, Preview              | Canary API base URL                                                        |
+| `CANARY_API_KEY`                           | Production, Preview              | Canary server ingest/query key                                             |
+| `NEXT_PUBLIC_CANARY_ENDPOINT`              | Production, Preview              | Canary browser ingest URL                                                  |
+| `NEXT_PUBLIC_CANARY_API_KEY`               | Production, Preview              | Canary browser write-only ingest key                                       |
+| `LINEJAM_CANARY_WEBHOOK_SECRET`            | Production, Preview              | Shared secret for signed Canary deliveries                                 |
+| `LINEJAM_CANARY_WEBHOOK_URL`               | Production, Preview              | URL registered with Canary webhook subscriptions                           |
+| `LINEJAM_SMOKE_RUNNER`                     | Responder only                   | Use `playwright` for hosted responders                                     |
+| `CANARY_WEBHOOK_SEND_TEST`                 | Local only                       | Set to `1` to send Canary's test ping after setup                          |
+| `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`            | Production, Preview              | Keep at `1` unless you intentionally skip auth                             |
+| `OPENROUTER_API_KEY`                       | Convex only (Production)         | OpenRouter API key for AI player LLM access                                |
 
 ### 3. Configure Convex Environment Variables
 
@@ -84,13 +84,13 @@ Set environment variables in Convex for both Production and Preview deployments:
 cd ~/Development/linejam
 
 # Production
-npx convex env set GUEST_TOKEN_SECRET "your-guest-token-secret" production
+pnpm exec convex env set GUEST_TOKEN_SECRET "your-guest-token-secret" production
 
 # Preview
-npx convex env set GUEST_TOKEN_SECRET "your-guest-token-secret" preview
+pnpm exec convex env set GUEST_TOKEN_SECRET "your-guest-token-secret" preview
 
 # Verify
-npx convex env list
+pnpm exec convex env list
 ```
 
 **Critical**: The `GUEST_TOKEN_SECRET` value must be **identical** in both Vercel and Convex.
@@ -105,10 +105,13 @@ configured intentionally before deployment:
 2. Ensure the Clerk instance has a `convex` JWT template with `aud: "convex"`.
 3. Keep `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=0` for normal local work. Set it to `1` only when you explicitly want the CLI to create the template against a live Clerk instance.
 
-Hosted builds now seed `GUEST_TOKEN_SECRET` plus `CLERK_JWT_ISSUER_DOMAIN`
-into the active Convex production or preview target before `npx convex deploy`
-runs. That removes the branch-by-branch preview drift where Vercel had the env
-values but the newly created Convex preview deployment did not.
+Hosted production builds seed `GUEST_TOKEN_SECRET` plus
+`CLERK_JWT_ISSUER_DOMAIN` into Convex production before `pnpm exec convex deploy`
+runs. Hosted preview builds are compile-only by default because Vercel preview
+deployments are not a reliable place to create or mutate Convex preview
+backends. Set `LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY=1` only when you
+intentionally want a hosted preview build to create or update a Convex preview
+deployment.
 
 ### 4. Hosted Branch Protection / CI Mirror
 
@@ -121,10 +124,14 @@ Local Dagger runs are the source of truth. Hosted branch protection still needs 
 | `CLERK_JWT_ISSUER_DOMAIN`                  | Clerk issuer domain for Convex auth                  |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`        | Clerk publishable key                                |
 | `CLERK_SECRET_KEY`                         | Clerk secret key for auth smoke                      |
-| `PLAYWRIGHT_CLERK_TEST_EMAIL`              | Optional override for the Clerk smoke user           |
+| `PLAYWRIGHT_CLERK_TEST_EMAIL`              | Existing Clerk smoke user for live preview/prod auth |
 | `PLAYWRIGHT_REQUIRE_AUTH_E2E`              | Keep at `1` for exhaustive auth E2E                  |
 | `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`            | Set to `1` for preview/prod auth smoke               |
 | `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE` | Keep at `0` unless intentionally mutating live Clerk |
+
+Hosted preview deployments only need enough env to compile and run the deployed
+app. They do not need Convex preview mutation rights unless you deliberately set
+`LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY=1`.
 
 ### 5. Register the Canary responder webhook
 
@@ -136,7 +143,9 @@ Create the Fly app and webhook secret first, then deploy the responder with the 
 flyctl apps create linejam-canary-responder
 flyctl volumes create canary_data --app linejam-canary-responder --region ord --size 1
 export LINEJAM_CANARY_WEBHOOK_URL="https://linejam-canary-responder.fly.dev/canary/webhook"
-LINEJAM_CANARY_WEBHOOK_URL="$LINEJAM_CANARY_WEBHOOK_URL" pnpm canary:webhook:setup
+export CANARY_ENDPOINT="https://canary-obs.fly.dev"
+export CANARY_API_KEY="your-canary-api-key"
+LINEJAM_CANARY_WEBHOOK_URL="$LINEJAM_CANARY_WEBHOOK_URL" pnpm canary:webhook:setup -- --emit-secret
 ```
 
 Save the returned secret as `LINEJAM_CANARY_WEBHOOK_SECRET`, then configure Fly:
@@ -163,7 +172,7 @@ The hosted responder uses the same smoke suite as local Dagger, but runs it
 with direct Playwright via `LINEJAM_SMOKE_RUNNER=playwright`. That keeps local
 Dagger authoritative without requiring Dagger inside the webhook worker.
 
-`pnpm canary:webhook:setup` is idempotent for the configured responder URL. It reuses the exact active subscription when one already exists and replaces duplicate or stale subscriptions for the same URL so repeated setup runs do not double-trigger smoke. Set `CANARY_WEBHOOK_SEND_TEST=1` only after the responder is deployed and reachable; pre-deploy test pings will fail because the URL exists before the service does.
+`pnpm canary:webhook:setup` is idempotent for the configured responder URL. It reuses the exact active subscription when one already exists and replaces duplicate or stale subscriptions for the same URL so repeated setup runs do not double-trigger smoke. `CANARY_API_KEY` is required for the setup call, and `CANARY_ENDPOINT` keeps the command pinned to the intended Canary host from a clean shell. Pass `-- --emit-secret` only when you need the newly created signing secret printed; stdout redacts it by default. Set `CANARY_WEBHOOK_SEND_TEST=1` only after the responder is deployed and reachable; pre-deploy test pings will fail because the URL exists before the service does.
 
 The responder verifies signed Canary deliveries, fetches incident context back
 from Canary, stores artifacts under `.canary/`, and escalates to the same
@@ -174,7 +183,7 @@ remote smoke suite used by `pnpm test:e2e:smoke`.
 ### 1. Verify Convex Environment
 
 ```bash
-npx convex env list
+pnpm exec convex env list
 ```
 
 Expected output:
@@ -250,7 +259,7 @@ vercel
 **Solution**:
 
 1. Check Vercel env vars: `vercel env ls`
-2. Check Convex env vars: `npx convex env list`
+2. Check Convex env vars: `pnpm exec convex env list`
 3. Ensure values are identical
 4. Redeploy to pick up new environment variables
 
@@ -271,7 +280,7 @@ echo 'your-secret' | vercel env add GUEST_TOKEN_SECRET production
 **Solution**:
 
 ```bash
-npx convex env set GUEST_TOKEN_SECRET "your-secret" production
+pnpm exec convex env set GUEST_TOKEN_SECRET "your-secret" production
 ```
 
 ### Error: "Failed to load resource: 500" on `/api/guest/session`
@@ -314,7 +323,7 @@ To rotate `GUEST_TOKEN_SECRET`:
 
 1. Generate new secret: `openssl rand -base64 32`
 2. Update Vercel: `vercel env add GUEST_TOKEN_SECRET production` (will prompt to override)
-3. Update Convex: `npx convex env set GUEST_TOKEN_SECRET "new-secret" production`
+3. Update Convex: `pnpm exec convex env set GUEST_TOKEN_SECRET "new-secret" production`
 4. Update any hosted CI mirrors
 5. Deploy
 

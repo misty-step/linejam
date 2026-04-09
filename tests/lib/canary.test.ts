@@ -162,7 +162,11 @@ describe('captureCanaryException', () => {
       'Canary capture failed:',
       reportingError,
       {
-        originalError,
+        originalError: {
+          errorClass: 'Error',
+          message: 'original boom',
+          stackTrace: expect.any(String),
+        },
         context: { route: '/room/ABCD' },
       }
     );
@@ -186,7 +190,11 @@ describe('captureCanaryException', () => {
       'Canary capture returned 401 Unauthorized'
     );
     expect(consoleErrorSpy.mock.calls[0]?.[2]).toEqual({
-      originalError: expect.any(Error),
+      originalError: {
+        errorClass: 'Error',
+        message: 'boom',
+        stackTrace: expect.any(String),
+      },
       context: { source: 'api.health' },
     });
   });

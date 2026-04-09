@@ -19,7 +19,7 @@ async function openIsolatedPage(browser: Browser): Promise<{
 }
 
 async function createHostedRoom(hostPage: Page, hostName: string) {
-  await hostPage.goto('/host', { waitUntil: 'networkidle' });
+  await hostPage.goto('/host');
   await hostPage.waitForSelector('input#name', {
     state: 'visible',
     timeout: 10000,
@@ -47,9 +47,7 @@ test.describe('Authenticated room joins', () => {
     try {
       const roomCode = await createHostedRoom(hostPage, 'Guest Host');
       await ensureClerkAuthState(signedInPage);
-      await signedInPage.goto(`/join?code=${roomCode}`, {
-        waitUntil: 'networkidle',
-      });
+      await signedInPage.goto(`/join?code=${roomCode}`);
       await signedInPage.waitForSelector('input#name', {
         state: 'visible',
         timeout: 10000,

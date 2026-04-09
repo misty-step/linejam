@@ -891,14 +891,13 @@ async function handleRequest(
   }
 }
 
-export function startServer() {
+export function startServer(dependencies = defaultDependencies()) {
   const port = Number.parseInt(
     process.env.LINEJAM_CANARY_RESPONDER_PORT ||
       process.env.PORT ||
       String(DEFAULT_PORT),
     10
   );
-  const dependencies = defaultDependencies();
   void maybePruneArtifacts(dependencies);
   void reconcilePendingSmoke(dependencies).catch((error) => {
     console.error('Canary smoke replay failed', error);

@@ -2,13 +2,13 @@
 
 import { CANARY_AUTOMATION_EVENT_TYPES_JSON } from './events.mjs';
 
-const endpoint =
-  (process.env.CANARY_ENDPOINT || 'https://canary-obs.fly.dev')
-    .trim()
-    .replace(/\/$/, '');
+const endpoint = (process.env.CANARY_ENDPOINT || 'https://canary-obs.fly.dev')
+  .trim()
+  .replace(/\/$/, '');
 const apiKey = process.env.CANARY_API_KEY?.trim() || '';
 const webhookUrl = process.env.LINEJAM_CANARY_WEBHOOK_URL?.trim() || '';
 const sendTest = process.env.CANARY_WEBHOOK_SEND_TEST === '1';
+const emitSecret = process.argv.includes('--emit-secret');
 
 if (!apiKey) {
   throw new Error('CANARY_API_KEY is required');
@@ -82,7 +82,11 @@ const desiredEventKey = eventKey(desiredEvents);
 const listed = await canaryRequest('GET', '/api/v1/webhooks');
 const webhooks = Array.isArray(listed?.webhooks) ? listed.webhooks : [];
 const sameUrl = webhooks.filter((webhook) => {
-  if (!webhook || typeof webhook !== 'object' || typeof webhook.url !== 'string') {
+  if (
+    !webhook ||
+    typeof webhook !== 'object' ||
+    typeof webhook.url !== 'string'
+  ) {
     return false;
   }
 
@@ -107,18 +111,25 @@ if (exactActive) {
     .map((candidate) => candidate?.id)
     .filter((id) => typeof id === 'string' && id.length > 0);
 
-  for (const webhookId of replacedIds) {
-    await canaryRequest('DELETE', `/api/v1/webhooks/${webhookId}`);
-  }
-
   const created = await canaryRequest('POST', '/api/v1/webhooks', {
     url: webhookUrl,
     events: desiredEvents,
   });
+  const nextSecret =
+    typeof created?.secret === 'string' ? created.secret : null;
+  if (!created || typeof created.id !== 'string' || !nextSecret) {
+    throw new Error(
+      'Canary webhook creation did not return a usable id and secret.'
+    );
+  }
 
   status = replacedIds.length > 0 ? 'replaced' : 'created';
-  createdSecret = typeof created?.secret === 'string' ? created.secret : null;
+  createdSecret = nextSecret;
   webhook = created;
+
+  for (const webhookId of replacedIds) {
+    await canaryRequest('DELETE', `/api/v1/webhooks/${webhookId}`);
+  }
 }
 
 let test = null;
@@ -138,7 +149,7 @@ process.stdout.write(
         created_at: webhook.created_at ?? null,
       },
       replaced_ids: replacedIds,
-      secret: createdSecret,
+      secret: emitSecret ? createdSecret : null,
       test,
     },
     null,
@@ -146,7 +157,7 @@ process.stdout.write(
   )}\n`
 );
 
-if (createdSecret) {
+if (createdSecret && emitSecret) {
   process.stderr.write(
     'Save the returned secret as LINEJAM_CANARY_WEBHOOK_SECRET.\n'
   );

@@ -6,7 +6,9 @@ import {
   buildConvexEnvBootstrapPlan,
   deployHostedConvex,
   deriveClerkIssuerDomain,
+  resolveHostedConvexDeployMode,
   resolveConvexEnvTarget,
+  runHostedBuildCommand,
 } from '@/scripts/ci/bootstrap-convex-env.mjs';
 
 describe('bootstrap-convex-env', () => {
@@ -98,8 +100,9 @@ describe('bootstrap-convex-env', () => {
 
     expect(calls).toEqual([
       {
-        bin: 'npx',
+        bin: 'pnpm',
         args: [
+          'exec',
           'convex',
           'env',
           '--preview-name',
@@ -110,8 +113,9 @@ describe('bootstrap-convex-env', () => {
         ],
       },
       {
-        bin: 'npx',
+        bin: 'pnpm',
         args: [
+          'exec',
           'convex',
           'env',
           '--preview-name',
@@ -151,6 +155,7 @@ describe('bootstrap-convex-env', () => {
         })
       )
     ).toEqual([
+      'exec',
       'convex',
       'deploy',
       '--cmd',
@@ -160,7 +165,68 @@ describe('bootstrap-convex-env', () => {
     ]);
   });
 
-  it('bootstraps env before running the hosted Convex deploy', () => {
+  it('runs the hosted build command directly when preview deploys are compile-only', () => {
+    const calls: Array<{ bin: string; args: string[] }> = [];
+    const runner = (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      return { status: 0 };
+    };
+
+    const result = deployHostedConvex({
+      env: env({
+        CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
+        VERCEL_ENV: 'preview',
+        VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+      }),
+      runner,
+      logger: { log: vi.fn() },
+    });
+
+    expect(result).toEqual(['sh', '-lc', 'pnpm run build:check']);
+    expect(calls).toEqual([
+      {
+        bin: 'sh',
+        args: ['-lc', 'pnpm run build:check'],
+      },
+    ]);
+  });
+
+  it('fails fast when hosted production builds are missing CONVEX_DEPLOY_KEY', () => {
+    expect(() =>
+      deployHostedConvex({
+        env: env({
+          VERCEL_ENV: 'production',
+        }),
+        runner: vi.fn(),
+        logger: { log: vi.fn() },
+      })
+    ).toThrow(/missing CONVEX_DEPLOY_KEY/);
+  });
+
+  it('fails fast when hosted preview builds point at a production deploy key', () => {
+    expect(() =>
+      resolveHostedConvexDeployMode(
+        env({
+          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
+          VERCEL_ENV: 'preview',
+          VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+        })
+      )
+    ).toThrow(/preview builds cannot use a production CONVEX_DEPLOY_KEY/);
+  });
+
+  it('fails fast when hosted production builds point at a preview deploy key', () => {
+    expect(() =>
+      resolveHostedConvexDeployMode(
+        env({
+          CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
+          VERCEL_ENV: 'production',
+        })
+      )
+    ).toThrow(/production builds cannot use a preview CONVEX_DEPLOY_KEY/);
+  });
+
+  it('bootstraps env before running the hosted Convex deploy for production builds', () => {
     const calls: Array<{ bin: string; args: string[] }> = [];
     const runner = (bin: string, args: string[]) => {
       calls.push({ bin, args });
@@ -169,9 +235,82 @@ describe('bootstrap-convex-env', () => {
 
     deployHostedConvex({
       env: env({
+        CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
+        VERCEL_ENV: 'production',
+        GUEST_TOKEN_SECRET: 'guest-secret',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
+          'live',
+          'clerk.linejam.app'
+        ),
+        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+      }),
+      runner,
+      logger: { log: vi.fn() },
+    });
+
+    expect(calls).toEqual([
+      {
+        bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'env',
+          '--prod',
+          'set',
+          'GUEST_TOKEN_SECRET',
+          'guest-secret',
+        ],
+      },
+      {
+        bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'env',
+          '--prod',
+          'set',
+          'CLERK_JWT_ISSUER_DOMAIN',
+          'https://clerk.linejam.app',
+        ],
+      },
+      {
+        bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'deploy',
+          '--cmd',
+          'pnpm run build:check',
+          '--prod',
+        ],
+      },
+    ]);
+    expect(calls.at(-1)).toEqual({
+      bin: 'pnpm',
+      args: [
+        'exec',
+        'convex',
+        'deploy',
+        '--cmd',
+        'pnpm run build:check',
+        '--prod',
+      ],
+    });
+  });
+
+  it('can force hosted preview builds to deploy Convex explicitly', () => {
+    const calls: Array<{ bin: string; args: string[] }> = [];
+    const runner = (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      return { status: 0 };
+    };
+
+    const result = deployHostedConvex({
+      env: env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
         VERCEL_ENV: 'preview',
         VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+        LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY: '1',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
           'test',
@@ -182,9 +321,19 @@ describe('bootstrap-convex-env', () => {
       logger: { log: vi.fn() },
     });
 
+    expect(result).toEqual([
+      'exec',
+      'convex',
+      'deploy',
+      '--cmd',
+      'pnpm run build:check',
+      '--preview-create',
+      'codex/canary-local-ci-agentic-qa',
+    ]);
     expect(calls.at(-1)).toEqual({
-      bin: 'npx',
+      bin: 'pnpm',
       args: [
+        'exec',
         'convex',
         'deploy',
         '--cmd',
@@ -204,5 +353,48 @@ describe('bootstrap-convex-env', () => {
         })
       )
     ).toThrow(/preview branch name/);
+  });
+
+  it('resolves hosted preview builds to build-only mode by default', () => {
+    expect(
+      resolveHostedConvexDeployMode(
+        env({
+          CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
+          VERCEL_ENV: 'preview',
+        })
+      )
+    ).toEqual({
+      kind: 'build-only',
+      reason: 'preview-build',
+    });
+  });
+
+  it('treats non-hosted builds without deploy credentials as build-only', () => {
+    expect(resolveHostedConvexDeployMode(env({}))).toEqual({
+      kind: 'build-only',
+      reason: 'missing-deploy-key',
+    });
+  });
+
+  it('runs the hosted build command via the shell', () => {
+    const calls: Array<{ bin: string; args: string[] }> = [];
+    const runner = (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      return { status: 0 };
+    };
+
+    expect(
+      runHostedBuildCommand({
+        env: env({}),
+        runner,
+      })
+    ).toEqual(['sh', '-lc', 'pnpm run build:check']);
+
+    expect(calls).toEqual([
+      {
+        bin: 'sh',
+        args: ['-lc', 'pnpm run build:check'],
+      },
+    ]);
   });
 });

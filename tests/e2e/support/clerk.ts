@@ -20,6 +20,10 @@ const REQUIRE_AUTH_E2E =
   process.env.PLAYWRIGHT_REQUIRE_AUTH_E2E?.trim() === '1';
 let ensureUserPromise: Promise<void> | null = null;
 
+function isLiveClerkSecretKey(secretKey: string) {
+  return secretKey.startsWith('sk_live_');
+}
+
 export function requireClerkBrowserAuth(
   testInfo: TestInfo,
   scope = 'authenticated E2E'
@@ -44,7 +48,7 @@ export async function ensureClerkAuthState(page: Page) {
     throw new Error('CLERK_SECRET_KEY is required');
   }
 
-  await ensureClerkTestUser(clerkSecretKey, CLERK_TEST_EMAIL);
+  await ensureClerkSmokeUser(clerkSecretKey, CLERK_TEST_EMAIL);
   await page.goto('/');
   await clerk.signIn({
     page,
@@ -78,7 +82,10 @@ async function assertClerkConvexToken(page: Page) {
   }
 }
 
-async function ensureClerkTestUser(secretKey: string, emailAddress: string) {
+export async function ensureClerkSmokeUser(
+  secretKey: string,
+  emailAddress: string
+) {
   if (!ensureUserPromise) {
     ensureUserPromise = (async () => {
       const client = createClerkClient({ secretKey });
@@ -86,6 +93,12 @@ async function ensureClerkTestUser(secretKey: string, emailAddress: string) {
         emailAddress: [emailAddress],
       });
       if (existing.data[0]) return;
+
+      if (isLiveClerkSecretKey(secretKey)) {
+        throw new Error(
+          `Refusing to auto-provision Clerk smoke user ${emailAddress} against a live Clerk instance. Create that user first or point PLAYWRIGHT_CLERK_TEST_EMAIL at an existing live smoke account.`
+        );
+      }
 
       try {
         await client.users.createUser({
@@ -104,7 +117,10 @@ async function ensureClerkTestUser(secretKey: string, emailAddress: string) {
           throw error;
         }
       }
-    })();
+    })().catch((error) => {
+      ensureUserPromise = null;
+      throw error;
+    });
   }
 
   await ensureUserPromise;

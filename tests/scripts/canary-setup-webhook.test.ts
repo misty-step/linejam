@@ -18,7 +18,10 @@ type WebhookRecord = {
   secret?: string;
 };
 
-function startCanaryStub(initialWebhooks: WebhookRecord[] = []) {
+function startCanaryStub(
+  initialWebhooks: WebhookRecord[] = [],
+  options?: { failCreate?: boolean }
+) {
   const state = {
     webhooks: [...initialWebhooks],
     deletions: [] as string[],
@@ -54,6 +57,12 @@ function startCanaryStub(initialWebhooks: WebhookRecord[] = []) {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/v1/webhooks') {
+      if (options?.failCreate) {
+        response.writeHead(500, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ error: 'create_failed' }));
+        return;
+      }
+
       const chunks: Buffer[] = [];
       for await (const chunk of request) {
         chunks.push(Buffer.from(chunk));
@@ -151,6 +160,31 @@ describe('canary setup webhook script', () => {
     expect(result.status).toBe('created');
     expect(result.webhook.id).toBe('WHK-1');
     expect(result.replaced_ids).toEqual([]);
+    expect(result.secret).toBeNull();
+    expect(stderr).toBe('');
+  });
+
+  it('emits the created secret only when explicitly requested', async () => {
+    const stub = await startCanaryStub();
+    servers.push(stub.close);
+
+    const { stdout, stderr } = await execFileAsync(
+      scriptPath,
+      ['--emit-secret'],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          CANARY_ENDPOINT: stub.baseUrl,
+          CANARY_API_KEY: 'canary-secret',
+          LINEJAM_CANARY_WEBHOOK_URL:
+            'https://linejam.example.com/canary/webhook',
+        },
+      }
+    );
+
+    const result = JSON.parse(stdout) as { secret: string | null };
+
     expect(result.secret).toBe('secret-1');
     expect(stderr).toContain('Save the returned secret');
   });
@@ -242,6 +276,36 @@ describe('canary setup webhook script', () => {
     expect(result.webhook.id).toBe('WHK-1');
     expect(result.replaced_ids).toEqual(['WHK-old-1', 'WHK-old-2']);
     expect(stub.state.deletions).toEqual(['WHK-old-1', 'WHK-old-2']);
+  });
+
+  it('does not delete existing subscriptions before replacement creation succeeds', async () => {
+    const stub = await startCanaryStub(
+      [
+        {
+          id: 'WHK-old-1',
+          url: 'https://linejam.example.com/canary/webhook',
+          events: ['error.new_class'],
+          active: true,
+        },
+      ],
+      { failCreate: true }
+    );
+    servers.push(stub.close);
+
+    await expect(
+      execFileAsync(scriptPath, {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          CANARY_ENDPOINT: stub.baseUrl,
+          CANARY_API_KEY: 'canary-secret',
+          LINEJAM_CANARY_WEBHOOK_URL:
+            'https://linejam.example.com/canary/webhook',
+        },
+      })
+    ).rejects.toThrow(/Canary API POST \/api\/v1\/webhooks returned 500/);
+
+    expect(stub.state.deletions).toEqual([]);
   });
 
   it('can send a test delivery after ensuring the webhook', async () => {

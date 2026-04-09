@@ -154,6 +154,7 @@ function validateSmokeAuthConfiguration(baseUrl) {
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
     process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
     '';
+  const secretKey = process.env.CLERK_SECRET_KEY?.trim() || '';
 
   if (!publishableKey) {
     return null;
@@ -166,9 +167,22 @@ function validateSmokeAuthConfiguration(baseUrl) {
     return null;
   }
 
-  if (origin === 'https://www.linejam.app' && publishableKey.startsWith('pk_test_')) {
+  if (
+    origin === 'https://www.linejam.app' &&
+    publishableKey.startsWith('pk_test_')
+  ) {
     return (
       'Authenticated production smoke requires a live Clerk publishable key. ' +
+      'Use production-aligned Clerk env instead of localhost test keys.'
+    );
+  }
+
+  if (
+    origin === 'https://www.linejam.app' &&
+    secretKey.startsWith('sk_test_')
+  ) {
+    return (
+      'Authenticated production smoke requires a live Clerk secret key. ' +
       'Use production-aligned Clerk env instead of localhost test keys.'
     );
   }
@@ -188,7 +202,17 @@ async function validateClerkTemplateForSmoke() {
   const secretKey = process.env.CLERK_SECRET_KEY?.trim() || '';
 
   if (!publishableKey || !secretKey) {
-    return null;
+    const missing = [];
+    if (!publishableKey) {
+      missing.push(
+        'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY or CLERK_PUBLISHABLE_KEY'
+      );
+    }
+    if (!secretKey) {
+      missing.push('CLERK_SECRET_KEY');
+    }
+
+    return `Authenticated smoke requires ${missing.join(' and ')}.`;
   }
 
   try {

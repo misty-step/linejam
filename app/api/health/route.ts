@@ -2,6 +2,8 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import { captureCanaryException, isCanaryEnabled } from '@/lib/canary';
 
+const CONVEX_HEALTH_TIMEOUT_MS = 1_500;
+
 export async function GET() {
   try {
     const convexStatus = await checkConvex();
@@ -64,7 +66,18 @@ async function checkConvex() {
 
   try {
     const client = new ConvexHttpClient(convexUrl);
-    await client.query(api.health.ping);
+    await Promise.race([
+      client.query(api.health.ping),
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error(
+              `Convex health ping timed out after ${CONVEX_HEALTH_TIMEOUT_MS}ms`
+            )
+          );
+        }, CONVEX_HEALTH_TIMEOUT_MS);
+      }),
+    ]);
     return 'connected';
   } catch (error) {
     // Keep response successful but surface degraded status.

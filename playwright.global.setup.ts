@@ -2,7 +2,7 @@ import { clerkSetup } from '@clerk/testing/playwright';
 import {
   hasClerkBrowserAuth,
   setClerkTestingEnv,
-} from './tests/e2e/support/clerk';
+} from '@/tests/e2e/support/clerk';
 
 export default async function globalSetup() {
   setClerkTestingEnv();

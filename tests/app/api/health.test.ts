@@ -52,6 +52,7 @@ describe('/api/health', () => {
     afterEach(() => {
       mockQuery.mockReset();
       mockQuery.mockResolvedValue({ ok: true });
+      vi.useRealTimers();
     });
 
     it('returns 200 with status, timestamp, and env checks', async () => {
@@ -99,6 +100,22 @@ describe('/api/health', () => {
       vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(data.status).toBe('unhealthy');
+      expect(data.convex).toBe('unreachable');
+    });
+
+    it('returns unhealthy when Convex never answers before the deadline', async () => {
+      mockQuery.mockImplementation(() => new Promise(() => undefined));
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.useFakeTimers();
+
+      const responsePromise = GET();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      const response = await responsePromise;
       const data = await response.json();
 
       expect(response.status).toBe(503);

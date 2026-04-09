@@ -15,7 +15,7 @@
 ## Build, Test, Dev Commands
 
 - `pnpm dev`: Run Next + Convex together.
-- `pnpm build`: Deploy via `npx convex deploy` then `next build` (`build:check`).
+- `pnpm build`: Run the hosted Convex bootstrap/deploy wrapper in `scripts/ci/bootstrap-convex-env.mjs` before `next build` (`build:check`).
 - `pnpm lint` / `pnpm lint:fix`: ESLint (Next core-web-vitals).
 - `pnpm format` / `pnpm format:check`: Prettier 3 over code+docs.
 - `pnpm typecheck`: `tsc --noEmit`.
@@ -43,7 +43,7 @@
 - Conventional commits enforced by commitlint (`feat:`, `fix:`, `chore:`, etc.).
 - Lefthook pre-commit auto-runs `eslint --fix` + `prettier --write`; let it stage fixes.
 - Pre-push runs the local Dagger contract via `pnpm ci:prepush`; keep it green before PR. Local Dagger is the source of truth and auto-syncs the active Convex dev backend before auth-heavy E2E unless you explicitly disable that behavior.
-- The default Dagger E2E contract includes authenticated Clerk coverage. Keep Clerk secrets configured unless you are intentionally running a guest-only loop; `PLAYWRIGHT_CLERK_TEST_EMAIL` is only an override because the Playwright helper can provision the default test user automatically.
+- The default Dagger E2E contract includes authenticated Clerk coverage. Keep Clerk secrets configured unless you are intentionally running a guest-only loop; `PLAYWRIGHT_CLERK_TEST_EMAIL` is optional for dev/test Clerk keys because the Playwright helper can provision the default smoke user there, but live Clerk keys must point at a precreated smoke account.
 - Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Keep `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=0` unless you explicitly intend to mutate a live Clerk instance.
 - The authoritative Dagger contract requires real `NEXT_PUBLIC_CANARY_ENDPOINT` and `NEXT_PUBLIC_CANARY_API_KEY` values for build-bearing lanes. Do not paper over missing Canary browser config with placeholders.
 - Local Dagger will not push Convex production code unless `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is set explicitly.

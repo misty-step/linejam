@@ -194,9 +194,10 @@ authenticated browser coverage runs. Keep
 CLI to create that template against a live Clerk instance.
 
 Authenticated Playwright coverage only needs `CLERK_SECRET_KEY` plus
-`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. `PLAYWRIGHT_CLERK_TEST_EMAIL` is an
-optional override because the helper provisions the default Clerk test user
-automatically when it is missing.
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. `PLAYWRIGHT_CLERK_TEST_EMAIL` remains an
+optional override for dev/test Clerk keys because the helper can provision the
+default smoke user there automatically. Live Clerk keys fail closed instead, so
+point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke account.
 
 Authenticated Playwright routes sign into Clerk inside each live browser
 context after the app is already serving traffic. Do not depend on serialized

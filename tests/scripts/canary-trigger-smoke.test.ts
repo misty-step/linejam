@@ -42,26 +42,35 @@ describe('shouldTriggerSmoke', () => {
 });
 
 describe('runSmoke', () => {
-  const originalBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
+  const trackedEnvKeys = [
+    'PLAYWRIGHT_BASE_URL',
+    'CANARY_SMOKE_TIMEOUT_MS',
+    'CANARY_SMOKE_KILL_GRACE_MS',
+    'LINEJAM_SMOKE_RUNNER',
+    'LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST',
+    'LINEJAM_ALLOWED_SMOKE_ORIGINS',
+    'LINEJAM_ALLOWED_SMOKE_HOSTS',
+    'LINEJAM_ALLOWED_SMOKE_HOST_PATTERN',
+    'UNRELATED_SECRET',
+    'PLAYWRIGHT_REQUIRE_AUTH_SMOKE',
+    'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+    'CLERK_PUBLISHABLE_KEY',
+    'CLERK_SECRET_KEY',
+    'CANARY_API_KEY',
+  ] as const;
+  const originalEnv = Object.fromEntries(
+    trackedEnvKeys.map((key) => [key, process.env[key]])
+  ) as Record<(typeof trackedEnvKeys)[number], string | undefined>;
 
   afterEach(() => {
-    if (originalBaseUrl === undefined) {
-      delete process.env.PLAYWRIGHT_BASE_URL;
-    } else {
-      process.env.PLAYWRIGHT_BASE_URL = originalBaseUrl;
+    for (const key of trackedEnvKeys) {
+      const value = originalEnv[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
     }
-    delete process.env.CANARY_SMOKE_TIMEOUT_MS;
-    delete process.env.CANARY_SMOKE_KILL_GRACE_MS;
-    delete process.env.LINEJAM_SMOKE_RUNNER;
-    delete process.env.LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST;
-    delete process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS;
-    delete process.env.LINEJAM_ALLOWED_SMOKE_HOSTS;
-    delete process.env.LINEJAM_ALLOWED_SMOKE_HOST_PATTERN;
-    delete process.env.UNRELATED_SECRET;
-    delete process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE;
-    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-    delete process.env.CLERK_PUBLISHABLE_KEY;
-    delete process.env.CLERK_SECRET_KEY;
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -409,10 +418,53 @@ describe('runSmoke', () => {
     });
   });
 
-  it('fails fast when authenticated smoke is missing the Clerk convex template', async () => {
+  it('fails fast when production auth smoke still uses a test Clerk secret', async () => {
     process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE = '1';
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_example';
     process.env.CLERK_SECRET_KEY = 'sk_test_example';
+
+    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+
+    const result = await runSmoke({
+      baseUrl: 'https://www.linejam.app',
+      eventName: 'error.new_class',
+      deliveryId: 'evt-test-secret',
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      skipped: false,
+      reason:
+        'Authenticated production smoke requires a live Clerk secret key. Use production-aligned Clerk env instead of localhost test keys.',
+    });
+  });
+
+  it('fails fast when authenticated smoke is missing required Clerk credentials', async () => {
+    process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE = '1';
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    delete process.env.CLERK_PUBLISHABLE_KEY;
+    delete process.env.CLERK_SECRET_KEY;
+
+    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+
+    const result = await runSmoke({
+      baseUrl: 'https://www.linejam.app',
+      eventName: 'error.new_class',
+      deliveryId: 'evt-missing-clerk-creds',
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      skipped: false,
+      reason:
+        'Authenticated smoke requires NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY or CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY.',
+    });
+  });
+
+  it('fails fast when authenticated smoke is missing the Clerk convex template', async () => {
+    process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE = '1';
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_example';
+    process.env.CLERK_SECRET_KEY = 'sk_live_example';
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,

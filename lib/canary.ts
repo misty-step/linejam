@@ -50,7 +50,7 @@ export async function captureCanaryException(
       stackTrace: normalized.stackTrace,
       context: scrubbedContext,
     },
-    error
+    normalized
   );
 }
 
@@ -131,6 +131,31 @@ function normalizeError(error: unknown): {
   };
 }
 
+function scrubErrorForLogs(error: unknown) {
+  if (
+    error &&
+    typeof error === 'object' &&
+    typeof (error as { errorClass?: unknown }).errorClass === 'string' &&
+    typeof (error as { message?: unknown }).message === 'string'
+  ) {
+    return {
+      errorClass: (error as { errorClass: string }).errorClass,
+      message: (error as { message: string }).message,
+      stackTrace:
+        typeof (error as { stackTrace?: unknown }).stackTrace === 'string'
+          ? (error as { stackTrace?: string }).stackTrace
+          : undefined,
+    };
+  }
+
+  const normalized = normalizeError(error);
+  return {
+    errorClass: normalized.errorClass,
+    message: normalized.message,
+    stackTrace: normalized.stackTrace,
+  };
+}
+
 type CanaryPayload = {
   errorClass: string;
   message: string;
@@ -180,7 +205,7 @@ async function sendCanaryPayload(
     }
   } catch (reportingError) {
     console.error('Canary capture failed:', reportingError, {
-      originalError,
+      originalError: scrubErrorForLogs(originalError),
       context: payload.context,
     });
   }

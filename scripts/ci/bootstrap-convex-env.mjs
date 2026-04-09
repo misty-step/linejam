@@ -67,10 +67,82 @@ function resolveHostedClerkIssuerDomain(env, target) {
   return explicitIssuer || derivedIssuer;
 }
 
+function resolveDeployKeyTarget(deployKey) {
+  if (deployKey.startsWith('prod:')) {
+    return 'prod';
+  }
+
+  if (deployKey.startsWith('preview:')) {
+    return 'preview';
+  }
+
+  return 'default';
+}
+
+/**
+ * @param {EnvShape} [env]
+ */
+function assertHostedDeploySignalsCompatible(env = process.env) {
+  const deployKey = env.CONVEX_DEPLOY_KEY?.trim() || '';
+  const vercelEnv = env.VERCEL_ENV?.trim() || '';
+  const deployKeyTarget = resolveDeployKeyTarget(deployKey);
+
+  if (vercelEnv === 'preview' && deployKeyTarget === 'prod') {
+    throw new Error(
+      'Hosted preview builds cannot use a production CONVEX_DEPLOY_KEY. Fix the Vercel env so preview infrastructure cannot target Convex production.'
+    );
+  }
+
+  if (vercelEnv === 'production' && deployKeyTarget === 'preview') {
+    throw new Error(
+      'Hosted production builds cannot use a preview CONVEX_DEPLOY_KEY. Fix the Vercel env so production infrastructure cannot target Convex preview.'
+    );
+  }
+}
+
+/**
+ * @param {EnvShape} [env]
+ */
+export function resolveHostedConvexDeployMode(env = process.env) {
+  assertHostedDeploySignalsCompatible(env);
+
+  const deployKey = env.CONVEX_DEPLOY_KEY?.trim() || '';
+  if (!deployKey) {
+    if (env.VERCEL_ENV?.trim() === 'production') {
+      return {
+        kind: 'error',
+        reason: 'missing-prod-deploy-key',
+      };
+    }
+
+    return {
+      kind: 'build-only',
+      reason: 'missing-deploy-key',
+    };
+  }
+
+  if (
+    env.VERCEL_ENV?.trim() === 'preview' &&
+    env.LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY?.trim() !== '1'
+  ) {
+    return {
+      kind: 'build-only',
+      reason: 'preview-build',
+    };
+  }
+
+  return {
+    kind: 'deploy-convex',
+    reason: 'hosted-deploy',
+  };
+}
+
 /**
  * @param {EnvShape} [env]
  */
 export function resolveConvexEnvTarget(env = process.env) {
+  assertHostedDeploySignalsCompatible(env);
+
   const deployKey = env.CONVEX_DEPLOY_KEY?.trim() || '';
   if (!deployKey) {
     return {
@@ -169,9 +241,10 @@ export function bootstrapConvexEnv({
   }
 
   for (const [name, value] of plan.entries) {
+    const [command, prefixArgs] = CONVEX_EXECUTABLE;
     const result = runner(
-      'npx',
-      ['convex', 'env', ...plan.target.args, 'set', name, value],
+      command,
+      [...prefixArgs, 'env', ...plan.target.args, 'set', name, value],
       {
         stdio: 'inherit',
         env,
@@ -197,7 +270,11 @@ export function buildHostedConvexDeployArgs(
   buildCommand = 'pnpm run build:check'
 ) {
   const target = resolveConvexEnvTarget(env);
-  const args = ['convex', 'deploy', '--cmd', buildCommand];
+  const args = ['exec', 'convex', 'deploy', '--cmd', buildCommand];
+
+  if (target.status === 'prod') {
+    args.push('--prod');
+  }
 
   if (target.status === 'preview') {
     const previewName = target.args[1];
@@ -207,6 +284,30 @@ export function buildHostedConvexDeployArgs(
   }
 
   return args;
+}
+
+/**
+ * @param {{
+ *   env?: EnvShape;
+ *   runner?: Runner;
+ *   buildCommand?: string;
+ * }} [options]
+ */
+export function runHostedBuildCommand({
+  env = process.env,
+  runner = spawnSync,
+  buildCommand = 'pnpm run build:check',
+} = {}) {
+  const result = runner('sh', ['-lc', buildCommand], {
+    stdio: 'inherit',
+    env,
+  });
+
+  if (result.status !== 0) {
+    throw new Error(`Hosted build command failed: ${buildCommand}`);
+  }
+
+  return ['sh', '-lc', buildCommand];
 }
 
 /**
@@ -223,10 +324,24 @@ export function deployHostedConvex({
   logger = console,
   buildCommand = 'pnpm run build:check',
 } = {}) {
+  const deployMode = resolveHostedConvexDeployMode(env);
+  if (deployMode.kind === 'error') {
+    throw new Error(
+      'Hosted production build is missing CONVEX_DEPLOY_KEY. Refusing to skip Convex deploy because that can ship frontend code against stale backend auth config.'
+    );
+  }
+
+  if (deployMode.kind === 'build-only') {
+    logger.log(
+      `Skipping hosted Convex deploy for ${deployMode.reason}; running ${buildCommand} only.`
+    );
+    return runHostedBuildCommand({ env, runner, buildCommand });
+  }
+
   bootstrapConvexEnv({ env, runner, logger });
 
   const args = buildHostedConvexDeployArgs(env, buildCommand);
-  const result = runner('npx', args, {
+  const result = runner('pnpm', args, {
     stdio: 'inherit',
     env,
   });
@@ -253,3 +368,4 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   });
 }
+const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];

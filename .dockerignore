@@ -2,6 +2,7 @@
 .github
 .next
 .canary
+.evidence
 coverage
 playwright-report
 test-results

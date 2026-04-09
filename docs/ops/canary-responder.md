@@ -12,7 +12,7 @@ Linejam uses Canary as the primary observability sink. The responder is the loca
 Optional:
 
 - `LINEJAM_CANARY_WEBHOOK_URL` is only required when running `pnpm canary:webhook:setup`
-- `PLAYWRIGHT_CLERK_TEST_EMAIL` overrides the default provisioned Clerk smoke user
+- `PLAYWRIGHT_CLERK_TEST_EMAIL` overrides the default Clerk smoke user; use an existing account for live Clerk tenants because hosted smoke will not auto-provision against `sk_live_...` keys
 - `PLAYWRIGHT_REQUIRE_AUTH_SMOKE=1` makes smoke fail instead of silently skipping the authenticated path
 - `LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST=1` forces hosted smoke to reject untrusted `PLAYWRIGHT_BASE_URL` values
 - `LINEJAM_ALLOWED_SMOKE_ORIGINS`, `LINEJAM_ALLOWED_SMOKE_HOSTS`, and `LINEJAM_ALLOWED_SMOKE_HOST_PATTERN` define the smoke allowlist when that guardrail is enabled
@@ -54,10 +54,10 @@ Deliveries are HMAC-SHA256 verified from the raw request body using the `x-signa
 
 ```bash
 export LINEJAM_CANARY_WEBHOOK_URL="https://your-host.example.com/canary/webhook"
-pnpm canary:webhook:setup
+pnpm canary:webhook:setup -- --emit-secret
 ```
 
-The setup command is idempotent for the configured responder URL. It keeps the exact active subscription when the desired event set already exists and replaces duplicate or stale subscriptions for the same URL when the desired state drifted. Set `CANARY_WEBHOOK_SEND_TEST=1` to have setup send Canary's built-in `canary.ping` test delivery after ensuring the subscription.
+The setup command is idempotent for the configured responder URL. It keeps the exact active subscription when the desired event set already exists and replaces duplicate or stale subscriptions for the same URL when the desired state drifted. Pass `-- --emit-secret` only when you need the newly created signing secret printed; the JSON output redacts it by default. Set `CANARY_WEBHOOK_SEND_TEST=1` to have setup send Canary's built-in `canary.ping` test delivery after ensuring the subscription.
 
 The default subscription set is defined in [`scripts/canary/events.mjs`](../../scripts/canary/events.mjs). Keep that file as the canonical event taxonomy; the responder and webhook setup CLI both consume it directly.
 
@@ -82,8 +82,8 @@ pnpm ci:dagger:smoke   # local authoritative contract
 pnpm test:e2e:smoke    # hosted responders with LINEJAM_SMOKE_RUNNER=playwright
 ```
 
-This uses `PLAYWRIGHT_BASE_URL` plus the dedicated `playwright.smoke.config.ts` configuration. When `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` are set, the smoke suite also exercises a signed-in Clerk join path; `PLAYWRIGHT_CLERK_TEST_EMAIL` only overrides the default provisioned user. Set `PLAYWRIGHT_REQUIRE_AUTH_SMOKE=1` anywhere auth coverage is mandatory, including preview and production smoke jobs.
+This uses `PLAYWRIGHT_BASE_URL` plus the dedicated `playwright.smoke.config.ts` configuration. When `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` are set, the smoke suite also exercises a signed-in Clerk join path; `PLAYWRIGHT_CLERK_TEST_EMAIL` only overrides the default smoke user, and live Clerk tenants should point it at a precreated account. Set `PLAYWRIGHT_REQUIRE_AUTH_SMOKE=1` anywhere auth coverage is mandatory, including preview and production smoke jobs.
 
-Local operators should keep the authoritative Dagger contract by leaving `LINEJAM_SMOKE_RUNNER=dagger`. Hosted responders should switch to `LINEJAM_SMOKE_RUNNER=playwright`; the same smoke suite runs directly with Playwright and avoids trying to embed Dagger inside the webhook worker. Hosted smoke still enforces the URL allowlist, rejects `pk_test_...` keys against `https://www.linejam.app`, and validates the Clerk `convex` JWT template before it launches the browser. The committed Fly deployment files are [`Dockerfile.responder`](../../Dockerfile.responder) and [`fly.responder.toml`](../../fly.responder.toml).
+Local operators should keep the authoritative Dagger contract by leaving `LINEJAM_SMOKE_RUNNER=dagger`. Hosted responders should switch to `LINEJAM_SMOKE_RUNNER=playwright`; the same smoke suite runs directly with Playwright and avoids trying to embed Dagger inside the webhook worker. Hosted smoke still enforces the URL allowlist, rejects `pk_test_...` and `sk_test_...` keys against `https://www.linejam.app`, requires complete Clerk auth env when auth smoke is enabled, and validates the Clerk `convex` JWT template before it launches the browser. The committed Fly deployment files are [`Dockerfile.responder`](../../Dockerfile.responder) and [`fly.responder.toml`](../../fly.responder.toml).
 
 Canary itself treats generic signed webhooks as the stable product contract, so the responder should stay thin: verify, fetch context, store evidence, trigger the smoke harness, then hand off to follow-on agents.
