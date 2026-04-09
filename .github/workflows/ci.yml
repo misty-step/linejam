@@ -19,26 +19,25 @@ on:
       - 'LICENSE'
       - '.gitignore'
 
-# Concurrent CI runs: cancel in-progress runs on same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Consolidated quality gates (lint, format, typecheck, secrets)
-  # Runs on every push - these are fast and catch most issues
   quality-gates:
     name: Quality Gates
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CI_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
+      CANARY_ENDPOINT: ${{ secrets.CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Required for gitleaks
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -46,49 +45,42 @@ jobs:
             echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
           fi
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Security audit
-        run: pnpm audit --audit-level=high
-        continue-on-error: true  # Advisory — don't block PRs on upstream CVEs
-
-      - name: Lint
-        run: pnpm lint
+      - name: Install Dagger CLI
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Format check
-        run: pnpm format:check
+        run: ./scripts/ci/dagger-call.sh format-check
+
+      - name: Lint
+        run: ./scripts/ci/dagger-call.sh lint
 
       - name: Type check
-        run: pnpm typecheck
+        run: ./scripts/ci/dagger-call.sh typecheck
 
       - name: Secret scan
-        run: |
-          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz
-          ./gitleaks detect --source . --config .gitleaks.toml --redact --no-banner
+        run: ./scripts/ci/dagger-call.sh secret-scan
 
-  # Test & Build runs after quality gates pass
+      - name: Security audit
+        run: ./scripts/ci/dagger-call.sh audit
+
   test-build:
     name: Test & Build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: [quality-gates]
-    permissions:
-      contents: read
-      pull-requests: write
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CI_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CI_CLERK_SECRET_KEY || secrets.CLERK_SECRET_KEY }}
+      CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
+      PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
+      PLAYWRIGHT_REQUIRE_AUTH_E2E: '1'
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
+      CANARY_ENDPOINT: ${{ secrets.CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -99,55 +91,37 @@ jobs:
             echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
           fi
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Install Dagger CLI
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
+      - name: Unit tests
+        run: ./scripts/ci/dagger-call.sh unit-test
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Build check
+        run: ./scripts/ci/dagger-call.sh build-check
 
-      - name: Test
-        run: pnpm test:ci
-        timeout-minutes: 5
-
-      - name: Vitest Coverage Report
-        uses: davelosert/vitest-coverage-report-action@v2
-        if: always()
-        with:
-          json-summary-path: ./coverage/coverage-summary.json
-          json-final-path: ./coverage/coverage-final.json
-          vite-config-path: ./vitest.config.ts
-
-      - name: Upload coverage for badges
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-data
-          path: coverage/
-          retention-days: 1
-
-      - name: Build
-        run: pnpm build:check
-
-  # E2E runs only when PR is ready for review (not draft) or on master push
-  # This saves ~3 min per push on WIP/draft PRs
   e2e:
-    name: E2E Tests
+    name: E2E Mirror
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     needs: [quality-gates]
     if: |
       github.event_name == 'push' ||
       github.event.pull_request.draft == false
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CI_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CI_CLERK_SECRET_KEY || secrets.CLERK_SECRET_KEY }}
+      CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
+      PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
+      PLAYWRIGHT_REQUIRE_AUTH_E2E: '1'
+      LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '0'
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
+      CANARY_ENDPOINT: ${{ secrets.CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -158,37 +132,14 @@ jobs:
             echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
           fi
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Install Dagger CLI
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
+      - name: Run E2E mirror
+        run: ./scripts/ci/dagger-call.sh e2e
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm build:check
-
-      - name: Install Playwright Browsers
-        run: pnpm exec playwright install chromium --with-deps
-
-      - name: Run E2E tests
-        run: pnpm test:e2e
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
-
-  # Rollup job — branch protection requires this exact name to merge.
-  # Job name must match exactly. Workflow name: is a display label only.
   merge-gate:
     name: merge-gate
     runs-on: ubuntu-latest
@@ -201,64 +152,3 @@ jobs:
              [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
             exit 1
           fi
-
-  # Badge updates only on master push
-  badges:
-    name: Update Coverage Badges
-    runs-on: ubuntu-latest
-    needs: [test-build]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-    permissions:
-      contents: read
-    steps:
-      - name: Download coverage from test-build
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-data
-          path: coverage/
-
-      - name: Extract coverage values
-        id: coverage
-        run: |
-          LINES=$(jq '.total.lines.pct' coverage/coverage-summary.json)
-          BRANCHES=$(jq '.total.branches.pct' coverage/coverage-summary.json)
-          FUNCTIONS=$(jq '.total.functions.pct' coverage/coverage-summary.json)
-          STATEMENTS=$(jq '.total.statements.pct' coverage/coverage-summary.json)
-
-          echo "lines=$LINES" >> $GITHUB_OUTPUT
-          echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
-          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
-          echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
-
-      - name: Update Coverage Badges
-        env:
-          GH_TOKEN: ${{ secrets.GIST_SECRET }}
-        run: |
-          # Generate badge JSON files
-          for metric in lines branches functions statements; do
-            VALUE=$(jq ".total.${metric}.pct" coverage/coverage-summary.json)
-            # Determine color based on threshold
-            if (( $(echo "$VALUE >= 80" | bc -l) )); then
-              COLOR="brightgreen"
-            elif (( $(echo "$VALUE >= 70" | bc -l) )); then
-              COLOR="yellow"
-            else
-              COLOR="red"
-            fi
-            # Capitalize first letter for label
-            LABEL=$(echo "$metric" | sed 's/.*/\u&/')
-            echo "{\"schemaVersion\":1,\"label\":\"$LABEL\",\"message\":\"${VALUE}%\",\"color\":\"$COLOR\"}" > /tmp/coverage-${metric}.json
-          done
-
-          # Update all badge files atomically via API (avoids 409 conflicts)
-          jq -n \
-            --arg lines "$(cat /tmp/coverage-lines.json)" \
-            --arg branches "$(cat /tmp/coverage-branches.json)" \
-            --arg functions "$(cat /tmp/coverage-functions.json)" \
-            --arg statements "$(cat /tmp/coverage-statements.json)" \
-            '{files: {
-              "coverage-lines.json": {content: $lines},
-              "coverage-branches.json": {content: $branches},
-              "coverage-functions.json": {content: $functions},
-              "coverage-statements.json": {content: $statements}
-            }}' | gh api --method PATCH /gists/${{ vars.COVERAGE_GIST_ID }} --input -

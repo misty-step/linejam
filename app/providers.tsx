@@ -6,6 +6,7 @@ import { convex } from '../lib/convex';
 import { ThemeProvider } from '@/lib/themes';
 import { PostHogProvider } from '@/lib/posthog/PostHogProvider';
 import { PostHogPageview } from '@/lib/posthog/PostHogPageview';
+import { CanaryClientObserver } from '@/components/CanaryClientObserver';
 import { ReactNode } from 'react';
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -13,6 +14,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <ClerkProvider>
       <PostHogProvider>
         <PostHogPageview />
+        <CanaryClientObserver />
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <ThemeProvider>{children}</ThemeProvider>
         </ConvexProviderWithClerk>

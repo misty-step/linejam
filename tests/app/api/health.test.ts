@@ -9,26 +9,20 @@ import {
   vi,
 } from 'vitest';
 
-// Store original env for restoration
 const originalEnv = { ...process.env };
 
-// Common env vars needed for healthy responses
 const HEALTHY_ENV = {
   GUEST_TOKEN_SECRET: 'test-secret-for-health-checks',
   NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+  NEXT_PUBLIC_CANARY_API_KEY: 'sk_test_canary',
 };
 
-// Shared mock for ConvexHttpClient - prevents real network calls
 const mockQuery = vi.fn();
+const fetchMock = vi.fn();
+
 class MockConvexHttpClient {
   query = mockQuery;
 }
-
-/**
- * Tests grouped by env configuration to minimize module reloads.
- * Each describe block reloads the module once in beforeAll.
- * ConvexHttpClient is always mocked to prevent network calls.
- */
 
 describe('/api/health', () => {
   afterAll(() => {
@@ -43,8 +37,9 @@ describe('/api/health', () => {
       process.env = { ...originalEnv };
       process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
       process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
+      process.env.NEXT_PUBLIC_CANARY_API_KEY =
+        HEALTHY_ENV.NEXT_PUBLIC_CANARY_API_KEY;
 
-      // Mock Convex to prevent network calls
       vi.doMock('convex/browser', () => ({
         ConvexHttpClient: MockConvexHttpClient,
       }));
@@ -57,6 +52,7 @@ describe('/api/health', () => {
     afterEach(() => {
       mockQuery.mockReset();
       mockQuery.mockResolvedValue({ ok: true });
+      vi.useRealTimers();
     });
 
     it('returns 200 with status, timestamp, and env checks', async () => {
@@ -71,22 +67,26 @@ describe('/api/health', () => {
           nodeEnv: expect.stringMatching(/^(development|test|production)$/),
           guestTokenSecret: true,
           convexUrl: true,
+          canaryIngestKey: true,
+        },
+        observability: {
+          status: 'ready',
+          canaryIngestKey: true,
         },
       });
 
-      // Verify timestamp is valid ISO 8601
       const timestamp = new Date(data.timestamp);
       expect(timestamp.toISOString()).toBe(data.timestamp);
     });
 
     it('includes Cache-Control: no-store header', async () => {
       const response = await GET();
-      const cacheControl = response.headers.get('Cache-Control');
-      expect(cacheControl).toBe('no-store');
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
     });
 
     it('returns connected when Convex ping succeeds', async () => {
       mockQuery.mockResolvedValue({ ok: true });
+
       const response = await GET();
       const data = await response.json();
 
@@ -95,15 +95,52 @@ describe('/api/health', () => {
       expect(mockQuery).toHaveBeenCalled();
     });
 
-    it('returns unreachable when Convex ping fails', async () => {
+    it('returns unhealthy when Convex ping fails', async () => {
       mockQuery.mockRejectedValue(new Error('Connection refused'));
       vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const response = await GET();
       const data = await response.json();
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(503);
+      expect(data.status).toBe('unhealthy');
       expect(data.convex).toBe('unreachable');
+    });
+
+    it('returns unhealthy when Convex never answers before the deadline', async () => {
+      mockQuery.mockImplementation(() => new Promise(() => undefined));
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.useFakeTimers();
+
+      const responsePromise = GET();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      const response = await responsePromise;
+      const data = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(data.status).toBe('unhealthy');
+      expect(data.convex).toBe('unreachable');
+    });
+
+    it('reports degraded observability when Canary ingest is not configured', async () => {
+      delete process.env.NEXT_PUBLIC_CANARY_API_KEY;
+      delete process.env.CANARY_API_KEY;
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        status: 'ok',
+        env: {
+          canaryIngestKey: false,
+        },
+        observability: {
+          status: 'degraded',
+          canaryIngestKey: false,
+        },
+      });
     });
   });
 
@@ -115,8 +152,10 @@ describe('/api/health', () => {
       process.env = { ...originalEnv };
       delete process.env.GUEST_TOKEN_SECRET;
       delete process.env.NEXT_PUBLIC_CONVEX_URL;
+      delete process.env.CANARY_API_KEY;
+      delete process.env.NEXT_PUBLIC_CANARY_API_KEY;
+      delete process.env.NEXT_PUBLIC_CANARY_ENDPOINT;
 
-      // Mock Convex to prevent network calls
       vi.doMock('convex/browser', () => ({
         ConvexHttpClient: MockConvexHttpClient,
       }));
@@ -135,47 +174,48 @@ describe('/api/health', () => {
         env: {
           guestTokenSecret: false,
           convexUrl: false,
+          canaryIngestKey: false,
+        },
+        observability: {
+          status: 'degraded',
+          canaryIngestKey: false,
         },
       });
     });
   });
 
-  describe('with error injection', () => {
+  describe('with internal failure', () => {
     let GET: typeof import('@/app/api/health/route').GET;
-    let mockCaptureException: ReturnType<typeof vi.fn>;
     let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
     beforeAll(async () => {
       vi.resetModules();
       process.env = { ...originalEnv };
+      process.env.NEXT_PUBLIC_CANARY_API_KEY = 'sk_test_canary';
+      process.env.NEXT_PUBLIC_CANARY_ENDPOINT = 'https://canary.test/';
 
-      // Mock Date.toISOString to throw
       vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
         throw new Error('Date serialization failed');
       });
 
-      // Mock Sentry
-      mockCaptureException = vi.fn();
-      vi.doMock('@sentry/nextjs', () => ({
-        captureException: mockCaptureException,
-      }));
-
-      // Mock Convex
       vi.doMock('convex/browser', () => ({
         ConvexHttpClient: MockConvexHttpClient,
       }));
 
       consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.stubGlobal('fetch', fetchMock);
+      fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
 
       const mod = await import('@/app/api/health/route');
       GET = mod.GET;
     });
 
     afterAll(() => {
+      vi.unstubAllGlobals();
       vi.restoreAllMocks();
     });
 
-    it('returns 500 on internal error and logs to console and Sentry', async () => {
+    it('returns 500 on internal error and reports to Canary', async () => {
       const response = await GET();
       const data = await response.json();
 
@@ -186,53 +226,14 @@ describe('/api/health', () => {
         'Healthcheck failed',
         expect.any(Error)
       );
-      expect(mockCaptureException).toHaveBeenCalledWith(expect.any(Error));
-    });
-  });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
 
-  describe('with Sentry failure', () => {
-    let GET: typeof import('@/app/api/health/route').GET;
-    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+      const [, request] = fetchMock.mock.calls[0];
+      const body = JSON.parse(String(request?.body)) as {
+        context?: Record<string, unknown>;
+      };
 
-    beforeAll(async () => {
-      vi.resetModules();
-      process.env = { ...originalEnv };
-
-      // Mock Date.toISOString to throw
-      vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
-        throw new Error('Date serialization failed');
-      });
-
-      // Mock Sentry to fail on import
-      vi.doMock('@sentry/nextjs', () => {
-        throw new Error('Sentry not available');
-      });
-
-      // Mock Convex
-      vi.doMock('convex/browser', () => ({
-        ConvexHttpClient: MockConvexHttpClient,
-      }));
-
-      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const mod = await import('@/app/api/health/route');
-      GET = mod.GET;
-    });
-
-    afterAll(() => {
-      vi.restoreAllMocks();
-    });
-
-    it('handles Sentry import failure gracefully', async () => {
-      const response = await GET();
-      const data = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(data).toEqual({ status: 'error' });
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Healthcheck failed',
-        expect.any(Error)
-      );
+      expect(body.context).toEqual({ source: 'api.health' });
     });
   });
 
@@ -249,10 +250,6 @@ describe('/api/health', () => {
       vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
         throw new Error('Date serialization failed');
       });
-
-      vi.doMock('@sentry/nextjs', () => ({
-        captureException: vi.fn(),
-      }));
 
       vi.doMock('convex/browser', () => ({
         ConvexHttpClient: MockConvexHttpClient,

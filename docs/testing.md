@@ -1,6 +1,6 @@
 # Testing Guide
 
-Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playwright for E2E tests. 500+ tests with 80%+ coverage enforcement.
+Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playwright for E2E tests. 500+ tests with 85% coverage enforcement.
 
 ## Quick Reference
 
@@ -8,7 +8,9 @@ Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playw
 pnpm test          # Run unit tests once
 pnpm test:watch    # Watch mode for development
 pnpm test:ci       # CI mode with coverage
-pnpm test:e2e      # Run E2E tests
+pnpm ci:dagger:all # Local-first CI contract
+pnpm test:e2e      # Local Playwright suite
+pnpm test:e2e:smoke # Remote preview/prod smoke
 pnpm test:e2e:ui   # Playwright UI mode
 ```
 
@@ -177,6 +179,22 @@ test('host creates room', async ({ page }) => {
 - Traces: collected on first retry
 - Screenshots: on failure only
 - Port: 3333 (avoids conflicts with dev server)
+- Browser base URL: `http://localhost:${PORT_E2E:-3333}`
+- `prod-smoke.spec.ts` is excluded from the local suite and runs only through `playwright.smoke.config.ts`
+
+**Environment contract**:
+
+- Local Dagger hydrates `GUEST_TOKEN_SECRET` automatically when `NEXT_PUBLIC_CONVEX_URL` points at the same Convex dev or prod deployment that the CLI resolves.
+- `CLERK_SECRET_KEY` plus `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` enable authenticated browser coverage. The Playwright harness mirrors that publishable key into `CLERK_PUBLISHABLE_KEY` for Clerk's testing helpers. `PLAYWRIGHT_CLERK_TEST_EMAIL` is optional for dev/test Clerk keys because the harness can provision a default smoke user automatically there. Live Clerk keys fail closed instead: point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke user.
+- Local Dagger syncs the active Convex dev deployment before `pnpm ci:dagger:all` and `pnpm ci:dagger:e2e` so auth-heavy browser coverage exercises backend code from the current branch. Set `LINEJAM_SYNC_CONVEX_BEFORE_DAGGER=0` only when you intentionally want to skip that preparation step.
+- Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Dev/test Clerk keys can be bootstrapped automatically; live-key creation requires `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=1`.
+- Local Dagger refuses to push Convex production code unless `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is set explicitly.
+- Local Dagger loads `.env.local` after `.env.production.local`, so authenticated browser coverage can use localhost-safe Clerk test/dev keys from `.env.local`.
+- The authoritative Dagger contract requires real browser-side Canary config for build-bearing lanes. Keep `NEXT_PUBLIC_CANARY_ENDPOINT` and `NEXT_PUBLIC_CANARY_API_KEY` set before running `pnpm ci:dagger:all`, `pnpm ci:dagger:all-no-e2e`, `pnpm ci:dagger:build-check`, or `pnpm ci:dagger:e2e`.
+- Dagger treats authenticated browser coverage as part of the default contract. Set `PLAYWRIGHT_REQUIRE_AUTH_E2E=0` only when you are intentionally running a guest-only loop.
+- Authenticated Playwright coverage signs into Clerk inside each live browser context after the app is serving traffic. That avoids depending on serialized auth state for dev-session syncing and keeps protected-route checks aligned with the actual test context.
+- Remote smoke inverts the env preference: `.env.production.local` wins over `.env.local` so deployed targets use production-aligned Clerk keys by default. Authenticated smoke against `https://www.linejam.app` now fails fast if the active Clerk publishable key is still a `pk_test_...` localhost key or the secret key is still `sk_test_...`, and authenticated smoke validates that Clerk already has the `convex` JWT template before starting the browser run.
+- `/api/health` reports app health separately from Canary readiness, so missing Canary ingest should be treated as degraded observability rather than proof that the game flow is down.
 
 **Multi-player tests** use separate browser contexts:
 
@@ -189,12 +207,12 @@ const guestContext = await browser.newContext();
 
 ### Thresholds
 
-| Metric     | Threshold | Current | Rationale                              |
-| ---------- | --------- | ------- | -------------------------------------- |
-| Lines      | 80%       | 88%     | Standard coverage target               |
-| Branches   | 80%       | 81%     | Ensures conditional logic tested       |
-| Functions  | 60%       | 72%     | Convex wrappers inflate function count |
-| Statements | 80%       | 87%     | Standard coverage target               |
+| Metric     | Threshold | Current       | Rationale                        |
+| ---------- | --------- | ------------- | -------------------------------- |
+| Lines      | 85%       | See latest CI | Standard coverage target         |
+| Branches   | 85%       | See latest CI | Ensures conditional logic tested |
+| Functions  | 85%       | See latest CI | Standard coverage target         |
+| Statements | 85%       | See latest CI | Standard coverage target         |
 
 ### Viewing Coverage
 
@@ -202,10 +220,6 @@ const guestContext = await browser.newContext();
 pnpm test:ci              # Generates coverage/
 open coverage/index.html  # Interactive report
 ```
-
-### Why 60% for Functions?
-
-Convex generates wrapper functions for each query/mutation. These wrappers are tested indirectly through handler tests, but count against function coverage. The 60% threshold reflects this architectural reality.
 
 ## Adding New Tests
 
@@ -224,8 +238,9 @@ Convex generates wrapper functions for each query/mutation. These wrappers are t
 2. Use `test.describe` for grouping
 3. Set `mode: 'serial'` if tests share state
 4. Add `test.skip` for environment-dependent tests
-5. Run locally: `pnpm test:e2e`
-6. Run with UI: `pnpm test:e2e:ui`
+5. Ensure `NEXT_PUBLIC_CONVEX_URL` points at the backend you want Dagger to exercise. Local Dagger will sync the matching Convex dev deployment automatically unless you disable it.
+6. Run locally: `pnpm test:e2e`
+7. Run with UI: `pnpm test:e2e:ui`
 
 ## Troubleshooting
 

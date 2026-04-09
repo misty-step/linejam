@@ -8,9 +8,12 @@ import { defineConfig, devices } from '@playwright/test';
  *   PORT_E2E=3334 pnpm test:e2e
  */
 const PORT = process.env.PORT_E2E || '3333';
+const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: /prod-smoke\.spec\.ts/,
+  globalSetup: './playwright.global.setup.ts',
 
   /* Set timeout for each test */
   timeout: 120000, // 2 minutes per test
@@ -33,7 +36,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: BASE_URL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',

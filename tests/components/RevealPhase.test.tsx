@@ -43,18 +43,12 @@ vi.mock('@clerk/nextjs', () => ({
   useUser: () => ({ user: null, isLoaded: true }),
 }));
 
-// Mock Sentry (external) - let captureError use real implementation
-vi.mock('@sentry/nextjs', () => ({
-  captureException: vi.fn(),
-  withScope: vi.fn((cb) => cb({ setExtra: vi.fn() })),
-}));
-
 // Mock fetch for guest session API (external boundary)
 const mockFetch = vi.fn();
 const originalFetch = global.fetch;
 
 // Internal modules use real implementations:
-// - @/lib/error (calls mocked Sentry)
+// - @/lib/error
 // - @/lib/errorFeedback (pure function)
 
 // Import after mocking

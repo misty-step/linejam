@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { ensureClerkAuthState, requireClerkBrowserAuth } from './support/clerk';
 
 /**
  * E2E Test: Favorites Flow
@@ -14,19 +15,15 @@ import { test, expect } from '@playwright/test';
 // Run tests serially for consistent state
 test.describe.configure({ mode: 'serial' });
 
-// Skip all archive tests if Clerk is not configured
-const isClerkConfigured = !!process.env.CLERK_SECRET_KEY;
-
 test.describe('Personal Archive Page', () => {
-  test.beforeEach(async ({}, testInfo) => {
-    if (!isClerkConfigured) {
-      testInfo.skip(true, 'Clerk auth not configured (guest-only mode)');
-    }
+  test.beforeEach(async ({ page }, testInfo) => {
+    requireClerkBrowserAuth(testInfo, 'archive E2E');
+    await ensureClerkAuthState(page);
   });
 
   test('archive page loads and shows empty state', async ({ page }) => {
     // Navigate to archive page
-    await page.goto('/me/poems', { waitUntil: 'networkidle' });
+    await page.goto('/me/poems');
 
     // Wait for guest session to initialize
     await page.waitForFunction(
@@ -56,7 +53,7 @@ test.describe('Personal Archive Page', () => {
   test('archive page has navigation back to home via wordmark', async ({
     page,
   }) => {
-    await page.goto('/me/poems', { waitUntil: 'networkidle' });
+    await page.goto('/me/poems');
 
     // Find and click "Linejam" wordmark in header
     const wordmark = page.getByRole('link', { name: /Linejam/i });
@@ -69,7 +66,7 @@ test.describe('Personal Archive Page', () => {
 
   test('archive page accessible from home', async ({ page }) => {
     // Start from home page
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/');
 
     // Find archive link
     const archiveLink = page.getByRole('link', { name: /Archive/i }).first();
@@ -87,14 +84,13 @@ test.describe('Personal Archive Page', () => {
 });
 
 test.describe('Favorites Feature Structure', () => {
-  test.beforeEach(async ({}, testInfo) => {
-    if (!isClerkConfigured) {
-      testInfo.skip(true, 'Clerk auth not configured (guest-only mode)');
-    }
+  test.beforeEach(async ({ page }, testInfo) => {
+    requireClerkBrowserAuth(testInfo, 'archive E2E');
+    await ensureClerkAuthState(page);
   });
 
   test('archive page shows empty state for new user', async ({ page }) => {
-    await page.goto('/me/poems', { waitUntil: 'networkidle' });
+    await page.goto('/me/poems');
 
     // Wait for page to load
     await page.waitForSelector('h1', { state: 'visible', timeout: 10000 });

@@ -1,0 +1,22 @@
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
+
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@10.22.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --prod=false
+
+COPY . .
+
+ENV NODE_ENV=production
+ENV LINEJAM_SMOKE_RUNNER=playwright
+ENV LINEJAM_CANARY_STORE_DIR=/data/canary
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+EXPOSE 8787
+
+CMD ["pnpm", "canary:responder"]

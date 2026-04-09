@@ -19,7 +19,7 @@ test.describe.configure({ mode: 'serial' });
 const missingGuestTokenSecret = !process.env.GUEST_TOKEN_SECRET;
 test.skip(
   missingGuestTokenSecret,
-  'Set GUEST_TOKEN_SECRET (same as Convex dashboard) to run auth E2E'
+  'Set GUEST_TOKEN_SECRET to the active Convex deployment secret to run auth E2E'
 );
 
 test.describe('Guest Session API', () => {

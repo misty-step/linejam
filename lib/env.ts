@@ -9,7 +9,15 @@
 const REQUIRED_SERVER_ENV = ['GUEST_TOKEN_SECRET'] as const;
 
 // Required at build time (public vars)
-const REQUIRED_PUBLIC_ENV = ['NEXT_PUBLIC_CONVEX_URL'] as const;
+const REQUIRED_PUBLIC_ENV = [
+  'NEXT_PUBLIC_CONVEX_URL',
+  'NEXT_PUBLIC_CANARY_ENDPOINT',
+  'NEXT_PUBLIC_CANARY_API_KEY',
+] as const;
+const PLACEHOLDER_CANARY_KEYS = new Set([
+  'example_canary_server_key',
+  'example_canary_write_key',
+]);
 
 /**
  * Validate that all required environment variables are set.
@@ -17,6 +25,7 @@ const REQUIRED_PUBLIC_ENV = ['NEXT_PUBLIC_CONVEX_URL'] as const;
  */
 export function validateEnv(): void {
   const missing: string[] = [];
+  const invalid: string[] = [];
   const isDependabot = process.env.GITHUB_ACTOR === 'dependabot[bot]';
 
   for (const key of REQUIRED_SERVER_ENV) {
@@ -31,10 +40,32 @@ export function validateEnv(): void {
     }
   }
 
-  if (missing.length > 0) {
+  const canaryApiKey = process.env.NEXT_PUBLIC_CANARY_API_KEY?.trim();
+  if (canaryApiKey && PLACEHOLDER_CANARY_KEYS.has(canaryApiKey)) {
+    invalid.push('NEXT_PUBLIC_CANARY_API_KEY');
+  }
+
+  if (missing.length > 0 || invalid.length > 0) {
+    const sections: string[] = [];
+
+    if (missing.length > 0) {
+      sections.push(
+        `Missing required environment variables:\n${missing
+          .map((k) => `  - ${k}`)
+          .join('\n')}`
+      );
+    }
+
+    if (invalid.length > 0) {
+      sections.push(
+        `Invalid placeholder environment variables:\n${invalid
+          .map((k) => `  - ${k}`)
+          .join('\n')}`
+      );
+    }
+
     throw new Error(
-      `Missing required environment variables:\n${missing.map((k) => `  - ${k}`).join('\n')}\n\n` +
-        'See .env.example for documentation.'
+      `${sections.join('\n\n')}\n\nSee .env.example for documentation.`
     );
   }
 }

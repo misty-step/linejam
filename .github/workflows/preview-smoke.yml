@@ -1,0 +1,46 @@
+name: Preview Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Preview deployment URL to smoke test
+        required: true
+        type: string
+  repository_dispatch:
+    types: [preview_smoke]
+
+concurrency:
+  group: preview-smoke-${{ github.event.inputs.base_url || github.event.client_payload.base_url || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Preview Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || github.event.client_payload.base_url }}
+      PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1'
+      LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1'
+      LINEJAM_ALLOWED_SMOKE_HOST_PATTERN: '^linejam(?:-[a-z0-9-]+)?\\.vercel\\.app$'
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
+      PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
+      CANARY_ENDPOINT: ${{ secrets.CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dagger CLI
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run preview smoke
+        run: ./scripts/ci/dagger-call.sh smoke

@@ -51,13 +51,13 @@ beforeEach(() => {
 
 ### 2. Module Reload Pattern
 
-**Problem:** API and Sentry tests reload entire module hierarchy per describe block to reset env vars.
+**Problem:** API and observability tests reload entire module hierarchy per describe block to reset env vars.
 
 **Files affected:**
 
 - `tests/app/api/health.test.ts` (6 `resetModules`)
 - `tests/app/api/guest-session.test.ts` (4 `resetModules`)
-- `tests/lib/sentry.test.ts` (5 `resetModules`)
+- `tests/lib/canary.test.ts` (env-dependent reloads)
 
 **Example:**
 
@@ -65,8 +65,8 @@ beforeEach(() => {
 describe('with DSN', () => {
   beforeAll(async () => {
     vi.resetModules(); // Reloads entire module tree
-    process.env.SENTRY_DSN = '...';
-    const mod = await import('@/lib/sentry');
+    process.env.NEXT_PUBLIC_CANARY_API_KEY = '...';
+    const mod = await import('@/lib/canary');
   });
 });
 ```
@@ -361,17 +361,17 @@ tests/convex/
 **Current pattern:**
 
 ```typescript
-describe('with DSN', () => {
+describe('with Canary env', () => {
   beforeAll(async () => {
     vi.resetModules();
-    process.env.SENTRY_DSN = '...';
+    process.env.CANARY_API_KEY = '...';
   });
 });
 
-describe('without DSN', () => {
+describe('without Canary env', () => {
   beforeAll(async () => {
     vi.resetModules(); // Another reload
-    delete process.env.SENTRY_DSN;
+    delete process.env.CANARY_API_KEY;
   });
 });
 ```
@@ -379,14 +379,14 @@ describe('without DSN', () => {
 **Optimized:**
 
 ```typescript
-describe('sentryOptions', () => {
+describe('canaryConfig', () => {
   beforeAll(async () => {
     vi.resetModules();
     // Set all possible env at once
   });
 
-  it('works with DSN', async () => { ... });
-  it('works without DSN', async () => {
+  it('works with Canary env', async () => { ... });
+  it('works without Canary env', async () => {
     // Set/unset at test level instead
   });
 });
@@ -568,7 +568,7 @@ export default defineConfig({
 
 ### Module Reloads
 
-Necessary for env-dependent code (health, session, sentry).
+Necessary for env-dependent code (health, session, Canary).
 
 **Recommendation:**
 
@@ -684,7 +684,7 @@ Don't test everything in E2E.
 - `tests/convex/rooms.test.ts` → split into 3 files
 - `tests/app/api/health.test.ts`
 - `tests/app/api/guest-session.test.ts`
-- `tests/lib/sentry.test.ts`
+- `tests/lib/canary.test.ts`
 
 ### Phase 4 (E2E)
 

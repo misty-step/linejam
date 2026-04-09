@@ -16,12 +16,6 @@ Object.defineProperty(navigator, 'clipboard', {
   configurable: true,
 });
 
-// Mock Sentry (external library)
-vi.mock('@sentry/nextjs', () => ({
-  captureException: vi.fn(),
-  withScope: vi.fn((cb) => cb({ setExtra: vi.fn() })),
-}));
-
 // Import after mocking - these use REAL implementations
 import { PoemDisplay, type PoemLine } from '@/components/PoemDisplay';
 import { Id } from '@/convex/_generated/dataModel';
