@@ -9,13 +9,16 @@ import { captureError } from '@/lib/error';
 import { cn } from '@/lib/utils';
 import { countWords } from '@/lib/wordCount';
 import { Alert } from '@/components/ui/Alert';
+import { RoomChrome } from '@/components/RoomChrome';
 import { Button } from '@/components/ui/Button';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { WordSlots } from '@/components/ui/WordSlots';
 import { WaitingScreen } from '@/components/WaitingScreen';
+import { buildInProgressChromeCopy } from '@/lib/roomChromeCopy';
 
 interface WritingScreenProps {
   roomCode: string;
+  showChrome?: boolean;
 }
 
 type RoomQueryArgs = ReturnType<typeof useRoomQueryArgs>['queryArgs'];
@@ -63,7 +66,6 @@ function WritingComposer({
   const [error, setError] = useState<string | null>(null);
   const [liveRegionMessage, setLiveRegionMessage] = useState('');
   const [hasFocus, setHasFocus] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentWordCount = countWords(text);
@@ -98,6 +100,10 @@ function WritingComposer({
     };
   }, []);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [assignment.poemId, assignment.lineIndex]);
+
   if (showWaitingScreen) {
     return <WaitingScreen roomCode={roomCode} guestToken={guestToken} />;
   }
@@ -130,7 +136,7 @@ function WritingComposer({
   };
 
   return (
-    <div className="relative min-h-screen bg-background flex flex-col items-center pt-12 md:pt-24 p-6">
+    <div className="relative min-h-screen bg-background flex flex-col items-center px-6 pb-6 pt-8 md:px-8 md:pb-8 md:pt-12">
       {/* Screen reader live region for validation announcements */}
       <div
         className="sr-only"
@@ -142,14 +148,6 @@ function WritingComposer({
       </div>
 
       <div className="w-full max-w-3xl space-y-16">
-        {/* Status Row - Justified between (left: round, right: counter) */}
-        <div className="flex items-center justify-between mb-12">
-          <div className="text-xs font-mono uppercase tracking-widest text-text-muted">
-            Round {assignment.lineIndex + 1} / 9
-          </div>
-          <WordSlots current={currentWordCount} target={targetCount} />
-        </div>
-
         {/* The Memory - No container */}
         {assignment.previousLineText && (
           <div className="mb-16 animate-fade-in-up">
@@ -179,7 +177,6 @@ function WritingComposer({
           )}
 
           <textarea
-            ref={textareaRef}
             className={cn(
               'w-full min-h-[280px] md:min-h-[320px] lg:min-h-[360px] bg-transparent border-none outline-none resize-none',
               'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
@@ -195,13 +192,16 @@ function WritingComposer({
             }}
             onFocus={() => setHasFocus(true)}
             onBlur={() => setHasFocus(false)}
-            autoFocus
             spellCheck={false}
             aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
             aria-required="true"
             aria-invalid={!isValid}
             aria-describedby="word-slots"
           />
+        </div>
+
+        <div className="flex justify-end">
+          <WordSlots current={currentWordCount} target={targetCount} />
         </div>
 
         {/* Error Display */}
@@ -236,9 +236,16 @@ function WritingComposer({
   );
 }
 
-export function WritingScreen({ roomCode }: WritingScreenProps) {
+export function WritingScreen({
+  roomCode,
+  showChrome = false,
+}: WritingScreenProps) {
   const { guestToken, shouldSkip, queryArgs } = useRoomQueryArgs(roomCode);
   const assignment = useQuery(api.game.getCurrentAssignment, queryArgs);
+  const roundProgress = useQuery(
+    api.game.getRoundProgress,
+    showChrome && assignment === null ? queryArgs : 'skip'
+  );
 
   if (shouldSkip || assignment === undefined) {
     return (
@@ -249,16 +256,38 @@ export function WritingScreen({ roomCode }: WritingScreenProps) {
   }
 
   if (assignment === null) {
-    return <WaitingScreen roomCode={roomCode} guestToken={guestToken} />;
+    return (
+      <>
+        {showChrome && (
+          <RoomChrome
+            roomCode={roomCode}
+            {...buildInProgressChromeCopy({ roundProgress })}
+          />
+        )}
+        <WaitingScreen
+          roomCode={roomCode}
+          guestToken={guestToken}
+          progressOverride={roundProgress}
+        />
+      </>
+    );
   }
 
   return (
-    <WritingComposer
-      key={`${assignment.poemId}:${assignment.lineIndex}`}
-      assignment={assignment}
-      guestToken={guestToken}
-      queryArgs={queryArgs}
-      roomCode={roomCode}
-    />
+    <>
+      {showChrome && (
+        <RoomChrome
+          roomCode={roomCode}
+          {...buildInProgressChromeCopy({ assignment })}
+        />
+      )}
+      <WritingComposer
+        key={`${assignment.poemId}:${assignment.lineIndex}`}
+        assignment={assignment}
+        guestToken={guestToken}
+        queryArgs={queryArgs}
+        roomCode={roomCode}
+      />
+    </>
   );
 }

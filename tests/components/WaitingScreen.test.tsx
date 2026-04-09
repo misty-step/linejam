@@ -143,7 +143,7 @@ describe('WaitingScreen component', () => {
     render(<WaitingScreen roomCode="ABCD" />);
 
     expect(screen.getByText('Others are writing...')).toBeInTheDocument();
-    expect(screen.getByText('1 of 2 ready')).toBeInTheDocument();
+    expect(screen.getByText(/Round 1 · 1 of 2 ready/i)).toBeInTheDocument();
   });
 
   it('shows "Ready" when all players have submitted', () => {
@@ -172,6 +172,37 @@ describe('WaitingScreen component', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
     // Should not show "X of Y ready" when all submitted
     expect(screen.queryByText(/of.*ready/)).not.toBeInTheDocument();
+  });
+
+  it('uses progressOverride data and skips the round progress query', () => {
+    render(
+      <WaitingScreen
+        roomCode="ABCD"
+        progressOverride={{
+          round: 1,
+          players: [
+            {
+              userId: 'user_1',
+              stableId: 'stable_1',
+              displayName: 'Alice',
+              submitted: true,
+              isBot: false,
+            },
+            {
+              userId: 'user_2',
+              stableId: 'stable_2',
+              displayName: 'Bob',
+              submitted: false,
+              isBot: false,
+            },
+          ],
+        }}
+      />
+    );
+
+    expect(mockUseQuery).toHaveBeenCalledWith(expect.anything(), 'skip');
+    expect(screen.getByText('Others are writing...')).toBeInTheDocument();
+    expect(screen.getByText(/Round 2 · 1 of 2 ready/i)).toBeInTheDocument();
   });
 
   it('renders player avatars for each player', () => {

@@ -107,12 +107,13 @@ describe('Lobby component', () => {
     global.fetch = originalFetch;
   });
 
-  it('displays room code correctly', () => {
+  it('renders the control-desk introduction', () => {
     // Arrange & Act
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
-    // Assert - Room code should be formatted (AB CD)
-    expect(screen.getByText('AB CD')).toBeInTheDocument();
+    expect(
+      screen.getByText(/let the room fill, then strike the first line/i)
+    ).toBeInTheDocument();
   });
 
   it('renders player list from room state', () => {

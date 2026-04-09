@@ -257,7 +257,7 @@ describe('RevealPhase component', () => {
     });
   });
 
-  it('displays Session Complete when all revealed', () => {
+  it('shows completion actions when all poems are revealed', () => {
     // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
@@ -265,8 +265,10 @@ describe('RevealPhase component', () => {
     render(<RevealPhase roomCode="ABCD" />);
 
     // Assert
-    expect(screen.getByText(/Session/i)).toBeInTheDocument();
-    expect(screen.getByText(/Complete/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Start Next Round/i })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Archive/i })).toBeInTheDocument();
   });
 
   it('shows Back to Lobby button for host when all revealed', () => {

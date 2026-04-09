@@ -4,6 +4,7 @@ import { use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import type { Doc } from '@/convex/_generated/dataModel';
 import { AuthErrorState } from '@/components/AuthErrorState';
 import { Lobby } from '@/components/Lobby';
 import { RevealPhase } from '@/components/RevealPhase';
@@ -13,6 +14,7 @@ import { WritingScreen } from '@/components/WritingScreen';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { useUser } from '@/lib/auth';
 import { captureError } from '@/lib/error';
+import { buildLobbyChromeCopy } from '@/lib/roomChromeCopy';
 
 function UnexpectedRoomState({
   code,
@@ -57,6 +59,53 @@ interface RoomPageProps {
   params: Promise<{ code: string }>;
 }
 
+interface RoomPageState {
+  room: Doc<'rooms'> & { status: Doc<'rooms'>['status'] };
+  players: Array<
+    Doc<'roomPlayers'> & {
+      stableId: string;
+      isBot?: boolean;
+      aiPersonaId?: string;
+    }
+  >;
+  isHost: boolean;
+}
+
+function ResolvedRoomPage({
+  code,
+  roomState,
+}: {
+  code: string;
+  roomState: RoomPageState;
+}) {
+  const { room, players, isHost } = roomState;
+
+  if (room.status === 'LOBBY') {
+    return (
+      <>
+        <RoomChrome
+          roomCode={code}
+          {...buildLobbyChromeCopy({
+            code,
+            playerCount: players.length,
+          })}
+        />
+        <Lobby room={room} players={players} isHost={isHost} />
+      </>
+    );
+  }
+
+  if (room.status === 'IN_PROGRESS') {
+    return <WritingScreen roomCode={code} showChrome />;
+  }
+
+  if (room.status === 'COMPLETED') {
+    return <RevealPhase roomCode={code} showChrome />;
+  }
+
+  return <UnexpectedRoomState code={code} status={String(room.status)} />;
+}
+
 export default function RoomPage({ params }: RoomPageProps) {
   const { code } = use(params);
   const { isLoading, guestToken, authError, retryAuth } = useUser();
@@ -90,24 +139,5 @@ export default function RoomPage({ params }: RoomPageProps) {
     );
   }
 
-  const { room, players, isHost } = roomState;
-
-  // Determine which screen to show
-  let content = null;
-  if (room.status === 'LOBBY') {
-    content = <Lobby room={room} players={players} isHost={isHost} />;
-  } else if (room.status === 'IN_PROGRESS') {
-    content = <WritingScreen roomCode={code} />;
-  } else if (room.status === 'COMPLETED') {
-    content = <RevealPhase roomCode={code} />;
-  } else {
-    content = <UnexpectedRoomState code={code} status={String(room.status)} />;
-  }
-
-  return (
-    <>
-      <RoomChrome roomCode={code} />
-      {content}
-    </>
-  );
+  return <ResolvedRoomPage code={code} roomState={roomState} />;
 }

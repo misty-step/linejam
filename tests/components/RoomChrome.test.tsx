@@ -83,8 +83,19 @@ describe('RoomChrome component', () => {
     });
   });
 
+  function renderRoomChrome() {
+    render(
+      <RoomChrome
+        roomCode="ABCD"
+        statusLabel="Lobby"
+        title="Room open"
+        subtitle="Share the code and gather the poets."
+      />
+    );
+  }
+
   it('renders room controls', () => {
-    render(<RoomChrome roomCode="ABCD" />);
+    renderRoomChrome();
 
     expect(
       screen.getByRole('button', { name: /Share room invite/i })
@@ -98,10 +109,12 @@ describe('RoomChrome component', () => {
     expect(
       screen.getByRole('button', { name: /Choose theme/i })
     ).toBeInTheDocument();
+    expect(screen.getByText('Room AB CD')).toBeInTheDocument();
+    expect(screen.getByText('Room open')).toBeInTheDocument();
   });
 
   it('copies a join link when native share is unavailable', async () => {
-    render(<RoomChrome roomCode="ABCD" />);
+    renderRoomChrome();
 
     await act(async () => {
       fireEvent.click(
@@ -128,7 +141,7 @@ describe('RoomChrome component', () => {
       writable: true,
       configurable: true,
     });
-    render(<RoomChrome roomCode="ABCD" />);
+    renderRoomChrome();
 
     await act(async () => {
       fireEvent.click(
@@ -150,7 +163,7 @@ describe('RoomChrome component', () => {
 
   it('opens help and theme surfaces', async () => {
     const user = userEvent.setup();
-    render(<RoomChrome roomCode="ABCD" />);
+    renderRoomChrome();
 
     await user.click(screen.getByRole('button', { name: /How to play/i }));
     expect(screen.getByText('Help modal')).toBeInTheDocument();
@@ -161,7 +174,7 @@ describe('RoomChrome component', () => {
 
   it('closes the theme chooser on outside click and escape', async () => {
     const user = userEvent.setup();
-    render(<RoomChrome roomCode="ABCD" />);
+    renderRoomChrome();
 
     await user.click(screen.getByRole('button', { name: /Choose theme/i }));
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
@@ -182,7 +195,7 @@ describe('RoomChrome component', () => {
 
   it('closes the theme chooser when the selector requests it', async () => {
     const user = userEvent.setup();
-    render(<RoomChrome roomCode="ABCD" />);
+    renderRoomChrome();
 
     await user.click(screen.getByRole('button', { name: /Choose theme/i }));
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
