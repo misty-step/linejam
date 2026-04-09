@@ -34,7 +34,7 @@
 
 - Framework: Vitest + Testing Library + happy-dom for unit/integration; Playwright for E2E.
 - File pattern: `**/*.{test,spec}.{ts,tsx}` near source or under `tests/`; E2E in `tests/e2e/`.
-- Coverage thresholds: 80% lines/branches/statements, 60% functions; see `vitest.config.ts`.
+- Coverage thresholds: 85% lines/branches/functions/statements; see `vitest.config.ts`.
 - 500+ tests total across unit, integration, and E2E layers.
 - Mock external calls (Clerk, Convex) at module boundary; avoid reaching network.
 
@@ -42,7 +42,12 @@
 
 - Conventional commits enforced by commitlint (`feat:`, `fix:`, `chore:`, etc.).
 - Lefthook pre-commit auto-runs `eslint --fix` + `prettier --write`; let it stage fixes.
-- Pre-push runs typecheck + `test:ci` + `build:check`; keep hooks green before PR.
+- Pre-push runs the local Dagger contract via `pnpm ci:prepush`; keep it green before PR. Local Dagger is the source of truth and auto-syncs the active Convex dev backend before auth-heavy E2E unless you explicitly disable that behavior.
+- The default Dagger E2E contract includes authenticated Clerk coverage. Keep Clerk secrets configured unless you are intentionally running a guest-only loop; `PLAYWRIGHT_CLERK_TEST_EMAIL` is only an override because the Playwright helper can provision the default test user automatically.
+- Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Keep `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=0` unless you explicitly intend to mutate a live Clerk instance.
+- The authoritative Dagger contract requires real `NEXT_PUBLIC_CANARY_ENDPOINT` and `NEXT_PUBLIC_CANARY_API_KEY` values for build-bearing lanes. Do not paper over missing Canary browser config with placeholders.
+- Local Dagger will not push Convex production code unless `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is set explicitly.
+- Local Dagger loads `.env.local` after `.env.production.local`, so localhost-safe Clerk keys from `.env.local` win during the local contract.
 - PRs: concise description, linked issue/card, screenshots for UI changes, list risky areas or TODO debt.
 
 ## Security & Config
@@ -50,8 +55,16 @@
 - Copy `.env.example` → `.env.local`; fill Convex and Clerk keys; never commit secrets.
 - `GUEST_TOKEN_SECRET` must match in Vercel and Convex for token verification.
 - `OPENROUTER_API_KEY` in Convex for AI player functionality.
-- Sentry configs in `sentry.*.config.ts`; keep DSN in env vars.
-- Use `pnpm` only (`preinstall` enforces); Node ≥18.
+- Canary is the primary observability sink. Keep `CANARY_*` and responder env
+  vars documented in `.env.example`.
+- Local Dagger is still authoritative, but hosted responders should use
+  `LINEJAM_SMOKE_RUNNER=playwright` so they can execute the remote smoke suite
+  without embedding Dagger in the webhook worker.
+- `pnpm canary:webhook:setup` is the canonical CLI for wiring the responder to
+  Canary. It should be safe to rerun and should not accumulate duplicate
+  subscriptions for the same responder URL.
+- `/api/health` reports core app health separately from Canary readiness. Do not treat missing Canary ingest as proof that the game service is down.
+- Use `pnpm` only (`preinstall` enforces); Node ≥22.
 
 ## Key Features
 

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { ensureClerkAuthState, requireClerkBrowserAuth } from './support/clerk';
 
 /**
  * E2E Test: Favorites Flow
@@ -14,14 +15,10 @@ import { test, expect } from '@playwright/test';
 // Run tests serially for consistent state
 test.describe.configure({ mode: 'serial' });
 
-// Skip all archive tests if Clerk is not configured
-const isClerkConfigured = !!process.env.CLERK_SECRET_KEY;
-
 test.describe('Personal Archive Page', () => {
-  test.beforeEach(async ({}, testInfo) => {
-    if (!isClerkConfigured) {
-      testInfo.skip(true, 'Clerk auth not configured (guest-only mode)');
-    }
+  test.beforeEach(async ({ page }, testInfo) => {
+    requireClerkBrowserAuth(testInfo, 'archive E2E');
+    await ensureClerkAuthState(page);
   });
 
   test('archive page loads and shows empty state', async ({ page }) => {
@@ -87,10 +84,9 @@ test.describe('Personal Archive Page', () => {
 });
 
 test.describe('Favorites Feature Structure', () => {
-  test.beforeEach(async ({}, testInfo) => {
-    if (!isClerkConfigured) {
-      testInfo.skip(true, 'Clerk auth not configured (guest-only mode)');
-    }
+  test.beforeEach(async ({ page }, testInfo) => {
+    requireClerkBrowserAuth(testInfo, 'archive E2E');
+    await ensureClerkAuthState(page);
   });
 
   test('archive page shows empty state for new user', async ({ page }) => {

@@ -6,7 +6,6 @@ const mockReactUse = vi.fn();
 const mockUseClerkUser = vi.fn();
 const mockUseQuery = vi.fn();
 const mockPush = vi.fn();
-const mockSentryCaptureException = vi.fn();
 
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
@@ -32,10 +31,6 @@ vi.mock('convex/react', () => ({
 
 vi.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseClerkUser(),
-}));
-
-vi.mock('@sentry/nextjs', () => ({
-  captureException: (...args: unknown[]) => mockSentryCaptureException(...args),
 }));
 
 import RoomPage from '@/app/room/[code]/page';

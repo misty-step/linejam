@@ -1,6 +1,10 @@
 const DEFAULT_ENDPOINT = 'https://canary-obs.fly.dev';
 const REQUEST_TIMEOUT_MS = 2_000;
 const SERVICE = 'linejam';
+const PLACEHOLDER_API_KEYS = new Set([
+  'example_canary_server_key',
+  'example_canary_write_key',
+]);
 const SAFE_CONTEXT_KEYS = new Set([
   'boundary',
   'digest',
@@ -35,48 +39,19 @@ export async function captureCanaryException(
   error: unknown,
   context?: Record<string, unknown>
 ): Promise<void> {
-  const apiKey = getApiKey();
-  if (!apiKey) return;
-
   const normalized = normalizeError(error);
   const scrubbedContext = scrubCanaryContext(context);
 
-  try {
-    const response = await fetch(
-      `${getEndpoint().replace(/\/$/, '')}/api/v1/errors`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service: SERVICE,
-          environment:
-            process.env.SENTRY_ENVIRONMENT ||
-            process.env.NODE_ENV ||
-            'production',
-          error_class: normalized.errorClass,
-          message: normalized.message,
-          severity: 'error',
-          stack_trace: normalized.stackTrace,
-          context: scrubbedContext,
-        }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        `Canary capture returned ${response.status} ${response.statusText}`.trim()
-      );
-    }
-  } catch (reportingError) {
-    console.error('Canary capture failed:', reportingError, {
-      originalError: error,
+  await sendCanaryPayload(
+    {
+      errorClass: normalized.errorClass,
+      message: normalized.message,
+      severity: 'error',
+      stackTrace: normalized.stackTrace,
       context: scrubbedContext,
-    });
-  }
+    },
+    error
+  );
 }
 
 /**
@@ -104,14 +79,27 @@ export function scrubCanaryContext(
  * Resolves the Canary ingest endpoint, defaulting to production.
  */
 function getEndpoint(): string {
-  return process.env.NEXT_PUBLIC_CANARY_ENDPOINT?.trim() || DEFAULT_ENDPOINT;
+  return (
+    process.env.CANARY_ENDPOINT?.trim() ||
+    process.env.NEXT_PUBLIC_CANARY_ENDPOINT?.trim() ||
+    DEFAULT_ENDPOINT
+  );
 }
 
 /**
  * Reads the browser-safe Canary ingest key.
  */
 function getApiKey(): string {
-  return process.env.NEXT_PUBLIC_CANARY_API_KEY?.trim() || '';
+  return (
+    normalizeApiKey(process.env.CANARY_API_KEY) ||
+    normalizeApiKey(process.env.NEXT_PUBLIC_CANARY_API_KEY) ||
+    ''
+  );
+}
+
+function normalizeApiKey(value: string | undefined): string {
+  const normalized = value?.trim() || '';
+  return PLACEHOLDER_API_KEYS.has(normalized) ? '' : normalized;
 }
 
 /**
@@ -141,6 +129,61 @@ function normalizeError(error: unknown): {
     errorClass: 'UnknownError',
     message: String(error),
   };
+}
+
+type CanaryPayload = {
+  errorClass: string;
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+  stackTrace?: string;
+  context?: Record<string, unknown>;
+  fingerprint?: string[];
+};
+
+async function sendCanaryPayload(
+  payload: CanaryPayload,
+  originalError: unknown
+): Promise<void> {
+  const apiKey = getApiKey();
+  if (!apiKey) return;
+
+  try {
+    const response = await fetch(
+      `${getEndpoint().replace(/\/$/, '')}/api/v1/errors`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service: SERVICE,
+          environment:
+            process.env.CANARY_ENVIRONMENT ||
+            process.env.NODE_ENV ||
+            'production',
+          error_class: payload.errorClass,
+          message: payload.message,
+          severity: payload.severity,
+          stack_trace: payload.stackTrace,
+          context: payload.context,
+          fingerprint: payload.fingerprint,
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Canary capture returned ${response.status} ${response.statusText}`.trim()
+      );
+    }
+  } catch (reportingError) {
+    console.error('Canary capture failed:', reportingError, {
+      originalError,
+      context: payload.context,
+    });
+  }
 }
 
 /**

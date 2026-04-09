@@ -189,7 +189,7 @@ describe('useUser hook', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Assert - error is captured by Sentry
+    // Assert - error is captured by the shared observability helper
     expect(mockCaptureError).toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.stringContaining('Failed to fetch guest session'),

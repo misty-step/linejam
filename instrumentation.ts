@@ -1,27 +1,13 @@
 import { captureCanaryException } from '@/lib/canary';
-import { isSentryEnabled } from '@/lib/sentry';
 
 /**
  * Next.js instrumentation hook
  *
- * Initializes Sentry for the appropriate runtime environment.
- * Called by Next.js when the app starts.
+ * Linejam ships no extra runtime bootstrap today. Explicit Canary reporting
+ * happens in request hooks, error boundaries, and client observers.
  */
 
-export async function register() {
-  // Skip Sentry in development entirely for faster startup
-  if (process.env.NODE_ENV === 'development') return;
-
-  if (!isSentryEnabled) return;
-
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./sentry.server.config');
-  }
-
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config');
-  }
-}
+export async function register() {}
 
 export const onRequestError = async (
   error: Error,
@@ -50,9 +36,4 @@ export const onRequestError = async (
     renderSource: context.renderSource,
     revalidateReason: context.revalidateReason,
   });
-
-  if (!isSentryEnabled) return;
-
-  const { captureRequestError } = await import('@sentry/nextjs');
-  await captureRequestError(error, request, context);
 };

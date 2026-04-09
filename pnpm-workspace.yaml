@@ -1,6 +1,5 @@
 ignoredBuiltDependencies:
   - '@clerk/shared'
-  - '@sentry/cli'
   - '@vercel/speed-insights'
   - esbuild
   - lefthook

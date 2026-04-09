@@ -11,7 +11,7 @@ Emit structured request-level telemetry for the guest session, health, and room 
 ## Non-Goals
 
 - Full distributed tracing rollout
-- Vendor migration away from Sentry/Canary/PostHog
+- Broader observability vendor or analytics stack redesign
 - Analytics redesign for every route
 
 ## Oracle

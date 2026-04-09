@@ -1,0 +1,414 @@
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { isCanaryAutomationEvent } from './events.mjs';
+import { ensureClerkConvexTemplate } from '../ci/ensure-clerk-convex-template.mjs';
+
+const DEFAULT_SMOKE_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_SMOKE_KILL_GRACE_MS = 5_000;
+const DEFAULT_SMOKE_RUNNER = 'dagger';
+const MAX_CAPTURE_BYTES = 64 * 1024;
+const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const SMOKE_ENV_KEYS = [
+  'CANARY_ENDPOINT',
+  'CI',
+  'CLERK_JWT_ISSUER_DOMAIN',
+  'CLERK_SECRET_KEY',
+  'FORCE_COLOR',
+  'GUEST_TOKEN_SECRET',
+  'HOME',
+  'LINEJAM_ALLOWED_SMOKE_HOSTS',
+  'LINEJAM_ALLOWED_SMOKE_HOST_PATTERN',
+  'LINEJAM_ALLOWED_SMOKE_ORIGINS',
+  'LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST',
+  'NEXT_PUBLIC_CANARY_API_KEY',
+  'NEXT_PUBLIC_CANARY_ENDPOINT',
+  'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+  'NEXT_PUBLIC_CONVEX_URL',
+  'NO_COLOR',
+  'PATH',
+  'PLAYWRIGHT_CLERK_TEST_EMAIL',
+  'PLAYWRIGHT_REQUIRE_AUTH_SMOKE',
+  'SHELL',
+  'TEMP',
+  'TERM',
+  'TMP',
+  'TMPDIR',
+];
+const SMOKE_RUNNER_COMMANDS = Object.freeze({
+  dagger: ['pnpm', ['ci:dagger:smoke']],
+  playwright: ['pnpm', ['test:e2e:smoke']],
+});
+
+function getSmokeTimeoutMs() {
+  const parsed = Number.parseInt(
+    process.env.CANARY_SMOKE_TIMEOUT_MS || String(DEFAULT_SMOKE_TIMEOUT_MS),
+    10
+  );
+
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_SMOKE_TIMEOUT_MS;
+}
+
+function getSmokeKillGraceMs() {
+  const parsed = Number.parseInt(
+    process.env.CANARY_SMOKE_KILL_GRACE_MS ||
+      String(DEFAULT_SMOKE_KILL_GRACE_MS),
+    10
+  );
+
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_SMOKE_KILL_GRACE_MS;
+}
+
+export function shouldTriggerSmoke(eventName) {
+  return isCanaryAutomationEvent(eventName);
+}
+
+export function resolveSmokeRunner(
+  value = process.env.LINEJAM_SMOKE_RUNNER || DEFAULT_SMOKE_RUNNER
+) {
+  const runner = value.trim().toLowerCase();
+
+  if (runner in SMOKE_RUNNER_COMMANDS) {
+    return runner;
+  }
+
+  throw new Error(
+    `Unsupported LINEJAM_SMOKE_RUNNER: ${runner}. Expected one of ${Object.keys(
+      SMOKE_RUNNER_COMMANDS
+    ).join(', ')}`
+  );
+}
+
+function resolveSmokeCommand(runner) {
+  return SMOKE_RUNNER_COMMANDS[runner];
+}
+
+function buildSmokeEnv(baseUrl) {
+  const nextEnv = {
+    PLAYWRIGHT_BASE_URL: baseUrl,
+  };
+
+  for (const key of SMOKE_ENV_KEYS) {
+    const value = process.env[key];
+    if (value) {
+      nextEnv[key] = value;
+    }
+  }
+
+  return nextEnv;
+}
+
+function allowlistEnforced() {
+  return ['1', 'true', 'TRUE', 'yes', 'YES'].includes(
+    process.env.LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST || ''
+  );
+}
+
+function validateSmokeBaseUrl(baseUrl) {
+  if (!allowlistEnforced()) {
+    return null;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return `PLAYWRIGHT_BASE_URL is not a valid URL: ${baseUrl}`;
+  }
+
+  const allowedOrigins = (process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const allowedHosts = (process.env.LINEJAM_ALLOWED_SMOKE_HOSTS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const hostPattern = process.env.LINEJAM_ALLOWED_SMOKE_HOST_PATTERN?.trim();
+
+  const matchesOrigin = allowedOrigins.includes(parsed.origin);
+  const matchesHost = allowedHosts.includes(parsed.hostname);
+  const matchesPattern = hostPattern
+    ? new RegExp(hostPattern, 'i').test(parsed.hostname)
+    : false;
+
+  if (matchesOrigin || matchesHost || matchesPattern) {
+    return null;
+  }
+
+  return (
+    `Refusing to run smoke against untrusted origin ${parsed.origin}. ` +
+    'Configure LINEJAM_ALLOWED_SMOKE_ORIGINS, LINEJAM_ALLOWED_SMOKE_HOSTS, or LINEJAM_ALLOWED_SMOKE_HOST_PATTERN.'
+  );
+}
+
+function validateSmokeAuthConfiguration(baseUrl) {
+  if (process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE !== '1') {
+    return null;
+  }
+
+  const publishableKey =
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
+    process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
+    '';
+
+  if (!publishableKey) {
+    return null;
+  }
+
+  let origin = '';
+  try {
+    origin = new URL(baseUrl).origin;
+  } catch {
+    return null;
+  }
+
+  if (origin === 'https://www.linejam.app' && publishableKey.startsWith('pk_test_')) {
+    return (
+      'Authenticated production smoke requires a live Clerk publishable key. ' +
+      'Use production-aligned Clerk env instead of localhost test keys.'
+    );
+  }
+
+  return null;
+}
+
+async function validateClerkTemplateForSmoke() {
+  if (process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE !== '1') {
+    return null;
+  }
+
+  const publishableKey =
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
+    process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
+    '';
+  const secretKey = process.env.CLERK_SECRET_KEY?.trim() || '';
+
+  if (!publishableKey || !secretKey) {
+    return null;
+  }
+
+  try {
+    await ensureClerkConvexTemplate({
+      secretKey,
+      publishableKey,
+      checkOnly: true,
+    });
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+function appendLimitedOutput(buffer, chunk) {
+  const next = Buffer.from(chunk);
+  const combined = Buffer.concat([buffer, next]);
+
+  if (combined.length <= MAX_CAPTURE_BYTES) {
+    return {
+      output: combined,
+      truncated: false,
+    };
+  }
+
+  return {
+    output: combined.subarray(combined.length - MAX_CAPTURE_BYTES),
+    truncated: true,
+  };
+}
+
+export async function runSmoke({
+  baseUrl = process.env.PLAYWRIGHT_BASE_URL,
+  eventName,
+  deliveryId,
+  runner = process.env.LINEJAM_SMOKE_RUNNER,
+  timeoutMs = getSmokeTimeoutMs(),
+  spawnProcess = spawn,
+}) {
+  if (!baseUrl) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'PLAYWRIGHT_BASE_URL is not configured',
+      eventName,
+      deliveryId,
+    };
+  }
+
+  const baseUrlValidationError = validateSmokeBaseUrl(baseUrl);
+  if (baseUrlValidationError) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: baseUrlValidationError,
+      eventName,
+      deliveryId,
+    };
+  }
+
+  const authValidationError = validateSmokeAuthConfiguration(baseUrl);
+  if (authValidationError) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: authValidationError,
+      eventName,
+      deliveryId,
+    };
+  }
+
+  const clerkTemplateValidationError = await validateClerkTemplateForSmoke();
+  if (clerkTemplateValidationError) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: clerkTemplateValidationError,
+      eventName,
+      deliveryId,
+    };
+  }
+
+  let resolvedRunner;
+  let smokeCommand;
+  let smokeArgs;
+
+  try {
+    resolvedRunner = resolveSmokeRunner(runner || DEFAULT_SMOKE_RUNNER);
+    [smokeCommand, smokeArgs] = resolveSmokeCommand(resolvedRunner);
+  } catch (error) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: error instanceof Error ? error.message : String(error),
+      eventName,
+      deliveryId,
+    };
+  }
+
+  return new Promise((resolve) => {
+    let stdout = Buffer.alloc(0);
+    let stderr = Buffer.alloc(0);
+    let stdoutTruncated = false;
+    let stderrTruncated = false;
+    const startedAt = new Date().toISOString();
+    let settled = false;
+    let timedOut = false;
+    const timeoutReason = `smoke run timed out after ${timeoutMs}ms`;
+
+    const child = spawnProcess(smokeCommand, smokeArgs, {
+      cwd: REPO_ROOT,
+      env: buildSmokeEnv(baseUrl),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let timeoutHandle;
+    let killGraceHandle;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutHandle);
+      clearTimeout(killGraceHandle);
+      resolve({
+        ...result,
+        eventName,
+        deliveryId,
+        baseUrl,
+        runner: resolvedRunner,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        stdout: stdout.toString('utf8'),
+        stderr: stderr.toString('utf8'),
+        stdoutTruncated,
+        stderrTruncated,
+      });
+    };
+
+    timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+
+      killGraceHandle = setTimeout(() => {
+        child.kill('SIGKILL');
+        finish({
+          ok: false,
+          skipped: false,
+          code: null,
+          timedOut: true,
+          reason: timeoutReason,
+        });
+      }, getSmokeKillGraceMs());
+    }, timeoutMs);
+
+    child.stdout.on('data', (chunk) => {
+      const next = appendLimitedOutput(stdout, chunk);
+      stdout = next.output;
+      stdoutTruncated ||= next.truncated;
+    });
+    child.stderr.on('data', (chunk) => {
+      const next = appendLimitedOutput(stderr, chunk);
+      stderr = next.output;
+      stderrTruncated ||= next.truncated;
+    });
+    child.on('error', (error) => {
+      finish({
+        ok: false,
+        skipped: false,
+        code: null,
+        timedOut: false,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+    child.on('close', (code) => {
+      if (timedOut) {
+        finish({
+          ok: false,
+          skipped: false,
+          code,
+          timedOut: true,
+          reason: timeoutReason,
+        });
+        return;
+      }
+
+      finish({
+        ok: code === 0,
+        skipped: false,
+        code,
+        timedOut: false,
+      });
+    });
+  });
+}
+
+export async function runCli({
+  args = process.argv.slice(2),
+  run = runSmoke,
+  writeOut = (text) => process.stdout.write(text),
+  writeErr = (...values) => console.error(...values),
+  exit = (code) => {
+    process.exit(code);
+  },
+} = {}) {
+  const eventName = args[0] || 'manual';
+  const deliveryId = args[1] || 'manual';
+
+  try {
+    const result = await run({ eventName, deliveryId });
+    writeOut(`${JSON.stringify(result, null, 2)}\n`);
+    exit(result.ok || result.skipped ? 0 : 1);
+    return result;
+  } catch (error) {
+    writeErr('Smoke trigger failed', error);
+    exit(1);
+    return null;
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  void runCli();
+}

@@ -1,27 +1,33 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
-import { captureCanaryException } from '@/lib/canary';
+import { captureCanaryException, isCanaryEnabled } from '@/lib/canary';
 
 export async function GET() {
   try {
     const convexStatus = await checkConvex();
     const envChecks = checkEnvVars();
-
-    // Consider unhealthy if critical env vars are missing
-    const healthy = envChecks.guestTokenSecret && envChecks.convexUrl;
+    const serviceHealthy =
+      envChecks.guestTokenSecret &&
+      envChecks.convexUrl &&
+      convexStatus === 'connected';
+    const canaryReady = envChecks.canaryIngestKey;
 
     return Response.json(
       {
-        status: healthy ? 'ok' : 'unhealthy',
+        status: serviceHealthy ? 'ok' : 'unhealthy',
         convex: convexStatus,
         env: {
           nodeEnv: process.env.NODE_ENV ?? 'development',
           ...envChecks,
         },
+        observability: {
+          status: canaryReady ? 'ready' : 'degraded',
+          canaryIngestKey: canaryReady,
+        },
         timestamp: new Date().toISOString(),
       },
       {
-        status: healthy ? 200 : 503,
+        status: serviceHealthy ? 200 : 503,
         headers: { 'Cache-Control': 'no-store' },
       }
     );
@@ -43,12 +49,14 @@ function checkEnvVars() {
     guestTokenSecret: !!process.env.GUEST_TOKEN_SECRET,
     convexUrl: !!process.env.NEXT_PUBLIC_CONVEX_URL,
     clerkPublishableKey: !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    canaryIngestKey: isCanaryEnabled(),
   };
 }
 
 /**
  * Ping Convex without allowing network errors to explode the health endpoint.
- * Treats Convex as "unreachable" instead of throwing so CI/unit tests stay hermetic.
+ * Treat network errors as "unreachable" so the route can return an explicit
+ * unhealthy signal instead of a 500 crash.
  */
 async function checkConvex() {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -66,7 +74,7 @@ async function checkConvex() {
 }
 
 /**
- * Best-effort logging that tolerates environments where Sentry is unavailable.
+ * Best-effort logging that tolerates missing or slow observability transport.
  */
 async function logFailure(error: unknown) {
   console.error('Healthcheck failed', error);
@@ -74,12 +82,4 @@ async function logFailure(error: unknown) {
   void captureCanaryException(error, {
     source: 'api.health',
   });
-
-  try {
-    await import('@sentry/nextjs')
-      .then((Sentry) => Sentry.captureException?.(error))
-      .catch(() => undefined);
-  } catch {
-    // Sentry not available in this runtime; ignore.
-  }
 }

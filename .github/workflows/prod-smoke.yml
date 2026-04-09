@@ -1,0 +1,35 @@
+name: Production Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Production Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BASE_URL: https://www.linejam.app
+      PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1'
+      LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1'
+      LINEJAM_ALLOWED_SMOKE_ORIGINS: https://www.linejam.app
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dagger CLI
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run production smoke
+        run: ./scripts/ci/dagger-call.sh smoke

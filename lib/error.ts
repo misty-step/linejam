@@ -1,16 +1,14 @@
-import * as Sentry from '@sentry/nextjs';
 import {
   captureCanaryException,
   isCanaryEnabled,
   scrubCanaryContext,
 } from '@/lib/canary';
-import { isSentryEnabled } from '@/lib/sentry';
 
 /**
- * Capture an error to Sentry with optional context.
+ * Capture an error to Canary with optional context.
  *
- * This is a deep module: simple interface hiding Sentry's API complexity.
- * Use this in both client and server code for consistent error tracking.
+ * This is a deep module: callers report failures without learning transport
+ * details. Observability stays behind Canary.
  *
  * @example
  * captureError(error, { roomCode: 'ABCD', poemId: '123' });
@@ -19,30 +17,20 @@ export function captureError(
   error: unknown,
   context?: Record<string, unknown>
 ) {
-  const scrubbedContext = scrubCanaryContext(context);
-
-  if (isSentryEnabled) {
-    Sentry.captureException(error, {
-      contexts: scrubbedContext ? { custom: scrubbedContext } : undefined,
-    });
-  }
-
-  if (isCanaryEnabled()) {
-    void captureCanaryException(error, scrubbedContext);
-  }
-
-  if (!isSentryEnabled && !isCanaryEnabled()) {
+  if (!isCanaryEnabled()) {
     logCapturedError(
-      'Error captured (Sentry disabled):',
+      'Error captured (Canary disabled):',
       error,
-      scrubbedContext
+      scrubCanaryContext(context)
     );
     return;
   }
 
+  void captureCanaryException(error, context);
+
   // Log to console in development for visibility
   if (process.env.NODE_ENV === 'development') {
-    logCapturedError('Captured error:', error, scrubbedContext);
+    logCapturedError('Captured error:', error, scrubCanaryContext(context));
   }
 }
 

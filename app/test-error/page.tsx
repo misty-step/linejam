@@ -10,21 +10,19 @@ import {
 
 export default function TestErrorPage() {
   const triggerError = () => {
-    // Throws directly (not via captureError) to test Sentry's automatic
-    // error capture in event handlers
-    throw new Error('Test Sentry capture - this error is intentional');
+    throw new Error('Test Canary capture - this error is intentional');
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Sentry Test</CardTitle>
+          <CardTitle>Canary Test</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-[var(--color-text-muted)]">
-            Click the button below to trigger a test error. Check your Sentry
-            dashboard to verify the error was captured.
+            Click the button below to trigger a test error. Check Canary to
+            verify the error was captured.
           </p>
           <Button onClick={triggerError} className="w-full">
             Trigger Test Error

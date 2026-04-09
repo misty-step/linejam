@@ -35,11 +35,6 @@ vi.mock('@/lib/auth', () => ({
   }),
 }));
 
-// Mock Sentry (external) - let captureError use real implementation
-vi.mock('@sentry/nextjs', () => ({
-  captureException: vi.fn(),
-}));
-
 // Mock fetch for guest session API (external boundary)
 const mockFetch = vi.fn();
 const originalFetch = global.fetch;

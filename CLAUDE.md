@@ -19,7 +19,8 @@ pnpm lint             # eslint
 pnpm lint:fix         # eslint --fix
 pnpm format           # prettier --write
 pnpm typecheck        # tsc --noEmit
-pnpm test             # vitest watch
+pnpm test             # vitest run
+pnpm test:watch       # vitest watch
 pnpm test:ci          # vitest run --coverage
 pnpm test:ui          # vitest interactive UI
 ```
@@ -63,15 +64,15 @@ LOBBY → IN_PROGRESS (9 rounds) → COMPLETED (reveal)
 
 ## Key Directories
 
-| Path          | Purpose                                                      |
-| ------------- | ------------------------------------------------------------ |
-| `app/`        | Next.js App Router pages (all 'use client')                  |
-| `components/` | UI primitives (Button, Card, Input) + game screens           |
-| `convex/`     | Backend schema, queries, mutations, auth helpers             |
-| `lib/`        | Shared utilities: auth hook, logger, word counting, cn()     |
-| `lib/themes/` | Premium theme system (4 themes: kenya, mono, vintage, hyper) |
-| `hooks/`      | React hooks (useSharePoem for clipboard sharing)             |
-| `tests/`      | Vitest unit tests + Playwright E2E                           |
+| Path          | Purpose                                                              |
+| ------------- | -------------------------------------------------------------------- |
+| `app/`        | Next.js App Router routes (server-first; client components explicit) |
+| `components/` | UI primitives (Button, Card, Input) + game screens                   |
+| `convex/`     | Backend schema, queries, mutations, auth helpers                     |
+| `lib/`        | Shared utilities: auth hook, logger, word counting, cn()             |
+| `lib/themes/` | Premium theme system (4 themes: kenya, mono, vintage, hyper)         |
+| `hooks/`      | React hooks (useSharePoem for clipboard sharing)                     |
+| `tests/`      | Vitest unit tests + Playwright E2E                                   |
 
 ## Design System
 
@@ -120,13 +121,13 @@ AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 
 ## Quality Gates
 
-Lefthook pre-commit: `eslint --fix`, `prettier --write`, `typecheck`
-Lefthook pre-push: `test:ci`, `build`
+Lefthook pre-commit: `gitleaks`, `eslint --fix`, `prettier --write`
+Lefthook pre-push: `pnpm ci:prepush` (Dagger all, including authenticated browser coverage by default)
 Commit messages: Conventional Commits (commitlint)
 
 ## Testing
 
-500+ tests across Vitest (unit/integration) and Playwright (E2E). Coverage threshold: 80% lines/branches, 60% functions.
+500+ tests across Vitest (unit/integration) and Playwright (E2E). Coverage threshold: 85% lines/branches/functions/statements.
 
 ```bash
 pnpm test:watch       # Development
@@ -146,7 +147,7 @@ pnpm test:e2e:ui      # Playwright interactive mode
 
 **Mock at system boundaries only:**
 
-- ✅ External APIs, third-party libraries (convex/react, @clerk/nextjs, @sentry/nextjs)
+- ✅ External APIs, third-party libraries (convex/react, @clerk/nextjs)
 - ✅ Network requests, browser APIs (fetch, localStorage, clipboard)
 - ✅ Non-deterministic behavior (Date.now, Math.random)
 - ❌ Internal modules (@/lib/_, @/hooks/_, convex/lib/\*)
@@ -162,8 +163,48 @@ CONVEX_DEPLOY_KEY              # Production/Preview deploy key (CI/CD only)
 GUEST_TOKEN_SECRET             # Guest token signing (must match in Vercel + Convex)
 OPENROUTER_API_KEY             # AI player LLM access (Convex only)
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY
-PUBLIC_SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
+CANARY_ENDPOINT, CANARY_API_KEY
+NEXT_PUBLIC_CANARY_ENDPOINT, NEXT_PUBLIC_CANARY_API_KEY
+LINEJAM_CANARY_WEBHOOK_SECRET
+LINEJAM_CANARY_WEBHOOK_URL     # Required for webhook setup, not responder runtime
+PLAYWRIGHT_BASE_URL, PLAYWRIGHT_CLERK_TEST_EMAIL
+PLAYWRIGHT_REQUIRE_AUTH_E2E, PLAYWRIGHT_REQUIRE_AUTH_SMOKE
+LINEJAM_SMOKE_RUNNER
+LINEJAM_SYNC_CONVEX_BEFORE_DAGGER, LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE
+LINEJAM_ALLOW_PROD_CONVEX_SYNC
+LINEJAM_CANARY_CONTEXT_TIMEOUT_MS, LINEJAM_CANARY_RETENTION_DAYS
 ```
+
+Local Dagger now requires real `NEXT_PUBLIC_CANARY_ENDPOINT` and
+`NEXT_PUBLIC_CANARY_API_KEY` values for build-bearing lanes. The authoritative
+contract should fail fast instead of silently substituting placeholder Canary
+browser config.
+
+Local Dagger is the source-of-truth engineering contract. It auto-syncs the active
+Convex dev deployment before auth-heavy E2E and hydrates `GUEST_TOKEN_SECRET`
+from the matching Convex deployment automatically. It refuses to push Convex
+production code unless `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is set explicitly.
+
+Hosted GitHub `merge-gate` still mirrors and enforces that contract remotely for
+branch protection.
+
+Local Dagger also ensures the Clerk `convex` JWT template exists before local
+authenticated browser coverage runs. Keep
+`LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=0` unless you intentionally want the
+CLI to create that template against a live Clerk instance.
+
+Authenticated Playwright coverage only needs `CLERK_SECRET_KEY` plus
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. `PLAYWRIGHT_CLERK_TEST_EMAIL` is an
+optional override because the helper provisions the default Clerk test user
+automatically when it is missing.
+
+Authenticated Playwright routes sign into Clerk inside each live browser
+context after the app is already serving traffic. Do not depend on serialized
+Clerk storage state for protected-route coverage.
+
+Local Dagger loads `.env.local` after `.env.production.local`, so localhost-safe
+Clerk keys in `.env.local` override production values during the local
+contract.
 
 ## Recent Features (Dec 2025)
 
@@ -225,15 +266,18 @@ while (condition && attempts < MAX_ATTEMPTS) {
 
 **Frontend (Next.js):**
 
-- Sentry SDK captures errors automatically
+- Browser globals are bridged into Canary by `components/CanaryClientObserver.tsx`
 - Use `captureError()` from `lib/error.ts` for explicit error capture with context
-- PII scrubbing configured in `lib/sentry.ts`
+- Request failures flow through `instrumentation.ts` and `/api/health`
 
 **Backend (Convex):**
 
 - Use `log` and `logError` from `convex/lib/errors.ts`
 - Outputs structured JSON to stdout for Convex dashboard parsing
-- Sentry doesn't run in Convex runtime—structured logs are the observability layer
+- Convex still uses structured logs; Canary is the app-side incident sink
+- `/api/health` reports core app health separately from Canary readiness, so
+  missing Canary ingest should be treated as degraded observability, not proof
+  that gameplay is down
 
 **Structured Logging:**
 
@@ -247,23 +291,26 @@ import { log, logError } from './lib/errors';
 logError('API call failed', error, { roomId, round });
 ```
 
-### Sentry CLI Scripts
+### Canary Responder
 
 ```bash
-# List recent issues
-./scripts/sentry/list-issues.sh --limit 10
+# Local-first CI
+pnpm ci:dagger:all
 
-# Get issue details for AI analysis
-./scripts/sentry/issue-detail.sh LINEJAM-123
+# Start webhook responder
+pnpm canary:responder
 
-# Prioritize issues by triage score
-./scripts/sentry/triage-score.sh --json
-
-# Resolve after fixing
-./scripts/sentry/resolve-issue.sh LINEJAM-123
+# Register webhook subscription in Canary
+pnpm canary:webhook:setup
 ```
 
-Requires `SENTRY_AUTH_TOKEN` in environment.
+`pnpm canary:webhook:setup` is expected to be rerunnable. It should converge on
+one correct subscription for the responder URL instead of creating duplicates.
+
+Local Dagger remains the authoritative CI contract. Hosted responders should set
+`LINEJAM_SMOKE_RUNNER=playwright` and use the committed
+`Dockerfile.responder`/`fly.responder.toml` path so the same remote smoke suite
+can run without embedding Dagger in the webhook worker.
 
 ### Alert Rules
 

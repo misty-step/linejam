@@ -1,0 +1,15 @@
+.git
+.github
+.next
+.canary
+coverage
+playwright-report
+test-results
+node_modules
+.env
+.env.local
+.env.production.local
+.env.*
+!.env.example
+dagger/.env
+*.log

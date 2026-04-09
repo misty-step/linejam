@@ -16,16 +16,16 @@ regex = '''pk_(test|live)_[A-Za-z0-9]{20,}'''
 keywords = ["pk_test", "pk_live", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]
 
 [[rules]]
-id = "linejam-sentry-auth-token"
-description = "Sentry auth token"
-regex = '''SENTRY_AUTH_TOKEN[\\s:=\\\"]*[0-9a-fA-F]{32}'''
-keywords = ["SENTRY_AUTH_TOKEN"]
-
-[[rules]]
 id = "linejam-convex-deploy-key"
 description = "Convex deploy key"
 regex = '''convex_[a-z0-9]{24,}'''
 keywords = ["CONVEX_DEPLOY_KEY", "convex_"]
+
+[[rules]]
+id = "linejam-canary-api-key"
+description = "Canary API key"
+regex = '''sk_(test|live)_[A-Za-z0-9]{24,}'''
+keywords = ["CANARY_API_KEY", "NEXT_PUBLIC_CANARY_API_KEY", "sk_live_", "sk_test_"]
 
 [[rules]]
 id = "linejam-generic-bearer-token"
