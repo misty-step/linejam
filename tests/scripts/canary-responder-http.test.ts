@@ -59,6 +59,7 @@ describe('canary responder http server', () => {
   async function startResponder(options?: {
     withSecret?: boolean;
     smokeEnabled?: boolean;
+    responderPort?: string | null;
     dependencyMocks?: {
       fetchCanaryContext?: ReturnType<typeof vi.fn>;
       runSmoke?: ReturnType<typeof vi.fn>;
@@ -73,7 +74,11 @@ describe('canary responder http server', () => {
       delete process.env.LINEJAM_CANARY_WEBHOOK_SECRET;
     }
     process.env.LINEJAM_CANARY_WEBHOOK_PATH = '/canary/webhook';
-    process.env.LINEJAM_CANARY_RESPONDER_PORT = '0';
+    if (options?.responderPort === null) {
+      delete process.env.LINEJAM_CANARY_RESPONDER_PORT;
+    } else {
+      process.env.LINEJAM_CANARY_RESPONDER_PORT = options?.responderPort ?? '0';
+    }
     process.env.LINEJAM_CANARY_STORE_DIR = dir;
     process.env.CANARY_API_KEY = 'canary-secret';
     process.env.CANARY_SMOKE_TRIGGER_ENABLED =
@@ -128,9 +133,8 @@ describe('canary responder http server', () => {
   });
 
   it('uses PORT when LINEJAM_CANARY_RESPONDER_PORT is unset', async () => {
-    delete process.env.LINEJAM_CANARY_RESPONDER_PORT;
     process.env.PORT = '0';
-    const { server, baseUrl } = await startResponder();
+    const { server, baseUrl } = await startResponder({ responderPort: null });
 
     try {
       const response = await fetch(`${baseUrl}/healthz`);

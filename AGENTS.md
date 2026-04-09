@@ -18,7 +18,7 @@
 - `pnpm build`: Run the hosted Convex bootstrap/deploy wrapper in `scripts/ci/bootstrap-convex-env.mjs` before `next build` (`build:check`).
 - `pnpm lint` / `pnpm lint:fix`: ESLint (Next core-web-vitals).
 - `pnpm format` / `pnpm format:check`: Prettier 3 over code+docs.
-- `pnpm typecheck`: `tsc --noEmit`.
+- `pnpm typecheck`: app + Dagger TypeScript checks (`pnpm typecheck:app && pnpm typecheck:dagger`).
 - `pnpm test`: Vitest happy-dom; `pnpm test:ci` adds coverage; `pnpm test:watch`/`test:ui` for local loops.
 - `pnpm test:e2e`: Playwright E2E tests; `pnpm test:e2e:ui` for interactive mode.
 

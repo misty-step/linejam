@@ -54,19 +54,45 @@ export async function ensureClerkAuthState(page: Page) {
     page,
     emailAddress: CLERK_TEST_EMAIL,
   });
+  await clerk.loaded({ page });
+  await waitForClerkSession(page);
   await assertClerkConvexToken(page);
   await assertClerkProtectedRoute(page);
 }
 
 export async function assertClerkProtectedRoute(page: Page) {
-  await page.goto('/me/profile', { waitUntil: 'networkidle' });
+  await page.goto('/me/profile');
   await page.waitForURL(/\/me\/profile$/, { timeout: 30000 });
   await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible({
     timeout: 30000,
   });
 }
 
+async function waitForClerkSession(page: Page) {
+  await page.waitForFunction(
+    () => Boolean(window.Clerk?.loaded && window.Clerk?.session?.id),
+    { timeout: 30000 }
+  );
+}
+
 async function assertClerkConvexToken(page: Page) {
+  await page.waitForFunction(
+    async () => {
+      if (!window.Clerk?.loaded || !window.Clerk.session) {
+        return false;
+      }
+
+      try {
+        return Boolean(
+          await window.Clerk.session.getToken({ template: 'convex' })
+        );
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 30000 }
+  );
+
   const token = await page.evaluate(async () => {
     if (!window.Clerk?.session) {
       return null;

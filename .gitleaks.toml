@@ -30,7 +30,7 @@ keywords = ["CANARY_API_KEY", "NEXT_PUBLIC_CANARY_API_KEY", "sk_live_", "sk_test
 [[rules]]
 id = "linejam-generic-bearer-token"
 description = "Generic bearer/API token"
-regex = '''(?i)(api|bearer|secret|token)[\\s:=\\\"]*[A-Za-z0-9_\\-]{32,}'''
+regex = '''(?i)(api|bearer|secret|token)[\\s:=\\\"]+[A-Za-z0-9_\\-]{32,}'''
 keywords = ["token", "secret", "api_key"]
 
 [allowlist]

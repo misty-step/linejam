@@ -56,7 +56,7 @@ function requireSecret(
 }
 
 function withAppEnv(container: Container, env: AppEnv): Container {
-  const withPublicEnv = [
+  const publicEnvEntries: Array<[string, string | undefined]> = [
     ['NEXT_PUBLIC_CONVEX_URL', env.nextPublicConvexUrl],
     ['NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', env.nextPublicClerkPublishableKey],
     ['CLERK_PUBLISHABLE_KEY', env.nextPublicClerkPublishableKey],
@@ -65,18 +65,19 @@ function withAppEnv(container: Container, env: AppEnv): Container {
     ['CANARY_ENDPOINT', env.canaryEndpoint],
     ['NEXT_PUBLIC_CANARY_ENDPOINT', env.nextPublicCanaryEndpoint],
     ['NEXT_PUBLIC_CANARY_API_KEY', env.nextPublicCanaryApiKey],
-  ].reduce(
-    (current, [name, value]) =>
-      withOptionalEnv(current, name, value as string | undefined),
+  ];
+  const withPublicEnv = publicEnvEntries.reduce(
+    (current, [name, value]) => withOptionalEnv(current, name, value),
     container
   );
 
-  return [
+  const secretEnvEntries: Array<[string, Secret | undefined]> = [
     ['CLERK_SECRET_KEY', env.clerkSecretKey],
     ['GUEST_TOKEN_SECRET', env.guestTokenSecret],
-  ].reduce(
-    (current, [name, value]) =>
-      withOptionalSecretEnv(current, name, value as Secret | undefined),
+  ];
+
+  return secretEnvEntries.reduce(
+    (current, [name, value]) => withOptionalSecretEnv(current, name, value),
     withPublicEnv
   );
 }

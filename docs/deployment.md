@@ -343,7 +343,7 @@ Before deploying to production:
 - [ ] `GUEST_TOKEN_SECRET` set in Convex (production + preview)
 - [ ] Secrets are **identical** in both environments
 - [ ] Local-first CI passes: `pnpm ci:dagger:all`
-- [ ] TypeScript compiles: `pnpm typecheck`
+- [ ] App and Dagger TypeScript compile: `pnpm typecheck`
 - [ ] Build succeeds: `pnpm build`
 - [ ] E2E tests pass (if configured): `pnpm test:e2e`
 - [ ] Canary ingest configured for browser and server reporting

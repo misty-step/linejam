@@ -18,7 +18,7 @@ pnpm build            # convex deploy + next build
 pnpm lint             # eslint
 pnpm lint:fix         # eslint --fix
 pnpm format           # prettier --write
-pnpm typecheck        # tsc --noEmit
+pnpm typecheck        # app + Dagger TypeScript checks
 pnpm test             # vitest run
 pnpm test:watch       # vitest watch
 pnpm test:ci          # vitest run --coverage
