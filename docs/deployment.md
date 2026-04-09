@@ -105,6 +105,11 @@ configured intentionally before deployment:
 2. Ensure the Clerk instance has a `convex` JWT template with `aud: "convex"`.
 3. Keep `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=0` for normal local work. Set it to `1` only when you explicitly want the CLI to create the template against a live Clerk instance.
 
+Hosted builds now seed `GUEST_TOKEN_SECRET` plus `CLERK_JWT_ISSUER_DOMAIN`
+into the active Convex production or preview target before `npx convex deploy`
+runs. That removes the branch-by-branch preview drift where Vercel had the env
+values but the newly created Convex preview deployment did not.
+
 ### 4. Hosted Branch Protection / CI Mirror
 
 Local Dagger runs are the source of truth. Hosted branch protection still needs the same mirrored values:
