@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
  * @typedef {{ log: (...args: unknown[]) => void }} BootstrapLogger
  */
 
+const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];
+
 /**
  * @param {EnvShape} [env]
  */
@@ -368,4 +370,3 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   });
 }
-const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];
