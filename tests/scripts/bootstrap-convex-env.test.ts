@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   bootstrapConvexEnv,
+  buildHostedConvexDeployArgs,
   buildConvexEnvBootstrapPlan,
+  deployHostedConvex,
   deriveClerkIssuerDomain,
   resolveConvexEnvTarget,
 } from '@/scripts/ci/bootstrap-convex-env.mjs';
@@ -137,6 +139,60 @@ describe('bootstrap-convex-env', () => {
         })
       )
     ).toThrow(/does not match the active Clerk publishable key/);
+  });
+
+  it('pins hosted preview deploys to the same preview branch name', () => {
+    expect(
+      buildHostedConvexDeployArgs(
+        env({
+          CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
+          VERCEL_ENV: 'preview',
+          VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+        })
+      )
+    ).toEqual([
+      'convex',
+      'deploy',
+      '--cmd',
+      'pnpm run build:check',
+      '--preview-create',
+      'codex/canary-local-ci-agentic-qa',
+    ]);
+  });
+
+  it('bootstraps env before running the hosted Convex deploy', () => {
+    const calls: Array<{ bin: string; args: string[] }> = [];
+    const runner = (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      return { status: 0 };
+    };
+
+    deployHostedConvex({
+      env: env({
+        CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
+        VERCEL_ENV: 'preview',
+        VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+        GUEST_TOKEN_SECRET: 'guest-secret',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
+          'test',
+          'solid-beetle-24.clerk.accounts.dev'
+        ),
+      }),
+      runner,
+      logger: { log: vi.fn() },
+    });
+
+    expect(calls.at(-1)).toEqual({
+      bin: 'npx',
+      args: [
+        'convex',
+        'deploy',
+        '--cmd',
+        'pnpm run build:check',
+        '--preview-create',
+        'codex/canary-local-ci-agentic-qa',
+      ],
+    });
   });
 
   it('fails fast when preview deploys have no branch name', () => {

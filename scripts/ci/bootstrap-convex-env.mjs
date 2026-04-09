@@ -188,7 +188,62 @@ export function bootstrapConvexEnv({
   return plan;
 }
 
+/**
+ * @param {EnvShape} [env]
+ * @param {string} [buildCommand]
+ */
+export function buildHostedConvexDeployArgs(
+  env = process.env,
+  buildCommand = 'pnpm run build:check'
+) {
+  const target = resolveConvexEnvTarget(env);
+  const args = ['convex', 'deploy', '--cmd', buildCommand];
+
+  if (target.status === 'preview') {
+    const previewName = target.args[1];
+    if (previewName) {
+      args.push('--preview-create', previewName);
+    }
+  }
+
+  return args;
+}
+
+/**
+ * @param {{
+ *   env?: EnvShape;
+ *   runner?: Runner;
+ *   logger?: BootstrapLogger;
+ *   buildCommand?: string;
+ * }} [options]
+ */
+export function deployHostedConvex({
+  env = process.env,
+  runner = spawnSync,
+  logger = console,
+  buildCommand = 'pnpm run build:check',
+} = {}) {
+  bootstrapConvexEnv({ env, runner, logger });
+
+  const args = buildHostedConvexDeployArgs(env, buildCommand);
+  const result = runner('npx', args, {
+    stdio: 'inherit',
+    env,
+  });
+
+  if (result.status !== 0) {
+    throw new Error('Hosted Convex deploy failed.');
+  }
+
+  return args;
+}
+
 async function main() {
+  if (process.argv.includes('--deploy')) {
+    deployHostedConvex();
+    return;
+  }
+
   bootstrapConvexEnv();
 }
 
