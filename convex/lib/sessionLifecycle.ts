@@ -167,7 +167,11 @@ export async function applyLineLifecycleTransition(
   }
 
   const freshGame = await ctx.db.get(args.game._id);
-  if (!freshGame || freshGame.currentRound !== args.lineIndex) {
+  if (
+    !freshGame ||
+    freshGame.status !== 'IN_PROGRESS' ||
+    freshGame.currentRound !== args.lineIndex
+  ) {
     return { status: 'stale' };
   }
 

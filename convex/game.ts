@@ -115,8 +115,6 @@ export const startNewCycle = mutation({
 
     // Check that there's a completed game (authoritative check)
     const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) throw new Error('Game still in progress');
-
     const completedGame = await getCompletedGame(ctx, room._id);
     const cycleReset = getCycleResetDecision({
       activeGame,
