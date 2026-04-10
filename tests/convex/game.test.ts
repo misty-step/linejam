@@ -741,7 +741,10 @@ describe('game', () => {
         { userId: 'user1' },
         { userId: 'user2' },
       ]);
-      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
+      mockGetCompletedGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'COMPLETED',
+      });
 
       // Poems query - no poems assigned to user1
       mockDb.collect.mockResolvedValueOnce([
@@ -777,7 +780,10 @@ describe('game', () => {
       });
       // Room players - user is a participant (checked before getCompletedGame)
       mockDb.collect.mockResolvedValueOnce([{ userId: 'user1' }]);
-      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
+      mockGetCompletedGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'COMPLETED',
+      });
 
       // Poems query
       mockDb.collect.mockResolvedValueOnce([

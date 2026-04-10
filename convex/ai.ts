@@ -20,9 +20,12 @@ import { WORD_COUNTS } from './lib/gameRules';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
-import { assignPoemReaders } from './lib/assignPoemReaders';
 import { getConvexRuntimeConfig } from './lib/env';
 import { log } from './lib/errors';
+import {
+  applyLineLifecycleTransition,
+  getSubmissionWindow,
+} from './lib/sessionLifecycle';
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
@@ -348,14 +351,8 @@ export const commitAiLine = internalMutation({
     // Validate game state with grace for race conditions:
     // - Allow submissions for current round OR past rounds (late arrivals)
     // - For final round (8), also accept if game just became COMPLETED
-    const isFinalRound = lineIndex === 8;
-    const gameInProgress = game.status === 'IN_PROGRESS';
-    const gameJustCompleted = game.status === 'COMPLETED' && isFinalRound;
-
-    if (!gameInProgress && !gameJustCompleted) return;
-
-    // Prevent early submissions (future rounds)
-    if (lineIndex > game.currentRound && gameInProgress) return;
+    const submissionWindow = getSubmissionWindow(game, lineIndex);
+    if (!submissionWindow.ok) return;
 
     // Check assignment (immutable matrix - always stable)
     const assignedUserId = getMatrixRound(game.assignmentMatrix, lineIndex)[
@@ -394,88 +391,7 @@ export const commitAiLine = internalMutation({
       });
     }
 
-    // Check if round is complete
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', gameId))
-      .collect();
-
-    const lineChecks = await Promise.all(
-      poems.map((p) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', p._id).eq('indexInPoem', lineIndex)
-          )
-          .first()
-      )
-    );
-    const allSubmitted = lineChecks.every((line) => line !== null);
-
-    if (allSubmitted) {
-      // Idempotent guard: re-read game to prevent double-advancement.
-      // See convex/game.ts submitLine for detailed rationale.
-      const freshGame = await ctx.db.get(gameId);
-      if (!freshGame || freshGame.currentRound !== lineIndex) return;
-
-      if (lineIndex < 8) {
-        // Advance round
-        await ctx.db.patch(gameId, { currentRound: lineIndex + 1 });
-
-        // Schedule next AI turn
-        await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
-          roomId,
-          gameId,
-          round: lineIndex + 1,
-        });
-      } else {
-        // Game Complete
-        const completionTime = Date.now();
-        const players = await ctx.db
-          .query('roomPlayers')
-          .withIndex('by_room', (q) => q.eq('roomId', roomId))
-          .collect();
-
-        await ctx.db.patch(gameId, {
-          status: 'COMPLETED',
-          completedAt: completionTime,
-        });
-        await ctx.db.patch(roomId, {
-          status: 'COMPLETED',
-          completedAt: completionTime,
-        });
-
-        // Mark all poems as completed and assign readers
-        // Fetch user records for reader assignment
-        const playerUserRecords = await Promise.all(
-          players.map((p) => ctx.db.get(p.userId))
-        );
-
-        // Deep module: assigns readers with fairness + derangement
-        const readerAssignments = assignPoemReaders(
-          poems.map((p) => ({
-            _id: p._id,
-            // Author = user who wrote first line (from assignment matrix)
-            authorUserId: getMatrixRound(game.assignmentMatrix, 0)[
-              p.indexInRoom
-            ],
-          })),
-          playerUserRecords
-            .filter((u) => u !== null)
-            .map((u) => ({ userId: u!._id, kind: u!.kind }))
-        );
-
-        // Patch all poems with assigned readers (parallel for performance)
-        await Promise.all(
-          poems.map((poem) =>
-            ctx.db.patch(poem._id, {
-              completedAt: completionTime,
-              assignedReaderId: readerAssignments.get(poem._id),
-            })
-          )
-        );
-      }
-    }
+    await applyLineLifecycleTransition(ctx, { game, roomId, lineIndex });
   },
 });
 

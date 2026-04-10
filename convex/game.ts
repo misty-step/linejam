@@ -15,7 +15,12 @@ import {
   getActiveGame,
   getCompletedGame,
 } from './lib/room';
-import { assignPoemReaders } from './lib/assignPoemReaders';
+import {
+  applyLineLifecycleTransition,
+  getCycleResetDecision,
+  getSubmissionWindow,
+  isRevealReady,
+} from './lib/sessionLifecycle';
 
 const MAX_LINE_LENGTH = 500; // More than enough for 5 words
 
@@ -113,7 +118,17 @@ export const startNewCycle = mutation({
     if (activeGame) throw new Error('Game still in progress');
 
     const completedGame = await getCompletedGame(ctx, room._id);
-    if (!completedGame) throw new Error('No completed game to continue from');
+    const cycleReset = getCycleResetDecision({
+      activeGame,
+      completedGame,
+    });
+    if (!cycleReset.ok) {
+      if (cycleReset.reason === 'GAME_STILL_IN_PROGRESS') {
+        throw new Error('Game still in progress');
+      }
+
+      throw new Error('No completed game to continue from');
+    }
 
     // Reset room to LOBBY for the next cycle
     // Keep room.status for backward compatibility with frontend
@@ -216,16 +231,12 @@ export const submitLine = mutation({
     // Validate game state with grace for race conditions:
     // - Allow submissions for current round OR past rounds (late arrivals)
     // - For final round (8), also accept if game just became COMPLETED
-    const isFinalRound = lineIndex === 8;
-    const gameInProgress = game.status === 'IN_PROGRESS';
-    const gameJustCompleted = game.status === 'COMPLETED' && isFinalRound;
+    const submissionWindow = getSubmissionWindow(game, lineIndex);
+    if (!submissionWindow.ok) {
+      if (submissionWindow.reason === 'GAME_NOT_IN_PROGRESS') {
+        throw new Error('Game not in progress');
+      }
 
-    if (!gameInProgress && !gameJustCompleted) {
-      throw new Error('Game not in progress');
-    }
-
-    // Prevent early submissions (future rounds)
-    if (lineIndex > game.currentRound && gameInProgress) {
       throw new Error('Round not started yet');
     }
 
@@ -259,98 +270,11 @@ export const submitLine = mutation({
       createdAt: Date.now(),
     });
 
-    // Check if round is complete
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', poem.roomId))
-      .collect();
-
-    // We need to check if ALL poems have a line for this round
-    // Since there is 1 poem per player, and 1 line per poem per round.
-    // We can count the lines for this round across all poems in the room.
-    // But querying all lines might be expensive if we don't have the right index.
-    // We have `by_poem_index`.
-    // We can iterate over all poems in the room and check if they have a line for this round.
-
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', game._id))
-      .collect();
-
-    // Parallelize line checks to avoid N+1
-    const lineChecks = await Promise.all(
-      poems.map((p) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', p._id).eq('indexInPoem', lineIndex)
-          )
-          .first()
-      )
-    );
-    const allSubmitted = lineChecks.every((line) => line !== null);
-
-    if (allSubmitted) {
-      // Idempotent guard: re-read game to prevent double-advancement
-      // when concurrent mutations (human + AI) both see allSubmitted.
-      // Convex serializes mutations on the same document, so the second
-      // caller sees the already-advanced state.
-      const freshGame = await ctx.db.get(game._id);
-      if (!freshGame || freshGame.currentRound !== lineIndex) return;
-
-      if (lineIndex < 8) {
-        await ctx.db.patch(game._id, { currentRound: lineIndex + 1 });
-
-        // Schedule AI turn for next round
-        await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
-          roomId: poem.roomId,
-          gameId: game._id,
-          round: lineIndex + 1,
-        });
-      } else {
-        // Game Complete
-        const completionTime = Date.now();
-        await ctx.db.patch(game._id, {
-          status: 'COMPLETED',
-          completedAt: completionTime,
-        });
-        await ctx.db.patch(poem.roomId, {
-          status: 'COMPLETED',
-          completedAt: completionTime,
-        });
-
-        // Mark all poems as completed and assign readers
-        // Uses assignPoemReaders for consistent derangement + AI handling
-        const playerUserRecords = await Promise.all(
-          players.map((p) => ctx.db.get(p.userId))
-        );
-
-        const humanAndAiPlayers = playerUserRecords
-          .filter((u): u is NonNullable<typeof u> => u !== null)
-          .map((u) => ({ userId: u._id, kind: u.kind }));
-
-        const readerAssignments = assignPoemReaders(
-          poems.map((p) => ({
-            _id: p._id,
-            // Author = first line writer from assignment matrix
-            authorUserId: getMatrixRound(game.assignmentMatrix, 0)[
-              p.indexInRoom
-            ],
-          })),
-          humanAndAiPlayers
-        );
-
-        // Patch all poems with assigned readers (parallel for performance)
-        await Promise.all(
-          poems.map((poem) =>
-            ctx.db.patch(poem._id, {
-              completedAt: completionTime,
-              assignedReaderId: readerAssignments.get(poem._id),
-            })
-          )
-        );
-      }
-    }
+    await applyLineLifecycleTransition(ctx, {
+      game,
+      roomId: room._id,
+      lineIndex,
+    });
   },
 });
 
@@ -374,8 +298,9 @@ export const getRevealPhaseState = query({
     if (!players.some((p) => p.userId === user._id)) return null;
 
     // Get most recently completed game (authoritative source)
-    const game = await getCompletedGame(ctx, room._id);
-    if (!game) return null;
+    const completedGame = await getCompletedGame(ctx, room._id);
+    if (!completedGame || !isRevealReady(completedGame)) return null;
+    const game = completedGame;
 
     const poems = await ctx.db
       .query('poems')
