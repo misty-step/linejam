@@ -26,7 +26,7 @@ export type RoundTransitionResult =
   | { status: 'advanced'; nextRound: number }
   | { status: 'completed'; completedAt: number };
 
-export type CompletionPatchPlan = {
+type CompletionPatchPlan = {
   gamePatch: {
     status: 'COMPLETED';
     completedAt: number;
@@ -84,7 +84,7 @@ export function getCycleResetDecision(args: {
   return { ok: true };
 }
 
-export function buildCompletionPatchPlan(args: {
+function buildCompletionPatchPlan(args: {
   game: Pick<Doc<'games'>, 'assignmentMatrix'>;
   poems: LifecyclePoem[];
   playerUsers: LifecyclePlayer[];

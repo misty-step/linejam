@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Id } from '../../../convex/_generated/dataModel';
 import {
   applyLineLifecycleTransition,
-  buildCompletionPatchPlan,
   getCycleResetDecision,
   getSubmissionWindow,
   isRevealReady,
@@ -77,51 +76,30 @@ describe('sessionLifecycle', () => {
     expect(isRevealReady({ status: 'IN_PROGRESS' })).toBe(false);
   });
 
-  it('builds the terminal completion patch plan with assigned readers', () => {
-    const plan = buildCompletionPatchPlan({
+  it('returns pending when the round is not complete yet', async () => {
+    mockDb.collect.mockResolvedValue([
+      { _id: asPoemId('poem1'), indexInRoom: 0 },
+      { _id: asPoemId('poem2'), indexInRoom: 1 },
+    ]);
+    mockDb.first
+      .mockResolvedValueOnce({ _id: 'line1' })
+      .mockResolvedValueOnce(null);
+
+    const result = await applyLineLifecycleTransition(mockCtx, {
       game: {
-        assignmentMatrix: Array.from({ length: 9 }, () => [
-          asUserId('user1'),
-          asUserId('user2'),
-        ]),
+        _id: asGameId('game1'),
+        status: 'IN_PROGRESS',
+        currentRound: 0,
+        assignmentMatrix: [[asUserId('user1'), asUserId('user2')]],
       },
-      poems: [
-        { _id: asPoemId('poem1'), indexInRoom: 0 },
-        { _id: asPoemId('poem2'), indexInRoom: 1 },
-      ],
-      playerUsers: [
-        { _id: asUserId('user1'), kind: 'human' },
-        { _id: asUserId('user2'), kind: 'human' },
-      ],
-      completionTime: 1234,
+      roomId: asRoomId('room1'),
+      lineIndex: 0,
     });
 
-    expect(plan.gamePatch).toEqual({
-      status: 'COMPLETED',
-      completedAt: 1234,
-    });
-    expect(plan.roomPatch).toEqual({
-      status: 'COMPLETED',
-      completedAt: 1234,
-    });
-    expect(plan.poemPatches).toEqual(
-      expect.arrayContaining([
-        {
-          poemId: asPoemId('poem1'),
-          patch: {
-            completedAt: 1234,
-            assignedReaderId: asUserId('user2'),
-          },
-        },
-        {
-          poemId: asPoemId('poem2'),
-          patch: {
-            completedAt: 1234,
-            assignedReaderId: asUserId('user1'),
-          },
-        },
-      ])
-    );
+    expect(result).toEqual({ status: 'pending' });
+    expect(mockDb.get).not.toHaveBeenCalled();
+    expect(mockDb.patch).not.toHaveBeenCalled();
+    expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it('advances the round once every poem has a line', async () => {
