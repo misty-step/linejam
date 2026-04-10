@@ -1,7 +1,7 @@
 # Extract Session Transition Core
 
 Priority: high
-Status: ready
+Status: in-progress
 Estimate: L
 
 ## Goal
