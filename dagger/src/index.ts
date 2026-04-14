@@ -114,10 +114,11 @@ async function runChecks(
   const results: string[] = [];
 
   for (const [name, run] of checks) {
-    results.push(`=== ${name} ===\n${await run()}`);
+    await run();
+    results.push(`${name}: ok`);
   }
 
-  return results.join('\n\n');
+  return results.join('\n');
 }
 
 @object()
