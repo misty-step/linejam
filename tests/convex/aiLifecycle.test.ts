@@ -166,12 +166,19 @@ describe('ai lifecycle', () => {
     await commitAiLineHandler(mockCtx, {
       poemId: asId('poem1'),
       lineIndex: 8,
-      text: 'one two three four five six seven eight nine',
+      text: 'finale',
       aiUserId: asId('ai1'),
       roomId: asId('room1'),
       gameId: asId('game1'),
     });
 
+    expect(mockDb.insert).toHaveBeenCalledWith(
+      'lines',
+      expect.objectContaining({
+        text: 'finale',
+        wordCount: 1,
+      })
+    );
     expect(mockDb.patch).toHaveBeenCalledWith(
       asId('game1'),
       expect.objectContaining({
@@ -188,12 +195,14 @@ describe('ai lifecycle', () => {
       asId('poem1'),
       expect.objectContaining({
         completedAt: expect.any(Number),
+        assignedReaderId: asId('user2'),
       })
     );
     expect(mockDb.patch).toHaveBeenCalledWith(
       asId('poem2'),
       expect.objectContaining({
         completedAt: expect.any(Number),
+        assignedReaderId: asId('user2'),
       })
     );
     expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();

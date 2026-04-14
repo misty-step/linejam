@@ -85,7 +85,7 @@ describe('sessionLifecycle', () => {
       .mockResolvedValueOnce({ _id: 'line1' })
       .mockResolvedValueOnce(null);
 
-    const result = await applyLineLifecycleTransition(mockCtx, {
+    await applyLineLifecycleTransition(mockCtx, {
       game: {
         _id: asGameId('game1'),
         status: 'IN_PROGRESS',
@@ -96,8 +96,6 @@ describe('sessionLifecycle', () => {
       lineIndex: 0,
     });
 
-    expect(result).toEqual({ status: 'pending' });
-    expect(mockDb.get).not.toHaveBeenCalled();
     expect(mockDb.patch).not.toHaveBeenCalled();
     expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
   });
@@ -117,7 +115,7 @@ describe('sessionLifecycle', () => {
       assignmentMatrix: [[asUserId('user1'), asUserId('user2')]],
     });
 
-    const result = await applyLineLifecycleTransition(mockCtx, {
+    await applyLineLifecycleTransition(mockCtx, {
       game: {
         _id: asGameId('game1'),
         status: 'IN_PROGRESS',
@@ -128,7 +126,6 @@ describe('sessionLifecycle', () => {
       lineIndex: 0,
     });
 
-    expect(result).toEqual({ status: 'advanced', nextRound: 1 });
     expect(mockDb.patch).toHaveBeenCalledWith(asGameId('game1'), {
       currentRound: 1,
     });
@@ -163,7 +160,7 @@ describe('sessionLifecycle', () => {
       assignmentMatrix,
     });
 
-    const result = await applyLineLifecycleTransition(mockCtx, {
+    await applyLineLifecycleTransition(mockCtx, {
       game: {
         _id: asGameId('game1'),
         status: 'IN_PROGRESS',
@@ -174,7 +171,6 @@ describe('sessionLifecycle', () => {
       lineIndex: 8,
     });
 
-    expect(result).toEqual({ status: 'stale' });
     expect(mockDb.patch).not.toHaveBeenCalled();
     expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
   });

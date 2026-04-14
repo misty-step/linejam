@@ -3,6 +3,7 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { getMatrixRound } from './assignmentMatrix';
 import { assignPoemReaders } from './assignPoemReaders';
+import { WORD_COUNTS } from './gameRules';
 
 type LifecycleCtx = Pick<MutationCtx, 'db' | 'scheduler'>;
 type LifecycleGame = Pick<
@@ -11,6 +12,7 @@ type LifecycleGame = Pick<
 >;
 type LifecyclePoem = Pick<Doc<'poems'>, '_id' | 'indexInRoom'>;
 type LifecyclePlayer = Pick<Doc<'users'>, '_id' | 'kind'>;
+const FINAL_ROUND_INDEX = WORD_COUNTS.length - 1;
 
 export type SubmissionWindowResult =
   | { ok: true }
@@ -19,12 +21,6 @@ export type SubmissionWindowResult =
 export type CycleResetDecision =
   | { ok: true }
   | { ok: false; reason: 'GAME_STILL_IN_PROGRESS' | 'NO_COMPLETED_GAME' };
-
-export type RoundTransitionResult =
-  | { status: 'pending' }
-  | { status: 'stale' }
-  | { status: 'advanced'; nextRound: number }
-  | { status: 'completed'; completedAt: number };
 
 type CompletionPatchPlan = {
   gamePatch: {
@@ -48,7 +44,7 @@ export function getSubmissionWindow(
   game: Pick<Doc<'games'>, 'status' | 'currentRound'>,
   lineIndex: number
 ): SubmissionWindowResult {
-  const isFinalRound = lineIndex === 8;
+  const isFinalRound = lineIndex === FINAL_ROUND_INDEX;
   const gameInProgress = game.status === 'IN_PROGRESS';
   const gameJustCompleted = game.status === 'COMPLETED' && isFinalRound;
 
@@ -158,12 +154,12 @@ export async function applyLineLifecycleTransition(
     roomId: Id<'rooms'>;
     lineIndex: number;
   }
-): Promise<RoundTransitionResult> {
+): Promise<void> {
   const poems = await getGamePoems(ctx, args.game._id);
   const roundComplete = await isRoundComplete(ctx, poems, args.lineIndex);
 
   if (!roundComplete) {
-    return { status: 'pending' };
+    return;
   }
 
   const freshGame = await ctx.db.get(args.game._id);
@@ -172,10 +168,10 @@ export async function applyLineLifecycleTransition(
     freshGame.status !== 'IN_PROGRESS' ||
     freshGame.currentRound !== args.lineIndex
   ) {
-    return { status: 'stale' };
+    return;
   }
 
-  if (args.lineIndex < 8) {
+  if (args.lineIndex < FINAL_ROUND_INDEX) {
     const nextRound = args.lineIndex + 1;
     await ctx.db.patch(args.game._id, { currentRound: nextRound });
     await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
@@ -184,7 +180,7 @@ export async function applyLineLifecycleTransition(
       round: nextRound,
     });
 
-    return { status: 'advanced', nextRound };
+    return;
   }
 
   const players = await ctx.db
@@ -212,9 +208,4 @@ export async function applyLineLifecycleTransition(
       ctx.db.patch(poemId, patch)
     )
   );
-
-  return {
-    status: 'completed',
-    completedAt: completionTime,
-  };
 }

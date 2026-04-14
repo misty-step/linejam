@@ -718,6 +718,13 @@ describe('game', () => {
         guestToken: 'token',
       });
 
+      expect(mockDb.insert).toHaveBeenCalledWith(
+        'lines',
+        expect.objectContaining({
+          text: 'finale',
+          wordCount: 1,
+        })
+      );
       expect(mockDb.patch).toHaveBeenCalledWith(
         'game1',
         expect.objectContaining({
@@ -734,12 +741,14 @@ describe('game', () => {
         'poem1',
         expect.objectContaining({
           completedAt: expect.any(Number),
+          assignedReaderId: 'user2',
         })
       );
       expect(mockDb.patch).toHaveBeenCalledWith(
         'poem2',
         expect.objectContaining({
           completedAt: expect.any(Number),
+          assignedReaderId: 'user1',
         })
       );
     });
