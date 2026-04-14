@@ -68,7 +68,12 @@ load_env_file() {
 
 		if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
 			value="${value:1:${#value}-2}"
+		else
+			value="${value%%[[:space:]]#*}"
 		fi
+
+		value="${value%"${value##*[![:space:]]}"}"
+		value="${value#"${value%%[![:space:]]*}"}"
 
 		export "$key=$value"
 	done < "$env_file"
@@ -312,29 +317,14 @@ validate_smoke_auth_configuration() {
 		return 0
 	fi
 
-	node - <<'NODE'
+	node --input-type=module - <<'NODE'
+import { getSmokeClerkKeyError } from './scripts/canary/smoke-auth.mjs';
+
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL?.trim() || '';
-const publishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
-  process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
-  '';
+const error = getSmokeClerkKeyError(baseUrl);
 
-if (!baseUrl || !publishableKey) {
-  process.exit(0);
-}
-
-let origin = '';
-try {
-  origin = new URL(baseUrl).origin;
-} catch {
-  process.exit(0);
-}
-
-if (origin === 'https://www.linejam.app' && publishableKey.startsWith('pk_test_')) {
-  console.error(
-    'Authenticated production smoke requires a live Clerk publishable key. ' +
-      'Use production-aligned Clerk env (for example .env.production.local) instead of localhost test keys.'
-  );
+if (error) {
+  console.error(error);
   process.exit(1);
 }
 NODE
