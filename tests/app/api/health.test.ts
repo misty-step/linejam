@@ -142,6 +142,15 @@ describe('/api/health', () => {
         },
       });
     });
+
+    it('falls back to development when NODE_ENV is unset', async () => {
+      Reflect.deleteProperty(process.env, 'NODE_ENV');
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(data.env.nodeEnv).toBe('development');
+    });
   });
 
   describe('with missing env', () => {

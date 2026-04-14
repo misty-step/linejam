@@ -23,6 +23,14 @@ describe('roomChromeCopy', () => {
     });
   });
 
+  it('pluralizes the lobby prompt when the room is empty', () => {
+    expect(buildLobbyChromeCopy({ code: 'ABCD', playerCount: 0 })).toEqual({
+      statusLabel: 'Lobby',
+      title: 'Need 2 more players',
+      subtitle: 'Share AB CD to start.',
+    });
+  });
+
   it('builds assignment-led in-progress copy using the shared round invariant', () => {
     expect(
       buildInProgressChromeCopy({
@@ -35,6 +43,21 @@ describe('roomChromeCopy', () => {
       statusLabel: 'Writing',
       title: `Round 5 of ${WORD_COUNTS.length}`,
       subtitle: 'Write exactly 5 words. You only see the previous line.',
+    });
+  });
+
+  it('uses the singular word copy for the opening round assignment', () => {
+    expect(
+      buildInProgressChromeCopy({
+        assignment: {
+          lineIndex: 0,
+          targetWordCount: 1,
+        },
+      })
+    ).toEqual({
+      statusLabel: 'Writing',
+      title: `Round 1 of ${WORD_COUNTS.length}`,
+      subtitle: 'Write exactly 1 word. You only see the previous line.',
     });
   });
 
@@ -54,6 +77,14 @@ describe('roomChromeCopy', () => {
       statusLabel: 'Waiting',
       title: `Round 3 of ${WORD_COUNTS.length}`,
       subtitle: '2 of 3 ready.',
+    });
+  });
+
+  it('falls back to a loading state when neither assignment nor progress exists', () => {
+    expect(buildInProgressChromeCopy({})).toEqual({
+      statusLabel: 'Writing',
+      title: 'Writing',
+      subtitle: 'Loading the next step.',
     });
   });
 
