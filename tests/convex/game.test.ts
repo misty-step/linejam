@@ -668,6 +668,90 @@ describe('game', () => {
       // AI turn SHOULD be scheduled
       expect(mockCtx.scheduler.runAfter).toHaveBeenCalled();
     });
+
+    it('marks room and game completed when a human submits the final round', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1', displayName: 'User 1' });
+      const assignmentMatrix = Array.from({ length: 9 }, () => [
+        'user1',
+        'user2',
+      ]);
+
+      mockDb.get
+        .mockResolvedValueOnce({
+          roomId: 'room1',
+          indexInRoom: 0,
+          gameId: 'game1',
+        }) // poem
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 8,
+          assignmentMatrix,
+        }) // game
+        .mockResolvedValueOnce({ _id: 'room1' }) // room
+        .mockResolvedValueOnce({
+          _id: 'game1',
+          status: 'IN_PROGRESS',
+          currentRound: 8,
+          assignmentMatrix,
+        }) // freshGame
+        .mockResolvedValueOnce({ _id: 'user1', kind: 'human' })
+        .mockResolvedValueOnce({ _id: 'user2', kind: 'human' });
+
+      mockDb.first
+        .mockResolvedValueOnce(null) // duplicate check
+        .mockResolvedValueOnce({ _id: 'line1' })
+        .mockResolvedValueOnce({ _id: 'line2' });
+
+      mockDb.collect
+        .mockResolvedValueOnce([
+          { _id: 'poem1', indexInRoom: 0 },
+          { _id: 'poem2', indexInRoom: 1 },
+        ])
+        .mockResolvedValueOnce([{ userId: 'user1' }, { userId: 'user2' }]);
+
+      // @ts-expect-error - calling handler
+      await submitLine.handler(mockCtx, {
+        poemId: 'poem1',
+        lineIndex: 8,
+        text: 'finale',
+        guestToken: 'token',
+      });
+
+      expect(mockDb.insert).toHaveBeenCalledWith(
+        'lines',
+        expect.objectContaining({
+          text: 'finale',
+          wordCount: 1,
+        })
+      );
+      expect(mockDb.patch).toHaveBeenCalledWith(
+        'game1',
+        expect.objectContaining({
+          status: 'COMPLETED',
+        })
+      );
+      expect(mockDb.patch).toHaveBeenCalledWith(
+        'room1',
+        expect.objectContaining({
+          status: 'COMPLETED',
+        })
+      );
+      expect(mockDb.patch).toHaveBeenCalledWith(
+        'poem1',
+        expect.objectContaining({
+          completedAt: expect.any(Number),
+          assignedReaderId: 'user2',
+        })
+      );
+      expect(mockDb.patch).toHaveBeenCalledWith(
+        'poem2',
+        expect.objectContaining({
+          completedAt: expect.any(Number),
+          assignedReaderId: 'user1',
+        })
+      );
+    });
   });
 
   describe('getRevealPhaseState', () => {
@@ -741,7 +825,10 @@ describe('game', () => {
         { userId: 'user1' },
         { userId: 'user2' },
       ]);
-      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
+      mockGetCompletedGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'COMPLETED',
+      });
 
       // Poems query - no poems assigned to user1
       mockDb.collect.mockResolvedValueOnce([
@@ -777,7 +864,10 @@ describe('game', () => {
       });
       // Room players - user is a participant (checked before getCompletedGame)
       mockDb.collect.mockResolvedValueOnce([{ userId: 'user1' }]);
-      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
+      mockGetCompletedGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'COMPLETED',
+      });
 
       // Poems query
       mockDb.collect.mockResolvedValueOnce([

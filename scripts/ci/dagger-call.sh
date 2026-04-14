@@ -14,10 +14,17 @@ case "$FUNCTION_NAME" in
 esac
 
 # Dagger currently climbs parent directories for .env files while loading the
-# TypeScript SDK from dagger/. Use an ephemeral repo-local placeholder inside
-# the Dagger module so runs do not leave the root worktree dirty.
+# TypeScript SDK. Main checkouts usually already have a repo-root .env, but
+# ephemeral worktrees often do not, so create temporary placeholders in both
+# locations and clean them up after the run.
+TEMP_ROOT_ENV=0
 TEMP_DAGGER_ENV=0
 TEMP_SOURCE_DIR=""
+if [[ ! -f .env ]]; then
+  : > .env
+  TEMP_ROOT_ENV=1
+fi
+
 if [[ ! -f dagger/.env ]]; then
   : > dagger/.env
   TEMP_DAGGER_ENV=1
@@ -38,6 +45,10 @@ create_source_snapshot() {
 }
 
 cleanup() {
+  if [[ "${TEMP_ROOT_ENV}" == "1" ]]; then
+    rm -f .env
+  fi
+
   if [[ "${TEMP_DAGGER_ENV}" == "1" ]]; then
     rm -f dagger/.env
   fi
@@ -538,8 +549,60 @@ if [[ "$FUNCTION_NAME" == "all" || "$FUNCTION_NAME" == "e-2-e" ]]; then
 fi
 
 if [[ "$FUNCTION_NAME" == "smoke" ]]; then
-	append_arg "--base-url" "${PLAYWRIGHT_BASE_URL:-}"
+append_arg "--base-url" "${PLAYWRIGHT_BASE_URL:-}"
 	append_arg "--playwright-require-auth-smoke" "${PLAYWRIGHT_REQUIRE_AUTH_SMOKE:-}"
 fi
 
-exec dagger "${ARGS[@]}" "$@"
+dagger_success_marker() {
+	case "$FUNCTION_NAME" in
+		all) printf '%s' 'Ci.all DONE' ;;
+		all-no-e-2-e) printf '%s' 'Ci.allNoE2e DONE' ;;
+		build-check) printf '%s' 'Ci.buildCheck DONE' ;;
+		e-2-e) printf '%s' 'Ci.e2e DONE' ;;
+		format-check) printf '%s' 'Ci.formatCheck DONE' ;;
+		lint) printf '%s' 'Ci.lint DONE' ;;
+		smoke) printf '%s' 'Ci.smoke DONE' ;;
+		typecheck) printf '%s' 'Ci.typecheck DONE' ;;
+		unit-test) printf '%s' 'Ci.unitTest DONE' ;;
+		*) return 1 ;;
+	esac
+}
+
+dagger_completed_before_transport_error() {
+	local log_file="$1"
+	local marker
+
+	if ! marker="$(dagger_success_marker)"; then
+		return 1
+	fi
+
+	grep -Fq "$marker" "$log_file" || return 1
+	grep -Fq 'Error: Post "http://dagger/query": unexpected EOF' "$log_file" || return 1
+	grep -Fq 'cleanup failed msg="close dagger session"' "$log_file" || return 1
+}
+
+run_dagger() {
+	local log_file
+	local status
+
+	log_file="$(mktemp "${TMPDIR:-/tmp}/linejam-dagger-call.XXXXXX.log")"
+
+	set +e
+	dagger "${ARGS[@]}" "$@" 2>&1 | tee "$log_file"
+	status="${PIPESTATUS[0]}"
+	set -e
+
+	if [[ "$status" -ne 0 ]] && dagger_completed_before_transport_error "$log_file"; then
+		echo >&2 "Dagger transport cleanup failed after ${FUNCTION_NAME} completed successfully; treating the run as passed."
+		rm -f "$log_file"
+		return 0
+	fi
+
+	if [[ "$status" -eq 0 ]]; then
+		rm -f "$log_file"
+	fi
+
+	return "$status"
+}
+
+run_dagger "$@"
