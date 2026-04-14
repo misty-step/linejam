@@ -87,53 +87,12 @@ export function RoomChrome({
     <>
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-      <div className="pointer-events-none fixed right-4 top-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
-        {shareError && (
-          <Alert
-            variant="error"
-            className="pointer-events-auto max-w-sm bg-[var(--color-surface)]/95 shadow-[var(--shadow-lg)] backdrop-blur"
-          >
-            {shareError}
-          </Alert>
-        )}
-
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/92 p-2 shadow-[var(--shadow-lg)] backdrop-blur">
-          <button
-            type="button"
-            onClick={handleShare}
-            className={chromeButtonClasses(true)}
-            aria-label="Share room invite"
-          >
-            <Share2 className="mr-2 h-4 w-4" />
-            <span>{shared ? 'Shared!' : copied ? 'Copied!' : 'Invite'}</span>
-          </button>
-
-          <Link
-            href="/me/poems"
-            prefetch={false}
-            className={chromeButtonClasses()}
-            aria-label="View your poem archive"
-          >
-            <Archive className="h-4 w-4" />
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => setShowHelp(true)}
-            className={chromeButtonClasses()}
-            aria-label="How to play"
-          >
-            <span className="text-lg font-medium">?</span>
-          </button>
-
-          <div className="relative" ref={dropdownRef}>
-            <button
-              type="button"
-            onClick={() => setShowThemes((current) => !current)}
-            className={chromeButtonClasses()}
-            aria-label="Choose theme"
-            aria-expanded={showThemes}
-            aria-haspopup="true"
+      <div className="sticky top-0 z-40 px-4 pt-3 md:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
+          {shareError && (
+            <Alert
+              variant="error"
+              className="max-w-xl bg-[var(--color-surface)]/95 shadow-[var(--shadow-lg)] backdrop-blur"
             >
               {shareError}
             </Alert>

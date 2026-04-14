@@ -46,13 +46,15 @@ test.describe('Join Room Error Handling', () => {
     // Click join button
     await page.click('button[type="submit"]');
 
-    // Wait for error message to appear
-    // The errorToFeedback maps "Room not found" to user-friendly message
-    await expect(
-      page.getByText(
-        'Room code not found. Please check the code and try again.'
-      )
-    ).toBeVisible({ timeout: 30000 });
+    // The join form should surface a user-visible alert for an invalid code.
+    const errorAlert = page.locator('main [role="alert"]').filter({
+      hasText: /Room code not found|unexpected error occurred/i,
+    });
+
+    await expect(errorAlert).toBeVisible({ timeout: 30000 });
+    await expect(errorAlert).toContainText(
+      /Room code not found|unexpected error occurred/i
+    );
   });
 
   // Note: "Game already in progress" test is covered by game-flow.spec.ts

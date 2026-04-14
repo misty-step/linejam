@@ -366,7 +366,7 @@ export class GuestFlowSession {
 
   async waitForWaitingState(actor: Actor) {
     await expect(
-      this.page(actor).getByText(/Others are writing|Ready/i)
+      this.page(actor).getByRole('heading', { name: /Others are writing/i })
     ).toBeVisible({ timeout: 15000 });
   }
 
@@ -400,10 +400,10 @@ export class GuestFlowSession {
 
   async expectReadingPhase() {
     await expect(
-      this.hostPage.getByRole('heading', { name: /Reading Phase/i })
+      this.hostPage.getByRole('heading', { name: /Reveal poems/i })
     ).toBeVisible({ timeout: 30000 });
     await expect(
-      this.guestPage.getByRole('heading', { name: /Reading Phase/i })
+      this.guestPage.getByRole('heading', { name: /Reveal poems/i })
     ).toBeVisible({ timeout: 30000 });
     await expect(
       this.hostPage.getByRole('button', { name: /Reveal & Read/i })
@@ -433,10 +433,10 @@ export class GuestFlowSession {
 
   async expectSessionComplete() {
     await expect(
-      this.hostPage.getByRole('heading', { name: /Session Complete/i })
+      this.hostPage.getByRole('heading', { name: /All poems revealed/i })
     ).toBeVisible({ timeout: 15000 });
     await expect(
-      this.guestPage.getByRole('heading', { name: /Session Complete/i })
+      this.guestPage.getByRole('heading', { name: /All poems revealed/i })
     ).toBeVisible({ timeout: 15000 });
   }
 
@@ -467,8 +467,6 @@ export class GuestFlowSession {
   }
 
   private playerName(page: Page, name: string) {
-    return page.locator('li span').filter({
-      hasText: new RegExp(`^${escapeRegex(name)}$`),
-    });
+    return page.getByText(new RegExp(`^${escapeRegex(name)}$`));
   }
 }
