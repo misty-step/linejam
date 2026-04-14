@@ -1,5 +1,9 @@
-import { test, expect, BrowserContext, Page } from '@playwright/test';
-import { WORD_COUNTS } from '@/convex/lib/gameRules';
+import { test, expect } from '@playwright/test';
+
+import {
+  CANONICAL_GUEST_FLOW_LINES,
+  GuestFlowSession,
+} from '@/tests/e2e/support/guestFlow';
 
 /**
  * E2E Test: Complete Game Flow
@@ -16,240 +20,64 @@ import { WORD_COUNTS } from '@/convex/lib/gameRules';
 test.describe.configure({ mode: 'serial' });
 
 // Require matching guest token secret so Convex can verify tokens issued by Next
-const missingGuestTokenSecret = !process.env.GUEST_TOKEN_SECRET;
+const missingGuestTokenSecret =
+  !process.env.GUEST_TOKEN_SECRET && !process.env.E2E_BASE_URL;
 test.skip(
   missingGuestTokenSecret,
-  'Set GUEST_TOKEN_SECRET to the active Convex deployment secret to run game flow E2E'
+  'Set GUEST_TOKEN_SECRET for local E2E, or E2E_BASE_URL for a remote target'
 );
 
 test.describe('Complete Game Flow', () => {
-  let hostContext: BrowserContext;
-  let guestContext: BrowserContext;
-  let hostPage: Page;
-  let guestPage: Page;
-  let roomCode: string;
+  let session: GuestFlowSession | null = null;
+  const activeSession = () => {
+    if (!session) {
+      throw new Error('Guest flow session was not created.');
+    }
+
+    return session;
+  };
 
   test.beforeAll(async ({ browser }) => {
-    // Create separate contexts with isolated storage (different guest sessions)
-    hostContext = await browser.newContext();
-    guestContext = await browser.newContext();
-
-    hostPage = await hostContext.newPage();
-    guestPage = await guestContext.newPage();
+    session = await GuestFlowSession.create(browser, {
+      guestName: 'Guest Player',
+      hostName: 'Host Player',
+    });
+    session.mirrorConsole('host');
   });
 
   test.afterAll(async () => {
-    await hostContext.close();
-    await guestContext.close();
+    await session?.close();
   });
 
   test('host creates room and gets room code', async () => {
-    // Enable console logging for debugging CI failures
-    hostPage.on('console', (msg) =>
-      console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`)
-    );
+    const roomCode = await activeSession().createRoom();
 
-    // Navigate to host page
-    await hostPage.goto('/host', { waitUntil: 'networkidle' });
-
-    // Wait for input to be ready
-    await hostPage.waitForSelector('input#name', {
-      state: 'visible',
-      timeout: 10000,
-    });
-
-    // Fill in host name
-    await hostPage.fill('input#name', 'Host Player');
-
-    // Click create room button
-    await hostPage.click('button[type="submit"]');
-
-    // Wait for redirect to room page
-    await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30000 });
-
-    // Extract room code from URL
-    const url = hostPage.url();
-    roomCode = url.match(/\/room\/([A-Z]{4})$/)?.[1] || '';
     expect(roomCode).toMatch(/^[A-Z]{4}$/);
-
-    // Verify we're in the lobby
-    await expect(hostPage.getByText('Host Player')).toBeVisible();
-    await expect(
-      hostPage.getByRole('button', { name: /Need.*player/i })
-    ).toBeVisible();
   });
 
   test('guest joins room and appears in lobby', async () => {
-    // Navigate to join page with room code
-    await guestPage.goto(`/join?code=${roomCode}`);
-
-    // Fill in guest name
-    await guestPage.fill('input#name', 'Guest Player');
-
-    // Click join button
-    await guestPage.click('button[type="submit"]');
-
-    // Wait for redirect to room page
-    await guestPage.waitForURL(`/room/${roomCode}`, { timeout: 15000 });
-
-    // Verify guest is in lobby
-    await expect(guestPage.getByText('Guest Player')).toBeVisible();
-    await expect(guestPage.getByText('Host Player')).toBeVisible();
-
-    // Host should also see the guest now (real-time sync)
-    await expect(hostPage.getByText('Guest Player')).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Start button should now be enabled for host
-    await expect(
-      hostPage.getByRole('button', { name: /Start Linejam/i })
-    ).toBeEnabled();
-
-    // Guest sees "Waiting for host" button
-    await expect(
-      guestPage.getByRole('button', { name: /Waiting for host/i })
-    ).toBeVisible();
+    await activeSession().joinRoom();
   });
 
   test('host starts game and both players see round 1', async () => {
-    // Host clicks Start Linejam
-    await hostPage.click('button:has-text("Start Linejam")');
-
-    // Both players should see the first round
-    await expect(
-      hostPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
-    ).toBeVisible({
-      timeout: 15000,
-    });
-    await expect(
-      guestPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
-    ).toBeVisible({
-      timeout: 15000,
-    });
-
-    // Both should see the writing textarea
-    await expect(hostPage.getByRole('textbox')).toBeVisible();
-    await expect(guestPage.getByRole('textbox')).toBeVisible();
-
-    // Both should see the word count indicator (WordSlots component)
-    await expect(hostPage.locator('#word-slots')).toBeVisible();
-    await expect(guestPage.locator('#word-slots')).toBeVisible();
+    await activeSession().startGame();
   });
 
   test('players can type in textarea and see word count update', async () => {
-    // Host types a word
-    const hostTextarea = hostPage.getByRole('textbox');
-    await hostTextarea.fill('poetry');
+    await activeSession().fillCurrentLine(
+      'host',
+      CANONICAL_GUEST_FLOW_LINES[0]
+    );
+    await activeSession().expectWordSlotsVisible('host');
+    await activeSession().expectSealEnabled('host');
 
-    // Word slots should be visible (visual indicator updates)
-    await expect(hostPage.locator('#word-slots')).toBeVisible();
-
-    // Guest types a word
-    const guestTextarea = guestPage.getByRole('textbox');
-    await guestTextarea.fill('verse');
-
-    // Word slots should be visible
-    await expect(guestPage.locator('#word-slots')).toBeVisible();
-
-    // Both submit buttons should now be enabled
-    await expect(
-      hostPage.getByRole('button', { name: /Seal Your Line/i })
-    ).toBeEnabled();
-    await expect(
-      guestPage.getByRole('button', { name: /Seal Your Line/i })
-    ).toBeEnabled();
+    await activeSession().fillCurrentLine('guest', 'verse');
+    await activeSession().expectWordSlotsVisible('guest');
+    await activeSession().expectSealEnabled('guest');
   });
 
   test('complete 9-round game and reveal poems', async () => {
-    // Word counts per round: 1,2,3,4,5,4,3,2,1
-    const lines = [
-      'poetry', // Round 1: 1 word
-      'two words', // Round 2: 2 words
-      'just three words', // Round 3: 3 words
-      'this has four words', // Round 4: 4 words
-      'this line has five words', // Round 5: 5 words
-      'back to four now', // Round 6: 4 words
-      'only three again', // Round 7: 3 words
-      'two more', // Round 8: 2 words
-      'end', // Round 9: 1 word
-    ];
-
-    for (let round = 0; round < lines.length; round++) {
-      // Host submits
-      await hostPage.getByRole('textbox').fill(lines[round]);
-      await hostPage.getByRole('button', { name: /Seal Your Line/i }).click();
-
-      // Wait for host's waiting state (submitted but waiting for others)
-      await expect(hostPage.getByText(/Others are writing/i)).toBeVisible({
-        timeout: 15000,
-      });
-
-      // Guest submits
-      await guestPage.getByRole('textbox').fill(lines[round]);
-      await guestPage.getByRole('button', { name: /Seal Your Line/i }).click();
-
-      // Wait for next round or reveal
-      if (round < lines.length - 1) {
-        await Promise.all([
-          expect(
-            hostPage.getByText(`Round ${round + 2} of ${WORD_COUNTS.length}`)
-          ).toBeVisible({
-            timeout: 15000,
-          }),
-          expect(
-            guestPage.getByText(`Round ${round + 2} of ${WORD_COUNTS.length}`)
-          ).toBeVisible({
-            timeout: 15000,
-          }),
-        ]);
-      }
-    }
-
-    // After round 9, both should see reveal phase
-    await Promise.all([
-      expect(
-        hostPage.getByRole('heading', { name: /Reveal poems/i })
-      ).toBeVisible({ timeout: 30000 }),
-      expect(
-        guestPage.getByRole('heading', { name: /Reveal poems/i })
-      ).toBeVisible({ timeout: 30000 }),
-    ]);
-
-    // Both players should have poems to reveal (each player reads one poem in 2-player game)
-    await Promise.all([
-      expect(
-        hostPage.getByRole('button', { name: /Reveal & Read/i })
-      ).toBeVisible(),
-      expect(
-        guestPage.getByRole('button', { name: /Reveal & Read/i })
-      ).toBeVisible(),
-    ]);
-
-    // Host reveals their assigned poem
-    await hostPage.getByRole('button', { name: /Reveal & Read/i }).click();
-
-    // PoemDisplay should show with lines
-    await expect(hostPage.getByText('poetry')).toBeVisible({ timeout: 10000 });
-    await expect(hostPage.getByText('end')).toBeVisible();
-
-    // Close the poem display
-    await hostPage.getByRole('button', { name: /Close|Done|Back/i }).click();
-
-    // Guest reveals their assigned poem
-    await guestPage.getByRole('button', { name: /Reveal & Read/i }).click();
-    await expect(guestPage.getByText('poetry')).toBeVisible({ timeout: 10000 });
-    await expect(guestPage.getByText('end')).toBeVisible();
-    await guestPage.getByRole('button', { name: /Close|Done|Back/i }).click();
-
-    // After both reveals, the completed reveal chrome should appear
-    await Promise.all([
-      expect(
-        hostPage.getByRole('heading', { name: /All poems revealed/i })
-      ).toBeVisible({ timeout: 15000 }),
-      expect(
-        guestPage.getByRole('heading', { name: /All poems revealed/i })
-      ).toBeVisible({ timeout: 15000 }),
-    ]);
+    await activeSession().playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
+    await activeSession().revealAllPoems(CANONICAL_GUEST_FLOW_LINES);
   });
 });

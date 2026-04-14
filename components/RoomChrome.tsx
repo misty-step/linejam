@@ -137,6 +137,7 @@ export function RoomChrome({
 
               <Link
                 href="/me/poems"
+                prefetch={false}
                 className={chromeButtonClasses({ iconOnly: true })}
                 aria-label="View your poem archive"
               >

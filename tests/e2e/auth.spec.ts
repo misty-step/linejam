@@ -16,10 +16,11 @@ import { test, expect, BrowserContext, Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial' });
 
 // Require matching guest token secret so Convex can verify tokens issued by Next
-const missingGuestTokenSecret = !process.env.GUEST_TOKEN_SECRET;
+const missingGuestTokenSecret =
+  !process.env.GUEST_TOKEN_SECRET && !process.env.E2E_BASE_URL;
 test.skip(
   missingGuestTokenSecret,
-  'Set GUEST_TOKEN_SECRET to the active Convex deployment secret to run auth E2E'
+  'Set GUEST_TOKEN_SECRET for local E2E, or E2E_BASE_URL for a remote target'
 );
 
 test.describe('Guest Session API', () => {

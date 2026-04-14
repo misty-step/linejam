@@ -307,7 +307,7 @@ export function RevealPhase({
                 </p>
               )}
 
-              <Link href="/me/poems" className="block">
+              <Link href="/me/poems" prefetch={false} className="block">
                 <Button variant="secondary" size="lg" className="w-full h-14">
                   Archive
                 </Button>

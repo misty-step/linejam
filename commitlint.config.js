@@ -1,4 +1,4 @@
-const config = {
+module.exports = {
   extends: ['@commitlint/config-conventional'],
   rules: {
     'type-enum': [
@@ -19,5 +19,3 @@ const config = {
     'subject-case': [0],
   },
 };
-
-export default config;
