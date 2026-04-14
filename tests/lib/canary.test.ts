@@ -16,18 +16,13 @@ describe('canary helpers', () => {
     vi.restoreAllMocks();
   });
 
-  it('reports enabled state from server or public keys', async () => {
-    vi.stubEnv('CANARY_API_KEY', '');
+  it('reports enabled state from the public ingest key only', async () => {
+    vi.stubEnv('CANARY_API_KEY', 'sk_server');
     vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', '');
     let canary = await import('@/lib/canary');
     expect(canary.isCanaryEnabled()).toBe(false);
 
     vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_public');
-    canary = await import('@/lib/canary');
-    expect(canary.isCanaryEnabled()).toBe(true);
-
-    vi.stubEnv('CANARY_API_KEY', 'sk_server');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', '');
     canary = await import('@/lib/canary');
     expect(canary.isCanaryEnabled()).toBe(true);
   });
@@ -66,6 +61,53 @@ describe('canary helpers', () => {
         profile: { email: 'ada@example.com' },
       })
     ).toBeUndefined();
+  });
+
+  it('normalizes unstructured errors for fallback logging', async () => {
+    const { scrubErrorForLogs } = await import('@/lib/canaryCore');
+
+    expect(scrubErrorForLogs('boom')).toEqual({
+      errorClass: 'StringError',
+      message: 'boom',
+      stackTrace: undefined,
+    });
+  });
+
+  it('falls back when Error metadata is blank', async () => {
+    const { normalizeError } = await import('@/lib/canaryCore');
+    const error = new Error('');
+    Object.defineProperty(error, 'name', {
+      configurable: true,
+      value: '',
+    });
+
+    expect(normalizeError(error)).toMatchObject({
+      errorClass: 'Error',
+      message: 'Unknown error',
+    });
+  });
+
+  it('drops empty scrubbed collections and non-string structured stack traces', async () => {
+    const { scrubCanaryContext, scrubErrorForLogs } =
+      await import('@/lib/canaryCore');
+
+    expect(
+      scrubCanaryContext({
+        path: [{ userId: 'x' }],
+        route: { userId: 'y' },
+      })
+    ).toBeUndefined();
+    expect(
+      scrubErrorForLogs({
+        errorClass: 'ManualError',
+        message: 'manual message',
+        stackTrace: 42,
+      })
+    ).toEqual({
+      errorClass: 'ManualError',
+      message: 'manual message',
+      stackTrace: undefined,
+    });
   });
 });
 
@@ -199,30 +241,22 @@ describe('captureCanaryException', () => {
     });
   });
 
-  it('prefers server-side Canary credentials when available', async () => {
+  it('ignores server-only Canary env in the shared runtime helper', async () => {
     vi.stubEnv('CANARY_API_KEY', 'sk_server_canary');
     vi.stubEnv('CANARY_ENDPOINT', 'https://server-canary.test/');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_public_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://public-canary.test/');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
     fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
 
     const { captureCanaryException } = await import('@/lib/canary');
-    await captureCanaryException(new Error('server preferred'));
+    await captureCanaryException(new Error('server only should not leak'));
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://server-canary.test/api/v1/errors',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer sk_server_canary',
-        }),
-      })
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('uses default endpoint and production environment as fallback', async () => {
     vi.stubEnv('CANARY_ENDPOINT', '');
     vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
-    vi.stubEnv('CANARY_ENVIRONMENT', '');
     vi.stubEnv('NODE_ENV', '');
     fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
 
@@ -236,7 +270,7 @@ describe('captureCanaryException', () => {
     expect(body.environment).toBe('production');
   });
 
-  it('uses CANARY_ENVIRONMENT when provided', async () => {
+  it('uses NODE_ENV when provided', async () => {
     vi.stubEnv('CANARY_ENVIRONMENT', 'staging');
     vi.stubEnv('NODE_ENV', 'test');
     fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
@@ -246,7 +280,7 @@ describe('captureCanaryException', () => {
 
     const [, request] = fetchMock.mock.calls[0];
     const body = JSON.parse(String(request?.body)) as { environment: string };
-    expect(body.environment).toBe('staging');
+    expect(body.environment).toBe('test');
   });
 
   it('skips reporting when no Canary key is configured', async () => {
@@ -257,6 +291,26 @@ describe('captureCanaryException', () => {
 
     const { captureCanaryException } = await import('@/lib/canary');
     await captureCanaryException(new Error('disabled'));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('short-circuits before fetch when the resolved Canary config is disabled', async () => {
+    const { sendCanaryPayload } = await import('@/lib/canaryCore');
+
+    await sendCanaryPayload(
+      {
+        apiKey: '',
+        endpoint: 'https://canary.test',
+        environment: 'test',
+      },
+      {
+        errorClass: 'Error',
+        message: 'boom',
+        severity: 'error',
+      },
+      new Error('boom')
+    );
 
     expect(fetchMock).not.toHaveBeenCalled();
   });

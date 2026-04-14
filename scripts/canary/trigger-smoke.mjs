@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isCanaryAutomationEvent } from './events.mjs';
+import { getSmokeClerkKeyError } from './smoke-auth.mjs';
 import { ensureClerkConvexTemplate } from '../ci/ensure-clerk-convex-template.mjs';
 
 const DEFAULT_SMOKE_TIMEOUT_MS = 10 * 60 * 1000;
@@ -146,48 +147,7 @@ function validateSmokeBaseUrl(baseUrl) {
 }
 
 function validateSmokeAuthConfiguration(baseUrl) {
-  if (process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE !== '1') {
-    return null;
-  }
-
-  const publishableKey =
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
-    process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
-    '';
-  const secretKey = process.env.CLERK_SECRET_KEY?.trim() || '';
-
-  if (!publishableKey) {
-    return null;
-  }
-
-  let origin = '';
-  try {
-    origin = new URL(baseUrl).origin;
-  } catch {
-    return null;
-  }
-
-  if (
-    origin === 'https://www.linejam.app' &&
-    publishableKey.startsWith('pk_test_')
-  ) {
-    return (
-      'Authenticated production smoke requires a live Clerk publishable key. ' +
-      'Use production-aligned Clerk env instead of localhost test keys.'
-    );
-  }
-
-  if (
-    origin === 'https://www.linejam.app' &&
-    secretKey.startsWith('sk_test_')
-  ) {
-    return (
-      'Authenticated production smoke requires a live Clerk secret key. ' +
-      'Use production-aligned Clerk env instead of localhost test keys.'
-    );
-  }
-
-  return null;
+  return getSmokeClerkKeyError(baseUrl);
 }
 
 async function validateClerkTemplateForSmoke() {
@@ -200,20 +160,6 @@ async function validateClerkTemplateForSmoke() {
     process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
     '';
   const secretKey = process.env.CLERK_SECRET_KEY?.trim() || '';
-
-  if (!publishableKey || !secretKey) {
-    const missing = [];
-    if (!publishableKey) {
-      missing.push(
-        'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY or CLERK_PUBLISHABLE_KEY'
-      );
-    }
-    if (!secretKey) {
-      missing.push('CLERK_SECRET_KEY');
-    }
-
-    return `Authenticated smoke requires ${missing.join(' and ')}.`;
-  }
 
   try {
     await ensureClerkConvexTemplate({

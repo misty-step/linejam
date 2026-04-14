@@ -1,20 +1,16 @@
+import 'server-only';
+
 import {
   captureCanaryException,
   isCanaryEnabled,
   scrubCanaryContext,
-} from '@/lib/canary';
+} from '@/lib/canaryServer';
 import { captureReportedError } from '@/lib/errorCore';
 
 /**
- * Capture an error to Canary with optional context.
- *
- * This is a deep module: callers report failures without learning transport
- * details. Observability stays behind Canary.
- *
- * @example
- * captureError(error, { roomCode: 'ABCD', poemId: '123' });
+ * Server-only error capture helper that can prefer private Canary credentials.
  */
-export function captureError(
+export function captureServerError(
   error: unknown,
   context?: Record<string, unknown>
 ) {

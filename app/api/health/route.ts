@@ -1,6 +1,6 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
-import { captureCanaryException, isCanaryEnabled } from '@/lib/canary';
+import { captureCanaryException, isCanaryEnabled } from '@/lib/canaryServer';
 
 const CONVEX_HEALTH_TIMEOUT_MS = 1_500;
 

@@ -2,6 +2,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
+vi.mock('server-only', () => ({}));
+
 /**
  * Tests grouped by mock configuration to minimize module reloads.
  * Each describe block reloads the module once in beforeAll.
@@ -81,7 +83,7 @@ describe('GET /api/guest/session', () => {
 
   describe('with error injection', () => {
     let GET: typeof import('@/app/api/guest/session/route').GET;
-    let mockCaptureError: ReturnType<typeof vi.fn>;
+    let mockCaptureServerError: ReturnType<typeof vi.fn>;
 
     beforeAll(async () => {
       vi.resetModules();
@@ -92,10 +94,10 @@ describe('GET /api/guest/session', () => {
         verifyGuestToken: vi.fn().mockRejectedValue(new Error('Invalid token')),
       }));
 
-      // Mock captureError
-      mockCaptureError = vi.fn();
-      vi.doMock('@/lib/error', () => ({
-        captureError: mockCaptureError,
+      // Mock captureServerError
+      mockCaptureServerError = vi.fn();
+      vi.doMock('@/lib/errorServer', () => ({
+        captureServerError: mockCaptureServerError,
       }));
 
       const mod = await import('@/app/api/guest/session/route');
@@ -116,7 +118,7 @@ describe('GET /api/guest/session', () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe('Failed to create guest session');
-      expect(mockCaptureError).toHaveBeenCalledWith(
+      expect(mockCaptureServerError).toHaveBeenCalledWith(
         expect.any(Error),
         expect.objectContaining({ operation: 'createGuestSession' })
       );

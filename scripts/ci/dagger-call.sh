@@ -20,6 +20,7 @@ esac
 TEMP_ROOT_ENV=0
 TEMP_DAGGER_ENV=0
 TEMP_SOURCE_DIR=""
+ORIGINAL_PWD="$PWD"
 if [[ ! -f .env ]]; then
   : > .env
   TEMP_ROOT_ENV=1
@@ -54,35 +55,53 @@ cleanup() {
   fi
 
 	if [[ -n "${TEMP_SOURCE_DIR}" ]]; then
+		if [[ "$PWD" == "$TEMP_SOURCE_DIR"* ]]; then
+			cd "$ORIGINAL_PWD"
+		fi
 		rm -rf "${TEMP_SOURCE_DIR}"
 	fi
 }
 
 trap cleanup EXIT
 
+with_clean_node_ipc_env() {
+	env \
+		-u NODE_CHANNEL_FD \
+		-u NODE_CHANNEL_SERIALIZATION_MODE \
+		-u NODE_UNIQUE_ID \
+		"$@"
+}
+
+run_node() {
+	with_clean_node_ipc_env node "$@"
+}
+
+run_npx() {
+	with_clean_node_ipc_env npx "$@"
+}
+
 load_env_file() {
 	local env_file="$1"
+	local stream_file
+	local key
+	local value
+	local status=0
 
-	while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-		local line="${raw_line%$'\r'}"
+	stream_file="$(mktemp "${TMPDIR:-/tmp}/linejam-dotenv-stream.XXXXXX")"
+	run_node ./scripts/ci/dotenv.mjs "$env_file" >"$stream_file"
 
-		[[ -z "$line" ]] && continue
-		[[ "$line" =~ ^[[:space:]]*# ]] && continue
-		line="${line#export }"
-
-		if [[ ! "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
-			continue
+	while IFS= read -r -d '' key; do
+		if ! IFS= read -r -d '' value; then
+			echo >&2 "Malformed dotenv stream from ${env_file}"
+			status=1
+			break
 		fi
 
-		local key="${line%%=*}"
-		local value="${line#*=}"
+		export "${key}=${value}"
+	done <"$stream_file"
 
-		if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
-			value="${value:1:${#value}-2}"
-		fi
-
-		export "$key=$value"
-	done < "$env_file"
+	rm -f "$stream_file"
+	return "$status"
 }
 
 normalize_url() {
@@ -105,14 +124,14 @@ convex_url_for_mode() {
 		return 0
 	fi
 
-	local args=()
+	local -a command=(run_npx convex function-spec)
 	if [[ "$mode" == "prod" ]]; then
-		args+=("--prod")
+		command+=(--prod)
 	fi
 
 	local url
 	url="$(
-		npx convex function-spec "${args[@]}" | \
+		"${command[@]}" | \
 			sed -n 's/.*"url": "\([^"]*\)".*/\1/p' | \
 			head -n 1
 	)"
@@ -205,7 +224,7 @@ should_prepare_local_convex() {
 }
 
 derive_clerk_issuer_domain() {
-	node - <<'NODE'
+	run_node - <<'NODE'
 const publishableKey =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
   process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
@@ -252,7 +271,7 @@ ensure_dev_clerk_issuer_domain() {
 	local normalized_issuer_domain
 	normalized_issuer_domain="$(normalize_url "$issuer_domain")"
 	local current_issuer_domain=""
-	if current_issuer_domain="$(npx convex env get CLERK_JWT_ISSUER_DOMAIN 2>/dev/null || true)"; then
+	if current_issuer_domain="$(run_npx convex env get CLERK_JWT_ISSUER_DOMAIN 2>/dev/null || true)"; then
 		current_issuer_domain="$(normalize_url "$current_issuer_domain")"
 	fi
 
@@ -266,7 +285,7 @@ ensure_dev_clerk_issuer_domain() {
 		echo "Seeding CLERK_JWT_ISSUER_DOMAIN into the active Convex dev deployment..." >&2
 	fi
 
-	npx convex env set CLERK_JWT_ISSUER_DOMAIN "$issuer_domain" >/dev/null
+	run_npx convex env set CLERK_JWT_ISSUER_DOMAIN "$issuer_domain" >/dev/null
 }
 
 validate_smoke_base_url() {
@@ -276,7 +295,7 @@ validate_smoke_base_url() {
 		*) return 0 ;;
 	esac
 
-	node - <<'NODE'
+	run_node - <<'NODE'
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL?.trim() || '';
 if (!baseUrl) {
   console.error('PLAYWRIGHT_BASE_URL is required when smoke URL allowlisting is enabled.');
@@ -323,29 +342,14 @@ validate_smoke_auth_configuration() {
 		return 0
 	fi
 
-	node - <<'NODE'
+	run_node --input-type=module - <<'NODE'
+import { getSmokeClerkKeyError } from './scripts/canary/smoke-auth.mjs';
+
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL?.trim() || '';
-const publishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
-  process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
-  '';
+const error = getSmokeClerkKeyError(baseUrl);
 
-if (!baseUrl || !publishableKey) {
-  process.exit(0);
-}
-
-let origin = '';
-try {
-  origin = new URL(baseUrl).origin;
-} catch {
-  process.exit(0);
-}
-
-if (origin === 'https://www.linejam.app' && publishableKey.startsWith('pk_test_')) {
-  console.error(
-    'Authenticated production smoke requires a live Clerk publishable key. ' +
-      'Use production-aligned Clerk env (for example .env.production.local) instead of localhost test keys.'
-  );
+if (error) {
+  console.error(error);
   process.exit(1);
 }
 NODE
@@ -367,7 +371,7 @@ prepare_local_convex_backend() {
 	if [[ "$target_url" == "$dev_url" ]]; then
 		ensure_dev_clerk_issuer_domain
 		echo "Syncing the active Convex dev deployment before local Dagger E2E..." >&2
-		npx convex dev --once --typecheck disable --codegen disable >/dev/null
+		run_npx convex dev --once --typecheck disable --codegen disable >/dev/null
 		return 0
 	fi
 
@@ -378,7 +382,7 @@ prepare_local_convex_backend() {
 		fi
 
 		echo "Syncing the Convex production deployment before local Dagger E2E..." >&2
-		npx convex deploy --yes --typecheck disable --codegen disable >/dev/null
+		run_npx convex deploy --yes --typecheck disable --codegen disable >/dev/null
 		return 0
 	fi
 
@@ -405,13 +409,13 @@ hydrate_guest_token_secret() {
 
 	if [[ "$target_url" == "$dev_url" ]]; then
 		export GUEST_TOKEN_SECRET
-		GUEST_TOKEN_SECRET="$(npx convex env get GUEST_TOKEN_SECRET)"
+		GUEST_TOKEN_SECRET="$(run_npx convex env get GUEST_TOKEN_SECRET)"
 		return 0
 	fi
 
 	if [[ "$target_url" == "$prod_url" ]]; then
 		export GUEST_TOKEN_SECRET
-		GUEST_TOKEN_SECRET="$(npx convex env get GUEST_TOKEN_SECRET --prod)"
+		GUEST_TOKEN_SECRET="$(run_npx convex env get GUEST_TOKEN_SECRET --prod)"
 		return 0
 	fi
 
@@ -426,13 +430,13 @@ ensure_clerk_convex_template() {
 		return 0
 	fi
 
-	local args=()
+	local -a command=(node ./scripts/ci/ensure-clerk-convex-template.mjs)
 	if [[ "${LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE:-0}" == "1" ]]; then
-		args+=("--allow-live-mutation")
+		command+=(--allow-live-mutation)
 	fi
 
 	export NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$publishable_key"
-	node ./scripts/ci/ensure-clerk-convex-template.mjs "${args[@]}"
+	with_clean_node_ipc_env "${command[@]}"
 }
 
 validate_clerk_convex_template() {
@@ -443,7 +447,7 @@ validate_clerk_convex_template() {
 	fi
 
 	export NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$publishable_key"
-	node ./scripts/ci/ensure-clerk-convex-template.mjs --check-only
+	run_node ./scripts/ci/ensure-clerk-convex-template.mjs --check-only
 }
 
 ensure_canary_browser_config() {
@@ -504,8 +508,9 @@ if [[ "$FUNCTION_NAME" == "smoke" ]]; then
 fi
 
 TEMP_SOURCE_DIR="$(create_source_snapshot)"
+cd "$TEMP_SOURCE_DIR"
 
-ARGS=("call" "$FUNCTION_NAME" "--source=${TEMP_SOURCE_DIR}")
+ARGS=("call" "$FUNCTION_NAME" "--source=.")
 
 append_arg() {
 	local flag="$1"
@@ -549,7 +554,7 @@ if [[ "$FUNCTION_NAME" == "all" || "$FUNCTION_NAME" == "e-2-e" ]]; then
 fi
 
 if [[ "$FUNCTION_NAME" == "smoke" ]]; then
-append_arg "--base-url" "${PLAYWRIGHT_BASE_URL:-}"
+	append_arg "--base-url" "${PLAYWRIGHT_BASE_URL:-}"
 	append_arg "--playwright-require-auth-smoke" "${PLAYWRIGHT_REQUIRE_AUTH_SMOKE:-}"
 fi
 
@@ -585,7 +590,7 @@ run_dagger() {
 	local log_file
 	local status
 
-	log_file="$(mktemp "${TMPDIR:-/tmp}/linejam-dagger-call.XXXXXX.log")"
+	log_file="$(mktemp "${TMPDIR:-/tmp}/linejam-dagger-call.XXXXXX")"
 
 	set +e
 	dagger "${ARGS[@]}" "$@" 2>&1 | tee "$log_file"

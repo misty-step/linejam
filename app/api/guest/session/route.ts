@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signGuestToken, verifyGuestToken } from '@/lib/guestToken';
 import { randomUUID } from 'crypto';
-import { captureError } from '@/lib/error';
+import { captureServerError } from '@/lib/errorServer';
 
 const COOKIE_NAME = 'linejam_guest_token';
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
-    captureError(error, { operation: 'createGuestSession' });
+    captureServerError(error, { operation: 'createGuestSession' });
     return NextResponse.json(
       { error: 'Failed to create guest session' },
       { status: 500 }

@@ -1,4 +1,4 @@
-import { captureCanaryException } from '@/lib/canary';
+import { captureCanaryException } from '@/lib/canaryServer';
 
 /**
  * Next.js instrumentation hook

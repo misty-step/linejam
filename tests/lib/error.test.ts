@@ -80,4 +80,19 @@ describe('captureError', () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('logs without context when Canary is disabled', () => {
+    vi.stubEnv('CANARY_API_KEY', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
+    const error = new Error('Context-free error');
+
+    captureError(error);
+
+    expect(console.error).toHaveBeenCalledWith(
+      'Error captured (Canary disabled):',
+      error
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

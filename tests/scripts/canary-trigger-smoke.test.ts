@@ -401,6 +401,7 @@ describe('runSmoke', () => {
   it('fails fast when production auth smoke still uses a test Clerk key', async () => {
     process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE = '1';
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_example';
+    process.env.CLERK_SECRET_KEY = 'sk_live_example';
 
     const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
 

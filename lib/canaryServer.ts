@@ -1,3 +1,5 @@
+import 'server-only';
+
 import {
   DEFAULT_CANARY_ENDPOINT,
   captureCanaryExceptionWith,
@@ -8,16 +10,20 @@ import {
 
 function getCanaryConfig() {
   return {
-    apiKey: normalizeApiKey(process.env.NEXT_PUBLIC_CANARY_API_KEY),
+    apiKey:
+      normalizeApiKey(process.env.CANARY_API_KEY) ||
+      normalizeApiKey(process.env.NEXT_PUBLIC_CANARY_API_KEY),
     endpoint:
+      process.env.CANARY_ENDPOINT?.trim() ||
       process.env.NEXT_PUBLIC_CANARY_ENDPOINT?.trim() ||
       DEFAULT_CANARY_ENDPOINT,
-    environment: process.env.NODE_ENV || 'production',
+    environment:
+      process.env.CANARY_ENVIRONMENT || process.env.NODE_ENV || 'production',
   };
 }
 
 /**
- * Returns whether the browser-safe Canary ingest key is configured.
+ * Returns whether server-side or fallback public Canary ingest is configured.
  */
 export function isCanaryEnabled(): boolean {
   return isCanaryConfigured(getCanaryConfig);
@@ -26,8 +32,8 @@ export function isCanaryEnabled(): boolean {
 /**
  * Reports an exception to Canary without throwing back into the caller.
  *
- * Context is reduced to a small allowlist before it leaves the process so
- * user identifiers and content do not reach Canary or fallback logs.
+ * Server-side runtime can prefer private `CANARY_*` credentials while still
+ * falling back to the public ingest key used by the browser.
  */
 export async function captureCanaryException(
   error: unknown,
