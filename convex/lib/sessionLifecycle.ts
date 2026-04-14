@@ -16,7 +16,10 @@ const FINAL_ROUND_INDEX = WORD_COUNTS.length - 1;
 
 export type SubmissionWindowResult =
   | { ok: true }
-  | { ok: false; reason: 'GAME_NOT_IN_PROGRESS' | 'ROUND_NOT_STARTED' };
+  | {
+      ok: false;
+      reason: 'GAME_NOT_IN_PROGRESS' | 'INVALID_ROUND' | 'ROUND_NOT_STARTED';
+    };
 
 export type CycleResetDecision =
   | { ok: true }
@@ -44,6 +47,14 @@ export function getSubmissionWindow(
   game: Pick<Doc<'games'>, 'status' | 'currentRound'>,
   lineIndex: number
 ): SubmissionWindowResult {
+  if (
+    !Number.isInteger(lineIndex) ||
+    lineIndex < 0 ||
+    lineIndex > FINAL_ROUND_INDEX
+  ) {
+    return { ok: false, reason: 'INVALID_ROUND' };
+  }
+
   const isFinalRound = lineIndex === FINAL_ROUND_INDEX;
   const gameInProgress = game.status === 'IN_PROGRESS';
   const gameJustCompleted = game.status === 'COMPLETED' && isFinalRound;
@@ -201,11 +212,11 @@ export async function applyLineLifecycleTransition(
     completionTime,
   });
 
-  await ctx.db.patch(args.game._id, completionPlan.gamePatch);
-  await ctx.db.patch(args.roomId, completionPlan.roomPatch);
-  await Promise.all(
-    completionPlan.poemPatches.map(({ poemId, patch }) =>
+  await Promise.all([
+    ctx.db.patch(args.game._id, completionPlan.gamePatch),
+    ctx.db.patch(args.roomId, completionPlan.roomPatch),
+    ...completionPlan.poemPatches.map(({ poemId, patch }) =>
       ctx.db.patch(poemId, patch)
-    )
-  );
+    ),
+  ]);
 }

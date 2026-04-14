@@ -114,8 +114,10 @@ export const startNewCycle = mutation({
       throw new Error('Only host can start new cycle');
 
     // Check that there's a completed game (authoritative check)
-    const activeGame = await getActiveGame(ctx, room._id);
-    const completedGame = await getCompletedGame(ctx, room._id);
+    const [activeGame, completedGame] = await Promise.all([
+      getActiveGame(ctx, room._id),
+      getCompletedGame(ctx, room._id),
+    ]);
     const cycleReset = getCycleResetDecision({
       activeGame,
       completedGame,
@@ -233,6 +235,10 @@ export const submitLine = mutation({
     if (!submissionWindow.ok) {
       if (submissionWindow.reason === 'GAME_NOT_IN_PROGRESS') {
         throw new Error('Game not in progress');
+      }
+
+      if (submissionWindow.reason === 'INVALID_ROUND') {
+        throw new Error('Invalid round');
       }
 
       throw new Error('Round not started yet');

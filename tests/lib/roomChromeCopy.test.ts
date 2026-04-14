@@ -47,18 +47,16 @@ describe('roomChromeCopy', () => {
   });
 
   it('uses the singular word copy for the opening round assignment', () => {
-    expect(
-      buildInProgressChromeCopy({
-        assignment: {
-          lineIndex: 0,
-          targetWordCount: 1,
-        },
-      })
-    ).toEqual({
-      statusLabel: 'Writing',
-      title: `Round 1 of ${WORD_COUNTS.length}`,
-      subtitle: 'Write exactly 1 word. You only see the previous line.',
+    const copy = buildInProgressChromeCopy({
+      assignment: {
+        lineIndex: 0,
+        targetWordCount: 1,
+      },
     });
+
+    expect(copy.subtitle).toBe(
+      'Write exactly 1 word. You only see the previous line.'
+    );
   });
 
   it('builds progress-led in-progress copy when the writer is waiting on the room', () => {

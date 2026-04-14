@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { internal } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import {
   applyLineLifecycleTransition,
@@ -49,6 +50,18 @@ describe('sessionLifecycle', () => {
         3
       )
     ).toEqual({ ok: false, reason: 'ROUND_NOT_STARTED' });
+  });
+
+  it('rejects invalid round indexes before checking game state', () => {
+    expect(
+      getSubmissionWindow(
+        {
+          status: 'IN_PROGRESS',
+          currentRound: 2,
+        },
+        -1
+      )
+    ).toEqual({ ok: false, reason: 'INVALID_ROUND' });
   });
 
   it('only allows cycle reset from a completed game', () => {
@@ -131,7 +144,7 @@ describe('sessionLifecycle', () => {
     });
     expect(mockCtx.scheduler.runAfter).toHaveBeenCalledWith(
       0,
-      expect.anything(),
+      internal.ai.scheduleAiTurn,
       {
         roomId: asRoomId('room1'),
         gameId: asGameId('game1'),

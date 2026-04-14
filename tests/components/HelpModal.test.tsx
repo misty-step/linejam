@@ -67,6 +67,7 @@ describe('HelpModal component', () => {
   });
 
   it('traps focus within the modal when tabbing', async () => {
+    const user = userEvent.setup();
     render(<HelpModal isOpen onClose={vi.fn()} />);
 
     const closeButton = screen.getByRole('button', { name: /Close help/i });
@@ -76,17 +77,13 @@ describe('HelpModal component', () => {
       expect(closeButton).toHaveFocus();
     });
 
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(closeButton).toHaveFocus();
-
-    confirmButton.focus();
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    await user.tab();
     expect(confirmButton).toHaveFocus();
 
-    fireEvent.keyDown(document, { key: 'Tab' });
+    await user.tab();
     expect(closeButton).toHaveFocus();
 
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    await user.tab({ shift: true });
     expect(confirmButton).toHaveFocus();
   });
 });

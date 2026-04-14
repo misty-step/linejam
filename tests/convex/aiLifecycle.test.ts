@@ -10,11 +10,6 @@ vi.mock('../../convex/_generated/server', () => ({
   internalQuery: (args: unknown) => args,
 }));
 
-vi.mock('../../convex/lib/ai/personas', () => ({
-  pickRandomPersona: vi.fn(),
-  getPersona: vi.fn(),
-}));
-
 vi.mock('../../convex/lib/ai/llm', () => ({
   generateLine: vi.fn(),
   getFallbackLine: (wordCount: number) =>
@@ -25,13 +20,6 @@ vi.mock('../../convex/lib/ai/llm', () => ({
 
 vi.mock('../../convex/lib/env', () => ({
   getConvexRuntimeConfig: () => ({ openRouterApiKey: null }),
-}));
-
-vi.mock('../../convex/lib/errors', () => ({
-  log: {
-    error: vi.fn(),
-    warn: vi.fn(),
-  },
 }));
 
 import { commitAiLine } from '../../convex/ai';
