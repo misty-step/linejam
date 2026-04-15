@@ -2,6 +2,41 @@
 
 All notable changes to Linejam.
 
+# [1.1.0](https://github.com/misty-step/linejam/compare/v1.0.0...v1.1.0) (2026-04-15)
+
+
+### Bug Fixes
+
+* **a11y:** use theme-aware focus ring token instead of hardcoded primary ([#159](https://github.com/misty-step/linejam/issues/159)) ([25fa44b](https://github.com/misty-step/linejam/commit/25fa44bd2ebad1a37a9e1da43a150870682b825a)), closes [#151](https://github.com/misty-step/linejam/issues/151)
+* **auth:** show error state with retry on guest auth failure ([#157](https://github.com/misty-step/linejam/issues/157)) ([d44d146](https://github.com/misty-step/linejam/commit/d44d146911fcc8aa6db86577e05f39955a8bd2e2)), closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144)
+* **ci:** pin trufflehog scanner version ([#195](https://github.com/misty-step/linejam/issues/195)) ([ef2024f](https://github.com/misty-step/linejam/commit/ef2024f3476273ef7c348d9daf7bb04cbad5eac2))
+* **ci:** settle trufflehog workflow ([#181](https://github.com/misty-step/linejam/issues/181)) ([5a8a345](https://github.com/misty-step/linejam/commit/5a8a3458fea64344d5a5d47f1047f27459e3d4f3))
+* **ci:** upgrade Next.js 16.1.6 (CVE), fix Cerberus API key, fix crypto types ([#160](https://github.com/misty-step/linejam/issues/160)) ([53366ec](https://github.com/misty-step/linejam/commit/53366ecdfbaeff5f278d80ab15d961da925f79be)), closes [hi#severity](https://github.com/hi/issues/severity)
+* **ci:** use GH_RELEASE_TOKEN for semantic-release ([ca98baa](https://github.com/misty-step/linejam/commit/ca98baac1fb9e1adcc4d3dd3c077dfd163107185))
+* **game:** add bounds checking to assignment matrix access ([#156](https://github.com/misty-step/linejam/issues/156)) ([6371989](https://github.com/misty-step/linejam/commit/6371989e92f8d04fa87a9848d5cd5820394a2956)), closes [#143](https://github.com/misty-step/linejam/issues/143)
+* **game:** prevent double round advancement via idempotent guard ([#155](https://github.com/misty-step/linejam/issues/155)) ([a01fca1](https://github.com/misty-step/linejam/commit/a01fca155c61f6191dbcafb1d214a3917c42523b)), closes [#142](https://github.com/misty-step/linejam/issues/142)
+* harden canary local dagger qa ([01a269b](https://github.com/misty-step/linejam/commit/01a269bd9f4d57ca61067ef05196c6f92d6878e9))
+* **lint:** add coverage/ to ESLint ignores ([#154](https://github.com/misty-step/linejam/issues/154)) ([94a08bd](https://github.com/misty-step/linejam/commit/94a08bd51faa556536676a5b8cddfdc56aa2af18)), closes [#130](https://github.com/misty-step/linejam/issues/130)
+* logShare throws ConvexError on invalid poem ID instead of silent return ([#164](https://github.com/misty-step/linejam/issues/164)) ([6295789](https://github.com/misty-step/linejam/commit/6295789341d366f0ffea521dc701d5ee3db1273a))
+* replace pnpm audit with osv-scanner in dagger ([6a76039](https://github.com/misty-step/linejam/commit/6a7603940f527b8284dd25d3e514eca76c19be0a))
+* simplify room chrome copy ([#210](https://github.com/misty-step/linejam/issues/210)) ([eaeac68](https://github.com/misty-step/linejam/commit/eaeac68f5cd7d816667828c2b919a2a660e09655))
+* unblock hosted convex deployment flow ([#208](https://github.com/misty-step/linejam/issues/208)) ([994b59d](https://github.com/misty-step/linejam/commit/994b59dc3ace3f9b3993c9b7100e9744b96ca874))
+
+
+### Features
+
+* add PostHog analytics + harden Sentry privacy ([#165](https://github.com/misty-step/linejam/issues/165)) ([94f2ddd](https://github.com/misty-step/linejam/commit/94f2dddb5e286c404f93a5a3c1597582d74a4c83))
+* extract session lifecycle core ([#213](https://github.com/misty-step/linejam/issues/213)) ([61fe2f9](https://github.com/misty-step/linejam/commit/61fe2f951caa7c22e58efbfb9d4ecf17b35a027b))
+* improve quality gates, robustness, and test coverage ([#192](https://github.com/misty-step/linejam/issues/192)) ([439f974](https://github.com/misty-step/linejam/commit/439f9746d11a1d5f7420abfb83f77675c16690e9))
+* redesign room chrome as sticky nav ([#209](https://github.com/misty-step/linejam/issues/209)) ([d88075f](https://github.com/misty-step/linejam/commit/d88075f8367db836cb332c87445d5f14dd851442))
+* scaffold qa and demo evidence harness ([#201](https://github.com/misty-step/linejam/issues/201)) ([2499795](https://github.com/misty-step/linejam/commit/2499795e024e98231d83027e5e7ecf1873993b4e))
+* ship canary-first qa and responder loop ([#206](https://github.com/misty-step/linejam/issues/206)) ([a8eeb93](https://github.com/misty-step/linejam/commit/a8eeb93b42e347b7c61422ea43c34e35b6de8baf))
+
+
+### Performance Improvements
+
+* **favorites:** parallelize getMyFavorites query — N+1 to batch ([#158](https://github.com/misty-step/linejam/issues/158)) ([4e017e2](https://github.com/misty-step/linejam/commit/4e017e26c297894d9c21f705db7aec3987b4474d)), closes [#145](https://github.com/misty-step/linejam/issues/145)
+
 # 1.0.0 (2026-01-25)
 
 ### Bug Fixes
