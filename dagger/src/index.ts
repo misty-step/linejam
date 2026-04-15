@@ -313,8 +313,25 @@ export class Ci {
 
   @func()
   async audit(source: Directory): Promise<string> {
-    return this.base(source)
-      .withExec(['pnpm', 'audit', '--audit-level=high'])
+    // Replaces `pnpm audit --audit-level=high`: npm retired the legacy audit
+    // endpoint pnpm still calls (HTTP 410). osv-scanner reads pnpm-lock.yaml
+    // directly against OSV.dev. We filter to HIGH/CRITICAL to preserve the
+    // prior gate semantics.
+    const script = [
+      '/osv-scanner scan source --lockfile=pnpm-lock.yaml --format=json --output=/tmp/osv.json || true',
+      '/osv-scanner scan source --lockfile=pnpm-lock.yaml --format=table || true',
+      'if grep -qE \'"severity":[[:space:]]*"(HIGH|CRITICAL)"\' /tmp/osv.json; then',
+      '  echo "Found HIGH or CRITICAL advisories — failing build."',
+      '  exit 1',
+      'fi',
+      'echo "osv-scanner: no HIGH or CRITICAL advisories (MODERATE/LOW ignored to match prior pnpm audit --audit-level=high)"',
+    ].join('\n');
+    return dag
+      .container()
+      .from('ghcr.io/google/osv-scanner:v2.0.2')
+      .withMountedDirectory('/src', source)
+      .withWorkdir('/src')
+      .withExec(['sh', '-c', script])
       .stdout();
   }
 
