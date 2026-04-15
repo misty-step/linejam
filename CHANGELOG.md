@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [1.1.1](https://github.com/misty-step/linejam/compare/v1.1.0...v1.1.1) (2026-04-15)
+
+
+### Bug Fixes
+
+* **deps:** patch dompurify and ajv advisories ([dc8f4e2](https://github.com/misty-step/linejam/commit/dc8f4e22f7804fc7ffa3fde4690de2f858ce6f9b))
+
 # [1.1.0](https://github.com/misty-step/linejam/compare/v1.0.0...v1.1.0) (2026-04-15)
 
 ### Bug Fixes
