@@ -1,15 +1,49 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 10
+    # Grouping strategy:
+    #   - minor + patch bumps group into a single PR (low-risk, mechanical).
+    #   - Major bumps open one PR per package so each gets its own behavioral
+    #     diff, reachability analysis, and migration notes. See
+    #     .claude/skills/deps/SKILL.md for the process.
     groups:
       minor-and-patch:
         update-types:
-          - "minor"
-          - "patch"
-      major:
+          - 'minor'
+          - 'patch'
+    # Load-bearing deps that need deliberate human migration instead of a
+    # dependabot PR. Surface their majors via `pnpm outdated` / osv-scanner
+    # and shape a dedicated PR.
+    ignore:
+      - dependency-name: 'next'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'convex'
         update-types:
-          - "major"
+          - 'version-update:semver-major'
+          - 'version-update:semver-minor'
+      - dependency-name: 'convex-test'
+        update-types:
+          - 'version-update:semver-major'
+          - 'version-update:semver-minor'
+      - dependency-name: '@clerk/nextjs'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@clerk/backend'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'tailwindcss'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@playwright/test'
+        update-types:
+          - 'version-update:semver-major'
+          - 'version-update:semver-minor'
