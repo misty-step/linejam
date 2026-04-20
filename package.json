@@ -48,7 +48,7 @@
     "generate:releases": "npx tsx scripts/generate-releases.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.37.4",
+    "@clerk/nextjs": "^6.39.2",
     "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^1.3.1",
     "clsx": "^2.1.1",
@@ -66,13 +66,14 @@
     "tailwind-merge": "^3.4.1"
   },
   "devDependencies": {
-    "@clerk/backend": "^3.2.7",
-    "@clerk/testing": "^2.0.11",
+    "@clerk/backend": "^3.2.13",
+    "@clerk/testing": "^2.0.17",
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.4.1",
     "@edge-runtime/vm": "^5.0.0",
     "@playwright/test": "^1.58.2",
     "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.6",
     "@tailwindcss/postcss": "^4",
@@ -100,6 +101,8 @@
   "packageManager": "pnpm@10.22.0+sha512.bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c",
   "pnpm": {
     "overrides": {
+      "@clerk/shared@3": "^3.47.4",
+      "@clerk/shared@4": "^4.8.1",
       "ajv@6": "^6.14.0",
       "flatted": "3.4.2",
       "handlebars": "4.7.9",
@@ -107,6 +110,7 @@
       "lodash-es": "4.18.1",
       "minimatch": "10.2.5",
       "picomatch": "4.0.4",
+      "protobufjs": "^7.5.5",
       "rollup": "4.59.0",
       "undici": "7.24.0",
       "vite": "7.3.2"

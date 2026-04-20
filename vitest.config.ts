@@ -24,6 +24,7 @@ export default defineConfig({
       '**/.next/**',
       '**/tests/e2e/**',
       '**/.worktrees/**', // Exclude git worktrees - they have their own test environments
+      '**/.claude/**', // Harness config, not app code
     ],
     coverage: {
       provider: 'v8',
@@ -36,6 +37,7 @@ export default defineConfig({
         '**/*.config.{js,ts}',
         '**/*.d.ts',
         '**/convex/migrations.ts', // One-time migration scripts, not runtime code
+        '**/.claude/**', // Harness config, not app code
       ],
       thresholds: {
         lines: 85,
