@@ -2,6 +2,12 @@
 
 All notable changes to Linejam.
 
+## [1.1.2](https://github.com/misty-step/linejam/compare/v1.1.1...v1.1.2) (2026-04-20)
+
+### Bug Fixes
+
+- **deps:** patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline ([#218](https://github.com/misty-step/linejam/issues/218)) ([57740b5](https://github.com/misty-step/linejam/commit/57740b53dd08282e7af33c4a65a5747b98bdf722))
+
 ## [1.1.1](https://github.com/misty-step/linejam/compare/v1.1.0...v1.1.1) (2026-04-15)
 
 ### Bug Fixes
