@@ -110,7 +110,7 @@ Before handing off:
 - [ ] `pnpm test:ci` green locally (spot-check coverage; threshold is **85%**
       lines/branches/functions/statements, enforced by `vitest.config.ts`).
 - [ ] `pnpm ci:prepush` green — this is the authoritative gate (= `pnpm
-    ci:dagger:all`: lint, format-check, typecheck, audit, build-check,
+ci:dagger:all`: lint, format-check, typecheck, audit, build-check,
       unit-test with coverage, secret-scan, Playwright E2E).
 - [ ] `git status` clean, no `TODO`/`FIXME`/`console.log` added outside spec.
 - [ ] Commits atomic and Conventional Commits–compliant.
