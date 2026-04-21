@@ -1,30 +1,72 @@
 version: 2
+
+# Grouping + ignore strategy, end to end:
+#
+#   • Low-risk bumps (minor + patch) batch into ecosystem-specific grouped PRs
+#     so reviews scan a single diff rather than a swarm of tabs.
+#   • Dev-only deps are further grouped together — their majors rarely need the
+#     per-package behavioral review that production majors do.
+#   • Production majors open one PR per package — each gets its own behavioral
+#     diff, reachability analysis, and migration notes.
+#     See .claude/skills/deps/SKILL.md for the process.
+#   • Load-bearing deps with non-trivial migrations are ignored at the
+#     major (and sometimes minor) level. Surface those via `pnpm outdated` /
+#     osv-scanner and shape a dedicated PR.
+#   • Dependabot PRs need secrets in the Dependabot scope (not Actions scope).
+#     Required: see .env.example + `gh secret list --app dependabot`.
+
 updates:
+  # ────────────────────────────────────────────────────────────
+  # Root npm workspace (app)
+  # ────────────────────────────────────────────────────────────
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
       interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Los_Angeles'
     open-pull-requests-limit: 10
-    # Grouping strategy:
-    #   - minor + patch bumps group into a single PR (low-risk, mechanical).
-    #   - Major bumps open one PR per package so each gets its own behavioral
-    #     diff, reachability analysis, and migration notes. See
-    #     .claude/skills/deps/SKILL.md for the process.
+    labels:
+      - 'dependencies'
+      - 'npm'
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+      include: 'scope'
     groups:
-      minor-and-patch:
+      # Low-risk production bumps — batch review.
+      prod-minor-and-patch:
+        dependency-type: 'production'
         update-types:
           - 'minor'
           - 'patch'
-    # Load-bearing deps that need deliberate human migration instead of a
-    # dependabot PR. Surface their majors via `pnpm outdated` / osv-scanner
-    # and shape a dedicated PR.
+      # Dev-deps group more aggressively — include majors so type defs,
+      # test runner plumbing, and linter deltas don't spam per-package PRs.
+      dev-minor-and-patch:
+        dependency-type: 'development'
+        update-types:
+          - 'minor'
+          - 'patch'
+      types:
+        patterns:
+          - '@types/*'
+        update-types:
+          - 'minor'
+          - 'major'
+          - 'patch'
     ignore:
+      # ─── Frameworks: human migration required ───
       - dependency-name: 'next'
         update-types: ['version-update:semver-major']
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
       - dependency-name: 'react-dom'
         update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint-config-next'
+        update-types: ['version-update:semver-major']
+
+      # ─── Convex: schema/runtime migrations are load-bearing ───
       - dependency-name: 'convex'
         update-types:
           - 'version-update:semver-major'
@@ -33,17 +75,77 @@ updates:
         update-types:
           - 'version-update:semver-major'
           - 'version-update:semver-minor'
+
+      # ─── Auth: Clerk migrations need coordinated env + JWT changes ───
       - dependency-name: '@clerk/nextjs'
         update-types: ['version-update:semver-major']
       - dependency-name: '@clerk/backend'
         update-types: ['version-update:semver-major']
+
+      # ─── Toolchain: wide-reach changes, cascade risk ───
       - dependency-name: 'tailwindcss'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+      # @vitejs/plugin-react v6 requires Vite 8. Unlock this ignore when we
+      # plan the Vite 7 → 8 cascade upgrade.
+      - dependency-name: '@vitejs/plugin-react'
+        update-types: ['version-update:semver-major']
+
+      # ─── Playwright: runner + browser channel bumps need coordination ───
       - dependency-name: '@playwright/test'
         update-types:
           - 'version-update:semver-major'
           - 'version-update:semver-minor'
+
+  # ────────────────────────────────────────────────────────────
+  # Dagger workspace (CI-only TypeScript runner)
+  # ────────────────────────────────────────────────────────────
+  - package-ecosystem: 'npm'
+    directory: '/dagger'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Los_Angeles'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'npm'
+      - 'dagger'
+    commit-message:
+      prefix: 'chore(deps)'
+      include: 'scope'
+    groups:
+      dagger-all:
+        patterns:
+          - '*'
+    ignore:
+      # Keep Dagger runner TS aligned with the root app's TS pin — handle majors
+      # in a coordinated PR, not a Dagger-only bump.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+
+  # ────────────────────────────────────────────────────────────
+  # GitHub Actions (workflow action versions)
+  # ────────────────────────────────────────────────────────────
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'America/Los_Angeles'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'github-actions'
+    commit-message:
+      prefix: 'chore(ci)'
+      include: 'scope'
+    groups:
+      gha-all:
+        patterns:
+          - '*'
