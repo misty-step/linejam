@@ -30,9 +30,12 @@ updates:
     labels:
       - 'dependencies'
       - 'npm'
+    # Dependabot appends the scope automatically when `include: scope` is set,
+    # so `prefix` must NOT already contain parens — otherwise commit subjects
+    # land as `chore(deps)(deps): ...` and trip Conventional Commits validation.
     commit-message:
-      prefix: 'chore(deps)'
-      prefix-development: 'chore(deps-dev)'
+      prefix: 'chore'
+      prefix-development: 'chore'
       include: 'scope'
     groups:
       # Low-risk production bumps — batch review.
@@ -116,7 +119,7 @@ updates:
       - 'npm'
       - 'dagger'
     commit-message:
-      prefix: 'chore(deps)'
+      prefix: 'chore'
       include: 'scope'
     groups:
       dagger-all:
@@ -142,8 +145,11 @@ updates:
     labels:
       - 'dependencies'
       - 'github-actions'
+    # github-actions bumps are workflow/CI changes, but routing them through
+    # `chore(deps)` keeps semantic-release's changelog consistent (all bumps
+    # classify the same way). Override the include:scope to "ci" if needed.
     commit-message:
-      prefix: 'chore(ci)'
+      prefix: 'chore'
       include: 'scope'
     groups:
       gha-all:
