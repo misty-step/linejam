@@ -37,7 +37,7 @@ jobs:
       NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -83,7 +83,7 @@ jobs:
       NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -124,7 +124,7 @@ jobs:
       NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -162,7 +162,7 @@ jobs:
       LINEJAM_BASE_URL: http://127.0.0.1:3333
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -177,10 +177,10 @@ jobs:
           echo "LINEJAM_EVIDENCE_SERVER_PID=$RUNNER_TEMP/linejam-evidence-server.pid" >> "$GITHUB_ENV"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -214,7 +214,7 @@ jobs:
         run: pnpm evidence:guest-flow
 
       - name: Upload QA evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: qa-evidence
@@ -222,7 +222,7 @@ jobs:
           retention-days: 14
 
       - name: Upload QA evidence raw test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: qa-evidence-test-results
@@ -231,7 +231,7 @@ jobs:
           retention-days: 14
 
       - name: Upload QA evidence server log
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: qa-evidence-server-log
