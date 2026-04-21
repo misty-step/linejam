@@ -53,16 +53,16 @@
     "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",
     "convex": "^1.31.7",
-    "dompurify": "^3.3.2",
-    "import-in-the-middle": "^3.0.0",
+    "dompurify": "^3.4.1",
+    "import-in-the-middle": "^3.0.1",
     "lucide-react": "^1.8.0",
-    "next": "16.2.3",
-    "posthog-js": "^1.352.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "16.2.4",
+    "posthog-js": "^1.369.5",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
     "require-in-the-middle": "^8.0.1",
     "server-only": "^0.0.1",
-    "tailwind-merge": "^3.4.1"
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@clerk/backend": "^3.2.13",
