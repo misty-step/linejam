@@ -2,6 +2,12 @@
 
 All notable changes to Linejam.
 
+## [1.1.3](https://github.com/misty-step/linejam/compare/v1.1.2...v1.1.3) (2026-04-21)
+
+### Bug Fixes
+
+- **ci:** stop Dependabot from double-stamping commit scopes ([#232](https://github.com/misty-step/linejam/issues/232)) ([082a2f6](https://github.com/misty-step/linejam/commit/082a2f699efcbf0a51936a78f168052bff3217fc)), closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231)
+
 ## [1.1.2](https://github.com/misty-step/linejam/compare/v1.1.1...v1.1.2) (2026-04-20)
 
 ### Bug Fixes
