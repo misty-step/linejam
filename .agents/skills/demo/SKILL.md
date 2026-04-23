@@ -10,7 +10,7 @@ description: |
   screenshots", "guest-flow evidence", "demo this feature", "create a
   walkthrough".
   Trigger: /demo.
-argument-hint: '[feature|evidence-dir] [--base-url <url>] [upload]'
+argument-hint: '[feature] [--base-url <url>] [--out-dir <dir>] [upload]'
 ---
 
 # /demo (linejam)
@@ -41,10 +41,12 @@ pnpm evidence:guest-flow
 `pnpm evidence:guest-flow` packages the resulting screenshots, WebM, GIF,
 `qa-summary.md`, and `manifest.json`.
 
-Use the `LINEJAM_BASE_URL` environment variable when you need a deployed target:
+Use `--base-url <url>` or the `LINEJAM_BASE_URL` environment variable when you
+need a deployed target:
 
 ```bash
 LINEJAM_BASE_URL=https://www.linejam.app pnpm evidence:guest-flow
+pnpm evidence:guest-flow --base-url https://www.linejam.app
 ```
 
 If the user asks for a feature-specific demo rather than the stock guest flow,
@@ -58,8 +60,10 @@ plan a shot list first, then capture against the same evidence machinery.
 2. **Capture.**
    - Local/stable app path: `pnpm test:e2e:evidence` then
      `pnpm evidence:guest-flow`.
-   - Remote target: set `LINEJAM_BASE_URL` or pass the base URL through the
-     relevant env for the evidence run.
+   - Remote target: set `LINEJAM_BASE_URL` or pass `--base-url <url>` to
+     `pnpm evidence:guest-flow`.
+   - Custom output directory: set `LINEJAM_EVIDENCE_DIR` or pass
+     `--out-dir <dir>` to `pnpm evidence:guest-flow`.
 3. **Critique cold.**
    - Confirm the artifact bundle contains the expected screenshots, WebM, GIF,
      summary, and manifest.

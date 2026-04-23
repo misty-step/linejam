@@ -9,12 +9,12 @@ not how it's supposed to be used. Evidence over intuition.
 
 ## Objective
 
-Analyze all Claude Code session history and produce:
+Analyze all harness session history and produce:
 
 1. Frequency breakdown of actual usage patterns
 2. Candidates for skill extraction (repeated multi-step workflows)
 3. Candidates for autonomous agents (persistent loops, not one-shots)
-4. CLAUDE.md/AGENTS.md updates (principles, not pragmatics)
+4. AGENTS.md or harness guidance updates (principles, not pragmatics)
 5. Workflows to retire or consolidate
 
 ## Data Sources
@@ -53,7 +53,7 @@ Write a Python script to `/tmp/introspect-analysis.py` that extracts:
 - **Sessions per project** (top 20)
 - **Tool usage** by call count (top 25)
 - **Slash commands** invoked by user (parse `<command-name>` tags)
-- **Skill tool calls** invoked by Claude (from `Skill` tool_use blocks)
+- **Skill tool calls** invoked by the assistant (from `Skill` tool_use blocks)
 - **Subagent types** spawned (from `Agent` tool_use blocks)
 - **Bash command frequency** (first word + git/gh subcommands)
 - **File types edited** (by extension from Edit/Write tool calls)
@@ -101,7 +101,7 @@ Skills, workflows, or patterns that data shows are unused or superseded.
 ## Constraints
 
 - Evidence-first. Every recommendation must cite session data.
-- Agent-agnostic. Analysis applies to any coding agent, not just Claude Code.
-- Principles over pragmatics. CLAUDE.md updates should be philosophical, not procedural.
+- Agent-agnostic. Analysis applies to any coding agent, not just one harness.
+- Principles over pragmatics. Harness guidance updates should be philosophical, not procedural.
 - No fluff categories. If a recommendation doesn't have 3+ supporting data points, cut it.
 - Respect the user's time. Findings should be scannable in under 2 minutes.
