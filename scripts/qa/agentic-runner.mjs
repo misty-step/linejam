@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createClerkClient } from '@clerk/backend';
-import { clerk } from '@clerk/testing/playwright';
+import { clerk, clerkSetup } from '@clerk/testing/playwright';
 import { chromium, expect } from '@playwright/test';
 import { Stagehand } from '@browserbasehq/stagehand';
 import { promises as fs } from 'node:fs';
@@ -27,6 +27,7 @@ import {
 import { writeAgenticCriticArtifacts } from '../../qa/agentic/critic.mjs';
 
 const DEFAULT_CLERK_TEST_EMAIL = 'linejam-e2e+clerk_test@example.com';
+let clerkSetupPromise = null;
 
 function parseArgs(argv) {
   const args = {
@@ -108,6 +109,10 @@ async function createStagehand() {
   return stagehand;
 }
 
+function withBaseUrl(baseUrl, targetPath) {
+  return new URL(targetPath, `${baseUrl}/`).toString();
+}
+
 async function perform({
   actor,
   fallback,
@@ -164,25 +169,44 @@ async function runCheck(manifest, name, fn) {
   }
 }
 
-async function createContextPage(browser, baseUrl) {
+async function createContextPage(baseUrl) {
+  const stagehand = await createStagehand();
+
+  if (stagehand) {
+    const browser = await chromium.connectOverCDP(stagehand.connectURL());
+    const context = browser.contexts()[0];
+
+    if (!context) {
+      throw new Error(
+        'Stagehand Playwright bridge did not expose a browser context.'
+      );
+    }
+
+    const page = context.pages()[0] || (await context.newPage());
+    return { browser, context, page, stagehand };
+  }
+
+  const browser = await chromium.launch({
+    headless: process.env.LINEJAM_AGENTIC_HEADFUL !== '1',
+  });
   const context = await browser.newContext({ baseURL: baseUrl });
   const page = await context.newPage();
-  return { context, page };
+  return { browser, context, page, stagehand: null };
 }
 
-async function ensureClerkAuthState(page) {
+async function ensureClerkAuthState(page, baseUrl) {
   const secretKey = process.env.CLERK_SECRET_KEY?.trim();
   if (!secretKey) {
     throw new Error('CLERK_SECRET_KEY is required for signed-in agentic QA.');
   }
-  process.env.CLERK_PUBLISHABLE_KEY ??=
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+  await ensureClerkTestingSetup();
 
   const emailAddress =
     process.env.PLAYWRIGHT_CLERK_TEST_EMAIL?.trim() || DEFAULT_CLERK_TEST_EMAIL;
 
   await ensureClerkSmokeUser(secretKey, emailAddress);
-  await page.goto('/');
+  await page.goto(withBaseUrl(baseUrl, '/'));
   await clerk.signIn({ page, emailAddress });
   await clerk.loaded({ page });
   await page.waitForFunction(
@@ -205,6 +229,18 @@ async function ensureClerkAuthState(page) {
     },
     { timeout: 30_000 }
   );
+}
+
+async function ensureClerkTestingSetup() {
+  process.env.CLERK_PUBLISHABLE_KEY ??=
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+  clerkSetupPromise ??= clerkSetup().catch((error) => {
+    clerkSetupPromise = null;
+    throw error;
+  });
+
+  await clerkSetupPromise;
 }
 
 async function ensureClerkSmokeUser(secretKey, emailAddress) {
@@ -278,30 +314,41 @@ function attachRuntimeErrorLogging(page, actor, manifest) {
 
 async function runGuestHostSignedInJoin({
   baseUrl,
-  browser,
   manifest,
   outDir,
-  stagehand,
 }) {
-  const host = await createContextPage(browser, baseUrl);
-  const joiner = await createContextPage(browser, baseUrl);
+  const host = await createContextPage(baseUrl);
+  const joiner = await createContextPage(baseUrl);
   attachRuntimeErrorLogging(host.page, 'guest-host', manifest);
   attachRuntimeErrorLogging(joiner.page, 'signed-in-joiner', manifest);
 
   try {
     await runCheck(manifest, 'guest host creates room', async () => {
-      await host.page.goto('/host');
+      await host.page.goto(withBaseUrl(baseUrl, '/host'));
+      await host.page.locator('input#name').waitFor({
+        state: 'visible',
+        timeout: 30_000,
+      });
       await perform({
         actor: 'guest-host',
         fallback: async () => {
           await host.page.locator('input#name').fill('Agentic Guest Host');
-          await host.page.getByRole('button', { name: /Create Room/i }).click();
         },
         instruction:
-          'Fill the host pen name field with "Agentic Guest Host" and create the room.',
+          'Type "Agentic Guest Host" into the name input.',
         manifest,
         page: host.page,
-        stagehand,
+        stagehand: host.stagehand,
+      });
+      await perform({
+        actor: 'guest-host',
+        fallback: async () => {
+          await host.page.getByRole('button', { name: /Create Room/i }).click();
+        },
+        instruction: 'Click the "Create Room" button.',
+        manifest,
+        page: host.page,
+        stagehand: host.stagehand,
       });
       await host.page.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30_000 });
       await expect(host.page.getByText('Agentic Guest Host')).toBeVisible();
@@ -310,23 +357,38 @@ async function runGuestHostSignedInJoin({
 
     const roomCode = getRoomCode(host.page);
     await runCheck(manifest, 'signed-in player joins room', async () => {
-      await ensureClerkAuthState(joiner.page);
-      await joiner.page.goto(`/join?code=${roomCode}`);
+      await ensureClerkAuthState(joiner.page, baseUrl);
+      await joiner.page.goto(withBaseUrl(baseUrl, `/join?code=${roomCode}`));
+      await joiner.page.locator('input#name').waitFor({
+        state: 'visible',
+        timeout: 30_000,
+      });
       await perform({
         actor: 'signed-in-joiner',
         fallback: async () => {
           await joiner.page.locator('input#name').fill('Agentic Clerk User');
+        },
+        instruction:
+          'Type "Agentic Clerk User" into the name input.',
+        manifest,
+        page: joiner.page,
+        stagehand: joiner.stagehand,
+      });
+      await perform({
+        actor: 'signed-in-joiner',
+        fallback: async () => {
           await joiner.page
             .getByRole('button', { name: /Enter Room/i })
             .click();
         },
-        instruction:
-          'Fill the join pen name field with "Agentic Clerk User" and enter the room.',
+        instruction: 'Click the "Enter Room" button.',
         manifest,
         page: joiner.page,
-        stagehand,
+        stagehand: joiner.stagehand,
       });
-      await joiner.page.waitForURL(`/room/${roomCode}`, { timeout: 30_000 });
+      await joiner.page.waitForURL(new RegExp(`/room/${roomCode}$`), {
+        timeout: 30_000,
+      });
       await expect(host.page.getByText('Agentic Clerk User')).toBeVisible({
         timeout: 15_000,
       });
@@ -336,37 +398,53 @@ async function runGuestHostSignedInJoin({
     await observe(manifest, host.page, 'guest-host', 'post-join lobby');
     await observe(manifest, joiner.page, 'signed-in-joiner', 'joined lobby');
   } finally {
-    await Promise.allSettled([host.context.close(), joiner.context.close()]);
+    await Promise.allSettled([
+      host.browser.close(),
+      host.stagehand?.close(),
+      joiner.browser.close(),
+      joiner.stagehand?.close(),
+    ]);
   }
 }
 
 async function runSignedInHostGuestJoin({
   baseUrl,
-  browser,
   manifest,
   outDir,
-  stagehand,
 }) {
-  const host = await createContextPage(browser, baseUrl);
-  const guest = await createContextPage(browser, baseUrl);
+  const host = await createContextPage(baseUrl);
+  const guest = await createContextPage(baseUrl);
   attachRuntimeErrorLogging(host.page, 'signed-in-host', manifest);
   attachRuntimeErrorLogging(guest.page, 'guest-joiner', manifest);
 
   try {
     await runCheck(manifest, 'signed-in host creates room', async () => {
-      await ensureClerkAuthState(host.page);
-      await host.page.goto('/host');
+      await ensureClerkAuthState(host.page, baseUrl);
+      await host.page.goto(withBaseUrl(baseUrl, '/host'));
+      await host.page.locator('input#name').waitFor({
+        state: 'visible',
+        timeout: 30_000,
+      });
       await perform({
         actor: 'signed-in-host',
         fallback: async () => {
           await host.page.locator('input#name').fill('Agentic Clerk Host');
-          await host.page.getByRole('button', { name: /Create Room/i }).click();
         },
         instruction:
-          'Fill the host pen name field with "Agentic Clerk Host" and create the room.',
+          'Type "Agentic Clerk Host" into the name input.',
         manifest,
         page: host.page,
-        stagehand,
+        stagehand: host.stagehand,
+      });
+      await perform({
+        actor: 'signed-in-host',
+        fallback: async () => {
+          await host.page.getByRole('button', { name: /Create Room/i }).click();
+        },
+        instruction: 'Click the "Create Room" button.',
+        manifest,
+        page: host.page,
+        stagehand: host.stagehand,
       });
       await host.page.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30_000 });
       await expect(host.page.getByText('Agentic Clerk Host')).toBeVisible();
@@ -375,20 +453,35 @@ async function runSignedInHostGuestJoin({
 
     const roomCode = getRoomCode(host.page);
     await runCheck(manifest, 'guest player joins room', async () => {
-      await guest.page.goto(`/join?code=${roomCode}`);
+      await guest.page.goto(withBaseUrl(baseUrl, `/join?code=${roomCode}`));
+      await guest.page.locator('input#name').waitFor({
+        state: 'visible',
+        timeout: 30_000,
+      });
       await perform({
         actor: 'guest-joiner',
         fallback: async () => {
           await guest.page.locator('input#name').fill('Agentic Guest User');
-          await guest.page.getByRole('button', { name: /Enter Room/i }).click();
         },
         instruction:
-          'Fill the join pen name field with "Agentic Guest User" and enter the room.',
+          'Type "Agentic Guest User" into the name input.',
         manifest,
         page: guest.page,
-        stagehand,
+        stagehand: guest.stagehand,
       });
-      await guest.page.waitForURL(`/room/${roomCode}`, { timeout: 30_000 });
+      await perform({
+        actor: 'guest-joiner',
+        fallback: async () => {
+          await guest.page.getByRole('button', { name: /Enter Room/i }).click();
+        },
+        instruction: 'Click the "Enter Room" button.',
+        manifest,
+        page: guest.page,
+        stagehand: guest.stagehand,
+      });
+      await guest.page.waitForURL(new RegExp(`/room/${roomCode}$`), {
+        timeout: 30_000,
+      });
       await expect(host.page.getByText('Agentic Guest User')).toBeVisible({
         timeout: 15_000,
       });
@@ -398,7 +491,12 @@ async function runSignedInHostGuestJoin({
     await observe(manifest, host.page, 'signed-in-host', 'post-join lobby');
     await observe(manifest, guest.page, 'guest-joiner', 'joined lobby');
   } finally {
-    await Promise.allSettled([host.context.close(), guest.context.close()]);
+    await Promise.allSettled([
+      host.browser.close(),
+      host.stagehand?.close(),
+      guest.browser.close(),
+      guest.stagehand?.close(),
+    ]);
   }
 }
 
@@ -440,30 +538,20 @@ async function main() {
 
   await fs.mkdir(outDir, { recursive: true });
 
-  let browser;
-  let stagehand;
   let runError = null;
 
   try {
-    stagehand = await createStagehand();
-    browser = await chromium.launch({
-      headless: process.env.LINEJAM_AGENTIC_HEADFUL !== '1',
-    });
     await runMission({
       baseUrl,
-      browser,
       manifest,
       mission,
       outDir,
-      stagehand,
     });
     markAgenticManifestFinished(manifest, 'PASS');
   } catch (error) {
     runError = error;
     manifest.runtimeErrors.push(errorMessage(error));
     markAgenticManifestFinished(manifest, 'FAIL');
-  } finally {
-    await Promise.allSettled([browser?.close(), stagehand?.close()]);
   }
 
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);

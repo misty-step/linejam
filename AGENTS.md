@@ -78,6 +78,13 @@ Hosted workflows:
 
 Local Dagger is authoritative. Hosted CI is secondary confirmation.
 
+Adjacent green evidence is not runtime proof. For any newly added or
+materially changed executable path in `scripts/`, `dagger/`, package
+scripts, smoke/canary responders, migrations, or other operator-facing
+entrypoints, name the exact command or artifact that exercised it, or mark
+the path unverified. Do not call a path "tested" or a PR "ready" on helper
+coverage or neighboring lanes alone.
+
 ## Known-Debt Map
 
 | Debt                                               | Pointer                                                                                      | Tracker                                                   |

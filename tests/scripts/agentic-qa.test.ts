@@ -211,13 +211,13 @@ describe('agentic QA Stagehand model environment', () => {
     expect(() =>
       assertStagehandModelEnvironment({
         env: { NODE_ENV: 'test' },
-        model: 'gpt-4.1-mini',
+        model: 'openai/gpt-4.1-mini',
       })
     ).toThrow(/OPENAI_API_KEY/);
     expect(() =>
       assertStagehandModelEnvironment({
         env: { NODE_ENV: 'test', OPENAI_API_KEY: 'sk-test' },
-        model: 'gpt-4.1-mini',
+        model: 'openai/gpt-4.1-mini',
       })
     ).not.toThrow();
   });

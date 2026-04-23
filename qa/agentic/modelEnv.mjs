@@ -1,4 +1,4 @@
-export const DEFAULT_STAGEHAND_MODEL = 'gpt-4.1-mini';
+export const DEFAULT_STAGEHAND_MODEL = 'openai/gpt-4.1-mini';
 
 export const STAGEHAND_PROVIDER_ENV_KEYS = Object.freeze([
   'ANTHROPIC_API_KEY',
