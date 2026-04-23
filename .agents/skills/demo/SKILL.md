@@ -41,7 +41,7 @@ pnpm evidence:guest-flow
 `pnpm evidence:guest-flow` packages the resulting screenshots, WebM, GIF,
 `qa-summary.md`, and `manifest.json`.
 
-Use `--base-url <url>` when you need a deployed target:
+Use the `LINEJAM_BASE_URL` environment variable when you need a deployed target:
 
 ```bash
 LINEJAM_BASE_URL=https://www.linejam.app pnpm evidence:guest-flow
