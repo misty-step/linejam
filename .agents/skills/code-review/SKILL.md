@@ -43,8 +43,7 @@ blockers, loop until clean.
      ErrorBoundary around `useQuery`)
    - `a11y-auditor` (any `.tsx`/`.jsx` in `app/` or `components/`)
 
-   Only agents that exist in `.claude/agents/`
-   may be used: `a11y-auditor`, `a11y-critic`, `a11y-fixer`, `beck`,
+   Only configured agents may be used: `a11y-auditor`, `a11y-critic`, `a11y-fixer`, `beck`,
    `builder`, `carmack`, `critic`, `grug`, `ousterhout`, `planner`. Do not
    invent reviewers.
 

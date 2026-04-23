@@ -250,8 +250,7 @@ When settlement needs screenshots, GIFs, logs, or walkthrough proof:
 
 ## Subagent Dispatch (allowed roster)
 
-Only these agents exist under `~/.claude/agents/` (mirrored from
-`.claude/agents/`):
+Only these configured agents are available:
 
 - `a11y-auditor`, `a11y-critic`, `a11y-fixer` — accessibility triad. Use when
   the diff touches `app/`, `components/`, or any rendered UI.

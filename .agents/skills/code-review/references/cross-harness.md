@@ -26,7 +26,7 @@ gemini -p "Review the changes on this branch against $BASE. Report blocking find
 ```
 
 Headless mode (`-p`), read-only (`--approval-mode plan`). Runs Gemini with its
-own harness context (~/.gemini/GEMINI.md, skills, settings).
+own configured harness context, skills, and settings.
 
 ## Harness Detection
 

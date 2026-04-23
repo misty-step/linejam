@@ -19,7 +19,7 @@ Analyze all Claude Code session history and produce:
 
 ## Data Sources
 
-Session transcripts live at `~/.claude/projects/`. Structure:
+Session transcripts live in the configured harness transcript store. Structure:
 
 - Each project directory contains `.jsonl` files (one per session)
 - `subagents/` subdirectories contain subagent transcripts (skip for top-level analysis)

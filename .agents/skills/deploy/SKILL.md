@@ -26,10 +26,8 @@ on master push). This skill is the operator cockpit for all four.
 You are the executive for a narrow, high-stakes action.
 
 - Keep the go/no-op/abort decision on the lead model. Do not delegate.
-- Delegate artifact validation and log tailing to subagents
-  (`.claude/agents/builder.md` for tool
-  invocation, `.claude/agents/critic.md`
-  for post-deploy sanity).
+- Delegate artifact validation and log tailing to subagents (`builder` for
+  tool invocation, `critic` for post-deploy sanity).
 - **Pre-push gate is non-negotiable.** `pnpm ci:prepush` must be green
   before master push. The lefthook pre-push hook enforces this; never
   bypass with `--no-verify` (repo brief, Invariant #1).
@@ -487,7 +485,5 @@ flyctl releases rollback <version> --app linejam-canary-responder   # responder
 - `docs/adr/0001-hybrid-auth-signed-guest-tokens.md`
   — why `GUEST_TOKEN_SECRET` parity is load-bearing and why Clerk JWT
   template pre-creation matters.
-- `.claude/agents/builder.md` — for
-  delegating CLI invocations.
-- `.claude/agents/critic.md` — for
-  post-deploy sanity on the receipt.
+- `builder` agent — for delegating CLI invocations.
+- `critic` agent — for post-deploy sanity on the receipt.

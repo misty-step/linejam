@@ -72,7 +72,7 @@ expands beyond trusted-user multiplayer poetry).
   and surface to the human.
 - **Reflect mutations close within the cycle.** Backlog state flips
   (`ready` → `_done/`) commit on the shipped branch. Harness edits
-  (`.claude/skills/*`, `AGENTS.md`, `settings.local.json`) land on a
+  (`.agents/skills/*`, `AGENTS.md`, harness settings) land on a
   separate harness branch (e.g. `harness/reflect-<cycle-ulid>`) and
   **never touch `master` in-cycle** — the human promotes them.
 - **State on disk only.** `backlog.d/`, git refs, each leaf's receipt.
@@ -123,9 +123,8 @@ After `/reflect cycle` produces outputs:
    not merge into `master` inside the cycle. Human promotes after
    review.
 3. **Session-signal codification**: if reflect surfaces a recurring
-   user correction, route it to `feedback_*.md` in auto-memory
-   (/Users/phaedrus/.claude/projects/-Users-phaedrus-Development-linejam/memory/),
-   not to code.
+   user correction, route it to the configured session-memory store as
+   `feedback_*.md`, not to code.
 
 ## Gotchas
 

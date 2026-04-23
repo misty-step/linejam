@@ -107,7 +107,7 @@ load-bearing assumption. If you can't articulate how each would fail _differentl
 you have one option wearing costumes.
 
 For non-trivial architectural decisions, fan out to ≥4 voices before converging
-(see `~/.claude/projects/-Users-phaedrus-Development-linejam/memory/feedback_divergence_for_design_decisions.md`):
+(see the configured session-memory `feedback_divergence_for_design_decisions.md`):
 Thinktank + Gemini + Codex + fresh-context subagent. Same-model self-critique is
 theater.
 
@@ -181,7 +181,7 @@ the files whose patterns MUST be followed.
 ### Phase 4: Critique Before Finalizing
 
 For Estimate M or larger, dispatch the bench in parallel before committing. These
-are the only subagents that exist in `.claude/agents/`:
+are the configured subagents:
 
 - **grug** — complexity demon. Targets over-abstraction, unnecessary layers, speculative generality.
 - **ousterhout** — module depth. Targets shallow modules, pass-through layers, interface bloat.

@@ -293,8 +293,7 @@ branch.
 ## Subagent Dispatch
 
 When a cluster has ≥3 advisories or crosses a load-bearing package, delegate
-per-advisory analysis in parallel. Available agents under
-`.claude/agents/`:
+per-advisory analysis in parallel. Available agents:
 
 - `critic` — second-pass review of the upgrade cluster before PR open.
 - `ousterhout` — interface stability review for any infra-tier bump.

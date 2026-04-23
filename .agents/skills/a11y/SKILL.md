@@ -54,9 +54,7 @@ You are the executive orchestrator.
 - Keep severity decisions, scope tradeoffs, and final PASS/FAIL judgment
   on the lead model.
 - Delegate audit, remediation, and critique to separate focused
-  subagents. Named agents: `a11y-auditor`, `a11y-fixer`, `a11y-critic`
-  (references at
-  `.claude/agents/a11y-*.md`).
+  subagents. Named agents: `a11y-auditor`, `a11y-fixer`, `a11y-critic`.
 - Prefer parallel exploration for independent checks (e.g., per-theme
   contrast probes). Keep remediation sequential when fixes interact.
 - Dagger is the gate. Any fix that touches CSS variables, ARIA, or
@@ -80,8 +78,7 @@ full` (all four themes × all game screens).
 
 ### Phase 1: Audit (read-only)
 
-Dispatch the `a11y-auditor` subagent
-(`.claude/agents/a11y-auditor.md`). It
+Dispatch the `a11y-auditor` subagent. It
 scans, it does not fix. When per-theme coverage is the goal, dispatch
 four parallel auditors — one per preset — and synthesize.
 
@@ -191,8 +188,7 @@ Ranked: critical → serious → moderate → minor. Read
 
 ### Phase 2: Remediate (writes code)
 
-Dispatch the `a11y-fixer` subagent
-(`.claude/agents/a11y-fixer.md`) with the
+Dispatch the `a11y-fixer` subagent with the
 audit output. One fixer at a time when fixes interact (same file or
 same token); parallel fixers allowed for independent components.
 
@@ -239,8 +235,7 @@ Read `references/remediate.md` for the full protocol.
 
 ### Phase 3: Critique (read-only, cold review)
 
-Dispatch the `a11y-critic` subagent
-(`.claude/agents/a11y-critic.md`). **No
+Dispatch the `a11y-critic` subagent. **No
 shared context with the implementer.**
 
 - Re-read the git diff without the fixer's explanations.

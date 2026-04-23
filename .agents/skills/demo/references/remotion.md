@@ -30,8 +30,8 @@ projects. Install them for guided video creation:
 npx remotion skills add remotion-dev/skills
 ```
 
-These install to `.claude/skills/` and provide Remotion-specific guidance
-that the agent loads automatically.
+These install to the active harness's skills directory and provide
+Remotion-specific guidance that the agent loads automatically.
 
 ### AI-Ready Docs
 

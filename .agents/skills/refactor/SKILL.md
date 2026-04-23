@@ -114,8 +114,7 @@ Goal: simplify `master...HEAD` before merge.
 
 ### 3. Parallel exploration bench
 
-Launch three subagents in parallel (agents at
-`.claude/agents/`):
+Launch three configured subagents in parallel:
 
 - **grug** (Explore): complexity-demon hunt in the diff. What's thrashing?
   What's easier to delete than to understand?

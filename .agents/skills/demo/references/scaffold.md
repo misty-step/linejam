@@ -46,7 +46,7 @@ Launch these three investigators in parallel as Explore sub-agents.
 > Find and report:
 >
 > - **Browser tools configured:** check `.mcp.json`, `mcp.json`,
->   `.claude/settings.json` for Chrome MCP, Playwright, Stagehand
+>   and harness settings for Chrome MCP, Playwright, Stagehand
 > - **Recording tools available:** check for ffmpeg, asciinema, VHS (charm),
 >   Playwright video support, Remotion
 > - **Existing demo artifacts:** any GIFs, screenshots, demo dirs, videos?
@@ -106,7 +106,7 @@ Recommend based on project context:
 
 ## Generated Skill Template
 
-The Deliver phase writes these files to `.claude/skills/demo/` in the target project.
+The Deliver phase writes these files to `.agents/skills/demo/` in the target project.
 
 ### SKILL.md Structure
 
@@ -216,4 +216,4 @@ Before declaring the scaffold complete, verify:
 - [ ] Gotchas section has project-specific failure modes
 - [ ] Total SKILL.md is under 500 lines
 - [ ] No generic placeholders remain ("TODO", "[fill in]", "your-app")
-- [ ] Files are written to `.claude/skills/demo/` (not global skills/)
+- [ ] Files are written to `.agents/skills/demo/` (not global skills/)

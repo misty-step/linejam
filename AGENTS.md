@@ -94,6 +94,10 @@ Cerberus is out. Do not resurrect it.
 
 ### Skills (`.agents/skills/`, bridged into `.claude/skills/`, `.codex/skills/`, `.pi/skills/`)
 
+The bridge uses version-controlled symlinks. Checkouts must preserve symlinks;
+if a platform materializes them as plain files, rerun Spellbook tailor before
+expecting Claude, Codex, or Pi to load the shared skills.
+
 **Universal — verbatim from spellbook:**
 
 | Skill              | What it does here                                                                                     |

@@ -107,7 +107,7 @@ not the full user-facing slash command.
 
 ## Runtime Notes
 
-- Pi extension entrypoint: `~/.pi/agent/extensions/web-search/` (loaded via settings.json)
+- Pi extension entrypoint: the configured Pi extensions directory loaded via `settings.json`
 - Cache: `cache/web-search-cache.json` (TTL via `WEB_SEARCH_TTL_MS`)
 - Logs: `logs/web-search.ndjson` (size-rotated)
 - `PI_WEB_SEARCH_LOG_MAX_BYTES` / `PI_WEB_SEARCH_LOG_MAX_BACKUPS` / `PI_WEB_SEARCH_LOG_ROTATE_CHECK_MS`

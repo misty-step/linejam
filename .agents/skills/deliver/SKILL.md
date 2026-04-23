@@ -139,7 +139,7 @@ handing to `/implement`. Plausible ≠ correct.
 
 ## Implement Phase
 
-Dispatch the **builder** agent (`.claude/agents/builder.md`).
+Dispatch the **builder** agent from the configured agent roster.
 TDD default: red → green → refactor. Skip only for UI layout, generated
 code, or pure config.
 
@@ -169,9 +169,7 @@ Dispatch parallel bench review:
 - For a11y-adjacent surfaces: `a11y-critic` + `a11y-auditor` in
   parallel; `a11y-fixer` on blocking findings
 
-All agents live under
-`.claude/agents/`. Use those personas
-only; don't invent new ones.
+Use only the configured agent personas; don't invent new ones.
 
 A review with no verdict is dirty. `blocking` findings loop;
 `nit`/`consider`/`suggestion` do not.
@@ -368,6 +366,6 @@ Built` + `## Verification` appended and moves to `backlog.d/_done/`.
   `/refactor`, `/qa`, `/settle`, `/land`, `/reflect`.
 - Backlog source: `backlog.d/NNN-kebab.md` (exemplar:
   `backlog.d/_done/001-harden-guest-first-room-flow.md`).
-- Subagents (from `.claude/agents/`):
+- Subagents:
   `planner`, `builder`, `critic`, `ousterhout`, `carmack`, `grug`,
   `beck`, `a11y-auditor`, `a11y-critic`, `a11y-fixer`.

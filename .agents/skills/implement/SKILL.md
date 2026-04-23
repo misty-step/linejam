@@ -167,8 +167,7 @@ then escalate.
 
 ## Dispatch
 
-Spawn a **builder** sub-agent (from `~/Development/spellbook/agents/builder.md`,
-general-purpose type) with:
+Spawn a **builder** sub-agent from the configured agent roster with:
 
 - The full context packet
 - The executable oracle
@@ -186,8 +185,8 @@ general-purpose type) with:
 > Run `pnpm test --run <path>` after each cycle. Run `pnpm typecheck` before
 > commit. Do not run `convex dev` or `pnpm dev` — ask if types drift.
 
-For extra TDD rigor on contentious behaviors, consult
-`~/Development/spellbook/agents/beck.md` (the canonical TDD voice).
+For extra TDD rigor on contentious behaviors, consult the **beck** agent
+(the canonical TDD voice).
 
 See `references/tdd-loop.md` for the full cycle and skip rules.
 

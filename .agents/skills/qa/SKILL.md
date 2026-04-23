@@ -203,7 +203,7 @@ Only after all five are verified green should you treat the spec as flaky.
 
 ## Subagent Delegation
 
-From `.claude/agents/` — no others.
+Use only these configured agents:
 
 - **`a11y-auditor`** — scenario 7 (help modal) or any broader a11y pass.
   Pair with `a11y-critic` for signoff, `a11y-fixer` for patches.

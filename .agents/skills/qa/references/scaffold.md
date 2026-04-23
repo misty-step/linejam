@@ -51,7 +51,7 @@ Launch these three investigators in parallel as Explore sub-agents.
 > - **Existing test infrastructure:** unit tests, E2E, integration? Frameworks?
 > - **Existing QA artifacts:** any QA skills, test plans, or checklists?
 > - **Browser tools configured:** check `.mcp.json`, `mcp.json`,
->   `.claude/settings.json` for Playwright, Chrome MCP, agent-browser, Stagehand
+>   and harness settings for Playwright, Chrome MCP, agent-browser, Stagehand
 > - **CI/CD:** what checks run on PR? (GitHub Actions, Dagger, etc.)
 >
 > Return structured findings. No prose — facts only.
@@ -125,7 +125,7 @@ Recommend based on app type:
 
 ## Generated Skill Template
 
-The Deliver phase writes these files to `.claude/skills/qa/` in the target project.
+The Deliver phase writes these files to `.agents/skills/qa/` in the target project.
 
 ### SKILL.md Structure
 
@@ -227,4 +227,4 @@ Before declaring the scaffold complete, verify:
 - [ ] Gotchas section has project-specific failure modes
 - [ ] Total SKILL.md is under 500 lines
 - [ ] No generic placeholders remain ("TODO", "[fill in]", "your-app")
-- [ ] Files are written to `.claude/skills/qa/` (not global skills/)
+- [ ] Files are written to `.agents/skills/qa/` (not global skills/)
