@@ -3,6 +3,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  rm,
   stat,
   unlink,
   writeFile,
@@ -10,8 +11,11 @@ import {
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-const ROOT_DIR = path.resolve(process.env.LINEJAM_CANARY_STORE_DIR || '.canary');
+const ROOT_DIR = path.resolve(
+  process.env.LINEJAM_CANARY_STORE_DIR || '.canary'
+);
 const PRUNABLE_SUBDIRECTORIES = [
+  'agentic',
   'contexts',
   'deliveries',
   'fingerprints',
@@ -21,6 +25,14 @@ const PRUNABLE_SUBDIRECTORIES = [
 
 function sanitizeSegment(value) {
   return value.replace(/[^a-zA-Z0-9._-]/g, '-');
+}
+
+export function agenticArtifactDir(
+  deliveryId,
+  storeDir = process.env.LINEJAM_CANARY_STORE_DIR || '.canary'
+) {
+  const normalizedDeliveryId = sanitizeSegment(String(deliveryId || 'manual'));
+  return path.join(storeDir, 'agentic', normalizedDeliveryId);
 }
 
 async function ensureSubdirectory(name) {
@@ -95,7 +107,8 @@ export async function listPendingSmokeDeliveries() {
           ? payload.service
           : 'unknown',
       sequence:
-        typeof payload.sequence === 'number' && Number.isFinite(payload.sequence)
+        typeof payload.sequence === 'number' &&
+        Number.isFinite(payload.sequence)
           ? payload.sequence
           : 0,
       deliveryRecord: payload,
@@ -189,12 +202,17 @@ export async function pruneExpiredArtifacts({
         continue;
       }
 
-      if (!metadata.isFile() || metadata.mtimeMs >= cutoffTimestamp) {
+      if (metadata.mtimeMs >= cutoffTimestamp) {
         continue;
       }
 
-      await unlink(file);
-      deletedFiles.push(file);
+      if (metadata.isDirectory()) {
+        await rm(file, { recursive: true, force: true });
+        deletedFiles.push(file);
+      } else if (metadata.isFile()) {
+        await unlink(file);
+        deletedFiles.push(file);
+      }
     }
   }
 

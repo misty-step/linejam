@@ -71,13 +71,18 @@ function runDaggerCall(
   command: string,
   env: Record<string, string> = {}
 ) {
+  const baseEnv = { ...process.env };
+  delete baseEnv.NODE_CHANNEL_FD;
+  delete baseEnv.NODE_CHANNEL_SERIALIZATION_MODE;
+  delete baseEnv.NODE_UNIQUE_ID;
+
   return spawnSync(
     'bash',
     ['--noprofile', '--norc', '-lc', `scripts/ci/dagger-call.sh ${command}`],
     {
       cwd: workspace,
       env: {
-        ...process.env,
+        ...baseEnv,
         ...env,
         PATH: `${binDir}:${process.env.PATH ?? ''}`,
       },
@@ -199,6 +204,114 @@ exit 1
     expect(result.stderr).toContain(
       'Dagger transport cleanup failed after format-check completed successfully; treating the run as passed.'
     );
+  });
+
+  it('passes advisory agentic QA preview args without requiring Canary browser config', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const argsLog = join(workspace, 'dagger-args.log');
+
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      [
+        'PLAYWRIGHT_BASE_URL=https://preview.linejam.app',
+        'LINEJAM_AGENTIC_MISSION=guest-host-signed-in-join',
+      ].join('\n')
+    );
+    writeExecutable(
+      join(binDir, 'dagger'),
+      `#!/bin/sh
+printf '%s\n' "$@" > "${argsLog}"
+`
+    );
+
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'agentic-qa-preview');
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+
+    const args = readFileSync(argsLog, 'utf8').trim().split('\n');
+    expect(args).toContain('call');
+    expect(args).toContain('agentic-qa-preview');
+    expect(args).toContain('--base-url=https://preview.linejam.app');
+    expect(args).toContain('--mission=guest-host-signed-in-join');
+  });
+
+  it('runs advisory agentic QA fixture mode without a base URL', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const argsLog = join(workspace, 'dagger-args.log');
+
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      [
+        'LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST=1',
+        'LINEJAM_AGENTIC_MISSION=guest-host-signed-in-join',
+      ].join('\n')
+    );
+    writeExecutable(
+      join(binDir, 'dagger'),
+      `#!/bin/sh
+printf '%s\n' "$@" > "${argsLog}"
+`
+    );
+
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'agentic-qa');
+
+    expect(result.status).toBe(0);
+    const args = readFileSync(argsLog, 'utf8').trim().split('\n');
+    expect(args).toContain('agentic-qa');
+    expect(args.some((arg) => arg.startsWith('--base-url='))).toBe(false);
+    expect(args.some((arg) => arg.startsWith('--mission='))).toBe(false);
+  });
+
+  it('rejects untrusted advisory agentic QA preview origins before invoking dagger', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const invokeLog = join(workspace, 'dagger-invoked.log');
+
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      [
+        'LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST=1',
+        'PLAYWRIGHT_BASE_URL=https://evil.example',
+      ].join('\n')
+    );
+    writeExecutable(
+      join(binDir, 'dagger'),
+      `#!/bin/sh
+printf 'called' > "${invokeLog}"
+`
+    );
+
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'agentic-qa-preview');
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Refusing to run smoke against untrusted origin https://evil.example.'
+    );
+    expect(existsSync(invokeLog)).toBe(false);
   });
 
   it('rejects untrusted smoke origins before invoking dagger', () => {

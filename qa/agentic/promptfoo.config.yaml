@@ -1,0 +1,23 @@
+description: Linejam agentic QA critic advisory rubric
+prompts:
+  - |
+    You are the separate Linejam QA critic. Grade this agentic browser mission
+    artifact bundle as JSON with keys verdict, score, and blockingReasons.
+
+    Pass only when the mission reached the intended room state, contains no
+    generic error UI, includes required screenshots, and has no captured runtime
+    browser errors.
+
+    Manifest:
+    {{manifest}}
+providers:
+  - openai:gpt-4.1-mini
+tests:
+  - vars:
+      manifest: '{{manifest}}'
+    assert:
+      - type: javascript
+        value: |
+          const normalized = String(output).toLowerCase();
+          return normalized.includes('verdict') &&
+            (normalized.includes('pass') || normalized.includes('fail'));

@@ -57,6 +57,11 @@ describe('runSmoke', () => {
     'CLERK_PUBLISHABLE_KEY',
     'CLERK_SECRET_KEY',
     'CANARY_API_KEY',
+    'LINEJAM_AGENTIC_MISSION',
+    'LINEJAM_AGENTIC_MODE',
+    'LINEJAM_AGENTIC_OUT_DIR',
+    'LINEJAM_STAGEHAND_MODEL',
+    'OPENAI_API_KEY',
   ] as const;
   const originalEnv = Object.fromEntries(
     trackedEnvKeys.map((key) => [key, process.env[key]])
@@ -158,6 +163,45 @@ describe('runSmoke', () => {
       })
     );
     expect(result.runner).toBe('playwright');
+  });
+
+  it('can run smoke with the agentic runner for Canary evidence handoff', async () => {
+    const child = createMockChild(0);
+    const spawnMock = vi.fn().mockReturnValue(child);
+    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    process.env.LINEJAM_AGENTIC_MISSION = 'guest-host-signed-in-join';
+    process.env.LINEJAM_AGENTIC_MODE = 'deterministic';
+    process.env.OPENAI_API_KEY = 'stagehand-key';
+    process.env.CLERK_PUBLISHABLE_KEY = 'pk_test_agentic';
+
+    const pending = runSmoke({
+      baseUrl: 'https://www.linejam.app',
+      eventName: 'error.new_class',
+      deliveryId: 'evt-agentic',
+      runner: 'agentic',
+      spawnProcess: spawnMock,
+      timeoutMs: 1000,
+    });
+    await Promise.resolve();
+    child.emit('close', child.exitCode);
+    const result = await pending;
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'pnpm',
+      ['qa:agentic:preview'],
+      expect.objectContaining({
+        cwd: REPO_ROOT,
+        env: expect.objectContaining({
+          LINEJAM_AGENTIC_MISSION: 'guest-host-signed-in-join',
+          LINEJAM_AGENTIC_MODE: 'deterministic',
+          LINEJAM_AGENTIC_OUT_DIR: '.canary/agentic/evt-agentic',
+          CLERK_PUBLISHABLE_KEY: 'pk_test_agentic',
+          OPENAI_API_KEY: 'stagehand-key',
+          PLAYWRIGHT_BASE_URL: 'https://www.linejam.app',
+        }),
+      })
+    );
+    expect(result.runner).toBe('agentic');
   });
 
   it('returns failed execution result when smoke exits non-zero', async () => {
@@ -319,6 +363,7 @@ describe('runSmoke', () => {
 
   it('forwards only the smoke allowlist into the child environment', async () => {
     process.env.UNRELATED_SECRET = 'should-not-leak';
+    process.env.OPENAI_API_KEY = 'stagehand-only-secret';
     process.env.CLERK_SECRET_KEY = 'clerk-secret';
     process.env.LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST = '1';
     process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS = 'https://www.linejam.app';
@@ -357,6 +402,7 @@ describe('runSmoke', () => {
 
     const options = spawnMock.mock.calls[0]?.[2];
     expect(options.env.UNRELATED_SECRET).toBeUndefined();
+    expect(options.env.OPENAI_API_KEY).toBeUndefined();
   });
 
   it('fails fast when LINEJAM_SMOKE_RUNNER is invalid', async () => {
@@ -369,12 +415,12 @@ describe('runSmoke', () => {
       runner: 'bogus',
     });
 
-    expect(result).toMatchObject({
-      ok: false,
-      skipped: false,
-      reason:
-        'Unsupported LINEJAM_SMOKE_RUNNER: bogus. Expected one of dagger, playwright',
-    });
+    expect(result.ok).toBe(false);
+    expect(result.skipped).toBe(false);
+    expect(result.reason).toContain('Unsupported LINEJAM_SMOKE_RUNNER: bogus.');
+    expect(result.reason).toContain('agentic');
+    expect(result.reason).toContain('dagger');
+    expect(result.reason).toContain('playwright');
   });
 
   it('fails fast when smoke allowlisting rejects the base url', async () => {

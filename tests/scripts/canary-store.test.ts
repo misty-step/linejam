@@ -1,5 +1,5 @@
 /** @vitest-environment node */
-import { mkdtemp, readFile, rm, utimes } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -99,6 +99,19 @@ describe('canary store helpers', () => {
     expect(await readFile(summaryPath, 'utf8')).toBe('# Summary');
   });
 
+  it('builds agentic artifact paths from the configured store root', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'linejam-canary-store-'));
+    tempDirs.push(dir);
+    const store = await loadStoreModule(dir);
+
+    expect(store.agenticArtifactDir('evt:abc/123')).toBe(
+      path.join(dir, 'agentic', 'evt-abc-123')
+    );
+    expect(store.agenticArtifactDir('')).toBe(
+      path.join(dir, 'agentic', 'manual')
+    );
+  });
+
   it('persists fingerprints and reports existence', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'linejam-canary-store-'));
     tempDirs.push(dir);
@@ -156,5 +169,46 @@ describe('canary store helpers', () => {
     expect(result.deletedFiles).toEqual([staleDelivery]);
     await expect(readFile(staleDelivery, 'utf8')).rejects.toThrow();
     await expect(readFile(freshSummary, 'utf8')).resolves.toBe('# Fresh');
+  });
+
+  it('prunes stale agentic run directories after the retention window', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'linejam-canary-store-'));
+    tempDirs.push(dir);
+    const store = await loadStoreModule(dir);
+    const staleRun = path.join(dir, 'agentic', 'evt-old');
+    const freshRun = path.join(dir, 'agentic', 'evt-fresh');
+
+    await mkdir(staleRun, { recursive: true });
+    await mkdir(freshRun, { recursive: true });
+    const staleManifest = await store.persistJson(
+      'agentic/evt-old',
+      'manifest',
+      {
+        stale: true,
+      }
+    );
+    const freshManifest = await store.persistJson(
+      'agentic/evt-fresh',
+      'manifest',
+      {
+        stale: false,
+      }
+    );
+
+    const staleDate = new Date('2024-01-01T00:00:00.000Z');
+    const freshDate = new Date('2026-04-08T00:00:00.000Z');
+    await utimes(staleRun, staleDate, staleDate);
+    await utimes(freshRun, freshDate, freshDate);
+
+    const result = await store.pruneExpiredArtifacts({
+      now: new Date('2026-04-08T00:00:00.000Z').getTime(),
+      retentionDays: 30,
+    });
+
+    expect(result.deletedFiles).toEqual([staleRun]);
+    await expect(readFile(staleManifest, 'utf8')).rejects.toThrow();
+    await expect(readFile(freshManifest, 'utf8')).resolves.toContain(
+      '"stale": false'
+    );
   });
 });

@@ -9,6 +9,8 @@ CONVEX_DEV_URL=""
 CONVEX_PROD_URL=""
 
 case "$FUNCTION_NAME" in
+  agentic-qa) FUNCTION_NAME="agentic-qa" ;;
+  agentic-qa-preview) FUNCTION_NAME="agentic-qa-preview" ;;
   all-no-e2e) FUNCTION_NAME="all-no-e-2-e" ;;
   e2e) FUNCTION_NAME="e-2-e" ;;
 esac
@@ -35,7 +37,7 @@ create_source_snapshot() {
 	local snapshot_dir
 	snapshot_dir="$(mktemp -d "${TMPDIR:-/tmp}/linejam-dagger-src.XXXXXX")"
 
-	git ls-files --cached --others --exclude-standard -z | \
+	git -c core.fsmonitor=false ls-files --cached --others --exclude-standard -z | \
 		while IFS= read -r -d '' path; do
 			[[ -e "$path" ]] || continue
 			printf '%s\0' "$path"
@@ -502,8 +504,11 @@ if function_requires_canary_browser_config; then
 	ensure_canary_browser_config
 fi
 
-if [[ "$FUNCTION_NAME" == "smoke" ]]; then
+if [[ "$FUNCTION_NAME" == "smoke" || "$FUNCTION_NAME" == "agentic-qa-preview" ]]; then
 	validate_smoke_base_url
+fi
+
+if [[ "$FUNCTION_NAME" == "smoke" ]]; then
 	validate_smoke_auth_configuration
 fi
 
@@ -544,7 +549,7 @@ append_app_env() {
 }
 
 case "$FUNCTION_NAME" in
-  all|all-no-e-2-e|base|build-check|e-2-e|format-check|lint|smoke|typecheck|unit-test)
+  agentic-qa|agentic-qa-preview|all|all-no-e-2-e|base|build-check|e-2-e|format-check|lint|smoke|typecheck|unit-test)
     append_app_env
     ;;
 esac
@@ -558,8 +563,15 @@ if [[ "$FUNCTION_NAME" == "smoke" ]]; then
 	append_arg "--playwright-require-auth-smoke" "${PLAYWRIGHT_REQUIRE_AUTH_SMOKE:-}"
 fi
 
+if [[ "$FUNCTION_NAME" == "agentic-qa-preview" ]]; then
+	append_arg "--base-url" "${PLAYWRIGHT_BASE_URL:-}"
+	append_arg "--mission" "${LINEJAM_AGENTIC_MISSION:-}"
+fi
+
 dagger_success_marker() {
 	case "$FUNCTION_NAME" in
+		agentic-qa) printf '%s' 'Ci.agenticQa DONE' ;;
+		agentic-qa-preview) printf '%s' 'Ci.agenticQaPreview DONE' ;;
 		all) printf '%s' 'Ci.all DONE' ;;
 		all-no-e-2-e) printf '%s' 'Ci.allNoE2e DONE' ;;
 		build-check) printf '%s' 'Ci.buildCheck DONE' ;;

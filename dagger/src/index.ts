@@ -445,6 +445,90 @@ export class Ci {
   }
 
   @func()
+  async agenticQa(
+    source: Directory,
+    nextPublicConvexUrl?: string,
+    nextPublicClerkPublishableKey?: string,
+    clerkSecretKey?: Secret,
+    clerkJwtIssuerDomain?: string,
+    playwrightClerkTestEmail?: string,
+    guestTokenSecret?: Secret,
+    canaryEndpoint?: string,
+    canaryApiKey?: Secret,
+    nextPublicCanaryEndpoint?: string,
+    nextPublicCanaryApiKey?: string
+  ): Promise<string> {
+    return baseContainer(
+      source,
+      {
+        nextPublicConvexUrl,
+        nextPublicClerkPublishableKey,
+        clerkSecretKey,
+        clerkJwtIssuerDomain,
+        playwrightClerkTestEmail,
+        guestTokenSecret,
+        canaryEndpoint,
+        canaryApiKey,
+        nextPublicCanaryEndpoint,
+        nextPublicCanaryApiKey,
+      },
+      PLAYWRIGHT_IMAGE,
+      'linejam-pnpm-playwright'
+    )
+      .withExec(['pnpm', 'qa:agentic:critic:fixtures'])
+      .stdout();
+  }
+
+  @func()
+  async agenticQaPreview(
+    source: Directory,
+    baseUrl: string,
+    mission?: string,
+    nextPublicConvexUrl?: string,
+    nextPublicClerkPublishableKey?: string,
+    clerkSecretKey?: Secret,
+    clerkJwtIssuerDomain?: string,
+    playwrightClerkTestEmail?: string,
+    guestTokenSecret?: Secret,
+    canaryEndpoint?: string,
+    canaryApiKey?: Secret,
+    nextPublicCanaryEndpoint?: string,
+    nextPublicCanaryApiKey?: string
+  ): Promise<string> {
+    return withOptionalEnv(
+      withOptionalEnv(
+        withOptionalEnv(
+          baseContainer(
+            source,
+            {
+              nextPublicConvexUrl,
+              nextPublicClerkPublishableKey,
+              clerkSecretKey,
+              clerkJwtIssuerDomain,
+              playwrightClerkTestEmail,
+              guestTokenSecret,
+              canaryEndpoint,
+              canaryApiKey,
+              nextPublicCanaryEndpoint,
+              nextPublicCanaryApiKey,
+            },
+            PLAYWRIGHT_IMAGE,
+            'linejam-pnpm-playwright'
+          ),
+          'PLAYWRIGHT_BASE_URL',
+          baseUrl
+        ),
+        'LINEJAM_AGENTIC_MISSION',
+        mission
+      ),
+      'LINEJAM_AGENTIC_MODE',
+      'deterministic'
+    )
+      .withExec(['pnpm', 'qa:agentic:preview'])
+      .stdout();
+  }
+
+  @func()
   async allNoE2e(
     source: Directory,
     nextPublicConvexUrl?: string,

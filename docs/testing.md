@@ -14,6 +14,10 @@ pnpm test:e2e:smoke # Remote preview/prod smoke
 pnpm test:e2e:evidence # Run the tagged evidence capture spec
 pnpm test:e2e:ui   # Playwright UI mode
 pnpm evidence:guest-flow # Package screenshots, video, GIF, and summary
+pnpm qa:agentic:local --mission guest-host-signed-in-join
+pnpm qa:agentic:preview --mission signed-in-host-guest-join --base-url https://<preview-url>
+pnpm ci:dagger:agentic-qa # Advisory critic fixtures; not part of ci:prepush
+pnpm ci:dagger:agentic-qa-preview # Advisory preview run when PLAYWRIGHT_BASE_URL is set
 ```
 
 ## Test Structure
@@ -218,6 +222,51 @@ pnpm evidence:guest-flow
 - `pnpm test:e2e` excludes the `@evidence` suite so merge-gating stays deterministic.
 - `pnpm evidence:guest-flow` runs the canonical guest flow, then writes screenshots, `guest-flow.webm`, `guest-flow.gif`, `qa-summary.md`, and `manifest.json`.
 - When local Convex/Clerk wiring is unavailable, point the evidence run at a deployed target with `LINEJAM_BASE_URL=https://www.linejam.app`.
+
+### Agentic QA
+
+The advisory agentic lane runs named browser missions and writes a stable
+artifact bundle for follow-on critique. It does not replace `pnpm ci:prepush`
+and is not merge-gating yet.
+
+```bash
+pnpm qa:agentic:local --mission guest-host-signed-in-join
+pnpm qa:agentic:local --mission signed-in-host-guest-join
+pnpm qa:agentic:preview --mission guest-host-signed-in-join --base-url https://<preview-url>
+pnpm qa:agentic:critic:fixtures
+```
+
+Artifacts land in `.qa/runs/<run-id>/` by default:
+
+- `manifest.json` with mission metadata, checks, observations, runtime errors, screenshots, and transcript
+- `critic-result.json` with the deterministic separate-critic verdict
+- `critic-summary.md` for human review
+- mission screenshots referenced by `manifest.json`
+
+`guest-host-signed-in-join` and `signed-in-host-guest-join` both require Clerk
+browser auth: set `CLERK_SECRET_KEY` plus either
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` or `CLERK_PUBLISHABLE_KEY`. Live Clerk
+tenants still fail closed on smoke-user auto-provisioning; set
+`PLAYWRIGHT_CLERK_TEST_EMAIL` to a precreated live smoke account.
+
+Stagehand drives page actions by default. Set `OPENAI_API_KEY` or another
+Stagehand-supported provider key before running the browser mission, and use
+`LINEJAM_STAGEHAND_MODEL` to override the default model. For harness debugging
+only, `LINEJAM_AGENTIC_MODE=deterministic` skips Stagehand actions while keeping
+the same manifest and critic contract.
+
+Promptfoo is advisory on top of the deterministic critic:
+
+```bash
+pnpm qa:agentic:promptfoo --var manifest="$(cat .qa/runs/<run-id>/manifest.json)"
+```
+
+The default Dagger advisory lane only runs `pnpm qa:agentic:critic:fixtures`.
+`pnpm ci:dagger:agentic-qa-preview` is the explicit preview lane; it preserves
+the smoke URL allowlist guardrails and sets
+`LINEJAM_AGENTIC_MODE=deterministic` inside Dagger so the lane is runnable
+without LLM provider secrets. Use `pnpm qa:agentic:preview` directly when you
+want Stagehand-backed actions.
 
 ## Coverage
 

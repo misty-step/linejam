@@ -29,8 +29,14 @@
     "test:e2e:smoke": "playwright test --config=playwright.smoke.config.ts",
     "test:e2e:evidence": "playwright test tests/e2e/guest-flow.evidence.spec.ts --project=chromium --workers=1 --retries=0 --reporter=line",
     "test:e2e:ui": "playwright test --ui --grep-invert @evidence",
+    "qa:agentic:local": "node scripts/qa/agentic-runner.mjs --target local",
+    "qa:agentic:preview": "node scripts/qa/agentic-runner.mjs --target preview",
+    "qa:agentic:critic:fixtures": "node scripts/qa/agentic-critic-fixtures.mjs",
+    "qa:agentic:promptfoo": "pnpm dlx promptfoo@0.121.7 eval -c qa/agentic/promptfoo.config.yaml",
     "ci:dagger:all": "./scripts/ci/dagger-call.sh all",
     "ci:dagger:all-no-e2e": "./scripts/ci/dagger-call.sh all-no-e2e",
+    "ci:dagger:agentic-qa": "./scripts/ci/dagger-call.sh agentic-qa",
+    "ci:dagger:agentic-qa-preview": "./scripts/ci/dagger-call.sh agentic-qa-preview",
     "ci:dagger:audit": "./scripts/ci/dagger-call.sh audit",
     "ci:dagger:build-check": "./scripts/ci/dagger-call.sh build-check",
     "ci:dagger:e2e": "./scripts/ci/dagger-call.sh e2e",
@@ -65,6 +71,7 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@browserbasehq/stagehand": "3.2.1",
     "@clerk/backend": "^3.2.13",
     "@clerk/testing": "^2.0.17",
     "@commitlint/cli": "^20.5.0",

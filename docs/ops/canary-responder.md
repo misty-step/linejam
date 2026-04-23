@@ -25,7 +25,11 @@ Optional:
 - `CANARY_SMOKE_MAX_IN_FLIGHT` defaults to `2`
 - `CANARY_SMOKE_MAX_PENDING` defaults to `20`
 - `CANARY_SMOKE_TIMEOUT_MS` defaults to `600000`
-- `LINEJAM_SMOKE_RUNNER=dagger|playwright` defaults to `dagger`; use `playwright` for hosted responders so the worker can execute the smoke suite without embedding Dagger
+- `LINEJAM_SMOKE_RUNNER=dagger|playwright|agentic` defaults to `dagger`; use `playwright` for hosted responders so the worker can execute the smoke suite without embedding Dagger, or `agentic` when Canary should attach an agentic QA artifact bundle
+- `LINEJAM_AGENTIC_MISSION` selects the agentic mission when `LINEJAM_SMOKE_RUNNER=agentic`
+- `LINEJAM_AGENTIC_OUT_DIR` can pin the artifact directory; otherwise Canary agentic runs write under `.canary/agentic/<delivery-id>`
+- `LINEJAM_AGENTIC_MODE=deterministic` skips Stagehand actions for harness debugging only
+- `LINEJAM_STAGEHAND_MODEL` selects the Stagehand model
 - `LINEJAM_CANARY_CONTEXT_TIMEOUT_MS` defaults to `5000`
 - `LINEJAM_CANARY_RETENTION_DAYS` defaults to `14`
 - `LINEJAM_CANARY_PRUNE_INTERVAL_MS` defaults to `3600000`
@@ -80,10 +84,21 @@ For the shared automation event set, the responder triggers:
 ```bash
 pnpm ci:dagger:smoke   # local authoritative contract
 pnpm test:e2e:smoke    # hosted responders with LINEJAM_SMOKE_RUNNER=playwright
+pnpm qa:agentic:preview # artifact bundle with LINEJAM_SMOKE_RUNNER=agentic
 ```
 
 This uses `PLAYWRIGHT_BASE_URL` plus the dedicated `playwright.smoke.config.ts` configuration. When `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` are set, the smoke suite also exercises a signed-in Clerk join path; `PLAYWRIGHT_CLERK_TEST_EMAIL` only overrides the default smoke user, and live Clerk tenants should point it at a precreated account. Set `PLAYWRIGHT_REQUIRE_AUTH_SMOKE=1` anywhere auth coverage is mandatory, including preview and production smoke jobs.
 
 Local operators should keep the authoritative Dagger contract by leaving `LINEJAM_SMOKE_RUNNER=dagger`. Hosted responders should switch to `LINEJAM_SMOKE_RUNNER=playwright`; the same smoke suite runs directly with Playwright and avoids trying to embed Dagger inside the webhook worker. Hosted smoke still enforces the URL allowlist, rejects `pk_test_...` and `sk_test_...` keys against `https://www.linejam.app`, requires complete Clerk auth env when auth smoke is enabled, and validates the Clerk `convex` JWT template before it launches the browser. The committed Fly deployment files are [`Dockerfile.responder`](../../Dockerfile.responder) and [`fly.responder.toml`](../../fly.responder.toml).
+
+Use `LINEJAM_SMOKE_RUNNER=agentic` when the follow-up should produce the
+agentic QA bundle instead of only deterministic smoke output. This mode still
+receives `PLAYWRIGHT_BASE_URL` from the responder, writes `manifest.json`,
+screenshots, `critic-result.json`, and `critic-summary.md`, and returns non-zero
+when the separate critic finds generic error UI, missing required screenshots,
+failed checks, or runtime browser errors. Unless `LINEJAM_AGENTIC_OUT_DIR` is
+set explicitly, artifacts land under `.canary/agentic/<delivery-id>` and are
+pruned with the responder retention window. Keep this mode advisory until its
+false-positive rate is known.
 
 Canary itself treats generic signed webhooks as the stable product contract, so the responder should stay thin: verify, fetch context, store evidence, trigger the smoke harness, then hand off to follow-on agents.

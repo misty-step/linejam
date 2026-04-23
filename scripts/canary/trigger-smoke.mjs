@@ -2,7 +2,9 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isCanaryAutomationEvent } from './events.mjs';
 import { getSmokeClerkKeyError } from './smoke-auth.mjs';
+import { agenticArtifactDir } from './store.mjs';
 import { ensureClerkConvexTemplate } from '../ci/ensure-clerk-convex-template.mjs';
+import { AGENTIC_SMOKE_ENV_KEYS } from '../../qa/agentic/modelEnv.mjs';
 
 const DEFAULT_SMOKE_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_SMOKE_KILL_GRACE_MS = 5_000;
@@ -13,6 +15,7 @@ const SMOKE_ENV_KEYS = [
   'CANARY_ENDPOINT',
   'CI',
   'CLERK_JWT_ISSUER_DOMAIN',
+  'CLERK_PUBLISHABLE_KEY',
   'CLERK_SECRET_KEY',
   'FORCE_COLOR',
   'GUEST_TOKEN_SECRET',
@@ -36,6 +39,7 @@ const SMOKE_ENV_KEYS = [
   'TMPDIR',
 ];
 const SMOKE_RUNNER_COMMANDS = Object.freeze({
+  agentic: ['pnpm', ['qa:agentic:preview']],
   dagger: ['pnpm', ['ci:dagger:smoke']],
   playwright: ['pnpm', ['test:e2e:smoke']],
 });
@@ -87,16 +91,24 @@ function resolveSmokeCommand(runner) {
   return SMOKE_RUNNER_COMMANDS[runner];
 }
 
-function buildSmokeEnv(baseUrl) {
+function buildSmokeEnv(baseUrl, runner, deliveryId) {
   const nextEnv = {
     PLAYWRIGHT_BASE_URL: baseUrl,
   };
+  const envKeys =
+    runner === 'agentic'
+      ? [...SMOKE_ENV_KEYS, ...AGENTIC_SMOKE_ENV_KEYS]
+      : SMOKE_ENV_KEYS;
 
-  for (const key of SMOKE_ENV_KEYS) {
+  for (const key of envKeys) {
     const value = process.env[key];
     if (value) {
       nextEnv[key] = value;
     }
+  }
+
+  if (runner === 'agentic' && !nextEnv.LINEJAM_AGENTIC_OUT_DIR) {
+    nextEnv.LINEJAM_AGENTIC_OUT_DIR = agenticArtifactDir(deliveryId);
   }
 
   return nextEnv;
@@ -270,7 +282,7 @@ export async function runSmoke({
 
     const child = spawnProcess(smokeCommand, smokeArgs, {
       cwd: REPO_ROOT,
-      env: buildSmokeEnv(baseUrl),
+      env: buildSmokeEnv(baseUrl, resolvedRunner, deliveryId),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

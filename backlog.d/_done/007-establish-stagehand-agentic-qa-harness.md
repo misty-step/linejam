@@ -1,7 +1,7 @@
 # Establish Stagehand Agentic QA Harness
 
 Priority: high
-Status: ready
+Status: done
 Estimate: L
 
 ## Goal
@@ -120,3 +120,19 @@ Choose approach 1. Linejam already has a strong deterministic spine and a live C
   2. preview/manual
   3. scheduled preview
   4. production post-deploy advisory
+
+## What Was Built
+
+- Added `qa/agentic/` mission, manifest, deterministic critic, and Promptfoo advisory config for the first two room-flow missions.
+- Added `scripts/qa/agentic-runner.mjs` to run local/preview missions with Playwright contexts, Clerk auth guardrails, Stagehand page actions, screenshots, manifest output, and separate critic artifacts.
+- Added `LINEJAM_SMOKE_RUNNER=agentic` so Canary follow-up can produce agentic QA evidence without changing the default deterministic smoke path.
+- Added `pnpm ci:dagger:agentic-qa` and `pnpm ci:dagger:agentic-qa-preview` as explicit non-gating Dagger advisory lanes.
+
+## Verification
+
+- `pnpm test --run tests/scripts/agentic-qa.test.ts tests/scripts/canary-trigger-smoke.test.ts tests/scripts/canary-store.test.ts tests/scripts/dagger-call.test.ts`
+- `pnpm qa:agentic:critic:fixtures`
+- `pnpm typecheck`
+- `pnpm format:check`
+- `pnpm lint`
+- `pnpm ci:dagger:agentic-qa`
