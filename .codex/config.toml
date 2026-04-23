@@ -1,0 +1,8 @@
+project_doc_fallback_filenames = ["AGENTS.md", "CLAUDE.md"]
+
+[features]
+codex_hooks = true
+child_agents_md = true
+
+[skills]
+roots = [".codex/skills"]
