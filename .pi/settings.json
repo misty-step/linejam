@@ -1,0 +1,8 @@
+{
+  "defaultThinkingLevel": "medium",
+  "enableSkillCommands": true,
+  "packages": [],
+  "extensions": [],
+  "themes": [],
+  "skills": ["+skills/**"]
+}

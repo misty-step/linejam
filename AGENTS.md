@@ -1,200 +1,213 @@
 # AGENTS.md — Linejam Router
 
-One-page map for AI agents. Not a manual. Read the linked files when you
-need depth.
+One-page map for AI agents. Not a manual. Read the linked files when you need
+depth.
 
 ## Stack & Boundaries
 
-| Layer          | Version                             | Owns                                                                                                                                                                              |
-| -------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`         | Next.js 16.2 (React 19, App Router) | Routes, API handlers, client-first components. Feature folders: `(auth)/`, `host/`, `join/`, `room/`, `poem/`, `me/`.                                                             |
-| `components/`  | React 19                            | UI primitives (`Button`, `Card`, `Input`) + game screens (`Lobby`, `WritingScreen`, `RevealPhase`, `RoomChrome`) + `CanaryClientObserver.tsx`.                                    |
-| `convex/`      | Convex 1.31                         | Backend schema (`schema.ts` — 10 tables), queries, mutations, actions, scheduler. All types auto-generated into `_generated/api.d.ts`.                                            |
-| `convex/lib/`  | —                                   | Auth (`auth.ts`), assignment matrix (`assignmentMatrix.ts`), AI personas (`ai/personas.ts`), OpenRouter provider (`ai/providers/openrouter.ts`), structured errors (`errors.ts`). |
-| `lib/`         | —                                   | Frontend domain: `auth.ts` (useUser), `logger.ts`, `error.ts` (captureError), `wordCount.ts`, `roomCode.ts`, `errorFeedback.ts`.                                                  |
-| `lib/themes/`  | —                                   | Four presets (`kenya` default, `mono`, `vintage-paper`, `hyper`) + `ThemeProvider`.                                                                                               |
-| `lib/posthog/` | PostHog                             | Canonical product analytics. `lib/analytics.ts` (Vercel Analytics) is phasing out.                                                                                                |
-| `tests/`       | Vitest 4 + Playwright               | Unit/integration colocated or under `tests/`, E2E under `tests/e2e/`. 85% coverage floor.                                                                                         |
-| `dagger/`      | Dagger TypeScript SDK               | CI pipeline (`src/index.ts`, ~800 LOC). The gate.                                                                                                                                 |
-| `scripts/`     | Node ESM                            | CI bootstrap (`ci/bootstrap-convex-env.mjs`), Canary responder (`canary/responder.mjs`), evidence capture, claim lib (`lib/claims.sh`).                                           |
-| `backlog.d/`   | Markdown                            | **Authoritative** backlog. Numbered `NNN-kebab.md` with Priority / Status / Estimate / Goal / Oracle. `_done/` archive.                                                           |
-| `docs/adr/`    | Markdown                            | ADRs 0001–0008 filed. New architectural decisions file here via `000-template.md`.                                                                                                |
+| Layer          | Version                 | Owns                                                                                                                   |
+| -------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `app/`         | Next.js 16.2 / React 19 | Routes, API handlers, page-level orchestration. Feature folders: `(auth)/`, `host/`, `join/`, `room/`, `poem/`, `me/`. |
+| `components/`  | React 19                | UI primitives plus `Lobby`, `WritingScreen`, `RevealPhase`, `RoomChrome`, `CanaryClientObserver.tsx`.                  |
+| `convex/`      | Convex 1.31             | Backend schema, queries, mutations, actions, scheduler, generated API surface.                                         |
+| `convex/lib/`  | —                       | Auth, assignment matrix, AI personas/providers, structured errors.                                                     |
+| `lib/`         | —                       | Frontend domain utilities: auth, logger, error capture, room-code, word-count, error feedback.                         |
+| `lib/themes/`  | —                       | Theme presets and provider. Presets: `kenya`, `mono`, `vintage-paper`, `hyper`.                                        |
+| `lib/posthog/` | PostHog                 | Canonical product analytics surface. `lib/analytics.ts` is legacy Vercel Analytics wiring.                             |
+| `tests/`       | Vitest 4 + Playwright   | Unit/integration plus `tests/e2e/`.                                                                                    |
+| `dagger/`      | Dagger TypeScript SDK   | Authoritative local gate.                                                                                              |
+| `scripts/`     | Node ESM + shell        | CI bootstrap, Canary responder/smoke tooling, evidence capture, claims helper.                                         |
+| `backlog.d/`   | Markdown                | Authoritative backlog.                                                                                                 |
+| `docs/adr/`    | Markdown                | ADRs 0001–0008.                                                                                                        |
 
 ## Ground-Truth Pointers
 
-Stale training data lies. Read these when you need the truth:
+Read these when you need the truth:
 
-- `convex/_generated/api.d.ts` — Convex API surface. Regenerates on `convex dev` / `pnpm build`.
-- `convex/schema.ts` — 10 tables, 14 `v.optional()` fields. Source of truth for data model.
-- `convex/lib/assignmentMatrix.ts` — derangement-like algorithm for line assignment. Load-bearing for game correctness (ADR 0002, 0004).
-- `lib/themes/presets/*.ts` — concrete theme tokens for each of the four themes.
-- `dagger/src/index.ts` — gate behavior. Read this before debugging `pnpm ci:prepush`.
-- `lefthook.yml` — commit-msg, pre-commit, and pre-push hooks.
-- `.claude/repo-brief.md` — shared spine for all tailored skills.
+- `convex/_generated/api.d.ts` — current Convex API surface.
+- `convex/schema.ts` — source of truth for data model.
+- `convex/lib/assignmentMatrix.ts` — load-bearing derangement-like assignment logic.
+- `dagger/src/index.ts` — what the gate actually runs.
+- `lefthook.yml` — local hook enforcement.
+- `docs/testing.md` — actual test commands and environment contract.
+- `docs/ops/canary-responder.md` — Canary responder operating contract.
+- `.spellbook/repo-brief.md` — shared spine for the tailored harness.
 
 ## Invariants
 
-Hard rules. Violating these breaks something load-bearing.
-
-1. **Never push on red Dagger.** Pre-push hook enforces `pnpm ci:prepush`. **Never `--no-verify`**.
-2. **Never run `pnpm dev` / `convex dev` / server processes yourself.** The user keeps them running. Ask.
-3. **Never push Convex production without `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.** Intentional speed bump.
-4. **Never push placeholder Canary keys.** `NEXT_PUBLIC_CANARY_*` must be real in build-bearing lanes.
-5. **Never mock `@/` or `../../` paths.** Mock at system boundaries only (Convex/react, @clerk/nextjs, fetch, localStorage, clipboard, Date, Math.random).
-6. **Parallel DB writes via `Promise.all`.** Batch N+1 reads with `q.or()`. No sequential `await` in loops over `ctx.db.patch`.
-7. **Every `while` loop needs a termination guard.** Infinite-loop test hangs are non-negotiable.
-8. **`GUEST_TOKEN_SECRET` must match across Vercel + Convex + local.** Mismatch silently drops guest joins.
-9. **Base branch is `master`. Conventional Commits only** (commitlint enforces).
-10. **Backlog source-of-truth is `backlog.d/`, NOT GitHub Issues.** `gh issue list` should be empty.
+1. **Never push on red Dagger.** `pnpm ci:prepush` must be green. Never use `--no-verify`.
+2. **Never run `pnpm dev`, `pnpm dev:convex`, `convex dev`, or other local server processes yourself.** The user runs them elsewhere.
+3. **Never deploy Convex production without `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.**
+4. **Never rely on placeholder Canary browser keys in build-bearing lanes.**
+5. **Never mock internal `@/` or `../../` modules in tests.** Mock only system boundaries and nondeterminism.
+6. **Parallelize independent Convex writes with `Promise.all`.** Avoid sequential write loops and obvious N+1 query shapes.
+7. **Every `while` loop needs a termination guard.**
+8. **`GUEST_TOKEN_SECRET` must match across local, Vercel, and Convex.**
+9. **Base branch is `master`.** Conventional Commits only.
+10. **`backlog.d/` is authoritative; GitHub Issues are empty by design.**
 
 ## Gate Contract
 
-**`pnpm ci:prepush`** is THE gate (= `pnpm ci:dagger:all`). Lefthook pre-push enforces.
+**`pnpm ci:prepush` IS the gate.** It shells to `pnpm ci:dagger:all`, which
+drives the Dagger module in `dagger/src/index.ts`.
 
-Composition (each lane runnable as `pnpm ci:dagger:<lane>`):
+Composition:
 
-- `lint` — ESLint (Next core-web-vitals config).
-- `format-check` — Prettier.
-- `typecheck` — app (`tsc --noEmit`) + Dagger TypeScript.
-- `secret-scan` — gitleaks.
-- `audit` — osv-scanner (replaced `pnpm audit` in commit `6a76039`).
-- `build-check` — `next build` in a container.
-- `unit-test` — Vitest with 85% coverage floor (lines/branches/functions/statements).
-- `e2e` — Playwright; includes authenticated Clerk coverage by default.
-- `smoke` — remote endpoint smoke via `playwright.smoke.config.ts`.
+- `format-check`
+- `lint`
+- `typecheck`
+- `secret-scan`
+- `audit`
+- `unit-test` with 85% coverage floor
+- `build-check`
+- `e2e`
 
-Pre-commit (parallel, Lefthook): gitleaks + `eslint --fix` + `prettier --write` (with `stage_fixed: true`).
-Commit-msg: commitlint (type-enum: `feat, fix, docs, style, refactor, perf, test, chore, revert` — no `build`/`ci`).
-Branch protection: `merge-gate` rollup check (depends on `quality-gates`, `test-build`, `e2e`).
+Local enforcement:
 
-GitHub Actions (`.github/workflows/ci.yml`) mirrors the Dagger contract remotely. Local Dagger is authoritative.
+- Pre-commit: `gitleaks protect`, `eslint --fix`, `prettier --write`
+- Pre-push: `pnpm ci:prepush`
+- Commit-msg: commitlint
+
+Hosted workflows:
+
+- `.github/workflows/ci.yml` — split mirror jobs: `quality-gates`, `test-build`, `e2e`, advisory `qa-evidence`
+- `.github/workflows/preview-smoke.yml` — preview smoke
+- `.github/workflows/prod-smoke.yml` — production smoke
+- `.github/workflows/release.yml` — semantic-release plus Gemini note synthesis
+- `.github/workflows/trufflehog.yml` — extra hosted secret scan
+
+Local Dagger is authoritative. Hosted CI is secondary confirmation.
 
 ## Known-Debt Map
 
-| Debt                                                                                              | Pointer                                                          | Tracker                                                                                           |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| CI redesign SHAPE-E (preview-first promotion gate)                                                | `docs/ci/redesign-2026Q2.md`                                     | `backlog.d/` slices 010–015                                                                       |
-| N+1 author fetches in `getRevealPhaseState`                                                       | `convex/game.ts`                                                 | Covered by redesign slice work                                                                    |
-| PostHog migration                                                                                 | `lib/analytics.ts` (6 Vercel events) → `lib/posthog/`            | On-touch migration when `lib/analytics.ts` is edited                                              |
-| `useQuery` no error-state                                                                         | Convex 1.x library + all call sites                              | Mitigated via ErrorBoundary; Convex SDK limitation, not currently ticketed                        |
-| `/api/health` vs Canary readiness conflation                                                      | `app/api/health/route.ts`, `components/CanaryClientObserver.tsx` | `/monitor` skill distinguishes the two                                                            |
-| Prompt injection in OpenRouter provider                                                           | `convex/lib/ai/providers/openrouter.ts`                          | **Explicitly deprioritized** by user ("idc about prompt injection here really"). Do not re-raise. |
-| Browser-agent bake-off (Playwright 1.59 / Stagehand v3 / browser-use / Vercel Labs agent-browser) | `backlog.d/007-establish-stagehand-agentic-qa-harness.md`        | Blocks `backlog.d/008-*`                                                                          |
-| No `.glance.md`, no `docs/CODEBASE_MAP.md`                                                        | —                                                                | `/tune-repo` never run; non-blocking                                                              |
+| Debt                                               | Pointer                                                                                      | Tracker                                                   |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Local bootstrap path still missing                 | `.env.example`, `scripts/setup.sh` absent                                                    | `backlog.d/003-bootstrap-local-dev-loop.md`               |
+| Release governance docs still missing              | `CODEOWNERS`, `SECURITY.md`, `CONTRIBUTING.md` absent                                        | `backlog.d/004-establish-release-governance-baseline.md`  |
+| Critical room/session flows lack request telemetry | `app/api/health/route.ts`, `app/api/guest/session/route.ts`, `lib/logger.ts`, `lib/error.ts` | `backlog.d/005-add-request-telemetry-for-room-flows.md`   |
+| Post-reveal session hub remains blocked            | `components/RevealPhase.tsx`, `components/PoemDisplay.tsx`, `components/RoomChrome.tsx`      | `backlog.d/006-build-post-reveal-session-hub.md`          |
+| Agentic exploratory QA lane is not built yet       | `playwright.smoke.config.ts`, `scripts/canary/responder.mjs`, `docs/testing.md`              | `backlog.d/007-establish-stagehand-agentic-qa-harness.md` |
 
-Cerberus is out (workflow deleted `5dc890c`). Do not resurrect.
+Cerberus is out. Do not resurrect it.
 
 ## Harness Index
 
-### Skills (`.claude/skills/`)
+### Skills (`.agents/skills/`, bridged into `.claude/skills/`, `.codex/skills/`, `.pi/skills/`)
 
-**Workflow — linejam-specific, rewritten:**
-
-| Skill          | What it does here                                                                                                                                                                     |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/ci`          | Drive `pnpm ci:prepush` green. Self-heal lint/format/lockfile; escalate logic failures. Cites every Dagger lane + likely root cause.                                                  |
-| `/code-review` | Parallel bench (grug + ousterhout + carmack + beck + critic) against repo invariants + ADRs 0001–0008. Verdict: `pnpm ci:prepush` green + 85% coverage.                               |
-| `/deliver`     | Inner-loop composer. One `backlog.d/NNN-*.md` → merge-ready PR on `master`.                                                                                                           |
-| `/deploy`      | Ships to Vercel (frontend), Convex (backend), Fly (`linejam-canary-responder`). Master-push is the production trigger.                                                                |
-| `/deps`        | Audits via `pnpm ci:dagger:audit` (osv-scanner). Ships one `fix(deps):` PR per advisory cluster.                                                                                      |
-| `/diagnose`    | Four-phase protocol anchored on Canary, Convex dashboard, Dagger output, `/api/health`. Linejam symptom library (guest join drops, reveal lag, Playwright flake → Clerk/Convex sync). |
-| `/flywheel`    | Outer-loop orchestrator. Picks from `backlog.d/` → `/deliver` → master merge → auto-deploy → `/monitor` → `/reflect`. Respects slice 010/014 parallel-eligibility.                    |
-| `/implement`   | TDD with Vitest + Playwright. Red → Green → Refactor. Respects invariants #5–#7.                                                                                                      |
-| `/monitor`     | Grace-window watch on `/api/health` + Canary responder. Two-signal model (app health vs observability).                                                                               |
-| `/refactor`    | Branch-aware simplification against ADRs 0001–0008. Canonical bench: grug + ousterhout + carmack.                                                                                     |
-| `/settle`      | Unblock and land PRs to `master`. Respects `merge-gate` branch protection + squash-single-ticket convention.                                                                          |
-| `/shape`       | Produces `backlog.d/NNN-*.md` context packet with Goal + Oracle + Invariant compliance + ADR (if architectural).                                                                      |
-| `/yeet`        | Worktree-aware commit slicing + Conventional Commit push. Respects commitlint type-enum.                                                                                              |
-| `/a11y`        | WCAG 2.2 AA across the four-theme × four-screen matrix. Three-agent protocol (audit → fix → critic).                                                                                  |
-| `/qa`          | Browser-driven exploratory testing. Ten linejam scenarios (full game, mid-session join, theme switch, word-count violation, etc.).                                                    |
-
-**Domain — linejam-invented:**
-
-| Skill                     | What it does here                                                                                                                                                                              |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/convex-migrate`         | Three-phase Convex schema migration (add optional → backfill → require) with Canary-watched grace windows + ADR emission. Justified by 14 `v.optional()` fields + live traffic + Invariant #3. |
-| `/assignment-matrix-test` | Property-test the derangement constraint across N=2..8 × M iterations. Replay seed on failure. Load-bearing for game correctness (ADR 0002, 0004).                                             |
+The bridge uses version-controlled symlinks. Checkouts must preserve symlinks;
+if a platform materializes them as plain files, rerun Spellbook tailor before
+expecting Claude, Codex, or Pi to load the shared skills.
 
 **Universal — verbatim from spellbook:**
 
-| Skill              | What it does                                                          |
-| ------------------ | --------------------------------------------------------------------- |
-| `/research`        | Web + delegation + thinktank.                                         |
-| `/groom`           | File-driven backlog ops (`backlog.d/`).                               |
-| `/office-hours`    | Gary-Tan-style raw-idea interrogation (six forcing questions).        |
-| `/ceo-review`      | Premise + alternatives + outside voice + ratify.                      |
-| `/reflect`         | Session retro + codification + harness branch emission.               |
-| `/model-research`  | LLM model comparison (linejam uses OpenRouter/Gemini for AI players). |
-| `/agent-readiness` | Parallel pillar assessment.                                           |
-| `/demo`            | Evidence capture + walkthrough media.                                 |
+| Skill              | What it does here                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------- |
+| `/groom`           | Manage the file-backed backlog in `backlog.d/`, including shaping and tidying numbered items.         |
+| `/office-hours`    | Pressure-test raw ideas before they become backlog items or specs.                                    |
+| `/ceo-review`      | Challenge a plan or context packet before committing to the build shape.                              |
+| `/reflect`         | Distill session learnings into harness, backlog, and operator improvements.                           |
+| `/agent-readiness` | Assess how ready the repo is for autonomous coding agents and drive the highest-leverage remediation. |
+
+**Workflow — tailored for linejam:**
+
+| Skill             | What it does here                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| `/ci`             | Drive `pnpm ci:prepush` green and diagnose Dagger lane failures.                             |
+| `/code-review`    | Run the linejam review bench against invariants, ADRs, and user-facing verification.         |
+| `/deliver`        | Move one `backlog.d/NNN-*.md` item to merge-ready under the Dagger gate.                     |
+| `/deploy`         | Operate Vercel, Convex, Fly responder, and release workflow deploy surfaces.                 |
+| `/demo`           | Generate Linejam evidence/demo artifacts from the Playwright guest-flow path.                |
+| `/deps`           | Patch dependency advisories against the Dagger audit lane and current override strategy.     |
+| `/diagnose`       | Debug bugs, Dagger failures, smoke failures, and Canary incidents in the current stack.      |
+| `/flywheel`       | Compose backlog pick → deliver → land → deploy → monitor → reflect around the current queue. |
+| `/implement`      | Execute a shaped backlog item with repo-specific TDD/test-run expectations.                  |
+| `/monitor`        | Watch `/api/health`, smoke, and Canary signals after deploy.                                 |
+| `/qa`             | Run browser-driven QA against the current app and evidence surfaces.                         |
+| `/refactor`       | Simplify code without violating ADRs or the Dagger gate.                                     |
+| `/research`       | Do repo-aware research using the current stack, backlog, and prior artifacts.                |
+| `/settle`         | Take a PR from blocked to merge-ready under `merge-gate`.                                    |
+| `/shape`          | Turn ideas into buildable `backlog.d/NNN-*.md` packets grounded in this repo’s invariants.   |
+| `/yeet`           | Prepare commits/pushes under the real local hook and branch conventions.                     |
+| `/a11y`           | Audit and repair accessibility across the four-theme UI surface.                             |
+| `/model-research` | Evaluate model choices relevant to Linejam’s OpenRouter/AI-player surface.                   |
+
+**Domain — linejam-specific inventions:**
+
+| Skill                     | What it does here                                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/convex-migrate`         | Run staged Convex schema migrations under the repo’s production guardrails and Canary watch posture. |
+| `/assignment-matrix-test` | Property-test the assignment matrix because it is load-bearing game logic.                           |
 
 ### Agents (`.claude/agents/`)
 
-| Agent          | Use for                                                    |
-| -------------- | ---------------------------------------------------------- |
-| `planner`      | Spec decomposition into builder-ready context packets.     |
-| `builder`      | Heads-down implementation following a context packet.      |
-| `critic`       | Evidence-based skeptic. Fail or approve, no prose hedging. |
-| `beck`         | TDD + simple design.                                       |
-| `carmack`      | Direct implementation, ship judgment.                      |
-| `grug`         | Complexity-demon hunter.                                   |
-| `ousterhout`   | Deep modules + information hiding.                         |
-| `a11y-auditor` | Read-only a11y audit.                                      |
-| `a11y-fixer`   | Surgical a11y fixes (native HTML > ARIA).                  |
-| `a11y-critic`  | Skeptical a11y verification.                               |
+| Agent          | Use for                                                |
+| -------------- | ------------------------------------------------------ |
+| `planner`      | Spec decomposition and context packets                 |
+| `builder`      | Heads-down implementation                              |
+| `critic`       | Skeptical grading against correctness/depth/simplicity |
+| `beck`         | TDD-first review lens                                  |
+| `carmack`      | Direct implementation and shippability lens            |
+| `grug`         | Complexity-demon review lens                           |
+| `ousterhout`   | Deep-module / information-hiding lens                  |
+| `a11y-auditor` | Read-only accessibility audit                          |
+| `a11y-fixer`   | Surgical accessibility fixes                           |
+| `a11y-critic`  | Accessibility verification                             |
 
 ## Commands Cheat Sheet
 
 ```bash
 # Inner loop
-pnpm dev                  # Next + Convex (user runs this — do not spawn)
-pnpm test --run <path>    # Fast single-file
-pnpm typecheck            # app + Dagger
+pnpm test --run <path>
+pnpm test:watch
+pnpm typecheck
 pnpm lint:fix
 
 # Gate
-pnpm ci:prepush           # = pnpm ci:dagger:all (authoritative)
-
-# Individual Dagger lanes
+pnpm ci:prepush
 pnpm ci:dagger:{lint,typecheck,format-check,build-check,unit-test,e2e,audit,secret-scan,smoke,all-no-e2e,all}
 
-# E2E variants
-pnpm test:e2e             # all
-pnpm test:e2e:smoke       # playwright.smoke.config.ts
-pnpm test:e2e:evidence    # guest-flow authoritative spec
+# E2E
+pnpm test:e2e
+pnpm test:e2e:smoke
+pnpm test:e2e:evidence
+pnpm test:e2e:ui
 
-# Observability
-pnpm canary:responder     # local webhook responder
-pnpm canary:smoke         # trigger remote
-pnpm canary:webhook:setup # rerunnable
+# Canary / evidence
+pnpm canary:responder
+pnpm canary:smoke
+pnpm canary:webhook:setup
+pnpm evidence:guest-flow
 
-# Build + release
-pnpm build                # convex bootstrap + next build
-pnpm generate:releases    # semantic-release
+# Release
+pnpm build
+pnpm generate:releases
 
-# GitHub
-gh pr create / gh pr checks / gh pr merge --squash --delete-branch
+# Backlog claiming
+source scripts/lib/claims.sh
+claim_acquire <backlog-id>
+claim_release <backlog-id>
 ```
 
 ## Critical Environment Variables
 
-- Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY`, `OPENROUTER_API_KEY`.
-- Guest auth: `GUEST_TOKEN_SECRET` (must match surfaces — Invariant #8).
-- Clerk: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_ISSUER_DOMAIN`.
-- Canary: `CANARY_ENDPOINT`, `CANARY_API_KEY`, `NEXT_PUBLIC_CANARY_*`, `LINEJAM_CANARY_WEBHOOK_{SECRET,URL}`.
-- Dagger flags: `LINEJAM_ALLOW_PROD_CONVEX_SYNC`, `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE`, `LINEJAM_SYNC_CONVEX_BEFORE_DAGGER`.
-- Playwright: `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_CLERK_TEST_EMAIL`, `PLAYWRIGHT_REQUIRE_AUTH_{E2E,SMOKE}`.
+- Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY`, `OPENROUTER_API_KEY`
+- Guest auth: `GUEST_TOKEN_SECRET`
+- Clerk: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_ISSUER_DOMAIN`
+- Canary: `CANARY_ENDPOINT`, `CANARY_API_KEY`, `NEXT_PUBLIC_CANARY_*`, `LINEJAM_CANARY_WEBHOOK_{SECRET,URL}`
+- Dagger flags: `LINEJAM_ALLOW_PROD_CONVEX_SYNC`, `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE`, `LINEJAM_SYNC_CONVEX_BEFORE_DAGGER`
+- Playwright: `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_CLERK_TEST_EMAIL`, `PLAYWRIGHT_REQUIRE_AUTH_{E2E,SMOKE}`
 
 ## Terminology
 
-Use the repo's words:
-
-- **Poem** / **Line** / **Round** (0–8, nine total).
-- **Assignment matrix** (derangement-like; ADR 0002).
-- **Cycle** (one run through the nine rounds).
-- **Pen name** (captured at write-time; stored on the line; ADR 0008).
-- **Guest UUID** / **guest token** (signed JWT in localStorage; ADR 0001).
-- **Host** / **Room code** (four-letter, formatted `AB CD` via `lib/roomCode.ts`).
-- **Reveal phase** (each player assigned one poem to read aloud).
-- **Dagger** / **Dagger lane** (the pipeline; not "CI" generically).
-- **Canary** (the incident sink + Fly webhook responder).
+- **Poem**
+- **Line**
+- **Round**
+- **Assignment matrix**
+- **Cycle**
+- **Pen name**
+- **Guest UUID** / **guest token**
+- **Host**
+- **Room code**
+- **Reveal phase**
+- **Dagger** / **Dagger lane**
+- **Canary**
