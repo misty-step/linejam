@@ -176,6 +176,14 @@ Red Dagger never ships. Pushing on red requires `--no-verify`, which is
 forbidden. If a lane is flaky, the fix is the lane or the test, not a
 bypass.
 
+For newly introduced or materially changed runtime entrypoints in
+`scripts/**`, `dagger/**`, `package.json` scripts, smoke/canary runners,
+responders, migrations, or other operator-facing executables, the green
+gate is necessary but not sufficient. The marshal must list the exact
+runtime command that was exercised. If the new entrypoint was not run,
+the review must label it an **unverified runtime path** and the PR stays
+draft.
+
 ## Review Focus By File Type
 
 Tailor reviewer prompts based on which of these surfaces the diff touches.
@@ -321,6 +329,24 @@ routes/components via Playwright (`pnpm test:e2e` or
 **Skip:** pure Convex refactors with no schema changes, config-only,
 test-only, `dagger/**` internals, `scripts/**` with no user-facing
 surface, `docs/**`.
+
+## Executable Path Verification
+
+**Trigger:** the diff adds or materially changes an entrypoint in
+`scripts/**`, `dagger/**`, `package.json` scripts, smoke/canary runners,
+responders, migrations, or other operator-facing executables.
+
+**Rule:** the marshal or a reviewer must either:
+
+- run the exact entrypoint once
+- or cite an artifact-producing lane that invokes that exact path
+
+Helper tests, fixture-only critics, and adjacent lanes do not count.
+
+**Verdict:** if the new entrypoint was not exercised, this is a blocking
+finding for "ready to ship". The PR may exist for review, but it stays
+draft until the runtime path is exercised or the diff is reframed as
+scaffolding only.
 
 ## Plausible-but-Wrong Patterns (linejam flavor)
 

@@ -237,6 +237,21 @@ Do not invent names.
 - Write a new Dagger lane from scratch — that is a design decision; file
   it as a backlog item under `backlog.d/NNN-*.md` with Goal + Oracle.
 
+## Verification Scope
+
+**A green lane only proves the commands that actually ran.**
+
+When a diff adds or materially changes a runtime entrypoint in
+`scripts/**`, `dagger/**`, `package.json` scripts, smoke/canary runners,
+responders, migrations, or other operator-facing executables:
+
+- name the exact command that exercised the path
+- or say explicitly that the runtime path is unverified
+
+Fixture-only tests, helper-unit coverage, and adjacent lanes do **not**
+count as exercising the new entrypoint unless they invoke that exact path.
+Do not report such a change as "fully tested" without that evidence.
+
 ## Anti-patterns (linejam-specific)
 
 - **Running `pnpm vitest` or `pnpm next build` directly when a Dagger
@@ -266,6 +281,10 @@ Do not invent names.
 - **Declaring green while Dagger is still running.** Wait for the exit
   code. The `<LaneName> DONE` marker in stdout is not the final word —
   only the process exit is.
+- **Claiming a new runner or lane was tested when only helper fixtures
+  ran.** Example: `pnpm qa:agentic:critic:fixtures` proves critic
+  fixtures; it does not prove `scripts/qa/agentic-runner.mjs` executed.
+  Name the exact runtime command or mark the path unverified.
 - **Adding a new pre-commit hook instead of a Dagger lane.** Pre-commit
   is intentionally fast (gitleaks + eslint --fix + prettier --write).
   Anything heavier belongs in `pnpm ci:prepush`.
