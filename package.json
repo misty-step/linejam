@@ -65,9 +65,9 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@clerk/backend": "^3.2.13",
-    "@clerk/testing": "^2.0.17",
-    "@commitlint/cli": "^20.5.0",
+    "@clerk/backend": "^3.4.1",
+    "@clerk/testing": "^2.0.21",
+    "@commitlint/cli": "^20.5.2",
     "@commitlint/config-conventional": "^20.5.0",
     "@edge-runtime/vm": "^5.0.0",
     "@playwright/test": "^1.58.2",
@@ -85,7 +85,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.5",
-    "convex-test": "^0.0.49",
+    "convex-test": "^0.0.50",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "happy-dom": "^20.9.0",
