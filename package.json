@@ -48,7 +48,7 @@
     "generate:releases": "npx tsx scripts/generate-releases.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.39.2",
+    "@clerk/nextjs": "^6.39.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",
