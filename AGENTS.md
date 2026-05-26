@@ -31,7 +31,6 @@ Read these when you need the truth:
 - `lefthook.yml` — local hook enforcement.
 - `docs/testing.md` — actual test commands and environment contract.
 - `docs/ops/canary-responder.md` — Canary responder operating contract.
-- `.spellbook/repo-brief.md` — shared spine for the tailored harness.
 
 ## Invariants
 
@@ -89,69 +88,6 @@ Local Dagger is authoritative. Hosted CI is secondary confirmation.
 | Agentic exploratory QA lane is not built yet       | `playwright.smoke.config.ts`, `scripts/canary/responder.mjs`, `docs/testing.md`              | `backlog.d/007-establish-stagehand-agentic-qa-harness.md` |
 
 Cerberus is out. Do not resurrect it.
-
-## Harness Index
-
-### Skills (`.agents/skills/`, bridged into `.claude/skills/`, `.codex/skills/`, `.pi/skills/`)
-
-The bridge uses version-controlled symlinks. Checkouts must preserve symlinks;
-if a platform materializes them as plain files, rerun Spellbook tailor before
-expecting Claude, Codex, or Pi to load the shared skills.
-
-**Universal — verbatim from spellbook:**
-
-| Skill              | What it does here                                                                                     |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `/groom`           | Manage the file-backed backlog in `backlog.d/`, including shaping and tidying numbered items.         |
-| `/office-hours`    | Pressure-test raw ideas before they become backlog items or specs.                                    |
-| `/ceo-review`      | Challenge a plan or context packet before committing to the build shape.                              |
-| `/reflect`         | Distill session learnings into harness, backlog, and operator improvements.                           |
-| `/agent-readiness` | Assess how ready the repo is for autonomous coding agents and drive the highest-leverage remediation. |
-
-**Workflow — tailored for linejam:**
-
-| Skill             | What it does here                                                                            |
-| ----------------- | -------------------------------------------------------------------------------------------- |
-| `/ci`             | Drive `pnpm ci:prepush` green and diagnose Dagger lane failures.                             |
-| `/code-review`    | Run the linejam review bench against invariants, ADRs, and user-facing verification.         |
-| `/deliver`        | Move one `backlog.d/NNN-*.md` item to merge-ready under the Dagger gate.                     |
-| `/deploy`         | Operate Vercel, Convex, Fly responder, and release workflow deploy surfaces.                 |
-| `/demo`           | Generate Linejam evidence/demo artifacts from the Playwright guest-flow path.                |
-| `/deps`           | Patch dependency advisories against the Dagger audit lane and current override strategy.     |
-| `/diagnose`       | Debug bugs, Dagger failures, smoke failures, and Canary incidents in the current stack.      |
-| `/flywheel`       | Compose backlog pick → deliver → land → deploy → monitor → reflect around the current queue. |
-| `/implement`      | Execute a shaped backlog item with repo-specific TDD/test-run expectations.                  |
-| `/monitor`        | Watch `/api/health`, smoke, and Canary signals after deploy.                                 |
-| `/qa`             | Run browser-driven QA against the current app and evidence surfaces.                         |
-| `/refactor`       | Simplify code without violating ADRs or the Dagger gate.                                     |
-| `/research`       | Do repo-aware research using the current stack, backlog, and prior artifacts.                |
-| `/settle`         | Take a PR from blocked to merge-ready under `merge-gate`.                                    |
-| `/shape`          | Turn ideas into buildable `backlog.d/NNN-*.md` packets grounded in this repo’s invariants.   |
-| `/yeet`           | Prepare commits/pushes under the real local hook and branch conventions.                     |
-| `/a11y`           | Audit and repair accessibility across the four-theme UI surface.                             |
-| `/model-research` | Evaluate model choices relevant to Linejam’s OpenRouter/AI-player surface.                   |
-
-**Domain — linejam-specific inventions:**
-
-| Skill                     | What it does here                                                                                    |
-| ------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `/convex-migrate`         | Run staged Convex schema migrations under the repo’s production guardrails and Canary watch posture. |
-| `/assignment-matrix-test` | Property-test the assignment matrix because it is load-bearing game logic.                           |
-
-### Agents (`.claude/agents/`)
-
-| Agent          | Use for                                                |
-| -------------- | ------------------------------------------------------ |
-| `planner`      | Spec decomposition and context packets                 |
-| `builder`      | Heads-down implementation                              |
-| `critic`       | Skeptical grading against correctness/depth/simplicity |
-| `beck`         | TDD-first review lens                                  |
-| `carmack`      | Direct implementation and shippability lens            |
-| `grug`         | Complexity-demon review lens                           |
-| `ousterhout`   | Deep-module / information-hiding lens                  |
-| `a11y-auditor` | Read-only accessibility audit                          |
-| `a11y-fixer`   | Surgical accessibility fixes                           |
-| `a11y-critic`  | Accessibility verification                             |
 
 ## Commands Cheat Sheet
 
