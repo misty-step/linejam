@@ -39,6 +39,11 @@ let inFlightSmokeCount = 0;
 let lastPruneStartedAt = 0;
 const pendingSmokeQueue = [];
 
+function resetSmokeSchedulerState() {
+  inFlightSmokeCount = 0;
+  pendingSmokeQueue.length = 0;
+}
+
 function getWebhookPath() {
   return process.env.LINEJAM_CANARY_WEBHOOK_PATH || DEFAULT_PATH;
 }
@@ -354,6 +359,24 @@ export function summarizeProcessing({
     }
     if (!smokeResult.skipped) {
       lines.push(`- Smoke exit code: \`${smokeResult.code}\``);
+    }
+    if (smokeResult.agenticQa) {
+      lines.push(
+        `- Agentic QA: \`${smokeResult.agenticQa.skipped ? 'skipped' : smokeResult.agenticQa.ok ? 'passed' : 'failed'}\``
+      );
+      if (smokeResult.agenticQa.reason) {
+        lines.push(`- Agentic QA reason: \`${smokeResult.agenticQa.reason}\``);
+      }
+      if (smokeResult.agenticQa.manifest) {
+        lines.push(
+          `- Agentic QA manifest: \`${smokeResult.agenticQa.manifest}\``
+        );
+      }
+      if (smokeResult.agenticQa.criticSummary) {
+        lines.push(
+          `- Agentic QA critic summary: \`${smokeResult.agenticQa.criticSummary}\``
+        );
+      }
     }
   }
 
@@ -898,6 +921,7 @@ export function startServer(dependencies = defaultDependencies()) {
       String(DEFAULT_PORT),
     10
   );
+  resetSmokeSchedulerState();
   void maybePruneArtifacts(dependencies);
   void reconcilePendingSmoke(dependencies).catch((error) => {
     console.error('Canary smoke replay failed', error);

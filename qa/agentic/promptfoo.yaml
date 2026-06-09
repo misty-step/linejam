@@ -1,0 +1,29 @@
+description: Linejam agentic QA advisory critic
+prompts:
+  - |
+    You are a QA critic for Linejam.
+
+    Grade this agentic QA artifact manifest for mission success, user friction,
+    unexpected generic error UI, and evidence quality. Return compact JSON:
+    {"verdict":"pass"|"fail","findings":["..."]}.
+
+    Manifest:
+    {{manifest}}
+providers:
+  - openai:gpt-4.1-mini
+tests:
+  - vars:
+      manifest: '{{manifest}}'
+    assert:
+      - type: javascript
+        value: |
+          const manifest = JSON.parse(context.vars.manifest);
+          return manifest.result === 'pass';
+      - type: llm-rubric
+        threshold: 0.8
+        value: |
+          The output must be grounded only in the provided manifest. It should
+          pass only when the mission appears complete, expected user-visible
+          evidence is present, and no generic join/application error or obvious
+          UX friction is reported. It should fail or raise findings when the
+          manifest is incomplete, missing screenshots/checks, or reports errors.

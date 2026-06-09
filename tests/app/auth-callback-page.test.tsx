@@ -106,7 +106,9 @@ describe('AuthCallbackPage', () => {
     });
 
     expect(mockMigrateGuestToUser).not.toHaveBeenCalled();
-    expect(screen.getByText(/could not finish sign in/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/could not finish sign in/i)
+    ).toBeInTheDocument();
   });
 
   it('shows a recovery state instead of silently redirecting when migration fails', async () => {

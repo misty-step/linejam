@@ -6,6 +6,7 @@ import { ensureClerkConvexTemplate } from '../ci/ensure-clerk-convex-template.mj
 
 const DEFAULT_SMOKE_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_SMOKE_KILL_GRACE_MS = 5_000;
+const DEFAULT_AGENTIC_QA_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_SMOKE_RUNNER = 'dagger';
 const MAX_CAPTURE_BYTES = 64 * 1024;
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -20,7 +21,10 @@ const SMOKE_ENV_KEYS = [
   'LINEJAM_ALLOWED_SMOKE_HOSTS',
   'LINEJAM_ALLOWED_SMOKE_HOST_PATTERN',
   'LINEJAM_ALLOWED_SMOKE_ORIGINS',
+  'LINEJAM_AGENTIC_QA_AFTER_SMOKE',
+  'LINEJAM_AGENTIC_QA_MISSION',
   'LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST',
+  'LINEJAM_PROMPTFOO_CRITIC',
   'NEXT_PUBLIC_CANARY_API_KEY',
   'NEXT_PUBLIC_CANARY_ENDPOINT',
   'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
@@ -30,6 +34,8 @@ const SMOKE_ENV_KEYS = [
   'PLAYWRIGHT_CLERK_TEST_EMAIL',
   'PLAYWRIGHT_REQUIRE_AUTH_SMOKE',
   'SHELL',
+  'STAGEHAND_MODEL',
+  'STAGEHAND_MODEL_API_KEY',
   'TEMP',
   'TERM',
   'TMP',
@@ -39,6 +45,7 @@ const SMOKE_RUNNER_COMMANDS = Object.freeze({
   dagger: ['pnpm', ['ci:dagger:smoke']],
   playwright: ['pnpm', ['test:e2e:smoke']],
 });
+const DEFAULT_AGENTIC_QA_MISSION = 'guest-host-signed-in-join';
 
 function getSmokeTimeoutMs() {
   const parsed = Number.parseInt(
@@ -61,6 +68,18 @@ function getSmokeKillGraceMs() {
   return Number.isFinite(parsed) && parsed > 0
     ? parsed
     : DEFAULT_SMOKE_KILL_GRACE_MS;
+}
+
+function getAgenticQaTimeoutMs() {
+  const parsed = Number.parseInt(
+    process.env.LINEJAM_AGENTIC_QA_TIMEOUT_MS ||
+      String(DEFAULT_AGENTIC_QA_TIMEOUT_MS),
+    10
+  );
+
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_AGENTIC_QA_TIMEOUT_MS;
 }
 
 export function shouldTriggerSmoke(eventName) {
@@ -100,6 +119,18 @@ function buildSmokeEnv(baseUrl) {
   }
 
   return nextEnv;
+}
+
+function agenticQaEnabled() {
+  return ['1', 'true', 'TRUE', 'yes', 'YES'].includes(
+    process.env.LINEJAM_AGENTIC_QA_AFTER_SMOKE || ''
+  );
+}
+
+function resolveAgenticQaMission(
+  value = process.env.LINEJAM_AGENTIC_QA_MISSION || DEFAULT_AGENTIC_QA_MISSION
+) {
+  return value.trim() || DEFAULT_AGENTIC_QA_MISSION;
 }
 
 function allowlistEnforced() {
@@ -190,6 +221,165 @@ function appendLimitedOutput(buffer, chunk) {
   };
 }
 
+export async function runAgenticQa({
+  baseUrl = process.env.PLAYWRIGHT_BASE_URL,
+  mission = resolveAgenticQaMission(),
+  deliveryId,
+  eventName,
+  spawnProcess = spawn,
+  timeoutMs = getAgenticQaTimeoutMs(),
+} = {}) {
+  if (!baseUrl) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'PLAYWRIGHT_BASE_URL is not configured',
+      eventName,
+      deliveryId,
+      mission,
+    };
+  }
+
+  return new Promise((resolve) => {
+    let stdout = Buffer.alloc(0);
+    let stderr = Buffer.alloc(0);
+    let settled = false;
+    let timedOut = false;
+    let timeoutHandle;
+    let killGraceHandle;
+    const timeoutReason = `agentic QA timed out after ${timeoutMs}ms`;
+    const child = spawnProcess(
+      'pnpm',
+      ['qa:agentic:preview', '--mission', mission, '--base-url', baseUrl],
+      {
+        cwd: REPO_ROOT,
+        env: buildSmokeEnv(baseUrl),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
+
+    child.stdout.on('data', (chunk) => {
+      stdout = appendLimitedOutput(stdout, chunk).output;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr = appendLimitedOutput(stderr, chunk).output;
+    });
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutHandle);
+      clearTimeout(killGraceHandle);
+      resolve(result);
+    };
+    child.on('error', (error) => {
+      finish({
+        ok: false,
+        skipped: false,
+        code: null,
+        reason: error instanceof Error ? error.message : String(error),
+        timedOut,
+        eventName,
+        deliveryId,
+        mission,
+      });
+    });
+    child.on('close', (code) => {
+      const parsed = extractJsonPayload(stdout.toString('utf8'));
+
+      finish({
+        ok: code === 0 && !timedOut,
+        skipped: false,
+        code,
+        reason: timedOut ? timeoutReason : undefined,
+        timedOut,
+        eventName,
+        deliveryId,
+        mission,
+        stdout: stdout.toString('utf8'),
+        stderr: stderr.toString('utf8'),
+        manifest: parsed?.manifest,
+        criticSummary: parsed?.criticSummary,
+        runDir: parsed?.runDir,
+      });
+    });
+
+    timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+
+      killGraceHandle = setTimeout(() => {
+        child.kill('SIGKILL');
+        finish({
+          ok: false,
+          skipped: false,
+          code: null,
+          reason: timeoutReason,
+          timedOut: true,
+          eventName,
+          deliveryId,
+          mission,
+          stdout: stdout.toString('utf8'),
+          stderr: stderr.toString('utf8'),
+        });
+      }, getSmokeKillGraceMs());
+    }, timeoutMs);
+  });
+}
+
+function extractJsonPayload(output) {
+  const starts = [];
+  for (
+    let index = output.indexOf('{');
+    index !== -1;
+    index = output.indexOf('{', index + 1)
+  ) {
+    starts.push(index);
+  }
+
+  for (const start of starts.reverse()) {
+    try {
+      return JSON.parse(output.slice(start));
+    } catch {
+      // Keep looking for the final JSON object after advisory tool logs.
+    }
+  }
+
+  return null;
+}
+
+async function maybeAttachAgenticQa({
+  baseUrl,
+  deliveryId,
+  eventName,
+  result,
+  spawnProcess,
+}) {
+  if (!agenticQaEnabled()) {
+    return result;
+  }
+
+  if (!result.ok || result.skipped) {
+    return {
+      ...result,
+      agenticQa: {
+        ok: false,
+        skipped: true,
+        reason: 'deterministic smoke did not pass',
+      },
+    };
+  }
+
+  return {
+    ...result,
+    agenticQa: await runAgenticQa({
+      baseUrl,
+      deliveryId,
+      eventName,
+      spawnProcess,
+    }),
+  };
+}
+
 export async function runSmoke({
   baseUrl = process.env.PLAYWRIGHT_BASE_URL,
   eventName,
@@ -277,13 +467,20 @@ export async function runSmoke({
     let timeoutHandle;
     let killGraceHandle;
 
-    const finish = (result) => {
+    const finish = async (result) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutHandle);
       clearTimeout(killGraceHandle);
+      const enrichedResult = await maybeAttachAgenticQa({
+        baseUrl,
+        deliveryId,
+        eventName,
+        result,
+        spawnProcess,
+      });
       resolve({
-        ...result,
+        ...enrichedResult,
         eventName,
         deliveryId,
         baseUrl,

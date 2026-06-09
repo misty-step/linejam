@@ -9,6 +9,14 @@ if (process.env.NODE_ENV === 'production') {
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'img.clerk.com',
+      },
+    ],
+  },
 
   // PostHog reverse proxy (bypass ad blockers)
   async rewrites() {

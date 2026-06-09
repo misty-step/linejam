@@ -23,6 +23,8 @@ type AppEnv = {
   canaryApiKey?: Secret;
   nextPublicCanaryEndpoint?: string;
   nextPublicCanaryApiKey?: string;
+  stagehandModel?: string;
+  stagehandModelApiKey?: Secret;
 };
 
 function withOptionalEnv(
@@ -65,6 +67,7 @@ function withAppEnv(container: Container, env: AppEnv): Container {
     ['CANARY_ENDPOINT', env.canaryEndpoint],
     ['NEXT_PUBLIC_CANARY_ENDPOINT', env.nextPublicCanaryEndpoint],
     ['NEXT_PUBLIC_CANARY_API_KEY', env.nextPublicCanaryApiKey],
+    ['STAGEHAND_MODEL', env.stagehandModel],
   ];
   const withPublicEnv = publicEnvEntries.reduce(
     (current, [name, value]) => withOptionalEnv(current, name, value),
@@ -74,6 +77,7 @@ function withAppEnv(container: Container, env: AppEnv): Container {
   const secretEnvEntries: Array<[string, Secret | undefined]> = [
     ['CLERK_SECRET_KEY', env.clerkSecretKey],
     ['GUEST_TOKEN_SECRET', env.guestTokenSecret],
+    ['STAGEHAND_MODEL_API_KEY', env.stagehandModelApiKey],
   ];
 
   return secretEnvEntries.reduce(
@@ -388,14 +392,35 @@ export class Ci {
           nextPublicCanaryEndpoint,
           nextPublicCanaryApiKey,
         },
-        PLAYWRIGHT_IMAGE,
+        NODE_IMAGE,
         'linejam-pnpm-playwright'
       ),
       'PLAYWRIGHT_REQUIRE_AUTH_E2E',
       playwrightRequireAuthE2e
     )
-      .withExec(['pnpm', 'build:check'])
-      .withExec(['pnpm', 'test:e2e'])
+      .withExec([
+        'pnpm',
+        'exec',
+        'playwright',
+        'install',
+        '--with-deps',
+        'chromium',
+      ])
+      .withExec([
+        'sh',
+        '-c',
+        [
+          'set -eu',
+          'log=/tmp/linejam-e2e.log',
+          'if pnpm build:check >"$log" 2>&1 && pnpm test:e2e >>"$log" 2>&1; then',
+          "  printf 'e2e: ok\\n'",
+          'else',
+          '  status=$?',
+          '  tail -n 200 "$log"',
+          '  exit "$status"',
+          'fi',
+        ].join('\n'),
+      ])
       .stdout();
   }
 
@@ -441,6 +466,54 @@ export class Ci {
       playwrightRequireAuthSmoke
     )
       .withExec(['pnpm', 'test:e2e:smoke'])
+      .stdout();
+  }
+
+  @func()
+  async agenticQa(
+    source: Directory,
+    baseUrl: string,
+    mission = 'guest-host-signed-in-join',
+    nextPublicConvexUrl?: string,
+    nextPublicClerkPublishableKey?: string,
+    clerkSecretKey?: Secret,
+    clerkJwtIssuerDomain?: string,
+    playwrightClerkTestEmail?: string,
+    guestTokenSecret?: Secret,
+    canaryEndpoint?: string,
+    canaryApiKey?: Secret,
+    nextPublicCanaryEndpoint?: string,
+    nextPublicCanaryApiKey?: string,
+    stagehandModel?: string,
+    stagehandModelApiKey?: Secret
+  ): Promise<string> {
+    return baseContainer(
+      source,
+      {
+        nextPublicConvexUrl,
+        nextPublicClerkPublishableKey,
+        clerkSecretKey,
+        clerkJwtIssuerDomain,
+        playwrightClerkTestEmail,
+        guestTokenSecret,
+        canaryEndpoint,
+        canaryApiKey,
+        nextPublicCanaryEndpoint,
+        nextPublicCanaryApiKey,
+        stagehandModel,
+        stagehandModelApiKey,
+      },
+      PLAYWRIGHT_IMAGE,
+      'linejam-pnpm-playwright'
+    )
+      .withExec([
+        'pnpm',
+        'qa:agentic:preview',
+        '--mission',
+        mission,
+        '--base-url',
+        baseUrl,
+      ])
       .stdout();
   }
 

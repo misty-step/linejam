@@ -51,6 +51,12 @@ describe('runSmoke', () => {
     'LINEJAM_ALLOWED_SMOKE_ORIGINS',
     'LINEJAM_ALLOWED_SMOKE_HOSTS',
     'LINEJAM_ALLOWED_SMOKE_HOST_PATTERN',
+    'LINEJAM_AGENTIC_QA_AFTER_SMOKE',
+    'LINEJAM_AGENTIC_QA_MISSION',
+    'LINEJAM_AGENTIC_QA_TIMEOUT_MS',
+    'LINEJAM_PROMPTFOO_CRITIC',
+    'STAGEHAND_MODEL',
+    'STAGEHAND_MODEL_API_KEY',
     'UNRELATED_SECRET',
     'PLAYWRIGHT_REQUIRE_AUTH_SMOKE',
     'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
@@ -320,6 +326,9 @@ describe('runSmoke', () => {
   it('forwards only the smoke allowlist into the child environment', async () => {
     process.env.UNRELATED_SECRET = 'should-not-leak';
     process.env.CLERK_SECRET_KEY = 'clerk-secret';
+    process.env.STAGEHAND_MODEL = 'openai/gpt-4.1-mini';
+    process.env.STAGEHAND_MODEL_API_KEY = 'stagehand-model-key';
+    process.env.LINEJAM_PROMPTFOO_CRITIC = '1';
     process.env.LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST = '1';
     process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS = 'https://www.linejam.app';
     process.env.LINEJAM_ALLOWED_SMOKE_HOSTS = 'www.linejam.app';
@@ -351,12 +360,139 @@ describe('runSmoke', () => {
           LINEJAM_ALLOWED_SMOKE_ORIGINS: 'https://www.linejam.app',
           LINEJAM_ALLOWED_SMOKE_HOSTS: 'www.linejam.app',
           LINEJAM_ALLOWED_SMOKE_HOST_PATTERN: '^linejam',
+          LINEJAM_PROMPTFOO_CRITIC: '1',
+          STAGEHAND_MODEL: 'openai/gpt-4.1-mini',
+          STAGEHAND_MODEL_API_KEY: 'stagehand-model-key',
         }),
       })
     );
 
     const options = spawnMock.mock.calls[0]?.[2];
     expect(options.env.UNRELATED_SECRET).toBeUndefined();
+  });
+
+  it('attaches advisory agentic QA evidence after successful smoke when enabled', async () => {
+    process.env.LINEJAM_AGENTIC_QA_AFTER_SMOKE = '1';
+    process.env.LINEJAM_AGENTIC_QA_MISSION = 'signed-in-host-guest-join';
+    process.env.STAGEHAND_MODEL_API_KEY = 'stagehand-model-key';
+    const smokeChild = createMockChild(0);
+    const agenticChild = createMockChild(0);
+    const spawnMock = vi
+      .fn()
+      .mockReturnValueOnce(smokeChild)
+      .mockReturnValueOnce(agenticChild);
+    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+
+    const pending = runSmoke({
+      baseUrl: 'https://preview.linejam.app',
+      eventName: 'error.new_class',
+      deliveryId: 'evt-agentic',
+      spawnProcess: spawnMock,
+      timeoutMs: 1000,
+    });
+    await Promise.resolve();
+    smokeChild.emit('close', 0);
+    await Promise.resolve();
+    agenticChild.stdout.emit(
+      'data',
+      Buffer.from(
+        `stagehand log before payload\n${JSON.stringify(
+          {
+            ok: true,
+            runDir: '.qa/runs/run-1',
+            manifest: '.qa/runs/run-1/manifest.json',
+            criticSummary: '.qa/runs/run-1/critic-summary.md',
+          },
+          null,
+          2
+        )}`
+      )
+    );
+    agenticChild.emit('close', 0);
+    const result = await pending;
+
+    expect(spawnMock).toHaveBeenNthCalledWith(
+      2,
+      'pnpm',
+      [
+        'qa:agentic:preview',
+        '--mission',
+        'signed-in-host-guest-join',
+        '--base-url',
+        'https://preview.linejam.app',
+      ],
+      expect.objectContaining({ cwd: REPO_ROOT })
+    );
+    expect(result.ok).toBe(true);
+    expect(result.agenticQa).toMatchObject({
+      ok: true,
+      mission: 'signed-in-host-guest-join',
+      manifest: '.qa/runs/run-1/manifest.json',
+      criticSummary: '.qa/runs/run-1/critic-summary.md',
+    });
+    expect(spawnMock.mock.calls[1]?.[2]?.env.STAGEHAND_MODEL_API_KEY).toBe(
+      'stagehand-model-key'
+    );
+  });
+
+  it('does not let advisory agentic QA change a failed smoke verdict', async () => {
+    process.env.LINEJAM_AGENTIC_QA_AFTER_SMOKE = '1';
+    const child = createMockChild(1);
+    const spawnMock = vi.fn().mockReturnValue(child);
+    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+
+    const pending = runSmoke({
+      baseUrl: 'https://preview.linejam.app',
+      eventName: 'error.new_class',
+      deliveryId: 'evt-agentic-skipped',
+      spawnProcess: spawnMock,
+      timeoutMs: 1000,
+    });
+    await Promise.resolve();
+    child.emit('close', 1);
+    const result = await pending;
+
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+    expect(result.agenticQa).toMatchObject({
+      skipped: true,
+      reason: 'deterministic smoke did not pass',
+    });
+  });
+
+  it('bounds advisory agentic QA after successful smoke', async () => {
+    vi.useFakeTimers();
+    process.env.LINEJAM_AGENTIC_QA_AFTER_SMOKE = '1';
+    process.env.LINEJAM_AGENTIC_QA_TIMEOUT_MS = '25';
+    process.env.CANARY_SMOKE_KILL_GRACE_MS = '10';
+    const smokeChild = createMockChild(0);
+    const agenticChild = createMockChild(0);
+    const spawnMock = vi
+      .fn()
+      .mockReturnValueOnce(smokeChild)
+      .mockReturnValueOnce(agenticChild);
+    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+
+    const pending = runSmoke({
+      baseUrl: 'https://preview.linejam.app',
+      eventName: 'error.new_class',
+      deliveryId: 'evt-agentic-timeout',
+      spawnProcess: spawnMock,
+      timeoutMs: 1000,
+    });
+    await Promise.resolve();
+    smokeChild.emit('close', 0);
+    await vi.advanceTimersByTimeAsync(40);
+    const result = await pending;
+
+    expect(agenticChild.kill).toHaveBeenNthCalledWith(1, 'SIGTERM');
+    expect(agenticChild.kill).toHaveBeenNthCalledWith(2, 'SIGKILL');
+    expect(result.ok).toBe(true);
+    expect(result.agenticQa).toMatchObject({
+      ok: false,
+      timedOut: true,
+      reason: 'agentic QA timed out after 25ms',
+    });
   });
 
   it('fails fast when LINEJAM_SMOKE_RUNNER is invalid', async () => {

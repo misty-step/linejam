@@ -29,8 +29,11 @@
     "test:e2e:smoke": "playwright test --config=playwright.smoke.config.ts",
     "test:e2e:evidence": "playwright test tests/e2e/guest-flow.evidence.spec.ts --project=chromium --workers=1 --retries=0 --reporter=line",
     "test:e2e:ui": "playwright test --ui --grep-invert @evidence",
+    "qa:agentic:local": "node ./scripts/qa/agentic.mjs --target local",
+    "qa:agentic:preview": "node ./scripts/qa/agentic.mjs --target preview",
     "ci:dagger:all": "./scripts/ci/dagger-call.sh all",
     "ci:dagger:all-no-e2e": "./scripts/ci/dagger-call.sh all-no-e2e",
+    "ci:dagger:agentic-qa": "./scripts/ci/dagger-call.sh agentic-qa",
     "ci:dagger:audit": "./scripts/ci/dagger-call.sh audit",
     "ci:dagger:build-check": "./scripts/ci/dagger-call.sh build-check",
     "ci:dagger:e2e": "./scripts/ci/dagger-call.sh e2e",
@@ -48,7 +51,7 @@
     "generate:releases": "npx tsx scripts/generate-releases.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.39.2",
+    "@clerk/nextjs": "^6.39.5",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",
@@ -56,7 +59,7 @@
     "dompurify": "^3.4.1",
     "import-in-the-middle": "^3.0.1",
     "lucide-react": "^1.8.0",
-    "next": "16.2.4",
+    "next": "16.2.8",
     "posthog-js": "^1.369.5",
     "react": "19.2.5",
     "react-dom": "19.2.5",
@@ -65,8 +68,9 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@clerk/backend": "^3.2.13",
-    "@clerk/testing": "^2.0.17",
+    "@browserbasehq/stagehand": "3.5.0",
+    "@clerk/backend": "^3.5.0",
+    "@clerk/testing": "^2.0.35",
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@edge-runtime/vm": "^5.0.0",
@@ -87,11 +91,12 @@
     "@vitest/coverage-v8": "^4.1.5",
     "convex-test": "^0.0.49",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.2.8",
     "happy-dom": "^20.9.0",
     "lefthook": "^2.1.6",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.8.3",
+    "promptfoo": "0.121.15",
     "semantic-release": "^25.0.3",
     "tailwindcss": "^4",
     "typescript": "^5",
@@ -100,8 +105,8 @@
   "packageManager": "pnpm@10.22.0+sha512.bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c",
   "pnpm": {
     "overrides": {
-      "@clerk/shared@3": "^3.47.4",
-      "@clerk/shared@4": "^4.8.1",
+      "@clerk/shared@3": "^3.47.7",
+      "@clerk/shared@4": "^4.15.0",
       "ajv@6": "^6.14.0",
       "flatted": "3.4.2",
       "handlebars": "4.7.9",
@@ -109,10 +114,12 @@
       "lodash-es": "4.18.1",
       "minimatch": "10.2.5",
       "picomatch": "4.0.4",
-      "protobufjs": "^7.5.5",
+      "protobufjs": "^7.6.3",
       "rollup": "4.59.0",
       "undici": "7.24.0",
-      "vite": "7.3.2"
+      "vite": "7.3.2",
+      "shell-quote": "1.8.4",
+      "fast-uri": "4.0.0"
     }
   }
 }

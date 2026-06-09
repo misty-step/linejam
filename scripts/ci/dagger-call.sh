@@ -77,7 +77,7 @@ run_node() {
 }
 
 run_npx() {
-	with_clean_node_ipc_env npx "$@"
+	with_clean_node_ipc_env pnpm exec "$@"
 }
 
 load_env_file() {
@@ -507,6 +507,11 @@ if [[ "$FUNCTION_NAME" == "smoke" ]]; then
 	validate_smoke_auth_configuration
 fi
 
+if [[ "$FUNCTION_NAME" == "agentic-qa" && -z "${PLAYWRIGHT_BASE_URL:-}" ]]; then
+	echo >&2 "PLAYWRIGHT_BASE_URL is required for ci:dagger:agentic-qa because it targets a deployed preview URL."
+	exit 1
+fi
+
 TEMP_SOURCE_DIR="$(create_source_snapshot)"
 cd "$TEMP_SOURCE_DIR"
 
@@ -544,7 +549,7 @@ append_app_env() {
 }
 
 case "$FUNCTION_NAME" in
-  all|all-no-e-2-e|base|build-check|e-2-e|format-check|lint|smoke|typecheck|unit-test)
+  agentic-qa|all|all-no-e-2-e|base|build-check|e-2-e|format-check|lint|smoke|typecheck|unit-test)
     append_app_env
     ;;
 esac
@@ -558,10 +563,18 @@ if [[ "$FUNCTION_NAME" == "smoke" ]]; then
 	append_arg "--playwright-require-auth-smoke" "${PLAYWRIGHT_REQUIRE_AUTH_SMOKE:-}"
 fi
 
+if [[ "$FUNCTION_NAME" == "agentic-qa" ]]; then
+	append_arg "--base-url" "${PLAYWRIGHT_BASE_URL:-}"
+	append_arg "--mission" "${LINEJAM_AGENTIC_QA_MISSION:-}"
+	append_arg "--stagehand-model" "${STAGEHAND_MODEL:-}"
+	append_secret_arg "--stagehand-model-api-key" "STAGEHAND_MODEL_API_KEY"
+fi
+
 dagger_success_marker() {
 	case "$FUNCTION_NAME" in
 		all) printf '%s' 'Ci.all DONE' ;;
 		all-no-e-2-e) printf '%s' 'Ci.allNoE2e DONE' ;;
+		agentic-qa) printf '%s' 'Ci.agenticQa DONE' ;;
 		build-check) printf '%s' 'Ci.buildCheck DONE' ;;
 		e-2-e) printf '%s' 'Ci.e2e DONE' ;;
 		format-check) printf '%s' 'Ci.formatCheck DONE' ;;

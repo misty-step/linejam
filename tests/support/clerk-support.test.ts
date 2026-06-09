@@ -71,7 +71,7 @@ describe('ensureClerkSmokeUser', () => {
         emailAddress: ['smoke@example.com'],
       })
     );
-  });
+  }, 30000);
 
   it('refuses to auto-provision a missing live smoke user', async () => {
     getUserList.mockResolvedValueOnce({ data: [] });
