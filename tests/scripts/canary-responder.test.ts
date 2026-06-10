@@ -155,6 +155,38 @@ describe('summarizeProcessing', () => {
     expect(summary).toContain('- Smoke exit code: `1`');
   });
 
+  it('includes advisory agentic QA artifact paths when smoke attaches them', () => {
+    const summary = summarizeProcessing({
+      eventName: 'error.new_class',
+      deliveryId: 'evt-agentic',
+      sequence: 0,
+      service: 'linejam',
+      smokeResult: {
+        skipped: false,
+        baseUrl: 'https://preview.linejam.app',
+        code: 0,
+        agenticQa: {
+          ok: true,
+          skipped: false,
+          manifest: '.qa/runs/run-1/manifest.json',
+          criticSummary: '.qa/runs/run-1/critic-summary.md',
+        },
+      },
+      contextStatus: 'ok',
+      contextError: undefined,
+      deliveryPath: '/tmp/delivery.json',
+      contextPath: undefined,
+    });
+
+    expect(summary).toContain('- Agentic QA: `passed`');
+    expect(summary).toContain(
+      '- Agentic QA manifest: `.qa/runs/run-1/manifest.json`'
+    );
+    expect(summary).toContain(
+      '- Agentic QA critic summary: `.qa/runs/run-1/critic-summary.md`'
+    );
+  });
+
   it('omits smoke exit code when smoke is skipped', () => {
     const summary = summarizeProcessing({
       eventName: 'error.new_class',

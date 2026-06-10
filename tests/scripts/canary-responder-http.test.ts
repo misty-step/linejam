@@ -56,6 +56,45 @@ describe('canary responder http server', () => {
     throw lastError || new Error('delivery file was never readable');
   }
 
+  async function waitForStoredFiles(
+    dir: string,
+    subdirectory: string,
+    count: number
+  ) {
+    const targetDir = path.join(dir, subdirectory);
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        const entries = await readdir(targetDir);
+        if (entries.length >= count) {
+          return entries;
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    throw lastError || new Error(`${subdirectory} files were never persisted`);
+  }
+
+  async function waitForMockCalls(
+    mock: ReturnType<typeof vi.fn>,
+    count: number
+  ) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (mock.mock.calls.length >= count) {
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    expect(mock).toHaveBeenCalledTimes(count);
+  }
+
   async function startResponder(options?: {
     withSecret?: boolean;
     smokeEnabled?: boolean;
@@ -278,7 +317,7 @@ describe('canary responder http server', () => {
       )
       .mockResolvedValue({ ok: true, skipped: false, code: 0 });
 
-    const { server, baseUrl, mocks } = await startResponder({
+    const { server, baseUrl, dir, mocks } = await startResponder({
       dependencyMocks: {
         runSmoke,
         shouldTriggerSmoke: vi.fn().mockReturnValue(true),
@@ -343,9 +382,10 @@ describe('canary responder http server', () => {
       expect(mocks.runSmoke).toHaveBeenCalledTimes(1);
 
       releaseFirstSmoke?.();
-      await new Promise((resolve) => setTimeout(resolve, 25));
 
+      await waitForMockCalls(mocks.runSmoke, 2);
       expect(mocks.runSmoke).toHaveBeenCalledTimes(2);
+      await waitForStoredFiles(dir, 'smoke', 2);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

@@ -14,6 +14,8 @@ pnpm test:e2e:smoke # Remote preview/prod smoke
 pnpm test:e2e:evidence # Run the tagged evidence capture spec
 pnpm test:e2e:ui   # Playwright UI mode
 pnpm evidence:guest-flow # Package screenshots, video, GIF, and summary
+pnpm qa:agentic:local --mission guest-host-signed-in-join # Advisory agentic QA against an already-running local target
+pnpm qa:agentic:preview --mission guest-host-signed-in-join --base-url https://<preview-url> # Advisory preview QA
 ```
 
 ## Test Structure
@@ -218,6 +220,24 @@ pnpm evidence:guest-flow
 - `pnpm test:e2e` excludes the `@evidence` suite so merge-gating stays deterministic.
 - `pnpm evidence:guest-flow` runs the canonical guest flow, then writes screenshots, `guest-flow.webm`, `guest-flow.gif`, `qa-summary.md`, and `manifest.json`.
 - When local Convex/Clerk wiring is unavailable, point the evidence run at a deployed target with `LINEJAM_BASE_URL=https://www.linejam.app`.
+
+### Agentic QA
+
+The agentic QA lane is advisory and writes stable artifacts under `.qa/runs/<run-id>/`. It does not replace `pnpm ci:prepush`, deterministic Playwright, or Dagger.
+
+```bash
+pnpm qa:agentic:local --mission guest-host-signed-in-join
+pnpm qa:agentic:local --mission signed-in-host-guest-join
+pnpm qa:agentic:preview --mission guest-host-signed-in-join --base-url https://<preview-url>
+```
+
+- Local runs target `PLAYWRIGHT_BASE_URL` or `http://localhost:3333`; start the app outside the harness before running the command.
+- Preview runs require an explicit `--base-url`.
+- Stagehand exploration is required for a passing agentic QA run. Set `STAGEHAND_MODEL_API_KEY` or a provider key such as `OPENAI_API_KEY`; override the default `openai/gpt-4.1-mini` model with `STAGEHAND_MODEL` when needed.
+- Authenticated missions reuse the Clerk browser auth posture and fail closed when Clerk credentials are missing.
+- Each run writes `manifest.json`, `stagehand.json`, screenshots, `critic.json`, `critic-summary.md`, and a Promptfoo receipt when model grading is enabled.
+- Deterministic manifest checks decide pass/fail first. Set `LINEJAM_PROMPTFOO_CRITIC=1` to run the optional `qa/agentic/promptfoo.yaml` advisory model critic; a Promptfoo failure is recorded in the manifest but does not replace deterministic critic findings.
+- Canary responder follow-up is disabled by default. Set `LINEJAM_AGENTIC_QA_AFTER_SMOKE=1`, `STAGEHAND_MODEL_API_KEY`, and optionally `LINEJAM_AGENTIC_QA_MISSION=<mission>` to attach an agentic artifact path after deterministic smoke succeeds.
 
 ## Coverage
 
