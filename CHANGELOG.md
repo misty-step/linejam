@@ -2,6 +2,12 @@
 
 All notable changes to Linejam.
 
+# [1.2.0](https://github.com/misty-step/linejam/compare/v1.1.3...v1.2.0) (2026-06-10)
+
+### Features
+
+- add agentic qa harness ([a7f3f1f](https://github.com/misty-step/linejam/commit/a7f3f1f9f200183f261b822ef975d07963f4c494)), closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133)
+
 ## [1.1.3](https://github.com/misty-step/linejam/compare/v1.1.2...v1.1.3) (2026-04-21)
 
 ### Bug Fixes
