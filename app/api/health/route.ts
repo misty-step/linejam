@@ -1,10 +1,14 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import { captureCanaryException, isCanaryEnabled } from '@/lib/canaryServer';
+import { log, logError, logRequest } from '@/lib/logger';
 
 const CONVEX_HEALTH_TIMEOUT_MS = 1_500;
+const ROUTE = '/api/health';
 
 export async function GET() {
+  const startedAt = Date.now();
+
   try {
     const convexStatus = await checkConvex();
     const envChecks = checkEnvVars();
@@ -13,28 +17,36 @@ export async function GET() {
       envChecks.convexUrl &&
       convexStatus === 'connected';
     const canaryReady = envChecks.canaryIngestKey;
-
-    return Response.json(
-      {
-        status: serviceHealthy ? 'ok' : 'unhealthy',
-        convex: convexStatus,
-        env: {
-          nodeEnv: process.env.NODE_ENV ?? 'development',
-          ...envChecks,
-        },
-        observability: {
-          status: canaryReady ? 'ready' : 'degraded',
-          canaryIngestKey: canaryReady,
-        },
-        timestamp: new Date().toISOString(),
+    const status = serviceHealthy ? 200 : 503;
+    const body = {
+      status: serviceHealthy ? 'ok' : 'unhealthy',
+      convex: convexStatus,
+      env: {
+        nodeEnv: process.env.NODE_ENV ?? 'development',
+        ...envChecks,
       },
-      {
-        status: serviceHealthy ? 200 : 503,
-        headers: { 'Cache-Control': 'no-store' },
-      }
-    );
+      observability: {
+        status: canaryReady ? 'ready' : 'degraded',
+        canaryIngestKey: canaryReady,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    logRequest({
+      method: 'GET',
+      route: ROUTE,
+      status,
+      durationMs: elapsedMs(startedAt),
+      convex: convexStatus,
+      observabilityStatus: canaryReady ? 'ready' : 'degraded',
+    });
+
+    return Response.json(body, {
+      status,
+      headers: { 'Cache-Control': 'no-store' },
+    });
   } catch (error) {
-    await logFailure(error);
+    await logFailure(error, startedAt);
     return Response.json(
       { status: 'error' },
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
@@ -64,6 +76,8 @@ async function checkConvex() {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   if (!convexUrl) return 'skipped';
 
+  const startedAt = Date.now();
+
   try {
     const client = new ConvexHttpClient(convexUrl);
     await Promise.race([
@@ -80,8 +94,14 @@ async function checkConvex() {
     ]);
     return 'connected';
   } catch (error) {
-    // Keep response successful but surface degraded status.
-    console.warn('Convex health ping failed; marking unreachable', error);
+    log.warn('Convex health ping failed; marking unreachable', {
+      method: 'GET',
+      route: ROUTE,
+      operation: 'convexHealthPing',
+      durationMs: elapsedMs(startedAt),
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return 'unreachable';
   }
 }
@@ -89,10 +109,20 @@ async function checkConvex() {
 /**
  * Best-effort logging that tolerates missing or slow observability transport.
  */
-async function logFailure(error: unknown) {
-  console.error('Healthcheck failed', error);
-
-  void captureCanaryException(error, {
+async function logFailure(error: unknown, startedAt: number) {
+  const context = {
     source: 'api.health',
-  });
+    method: 'GET',
+    route: ROUTE,
+    status: 500,
+    durationMs: elapsedMs(startedAt),
+  };
+
+  logError('Healthcheck failed', error, context);
+
+  void captureCanaryException(error, context);
+}
+
+function elapsedMs(startedAt: number) {
+  return Math.max(0, Date.now() - startedAt);
 }

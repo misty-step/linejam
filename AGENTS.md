@@ -83,7 +83,6 @@ Local Dagger is authoritative. Hosted CI is secondary confirmation.
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Local bootstrap path still missing                  | `.env.example`, `scripts/setup.sh` absent                                                         | `backlog.d/003-bootstrap-local-dev-loop.md`              |
 | Release governance docs still missing               | `CODEOWNERS`, `SECURITY.md`, `CONTRIBUTING.md` absent                                             | `backlog.d/004-establish-release-governance-baseline.md` |
-| Critical room/session flows need scrubbed telemetry | `app/api/health/route.ts`, `app/api/guest/session/route.ts`, `lib/errorCore.ts`, `lib/logger.ts`  | `backlog.d/005-add-request-telemetry-for-room-flows.md`  |
 | Post-reveal recap lacks a session-level artifact    | `components/RevealPhase.tsx`, `components/PoemDisplay.tsx`, `components/RoomChrome.tsx`           | `backlog.d/006-build-post-reveal-session-hub.md`         |
 | Evidence and smoke artifacts are advisory/ephemeral | `.github/workflows/ci.yml`, `scripts/evidence/guest-flow.mjs`, `scripts/canary/trigger-smoke.mjs` | `backlog.d/008-govern-evidence-and-smoke-artifacts.md`   |
 | Public sharing privacy contract is implicit         | `convex/poems.ts`, `app/poem/[id]/PoemDetail.tsx`, `app/poem/[id]/metadata.ts`                    | `backlog.d/009-make-sharing-privacy-explicit.md`         |

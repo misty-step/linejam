@@ -1,5 +1,14 @@
 /** @vitest-environment node */
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { NextRequest } from 'next/server';
 
 vi.mock('server-only', () => ({}));
@@ -12,11 +21,27 @@ vi.mock('server-only', () => ({}));
 describe('GET /api/guest/session', () => {
   describe('with normal operation', () => {
     let GET: typeof import('@/app/api/guest/session/route').GET;
+    let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+
+    function jsonLogs() {
+      const calls = consoleLogSpy.mock.calls as Array<[unknown, ...unknown[]]>;
+      return calls.map((call) => JSON.parse(String(call[0]))) as Array<
+        Record<string, unknown>
+      >;
+    }
 
     beforeAll(async () => {
       vi.resetModules();
       const mod = await import('@/app/api/guest/session/route');
       GET = mod.GET;
+    });
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
     it('creates new guest session when no cookie exists', async () => {
@@ -36,6 +61,18 @@ describe('GET /api/guest/session', () => {
       const guestCookie = cookies.find((c) => c.name === 'linejam_guest_token');
       expect(guestCookie).toBeTruthy();
       expect(guestCookie?.value).toBeTruthy();
+      expect(jsonLogs()).toContainEqual(
+        expect.objectContaining({
+          level: 'info',
+          message: 'Request completed',
+          method: 'GET',
+          route: '/api/guest/session',
+          status: 200,
+          durationMs: expect.any(Number),
+          operation: 'createGuestSession',
+          reusedExistingToken: false,
+        })
+      );
     });
 
     it('returns existing guestId when valid cookie exists', async () => {
@@ -60,6 +97,18 @@ describe('GET /api/guest/session', () => {
 
       // Should return same guestId
       expect(data2.guestId).toBe(data1.guestId);
+      expect(jsonLogs()).toContainEqual(
+        expect.objectContaining({
+          level: 'info',
+          message: 'Request completed',
+          method: 'GET',
+          route: '/api/guest/session',
+          status: 200,
+          durationMs: expect.any(Number),
+          operation: 'reuseGuestSession',
+          reusedExistingToken: true,
+        })
+      );
     });
 
     it('creates new session when cookie is tampered', async () => {
@@ -78,6 +127,92 @@ describe('GET /api/guest/session', () => {
       const cookies = response.cookies.getAll();
       const guestCookie = cookies.find((c) => c.name === 'linejam_guest_token');
       expect(guestCookie?.value).not.toBe('tampered-invalid-token');
+      expect(jsonLogs()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            level: 'warn',
+            message: 'Guest session token rejected',
+            method: 'GET',
+            route: '/api/guest/session',
+            operation: 'verifyGuestToken',
+            reason: 'invalid_or_expired',
+          }),
+          expect.objectContaining({
+            level: 'info',
+            message: 'Request completed',
+            method: 'GET',
+            route: '/api/guest/session',
+            status: 200,
+            durationMs: expect.any(Number),
+            operation: 'createGuestSession',
+            reusedExistingToken: false,
+          }),
+        ])
+      );
+      expect(JSON.stringify(jsonLogs())).not.toContain(
+        'tampered-invalid-token'
+      );
+    });
+  });
+
+  describe('with non-Error invalid token failure', () => {
+    let GET: typeof import('@/app/api/guest/session/route').GET;
+    let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+
+    function jsonLogs() {
+      const calls = consoleLogSpy.mock.calls as Array<[unknown, ...unknown[]]>;
+      return calls.map((call) => JSON.parse(String(call[0]))) as Array<
+        Record<string, unknown>
+      >;
+    }
+
+    beforeAll(async () => {
+      vi.resetModules();
+      vi.doMock('@/lib/guestToken', () => ({
+        signGuestToken: vi.fn().mockResolvedValue('fresh-token'),
+        verifyGuestToken: vi.fn().mockRejectedValue('bad token'),
+      }));
+
+      const mod = await import('@/app/api/guest/session/route');
+      GET = mod.GET;
+    });
+
+    beforeEach(() => {
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    afterAll(() => {
+      vi.doUnmock('@/lib/guestToken');
+    });
+
+    it('logs an unknown token verification failure without the token value', async () => {
+      const request = new NextRequest(
+        'http://localhost:3000/api/guest/session'
+      );
+      request.cookies.set('linejam_guest_token', 'tampered-invalid-token');
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+      expect(jsonLogs()).toContainEqual(
+        expect.objectContaining({
+          level: 'warn',
+          message: 'Guest session token rejected',
+          method: 'GET',
+          route: '/api/guest/session',
+          operation: 'verifyGuestToken',
+          reason: 'invalid_or_expired',
+          errorName: 'UnknownError',
+        })
+      );
+      expect(JSON.stringify(jsonLogs())).not.toContain(
+        'tampered-invalid-token'
+      );
+      expect(JSON.stringify(jsonLogs())).not.toContain('bad token');
     });
   });
 

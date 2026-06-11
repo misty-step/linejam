@@ -200,6 +200,7 @@ test('host creates room', async ({ page }) => {
 - Authenticated Playwright coverage signs into Clerk inside each live browser context after the app is serving traffic. That avoids depending on serialized auth state for dev-session syncing and keeps protected-route checks aligned with the actual test context.
 - Remote smoke inverts the env preference: `.env.production.local` wins over `.env.local` so deployed targets use production-aligned Clerk keys by default. Authenticated smoke against `https://www.linejam.app` now fails fast if the active Clerk publishable key is still a `pk_test_...` localhost key or the secret key is still `sk_test_...`, and authenticated smoke validates that Clerk already has the `convex` JWT template before starting the browser run.
 - `/api/health` reports app health separately from Canary readiness, so missing Canary ingest should be treated as degraded observability rather than proof that the game flow is down.
+- Request telemetry assertions should verify structured JSON fields, not prose logs. Critical app routes must emit method, route, status, and duration while keeping guest tokens, display names, and raw request payloads out of logs and Canary context.
 
 **Multi-player tests** use separate browser contexts:
 

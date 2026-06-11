@@ -22,6 +22,13 @@ const HEALTHY_ENV = {
 const mockQuery = vi.fn();
 const fetchMock = vi.fn();
 
+function parseJsonLogCalls(spy: ReturnType<typeof vi.spyOn>) {
+  const calls = spy.mock.calls as Array<[unknown, ...unknown[]]>;
+  return calls.map((call) => JSON.parse(String(call[0]))) as Array<
+    Record<string, unknown>
+  >;
+}
+
 class MockConvexHttpClient {
   query = mockQuery;
 }
@@ -58,6 +65,9 @@ describe('/api/health', () => {
     });
 
     it('returns 200 with status, timestamp, and env checks', async () => {
+      const consoleLogSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
       const response = await GET();
       const data = await response.json();
 
@@ -79,6 +89,18 @@ describe('/api/health', () => {
 
       const timestamp = new Date(data.timestamp);
       expect(timestamp.toISOString()).toBe(data.timestamp);
+      expect(parseJsonLogCalls(consoleLogSpy)).toContainEqual(
+        expect.objectContaining({
+          level: 'info',
+          message: 'Request completed',
+          method: 'GET',
+          route: '/api/health',
+          status: 200,
+          durationMs: expect.any(Number),
+          convex: 'connected',
+          observabilityStatus: 'ready',
+        })
+      );
     });
 
     it('includes Cache-Control: no-store header', async () => {
@@ -99,7 +121,9 @@ describe('/api/health', () => {
 
     it('returns unhealthy when Convex ping fails', async () => {
       mockQuery.mockRejectedValue(new Error('Connection refused'));
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleLogSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
 
       const response = await GET();
       const data = await response.json();
@@ -107,11 +131,54 @@ describe('/api/health', () => {
       expect(response.status).toBe(503);
       expect(data.status).toBe('unhealthy');
       expect(data.convex).toBe('unreachable');
+      expect(parseJsonLogCalls(consoleLogSpy)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            level: 'warn',
+            message: 'Convex health ping failed; marking unreachable',
+            method: 'GET',
+            route: '/api/health',
+            operation: 'convexHealthPing',
+          }),
+          expect.objectContaining({
+            level: 'info',
+            message: 'Request completed',
+            method: 'GET',
+            route: '/api/health',
+            status: 503,
+            durationMs: expect.any(Number),
+            convex: 'unreachable',
+            observabilityStatus: 'ready',
+          }),
+        ])
+      );
+    });
+
+    it('logs non-Error Convex ping failures without throwing', async () => {
+      mockQuery.mockRejectedValue('connection refused');
+      const consoleLogSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
+
+      const response = await GET();
+
+      expect(response.status).toBe(503);
+      expect(parseJsonLogCalls(consoleLogSpy)).toContainEqual(
+        expect.objectContaining({
+          level: 'warn',
+          message: 'Convex health ping failed; marking unreachable',
+          method: 'GET',
+          route: '/api/health',
+          operation: 'convexHealthPing',
+          errorName: 'UnknownError',
+          errorMessage: 'connection refused',
+        })
+      );
     });
 
     it('returns unhealthy when Convex never answers before the deadline', async () => {
       mockQuery.mockImplementation(() => new Promise(() => undefined));
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'log').mockImplementation(() => {});
       vi.useFakeTimers();
 
       const responsePromise = GET();
@@ -234,8 +301,7 @@ describe('/api/health', () => {
       expect(data).toEqual({ status: 'error' });
       expect(response.headers.get('Cache-Control')).toBe('no-store');
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Healthcheck failed',
-        expect.any(Error)
+        expect.stringContaining('"message":"Healthcheck failed"')
       );
       expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -244,7 +310,13 @@ describe('/api/health', () => {
         context?: Record<string, unknown>;
       };
 
-      expect(body.context).toEqual({ source: 'api.health' });
+      expect(body.context).toEqual({
+        durationMs: expect.any(Number),
+        method: 'GET',
+        route: '/api/health',
+        source: 'api.health',
+        status: 500,
+      });
     });
   });
 

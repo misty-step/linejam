@@ -20,6 +20,8 @@ const SAFE_CONTEXT_KEYS = new Set([
   'routerKind',
   'renderSource',
   'source',
+  'status',
+  'durationMs',
 ]);
 
 export type CanaryPayload = {

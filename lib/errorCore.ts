@@ -25,7 +25,7 @@ export function captureReportedError(
     return;
   }
 
-  void reporter.captureCanaryException(error, context);
+  void reporter.captureCanaryException(error, scrubbedContext);
 
   if (process.env.NODE_ENV === 'development') {
     logCapturedError('Captured error:', error, scrubbedContext);

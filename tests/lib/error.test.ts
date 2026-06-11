@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { captureError } from '@/lib/error';
+import { captureReportedError } from '@/lib/errorCore';
 
 const fetchMock = vi.fn();
 
@@ -94,5 +95,51 @@ describe('captureError', () => {
       error
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('captureReportedError', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('passes only scrubbed context to the enabled reporter transport', () => {
+    const error = new Error('create room failed');
+    const captureCanaryException = vi.fn().mockResolvedValue(undefined);
+    const reporter = {
+      captureCanaryException,
+      isCanaryEnabled: vi.fn(() => true),
+      scrubCanaryContext: vi.fn(() => ({
+        operation: 'createRoom',
+        route: '/host',
+      })),
+    };
+
+    captureReportedError(reporter, error, {
+      operation: 'createRoom',
+      route: '/host',
+      guestToken: 'secret-guest-token',
+      displayName: 'Ada Lovelace',
+      requestBody: { line: 'raw poem draft' },
+    });
+
+    expect(captureCanaryException).toHaveBeenCalledWith(error, {
+      operation: 'createRoom',
+      route: '/host',
+    });
+    expect(JSON.stringify(captureCanaryException.mock.calls)).not.toContain(
+      'secret-guest-token'
+    );
+    expect(JSON.stringify(captureCanaryException.mock.calls)).not.toContain(
+      'Ada Lovelace'
+    );
+    expect(JSON.stringify(captureCanaryException.mock.calls)).not.toContain(
+      'raw poem draft'
+    );
   });
 });
