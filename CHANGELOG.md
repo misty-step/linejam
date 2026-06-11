@@ -2,6 +2,12 @@
 
 All notable changes to Linejam.
 
+# [1.3.0](https://github.com/misty-step/linejam/compare/v1.2.0...v1.3.0) (2026-06-11)
+
+### Features
+
+- **observability:** add scrubbed route telemetry ([3d31d4c](https://github.com/misty-step/linejam/commit/3d31d4c2bdc70d7038adc669813600882673f0fc))
+
 # [1.2.0](https://github.com/misty-step/linejam/compare/v1.1.3...v1.2.0) (2026-06-10)
 
 ### Features
