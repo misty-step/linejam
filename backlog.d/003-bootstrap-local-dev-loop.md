@@ -1,6 +1,6 @@
 # Bootstrap Local Dev Loop
 
-Priority: medium
+Priority: P2
 Status: ready
 Estimate: M
 

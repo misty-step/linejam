@@ -1,6 +1,6 @@
 # Establish Release Governance Baseline
 
-Priority: medium
+Priority: P2
 Status: ready
 Estimate: S
 
