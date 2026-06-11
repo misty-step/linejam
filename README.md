@@ -98,6 +98,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 
 - Canary is the primary error and incident system. Client errors, request failures, and explicit `captureError()` calls all flow there.
 - Critical route telemetry is structured JSON. `/api/health` and `/api/guest/session` log method, route, status, and duration without guest tokens, display names, or raw request payloads.
+- Completed rooms end in a shared recap hub. Players can replay every poem, share `/recap/<room-code>`, and keep the same group moving into the next round without relying on one-off archive links.
 - Treat Dagger as the source of truth for local engineering validation: `pnpm ci:dagger:all`.
 - GitHub Actions still enforces branch protection remotely. Keep the local Dagger contract green first, then expect hosted `merge-gate` and preview/prod smoke to mirror that branch on remote infrastructure.
 - Local Dagger auto-hydrates `GUEST_TOKEN_SECRET` from the active Convex deployment when `NEXT_PUBLIC_CONVEX_URL` points at the same Convex dev or prod backend that the CLI resolves.

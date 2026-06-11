@@ -97,6 +97,8 @@ describe('RevealPhase component', () => {
     {
       _id: 'poem_123' as Id<'poems'>,
       indexInRoom: 0,
+      createdAt: 1000,
+      preview: 'The stars align above',
       readerName: 'Alice',
       readerStableId: 'stable_alice_123',
       isRevealed: false,
@@ -104,6 +106,8 @@ describe('RevealPhase component', () => {
     {
       _id: 'poem_456' as Id<'poems'>,
       indexInRoom: 1,
+      createdAt: 1000,
+      preview: 'Lanterns drift toward dawn',
       readerName: 'Bob',
       readerStableId: 'stable_bob_456',
       isRevealed: true,
@@ -269,7 +273,7 @@ describe('RevealPhase component', () => {
     });
   });
 
-  it('shows completion actions when all poems are revealed', () => {
+  it('shows a session-complete recap hub when all poems are revealed', () => {
     // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
@@ -278,9 +282,29 @@ describe('RevealPhase component', () => {
 
     // Assert
     expect(
+      screen.getByRole('heading', { name: /Session complete/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/2 poems/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 poets/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Share Session/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Open Shared Recap/i })
+    ).toHaveAttribute('href', '/recap/ABCD');
+    expect(
+      screen.getByRole('link', {
+        name: /Replay poem 1: The stars align above/i,
+      })
+    ).toHaveAttribute('href', '/poem/poem_123');
+    expect(
+      screen.getByRole('link', {
+        name: /Replay poem 2: Lanterns drift toward dawn/i,
+      })
+    ).toHaveAttribute('href', '/poem/poem_456');
+    expect(
       screen.getByRole('button', { name: /Start Next Round/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Archive/i })).toBeInTheDocument();
   });
 
   it('shows Back to Lobby button for host when all revealed', () => {
@@ -331,18 +355,46 @@ describe('RevealPhase component', () => {
     });
   });
 
-  it('disables archive prefetch on the session-complete screen', () => {
+  it('disables recap prefetch on the session-complete screen', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
     render(<RevealPhase roomCode="ABCD" />);
 
-    expect(screen.getByRole('link', { name: /Archive/i })).toHaveAttribute(
-      'data-prefetch',
-      'false'
-    );
+    expect(
+      screen.getByRole('link', { name: /Open Shared Recap/i })
+    ).toHaveAttribute('data-prefetch', 'false');
   });
 
-  it('shows Archive link when all revealed', () => {
+  it('gives non-hosts replay and share actions after completion', () => {
+    mockUseQuery.mockReturnValue(mockStateAllRevealedNotHost);
+
+    render(<RevealPhase roomCode="ABCD" />);
+
+    expect(
+      screen.getByRole('button', { name: /Share Session/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Open Shared Recap/i })
+    ).toHaveAttribute('href', '/recap/ABCD');
+    expect(
+      screen.getByRole('link', { name: /Replay poem 1/i })
+    ).toHaveAttribute('href', '/poem/poem_123');
+    expect(
+      screen.getByText(/You can replay and share the session/i)
+    ).toBeInTheDocument();
+  });
+
+  it('disables poem replay prefetch on the session-complete screen', () => {
+    mockUseQuery.mockReturnValue(mockStateAllRevealed);
+
+    render(<RevealPhase roomCode="ABCD" />);
+
+    expect(
+      screen.getByRole('link', { name: /Replay poem 1/i })
+    ).toHaveAttribute('data-prefetch', 'false');
+  });
+
+  it('does not show the old archive-only link when all revealed', () => {
     // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
@@ -350,9 +402,7 @@ describe('RevealPhase component', () => {
     render(<RevealPhase roomCode="ABCD" />);
 
     // Assert
-    const archiveLink = screen.getByRole('link', { name: /Archive/i });
-    expect(archiveLink).toBeInTheDocument();
-    expect(archiveLink).toHaveAttribute('href', '/me/poems');
+    expect(screen.queryByRole('link', { name: /^Archive$/i })).toBeNull();
   });
 
   it('shows Exit Room link when all revealed', () => {

@@ -13,6 +13,7 @@ import {
   getMyPoems,
   getPublicPoemPreview,
   getPublicPoemFull,
+  getPublicSessionRecap,
 } from '../../convex/poems';
 
 // Mock auth helpers
@@ -666,6 +667,411 @@ describe('poems', () => {
 
       // Assert
       expect(result?.lines[0].authorName).toBe('Unknown');
+    });
+  });
+
+  describe('getPublicSessionRecap', () => {
+    it('returns null when room is not found', async () => {
+      mockGetRoomByCode.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'MISS',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null when room has no completed game', async () => {
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1', code: 'ABCD' });
+      mockGetCompletedGame.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('returns session-level poems, contributors, and replay metadata', async () => {
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = {
+        _id: 'game1',
+        roomId: 'room1',
+        cycle: 2,
+        completedAt: 2000,
+      };
+      const poems = [
+        {
+          _id: 'poem2',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 1,
+          createdAt: 1000,
+          assignedReaderId: 'user2',
+          revealedAt: 3000,
+        },
+        {
+          _id: 'poem1',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 0,
+          createdAt: 1000,
+          assignedReaderId: 'user1',
+          revealedAt: 3000,
+        },
+      ];
+      const players = [
+        {
+          _id: 'player1',
+          roomId: 'room1',
+          userId: 'user1',
+          displayName: 'Alice',
+          seatIndex: 0,
+        },
+        {
+          _id: 'player2',
+          roomId: 'room1',
+          userId: 'user2',
+          displayName: 'Bob',
+          seatIndex: 1,
+        },
+      ];
+
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetCompletedGame.mockResolvedValue(game);
+      mockDb.collect
+        .mockResolvedValueOnce(poems)
+        .mockResolvedValueOnce(players)
+        .mockResolvedValueOnce([
+          {
+            text: 'Second poem line two',
+            indexInPoem: 1,
+            authorUserId: 'user1',
+          },
+          {
+            text: 'Second poem line one',
+            indexInPoem: 0,
+            authorUserId: 'user2',
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            text: 'First poem line',
+            indexInPoem: 0,
+            authorUserId: 'user1',
+            authorDisplayName: 'Alice Pen',
+          },
+        ]);
+      mockDb.get
+        .mockResolvedValueOnce({ _id: 'user1', displayName: 'Alice' })
+        .mockResolvedValueOnce({ _id: 'user2', displayName: 'Bob' });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(result).toMatchObject({
+        roomCode: 'ABCD',
+        cycle: 2,
+        completedAt: 2000,
+        poemCount: 2,
+        playerCount: 2,
+      });
+      expect(result?.poems.map((poem: { _id: string }) => poem._id)).toEqual([
+        'poem1',
+        'poem2',
+      ]);
+      expect(result?.poems[0]).toMatchObject({
+        preview: 'First poem line',
+        readerName: 'Alice',
+        starterName: 'Alice Pen',
+        poetCount: 1,
+        lines: [{ text: 'First poem line', authorName: 'Alice Pen' }],
+      });
+      expect(
+        result?.poems[1].lines.map((line: { text: string }) => line.text)
+      ).toEqual(['Second poem line one', 'Second poem line two']);
+    });
+
+    it('falls back cleanly when recap names and lines are missing', async () => {
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = {
+        _id: 'game1',
+        roomId: 'room1',
+        cycle: 1,
+        completedAt: 3000,
+      };
+      const poems = [
+        {
+          _id: 'poem1',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 0,
+          createdAt: 1000,
+          assignedReaderId: 'missing-reader',
+          revealedAt: 4000,
+        },
+      ];
+      const players = [
+        {
+          _id: 'player1',
+          roomId: 'room1',
+          userId: 'user1',
+          displayName: 'Alice',
+        },
+      ];
+
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetCompletedGame.mockResolvedValue(game);
+      mockDb.collect
+        .mockResolvedValueOnce(poems)
+        .mockResolvedValueOnce(players)
+        .mockResolvedValueOnce([]);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(result?.poems[0]).toMatchObject({
+        preview: '',
+        readerName: 'Unknown',
+        starterName: 'Unknown',
+        poetCount: 0,
+        lines: [],
+      });
+    });
+
+    it('marks AI authors and falls back to Unknown for missing author records', async () => {
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = {
+        _id: 'game1',
+        roomId: 'room1',
+        cycle: 1,
+        completedAt: 3000,
+      };
+      const poems = [
+        {
+          _id: 'poem1',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 0,
+          createdAt: 1000,
+          assignedReaderId: 'user1',
+          revealedAt: 4000,
+        },
+      ];
+      const players = [
+        {
+          _id: 'player1',
+          roomId: 'room1',
+          userId: 'user1',
+          displayName: 'Alice',
+          seatIndex: 0,
+        },
+      ];
+
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetCompletedGame.mockResolvedValue(game);
+      mockDb.collect
+        .mockResolvedValueOnce(poems)
+        .mockResolvedValueOnce(players)
+        .mockResolvedValueOnce([
+          {
+            text: 'AI line',
+            indexInPoem: 1,
+            authorUserId: 'ai-user',
+          },
+          {
+            text: 'Mystery line',
+            indexInPoem: 0,
+            authorUserId: 'missing-user',
+          },
+        ]);
+      mockDb.get
+        .mockResolvedValueOnce({
+          _id: 'ai-user',
+          displayName: 'Muse',
+          kind: 'AI',
+        })
+        .mockResolvedValueOnce(null);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(result?.poems[0].lines).toEqual([
+        {
+          text: 'Mystery line',
+          authorName: 'Unknown',
+          isBot: false,
+        },
+        {
+          text: 'AI line',
+          authorName: 'Muse',
+          isBot: true,
+        },
+      ]);
+    });
+
+    it('returns null until every completed-game poem has been revealed', async () => {
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = {
+        _id: 'game1',
+        roomId: 'room1',
+        cycle: 1,
+        completedAt: 3000,
+      };
+      const poems = [
+        {
+          _id: 'poem1',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 0,
+          createdAt: 1000,
+          assignedReaderId: 'user1',
+          revealedAt: 4000,
+        },
+        {
+          _id: 'poem2',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 1,
+          createdAt: 1000,
+          assignedReaderId: 'user2',
+        },
+      ];
+
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetCompletedGame.mockResolvedValue(game);
+      mockDb.collect.mockResolvedValueOnce(poems).mockResolvedValueOnce([]);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('derives starter names from the first line author, not mutable room seats', async () => {
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = {
+        _id: 'game1',
+        roomId: 'room1',
+        cycle: 1,
+        completedAt: 3000,
+      };
+      const poems = [
+        {
+          _id: 'poem1',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 0,
+          createdAt: 1000,
+          assignedReaderId: 'reader',
+          revealedAt: 4000,
+        },
+      ];
+      const players = [
+        {
+          _id: 'player1',
+          roomId: 'room1',
+          userId: 'reader',
+          displayName: 'Reader',
+          seatIndex: 0,
+        },
+        {
+          _id: 'player2',
+          roomId: 'room1',
+          userId: 'starter',
+          displayName: 'Starter',
+          seatIndex: 2,
+        },
+      ];
+
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetCompletedGame.mockResolvedValue(game);
+      mockDb.collect
+        .mockResolvedValueOnce(poems)
+        .mockResolvedValueOnce(players)
+        .mockResolvedValueOnce([
+          {
+            text: 'Opening line',
+            indexInPoem: 0,
+            authorUserId: 'starter',
+          },
+        ]);
+      mockDb.get.mockResolvedValueOnce({
+        _id: 'starter',
+        displayName: 'Starter',
+      });
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(result?.poems[0]).toMatchObject({
+        readerName: 'Reader',
+        starterName: 'Starter',
+      });
+    });
+
+    it('ignores legacy lines without author ids when building recap authors', async () => {
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = {
+        _id: 'game1',
+        roomId: 'room1',
+        cycle: 1,
+        completedAt: 3000,
+      };
+      const poems = [
+        {
+          _id: 'poem1',
+          roomId: 'room1',
+          gameId: 'game1',
+          indexInRoom: 0,
+          createdAt: 1000,
+          assignedReaderId: 'reader',
+          revealedAt: 4000,
+        },
+      ];
+
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetCompletedGame.mockResolvedValue(game);
+      mockDb.collect
+        .mockResolvedValueOnce(poems)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            text: 'Legacy line',
+            indexInPoem: 0,
+            authorUserId: undefined,
+          },
+        ]);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(mockDb.get).not.toHaveBeenCalled();
+      expect(result?.poems[0]).toMatchObject({
+        starterName: 'Unknown',
+        poetCount: 0,
+        lines: [
+          {
+            text: 'Legacy line',
+            authorName: 'Unknown',
+            isBot: false,
+          },
+        ],
+      });
     });
   });
 });
