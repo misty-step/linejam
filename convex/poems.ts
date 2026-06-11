@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { query } from './_generated/server';
+import type { Id } from './_generated/dataModel';
 import { getUser, checkParticipation } from './lib/auth';
 import { getRoomByCode, getActiveGame, getCompletedGame } from './lib/room';
 
@@ -18,7 +19,7 @@ export const getPoemsForRoom = query({
     if (!(await checkParticipation(ctx, room._id, user._id))) return [];
 
     // Get the current game (active or most recently completed)
-    // This ensures RevealList shows only the current cycle's poems
+    // This keeps reveal and archive views scoped to the current cycle.
     const activeGame = await getActiveGame(ctx, room._id);
     const completedGame = await getCompletedGame(ctx, room._id);
     const currentGame = activeGame || completedGame;
@@ -216,6 +217,107 @@ export const getPublicPoemFull = query({
           isBot: author?.kind === 'AI',
         };
       }),
+    };
+  },
+});
+
+export const getPublicSessionRecap = query({
+  args: {
+    roomCode: v.string(),
+  },
+  handler: async (ctx, { roomCode }) => {
+    const room = await getRoomByCode(ctx, roomCode);
+    if (!room) return null;
+
+    const game = await getCompletedGame(ctx, room._id);
+    if (!game) return null;
+
+    const [poems, players] = await Promise.all([
+      ctx.db
+        .query('poems')
+        .withIndex('by_game', (q) => q.eq('gameId', game._id))
+        .collect(),
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', room._id))
+        .collect(),
+    ]);
+
+    if (
+      poems.some(
+        (poem) => poem.revealedAt === undefined || poem.revealedAt === null
+      )
+    ) {
+      return null;
+    }
+
+    const lineGroups = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('lines')
+          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
+          .collect()
+      )
+    );
+
+    const authorIds = [
+      ...new Set(
+        lineGroups
+          .flat()
+          .map((line) => line.authorUserId)
+          .filter((id): id is Id<'users'> => id !== undefined && id !== null)
+      ),
+    ];
+    const authors = await Promise.all(authorIds.map((id) => ctx.db.get(id)));
+    const authorById = new Map(authorIds.map((id, i) => [id, authors[i]]));
+
+    return {
+      roomCode: room.code,
+      cycle: game.cycle,
+      completedAt: game.completedAt,
+      poemCount: poems.length,
+      playerCount: players.length,
+      poems: poems
+        .map((poem, poemIndex) => {
+          const lines = [...(lineGroups[poemIndex] ?? [])].sort(
+            (a, b) => a.indexInPoem - b.indexInPoem
+          );
+          const reader = players.find(
+            (player) => player.userId === poem.assignedReaderId
+          );
+          const firstLine = lines[0];
+          const starter = firstLine
+            ? authorById.get(firstLine.authorUserId)
+            : null;
+          const uniqueAuthorIds = new Set(
+            lines
+              .map((line) => line.authorUserId)
+              .filter(
+                (id): id is Id<'users'> => id !== undefined && id !== null
+              )
+          );
+
+          return {
+            _id: poem._id,
+            indexInRoom: poem.indexInRoom,
+            createdAt: poem.createdAt,
+            preview: lines[0]?.text ?? '',
+            readerName: reader?.displayName ?? 'Unknown',
+            starterName:
+              firstLine?.authorDisplayName || starter?.displayName || 'Unknown',
+            poetCount: uniqueAuthorIds.size,
+            lines: lines.map((line) => {
+              const author = authorById.get(line.authorUserId);
+              return {
+                text: line.text,
+                authorName:
+                  line.authorDisplayName || author?.displayName || 'Unknown',
+                isBot: author?.kind === 'AI',
+              };
+            }),
+          };
+        })
+        .sort((a, b) => a.indexInRoom - b.indexInRoom),
     };
   },
 });

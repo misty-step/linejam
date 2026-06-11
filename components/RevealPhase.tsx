@@ -11,7 +11,6 @@ import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { Label } from './ui/Label';
 import { PoemDisplay } from './PoemDisplay';
-import Link from 'next/link';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { BotBadge } from './ui/BotBadge';
@@ -19,6 +18,7 @@ import { Id } from '../convex/_generated/dataModel';
 import { trackGameCompleted } from '../lib/analytics';
 import { RoomChrome } from './RoomChrome';
 import { buildRevealChromeCopy } from '../lib/roomChromeCopy';
+import { SessionRecapHub } from './SessionRecapHub';
 
 interface RevealPhaseProps {
   roomCode: string;
@@ -273,52 +273,17 @@ export function RevealPhase({
             </div>
           </section>
 
-          {/* 4. ACTIONS - Host controls */}
           {allRevealed && (
-            <section className="space-y-4 pt-8 border-t border-border">
-              {error && <Alert variant="error">{error}</Alert>}
-
-              {/* Host controls */}
-              {isHost && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={handleStartNow}
-                    size="lg"
-                    className="h-14"
-                    disabled={isStartingNow}
-                  >
-                    {isStartingNow ? 'Starting...' : 'Start Next Round'}
-                  </Button>
-                  <Button
-                    onClick={handleStartNewCycle}
-                    variant="outline"
-                    size="lg"
-                    className="h-14"
-                  >
-                    Back to Lobby
-                  </Button>
-                </div>
-              )}
-
-              {/* Non-host message */}
-              {!isHost && (
-                <p className="text-sm text-text-muted text-center">
-                  Waiting for host to start the next round...
-                </p>
-              )}
-
-              <Link href="/me/poems" prefetch={false} className="block">
-                <Button variant="secondary" size="lg" className="w-full h-14">
-                  Archive
-                </Button>
-              </Link>
-              <Link
-                href="/"
-                className="block text-center text-sm font-mono uppercase tracking-widest text-text-muted hover:underline mt-6"
-              >
-                Exit Room
-              </Link>
-            </section>
+            <SessionRecapHub
+              roomCode={roomCode}
+              poems={poems}
+              playerCount={state.players.length}
+              isHost={isHost}
+              error={error}
+              isStartingNextRound={isStartingNow}
+              onStartNextRound={handleStartNow}
+              onBackToLobby={handleStartNewCycle}
+            />
           )}
         </main>
       </div>
