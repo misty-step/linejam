@@ -10,6 +10,19 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+function timestampFields(): Record<string, unknown> {
+  try {
+    return { timestamp: new Date().toISOString() };
+  } catch (error) {
+    return {
+      timestamp: 'timestamp-unavailable',
+      timestampErrorName: error instanceof Error ? error.name : 'UnknownError',
+      timestampErrorMessage:
+        error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 function serializeError(error: Error): Record<string, unknown> {
   return {
     name: error.name,
@@ -47,7 +60,7 @@ function write(
   const entry = {
     level,
     message,
-    timestamp: new Date().toISOString(),
+    ...timestampFields(),
     ...sanitize(data),
   };
 
@@ -85,5 +98,16 @@ export const log = {
   error: (msg: string, data?: Record<string, unknown>) =>
     write('error', msg, data),
 };
+
+export function logRequest(
+  data: {
+    method: string;
+    route: string;
+    status: number;
+    durationMs: number;
+  } & Record<string, unknown>
+): void {
+  write('info', 'Request completed', data);
+}
 
 export default log;
