@@ -2,6 +2,12 @@
 
 All notable changes to Linejam.
 
+# [1.4.0](https://github.com/misty-step/linejam/compare/v1.3.0...v1.4.0) (2026-06-11)
+
+### Features
+
+- **reveal:** add shared session recap hub ([aad40cb](https://github.com/misty-step/linejam/commit/aad40cb7c1c537baa59c6b8f4a760a84db80a34f))
+
 # [1.3.0](https://github.com/misty-step/linejam/compare/v1.2.0...v1.3.0) (2026-06-11)
 
 ### Features
