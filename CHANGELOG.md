@@ -2,6 +2,12 @@
 
 All notable changes to Linejam.
 
+# [1.5.0](https://github.com/misty-step/linejam/compare/v1.4.0...v1.5.0) (2026-06-12)
+
+### Features
+
+- **sharing:** require explicit public links ([0f5da62](https://github.com/misty-step/linejam/commit/0f5da62dbfe0b254d698d9a96fe1d5d857b67335))
+
 # [1.4.0](https://github.com/misty-step/linejam/compare/v1.3.0...v1.4.0) (2026-06-11)
 
 ### Features
