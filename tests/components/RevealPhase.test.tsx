@@ -30,22 +30,53 @@ vi.mock('next/link', () => ({
 const mockRevealPoemMutation = vi.fn();
 const mockStartNewCycleMutation = vi.fn();
 const mockStartGameMutation = vi.fn();
+const mockEnablePublicSessionRecapShare = vi.fn();
+const mockEnablePublicPoemShare = vi.fn();
+const mockLogShare = vi.fn();
 const mockUseQuery = vi.fn();
 
-// Track which mutation is requested by call order
-let mutationCallCount = 0;
+const mockApiRefs = vi.hoisted(() => ({
+  getRevealPhaseState: {},
+  revealPoem: {},
+  startNewCycle: {},
+  startGame: {},
+  enablePublicSessionRecapShare: {},
+  enablePublicPoemShare: {},
+  logShare: {},
+}));
+
+vi.mock('@/convex/_generated/api', () => ({
+  api: {
+    game: {
+      getRevealPhaseState: mockApiRefs.getRevealPhaseState,
+      revealPoem: mockApiRefs.revealPoem,
+      startNewCycle: mockApiRefs.startNewCycle,
+      startGame: mockApiRefs.startGame,
+    },
+    shares: {
+      enablePublicSessionRecapShare: mockApiRefs.enablePublicSessionRecapShare,
+      enablePublicPoemShare: mockApiRefs.enablePublicPoemShare,
+      logShare: mockApiRefs.logShare,
+    },
+  },
+}));
+
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
-  useMutation: () => {
-    mutationCallCount++;
-    // RevealPhase component calls useMutation three times:
-    // 1. revealPoemMutation (line 37)
-    // 2. startNewCycleMutation (line 38)
-    // 3. startGameMutation (line 39)
-    const index = (mutationCallCount - 1) % 3;
-    if (index === 0) return mockRevealPoemMutation;
-    if (index === 1) return mockStartNewCycleMutation;
-    return mockStartGameMutation;
+  useMutation: (mutationRef: unknown) => {
+    if (mutationRef === mockApiRefs.revealPoem) return mockRevealPoemMutation;
+    if (mutationRef === mockApiRefs.startNewCycle) {
+      return mockStartNewCycleMutation;
+    }
+    if (mutationRef === mockApiRefs.startGame) return mockStartGameMutation;
+    if (mutationRef === mockApiRefs.enablePublicSessionRecapShare) {
+      return mockEnablePublicSessionRecapShare;
+    }
+    if (mutationRef === mockApiRefs.enablePublicPoemShare) {
+      return mockEnablePublicPoemShare;
+    }
+    if (mutationRef === mockApiRefs.logShare) return mockLogShare;
+    throw new Error('Unexpected mutation reference');
   },
   useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
 }));
@@ -154,10 +185,12 @@ describe('RevealPhase component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mutationCallCount = 0; // Reset mutation counter
     mockRevealPoemMutation.mockClear();
     mockStartNewCycleMutation.mockClear();
     mockStartGameMutation.mockClear();
+    mockEnablePublicSessionRecapShare.mockClear();
+    mockEnablePublicPoemShare.mockClear();
+    mockLogShare.mockClear();
 
     // Default state
     mockUseQuery.mockReturnValue(mockStateNotRevealed);

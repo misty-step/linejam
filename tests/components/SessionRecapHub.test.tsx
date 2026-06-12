@@ -32,6 +32,11 @@ vi.mock('@/lib/analytics', () => ({
   trackRoomInviteShared: (props: unknown) => mockTrackRoomInviteShared(props),
 }));
 
+const mockEnablePublicSessionRecapShare = vi.fn().mockResolvedValue(undefined);
+vi.mock('convex/react', () => ({
+  useMutation: () => mockEnablePublicSessionRecapShare,
+}));
+
 import { SessionRecapHub } from '@/components/SessionRecapHub';
 
 describe('SessionRecapHub', () => {
@@ -62,6 +67,7 @@ describe('SessionRecapHub', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEnablePublicSessionRecapShare.mockResolvedValue(undefined);
     originalClipboard = navigator.clipboard;
     originalLocation = window.location;
     originalShare = navigator.share;
@@ -138,6 +144,10 @@ describe('SessionRecapHub', () => {
     await waitFor(() => {
       expect(screen.getByText('Copied!')).toBeInTheDocument();
       expect(screen.getByText('1 poet')).toBeInTheDocument();
+      expect(mockEnablePublicSessionRecapShare).toHaveBeenCalledWith({
+        roomCode: 'ABCD',
+        guestToken: undefined,
+      });
       expect(mockTrackRoomInviteShared).toHaveBeenCalledWith({
         method: 'clipboard',
         roomCode: 'ABCD',
@@ -175,6 +185,10 @@ describe('SessionRecapHub', () => {
         text: 'Replay every poem from our Linejam session in room ABCD.',
         url: 'https://example.com/recap/ABCD',
       });
+      expect(mockEnablePublicSessionRecapShare).toHaveBeenCalledWith({
+        roomCode: 'ABCD',
+        guestToken: undefined,
+      });
       expect(screen.getByText('Shared!')).toBeInTheDocument();
       expect(mockTrackRoomInviteShared).toHaveBeenCalledWith({
         method: 'native-share',
@@ -188,6 +202,9 @@ describe('SessionRecapHub', () => {
 
     expect(
       screen.getByText(/while the host starts the next round/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/full session recap public to anyone with the link/i)
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Start Next Round' })

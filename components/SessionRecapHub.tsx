@@ -1,7 +1,10 @@
 'use client';
 
+import { MouseEvent, useState } from 'react';
 import Link from 'next/link';
+import { useMutation } from 'convex/react';
 import { Share2 } from 'lucide-react';
+import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { trackRoomInviteShared } from '@/lib/analytics';
 import { useShareLink } from '@/hooks/useShareLink';
@@ -18,6 +21,7 @@ export interface SessionRecapPoem {
 
 interface SessionRecapHubProps {
   roomCode: string;
+  guestToken?: string;
   poems: SessionRecapPoem[];
   playerCount: number;
   isHost: boolean;
@@ -34,6 +38,7 @@ function sessionRecapUrl(roomCode: string) {
 
 export function SessionRecapHub({
   roomCode,
+  guestToken,
   poems,
   playerCount,
   isHost,
@@ -43,7 +48,19 @@ export function SessionRecapHub({
   onBackToLobby,
 }: SessionRecapHubProps) {
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const enablePublicSessionRecapShare = useMutation(
+    api.shares.enablePublicSessionRecapShare
+  );
+  const recapHref = `/recap/${roomCode}`;
+  const enablePublicRecap = async () => {
+    await enablePublicSessionRecapShare({
+      roomCode,
+      guestToken: guestToken || undefined,
+    });
+  };
   const { handleShare, copied, shared, shareError } = useShareLink({
+    beforeShare: enablePublicRecap,
     getShareData: () => ({
       url: sessionRecapUrl(roomCode),
       title: 'Linejam session recap',
@@ -54,6 +71,20 @@ export function SessionRecapHub({
     },
     failureMessage: 'Failed to share recap. Please try again.',
   });
+
+  const handleOpenSharedRecap = async (
+    event: MouseEvent<HTMLAnchorElement>
+  ) => {
+    event.preventDefault();
+    setOpenError(null);
+
+    try {
+      await enablePublicRecap();
+      window.location.assign(recapHref);
+    } catch {
+      setOpenError('Failed to publish recap. Please try again.');
+    }
+  };
 
   return (
     <section
@@ -83,8 +114,8 @@ export function SessionRecapHub({
         </div>
       </div>
 
-      {(error || shareError) && (
-        <Alert variant="error">{error || shareError}</Alert>
+      {(error || shareError || openError) && (
+        <Alert variant="error">{error || shareError || openError}</Alert>
       )}
 
       <div className="grid gap-3">
@@ -126,13 +157,18 @@ export function SessionRecapHub({
         </Button>
 
         <Link
-          href={`/recap/${roomCode}`}
+          href={recapHref}
           prefetch={false}
+          onClick={handleOpenSharedRecap}
           className="inline-flex h-14 w-full items-center justify-center rounded-md border border-border bg-surface px-8 text-lg font-medium text-text-primary shadow-sm transition-all duration-[var(--duration-normal)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 active:scale-[0.96]"
         >
           Open Shared Recap
         </Link>
       </div>
+
+      <p className="text-sm text-text-muted text-center">
+        Sharing makes the full session recap public to anyone with the link.
+      </p>
 
       {isHost ? (
         <div className="grid grid-cols-2 gap-3">

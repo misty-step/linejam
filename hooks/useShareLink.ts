@@ -14,6 +14,7 @@ interface ShareData {
 
 interface UseShareLinkOptions {
   getShareData: () => ShareData;
+  beforeShare?: () => Promise<void>;
   onShared?: (method: ShareMethod) => void | Promise<void>;
   onError?: (error: unknown) => void;
   failureMessage?: string;
@@ -22,6 +23,7 @@ interface UseShareLinkOptions {
 
 export function useShareLink({
   getShareData,
+  beforeShare,
   onShared,
   onError,
   failureMessage = 'Failed to share link. Please try again.',
@@ -57,9 +59,11 @@ export function useShareLink({
   const handleShare = async () => {
     setShareError(null);
 
-    const { url, title, text } = getShareData();
-
     try {
+      await beforeShare?.();
+
+      const { url, title, text } = getShareData();
+
       if (typeof navigator.share === 'function') {
         try {
           await navigator.share({ title, text, url });

@@ -5,9 +5,16 @@ import { useSharePoem } from '../../hooks/useSharePoem';
 import type { Id } from '../../convex/_generated/dataModel';
 
 // Mock convex/react
+const mockEnablePublicPoemShare = vi.fn().mockResolvedValue(undefined);
 const mockLogShare = vi.fn().mockResolvedValue(undefined);
+let mutationCallCount = 0;
 vi.mock('convex/react', () => ({
-  useMutation: () => mockLogShare,
+  useMutation: () => {
+    mutationCallCount++;
+    return mutationCallCount % 2 === 1
+      ? mockEnablePublicPoemShare
+      : mockLogShare;
+  },
 }));
 
 // Mock lib/error's captureError
@@ -30,6 +37,9 @@ describe('useSharePoem', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mutationCallCount = 0;
+    mockEnablePublicPoemShare.mockResolvedValue(undefined);
+    mockLogShare.mockResolvedValue(undefined);
     vi.useFakeTimers();
 
     // Store originals
@@ -96,6 +106,10 @@ describe('useSharePoem', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
       'https://example.com/poem/poem123'
     );
+    expect(mockEnablePublicPoemShare).toHaveBeenCalledWith({
+      poemId: testPoemId,
+      guestToken: undefined,
+    });
   });
 
   it('sets copied=true after successful copy', async () => {
@@ -134,6 +148,21 @@ describe('useSharePoem', () => {
 
     expect(mockLogShare).toHaveBeenCalledWith({ poemId: testPoemId });
     expect(mockTrackPoemShared).toHaveBeenCalledWith({ method: 'clipboard' });
+  });
+
+  it('does not copy when public sharing cannot be enabled', async () => {
+    mockEnablePublicPoemShare.mockRejectedValueOnce(new Error('Forbidden'));
+    const { result } = renderHook(() => useSharePoem(testPoemId));
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(mockLogShare).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBe(
+      'Failed to share poem. Please try again.'
+    );
   });
 
   it('handles logShare mutation failure gracefully', async () => {
@@ -201,6 +230,10 @@ describe('useSharePoem', () => {
       title: 'Linejam poem',
       text: 'Read this poem from our Linejam session.',
       url: 'https://example.com/poem/poem123',
+    });
+    expect(mockEnablePublicPoemShare).toHaveBeenCalledWith({
+      poemId: testPoemId,
+      guestToken: undefined,
     });
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
     expect(result.current.shared).toBe(true);

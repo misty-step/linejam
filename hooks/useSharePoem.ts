@@ -7,10 +7,17 @@ import { captureError } from '@/lib/error';
 import { trackPoemShared } from '@/lib/analytics';
 import { useShareLink } from '@/hooks/useShareLink';
 
-export function useSharePoem(poemId: Id<'poems'>) {
+export function useSharePoem(poemId: Id<'poems'>, guestToken?: string) {
+  const enablePublicPoemShare = useMutation(api.shares.enablePublicPoemShare);
   const logShare = useMutation(api.shares.logShare);
 
   return useShareLink({
+    beforeShare: async () => {
+      await enablePublicPoemShare({
+        poemId,
+        guestToken: guestToken || undefined,
+      });
+    },
     getShareData: () => ({
       url: `${window.location.origin}/poem/${poemId}`,
       title: 'Linejam poem',

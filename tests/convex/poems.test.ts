@@ -549,7 +549,7 @@ describe('poems', () => {
 
     it('returns preview data correctly', async () => {
       // Arrange
-      const poem = { _id: 'poem1', indexInRoom: 4 };
+      const poem = { _id: 'poem1', indexInRoom: 4, publicShareEnabled: true };
       const lines = [
         { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
         { text: 'Line 2', indexInPoem: 1, authorUserId: 'u2' },
@@ -576,7 +576,7 @@ describe('poems', () => {
 
     it('returns lines in database order (using by_poem_index)', async () => {
       // Arrange - lines returned in index order from DB (simulating .order('asc'))
-      const poem = { _id: 'poem1', indexInRoom: 0 };
+      const poem = { _id: 'poem1', indexInRoom: 0, publicShareEnabled: true };
       const lines = [
         { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
         { text: 'Line 2', indexInPoem: 1, authorUserId: 'u1' },
@@ -594,6 +594,21 @@ describe('poems', () => {
 
       // Assert - should return first 3 lines in DB order
       expect(result?.lines).toEqual(['Line 1', 'Line 2', 'Line 4']);
+    });
+
+    it('returns null when public sharing was never enabled', async () => {
+      // Arrange
+      mockDb.get.mockResolvedValue({ _id: 'poem1', indexInRoom: 0 });
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemPreview.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockDb.collect).not.toHaveBeenCalled();
     });
   });
 
@@ -614,7 +629,12 @@ describe('poems', () => {
 
     it('returns full poem with lines and author names', async () => {
       // Arrange
-      const poem = { _id: 'poem1', indexInRoom: 2, roomId: 'room1' };
+      const poem = {
+        _id: 'poem1',
+        indexInRoom: 2,
+        roomId: 'room1',
+        publicShareEnabled: true,
+      };
       const lines = [
         { _id: 'l1', text: 'First line', indexInPoem: 0, authorUserId: 'u1' },
         { _id: 'l2', text: 'Second line', indexInPoem: 1, authorUserId: 'u2' },
@@ -645,7 +665,7 @@ describe('poems', () => {
 
     it('uses "Unknown" for missing author names', async () => {
       // Arrange
-      const poem = { _id: 'poem1', indexInRoom: 0 };
+      const poem = { _id: 'poem1', indexInRoom: 0, publicShareEnabled: true };
       const lines = [
         {
           _id: 'l1',
@@ -667,6 +687,25 @@ describe('poems', () => {
 
       // Assert
       expect(result?.lines[0].authorName).toBe('Unknown');
+    });
+
+    it('returns null when public sharing is disabled', async () => {
+      // Arrange
+      mockDb.get.mockResolvedValue({
+        _id: 'poem1',
+        indexInRoom: 0,
+        publicShareEnabled: false,
+      });
+
+      // Act
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicPoemFull.handler(mockCtx, {
+        poemId: 'poem1',
+      });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockDb.collect).not.toHaveBeenCalled();
     });
   });
 
@@ -701,6 +740,7 @@ describe('poems', () => {
         roomId: 'room1',
         cycle: 2,
         completedAt: 2000,
+        publicRecapEnabled: true,
       };
       const poems = [
         {
@@ -803,6 +843,7 @@ describe('poems', () => {
         roomId: 'room1',
         cycle: 1,
         completedAt: 3000,
+        publicRecapEnabled: true,
       };
       const poems = [
         {
@@ -852,6 +893,7 @@ describe('poems', () => {
         roomId: 'room1',
         cycle: 1,
         completedAt: 3000,
+        publicRecapEnabled: true,
       };
       const poems = [
         {
@@ -925,6 +967,7 @@ describe('poems', () => {
         roomId: 'room1',
         cycle: 1,
         completedAt: 3000,
+        publicRecapEnabled: true,
       };
       const poems = [
         {
@@ -958,6 +1001,27 @@ describe('poems', () => {
       expect(result).toBeNull();
     });
 
+    it('returns null when the completed game has not been shared publicly', async () => {
+      const room = { _id: 'room1', code: 'ABCD' };
+      const game = {
+        _id: 'game1',
+        roomId: 'room1',
+        cycle: 1,
+        completedAt: 3000,
+      };
+
+      mockGetRoomByCode.mockResolvedValue(room);
+      mockGetCompletedGame.mockResolvedValue(game);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getPublicSessionRecap.handler(mockCtx, {
+        roomCode: 'ABCD',
+      });
+
+      expect(result).toBeNull();
+      expect(mockDb.collect).not.toHaveBeenCalled();
+    });
+
     it('derives starter names from the first line author, not mutable room seats', async () => {
       const room = { _id: 'room1', code: 'ABCD' };
       const game = {
@@ -965,6 +1029,7 @@ describe('poems', () => {
         roomId: 'room1',
         cycle: 1,
         completedAt: 3000,
+        publicRecapEnabled: true,
       };
       const poems = [
         {
@@ -1029,6 +1094,7 @@ describe('poems', () => {
         roomId: 'room1',
         cycle: 1,
         completedAt: 3000,
+        publicRecapEnabled: true,
       };
       const poems = [
         {

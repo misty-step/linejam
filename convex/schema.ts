@@ -58,6 +58,9 @@ export default defineSchema({
     assignmentMatrix: v.array(v.array(v.id('users'))),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
+    publicRecapEnabled: v.optional(v.boolean()),
+    publicRecapEnabledAt: v.optional(v.number()),
+    publicRecapDisabledAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
     .index('by_room_cycle', ['roomId', 'cycle'])
@@ -73,6 +76,9 @@ export default defineSchema({
     // Reveal phase
     assignedReaderId: v.optional(v.id('users')),
     revealedAt: v.optional(v.number()),
+    publicShareEnabled: v.optional(v.boolean()),
+    publicShareEnabledAt: v.optional(v.number()),
+    publicShareDisabledAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
     .index('by_room_index', ['roomId', 'indexInRoom'])

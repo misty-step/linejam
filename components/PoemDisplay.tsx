@@ -48,6 +48,7 @@ export interface PoemMetadata {
 
 interface PoemDisplayProps {
   poemId: Id<'poems'>;
+  guestToken?: string;
   lines: string[] | PoemLine[];
   onDone?: () => void;
   alreadyRevealed?: boolean;
@@ -63,6 +64,7 @@ function formatDate(timestamp: number): string {
 
 export function PoemDisplay({
   poemId,
+  guestToken,
   lines,
   onDone,
   alreadyRevealed = false,
@@ -79,7 +81,10 @@ export function PoemDisplay({
     effectiveAlreadyRevealed ? lines.length : 0
   );
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
-  const { handleShare, copied, shared, shareError } = useSharePoem(poemId);
+  const { handleShare, copied, shared, shareError } = useSharePoem(
+    poemId,
+    guestToken
+  );
 
   const normalizedLines: PoemLine[] = lines.map((line) =>
     typeof line === 'string' ? { text: line } : line
@@ -306,6 +311,9 @@ export function PoemDisplay({
             {shareError}
           </Alert>
         )}
+        <p className="max-w-md text-center text-sm text-text-muted">
+          Sharing makes this poem public to anyone with the link.
+        </p>
         <div className="flex items-center justify-center gap-4">
           <Button
             onClick={handleShare}

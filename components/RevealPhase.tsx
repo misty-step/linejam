@@ -143,6 +143,7 @@ export function RevealPhase({
         {chrome}
         <PoemDisplay
           poemId={displayingPoem._id}
+          guestToken={guestToken || undefined}
           lines={displayingPoem.lines.map((l) => ({
             text: l.text,
             authorName: l.authorName,
@@ -276,6 +277,7 @@ export function RevealPhase({
           {allRevealed && (
             <SessionRecapHub
               roomCode={roomCode}
+              guestToken={guestToken || undefined}
               poems={poems}
               playerCount={state.players.length}
               isHost={isHost}
