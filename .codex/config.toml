@@ -1,4 +1,7 @@
-project_doc_fallback_filenames = ["AGENTS.md", "CLAUDE.md"]
+project_doc_fallback_filenames = [
+    "AGENTS.md",
+    "CLAUDE.md",
+]
 
 [features]
 codex_hooks = true
