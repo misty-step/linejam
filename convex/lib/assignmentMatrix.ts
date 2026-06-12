@@ -103,20 +103,21 @@ export function getMatrixRound(
 
 // Implements the assignment matrix generation algorithm from TASK.md 2.3.2
 export function generateAssignmentMatrix(
-  userIds: Id<'users'>[]
+  userIds: Id<'users'>[],
+  rounds: number
 ): Id<'users'>[][] {
   const numPlayers = userIds.length;
   const matrix: Id<'users'>[][] = [];
 
-  if (numPlayers === 0) {
+  if (numPlayers === 0 || rounds <= 0) {
     return [];
   }
 
   // Round 0: random permutation
   matrix[0] = secureShuffle([...userIds]);
 
-  // Rounds 1-8: ensure no consecutive assignments
-  for (let r = 1; r < 9; r++) {
+  // Remaining rounds: ensure no consecutive assignments
+  for (let r = 1; r < rounds; r++) {
     let currentPerm = secureShuffle([...userIds]);
     let attempts = 0;
     const MAX_ATTEMPTS = 1000; // Prevent infinite loops for impossible configurations

@@ -16,7 +16,7 @@ import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
 import { requireRoomByCode, getActiveGame } from './lib/room';
 import { getMatrixRound } from './lib/assignmentMatrix';
-import { WORD_COUNTS } from './lib/gameRules';
+import { getGameRules } from './lib/gameRules';
 import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
@@ -264,7 +264,7 @@ export const generateLineForRound = internalAction({
 
     // Get persona
     const persona = getPersona(aiPlayer.aiPersonaId as AiPersonaId);
-    const targetWordCount = WORD_COUNTS[round];
+    const targetWordCount = getGameRules(game.mode).wordCounts[round];
 
     // Generate line - graceful fallback if API key missing
     const apiKey = initialOpenRouterApiKey;
@@ -364,9 +364,9 @@ export const commitAiLine = internalMutation({
     const aiUser = await ctx.db.get(aiUserId);
     const aiDisplayName = aiUser?.displayName ?? 'AI';
 
-    // Validate word count
+    // Validate word count against the game's rules
     const wordCount = countWords(text);
-    const expectedCount = WORD_COUNTS[lineIndex];
+    const expectedCount = getGameRules(game.mode).wordCounts[lineIndex];
     if (wordCount !== expectedCount) {
       // Use fallback if word count is wrong
       const fallbackText = getFallbackLine(expectedCount);

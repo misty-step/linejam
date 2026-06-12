@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import { gameModeValidator } from './lib/gameRules';
 
 export default defineSchema({
   users: defineTable({
@@ -33,6 +34,8 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
     currentGameId: v.optional(v.id('games')),
     currentCycle: v.optional(v.number()),
+    /** Host's lobby mode selection; stamped onto the game at start. */
+    selectedMode: v.optional(gameModeValidator),
   })
     .index('by_code', ['code'])
     .index('by_host', ['hostUserId']),
@@ -53,7 +56,9 @@ export default defineSchema({
     status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
     /** Game session count for this room. First game = 1. */
     cycle: v.number(),
-    /** Round index within current game (0-8). See convex/lib/gameRules.ts. */
+    /** Rules preset. Legacy games predate this field and play classic. */
+    mode: v.optional(gameModeValidator),
+    /** Round index within current game. Shape comes from convex/lib/gameRules.ts. */
     currentRound: v.number(),
     assignmentMatrix: v.array(v.array(v.id('users'))),
     createdAt: v.number(),

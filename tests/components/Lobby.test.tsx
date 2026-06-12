@@ -16,10 +16,11 @@ const mockMutations = {
   removeAi: vi.fn(),
   leaveLobby: vi.fn().mockResolvedValue(undefined),
   closeRoom: vi.fn().mockResolvedValue(undefined),
+  selectMode: vi.fn().mockResolvedValue(undefined),
 };
 
 // Mock Convex (external) - use call order tracking
-// Note: Order matches component's useMutation call order in Lobby.tsx:63-67
+// Note: Order matches component's useMutation call order in Lobby.tsx
 let callIndex = 0;
 const MUTATION_ORDER = [
   mockMutations.startGame, // api.game.startGame
@@ -27,6 +28,7 @@ const MUTATION_ORDER = [
   mockMutations.removeAi, // api.ai.removeAiPlayer
   mockMutations.leaveLobby, // api.rooms.leaveLobby
   mockMutations.closeRoom, // api.rooms.closeRoom
+  mockMutations.selectMode, // api.rooms.selectGameMode
 ];
 
 vi.mock('convex/react', () => ({
@@ -93,6 +95,8 @@ describe('Lobby component', () => {
     mockMutations.leaveLobby.mockResolvedValue(undefined);
     mockMutations.closeRoom.mockClear();
     mockMutations.closeRoom.mockResolvedValue(undefined);
+    mockMutations.selectMode.mockClear();
+    mockMutations.selectMode.mockResolvedValue(undefined);
 
     // Mock fetch at boundary - useUser calls /api/guest/session
     mockFetch.mockResolvedValue({
@@ -257,6 +261,45 @@ describe('Lobby component', () => {
       });
       expect(mockPush).toHaveBeenCalledWith('/');
     });
+  });
+
+  it('lets the host pick a game mode', async () => {
+    const user = userEvent.setup();
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    const rhymeOption = screen.getByRole('radio', { name: 'Rhyme Relay' });
+    expect(rhymeOption).not.toBeDisabled();
+    expect(rhymeOption).toHaveAttribute('aria-checked', 'false');
+    // Classic is the default selection
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    await user.click(rhymeOption);
+
+    await waitFor(() => {
+      expect(mockMutations.selectMode).toHaveBeenCalledWith({
+        roomCode: 'ABCD',
+        mode: 'rhyme',
+        guestToken: 'mock-token',
+      });
+    });
+  });
+
+  it('shows the room selection to non-hosts without letting them change it', () => {
+    render(
+      <Lobby
+        room={{ ...mockRoom, selectedMode: 'quick' }}
+        players={mockPlayers}
+        isHost={false}
+      />
+    );
+
+    const quickOption = screen.getByRole('radio', { name: 'Quick Jam' });
+    expect(quickOption).toBeDisabled();
+    expect(quickOption).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText(/the host picks the mode/i)).toBeInTheDocument();
   });
 
   it('shows host badge for host player', () => {

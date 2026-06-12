@@ -14,6 +14,7 @@ import {
   getRoomState,
   leaveLobby,
   closeRoom,
+  selectGameMode,
 } from '../../convex/rooms';
 
 // Mock ensureUserHelper
@@ -68,6 +69,65 @@ describe('rooms', () => {
     mockGetRoomActivity.mockResolvedValue({
       activeGame: null,
       status: 'LOBBY',
+    });
+  });
+
+  describe('selectGameMode', () => {
+    it('lets the host pick a mode in the lobby', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'host1' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'host1',
+      });
+      mockGetActiveGame.mockResolvedValue(null);
+
+      // @ts-expect-error - calling handler directly for test
+      await selectGameMode.handler(mockCtx, {
+        roomCode: 'TEST',
+        mode: 'rhyme',
+        guestToken: 'token',
+      });
+
+      expect(mockDb.patch).toHaveBeenCalledWith('room1', {
+        selectedMode: 'rhyme',
+      });
+    });
+
+    it('rejects non-hosts', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'guest1' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'host1',
+      });
+
+      await expect(
+        // @ts-expect-error - calling handler directly for test
+        selectGameMode.handler(mockCtx, {
+          roomCode: 'TEST',
+          mode: 'quick',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Only host can pick the game mode');
+      expect(mockDb.patch).not.toHaveBeenCalled();
+    });
+
+    it('rejects mode changes while a game is in progress', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'host1' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'host1',
+      });
+      mockGetActiveGame.mockResolvedValue({ _id: 'game1' });
+
+      await expect(
+        // @ts-expect-error - calling handler directly for test
+        selectGameMode.handler(mockCtx, {
+          roomCode: 'TEST',
+          mode: 'quick',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Cannot change mode while a game is in progress');
+      expect(mockDb.patch).not.toHaveBeenCalled();
     });
   });
 

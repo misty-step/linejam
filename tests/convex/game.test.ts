@@ -301,8 +301,75 @@ describe('game', () => {
       expect(result).toEqual({
         poemId: 'poem1',
         lineIndex: 2,
-        targetWordCount: 3, // WORD_COUNTS[2]
+        targetWordCount: 3, // classic wordCounts[2]
+        totalRounds: 9,
+        mode: 'classic',
+        isFinalRound: false,
+        rhymeTargetWord: undefined,
         previousLineText: 'Previous line text',
+      });
+    });
+
+    it('exposes the rhyme target on the final round of rhyme relay', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      const finalRound = 8;
+      mockGetActiveGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'IN_PROGRESS',
+        mode: 'rhyme',
+        currentRound: finalRound,
+        assignmentMatrix: Array.from({ length: 9 }, () => ['user1', 'user2']),
+      });
+
+      // Poem query
+      mockDb.first.mockResolvedValueOnce({ _id: 'poem1' });
+      // Previous line query (round 7)
+      mockDb.first.mockResolvedValueOnce({ text: 'two words' });
+      // Opening line query (round 0)
+      mockDb.first.mockResolvedValueOnce({ text: 'moon' });
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toMatchObject({
+        lineIndex: finalRound,
+        targetWordCount: 1,
+        mode: 'rhyme',
+        isFinalRound: true,
+        rhymeTargetWord: 'moon',
+      });
+    });
+
+    it('uses quick-jam word counts for quick games', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockGetActiveGame.mockResolvedValue({
+        _id: 'game1',
+        status: 'IN_PROGRESS',
+        mode: 'quick',
+        currentRound: 2,
+        assignmentMatrix: [[], [], ['user1', 'user2']],
+      });
+
+      mockDb.first.mockResolvedValueOnce({ _id: 'poem1' });
+      mockDb.first.mockResolvedValueOnce({ text: 'two words' });
+
+      // @ts-expect-error - calling handler
+      const result = await getCurrentAssignment.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toMatchObject({
+        lineIndex: 2,
+        targetWordCount: 3, // quick wordCounts[2]
+        totalRounds: 5,
+        mode: 'quick',
+        isFinalRound: false,
       });
     });
   });

@@ -153,6 +153,82 @@ describe('sessionLifecycle', () => {
     );
   });
 
+  it('scopes the submission window to the game mode', () => {
+    // Quick jam ends at round index 4; classic would still be mid-game there.
+    expect(
+      getSubmissionWindow(
+        { status: 'COMPLETED', currentRound: 4, mode: 'quick' },
+        4
+      )
+    ).toEqual({ ok: true });
+
+    expect(
+      getSubmissionWindow(
+        { status: 'IN_PROGRESS', currentRound: 4, mode: 'quick' },
+        5
+      )
+    ).toEqual({ ok: false, reason: 'INVALID_ROUND' });
+
+    expect(
+      getSubmissionWindow(
+        { status: 'COMPLETED', currentRound: 4, mode: 'classic' },
+        4
+      )
+    ).toEqual({ ok: false, reason: 'GAME_NOT_IN_PROGRESS' });
+  });
+
+  it('completes a quick-jam game at its five-round boundary', async () => {
+    const assignmentMatrix: Id<'users'>[][] = Array.from({ length: 5 }, () => [
+      asUserId('user1'),
+      asUserId('user2'),
+    ]);
+
+    mockDb.collect
+      .mockResolvedValueOnce([
+        { _id: asPoemId('poem1'), indexInRoom: 0 },
+        { _id: asPoemId('poem2'), indexInRoom: 1 },
+      ])
+      .mockResolvedValueOnce([
+        { userId: asUserId('user1') },
+        { userId: asUserId('user2') },
+      ]);
+    mockDb.first
+      .mockResolvedValueOnce({ _id: 'line1' })
+      .mockResolvedValueOnce({ _id: 'line2' });
+    mockDb.get
+      .mockResolvedValueOnce({
+        _id: asGameId('game1'),
+        status: 'IN_PROGRESS',
+        mode: 'quick',
+        currentRound: 4,
+        assignmentMatrix,
+      })
+      .mockResolvedValueOnce({ _id: asUserId('user1'), kind: 'human' })
+      .mockResolvedValueOnce({ _id: asUserId('user2'), kind: 'human' });
+
+    await applyLineLifecycleTransition(mockCtx, {
+      game: {
+        _id: asGameId('game1'),
+        status: 'IN_PROGRESS',
+        mode: 'quick',
+        currentRound: 4,
+        assignmentMatrix,
+      },
+      roomId: asRoomId('room1'),
+      lineIndex: 4,
+    });
+
+    expect(mockDb.patch).toHaveBeenCalledWith(
+      asGameId('game1'),
+      expect.objectContaining({ status: 'COMPLETED' })
+    );
+    expect(mockDb.patch).toHaveBeenCalledWith(
+      asRoomId('room1'),
+      expect.objectContaining({ status: 'COMPLETED' })
+    );
+    expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
   it('treats final-round completion re-entry as stale once the game is completed', async () => {
     const assignmentMatrix: Id<'users'>[][] = Array.from({ length: 9 }, () => [
       asUserId('user1'),

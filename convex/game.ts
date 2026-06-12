@@ -6,8 +6,8 @@ import {
   getMatrixRound,
   secureShuffle,
 } from './lib/assignmentMatrix';
-import { WORD_COUNTS } from './lib/gameRules';
-import { countWords } from './lib/wordCount';
+import { getFinalRoundIndex, getGameRules } from './lib/gameRules';
+import { countWords, getLastWord } from './lib/wordCount';
 import { getUser } from './lib/auth';
 import {
   getRoomByCode,
@@ -56,15 +56,22 @@ export const startGame = mutation({
       )
     );
 
+    // Resolve rules from the lobby's mode selection
+    const rules = getGameRules(room.selectedMode);
+
     // Generate assignment matrix
     const playerIds = shuffledPlayers.map((p) => p.userId);
-    const assignmentMatrix = generateAssignmentMatrix(playerIds);
+    const assignmentMatrix = generateAssignmentMatrix(
+      playerIds,
+      rules.wordCounts.length
+    );
 
     // Create Game
     const gameId = await ctx.db.insert('games', {
       roomId: room._id,
       status: 'IN_PROGRESS',
       cycle: (room.currentCycle || 0) + 1,
+      mode: rules.mode,
       currentRound: 0,
       assignmentMatrix,
       createdAt: Date.now(),
@@ -184,10 +191,29 @@ export const getCurrentAssignment = query({
       previousLineText = prevLine?.text;
     }
 
+    const rules = getGameRules(game.mode);
+    const isFinalRound = currentRound === getFinalRoundIndex(rules);
+
+    // Rhyme Relay: the closer rhymes with the poem's opening word.
+    let rhymeTargetWord: string | undefined;
+    if (rules.finalRhyme && isFinalRound) {
+      const openingLine = await ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poem._id).eq('indexInPoem', 0)
+        )
+        .first();
+      rhymeTargetWord = openingLine ? getLastWord(openingLine.text) : undefined;
+    }
+
     return {
       poemId: poem._id,
       lineIndex: currentRound,
-      targetWordCount: WORD_COUNTS[currentRound],
+      targetWordCount: rules.wordCounts[currentRound],
+      totalRounds: rules.wordCounts.length,
+      mode: rules.mode,
+      isFinalRound,
+      rhymeTargetWord,
       previousLineText,
     };
   },
@@ -257,9 +283,9 @@ export const submitLine = mutation({
       );
     }
 
-    // Validate word count
+    // Validate word count against the game's rules
     const wordCount = countWords(text);
-    const expectedCount = WORD_COUNTS[lineIndex];
+    const expectedCount = getGameRules(game.mode).wordCounts[lineIndex];
     if (wordCount !== expectedCount) {
       throw new Error(`Expected ${expectedCount} words, got ${wordCount}`);
     }
@@ -419,6 +445,7 @@ export const getRevealPhaseState = query({
     const myPoem = myPoems.length > 0 ? myPoems[0] : null;
 
     return {
+      mode: getGameRules(game.mode).mode,
       poems: poemsWithPreview,
       myPoem,
       myPoems,
@@ -548,6 +575,7 @@ export const getRoundProgress = query({
 
     return {
       round: game.currentRound,
+      totalRounds: getGameRules(game.mode).wordCounts.length,
       players: progress,
     };
   },

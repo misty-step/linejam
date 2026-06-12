@@ -3,16 +3,15 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { getMatrixRound } from './assignmentMatrix';
 import { assignPoemReaders } from './assignPoemReaders';
-import { WORD_COUNTS } from './gameRules';
+import { getFinalRoundIndex, getGameRules } from './gameRules';
 
 type LifecycleCtx = Pick<MutationCtx, 'db' | 'scheduler'>;
 type LifecycleGame = Pick<
   Doc<'games'>,
-  '_id' | 'assignmentMatrix' | 'currentRound' | 'status'
+  '_id' | 'assignmentMatrix' | 'currentRound' | 'status' | 'mode'
 >;
 type LifecyclePoem = Pick<Doc<'poems'>, '_id' | 'indexInRoom'>;
 type LifecyclePlayer = Pick<Doc<'users'>, '_id' | 'kind'>;
-const FINAL_ROUND_INDEX = WORD_COUNTS.length - 1;
 
 export type SubmissionWindowResult =
   | { ok: true }
@@ -44,18 +43,19 @@ type CompletionPatchPlan = {
 };
 
 export function getSubmissionWindow(
-  game: Pick<Doc<'games'>, 'status' | 'currentRound'>,
+  game: Pick<Doc<'games'>, 'status' | 'currentRound' | 'mode'>,
   lineIndex: number
 ): SubmissionWindowResult {
+  const finalRoundIndex = getFinalRoundIndex(getGameRules(game.mode));
   if (
     !Number.isInteger(lineIndex) ||
     lineIndex < 0 ||
-    lineIndex > FINAL_ROUND_INDEX
+    lineIndex > finalRoundIndex
   ) {
     return { ok: false, reason: 'INVALID_ROUND' };
   }
 
-  const isFinalRound = lineIndex === FINAL_ROUND_INDEX;
+  const isFinalRound = lineIndex === finalRoundIndex;
   const gameInProgress = game.status === 'IN_PROGRESS';
   const gameJustCompleted = game.status === 'COMPLETED' && isFinalRound;
 
@@ -182,7 +182,7 @@ export async function applyLineLifecycleTransition(
     return;
   }
 
-  if (args.lineIndex < FINAL_ROUND_INDEX) {
+  if (args.lineIndex < getFinalRoundIndex(getGameRules(args.game.mode))) {
     const nextRound = args.lineIndex + 1;
     await ctx.db.patch(args.game._id, { currentRound: nextRound });
     await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {

@@ -10,26 +10,49 @@ const createMockUserIds = (count: number): Id<'users'>[] => {
   return Array.from({ length: count }, (_, i) => `user_${i}` as Id<'users'>);
 };
 
+const expectNoConsecutiveAssignments = (
+  matrix: Id<'users'>[][],
+  playerCount: number
+) => {
+  for (let r = 1; r < matrix.length; r++) {
+    const currentRound = matrix[r];
+    const previousRound = matrix[r - 1];
+
+    for (let poemIndex = 0; poemIndex < playerCount; poemIndex++) {
+      // A conflict means the same user wrote for the same poem in consecutive rounds
+      expect(currentRound[poemIndex]).not.toBe(previousRound[poemIndex]);
+    }
+  }
+};
+
 describe('generateAssignmentMatrix', () => {
   test('should return an empty matrix for 0 players', () => {
     const userIds: Id<'users'>[] = [];
-    const matrix = generateAssignmentMatrix(userIds);
+    const matrix = generateAssignmentMatrix(userIds, 9);
     expect(matrix).toEqual([]);
   });
 
-  test('should generate a 9xP matrix where P is the number of players', () => {
-    const userIds = createMockUserIds(4); // 4 players
-    const matrix = generateAssignmentMatrix(userIds);
+  test('should return an empty matrix for 0 rounds', () => {
+    const userIds = createMockUserIds(3);
+    expect(generateAssignmentMatrix(userIds, 0)).toEqual([]);
+    expect(generateAssignmentMatrix(userIds, -1)).toEqual([]);
+  });
 
-    expect(matrix.length).toBe(9); // 9 rounds
-    matrix.forEach((round) => {
-      expect(round.length).toBe(userIds.length); // Each round has P assignments
-    });
+  test('should generate an RxP matrix for the requested round count', () => {
+    const userIds = createMockUserIds(4); // 4 players
+
+    for (const rounds of [5, 9]) {
+      const matrix = generateAssignmentMatrix(userIds, rounds);
+      expect(matrix.length).toBe(rounds);
+      matrix.forEach((round) => {
+        expect(round.length).toBe(userIds.length); // Each round has P assignments
+      });
+    }
   });
 
   test('each row should be a permutation of all players', () => {
     const userIds = createMockUserIds(5); // 5 players
-    const matrix = generateAssignmentMatrix(userIds);
+    const matrix = generateAssignmentMatrix(userIds, 9);
 
     matrix.forEach((round) => {
       // Check that each user appears exactly once in the round
@@ -42,50 +65,35 @@ describe('generateAssignmentMatrix', () => {
 
   test('should ensure no consecutive assignments on the same poem', () => {
     const userIds = createMockUserIds(8); // 8 players
-    const matrix = generateAssignmentMatrix(userIds);
+    const matrix = generateAssignmentMatrix(userIds, 9);
+    expectNoConsecutiveAssignments(matrix, userIds.length);
+  });
 
-    for (let r = 1; r < 9; r++) {
-      const currentRound = matrix[r];
-      const previousRound = matrix[r - 1];
+  test('quick-jam shape (5 rounds) keeps the no-consecutive invariant', () => {
+    const userIds = createMockUserIds(6);
+    const matrix = generateAssignmentMatrix(userIds, 5);
 
-      for (let poemIndex = 0; poemIndex < userIds.length; poemIndex++) {
-        // A conflict would mean the same user wrote for the same poem in consecutive rounds
-        // currentRound[poemIndex] is the user who writes poemIndex in round r
-        // previousRound[poemIndex] is the user who wrote poemIndex in round r-1
-        expect(currentRound[poemIndex]).not.toBe(previousRound[poemIndex]);
-      }
-    }
+    expect(matrix.length).toBe(5);
+    matrix.forEach((round) => expect(round.length).toBe(6));
+    expectNoConsecutiveAssignments(matrix, userIds.length);
   });
 
   test('should work with 2 players (edge case)', () => {
     const userIds = createMockUserIds(2); // 2 players
-    const matrix = generateAssignmentMatrix(userIds);
+    const matrix = generateAssignmentMatrix(userIds, 9);
 
     expect(matrix.length).toBe(9);
     matrix.forEach((round) => expect(round.length).toBe(2));
-
-    for (let r = 1; r < 9; r++) {
-      const currentRound = matrix[r];
-      const previousRound = matrix[r - 1];
-      expect(currentRound[0]).not.toBe(previousRound[0]);
-      expect(currentRound[1]).not.toBe(previousRound[1]);
-    }
+    expectNoConsecutiveAssignments(matrix, userIds.length);
   });
 
   test('should work with 8 players (edge case)', () => {
     const userIds = createMockUserIds(8); // 8 players
-    const matrix = generateAssignmentMatrix(userIds);
+    const matrix = generateAssignmentMatrix(userIds, 9);
 
     expect(matrix.length).toBe(9);
     matrix.forEach((round) => expect(round.length).toBe(8));
-
-    for (let r = 1; r < 9; r++) {
-      const currentRound = matrix[r];
-      const previousRound = matrix[r - 1];
-      for (let poemIndex = 0; poemIndex < userIds.length; poemIndex++) {
-        expect(currentRound[poemIndex]).not.toBe(previousRound[poemIndex]);
-      }
-    }
+    expectNoConsecutiveAssignments(matrix, userIds.length);
   });
 
   test('should handle small number of players correctly without infinite loops (e.g., 1 player)', () => {
@@ -93,14 +101,13 @@ describe('generateAssignmentMatrix', () => {
     // The current algorithm's conflict resolution might struggle here or warn.
     // The main goal is it doesn't loop infinitely.
     const userIds = createMockUserIds(1);
-    const matrix = generateAssignmentMatrix(userIds);
+    const matrix = generateAssignmentMatrix(userIds, 9);
 
     expect(matrix.length).toBe(9);
     expect(matrix[0][0]).toBe(userIds[0]);
     // Expecting the algorithm to potentially warn, but complete.
     // The `hasConflicts` will always be true for 1 player.
     // The test mainly ensures it doesn't crash or run forever.
-    // Further refinement of the algorithm's conflict handling for N=1 might be needed.
   });
 });
 

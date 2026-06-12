@@ -153,6 +153,7 @@ export function RevealPhase({
           onDone={() => setShowingPoemId(null)}
           alreadyRevealed={displayingPoem.isRevealed}
           allStableIds={allStableIds}
+          rhymeMode={state.mode === 'rhyme'}
           metadata={{
             createdAt: displayingPoem.createdAt,
             firstLine: displayingPoem.preview,

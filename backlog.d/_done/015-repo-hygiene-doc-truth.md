@@ -1,6 +1,6 @@
 # Restore doc truth and clear tracked junk
 
-Priority: P2 · Status: ready · Estimate: S
+Priority: P2 · Status: done · Estimate: S
 
 ## Goal
 

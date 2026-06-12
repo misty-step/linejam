@@ -2,6 +2,7 @@ import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser, checkParticipation } from './lib/auth';
+import { gameModeValidator } from './lib/gameRules';
 import { checkRateLimit } from './lib/rateLimit';
 import {
   getRoomByCode,
@@ -208,6 +209,31 @@ export const getRoomState = query({
     const isHost = user._id === room.hostUserId;
 
     return { room: { ...room, status }, players, isHost };
+  },
+});
+
+export const selectGameMode = mutation({
+  args: {
+    roomCode: v.string(),
+    mode: gameModeValidator,
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, mode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) throw new Error('User not found');
+
+    const room = await requireRoomByCode(ctx, roomCode);
+    if (room.hostUserId !== user._id) {
+      throw new Error('Only host can pick the game mode');
+    }
+
+    // Mode is a lobby decision; mid-game switches would orphan the matrix
+    const activeGame = await getActiveGame(ctx, room._id);
+    if (activeGame) {
+      throw new Error('Cannot change mode while a game is in progress');
+    }
+
+    await ctx.db.patch(room._id, { selectedMode: mode });
   },
 });
 

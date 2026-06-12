@@ -10,10 +10,12 @@ export interface RoomChromeCopy {
 interface ChromeAssignment {
   lineIndex: number;
   targetWordCount: number;
+  totalRounds?: number;
 }
 
 interface ChromeRoundProgress {
   round: number;
+  totalRounds?: number;
   players: Array<{ submitted: boolean }>;
 }
 
@@ -48,8 +50,10 @@ export function buildInProgressChromeCopy({
 }): RoomChromeCopy {
   const roundIndex = assignment?.lineIndex ?? roundProgress?.round ?? null;
   const roundNumber = roundIndex === null ? null : roundIndex + 1;
+  const totalRounds =
+    assignment?.totalRounds ?? roundProgress?.totalRounds ?? WORD_COUNTS.length;
   const roundTitle = roundNumber
-    ? `Round ${roundNumber} of ${WORD_COUNTS.length}`
+    ? `Round ${roundNumber} of ${totalRounds}`
     : 'Writing';
 
   if (assignment) {
