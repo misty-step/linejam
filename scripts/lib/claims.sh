@@ -22,23 +22,23 @@ claim_path() {
 claim_acquire() {
   local item_id="${1-}"
   local created_at
-  local path
-  path="$(claim_path "$item_id")" || return 1
+  local claim_dir_path
+  claim_dir_path="$(claim_path "$item_id")" || return 1
 
   mkdir -p "$CLAIMS_DIR" || return 1
 
-  if mkdir "$path" 2>/dev/null; then
+  if mkdir "$claim_dir_path" 2>/dev/null; then
     created_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     if {
       printf 'item=%s\n' "$item_id"
       printf 'pid=%s\n' "$$"
       printf 'created_at=%s\n' "$created_at"
       printf 'host=%s\n' "${HOSTNAME:-unknown}"
-    } >"$path/metadata"; then
+    } >"$claim_dir_path/metadata"; then
       return 0
     fi
 
-    rm -rf -- "$path"
+    rm -rf -- "$claim_dir_path"
     printf 'failed to write claim metadata for %s\n' "$item_id" >&2
     return 1
   fi
@@ -48,9 +48,9 @@ claim_acquire() {
 }
 
 claim_release() {
-  local path
-  path="$(claim_path "${1-}")" || return 1
-  rm -rf -- "$path"
+  local claim_dir_path
+  claim_dir_path="$(claim_path "${1-}")" || return 1
+  rm -rf -- "$claim_dir_path"
 }
 
 claim_list() {

@@ -47,6 +47,7 @@ next-env.d.ts
 /playwright-report/
 /playwright/.cache/
 .canary/
+.claims/
 .qa/
 .evidence/
 .worktrees
