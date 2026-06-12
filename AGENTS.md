@@ -79,11 +79,9 @@ Local Dagger is authoritative. Hosted CI is secondary confirmation.
 
 ## Known-Debt Map
 
-| Debt                                                | Pointer                                                                                           | Tracker                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Release governance docs still missing               | `CODEOWNERS`, `SECURITY.md`, `CONTRIBUTING.md` absent                                             | `backlog.d/004-establish-release-governance-baseline.md` |
-| Evidence and smoke artifacts are advisory/ephemeral | `.github/workflows/ci.yml`, `scripts/evidence/guest-flow.mjs`, `scripts/canary/trigger-smoke.mjs` | `backlog.d/008-govern-evidence-and-smoke-artifacts.md`   |
-| Public sharing privacy contract is implicit         | `convex/poems.ts`, `app/poem/[id]/PoemDetail.tsx`, `app/poem/[id]/metadata.ts`                    | `backlog.d/009-make-sharing-privacy-explicit.md`         |
+| Debt                                        | Pointer                                                                        | Tracker                                          |
+| ------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------ |
+| Public sharing privacy contract is implicit | `convex/poems.ts`, `app/poem/[id]/PoemDetail.tsx`, `app/poem/[id]/metadata.ts` | `backlog.d/009-make-sharing-privacy-explicit.md` |
 
 Cerberus is out. Do not resurrect it.
 

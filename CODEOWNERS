@@ -1,0 +1,17 @@
+# Default maintainer for repository-wide review routing.
+* @phrazzld
+
+# Product and runtime surfaces.
+/app/ @phrazzld
+/components/ @phrazzld
+/lib/ @phrazzld
+/convex/ @phrazzld
+
+# Validation, release, and operations surfaces.
+/.github/workflows/ @phrazzld
+/dagger/ @phrazzld
+/scripts/ @phrazzld
+/tests/ @phrazzld
+/docs/ @phrazzld
+/backlog.d/ @phrazzld
+/AGENTS.md @phrazzld

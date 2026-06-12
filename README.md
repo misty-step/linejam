@@ -54,6 +54,12 @@ claim_release <backlog-id>
 
 `bash scripts/setup.sh` prepares the `.claims/` directory. Claim files are local coordination artifacts; release the claim when the item is done or abandoned.
 
+## Contributing & Security
+
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, local checks, commit style, and PR expectations.
+- See [SECURITY.md](SECURITY.md) for vulnerability reporting and response expectations.
+- Review routing is declared in [CODEOWNERS](CODEOWNERS).
+
 ## Testing
 
 500+ tests across unit, integration, and E2E layers with 85% coverage enforcement.
