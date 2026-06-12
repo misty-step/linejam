@@ -140,8 +140,8 @@ jobs:
       - name: Run E2E mirror
         run: ./scripts/ci/dagger-call.sh e2e
 
-  # Artifact capture is advisory. It should prove the branch build visually
-  # without becoming part of the required merge gate.
+  # Artifact capture is part of PR readiness: runtime errors, missing evidence
+  # files, and unwaived packaging failures fail before merge-gate.
   qa-evidence:
     name: QA Evidence
     runs-on: ubuntu-latest
@@ -193,6 +193,9 @@ jobs:
 
       - name: Install Playwright Browsers
         run: pnpm exec playwright install chromium --with-deps
+
+      - name: Install evidence encoders
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Start app server
         run: |
@@ -250,7 +253,7 @@ jobs:
   merge-gate:
     name: merge-gate
     runs-on: ubuntu-latest
-    needs: [quality-gates, test-build, e2e]
+    needs: [quality-gates, test-build, e2e, qa-evidence]
     if: always()
     steps:
       - name: Check all jobs passed

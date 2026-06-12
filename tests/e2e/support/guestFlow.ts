@@ -99,6 +99,93 @@ async function waitForRoomPath(page: Page, label: string, roomCode?: string) {
   }
 }
 
+export function attachGuestFlowRuntimeErrorLogging(
+  page: Page,
+  label: string,
+  runtimeErrors: string[]
+) {
+  page.on('pageerror', (error) => {
+    runtimeErrors.push(`[${label}] pageerror: ${error.message}`);
+  });
+
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      if (isIgnoredRuntimeUrl(msg.location().url)) {
+        return;
+      }
+
+      runtimeErrors.push(`[${label}] console: ${msg.text()}`);
+    }
+  });
+
+  page.on('requestfailed', (request) => {
+    if (
+      isIgnoredFailedRequest(
+        request.method(),
+        request.url(),
+        request.failure()?.errorText
+      )
+    ) {
+      return;
+    }
+
+    runtimeErrors.push(
+      `[${label}] requestfailed: ${request.method()} ${request.url()} ${
+        request.failure()?.errorText || ''
+      }`.trim()
+    );
+  });
+
+  page.on('response', (response) => {
+    if (isIgnoredRuntimeUrl(response.url())) {
+      return;
+    }
+
+    if (response.status() >= 400) {
+      const request = response.request();
+      runtimeErrors.push(
+        `[${label}] response: ${response.status()} ${request.method()} ${response.url()}`
+      );
+    }
+  });
+}
+
+function isIgnoredFailedRequest(
+  method: string,
+  requestUrl: string,
+  errorText = ''
+) {
+  if (isIgnoredRuntimeUrl(requestUrl)) {
+    return true;
+  }
+
+  if (method === 'GET' && errorText === 'net::ERR_ABORTED') {
+    return hasSearchParam(requestUrl, '_rsc');
+  }
+
+  return false;
+}
+
+function isIgnoredRuntimeUrl(requestUrl: string) {
+  try {
+    const url = new URL(requestUrl);
+    return (
+      url.pathname === '/_vercel/insights/script.js' ||
+      url.pathname === '/_vercel/speed-insights/script.js'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasSearchParam(requestUrl: string, param: string) {
+  try {
+    return new URL(requestUrl).searchParams.has(param);
+  } catch {
+    return false;
+  }
+}
+
 export class GuestFlowSession {
   readonly guestContext: BrowserContext;
   readonly guestName: string;
@@ -446,20 +533,16 @@ export class GuestFlowSession {
   }
 
   private attachRuntimeErrorLogging() {
-    this.attachPageErrorLogging(this.hostPage, 'host');
-    this.attachPageErrorLogging(this.guestPage, 'guest');
-  }
-
-  private attachPageErrorLogging(page: Page, label: string) {
-    page.on('pageerror', (error) => {
-      this.runtimeErrors.push(`[${label}] pageerror: ${error.message}`);
-    });
-
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        this.runtimeErrors.push(`[${label}] console: ${msg.text()}`);
-      }
-    });
+    attachGuestFlowRuntimeErrorLogging(
+      this.hostPage,
+      'host',
+      this.runtimeErrors
+    );
+    attachGuestFlowRuntimeErrorLogging(
+      this.guestPage,
+      'guest',
+      this.runtimeErrors
+    );
   }
 
   private page(actor: Actor) {

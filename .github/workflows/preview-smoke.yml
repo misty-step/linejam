@@ -22,8 +22,10 @@ jobs:
     env:
       PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.base_url || github.event.client_payload.base_url }}
       PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1'
+      LINEJAM_SMOKE_RUNNER: playwright
       LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1'
-      LINEJAM_ALLOWED_SMOKE_HOST_PATTERN: '^linejam(?:-[a-z0-9-]+)?\\.vercel\\.app$'
+      LINEJAM_ALLOWED_SMOKE_HOST_PATTERN: '^linejam(?:-[a-z0-9-]+)?\.vercel\.app$'
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}
@@ -37,10 +39,54 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Install Dagger CLI
+      - name: Verify Vercel protection bypass
         run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR="$HOME/.local/bin" sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
+            echo "::error::VERCEL_AUTOMATION_BYPASS_SECRET is required for protected Vercel preview smoke runs."
+            echo "Configure the repository secret, then rerun Preview Smoke for ${PLAYWRIGHT_BASE_URL}."
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install chromium --with-deps
 
       - name: Run preview smoke
-        run: ./scripts/ci/dagger-call.sh smoke
+        run: |
+          mkdir -p "$RUNNER_TEMP/linejam-smoke"
+          set +e
+          pnpm canary:smoke > "$RUNNER_TEMP/linejam-smoke/stdout.log" 2> "$RUNNER_TEMP/linejam-smoke/stderr.log"
+          code=$?
+          cat "$RUNNER_TEMP/linejam-smoke/stdout.log"
+          cat "$RUNNER_TEMP/linejam-smoke/stderr.log" >&2
+          exit "$code"
+
+      - name: Upload preview smoke logs
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: preview-smoke-logs
+          path: ${{ runner.temp }}/linejam-smoke/
+          retention-days: 14
+
+      - name: Upload preview Playwright artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: preview-smoke-playwright
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

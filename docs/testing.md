@@ -219,8 +219,14 @@ pnpm evidence:guest-flow
 ```
 
 - `pnpm test:e2e` excludes the `@evidence` suite so merge-gating stays deterministic.
-- `pnpm evidence:guest-flow` runs the canonical guest flow, then writes screenshots, `guest-flow.webm`, `guest-flow.gif`, `qa-summary.md`, and `manifest.json`.
+- `pnpm evidence:guest-flow` runs the canonical guest flow, then writes screenshots, `guest-flow.webm`, `guest-flow.gif`, `server.log`, `qa-summary.md`, and `manifest.json`.
+- GIF packaging requires `ffmpeg`. The hosted `qa-evidence` job installs it before capture; local evidence runs need it available on `PATH`.
+- Evidence is fail-or-waive. Browser console/page errors, missing screenshots, missing video, GIF packaging failures, and missing server logs fail the command unless a typed JSON waiver is passed with `--allowlist <path>` or `LINEJAM_EVIDENCE_ALLOWLIST`.
+- Evidence runtime capture ignores known non-app noise from local Vercel analytics probes and aborted Next RSC GET requests. Other browser console/page, failed request, and 4xx/5xx response errors remain fail-or-waive.
+- Waivers must name `runtimeErrors[].pattern` or `artifactErrors[].artifact`, include a human `reason`, and expire with `expiresOn: YYYY-MM-DD`. Waived evidence exits successfully as `PASS_WITH_WAIVERS` and records the waiver in the summary and manifest.
+- `qa-evidence` participates in `merge-gate`; a branch is not PR-ready if visual evidence fails without a waiver.
 - When local Convex/Clerk wiring is unavailable, point the evidence run at a deployed target with `LINEJAM_BASE_URL=https://www.linejam.app`.
+- Protected Vercel previews require `VERCEL_AUTOMATION_BYPASS_SECRET` for smoke or QA browser runs; the preview smoke workflow fails in preflight when the repository secret is absent, and the smoke config sends Vercel's automation bypass header and requests the bypass cookie for in-browser navigation.
 
 ### Agentic QA
 
@@ -233,12 +239,12 @@ pnpm qa:agentic:preview --mission guest-host-signed-in-join --base-url https://<
 ```
 
 - Local runs target `PLAYWRIGHT_BASE_URL` or `http://localhost:3333`; start the app outside the harness before running the command.
-- Preview runs require an explicit `--base-url`.
+- Preview runs require an explicit `--base-url`; protected Vercel previews also require `VERCEL_AUTOMATION_BYPASS_SECRET`.
 - Stagehand exploration is required for a passing agentic QA run. Set `STAGEHAND_MODEL_API_KEY` or a provider key such as `OPENAI_API_KEY`; override the default `openai/gpt-4.1-mini` model with `STAGEHAND_MODEL` when needed.
 - Authenticated missions reuse the Clerk browser auth posture and fail closed when Clerk credentials are missing.
 - Each run writes `manifest.json`, `stagehand.json`, screenshots, `critic.json`, `critic-summary.md`, and a Promptfoo receipt when model grading is enabled.
 - Deterministic manifest checks decide pass/fail first. Set `LINEJAM_PROMPTFOO_CRITIC=1` to run the optional `qa/agentic/promptfoo.yaml` advisory model critic; a Promptfoo failure is recorded in the manifest but does not replace deterministic critic findings.
-- Canary responder follow-up is disabled by default. Set `LINEJAM_AGENTIC_QA_AFTER_SMOKE=1`, `STAGEHAND_MODEL_API_KEY`, and optionally `LINEJAM_AGENTIC_QA_MISSION=<mission>` to attach an agentic artifact path after deterministic smoke succeeds.
+- Agentic QA after smoke is intentionally manual/opt-in for preview and production. Set `LINEJAM_AGENTIC_QA_AFTER_SMOKE=1`, `STAGEHAND_MODEL_API_KEY`, and optionally `LINEJAM_AGENTIC_QA_MISSION=<mission>` to attach an agentic artifact path after deterministic smoke succeeds; deterministic smoke remains the blocking signal.
 
 ## Coverage
 
