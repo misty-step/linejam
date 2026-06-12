@@ -1,6 +1,6 @@
 # Make game rules data and ship two new modes (Rhyme Relay, Quick Jam)
 
-Priority: P0 · Status: ready · Estimate: L
+Priority: P0 · Status: done · Estimate: L
 
 ## Goal
 
