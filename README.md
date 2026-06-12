@@ -27,18 +27,32 @@ The constraint is the game. You see only the line before yours. The result is co
 ## Getting Started
 
 ```bash
-# Install dependencies
-pnpm install
+# Bootstrap dependencies, .env.local, and local coordination state
+bash scripts/setup.sh
 
-# Set up environment
-cp .env.example .env.local
-# Add your Convex and Clerk keys
+# Or create .env.local without installing dependencies
+bash scripts/setup.sh --write-env --skip-install
+
+# Add your Convex, Clerk, guest-token, and Canary values to .env.local
 
 # Run development servers (parallel)
 pnpm dev # Next.js :3000 + Convex backend
 ```
 
 Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.
+
+### Backlog Claims
+
+Use local claims before starting a ready item from `backlog.d/` so parallel agents do not pick up the same work:
+
+```bash
+source scripts/lib/claims.sh
+claim_acquire <backlog-id>
+# ...work...
+claim_release <backlog-id>
+```
+
+`bash scripts/setup.sh` prepares the `.claims/` directory. Claim files are local coordination artifacts; release the claim when the item is done or abandoned.
 
 ## Testing
 

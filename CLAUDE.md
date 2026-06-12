@@ -13,6 +13,7 @@ Linejam is a real-time collaborative poetry game. Players take turns adding cons
 ## Development Commands
 
 ```bash
+bash scripts/setup.sh # bootstrap deps, .env.local, and .claims
 pnpm dev              # Next.js :3000 + Convex dev (parallel)
 pnpm build            # convex deploy + next build
 pnpm lint             # eslint
@@ -24,6 +25,15 @@ pnpm test:watch       # vitest watch
 pnpm test:ci          # vitest run --coverage
 pnpm test:ui          # vitest interactive UI
 ```
+
+For a non-destructive env bootstrap without installing dependencies:
+
+```bash
+bash scripts/setup.sh --write-env --skip-install
+```
+
+This creates `.env.local` from `.env.example` only when `.env.local` does not
+already exist, and it prepares `.claims/` for local backlog coordination.
 
 ## Architecture
 
@@ -124,6 +134,17 @@ AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 Lefthook pre-commit: `gitleaks`, `eslint --fix`, `prettier --write`
 Lefthook pre-push: `pnpm ci:prepush` (Dagger all, including authenticated browser coverage by default)
 Commit messages: Conventional Commits (commitlint)
+
+Before starting a ready item from `backlog.d/`, claim it locally:
+
+```bash
+source scripts/lib/claims.sh
+claim_acquire <backlog-id>
+claim_release <backlog-id>
+```
+
+Release the claim when the item is done or abandoned. Claims are local
+coordination artifacts, not product state.
 
 ## Testing
 

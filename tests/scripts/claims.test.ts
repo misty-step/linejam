@@ -23,6 +23,17 @@ function runClaimsScript(script: string, claimsDir: string) {
   });
 }
 
+function hasCommand(command: string) {
+  const result = spawnSync(
+    'bash',
+    ['--noprofile', '--norc', '-lc', `command -v ${command}`],
+    {
+      encoding: 'utf8',
+    }
+  );
+  return result.status === 0;
+}
+
 describe('claims.sh', () => {
   const workspaces: string[] = [];
 
@@ -86,5 +97,35 @@ describe('claims.sh', () => {
     expect(result.stdout).toContain('smoke-test\n');
     expect(result.stdout.trimEnd().endsWith('---')).toBe(true);
     expect(existsSync(join(claimsDir, 'smoke-test.lock'))).toBe(false);
+  });
+
+  it('can be sourced from zsh without breaking command lookup', () => {
+    if (!hasCommand('zsh')) {
+      return;
+    }
+
+    const { workspace, claimsDir } = createWorkspace();
+    workspaces.push(workspace);
+
+    const result = spawnSync(
+      'zsh',
+      [
+        '-lc',
+        `
+          export CLAIMS_DIR=${JSON.stringify(claimsDir)}
+          source scripts/lib/claims.sh
+          claim_acquire zsh-smoke
+          claim_release zsh-smoke
+        `,
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      }
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(existsSync(join(claimsDir, 'zsh-smoke.lock'))).toBe(false);
   });
 });
