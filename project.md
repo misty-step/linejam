@@ -27,9 +27,9 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 ## Active Focus
 
-- **Milestone:** Now: Current Sprint — Theme polish + security hardening
-- **Key Issues:** #149 (animation quality), #148 (theme token leakage), #134 (logShare rate limit), #133 (HTTP security headers)
-- **Theme:** Ship-ready polish — design quality and security fundamentals before wider promotion
+- **Milestone:** Party-game depth — make the room experience magical, not just functional
+- **Key Items:** `backlog.d/` is authoritative. Current arc: 010 (game modes platform: Rhyme Relay + Quick Jam), 011 (realtime resilience: ghostwriter rescue, rematch for all), 012 (round clock + sparks), 013 (reveal ceremony staging), 014 (mobile thumb test), 015 (doc truth)
+- **Theme:** Engineered fun — tension, theater, and resilience on top of the proven core loop
 
 ## Quality Bar
 
@@ -71,6 +71,12 @@ import { logError } from './lib/errors';
 logError('API call failed', error, { roomId, round });
 ```
 
+## Stretch Goal
+
+Print-on-demand poetry booklets via Lulu API: users curate favorite poems,
+AI-generated art + boutique design treatment, physical artifact shipped to
+them, small revenue cut per book.
+
 ## Anti-Goals
 
 - Heavy monetization (no subscriptions, no ads)
@@ -86,5 +92,5 @@ logError('API call failed', error, { roomId, round });
 
 ---
 
-_Last updated: 2026-02-23_
-_Updated during: /groom session (migrated from vision.md)_
+_Last updated: 2026-06-12_
+_Updated during: /groom session (absorbed vision.md, which is now removed)_
