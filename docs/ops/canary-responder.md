@@ -86,4 +86,16 @@ This uses `PLAYWRIGHT_BASE_URL` plus the dedicated `playwright.smoke.config.ts` 
 
 Local operators should keep the authoritative Dagger contract by leaving `LINEJAM_SMOKE_RUNNER=dagger`. Hosted responders should switch to `LINEJAM_SMOKE_RUNNER=playwright`; the same smoke suite runs directly with Playwright and avoids trying to embed Dagger inside the webhook worker. Hosted smoke still enforces the URL allowlist, rejects `pk_test_...` and `sk_test_...` keys against `https://www.linejam.app`, requires complete Clerk auth env when auth smoke is enabled, and validates the Clerk `convex` JWT template before it launches the browser. The committed Fly deployment files are [`Dockerfile.responder`](../../Dockerfile.responder) and [`fly.responder.toml`](../../fly.responder.toml).
 
+GitHub preview and production smoke workflows also use
+`LINEJAM_SMOKE_RUNNER=playwright` so they can upload durable stdout, stderr,
+`test-results/`, and `playwright-report/` artifacts on both success and
+failure. Protected Vercel previews require `VERCEL_AUTOMATION_BYPASS_SECRET`;
+the preview workflow fails in preflight when that repository secret is absent,
+and the smoke Playwright config sends it as the `x-vercel-protection-bypass`
+header and requests the bypass cookie for in-browser navigation. Agentic QA
+after smoke is manual/opt-in for preview and production: set
+`LINEJAM_AGENTIC_QA_AFTER_SMOKE=1` and `STAGEHAND_MODEL_API_KEY` only when the
+follow-up artifact is intentionally required for an incident or release
+decision.
+
 Canary itself treats generic signed webhooks as the stable product contract, so the responder should stay thin: verify, fetch context, store evidence, trigger the smoke harness, then hand off to follow-on agents.

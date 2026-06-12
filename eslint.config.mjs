@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "dagger/**",
     // Test coverage output
     "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
   // Catch stray console.* calls — use structured logger instead.
   // Allowed in logger.ts (implements the logger), error.ts (dev fallback),

@@ -1,35 +1,23 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
-import { constants as fsConstants, promises as fs } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-
-const DEFAULT_BASE_URL = 'https://www.linejam.app';
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-
-function parseArgs(argv) {
-  const args = {
-    baseUrl: process.env.LINEJAM_BASE_URL || DEFAULT_BASE_URL,
-    outDir:
-      process.env.LINEJAM_EVIDENCE_DIR ||
-      path.join(tmpdir(), `linejam-evidence-${timestamp}`),
-  };
-
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === '--base-url' && argv[i + 1]) {
-      args.baseUrl = argv[i + 1];
-      i += 1;
-    } else if (arg === '--out-dir' && argv[i + 1]) {
-      args.outDir = argv[i + 1];
-      i += 1;
-    }
-  }
-
-  return args;
-}
+import {
+  collectFileArtifactErrors,
+  copyServerLog,
+  exists,
+  normalizeEvidenceResult,
+  parseArgs,
+} from './guest-flow-artifacts.mjs';
+import {
+  artifactIssue,
+  issueArtifact,
+  issueMessage,
+  parseEvidenceWaivers,
+  resolveEvidenceVerdict,
+} from './verdict.mjs';
 
 function pnpmCommand() {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -71,21 +59,14 @@ function makeRunner(cwd) {
     });
 }
 
-async function exists(targetPath) {
-  try {
-    await fs.access(targetPath, fsConstants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function resolveResult(flowError, runtimeErrors) {
-  if (flowError) {
-    return 'FAIL';
+async function loadEvidenceWaivers(allowlistPath) {
+  if (!allowlistPath) {
+    return parseEvidenceWaivers(null);
   }
 
-  return runtimeErrors.length === 0 ? 'PASS' : 'PASS_WITH_ERRORS';
+  return parseEvidenceWaivers(
+    JSON.parse(await fs.readFile(allowlistPath, 'utf8'))
+  );
 }
 
 function humanizeResult(result) {
@@ -100,33 +81,6 @@ function errorMessage(error) {
   return String(error);
 }
 
-function normalizeEvidenceResult(baseUrl, result, testError) {
-  return {
-    baseUrl:
-      typeof result?.baseUrl === 'string' && result.baseUrl
-        ? result.baseUrl
-        : baseUrl,
-    checks: Array.isArray(result?.checks)
-      ? result.checks.map((check) => String(check))
-      : [],
-    flowError:
-      typeof result?.flowError === 'string'
-        ? result.flowError
-        : testError
-          ? errorMessage(testError)
-          : null,
-    rawVideoPath:
-      typeof result?.rawVideoPath === 'string' ? result.rawVideoPath : null,
-    roomCode: typeof result?.roomCode === 'string' ? result.roomCode : '',
-    runtimeErrors: Array.isArray(result?.runtimeErrors)
-      ? result.runtimeErrors.map((runtimeError) => String(runtimeError))
-      : [],
-    screenshots: Array.isArray(result?.screenshots)
-      ? result.screenshots.map((screenshot) => String(screenshot))
-      : [],
-  };
-}
-
 async function writeSummary({
   artifactErrors,
   baseUrl,
@@ -137,7 +91,9 @@ async function writeSummary({
   result,
   roomCode,
   runtimeErrors,
+  serverLogPath,
   screenshots,
+  verdict,
   videoPath,
 }) {
   const lines = [
@@ -159,6 +115,17 @@ async function writeSummary({
       : runtimeErrors.map((runtimeError) => `- ${runtimeError}`)),
   ];
 
+  if (verdict.waivedRuntimeErrors.length > 0) {
+    lines.push(
+      '',
+      '## Runtime Error Waivers',
+      ...verdict.waivedRuntimeErrors.map(
+        ({ error, waiver }) =>
+          `- ${error} (waived until ${waiver.expiresOn}: ${waiver.reason})`
+      )
+    );
+  }
+
   if (flowError) {
     lines.push('', '## Flow Error', `- ${flowError}`);
   }
@@ -167,7 +134,21 @@ async function writeSummary({
     lines.push(
       '',
       '## Artifact Errors',
-      ...artifactErrors.map((artifactError) => `- ${artifactError}`)
+      ...artifactErrors.map(
+        (artifactError) =>
+          `- [${issueArtifact(artifactError)}] ${issueMessage(artifactError)}`
+      )
+    );
+  }
+
+  if (verdict.waivedArtifactErrors.length > 0) {
+    lines.push(
+      '',
+      '## Artifact Waivers',
+      ...verdict.waivedArtifactErrors.map(
+        ({ error, waiver }) =>
+          `- [${error.artifact}] ${error.message} (waived until ${waiver.expiresOn}: ${waiver.reason})`
+      )
     );
   }
 
@@ -175,6 +156,7 @@ async function writeSummary({
     '',
     '## Artifacts',
     `- GIF: ${gifPath ? path.basename(gifPath) : 'Unavailable'}`,
+    `- Server log: ${serverLogPath ? path.basename(serverLogPath) : 'Unavailable'}`,
     `- Video: ${videoPath ? path.basename(videoPath) : 'Unavailable'}`,
     ...screenshots.map((file) => `- Screenshot: ${file}`),
     ''
@@ -186,11 +168,13 @@ async function writeSummary({
 }
 
 async function main() {
-  const { baseUrl, outDir } = parseArgs(process.argv.slice(2));
+  const { allowlistPath, baseUrl, outDir, serverLogPath: serverLogSource } =
+    parseArgs(process.argv.slice(2));
   const resultFile = path.join(outDir, 'guest-flow.result.json');
   const run = makeRunner(process.cwd());
 
   await fs.mkdir(outDir, { recursive: true });
+  const waivers = await loadEvidenceWaivers(allowlistPath);
 
   let testError = null;
   let rawResult = null;
@@ -223,7 +207,6 @@ async function main() {
 
   const result = normalizeEvidenceResult(baseUrl, rawResult, testError);
   const artifactErrors = [];
-  const resolvedResult = resolveResult(result.flowError, result.runtimeErrors);
   let videoPath = null;
 
   if (result.rawVideoPath) {
@@ -235,10 +218,14 @@ async function main() {
       }
       videoPath = targetVideoPath;
     } catch (error) {
-      artifactErrors.push(`Video packaging failed: ${errorMessage(error)}`);
+      artifactErrors.push(
+        artifactIssue('video', `Video packaging failed: ${errorMessage(error)}`)
+      );
     }
   } else {
-    artifactErrors.push('Playwright did not record host video.');
+    artifactErrors.push(
+      artifactIssue('video', 'Playwright did not record host video.')
+    );
   }
 
   let gifPath = null;
@@ -258,10 +245,41 @@ async function main() {
         gifPath,
       ]);
     } catch (error) {
-      artifactErrors.push(`GIF generation failed: ${errorMessage(error)}`);
+      artifactErrors.push(
+        artifactIssue('gif', `GIF generation failed: ${errorMessage(error)}`)
+      );
       gifPath = null;
     }
+  } else {
+    artifactErrors.push(
+      artifactIssue('gif', 'GIF generation skipped because video is missing.')
+    );
   }
+
+  const { serverLogPath, artifactError: serverLogError } = await copyServerLog(
+    serverLogSource,
+    outDir
+  );
+  if (serverLogError) {
+    artifactErrors.push(serverLogError);
+  }
+
+  artifactErrors.push(
+    ...(await collectFileArtifactErrors({
+      gifPath,
+      outDir,
+      screenshots: result.screenshots ?? [],
+      serverLogPath,
+      videoPath,
+    }))
+  );
+
+  const verdict = resolveEvidenceVerdict({
+    artifactErrors,
+    flowError: result.flowError,
+    runtimeErrors: result.runtimeErrors ?? [],
+    waivers,
+  });
 
   const summaryPath = await writeSummary({
     artifactErrors,
@@ -270,25 +288,33 @@ async function main() {
     flowError: result.flowError,
     gifPath,
     outDir,
-    result: resolvedResult,
+    result: verdict.result,
     roomCode: result.roomCode ?? '',
     runtimeErrors: result.runtimeErrors ?? [],
+    serverLogPath,
     screenshots: result.screenshots ?? [],
+    verdict,
     videoPath,
   });
 
   const manifest = {
-    artifactErrors,
+    artifactErrors: artifactErrors.map((artifactError) => ({
+      artifact: artifactError.artifact,
+      message: artifactError.message,
+    })),
     baseUrl: result.baseUrl || baseUrl,
     checks: result.checks ?? [],
     flowError: result.flowError,
     gif: gifPath ? path.basename(gifPath) : null,
-    result: resolvedResult,
+    result: verdict.result,
     roomCode: result.roomCode ?? '',
     runtimeErrors: result.runtimeErrors ?? [],
+    serverLog: serverLogPath ? path.basename(serverLogPath) : null,
     screenshots: result.screenshots ?? [],
     summary: path.basename(summaryPath),
     video: videoPath ? path.basename(videoPath) : null,
+    waivedArtifactErrors: verdict.waivedArtifactErrors,
+    waivedRuntimeErrors: verdict.waivedRuntimeErrors,
   };
 
   await fs.writeFile(
@@ -301,7 +327,7 @@ async function main() {
     JSON.stringify(
       {
         outDir,
-        result: resolvedResult,
+        result: verdict.result,
         manifest: path.join(outDir, 'manifest.json'),
         summary: summaryPath,
       },
@@ -317,9 +343,24 @@ async function main() {
   if (result.flowError) {
     throw new Error(result.flowError);
   }
+
+  if (verdict.result === 'FAIL') {
+    const failures = [
+      ...verdict.unwaivedRuntimeErrors.map(
+        (runtimeError) => `runtime: ${runtimeError}`
+      ),
+      ...verdict.unwaivedArtifactErrors.map(
+        (artifactError) =>
+          `artifact:${artifactError.artifact}: ${artifactError.message}`
+      ),
+    ];
+    throw new Error(`Evidence failed: ${failures.join('; ')}`);
+  }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.stack : String(error));
-  process.exitCode = 1;
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.stack : String(error));
+    process.exitCode = 1;
+  });
+}
