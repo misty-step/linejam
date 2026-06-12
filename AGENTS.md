@@ -79,9 +79,7 @@ Local Dagger is authoritative. Hosted CI is secondary confirmation.
 
 ## Known-Debt Map
 
-| Debt                                        | Pointer                                                                        | Tracker                                          |
-| ------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------ |
-| Public sharing privacy contract is implicit | `convex/poems.ts`, `app/poem/[id]/PoemDetail.tsx`, `app/poem/[id]/metadata.ts` | `backlog.d/009-make-sharing-privacy-explicit.md` |
+No open known-debt rows. See `backlog.d/_done/` for archived items.
 
 Cerberus is out. Do not resurrect it.
 

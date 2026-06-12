@@ -4,6 +4,18 @@ import type { Id } from './_generated/dataModel';
 import { getUser, checkParticipation } from './lib/auth';
 import { getRoomByCode, getActiveGame, getCompletedGame } from './lib/room';
 
+function isPublicPoemShareEnabled(
+  poem: { publicShareEnabled?: boolean } | null
+) {
+  return poem?.publicShareEnabled === true;
+}
+
+function isPublicSessionRecapEnabled(
+  game: { publicRecapEnabled?: boolean } | null
+) {
+  return game?.publicRecapEnabled === true;
+}
+
 export const getPoemsForRoom = query({
   args: {
     roomCode: v.string(),
@@ -165,6 +177,7 @@ export const getPublicPoemPreview = query({
   handler: async (ctx, { poemId }) => {
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
+    if (!isPublicPoemShareEnabled(poem)) return null;
 
     const lines = await ctx.db
       .query('lines')
@@ -190,6 +203,7 @@ export const getPublicPoemFull = query({
   handler: async (ctx, { poemId }) => {
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
+    if (!isPublicPoemShareEnabled(poem)) return null;
 
     const lines = await ctx.db
       .query('lines')
@@ -231,6 +245,7 @@ export const getPublicSessionRecap = query({
 
     const game = await getCompletedGame(ctx, room._id);
     if (!game) return null;
+    if (!isPublicSessionRecapEnabled(game)) return null;
 
     const [poems, players] = await Promise.all([
       ctx.db

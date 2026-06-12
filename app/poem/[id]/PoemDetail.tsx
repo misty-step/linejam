@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '../../../lib/auth';
@@ -20,6 +21,8 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
   // Use authenticated data if available, else public
   const data = poemDetail || publicPoem;
   const isParticipant = !!poemDetail;
+  const isLoading =
+    !data && (poemDetail === undefined || publicPoem === undefined);
 
   const isFavorited = useQuery(
     api.favorites.isFavorited,
@@ -27,11 +30,36 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
   );
   const toggleFavorite = useMutation(api.favorites.toggleFavorite);
 
-  if (!data) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
         <div className="animate-pulse text-[var(--color-text-muted)]">
           Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center px-6">
+        <div className="max-w-md space-y-4 text-center">
+          <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+            Poem not found
+          </p>
+          <h1 className="font-[var(--font-display)] text-4xl text-[var(--color-text-primary)]">
+            This poem is private or unavailable.
+          </h1>
+          <p className="text-[var(--color-text-secondary)]">
+            Shared poem links only work after a participant makes the poem
+            public.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex h-12 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-6 text-sm font-medium text-[var(--color-text-primary)] hover:shadow-md"
+          >
+            Return to Linejam
+          </Link>
         </div>
       </div>
     );
@@ -62,6 +90,7 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
   return (
     <PoemDisplay
       poemId={poemId}
+      guestToken={guestToken || undefined}
       lines={poemLines}
       variant="archive"
       alreadyRevealed

@@ -100,4 +100,42 @@ describe('useShareLink', () => {
       message: 'Clipboard is unavailable',
     });
   });
+
+  it('runs beforeShare before exposing the URL', async () => {
+    const beforeShare = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useShareLink({
+        beforeShare,
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(beforeShare).toHaveBeenCalledBefore(
+      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
+    );
+  });
+
+  it('does not expose the URL when beforeShare fails', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() =>
+      useShareLink({
+        beforeShare: () => Promise.reject(new Error('Not allowed')),
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+        onError,
+        failureMessage: 'Unable to publish link.',
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBe('Unable to publish link.');
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+  });
 });
