@@ -2,6 +2,20 @@
 
 All notable changes to Linejam.
 
+# [1.6.0](https://github.com/misty-step/linejam/compare/v1.5.0...v1.6.0) (2026-06-13)
+
+### Bug Fixes
+
+- **mobile:** pass the thumb test on every game surface ([2f6c2be](https://github.com/misty-step/linejam/commit/2f6c2bec6b65023109c172b7fbde4385af3d261a))
+- **security:** force esbuild >=0.28.1 to clear GHSA-gv7w-rqvm-qjhr ([23c1565](https://github.com/misty-step/linejam/commit/23c156590e577fd104a5f5d31a8d3fff0160c998))
+
+### Features
+
+- **game:** make rules data and ship Rhyme Relay + Quick Jam modes ([c5b3d36](https://github.com/misty-step/linejam/commit/c5b3d36a37f93fa55a21dee01b00fa00bb9c7e34))
+- **realtime:** make the room unstrandable — rescue, rematch, self-heal ([a0e6eec](https://github.com/misty-step/linejam/commit/a0e6eec84af1251de6c69851def15ee1607d74c3))
+- **reveal:** stage the ceremony and crown a room favorite ([f39c155](https://github.com/misty-step/linejam/commit/f39c155071d78fe63156bac5bc4d0983aba9f1c5))
+- **writing:** engineer tension — round clock, sparks, waiting theater ([088bde4](https://github.com/misty-step/linejam/commit/088bde4f5f1d5cf8dc64aaf9eb22a4a001006c00))
+
 # [1.5.0](https://github.com/misty-step/linejam/compare/v1.4.0...v1.5.0) (2026-06-12)
 
 ### Features
