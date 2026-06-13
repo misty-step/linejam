@@ -6,6 +6,7 @@
  */
 
 import type { ThemePreset } from './types';
+import { aestheticTheme } from './presets/aesthetic';
 import { kenyaTheme } from './presets/kenya';
 import { monoTheme } from './presets/mono';
 import { vintagePaperTheme } from './presets/vintage-paper';
@@ -16,12 +17,16 @@ import { hyperTheme } from './presets/hyper';
 // ═══════════════════════════════════════════════════════════════════════════
 
 const themeArray: ThemePreset[] = [
+  // The substrate: @misty-step/aesthetic (default). Kenya is the same
+  // substrate kept under its historical id.
+  aestheticTheme,
   kenyaTheme,
+  // LEGACY — pending an operator decision: collapse to steering blocks
+  // or retire (see docs/adoption/PR_BODY.md). Presets and signatures
+  // are intact, but core components now wear the substrate costumes.
   monoTheme,
   vintagePaperTheme,
   hyperTheme,
-  // Add new themes here:
-  // newTheme,
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -37,7 +42,7 @@ export const themes: Record<string, ThemePreset> = Object.fromEntries(
 export const themeIds: string[] = themeArray.map((t) => t.id);
 
 /** Default theme ID */
-export const defaultThemeId = 'kenya';
+export const defaultThemeId = 'aesthetic';
 
 /** Get a theme by ID */
 export function getTheme(id: string): ThemePreset | undefined {
@@ -55,6 +60,7 @@ export function getThemeIdsForScript(): string {
 }
 
 // Re-export individual themes for direct import
+export { aestheticTheme } from './presets/aesthetic';
 export { kenyaTheme } from './presets/kenya';
 export { monoTheme } from './presets/mono';
 export { vintagePaperTheme } from './presets/vintage-paper';

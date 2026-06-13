@@ -1,27 +1,52 @@
 @import 'tailwindcss';
+@import '@misty-step/aesthetic' layer(base);
 
 /* ==========================================================================
-   Linejam Design System — Theme-Driven
+   Linejam — built on the misty-step aesthetic substrate
    ========================================================================== */
 
-/* Design Philosophy:
-   All visual tokens (colors, fonts, spacing, timing) are injected at runtime
-   by the theme system. This CSS file contains only:
-   - @theme block to register CSS variables as Tailwind utilities
-   - Base styles that reference CSS variables
-   - Theme transition utility
-   - Theme signature styles
-   - Animations and utilities
-*/
+/* Design philosophy:
+   The substrate is @misty-step/aesthetic: ink on paper, one font size,
+   nine ink-and-weight registers, hairlines, radius 0, motion as
+   feedback. Linejam steers exactly one dial — the persimmon accent —
+   and keeps one project token for poem ink (serif).
+
+   The runtime theme system survives for the legacy themes (Mono,
+   Vintage Paper, Hyper). The default "aesthetic" theme (and "kenya",
+   re-expressed) point every runtime token at the --ae-* substrate, so
+   the default experience IS the design system. */
+
+/* ── steering: the persimmon stamp (see aesthetic docs/ADOPTING.md §4) ── */
+:root {
+  --ae-accent: #c2410c;
+  --ae-accent-dark: #ff8a5c;
+}
+
+/* ── fonts: Geist via next/font; poem ink is a deliberate deviation ── */
+:root {
+  --ae-font: var(--font-geist), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --ae-font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* project token: poems are content, not chrome — they keep a serif
+     voice (operator may rule otherwise; see docs/adoption/PR_BODY.md) */
+  --lj-font-poem: var(--font-libre-baskerville), Georgia, serif;
+}
 
 /* ==========================================================================
-   Tailwind v4 Theme Registration
+   Tailwind v4 theme registration
    ==========================================================================
 
-   Bridge runtime CSS variables into Tailwind's theme system.
-   This creates first-class utilities (bg-primary, text-text-inverse, etc.)
-   that tailwind-merge handles correctly - avoiding the invisible text bug
-   where arbitrary values like text-[var(...)] get stripped.
+   Two vocabularies, one resolution order:
+
+   1. Runtime theme tokens (legacy bridge) — registered self-referentially
+      so utilities like bg-background resolve to whatever the active
+      theme injected on <html>. Under the default aesthetic/kenya themes
+      these point at --ae-*; under legacy themes they keep legacy values.
+
+   2. The aesthetic bridge (canonical, ADOPTING.md §5) — utilities like
+      text-ink / bg-wash / border-line resolve straight to the substrate.
+      New and re-costumed surfaces use these. (--color-surface stays on
+      the runtime token: the aesthetic theme points it at --ae-surface.)
 */
 @theme {
   /* Colors - map runtime variables to Tailwind utilities */
@@ -68,19 +93,32 @@
   --ease-out: var(--ease-out);
 }
 
+/* The aesthetic bridge (ADOPTING.md §5) */
+@theme inline {
+  --color-wash: var(--ae-wash);
+  --color-ink: var(--ae-ink);
+  --color-ink-muted: var(--ae-ink-muted);
+  --color-ink-faint: var(--ae-ink-faint);
+  --color-line: var(--ae-line);
+  --color-accent: var(--ae-accent);
+  --color-ok: var(--ae-ok);
+  --color-warn: var(--ae-warn);
+  --color-err: var(--ae-err);
+  /* --font-sans / --font-mono stay on the runtime tokens: the
+     aesthetic preset points them at --ae-font / --ae-font-mono, and
+     the legacy themes keep their own families until they retire. */
+}
+
 /* ==========================================================================
    Base Styles
    ========================================================================== */
 
 body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+  background-color: var(--color-background, var(--ae-surface));
+  color: var(--color-foreground, var(--ae-ink));
   font-family: var(--font-sans);
-  line-height: var(--leading-normal);
+  line-height: var(--leading-normal, 1.8);
   -webkit-font-smoothing: antialiased;
-
-  /* Global Grain Texture */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
 }
 
 h1,
@@ -89,16 +127,16 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-display);
+  font-family: var(--font-display, var(--ae-font));
   font-weight: 500;
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight, inherit);
+  letter-spacing: var(--tracking-tight, 0);
 }
 
-/* Selection — High Contrast */
-::selection {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+/* substrate headings: hierarchy from ink and weight, never from scale */
+[data-theme='aesthetic'] :is(h1, h2, h3, h4, h5, h6),
+[data-theme='kenya'] :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: var(--ae-w-medium);
 }
 
 /* ==========================================================================
@@ -119,7 +157,8 @@ h6 {
    Utilities
    ========================================================================== */
 
-/* Paper Sheet Effect */
+/* Paper Sheet Effect (hairline panel under the substrate themes;
+   legacy themes keep their shadow tokens) */
 .paper {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -142,7 +181,8 @@ h6 {
   animation: type-reveal var(--duration-normal) var(--ease-theme) forwards;
 }
 
-/* Hanko Stamp Animation */
+/* Hanko Stamp Animation (legacy themes only — the substrate never
+   changes size while it animates; it gets the fade below) */
 @keyframes stamp-reveal {
   0% {
     opacity: 0;
@@ -162,7 +202,13 @@ h6 {
   animation: stamp-reveal var(--duration-slow) var(--ease-theme) forwards;
 }
 
-/* Breathing Animation - Subtle pulse for room code */
+/* substrate: feedback resolves once, nothing changes size */
+[data-theme='aesthetic'] .animate-stamp,
+[data-theme='kenya'] .animate-stamp {
+  animation: fade-in var(--ae-soft) var(--ae-ease) both;
+}
+
+/* Breathing Animation - legacy only (the substrate has no ambient motion) */
 @keyframes breathe {
   0%,
   100% {
@@ -177,6 +223,11 @@ h6 {
 
 .animate-breathe {
   animation: breathe 6s var(--ease-theme) infinite;
+}
+
+[data-theme='aesthetic'] .animate-breathe,
+[data-theme='kenya'] .animate-breathe {
+  animation: none;
 }
 
 /* Fade-in Animation - Simple opacity reveal */
@@ -231,9 +282,15 @@ h6 {
   }
 }
 
-/* Custom Caret - Theme color for ceremonial typing */
+/* Custom Caret - the one accent spend on the writing surface */
 textarea:focus {
   caret-color: var(--color-primary);
+}
+
+/* poem ink: the deliberate serif deviation, content only */
+.lj-poem {
+  font-family: var(--lj-font-poem);
+  font-style: italic;
 }
 
 /* Accessibility - Screen Reader Only */
@@ -257,31 +314,26 @@ textarea:focus {
 }
 
 /* ==========================================================================
-   Theme Signatures — Unique Visual DNA per Theme
-   ========================================================================== */
+   Legacy Theme Signatures — Mono / Vintage Paper / Hyper only
+   ==========================================================================
 
-/* --- Kenya: Japanese Editorial --- */
-/* Vertical text option for labels */
-[data-theme='kenya'] .theme-vertical-text {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+   These themes are LEGACY: the operator decides whether they collapse
+   to steering blocks or retire (see docs/adoption/PR_BODY.md). Their
+   page-level signatures are preserved untouched below; core components
+   now wear the substrate costumes everywhere. */
+
+/* Grain texture and high-contrast selection were global; they are
+   signatures, so they now belong to the legacy themes alone. */
+[data-theme='mono'] body,
+[data-theme='vintage-paper'] body {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
 }
 
-/* Brush stroke divider */
-[data-theme='kenya'] .theme-divider::after {
-  content: '';
-  display: block;
-  width: 60%;
-  height: 2px;
-  margin: 2rem auto;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--color-primary) 20%,
-    var(--color-primary) 80%,
-    transparent 100%
-  );
-  opacity: 0.4;
+[data-theme='mono'] ::selection,
+[data-theme='vintage-paper'] ::selection,
+[data-theme='hyper'] ::selection {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 /* --- Mono: Swiss Modernism --- */

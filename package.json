@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.5",
+    "@misty-step/aesthetic": "github:misty-step/aesthetic#v2.5.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",

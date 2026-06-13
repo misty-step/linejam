@@ -28,6 +28,9 @@ importers:
       '@clerk/nextjs':
         specifier: ^6.39.5
         version: 6.39.5(next@16.2.8(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@misty-step/aesthetic':
+        specifier: github:misty-step/aesthetic#v2.5.1
+        version: https://codeload.github.com/misty-step/aesthetic/tar.gz/37e6df1d572cd1a4d1e8d3805779bbdfef1849a0
       '@vercel/analytics':
         specifier: ^2.0.1
         version: 2.0.1(next@16.2.8(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.58.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
@@ -1776,6 +1779,10 @@ packages:
     resolution: {integrity: sha512-4/0CvEdhi6+KjMxMaVbFM2n2Z44escBRoEYpR+gZg64DdetzGnYm8mcNLcoySaDJZNaBd6wz5DNdgRmcI4hXcg==}
     cpu: [x64]
     os: [win32]
+
+  '@misty-step/aesthetic@https://codeload.github.com/misty-step/aesthetic/tar.gz/37e6df1d572cd1a4d1e8d3805779bbdfef1849a0':
+    resolution: {tarball: https://codeload.github.com/misty-step/aesthetic/tar.gz/37e6df1d572cd1a4d1e8d3805779bbdfef1849a0}
+    version: 2.5.1
 
   '@modelcontextprotocol/sdk@1.29.0':
     resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
@@ -9616,6 +9623,8 @@ snapshots:
 
   '@libsql/win32-x64-msvc@0.5.29':
     optional: true
+
+  '@misty-step/aesthetic@https://codeload.github.com/misty-step/aesthetic/tar.gz/37e6df1d572cd1a4d1e8d3805779bbdfef1849a0': {}
 
   '@modelcontextprotocol/sdk@1.29.0(zod@4.3.6)':
     dependencies:

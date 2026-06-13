@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import {
+  Geist,
+  Geist_Mono,
   Libre_Baskerville,
-  IBM_Plex_Sans,
   Noto_Serif,
   Inter,
   Cormorant_Garamond,
@@ -20,7 +21,23 @@ import { Footer } from '@/components/Footer';
 import { themeIds, defaultThemeId } from '@/lib/themes';
 import { siteConfig } from '@/lib/config';
 
-// Kenya theme fonts
+// The substrate fonts (@misty-step/aesthetic): Geist carries every
+// surface; Geist Mono is the caption/plate voice. Wired to --ae-font
+// and --ae-font-mono in globals.css.
+const geist = Geist({
+  variable: '--font-geist',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+// Poem ink — the one deliberate deviation from the substrate: poem
+// CONTENT keeps a serif voice (--lj-font-poem). Chrome never uses it.
 const libreBaskerville = Libre_Baskerville({
   variable: '--font-libre-baskerville',
   subsets: ['latin'],
@@ -28,13 +45,8 @@ const libreBaskerville = Libre_Baskerville({
   display: 'swap',
 });
 
-const ibmPlex = IBM_Plex_Sans({
-  variable: '--font-ibm-plex',
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  display: 'swap',
-});
-
+// LEGACY theme fonts (Mono / Vintage Paper / Hyper) — these retire
+// with the legacy themes (see docs/adoption/PR_BODY.md).
 // Mono theme fonts
 const notoSerif = Noto_Serif({
   variable: '--font-noto-serif',
@@ -169,7 +181,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable}`}
+      className={`${geist.variable} ${geistMono.variable} ${libreBaskerville.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable}`}
     >
       <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />

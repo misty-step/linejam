@@ -55,3 +55,6 @@ next-env.d.ts
 thinktank.log
 thinktank_*/
 .env*.local
+
+# clerk configuration (can include secrets)
+/.clerk/
