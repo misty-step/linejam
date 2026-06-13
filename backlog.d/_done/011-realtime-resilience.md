@@ -1,6 +1,6 @@
 # Never let the room die: rescue stalls, unblock continuation
 
-Priority: P0 · Status: ready · Estimate: L
+Priority: P0 · Status: done · Estimate: L
 
 ## Goal
 
