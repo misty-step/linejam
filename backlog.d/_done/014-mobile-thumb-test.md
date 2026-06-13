@@ -1,6 +1,6 @@
 # Pass the thumb test: fix mobile friction on every game surface
 
-Priority: P1 · Status: ready · Estimate: M
+Priority: P1 · Status: done · Estimate: M
 
 ## Goal
 
