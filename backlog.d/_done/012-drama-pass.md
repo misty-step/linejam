@@ -1,6 +1,6 @@
 # Engineer tension into every round: clock, sparks, waiting theater
 
-Priority: P1 · Status: ready · Estimate: M
+Priority: P1 · Status: done · Estimate: M
 
 ## Goal
 
