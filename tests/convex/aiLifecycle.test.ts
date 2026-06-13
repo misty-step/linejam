@@ -22,7 +22,13 @@ vi.mock('../../convex/lib/env', () => ({
   getConvexRuntimeConfig: () => ({ openRouterApiKey: null }),
 }));
 
-import { commitAiLine, commitGhostLine, ensureAiLine } from '../../convex/ai';
+import {
+  commitAiLine,
+  commitGhostLine,
+  ensureAiLine,
+  generateGhostLine,
+  generateLineForRound,
+} from '../../convex/ai';
 
 const asId = <T extends 'games' | 'poems' | 'rooms' | 'users'>(value: string) =>
   value as unknown as Id<T>;
@@ -438,6 +444,182 @@ describe('ai lifecycle', () => {
           authorDisplayName: 'Alice (ghost)',
         })
       );
+    });
+  });
+
+  describe('generateLineForRound (action, fallback path)', () => {
+    const handler = (
+      generateLineForRound as unknown as {
+        handler: (ctx: unknown, args: unknown) => Promise<void>;
+      }
+    ).handler;
+
+    const makeActionCtx = (runQuery: ReturnType<typeof vi.fn>) => ({
+      runQuery,
+      runMutation: vi.fn().mockResolvedValue(undefined),
+    });
+
+    it('commits a fallback line via commitAiLine when no API key is set', async () => {
+      const game = {
+        _id: asId('game1'),
+        status: 'IN_PROGRESS',
+        mode: 'classic',
+        currentRound: 2,
+        assignmentMatrix: [[], [], [asId('ai1'), asId('user2')]],
+      };
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce(game) // getGameState
+        .mockResolvedValueOnce({ _id: asId('ai1'), aiPersonaId: 'bashō' }) // getAiPlayerInRoom
+        .mockResolvedValueOnce({ _id: asId('poem1') }) // getPoemByIndex
+        .mockResolvedValueOnce(false) // hasLineForRound
+        .mockResolvedValueOnce({ text: 'a previous line' }); // getPreviousLine
+      const ctx = makeActionCtx(runQuery);
+
+      await handler(ctx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 2,
+      });
+
+      expect(ctx.runMutation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          poemId: asId('poem1'),
+          lineIndex: 2,
+          aiUserId: asId('ai1'),
+        })
+      );
+    });
+
+    it('bails out when the game is no longer in progress', async () => {
+      const runQuery = vi.fn().mockResolvedValueOnce({
+        _id: asId('game1'),
+        status: 'COMPLETED',
+        currentRound: 8,
+      });
+      const ctx = makeActionCtx(runQuery);
+
+      await handler(ctx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 8,
+      });
+
+      expect(ctx.runMutation).not.toHaveBeenCalled();
+    });
+
+    it('bails out when no AI player is in the room', async () => {
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          mode: 'classic',
+          currentRound: 0,
+          assignmentMatrix: [[asId('user1')]],
+        })
+        .mockResolvedValueOnce(null); // getAiPlayerInRoom → none
+      const ctx = makeActionCtx(runQuery);
+
+      await handler(ctx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 0,
+      });
+
+      expect(ctx.runMutation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('generateGhostLine (action, fallback path)', () => {
+    const handler = (
+      generateGhostLine as unknown as {
+        handler: (ctx: unknown, args: unknown) => Promise<void>;
+      }
+    ).handler;
+
+    it('commits a ghost line via commitGhostLine when no API key is set', async () => {
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          mode: 'classic',
+          currentRound: 2,
+        }) // getGameState
+        .mockResolvedValueOnce(false) // hasLineForRound
+        .mockResolvedValueOnce({ text: 'previous' }); // getPreviousLine
+      const ctx = {
+        runQuery,
+        runMutation: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await handler(ctx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 2,
+        poemId: asId('poem1'),
+        forUserId: asId('alice1'),
+      });
+
+      expect(ctx.runMutation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          poemId: asId('poem1'),
+          lineIndex: 2,
+          forUserId: asId('alice1'),
+        })
+      );
+    });
+
+    it('does nothing when the stalled turn was already filled', async () => {
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          mode: 'classic',
+          currentRound: 2,
+        })
+        .mockResolvedValueOnce(true); // hasLineForRound → already submitted
+      const ctx = {
+        runQuery,
+        runMutation: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await handler(ctx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 2,
+        poemId: asId('poem1'),
+        forUserId: asId('alice1'),
+      });
+
+      expect(ctx.runMutation).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the round has moved on', async () => {
+      const runQuery = vi.fn().mockResolvedValueOnce({
+        _id: asId('game1'),
+        status: 'IN_PROGRESS',
+        mode: 'classic',
+        currentRound: 5,
+      });
+      const ctx = {
+        runQuery,
+        runMutation: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await handler(ctx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 2,
+        poemId: asId('poem1'),
+        forUserId: asId('alice1'),
+      });
+
+      expect(ctx.runMutation).not.toHaveBeenCalled();
     });
   });
 });
