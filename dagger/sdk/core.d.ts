@@ -62,6 +62,7 @@ declare class Connection {
 type QueryTree = {
     operation: string;
     args?: Record<string, unknown>;
+    inlineType?: string;
 };
 
 declare class Context {
@@ -71,6 +72,11 @@ declare class Context {
     getGQLClient(): GraphQLClient;
     copy(): Context;
     select(operation: string, args?: Record<string, unknown>): Context;
+    /**
+     * Select via node(id:) with an inline fragment on the given type.
+     * Produces: node(id: "...") { ... on TypeName { children } }
+     */
+    selectNode(id: string, typeName: string): Context;
     execute<T>(): Promise<T>;
 }
 
@@ -98,13 +104,13 @@ type AddressFileOpts = {
     noCache?: boolean;
 };
 /**
- * The `AddressID` scalar type represents an identifier for an object of type Address.
+ * A unique identifier for an object.
  */
 type AddressID = string & {
     __AddressID: never;
 };
 /**
- * The `BindingID` scalar type represents an identifier for an object of type Binding.
+ * A unique identifier for an object.
  */
 type BindingID = string & {
     __BindingID: never;
@@ -137,7 +143,7 @@ declare enum CacheSharingMode {
     Shared = "SHARED"
 }
 /**
- * The `CacheVolumeID` scalar type represents an identifier for an object of type CacheVolume.
+ * A unique identifier for an object.
  */
 type CacheVolumeID = string & {
     __CacheVolumeID: never;
@@ -155,7 +161,7 @@ type ChangesetWithChangesetsOpts = {
     onConflict?: ChangesetsMergeConflict;
 };
 /**
- * The `ChangesetID` scalar type represents an identifier for an object of type Changeset.
+ * A unique identifier for an object.
  */
 type ChangesetID = string & {
     __ChangesetID: never;
@@ -198,20 +204,32 @@ declare enum ChangesetsMergeConflict {
      */
     FailEarly = "FAIL_EARLY"
 }
+type CheckGroupRunOpts = {
+    /**
+     * If true, stop running checks as soon as any check fails.
+     */
+    failFast?: boolean;
+};
 /**
- * The `CheckGroupID` scalar type represents an identifier for an object of type CheckGroup.
+ * A unique identifier for an object.
  */
 type CheckGroupID = string & {
     __CheckGroupID: never;
 };
 /**
- * The `CheckID` scalar type represents an identifier for an object of type Check.
+ * A unique identifier for an object.
  */
 type CheckID = string & {
     __CheckID: never;
 };
 /**
- * The `CloudID` scalar type represents an identifier for an object of type Cloud.
+ * A unique identifier for an object.
+ */
+type ClientFilesyncMirrorID = string & {
+    __ClientFilesyncMirrorID: never;
+};
+/**
+ * A unique identifier for an object.
  */
 type CloudID = string & {
     __CloudID: never;
@@ -281,6 +299,10 @@ type ContainerExistsOpts = {
      * If specified, do not follow symlinks.
      */
     doNotFollowSymlinks?: boolean;
+    /**
+     * Replace "${VAR}" or "$VAR" in the value of path according to the current environment variables defined in the container (e.g. "/$VAR/foo").
+     */
+    expand?: boolean;
 };
 type ContainerExportOpts = {
     /**
@@ -332,6 +354,14 @@ type ContainerFileOpts = {
      */
     expand?: boolean;
 };
+type ContainerFromOpts = {
+    /**
+     * Service to use as the registry endpoint for the image address.
+     *
+     * The service will be started only for this pull.
+     */
+    registryService?: Service;
+};
 type ContainerImportOpts = {
     /**
      * Identifies the tag to import from the archive, if the archive bundles multiple tags.
@@ -357,6 +387,12 @@ type ContainerPublishOpts = {
      * Defaults to "OCI", which is compatible with most recent registries, but "Docker" may be needed for older registries without OCI support.
      */
     mediaTypes?: ImageMediaTypes;
+    /**
+     * Service to use as the registry endpoint for the image address.
+     *
+     * The service will be started only for this push.
+     */
+    registryService?: Service;
 };
 type ContainerStatOpts = {
     /**
@@ -453,6 +489,7 @@ type ContainerWithDirectoryOpts = {
      * Replace "${VAR}" or "$VAR" in the value of path according to the current environment variables defined in the container (e.g. "/$VAR/foo").
      */
     expand?: boolean;
+    permissions?: number;
 };
 type ContainerWithDockerHealthcheckOpts = {
     /**
@@ -622,6 +659,10 @@ type ContainerWithMountedDirectoryOpts = {
      */
     owner?: string;
     /**
+     * Mount the directory read-only.
+     */
+    readOnly?: boolean;
+    /**
      * Replace "${VAR}" or "$VAR" in the value of path according to the current environment variables defined in the container (e.g. "/$VAR/foo").
      */
     expand?: boolean;
@@ -757,7 +798,7 @@ type ContainerWithoutUnixSocketOpts = {
     expand?: boolean;
 };
 /**
- * The `ContainerID` scalar type represents an identifier for an object of type Container.
+ * A unique identifier for an object.
  */
 type ContainerID = string & {
     __ContainerID: never;
@@ -783,11 +824,38 @@ type CurrentModuleWorkdirOpts = {
     gitignore?: boolean;
 };
 /**
- * The `CurrentModuleID` scalar type represents an identifier for an object of type CurrentModule.
+ * A unique identifier for an object.
  */
 type CurrentModuleID = string & {
     __CurrentModuleID: never;
 };
+/**
+ * A unique identifier for an object.
+ */
+type DiffStatID = string & {
+    __DiffStatID: never;
+};
+/**
+ * The type of change for a diff stat entry.
+ */
+declare enum DiffStatKind {
+    /**
+     * A file or directory was added.
+     */
+    Added = "ADDED",
+    /**
+     * A file was modified.
+     */
+    Modified = "MODIFIED",
+    /**
+     * A file or directory was removed.
+     */
+    Removed = "REMOVED",
+    /**
+     * A file was renamed.
+     */
+    Renamed = "RENAMED"
+}
 type DirectoryAsModuleOpts = {
     /**
      * An optional subpath of the directory which contains the module's configuration file.
@@ -964,11 +1032,15 @@ type DirectoryWithDirectoryOpts = {
     /**
      * A user:group to set for the copied directory and its contents.
      *
-     * The user and group must be an ID (1000:1000), not a name (foo:bar).
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
      *
      * If the group is omitted, it defaults to the same as the user.
      */
     owner?: string;
+    /**
+     * Permission given to the copied directory and contents (e.g., 0755).
+     */
+    permissions?: number;
 };
 type DirectoryWithFileOpts = {
     /**
@@ -978,7 +1050,7 @@ type DirectoryWithFileOpts = {
     /**
      * A user:group to set for the copied directory and its contents.
      *
-     * The user and group must be an ID (1000:1000), not a name (foo:bar).
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
      *
      * If the group is omitted, it defaults to the same as the user.
      */
@@ -1003,7 +1075,7 @@ type DirectoryWithNewFileOpts = {
     permissions?: number;
 };
 /**
- * The `DirectoryID` scalar type represents an identifier for an object of type Directory.
+ * A unique identifier for an object.
  */
 type DirectoryID = string & {
     __DirectoryID: never;
@@ -1034,37 +1106,37 @@ type EngineCachePruneOpts = {
     targetSpace?: string;
 };
 /**
- * The `EngineCacheEntryID` scalar type represents an identifier for an object of type EngineCacheEntry.
+ * A unique identifier for an object.
  */
 type EngineCacheEntryID = string & {
     __EngineCacheEntryID: never;
 };
 /**
- * The `EngineCacheEntrySetID` scalar type represents an identifier for an object of type EngineCacheEntrySet.
+ * A unique identifier for an object.
  */
 type EngineCacheEntrySetID = string & {
     __EngineCacheEntrySetID: never;
 };
 /**
- * The `EngineCacheID` scalar type represents an identifier for an object of type EngineCache.
+ * A unique identifier for an object.
  */
 type EngineCacheID = string & {
     __EngineCacheID: never;
 };
 /**
- * The `EngineID` scalar type represents an identifier for an object of type Engine.
+ * A unique identifier for an object.
  */
 type EngineID = string & {
     __EngineID: never;
 };
 /**
- * The `EnumTypeDefID` scalar type represents an identifier for an object of type EnumTypeDef.
+ * A unique identifier for an object.
  */
 type EnumTypeDefID = string & {
     __EnumTypeDefID: never;
 };
 /**
- * The `EnumValueTypeDefID` scalar type represents an identifier for an object of type EnumValueTypeDef.
+ * A unique identifier for an object.
  */
 type EnumValueTypeDefID = string & {
     __EnumValueTypeDefID: never;
@@ -1072,6 +1144,16 @@ type EnumValueTypeDefID = string & {
 type EnvChecksOpts = {
     /**
      * Only include checks matching the specified patterns
+     */
+    include?: string[];
+    /**
+     * When true, only return annotated check functions; exclude generate-as-checks
+     */
+    noGenerate?: boolean;
+};
+type EnvServicesOpts = {
+    /**
+     * Only include services matching the specified patterns
      */
     include?: string[];
 };
@@ -1088,31 +1170,31 @@ type EnvFileVariablesOpts = {
     raw?: boolean;
 };
 /**
- * The `EnvFileID` scalar type represents an identifier for an object of type EnvFile.
+ * A unique identifier for an object.
  */
 type EnvFileID = string & {
     __EnvFileID: never;
 };
 /**
- * The `EnvID` scalar type represents an identifier for an object of type Env.
+ * A unique identifier for an object.
  */
 type EnvID = string & {
     __EnvID: never;
 };
 /**
- * The `EnvVariableID` scalar type represents an identifier for an object of type EnvVariable.
+ * A unique identifier for an object.
  */
 type EnvVariableID = string & {
     __EnvVariableID: never;
 };
 /**
- * The `ErrorID` scalar type represents an identifier for an object of type Error.
+ * A unique identifier for an object.
  */
 type ErrorID = string & {
     __ErrorID: never;
 };
 /**
- * The `ErrorValueID` scalar type represents an identifier for an object of type ErrorValue.
+ * A unique identifier for an object.
  */
 type ErrorValueID = string & {
     __ErrorValueID: never;
@@ -1135,7 +1217,13 @@ declare enum ExistsType {
     SymlinkType = "SYMLINK_TYPE"
 }
 /**
- * The `FieldTypeDefID` scalar type represents an identifier for an object of type FieldTypeDef.
+ * A unique identifier for an object.
+ */
+type ExportableID = string & {
+    __ExportableID: never;
+};
+/**
+ * A unique identifier for an object.
  */
 type FieldTypeDefID = string & {
     __FieldTypeDefID: never;
@@ -1217,7 +1305,7 @@ type FileWithReplacedOpts = {
     firstFrom?: number;
 };
 /**
- * The `FileID` scalar type represents an identifier for an object of type File.
+ * A unique identifier for an object.
  */
 type FileID = string & {
     __FileID: never;
@@ -1295,7 +1383,7 @@ type FunctionWithDeprecatedOpts = {
     reason?: string;
 };
 /**
- * The `FunctionArgID` scalar type represents an identifier for an object of type FunctionArg.
+ * A unique identifier for an object.
  */
 type FunctionArgID = string & {
     __FunctionArgID: never;
@@ -1309,25 +1397,25 @@ declare enum FunctionCachePolicy {
     PerSession = "PerSession"
 }
 /**
- * The `FunctionCallArgValueID` scalar type represents an identifier for an object of type FunctionCallArgValue.
+ * A unique identifier for an object.
  */
 type FunctionCallArgValueID = string & {
     __FunctionCallArgValueID: never;
 };
 /**
- * The `FunctionCallID` scalar type represents an identifier for an object of type FunctionCall.
+ * A unique identifier for an object.
  */
 type FunctionCallID = string & {
     __FunctionCallID: never;
 };
 /**
- * The `FunctionID` scalar type represents an identifier for an object of type Function.
+ * A unique identifier for an object.
  */
 type FunctionID = string & {
     __FunctionID: never;
 };
 /**
- * The `GeneratedCodeID` scalar type represents an identifier for an object of type GeneratedCode.
+ * A unique identifier for an object.
  */
 type GeneratedCodeID = string & {
     __GeneratedCodeID: never;
@@ -1339,13 +1427,13 @@ type GeneratorGroupChangesOpts = {
     onConflict?: ChangesetsMergeConflict;
 };
 /**
- * The `GeneratorGroupID` scalar type represents an identifier for an object of type GeneratorGroup.
+ * A unique identifier for an object.
  */
 type GeneratorGroupID = string & {
     __GeneratorGroupID: never;
 };
 /**
- * The `GeneratorID` scalar type represents an identifier for an object of type Generator.
+ * A unique identifier for an object.
  */
 type GeneratorID = string & {
     __GeneratorID: never;
@@ -1365,7 +1453,7 @@ type GitRefTreeOpts = {
     includeTags?: boolean;
 };
 /**
- * The `GitRefID` scalar type represents an identifier for an object of type GitRef.
+ * A unique identifier for an object.
  */
 type GitRefID = string & {
     __GitRefID: never;
@@ -1383,13 +1471,19 @@ type GitRepositoryTagsOpts = {
     patterns?: string[];
 };
 /**
- * The `GitRepositoryID` scalar type represents an identifier for an object of type GitRepository.
+ * A unique identifier for an object.
  */
 type GitRepositoryID = string & {
     __GitRepositoryID: never;
 };
 /**
- * The `HealthcheckConfigID` scalar type represents an identifier for an object of type HealthcheckConfig.
+ * A unique identifier for an object.
+ */
+type HTTPStateID = string & {
+    __HTTPStateID: never;
+};
+/**
+ * A unique identifier for an object.
  */
 type HealthcheckConfigID = string & {
     __HealthcheckConfigID: never;
@@ -1446,10 +1540,16 @@ type HostTunnelOpts = {
     ports?: PortForward[];
 };
 /**
- * The `HostID` scalar type represents an identifier for an object of type Host.
+ * A unique identifier for an object.
  */
 type HostID = string & {
     __HostID: never;
+};
+/**
+ * A unique identifier for an object.
+ */
+type ID = string & {
+    __ID: never;
 };
 /**
  * Compression algorithm to use for image layers.
@@ -1471,13 +1571,13 @@ declare enum ImageMediaTypes {
     OcimediaTypes = "OCIMediaTypes"
 }
 /**
- * The `InputTypeDefID` scalar type represents an identifier for an object of type InputTypeDef.
+ * A unique identifier for an object.
  */
 type InputTypeDefID = string & {
     __InputTypeDefID: never;
 };
 /**
- * The `InterfaceTypeDefID` scalar type represents an identifier for an object of type InterfaceTypeDef.
+ * A unique identifier for an object.
  */
 type InterfaceTypeDefID = string & {
     __InterfaceTypeDefID: never;
@@ -1499,31 +1599,31 @@ type JSONValueContentsOpts = {
     indent?: string;
 };
 /**
- * The `JSONValueID` scalar type represents an identifier for an object of type JSONValue.
+ * A unique identifier for an object.
  */
 type JSONValueID = string & {
     __JSONValueID: never;
 };
 /**
- * The `LLMID` scalar type represents an identifier for an object of type LLM.
+ * A unique identifier for an object.
  */
 type LLMID = string & {
     __LLMID: never;
 };
 /**
- * The `LLMTokenUsageID` scalar type represents an identifier for an object of type LLMTokenUsage.
+ * A unique identifier for an object.
  */
 type LLMTokenUsageID = string & {
     __LLMTokenUsageID: never;
 };
 /**
- * The `LabelID` scalar type represents an identifier for an object of type Label.
+ * A unique identifier for an object.
  */
 type LabelID = string & {
     __LabelID: never;
 };
 /**
- * The `ListTypeDefID` scalar type represents an identifier for an object of type ListTypeDef.
+ * A unique identifier for an object.
  */
 type ListTypeDefID = string & {
     __ListTypeDefID: never;
@@ -1533,6 +1633,10 @@ type ModuleChecksOpts = {
      * Only include checks matching the specified patterns
      */
     include?: string[];
+    /**
+     * When true, only return annotated check functions; exclude generate-as-checks
+     */
+    noGenerate?: boolean;
 };
 type ModuleGeneratorsOpts = {
     /**
@@ -1545,15 +1649,25 @@ type ModuleServeOpts = {
      * Expose the dependencies of this module to the client
      */
     includeDependencies?: boolean;
+    /**
+     * Install the module as the entrypoint, promoting its main-object methods onto the Query root
+     */
+    entrypoint?: boolean;
+};
+type ModuleServicesOpts = {
+    /**
+     * Only include services matching the specified patterns
+     */
+    include?: string[];
 };
 /**
- * The `ModuleConfigClientID` scalar type represents an identifier for an object of type ModuleConfigClient.
+ * A unique identifier for an object.
  */
 type ModuleConfigClientID = string & {
     __ModuleConfigClientID: never;
 };
 /**
- * The `ModuleID` scalar type represents an identifier for an object of type Module.
+ * A unique identifier for an object.
  */
 type ModuleID = string & {
     __ModuleID: never;
@@ -1568,7 +1682,7 @@ declare enum ModuleSourceExperimentalFeature {
     SelfCalls = "SELF_CALLS"
 }
 /**
- * The `ModuleSourceID` scalar type represents an identifier for an object of type ModuleSource.
+ * A unique identifier for an object.
  */
 type ModuleSourceID = string & {
     __ModuleSourceID: never;
@@ -1592,7 +1706,7 @@ declare enum NetworkProtocol {
     Udp = "UDP"
 }
 /**
- * The `ObjectTypeDefID` scalar type represents an identifier for an object of type ObjectTypeDef.
+ * A unique identifier for an object.
  */
 type ObjectTypeDefID = string & {
     __ObjectTypeDefID: never;
@@ -1630,10 +1744,28 @@ type PortForward = {
     protocol?: NetworkProtocol;
 };
 /**
- * The `PortID` scalar type represents an identifier for an object of type Port.
+ * A unique identifier for an object.
  */
 type PortID = string & {
     __PortID: never;
+};
+type ClientCacheVolumeOpts = {
+    /**
+     * Identifier of the directory to use as the cache volume's root.
+     */
+    source?: Directory;
+    /**
+     * Sharing mode of the cache volume.
+     */
+    sharing?: CacheSharingMode;
+    /**
+     * A user:group to set for the cache volume root.
+     *
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
+     *
+     * If the group is omitted, it defaults to the same as the user.
+     */
+    owner?: string;
 };
 type ClientContainerOpts = {
     /**
@@ -1641,11 +1773,17 @@ type ClientContainerOpts = {
      */
     platform?: Platform;
 };
-type ClientCurrentWorkspaceOpts = {
+type ClientCurrentTypeDefsOpts = {
     /**
-     * If true, skip legacy dagger.json migration checks.
+     * Return the full referenced typedef closure instead of only top-level served typedefs.
      */
-    skipMigrationCheck?: boolean;
+    returnAllTypes?: boolean;
+    /**
+     * Strip core API functions from the Query type, leaving only module-sourced functions (constructors, entrypoint proxies, etc.).
+     *
+     * Core types (Container, Directory, etc.) are kept so return types and method chaining still work.
+     */
+    hideCore?: boolean;
 };
 type ClientEnvOpts = {
     /**
@@ -1713,6 +1851,10 @@ type ClientHttpOpts = {
      */
     permissions?: number;
     /**
+     * Expected digest of the downloaded content (e.g., "sha256:...").
+     */
+    checksum?: string;
+    /**
      * Secret used to populate the Authorization HTTP header
      */
     authHeader?: Secret;
@@ -1760,6 +1902,12 @@ type ClientSecretOpts = {
     cacheKey?: string;
 };
 /**
+ * A unique identifier for an object.
+ */
+type RemoteGitMirrorID = string & {
+    __RemoteGitMirrorID: never;
+};
+/**
  * Expected return type of an execution
  */
 declare enum ReturnType {
@@ -1777,31 +1925,31 @@ declare enum ReturnType {
     Success = "SUCCESS"
 }
 /**
- * The `SDKConfigID` scalar type represents an identifier for an object of type SDKConfig.
+ * A unique identifier for an object.
  */
 type SDKConfigID = string & {
     __SDKConfigID: never;
 };
 /**
- * The `ScalarTypeDefID` scalar type represents an identifier for an object of type ScalarTypeDef.
+ * A unique identifier for an object.
  */
 type ScalarTypeDefID = string & {
     __ScalarTypeDefID: never;
 };
 /**
- * The `SearchResultID` scalar type represents an identifier for an object of type SearchResult.
+ * A unique identifier for an object.
  */
 type SearchResultID = string & {
     __SearchResultID: never;
 };
 /**
- * The `SearchSubmatchID` scalar type represents an identifier for an object of type SearchSubmatch.
+ * A unique identifier for an object.
  */
 type SearchSubmatchID = string & {
     __SearchSubmatchID: never;
 };
 /**
- * The `SecretID` scalar type represents an identifier for an object of type Secret.
+ * A unique identifier for an object.
  */
 type SecretID = string & {
     __SecretID: never;
@@ -1838,31 +1986,37 @@ type ServiceUpOpts = {
     random?: boolean;
 };
 /**
- * The `ServiceID` scalar type represents an identifier for an object of type Service.
+ * A unique identifier for an object.
  */
 type ServiceID = string & {
     __ServiceID: never;
 };
 /**
- * The `SocketID` scalar type represents an identifier for an object of type Socket.
+ * A unique identifier for an object.
  */
 type SocketID = string & {
     __SocketID: never;
 };
 /**
- * The `SourceMapID` scalar type represents an identifier for an object of type SourceMap.
+ * A unique identifier for an object.
  */
 type SourceMapID = string & {
     __SourceMapID: never;
 };
 /**
- * The `StatID` scalar type represents an identifier for an object of type Stat.
+ * A unique identifier for an object.
  */
 type StatID = string & {
     __StatID: never;
 };
 /**
- * The `TerminalID` scalar type represents an identifier for an object of type Terminal.
+ * A unique identifier for an object.
+ */
+type SyncerID = string & {
+    __SyncerID: never;
+};
+/**
+ * A unique identifier for an object.
  */
 type TerminalID = string & {
     __TerminalID: never;
@@ -1936,7 +2090,7 @@ type TypeDefWithScalarOpts = {
     description?: string;
 };
 /**
- * The `TypeDefID` scalar type represents an identifier for an object of type TypeDef.
+ * A unique identifier for an object.
  */
 type TypeDefID = string & {
     __TypeDefID: never;
@@ -2055,12 +2209,38 @@ declare enum TypeDefKind {
     VoidKind = "VOID_KIND"
 }
 /**
+ * A unique identifier for an object.
+ */
+type UpGroupID = string & {
+    __UpGroupID: never;
+};
+/**
+ * A unique identifier for an object.
+ */
+type UpID = string & {
+    __UpID: never;
+};
+/**
  * The absence of a value.
  *
  * A Null Void is used as a placeholder for resolvers that do not return anything.
  */
 type Void = string & {
     __Void: never;
+};
+type WorkspaceChecksOpts = {
+    /**
+     * Only include checks matching the specified patterns
+     */
+    include?: string[];
+    /**
+     * When true, only return annotated check functions; exclude generate-as-checks
+     */
+    noGenerate?: boolean;
+    /**
+     * When true, only return generate-as-checks; exclude annotated check functions
+     */
+    onlyGenerate?: boolean;
 };
 type WorkspaceDirectoryOpts = {
     /**
@@ -2078,12 +2258,24 @@ type WorkspaceDirectoryOpts = {
 };
 type WorkspaceFindUpOpts = {
     /**
-     * Path to start the search from, relative to the workspace root.
+     * Path to start the search from. Relative paths resolve from the workspace directory; absolute paths resolve from the workspace boundary.
      */
     from?: string;
 };
+type WorkspaceGeneratorsOpts = {
+    /**
+     * Only include generators matching the specified patterns
+     */
+    include?: string[];
+};
+type WorkspaceServicesOpts = {
+    /**
+     * Only include services matching the specified patterns
+     */
+    include?: string[];
+};
 /**
- * The `WorkspaceID` scalar type represents an identifier for an object of type Workspace.
+ * A unique identifier for an object.
  */
 type WorkspaceID = string & {
     __WorkspaceID: never;
@@ -2112,11 +2304,11 @@ declare class Address extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: AddressID, _value?: string);
+    constructor(ctx?: Context, _id?: ID, _value?: string);
     /**
      * A unique identifier for this Address.
      */
-    id: () => Promise<AddressID>;
+    id: () => Promise<ID>;
     /**
      * Load a container from the address.
      */
@@ -2164,11 +2356,11 @@ declare class Binding extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: BindingID, _asString?: string, _digest?: string, _isNull?: boolean, _name?: string, _typeName?: string);
+    constructor(ctx?: Context, _id?: ID, _asString?: string, _digest?: string, _isNull?: boolean, _name?: string, _typeName?: string);
     /**
      * A unique identifier for this Binding.
      */
-    id: () => Promise<BindingID>;
+    id: () => Promise<ID>;
     /**
      * Retrieve the binding value, as type Address
      */
@@ -2197,6 +2389,10 @@ declare class Binding extends BaseClient {
      * Retrieve the binding value, as type Container
      */
     asContainer: () => Container;
+    /**
+     * Retrieve the binding value, as type DiffStat
+     */
+    asDiffStat: () => DiffStat;
     /**
      * Retrieve the binding value, as type Directory
      */
@@ -2229,6 +2425,10 @@ declare class Binding extends BaseClient {
      * Retrieve the binding value, as type GitRepository
      */
     asGitRepository: () => GitRepository;
+    /**
+     * Retrieve the binding value, as type HTTPState
+     */
+    asHTTPState: () => HTTPState;
     /**
      * Retrieve the binding value, as type JSONValue
      */
@@ -2274,6 +2474,14 @@ declare class Binding extends BaseClient {
      */
     asString: () => Promise<string>;
     /**
+     * Retrieve the binding value, as type Up
+     */
+    asUp: () => Up;
+    /**
+     * Retrieve the binding value, as type UpGroup
+     */
+    asUpGroup: () => UpGroup;
+    /**
      * Retrieve the binding value, as type Workspace
      */
     asWorkspace: () => Workspace;
@@ -2302,11 +2510,11 @@ declare class CacheVolume extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: CacheVolumeID);
+    constructor(ctx?: Context, _id?: ID);
     /**
      * A unique identifier for this CacheVolume.
      */
-    id: () => Promise<CacheVolumeID>;
+    id: () => Promise<ID>;
 }
 /**
  * A comparison between two directories representing changes that can be applied.
@@ -2319,11 +2527,11 @@ declare class Changeset extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ChangesetID, _export?: string, _isEmpty?: boolean, _sync?: ChangesetID);
+    constructor(ctx?: Context, _id?: ID, _export?: string, _isEmpty?: boolean, _sync?: ID);
     /**
      * A unique identifier for this Changeset.
      */
-    id: () => Promise<ChangesetID>;
+    id: () => Promise<ID>;
     /**
      * Files and directories that were added in the newer directory.
      */
@@ -2340,6 +2548,10 @@ declare class Changeset extends BaseClient {
      * The older/lower snapshot to compare against.
      */
     before: () => Directory;
+    /**
+     * Structured per-path diff statistics (kind and line counts) for this changeset.
+     */
+    diffStats: () => Promise<DiffStat[]>;
     /**
      * Applies the diff represented by this changeset to a path on the host.
      * @param path Location of the copied directory (e.g., "logs/").
@@ -2392,6 +2604,7 @@ declare class Changeset extends BaseClient {
 }
 declare class Check extends BaseClient {
     private readonly _id?;
+    private readonly _checkType?;
     private readonly _completed?;
     private readonly _description?;
     private readonly _name?;
@@ -2400,11 +2613,15 @@ declare class Check extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: CheckID, _completed?: boolean, _description?: string, _name?: string, _passed?: boolean, _resultEmoji?: string);
+    constructor(ctx?: Context, _id?: ID, _checkType?: string, _completed?: boolean, _description?: string, _name?: string, _passed?: boolean, _resultEmoji?: string);
     /**
      * A unique identifier for this Check.
      */
-    id: () => Promise<CheckID>;
+    id: () => Promise<ID>;
+    /**
+     * The type of check: 'check' for annotated checks, 'generate' for generate-as-checks
+     */
+    checkType: () => Promise<string>;
     /**
      * Whether the check completed
      */
@@ -2453,11 +2670,11 @@ declare class CheckGroup extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: CheckGroupID);
+    constructor(ctx?: Context, _id?: ID);
     /**
      * A unique identifier for this CheckGroup.
      */
-    id: () => Promise<CheckGroupID>;
+    id: () => Promise<ID>;
     /**
      * Return a list of individual checks and their details
      */
@@ -2468,14 +2685,29 @@ declare class CheckGroup extends BaseClient {
     report: () => File;
     /**
      * Execute all selected checks
+     * @param opts.failFast If true, stop running checks as soon as any check fails.
      */
-    run: () => CheckGroup;
+    run: (opts?: CheckGroupRunOpts) => CheckGroup;
     /**
      * Call the provided function with current CheckGroup.
      *
      * This is useful for reusability and readability by not breaking the calling chain.
      */
     with: (arg: (param: CheckGroup) => CheckGroup) => CheckGroup;
+}
+/**
+ * An internal persistent filesync mirror.
+ */
+declare class ClientFilesyncMirror extends BaseClient {
+    private readonly _id?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID);
+    /**
+     * A unique identifier for this ClientFilesyncMirror.
+     */
+    id: () => Promise<ID>;
 }
 /**
  * Dagger Cloud configuration and state
@@ -2486,11 +2718,11 @@ declare class Cloud extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: CloudID, _traceURL?: string);
+    constructor(ctx?: Context, _id?: ID, _traceURL?: string);
     /**
      * A unique identifier for this Cloud.
      */
-    id: () => Promise<CloudID>;
+    id: () => Promise<ID>;
     /**
      * The trace URL for the current session
      */
@@ -2520,11 +2752,11 @@ declare class Container extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ContainerID, _combinedOutput?: string, _envVariable?: string, _exists?: boolean, _exitCode?: number, _export?: string, _exportImage?: Void, _imageRef?: string, _label?: string, _platform?: Platform, _publish?: string, _stderr?: string, _stdout?: string, _sync?: ContainerID, _up?: Void, _user?: string, _workdir?: string);
+    constructor(ctx?: Context, _id?: ID, _combinedOutput?: string, _envVariable?: string, _exists?: boolean, _exitCode?: number, _export?: string, _exportImage?: Void, _imageRef?: string, _label?: string, _platform?: Platform, _publish?: string, _stderr?: string, _stdout?: string, _sync?: ID, _up?: Void, _user?: string, _workdir?: string);
     /**
      * A unique identifier for this Container.
      */
-    id: () => Promise<ContainerID>;
+    id: () => Promise<ID>;
     /**
      * Turn the container into a Service.
      *
@@ -2581,12 +2813,12 @@ declare class Container extends BaseClient {
      */
     entrypoint: () => Promise<string[]>;
     /**
-     * Retrieves the value of the specified environment variable.
+     * Retrieves the value of the specified persistent environment variable.
      * @param name The name of the environment variable to retrieve (e.g., "PATH").
      */
     envVariable: (name: string) => Promise<string>;
     /**
-     * Retrieves the list of environment variables passed to commands.
+     * Retrieves the list of persistent environment variables configured on the container.
      */
     envVariables: () => Promise<EnvVariable[]>;
     /**
@@ -2594,6 +2826,7 @@ declare class Container extends BaseClient {
      * @param path Path to check (e.g., "/file.txt").
      * @param opts.expectedType If specified, also validate the type of file (e.g. "REGULAR_TYPE", "DIRECTORY_TYPE", or "SYMLINK_TYPE").
      * @param opts.doNotFollowSymlinks If specified, do not follow symlinks.
+     * @param opts.expand Replace "${VAR}" or "$VAR" in the value of path according to the current environment variables defined in the container (e.g. "/$VAR/foo").
      */
     exists: (path: string, opts?: ContainerExistsOpts) => Promise<boolean>;
     /**
@@ -2669,8 +2902,11 @@ declare class Container extends BaseClient {
     /**
      * Download a container image, and apply it to the container state. All previous state will be lost.
      * @param address Address of the container image to download, in standard OCI ref format. Example:"registry.dagger.io/engine:latest"
+     * @param opts.registryService Service to use as the registry endpoint for the image address.
+     *
+     * The service will be started only for this pull.
      */
-    from: (address: string) => Container;
+    from: (address: string, opts?: ContainerFromOpts) => Container;
     /**
      * The unique image reference which can only be retrieved immediately after the 'Container.From' call.
      */
@@ -2714,6 +2950,9 @@ declare class Container extends BaseClient {
      * @param opts.mediaTypes Use the specified media types for the published image's layers.
      *
      * Defaults to "OCI", which is compatible with most recent registries, but "Docker" may be needed for older registries without OCI support.
+     * @param opts.registryService Service to use as the registry endpoint for the image address.
+     *
+     * The service will be started only for this push.
      */
     publish: (address: string, opts?: ContainerPublishOpts) => Promise<string>;
     /**
@@ -2936,6 +3175,7 @@ declare class Container extends BaseClient {
      * The user and group can either be an ID (1000:1000) or a name (foo:bar).
      *
      * If the group is omitted, it defaults to the same as the user.
+     * @param opts.readOnly Mount the directory read-only.
      * @param opts.expand Replace "${VAR}" or "$VAR" in the value of path according to the current environment variables defined in the container (e.g. "/$VAR/foo").
      */
     withMountedDirectory: (path: string, source: Directory, opts?: ContainerWithMountedDirectoryOpts) => Container;
@@ -3041,6 +3281,14 @@ declare class Container extends BaseClient {
      */
     withUser: (name: string) => Container;
     /**
+     * Set a new non-secret environment variable for future execs without invalidating exec cache when only its value changes.
+     *
+     * This is an expert-only escape hatch. If a volatile value affects observable exec results, stale cached results may be reused.
+     * @param name Name of the volatile variable (e.g., "CI_RUN_ID").
+     * @param value Value of the volatile variable.
+     */
+    withVolatileVariable: (name: string, value: string) => Container;
+    /**
      * Change the container's working directory. Like WORKDIR in Dockerfile.
      * @param path The path to set as the working directory (e.g., "/app").
      * @param opts.expand Replace "${VAR}" or "$VAR" in the value of path according to the current environment variables defined in the container (e.g. "/$VAR/foo").
@@ -3129,6 +3377,11 @@ declare class Container extends BaseClient {
      */
     withoutUser: () => Container;
     /**
+     * Retrieves this container minus the given volatile environment variable.
+     * @param name The name of the volatile environment variable (e.g., "CI_RUN_ID").
+     */
+    withoutVolatileVariable: (name: string) => Container;
+    /**
      * Unset the container's working directory.
      *
      * Should default to "/".
@@ -3154,11 +3407,11 @@ declare class CurrentModule extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: CurrentModuleID, _name?: string);
+    constructor(ctx?: Context, _id?: ID, _name?: string);
     /**
      * A unique identifier for this CurrentModule.
      */
-    id: () => Promise<CurrentModuleID>;
+    id: () => Promise<ID>;
     /**
      * The dependencies of the module.
      */
@@ -3195,6 +3448,42 @@ declare class CurrentModule extends BaseClient {
      */
     workdirFile: (path: string) => File;
 }
+declare class DiffStat extends BaseClient {
+    private readonly _id?;
+    private readonly _addedLines?;
+    private readonly _kind?;
+    private readonly _oldPath?;
+    private readonly _path?;
+    private readonly _removedLines?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID, _addedLines?: number, _kind?: DiffStatKind, _oldPath?: string, _path?: string, _removedLines?: number);
+    /**
+     * A unique identifier for this DiffStat.
+     */
+    id: () => Promise<ID>;
+    /**
+     * Number of added lines for this path.
+     */
+    addedLines: () => Promise<number>;
+    /**
+     * Type of change.
+     */
+    kind: () => Promise<DiffStatKind>;
+    /**
+     * Previous path of the file, set only for renames.
+     */
+    oldPath: () => Promise<string>;
+    /**
+     * Path of the changed file or directory.
+     */
+    path: () => Promise<string>;
+    /**
+     * Number of removed lines for this path.
+     */
+    removedLines: () => Promise<number>;
+}
 /**
  * A directory.
  */
@@ -3209,11 +3498,11 @@ declare class Directory extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: DirectoryID, _digest?: string, _exists?: boolean, _export?: string, _findUp?: string, _name?: string, _sync?: DirectoryID);
+    constructor(ctx?: Context, _id?: ID, _digest?: string, _exists?: boolean, _export?: string, _findUp?: string, _name?: string, _sync?: ID);
     /**
      * A unique identifier for this Directory.
      */
-    id: () => Promise<DirectoryID>;
+    id: () => Promise<ID>;
     /**
      * Converts this directory to a local git repository
      */
@@ -3244,7 +3533,7 @@ declare class Directory extends BaseClient {
      * @param path Path of the directory to change ownership of (e.g., "/").
      * @param owner A user:group to set for the mounted directory and its contents.
      *
-     * The user and group must be an ID (1000:1000), not a name (foo:bar).
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
      *
      * If the group is omitted, it defaults to the same as the user.
      */
@@ -3376,9 +3665,10 @@ declare class Directory extends BaseClient {
      * @param opts.gitignore Apply .gitignore filter rules inside the directory
      * @param opts.owner A user:group to set for the copied directory and its contents.
      *
-     * The user and group must be an ID (1000:1000), not a name (foo:bar).
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
      *
      * If the group is omitted, it defaults to the same as the user.
+     * @param opts.permissions Permission given to the copied directory and contents (e.g., 0755).
      */
     withDirectory: (path: string, source: Directory, opts?: DirectoryWithDirectoryOpts) => Directory;
     /**
@@ -3393,7 +3683,7 @@ declare class Directory extends BaseClient {
      * @param opts.permissions Permission given to the copied file (e.g., 0600).
      * @param opts.owner A user:group to set for the copied directory and its contents.
      *
-     * The user and group must be an ID (1000:1000), not a name (foo:bar).
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
      *
      * If the group is omitted, it defaults to the same as the user.
      */
@@ -3474,17 +3764,17 @@ declare class Engine extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EngineID, _name?: string);
+    constructor(ctx?: Context, _id?: ID, _name?: string);
     /**
      * A unique identifier for this Engine.
      */
-    id: () => Promise<EngineID>;
+    id: () => Promise<ID>;
     /**
      * The list of connected client IDs
      */
     clients: () => Promise<string[]>;
     /**
-     * The local (on-disk) cache for the Dagger engine
+     * The local engine cache state tracked by dagql
      */
     localCache: () => EngineCache;
     /**
@@ -3505,11 +3795,11 @@ declare class EngineCache extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EngineCacheID, _maxUsedSpace?: number, _minFreeSpace?: number, _prune?: Void, _reservedSpace?: number, _targetSpace?: number);
+    constructor(ctx?: Context, _id?: ID, _maxUsedSpace?: number, _minFreeSpace?: number, _prune?: Void, _reservedSpace?: number, _targetSpace?: number);
     /**
      * A unique identifier for this EngineCache.
      */
-    id: () => Promise<EngineCacheID>;
+    id: () => Promise<ID>;
     /**
      * The current set of entries in the cache
      */
@@ -3547,6 +3837,7 @@ declare class EngineCacheEntry extends BaseClient {
     private readonly _id?;
     private readonly _activelyUsed?;
     private readonly _createdTimeUnixNano?;
+    private readonly _dagqlCall?;
     private readonly _description?;
     private readonly _diskSpaceBytes?;
     private readonly _mostRecentUseTimeUnixNano?;
@@ -3554,11 +3845,11 @@ declare class EngineCacheEntry extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EngineCacheEntryID, _activelyUsed?: boolean, _createdTimeUnixNano?: number, _description?: string, _diskSpaceBytes?: number, _mostRecentUseTimeUnixNano?: number, _recordType?: string);
+    constructor(ctx?: Context, _id?: ID, _activelyUsed?: boolean, _createdTimeUnixNano?: number, _dagqlCall?: string, _description?: string, _diskSpaceBytes?: number, _mostRecentUseTimeUnixNano?: number, _recordType?: string);
     /**
      * A unique identifier for this EngineCacheEntry.
      */
-    id: () => Promise<EngineCacheEntryID>;
+    id: () => Promise<ID>;
     /**
      * Whether the cache entry is actively being used.
      */
@@ -3567,6 +3858,10 @@ declare class EngineCacheEntry extends BaseClient {
      * The time the cache entry was created, in Unix nanoseconds.
      */
     createdTimeUnixNano: () => Promise<number>;
+    /**
+     * The DagQL call that produced this cache entry.
+     */
+    dagqlCall: () => Promise<string>;
     /**
      * The description of the cache entry.
      */
@@ -3583,6 +3878,10 @@ declare class EngineCacheEntry extends BaseClient {
      * The type of the cache record (e.g. regular, internal, frontend, source.local, source.git.checkout, exec.cachemount).
      */
     recordType: () => Promise<string>;
+    /**
+     * The storage record types represented by this cache entry.
+     */
+    recordTypes: () => Promise<string[]>;
 }
 /**
  * A set of cache entries returned by a query to a cache
@@ -3594,11 +3893,11 @@ declare class EngineCacheEntrySet extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EngineCacheEntrySetID, _diskSpaceBytes?: number, _entryCount?: number);
+    constructor(ctx?: Context, _id?: ID, _diskSpaceBytes?: number, _entryCount?: number);
     /**
      * A unique identifier for this EngineCacheEntrySet.
      */
-    id: () => Promise<EngineCacheEntrySetID>;
+    id: () => Promise<ID>;
     /**
      * The total disk space used by the cache entries in this set.
      */
@@ -3623,11 +3922,11 @@ declare class EnumTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EnumTypeDefID, _description?: string, _name?: string, _sourceModuleName?: string);
+    constructor(ctx?: Context, _id?: ID, _description?: string, _name?: string, _sourceModuleName?: string);
     /**
      * A unique identifier for this EnumTypeDef.
      */
-    id: () => Promise<EnumTypeDefID>;
+    id: () => Promise<ID>;
     /**
      * A doc string for the enum, if any.
      */
@@ -3649,6 +3948,7 @@ declare class EnumTypeDef extends BaseClient {
      */
     sourceModuleName: () => Promise<string>;
     /**
+     * The members of the enum.
      * @deprecated use members instead
      */
     values: () => Promise<EnumValueTypeDef[]>;
@@ -3665,11 +3965,11 @@ declare class EnumValueTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EnumValueTypeDefID, _deprecated?: string, _description?: string, _name?: string, _value?: string);
+    constructor(ctx?: Context, _id?: ID, _deprecated?: string, _description?: string, _name?: string, _value?: string);
     /**
      * A unique identifier for this EnumValueTypeDef.
      */
-    id: () => Promise<EnumValueTypeDefID>;
+    id: () => Promise<ID>;
     /**
      * The reason this enum member is deprecated, if any.
      */
@@ -3696,11 +3996,11 @@ declare class Env extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EnvID);
+    constructor(ctx?: Context, _id?: ID);
     /**
      * A unique identifier for this Env.
      */
-    id: () => Promise<EnvID>;
+    id: () => Promise<ID>;
     /**
      * Return the check with the given name from the installed modules. Must match exactly one check.
      * @param name The name of the check to retrieve
@@ -3710,6 +4010,7 @@ declare class Env extends BaseClient {
     /**
      * Return all checks defined by the installed modules
      * @param opts.include Only include checks matching the specified patterns
+     * @param opts.noGenerate When true, only return annotated check functions; exclude generate-as-checks
      * @experimental
      */
     checks: (opts?: EnvChecksOpts) => CheckGroup;
@@ -3729,6 +4030,12 @@ declare class Env extends BaseClient {
      * Returns all declared output bindings for the environment
      */
     outputs: () => Promise<Binding[]>;
+    /**
+     * Return all services defined by the installed modules
+     * @param opts.include Only include services matching the specified patterns
+     * @experimental
+     */
+    services: (opts?: EnvServicesOpts) => UpGroup;
     /**
      * Create or update a binding of type Address in the environment
      * @param name The name of the binding
@@ -3826,6 +4133,19 @@ declare class Env extends BaseClient {
      * Contextual path arguments will be populated using the environment's workspace.
      */
     withCurrentModule: () => Env;
+    /**
+     * Create or update a binding of type DiffStat in the environment
+     * @param name The name of the binding
+     * @param value The DiffStat value to assign to the binding
+     * @param description The purpose of the input
+     */
+    withDiffStatInput: (name: string, value: DiffStat, description: string) => Env;
+    /**
+     * Declare a desired DiffStat output to be assigned in the environment
+     * @param name The name of the binding
+     * @param description A description of the desired value of the binding
+     */
+    withDiffStatOutput: (name: string, description: string) => Env;
     /**
      * Create or update a binding of type Directory in the environment
      * @param name The name of the binding
@@ -3930,6 +4250,19 @@ declare class Env extends BaseClient {
      * @param description A description of the desired value of the binding
      */
     withGitRepositoryOutput: (name: string, description: string) => Env;
+    /**
+     * Create or update a binding of type HTTPState in the environment
+     * @param name The name of the binding
+     * @param value The HTTPState value to assign to the binding
+     * @param description The purpose of the input
+     */
+    withHTTPStateInput: (name: string, value: HTTPState, description: string) => Env;
+    /**
+     * Declare a desired HTTPState output to be assigned in the environment
+     * @param name The name of the binding
+     * @param description A description of the desired value of the binding
+     */
+    withHTTPStateOutput: (name: string, description: string) => Env;
     /**
      * Create or update a binding of type JSONValue in the environment
      * @param name The name of the binding
@@ -4087,6 +4420,32 @@ declare class Env extends BaseClient {
      */
     withStringOutput: (name: string, description: string) => Env;
     /**
+     * Create or update a binding of type UpGroup in the environment
+     * @param name The name of the binding
+     * @param value The UpGroup value to assign to the binding
+     * @param description The purpose of the input
+     */
+    withUpGroupInput: (name: string, value: UpGroup, description: string) => Env;
+    /**
+     * Declare a desired UpGroup output to be assigned in the environment
+     * @param name The name of the binding
+     * @param description A description of the desired value of the binding
+     */
+    withUpGroupOutput: (name: string, description: string) => Env;
+    /**
+     * Create or update a binding of type Up in the environment
+     * @param name The name of the binding
+     * @param value The Up value to assign to the binding
+     * @param description The purpose of the input
+     */
+    withUpInput: (name: string, value: Up, description: string) => Env;
+    /**
+     * Declare a desired Up output to be assigned in the environment
+     * @param name The name of the binding
+     * @param description A description of the desired value of the binding
+     */
+    withUpOutput: (name: string, description: string) => Env;
+    /**
      * Returns a new environment with the provided workspace
      * @param workspace The directory to set as the host filesystem
      */
@@ -4126,11 +4485,11 @@ declare class EnvFile extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EnvFileID, _exists?: boolean, _get?: string);
+    constructor(ctx?: Context, _id?: ID, _exists?: boolean, _get?: string);
     /**
      * A unique identifier for this EnvFile.
      */
-    id: () => Promise<EnvFileID>;
+    id: () => Promise<ID>;
     /**
      * Return as a file
      */
@@ -4184,11 +4543,11 @@ declare class EnvVariable extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: EnvVariableID, _name?: string, _value?: string);
+    constructor(ctx?: Context, _id?: ID, _name?: string, _value?: string);
     /**
      * A unique identifier for this EnvVariable.
      */
-    id: () => Promise<EnvVariableID>;
+    id: () => Promise<ID>;
     /**
      * The environment variable name.
      */
@@ -4204,11 +4563,11 @@ declare class Error$1 extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ErrorID, _message?: string);
+    constructor(ctx?: Context, _id?: ID, _message?: string);
     /**
      * A unique identifier for this Error.
      */
-    id: () => Promise<ErrorID>;
+    id: () => Promise<ID>;
     /**
      * A description of the error.
      */
@@ -4237,11 +4596,11 @@ declare class ErrorValue extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ErrorValueID, _name?: string, _value?: JSON);
+    constructor(ctx?: Context, _id?: ID, _name?: string, _value?: JSON);
     /**
      * A unique identifier for this ErrorValue.
      */
-    id: () => Promise<ErrorValueID>;
+    id: () => Promise<ID>;
     /**
      * The name of the value.
      */
@@ -4250,6 +4609,25 @@ declare class ErrorValue extends BaseClient {
      * The value.
      */
     value: () => Promise<JSON>;
+}
+/**
+ * An object that can be exported to the host.
+ *
+ * Calling export writes the object to a path on the host filesystem and returns the path that was written.
+ */
+interface Exportable {
+    id(): Promise<ID>;
+    export(path: string): Promise<string>;
+}
+declare class _ExportableClient extends BaseClient {
+    private readonly _id?;
+    private readonly _export?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID, _export?: string);
+    id: () => Promise<ID>;
+    export: (path: string) => Promise<string>;
 }
 /**
  * A definition of a field on a custom object defined in a Module.
@@ -4264,11 +4642,11 @@ declare class FieldTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: FieldTypeDefID, _deprecated?: string, _description?: string, _name?: string);
+    constructor(ctx?: Context, _id?: ID, _deprecated?: string, _description?: string, _name?: string);
     /**
      * A unique identifier for this FieldTypeDef.
      */
-    id: () => Promise<FieldTypeDefID>;
+    id: () => Promise<ID>;
     /**
      * The reason this enum member is deprecated, if any.
      */
@@ -4304,11 +4682,11 @@ declare class File extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: FileID, _contents?: string, _digest?: string, _export?: string, _name?: string, _size?: number, _sync?: FileID);
+    constructor(ctx?: Context, _id?: ID, _contents?: string, _digest?: string, _export?: string, _name?: string, _size?: number, _sync?: ID);
     /**
      * A unique identifier for this File.
      */
-    id: () => Promise<FileID>;
+    id: () => Promise<ID>;
     /**
      * Parse as an env file
      * @param opts.expand Replace "${VAR}" or "$VAR" with the value of other vars
@@ -4322,7 +4700,7 @@ declare class File extends BaseClient {
      * Change the owner of the file recursively.
      * @param owner A user:group to set for the file.
      *
-     * The user and group must be an ID (1000:1000), not a name (foo:bar).
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
      *
      * If the group is omitted, it defaults to the same as the user.
      */
@@ -4420,14 +4798,15 @@ declare class Function_ extends BaseClient {
     private readonly _deprecated?;
     private readonly _description?;
     private readonly _name?;
+    private readonly _sourceModuleName?;
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: FunctionID, _deprecated?: string, _description?: string, _name?: string);
+    constructor(ctx?: Context, _id?: ID, _deprecated?: string, _description?: string, _name?: string, _sourceModuleName?: string);
     /**
      * A unique identifier for this Function.
      */
-    id: () => Promise<FunctionID>;
+    id: () => Promise<ID>;
     /**
      * Arguments accepted by the function, if any.
      */
@@ -4452,6 +4831,10 @@ declare class Function_ extends BaseClient {
      * The location of this function declaration.
      */
     sourceMap: () => SourceMap;
+    /**
+     * If this function is provided by a module, the name of the module. Unset otherwise.
+     */
+    sourceModuleName: () => Promise<string>;
     /**
      * Returns the function with the provided argument
      * @param name The name of the argument
@@ -4494,6 +4877,10 @@ declare class Function_ extends BaseClient {
      */
     withSourceMap: (sourceMap: SourceMap) => Function_;
     /**
+     * Returns the function with a flag indicating it returns a service for dagger up.
+     */
+    withUp: () => Function_;
+    /**
      * Call the provided function with current Function.
      *
      * This is useful for reusability and readability by not breaking the calling chain.
@@ -4516,11 +4903,11 @@ declare class FunctionArg extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: FunctionArgID, _defaultAddress?: string, _defaultPath?: string, _defaultValue?: JSON, _deprecated?: string, _description?: string, _name?: string);
+    constructor(ctx?: Context, _id?: ID, _defaultAddress?: string, _defaultPath?: string, _defaultValue?: JSON, _deprecated?: string, _description?: string, _name?: string);
     /**
      * A unique identifier for this FunctionArg.
      */
-    id: () => Promise<FunctionArgID>;
+    id: () => Promise<ID>;
     /**
      * Only applies to arguments of type Container. If the argument is not set, load it from the given address (e.g. alpine:latest)
      */
@@ -4571,11 +4958,11 @@ declare class FunctionCall extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: FunctionCallID, _name?: string, _parent?: JSON, _parentName?: string, _returnError?: Void, _returnValue?: Void);
+    constructor(ctx?: Context, _id?: ID, _name?: string, _parent?: JSON, _parentName?: string, _returnError?: Void, _returnValue?: Void);
     /**
      * A unique identifier for this FunctionCall.
      */
-    id: () => Promise<FunctionCallID>;
+    id: () => Promise<ID>;
     /**
      * The argument values the function is being invoked with.
      */
@@ -4613,11 +5000,11 @@ declare class FunctionCallArgValue extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: FunctionCallArgValueID, _name?: string, _value?: JSON);
+    constructor(ctx?: Context, _id?: ID, _name?: string, _value?: JSON);
     /**
      * A unique identifier for this FunctionCallArgValue.
      */
-    id: () => Promise<FunctionCallArgValueID>;
+    id: () => Promise<ID>;
     /**
      * The name of the argument.
      */
@@ -4635,11 +5022,11 @@ declare class GeneratedCode extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: GeneratedCodeID);
+    constructor(ctx?: Context, _id?: ID);
     /**
      * A unique identifier for this GeneratedCode.
      */
-    id: () => Promise<GeneratedCodeID>;
+    id: () => Promise<ID>;
     /**
      * The directory containing the generated code.
      */
@@ -4676,13 +5063,13 @@ declare class Generator extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: GeneratorID, _completed?: boolean, _description?: string, _isEmpty?: boolean, _name?: string);
+    constructor(ctx?: Context, _id?: ID, _completed?: boolean, _description?: string, _isEmpty?: boolean, _name?: string);
     /**
      * A unique identifier for this Generator.
      */
-    id: () => Promise<GeneratorID>;
+    id: () => Promise<ID>;
     /**
-     * The generated changeset
+     * The generated changeset from the last run
      */
     changes: () => Changeset;
     /**
@@ -4694,7 +5081,7 @@ declare class Generator extends BaseClient {
      */
     description: () => Promise<string>;
     /**
-     * Wether changeset from the generator execution is empty or not
+     * Whether changeset from the last generator run is empty or not
      */
     isEmpty: () => Promise<boolean>;
     /**
@@ -4726,13 +5113,13 @@ declare class GeneratorGroup extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: GeneratorGroupID, _isEmpty?: boolean);
+    constructor(ctx?: Context, _id?: ID, _isEmpty?: boolean);
     /**
      * A unique identifier for this GeneratorGroup.
      */
-    id: () => Promise<GeneratorGroupID>;
+    id: () => Promise<ID>;
     /**
-     * The combined changes from the generators execution
+     * The combined changes from the last run of the generators
      *
      * If any conflict occurs, for instance if the same file is modified by multiple generators, or if a file is both modified and deleted, an error is raised and the merge of the changesets will failed.
      *
@@ -4741,7 +5128,7 @@ declare class GeneratorGroup extends BaseClient {
      */
     changes: (opts?: GeneratorGroupChangesOpts) => Changeset;
     /**
-     * Whether the generated changeset is empty or not
+     * Whether the generated changeset from the last run is empty or not
      */
     isEmpty: () => Promise<boolean>;
     /**
@@ -4769,11 +5156,11 @@ declare class GitRef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: GitRefID, _commit?: string, _ref?: string);
+    constructor(ctx?: Context, _id?: ID, _commit?: string, _ref?: string);
     /**
      * A unique identifier for this GitRef.
      */
-    id: () => Promise<GitRefID>;
+    id: () => Promise<ID>;
     /**
      * The resolved commit id at this ref.
      */
@@ -4810,11 +5197,11 @@ declare class GitRepository extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: GitRepositoryID, _url?: string);
+    constructor(ctx?: Context, _id?: ID, _url?: string);
     /**
      * A unique identifier for this GitRepository.
      */
-    id: () => Promise<GitRepositoryID>;
+    id: () => Promise<ID>;
     /**
      * Returns details of a branch.
      * @param name Branch's name (e.g., "main").
@@ -4863,6 +5250,20 @@ declare class GitRepository extends BaseClient {
     url: () => Promise<string>;
 }
 /**
+ * An internal persistent HTTP state.
+ */
+declare class HTTPState extends BaseClient {
+    private readonly _id?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID);
+    /**
+     * A unique identifier for this HTTPState.
+     */
+    id: () => Promise<ID>;
+}
+/**
  * Image healthcheck configuration.
  */
 declare class HealthcheckConfig extends BaseClient {
@@ -4876,11 +5277,11 @@ declare class HealthcheckConfig extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: HealthcheckConfigID, _interval?: string, _retries?: number, _shell?: boolean, _startInterval?: string, _startPeriod?: string, _timeout?: string);
+    constructor(ctx?: Context, _id?: ID, _interval?: string, _retries?: number, _shell?: boolean, _startInterval?: string, _startPeriod?: string, _timeout?: string);
     /**
      * A unique identifier for this HealthcheckConfig.
      */
-    id: () => Promise<HealthcheckConfigID>;
+    id: () => Promise<ID>;
     /**
      * Healthcheck command arguments.
      */
@@ -4919,11 +5320,11 @@ declare class Host extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: HostID, _findUp?: string);
+    constructor(ctx?: Context, _id?: ID, _findUp?: string);
     /**
      * A unique identifier for this Host.
      */
-    id: () => Promise<HostID>;
+    id: () => Promise<ID>;
     /**
      * Accesses a container image on the host.
      * @param name Name of the image to access.
@@ -4992,11 +5393,11 @@ declare class InputTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: InputTypeDefID, _name?: string);
+    constructor(ctx?: Context, _id?: ID, _name?: string);
     /**
      * A unique identifier for this InputTypeDef.
      */
-    id: () => Promise<InputTypeDefID>;
+    id: () => Promise<ID>;
     /**
      * Static fields defined on this input object, if any.
      */
@@ -5017,11 +5418,11 @@ declare class InterfaceTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: InterfaceTypeDefID, _description?: string, _name?: string, _sourceModuleName?: string);
+    constructor(ctx?: Context, _id?: ID, _description?: string, _name?: string, _sourceModuleName?: string);
     /**
      * A unique identifier for this InterfaceTypeDef.
      */
-    id: () => Promise<InterfaceTypeDefID>;
+    id: () => Promise<ID>;
     /**
      * The doc string for the interface, if any.
      */
@@ -5052,11 +5453,11 @@ declare class JSONValue extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: JSONValueID, _asBoolean?: boolean, _asInteger?: number, _asString?: string, _contents?: JSON);
+    constructor(ctx?: Context, _id?: ID, _asBoolean?: boolean, _asInteger?: number, _asString?: string, _contents?: JSON);
     /**
      * A unique identifier for this JSONValue.
      */
-    id: () => Promise<JSONValueID>;
+    id: () => Promise<ID>;
     /**
      * Decode an array from json
      */
@@ -5134,11 +5535,11 @@ declare class LLM extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: LLMID, _hasPrompt?: boolean, _historyJSON?: JSON, _lastReply?: string, _model?: string, _provider?: string, _step?: LLMID, _sync?: LLMID, _tools?: string);
+    constructor(ctx?: Context, _id?: ID, _hasPrompt?: boolean, _historyJSON?: JSON, _lastReply?: string, _model?: string, _provider?: string, _step?: ID, _sync?: ID, _tools?: string);
     /**
      * A unique identifier for this LLM.
      */
-    id: () => Promise<LLMID>;
+    id: () => Promise<ID>;
     /**
      * create a branch in the LLM's history
      */
@@ -5266,11 +5667,11 @@ declare class LLMTokenUsage extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: LLMTokenUsageID, _cachedTokenReads?: number, _cachedTokenWrites?: number, _inputTokens?: number, _outputTokens?: number, _totalTokens?: number);
+    constructor(ctx?: Context, _id?: ID, _cachedTokenReads?: number, _cachedTokenWrites?: number, _inputTokens?: number, _outputTokens?: number, _totalTokens?: number);
     /**
      * A unique identifier for this LLMTokenUsage.
      */
-    id: () => Promise<LLMTokenUsageID>;
+    id: () => Promise<ID>;
     cachedTokenReads: () => Promise<number>;
     cachedTokenWrites: () => Promise<number>;
     inputTokens: () => Promise<number>;
@@ -5287,11 +5688,11 @@ declare class Label extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: LabelID, _name?: string, _value?: string);
+    constructor(ctx?: Context, _id?: ID, _name?: string, _value?: string);
     /**
      * A unique identifier for this Label.
      */
-    id: () => Promise<LabelID>;
+    id: () => Promise<ID>;
     /**
      * The label name.
      */
@@ -5309,11 +5710,11 @@ declare class ListTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ListTypeDefID);
+    constructor(ctx?: Context, _id?: ID);
     /**
      * A unique identifier for this ListTypeDef.
      */
-    id: () => Promise<ListTypeDefID>;
+    id: () => Promise<ID>;
     /**
      * The type of the elements in the list.
      */
@@ -5331,11 +5732,11 @@ declare class Module_ extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ModuleID, _description?: string, _name?: string, _serve?: Void, _sync?: ModuleID);
+    constructor(ctx?: Context, _id?: ID, _description?: string, _name?: string, _serve?: Void, _sync?: ID);
     /**
      * A unique identifier for this Module.
      */
-    id: () => Promise<ModuleID>;
+    id: () => Promise<ID>;
     /**
      * Return the check defined by the module with the given name. Must match to exactly one check.
      * @param name The name of the check to retrieve
@@ -5345,6 +5746,7 @@ declare class Module_ extends BaseClient {
     /**
      * Return all checks defined by the module
      * @param opts.include Only include checks matching the specified patterns
+     * @param opts.noGenerate When true, only return annotated check functions; exclude generate-as-checks
      * @experimental
      */
     checks: (opts?: ModuleChecksOpts) => CheckGroup;
@@ -5409,8 +5811,15 @@ declare class Module_ extends BaseClient {
      *
      * Note: this can only be called once per session. In the future, it could return a stream or service to remove the side effect.
      * @param opts.includeDependencies Expose the dependencies of this module to the client
+     * @param opts.entrypoint Install the module as the entrypoint, promoting its main-object methods onto the Query root
      */
     serve: (opts?: ModuleServeOpts) => Promise<void>;
+    /**
+     * Return all services defined by the module
+     * @param opts.include Only include services matching the specified patterns
+     * @experimental
+     */
+    services: (opts?: ModuleServicesOpts) => UpGroup;
     /**
      * The source for the module.
      */
@@ -5457,11 +5866,11 @@ declare class ModuleConfigClient extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ModuleConfigClientID, _directory?: string, _generator?: string);
+    constructor(ctx?: Context, _id?: ID, _directory?: string, _generator?: string);
     /**
      * A unique identifier for this ModuleConfigClient.
      */
-    id: () => Promise<ModuleConfigClientID>;
+    id: () => Promise<ID>;
     /**
      * The directory the client is generated in.
      */
@@ -5498,11 +5907,11 @@ declare class ModuleSource extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ModuleSourceID, _asString?: string, _cloneRef?: string, _commit?: string, _configExists?: boolean, _digest?: string, _engineVersion?: string, _htmlRepoURL?: string, _htmlURL?: string, _kind?: ModuleSourceKind, _localContextDirectoryPath?: string, _moduleName?: string, _moduleOriginalName?: string, _originalSubpath?: string, _pin?: string, _repoRootPath?: string, _sourceRootSubpath?: string, _sourceSubpath?: string, _sync?: ModuleSourceID, _version?: string);
+    constructor(ctx?: Context, _id?: ID, _asString?: string, _cloneRef?: string, _commit?: string, _configExists?: boolean, _digest?: string, _engineVersion?: string, _htmlRepoURL?: string, _htmlURL?: string, _kind?: ModuleSourceKind, _localContextDirectoryPath?: string, _moduleName?: string, _moduleOriginalName?: string, _originalSubpath?: string, _pin?: string, _repoRootPath?: string, _sourceRootSubpath?: string, _sourceSubpath?: string, _sync?: ID, _version?: string);
     /**
      * A unique identifier for this ModuleSource.
      */
-    id: () => Promise<ModuleSourceID>;
+    id: () => Promise<ID>;
     /**
      * Load the source as a module. If this is a local source, the parent directory must have been provided during module source creation
      */
@@ -5734,6 +6143,20 @@ declare class ModuleSource extends BaseClient {
     with: (arg: (param: ModuleSource) => ModuleSource) => ModuleSource;
 }
 /**
+ * An object with a globally unique ID.
+ */
+interface Node {
+    id(): Promise<ID>;
+}
+declare class _NodeClient extends BaseClient {
+    private readonly _id?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID);
+    id: () => Promise<ID>;
+}
+/**
  * A definition of a custom object defined in a Module.
  */
 declare class ObjectTypeDef extends BaseClient {
@@ -5745,13 +6168,13 @@ declare class ObjectTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ObjectTypeDefID, _deprecated?: string, _description?: string, _name?: string, _sourceModuleName?: string);
+    constructor(ctx?: Context, _id?: ID, _deprecated?: string, _description?: string, _name?: string, _sourceModuleName?: string);
     /**
      * A unique identifier for this ObjectTypeDef.
      */
-    id: () => Promise<ObjectTypeDefID>;
+    id: () => Promise<ID>;
     /**
-     * The function used to construct new instances of this object, if any
+     * The function used to construct new instances of this object, if any.
      */
     constructor_: () => Function_;
     /**
@@ -5795,11 +6218,11 @@ declare class Port extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: PortID, _description?: string, _experimentalSkipHealthcheck?: boolean, _port?: number, _protocol?: NetworkProtocol);
+    constructor(ctx?: Context, _id?: ID, _description?: string, _experimentalSkipHealthcheck?: boolean, _port?: number, _protocol?: NetworkProtocol);
     /**
      * A unique identifier for this Port.
      */
-    id: () => Promise<PortID>;
+    id: () => Promise<ID>;
     /**
      * The port description.
      */
@@ -5821,16 +6244,21 @@ declare class Port extends BaseClient {
  * The root of the DAG.
  */
 declare class Client extends BaseClient {
+    private readonly _id?;
     private readonly _defaultPlatform?;
     private readonly _version?;
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _defaultPlatform?: Platform, _version?: string);
+    constructor(ctx?: Context, _id?: ID, _defaultPlatform?: Platform, _version?: string);
     /**
      * Get the Raw GraphQL client.
      */
     getGQLClient(): graphql_request.GraphQLClient;
+    /**
+     * A unique identifier for this Query.
+     */
+    id: () => Promise<ID>;
     /**
      * initialize an address to load directories, containers, secrets or other object types.
      */
@@ -5838,8 +6266,15 @@ declare class Client extends BaseClient {
     /**
      * Constructs a cache volume for a given cache key.
      * @param key A string identifier to target this cache volume (e.g., "modules-cache").
+     * @param opts.source Identifier of the directory to use as the cache volume's root.
+     * @param opts.sharing Sharing mode of the cache volume.
+     * @param opts.owner A user:group to set for the cache volume root.
+     *
+     * The user and group can either be an ID (1000:1000) or a name (foo:bar).
+     *
+     * If the group is omitted, it defaults to the same as the user.
      */
-    cacheVolume: (key: string) => CacheVolume;
+    cacheVolume: (key: string, opts?: ClientCacheVolumeOpts) => CacheVolume;
     /**
      * Creates an empty changeset
      */
@@ -5876,14 +6311,17 @@ declare class Client extends BaseClient {
     currentModule: () => CurrentModule;
     /**
      * The TypeDef representations of the objects currently being served in the session.
+     * @param opts.returnAllTypes Return the full referenced typedef closure instead of only top-level served typedefs.
+     * @param opts.hideCore Strip core API functions from the Query type, leaving only module-sourced functions (constructors, entrypoint proxies, etc.).
+     *
+     * Core types (Container, Directory, etc.) are kept so return types and method chaining still work.
      */
-    currentTypeDefs: () => Promise<TypeDef[]>;
+    currentTypeDefs: (opts?: ClientCurrentTypeDefsOpts) => Promise<TypeDef[]>;
     /**
      * Detect and return the current workspace.
-     * @param opts.skipMigrationCheck If true, skip legacy dagger.json migration checks.
      * @experimental
      */
-    currentWorkspace: (opts?: ClientCurrentWorkspaceOpts) => Workspace;
+    currentWorkspace: () => Workspace;
     /**
      * The default platform of the engine.
      */
@@ -5955,6 +6393,7 @@ declare class Client extends BaseClient {
      * @param url HTTP url to get the content from (e.g., "https://docs.dagger.io").
      * @param opts.name File name to use for the file. Defaults to the last part of the URL.
      * @param opts.permissions Permissions to set on the file.
+     * @param opts.checksum Expected digest of the downloaded content (e.g., "sha256:...").
      * @param opts.authHeader Secret used to populate the Authorization HTTP header
      * @param opts.experimentalServiceHost A service which must be started before the URL is fetched.
      */
@@ -5995,6 +6434,10 @@ declare class Client extends BaseClient {
      */
     loadCheckGroupFromID: (id: CheckGroupID) => CheckGroup;
     /**
+     * Load a ClientFilesyncMirror from its ID.
+     */
+    loadClientFilesyncMirrorFromID: (id: ClientFilesyncMirrorID) => ClientFilesyncMirror;
+    /**
      * Load a Cloud from its ID.
      */
     loadCloudFromID: (id: CloudID) => Cloud;
@@ -6006,6 +6449,10 @@ declare class Client extends BaseClient {
      * Load a CurrentModule from its ID.
      */
     loadCurrentModuleFromID: (id: CurrentModuleID) => CurrentModule;
+    /**
+     * Load a DiffStat from its ID.
+     */
+    loadDiffStatFromID: (id: DiffStatID) => DiffStat;
     /**
      * Load a Directory from its ID.
      */
@@ -6055,6 +6502,10 @@ declare class Client extends BaseClient {
      */
     loadErrorValueFromID: (id: ErrorValueID) => ErrorValue;
     /**
+     * Load a Exportable from its ID.
+     */
+    loadExportableFromID: (id: ExportableID) => Exportable;
+    /**
      * Load a FieldTypeDef from its ID.
      */
     loadFieldTypeDefFromID: (id: FieldTypeDefID) => FieldTypeDef;
@@ -6098,6 +6549,10 @@ declare class Client extends BaseClient {
      * Load a GitRepository from its ID.
      */
     loadGitRepositoryFromID: (id: GitRepositoryID) => GitRepository;
+    /**
+     * Load a HTTPState from its ID.
+     */
+    loadHTTPStateFromID: (id: HTTPStateID) => HTTPState;
     /**
      * Load a HealthcheckConfig from its ID.
      */
@@ -6155,6 +6610,10 @@ declare class Client extends BaseClient {
      */
     loadPortFromID: (id: PortID) => Port;
     /**
+     * Load a RemoteGitMirror from its ID.
+     */
+    loadRemoteGitMirrorFromID: (id: RemoteGitMirrorID) => RemoteGitMirror;
+    /**
      * Load a SDKConfig from its ID.
      */
     loadSDKConfigFromID: (id: SDKConfigID) => SDKConfig;
@@ -6191,6 +6650,10 @@ declare class Client extends BaseClient {
      */
     loadStatFromID: (id: StatID) => Stat;
     /**
+     * Load a Syncer from its ID.
+     */
+    loadSyncerFromID: (id: SyncerID) => Syncer;
+    /**
      * Load a Terminal from its ID.
      */
     loadTerminalFromID: (id: TerminalID) => Terminal;
@@ -6198,6 +6661,14 @@ declare class Client extends BaseClient {
      * Load a TypeDef from its ID.
      */
     loadTypeDefFromID: (id: TypeDefID) => TypeDef;
+    /**
+     * Load a Up from its ID.
+     */
+    loadUpFromID: (id: UpID) => Up;
+    /**
+     * Load a UpGroup from its ID.
+     */
+    loadUpGroupFromID: (id: UpGroupID) => UpGroup;
     /**
      * Load a Workspace from its ID.
      */
@@ -6215,6 +6686,10 @@ declare class Client extends BaseClient {
      * @param opts.requireKind If set, error out if the ref string is not of the provided requireKind.
      */
     moduleSource: (refString: string, opts?: ClientModuleSourceOpts) => ModuleSource;
+    /**
+     * Load any object by its ID.
+     */
+    node: (id: ID) => Node;
     /**
      * Creates a new secret.
      * @param uri The URI of the secret store
@@ -6250,6 +6725,20 @@ declare class Client extends BaseClient {
     version: () => Promise<string>;
 }
 /**
+ * An internal persistent bare git mirror.
+ */
+declare class RemoteGitMirror extends BaseClient {
+    private readonly _id?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID);
+    /**
+     * A unique identifier for this RemoteGitMirror.
+     */
+    id: () => Promise<ID>;
+}
+/**
  * The SDK config of the module.
  */
 declare class SDKConfig extends BaseClient {
@@ -6259,11 +6748,11 @@ declare class SDKConfig extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: SDKConfigID, _debug?: boolean, _source?: string);
+    constructor(ctx?: Context, _id?: ID, _debug?: boolean, _source?: string);
     /**
      * A unique identifier for this SDKConfig.
      */
-    id: () => Promise<SDKConfigID>;
+    id: () => Promise<ID>;
     /**
      * Whether to start the SDK runtime in debug mode with an interactive terminal.
      */
@@ -6284,11 +6773,11 @@ declare class ScalarTypeDef extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ScalarTypeDefID, _description?: string, _name?: string, _sourceModuleName?: string);
+    constructor(ctx?: Context, _id?: ID, _description?: string, _name?: string, _sourceModuleName?: string);
     /**
      * A unique identifier for this ScalarTypeDef.
      */
-    id: () => Promise<ScalarTypeDefID>;
+    id: () => Promise<ID>;
     /**
      * A doc string for the scalar, if any.
      */
@@ -6311,11 +6800,11 @@ declare class SearchResult extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: SearchResultID, _absoluteOffset?: number, _filePath?: string, _lineNumber?: number, _matchedLines?: string);
+    constructor(ctx?: Context, _id?: ID, _absoluteOffset?: number, _filePath?: string, _lineNumber?: number, _matchedLines?: string);
     /**
      * A unique identifier for this SearchResult.
      */
-    id: () => Promise<SearchResultID>;
+    id: () => Promise<ID>;
     /**
      * The byte offset of this line within the file.
      */
@@ -6345,11 +6834,11 @@ declare class SearchSubmatch extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: SearchSubmatchID, _end?: number, _start?: number, _text?: string);
+    constructor(ctx?: Context, _id?: ID, _end?: number, _start?: number, _text?: string);
     /**
      * A unique identifier for this SearchSubmatch.
      */
-    id: () => Promise<SearchSubmatchID>;
+    id: () => Promise<ID>;
     /**
      * The match's end offset within the matched lines.
      */
@@ -6374,11 +6863,11 @@ declare class Secret extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: SecretID, _name?: string, _plaintext?: string, _uri?: string);
+    constructor(ctx?: Context, _id?: ID, _name?: string, _plaintext?: string, _uri?: string);
     /**
      * A unique identifier for this Secret.
      */
-    id: () => Promise<SecretID>;
+    id: () => Promise<ID>;
     /**
      * The name of this secret.
      */
@@ -6406,11 +6895,11 @@ declare class Service extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: ServiceID, _endpoint?: string, _hostname?: string, _start?: ServiceID, _stop?: ServiceID, _sync?: ServiceID, _up?: Void);
+    constructor(ctx?: Context, _id?: ID, _endpoint?: string, _hostname?: string, _start?: ID, _stop?: ID, _sync?: ID, _up?: Void);
     /**
      * A unique identifier for this Service.
      */
-    id: () => Promise<ServiceID>;
+    id: () => Promise<ID>;
     /**
      * Retrieves an endpoint that clients can use to reach this container.
      *
@@ -6473,11 +6962,11 @@ declare class Socket extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: SocketID);
+    constructor(ctx?: Context, _id?: ID);
     /**
      * A unique identifier for this Socket.
      */
-    id: () => Promise<SocketID>;
+    id: () => Promise<ID>;
 }
 /**
  * Source location information.
@@ -6492,11 +6981,11 @@ declare class SourceMap extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: SourceMapID, _column?: number, _filename?: string, _line?: number, _module?: string, _url?: string);
+    constructor(ctx?: Context, _id?: ID, _column?: number, _filename?: string, _line?: number, _module?: string, _url?: string);
     /**
      * A unique identifier for this SourceMap.
      */
-    id: () => Promise<SourceMapID>;
+    id: () => Promise<ID>;
     /**
      * The column number within the line.
      */
@@ -6530,11 +7019,11 @@ declare class Stat extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: StatID, _fileType?: FileType, _name?: string, _permissions?: number, _size?: number);
+    constructor(ctx?: Context, _id?: ID, _fileType?: FileType, _name?: string, _permissions?: number, _size?: number);
     /**
      * A unique identifier for this Stat.
      */
-    id: () => Promise<StatID>;
+    id: () => Promise<ID>;
     /**
      * file type
      */
@@ -6553,6 +7042,25 @@ declare class Stat extends BaseClient {
     size: () => Promise<number>;
 }
 /**
+ * An object that can be force-evaluated.
+ *
+ * Calling sync ensures that the object's entire dependency DAG has been evaluated, returning the object's ID once complete.
+ */
+interface Syncer {
+    id(): Promise<ID>;
+    sync(): Promise<Syncer>;
+}
+declare class _SyncerClient extends BaseClient {
+    private readonly _id?;
+    private readonly _sync?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID, _sync?: ID);
+    id: () => Promise<ID>;
+    sync: () => Promise<Syncer>;
+}
+/**
  * An interactive terminal that clients can connect to.
  */
 declare class Terminal extends BaseClient {
@@ -6561,11 +7069,11 @@ declare class Terminal extends BaseClient {
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: TerminalID, _sync?: TerminalID);
+    constructor(ctx?: Context, _id?: ID, _sync?: ID);
     /**
      * A unique identifier for this Terminal.
      */
-    id: () => Promise<TerminalID>;
+    id: () => Promise<ID>;
     /**
      * Forces evaluation of the pipeline in the engine.
      *
@@ -6579,15 +7087,16 @@ declare class Terminal extends BaseClient {
 declare class TypeDef extends BaseClient {
     private readonly _id?;
     private readonly _kind?;
+    private readonly _name?;
     private readonly _optional?;
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: TypeDefID, _kind?: TypeDefKind, _optional?: boolean);
+    constructor(ctx?: Context, _id?: ID, _kind?: TypeDefKind, _name?: string, _optional?: boolean);
     /**
      * A unique identifier for this TypeDef.
      */
-    id: () => Promise<TypeDefID>;
+    id: () => Promise<ID>;
     /**
      * If kind is ENUM, the enum-specific type definition. If kind is not ENUM, this will be null.
      */
@@ -6616,6 +7125,10 @@ declare class TypeDef extends BaseClient {
      * The kind of type this is (e.g. primitive, list, object).
      */
     kind: () => Promise<TypeDefKind>;
+    /**
+     * The canonical non-optional name of the type.
+     */
+    name: () => Promise<string>;
     /**
      * Whether this type can be set to null. Defaults to false.
      */
@@ -6697,31 +7210,114 @@ declare class TypeDef extends BaseClient {
      */
     with: (arg: (param: TypeDef) => TypeDef) => TypeDef;
 }
+declare class Up extends BaseClient {
+    private readonly _id?;
+    private readonly _description?;
+    private readonly _name?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID, _description?: string, _name?: string);
+    /**
+     * A unique identifier for this Up.
+     */
+    id: () => Promise<ID>;
+    /**
+     * The description of the service
+     */
+    description: () => Promise<string>;
+    /**
+     * Return the fully qualified name of the service
+     */
+    name: () => Promise<string>;
+    /**
+     * The original module in which the service has been defined
+     */
+    originalModule: () => Module_;
+    /**
+     * The path of the service within its module
+     */
+    path: () => Promise<string[]>;
+    /**
+     * Execute the service function
+     */
+    run: () => Up;
+    /**
+     * Call the provided function with current Up.
+     *
+     * This is useful for reusability and readability by not breaking the calling chain.
+     */
+    with: (arg: (param: Up) => Up) => Up;
+}
+declare class UpGroup extends BaseClient {
+    private readonly _id?;
+    /**
+     * Constructor is used for internal usage only, do not create object from it.
+     */
+    constructor(ctx?: Context, _id?: ID);
+    /**
+     * A unique identifier for this UpGroup.
+     */
+    id: () => Promise<ID>;
+    /**
+     * Return a list of individual services and their details
+     */
+    list: () => Promise<Up[]>;
+    /**
+     * Execute all selected service functions
+     */
+    run: () => UpGroup;
+    /**
+     * Call the provided function with current UpGroup.
+     *
+     * This is useful for reusability and readability by not breaking the calling chain.
+     */
+    with: (arg: (param: UpGroup) => UpGroup) => UpGroup;
+}
 /**
  * A Dagger workspace detected from the current working directory.
  */
 declare class Workspace extends BaseClient {
     private readonly _id?;
+    private readonly _address?;
     private readonly _clientId?;
+    private readonly _configPath?;
     private readonly _findUp?;
-    private readonly _root?;
+    private readonly _hasConfig?;
+    private readonly _initialized?;
+    private readonly _path?;
     /**
      * Constructor is used for internal usage only, do not create object from it.
      */
-    constructor(ctx?: Context, _id?: WorkspaceID, _clientId?: string, _findUp?: string, _root?: string);
+    constructor(ctx?: Context, _id?: ID, _address?: string, _clientId?: string, _configPath?: string, _findUp?: string, _hasConfig?: boolean, _initialized?: boolean, _path?: string);
     /**
      * A unique identifier for this Workspace.
      */
-    id: () => Promise<WorkspaceID>;
+    id: () => Promise<ID>;
+    /**
+     * Canonical Dagger address of the workspace directory.
+     */
+    address: () => Promise<string>;
+    /**
+     * Return all checks from modules loaded in the workspace.
+     * @param opts.include Only include checks matching the specified patterns
+     * @param opts.noGenerate When true, only return annotated check functions; exclude generate-as-checks
+     * @param opts.onlyGenerate When true, only return generate-as-checks; exclude annotated check functions
+     */
+    checks: (opts?: WorkspaceChecksOpts) => CheckGroup;
     /**
      * The client ID that owns this workspace's host filesystem.
      */
     clientId: () => Promise<string>;
     /**
+     * Path to config.toml relative to the workspace boundary (empty if not initialized).
+     */
+    configPath: () => Promise<string>;
+    /**
      * Returns a Directory from the workspace.
      *
-     * Path is relative to workspace root. Use "." for the root directory.
-     * @param path Location of the directory to retrieve, relative to the workspace root (e.g., "src", ".").
+     * Relative paths resolve from the workspace directory. Absolute paths resolve from the workspace boundary.
+     * @param path Location of the directory to retrieve. Relative paths (e.g., "src") resolve from the workspace directory; absolute paths (e.g., "/src") resolve from the workspace boundary.
      * @param opts.exclude Exclude artifacts that match the given pattern (e.g., ["node_modules/", ".git*"]).
      * @param opts.include Include only artifacts that match the given pattern (e.g., ["app/", "package.*"]).
      * @param opts.gitignore Apply .gitignore filter rules inside the directory.
@@ -6730,24 +7326,51 @@ declare class Workspace extends BaseClient {
     /**
      * Returns a File from the workspace.
      *
-     * Path is relative to workspace root.
-     * @param path Location of the file to retrieve, relative to the workspace root (e.g., "go.mod").
+     * Relative paths resolve from the workspace directory. Absolute paths resolve from the workspace boundary.
+     * @param path Location of the file to retrieve. Relative paths (e.g., "go.mod") resolve from the workspace directory; absolute paths (e.g., "/go.mod") resolve from the workspace boundary.
      */
     file: (path: string) => File;
     /**
      * Search for a file or directory by walking up from the start path within the workspace.
      *
-     * Returns the path relative to the workspace root if found, or null if not found.
+     * Returns the absolute workspace path if found, or null if not found.
      *
-     * The search stops at the workspace root and will not traverse above it.
+     * Relative start paths resolve from the workspace directory.
+     *
+     * The search stops at the workspace boundary and will not traverse above it.
      * @param name The name of the file or directory to search for.
-     * @param opts.from Path to start the search from, relative to the workspace root.
+     * @param opts.from Path to start the search from. Relative paths resolve from the workspace directory; absolute paths resolve from the workspace boundary.
      */
     findUp: (name: string, opts?: WorkspaceFindUpOpts) => Promise<string>;
     /**
-     * Absolute path to the workspace root directory.
+     * Return all generators from modules loaded in the workspace.
+     * @param opts.include Only include generators matching the specified patterns
      */
-    root: () => Promise<string>;
+    generators: (opts?: WorkspaceGeneratorsOpts) => GeneratorGroup;
+    /**
+     * Whether a config.toml file exists in the workspace.
+     */
+    hasConfig: () => Promise<boolean>;
+    /**
+     * Whether .dagger/config.toml exists.
+     */
+    initialized: () => Promise<boolean>;
+    /**
+     * Workspace directory path relative to the workspace boundary.
+     */
+    path: () => Promise<string>;
+    /**
+     * Return all services from modules loaded in the workspace.
+     * @param opts.include Only include services matching the specified patterns
+     */
+    services: (opts?: WorkspaceServicesOpts) => UpGroup;
+    /**
+     * Refresh workspace-managed state and return the resulting changeset.
+     *
+     * Currently this refreshes existing lockfile entries only.
+     * @experimental
+     */
+    update: () => Changeset;
 }
 declare const dag: Client;
 
@@ -7047,6 +7670,11 @@ interface ConnectOpts {
      */
     Workdir?: string;
     /**
+     * Opt into loading workspace modules for this connection.
+     * By default, only the core API is exposed.
+     */
+    LoadWorkspaceModules?: boolean;
+    /**
        * Enable logs output
        * @example
        * LogOutput
@@ -7154,6 +7782,10 @@ declare const check: () => ((target: object, propertyKey: string | symbol, descr
  */
 declare const generate: () => ((target: object, propertyKey: string | symbol, descriptor?: PropertyDescriptor) => void);
 /**
+ * The definition of @up decorator that marks a function as a service for dagger up.
+ */
+declare const up: () => ((target: object, propertyKey: string, descriptor: PropertyDescriptor) => PropertyDescriptor);
+/**
  * The definition of @field decorator that should be on top of any
  * class' property that must be exposed to the Dagger API.
  *
@@ -7188,5 +7820,5 @@ declare const argument: (opts?: ArgumentOptions) => ((target: object, propertyKe
 
 declare function entrypoint(files: string[]): Promise<void>;
 
-export { Address, Binding, CacheSharingMode, CacheVolume, Changeset, ChangesetMergeConflict, ChangesetsMergeConflict, Check, CheckGroup, Client, Cloud, Container, Context, CurrentModule, DaggerSDKError, Directory, DockerImageRefValidationError, ERROR_CODES, Engine, EngineCache, EngineCacheEntry, EngineCacheEntrySet, EngineSessionConnectParamsParseError, EngineSessionConnectionTimeoutError, EngineSessionError, EnumTypeDef, EnumValueTypeDef, Env, EnvFile, EnvVariable, Error$1 as Error, ErrorValue, ExecError, ExistsType, FieldTypeDef, File, FileType, FunctionArg, FunctionCachePolicy, FunctionCall, FunctionCallArgValue, FunctionNotFound, Function_, GeneratedCode, Generator, GeneratorGroup, GitRef, GitRepository, GraphQLRequestError, HealthcheckConfig, Host, ImageLayerCompression, ImageMediaTypes, InitEngineSessionBinaryError, InputTypeDef, InterfaceTypeDef, IntrospectionError, JSONValue, LLM, LLMTokenUsage, Label, ListTypeDef, ModuleConfigClient, ModuleSource, ModuleSourceExperimentalFeature, ModuleSourceKind, Module_, NetworkProtocol, NotAwaitedRequestError, ObjectTypeDef, Port, ReturnType, SDKConfig, ScalarTypeDef, SearchResult, SearchSubmatch, Secret, Service, Socket, SourceMap, Stat, Terminal, TooManyNestedObjectsError, TypeDef, TypeDefKind, UnknownDaggerError, Workspace, argument, check, connect, connection, dag, entrypoint, enumType, field, func, generate, getTracer, object };
-export type { AddressDirectoryOpts, AddressFileOpts, AddressID, BindingID, BuildArg, CacheVolumeID, CallbackFct, ChangesetID, ChangesetWithChangesetOpts, ChangesetWithChangesetsOpts, CheckGroupID, CheckID, ClientContainerOpts, ClientCurrentWorkspaceOpts, ClientEnvFileOpts, ClientEnvOpts, ClientFileOpts, ClientGitOpts, ClientHttpOpts, ClientLlmOpts, ClientModuleSourceOpts, ClientSecretOpts, CloudID, ConnectOpts, ContainerAsServiceOpts, ContainerAsTarballOpts, ContainerDirectoryOpts, ContainerExistsOpts, ContainerExportImageOpts, ContainerExportOpts, ContainerFileOpts, ContainerID, ContainerImportOpts, ContainerPublishOpts, ContainerStatOpts, ContainerTerminalOpts, ContainerUpOpts, ContainerWithDefaultTerminalCmdOpts, ContainerWithDirectoryOpts, ContainerWithDockerHealthcheckOpts, ContainerWithEntrypointOpts, ContainerWithEnvVariableOpts, ContainerWithExecOpts, ContainerWithExposedPortOpts, ContainerWithFileOpts, ContainerWithFilesOpts, ContainerWithMountedCacheOpts, ContainerWithMountedDirectoryOpts, ContainerWithMountedFileOpts, ContainerWithMountedSecretOpts, ContainerWithMountedTempOpts, ContainerWithNewFileOpts, ContainerWithSymlinkOpts, ContainerWithUnixSocketOpts, ContainerWithWorkdirOpts, ContainerWithoutDirectoryOpts, ContainerWithoutEntrypointOpts, ContainerWithoutExposedPortOpts, ContainerWithoutFileOpts, ContainerWithoutFilesOpts, ContainerWithoutMountOpts, ContainerWithoutUnixSocketOpts, CurrentModuleGeneratorsOpts, CurrentModuleID, CurrentModuleWorkdirOpts, DirectoryAsModuleOpts, DirectoryAsModuleSourceOpts, DirectoryDockerBuildOpts, DirectoryEntriesOpts, DirectoryExistsOpts, DirectoryExportOpts, DirectoryFilterOpts, DirectoryID, DirectorySearchOpts, DirectoryStatOpts, DirectoryTerminalOpts, DirectoryWithDirectoryOpts, DirectoryWithFileOpts, DirectoryWithFilesOpts, DirectoryWithNewDirectoryOpts, DirectoryWithNewFileOpts, EngineCacheEntryID, EngineCacheEntrySetID, EngineCacheEntrySetOpts, EngineCacheID, EngineCachePruneOpts, EngineID, EnumTypeDefID, EnumValueTypeDefID, EnvChecksOpts, EnvFileGetOpts, EnvFileID, EnvFileVariablesOpts, EnvID, EnvVariableID, ErrorID, ErrorValueID, FieldTypeDefID, FileAsEnvFileOpts, FileContentsOpts, FileDigestOpts, FileExportOpts, FileID, FileSearchOpts, FileWithReplacedOpts, FunctionArgID, FunctionCallArgValueID, FunctionCallID, FunctionID, FunctionWithArgOpts, FunctionWithCachePolicyOpts, FunctionWithDeprecatedOpts, GeneratedCodeID, GeneratorGroupChangesOpts, GeneratorGroupID, GeneratorID, GitRefID, GitRefTreeOpts, GitRepositoryBranchesOpts, GitRepositoryID, GitRepositoryTagsOpts, HealthcheckConfigID, HostDirectoryOpts, HostFileOpts, HostFindUpOpts, HostID, HostServiceOpts, HostTunnelOpts, InputTypeDefID, InterfaceTypeDefID, JSON, JSONValueContentsOpts, JSONValueID, LLMID, LLMTokenUsageID, LabelID, ListTypeDefID, ModuleChecksOpts, ModuleConfigClientID, ModuleGeneratorsOpts, ModuleID, ModuleServeOpts, ModuleSourceID, ObjectTypeDefID, PipelineLabel, Platform, PortForward, PortID, SDKConfigID, ScalarTypeDefID, SearchResultID, SearchSubmatchID, SecretID, ServiceEndpointOpts, ServiceID, ServiceStopOpts, ServiceTerminalOpts, ServiceUpOpts, SocketID, SourceMapID, StatID, TerminalID, TypeDefID, TypeDefWithEnumMemberOpts, TypeDefWithEnumOpts, TypeDefWithEnumValueOpts, TypeDefWithFieldOpts, TypeDefWithInterfaceOpts, TypeDefWithObjectOpts, TypeDefWithScalarOpts, Void, WorkspaceDirectoryOpts, WorkspaceFindUpOpts, WorkspaceID, __DirectiveArgsOpts, __FieldArgsOpts, __TypeEnumValuesOpts, __TypeFieldsOpts, __TypeInputFieldsOpts, float };
+export { Address, Binding, CacheSharingMode, CacheVolume, Changeset, ChangesetMergeConflict, ChangesetsMergeConflict, Check, CheckGroup, Client, ClientFilesyncMirror, Cloud, Container, Context, CurrentModule, DaggerSDKError, DiffStat, DiffStatKind, Directory, DockerImageRefValidationError, ERROR_CODES, Engine, EngineCache, EngineCacheEntry, EngineCacheEntrySet, EngineSessionConnectParamsParseError, EngineSessionConnectionTimeoutError, EngineSessionError, EnumTypeDef, EnumValueTypeDef, Env, EnvFile, EnvVariable, Error$1 as Error, ErrorValue, ExecError, ExistsType, FieldTypeDef, File, FileType, FunctionArg, FunctionCachePolicy, FunctionCall, FunctionCallArgValue, FunctionNotFound, Function_, GeneratedCode, Generator, GeneratorGroup, GitRef, GitRepository, GraphQLRequestError, HTTPState, HealthcheckConfig, Host, ImageLayerCompression, ImageMediaTypes, InitEngineSessionBinaryError, InputTypeDef, InterfaceTypeDef, IntrospectionError, JSONValue, LLM, LLMTokenUsage, Label, ListTypeDef, ModuleConfigClient, ModuleSource, ModuleSourceExperimentalFeature, ModuleSourceKind, Module_, NetworkProtocol, NotAwaitedRequestError, ObjectTypeDef, Port, RemoteGitMirror, ReturnType, SDKConfig, ScalarTypeDef, SearchResult, SearchSubmatch, Secret, Service, Socket, SourceMap, Stat, Terminal, TooManyNestedObjectsError, TypeDef, TypeDefKind, UnknownDaggerError, Up, UpGroup, Workspace, _ExportableClient, _NodeClient, _SyncerClient, argument, check, connect, connection, dag, entrypoint, enumType, field, func, generate, getTracer, object, up };
+export type { AddressDirectoryOpts, AddressFileOpts, AddressID, BindingID, BuildArg, CacheVolumeID, CallbackFct, ChangesetID, ChangesetWithChangesetOpts, ChangesetWithChangesetsOpts, CheckGroupID, CheckGroupRunOpts, CheckID, ClientCacheVolumeOpts, ClientContainerOpts, ClientCurrentTypeDefsOpts, ClientEnvFileOpts, ClientEnvOpts, ClientFileOpts, ClientFilesyncMirrorID, ClientGitOpts, ClientHttpOpts, ClientLlmOpts, ClientModuleSourceOpts, ClientSecretOpts, CloudID, ConnectOpts, ContainerAsServiceOpts, ContainerAsTarballOpts, ContainerDirectoryOpts, ContainerExistsOpts, ContainerExportImageOpts, ContainerExportOpts, ContainerFileOpts, ContainerFromOpts, ContainerID, ContainerImportOpts, ContainerPublishOpts, ContainerStatOpts, ContainerTerminalOpts, ContainerUpOpts, ContainerWithDefaultTerminalCmdOpts, ContainerWithDirectoryOpts, ContainerWithDockerHealthcheckOpts, ContainerWithEntrypointOpts, ContainerWithEnvVariableOpts, ContainerWithExecOpts, ContainerWithExposedPortOpts, ContainerWithFileOpts, ContainerWithFilesOpts, ContainerWithMountedCacheOpts, ContainerWithMountedDirectoryOpts, ContainerWithMountedFileOpts, ContainerWithMountedSecretOpts, ContainerWithMountedTempOpts, ContainerWithNewFileOpts, ContainerWithSymlinkOpts, ContainerWithUnixSocketOpts, ContainerWithWorkdirOpts, ContainerWithoutDirectoryOpts, ContainerWithoutEntrypointOpts, ContainerWithoutExposedPortOpts, ContainerWithoutFileOpts, ContainerWithoutFilesOpts, ContainerWithoutMountOpts, ContainerWithoutUnixSocketOpts, CurrentModuleGeneratorsOpts, CurrentModuleID, CurrentModuleWorkdirOpts, DiffStatID, DirectoryAsModuleOpts, DirectoryAsModuleSourceOpts, DirectoryDockerBuildOpts, DirectoryEntriesOpts, DirectoryExistsOpts, DirectoryExportOpts, DirectoryFilterOpts, DirectoryID, DirectorySearchOpts, DirectoryStatOpts, DirectoryTerminalOpts, DirectoryWithDirectoryOpts, DirectoryWithFileOpts, DirectoryWithFilesOpts, DirectoryWithNewDirectoryOpts, DirectoryWithNewFileOpts, EngineCacheEntryID, EngineCacheEntrySetID, EngineCacheEntrySetOpts, EngineCacheID, EngineCachePruneOpts, EngineID, EnumTypeDefID, EnumValueTypeDefID, EnvChecksOpts, EnvFileGetOpts, EnvFileID, EnvFileVariablesOpts, EnvID, EnvServicesOpts, EnvVariableID, ErrorID, ErrorValueID, Exportable, ExportableID, FieldTypeDefID, FileAsEnvFileOpts, FileContentsOpts, FileDigestOpts, FileExportOpts, FileID, FileSearchOpts, FileWithReplacedOpts, FunctionArgID, FunctionCallArgValueID, FunctionCallID, FunctionID, FunctionWithArgOpts, FunctionWithCachePolicyOpts, FunctionWithDeprecatedOpts, GeneratedCodeID, GeneratorGroupChangesOpts, GeneratorGroupID, GeneratorID, GitRefID, GitRefTreeOpts, GitRepositoryBranchesOpts, GitRepositoryID, GitRepositoryTagsOpts, HTTPStateID, HealthcheckConfigID, HostDirectoryOpts, HostFileOpts, HostFindUpOpts, HostID, HostServiceOpts, HostTunnelOpts, ID, InputTypeDefID, InterfaceTypeDefID, JSON, JSONValueContentsOpts, JSONValueID, LLMID, LLMTokenUsageID, LabelID, ListTypeDefID, ModuleChecksOpts, ModuleConfigClientID, ModuleGeneratorsOpts, ModuleID, ModuleServeOpts, ModuleServicesOpts, ModuleSourceID, Node, ObjectTypeDefID, PipelineLabel, Platform, PortForward, PortID, RemoteGitMirrorID, SDKConfigID, ScalarTypeDefID, SearchResultID, SearchSubmatchID, SecretID, ServiceEndpointOpts, ServiceID, ServiceStopOpts, ServiceTerminalOpts, ServiceUpOpts, SocketID, SourceMapID, StatID, Syncer, SyncerID, TerminalID, TypeDefID, TypeDefWithEnumMemberOpts, TypeDefWithEnumOpts, TypeDefWithEnumValueOpts, TypeDefWithFieldOpts, TypeDefWithInterfaceOpts, TypeDefWithObjectOpts, TypeDefWithScalarOpts, UpGroupID, UpID, Void, WorkspaceChecksOpts, WorkspaceDirectoryOpts, WorkspaceFindUpOpts, WorkspaceGeneratorsOpts, WorkspaceID, WorkspaceServicesOpts, __DirectiveArgsOpts, __FieldArgsOpts, __TypeEnumValuesOpts, __TypeFieldsOpts, __TypeInputFieldsOpts, float };
