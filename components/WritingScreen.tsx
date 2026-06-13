@@ -13,8 +13,10 @@ import { RoomChrome } from '@/components/RoomChrome';
 import { Button } from '@/components/ui/Button';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { WordSlots } from '@/components/ui/WordSlots';
+import { RoundClock } from '@/components/ui/RoundClock';
 import { WaitingScreen } from '@/components/WaitingScreen';
 import { buildInProgressChromeCopy } from '@/lib/roomChromeCopy';
+import { getSpark } from '@/lib/sparks';
 
 interface WritingScreenProps {
   roomCode: string;
@@ -32,6 +34,7 @@ interface WritingAssignment {
   isFinalRound?: boolean;
   rhymeTargetWord?: string | null;
   previousLineText?: string | null;
+  roundStartedAt?: number;
 }
 
 interface WritingComposerProps {
@@ -76,6 +79,8 @@ function WritingComposer({
   const targetCount = assignment.targetWordCount;
   const isValid = currentWordCount === targetCount;
   const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
+  // A gentle, ignorable nudge — stable per poem+round so it never rerolls.
+  const spark = getSpark(assignment.poemId, assignment.lineIndex);
 
   // Announce validation state changes to screen readers (debounced)
   useEffect(() => {
@@ -151,6 +156,11 @@ function WritingComposer({
         {liveRegionMessage}
       </div>
 
+      {/* Soft round clock — a hairline of gentle pressure, never a gate */}
+      <div className="w-full max-w-3xl mb-12 md:mb-16">
+        <RoundClock roundStartedAt={assignment.roundStartedAt} />
+      </div>
+
       <div className="w-full max-w-3xl space-y-16">
         {/* The Memory - No container */}
         {assignment.previousLineText && (
@@ -219,7 +229,14 @@ function WritingComposer({
           />
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-4">
+          {spark ? (
+            <p className="text-sm italic text-text-muted/70 select-none">
+              spark: {spark}
+            </p>
+          ) : (
+            <span />
+          )}
           <WordSlots current={currentWordCount} target={targetCount} />
         </div>
 

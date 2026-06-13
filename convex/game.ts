@@ -235,6 +235,7 @@ export const getCurrentAssignment = query({
       isFinalRound,
       rhymeTargetWord,
       previousLineText,
+      roundStartedAt: game.roundStartedAt ?? game.createdAt,
     };
   },
 });

@@ -8,6 +8,7 @@ import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
+import { RoundClock } from './ui/RoundClock';
 import { Avatar } from './ui/Avatar';
 import { BotBadge } from './ui/BotBadge';
 
@@ -121,10 +122,14 @@ export function WaitingScreen({
         {/* Center: Headline */}
         <div className="flex-none mb-24 md:mb-28 text-center space-y-6">
           <h2 className="text-6xl md:text-8xl font-[var(--font-display)] leading-[1.05]">
-            {allSubmitted ? 'Ready' : 'Others are writing...'}
+            {allSubmitted
+              ? 'Ready'
+              : isOvertime
+                ? 'Still writing…'
+                : 'Others are writing...'}
           </h2>
           {!allSubmitted && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
                 Round {round + 1} · {submittedCount} of {players.length} ready
               </p>
@@ -132,8 +137,15 @@ export function WaitingScreen({
                 className="text-base text-[var(--color-text-muted)]"
                 aria-live="polite"
               >
-                Waiting on {waitingNames.join(', ')}
+                {isOvertime
+                  ? `Taking their time: ${waitingNames.join(', ')}`
+                  : `Waiting on ${waitingNames.join(', ')}`}
               </p>
+              {typeof progress.roundStartedAt === 'number' && (
+                <div className="mx-auto max-w-xs pt-2">
+                  <RoundClock roundStartedAt={progress.roundStartedAt} />
+                </div>
+              )}
             </div>
           )}
         </div>
