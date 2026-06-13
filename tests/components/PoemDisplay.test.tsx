@@ -445,4 +445,49 @@ describe('PoemDisplay component', () => {
       expect(screen.getByText('Three simple words')).toBeInTheDocument();
     });
   });
+
+  describe('rhyme mode', () => {
+    it('emphasizes the bookend words once the poem is fully revealed', () => {
+      const rhymeLines: PoemLine[] = [
+        { text: 'moon', authorName: 'Alice', authorStableId: 'a' },
+        { text: 'a quiet afternoon', authorName: 'Bob', authorStableId: 'b' },
+      ];
+
+      const { container } = render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={rhymeLines}
+          onDone={mockOnDone}
+          alreadyRevealed={true}
+          rhymeMode={true}
+        />
+      );
+
+      // Both bookends are emphasized: the opening word and the closing word
+      const emphasized = Array.from(
+        container.querySelectorAll('span.text-primary')
+      ).map((el) => el.textContent);
+      expect(emphasized).toContain('moon');
+      expect(emphasized).toContain('afternoon');
+    });
+
+    it('leaves lines unstyled when rhyme mode is off', () => {
+      const lines: PoemLine[] = [
+        { text: 'moon', authorName: 'Alice', authorStableId: 'a' },
+        { text: 'afternoon', authorName: 'Bob', authorStableId: 'b' },
+      ];
+
+      const { container } = render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={lines}
+          onDone={mockOnDone}
+          alreadyRevealed={true}
+          rhymeMode={false}
+        />
+      );
+
+      expect(container.querySelector('span.text-primary')).toBeNull();
+    });
+  });
 });

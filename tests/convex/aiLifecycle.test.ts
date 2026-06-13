@@ -328,6 +328,65 @@ describe('ai lifecycle', () => {
 
       expect(mockDb.insert).not.toHaveBeenCalled();
     });
+
+    it('does nothing once the game is no longer in progress', async () => {
+      mockDb.get.mockResolvedValueOnce({
+        _id: asId('game1'),
+        status: 'COMPLETED',
+        currentRound: 8,
+        assignmentMatrix: [],
+      });
+
+      await ensureAiLineHandler(mockCtx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 8,
+      });
+
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+
+    it('does nothing for a round that has not opened yet', async () => {
+      mockDb.get.mockResolvedValueOnce({
+        _id: asId('game1'),
+        status: 'IN_PROGRESS',
+        currentRound: 3,
+        assignmentMatrix: [],
+      });
+
+      // round 5 is ahead of the current round 3 → not yet open, skip
+      await ensureAiLineHandler(mockCtx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 5,
+      });
+
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the room has no AI player', async () => {
+      mockDb.get
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: [[asId('user1'), asId('user2')]],
+        })
+        .mockResolvedValueOnce({ _id: asId('user1') }) // human
+        .mockResolvedValueOnce({ _id: asId('user2') }); // human
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: asId('user1') },
+        { userId: asId('user2') },
+      ]);
+
+      await ensureAiLineHandler(mockCtx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 0,
+      });
+
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
   });
 
   describe('commitGhostLine', () => {
