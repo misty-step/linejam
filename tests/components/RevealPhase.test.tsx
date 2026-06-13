@@ -43,6 +43,9 @@ const mockApiRefs = vi.hoisted(() => ({
   enablePublicSessionRecapShare: {},
   enablePublicPoemShare: {},
   logShare: {},
+  getSessionFavorites: {},
+  isFavorited: {},
+  toggleFavorite: {},
 }));
 
 vi.mock('@/convex/_generated/api', () => ({
@@ -57,6 +60,11 @@ vi.mock('@/convex/_generated/api', () => ({
       enablePublicSessionRecapShare: mockApiRefs.enablePublicSessionRecapShare,
       enablePublicPoemShare: mockApiRefs.enablePublicPoemShare,
       logShare: mockApiRefs.logShare,
+    },
+    favorites: {
+      getSessionFavorites: mockApiRefs.getSessionFavorites,
+      isFavorited: mockApiRefs.isFavorited,
+      toggleFavorite: mockApiRefs.toggleFavorite,
     },
   },
 }));

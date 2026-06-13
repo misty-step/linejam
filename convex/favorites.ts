@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
-import { getUser } from './lib/auth';
+import { getUser, checkParticipation } from './lib/auth';
+import { getRoomByCode, getCompletedGame } from './lib/room';
 
 export const toggleFavorite = mutation({
   args: {
@@ -77,6 +78,67 @@ export const getMyFavorites = query({
       preview: firstLines[i]?.text || '...',
       favoritedAt: fav.createdAt,
     }));
+  },
+});
+
+/**
+ * Live favorite tallies for the poems of a room's most recent game, used to
+ * crown the "room favorite" in the recap. Returns per-poem counts plus the
+ * current leader (or null when no hearts have been given). Participant-gated;
+ * never exposes counts to non-players.
+ */
+export const getSessionFavorites = query({
+  args: {
+    roomCode: v.string(),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return null;
+
+    const room = await getRoomByCode(ctx, roomCode);
+    if (!room) return null;
+
+    const isParticipant = await checkParticipation(ctx, room._id, user._id);
+    if (!isParticipant) return null;
+
+    const game = await getCompletedGame(ctx, room._id);
+    if (!game) return null;
+
+    const poems = await ctx.db
+      .query('poems')
+      .withIndex('by_game', (q) => q.eq('gameId', game._id))
+      .collect();
+
+    const favoriteRows = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('favorites')
+          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
+          .collect()
+      )
+    );
+
+    const counts = poems.map((poem, i) => ({
+      poemId: poem._id,
+      indexInRoom: poem.indexInRoom,
+      count: favoriteRows[i].length,
+    }));
+
+    const totalHearts = counts.reduce((sum, c) => sum + c.count, 0);
+
+    // Leader: highest count, ties broken by poem order for stability.
+    const leader =
+      totalHearts > 0
+        ? counts.reduce((best, c) => (c.count > best.count ? c : best))
+        : null;
+
+    return {
+      counts,
+      totalHearts,
+      leaderPoemId: leader ? leader.poemId : null,
+      leaderCount: leader ? leader.count : 0,
+    };
   },
 });
 

@@ -234,9 +234,37 @@ export function RevealPhase({
             </section>
           )}
 
-          {/* 3. STATUS - Poem Status list */}
+          {/* 2b. UP NEXT - reader spotlight (the running order's on-deck poet) */}
+          {!allRevealed &&
+            (() => {
+              const upNext = [...poems]
+                .sort((a, b) => a.indexInRoom - b.indexInRoom)
+                .find((p) => !p.isRevealed);
+              if (!upNext) return null;
+              return (
+                <section className="flex items-center gap-4 border border-border-subtle bg-surface/60 p-5">
+                  <Avatar
+                    stableId={upNext.readerStableId}
+                    displayName={upNext.readerName}
+                    allStableIds={allStableIds}
+                    size="md"
+                  />
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-primary">
+                      Up next on the mic
+                    </p>
+                    <p className="text-lg font-medium text-text-primary">
+                      {upNext.readerName} reads Poem{' '}
+                      {(upNext.indexInRoom + 1).toString().padStart(2, '0')}
+                    </p>
+                  </div>
+                </section>
+              );
+            })()}
+
+          {/* 3. STATUS - Poem Status list (the running order) */}
           <section className="space-y-4">
-            <Label className="block">Poem Status</Label>
+            <Label className="block">Running order</Label>
             <div className="border-t border-border-subtle">
               {poems
                 .sort((a, b) => a.indexInRoom - b.indexInRoom)

@@ -11,12 +11,23 @@ import {
   toggleFavorite,
   getMyFavorites,
   isFavorited,
+  getSessionFavorites,
 } from '../../convex/favorites';
 
-// Mock getUser
+// Mock auth helpers
 const mockGetUser = vi.fn();
+const mockCheckParticipation = vi.fn();
 vi.mock('../../convex/lib/auth', () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
+  checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
+}));
+
+// Mock room helpers
+const mockGetRoomByCode = vi.fn();
+const mockGetCompletedGame = vi.fn();
+vi.mock('../../convex/lib/room', () => ({
+  getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
+  getCompletedGame: (...args: unknown[]) => mockGetCompletedGame(...args),
 }));
 
 describe('favorites', () => {
@@ -29,6 +40,81 @@ describe('favorites', () => {
     mockDb = createMockDb();
     mockCtx = createMockCtx(mockDb);
     mockGetUser.mockReset();
+    mockCheckParticipation.mockReset();
+    mockGetRoomByCode.mockReset();
+    mockGetCompletedGame.mockReset();
+  });
+
+  describe('getSessionFavorites', () => {
+    it('returns null for non-participants', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'stranger' });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockCheckParticipation.mockResolvedValue(false);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getSessionFavorites.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toBeNull();
+    });
+
+    it('crowns the most-hearted poem', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockCheckParticipation.mockResolvedValue(true);
+      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
+      // poems in the game
+      mockDb.collect.mockResolvedValueOnce([
+        { _id: 'poem1', indexInRoom: 0 },
+        { _id: 'poem2', indexInRoom: 1 },
+      ]);
+      // favorites per poem: poem1 has 1, poem2 has 3
+      mockDb.collect
+        .mockResolvedValueOnce([{ _id: 'f1' }])
+        .mockResolvedValueOnce([{ _id: 'f2' }, { _id: 'f3' }, { _id: 'f4' }]);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getSessionFavorites.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toEqual({
+        counts: [
+          { poemId: 'poem1', indexInRoom: 0, count: 1 },
+          { poemId: 'poem2', indexInRoom: 1, count: 3 },
+        ],
+        totalHearts: 4,
+        leaderPoemId: 'poem2',
+        leaderCount: 3,
+      });
+    });
+
+    it('has no leader when no hearts were given', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
+      mockCheckParticipation.mockResolvedValue(true);
+      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
+      mockDb.collect.mockResolvedValueOnce([
+        { _id: 'poem1', indexInRoom: 0 },
+        { _id: 'poem2', indexInRoom: 1 },
+      ]);
+      mockDb.collect.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      // @ts-expect-error - calling handler directly for test
+      const result = await getSessionFavorites.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toMatchObject({
+        totalHearts: 0,
+        leaderPoemId: null,
+        leaderCount: 0,
+      });
+    });
   });
 
   describe('toggleFavorite', () => {

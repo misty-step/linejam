@@ -33,8 +33,10 @@ vi.mock('@/lib/analytics', () => ({
 }));
 
 const mockEnablePublicSessionRecapShare = vi.fn().mockResolvedValue(undefined);
+const mockSessionFavorites = vi.fn();
 vi.mock('convex/react', () => ({
   useMutation: () => mockEnablePublicSessionRecapShare,
+  useQuery: () => mockSessionFavorites(),
 }));
 
 import { SessionRecapHub } from '@/components/SessionRecapHub';
@@ -67,6 +69,8 @@ describe('SessionRecapHub', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEnablePublicSessionRecapShare.mockResolvedValue(undefined);
+    // Default: no hearts given → no room-favorite crown
+    mockSessionFavorites.mockReturnValue(null);
     originalClipboard = navigator.clipboard;
     originalLocation = window.location;
     originalShare = navigator.share;
@@ -194,6 +198,39 @@ describe('SessionRecapHub', () => {
         roomCode: 'ABCD',
       });
     });
+  });
+
+  it('crowns the room favorite when hearts were given', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [
+        { poemId: 'poem_1', indexInRoom: 0, count: 3 },
+        { poemId: 'poem_2', indexInRoom: 1, count: 1 },
+      ],
+      totalHearts: 4,
+      leaderPoemId: 'poem_1',
+      leaderCount: 3,
+    });
+
+    render(<SessionRecapHub {...defaultProps} />);
+
+    const crown = screen.getByText(/Room favorite/i).closest('.border-primary');
+    expect(crown).toBeInTheDocument();
+    expect(screen.getByText(/3 hearts/i)).toBeInTheDocument();
+    // The crowned poem's preview appears inside the crown card
+    expect(crown).toHaveTextContent(/The moon hums/i);
+  });
+
+  it('shows no crown when the room gave no hearts', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [],
+      totalHearts: 0,
+      leaderPoemId: null,
+      leaderCount: 0,
+    });
+
+    render(<SessionRecapHub {...defaultProps} />);
+
+    expect(screen.queryByText(/Room favorite/i)).not.toBeInTheDocument();
   });
 
   it('lets anyone in the room continue (no host gating)', async () => {

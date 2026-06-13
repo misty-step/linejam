@@ -5,6 +5,7 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 // Mock external dependencies only
 vi.mock('convex/react', () => ({
   useMutation: () => vi.fn().mockResolvedValue(undefined),
+  useQuery: () => false, // isFavorited → not favorited
 }));
 
 // Mock browser clipboard API (external boundary)
@@ -296,7 +297,7 @@ describe('PoemDisplay component', () => {
       expect(aliceBylines[0]).toHaveClass('opacity-100');
     });
 
-    it('shows AI indicator for bot authors', () => {
+    it('announces the AI persona as a reveal moment (no tap needed)', () => {
       const linesWithBot: PoemLine[] = [
         {
           text: 'One',
@@ -315,11 +316,9 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      const dot = screen.getByRole('button', { name: /Show author/i });
-      fireEvent.click(dot);
-
-      expect(screen.getByText(/— Bashō/i)).toBeInTheDocument();
-      expect(screen.getByText(/\(AI\)/i)).toBeInTheDocument();
+      // The persona announces itself the moment the line is revealed —
+      // no dot click required (it's part of the comedy).
+      expect(screen.getByText(/✦ Bashō writes/i)).toBeInTheDocument();
     });
   });
 

@@ -2,8 +2,8 @@
 
 import { MouseEvent, useState } from 'react';
 import Link from 'next/link';
-import { useMutation } from 'convex/react';
-import { Share2 } from 'lucide-react';
+import { useMutation, useQuery } from 'convex/react';
+import { Heart, Share2 } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { trackRoomInviteShared } from '@/lib/analytics';
@@ -47,6 +47,16 @@ export function SessionRecapHub({
 }: SessionRecapHubProps) {
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
   const [openError, setOpenError] = useState<string | null>(null);
+
+  // Live tally — the crown can still change as late hearts land.
+  const sessionFavorites = useQuery(api.favorites.getSessionFavorites, {
+    roomCode,
+    guestToken: guestToken || undefined,
+  });
+  const favoritePoem =
+    sessionFavorites?.leaderPoemId != null
+      ? sortedPoems.find((p) => p._id === sessionFavorites.leaderPoemId)
+      : undefined;
   const enablePublicSessionRecapShare = useMutation(
     api.shares.enablePublicSessionRecapShare
   );
@@ -114,6 +124,29 @@ export function SessionRecapHub({
 
       {(error || shareError || openError) && (
         <Alert variant="error">{error || shareError || openError}</Alert>
+      )}
+
+      {/* Room favorite — only crowned when the room actually gave hearts */}
+      {favoritePoem && sessionFavorites && (
+        <div className="border border-primary bg-surface p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-primary">
+            <Heart className="h-4 w-4" fill="currentColor" />
+            <p className="text-[10px] font-mono uppercase tracking-widest">
+              Room favorite · {sessionFavorites.leaderCount} heart
+              {sessionFavorites.leaderCount === 1 ? '' : 's'}
+            </p>
+          </div>
+          <Link
+            href={`/poem/${favoritePoem._id}`}
+            prefetch={false}
+            className="mt-2 block font-[var(--font-display)] text-2xl italic leading-relaxed text-text-primary hover:text-primary"
+          >
+            &ldquo;{favoritePoem.preview || 'Untitled poem'}...&rdquo;
+          </Link>
+          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-text-muted">
+            Read by {favoritePoem.readerName}
+          </p>
+        </div>
       )}
 
       <div className="grid gap-3">

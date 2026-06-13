@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
+import { HeartButton } from './ui/HeartButton';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
@@ -307,17 +308,24 @@ export function PoemDisplay({
                       />
                     </p>
 
-                    {/* Author byline on tap */}
+                    {/* Author byline.
+                        AI lines get their persona moment: the name announces
+                        itself the instant the line reveals (the persona is part
+                        of the comedy). Human authors stay hidden until tapped. */}
                     {line.authorName && (
                       <span
                         className={cn(
-                          'absolute top-full left-0 text-sm italic text-text-muted',
-                          'transition-opacity duration-300',
-                          isSelected ? 'opacity-100' : 'opacity-0'
+                          'absolute top-full left-0 text-sm italic',
+                          'transition-opacity duration-500',
+                          line.isBot ? 'text-primary' : 'text-text-muted',
+                          isSelected || (line.isBot && isVisible)
+                            ? 'opacity-100'
+                            : 'opacity-0'
                         )}
                       >
-                        — {line.authorName}
-                        {line.isBot && ' (AI)'}
+                        {line.isBot ? '✦ ' : '— '}
+                        {line.authorName}
+                        {line.isBot && ' writes'}
                       </span>
                     )}
                   </div>
@@ -343,10 +351,17 @@ export function PoemDisplay({
             {shareError}
           </Alert>
         )}
-        <p className="max-w-md text-center text-sm text-text-muted">
-          Sharing makes this poem public to anyone with the link.
-        </p>
+        {!isArchive && (
+          <p className="max-w-md text-center text-sm text-text-muted">
+            Loved this one? Give it a heart — the room favorite gets crowned in
+            the recap.
+          </p>
+        )}
         <div className="flex items-center justify-center gap-4">
+          {/* Reveal variant: heart the poem toward the room-favorite crown */}
+          {!isArchive && (
+            <HeartButton poemId={poemId} guestToken={guestToken} />
+          )}
           <Button
             onClick={handleShare}
             variant="primary"
