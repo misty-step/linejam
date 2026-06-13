@@ -10,6 +10,7 @@ import {
   mutation,
   internalMutation,
   internalAction,
+  type MutationCtx,
 } from './_generated/server';
 import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
@@ -17,7 +18,12 @@ import { getUser } from './lib/auth';
 import { requireRoomByCode, getActiveGame } from './lib/room';
 import { getMatrixRound } from './lib/assignmentMatrix';
 import { getGameRules } from './lib/gameRules';
-import { pickRandomPersona, getPersona, AiPersonaId } from './lib/ai/personas';
+import {
+  pickRandomPersona,
+  getPersona,
+  GHOSTWRITER_PERSONA,
+  AiPersonaId,
+} from './lib/ai/personas';
 import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
 import { getConvexRuntimeConfig } from './lib/env';
@@ -206,6 +212,79 @@ export const scheduleAiTurn = internalMutation({
       gameId,
       round,
     });
+
+    // Safety net: actions are not retried by Convex. If generation dies,
+    // commit a deterministic fallback so the AI can never strand the round.
+    await ctx.scheduler.runAfter(AI_SAFETY_NET_MS, internal.ai.ensureAiLine, {
+      roomId,
+      gameId,
+      round,
+    });
+  },
+});
+
+/** How long the LLM path gets before the fallback line lands. */
+const AI_SAFETY_NET_MS = 25_000;
+
+/**
+ * Last-resort committer for an AI turn. Idempotent: does nothing when the
+ * line already exists or the round has moved on.
+ */
+export const ensureAiLine = internalMutation({
+  args: {
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+  },
+  handler: async (ctx, { roomId, gameId, round }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || game.status !== 'IN_PROGRESS') return;
+    if (round > game.currentRound) return;
+
+    const players = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', roomId))
+      .collect();
+    const playerUsers = await Promise.all(
+      players.map((p) => ctx.db.get(p.userId))
+    );
+    const aiPlayer = playerUsers.find((u) => u?.kind === 'AI');
+    if (!aiPlayer) return;
+
+    const aiPoemIndex = getMatrixRound(game.assignmentMatrix, round).findIndex(
+      (uid) => uid === aiPlayer._id
+    );
+    if (aiPoemIndex === -1) return;
+
+    const poem = await ctx.db
+      .query('poems')
+      .withIndex('by_room_game_index', (q) =>
+        q
+          .eq('roomId', roomId)
+          .eq('gameId', gameId)
+          .eq('indexInRoom', aiPoemIndex)
+      )
+      .first();
+    if (!poem) return;
+
+    const expectedCount = getGameRules(game.mode).wordCounts[round];
+    const committed = await commitAssignedLine(ctx, {
+      roomId,
+      gameId,
+      poemId: poem._id,
+      lineIndex: round,
+      text: getFallbackLine(expectedCount),
+      authorUserId: aiPlayer._id,
+      authorDisplayName: aiPlayer.displayName,
+    });
+
+    if (committed) {
+      log.warn('AI safety net committed a fallback line', {
+        roomId,
+        gameId,
+        round,
+      });
+    }
   },
 });
 
@@ -315,6 +394,79 @@ export const generateLineForRound = internalAction({
   },
 });
 
+type CommitAssignedLineArgs = {
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  poemId: Id<'poems'>;
+  lineIndex: number;
+  text: string;
+  authorUserId: Id<'users'>;
+  authorDisplayName: string;
+};
+
+/**
+ * Shared committer for machine-written lines (AI turns, safety net, ghost).
+ * Idempotent and assignment-checked; substitutes a fallback when the text
+ * misses the word count. Returns true when a line was inserted.
+ */
+async function commitAssignedLine(
+  ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
+  {
+    roomId,
+    gameId,
+    poemId,
+    lineIndex,
+    text,
+    authorUserId,
+    authorDisplayName,
+  }: CommitAssignedLineArgs
+): Promise<boolean> {
+  const room = await ctx.db.get(roomId);
+  const game = await ctx.db.get(gameId);
+  const poem = await ctx.db.get(poemId);
+
+  if (!room || !game || !poem) return false;
+
+  // Check for duplicate first (idempotent)
+  const existing = await ctx.db
+    .query('lines')
+    .withIndex('by_poem_index', (q) =>
+      q.eq('poemId', poemId).eq('indexInPoem', lineIndex)
+    )
+    .first();
+  if (existing) return false;
+
+  // Validate game state with grace for race conditions:
+  // - Allow submissions for current round OR past rounds (late arrivals)
+  // - For the final round, also accept if game just became COMPLETED
+  const submissionWindow = getSubmissionWindow(game, lineIndex);
+  if (!submissionWindow.ok) return false;
+
+  // Check assignment (immutable matrix - always stable)
+  const assignedUserId = getMatrixRound(game.assignmentMatrix, lineIndex)[
+    poem.indexInRoom
+  ];
+  if (assignedUserId !== authorUserId) return false;
+
+  const wordCount = countWords(text);
+  const expectedCount = getGameRules(game.mode).wordCounts[lineIndex];
+  const finalText =
+    wordCount === expectedCount ? text.trim() : getFallbackLine(expectedCount);
+
+  await ctx.db.insert('lines', {
+    poemId,
+    indexInPoem: lineIndex,
+    text: finalText,
+    wordCount: expectedCount,
+    authorUserId,
+    authorDisplayName,
+    createdAt: Date.now(),
+  });
+
+  await applyLineLifecycleTransition(ctx, { game, roomId, lineIndex });
+  return true;
+}
+
 /**
  * Commit an AI-generated line to the database.
  * Internal mutation - not exposed to clients.
@@ -332,66 +484,112 @@ export const commitAiLine = internalMutation({
     ctx,
     { poemId, lineIndex, text, aiUserId, roomId, gameId }
   ) => {
-    // Get entities
-    const room = await ctx.db.get(roomId);
-    const game = await ctx.db.get(gameId);
-    const poem = await ctx.db.get(poemId);
-
-    if (!room || !game || !poem) return;
-
-    // Check for duplicate first (idempotent)
-    const existing = await ctx.db
-      .query('lines')
-      .withIndex('by_poem_index', (q) =>
-        q.eq('poemId', poemId).eq('indexInPoem', lineIndex)
-      )
-      .first();
-    if (existing) return;
-
-    // Validate game state with grace for race conditions:
-    // - Allow submissions for current round OR past rounds (late arrivals)
-    // - For final round (8), also accept if game just became COMPLETED
-    const submissionWindow = getSubmissionWindow(game, lineIndex);
-    if (!submissionWindow.ok) return;
-
-    // Check assignment (immutable matrix - always stable)
-    const assignedUserId = getMatrixRound(game.assignmentMatrix, lineIndex)[
-      poem.indexInRoom
-    ];
-    if (assignedUserId !== aiUserId) return;
-
-    // Get AI user for displayName
     const aiUser = await ctx.db.get(aiUserId);
-    const aiDisplayName = aiUser?.displayName ?? 'AI';
+    await commitAssignedLine(ctx, {
+      roomId,
+      gameId,
+      poemId,
+      lineIndex,
+      text,
+      authorUserId: aiUserId,
+      authorDisplayName: aiUser?.displayName ?? 'AI',
+    });
+  },
+});
 
-    // Validate word count against the game's rules
-    const wordCount = countWords(text);
-    const expectedCount = getGameRules(game.mode).wordCounts[lineIndex];
-    if (wordCount !== expectedCount) {
-      // Use fallback if word count is wrong
-      const fallbackText = getFallbackLine(expectedCount);
-      await ctx.db.insert('lines', {
-        poemId,
-        indexInPoem: lineIndex,
-        text: fallbackText,
-        wordCount: expectedCount,
-        authorUserId: aiUserId,
-        authorDisplayName: aiDisplayName,
-        createdAt: Date.now(),
-      });
-    } else {
-      await ctx.db.insert('lines', {
-        poemId,
-        indexInPoem: lineIndex,
-        text: text.trim(),
-        wordCount,
-        authorUserId: aiUserId,
-        authorDisplayName: aiDisplayName,
-        createdAt: Date.now(),
-      });
-    }
+/**
+ * Ghostwriter: generate a line for a stalled human turn (host-summoned).
+ * Attribution stays honest — the line is bylined "<name> (ghost)".
+ */
+export const generateGhostLine = internalAction({
+  args: {
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+    poemId: v.id('poems'),
+    forUserId: v.id('users'),
+  },
+  handler: async (ctx, { roomId, gameId, round, poemId, forUserId }) => {
+    const game = await ctx.runQuery(internal.ai.getGameState, { gameId });
+    if (!game || game.status !== 'IN_PROGRESS') return;
+    if (game.currentRound !== round) return;
 
-    await applyLineLifecycleTransition(ctx, { game, roomId, lineIndex });
+    const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
+      poemId,
+      round,
+    });
+    if (alreadySubmitted) return;
+
+    const previousLine =
+      round > 0
+        ? await ctx.runQuery(internal.ai.getPreviousLine, {
+            poemId,
+            round: round - 1,
+          })
+        : null;
+
+    const targetWordCount = getGameRules(game.mode).wordCounts[round];
+    const apiKey = initialOpenRouterApiKey;
+    const result = await (async () => {
+      if (!apiKey) {
+        return { text: getFallbackLine(targetWordCount), fallbackUsed: true };
+      }
+
+      const config: LLMConfig = {
+        provider: 'openrouter',
+        model: process.env.AI_MODEL || 'google/gemini-3-flash-preview',
+        apiKey,
+        timeoutMs: 10000,
+        maxRetries: 2,
+      };
+
+      return generateLine(
+        {
+          persona: GHOSTWRITER_PERSONA,
+          previousLineText: previousLine?.text,
+          targetWordCount,
+        },
+        config
+      );
+    })();
+
+    await ctx.runMutation(internal.ai.commitGhostLine, {
+      roomId,
+      gameId,
+      poemId,
+      lineIndex: round,
+      text: result.text,
+      forUserId,
+    });
+
+    log.warn('Ghostwriter covered a stalled turn', { roomId, gameId, round });
+  },
+});
+
+export const commitGhostLine = internalMutation({
+  args: {
+    poemId: v.id('poems'),
+    lineIndex: v.number(),
+    text: v.string(),
+    forUserId: v.id('users'),
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+  },
+  handler: async (
+    ctx,
+    { poemId, lineIndex, text, forUserId, roomId, gameId }
+  ) => {
+    const stalledUser = await ctx.db.get(forUserId);
+    const baseName = stalledUser?.displayName ?? 'A poet';
+    await commitAssignedLine(ctx, {
+      roomId,
+      gameId,
+      poemId,
+      lineIndex,
+      text,
+      authorUserId: forUserId,
+      authorDisplayName: `${baseName} (ghost)`,
+    });
   },
 });
 

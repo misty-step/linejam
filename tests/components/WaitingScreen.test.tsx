@@ -4,9 +4,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 
 // Mock Convex hooks (external)
 const mockUseQuery = vi.fn();
+const mockSummonGhostwriter = vi.fn().mockResolvedValue({ summoned: 0 });
 
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useMutation: () => mockSummonGhostwriter,
   useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
 }));
 
@@ -85,12 +87,18 @@ describe('WaitingScreen component', () => {
     );
   });
 
-  it('displays error state when progress is null (unauthorized)', () => {
+  it('stays neutral when progress is null (round just resolved)', () => {
+    // Null can mean "the game just completed" for a real participant; the
+    // room page swaps phases on the same update, so we must not flash an
+    // alarming "Room not found" — show the calm loading copy instead.
     mockUseQuery.mockReturnValue(null);
 
     render(<WaitingScreen roomCode="ABCD" />);
 
-    expect(screen.getByText(/Room not found/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Preparing your writing desk/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Room not found/i)).not.toBeInTheDocument();
   });
 
   it('displays round information when progress is available', () => {
@@ -321,5 +329,96 @@ describe('WaitingScreen component', () => {
 
     const playerName = screen.getByText('Done');
     expect(playerName).toHaveClass('line-through');
+  });
+
+  it('names who the room is waiting on (legible without a hover)', () => {
+    mockUseQuery.mockReturnValue({
+      round: 0,
+      players: [
+        {
+          userId: 'user_1',
+          stableId: 'stable_1',
+          displayName: 'Alice',
+          submitted: true,
+          isBot: false,
+        },
+        {
+          userId: 'user_2',
+          stableId: 'stable_2',
+          displayName: 'Bob',
+          submitted: false,
+          isBot: false,
+        },
+      ],
+    });
+
+    render(<WaitingScreen roomCode="ABCD" />);
+
+    expect(screen.getByText('Waiting on Bob')).toBeInTheDocument();
+  });
+
+  it('offers the host a ghostwriter rescue after overtime', async () => {
+    mockUseQuery.mockReturnValue({
+      round: 1,
+      isHost: true,
+      roundStartedAt: 1, // far in the past → deep overtime
+      players: [
+        {
+          userId: 'user_1',
+          stableId: 'stable_1',
+          displayName: 'Alice',
+          submitted: true,
+          isBot: false,
+        },
+        {
+          userId: 'user_2',
+          stableId: 'stable_2',
+          displayName: 'Bob',
+          submitted: false,
+          isBot: false,
+        },
+      ],
+    });
+
+    const { userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<WaitingScreen roomCode="ABCD" guestToken="mock-token" />);
+
+    const ghostButton = screen.getByRole('button', {
+      name: /Summon the ghostwriter/i,
+    });
+    expect(ghostButton).toBeInTheDocument();
+
+    await user.click(ghostButton);
+
+    await waitFor(() => {
+      expect(mockSummonGhostwriter).toHaveBeenCalledWith({
+        roomCode: 'ABCD',
+        guestToken: 'mock-token',
+      });
+    });
+  });
+
+  it('hides the ghostwriter rescue from non-hosts', () => {
+    mockUseQuery.mockReturnValue({
+      round: 1,
+      isHost: false,
+      roundStartedAt: 1,
+      players: [
+        {
+          userId: 'user_2',
+          stableId: 'stable_2',
+          displayName: 'Bob',
+          submitted: false,
+          isBot: false,
+        },
+      ],
+    });
+
+    render(<WaitingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.queryByRole('button', { name: /Summon the ghostwriter/i })
+    ).not.toBeInTheDocument();
   });
 });

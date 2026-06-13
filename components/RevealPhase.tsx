@@ -120,7 +120,7 @@ export function RevealPhase({
       </div>
     );
 
-  const { myPoems, allRevealed, isHost, poems } = state;
+  const { myPoems, allRevealed, poems } = state;
   const allStableIds = poems.map((p) => p.readerStableId);
 
   const displayingPoem = showingPoemId
@@ -281,7 +281,6 @@ export function RevealPhase({
               guestToken={guestToken || undefined}
               poems={poems}
               playerCount={state.players.length}
-              isHost={isHost}
               error={error}
               isStartingNextRound={isStartingNow}
               onStartNextRound={handleStartNow}

@@ -6,9 +6,13 @@ import {
   getMatrixRound,
   secureShuffle,
 } from './lib/assignmentMatrix';
-import { getFinalRoundIndex, getGameRules } from './lib/gameRules';
+import {
+  GHOSTWRITER_OVERTIME_MS,
+  getFinalRoundIndex,
+  getGameRules,
+} from './lib/gameRules';
 import { countWords, getLastWord } from './lib/wordCount';
-import { getUser } from './lib/auth';
+import { getUser, checkParticipation } from './lib/auth';
 import {
   getRoomByCode,
   requireRoomByCode,
@@ -34,8 +38,18 @@ export const startGame = mutation({
     if (!user) throw new Error('User not found');
 
     const room = await requireRoomByCode(ctx, code);
-    if (room.hostUserId !== user._id)
-      throw new Error('Only host can start game');
+
+    // First game is the host's call. Once the room has a completed game,
+    // any participant can fire the rematch — the same room self-polices.
+    if (room.hostUserId !== user._id) {
+      const [completedGame, isParticipant] = await Promise.all([
+        getCompletedGame(ctx, room._id),
+        checkParticipation(ctx, room._id, user._id),
+      ]);
+      if (!completedGame || !isParticipant) {
+        throw new Error('Only host can start game');
+      }
+    }
 
     // Check no game is currently in progress (authoritative check)
     const activeGame = await getActiveGame(ctx, room._id);
@@ -73,6 +87,7 @@ export const startGame = mutation({
       cycle: (room.currentCycle || 0) + 1,
       mode: rules.mode,
       currentRound: 0,
+      roundStartedAt: Date.now(),
       assignmentMatrix,
       createdAt: Date.now(),
     });
@@ -117,8 +132,13 @@ export const startNewCycle = mutation({
     if (!user) throw new Error('User not found');
 
     const room = await requireRoomByCode(ctx, roomCode);
-    if (room.hostUserId !== user._id)
-      throw new Error('Only host can start new cycle');
+
+    // Any participant can bring the room back to the lobby after a game —
+    // a vanished host must never strand the recap.
+    const isParticipant = await checkParticipation(ctx, room._id, user._id);
+    if (!isParticipant) {
+      throw new Error('Only players in this room can start a new cycle');
+    }
 
     // Check that there's a completed game (authoritative check)
     const [activeGame, completedGame] = await Promise.all([
@@ -305,6 +325,69 @@ export const submitLine = mutation({
       roomId: room._id,
       lineIndex,
     });
+  },
+});
+
+export const summonGhostwriter = mutation({
+  args: {
+    roomCode: v.string(),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) throw new Error('User not found');
+
+    const room = await requireRoomByCode(ctx, roomCode);
+    if (room.hostUserId !== user._id) {
+      throw new Error('Only host can summon the ghostwriter');
+    }
+
+    const game = await getActiveGame(ctx, room._id);
+    if (!game) throw new Error('No game in progress');
+
+    // The ghost only answers after real overtime — no skipping slow friends.
+    const roundStartedAt = game.roundStartedAt ?? game.createdAt;
+    if (Date.now() - roundStartedAt < GHOSTWRITER_OVERTIME_MS) {
+      throw new Error('The ghostwriter only answers after overtime');
+    }
+
+    const poems = await ctx.db
+      .query('poems')
+      .withIndex('by_game', (q) => q.eq('gameId', game._id))
+      .collect();
+
+    const lineChecks = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) =>
+            q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
+          )
+          .first()
+      )
+    );
+    const missingPoems = poems.filter((_, i) => lineChecks[i] === null);
+    if (missingPoems.length === 0) {
+      return { summoned: 0 };
+    }
+
+    const roundAssignments = getMatrixRound(
+      game.assignmentMatrix,
+      game.currentRound
+    );
+    await Promise.all(
+      missingPoems.map((poem) =>
+        ctx.scheduler.runAfter(0, internal.ai.generateGhostLine, {
+          roomId: room._id,
+          gameId: game._id,
+          round: game.currentRound,
+          poemId: poem._id,
+          forUserId: roundAssignments[poem.indexInRoom],
+        })
+      )
+    );
+
+    return { summoned: missingPoems.length };
   },
 });
 
@@ -576,6 +659,8 @@ export const getRoundProgress = query({
     return {
       round: game.currentRound,
       totalRounds: getGameRules(game.mode).wordCounts.length,
+      roundStartedAt: game.roundStartedAt ?? game.createdAt,
+      isHost: room.hostUserId === user._id,
       players: progress,
     };
   },

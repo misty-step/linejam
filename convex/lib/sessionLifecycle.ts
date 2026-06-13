@@ -139,11 +139,11 @@ async function getGamePoems(
     .collect();
 }
 
-async function isRoundComplete(
+async function getMissingRoundPoems(
   ctx: LifecycleCtx,
   poems: LifecyclePoem[],
   lineIndex: number
-): Promise<boolean> {
+): Promise<LifecyclePoem[]> {
   const lineChecks = await Promise.all(
     poems.map((poem) =>
       ctx.db
@@ -155,7 +155,40 @@ async function isRoundComplete(
     )
   );
 
-  return lineChecks.every((line) => line !== null);
+  return poems.filter((_, index) => lineChecks[index] === null);
+}
+
+/**
+ * Self-healing AI: if the round is blocked only by poems whose turn belongs
+ * to an AI player, re-nudge the (idempotent) AI scheduler so a dead action
+ * cannot strand the room. Runs on every human submission.
+ */
+async function renudgeAiIfBlocking(
+  ctx: LifecycleCtx,
+  args: {
+    game: LifecycleGame;
+    roomId: Id<'rooms'>;
+    lineIndex: number;
+    missingPoems: LifecyclePoem[];
+  }
+): Promise<void> {
+  const roundAssignments = getMatrixRound(
+    args.game.assignmentMatrix,
+    args.lineIndex
+  );
+  const assignees = await Promise.all(
+    args.missingPoems.map((poem) =>
+      ctx.db.get(roundAssignments[poem.indexInRoom])
+    )
+  );
+
+  if (assignees.some((user) => user?.kind === 'AI')) {
+    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
+      roomId: args.roomId,
+      gameId: args.game._id,
+      round: args.lineIndex,
+    });
+  }
 }
 
 export async function applyLineLifecycleTransition(
@@ -167,9 +200,10 @@ export async function applyLineLifecycleTransition(
   }
 ): Promise<void> {
   const poems = await getGamePoems(ctx, args.game._id);
-  const roundComplete = await isRoundComplete(ctx, poems, args.lineIndex);
+  const missingPoems = await getMissingRoundPoems(ctx, poems, args.lineIndex);
 
-  if (!roundComplete) {
+  if (missingPoems.length > 0) {
+    await renudgeAiIfBlocking(ctx, { ...args, missingPoems });
     return;
   }
 
@@ -184,7 +218,10 @@ export async function applyLineLifecycleTransition(
 
   if (args.lineIndex < getFinalRoundIndex(getGameRules(args.game.mode))) {
     const nextRound = args.lineIndex + 1;
-    await ctx.db.patch(args.game._id, { currentRound: nextRound });
+    await ctx.db.patch(args.game._id, {
+      currentRound: nextRound,
+      roundStartedAt: Date.now(),
+    });
     await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
       roomId: args.roomId,
       gameId: args.game._id,

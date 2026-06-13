@@ -9,9 +9,11 @@ import type { AiPersona } from '../personas';
 
 /**
  * Parameters for generating a poetry line.
+ * Generation only needs the persona's voice, so any prompt-bearing persona
+ * (roster member or the ghostwriter) qualifies.
  */
 export interface GenerateLineParams {
-  persona: AiPersona;
+  persona: Pick<AiPersona, 'prompt'>;
   previousLineText?: string;
   targetWordCount: number;
 }

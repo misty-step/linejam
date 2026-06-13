@@ -73,3 +73,9 @@ export function getGameRules(mode?: string | null): GameRules {
 export function getFinalRoundIndex(rules: GameRules): number {
   return rules.wordCounts.length - 1;
 }
+
+/** Soft pacing target for a round. The clock pressures; it never blocks. */
+export const ROUND_CLOCK_MS = 90_000;
+
+/** Overtime before the host may pass a stalled turn to the ghostwriter. */
+export const GHOSTWRITER_OVERTIME_MS = 90_000;

@@ -22,7 +22,7 @@ vi.mock('../../convex/lib/env', () => ({
   getConvexRuntimeConfig: () => ({ openRouterApiKey: null }),
 }));
 
-import { commitAiLine } from '../../convex/ai';
+import { commitAiLine, commitGhostLine, ensureAiLine } from '../../convex/ai';
 
 const asId = <T extends 'games' | 'poems' | 'rooms' | 'users'>(value: string) =>
   value as unknown as Id<T>;
@@ -49,6 +49,11 @@ describe('ai lifecycle', () => {
 
   it('does not double-advance when a concurrent mutation already moved the round', async () => {
     mockDb.get
+      // commitAiLine resolves the author's display name first
+      .mockResolvedValueOnce({
+        _id: asId('ai1'),
+        displayName: 'Robot',
+      })
       .mockResolvedValueOnce({ _id: asId('room1') })
       .mockResolvedValueOnce({
         _id: asId('game1'),
@@ -59,10 +64,6 @@ describe('ai lifecycle', () => {
       .mockResolvedValueOnce({
         _id: asId('poem1'),
         indexInRoom: 0,
-      })
-      .mockResolvedValueOnce({
-        _id: asId('ai1'),
-        displayName: 'Robot',
       })
       .mockResolvedValueOnce({
         _id: asId('game1'),
@@ -108,6 +109,11 @@ describe('ai lifecycle', () => {
     ]);
 
     mockDb.get
+      // commitAiLine resolves the author's display name first
+      .mockResolvedValueOnce({
+        _id: asId('ai1'),
+        displayName: 'Robot',
+      })
       .mockResolvedValueOnce({ _id: asId('room1') })
       .mockResolvedValueOnce({
         _id: asId('game1'),
@@ -118,10 +124,6 @@ describe('ai lifecycle', () => {
       .mockResolvedValueOnce({
         _id: asId('poem1'),
         indexInRoom: 0,
-      })
-      .mockResolvedValueOnce({
-        _id: asId('ai1'),
-        displayName: 'Robot',
       })
       .mockResolvedValueOnce({
         _id: asId('game1'),
@@ -223,5 +225,160 @@ describe('ai lifecycle', () => {
     expect(mockDb.insert).not.toHaveBeenCalled();
     expect(mockDb.patch).not.toHaveBeenCalled();
     expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
+  describe('ensureAiLine (safety net)', () => {
+    const ensureAiLineHandler = (
+      ensureAiLine as unknown as {
+        handler: (ctx: unknown, args: unknown) => Promise<void>;
+      }
+    ).handler;
+
+    it('commits a fallback line when the AI turn never landed', async () => {
+      const matrix = [[asId<'users'>('ai1'), asId<'users'>('user2')]];
+      mockDb.get
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: matrix,
+        }) // game state check
+        .mockResolvedValueOnce({
+          _id: asId('ai1'),
+          kind: 'AI',
+          displayName: 'Robot',
+        }) // player user 1
+        .mockResolvedValueOnce({ _id: asId('user2') }) // player user 2
+        .mockResolvedValueOnce({ _id: asId('room1') }) // commit: room
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: matrix,
+        }) // commit: game
+        .mockResolvedValueOnce({ _id: asId('poem1'), indexInRoom: 0 }) // commit: poem
+        .mockResolvedValueOnce({ _id: asId('user2') }); // lifecycle re-nudge assignee (human)
+      mockDb.collect
+        .mockResolvedValueOnce([
+          { userId: asId('ai1') },
+          { userId: asId('user2') },
+        ]) // roomPlayers
+        .mockResolvedValueOnce([
+          { _id: asId('poem1'), indexInRoom: 0 },
+          { _id: asId('poem2'), indexInRoom: 1 },
+        ]); // lifecycle poems
+      mockDb.first
+        .mockResolvedValueOnce({ _id: asId('poem1'), indexInRoom: 0 }) // AI poem lookup
+        .mockResolvedValueOnce(null) // duplicate check — missing
+        .mockResolvedValueOnce({ _id: 'line1' }) // lifecycle: poem1 line
+        .mockResolvedValueOnce(null); // lifecycle: poem2 still missing
+
+      await ensureAiLineHandler(mockCtx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 0,
+      });
+
+      expect(mockDb.insert).toHaveBeenCalledWith(
+        'lines',
+        expect.objectContaining({
+          text: 'fallback0',
+          authorUserId: asId('ai1'),
+          authorDisplayName: 'Robot',
+        })
+      );
+    });
+
+    it('does nothing when the AI line already exists', async () => {
+      const matrix = [[asId<'users'>('ai1'), asId<'users'>('user2')]];
+      mockDb.get
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: matrix,
+        })
+        .mockResolvedValueOnce({
+          _id: asId('ai1'),
+          kind: 'AI',
+          displayName: 'Robot',
+        })
+        .mockResolvedValueOnce({ _id: asId('user2') })
+        .mockResolvedValueOnce({ _id: asId('room1') })
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: matrix,
+        })
+        .mockResolvedValueOnce({ _id: asId('poem1'), indexInRoom: 0 });
+      mockDb.collect.mockResolvedValueOnce([
+        { userId: asId('ai1') },
+        { userId: asId('user2') },
+      ]);
+      mockDb.first
+        .mockResolvedValueOnce({ _id: asId('poem1'), indexInRoom: 0 }) // AI poem lookup
+        .mockResolvedValueOnce({ _id: 'line-exists' }); // duplicate check — present
+
+      await ensureAiLineHandler(mockCtx, {
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+        round: 0,
+      });
+
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('commitGhostLine', () => {
+    const commitGhostLineHandler = (
+      commitGhostLine as unknown as {
+        handler: (ctx: unknown, args: unknown) => Promise<void>;
+      }
+    ).handler;
+
+    it('bylines the line as "<name> (ghost)" while keeping the matrix attribution', async () => {
+      const matrix = [[asId<'users'>('alice1')]];
+      mockDb.get
+        .mockResolvedValueOnce({ _id: asId('alice1'), displayName: 'Alice' }) // stalled user
+        .mockResolvedValueOnce({ _id: asId('room1') }) // room
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: matrix,
+        }) // game
+        .mockResolvedValueOnce({ _id: asId('poem1'), indexInRoom: 0 }) // poem
+        .mockResolvedValueOnce({
+          _id: asId('game1'),
+          status: 'IN_PROGRESS',
+          currentRound: 0,
+          assignmentMatrix: matrix,
+        }); // lifecycle fresh game
+      mockDb.first
+        .mockResolvedValueOnce(null) // duplicate check
+        .mockResolvedValueOnce({ _id: 'line1' }); // lifecycle: poem1 line present
+      mockDb.collect.mockResolvedValueOnce([
+        { _id: asId('poem1'), indexInRoom: 0 },
+      ]);
+
+      await commitGhostLineHandler(mockCtx, {
+        poemId: asId('poem1'),
+        lineIndex: 0,
+        text: 'moonlight',
+        forUserId: asId('alice1'),
+        roomId: asId('room1'),
+        gameId: asId('game1'),
+      });
+
+      expect(mockDb.insert).toHaveBeenCalledWith(
+        'lines',
+        expect.objectContaining({
+          text: 'moonlight',
+          authorUserId: asId('alice1'),
+          authorDisplayName: 'Alice (ghost)',
+        })
+      );
+    });
   });
 });

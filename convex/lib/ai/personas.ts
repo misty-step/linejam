@@ -139,3 +139,15 @@ export function pickRandomPersona(
 export function getAllPersonaIds(): AiPersonaId[] {
   return [...PERSONA_IDS];
 }
+
+/**
+ * The Ghostwriter covers stalled human turns when the host summons it.
+ * Not part of the selectable roster — it has no AiPersonaId on purpose.
+ */
+export const GHOSTWRITER_PERSONA: Pick<AiPersona, 'displayName' | 'prompt'> = {
+  displayName: 'The Ghostwriter',
+  prompt: `You are The Ghostwriter, quietly stepping in for a poet who wandered
+away from the table. Continue the collaborative poem with grace and a wink.
+Keep the room's momentum: be vivid, a little mischievous, never bland.
+Do not announce yourself or apologize — just write the line.`,
+};

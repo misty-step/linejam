@@ -16,12 +16,15 @@ import {
   getRevealPhaseState,
   revealPoem,
   getRoundProgress,
+  summonGhostwriter,
 } from '../../convex/game';
 
 // Mock dependencies
 const mockGetUser = vi.fn();
+const mockCheckParticipation = vi.fn();
 vi.mock('../../convex/lib/auth', () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
+  checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
 }));
 
 // Mock room helpers
@@ -66,6 +69,7 @@ describe('game', () => {
       scheduler: { runAfter: vi.fn() },
     };
     mockGetUser.mockReset();
+    mockCheckParticipation.mockReset();
     mockGetRoomByCode.mockReset();
     mockRequireRoomByCode.mockReset();
     mockGetActiveGame.mockReset();
@@ -97,12 +101,13 @@ describe('game', () => {
       ).rejects.toThrow('Room not found');
     });
 
-    it('throws if user is not host', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user2' });
+    it('throws if user is not a participant', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'stranger' });
       mockRequireRoomByCode.mockResolvedValue({
         _id: 'room1',
         hostUserId: 'user1',
       });
+      mockCheckParticipation.mockResolvedValue(false);
 
       await expect(
         // @ts-expect-error - calling handler directly for test
@@ -110,7 +115,7 @@ describe('game', () => {
           roomCode: 'TEST',
           guestToken: 'token',
         })
-      ).rejects.toThrow('Only host can start new cycle');
+      ).rejects.toThrow('Only players in this room can start a new cycle');
     });
 
     it('throws if game still in progress', async () => {
@@ -119,6 +124,7 @@ describe('game', () => {
         _id: 'room1',
         hostUserId: 'user1',
       });
+      mockCheckParticipation.mockResolvedValue(true);
       mockGetActiveGame.mockResolvedValue({
         _id: 'game1',
         status: 'IN_PROGRESS',
@@ -139,6 +145,7 @@ describe('game', () => {
         _id: 'room1',
         hostUserId: 'user1',
       });
+      mockCheckParticipation.mockResolvedValue(true);
       mockGetActiveGame.mockResolvedValue(null);
       mockGetCompletedGame.mockResolvedValue(null);
 
@@ -151,8 +158,9 @@ describe('game', () => {
       ).rejects.toThrow('No completed game to continue from');
     });
 
-    it('resets room to LOBBY on success', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
+    it('resets room to LOBBY on success for any participant', async () => {
+      // user2 is a participant but NOT the host — a vanished host must not strand the recap
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
       const room = {
         _id: 'room1',
         hostUserId: 'user1',
@@ -160,6 +168,7 @@ describe('game', () => {
         currentGameId: 'game1',
       };
       mockRequireRoomByCode.mockResolvedValue(room);
+      mockCheckParticipation.mockResolvedValue(true);
       mockGetActiveGame.mockResolvedValue(null);
       mockGetCompletedGame.mockResolvedValue({
         _id: 'game1',
@@ -199,6 +208,153 @@ describe('game', () => {
 
       expect(mockDb.insert).toHaveBeenCalledWith('games', expect.anything());
       expect(mockDb.patch).toHaveBeenCalledWith('room1', expect.anything());
+    });
+
+    it('blocks a non-host before the first game completes', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'user1',
+        code: 'TEST',
+      });
+      mockGetCompletedGame.mockResolvedValue(null);
+      mockCheckParticipation.mockResolvedValue(true);
+
+      await expect(
+        // @ts-expect-error - calling handler
+        startGame.handler(mockCtx, { code: 'TEST', guestToken: 'token' })
+      ).rejects.toThrow('Only host can start game');
+    });
+
+    it('lets any participant fire the rematch once a game has completed', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'user1',
+        code: 'TEST',
+      });
+      mockGetCompletedGame.mockResolvedValue({
+        _id: 'game0',
+        status: 'COMPLETED',
+      });
+      mockCheckParticipation.mockResolvedValue(true);
+      mockGetActiveGame.mockResolvedValue(null);
+      mockDb.collect.mockResolvedValue([
+        { _id: 'p1', userId: 'user1' },
+        { _id: 'p2', userId: 'user2' },
+      ]);
+      mockDb.insert.mockResolvedValue('game2');
+
+      // @ts-expect-error - calling handler
+      await startGame.handler(mockCtx, { code: 'TEST', guestToken: 'token' });
+
+      expect(mockDb.insert).toHaveBeenCalledWith(
+        'games',
+        expect.objectContaining({ status: 'IN_PROGRESS' })
+      );
+    });
+  });
+
+  describe('summonGhostwriter', () => {
+    const overtimeGame = {
+      _id: 'game1',
+      status: 'IN_PROGRESS',
+      currentRound: 2,
+      roundStartedAt: Date.now() - 10 * 60 * 1000, // deep overtime
+      createdAt: Date.now() - 20 * 60 * 1000,
+      assignmentMatrix: [[], [], ['user1', 'user2']],
+    };
+
+    it('rejects non-hosts', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user2' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'user1',
+      });
+
+      await expect(
+        // @ts-expect-error - calling handler
+        summonGhostwriter.handler(mockCtx, {
+          roomCode: 'TEST',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('Only host can summon the ghostwriter');
+    });
+
+    it('rejects before overtime', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'user1',
+      });
+      mockGetActiveGame.mockResolvedValue({
+        ...overtimeGame,
+        roundStartedAt: Date.now() - 5_000, // round just opened
+      });
+
+      await expect(
+        // @ts-expect-error - calling handler
+        summonGhostwriter.handler(mockCtx, {
+          roomCode: 'TEST',
+          guestToken: 'token',
+        })
+      ).rejects.toThrow('The ghostwriter only answers after overtime');
+      expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
+    });
+
+    it('schedules ghost lines for every missing poem after overtime', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'user1',
+      });
+      mockGetActiveGame.mockResolvedValue(overtimeGame);
+      mockDb.collect.mockResolvedValue([
+        { _id: 'poem1', indexInRoom: 0 },
+        { _id: 'poem2', indexInRoom: 1 },
+      ]);
+      // poem1 has a line, poem2 is missing
+      mockDb.first
+        .mockResolvedValueOnce({ _id: 'line1' })
+        .mockResolvedValueOnce(null);
+
+      // @ts-expect-error - calling handler
+      const result = await summonGhostwriter.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toEqual({ summoned: 1 });
+      expect(mockCtx.scheduler.runAfter).toHaveBeenCalledTimes(1);
+      expect(mockCtx.scheduler.runAfter).toHaveBeenCalledWith(
+        0,
+        expect.anything(),
+        expect.objectContaining({
+          poemId: 'poem2',
+          round: 2,
+          forUserId: 'user2',
+        })
+      );
+    });
+
+    it('is a no-op when every poem already has its line', async () => {
+      mockGetUser.mockResolvedValue({ _id: 'user1' });
+      mockRequireRoomByCode.mockResolvedValue({
+        _id: 'room1',
+        hostUserId: 'user1',
+      });
+      mockGetActiveGame.mockResolvedValue(overtimeGame);
+      mockDb.collect.mockResolvedValue([{ _id: 'poem1', indexInRoom: 0 }]);
+      mockDb.first.mockResolvedValueOnce({ _id: 'line1' });
+
+      // @ts-expect-error - calling handler
+      const result = await summonGhostwriter.handler(mockCtx, {
+        roomCode: 'TEST',
+        guestToken: 'token',
+      });
+
+      expect(result).toEqual({ summoned: 0 });
+      expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
     });
   });
 
@@ -728,9 +884,10 @@ describe('game', () => {
         guestToken: 'token',
       });
 
-      // Round SHOULD be advanced
+      // Round SHOULD be advanced (with a fresh round clock)
       expect(mockDb.patch).toHaveBeenCalledWith('game1', {
         currentRound: 1,
+        roundStartedAt: expect.any(Number),
       });
       // AI turn SHOULD be scheduled
       expect(mockCtx.scheduler.runAfter).toHaveBeenCalled();

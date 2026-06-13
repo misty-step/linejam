@@ -24,7 +24,6 @@ interface SessionRecapHubProps {
   guestToken?: string;
   poems: SessionRecapPoem[];
   playerCount: number;
-  isHost: boolean;
   error?: string | null;
   isStartingNextRound?: boolean;
   onStartNextRound: () => void;
@@ -41,7 +40,6 @@ export function SessionRecapHub({
   guestToken,
   poems,
   playerCount,
-  isHost,
   error,
   isStartingNextRound = false,
   onStartNextRound,
@@ -170,31 +168,25 @@ export function SessionRecapHub({
         Sharing makes the full session recap public to anyone with the link.
       </p>
 
-      {isHost ? (
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={onStartNextRound}
-            size="lg"
-            className="h-14"
-            disabled={isStartingNextRound}
-          >
-            {isStartingNextRound ? 'Starting...' : 'Start Next Round'}
-          </Button>
-          <Button
-            onClick={onBackToLobby}
-            variant="outline"
-            size="lg"
-            className="h-14"
-          >
-            Back to Lobby
-          </Button>
-        </div>
-      ) : (
-        <p className="text-sm text-text-muted text-center">
-          You can replay and share the session while the host starts the next
-          round.
-        </p>
-      )}
+      {/* Anyone in the room can keep it moving — a vanished host never strands the recap. */}
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          onClick={onStartNextRound}
+          size="lg"
+          className="h-14"
+          disabled={isStartingNextRound}
+        >
+          {isStartingNextRound ? 'Starting...' : 'Start Next Round'}
+        </Button>
+        <Button
+          onClick={onBackToLobby}
+          variant="outline"
+          size="lg"
+          className="h-14"
+        >
+          Back to Lobby
+        </Button>
+      </div>
 
       <Link
         href="/"

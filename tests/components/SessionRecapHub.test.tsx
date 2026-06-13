@@ -46,7 +46,6 @@ describe('SessionRecapHub', () => {
   const defaultProps = {
     roomCode: 'ABCD',
     playerCount: 2,
-    isHost: true,
     onStartNextRound: vi.fn(),
     onBackToLobby: vi.fn(),
     poems: [
@@ -197,17 +196,25 @@ describe('SessionRecapHub', () => {
     });
   });
 
-  it('shows non-host next-round guidance', () => {
-    render(<SessionRecapHub {...defaultProps} isHost={false} />);
+  it('lets anyone in the room continue (no host gating)', async () => {
+    // A vanished host must never strand the recap: every participant gets
+    // the continuation controls.
+    const user = userEvent.setup();
+    render(<SessionRecapHub {...defaultProps} />);
 
+    const startButton = screen.getByRole('button', {
+      name: 'Start Next Round',
+    });
+    const lobbyButton = screen.getByRole('button', { name: 'Back to Lobby' });
+    expect(startButton).toBeInTheDocument();
+    expect(lobbyButton).toBeInTheDocument();
+
+    // No "wait for the host" guidance remains
     expect(
-      screen.getByText(/while the host starts the next round/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/full session recap public to anyone with the link/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Start Next Round' })
+      screen.queryByText(/while the host starts the next round/i)
     ).not.toBeInTheDocument();
+
+    await user.click(startButton);
+    expect(defaultProps.onStartNextRound).toHaveBeenCalledTimes(1);
   });
 });

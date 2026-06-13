@@ -141,6 +141,7 @@ describe('sessionLifecycle', () => {
 
     expect(mockDb.patch).toHaveBeenCalledWith(asGameId('game1'), {
       currentRound: 1,
+      roundStartedAt: expect.any(Number),
     });
     expect(mockCtx.scheduler.runAfter).toHaveBeenCalledWith(
       0,
@@ -151,6 +152,66 @@ describe('sessionLifecycle', () => {
         round: 1,
       }
     );
+  });
+
+  it('re-nudges the AI scheduler when only AI poems are missing', async () => {
+    mockDb.collect.mockResolvedValue([
+      { _id: asPoemId('poem1'), indexInRoom: 0 },
+      { _id: asPoemId('poem2'), indexInRoom: 1 },
+    ]);
+    mockDb.first
+      .mockResolvedValueOnce({ _id: 'line1' })
+      .mockResolvedValueOnce(null); // poem2 has no line yet
+    // poem2's round-0 turn belongs to the AI
+    mockDb.get.mockResolvedValueOnce({ _id: asUserId('ai1'), kind: 'AI' });
+
+    await applyLineLifecycleTransition(mockCtx, {
+      game: {
+        _id: asGameId('game1'),
+        status: 'IN_PROGRESS',
+        currentRound: 0,
+        assignmentMatrix: [[asUserId('user1'), asUserId('ai1')]],
+      },
+      roomId: asRoomId('room1'),
+      lineIndex: 0,
+    });
+
+    expect(mockDb.patch).not.toHaveBeenCalled();
+    expect(mockCtx.scheduler.runAfter).toHaveBeenCalledWith(
+      0,
+      internal.ai.scheduleAiTurn,
+      {
+        roomId: asRoomId('room1'),
+        gameId: asGameId('game1'),
+        round: 0,
+      }
+    );
+  });
+
+  it('does not re-nudge when a human is the holdout', async () => {
+    mockDb.collect.mockResolvedValue([
+      { _id: asPoemId('poem1'), indexInRoom: 0 },
+      { _id: asPoemId('poem2'), indexInRoom: 1 },
+    ]);
+    mockDb.first
+      .mockResolvedValueOnce({ _id: 'line1' })
+      .mockResolvedValueOnce(null);
+    // poem2's turn belongs to a human (no kind field)
+    mockDb.get.mockResolvedValueOnce({ _id: asUserId('user2') });
+
+    await applyLineLifecycleTransition(mockCtx, {
+      game: {
+        _id: asGameId('game1'),
+        status: 'IN_PROGRESS',
+        currentRound: 0,
+        assignmentMatrix: [[asUserId('user1'), asUserId('user2')]],
+      },
+      roomId: asRoomId('room1'),
+      lineIndex: 0,
+    });
+
+    expect(mockDb.patch).not.toHaveBeenCalled();
+    expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it('scopes the submission window to the game mode', () => {

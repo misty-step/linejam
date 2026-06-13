@@ -60,6 +60,8 @@ export default defineSchema({
     mode: v.optional(gameModeValidator),
     /** Round index within current game. Shape comes from convex/lib/gameRules.ts. */
     currentRound: v.number(),
+    /** When the current round opened. Drives the soft clock and ghostwriter overtime gate. */
+    roundStartedAt: v.optional(v.number()),
     assignmentMatrix: v.array(v.array(v.id('users'))),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),

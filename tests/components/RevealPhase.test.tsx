@@ -353,17 +353,20 @@ describe('RevealPhase component', () => {
     ).toBeInTheDocument();
   });
 
-  it('does not show Back to Lobby button for non-host', () => {
-    // Arrange
+  it('shows continuation controls to non-hosts too (no stranding)', () => {
+    // Arrange: a vanished host must never strand the recap
     mockUseQuery.mockReturnValue(mockStateAllRevealedNotHost);
 
     // Act
     render(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
+    // Assert: everyone gets Back to Lobby + Start Next Round
     expect(
-      screen.queryByRole('button', { name: /Back to Lobby/i })
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: /Back to Lobby/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Start Next Round/i })
+    ).toBeInTheDocument();
   });
 
   it('calls startNewCycle mutation when Back to Lobby clicked', async () => {
@@ -412,8 +415,9 @@ describe('RevealPhase component', () => {
     expect(
       screen.getByRole('link', { name: /Replay poem 1/i })
     ).toHaveAttribute('href', '/poem/poem_123');
+    // Continuation is open to all participants now, not host-gated
     expect(
-      screen.getByText(/You can replay and share the session/i)
+      screen.getByRole('button', { name: /Start Next Round/i })
     ).toBeInTheDocument();
   });
 
