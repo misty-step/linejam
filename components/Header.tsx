@@ -78,7 +78,7 @@ export function Header({ className = '' }: HeaderProps) {
           <SignedOut>
             <Link
               href="/sign-in"
-              className="w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
+              className="w-11 h-11 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
               aria-label="Sign in"
             >
               <LogIn className="w-5 h-5" />
@@ -99,7 +99,7 @@ export function Header({ className = '' }: HeaderProps) {
           <Link
             href="/me/poems"
             prefetch={false}
-            className="w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
+            className="w-11 h-11 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
             aria-label="View your poem archive"
           >
             <Archive className="w-5 h-5" />
@@ -108,7 +108,7 @@ export function Header({ className = '' }: HeaderProps) {
           {/* Help button */}
           <button
             onClick={() => setShowHelp(true)}
-            className="w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
+            className="w-11 h-11 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
             aria-label="How to play"
           >
             <span className="text-lg font-medium">?</span>
@@ -118,7 +118,7 @@ export function Header({ className = '' }: HeaderProps) {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowThemes(!showThemes)}
-              className="w-10 h-10 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
+              className="w-11 h-11 rounded-full border border-[var(--color-border)] flex items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)]"
               aria-label="Choose theme"
               aria-expanded={showThemes}
               aria-haspopup="true"

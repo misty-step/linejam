@@ -249,7 +249,7 @@ describe('PoemDisplay component', () => {
       expect(aliceBylines[0]).toHaveClass('opacity-0');
     });
 
-    it('triggers selection on Enter key', async () => {
+    it('exposes the author dot as a real, keyboard-operable button', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -263,38 +263,34 @@ describe('PoemDisplay component', () => {
         name: /Show author/i,
       })[0];
 
-      // Simulate Enter key
-      await act(async () => {
-        fireEvent.keyDown(firstDot, { key: 'Enter' });
-      });
+      // A native <button> is keyboard-accessible by construction (Enter/Space
+      // activate it), unlike the old role="button" div.
+      expect(firstDot.tagName).toBe('BUTTON');
+      expect(firstDot).not.toBeDisabled();
 
-      // Author should be visible
+      // The activation the keyboard produces reveals the author byline.
+      act(() => {
+        fireEvent.click(firstDot);
+      });
       const aliceBylines = screen.getAllByText(/— Alice/i);
       expect(aliceBylines[0]).toHaveClass('opacity-100');
     });
 
-    it('triggers selection on Space key', async () => {
+    it('does not expose hidden lines as tappable targets', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
           lines={mockLines}
           onDone={mockOnDone}
-          alreadyRevealed={true}
+          alreadyRevealed={false}
         />
       );
 
+      // Before reveal, the dot is disabled so a stray tap reveals nothing.
       const firstDot = screen.getAllByRole('button', {
         name: /Show author/i,
       })[0];
-
-      // Simulate Space key
-      await act(async () => {
-        fireEvent.keyDown(firstDot, { key: ' ' });
-      });
-
-      // Author should be visible
-      const aliceBylines = screen.getAllByText(/— Alice/i);
-      expect(aliceBylines[0]).toHaveClass('opacity-100');
+      expect(firstDot).toBeDisabled();
     });
 
     it('announces the AI persona as a reveal moment (no tap needed)', () => {
@@ -338,7 +334,10 @@ describe('PoemDisplay component', () => {
       const expectedAliceColor = getUniqueColor('stable_alice', allStableIds);
       const expectedBobColor = getUniqueColor('stable_bob', allStableIds);
 
-      const dots = screen.getAllByRole('button', { name: /Show author/i });
+      // The ink mark (inner span) carries the color; the button is the hit zone
+      const dots = screen
+        .getAllByRole('button', { name: /Show author/i })
+        .map((btn) => btn.querySelector('span'));
       // First dot is Alice
       expect(dots[0]).toHaveStyle({ backgroundColor: expectedAliceColor });
       // Second dot is Bob
@@ -360,7 +359,9 @@ describe('PoemDisplay component', () => {
       const expectedAliceColor = getUserColor('stable_alice');
       const expectedBobColor = getUserColor('stable_bob');
 
-      const dots = screen.getAllByRole('button', { name: /Show author/i });
+      const dots = screen
+        .getAllByRole('button', { name: /Show author/i })
+        .map((btn) => btn.querySelector('span'));
       expect(dots[0]).toHaveStyle({ backgroundColor: expectedAliceColor });
       expect(dots[1]).toHaveStyle({ backgroundColor: expectedBobColor });
     });
@@ -380,8 +381,10 @@ describe('PoemDisplay component', () => {
       );
 
       // Check style attribute directly (toHaveStyle doesn't resolve CSS vars in happy-dom)
-      const dot = screen.getByRole('button', { name: /Show author/i });
-      expect(dot.getAttribute('style')).toContain('var(--color-text-muted)');
+      const ink = screen
+        .getByRole('button', { name: /Show author/i })
+        .querySelector('span');
+      expect(ink?.getAttribute('style')).toContain('var(--color-text-muted)');
     });
   });
 

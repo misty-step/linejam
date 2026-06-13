@@ -92,6 +92,11 @@ function JoinForm() {
               maxLength={4}
               required
               autoFocus={!hasCode}
+              inputMode="text"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
               className="uppercase tracking-[0.5em] text-center font-mono text-2xl h-16 bg-[var(--color-muted)] border-2"
             />
           </div>
@@ -110,6 +115,8 @@ function JoinForm() {
               onChange={(e) => setName(e.target.value)}
               required
               autoFocus={hasCode}
+              autoCapitalize="words"
+              autoComplete="off"
               className="text-lg h-14"
             />
           </div>

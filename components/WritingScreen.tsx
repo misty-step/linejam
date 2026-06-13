@@ -74,6 +74,20 @@ function WritingComposer({
   const [liveRegionMessage, setLiveRegionMessage] = useState('');
   const [hasFocus, setHasFocus] = useState(false);
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Keep the line visible when the on-screen keyboard opens. iOS doesn't
+  // reliably scroll a focused element into view inside this layout, so do it
+  // ourselves after the keyboard animation settles.
+  const handleTextareaFocus = () => {
+    setHasFocus(true);
+    setTimeout(() => {
+      textareaRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 300);
+  };
 
   const currentWordCount = countWords(text);
   const targetCount = assignment.targetWordCount;
@@ -206,6 +220,7 @@ function WritingComposer({
           )}
 
           <textarea
+            ref={textareaRef}
             className={cn(
               'w-full min-h-[280px] md:min-h-[320px] lg:min-h-[360px] bg-transparent border-none outline-none resize-none',
               'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
@@ -219,7 +234,7 @@ function WritingComposer({
               setText(e.target.value);
               setError(null);
             }}
-            onFocus={() => setHasFocus(true)}
+            onFocus={handleTextareaFocus}
             onBlur={() => setHasFocus(false)}
             spellCheck={false}
             aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}

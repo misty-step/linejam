@@ -261,27 +261,27 @@ export function PoemDisplay({
 
             return (
               <Fragment key={index}>
-                <div className="grid grid-cols-[1rem_1fr] gap-4 items-center">
-                  {/* Author Dot (Hanko) */}
-                  <div
-                    role="button"
+                <div className="grid grid-cols-[2.75rem_1fr] items-center">
+                  {/* Author Dot (Hanko) — 8px ink mark inside a 44px tap target */}
+                  <button
+                    type="button"
                     tabIndex={isVisible ? 0 : -1}
+                    disabled={!isVisible}
                     className={cn(
-                      'w-2 h-2 rounded-full cursor-pointer transition-all',
-                      'focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2',
-                      isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+                      'flex h-11 w-11 items-center justify-center rounded-full',
+                      '-ml-1.5 cursor-pointer transition-opacity',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
+                      isVisible ? 'opacity-100' : 'opacity-0'
                     )}
-                    style={{ backgroundColor: dotColor }}
                     onClick={() => setSelectedLine(index)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setSelectedLine(index);
-                      }
-                    }}
                     title={line.authorName}
                     aria-label={`Show author for line ${index + 1}`}
-                  />
+                  >
+                    <span
+                      className="block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: dotColor }}
+                    />
+                  </button>
 
                   {/* Line Text */}
                   <div className="relative">
