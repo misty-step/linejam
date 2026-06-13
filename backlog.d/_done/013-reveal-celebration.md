@@ -1,6 +1,6 @@
 # Stage the reveal like a performance and end with a celebration
 
-Priority: P1 · Status: ready · Estimate: M
+Priority: P1 · Status: done · Estimate: M
 
 ## Goal
 
