@@ -79,3 +79,24 @@ export const ROUND_CLOCK_MS = 90_000;
 
 /** Overtime before the host may pass a stalled turn to the ghostwriter. */
 export const GHOSTWRITER_OVERTIME_MS = 90_000;
+
+/**
+ * Per-turn auto ghost-fill delay. Fires after overtime elapses without a
+ * manual ghostwriter summon, so a disconnected human never strands the room.
+ * Kept equal to overtime so the auto path lands right when the manual path
+ * becomes available — the host keeps agency, the auto-fill is the floor.
+ */
+export const AUTO_GHOST_FILL_MS = GHOSTWRITER_OVERTIME_MS;
+
+/**
+ * Abandonment threshold: if every human in an IN_PROGRESS game has been
+ * silent (no heartbeat) for this long, the cron ghost-fills and completes
+ * the game. Tuned to the longest reasonable party pause (10 minutes).
+ */
+export const ABANDONMENT_THRESHOLD_MS = 10 * 60_000;
+
+/** Heartbeat cadence for the client presence hook. */
+export const PRESENCE_HEARTBEAT_MS = 15_000;
+
+/** A player is "away" when no heartbeat has landed for this long. */
+export const PRESENCE_AWAY_MS = 45_000;

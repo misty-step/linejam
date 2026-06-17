@@ -2,7 +2,7 @@ import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser, checkParticipation } from './lib/auth';
-import { gameModeValidator } from './lib/gameRules';
+import { gameModeValidator, PRESENCE_AWAY_MS } from './lib/gameRules';
 import { checkRateLimit } from './lib/rateLimit';
 import {
   getRoomByCode,
@@ -197,11 +197,15 @@ export const getRoomState = query({
     const players = await Promise.all(
       roomPlayers.map(async (rp) => {
         const userRecord = await ctx.db.get(rp.userId);
+        const now = Date.now();
         return {
           ...rp,
           stableId: userRecord?.clerkUserId || userRecord?.guestId || rp.userId,
           isBot: userRecord?.kind === 'AI',
           aiPersonaId: userRecord?.aiPersonaId,
+          isAway:
+            rp.lastSeenAt === undefined ||
+            now - rp.lastSeenAt > PRESENCE_AWAY_MS,
         };
       })
     );

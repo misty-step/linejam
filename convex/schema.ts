@@ -46,6 +46,8 @@ export default defineSchema({
     displayName: v.string(),
     seatIndex: v.optional(v.number()),
     joinedAt: v.number(),
+    /** Last client heartbeat timestamp (ms). Missing on legacy rows; treated as stale. */
+    lastSeenAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
     .index('by_user', ['userId'])

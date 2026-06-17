@@ -606,6 +606,7 @@ describe('rooms', () => {
         stableId: p.userId,
         isBot: false,
         aiPersonaId: undefined,
+        isAway: true, // missing lastSeenAt → stale
       }));
       expect(result).toEqual({
         room: { ...room, status: 'IN_PROGRESS' },

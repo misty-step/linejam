@@ -1,6 +1,6 @@
 # Never let the room die: presence, turn timeout, and self-heal abandonment
 
-Priority: P0 · Status: ready · Estimate: XL
+Priority: P0 · Status: in-progress · Estimate: XL
 
 ## Goal
 
