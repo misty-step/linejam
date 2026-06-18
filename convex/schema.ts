@@ -73,7 +73,9 @@ export default defineSchema({
   })
     .index('by_room', ['roomId'])
     .index('by_room_cycle', ['roomId', 'cycle'])
-    .index('by_room_status', ['roomId', 'status']),
+    .index('by_room_status', ['roomId', 'status'])
+    // Global status scan for the abandonment sweep cron (convex/abandonment.ts).
+    .index('by_status', ['status']),
 
   poems: defineTable({
     roomId: v.id('rooms'),
