@@ -12,6 +12,7 @@ import {
   PRESENCE_AWAY_MS,
   getFinalRoundIndex,
   getGameRules,
+  isPresenceStale,
 } from './lib/gameRules';
 import { countWords, getLastWord } from './lib/wordCount';
 import { getUser, checkParticipation } from './lib/auth';
@@ -663,9 +664,7 @@ export const getRoundProgress = query({
           userRecord?.clerkUserId || userRecord?.guestId || player.userId,
         isBot: userRecord?.kind === 'AI',
         aiPersonaId: userRecord?.aiPersonaId,
-        isAway:
-          player.lastSeenAt === undefined ||
-          now - player.lastSeenAt > PRESENCE_AWAY_MS,
+        isAway: isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS),
       };
     });
 

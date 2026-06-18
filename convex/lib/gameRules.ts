@@ -100,3 +100,17 @@ export const PRESENCE_HEARTBEAT_MS = 15_000;
 
 /** A player is "away" when no heartbeat has landed for this long. */
 export const PRESENCE_AWAY_MS = 45_000;
+
+/**
+ * Whether a heartbeat-bearing row has gone quiet past `thresholdMs`. A missing
+ * `lastSeenAt` (legacy rows, never-heartbeat clients) counts as stale. Shared by
+ * the "away" indicators (PRESENCE_AWAY_MS) and the abandonment sweep
+ * (ABANDONMENT_THRESHOLD_MS) so the predicate can't drift between them.
+ */
+export function isPresenceStale(
+  lastSeenAt: number | undefined,
+  now: number,
+  thresholdMs: number
+): boolean {
+  return lastSeenAt === undefined || now - lastSeenAt > thresholdMs;
+}

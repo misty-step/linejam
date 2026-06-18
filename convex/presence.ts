@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { getUser } from './lib/auth';
 import { getRoomByCode } from './lib/room';
-import { PRESENCE_AWAY_MS } from './lib/gameRules';
+import { PRESENCE_AWAY_MS, isPresenceStale } from './lib/gameRules';
 
 /**
  * Client heartbeat: stamps `lastSeenAt` on the caller's roomPlayers row.
@@ -58,8 +58,7 @@ export const getRoomPresence = query({
     const now = Date.now();
     return players.map((p) => ({
       userId: p.userId,
-      isAway:
-        p.lastSeenAt === undefined || now - p.lastSeenAt > PRESENCE_AWAY_MS,
+      isAway: isPresenceStale(p.lastSeenAt, now, PRESENCE_AWAY_MS),
     }));
   },
 });
