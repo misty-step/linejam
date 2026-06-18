@@ -12,27 +12,33 @@ state without a manual database fix.
 
 ## Oracle
 
-- [ ] `roomPlayers` has a `lastSeenAt` field (or equivalent presence signal)
+- [x] `roomPlayers` has a `lastSeenAt` field (or equivalent presence signal)
       updated by a client heartbeat; `WaitingScreen` and the lobby render an
       "away" indicator when a player's heartbeat is stale past a threshold.
-- [ ] After a deterministic per-turn timeout (≤ `GHOSTWRITER_OVERTIME_MS`), any
+      (child 1; `convex/presence.ts`, `hooks/usePresence.ts`)
+- [x] After a deterministic per-turn timeout (≤ `GHOSTWRITER_OVERTIME_MS`), any
       human-owned poem missing its line for the current round auto-commits a
       ghost line bylined `"<name> (ghost)"` — without the host tapping
-      `summonGhostwriter`.
-- [ ] A scheduled cron detects `IN_PROGRESS` games whose humans have all been
+      `summonGhostwriter`. (child 2; `game.fillStaleHumanTurns`)
+- [x] A scheduled cron detects `IN_PROGRESS` games whose humans have all been
       stale past an abandonment threshold and finishes them: ghost-fills every
       missing line, advances rounds, and lands the room in `COMPLETED` (reveal
-      still reachable).
-- [ ] A room whose host has left can still be finished by the remaining
+      still reachable). (child 3; `convex/crons.ts` + `convex/abandonment.ts`)
+- [x] A room whose host has left can still be finished by the remaining
       participants or the abandonment cron; no host-only action is the sole
-      path to completion.
-- [ ] `pnpm ci:prepush` green; new tests cover (a) human-disconnect
+      path to completion. (child 4; completion path carries no host gate —
+      proven by the host-departed integration cases)
+- [x] `pnpm ci:prepush` green; new tests cover (a) human-disconnect
       auto-completes a poem within the timeout, (b) all-humans-leave game
       auto-finishes via cron, (c) OpenRouter total outage still completes a
       full game through safety nets, (d) host-departed room completes.
-- [ ] E2E (`tests/e2e/`) exercises a mid-game player drop end-to-end against a
-      live Convex dev target and asserts the remaining player(s) reach reveal
-      without a manual nudge.
+      (a–d in `tests/convex/abandonment.test.ts`, real scheduler/DB via
+      convex-test; full `ci:prepush` Dagger contract is the pre-merge gate)
+- [~] E2E (`tests/e2e/`) exercises a mid-game player drop end-to-end against a
+  live Convex dev target and asserts the remaining player(s) reach reveal
+  without a manual nudge. (spec written: `tests/e2e/mid-game-leaver.spec.ts`,
+  `@slow`; run via `pnpm test:e2e:leaver`. Waits a real `AUTO_GHOST_FILL_MS`
+  timeout, so it is the release-branch / operator live-stack run.)
 
 ## Verification System
 
@@ -116,3 +122,25 @@ zero coverage of mid-game leaver scenarios.
    (a) human-disconnect auto-complete, (b) all-humans-leave cron finish,
    (c) OpenRouter outage full-game completion, (d) host-departed completion;
    E2E mid-game-leaver scenario.
+
+## Delivery (children 3–5)
+
+- **Child 3 — abandonment cron:** `convex/crons.ts` runs `sweepAbandonedGames`
+  every minute; it scans the new `games.by_status` index, gates on an idle-age
+  floor (`roundStartedAt`) plus all-humans-stale presence, and schedules a
+  per-game `finishAbandonedGame` that deterministically ghost-fills to
+  `COMPLETED` via the idempotent `commitAssignedLine` (no LLM). Honest bylines
+  preserved. The sweep does **not** depend on the per-turn `runAfter` chain
+  surviving, so it heals games the floor missed (action death, legacy games).
+- **Child 4 — host-departed:** the `IN_PROGRESS → COMPLETED` path carries no
+  host gate (`summonGhostwriter` stays an optional override). Proven by the two
+  host-departed integration cases (participant-finishes and cron-finishes).
+- **Child 5 — verification:** `tests/convex/abandonment.test.ts` runs a–d on
+  the **real** Convex scheduler/DB via convex-test, which this work unblocked
+  (`tests/helpers/convexTest.ts` — the long-deferred `import.meta.glob` blocker
+  was self-inflicted; backlog 014 groundwork). E2E grader at
+  `tests/e2e/mid-game-leaver.spec.ts` (`pnpm test:e2e:leaver`).
+- **Refactor:** extracted `isPresenceStale()` into `gameRules.ts`, unifying the
+  four copies of the staleness predicate (away indicators + sweep).
+- **Follow-ups filed:** host migration (017), convex-test migration of the
+  remaining mock-DB suites (018).

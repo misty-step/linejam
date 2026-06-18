@@ -129,6 +129,29 @@ Key functions:
 
 AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 
+### Never Let the Room Die (presence + self-heal)
+
+A room must always reach `COMPLETED`, even if every human closes their tab.
+Three layers, all sharing the idempotent `commitAssignedLine` (so they are safe
+to overlap):
+
+- **Presence**: `convex/presence.ts` heartbeat stamps `roomPlayers.lastSeenAt`;
+  `isPresenceStale()` in `convex/lib/gameRules.ts` is the single staleness
+  predicate behind every "away" indicator and the sweep.
+- **Per-turn floor**: `game.fillStaleHumanTurns` is scheduled via `runAfter` at
+  every round open (`AUTO_GHOST_FILL_MS`); it ghost-fills any human poem still
+  missing its line, bylined `"<name> (ghost)"`.
+- **Abandonment cron**: `convex/crons.ts` → `abandonment.sweepAbandonedGames`
+  (every minute) finds `IN_PROGRESS` games (the `games.by_status` index) idle
+  past `ABANDONMENT_THRESHOLD_MS` with all humans stale, and schedules
+  `finishAbandonedGame` to deterministically complete them. It re-derives state
+  each tick, so it heals games the per-turn chain missed. Completion never
+  requires a host action.
+
+Testing this needs the real scheduler/DB: use convex-test via
+`setupConvexTest()` (`tests/helpers/convexTest.ts`), not the mock DB. See
+`tests/convex/abandonment.test.ts`.
+
 ## Quality Gates
 
 Lefthook pre-commit: `gitleaks`, `eslint --fix`, `prettier --write`
