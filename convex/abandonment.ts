@@ -62,6 +62,16 @@ export const sweepAbandonedGames = internalMutation({
       // Degenerate game with no humans — leave it to the per-turn floor.
       if (humanPlayers.length === 0) continue;
 
+      // Presence must be established before we ever auto-complete a room. In the
+      // rollout where presence first ships, already-connected clients run the
+      // old bundle and never heartbeat, so every human reads as "stale" on a row
+      // that simply has no presence data. Treat "nobody ever heartbeat" as
+      // unknown, not abandoned, and leave such a game to the per-turn floor.
+      const presenceEstablished = humanPlayers.some(
+        (player) => player.lastSeenAt !== undefined
+      );
+      if (!presenceEstablished) continue;
+
       const allHumansStale = humanPlayers.every((player) =>
         isPresenceStale(player.lastSeenAt, now, ABANDONMENT_THRESHOLD_MS)
       );

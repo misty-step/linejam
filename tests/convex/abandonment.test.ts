@@ -280,6 +280,52 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
     expect(sweep).toEqual({ scheduled: 0, scanned: 1 });
   });
 
+  it('does not fire on an idle game whose humans never established presence', async () => {
+    const t = setupConvexTest();
+    // The dangerous rollout case: the round is idle past the threshold AND no
+    // human has ever heartbeat (old client bundle). "Never heartbeat" must read
+    // as unknown, not abandoned — only the per-turn floor may touch it.
+    await seedClassicGame(t, {
+      players: [{ name: 'Ada' }, { name: 'Bo' }],
+      roundStartedAt: staleStamp(),
+      createdAt: staleStamp(),
+    });
+
+    const sweep = await t.mutation(
+      internal.abandonment.sweepAbandonedGames,
+      {}
+    );
+    expect(sweep).toEqual({ scheduled: 0, scanned: 1 });
+  });
+
+  it('refuses a duplicate line when two fills race the same round', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: [{ name: 'Ada' }, { name: 'Bo' }], currentRound: 0 }
+    );
+    const adaPoem = poemIds[matrix[0].indexOf(userIds[0])];
+    const fill = {
+      poemId: adaPoem,
+      lineIndex: 0,
+      forUserId: userIds[0],
+      roomId,
+      gameId,
+    };
+
+    // Two overlapping fills land on the same (poem, round) of a live game — the
+    // production race between the cron finisher and the per-turn floor. The
+    // commitAssignedLine existing-line guard must drop the second.
+    await t.mutation(internal.ai.commitGhostLine, { ...fill, text: 'first' });
+    await t.mutation(internal.ai.commitGhostLine, { ...fill, text: 'second' });
+
+    const adaRound0 = (await getAllLines(t, gameId)).filter(
+      (l) => l.poemId === adaPoem && l.indexInPoem === 0
+    );
+    expect(adaRound0).toHaveLength(1);
+    expect(adaRound0[0].text).toBe('first'); // the first write won; no clobber
+  });
+
   it('is idempotent under repeated firing', async () => {
     const t = setupConvexTest();
     const { gameId } = await seedClassicGame(t, {
