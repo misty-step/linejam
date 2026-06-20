@@ -1,28 +1,34 @@
 /**
  * Self-heal abandoned games.
  *
- * A periodic cron sweep (convex/crons.ts) finds IN_PROGRESS games whose human
- * players have all gone silent — no presence heartbeat past
- * ABANDONMENT_THRESHOLD_MS — and schedules a per-game worker that ghost-fills
- * every remaining line and lands the room in COMPLETED.
+ * A periodic cron sweep (convex/crons.ts) finds IN_PROGRESS games that are
+ * abandoned — the current round has been idle past ABANDONMENT_THRESHOLD_MS and
+ * either every human heartbeat then went silent, or the round is idle past the
+ * absolute ABANDONMENT_HARD_DEADLINE_MS — and schedules a per-game worker that
+ * ghost-fills every remaining line and lands the room in COMPLETED.
  *
  * This is the durable backstop for the per-turn auto ghost-fill
  * (game.fillStaleHumanTurns). The per-turn floor rides on a `runAfter` chain
  * scheduled at each round open; if that chain is ever lost (action death, infra
  * incident, or a game that predates the feature) the room would strand forever.
  * The sweep re-derives state from scratch every tick and does not depend on any
- * scheduled function surviving, so it always finishes a stranded game. Both
- * paths commit through the idempotent `commitAssignedLine`, so they are safe to
- * run concurrently and to fire repeatedly.
+ * scheduled function surviving. The sweep and the worker re-derive abandonment
+ * through the same `isGameAbandoned` predicate, and the worker aborts the moment
+ * a human reconnects, so a returning player is never completed over. Every line
+ * is committed through the idempotent `commitAssignedLine`, so the layers are
+ * safe to overlap and to fire repeatedly.
  */
 
 import { v } from 'convex/values';
-import { internalMutation } from './_generated/server';
+import type { Doc, Id } from './_generated/dataModel';
+import { internalMutation, type MutationCtx } from './_generated/server';
 import { internal } from './_generated/api';
 import { commitAssignedLine } from './ai';
 import { getMatrixRound } from './lib/assignmentMatrix';
 import { getFallbackLine } from './lib/ai/llm';
+import { applyLineLifecycleTransition } from './lib/sessionLifecycle';
 import {
+  ABANDONMENT_HARD_DEADLINE_MS,
   ABANDONMENT_THRESHOLD_MS,
   getFinalRoundIndex,
   getGameRules,
@@ -31,7 +37,84 @@ import {
 import { log } from './lib/errors';
 
 /**
- * Cron entry point. Cheap when idle: a single indexed scan plus a presence
+ * Bound the per-tick scan so a backlog of stuck rooms can never blow the
+ * mutation's read budget and silently disable the whole backstop. Anything
+ * beyond the cap is picked up on the next minute's tick.
+ */
+const SWEEP_SCAN_LIMIT = 500;
+
+/** The human roomPlayers rows for a game (AI players excluded). */
+async function getHumanPlayers(
+  ctx: Pick<MutationCtx, 'db'>,
+  roomId: Id<'rooms'>
+): Promise<Doc<'roomPlayers'>[]> {
+  const players = await ctx.db
+    .query('roomPlayers')
+    .withIndex('by_room', (q) => q.eq('roomId', roomId))
+    .collect();
+  const users = await Promise.all(players.map((p) => ctx.db.get(p.userId)));
+  return players.filter((_, i) => users[i]?.kind !== 'AI');
+}
+
+/**
+ * Single source of truth for "this IN_PROGRESS game is abandoned and may be
+ * auto-completed", re-derived from scratch by both the cron sweep and the
+ * per-game finisher so the two can never disagree.
+ *
+ * Abandoned ⇔ the current round has been idle past ABANDONMENT_THRESHOLD_MS AND
+ * either
+ *   • every human has heartbeat at least once and all have since gone silent
+ *     past the threshold (confident, presence-backed abandonment), or
+ *   • the round has been idle past ABANDONMENT_HARD_DEADLINE_MS (liveness
+ *     backstop for games with absent/partial presence data — the rollout
+ *     window, or a game already IN_PROGRESS when presence shipped).
+ *
+ * A human who has never heartbeat (lastSeenAt === undefined) is treated as
+ * "possibly present on an old bundle": they do NOT satisfy the presence-backed
+ * path, only the hard deadline. Degenerate games with no humans are left to the
+ * per-turn floor.
+ */
+async function isGameAbandoned(
+  ctx: Pick<MutationCtx, 'db'>,
+  game: Doc<'games'>,
+  now: number
+): Promise<boolean> {
+  const idleSince = game.roundStartedAt ?? game.createdAt;
+  const idleMs = now - idleSince;
+  if (idleMs < ABANDONMENT_THRESHOLD_MS) return false;
+
+  const humanPlayers = await getHumanPlayers(ctx, game.roomId);
+  if (humanPlayers.length === 0) return false;
+
+  const allHumansHeartbeatAndStale = humanPlayers.every(
+    (player) =>
+      player.lastSeenAt !== undefined &&
+      isPresenceStale(player.lastSeenAt, now, ABANDONMENT_THRESHOLD_MS)
+  );
+
+  return allHumansHeartbeatAndStale || idleMs >= ABANDONMENT_HARD_DEADLINE_MS;
+}
+
+/**
+ * Whether a human we may have judged absent has since come back — a fresh
+ * heartbeat within the threshold. The finisher checks this every pass (by
+ * presence, NOT idle-age, since its own round advances reset roundStartedAt) so
+ * a player who reconnects between the sweep's decision and the finisher running,
+ * or partway through the walk, immediately ends the backstop.
+ */
+function anyHumanPresent(
+  humanPlayers: Doc<'roomPlayers'>[],
+  now: number
+): boolean {
+  return humanPlayers.some(
+    (player) =>
+      player.lastSeenAt !== undefined &&
+      !isPresenceStale(player.lastSeenAt, now, ABANDONMENT_THRESHOLD_MS)
+  );
+}
+
+/**
+ * Cron entry point. Cheap when idle: a bounded indexed scan plus a presence
  * check per active game. The heavy completion work is scheduled out per game.
  */
 export const sweepAbandonedGames = internalMutation({
@@ -41,42 +124,11 @@ export const sweepAbandonedGames = internalMutation({
     const inProgressGames = await ctx.db
       .query('games')
       .withIndex('by_status', (q) => q.eq('status', 'IN_PROGRESS'))
-      .collect();
+      .take(SWEEP_SCAN_LIMIT);
 
     let scheduled = 0;
     for (const game of inProgressGames) {
-      // Idle-age gate: never complete a fresh or actively-advancing game. This
-      // also protects games whose clients have not heartbeat yet (legacy
-      // clients with no lastSeenAt would otherwise read as "all stale" on the
-      // very first tick).
-      const idleSince = game.roundStartedAt ?? game.createdAt;
-      if (now - idleSince < ABANDONMENT_THRESHOLD_MS) continue;
-
-      const players = await ctx.db
-        .query('roomPlayers')
-        .withIndex('by_room', (q) => q.eq('roomId', game.roomId))
-        .collect();
-      const users = await Promise.all(players.map((p) => ctx.db.get(p.userId)));
-      const humanPlayers = players.filter((_, i) => users[i]?.kind !== 'AI');
-
-      // Degenerate game with no humans — leave it to the per-turn floor.
-      if (humanPlayers.length === 0) continue;
-
-      // Presence must be established before we ever auto-complete a room. In the
-      // rollout where presence first ships, already-connected clients run the
-      // old bundle and never heartbeat, so every human reads as "stale" on a row
-      // that simply has no presence data. Treat "nobody ever heartbeat" as
-      // unknown, not abandoned, and leave such a game to the per-turn floor.
-      const presenceEstablished = humanPlayers.some(
-        (player) => player.lastSeenAt !== undefined
-      );
-      if (!presenceEstablished) continue;
-
-      const allHumansStale = humanPlayers.every((player) =>
-        isPresenceStale(player.lastSeenAt, now, ABANDONMENT_THRESHOLD_MS)
-      );
-      if (!allHumansStale) continue;
-
+      if (!(await isGameAbandoned(ctx, game, now))) continue;
       await ctx.scheduler.runAfter(
         0,
         internal.abandonment.finishAbandonedGame,
@@ -85,6 +137,12 @@ export const sweepAbandonedGames = internalMutation({
       scheduled++;
     }
 
+    if (inProgressGames.length === SWEEP_SCAN_LIMIT) {
+      log.warn(
+        'Abandonment sweep hit its scan cap; remaining games wait for the next tick',
+        { scanLimit: SWEEP_SCAN_LIMIT }
+      );
+    }
     if (scheduled > 0) {
       log.warn('Abandonment sweep scheduled stranded games for completion', {
         scheduled,
@@ -101,13 +159,22 @@ export const sweepAbandonedGames = internalMutation({
  * ghost-filling every missing line until the room reaches COMPLETED. Pure
  * mutation — no LLM action — so completion does not depend on OpenRouter or on
  * any action surviving. Idempotent: re-running on an already-finished game is a
- * no-op, and a line a real player commits in the meantime is left untouched.
+ * no-op, and a line a real player commits in the meantime is left untouched. It
+ * re-derives abandonment on entry and re-checks presence each pass, so it never
+ * completes a room out from under a human who has come back.
  */
 export const finishAbandonedGame = internalMutation({
   args: { gameId: v.id('games') },
   handler: async (ctx, { gameId }) => {
     const initial = await ctx.db.get(gameId);
     if (!initial || initial.status !== 'IN_PROGRESS') {
+      return { completed: false, filled: 0 };
+    }
+
+    // Re-derive abandonment from scratch. The sweep decided in an earlier
+    // transaction; a human may have reconnected since. Never complete a room
+    // out from under someone who just came back.
+    if (!(await isGameAbandoned(ctx, initial, Date.now()))) {
       return { completed: false, filled: 0 };
     }
 
@@ -125,6 +192,11 @@ export const finishAbandonedGame = internalMutation({
       const game = await ctx.db.get(gameId);
       if (!game || game.status !== 'IN_PROGRESS') break;
 
+      // A returning human ends the backstop immediately — judged by presence,
+      // not idle-age, because our own round advances reset roundStartedAt.
+      const humanPlayers = await getHumanPlayers(ctx, game.roomId);
+      if (anyHumanPresent(humanPlayers, Date.now())) break;
+
       const round = game.currentRound;
       const roundAssignments = getMatrixRound(game.assignmentMatrix, round);
 
@@ -139,10 +211,28 @@ export const finishAbandonedGame = internalMutation({
         )
       );
       const missing = poems.filter((_, index) => lineChecks[index] === null);
-      // Round fully present but game not advancing: the line-commit transition
-      // already ran on every poem, so there is nothing more this backstop can
-      // do. Bail rather than spin (the next sweep will retry if needed).
-      if (missing.length === 0) break;
+
+      if (missing.length === 0) {
+        // Round fully present but the game has not advanced — a wedged state the
+        // per-line transition normally prevents (legacy data, a prior bug, a
+        // manual repair). Nudge the canonical transition to heal it instead of
+        // letting the cron reschedule a no-op forever.
+        await applyLineLifecycleTransition(ctx, {
+          game,
+          roomId: game.roomId,
+          lineIndex: round,
+        });
+        const after = await ctx.db.get(gameId);
+        if (
+          after &&
+          after.status === 'IN_PROGRESS' &&
+          after.currentRound === round
+        ) {
+          // Could not advance — nothing more this backstop can do.
+          break;
+        }
+        continue;
+      }
 
       const assignees = await Promise.all(
         missing.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))

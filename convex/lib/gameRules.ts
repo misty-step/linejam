@@ -95,6 +95,18 @@ export const AUTO_GHOST_FILL_MS = GHOSTWRITER_OVERTIME_MS;
  */
 export const ABANDONMENT_THRESHOLD_MS = 10 * 60_000;
 
+/**
+ * Absolute liveness backstop. Presence evidence completes an abandoned game
+ * promptly (every human heartbeat, then all went silent past
+ * ABANDONMENT_THRESHOLD_MS). But a game with no usable presence data — every
+ * human on a pre-presence bundle, or a game already IN_PROGRESS when presence
+ * shipped — can never satisfy that path, and must still complete rather than
+ * strand forever. Once a round has been idle this long, the sweep finishes it
+ * regardless of presence cohort. Long enough that a merely slow party never
+ * trips it; short enough that no room lingers for a human-noticeable age.
+ */
+export const ABANDONMENT_HARD_DEADLINE_MS = 30 * 60_000;
+
 /** Heartbeat cadence for the client presence hook. */
 export const PRESENCE_HEARTBEAT_MS = 15_000;
 

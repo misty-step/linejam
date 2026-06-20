@@ -3,6 +3,7 @@ import { api, internal } from '../../convex/_generated/api';
 import type { Doc, Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import {
+  ABANDONMENT_HARD_DEADLINE_MS,
   ABANDONMENT_THRESHOLD_MS,
   AUTO_GHOST_FILL_MS,
   GHOSTWRITER_OVERTIME_MS,
@@ -26,6 +27,9 @@ type T = ReturnType<typeof setupConvexTest>;
 
 /** A timestamp comfortably past the abandonment threshold (fake clock). */
 const staleStamp = () => Date.now() - ABANDONMENT_THRESHOLD_MS - 60_000;
+
+/** A timestamp past the absolute hard-deadline backstop (fake clock). */
+const deadlineStamp = () => Date.now() - ABANDONMENT_HARD_DEADLINE_MS - 60_000;
 
 type SeedPlayer = {
   name: string;
@@ -356,6 +360,115 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
 
     const linesAfterSecond = await getAllLines(t, gameId);
     expect(linesAfterSecond).toHaveLength(linesAfterFirst.length);
+  });
+
+  it('does not fire while presence is mixed — one human never heartbeat', async () => {
+    const t = setupConvexTest();
+    // Rollout: Ada upgraded then went silent (stale by age); Bo is on the old
+    // bundle and has never heartbeat, so Bo might still be present. The sweep
+    // must hold off until the hard deadline; the per-turn floor owns Bo.
+    await seedClassicGame(t, {
+      players: [
+        { name: 'Ada', lastSeenAt: staleStamp() },
+        { name: 'Bo' }, // never heartbeat (lastSeenAt undefined)
+      ],
+      roundStartedAt: staleStamp(),
+      createdAt: staleStamp(),
+    });
+
+    const sweep = await t.mutation(
+      internal.abandonment.sweepAbandonedGames,
+      {}
+    );
+    expect(sweep).toEqual({ scheduled: 0, scanned: 1 });
+  });
+
+  it('completes a long-idle game past the hard deadline even with no presence data', async () => {
+    const t = setupConvexTest();
+    // No human ever heartbeat (pre-presence game / fully lost rollout). Presence
+    // can never confirm abandonment, but the room must not strand: past the hard
+    // deadline the sweep completes it anyway.
+    const { gameId } = await seedClassicGame(t, {
+      players: [{ name: 'Ada' }, { name: 'Bo' }],
+      roundStartedAt: deadlineStamp(),
+      createdAt: deadlineStamp(),
+    });
+
+    const sweep = await t.mutation(
+      internal.abandonment.sweepAbandonedGames,
+      {}
+    );
+    expect(sweep).toEqual({ scheduled: 1, scanned: 1 });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    expect(game?.status).toBe('COMPLETED');
+  });
+
+  it('finisher bails when a human reconnects after the sweep scheduled it', async () => {
+    const t = setupConvexTest();
+    // The TOCTOU window: the sweep saw everyone stale, but before the worker
+    // runs, Ada's tab reconnects and heartbeats. The worker re-derives presence
+    // and must NOT complete the room over her.
+    const { gameId, roomId, userIds } = await seedClassicGame(t, {
+      players: [
+        { name: 'Ada', lastSeenAt: staleStamp() },
+        { name: 'Bo', lastSeenAt: staleStamp() },
+      ],
+      roundStartedAt: staleStamp(), // idle past threshold, under the hard deadline
+      createdAt: staleStamp(),
+    });
+
+    // Ada returns.
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', userIds[0])
+        )
+        .first();
+      await ctx.db.patch(row!._id, { lastSeenAt: Date.now() });
+    });
+
+    const result = await t.mutation(internal.abandonment.finishAbandonedGame, {
+      gameId,
+    });
+    expect(result).toEqual({ completed: false, filled: 0 });
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    expect(game?.status).toBe('IN_PROGRESS');
+  });
+
+  it('heals a wedged round (all lines present but not advanced) instead of looping', async () => {
+    const t = setupConvexTest();
+    const { gameId, poemIds, matrix } = await seedClassicGame(t, {
+      players: [
+        { name: 'Ada', lastSeenAt: staleStamp() },
+        { name: 'Bo', lastSeenAt: staleStamp() },
+      ],
+      roundStartedAt: staleStamp(),
+      createdAt: staleStamp(),
+      currentRound: 0,
+    });
+    // Force a wedged state: round 0 fully written, but currentRound never moved
+    // off 0 (lines inserted directly, bypassing the lifecycle transition).
+    await t.run(async (ctx) => {
+      for (let p = 0; p < poemIds.length; p++) {
+        await ctx.db.insert('lines', {
+          poemId: poemIds[p],
+          indexInPoem: 0,
+          text: getFallbackLine(WORD_COUNTS[0]),
+          wordCount: WORD_COUNTS[0],
+          authorUserId: matrix[0][p],
+          createdAt: Date.now(),
+        });
+      }
+    });
+
+    await t.mutation(internal.abandonment.finishAbandonedGame, { gameId });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    expect(game?.status).toBe('COMPLETED');
   });
 });
 
