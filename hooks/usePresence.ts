@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { PRESENCE_HEARTBEAT_MS } from '../convex/lib/gameRules';
@@ -20,31 +20,27 @@ export function usePresence(
   guestToken?: string | null
 ): UsePresenceResult {
   const heartbeat = useMutation(api.presence.heartbeat);
-  const tokenRef = useRef(guestToken);
 
-  useEffect(() => {
-    tokenRef.current = guestToken;
-  }, [guestToken]);
-
-  const ping = () => {
+  const ping = useCallback(() => {
     if (!roomCode) return;
     void heartbeat({
       roomCode,
-      guestToken: tokenRef.current || undefined,
+      guestToken: guestToken || undefined,
     }).catch(() => {
       // Heartbeats are best-effort; a failed ping retries on the next tick.
     });
-  };
+  }, [heartbeat, roomCode, guestToken]);
 
   useEffect(() => {
     if (!roomCode) return;
-
-    // Fire immediately on mount so presence is fresh, then on interval.
+    // Fire immediately so presence is fresh, then on interval. `ping` closes
+    // over the current guestToken, so when a guest's token resolves the effect
+    // re-runs and the first authenticated heartbeat lands right away instead of
+    // being dropped and waiting a full interval.
     ping();
     const interval = setInterval(ping, PRESENCE_HEARTBEAT_MS);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomCode]);
+  }, [roomCode, ping]);
 
   return { ping };
 }

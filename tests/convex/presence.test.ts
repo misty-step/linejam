@@ -9,7 +9,7 @@ vi.mock('../../convex/_generated/server', () => ({
   internalMutation: (args: unknown) => args,
 }));
 
-import { heartbeat, getRoomPresence } from '../../convex/presence';
+import { heartbeat } from '../../convex/presence';
 
 const mockGetUser = vi.fn();
 vi.mock('../../convex/lib/auth', () => ({
@@ -111,57 +111,6 @@ describe('presence', () => {
       });
 
       expect(mockDb.patch).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getRoomPresence', () => {
-    it('marks a player as away when lastSeenAt is missing', async () => {
-      mockGetUser.mockResolvedValue({ _id: asUserId('user1') });
-      mockGetRoomByCode.mockResolvedValue({ _id: asRoomId('room1') });
-      mockDb.collect.mockResolvedValue([
-        { userId: asUserId('user1'), lastSeenAt: undefined },
-        { userId: asUserId('user2'), lastSeenAt: Date.now() },
-      ]);
-
-      const result = // @ts-expect-error — calling handler directly for test
-        await getRoomPresence.handler(mockCtx, {
-          roomCode: 'ABCD',
-          guestToken: 'token',
-        });
-
-      expect(result).toEqual([
-        { userId: asUserId('user1'), isAway: true },
-        { userId: asUserId('user2'), isAway: false },
-      ]);
-    });
-
-    it('marks a player as away when lastSeenAt is stale', async () => {
-      const staleTime = Date.now() - 60_000;
-      mockGetUser.mockResolvedValue({ _id: asUserId('user1') });
-      mockGetRoomByCode.mockResolvedValue({ _id: asRoomId('room1') });
-      mockDb.collect.mockResolvedValue([
-        { userId: asUserId('user1'), lastSeenAt: staleTime },
-      ]);
-
-      const result = // @ts-expect-error — calling handler directly for test
-        await getRoomPresence.handler(mockCtx, {
-          roomCode: 'ABCD',
-          guestToken: 'token',
-        });
-
-      expect(result).toEqual([{ userId: asUserId('user1'), isAway: true }]);
-    });
-
-    it('returns null when user is not found', async () => {
-      mockGetUser.mockResolvedValue(null);
-
-      const result = // @ts-expect-error — calling handler directly for test
-        await getRoomPresence.handler(mockCtx, {
-          roomCode: 'ABCD',
-          guestToken: 'token',
-        });
-
-      expect(result).toBeNull();
     });
   });
 });

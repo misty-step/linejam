@@ -1,3 +1,12 @@
+/**
+ * Unit coverage for fillStaleHumanTurns ROUTING only: which poems get a ghost
+ * scheduled (human-assigned, line missing) vs skipped (AI-assigned, already
+ * written, wrong round, not IN_PROGRESS). It mocks the Convex server to assert
+ * the scheduler dispatch. The full ghost-fill chain (generateGhostLine ->
+ * commitGhostLine -> lifecycle transition -> COMPLETED) is proven end-to-end on
+ * the real convex-test engine in abandonment.test.ts; backlog 018 migrates this
+ * file off the mock DB.
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
 import type { Id } from '../../convex/_generated/dataModel';
