@@ -383,7 +383,7 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
     expect(sweep).toEqual({ scheduled: 0, scanned: 1 });
   });
 
-  it('schedules every idle abandoned game the batch scan returns', async () => {
+  it('schedules every idle abandoned game it scans', async () => {
     const t = setupConvexTest();
     for (let i = 0; i < 3; i++) {
       await seedClassicGame(t, {
@@ -431,6 +431,36 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
     );
     // Only the idle game is scanned; the three active games are filtered out.
     expect(sweep).toEqual({ scheduled: 1, scanned: 1 });
+  });
+
+  it('an idle-but-present game does not pin the scan or block an abandoned one', async () => {
+    const t = setupConvexTest();
+    // An idle-round game where a human is still heartbeating (e.g. the per-turn
+    // floor chain died): it sorts to the front of the oldest-idle scan but is
+    // never abandoned. With no batch cap it cannot pin the scan — the truly
+    // abandoned game behind it is still reached and scheduled.
+    await seedClassicGame(t, {
+      players: [
+        { name: 'Present', lastSeenAt: Date.now() },
+        { name: 'Gone', lastSeenAt: staleStamp() },
+      ],
+      roundStartedAt: staleStamp() - 60_000, // older idle, sorts first
+      createdAt: staleStamp() - 60_000,
+    });
+    await seedClassicGame(t, {
+      players: [
+        { name: 'Ada', lastSeenAt: staleStamp() },
+        { name: 'Bo', lastSeenAt: staleStamp() },
+      ],
+      roundStartedAt: staleStamp(),
+      createdAt: staleStamp(),
+    });
+
+    const sweep = await t.mutation(
+      internal.abandonment.sweepAbandonedGames,
+      {}
+    );
+    expect(sweep).toEqual({ scheduled: 1, scanned: 2 });
   });
 
   it('does not fire while presence is mixed — one human never heartbeat', async () => {

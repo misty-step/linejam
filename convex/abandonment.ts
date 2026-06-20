@@ -36,13 +36,6 @@ import {
 } from './lib/gameRules';
 import { log } from './lib/errors';
 
-/**
- * Max abandoned games completed per tick. The scan is oldest-idle first, so any
- * overflow is the freshest of the already-idle games and is picked up next tick
- * — no abandoned room can be starved. Generous; this product never nears it.
- */
-const SWEEP_BATCH = 256;
-
 /** The human roomPlayers rows for a game (AI players excluded). */
 async function getHumanPlayers(
   ctx: Pick<MutationCtx, 'db'>,
@@ -120,12 +113,16 @@ function anyHumanPresent(
 }
 
 /**
- * Cron entry point. Bounded and cheap: an indexed range scan returns only games
- * whose round has been idle past ABANDONMENT_THRESHOLD_MS, oldest first, capped
- * at SWEEP_BATCH. Still-active games (recent roundStartedAt) are filtered out by
- * the index, so they can never crowd out an abandoned room, and the most-idle
- * (most-likely-abandoned) games are always processed first — no starvation. The
- * heavy completion work is scheduled out per game.
+ * Cron entry point. Cheap and self-bounding: an indexed range scan reads only
+ * games whose round has been idle past ABANDONMENT_THRESHOLD_MS. Still-active
+ * games (recent roundStartedAt) are excluded by the index — not scanned then
+ * discarded — so the work scales with the number of *stuck* games (≈0 in a
+ * healthy system), never with total traffic. Every idle game is examined each
+ * tick, so an idle-but-not-abandoned game (a present player whose round hasn't
+ * advanced, a degenerate no-human game) can never pin the scan or starve an
+ * abandoned room behind it. Heavy completion work is scheduled out per game. (If
+ * the idle set itself ever grew huge, a cursor-paged scan would be the next step
+ * — far beyond any realistic scale for this game.)
  */
 export const sweepAbandonedGames = internalMutation({
   args: {},
@@ -137,7 +134,7 @@ export const sweepAbandonedGames = internalMutation({
       .withIndex('by_status_round', (q) =>
         q.eq('status', 'IN_PROGRESS').lte('roundStartedAt', idleCutoff)
       )
-      .take(SWEEP_BATCH);
+      .collect();
 
     let scheduled = 0;
     for (const game of idleGames) {
@@ -150,12 +147,6 @@ export const sweepAbandonedGames = internalMutation({
       scheduled++;
     }
 
-    if (idleGames.length === SWEEP_BATCH) {
-      log.warn(
-        'Abandonment sweep filled its batch; oldest-idle run first, rest next tick',
-        { batch: SWEEP_BATCH }
-      );
-    }
     if (scheduled > 0) {
       log.warn('Abandonment sweep scheduled stranded games for completion', {
         scheduled,
