@@ -36,13 +36,6 @@ import {
 } from './lib/gameRules';
 import { log } from './lib/errors';
 
-/**
- * Bound the per-tick scan so a backlog of stuck rooms can never blow the
- * mutation's read budget and silently disable the whole backstop. Anything
- * beyond the cap is picked up on the next minute's tick.
- */
-const SWEEP_SCAN_LIMIT = 500;
-
 /** The human roomPlayers rows for a game (AI players excluded). */
 async function getHumanPlayers(
   ctx: Pick<MutationCtx, 'db'>,
@@ -86,6 +79,12 @@ async function isGameAbandoned(
   const humanPlayers = await getHumanPlayers(ctx, game.roomId);
   if (humanPlayers.length === 0) return false;
 
+  // A currently-present human (fresh heartbeat) means the room is NOT abandoned,
+  // however idle the round. This keeps the hard-deadline path from ever marking
+  // an actively-attended game abandoned — so the sweep never schedules a
+  // finisher that would only have to bail, and never completes over someone here.
+  if (anyHumanPresent(humanPlayers, now)) return false;
+
   const allHumansHeartbeatAndStale = humanPlayers.every(
     (player) =>
       player.lastSeenAt !== undefined &&
@@ -114,8 +113,11 @@ function anyHumanPresent(
 }
 
 /**
- * Cron entry point. Cheap when idle: a bounded indexed scan plus a presence
- * check per active game. The heavy completion work is scheduled out per game.
+ * Cron entry point. Cheap when idle: an indexed scan of IN_PROGRESS games, and
+ * a presence check only for games already idle past the threshold (the idle-age
+ * gate short-circuits before any per-game read). The heavy completion work is
+ * scheduled out per game. Scans every IN_PROGRESS game so no abandoned room can
+ * be starved behind a page of still-active ones.
  */
 export const sweepAbandonedGames = internalMutation({
   args: {},
@@ -124,7 +126,7 @@ export const sweepAbandonedGames = internalMutation({
     const inProgressGames = await ctx.db
       .query('games')
       .withIndex('by_status', (q) => q.eq('status', 'IN_PROGRESS'))
-      .take(SWEEP_SCAN_LIMIT);
+      .collect();
 
     let scheduled = 0;
     for (const game of inProgressGames) {
@@ -137,12 +139,6 @@ export const sweepAbandonedGames = internalMutation({
       scheduled++;
     }
 
-    if (inProgressGames.length === SWEEP_SCAN_LIMIT) {
-      log.warn(
-        'Abandonment sweep hit its scan cap; remaining games wait for the next tick',
-        { scanLimit: SWEEP_SCAN_LIMIT }
-      );
-    }
     if (scheduled > 0) {
       log.warn('Abandonment sweep scheduled stranded games for completion', {
         scheduled,

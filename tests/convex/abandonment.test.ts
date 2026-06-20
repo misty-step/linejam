@@ -362,6 +362,47 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
     expect(linesAfterSecond).toHaveLength(linesAfterFirst.length);
   });
 
+  it('does not fire on a long-idle game while a human is still present', async () => {
+    const t = setupConvexTest();
+    // Past the hard deadline, but a human is actively heartbeating. Presence
+    // wins over idle-age: the room is not abandoned and must not be scheduled
+    // (otherwise the finisher only bails, wasting a slot every tick).
+    await seedClassicGame(t, {
+      players: [
+        { name: 'Ada', lastSeenAt: Date.now() }, // present
+        { name: 'Bo', lastSeenAt: staleStamp() },
+      ],
+      roundStartedAt: deadlineStamp(),
+      createdAt: deadlineStamp(),
+    });
+
+    const sweep = await t.mutation(
+      internal.abandonment.sweepAbandonedGames,
+      {}
+    );
+    expect(sweep).toEqual({ scheduled: 0, scanned: 1 });
+  });
+
+  it('scans and schedules every abandoned game (no scan cap drops the tail)', async () => {
+    const t = setupConvexTest();
+    for (let i = 0; i < 3; i++) {
+      await seedClassicGame(t, {
+        players: [
+          { name: `Ada${i}`, lastSeenAt: staleStamp() },
+          { name: `Bo${i}`, lastSeenAt: staleStamp() },
+        ],
+        roundStartedAt: staleStamp(),
+        createdAt: staleStamp(),
+      });
+    }
+
+    const sweep = await t.mutation(
+      internal.abandonment.sweepAbandonedGames,
+      {}
+    );
+    expect(sweep).toEqual({ scheduled: 3, scanned: 3 });
+  });
+
   it('does not fire while presence is mixed — one human never heartbeat', async () => {
     const t = setupConvexTest();
     // Rollout: Ada upgraded then went silent (stale by age); Bo is on the old
