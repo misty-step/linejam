@@ -270,7 +270,7 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
   it('does not fire on a fresh game even when nobody has heartbeat yet', async () => {
     const t = setupConvexTest();
     // No lastSeenAt at all (legacy / pre-presence clients), but the round just
-    // opened — the idle-age gate must keep this game alive.
+    // opened — the idle-age index range excludes it, so it isn't even scanned.
     await seedClassicGame(t, {
       players: [{ name: 'Ada' }, { name: 'Bo' }],
       roundStartedAt: Date.now(),
@@ -281,7 +281,7 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
       internal.abandonment.sweepAbandonedGames,
       {}
     );
-    expect(sweep).toEqual({ scheduled: 0, scanned: 1 });
+    expect(sweep).toEqual({ scheduled: 0, scanned: 0 });
   });
 
   it('does not fire on an idle game whose humans never established presence', async () => {
@@ -383,7 +383,7 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
     expect(sweep).toEqual({ scheduled: 0, scanned: 1 });
   });
 
-  it('scans and schedules every abandoned game (no scan cap drops the tail)', async () => {
+  it('schedules every idle abandoned game the batch scan returns', async () => {
     const t = setupConvexTest();
     for (let i = 0; i < 3; i++) {
       await seedClassicGame(t, {
@@ -401,6 +401,36 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
       {}
     );
     expect(sweep).toEqual({ scheduled: 3, scanned: 3 });
+  });
+
+  it('excludes still-active games from the scan so they cannot starve abandoned ones', async () => {
+    const t = setupConvexTest();
+    // Several fresh, actively-advancing games (recent roundStartedAt) plus one
+    // genuinely abandoned game seeded last. The active games must never enter the
+    // idle-age scan, so the abandoned one is always reached — no fixed-order cap
+    // could bury it behind the active majority.
+    for (let i = 0; i < 3; i++) {
+      await seedClassicGame(t, {
+        players: [{ name: `Active${i}A` }, { name: `Active${i}B` }],
+        roundStartedAt: Date.now(),
+        createdAt: Date.now(),
+      });
+    }
+    await seedClassicGame(t, {
+      players: [
+        { name: 'Ada', lastSeenAt: staleStamp() },
+        { name: 'Bo', lastSeenAt: staleStamp() },
+      ],
+      roundStartedAt: staleStamp(),
+      createdAt: staleStamp(),
+    });
+
+    const sweep = await t.mutation(
+      internal.abandonment.sweepAbandonedGames,
+      {}
+    );
+    // Only the idle game is scanned; the three active games are filtered out.
+    expect(sweep).toEqual({ scheduled: 1, scanned: 1 });
   });
 
   it('does not fire while presence is mixed — one human never heartbeat', async () => {
