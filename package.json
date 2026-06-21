@@ -44,7 +44,7 @@
     "ci:dagger:smoke": "./scripts/ci/dagger-call.sh smoke",
     "ci:dagger:typecheck": "./scripts/ci/dagger-call.sh typecheck",
     "ci:dagger:unit-test": "./scripts/ci/dagger-call.sh unit-test",
-    "ci:prepush": "pnpm ci:dagger:all",
+    "ci:prepush": "pnpm typecheck && pnpm lint && pnpm test",
     "canary:responder": "node ./scripts/canary/responder.mjs",
     "canary:smoke": "node ./scripts/canary/trigger-smoke.mjs",
     "canary:webhook:setup": "./scripts/canary/setup-webhook.sh",

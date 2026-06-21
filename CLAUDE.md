@@ -155,7 +155,7 @@ Testing this needs the real scheduler/DB: use convex-test via
 ## Quality Gates
 
 Lefthook pre-commit: `gitleaks`, `eslint --fix`, `prettier --write`
-Lefthook pre-push: `pnpm ci:prepush` (Dagger all, including authenticated browser coverage by default)
+Lefthook pre-push: `pnpm ci:prepush` (fast, Docker-free: `typecheck` + `lint` + `test`). The full contract — build + authenticated browser E2E + osv — is the hosted `merge-gate` (`.github/workflows/ci.yml`), decomposed across parallel runners. Run `pnpm ci:dagger:all` on demand for full local fidelity.
 Commit messages: Conventional Commits (commitlint)
 
 Before starting a ready item from `backlog.d/`, claim it locally:
@@ -224,13 +224,16 @@ Local Dagger now requires real `NEXT_PUBLIC_CANARY_ENDPOINT` and
 contract should fail fast instead of silently substituting placeholder Canary
 browser config.
 
-Local Dagger is the source-of-truth engineering contract. It auto-syncs the active
-Convex dev deployment before auth-heavy E2E and hydrates `GUEST_TOKEN_SECRET`
-from the matching Convex deployment automatically. It refuses to push Convex
-production code unless `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is set explicitly.
-
-Hosted GitHub `merge-gate` still mirrors and enforces that contract remotely for
-branch protection.
+The hosted GitHub `merge-gate` (`.github/workflows/ci.yml`) is the authoritative
+engineering contract: it runs the full suite — format/lint/typecheck/secret/audit,
+unit + build, and the authenticated browser E2E — decomposed across parallel
+runners and enforced by branch protection. `pnpm ci:dagger:all` runs that same
+contract locally on demand (one monolithic Dagger engine, so it wants ample Docker
+memory); it auto-syncs the active Convex dev deployment before auth-heavy E2E and
+hydrates `GUEST_TOKEN_SECRET` from the matching deployment automatically, and
+refuses to push Convex production code unless `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is
+set explicitly. Use it before opening a PR when you want full local fidelity;
+pre-push deliberately runs only the fast Docker-free subset.
 
 Local Dagger also ensures the Clerk `convex` JWT template exists before local
 authenticated browser coverage runs. Keep
@@ -352,7 +355,8 @@ pnpm canary:webhook:setup
 `pnpm canary:webhook:setup` is expected to be rerunnable. It should converge on
 one correct subscription for the responder URL instead of creating duplicates.
 
-Local Dagger remains the authoritative CI contract. Hosted responders should set
+The hosted `merge-gate` is the authoritative CI contract (`pnpm ci:dagger:all`
+mirrors it locally on demand). Hosted responders should set
 `LINEJAM_SMOKE_RUNNER=playwright` and use the committed
 `Dockerfile.responder`/`fly.responder.toml` path so the same remote smoke suite
 can run without embedding Dagger in the webhook worker.
