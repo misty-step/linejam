@@ -6,6 +6,7 @@ import {
   getFinalRoundIndex,
   getGameRules,
   isGameMode,
+  isPresenceStale,
   normalizeGameMode,
 } from '../../convex/lib/gameRules';
 
@@ -69,5 +70,25 @@ describe('gameRules', () => {
     expect(isGameMode('CLASSIC')).toBe(false);
     expect(isGameMode(42)).toBe(false);
     expect(isGameMode(null)).toBe(false);
+  });
+
+  describe('isPresenceStale', () => {
+    const now = 1_000_000;
+
+    it('treats a missing heartbeat as stale', () => {
+      expect(isPresenceStale(undefined, now, 45_000)).toBe(true);
+    });
+
+    it('is fresh within the threshold and stale past it', () => {
+      expect(isPresenceStale(now - 10_000, now, 45_000)).toBe(false);
+      expect(isPresenceStale(now - 45_000, now, 45_000)).toBe(false); // exactly at edge
+      expect(isPresenceStale(now - 45_001, now, 45_000)).toBe(true);
+    });
+
+    it('respects the caller-supplied threshold', () => {
+      const lastSeen = now - 5 * 60_000; // 5 minutes ago
+      expect(isPresenceStale(lastSeen, now, 45_000)).toBe(true); // away threshold
+      expect(isPresenceStale(lastSeen, now, 10 * 60_000)).toBe(false); // abandonment threshold
+    });
   });
 });

@@ -7,6 +7,7 @@ import {
   getSubmissionWindow,
   isRevealReady,
 } from '../../../convex/lib/sessionLifecycle';
+import { AUTO_GHOST_FILL_MS } from '../../../convex/lib/gameRules';
 import { createMockCtx, createMockDb } from '../../helpers/mockConvexDb';
 
 const asGameId = (value: string) => value as unknown as Id<'games'>;
@@ -146,6 +147,16 @@ describe('sessionLifecycle', () => {
     expect(mockCtx.scheduler.runAfter).toHaveBeenCalledWith(
       0,
       internal.ai.scheduleAiTurn,
+      {
+        roomId: asRoomId('room1'),
+        gameId: asGameId('game1'),
+        round: 1,
+      }
+    );
+    // Auto ghost-fill is co-scheduled for the next round
+    expect(mockCtx.scheduler.runAfter).toHaveBeenCalledWith(
+      AUTO_GHOST_FILL_MS,
+      internal.game.fillStaleHumanTurns,
       {
         roomId: asRoomId('room1'),
         gameId: asGameId('game1'),

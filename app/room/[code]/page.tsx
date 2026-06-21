@@ -15,6 +15,7 @@ import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { useUser } from '@/lib/auth';
 import { captureError } from '@/lib/error';
 import { buildLobbyChromeCopy } from '@/lib/roomChromeCopy';
+import { usePresence } from '@/hooks/usePresence';
 
 function UnexpectedRoomState({
   code,
@@ -113,6 +114,9 @@ export default function RoomPage({ params }: RoomPageProps) {
     code,
     guestToken: guestToken || undefined,
   });
+
+  // Heartbeat presence while the room page is mounted (lobby, writing, reveal).
+  usePresence(code, guestToken);
 
   if (authError) {
     return <AuthErrorState message={authError} onRetry={retryAuth} />;

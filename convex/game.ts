@@ -1,5 +1,5 @@
 import { ConvexError, v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+import { mutation, query, internalMutation } from './_generated/server';
 import { internal } from './_generated/api';
 import {
   generateAssignmentMatrix,
@@ -7,9 +7,12 @@ import {
   secureShuffle,
 } from './lib/assignmentMatrix';
 import {
+  AUTO_GHOST_FILL_MS,
   GHOSTWRITER_OVERTIME_MS,
+  PRESENCE_AWAY_MS,
   getFinalRoundIndex,
   getGameRules,
+  isPresenceStale,
 } from './lib/gameRules';
 import { countWords, getLastWord } from './lib/wordCount';
 import { getUser, checkParticipation } from './lib/auth';
@@ -119,6 +122,13 @@ export const startGame = mutation({
       gameId,
       round: 0,
     });
+    // Auto ghost-fill floor: if a human never writes round 0, the room
+    // still advances. Co-located with scheduleAiTurn so they don't drift.
+    await ctx.scheduler.runAfter(
+      AUTO_GHOST_FILL_MS,
+      internal.game.fillStaleHumanTurns,
+      { roomId: room._id, gameId, round: 0 }
+    );
   },
 });
 
@@ -643,7 +653,7 @@ export const getRoundProgress = query({
           : Promise.resolve(null)
       )
     );
-
+    const now = Date.now();
     const progress = playerAssignments.map(({ player }, i) => {
       const userRecord = userById.get(player.userId);
       return {
@@ -654,6 +664,7 @@ export const getRoundProgress = query({
           userRecord?.clerkUserId || userRecord?.guestId || player.userId,
         isBot: userRecord?.kind === 'AI',
         aiPersonaId: userRecord?.aiPersonaId,
+        isAway: isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS),
       };
     });
 
@@ -664,5 +675,67 @@ export const getRoundProgress = query({
       isHost: room.hostUserId === user._id,
       players: progress,
     };
+  },
+});
+
+/**
+ * Auto ghost-fill: finds poems missing a line for the current round where the
+ * assigned author is a human, and schedules a ghost line for each. Idempotent —
+ * if all lines are already committed, it's a no-op. Scheduled via `runAfter`
+ * on round start so a disconnected human never strands the room.
+ */
+export const fillStaleHumanTurns = internalMutation({
+  args: {
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+  },
+  handler: async (ctx, { roomId, gameId, round }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || game.status !== 'IN_PROGRESS') return;
+    if (game.currentRound !== round) return;
+
+    const poems = await ctx.db
+      .query('poems')
+      .withIndex('by_game', (q) => q.eq('gameId', gameId))
+      .collect();
+
+    const roundAssignments = getMatrixRound(game.assignmentMatrix, round);
+
+    // Parallelize line checks for all poems
+    const lineChecks = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) =>
+            q.eq('poemId', poem._id).eq('indexInPoem', round)
+          )
+          .first()
+      )
+    );
+
+    // Fetch user records to distinguish humans from AI
+    const playerUsers = await Promise.all(
+      poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
+    );
+
+    const staleHumanPoems = poems.filter(
+      (poem, i) => lineChecks[i] === null && playerUsers[i]?.kind !== 'AI'
+    );
+    if (staleHumanPoems.length === 0) return;
+
+    await Promise.all(
+      staleHumanPoems.map((poem) =>
+        ctx.scheduler.runAfter(0, internal.ai.generateGhostLine, {
+          roomId,
+          gameId,
+          round,
+          poemId: poem._id,
+          forUserId: roundAssignments[poem.indexInRoom],
+        })
+      )
+    );
+
+    return { filled: staleHumanPoems.length };
   },
 });

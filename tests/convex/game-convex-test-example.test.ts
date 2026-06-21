@@ -1,42 +1,40 @@
 /**
- * CONVEX-TEST MIGRATION NOTES
+ * convex-test reference example.
  *
- * convex-test is installed (v0.0.30) but requires Vite environment configuration.
+ * convex-test runs the real Convex query engine + scheduler in-memory — no mock
+ * DB. It was long deferred here over an `import.meta.glob` error, but that was
+ * self-inflicted: calling `convexTest(schema)` with no modules makes the library
+ * run its glob from inside node_modules, which Vite never transforms. Passing the
+ * glob from a project file fixes it. See `tests/helpers/convexTest.ts`.
  *
- * BLOCKER: import.meta.glob
- * convex-test internally uses `import.meta.glob` to discover Convex modules.
- * This is a Vite-specific feature not available in Node test environment.
- * Error: "TypeError: (intermediate value).glob is not a function"
- *
- * SOLUTIONS (pick one):
- * 1. Configure Vitest to use Vite environment for convex tests
- * 2. Pass modules explicitly via second argument to convexTest()
- * 3. Wait for convex-test to support non-Vite environments
- *
- * BENEFITS (when working):
- * - No mock setup needed - test real Convex behavior
- * - Simpler API: insert data, call mutation, assert
- * - ~1000 lines of mock code deleted
- *
- * EXAMPLE (from docs):
- * ```typescript
- * const t = convexTest(schema);
- * const userId = await t.run(ctx => ctx.db.insert('users', { name: 'Alice' }));
- * await t.mutation(api.game.startGame, { roomId });
- * const room = await t.run(ctx => ctx.db.get(roomId));
- * expect(room?.status).toBe('IN_PROGRESS');
- * ```
- *
- * CURRENT STATE: Manual mocking works, migration deferred until Vite config sorted.
- * See: https://docs.convex.dev/testing/convex-test
+ * Prefer this harness over the mock DB (`tests/helpers/mockConvexDb.ts`) whenever
+ * a test needs real read-your-writes semantics or scheduled functions — e.g. the
+ * multi-round completion chain in `tests/convex/abandonment.test.ts`.
  */
 
 import { describe, it, expect } from 'vitest';
-import { convexTest } from 'convex-test';
+import { setupConvexTest } from '../helpers/convexTest';
 
 describe('convex-test', () => {
-  it('is installed', () => {
-    expect(convexTest).toBeDefined();
-    expect(typeof convexTest).toBe('function');
+  it('runs against a real in-memory backend', async () => {
+    const t = setupConvexTest();
+
+    const room = await t.run(async (ctx) => {
+      const hostUserId = await ctx.db.insert('users', {
+        displayName: 'Host',
+        kind: 'human',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'WXYZ',
+        hostUserId,
+        status: 'LOBBY',
+        createdAt: 0,
+      });
+      return ctx.db.get(roomId);
+    });
+
+    expect(room?.code).toBe('WXYZ');
+    expect(room?.status).toBe('LOBBY');
   });
 });

@@ -32,6 +32,7 @@ interface LobbyPlayer extends Doc<'roomPlayers'> {
   stableId: string;
   isBot?: boolean;
   aiPersonaId?: string;
+  isAway?: boolean;
 }
 
 interface LobbyProps {
@@ -324,6 +325,11 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                       <span className="text-2xl md:text-3xl font-medium text-text-primary">
                         {player.displayName}
                       </span>
+                      {player.isAway && (
+                        <span className="text-xs font-mono uppercase tracking-widest text-text-muted">
+                          away
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {player.isBot && (

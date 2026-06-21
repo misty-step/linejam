@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as abandonment from "../abandonment.js";
 import type * as ai from "../ai.js";
 import type * as archive from "../archive.js";
+import type * as crons from "../crons.js";
 import type * as favorites from "../favorites.js";
 import type * as game from "../game.js";
 import type * as health from "../health.js";
@@ -33,6 +35,7 @@ import type * as lib_sessionLifecycle from "../lib/sessionLifecycle.js";
 import type * as lib_wordCount from "../lib/wordCount.js";
 import type * as migrations from "../migrations.js";
 import type * as poems from "../poems.js";
+import type * as presence from "../presence.js";
 import type * as rooms from "../rooms.js";
 import type * as shares from "../shares.js";
 import type * as users from "../users.js";
@@ -44,8 +47,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  abandonment: typeof abandonment;
   ai: typeof ai;
   archive: typeof archive;
+  crons: typeof crons;
   favorites: typeof favorites;
   game: typeof game;
   health: typeof health;
@@ -69,6 +74,7 @@ declare const fullApi: ApiFromModules<{
   "lib/wordCount": typeof lib_wordCount;
   migrations: typeof migrations;
   poems: typeof poems;
+  presence: typeof presence;
   rooms: typeof rooms;
   shares: typeof shares;
   users: typeof users;

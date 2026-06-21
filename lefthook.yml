@@ -1,5 +1,11 @@
 # Lefthook configuration for Linejam
-# Quality gates: pre-commit (fast), pre-push (comprehensive)
+# Quality gates by frequency x cost:
+#   pre-commit (per commit) : secrets, lint, format on staged files
+#   pre-push   (per push)   : typecheck, lint, unit/integration tests -- fast, no Docker
+#   merge-gate (per PR)     : full contract incl. build + authenticated browser E2E + osv,
+#                             decomposed across parallel runners (.github/workflows/ci.yml)
+# The hosted merge-gate is the authoritative contract; pre-push is its fast local subset.
+# For full local fidelity on demand, run `pnpm ci:dagger:all`.
 
 pre-commit:
   parallel: true
@@ -27,10 +33,14 @@ pre-commit:
       stage_fixed: true
 
 pre-push:
-  parallel: false
+  parallel: true
   commands:
-    dagger:
-      run: pnpm ci:prepush
+    typecheck:
+      run: pnpm typecheck
+    lint:
+      run: pnpm lint
+    test:
+      run: pnpm test
 
 commit-msg:
   commands:

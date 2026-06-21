@@ -25,6 +25,7 @@ interface WaitingScreenProps {
       stableId: string;
       displayName: string;
       isBot?: boolean;
+      isAway?: boolean;
     }>;
   } | null;
 }
@@ -85,7 +86,7 @@ export function WaitingScreen({
   const allSubmitted = submittedCount === players.length;
   const waitingNames = players
     .filter((p) => !p.submitted)
-    .map((p) => p.displayName);
+    .map((p) => (p.isAway ? `${p.displayName} (away)` : p.displayName));
 
   const isOvertime =
     typeof progress.roundStartedAt === 'number' &&
@@ -172,22 +173,26 @@ export function WaitingScreen({
                     />
                   </div>
                 ) : (
-                  // Active - avatar with pulse ring
-                  <div className="relative">
+                  // Active - avatar with pulse ring (dimmed if away)
+                  <div
+                    className={`relative ${player.isAway ? 'opacity-40' : ''}`}
+                  >
                     <Avatar
                       stableId={player.stableId}
                       displayName={player.displayName}
                       allStableIds={allStableIds}
                       size="sm"
                     />
-                    {/* Pulse ring - scaled for tiny dots */}
-                    <div
-                      className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
-                      style={{
-                        animation: 'avatar-pulse 2s ease-out infinite',
-                        color: 'var(--color-primary)',
-                      }}
-                    />
+                    {/* Pulse ring - only for players who are present */}
+                    {!player.isAway && (
+                      <div
+                        className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
+                        style={{
+                          animation: 'avatar-pulse 2s ease-out infinite',
+                          color: 'var(--color-primary)',
+                        }}
+                      />
+                    )}
                   </div>
                 )}
                 {/* Name tooltip on hover */}

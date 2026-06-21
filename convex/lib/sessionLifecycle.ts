@@ -3,7 +3,11 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { getMatrixRound } from './assignmentMatrix';
 import { assignPoemReaders } from './assignPoemReaders';
-import { getFinalRoundIndex, getGameRules } from './gameRules';
+import {
+  AUTO_GHOST_FILL_MS,
+  getFinalRoundIndex,
+  getGameRules,
+} from './gameRules';
 
 type LifecycleCtx = Pick<MutationCtx, 'db' | 'scheduler'>;
 type LifecycleGame = Pick<
@@ -227,6 +231,13 @@ export async function applyLineLifecycleTransition(
       gameId: args.game._id,
       round: nextRound,
     });
+    // Auto ghost-fill floor: if a human never writes this round, the
+    // room still advances. Co-located with scheduleAiTurn so they can't drift.
+    await ctx.scheduler.runAfter(
+      AUTO_GHOST_FILL_MS,
+      internal.game.fillStaleHumanTurns,
+      { roomId: args.roomId, gameId: args.game._id, round: nextRound }
+    );
 
     return;
   }

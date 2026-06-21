@@ -2,7 +2,11 @@ import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser, checkParticipation } from './lib/auth';
-import { gameModeValidator } from './lib/gameRules';
+import {
+  gameModeValidator,
+  PRESENCE_AWAY_MS,
+  isPresenceStale,
+} from './lib/gameRules';
 import { checkRateLimit } from './lib/rateLimit';
 import {
   getRoomByCode,
@@ -194,14 +198,19 @@ export const getRoomState = query({
       .collect();
 
     // Fetch user records to get stable IDs for avatar colors and bot status
+    const now = Date.now();
     const players = await Promise.all(
       roomPlayers.map(async (rp) => {
         const userRecord = await ctx.db.get(rp.userId);
+        // Keep the raw heartbeat timestamp off the wire; `isAway` is the only
+        // presence signal clients need.
+        const { lastSeenAt, ...rest } = rp;
         return {
-          ...rp,
+          ...rest,
           stableId: userRecord?.clerkUserId || userRecord?.guestId || rp.userId,
           isBot: userRecord?.kind === 'AI',
           aiPersonaId: userRecord?.aiPersonaId,
+          isAway: isPresenceStale(lastSeenAt, now, PRESENCE_AWAY_MS),
         };
       })
     );

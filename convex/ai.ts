@@ -405,11 +405,12 @@ type CommitAssignedLineArgs = {
 };
 
 /**
- * Shared committer for machine-written lines (AI turns, safety net, ghost).
- * Idempotent and assignment-checked; substitutes a fallback when the text
- * misses the word count. Returns true when a line was inserted.
+ * Shared committer for machine-written lines (AI turns, safety net, ghost,
+ * abandonment backstop). Idempotent and assignment-checked; substitutes a
+ * fallback when the text misses the word count. Returns true when a line was
+ * inserted. Exported for the abandonment sweep (convex/abandonment.ts).
  */
-async function commitAssignedLine(
+export async function commitAssignedLine(
   ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
   {
     roomId,

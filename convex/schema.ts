@@ -46,6 +46,8 @@ export default defineSchema({
     displayName: v.string(),
     seatIndex: v.optional(v.number()),
     joinedAt: v.number(),
+    /** Last client heartbeat timestamp (ms). Missing on legacy rows; treated as stale. */
+    lastSeenAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
     .index('by_user', ['userId'])
@@ -71,7 +73,11 @@ export default defineSchema({
   })
     .index('by_room', ['roomId'])
     .index('by_room_cycle', ['roomId', 'cycle'])
-    .index('by_room_status', ['roomId', 'status']),
+    .index('by_room_status', ['roomId', 'status'])
+    // Idle-age-ordered scan for the abandonment sweep cron (convex/abandonment.ts):
+    // status === IN_PROGRESS ordered by roundStartedAt, so the sweep reads only
+    // games already idle past the threshold, oldest first — bounded, no starvation.
+    .index('by_status_round', ['status', 'roundStartedAt']),
 
   poems: defineTable({
     roomId: v.id('rooms'),
