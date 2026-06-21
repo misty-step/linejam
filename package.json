@@ -58,15 +58,15 @@
     "clsx": "^2.1.1",
     "convex": "^1.31.7",
     "dompurify": "^3.4.11",
-    "import-in-the-middle": "^3.0.1",
-    "lucide-react": "^1.8.0",
-    "next": "16.2.8",
-    "posthog-js": "^1.369.5",
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
+    "import-in-the-middle": "^3.1.0",
+    "lucide-react": "^1.21.0",
+    "next": "16.2.9",
+    "posthog-js": "^1.391.2",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "require-in-the-middle": "^8.0.1",
     "server-only": "^0.0.1",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@browserbasehq/stagehand": "3.5.0",
