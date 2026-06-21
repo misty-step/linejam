@@ -2,6 +2,12 @@
 
 All notable changes to Linejam.
 
+# [1.7.0](https://github.com/misty-step/linejam/compare/v1.6.0...v1.7.0) (2026-06-21)
+
+### Features
+
+- **game:** never let the room die — presence, self-heal, abandonment cron (016) ([#264](https://github.com/misty-step/linejam/issues/264)) ([2b97309](https://github.com/misty-step/linejam/commit/2b973092d418e178353fcc1c2d9d3eaf6d9117cf))
+
 # [1.6.0](https://github.com/misty-step/linejam/compare/v1.5.0...v1.6.0) (2026-06-13)
 
 ### Bug Fixes
