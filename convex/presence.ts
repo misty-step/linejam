@@ -1,12 +1,15 @@
 import { v } from 'convex/values';
 import { mutation } from './_generated/server';
 import { getUser } from './lib/auth';
-import { getRoomByCode } from './lib/room';
+import { getRoomByCode, migrateHostIfStale } from './lib/room';
+import { HOST_MIGRATION_STALE_MS } from './lib/gameRules';
 
 /**
  * Client heartbeat: stamps `lastSeenAt` on the caller's roomPlayers row.
  * Works for both Clerk and guest users. Throttled client-side to
- * PRESENCE_HEARTBEAT_MS; this mutation is cheap (single patch by composite index).
+ * PRESENCE_HEARTBEAT_MS. Usually a single patch by composite index; a non-host
+ * heartbeat additionally runs the host-migration self-heal (`migrateHostIfStale`),
+ * which short-circuits cheaply unless an in-progress game's host has gone stale.
  */
 export const heartbeat = mutation({
   args: {
@@ -29,6 +32,14 @@ export const heartbeat = mutation({
 
     if (!player) return;
 
-    await ctx.db.patch(player._id, { lastSeenAt: Date.now() });
+    const now = Date.now();
+    await ctx.db.patch(player._id, { lastSeenAt: now });
+
+    // Self-heal host agency: a present non-host's heartbeat promotes a present
+    // participant when the host has gone stale, so host-only actions are never
+    // stranded. The host's own heartbeat can't make them stale, so skip it.
+    if (room.hostUserId !== user._id) {
+      await migrateHostIfStale(ctx, room, now, HOST_MIGRATION_STALE_MS);
+    }
   },
 });

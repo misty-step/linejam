@@ -147,10 +147,18 @@ to overlap):
   `finishAbandonedGame` to deterministically complete them. It re-derives state
   each tick, so it heals games the per-turn chain missed. Completion never
   requires a host action.
+- **Host migration** (backlog 017): the room never reaching `COMPLETED` is the
+  floor; host _agency_ is the next layer. When the host goes stale past
+  `HOST_MIGRATION_STALE_MS` but the game continues, a present participant's
+  heartbeat (`convex/presence.ts`) calls `migrateHostIfStale` (`convex/lib/room.ts`)
+  to promote the lowest-seat present human (`selectNextHostId`) to
+  `rooms.hostUserId`, so host-only actions (`summonGhostwriter`, `closeRoom`,
+  mode select) are never stranded. Idempotent; never demotes a present host; a
+  never-heartbeat host is "present-unknown", not migrated.
 
 Testing this needs the real scheduler/DB: use convex-test via
 `setupConvexTest()` (`tests/helpers/convexTest.ts`), not the mock DB. See
-`tests/convex/abandonment.test.ts`.
+`tests/convex/abandonment.test.ts` and `tests/convex/hostMigration.test.ts`.
 
 ## Quality Gates
 
