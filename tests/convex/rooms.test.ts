@@ -360,9 +360,14 @@ describe('getRoom', () => {
 
     const result = await as(t, 'hostg').query(api.rooms.getRoom, { code });
 
-    expect(result?._id).toBe(roomId);
-    expect(result?.status).toBe('LOBBY');
-    expect(result?.code).toBe(code);
+    // Participant gets the full room document (the { code, status } branch is
+    // for non-participants only).
+    if (!result || !('_id' in result)) {
+      throw new Error('expected the participant room view');
+    }
+    expect(result._id).toBe(roomId);
+    expect(result.status).toBe('LOBBY');
+    expect(result.code).toBe(code);
   });
 
   it('returns null when not authenticated (no identity, no guestToken)', async () => {
@@ -450,7 +455,10 @@ describe('getRoom', () => {
     const result = await as(t, 'hostc').query(api.rooms.getRoom, {
       code: lower,
     });
-    expect(result?._id).toBe(roomId);
+    if (!result || !('_id' in result)) {
+      throw new Error('expected the participant room view');
+    }
+    expect(result._id).toBe(roomId);
   });
 });
 

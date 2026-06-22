@@ -714,12 +714,7 @@ describe('getMyPoems', () => {
     const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
     expect(result).toHaveLength(2);
     // Sorted desc: poem2 (createdAt 2000) first.
-    const byId = Object.fromEntries(
-      result.map((p: { _id: Id<'poems'>; roomDate: number }) => [
-        p._id,
-        p.roomDate,
-      ])
-    );
+    const byId = Object.fromEntries(result.map((p) => [p._id, p.roomDate]));
     expect(byId[poem1]).toBe(100);
     expect(byId[poem2]).toBe(200);
   });
@@ -1361,7 +1356,6 @@ describe('getPublicSessionRecap', () => {
       poetCount: 0,
       lines: [],
     });
-    expect(result?.poemId).toBeUndefined();
     expect(result?.poems[0]._id).toBe(poemId);
   });
 

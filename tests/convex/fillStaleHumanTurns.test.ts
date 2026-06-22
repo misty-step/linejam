@@ -47,7 +47,7 @@ async function seedGame(
   opts: {
     players: SeedPlayer[];
     currentRound?: number;
-    status?: 'IN_PROGRESS' | 'COMPLETED' | 'LOBBY';
+    status?: 'IN_PROGRESS' | 'COMPLETED';
   }
 ): Promise<Seeded> {
   const now = Date.now();
