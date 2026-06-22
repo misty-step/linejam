@@ -12,13 +12,12 @@ import {
   getFinalRoundIndex,
 } from '../../../convex/lib/gameRules';
 import { setupConvexTest } from '../../helpers/convexTest';
+import { type T } from '../../helpers/convexSeed';
 import { getFallbackLine } from '../../../convex/lib/ai/fallbacks';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-type T = ReturnType<typeof setupConvexTest>;
 
 /**
  * Seed a minimal IN_PROGRESS classic game directly into the real DB.

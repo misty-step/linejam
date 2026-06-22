@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser } from '../helpers/convexSeed';
 
 /**
  * shares mutations on the real convex-test engine (backlog 018): real
  * read-your-writes, real auth (getUser via Clerk identity), real participation
  * checks — asserting observable DB state instead of mock-call stubs.
  */
-
-type T = ReturnType<typeof setupConvexTest>;
 
 /**
  * Seed a COMPLETED room (code ABCD) owned by a participating 'clerk_owner',
@@ -63,15 +62,15 @@ async function seedRoom(
   });
 }
 
-const asOwner = (t: T) => t.withIdentity({ subject: 'clerk_owner' });
-
 describe('shares', () => {
   describe('enablePublicPoemShare', () => {
     it('marks a poem public when the caller participates in its room', async () => {
       const t = setupConvexTest();
       const { poemId } = await seedRoom(t);
 
-      await asOwner(t).mutation(api.shares.enablePublicPoemShare, { poemId });
+      await asUser(t, 'owner').mutation(api.shares.enablePublicPoemShare, {
+        poemId,
+      });
 
       const poem = await t.run((ctx) => ctx.db.get(poemId));
       expect(poem?.publicShareEnabled).toBe(true);
@@ -108,7 +107,9 @@ describe('shares', () => {
       const t = setupConvexTest();
       const { poemId } = await seedRoom(t, { publicShareEnabled: true });
 
-      await asOwner(t).mutation(api.shares.disablePublicPoemShare, { poemId });
+      await asUser(t, 'owner').mutation(api.shares.disablePublicPoemShare, {
+        poemId,
+      });
 
       const poem = await t.run((ctx) => ctx.db.get(poemId));
       expect(poem?.publicShareEnabled).toBe(false);
@@ -121,9 +122,12 @@ describe('shares', () => {
       const t = setupConvexTest();
       const { gameId } = await seedRoom(t, { revealed: true });
 
-      await asOwner(t).mutation(api.shares.enablePublicSessionRecapShare, {
-        roomCode: 'ABCD',
-      });
+      await asUser(t, 'owner').mutation(
+        api.shares.enablePublicSessionRecapShare,
+        {
+          roomCode: 'ABCD',
+        }
+      );
 
       const game = await t.run((ctx) => ctx.db.get(gameId));
       expect(game?.publicRecapEnabled).toBe(true);
@@ -144,7 +148,7 @@ describe('shares', () => {
       );
 
       await expect(
-        asOwner(t).mutation(api.shares.enablePublicSessionRecapShare, {
+        asUser(t, 'owner').mutation(api.shares.enablePublicSessionRecapShare, {
           roomCode: 'ABCD',
         })
       ).rejects.toThrow('Session recap not ready');
@@ -162,9 +166,12 @@ describe('shares', () => {
         publicRecapEnabled: true,
       });
 
-      await asOwner(t).mutation(api.shares.disablePublicSessionRecapShare, {
-        roomCode: 'ABCD',
-      });
+      await asUser(t, 'owner').mutation(
+        api.shares.disablePublicSessionRecapShare,
+        {
+          roomCode: 'ABCD',
+        }
+      );
 
       const game = await t.run((ctx) => ctx.db.get(gameId));
       expect(game?.publicRecapEnabled).toBe(false);

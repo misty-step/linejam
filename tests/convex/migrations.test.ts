@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import { setupConvexTest } from '../helpers/convexTest';
 import { signGuestToken } from '../../lib/guestToken';
+import { type T, asUser, seedUser } from '../helpers/convexSeed';
 
 /**
  * migrateGuestToUser on the real convex-test engine (backlog 018): real
@@ -14,8 +15,6 @@ import { signGuestToken } from '../../lib/guestToken';
  * round-trip without any env var.
  */
 
-type T = ReturnType<typeof setupConvexTest>;
-
 /** Seed a guest user and return { guestUserId, guestToken }. */
 async function seedGuestUser(
   t: T,
@@ -26,34 +25,9 @@ async function seedGuestUser(
   guestToken: string;
 }> {
   const guestToken = await signGuestToken(guestId);
-  const guestUserId = await t.run((ctx) =>
-    ctx.db.insert('users', {
-      guestId,
-      displayName,
-      kind: 'human',
-      createdAt: 0,
-    })
-  );
+  const guestUserId = await seedUser(t, { displayName, guestId });
   return { guestUserId, guestToken };
 }
-
-/** Seed a Clerk user (pre-existing authenticated user record). */
-async function seedClerkUser(
-  t: T,
-  clerkSubject: string,
-  displayName = 'Clerk User'
-): Promise<import('../../convex/_generated/dataModel').Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      clerkUserId: clerkSubject,
-      displayName,
-      kind: 'human',
-      createdAt: 0,
-    })
-  );
-}
-
-const asClerk = (t: T, subject: string) => t.withIdentity({ subject });
 
 describe('migrateGuestToUser', () => {
   it('throws Not authenticated when no Clerk identity is present', async () => {
@@ -69,7 +43,7 @@ describe('migrateGuestToUser', () => {
     const t = setupConvexTest();
 
     await expect(
-      asClerk(t, 'clerk_alice').mutation(api.migrations.migrateGuestToUser, {
+      asUser(t, 'alice').mutation(api.migrations.migrateGuestToUser, {
         guestToken: 'not-a-valid-token',
       })
     ).rejects.toThrow('Invalid guest token');
@@ -87,7 +61,7 @@ describe('migrateGuestToUser', () => {
       })
     );
 
-    const result = await asClerk(t, 'clerk_alice').mutation(
+    const result = await asUser(t, 'alice').mutation(
       api.migrations.migrateGuestToUser,
       { guestToken }
     );
@@ -109,7 +83,7 @@ describe('migrateGuestToUser', () => {
     const guestToken = await signGuestToken('guest-missing');
 
     await expect(
-      asClerk(t, 'clerk_bob').mutation(api.migrations.migrateGuestToUser, {
+      asUser(t, 'bob').mutation(api.migrations.migrateGuestToUser, {
         guestToken,
       })
     ).rejects.toThrow('Guest user not found');
@@ -118,7 +92,7 @@ describe('migrateGuestToUser', () => {
   it('returns alreadyMigrated when the Clerk user record IS the guest record (same _id)', async () => {
     const t = setupConvexTest();
     // Create a user that already has the Clerk subject stamped — no guest record.
-    await seedClerkUser(t, 'clerk_carol', 'Carol');
+    await seedUser(t, { displayName: 'Carol', clerkUserId: 'clerk_carol' });
     // We need a guestId token that resolves to the same user. Since ensureUserHelper
     // will find the user by Clerk identity and return the same _id, both branches
     // collapse to alreadyMigrated. But we still need a guest user row for the first
@@ -138,17 +112,13 @@ describe('migrateGuestToUser', () => {
     // Insert a user that has BOTH clerkUserId AND guestId — a previously migrated
     // hybrid. getUser will find it via by_clerk; ensureUserHelper returns it.
     // The migration then sees authUser._id === guestUser._id.
-    await t.run((ctx) =>
-      ctx.db.insert('users', {
-        guestId,
-        clerkUserId: 'clerk_hybrid',
-        displayName: 'Hybrid',
-        kind: 'human',
-        createdAt: 0,
-      })
-    );
+    await seedUser(t, {
+      displayName: 'Hybrid',
+      guestId,
+      clerkUserId: 'clerk_hybrid',
+    });
 
-    const result = await asClerk(t, 'clerk_hybrid').mutation(
+    const result = await asUser(t, 'hybrid').mutation(
       api.migrations.migrateGuestToUser,
       { guestToken }
     );
@@ -218,7 +188,7 @@ describe('migrateGuestToUser', () => {
       return { lineId: lId, favoriteId: fId, roomPlayerId: rpId };
     });
 
-    const result = await asClerk(t, 'clerk_dave').mutation(
+    const result = await asUser(t, 'dave').mutation(
       api.migrations.migrateGuestToUser,
       { guestToken }
     );
@@ -272,14 +242,14 @@ describe('migrateGuestToUser', () => {
     const { guestToken } = await seedGuestUser(t, 'guest-idem', 'Idem Guest');
 
     // First run succeeds.
-    const first = await asClerk(t, 'clerk_eve').mutation(
+    const first = await asUser(t, 'eve').mutation(
       api.migrations.migrateGuestToUser,
       { guestToken }
     );
     expect(first).toMatchObject({ success: true });
 
     // Second run short-circuits.
-    const second = await asClerk(t, 'clerk_eve').mutation(
+    const second = await asUser(t, 'eve').mutation(
       api.migrations.migrateGuestToUser,
       { guestToken }
     );
@@ -299,7 +269,7 @@ describe('migrateGuestToUser', () => {
     const t = setupConvexTest();
     const { guestToken } = await seedGuestUser(t, 'guest-empty', 'Empty Guest');
 
-    const result = await asClerk(t, 'clerk_frank').mutation(
+    const result = await asUser(t, 'frank').mutation(
       api.migrations.migrateGuestToUser,
       { guestToken }
     );

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 
 /**
  * rooms mutations/queries on the real convex-test engine (backlog 018): real
@@ -12,28 +13,6 @@ import { setupConvexTest } from '../helpers/convexTest';
  * selectGameMode.
  */
 
-type T = ReturnType<typeof setupConvexTest>;
-
-/** Seed a Clerk user row directly and return its _id. */
-async function seedUser(
-  t: T,
-  clerkName: string,
-  displayName = clerkName
-): Promise<Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      displayName,
-      kind: 'human',
-      clerkUserId: `clerk_${clerkName}`,
-      createdAt: 0,
-    })
-  );
-}
-
-/** Run a mutation/query as a named Clerk user. */
-const as = (t: T, clerkName: string) =>
-  t.withIdentity({ subject: `clerk_${clerkName}` });
-
 /**
  * Seed a LOBBY room owned by `hostClerkName`, with the host already in
  * roomPlayers. Returns the roomId and the real room code.
@@ -43,7 +22,7 @@ async function seedLobbyRoom(
   hostClerkName: string,
   hostDisplayName = 'Host'
 ): Promise<{ roomId: Id<'rooms'>; code: string }> {
-  const result = await as(t, hostClerkName).mutation(api.rooms.createRoom, {
+  const result = await asUser(t, hostClerkName).mutation(api.rooms.createRoom, {
     displayName: hostDisplayName,
   });
   return { roomId: result.roomId, code: result.code };
@@ -58,8 +37,10 @@ async function seedRoomWithActiveGame(
   hostClerkName: string,
   guestClerkName: string
 ): Promise<{ roomId: Id<'rooms'>; code: string }> {
-  const hostId = await seedUser(t, hostClerkName, 'Host');
-  const guestId = await seedUser(t, guestClerkName, 'Guest');
+  const hostId = await seedClerkUser(t, hostClerkName, { displayName: 'Host' });
+  const guestId = await seedClerkUser(t, guestClerkName, {
+    displayName: 'Guest',
+  });
   const roomId = await t.run((ctx) =>
     ctx.db.insert('rooms', {
       code: 'XYZW',
@@ -106,9 +87,9 @@ async function seedRoomWithActiveGame(
 describe('createRoom', () => {
   it('creates room with valid host: LOBBY status, 4-letter code, host in roomPlayers', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'alice', 'Alice');
+    await seedClerkUser(t, 'alice', { displayName: 'Alice' });
 
-    const result = await as(t, 'alice').mutation(api.rooms.createRoom, {
+    const result = await asUser(t, 'alice').mutation(api.rooms.createRoom, {
       displayName: 'Alice',
     });
 
@@ -133,9 +114,9 @@ describe('createRoom', () => {
 
   it('assigns host as first player in roomPlayers', async () => {
     const t = setupConvexTest();
-    const userId = await seedUser(t, 'bob', 'Bob');
+    const userId = await seedClerkUser(t, 'bob', { displayName: 'Bob' });
 
-    const { roomId } = await as(t, 'bob').mutation(api.rooms.createRoom, {
+    const { roomId } = await asUser(t, 'bob').mutation(api.rooms.createRoom, {
       displayName: 'Bob',
     });
 
@@ -151,9 +132,9 @@ describe('createRoom', () => {
 
   it('returns room ID and code on success', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'carol', 'Carol');
+    await seedClerkUser(t, 'carol', { displayName: 'Carol' });
 
-    const result = await as(t, 'carol').mutation(api.rooms.createRoom, {
+    const result = await asUser(t, 'carol').mutation(api.rooms.createRoom, {
       displayName: 'Carol',
     });
 
@@ -165,12 +146,12 @@ describe('createRoom', () => {
 
   it('generates unique codes across multiple rooms', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'dave', 'Dave');
+    await seedClerkUser(t, 'dave', { displayName: 'Dave' });
 
-    const r1 = await as(t, 'dave').mutation(api.rooms.createRoom, {
+    const r1 = await asUser(t, 'dave').mutation(api.rooms.createRoom, {
       displayName: 'Dave',
     });
-    const r2 = await as(t, 'dave').mutation(api.rooms.createRoom, {
+    const r2 = await asUser(t, 'dave').mutation(api.rooms.createRoom, {
       displayName: 'Dave',
     });
 
@@ -187,18 +168,18 @@ describe('createRoom', () => {
 
   it('enforces rate limit: 4th createRoom within window fails', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'eve', 'Eve');
+    await seedClerkUser(t, 'eve', { displayName: 'Eve' });
 
     // First three succeed
     for (let i = 0; i < 3; i++) {
-      await as(t, 'eve').mutation(api.rooms.createRoom, {
+      await asUser(t, 'eve').mutation(api.rooms.createRoom, {
         displayName: 'Eve',
       });
     }
 
     // Fourth should be rate-limited
     await expect(
-      as(t, 'eve').mutation(api.rooms.createRoom, { displayName: 'Eve' })
+      asUser(t, 'eve').mutation(api.rooms.createRoom, { displayName: 'Eve' })
     ).rejects.toThrow();
   });
 });
@@ -210,12 +191,12 @@ describe('createRoom', () => {
 describe('joinRoom', () => {
   it('joins room when LOBBY status and adds player to roomPlayers', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'host', 'Host');
-    const guestId = await seedUser(t, 'guest', 'Guest');
+    await seedClerkUser(t, 'host', { displayName: 'Host' });
+    const guestId = await seedClerkUser(t, 'guest', { displayName: 'Guest' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'host');
 
-    const result = await as(t, 'guest').mutation(api.rooms.joinRoom, {
+    const result = await asUser(t, 'guest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'Guest',
     });
@@ -238,16 +219,16 @@ describe('joinRoom', () => {
 
   it('is idempotent: joining twice does not create a duplicate row', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'host2', 'Host2');
-    await seedUser(t, 'joiner2', 'Joiner2');
+    await seedClerkUser(t, 'host2', { displayName: 'Host2' });
+    await seedClerkUser(t, 'joiner2', { displayName: 'Joiner2' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'host2');
 
-    await as(t, 'joiner2').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'joiner2').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'Joiner2',
     });
-    await as(t, 'joiner2').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'joiner2').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'Joiner2',
     });
@@ -263,10 +244,10 @@ describe('joinRoom', () => {
 
   it('throws when room code is invalid', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'nobody', 'Nobody');
+    await seedClerkUser(t, 'nobody', { displayName: 'Nobody' });
 
     await expect(
-      as(t, 'nobody').mutation(api.rooms.joinRoom, {
+      asUser(t, 'nobody').mutation(api.rooms.joinRoom, {
         code: 'ZZZZ',
         displayName: 'Nobody',
       })
@@ -275,11 +256,11 @@ describe('joinRoom', () => {
 
   it('throws when a game is in progress', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'late', 'Late');
+    await seedClerkUser(t, 'late', { displayName: 'Late' });
     const { code } = await seedRoomWithActiveGame(t, 'hosta', 'guesta');
 
     await expect(
-      as(t, 'late').mutation(api.rooms.joinRoom, {
+      asUser(t, 'late').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Late',
       })
@@ -288,7 +269,7 @@ describe('joinRoom', () => {
 
   it('throws when room is at capacity (8 players)', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'overflow', 'Overflow');
+    await seedClerkUser(t, 'overflow', { displayName: 'Overflow' });
 
     // Create a lobby room and seed 7 additional players to fill to 8
     const { code, roomId } = await seedLobbyRoom(t, 'overflow');
@@ -310,9 +291,9 @@ describe('joinRoom', () => {
     });
 
     // 9th join attempt should fail
-    await seedUser(t, 'ninth', 'Ninth');
+    await seedClerkUser(t, 'ninth', { displayName: 'Ninth' });
     await expect(
-      as(t, 'ninth').mutation(api.rooms.joinRoom, {
+      asUser(t, 'ninth').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Ninth',
       })
@@ -321,25 +302,25 @@ describe('joinRoom', () => {
 
   it('enforces rate limit: 11th join within window fails', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'spammer', 'Spammer');
+    await seedClerkUser(t, 'spammer', { displayName: 'Spammer' });
 
     // Create 10 different rooms (we need distinct rooms to join)
     // Actually the rate limit is per user, per key joinRoom:<userId>
     // We'll use 10 different host/rooms to verify the real rate limiter fires
     for (let i = 0; i < 10; i++) {
-      await seedUser(t, `rhost${i}`, `RHost${i}`);
+      await seedClerkUser(t, `rhost${i}`, { displayName: `RHost${i}` });
       const { code } = await seedLobbyRoom(t, `rhost${i}`);
-      await as(t, 'spammer').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'spammer').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Spammer',
       });
     }
 
     // 11th join — now rate limited
-    await seedUser(t, 'rhost10', 'RHost10');
+    await seedClerkUser(t, 'rhost10', { displayName: 'RHost10' });
     const { code: code11 } = await seedLobbyRoom(t, 'rhost10');
     await expect(
-      as(t, 'spammer').mutation(api.rooms.joinRoom, {
+      asUser(t, 'spammer').mutation(api.rooms.joinRoom, {
         code: code11,
         displayName: 'Spammer',
       })
@@ -354,11 +335,11 @@ describe('joinRoom', () => {
 describe('getRoom', () => {
   it('returns room data (with live status) for a participant', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'hostg', 'HostG');
+    await seedClerkUser(t, 'hostg', { displayName: 'HostG' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'hostg');
 
-    const result = await as(t, 'hostg').query(api.rooms.getRoom, { code });
+    const result = await asUser(t, 'hostg').query(api.rooms.getRoom, { code });
 
     // Participant gets the full room document (the { code, status } branch is
     // for non-participants only).
@@ -372,7 +353,7 @@ describe('getRoom', () => {
 
   it('returns null when not authenticated (no identity, no guestToken)', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'hostg2', 'HostG2');
+    await seedClerkUser(t, 'hostg2', { displayName: 'HostG2' });
     const { code } = await seedLobbyRoom(t, 'hostg2');
 
     const result = await t.query(api.rooms.getRoom, { code });
@@ -381,9 +362,9 @@ describe('getRoom', () => {
 
   it('returns null when room not found', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'hostg3', 'HostG3');
+    await seedClerkUser(t, 'hostg3', { displayName: 'HostG3' });
 
-    const result = await as(t, 'hostg3').query(api.rooms.getRoom, {
+    const result = await asUser(t, 'hostg3').query(api.rooms.getRoom, {
       code: 'ZZZZ',
     });
     expect(result).toBeNull();
@@ -391,13 +372,15 @@ describe('getRoom', () => {
 
   it('returns limited data for non-participant in a LOBBY room that is not full', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'hosta2', 'HostA2');
-    await seedUser(t, 'outsider', 'Outsider');
+    await seedClerkUser(t, 'hosta2', { displayName: 'HostA2' });
+    await seedClerkUser(t, 'outsider', { displayName: 'Outsider' });
 
     const { code } = await seedLobbyRoom(t, 'hosta2');
 
     // outsider is authenticated but not a roomPlayer
-    const result = await as(t, 'outsider').query(api.rooms.getRoom, { code });
+    const result = await asUser(t, 'outsider').query(api.rooms.getRoom, {
+      code,
+    });
 
     // Only code + status, not the full room doc
     expect(result).toEqual({ code: code, status: 'LOBBY' });
@@ -407,10 +390,10 @@ describe('getRoom', () => {
 
   it('returns null for non-participant when a game is in progress', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'latecomer', 'Latecomer');
+    await seedClerkUser(t, 'latecomer', { displayName: 'Latecomer' });
     const { code } = await seedRoomWithActiveGame(t, 'hostb', 'guestb');
 
-    const result = await as(t, 'latecomer').query(api.rooms.getRoom, {
+    const result = await asUser(t, 'latecomer').query(api.rooms.getRoom, {
       code,
     });
     expect(result).toBeNull();
@@ -418,8 +401,8 @@ describe('getRoom', () => {
 
   it('returns null for non-participant when room is full (8 players)', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'hostfull', 'HostFull');
-    await seedUser(t, 'viewer', 'Viewer');
+    await seedClerkUser(t, 'hostfull', { displayName: 'HostFull' });
+    await seedClerkUser(t, 'viewer', { displayName: 'Viewer' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'hostfull');
 
@@ -440,19 +423,19 @@ describe('getRoom', () => {
       }
     });
 
-    const result = await as(t, 'viewer').query(api.rooms.getRoom, { code });
+    const result = await asUser(t, 'viewer').query(api.rooms.getRoom, { code });
     expect(result).toBeNull();
   });
 
   it('normalizes code to uppercase before lookup', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'hostc', 'HostC');
+    await seedClerkUser(t, 'hostc', { displayName: 'HostC' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'hostc');
     const lower = code.toLowerCase();
 
     // Query with lowercase — should still find the room
-    const result = await as(t, 'hostc').query(api.rooms.getRoom, {
+    const result = await asUser(t, 'hostc').query(api.rooms.getRoom, {
       code: lower,
     });
     if (!result || !('_id' in result)) {
@@ -469,11 +452,13 @@ describe('getRoom', () => {
 describe('getRoomState', () => {
   it('returns room, players, and isHost=true for the host', async () => {
     const t = setupConvexTest();
-    const hostId = await seedUser(t, 'shost', 'SHost');
+    const hostId = await seedClerkUser(t, 'shost', { displayName: 'SHost' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'shost', 'SHost');
 
-    const result = await as(t, 'shost').query(api.rooms.getRoomState, { code });
+    const result = await asUser(t, 'shost').query(api.rooms.getRoomState, {
+      code,
+    });
 
     expect(result).not.toBeNull();
     expect(result?.isHost).toBe(true);
@@ -496,16 +481,16 @@ describe('getRoomState', () => {
 
   it('returns isHost=false for a non-host participant', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'roomhost', 'RoomHost');
-    await seedUser(t, 'roomguest', 'RoomGuest');
+    await seedClerkUser(t, 'roomhost', { displayName: 'RoomHost' });
+    await seedClerkUser(t, 'roomguest', { displayName: 'RoomGuest' });
 
     const { code } = await seedLobbyRoom(t, 'roomhost');
-    await as(t, 'roomguest').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'roomguest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'RoomGuest',
     });
 
-    const result = await as(t, 'roomguest').query(api.rooms.getRoomState, {
+    const result = await asUser(t, 'roomguest').query(api.rooms.getRoomState, {
       code,
     });
     expect(result?.isHost).toBe(false);
@@ -513,21 +498,21 @@ describe('getRoomState', () => {
 
   it('includes all players in the players array', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'h', 'H');
-    await seedUser(t, 'p1', 'P1');
-    await seedUser(t, 'p2', 'P2');
+    await seedClerkUser(t, 'h', { displayName: 'H' });
+    await seedClerkUser(t, 'p1', { displayName: 'P1' });
+    await seedClerkUser(t, 'p2', { displayName: 'P2' });
 
     const { code } = await seedLobbyRoom(t, 'h', 'H');
-    await as(t, 'p1').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'p1').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'P1',
     });
-    await as(t, 'p2').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'p2').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'P2',
     });
 
-    const result = await as(t, 'h').query(api.rooms.getRoomState, { code });
+    const result = await asUser(t, 'h').query(api.rooms.getRoomState, { code });
     expect(result?.players).toHaveLength(3);
     const names = result?.players.map((p) => p.displayName);
     expect(names).toContain('H');
@@ -537,9 +522,9 @@ describe('getRoomState', () => {
 
   it('returns null when room not found', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'rsnf', 'RsNF');
+    await seedClerkUser(t, 'rsnf', { displayName: 'RsNF' });
 
-    const result = await as(t, 'rsnf').query(api.rooms.getRoomState, {
+    const result = await asUser(t, 'rsnf').query(api.rooms.getRoomState, {
       code: 'ZZZZ',
     });
     expect(result).toBeNull();
@@ -547,7 +532,7 @@ describe('getRoomState', () => {
 
   it('returns null when not authenticated', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'rshost', 'RSHost');
+    await seedClerkUser(t, 'rshost', { displayName: 'RSHost' });
     const { code } = await seedLobbyRoom(t, 'rshost');
 
     const result = await t.query(api.rooms.getRoomState, { code });
@@ -556,13 +541,13 @@ describe('getRoomState', () => {
 
   it('returns null when authenticated user is not a participant', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'rshost2', 'RSHost2');
-    await seedUser(t, 'rsnone', 'RSNone');
+    await seedClerkUser(t, 'rshost2', { displayName: 'RSHost2' });
+    await seedClerkUser(t, 'rsnone', { displayName: 'RSNone' });
 
     const { code } = await seedLobbyRoom(t, 'rshost2');
 
     // rsnone is authenticated but never joined the room
-    const result = await as(t, 'rsnone').query(api.rooms.getRoomState, {
+    const result = await asUser(t, 'rsnone').query(api.rooms.getRoomState, {
       code,
     });
     expect(result).toBeNull();
@@ -570,7 +555,7 @@ describe('getRoomState', () => {
 
   it('does not expose lastSeenAt on any player', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'hearthost', 'HeartHost');
+    await seedClerkUser(t, 'hearthost', { displayName: 'HeartHost' });
     const { code, roomId } = await seedLobbyRoom(t, 'hearthost');
 
     // Stamp a lastSeenAt on the player row (simulating a heartbeat)
@@ -582,7 +567,7 @@ describe('getRoomState', () => {
       if (rp) await ctx.db.patch(rp._id, { lastSeenAt: Date.now() });
     });
 
-    const result = await as(t, 'hearthost').query(api.rooms.getRoomState, {
+    const result = await asUser(t, 'hearthost').query(api.rooms.getRoomState, {
       code,
     });
     for (const player of result?.players ?? []) {
@@ -600,16 +585,18 @@ describe('getRoomState', () => {
 describe('leaveLobby', () => {
   it('deletes roomPlayer record when a non-host leaves', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'leavehost', 'LeaveHost');
-    const guestId = await seedUser(t, 'leaveguest', 'LeaveGuest');
+    await seedClerkUser(t, 'leavehost', { displayName: 'LeaveHost' });
+    const guestId = await seedClerkUser(t, 'leaveguest', {
+      displayName: 'LeaveGuest',
+    });
 
     const { code, roomId } = await seedLobbyRoom(t, 'leavehost');
-    await as(t, 'leaveguest').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'leaveguest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'LeaveGuest',
     });
 
-    await as(t, 'leaveguest').mutation(api.rooms.leaveLobby, {
+    await asUser(t, 'leaveguest').mutation(api.rooms.leaveLobby, {
       roomCode: code,
     });
 
@@ -626,11 +613,11 @@ describe('leaveLobby', () => {
 
   it('does nothing when the host tries to leave (host is protected)', async () => {
     const t = setupConvexTest();
-    const hostId = await seedUser(t, 'lhost', 'LHost');
+    const hostId = await seedClerkUser(t, 'lhost', { displayName: 'LHost' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'lhost', 'LHost');
 
-    await as(t, 'lhost').mutation(api.rooms.leaveLobby, { roomCode: code });
+    await asUser(t, 'lhost').mutation(api.rooms.leaveLobby, { roomCode: code });
 
     const rows = await t.run((ctx) =>
       ctx.db
@@ -650,7 +637,9 @@ describe('leaveLobby', () => {
     // lgguest tries to leave during an active game — should be a no-op
     const before = await t.run((ctx) => ctx.db.query('roomPlayers').collect());
 
-    await as(t, 'lgguest').mutation(api.rooms.leaveLobby, { roomCode: code });
+    await asUser(t, 'lgguest').mutation(api.rooms.leaveLobby, {
+      roomCode: code,
+    });
 
     const after = await t.run((ctx) => ctx.db.query('roomPlayers').collect());
     expect(after).toHaveLength(before.length);
@@ -658,7 +647,7 @@ describe('leaveLobby', () => {
 
   it('does nothing when user is not authenticated', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'lhostna', 'LHostNA');
+    await seedClerkUser(t, 'lhostna', { displayName: 'LHostNA' });
     const { code } = await seedLobbyRoom(t, 'lhostna');
 
     const before = await t.run((ctx) => ctx.db.query('roomPlayers').collect());
@@ -672,11 +661,11 @@ describe('leaveLobby', () => {
 
   it('does nothing when room not found', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'lhostrnf', 'LHostRNF');
+    await seedClerkUser(t, 'lhostrnf', { displayName: 'LHostRNF' });
 
     // Should silently return (null/undefined), not throw
     await expect(
-      as(t, 'lhostrnf').mutation(api.rooms.leaveLobby, { roomCode: 'ZZZZ' })
+      asUser(t, 'lhostrnf').mutation(api.rooms.leaveLobby, { roomCode: 'ZZZZ' })
     ).resolves.toBeFalsy();
   });
 });
@@ -688,11 +677,11 @@ describe('leaveLobby', () => {
 describe('selectGameMode', () => {
   it('lets the host pick a mode in the lobby: DB row reflects selection', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'modehost', 'ModeHost');
+    await seedClerkUser(t, 'modehost', { displayName: 'ModeHost' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'modehost');
 
-    await as(t, 'modehost').mutation(api.rooms.selectGameMode, {
+    await asUser(t, 'modehost').mutation(api.rooms.selectGameMode, {
       roomCode: code,
       mode: 'rhyme',
     });
@@ -703,17 +692,17 @@ describe('selectGameMode', () => {
 
   it('rejects mode change by a non-host participant', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'modehosta', 'ModeHostA');
-    await seedUser(t, 'modeguest', 'ModeGuest');
+    await seedClerkUser(t, 'modehosta', { displayName: 'ModeHostA' });
+    await seedClerkUser(t, 'modeguest', { displayName: 'ModeGuest' });
 
     const { code } = await seedLobbyRoom(t, 'modehosta');
-    await as(t, 'modeguest').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'modeguest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'ModeGuest',
     });
 
     await expect(
-      as(t, 'modeguest').mutation(api.rooms.selectGameMode, {
+      asUser(t, 'modeguest').mutation(api.rooms.selectGameMode, {
         roomCode: code,
         mode: 'quick',
       })
@@ -725,7 +714,7 @@ describe('selectGameMode', () => {
     const { code } = await seedRoomWithActiveGame(t, 'modehostb', 'modeguestb');
 
     await expect(
-      as(t, 'modehostb').mutation(api.rooms.selectGameMode, {
+      asUser(t, 'modehostb').mutation(api.rooms.selectGameMode, {
         roomCode: code,
         mode: 'quick',
       })
@@ -734,7 +723,7 @@ describe('selectGameMode', () => {
 
   it('rejects mode change when user is not authenticated', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'modehostc', 'ModeHostC');
+    await seedClerkUser(t, 'modehostc', { displayName: 'ModeHostC' });
     const { code } = await seedLobbyRoom(t, 'modehostc');
 
     await expect(
@@ -753,16 +742,18 @@ describe('selectGameMode', () => {
 describe('closeRoom', () => {
   it('marks room as COMPLETED and removes all players when host closes', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'closehost', 'CloseHost');
-    await seedUser(t, 'closeguest', 'CloseGuest');
+    await seedClerkUser(t, 'closehost', { displayName: 'CloseHost' });
+    await seedClerkUser(t, 'closeguest', { displayName: 'CloseGuest' });
 
     const { code, roomId } = await seedLobbyRoom(t, 'closehost', 'CloseHost');
-    await as(t, 'closeguest').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'closeguest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'CloseGuest',
     });
 
-    await as(t, 'closehost').mutation(api.rooms.closeRoom, { roomCode: code });
+    await asUser(t, 'closehost').mutation(api.rooms.closeRoom, {
+      roomCode: code,
+    });
 
     const room = await t.run((ctx) => ctx.db.get(roomId));
     expect(room?.status).toBe('COMPLETED');
@@ -778,17 +769,17 @@ describe('closeRoom', () => {
 
   it('throws when a non-host tries to close the room', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'nchosta', 'NCHostA');
-    await seedUser(t, 'ncguest', 'NCGuest');
+    await seedClerkUser(t, 'nchosta', { displayName: 'NCHostA' });
+    await seedClerkUser(t, 'ncguest', { displayName: 'NCGuest' });
 
     const { code } = await seedLobbyRoom(t, 'nchosta');
-    await as(t, 'ncguest').mutation(api.rooms.joinRoom, {
+    await asUser(t, 'ncguest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'NCGuest',
     });
 
     await expect(
-      as(t, 'ncguest').mutation(api.rooms.closeRoom, { roomCode: code })
+      asUser(t, 'ncguest').mutation(api.rooms.closeRoom, { roomCode: code })
     ).rejects.toThrow('Only the host can close the room');
   });
 
@@ -797,13 +788,13 @@ describe('closeRoom', () => {
     const { code } = await seedRoomWithActiveGame(t, 'crhost', 'crguest');
 
     await expect(
-      as(t, 'crhost').mutation(api.rooms.closeRoom, { roomCode: code })
+      asUser(t, 'crhost').mutation(api.rooms.closeRoom, { roomCode: code })
     ).rejects.toThrow('Cannot close room while game is in progress');
   });
 
   it('throws when caller is not authenticated', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'crhostna', 'CRHostNA');
+    await seedClerkUser(t, 'crhostna', { displayName: 'CRHostNA' });
     const { code } = await seedLobbyRoom(t, 'crhostna');
 
     await expect(

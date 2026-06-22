@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser } from '../helpers/convexSeed';
 
 /**
  * presence heartbeat on the real convex-test engine (backlog 018): real
  * read-your-writes + real auth (Clerk identity), asserting observable DB
  * state instead of mock-call stubs.
  */
-
-type T = ReturnType<typeof setupConvexTest>;
 
 /**
  * Seed a user with a given Clerk subject name and insert them as a room player
@@ -40,10 +39,6 @@ async function seedUserAndRoomPlayer(t: T, clerkName: string) {
     return { userId, roomId, roomPlayerId };
   });
 }
-
-/** Convenience: run as the named Clerk user. */
-const asUser = (t: T, name: string) =>
-  t.withIdentity({ subject: `clerk_${name}` });
 
 afterEach(() => {
   vi.useRealTimers();

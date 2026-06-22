@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser, seedClerkUser, seedLine } from '../helpers/convexSeed';
 
 /**
  * poems queries on the real convex-test engine (backlog 018): real
@@ -18,29 +19,9 @@ import { setupConvexTest } from '../helpers/convexTest';
  * publicRecapEnabled flags and poem.revealedAt instead.
  */
 
-type T = ReturnType<typeof setupConvexTest>;
-
 // ---------------------------------------------------------------------------
 // Seed helpers
 // ---------------------------------------------------------------------------
-
-async function seedUser(
-  t: T,
-  name: string,
-  opts: { kind?: 'human' | 'AI' } = {}
-): Promise<Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      displayName: name,
-      kind: opts.kind ?? 'human',
-      clerkUserId: `clerk_${name}`,
-      createdAt: 0,
-    })
-  );
-}
-
-const asUser = (t: T, name: string) =>
-  t.withIdentity({ subject: `clerk_${name}` });
 
 /**
  * Seed a minimal room (COMPLETED) with one game and one poem; optionally
@@ -121,35 +102,6 @@ async function seedRoom(
   });
 }
 
-/**
- * Insert a line into a poem.
- */
-async function seedLine(
-  t: T,
-  poemId: Id<'poems'>,
-  authorId: Id<'users'>,
-  opts: {
-    indexInPoem?: number;
-    text?: string;
-    wordCount?: number;
-    authorDisplayName?: string;
-  } = {}
-): Promise<Id<'lines'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('lines', {
-      poemId,
-      indexInPoem: opts.indexInPoem ?? 0,
-      text: opts.text ?? 'sample text',
-      wordCount: opts.wordCount ?? 1,
-      authorUserId: authorId,
-      ...(opts.authorDisplayName !== undefined
-        ? { authorDisplayName: opts.authorDisplayName }
-        : {}),
-      createdAt: 0,
-    })
-  );
-}
-
 // ---------------------------------------------------------------------------
 // getPoemsForRoom
 // ---------------------------------------------------------------------------
@@ -175,7 +127,7 @@ describe('getPoemsForRoom', () => {
 
   it('returns empty array when room does not exist', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'alice');
+    await seedClerkUser(t, 'alice');
     const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
       roomCode: 'ZZZZ',
     });
@@ -184,7 +136,7 @@ describe('getPoemsForRoom', () => {
 
   it('returns empty array when user is not a participant', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     // Seed a room owned by alice but do NOT add bob as a roomPlayer.
     await seedRoom(t, {
       userId: aliceId,
@@ -192,7 +144,7 @@ describe('getPoemsForRoom', () => {
       addRoomPlayer: true,
     });
     // Bob exists but is not in roomPlayers.
-    await seedUser(t, 'bob');
+    await seedClerkUser(t, 'bob');
 
     const result = await asUser(t, 'bob').query(api.poems.getPoemsForRoom, {
       roomCode: 'ABCD',
@@ -202,7 +154,7 @@ describe('getPoemsForRoom', () => {
 
   it('returns empty array when the room has no game yet', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     // Build a bare room/player with no game via t.run directly.
     await t.run(async (ctx) => {
       const roomId = await ctx.db.insert('rooms', {
@@ -227,7 +179,7 @@ describe('getPoemsForRoom', () => {
 
   it('returns poems with first-line preview for a participant', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       poemCount: 2,
@@ -235,10 +187,14 @@ describe('getPoemsForRoom', () => {
       roomStatus: 'IN_PROGRESS',
     });
 
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       text: 'First line of poem one',
     });
-    await seedLine(t, poemIds[1], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[1],
+      authorUserId: aliceId,
       text: 'First line of poem two',
     });
 
@@ -256,7 +212,7 @@ describe('getPoemsForRoom', () => {
 
   it('uses "..." fallback preview when a poem has no first line yet', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       poemCount: 1,
@@ -264,7 +220,9 @@ describe('getPoemsForRoom', () => {
       roomStatus: 'IN_PROGRESS',
     });
     // Insert a line at index 1 only — no first line (index 0).
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 1,
       text: 'Second line',
     });
@@ -277,7 +235,7 @@ describe('getPoemsForRoom', () => {
 
   it('works for a completed game (reveal phase)', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       poemCount: 1,
@@ -285,7 +243,11 @@ describe('getPoemsForRoom', () => {
       roomStatus: 'COMPLETED',
       revealPoems: true,
     });
-    await seedLine(t, poemIds[0], aliceId, { text: 'Completed poem line' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Completed poem line',
+    });
 
     const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
       roomCode: 'ABCD',
@@ -302,7 +264,7 @@ describe('getPoemsForRoom', () => {
 describe('getPoemDetail', () => {
   it('returns null when no Clerk identity is present', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
 
     const result = await t.query(api.poems.getPoemDetail, {
@@ -313,7 +275,7 @@ describe('getPoemDetail', () => {
 
   it('returns null when the poem does not exist', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
     // Delete the poem so the id is dangling.
     await t.run((ctx) => ctx.db.delete(poemIds[0]));
@@ -326,8 +288,8 @@ describe('getPoemDetail', () => {
 
   it('returns null when the user is not a participant in the poem room', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
-    await seedUser(t, 'bob');
+    const aliceId = await seedClerkUser(t, 'alice');
+    await seedClerkUser(t, 'bob');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       addRoomPlayer: true,
@@ -341,9 +303,9 @@ describe('getPoemDetail', () => {
 
   it('returns poem with lines sorted by indexInPoem', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
-    const bobId = await seedUser(t, 'bob');
-    const charlieId = await seedUser(t, 'charlie');
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
+    const charlieId = await seedClerkUser(t, 'charlie');
     const { roomId, poemIds } = await seedRoom(t, {
       userId: aliceId,
       addRoomPlayer: true,
@@ -365,15 +327,21 @@ describe('getPoemDetail', () => {
     });
 
     // Insert lines out of order.
-    await seedLine(t, poemIds[0], charlieId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: charlieId,
       indexInPoem: 2,
       text: 'Third',
     });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'First',
     });
-    await seedLine(t, poemIds[0], bobId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
       indexInPoem: 1,
       text: 'Second',
     });
@@ -391,9 +359,13 @@ describe('getPoemDetail', () => {
 
   it('returns authorName derived from the user record when no pen name was captured', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, poemIds[0], aliceId, { text: 'Hello' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Hello',
+    });
 
     const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
       poemId: poemIds[0],
@@ -403,9 +375,11 @@ describe('getPoemDetail', () => {
 
   it('prefers the captured authorDisplayName over the current user displayName', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       text: 'Hello',
       authorDisplayName: 'Alice Pen',
     });
@@ -418,7 +392,7 @@ describe('getPoemDetail', () => {
 
   it('returns "Unknown" for deleted authors', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const ghostId = await t.run((ctx) =>
       ctx.db.insert('users', {
         displayName: 'Ghost',
@@ -427,7 +401,11 @@ describe('getPoemDetail', () => {
       })
     );
     const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, poemIds[0], ghostId, { text: 'Vanished' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: ghostId,
+      text: 'Vanished',
+    });
     // Delete the ghost user.
     await t.run((ctx) => ctx.db.delete(ghostId));
 
@@ -439,7 +417,7 @@ describe('getPoemDetail', () => {
 
   it('marks AI-authored lines with isBot: true', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const aiId = await t.run((ctx) =>
       ctx.db.insert('users', {
         displayName: 'Gemini',
@@ -448,7 +426,11 @@ describe('getPoemDetail', () => {
       })
     );
     const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, poemIds[0], aiId, { text: 'An AI line' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aiId,
+      text: 'An AI line',
+    });
 
     const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
       poemId: poemIds[0],
@@ -458,9 +440,13 @@ describe('getPoemDetail', () => {
 
   it('returns poem document alongside lines', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, poemIds[0], aliceId, { text: 'Only line' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Only line',
+    });
 
     const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
       poemId: poemIds[0],
@@ -490,29 +476,35 @@ describe('getMyPoems', () => {
 
   it('returns empty array when the user has not written any lines', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'alice');
+    await seedClerkUser(t, 'alice');
     const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
     expect(result).toEqual([]);
   });
 
   it('returns only poems the user contributed to (deduplicating by poem)', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       poemCount: 2,
     });
 
     // Alice wrote two lines in poem 0 and one line in poem 1.
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'First in poem 0',
     });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 1,
       text: 'Second in poem 0',
     });
-    await seedLine(t, poemIds[1], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[1],
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'First in poem 1',
     });
@@ -526,7 +518,7 @@ describe('getMyPoems', () => {
 
   it('sorts poems by createdAt descending', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { gameId, roomId } = await seedRoom(t, {
       userId: aliceId,
       poemCount: 0,
@@ -554,9 +546,9 @@ describe('getMyPoems', () => {
       return { poem1: p1, poem2: p2, poem3: p3 };
     });
 
-    await seedLine(t, poem1, aliceId, { indexInPoem: 0 });
-    await seedLine(t, poem2, aliceId, { indexInPoem: 0 });
-    await seedLine(t, poem3, aliceId, { indexInPoem: 0 });
+    await seedLine(t, { poemId: poem1, authorUserId: aliceId, indexInPoem: 0 });
+    await seedLine(t, { poemId: poem2, authorUserId: aliceId, indexInPoem: 0 });
+    await seedLine(t, { poemId: poem3, authorUserId: aliceId, indexInPoem: 0 });
 
     const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
     expect(result.map((p: { _id: Id<'poems'> }) => p._id)).toEqual([
@@ -568,7 +560,7 @@ describe('getMyPoems', () => {
 
   it('includes roomDate from the room record', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     // Seed with createdAt = 500 on the room (set inside t.run).
     const roomId = await t.run((ctx) =>
       ctx.db.insert('rooms', {
@@ -604,7 +596,7 @@ describe('getMyPoems', () => {
         createdAt: 1000,
       })
     );
-    await seedLine(t, poemId, aliceId, { text: 'One line' });
+    await seedLine(t, { poemId, authorUserId: aliceId, text: 'One line' });
 
     const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
     expect(result).toHaveLength(1);
@@ -613,9 +605,13 @@ describe('getMyPoems', () => {
 
   it('includes a first-line preview', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId, poemCount: 1 });
-    await seedLine(t, poemIds[0], aliceId, { text: 'Opening verse' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Opening verse',
+    });
 
     const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
     expect(result[0].preview).toBe('Opening verse');
@@ -623,10 +619,12 @@ describe('getMyPoems', () => {
 
   it('uses "..." preview when poem has no first line', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId, poemCount: 1 });
     // Only a second line — no line at index 0.
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 1,
       text: 'Not the first',
     });
@@ -637,7 +635,7 @@ describe('getMyPoems', () => {
 
   it('handles poems across multiple rooms with correct roomDate per poem', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
 
     const room1 = await t.run((ctx) =>
       ctx.db.insert('rooms', {
@@ -708,8 +706,16 @@ describe('getMyPoems', () => {
       })
     );
 
-    await seedLine(t, poem1, aliceId, { text: 'Room one' });
-    await seedLine(t, poem2, aliceId, { text: 'Room two' });
+    await seedLine(t, {
+      poemId: poem1,
+      authorUserId: aliceId,
+      text: 'Room one',
+    });
+    await seedLine(t, {
+      poemId: poem2,
+      authorUserId: aliceId,
+      text: 'Room two',
+    });
 
     const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
     expect(result).toHaveLength(2);
@@ -727,7 +733,7 @@ describe('getMyPoems', () => {
 describe('getPublicPoemPreview', () => {
   it('returns null when the poem does not exist', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
     await t.run((ctx) => ctx.db.delete(poemIds[0]));
 
@@ -739,7 +745,7 @@ describe('getPublicPoemPreview', () => {
 
   it('returns null when publicShareEnabled is false', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       publicShareEnabled: false,
@@ -753,7 +759,7 @@ describe('getPublicPoemPreview', () => {
 
   it('returns null when publicShareEnabled is absent', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     // seedRoom does not set publicShareEnabled when left undefined.
     const { poemIds } = await seedRoom(t, { userId: aliceId });
 
@@ -765,27 +771,35 @@ describe('getPublicPoemPreview', () => {
 
   it('returns preview with first 3 lines, poetCount, and poemNumber', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
-    const bobId = await seedUser(t, 'bob');
-    const charlieId = await seedUser(t, 'charlie');
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
+    const charlieId = await seedClerkUser(t, 'charlie');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       publicShareEnabled: true,
     });
     // 4 lines — only first 3 should appear in preview.
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'Line 1',
     });
-    await seedLine(t, poemIds[0], bobId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
       indexInPoem: 1,
       text: 'Line 2',
     });
-    await seedLine(t, poemIds[0], charlieId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: charlieId,
       indexInPoem: 2,
       text: 'Line 3',
     });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 3,
       text: 'Line 4',
     });
@@ -803,22 +817,28 @@ describe('getPublicPoemPreview', () => {
 
   it('counts unique poets correctly when the same author writes multiple lines', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
-    const bobId = await seedUser(t, 'bob');
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       publicShareEnabled: true,
     });
     // alice writes lines 0 and 2; bob writes line 1.
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'Alice start',
     });
-    await seedLine(t, poemIds[0], bobId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
       indexInPoem: 1,
       text: 'Bob middle',
     });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 2,
       text: 'Alice again',
     });
@@ -831,7 +851,7 @@ describe('getPublicPoemPreview', () => {
 
   it('returns poemNumber as indexInRoom + 1', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     // Poem with indexInRoom = 4 (poem number 5).
     const { gameId, roomId } = await seedRoom(t, {
       userId: aliceId,
@@ -847,7 +867,7 @@ describe('getPublicPoemPreview', () => {
         publicShareEnabled: true,
       })
     );
-    await seedLine(t, poemId, aliceId, { text: 'Only line' });
+    await seedLine(t, { poemId, authorUserId: aliceId, text: 'Only line' });
 
     const result = await t.query(api.poems.getPublicPoemPreview, {
       poemId,
@@ -863,7 +883,7 @@ describe('getPublicPoemPreview', () => {
 describe('getPublicPoemFull', () => {
   it('returns null when the poem does not exist', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
     await t.run((ctx) => ctx.db.delete(poemIds[0]));
 
@@ -875,7 +895,7 @@ describe('getPublicPoemFull', () => {
 
   it('returns null when publicShareEnabled is false', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       publicShareEnabled: false,
@@ -889,7 +909,7 @@ describe('getPublicPoemFull', () => {
 
   it('returns null when publicShareEnabled is absent', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, { userId: aliceId });
 
     const result = await t.query(api.poems.getPublicPoemFull, {
@@ -900,23 +920,29 @@ describe('getPublicPoemFull', () => {
 
   it('returns full poem and all lines with author names in order', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
-    const bobId = await seedUser(t, 'bob');
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       publicShareEnabled: true,
     });
 
     // Lines inserted out of order.
-    await seedLine(t, poemIds[0], bobId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
       indexInPoem: 1,
       text: 'Second line',
     });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'First line',
     });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       indexInPoem: 2,
       text: 'Third line',
     });
@@ -944,7 +970,7 @@ describe('getPublicPoemFull', () => {
 
   it('uses "Unknown" for deleted authors', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const ghostId = await t.run((ctx) =>
       ctx.db.insert('users', {
         displayName: 'Ghost',
@@ -956,7 +982,11 @@ describe('getPublicPoemFull', () => {
       userId: aliceId,
       publicShareEnabled: true,
     });
-    await seedLine(t, poemIds[0], ghostId, { text: 'Vanished line' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: ghostId,
+      text: 'Vanished line',
+    });
     await t.run((ctx) => ctx.db.delete(ghostId));
 
     const result = await t.query(api.poems.getPublicPoemFull, {
@@ -967,12 +997,14 @@ describe('getPublicPoemFull', () => {
 
   it('prefers captured authorDisplayName over current displayName', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
       userId: aliceId,
       publicShareEnabled: true,
     });
-    await seedLine(t, poemIds[0], aliceId, {
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
       text: 'Penned line',
       authorDisplayName: 'Alice Pen',
     });
@@ -985,7 +1017,7 @@ describe('getPublicPoemFull', () => {
 
   it('marks AI-authored lines with isBot: true', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const aiId = await t.run((ctx) =>
       ctx.db.insert('users', {
         displayName: 'Muse',
@@ -997,7 +1029,11 @@ describe('getPublicPoemFull', () => {
       userId: aliceId,
       publicShareEnabled: true,
     });
-    await seedLine(t, poemIds[0], aiId, { text: 'AI generated' });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aiId,
+      text: 'AI generated',
+    });
 
     const result = await t.query(api.poems.getPublicPoemFull, {
       poemId: poemIds[0],
@@ -1021,7 +1057,7 @@ describe('getPublicSessionRecap', () => {
 
   it('returns null when the room has no completed game', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     await seedRoom(t, {
       userId: aliceId,
       gameStatus: 'IN_PROGRESS',
@@ -1036,7 +1072,7 @@ describe('getPublicSessionRecap', () => {
 
   it('returns null when publicRecapEnabled is false', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     await seedRoom(t, {
       userId: aliceId,
       gameStatus: 'COMPLETED',
@@ -1053,7 +1089,7 @@ describe('getPublicSessionRecap', () => {
 
   it('returns null when publicRecapEnabled is absent', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     await seedRoom(t, {
       userId: aliceId,
       gameStatus: 'COMPLETED',
@@ -1069,7 +1105,7 @@ describe('getPublicSessionRecap', () => {
 
   it('returns null when any poem in the game has not been revealed yet', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const { gameId, roomId } = await seedRoom(t, {
       userId: aliceId,
       gameStatus: 'COMPLETED',
@@ -1097,8 +1133,8 @@ describe('getPublicSessionRecap', () => {
 
   it('returns session-level summary with poems sorted by indexInRoom', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
-    const bobId = await seedUser(t, 'bob');
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
 
     // Build room without the generic seedRoom player so we can control displayNames.
     const { gameId, roomId } = await seedRoom(t, {
@@ -1147,12 +1183,16 @@ describe('getPublicSessionRecap', () => {
       })
     );
 
-    await seedLine(t, poem1Id, aliceId, {
+    await seedLine(t, {
+      poemId: poem1Id,
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'Poem one opening',
       authorDisplayName: 'Alice Pen',
     });
-    await seedLine(t, poem2Id, bobId, {
+    await seedLine(t, {
+      poemId: poem2Id,
+      authorUserId: bobId,
       indexInPoem: 0,
       text: 'Poem two opening',
     });
@@ -1241,7 +1281,9 @@ describe('getPublicSessionRecap', () => {
       })
     );
     // Starter wrote the first line, captured by authorDisplayName.
-    await seedLine(t, poemId, starterUserId, {
+    await seedLine(t, {
+      poemId,
+      authorUserId: starterUserId,
       indexInPoem: 0,
       text: 'Opening line',
       authorDisplayName: 'Starter',
@@ -1258,7 +1300,7 @@ describe('getPublicSessionRecap', () => {
 
   it('marks AI authors with isBot: true and falls back to Unknown for deleted users', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const aiId = await t.run((ctx) =>
       ctx.db.insert('users', {
         displayName: 'Muse',
@@ -1292,11 +1334,15 @@ describe('getPublicSessionRecap', () => {
       })
     );
 
-    await seedLine(t, poemId, ghostId, {
+    await seedLine(t, {
+      poemId,
+      authorUserId: ghostId,
       indexInPoem: 0,
       text: 'Mystery line',
     });
-    await seedLine(t, poemId, aiId, {
+    await seedLine(t, {
+      poemId,
+      authorUserId: aiId,
       indexInPoem: 1,
       text: 'AI line',
     });
@@ -1315,7 +1361,7 @@ describe('getPublicSessionRecap', () => {
 
   it('falls back cleanly when recap names and lines are missing', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
     const missingReaderId = await t.run((ctx) =>
       ctx.db.insert('users', {
         displayName: 'Missing Reader',
@@ -1361,7 +1407,7 @@ describe('getPublicSessionRecap', () => {
 
   it('ignores lines without authorUserId when building the author set', async () => {
     const t = setupConvexTest();
-    const aliceId = await seedUser(t, 'alice');
+    const aliceId = await seedClerkUser(t, 'alice');
 
     const { gameId, roomId } = await seedRoom(t, {
       userId: aliceId,
@@ -1384,7 +1430,9 @@ describe('getPublicSessionRecap', () => {
     // authorUserId from the author lookup set, so poetCount stays 1 for the
     // real author but 0 for legacy-undefined lines.
     // (Legacy behavior: line with a valid authorUserId but no display name.)
-    await seedLine(t, poemId, aliceId, {
+    await seedLine(t, {
+      poemId,
+      authorUserId: aliceId,
       indexInPoem: 0,
       text: 'Legacy line',
     });

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { setupConvexTest } from '../../helpers/convexTest';
+import { type T, seedUser } from '../../helpers/convexSeed';
 import { signGuestToken } from '../../../lib/guestToken';
 import {
   getUser,
@@ -17,45 +18,6 @@ import {
  * (same DEV_FALLBACK_SECRET as convex/lib/guestToken.verifyGuestToken).
  */
 
-type T = ReturnType<typeof setupConvexTest>;
-
-/** Seed a user with a Clerk subject and return its DB id. */
-async function seedClerkUser(
-  t: T,
-  subject: string,
-  displayName = 'Clerk User'
-): Promise<import('../../../convex/_generated/dataModel').Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      clerkUserId: subject,
-      displayName,
-      kind: 'human',
-      createdAt: 0,
-    })
-  );
-}
-
-/** Seed a guest user row and return { guestUserId, guestToken }. */
-async function seedGuestUser(
-  t: T,
-  guestId: string,
-  displayName = 'Guest User'
-): Promise<{
-  guestUserId: import('../../../convex/_generated/dataModel').Id<'users'>;
-  guestToken: string;
-}> {
-  const guestToken = await signGuestToken(guestId);
-  const guestUserId = await t.run((ctx) =>
-    ctx.db.insert('users', {
-      guestId,
-      displayName,
-      kind: 'human',
-      createdAt: 0,
-    })
-  );
-  return { guestUserId, guestToken };
-}
-
 /** Return a scoped tester that presents a Clerk identity with the given subject. */
 const asClerk = (t: T, subject: string) => t.withIdentity({ subject });
 
@@ -64,7 +26,7 @@ describe('convex/lib/auth', () => {
     it('returns Clerk user when getUserIdentity resolves to a known user', async () => {
       const t = setupConvexTest();
       const subject = 'clerk_test_001';
-      await seedClerkUser(t, subject, 'Alice');
+      await seedUser(t, { displayName: 'Alice', clerkUserId: subject });
 
       const result = await asClerk(t, subject).run((ctx) =>
         getUser(ctx, undefined)
@@ -78,7 +40,8 @@ describe('convex/lib/auth', () => {
     it('returns guest user when a valid signed guestToken is provided', async () => {
       const t = setupConvexTest();
       const guestId = 'guest-abc-001';
-      const { guestToken } = await seedGuestUser(t, guestId, 'Bob Guest');
+      const guestToken = await signGuestToken(guestId);
+      await seedUser(t, { displayName: 'Bob Guest', guestId });
 
       const result = await t.run((ctx) => getUser(ctx, guestToken));
 
@@ -143,9 +106,13 @@ describe('convex/lib/auth', () => {
     it('prioritizes Clerk identity over guestToken when both are present', async () => {
       const t = setupConvexTest();
       const subject = 'clerk_prio_001';
-      await seedClerkUser(t, subject, 'Clerk Prio User');
+      await seedUser(t, {
+        displayName: 'Clerk Prio User',
+        clerkUserId: subject,
+      });
       // Also seed a guest so the guest path would succeed if accidentally taken.
-      const { guestToken } = await seedGuestUser(t, 'guest-prio-001', 'Ghost');
+      const guestToken = await signGuestToken('guest-prio-001');
+      await seedUser(t, { displayName: 'Ghost', guestId: 'guest-prio-001' });
 
       const result = await asClerk(t, subject).run((ctx) =>
         getUser(ctx, guestToken)
@@ -182,7 +149,7 @@ describe('convex/lib/auth', () => {
     it('returns the user when a valid Clerk identity maps to an existing user row', async () => {
       const t = setupConvexTest();
       const subject = 'clerk_req_001';
-      await seedClerkUser(t, subject, 'Required User');
+      await seedUser(t, { displayName: 'Required User', clerkUserId: subject });
 
       const result = await asClerk(t, subject).run((ctx) =>
         requireUser(ctx, undefined)

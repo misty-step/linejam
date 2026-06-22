@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { asUser, seedClerkUser, type T } from '../helpers/convexSeed';
 
 /**
  * Room lifecycle on the real convex-test engine (backlog 018): real
@@ -11,28 +12,6 @@ import { setupConvexTest } from '../helpers/convexTest';
  * Covers: createRoom, joinRoom, startGame, startNewCycle, getRoomState.
  * Guard paths (throw cases) exercise the real mutation logic — not mocked handlers.
  */
-
-type T = ReturnType<typeof setupConvexTest>;
-
-/** Seed a Clerk user row and return its _id. */
-async function seedUser(
-  t: T,
-  clerkName: string,
-  displayName = clerkName
-): Promise<Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      displayName,
-      kind: 'human',
-      clerkUserId: `clerk_${clerkName}`,
-      createdAt: 0,
-    })
-  );
-}
-
-/** Convenience: run as the named Clerk subject. */
-const as = (t: T, clerkName: string) =>
-  t.withIdentity({ subject: `clerk_${clerkName}` });
 
 /**
  * Seed a COMPLETED room owned by 'clerk_host' with two participants and a
@@ -101,9 +80,9 @@ describe('room lifecycle', () => {
   describe('createRoom', () => {
     it('creates a room with LOBBY status and the caller as host', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'alice');
+      await seedClerkUser(t, 'alice');
 
-      const result = await as(t, 'alice').mutation(api.rooms.createRoom, {
+      const result = await asUser(t, 'alice').mutation(api.rooms.createRoom, {
         displayName: 'Alice',
       });
 
@@ -136,12 +115,12 @@ describe('room lifecycle', () => {
 
     it('generates unique codes across multiple rooms', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'bob');
+      await seedClerkUser(t, 'bob');
 
-      const r1 = await as(t, 'bob').mutation(api.rooms.createRoom, {
+      const r1 = await asUser(t, 'bob').mutation(api.rooms.createRoom, {
         displayName: 'Bob',
       });
-      const r2 = await as(t, 'bob').mutation(api.rooms.createRoom, {
+      const r2 = await asUser(t, 'bob').mutation(api.rooms.createRoom, {
         displayName: 'Bob',
       });
 
@@ -155,15 +134,15 @@ describe('room lifecycle', () => {
   describe('joinRoom', () => {
     it('adds the caller as a roomPlayers row in an existing LOBBY room', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'host');
-      await seedUser(t, 'joiner');
+      await seedClerkUser(t, 'host');
+      await seedClerkUser(t, 'joiner');
 
-      const { code, roomId } = await as(t, 'host').mutation(
+      const { code, roomId } = await asUser(t, 'host').mutation(
         api.rooms.createRoom,
         { displayName: 'Host' }
       );
 
-      await as(t, 'joiner').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'joiner').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Joiner',
       });
@@ -181,20 +160,20 @@ describe('room lifecycle', () => {
 
     it('is idempotent when the same user joins twice', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'host2');
-      await seedUser(t, 'joiner2');
+      await seedClerkUser(t, 'host2');
+      await seedClerkUser(t, 'joiner2');
 
-      const { code, roomId } = await as(t, 'host2').mutation(
+      const { code, roomId } = await asUser(t, 'host2').mutation(
         api.rooms.createRoom,
         { displayName: 'Host2' }
       );
 
-      await as(t, 'joiner2').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'joiner2').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Joiner2',
       });
       // Second join should not duplicate the row
-      await as(t, 'joiner2').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'joiner2').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Joiner2',
       });
@@ -210,10 +189,10 @@ describe('room lifecycle', () => {
 
     it('throws when the room does not exist', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'nobody');
+      await seedClerkUser(t, 'nobody');
 
       await expect(
-        as(t, 'nobody').mutation(api.rooms.joinRoom, {
+        asUser(t, 'nobody').mutation(api.rooms.joinRoom, {
           code: 'ZZZZ',
           displayName: 'Nobody',
         })
@@ -227,19 +206,19 @@ describe('room lifecycle', () => {
   describe('startGame', () => {
     it('transitions a LOBBY room to IN_PROGRESS with poems and assignment matrix', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'host3');
-      await seedUser(t, 'player3');
+      await seedClerkUser(t, 'host3');
+      await seedClerkUser(t, 'player3');
 
-      const { code, roomId } = await as(t, 'host3').mutation(
+      const { code, roomId } = await asUser(t, 'host3').mutation(
         api.rooms.createRoom,
         { displayName: 'Host3' }
       );
-      await as(t, 'player3').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'player3').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Player3',
       });
 
-      await as(t, 'host3').mutation(api.game.startGame, { code });
+      await asUser(t, 'host3').mutation(api.game.startGame, { code });
 
       const room = await t.run((ctx) => ctx.db.get(roomId));
       expect(room?.status).toBe('IN_PROGRESS');
@@ -262,52 +241,52 @@ describe('room lifecycle', () => {
 
     it('throws when there is only one player', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'solo');
+      await seedClerkUser(t, 'solo');
 
-      const { code } = await as(t, 'solo').mutation(api.rooms.createRoom, {
+      const { code } = await asUser(t, 'solo').mutation(api.rooms.createRoom, {
         displayName: 'Solo',
       });
 
       await expect(
-        as(t, 'solo').mutation(api.game.startGame, { code })
+        asUser(t, 'solo').mutation(api.game.startGame, { code })
       ).rejects.toThrow('Need at least 2 players');
     });
 
     it('throws when a non-host tries to start the first game', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'host4');
-      await seedUser(t, 'guest4');
+      await seedClerkUser(t, 'host4');
+      await seedClerkUser(t, 'guest4');
 
-      const { code } = await as(t, 'host4').mutation(api.rooms.createRoom, {
+      const { code } = await asUser(t, 'host4').mutation(api.rooms.createRoom, {
         displayName: 'Host4',
       });
-      await as(t, 'guest4').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'guest4').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Guest4',
       });
 
       await expect(
-        as(t, 'guest4').mutation(api.game.startGame, { code })
+        asUser(t, 'guest4').mutation(api.game.startGame, { code })
       ).rejects.toThrow('Only host can start game');
     });
 
     it('throws when a game is already in progress', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'host5');
-      await seedUser(t, 'player5');
+      await seedClerkUser(t, 'host5');
+      await seedClerkUser(t, 'player5');
 
-      const { code } = await as(t, 'host5').mutation(api.rooms.createRoom, {
+      const { code } = await asUser(t, 'host5').mutation(api.rooms.createRoom, {
         displayName: 'Host5',
       });
-      await as(t, 'player5').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'player5').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Player5',
       });
 
-      await as(t, 'host5').mutation(api.game.startGame, { code });
+      await asUser(t, 'host5').mutation(api.game.startGame, { code });
 
       await expect(
-        as(t, 'host5').mutation(api.game.startGame, { code })
+        asUser(t, 'host5').mutation(api.game.startGame, { code })
       ).rejects.toThrow('Game already in progress');
     });
   });
@@ -320,7 +299,7 @@ describe('room lifecycle', () => {
       const t = setupConvexTest();
       const { roomId } = await seedCompletedRoom(t);
 
-      await as(t, 'host').mutation(api.game.startNewCycle, {
+      await asUser(t, 'host').mutation(api.game.startNewCycle, {
         roomCode: 'ABCD',
       });
 
@@ -334,7 +313,7 @@ describe('room lifecycle', () => {
       const { roomId } = await seedCompletedRoom(t);
 
       // guest (not host) fires startNewCycle
-      await as(t, 'guest').mutation(api.game.startNewCycle, {
+      await asUser(t, 'guest').mutation(api.game.startNewCycle, {
         roomCode: 'ABCD',
       });
 
@@ -346,11 +325,11 @@ describe('room lifecycle', () => {
       const t = setupConvexTest();
       await seedCompletedRoom(t);
 
-      await as(t, 'host').mutation(api.game.startNewCycle, {
+      await asUser(t, 'host').mutation(api.game.startNewCycle, {
         roomCode: 'ABCD',
       });
 
-      const state = await as(t, 'host').query(api.rooms.getRoomState, {
+      const state = await asUser(t, 'host').query(api.rooms.getRoomState, {
         code: 'ABCD',
       });
       expect(state?.room.status).toBe('LOBBY');
@@ -359,18 +338,18 @@ describe('room lifecycle', () => {
     it('throws when no completed game exists', async () => {
       const t = setupConvexTest();
       // Fresh LOBBY room with no completed game
-      await seedUser(t, 'host6');
-      await seedUser(t, 'player6');
-      const { code } = await as(t, 'host6').mutation(api.rooms.createRoom, {
+      await seedClerkUser(t, 'host6');
+      await seedClerkUser(t, 'player6');
+      const { code } = await asUser(t, 'host6').mutation(api.rooms.createRoom, {
         displayName: 'Host6',
       });
-      await as(t, 'player6').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'player6').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Player6',
       });
 
       await expect(
-        as(t, 'host6').mutation(api.game.startNewCycle, {
+        asUser(t, 'host6').mutation(api.game.startNewCycle, {
           roomCode: code,
         })
       ).rejects.toThrow('No completed game to continue from');
@@ -378,20 +357,20 @@ describe('room lifecycle', () => {
 
     it('throws when a game is still in progress', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'host7');
-      await seedUser(t, 'player7');
+      await seedClerkUser(t, 'host7');
+      await seedClerkUser(t, 'player7');
 
-      const { code } = await as(t, 'host7').mutation(api.rooms.createRoom, {
+      const { code } = await asUser(t, 'host7').mutation(api.rooms.createRoom, {
         displayName: 'Host7',
       });
-      await as(t, 'player7').mutation(api.rooms.joinRoom, {
+      await asUser(t, 'player7').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Player7',
       });
-      await as(t, 'host7').mutation(api.game.startGame, { code });
+      await asUser(t, 'host7').mutation(api.game.startGame, { code });
 
       await expect(
-        as(t, 'host7').mutation(api.game.startNewCycle, {
+        asUser(t, 'host7').mutation(api.game.startNewCycle, {
           roomCode: code,
         })
       ).rejects.toThrow('Game still in progress');
@@ -401,10 +380,10 @@ describe('room lifecycle', () => {
       const t = setupConvexTest();
       await seedCompletedRoom(t);
       // outsider has a user row but no roomPlayers entry
-      await seedUser(t, 'outsider');
+      await seedClerkUser(t, 'outsider');
 
       await expect(
-        as(t, 'outsider').mutation(api.game.startNewCycle, {
+        asUser(t, 'outsider').mutation(api.game.startNewCycle, {
           roomCode: 'ABCD',
         })
       ).rejects.toThrow('Only players in this room can start a new cycle');

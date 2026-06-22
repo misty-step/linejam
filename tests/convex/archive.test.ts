@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, seedUser, seedLine } from '../helpers/convexSeed';
 
 /**
  * Archive queries on the real convex-test engine (backlog 018):
@@ -15,32 +16,9 @@ import { setupConvexTest } from '../helpers/convexTest';
  * a signed token; the auth flow is fully covered by the auth unit tests.
  */
 
-type T = ReturnType<typeof setupConvexTest>;
-
 // ---------------------------------------------------------------------------
 // Seed helpers
 // ---------------------------------------------------------------------------
-
-/** Insert a user row and return its Id. */
-async function seedUser(
-  t: T,
-  opts: {
-    displayName: string;
-    clerkUserId?: string;
-    guestId?: string;
-    kind?: 'human' | 'AI';
-  }
-): Promise<Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      displayName: opts.displayName,
-      kind: opts.kind ?? 'human',
-      ...(opts.clerkUserId ? { clerkUserId: opts.clerkUserId } : {}),
-      ...(opts.guestId ? { guestId: opts.guestId } : {}),
-      createdAt: Date.now(),
-    })
-  );
-}
 
 type RoomSeed = {
   userId: Id<'users'>;
@@ -88,34 +66,6 @@ async function seedCompletedRoom(
     });
     return { userId, roomId, gameId, poemId };
   });
-}
-
-/** Insert a line for a poem. */
-async function seedLine(
-  t: T,
-  opts: {
-    poemId: Id<'poems'>;
-    authorUserId: Id<'users'>;
-    text: string;
-    wordCount: number;
-    indexInPoem: number;
-    authorDisplayName?: string;
-    createdAt?: number;
-  }
-): Promise<Id<'lines'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('lines', {
-      poemId: opts.poemId,
-      authorUserId: opts.authorUserId,
-      text: opts.text,
-      wordCount: opts.wordCount,
-      indexInPoem: opts.indexInPoem,
-      ...(opts.authorDisplayName
-        ? { authorDisplayName: opts.authorDisplayName }
-        : {}),
-      createdAt: opts.createdAt ?? Date.now(),
-    })
-  );
 }
 
 /** Insert a favorite for a poem. */

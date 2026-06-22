@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import { setupConvexTest } from '../helpers/convexTest';
+import { asUser } from '../helpers/convexSeed';
 import { signGuestToken } from '../../lib/guestToken';
 import { ConvexError } from 'convex/values';
 
@@ -87,7 +88,7 @@ describe('ensureUser', () => {
 
   it('returns the existing Clerk user on a second call (idempotent)', async () => {
     const t = setupConvexTest();
-    const as = t.withIdentity({ subject: 'clerk_user_idem' });
+    const as = asUser(t, 'user_idem');
 
     const first = await as.mutation(api.users.ensureUser, {
       displayName: 'Clerk User',

@@ -2,28 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 
 /**
  * favorites queries/mutations on the real convex-test engine (backlog 018):
  * real read-your-writes + real auth (Clerk identity), asserting observable DB
  * state and return values instead of mock-call stubs.
  */
-
-type T = ReturnType<typeof setupConvexTest>;
-
-async function seedUser(t: T, name: string): Promise<Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      displayName: name,
-      kind: 'human',
-      clerkUserId: `clerk_${name}`,
-      createdAt: 0,
-    })
-  );
-}
-
-const asUser = (t: T, name: string) =>
-  t.withIdentity({ subject: `clerk_${name}` });
 
 async function seedRoomGamePoems(
   t: T,
@@ -81,7 +66,7 @@ describe('favorites', () => {
   describe('toggleFavorite', () => {
     it('creates a favorite on first toggle, owned by the authenticated user', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 1,
@@ -99,7 +84,7 @@ describe('favorites', () => {
 
     it('removes the favorite on the second toggle', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 1,
@@ -114,7 +99,7 @@ describe('favorites', () => {
 
     it('re-creates the favorite on a third toggle (on/off/on)', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 1,
@@ -130,7 +115,7 @@ describe('favorites', () => {
 
     it('throws when no user is authenticated', async () => {
       const t = setupConvexTest();
-      const hostId = await seedUser(t, 'host');
+      const hostId = await seedClerkUser(t, 'host');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: hostId,
         poemCount: 1,
@@ -150,7 +135,7 @@ describe('favorites', () => {
 
     it('returns [] when the user has no favorites', async () => {
       const t = setupConvexTest();
-      await seedUser(t, 'user1');
+      await seedClerkUser(t, 'user1');
       expect(
         await asUser(t, 'user1').query(api.favorites.getMyFavorites, {})
       ).toEqual([]);
@@ -158,7 +143,7 @@ describe('favorites', () => {
 
     it('returns the user favorites with first-line preview and favoritedAt', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 2,
@@ -210,7 +195,7 @@ describe('favorites', () => {
 
     it('drops favorites whose poem was deleted', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 2,
@@ -239,7 +224,7 @@ describe('favorites', () => {
 
     it('falls back to "..." preview when the poem has no first line', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 1,
@@ -261,8 +246,8 @@ describe('favorites', () => {
 
     it('returns only the calling user favorites', async () => {
       const t = setupConvexTest();
-      const user1 = await seedUser(t, 'user1');
-      const user2 = await seedUser(t, 'user2');
+      const user1 = await seedClerkUser(t, 'user1');
+      const user2 = await seedClerkUser(t, 'user2');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: user1,
         poemCount: 2,
@@ -292,7 +277,7 @@ describe('favorites', () => {
   describe('isFavorited', () => {
     it('returns true when the poem is favorited by the user', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 1,
@@ -310,7 +295,7 @@ describe('favorites', () => {
 
     it('returns false when the poem is not favorited', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 1,
@@ -325,7 +310,7 @@ describe('favorites', () => {
 
     it('returns false when no user is authenticated', async () => {
       const t = setupConvexTest();
-      const hostId = await seedUser(t, 'host');
+      const hostId = await seedClerkUser(t, 'host');
       const { poemIds } = await seedRoomGamePoems(t, {
         hostUserId: hostId,
         poemCount: 1,
@@ -340,8 +325,8 @@ describe('favorites', () => {
   describe('getSessionFavorites', () => {
     it('returns null for non-participants', async () => {
       const t = setupConvexTest();
-      const hostId = await seedUser(t, 'host');
-      await seedUser(t, 'stranger');
+      const hostId = await seedClerkUser(t, 'host');
+      await seedClerkUser(t, 'stranger');
       await seedRoomGamePoems(t, { hostUserId: hostId, poemCount: 2 });
 
       expect(
@@ -353,7 +338,7 @@ describe('favorites', () => {
 
     it('crowns the most-hearted poem among participants', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { roomId, poemIds } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 2,
@@ -402,7 +387,7 @@ describe('favorites', () => {
 
     it('has no leader when no hearts were given', async () => {
       const t = setupConvexTest();
-      const userId = await seedUser(t, 'user1');
+      const userId = await seedClerkUser(t, 'user1');
       const { roomId } = await seedRoomGamePoems(t, {
         hostUserId: userId,
         poemCount: 2,

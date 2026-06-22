@@ -4,6 +4,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
 import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
+import { type T, getAllLines } from '../helpers/convexSeed';
 
 /**
  * AI lifecycle integration tests on the real convex-test engine (backlog 018
@@ -18,8 +19,6 @@ import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
  * no-API-key fallback path anyway; the fetch stub is a belt-and-suspenders
  * guard in case a future env change leaks a key into tests.
  */
-
-type T = ReturnType<typeof setupConvexTest>;
 
 // ─── Seed helpers ─────────────────────────────────────────────────────────────
 
@@ -123,25 +122,6 @@ async function seedClassicGame(
     }
 
     return { roomId, gameId, userIds, poemIds, matrix };
-  });
-}
-
-/** Fetch all lines for every poem in a game. */
-function getAllLines(t: T, gameId: Id<'games'>) {
-  return t.run(async (ctx) => {
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', gameId))
-      .collect();
-    const perPoem = await Promise.all(
-      poems.map((poem) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
-          .collect()
-      )
-    );
-    return perPoem.flat();
   });
 }
 

@@ -19,9 +19,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { internal } from '../../convex/_generated/api';
 import type { Doc, Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, getAllLines } from '../helpers/convexSeed';
 import { WORD_COUNTS, AUTO_GHOST_FILL_MS } from '../../convex/lib/gameRules';
-
-type T = ReturnType<typeof setupConvexTest>;
 
 type SeedPlayer = {
   name: string;
@@ -119,25 +118,6 @@ async function seedGame(
     }
 
     return { roomId, gameId, userIds, poemIds, matrix };
-  });
-}
-
-/** Fetch all lines for a game. */
-function getAllLines(t: T, gameId: Id<'games'>): Promise<Doc<'lines'>[]> {
-  return t.run(async (ctx) => {
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', gameId))
-      .collect();
-    const perPoem = await Promise.all(
-      poems.map((poem) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
-          .collect()
-      )
-    );
-    return perPoem.flat();
   });
 }
 

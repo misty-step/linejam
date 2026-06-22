@@ -14,34 +14,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 import {
   WORD_COUNTS,
   GHOSTWRITER_OVERTIME_MS,
 } from '../../convex/lib/gameRules';
-
-// ─── shared test infrastructure ───────────────────────────────────────────────
-
-type T = ReturnType<typeof setupConvexTest>;
-
-/** Seed a Clerk user row and return its _id. */
-async function seedUser(
-  t: T,
-  clerkName: string,
-  displayName = clerkName
-): Promise<Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
-      displayName,
-      kind: 'human',
-      clerkUserId: `clerk_${clerkName}`,
-      createdAt: 0,
-    })
-  );
-}
-
-/** Convenience: run as the named Clerk subject. */
-const as = (t: T, clerkName: string) =>
-  t.withIdentity({ subject: `clerk_${clerkName}` });
 
 /**
  * Seed a fully-wired LOBBY with two human players.
@@ -56,14 +33,14 @@ async function seedLobby(
   hostId: Id<'users'>;
   guestId: Id<'users'>;
 }> {
-  await seedUser(t, `host${suffix}`);
-  await seedUser(t, `guest${suffix}`);
+  await seedClerkUser(t, `host${suffix}`);
+  await seedClerkUser(t, `guest${suffix}`);
 
-  const { code, roomId } = await as(t, `host${suffix}`).mutation(
+  const { code, roomId } = await asUser(t, `host${suffix}`).mutation(
     api.rooms.createRoom,
     { displayName: `Host${suffix}` }
   );
-  await as(t, `guest${suffix}`).mutation(api.rooms.joinRoom, {
+  await asUser(t, `guest${suffix}`).mutation(api.rooms.joinRoom, {
     code,
     displayName: `Guest${suffix}`,
   });
@@ -275,20 +252,22 @@ describe('startNewCycle', () => {
 
   it('throws if room not found', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'snc1user');
+    await seedClerkUser(t, 'snc1user');
 
     await expect(
-      as(t, 'snc1user').mutation(api.game.startNewCycle, { roomCode: 'ZZZZ' })
+      asUser(t, 'snc1user').mutation(api.game.startNewCycle, {
+        roomCode: 'ZZZZ',
+      })
     ).rejects.toThrow();
   });
 
   it('throws if user is not a participant', async () => {
     const t = setupConvexTest();
     const { code } = await seedCompletedRoom(t, 'SNC2');
-    await seedUser(t, 'outsidersnc2');
+    await seedClerkUser(t, 'outsidersnc2');
 
     await expect(
-      as(t, 'outsidersnc2').mutation(api.game.startNewCycle, {
+      asUser(t, 'outsidersnc2').mutation(api.game.startNewCycle, {
         roomCode: code,
       })
     ).rejects.toThrow('Only players in this room can start a new cycle');
@@ -297,10 +276,10 @@ describe('startNewCycle', () => {
   it('throws if game still in progress', async () => {
     const t = setupConvexTest();
     const { code } = await seedLobby(t, 'SNC3');
-    await as(t, 'hostSNC3').mutation(api.game.startGame, { code });
+    await asUser(t, 'hostSNC3').mutation(api.game.startGame, { code });
 
     await expect(
-      as(t, 'hostSNC3').mutation(api.game.startNewCycle, { roomCode: code })
+      asUser(t, 'hostSNC3').mutation(api.game.startNewCycle, { roomCode: code })
     ).rejects.toThrow('Game still in progress');
   });
 
@@ -309,7 +288,7 @@ describe('startNewCycle', () => {
     const { code } = await seedLobby(t, 'SNC4');
 
     await expect(
-      as(t, 'hostSNC4').mutation(api.game.startNewCycle, { roomCode: code })
+      asUser(t, 'hostSNC4').mutation(api.game.startNewCycle, { roomCode: code })
     ).rejects.toThrow('No completed game to continue from');
   });
 
@@ -317,7 +296,7 @@ describe('startNewCycle', () => {
     const t = setupConvexTest();
     const { roomId, code } = await seedCompletedRoom(t, 'SNC5');
 
-    await as(t, 'guestSNC5').mutation(api.game.startNewCycle, {
+    await asUser(t, 'guestSNC5').mutation(api.game.startNewCycle, {
       roomCode: code,
     });
 
@@ -330,7 +309,7 @@ describe('startNewCycle', () => {
     const t = setupConvexTest();
     const { roomId, code } = await seedCompletedRoom(t, 'SNC6');
 
-    await as(t, 'hostSNC6').mutation(api.game.startNewCycle, {
+    await asUser(t, 'hostSNC6').mutation(api.game.startNewCycle, {
       roomCode: code,
     });
 
@@ -347,7 +326,7 @@ describe('startGame', () => {
     const t = setupConvexTest();
     const { code, roomId } = await seedLobby(t, 'SG1');
 
-    await as(t, 'hostSG1').mutation(api.game.startGame, { code });
+    await asUser(t, 'hostSG1').mutation(api.game.startGame, { code });
 
     const room = await t.run((ctx) => ctx.db.get(roomId));
     expect(room?.status).toBe('IN_PROGRESS');
@@ -373,7 +352,7 @@ describe('startGame', () => {
     const { code } = await seedLobby(t, 'SG2');
 
     await expect(
-      as(t, 'guestSG2').mutation(api.game.startGame, { code })
+      asUser(t, 'guestSG2').mutation(api.game.startGame, { code })
     ).rejects.toThrow('Only host can start game');
   });
 
@@ -382,11 +361,11 @@ describe('startGame', () => {
     const { code, roomId } = await seedCompletedRoom(t, 'SG3A');
 
     // Reset to LOBBY; completed game still exists in DB → guest can rematch
-    await as(t, 'hostSG3A').mutation(api.game.startNewCycle, {
+    await asUser(t, 'hostSG3A').mutation(api.game.startNewCycle, {
       roomCode: code,
     });
 
-    await as(t, 'guestSG3A').mutation(api.game.startGame, { code });
+    await asUser(t, 'guestSG3A').mutation(api.game.startGame, { code });
 
     const room = await t.run((ctx) => ctx.db.get(roomId));
     expect(room?.status).toBe('IN_PROGRESS');
@@ -397,23 +376,23 @@ describe('startGame', () => {
 
   it('throws when there is only one player', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'soloSG4');
-    const { code } = await as(t, 'soloSG4').mutation(api.rooms.createRoom, {
+    await seedClerkUser(t, 'soloSG4');
+    const { code } = await asUser(t, 'soloSG4').mutation(api.rooms.createRoom, {
       displayName: 'Solo',
     });
 
     await expect(
-      as(t, 'soloSG4').mutation(api.game.startGame, { code })
+      asUser(t, 'soloSG4').mutation(api.game.startGame, { code })
     ).rejects.toThrow('Need at least 2 players');
   });
 
   it('throws when a game is already in progress', async () => {
     const t = setupConvexTest();
     const { code } = await seedLobby(t, 'SG5');
-    await as(t, 'hostSG5').mutation(api.game.startGame, { code });
+    await asUser(t, 'hostSG5').mutation(api.game.startGame, { code });
 
     await expect(
-      as(t, 'hostSG5').mutation(api.game.startGame, { code })
+      asUser(t, 'hostSG5').mutation(api.game.startGame, { code })
     ).rejects.toThrow('Game already in progress');
   });
 });
@@ -439,7 +418,7 @@ describe('summonGhostwriter', () => {
     );
 
     await expect(
-      as(t, 'ghostguestA').mutation(api.game.summonGhostwriter, {
+      asUser(t, 'ghostguestA').mutation(api.game.summonGhostwriter, {
         roomCode: code,
       })
     ).rejects.toThrow('Only host can summon the ghostwriter');
@@ -457,7 +436,7 @@ describe('summonGhostwriter', () => {
     });
 
     await expect(
-      as(t, 'ghosthostB').mutation(api.game.summonGhostwriter, {
+      asUser(t, 'ghosthostB').mutation(api.game.summonGhostwriter, {
         roomCode: code,
       })
     ).rejects.toThrow('The ghostwriter only answers after overtime');
@@ -494,7 +473,7 @@ describe('summonGhostwriter', () => {
       })
     );
 
-    const result = await as(t, 'ghosthostC').mutation(
+    const result = await asUser(t, 'ghosthostC').mutation(
       api.game.summonGhostwriter,
       { roomCode: code }
     );
@@ -550,7 +529,7 @@ describe('summonGhostwriter', () => {
       });
     });
 
-    const result = await as(t, 'ghosthostD').mutation(
+    const result = await asUser(t, 'ghosthostD').mutation(
       api.game.summonGhostwriter,
       { roomCode: code }
     );
@@ -577,9 +556,9 @@ describe('getCurrentAssignment', () => {
 
   it('returns null if room not found', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'ca02user');
+    await seedClerkUser(t, 'ca02user');
 
-    const result = await as(t, 'ca02user').query(
+    const result = await asUser(t, 'ca02user').query(
       api.game.getCurrentAssignment,
       { roomCode: 'ZZZZ' }
     );
@@ -590,7 +569,7 @@ describe('getCurrentAssignment', () => {
     const t = setupConvexTest();
     const { code } = await seedLobby(t, 'CA03');
 
-    const result = await as(t, 'hostCA03').query(
+    const result = await asUser(t, 'hostCA03').query(
       api.game.getCurrentAssignment,
       { roomCode: code }
     );
@@ -606,9 +585,9 @@ describe('getCurrentAssignment', () => {
       ],
       code: 'CA04',
     });
-    await seedUser(t, 'outsiderCA04');
+    await seedClerkUser(t, 'outsiderCA04');
 
-    const result = await as(t, 'outsiderCA04').query(
+    const result = await asUser(t, 'outsiderCA04').query(
       api.game.getCurrentAssignment,
       { roomCode: code }
     );
@@ -639,7 +618,7 @@ describe('getCurrentAssignment', () => {
       })
     );
 
-    const result = await as(t, 'aliceCA05').query(
+    const result = await asUser(t, 'aliceCA05').query(
       api.game.getCurrentAssignment,
       { roomCode: code }
     );
@@ -688,7 +667,7 @@ describe('getCurrentAssignment', () => {
       })
     );
 
-    const result = await as(t, 'aliceCA06').query(
+    const result = await asUser(t, 'aliceCA06').query(
       api.game.getCurrentAssignment,
       { roomCode: code }
     );
@@ -725,7 +704,7 @@ describe('getCurrentAssignment', () => {
       })
     );
 
-    const result = await as(t, 'aliceCA07').query(
+    const result = await asUser(t, 'aliceCA07').query(
       api.game.getCurrentAssignment,
       { roomCode: code }
     );
@@ -756,7 +735,7 @@ describe('submitLine', () => {
     );
 
     await expect(
-      as(t, 'hostSL01').mutation(api.game.submitLine, {
+      asUser(t, 'hostSL01').mutation(api.game.submitLine, {
         poemId,
         lineIndex: 0,
         text: 'hello',
@@ -776,7 +755,7 @@ describe('submitLine', () => {
     });
     // matrix[2][0] = Alice → poem 0; round 2 expects 3 words
     await expect(
-      as(t, 'aliceSL02').mutation(api.game.submitLine, {
+      asUser(t, 'aliceSL02').mutation(api.game.submitLine, {
         poemId: poemIds[0],
         lineIndex: 2,
         text: 'hello world', // only 2 words
@@ -797,7 +776,7 @@ describe('submitLine', () => {
     const longText = 'a'.repeat(501);
 
     await expect(
-      as(t, 'aliceSL03').mutation(api.game.submitLine, {
+      asUser(t, 'aliceSL03').mutation(api.game.submitLine, {
         poemId: poemIds[0],
         lineIndex: 0,
         text: longText,
@@ -817,7 +796,7 @@ describe('submitLine', () => {
     });
     const exactText = 'a'.repeat(500);
 
-    await as(t, 'aliceSL04').mutation(api.game.submitLine, {
+    await asUser(t, 'aliceSL04').mutation(api.game.submitLine, {
       poemId: poemIds[0],
       lineIndex: 0,
       text: exactText,
@@ -847,12 +826,12 @@ describe('submitLine', () => {
       currentRound: 0,
     });
 
-    await as(t, 'aliceSL05').mutation(api.game.submitLine, {
+    await asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
       poemId: poemIds[0],
       lineIndex: 0,
       text: 'hello',
     });
-    await as(t, 'aliceSL05').mutation(api.game.submitLine, {
+    await asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
       poemId: poemIds[0],
       lineIndex: 0,
       text: 'hello',
@@ -881,7 +860,7 @@ describe('submitLine', () => {
     });
     // matrix[0][1] = Bob → poem 1; Alice is NOT assigned to poem 1
     await expect(
-      as(t, 'aliceSL06').mutation(api.game.submitLine, {
+      asUser(t, 'aliceSL06').mutation(api.game.submitLine, {
         poemId: poemIds[1],
         lineIndex: 0,
         text: 'hello',
@@ -901,7 +880,7 @@ describe('submitLine', () => {
     });
     // Alice at poem 0, round 0; trying lineIndex 1 (future)
     await expect(
-      as(t, 'aliceSL07').mutation(api.game.submitLine, {
+      asUser(t, 'aliceSL07').mutation(api.game.submitLine, {
         poemId: poemIds[0],
         lineIndex: 1,
         text: 'hello world',
@@ -920,7 +899,7 @@ describe('submitLine', () => {
       currentRound: 0,
     });
 
-    await as(t, 'aliceSL08').mutation(api.game.submitLine, {
+    await asUser(t, 'aliceSL08').mutation(api.game.submitLine, {
       poemId: poemIds[0],
       lineIndex: 0,
       text: 'hello',
@@ -951,12 +930,12 @@ describe('submitLine', () => {
       currentRound: 0,
     });
 
-    await as(t, 'aliceSL09').mutation(api.game.submitLine, {
+    await asUser(t, 'aliceSL09').mutation(api.game.submitLine, {
       poemId: poemIds[0],
       lineIndex: 0,
       text: 'hello',
     });
-    await as(t, 'bobSL09').mutation(api.game.submitLine, {
+    await asUser(t, 'bobSL09').mutation(api.game.submitLine, {
       poemId: poemIds[1],
       lineIndex: 0,
       text: 'world',
@@ -996,13 +975,13 @@ describe('submitLine', () => {
     });
 
     // matrix[8][0] = userIds[(0+8)%2] = userIds[0] = Alice → poem 0
-    await as(t, 'aliceSL10').mutation(api.game.submitLine, {
+    await asUser(t, 'aliceSL10').mutation(api.game.submitLine, {
       poemId: poemIds[0],
       lineIndex: 8,
       text: 'finale',
     });
     // matrix[8][1] = userIds[(1+8)%2] = userIds[1] = Bob → poem 1
-    await as(t, 'bobSL10').mutation(api.game.submitLine, {
+    await asUser(t, 'bobSL10').mutation(api.game.submitLine, {
       poemId: poemIds[1],
       lineIndex: 8,
       text: 'ending',
@@ -1039,11 +1018,14 @@ describe('getRevealPhaseState', () => {
 
   it('returns null if room not found', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'rv02user');
+    await seedClerkUser(t, 'rv02user');
 
-    const result = await as(t, 'rv02user').query(api.game.getRevealPhaseState, {
-      roomCode: 'ZZZZ',
-    });
+    const result = await asUser(t, 'rv02user').query(
+      api.game.getRevealPhaseState,
+      {
+        roomCode: 'ZZZZ',
+      }
+    );
     expect(result).toBeNull();
   });
 
@@ -1051,18 +1033,21 @@ describe('getRevealPhaseState', () => {
     const t = setupConvexTest();
     const { code } = await seedLobby(t, 'RV03');
 
-    const result = await as(t, 'hostRV03').query(api.game.getRevealPhaseState, {
-      roomCode: code,
-    });
+    const result = await asUser(t, 'hostRV03').query(
+      api.game.getRevealPhaseState,
+      {
+        roomCode: code,
+      }
+    );
     expect(result).toBeNull();
   });
 
   it('returns null if user is not a participant', async () => {
     const t = setupConvexTest();
     const { code } = await seedCompletedRoom(t, 'RV04');
-    await seedUser(t, 'outsiderRV04');
+    await seedClerkUser(t, 'outsiderRV04');
 
-    const result = await as(t, 'outsiderRV04').query(
+    const result = await asUser(t, 'outsiderRV04').query(
       api.game.getRevealPhaseState,
       { roomCode: code }
     );
@@ -1095,7 +1080,7 @@ describe('getRevealPhaseState', () => {
     );
 
     // guestRV05 is a participant but has no poem assigned
-    const result = await as(t, 'guestRV05').query(
+    const result = await asUser(t, 'guestRV05').query(
       api.game.getRevealPhaseState,
       { roomCode: code }
     );
@@ -1130,9 +1115,12 @@ describe('getRevealPhaseState', () => {
       })
     );
 
-    const result = await as(t, 'hostRV06').query(api.game.getRevealPhaseState, {
-      roomCode: code,
-    });
+    const result = await asUser(t, 'hostRV06').query(
+      api.game.getRevealPhaseState,
+      {
+        roomCode: code,
+      }
+    );
 
     expect(result).not.toBeNull();
     expect(result!.isHost).toBe(true);
@@ -1159,7 +1147,7 @@ describe('revealPoem', () => {
       })
     );
 
-    await as(t, 'hostRP01').mutation(api.game.revealPoem, { poemId });
+    await asUser(t, 'hostRP01').mutation(api.game.revealPoem, { poemId });
 
     const poem = await t.run((ctx) => ctx.db.get(poemId));
     expect(poem?.revealedAt).toBeDefined();
@@ -1188,7 +1176,7 @@ describe('revealPoem', () => {
   it('throws if poem not found', async () => {
     const t = setupConvexTest();
     const { gameId, roomId } = await seedCompletedRoom(t, 'RP03');
-    await seedUser(t, 'rp03user');
+    await seedClerkUser(t, 'rp03user');
 
     // Insert a poem, capture its id, then delete it — the id is now a valid
     // poem-shaped id with no matching row, which triggers "Poem not found".
@@ -1204,7 +1192,7 @@ describe('revealPoem', () => {
     });
 
     await expect(
-      as(t, 'rp03user').mutation(api.game.revealPoem, {
+      asUser(t, 'rp03user').mutation(api.game.revealPoem, {
         poemId: ghostPoemId,
       })
     ).rejects.toThrow('Poem not found');
@@ -1226,7 +1214,7 @@ describe('revealPoem', () => {
     );
 
     await expect(
-      as(t, 'guestRP04').mutation(api.game.revealPoem, { poemId })
+      asUser(t, 'guestRP04').mutation(api.game.revealPoem, { poemId })
     ).rejects.toThrow('This poem is not assigned to you');
   });
 
@@ -1246,7 +1234,7 @@ describe('revealPoem', () => {
     );
 
     await expect(
-      as(t, 'hostRP05').mutation(api.game.revealPoem, { poemId })
+      asUser(t, 'hostRP05').mutation(api.game.revealPoem, { poemId })
     ).rejects.toThrow('Poem already revealed');
   });
 });
@@ -1269,11 +1257,14 @@ describe('getRoundProgress', () => {
 
   it('returns null when room not found', async () => {
     const t = setupConvexTest();
-    await seedUser(t, 'gp02user');
+    await seedClerkUser(t, 'gp02user');
 
-    const result = await as(t, 'gp02user').query(api.game.getRoundProgress, {
-      roomCode: 'ZZZZ',
-    });
+    const result = await asUser(t, 'gp02user').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: 'ZZZZ',
+      }
+    );
     expect(result).toBeNull();
   });
 
@@ -1286,9 +1277,9 @@ describe('getRoundProgress', () => {
       ],
       code: 'GP03',
     });
-    await seedUser(t, 'outsiderGP03');
+    await seedClerkUser(t, 'outsiderGP03');
 
-    const result = await as(t, 'outsiderGP03').query(
+    const result = await asUser(t, 'outsiderGP03').query(
       api.game.getRoundProgress,
       { roomCode: 'GP03' }
     );
@@ -1299,9 +1290,12 @@ describe('getRoundProgress', () => {
     const t = setupConvexTest();
     const { code } = await seedLobby(t, 'GP04');
 
-    const result = await as(t, 'hostGP04').query(api.game.getRoundProgress, {
-      roomCode: code,
-    });
+    const result = await asUser(t, 'hostGP04').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: code,
+      }
+    );
     expect(result).toBeNull();
   });
 
@@ -1317,15 +1311,18 @@ describe('getRoundProgress', () => {
     });
 
     // Alice submits; Bob hasn't yet
-    await as(t, 'aliceGP05').mutation(api.game.submitLine, {
+    await asUser(t, 'aliceGP05').mutation(api.game.submitLine, {
       poemId: poemIds[0],
       lineIndex: 0,
       text: 'hello',
     });
 
-    const result = await as(t, 'aliceGP05').query(api.game.getRoundProgress, {
-      roomCode: 'GP05',
-    });
+    const result = await asUser(t, 'aliceGP05').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: 'GP05',
+      }
+    );
 
     expect(result).not.toBeNull();
     expect(result!.round).toBe(0);
@@ -1355,9 +1352,12 @@ describe('getRoundProgress', () => {
       mode: 'quick',
     });
 
-    const result = await as(t, 'aliceGP06').query(api.game.getRoundProgress, {
-      roomCode: 'GP06',
-    });
+    const result = await asUser(t, 'aliceGP06').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: 'GP06',
+      }
+    );
 
     expect(result).not.toBeNull();
     expect(result!.totalRounds).toBe(5);
