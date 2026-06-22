@@ -1,1309 +1,1365 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
+/**
+ * game.test.ts — migrated to convex-test (backlog 018).
+ *
+ * Exercises game.ts mutations and queries against the real convex-test
+ * in-memory engine (real read-your-writes + real scheduler) instead of the
+ * mock DB. The only mocked boundary is the OpenRouter `fetch`, stubbed offline
+ * so every AI path falls through to deterministic fallbacks.
+ *
+ * Covers: startGame, startNewCycle, getCurrentAssignment, submitLine,
+ *         getRevealPhaseState, revealPoem, getRoundProgress, summonGhostwriter.
+ */
 
-// Mock Convex server functions
-vi.mock('../../convex/_generated/server', () => ({
-  mutation: (args: unknown) => args,
-  query: (args: unknown) => args,
-  internalMutation: (args: unknown) => args,
-}));
-
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
+import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 import {
-  startNewCycle,
-  startGame,
-  getCurrentAssignment,
-  submitLine,
-  getRevealPhaseState,
-  revealPoem,
-  getRoundProgress,
-  summonGhostwriter,
-} from '../../convex/game';
+  WORD_COUNTS,
+  GHOSTWRITER_OVERTIME_MS,
+} from '../../convex/lib/gameRules';
 
-// Mock dependencies
-const mockGetUser = vi.fn();
-const mockCheckParticipation = vi.fn();
-vi.mock('../../convex/lib/auth', () => ({
-  getUser: (...args: unknown[]) => mockGetUser(...args),
-  checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
-}));
+/**
+ * Seed a fully-wired LOBBY with two human players.
+ * Host = clerk_host{suffix}, Guest = clerk_guest{suffix}.
+ */
+async function seedLobby(
+  t: T,
+  suffix = ''
+): Promise<{
+  code: string;
+  roomId: Id<'rooms'>;
+  hostId: Id<'users'>;
+  guestId: Id<'users'>;
+}> {
+  await seedClerkUser(t, `host${suffix}`);
+  await seedClerkUser(t, `guest${suffix}`);
 
-// Mock room helpers
-const mockGetRoomByCode = vi.fn();
-const mockRequireRoomByCode = vi.fn();
-const mockGetActiveGame = vi.fn();
-const mockGetCompletedGame = vi.fn();
-vi.mock('../../convex/lib/room', () => ({
-  getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
-  requireRoomByCode: (...args: unknown[]) => mockRequireRoomByCode(...args),
-  getActiveGame: (...args: unknown[]) => mockGetActiveGame(...args),
-  getCompletedGame: (...args: unknown[]) => mockGetCompletedGame(...args),
-}));
+  const { code, roomId } = await asUser(t, `host${suffix}`).mutation(
+    api.rooms.createRoom,
+    { displayName: `Host${suffix}` }
+  );
+  await asUser(t, `guest${suffix}`).mutation(api.rooms.joinRoom, {
+    code,
+    displayName: `Guest${suffix}`,
+  });
 
-// assignmentMatrix uses crypto.getRandomValues internally - mock at non-deterministic boundary
-// getMatrixRound is deterministic, so use real implementation
-vi.mock('../../convex/lib/assignmentMatrix', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../convex/lib/assignmentMatrix')>();
-  return {
-    ...actual,
-    generateAssignmentMatrix: () => [
-      [0, 1],
-      [1, 0],
-    ],
-    secureShuffle: <T>(arr: T[]) => arr, // Identity for deterministic tests
-  };
+  const hostId = await t.run((ctx) =>
+    ctx.db
+      .query('users')
+      .withIndex('by_clerk', (q) => q.eq('clerkUserId', `clerk_host${suffix}`))
+      .first()
+      .then((u) => u!._id)
+  );
+  const guestId = await t.run((ctx) =>
+    ctx.db
+      .query('users')
+      .withIndex('by_clerk', (q) => q.eq('clerkUserId', `clerk_guest${suffix}`))
+      .first()
+      .then((u) => u!._id)
+  );
+
+  return { code, roomId, hostId, guestId };
+}
+
+/**
+ * Seed a COMPLETED room with a completed game, ready for startNewCycle.
+ * Code is derived from suffix (upper-cased, truncated/padded to 4 chars).
+ */
+async function seedCompletedRoom(
+  t: T,
+  suffix: string
+): Promise<{
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  hostId: Id<'users'>;
+  guestId: Id<'users'>;
+  code: string;
+}> {
+  const raw = suffix.toUpperCase().replace(/[^A-Z]/g, 'X');
+  const code = raw.slice(0, 4).padEnd(4, 'X');
+  return t.run(async (ctx) => {
+    const hostId = await ctx.db.insert('users', {
+      displayName: `Host${suffix}`,
+      kind: 'human',
+      clerkUserId: `clerk_host${suffix}`,
+      createdAt: 0,
+    });
+    const guestId = await ctx.db.insert('users', {
+      displayName: `Guest${suffix}`,
+      kind: 'human',
+      clerkUserId: `clerk_guest${suffix}`,
+      createdAt: 0,
+    });
+    const roomId = await ctx.db.insert('rooms', {
+      code,
+      hostUserId: hostId,
+      status: 'COMPLETED',
+      createdAt: 0,
+    });
+    await ctx.db.insert('roomPlayers', {
+      roomId,
+      userId: hostId,
+      displayName: `Host${suffix}`,
+      seatIndex: 0,
+      joinedAt: 0,
+    });
+    await ctx.db.insert('roomPlayers', {
+      roomId,
+      userId: guestId,
+      displayName: `Guest${suffix}`,
+      seatIndex: 1,
+      joinedAt: 0,
+    });
+    const gameId = await ctx.db.insert('games', {
+      roomId,
+      status: 'COMPLETED',
+      cycle: 1,
+      mode: 'classic',
+      currentRound: 8,
+      assignmentMatrix: [[hostId, guestId]],
+      createdAt: 0,
+    });
+    return { roomId, gameId, hostId, guestId, code };
+  });
+}
+
+/**
+ * Seed an IN_PROGRESS game directly (bypasses auth/lobby).
+ * The assignment matrix is a deterministic cyclic shift: row r[poem] = userIds[(poem+r)%n].
+ */
+async function seedInProgressGame(
+  t: T,
+  opts: {
+    players: Array<{
+      name: string;
+      clerkUserId?: string;
+      kind?: 'human' | 'AI';
+    }>;
+    code?: string;
+    currentRound?: number;
+    roundStartedAt?: number;
+    mode?: 'classic' | 'rhyme' | 'quick';
+  }
+): Promise<{
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  userIds: Id<'users'>[];
+  poemIds: Id<'poems'>[];
+  matrix: Id<'users'>[][];
+  code: string;
+}> {
+  const code = opts.code ?? 'TEST';
+  const currentRound = opts.currentRound ?? 0;
+  const mode = opts.mode ?? 'classic';
+  const wordCounts = mode === 'quick' ? [1, 2, 3, 2, 1] : WORD_COUNTS;
+  const rounds = wordCounts.length;
+  const now = Date.now();
+  const roundStartedAt = opts.roundStartedAt ?? now;
+
+  return t.run(async (ctx) => {
+    const userIds: Id<'users'>[] = [];
+    for (const p of opts.players) {
+      userIds.push(
+        await ctx.db.insert('users', {
+          displayName: p.name,
+          kind: p.kind ?? 'human',
+          ...(p.clerkUserId ? { clerkUserId: p.clerkUserId } : {}),
+          createdAt: now,
+        })
+      );
+    }
+
+    const roomId = await ctx.db.insert('rooms', {
+      code,
+      hostUserId: userIds[0],
+      status: 'IN_PROGRESS',
+      createdAt: now,
+    });
+
+    await Promise.all(
+      opts.players.map((p, i) =>
+        ctx.db.insert('roomPlayers', {
+          roomId,
+          userId: userIds[i],
+          displayName: p.name,
+          seatIndex: i,
+          joinedAt: now,
+        })
+      )
+    );
+
+    const n = userIds.length;
+    const matrix: Id<'users'>[][] = [];
+    for (let r = 0; r < rounds; r++) {
+      matrix.push(
+        Array.from({ length: n }, (_, poem) => userIds[(poem + r) % n])
+      );
+    }
+
+    const gameId = await ctx.db.insert('games', {
+      roomId,
+      status: 'IN_PROGRESS',
+      cycle: 1,
+      mode,
+      currentRound,
+      roundStartedAt,
+      assignmentMatrix: matrix,
+      createdAt: now,
+    });
+
+    const poemIds: Id<'poems'>[] = [];
+    for (let i = 0; i < n; i++) {
+      poemIds.push(
+        await ctx.db.insert('poems', {
+          roomId,
+          gameId,
+          indexInRoom: i,
+          createdAt: now,
+        })
+      );
+    }
+
+    return { roomId, gameId, userIds, poemIds, matrix, code };
+  });
+}
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.reject(new Error('network disabled in test')))
+  );
+  vi.useFakeTimers();
 });
 
-// wordCount is deterministic - use real implementation (no mock)
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
-describe('game', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockDb: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockCtx: any;
+// ─── startNewCycle ────────────────────────────────────────────────────────────
 
-  beforeEach(() => {
-    mockDb = createMockDb();
-    mockCtx = {
-      ...createMockCtx(mockDb),
-      scheduler: { runAfter: vi.fn() },
-    };
-    mockGetUser.mockReset();
-    mockCheckParticipation.mockReset();
-    mockGetRoomByCode.mockReset();
-    mockRequireRoomByCode.mockReset();
-    mockGetActiveGame.mockReset();
-    mockGetCompletedGame.mockReset();
+describe('startNewCycle', () => {
+  it('throws if user not found (no identity)', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedCompletedRoom(t, 'SNC0');
+
+    await expect(
+      t.mutation(api.game.startNewCycle, { roomCode: code })
+    ).rejects.toThrow('User not found');
   });
 
-  describe('startNewCycle', () => {
-    it('throws if user not found', async () => {
-      mockGetUser.mockResolvedValue(null);
-      await expect(
-        // @ts-expect-error - calling handler directly for test
-        startNewCycle.handler(mockCtx, {
-          roomCode: 'TEST',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('User not found');
-    });
+  it('throws if room not found', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'snc1user');
 
-    it('throws if room not found', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockRequireRoomByCode.mockRejectedValue(new Error('Room not found'));
-
-      await expect(
-        // @ts-expect-error - calling handler directly for test
-        startNewCycle.handler(mockCtx, {
-          roomCode: 'TEST',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Room not found');
-    });
-
-    it('throws if user is not a participant', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'stranger' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-      mockCheckParticipation.mockResolvedValue(false);
-
-      await expect(
-        // @ts-expect-error - calling handler directly for test
-        startNewCycle.handler(mockCtx, {
-          roomCode: 'TEST',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Only players in this room can start a new cycle');
-    });
-
-    it('throws if game still in progress', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-      mockCheckParticipation.mockResolvedValue(true);
-      mockGetActiveGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'IN_PROGRESS',
-      });
-
-      await expect(
-        // @ts-expect-error - calling handler directly for test
-        startNewCycle.handler(mockCtx, {
-          roomCode: 'TEST',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Game still in progress');
-    });
-
-    it('throws if no completed game', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-      mockCheckParticipation.mockResolvedValue(true);
-      mockGetActiveGame.mockResolvedValue(null);
-      mockGetCompletedGame.mockResolvedValue(null);
-
-      await expect(
-        // @ts-expect-error - calling handler directly for test
-        startNewCycle.handler(mockCtx, {
-          roomCode: 'TEST',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('No completed game to continue from');
-    });
-
-    it('resets room to LOBBY on success for any participant', async () => {
-      // user2 is a participant but NOT the host — a vanished host must not strand the recap
-      mockGetUser.mockResolvedValue({ _id: 'user2' });
-      const room = {
-        _id: 'room1',
-        hostUserId: 'user1',
-        currentCycle: 1,
-        currentGameId: 'game1',
-      };
-      mockRequireRoomByCode.mockResolvedValue(room);
-      mockCheckParticipation.mockResolvedValue(true);
-      mockGetActiveGame.mockResolvedValue(null);
-      mockGetCompletedGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'COMPLETED',
-      });
-
-      // @ts-expect-error - calling handler directly for test
-      await startNewCycle.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(mockDb.patch).toHaveBeenCalledWith('room1', {
-        status: 'LOBBY',
-        currentGameId: undefined,
-      });
-    });
+    await expect(
+      asUser(t, 'snc1user').mutation(api.game.startNewCycle, {
+        roomCode: 'ZZZZ',
+      })
+    ).rejects.toThrow();
   });
 
-  describe('startGame', () => {
-    it('starts game successfully', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-        code: 'TEST',
-      });
-      mockGetActiveGame.mockResolvedValue(null); // No game in progress
-      mockDb.collect.mockResolvedValue([
-        { _id: 'p1', userId: 'user1' },
-        { _id: 'p2', userId: 'user2' },
-      ]);
-      mockDb.insert.mockResolvedValue('game1');
+  it('throws if user is not a participant', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedCompletedRoom(t, 'SNC2');
+    await seedClerkUser(t, 'outsidersnc2');
 
-      // @ts-expect-error - calling handler
-      await startGame.handler(mockCtx, { code: 'TEST', guestToken: 'token' });
-
-      expect(mockDb.insert).toHaveBeenCalledWith('games', expect.anything());
-      expect(mockDb.patch).toHaveBeenCalledWith('room1', expect.anything());
-    });
-
-    it('blocks a non-host before the first game completes', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-        code: 'TEST',
-      });
-      mockGetCompletedGame.mockResolvedValue(null);
-      mockCheckParticipation.mockResolvedValue(true);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        startGame.handler(mockCtx, { code: 'TEST', guestToken: 'token' })
-      ).rejects.toThrow('Only host can start game');
-    });
-
-    it('lets any participant fire the rematch once a game has completed', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-        code: 'TEST',
-      });
-      mockGetCompletedGame.mockResolvedValue({
-        _id: 'game0',
-        status: 'COMPLETED',
-      });
-      mockCheckParticipation.mockResolvedValue(true);
-      mockGetActiveGame.mockResolvedValue(null);
-      mockDb.collect.mockResolvedValue([
-        { _id: 'p1', userId: 'user1' },
-        { _id: 'p2', userId: 'user2' },
-      ]);
-      mockDb.insert.mockResolvedValue('game2');
-
-      // @ts-expect-error - calling handler
-      await startGame.handler(mockCtx, { code: 'TEST', guestToken: 'token' });
-
-      expect(mockDb.insert).toHaveBeenCalledWith(
-        'games',
-        expect.objectContaining({ status: 'IN_PROGRESS' })
-      );
-    });
+    await expect(
+      asUser(t, 'outsidersnc2').mutation(api.game.startNewCycle, {
+        roomCode: code,
+      })
+    ).rejects.toThrow('Only players in this room can start a new cycle');
   });
 
-  describe('summonGhostwriter', () => {
-    const overtimeGame = {
-      _id: 'game1',
-      status: 'IN_PROGRESS',
+  it('throws if game still in progress', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobby(t, 'SNC3');
+    await asUser(t, 'hostSNC3').mutation(api.game.startGame, { code });
+
+    await expect(
+      asUser(t, 'hostSNC3').mutation(api.game.startNewCycle, { roomCode: code })
+    ).rejects.toThrow('Game still in progress');
+  });
+
+  it('throws if no completed game', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobby(t, 'SNC4');
+
+    await expect(
+      asUser(t, 'hostSNC4').mutation(api.game.startNewCycle, { roomCode: code })
+    ).rejects.toThrow('No completed game to continue from');
+  });
+
+  it('resets room to LOBBY on success for any participant (non-host)', async () => {
+    const t = setupConvexTest();
+    const { roomId, code } = await seedCompletedRoom(t, 'SNC5');
+
+    await asUser(t, 'guestSNC5').mutation(api.game.startNewCycle, {
+      roomCode: code,
+    });
+
+    const room = await t.run((ctx) => ctx.db.get(roomId));
+    expect(room?.status).toBe('LOBBY');
+    expect(room?.currentGameId).toBeUndefined();
+  });
+
+  it('resets room to LOBBY on success for host', async () => {
+    const t = setupConvexTest();
+    const { roomId, code } = await seedCompletedRoom(t, 'SNC6');
+
+    await asUser(t, 'hostSNC6').mutation(api.game.startNewCycle, {
+      roomCode: code,
+    });
+
+    const room = await t.run((ctx) => ctx.db.get(roomId));
+    expect(room?.status).toBe('LOBBY');
+    expect(room?.currentGameId).toBeUndefined();
+  });
+});
+
+// ─── startGame ───────────────────────────────────────────────────────────────
+
+describe('startGame', () => {
+  it('starts game successfully — creates game, poems, and assignment matrix', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedLobby(t, 'SG1');
+
+    await asUser(t, 'hostSG1').mutation(api.game.startGame, { code });
+
+    const room = await t.run((ctx) => ctx.db.get(roomId));
+    expect(room?.status).toBe('IN_PROGRESS');
+    expect(room?.currentGameId).toBeDefined();
+
+    const gameId = room!.currentGameId!;
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    expect(game?.status).toBe('IN_PROGRESS');
+    expect(game?.currentRound).toBe(0);
+    expect(Array.isArray(game?.assignmentMatrix)).toBe(true);
+
+    const poems = await t.run((ctx) =>
+      ctx.db
+        .query('poems')
+        .withIndex('by_game', (q) => q.eq('gameId', gameId))
+        .collect()
+    );
+    expect(poems).toHaveLength(2);
+  });
+
+  it('blocks a non-host before the first game completes', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobby(t, 'SG2');
+
+    await expect(
+      asUser(t, 'guestSG2').mutation(api.game.startGame, { code })
+    ).rejects.toThrow('Only host can start game');
+  });
+
+  it('lets any participant fire the rematch once a game has completed', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedCompletedRoom(t, 'SG3A');
+
+    // Reset to LOBBY; completed game still exists in DB → guest can rematch
+    await asUser(t, 'hostSG3A').mutation(api.game.startNewCycle, {
+      roomCode: code,
+    });
+
+    await asUser(t, 'guestSG3A').mutation(api.game.startGame, { code });
+
+    const room = await t.run((ctx) => ctx.db.get(roomId));
+    expect(room?.status).toBe('IN_PROGRESS');
+
+    const game = await t.run((ctx) => ctx.db.get(room!.currentGameId!));
+    expect(game?.status).toBe('IN_PROGRESS');
+  });
+
+  it('throws when there is only one player', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'soloSG4');
+    const { code } = await asUser(t, 'soloSG4').mutation(api.rooms.createRoom, {
+      displayName: 'Solo',
+    });
+
+    await expect(
+      asUser(t, 'soloSG4').mutation(api.game.startGame, { code })
+    ).rejects.toThrow('Need at least 2 players');
+  });
+
+  it('throws when a game is already in progress', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobby(t, 'SG5');
+    await asUser(t, 'hostSG5').mutation(api.game.startGame, { code });
+
+    await expect(
+      asUser(t, 'hostSG5').mutation(api.game.startGame, { code })
+    ).rejects.toThrow('Game already in progress');
+  });
+});
+
+// ─── summonGhostwriter ────────────────────────────────────────────────────────
+
+describe('summonGhostwriter', () => {
+  it('rejects non-hosts', async () => {
+    const t = setupConvexTest();
+    const { code, gameId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghosthostA' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostguestA' },
+      ],
+      code: 'GWA1',
+      currentRound: 0,
+    });
+    // Patch past overtime so the overtime check doesn't fire first
+    await t.run((ctx) =>
+      ctx.db.patch(gameId, {
+        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 10_000,
+      })
+    );
+
+    await expect(
+      asUser(t, 'ghostguestA').mutation(api.game.summonGhostwriter, {
+        roomCode: code,
+      })
+    ).rejects.toThrow('Only host can summon the ghostwriter');
+  });
+
+  it('rejects before overtime', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghosthostB' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostguestB' },
+      ],
+      code: 'GWB1',
+      roundStartedAt: Date.now() - 5_000, // round just opened
+    });
+
+    await expect(
+      asUser(t, 'ghosthostB').mutation(api.game.summonGhostwriter, {
+        roomCode: code,
+      })
+    ).rejects.toThrow('The ghostwriter only answers after overtime');
+  });
+
+  it('schedules ghost lines for every missing poem after overtime', async () => {
+    const t = setupConvexTest();
+    const { code, poemIds, userIds, gameId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghosthostC' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostguestC' },
+      ],
+      code: 'GWC1',
+      currentRound: 0,
+    });
+
+    // Patch past overtime
+    await t.run((ctx) =>
+      ctx.db.patch(gameId, {
+        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 10_000,
+      })
+    );
+
+    // poem[0] has a line, poem[1] is missing
+    // matrix[0][0] = userIds[0] (Host) → poem 0
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 0,
+        text: 'hello',
+        wordCount: 1,
+        authorUserId: userIds[0],
+        createdAt: Date.now(),
+      })
+    );
+
+    const result = await asUser(t, 'ghosthostC').mutation(
+      api.game.summonGhostwriter,
+      { roomCode: code }
+    );
+
+    expect(result).toEqual({ summoned: 1 });
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const line = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemIds[1]).eq('indexInPoem', 0)
+        )
+        .first()
+    );
+    expect(line).not.toBeNull();
+  });
+
+  it('is a no-op when every poem already has its line', async () => {
+    const t = setupConvexTest();
+    const { code, poemIds, userIds, gameId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghosthostD' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostguestD' },
+      ],
+      code: 'GWD1',
+      currentRound: 0,
+    });
+
+    await t.run((ctx) =>
+      ctx.db.patch(gameId, {
+        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 10_000,
+      })
+    );
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 0,
+        text: 'hello',
+        wordCount: 1,
+        authorUserId: userIds[0],
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert('lines', {
+        poemId: poemIds[1],
+        indexInPoem: 0,
+        text: 'world',
+        wordCount: 1,
+        authorUserId: userIds[1],
+        createdAt: Date.now(),
+      });
+    });
+
+    const result = await asUser(t, 'ghosthostD').mutation(
+      api.game.summonGhostwriter,
+      { roomCode: code }
+    );
+
+    expect(result).toEqual({ summoned: 0 });
+  });
+});
+
+// ─── getCurrentAssignment ─────────────────────────────────────────────────────
+
+describe('getCurrentAssignment', () => {
+  it('returns null if user not found (no identity)', async () => {
+    const t = setupConvexTest();
+    await seedInProgressGame(t, {
+      players: [{ name: 'A' }, { name: 'B' }],
+      code: 'CA01',
+    });
+
+    const result = await t.query(api.game.getCurrentAssignment, {
+      roomCode: 'CA01',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null if room not found', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'ca02user');
+
+    const result = await asUser(t, 'ca02user').query(
+      api.game.getCurrentAssignment,
+      { roomCode: 'ZZZZ' }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null if no game in progress', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobby(t, 'CA03');
+
+    const result = await asUser(t, 'hostCA03').query(
+      api.game.getCurrentAssignment,
+      { roomCode: code }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null if user not in assignment matrix', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceCA04' },
+        { name: 'Bob', clerkUserId: 'clerk_bobCA04' },
+      ],
+      code: 'CA04',
+    });
+    await seedClerkUser(t, 'outsiderCA04');
+
+    const result = await asUser(t, 'outsiderCA04').query(
+      api.game.getCurrentAssignment,
+      { roomCode: code }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns assignment with previous line for round > 0', async () => {
+    const t = setupConvexTest();
+    const { code, poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceCA05' },
+        { name: 'Bob', clerkUserId: 'clerk_bobCA05' },
+      ],
+      code: 'CA05',
       currentRound: 2,
-      roundStartedAt: Date.now() - 10 * 60 * 1000, // deep overtime
-      createdAt: Date.now() - 20 * 60 * 1000,
-      assignmentMatrix: [[], [], ['user1', 'user2']],
-    };
-
-    it('rejects non-hosts', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-
-      await expect(
-        // @ts-expect-error - calling handler
-        summonGhostwriter.handler(mockCtx, {
-          roomCode: 'TEST',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Only host can summon the ghostwriter');
     });
 
-    it('rejects before overtime', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-      mockGetActiveGame.mockResolvedValue({
-        ...overtimeGame,
-        roundStartedAt: Date.now() - 5_000, // round just opened
-      });
+    // matrix[2][0] = userIds[(0+2)%2] = userIds[0] = Alice → poem 0
+    // Insert previous line (round 1) for poem 0
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 1,
+        text: 'one two',
+        wordCount: 2,
+        authorUserId: userIds[1],
+        createdAt: Date.now(),
+      })
+    );
 
-      await expect(
-        // @ts-expect-error - calling handler
-        summonGhostwriter.handler(mockCtx, {
-          roomCode: 'TEST',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('The ghostwriter only answers after overtime');
-      expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
-    });
+    const result = await asUser(t, 'aliceCA05').query(
+      api.game.getCurrentAssignment,
+      { roomCode: code }
+    );
 
-    it('schedules ghost lines for every missing poem after overtime', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-      mockGetActiveGame.mockResolvedValue(overtimeGame);
-      mockDb.collect.mockResolvedValue([
-        { _id: 'poem1', indexInRoom: 0 },
-        { _id: 'poem2', indexInRoom: 1 },
-      ]);
-      // poem1 has a line, poem2 is missing
-      mockDb.first
-        .mockResolvedValueOnce({ _id: 'line1' })
-        .mockResolvedValueOnce(null);
-
-      // @ts-expect-error - calling handler
-      const result = await summonGhostwriter.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toEqual({ summoned: 1 });
-      expect(mockCtx.scheduler.runAfter).toHaveBeenCalledTimes(1);
-      expect(mockCtx.scheduler.runAfter).toHaveBeenCalledWith(
-        0,
-        expect.anything(),
-        expect.objectContaining({
-          poemId: 'poem2',
-          round: 2,
-          forUserId: 'user2',
-        })
-      );
-    });
-
-    it('is a no-op when every poem already has its line', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockRequireRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-      mockGetActiveGame.mockResolvedValue(overtimeGame);
-      mockDb.collect.mockResolvedValue([{ _id: 'poem1', indexInRoom: 0 }]);
-      mockDb.first.mockResolvedValueOnce({ _id: 'line1' });
-
-      // @ts-expect-error - calling handler
-      const result = await summonGhostwriter.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toEqual({ summoned: 0 });
-      expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
-    });
+    expect(result).not.toBeNull();
+    expect(result!.poemId).toBe(poemIds[0]);
+    expect(result!.lineIndex).toBe(2);
+    expect(result!.targetWordCount).toBe(3); // classic wordCounts[2]
+    expect(result!.totalRounds).toBe(9);
+    expect(result!.mode).toBe('classic');
+    expect(result!.isFinalRound).toBe(false);
+    expect(result!.previousLineText).toBe('one two');
   });
 
-  describe('getCurrentAssignment', () => {
-    it('returns null if user not found', async () => {
-      mockGetUser.mockResolvedValue(null);
-
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-      expect(result).toBeNull();
+  it('exposes the rhyme target on the final round of rhyme relay', async () => {
+    const t = setupConvexTest();
+    const { code, poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceCA06' },
+        { name: 'Bob', clerkUserId: 'clerk_bobCA06' },
+      ],
+      code: 'CA06',
+      currentRound: 8,
+      mode: 'rhyme',
     });
 
-    it('returns null if room not found', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue(null);
+    // matrix[8][0] = userIds[(0+8)%2] = userIds[0] = Alice → poem 0
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 0,
+        text: 'moon',
+        wordCount: 1,
+        authorUserId: userIds[0],
+        createdAt: Date.now(),
+      })
+    );
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 7,
+        text: 'two words',
+        wordCount: 2,
+        authorUserId: userIds[1],
+        createdAt: Date.now(),
+      })
+    );
 
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-      expect(result).toBeNull();
+    const result = await asUser(t, 'aliceCA06').query(
+      api.game.getCurrentAssignment,
+      { roomCode: code }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.lineIndex).toBe(8);
+    expect(result!.targetWordCount).toBe(1);
+    expect(result!.mode).toBe('rhyme');
+    expect(result!.isFinalRound).toBe(true);
+    expect(result!.rhymeTargetWord).toBe('moon');
+  });
+
+  it('uses quick-jam word counts for quick games', async () => {
+    const t = setupConvexTest();
+    const { code, poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceCA07' },
+        { name: 'Bob', clerkUserId: 'clerk_bobCA07' },
+      ],
+      code: 'CA07',
+      currentRound: 2,
+      mode: 'quick',
     });
 
-    it('returns null if no game in progress', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockGetActiveGame.mockResolvedValue(null);
+    // matrix[2][0] = userIds[0] = Alice → poem 0
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 1,
+        text: 'two words',
+        wordCount: 2,
+        authorUserId: userIds[1],
+        createdAt: Date.now(),
+      })
+    );
 
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-      expect(result).toBeNull();
+    const result = await asUser(t, 'aliceCA07').query(
+      api.game.getCurrentAssignment,
+      { roomCode: code }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.lineIndex).toBe(2);
+    expect(result!.targetWordCount).toBe(3); // quick wordCounts[2] = 3
+    expect(result!.totalRounds).toBe(5);
+    expect(result!.mode).toBe('quick');
+    expect(result!.isFinalRound).toBe(false);
+  });
+});
+
+// ─── submitLine ───────────────────────────────────────────────────────────────
+
+describe('submitLine', () => {
+  it('throws if game not in progress (status COMPLETED)', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedCompletedRoom(t, 'SL01');
+
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+      })
+    );
+
+    await expect(
+      asUser(t, 'hostSL01').mutation(api.game.submitLine, {
+        poemId,
+        lineIndex: 0,
+        text: 'hello',
+      })
+    ).rejects.toThrow('Game not in progress');
+  });
+
+  it('throws if word count is incorrect', async () => {
+    const t = setupConvexTest();
+    const { poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL02' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL02' },
+      ],
+      code: 'SL02',
+      currentRound: 2,
     });
-
-    it('returns null if user not in assignment matrix', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user3' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockGetActiveGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'IN_PROGRESS',
-        currentRound: 0,
-        assignmentMatrix: [['user1', 'user2']], // user3 not in matrix
-      });
-
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-      expect(result).toBeNull();
-    });
-
-    it('returns null if poem not found', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockGetActiveGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'IN_PROGRESS',
-        currentRound: 0,
-        assignmentMatrix: [['user1', 'user2']],
-      });
-      // Poem query returns null
-      mockDb.first.mockResolvedValue(null);
-
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-      expect(result).toBeNull();
-    });
-
-    it('returns assignment with previous line for round > 0', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockGetActiveGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'IN_PROGRESS',
-        currentRound: 2, // Round 2
-        assignmentMatrix: [[], [], ['user1', 'user2']],
-      });
-
-      // Poem query
-      mockDb.first.mockResolvedValueOnce({ _id: 'poem1' });
-      // Previous line query
-      mockDb.first.mockResolvedValueOnce({ text: 'Previous line text' });
-
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toEqual({
-        poemId: 'poem1',
+    // matrix[2][0] = Alice → poem 0; round 2 expects 3 words
+    await expect(
+      asUser(t, 'aliceSL02').mutation(api.game.submitLine, {
+        poemId: poemIds[0],
         lineIndex: 2,
-        targetWordCount: 3, // classic wordCounts[2]
-        totalRounds: 9,
-        mode: 'classic',
-        isFinalRound: false,
-        rhymeTargetWord: undefined,
-        previousLineText: 'Previous line text',
-      });
-    });
-
-    it('exposes the rhyme target on the final round of rhyme relay', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      const finalRound = 8;
-      mockGetActiveGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'IN_PROGRESS',
-        mode: 'rhyme',
-        currentRound: finalRound,
-        assignmentMatrix: Array.from({ length: 9 }, () => ['user1', 'user2']),
-      });
-
-      // Poem query
-      mockDb.first.mockResolvedValueOnce({ _id: 'poem1' });
-      // Previous line query (round 7)
-      mockDb.first.mockResolvedValueOnce({ text: 'two words' });
-      // Opening line query (round 0)
-      mockDb.first.mockResolvedValueOnce({ text: 'moon' });
-
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toMatchObject({
-        lineIndex: finalRound,
-        targetWordCount: 1,
-        mode: 'rhyme',
-        isFinalRound: true,
-        rhymeTargetWord: 'moon',
-      });
-    });
-
-    it('uses quick-jam word counts for quick games', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockGetActiveGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'IN_PROGRESS',
-        mode: 'quick',
-        currentRound: 2,
-        assignmentMatrix: [[], [], ['user1', 'user2']],
-      });
-
-      mockDb.first.mockResolvedValueOnce({ _id: 'poem1' });
-      mockDb.first.mockResolvedValueOnce({ text: 'two words' });
-
-      // @ts-expect-error - calling handler
-      const result = await getCurrentAssignment.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toMatchObject({
-        lineIndex: 2,
-        targetWordCount: 3, // quick wordCounts[2]
-        totalRounds: 5,
-        mode: 'quick',
-        isFinalRound: false,
-      });
-    });
+        text: 'hello world', // only 2 words
+      })
+    ).rejects.toThrow('Expected 3 words, got 2');
   });
 
-  describe('submitLine', () => {
-    it('throws if game not in progress', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      // submitLine now uses poem.gameId directly
-      mockDb.get
-        .mockResolvedValueOnce({ roomId: 'room1', gameId: 'game1' }) // poem
-        .mockResolvedValueOnce({ status: 'COMPLETED' }) // game (via poem.gameId)
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Duplicate check - no existing line
-      mockDb.first.mockResolvedValue(null);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        submitLine.handler(mockCtx, {
-          poemId: 'poem1',
-          lineIndex: 0,
-          text: 'hello',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Game not in progress');
+  it('throws if line text exceeds 500 characters', async () => {
+    const t = setupConvexTest();
+    const { poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL03' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL03' },
+      ],
+      code: 'SL03',
+      currentRound: 0,
     });
+    const longText = 'a'.repeat(501);
 
-    it('throws if word count is incorrect', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 2, // Round 2 expects 3 words
-          assignmentMatrix: [[], [], ['user1', 'user2']],
-        }) // game (via poem.gameId)
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Duplicate check - no existing line
-      mockDb.first.mockResolvedValue(null);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        submitLine.handler(mockCtx, {
-          poemId: 'poem1',
-          lineIndex: 2,
-          text: 'hello world', // Only 2 words, expected 3
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Expected 3 words, got 2');
-    });
-
-    it('throws if line text exceeds 500 characters', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        }) // game (via poem.gameId)
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Duplicate check - no existing line
-      mockDb.first.mockResolvedValue(null);
-
-      // 501 character "word" (exceeds limit)
-      const longText = 'a'.repeat(501);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        submitLine.handler(mockCtx, {
-          poemId: 'poem1',
-          lineIndex: 0,
-          text: longText,
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Line must be 500 characters or less');
-    });
-
-    it('accepts line text at exactly 500 characters', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1', displayName: 'Test User' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        }) // game (via poem.gameId)
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Duplicate check - no existing line
-      mockDb.first.mockResolvedValue(null);
-
-      // Mock checking round completion
-      mockDb.collect.mockResolvedValue([{ _id: 'poem1' }, { _id: 'poem2' }]);
-
-      // 500 character word passes length check but the word count is 1
-      // Round 0 expects 1 word, so it should succeed
-      const exactLengthText = 'a'.repeat(500);
-
-      // @ts-expect-error - calling handler
-      await submitLine.handler(mockCtx, {
-        poemId: 'poem1',
+    await expect(
+      asUser(t, 'aliceSL03').mutation(api.game.submitLine, {
+        poemId: poemIds[0],
         lineIndex: 0,
-        text: exactLengthText,
-        guestToken: 'token',
-      });
-
-      expect(mockDb.insert).toHaveBeenCalledWith(
-        'lines',
-        expect.objectContaining({
-          text: exactLengthText,
-          wordCount: 1,
-        })
-      );
-    });
-
-    it('succeeds silently if line already submitted (idempotent)', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        }) // game
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Mock duplicate check - line already exists
-      mockDb.first.mockResolvedValue({ _id: 'existing-line' });
-
-      // Should not throw - idempotent success
-      // @ts-expect-error - calling handler
-      await submitLine.handler(mockCtx, {
-        poemId: 'poem1',
-        lineIndex: 0,
-        text: 'hello',
-        guestToken: 'token',
-      });
-
-      // Should not have inserted anything
-      expect(mockDb.insert).not.toHaveBeenCalled();
-    });
-
-    it('throws if user not assigned to this poem', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user2', 'user3']], // user1 not assigned
-        }) // game
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Duplicate check - no existing line
-      mockDb.first.mockResolvedValue(null);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        submitLine.handler(mockCtx, {
-          poemId: 'poem1',
-          lineIndex: 0,
-          text: 'hello',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Not your turn');
-    });
-
-    it('throws if submitting for future round', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0, // Currently round 0
-          assignmentMatrix: [
-            ['user1', 'user2'],
-            ['user2', 'user1'],
-          ],
-        }) // game (via poem.gameId)
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Duplicate check - no existing line
-      mockDb.first.mockResolvedValue(null);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        submitLine.handler(mockCtx, {
-          poemId: 'poem1',
-          lineIndex: 1, // Trying to submit for round 1 (future round)
-          text: 'hello world',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Round not started yet');
-    });
-
-    it('submits line successfully', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        }) // game (via poem.gameId)
-        .mockResolvedValueOnce({ _id: 'room1' }); // room
-
-      // Mock duplicate check
-      mockDb.first.mockResolvedValue(null);
-
-      // Mock checking round completion
-      mockDb.collect.mockResolvedValue([{ _id: 'poem1' }, { _id: 'poem2' }]);
-
-      // @ts-expect-error - calling handler
-      await submitLine.handler(mockCtx, {
-        poemId: 'poem1',
-        lineIndex: 0,
-        text: 'hello',
-        guestToken: 'token',
-      });
-
-      expect(mockDb.insert).toHaveBeenCalledWith(
-        'lines',
-        expect.objectContaining({
-          text: 'hello',
-          authorUserId: 'user1',
-        })
-      );
-    });
-
-    it('does not double-advance round when concurrent submissions both see allSubmitted', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        }) // game
-        .mockResolvedValueOnce({ _id: 'room1' }) // room
-        // Idempotent guard re-read: round already advanced by concurrent mutation
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 1,
-          assignmentMatrix: [['user1', 'user2']],
-        });
-
-      // No duplicate line
-      mockDb.first
-        .mockResolvedValueOnce(null) // duplicate check
-        .mockResolvedValueOnce({ _id: 'line1' }) // poem1 line check
-        .mockResolvedValueOnce({ _id: 'line2' }); // poem2 line check
-
-      // Poems in game
-      mockDb.collect.mockResolvedValue([{ _id: 'poem1' }, { _id: 'poem2' }]);
-
-      // @ts-expect-error - calling handler
-      await submitLine.handler(mockCtx, {
-        poemId: 'poem1',
-        lineIndex: 0,
-        text: 'hello',
-        guestToken: 'token',
-      });
-
-      // Line should still be inserted
-      expect(mockDb.insert).toHaveBeenCalled();
-      // But round should NOT be advanced (guard detected concurrent advancement)
-      expect(mockDb.patch).not.toHaveBeenCalledWith(
-        'game1',
-        expect.objectContaining({ currentRound: 1 })
-      );
-      // And AI turn should NOT be scheduled
-      expect(mockCtx.scheduler.runAfter).not.toHaveBeenCalled();
-    });
-
-    it('advances round when guard confirms no concurrent advancement', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        }) // game
-        .mockResolvedValueOnce({ _id: 'room1' }) // room
-        // Idempotent guard re-read: round still at 0, safe to advance
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 0,
-          assignmentMatrix: [['user1', 'user2']],
-        });
-
-      // No duplicate line
-      mockDb.first
-        .mockResolvedValueOnce(null) // duplicate check
-        .mockResolvedValueOnce({ _id: 'line1' }) // poem1 line check
-        .mockResolvedValueOnce({ _id: 'line2' }); // poem2 line check
-
-      // Poems in game
-      mockDb.collect.mockResolvedValue([{ _id: 'poem1' }, { _id: 'poem2' }]);
-
-      // @ts-expect-error - calling handler
-      await submitLine.handler(mockCtx, {
-        poemId: 'poem1',
-        lineIndex: 0,
-        text: 'hello',
-        guestToken: 'token',
-      });
-
-      // Round SHOULD be advanced (with a fresh round clock)
-      expect(mockDb.patch).toHaveBeenCalledWith('game1', {
-        currentRound: 1,
-        roundStartedAt: expect.any(Number),
-      });
-      // AI turn SHOULD be scheduled
-      expect(mockCtx.scheduler.runAfter).toHaveBeenCalled();
-    });
-
-    it('marks room and game completed when a human submits the final round', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1', displayName: 'User 1' });
-      const assignmentMatrix = Array.from({ length: 9 }, () => [
-        'user1',
-        'user2',
-      ]);
-
-      mockDb.get
-        .mockResolvedValueOnce({
-          roomId: 'room1',
-          indexInRoom: 0,
-          gameId: 'game1',
-        }) // poem
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 8,
-          assignmentMatrix,
-        }) // game
-        .mockResolvedValueOnce({ _id: 'room1' }) // room
-        .mockResolvedValueOnce({
-          _id: 'game1',
-          status: 'IN_PROGRESS',
-          currentRound: 8,
-          assignmentMatrix,
-        }) // freshGame
-        .mockResolvedValueOnce({ _id: 'user1', kind: 'human' })
-        .mockResolvedValueOnce({ _id: 'user2', kind: 'human' });
-
-      mockDb.first
-        .mockResolvedValueOnce(null) // duplicate check
-        .mockResolvedValueOnce({ _id: 'line1' })
-        .mockResolvedValueOnce({ _id: 'line2' });
-
-      mockDb.collect
-        .mockResolvedValueOnce([
-          { _id: 'poem1', indexInRoom: 0 },
-          { _id: 'poem2', indexInRoom: 1 },
-        ])
-        .mockResolvedValueOnce([{ userId: 'user1' }, { userId: 'user2' }]);
-
-      // @ts-expect-error - calling handler
-      await submitLine.handler(mockCtx, {
-        poemId: 'poem1',
-        lineIndex: 8,
-        text: 'finale',
-        guestToken: 'token',
-      });
-
-      expect(mockDb.insert).toHaveBeenCalledWith(
-        'lines',
-        expect.objectContaining({
-          text: 'finale',
-          wordCount: 1,
-        })
-      );
-      expect(mockDb.patch).toHaveBeenCalledWith(
-        'game1',
-        expect.objectContaining({
-          status: 'COMPLETED',
-        })
-      );
-      expect(mockDb.patch).toHaveBeenCalledWith(
-        'room1',
-        expect.objectContaining({
-          status: 'COMPLETED',
-        })
-      );
-      expect(mockDb.patch).toHaveBeenCalledWith(
-        'poem1',
-        expect.objectContaining({
-          completedAt: expect.any(Number),
-          assignedReaderId: 'user2',
-        })
-      );
-      expect(mockDb.patch).toHaveBeenCalledWith(
-        'poem2',
-        expect.objectContaining({
-          completedAt: expect.any(Number),
-          assignedReaderId: 'user1',
-        })
-      );
-    });
+        text: longText,
+      })
+    ).rejects.toThrow('Line must be 500 characters or less');
   });
 
-  describe('getRevealPhaseState', () => {
-    it('returns null if user not found', async () => {
-      mockGetUser.mockResolvedValue(null);
+  it('accepts line text at exactly 500 characters (1-word round)', async () => {
+    const t = setupConvexTest();
+    const { poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL04' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL04' },
+      ],
+      code: 'SL04',
+      currentRound: 0,
+    });
+    const exactText = 'a'.repeat(500);
 
-      // @ts-expect-error - calling handler
-      const result = await getRevealPhaseState.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toBeNull();
+    await asUser(t, 'aliceSL04').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 0,
+      text: exactText,
     });
 
-    it('returns null if room not found', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue(null);
-
-      // @ts-expect-error - calling handler
-      const result = await getRevealPhaseState.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toBeNull();
-    });
-
-    it('returns null if no completed game', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Room players - user is a participant (checked before getCompletedGame)
-      mockDb.collect.mockResolvedValueOnce([{ userId: 'user1' }]);
-      mockGetCompletedGame.mockResolvedValue(null);
-
-      // @ts-expect-error - calling handler
-      const result = await getRevealPhaseState.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toBeNull();
-    });
-
-    it('returns null if user is not a participant', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Room players - user1 NOT in list
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user2' },
-        { userId: 'user3' },
-      ]);
-
-      // @ts-expect-error - calling handler
-      const result = await getRevealPhaseState.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toBeNull();
-    });
-
-    it('returns state with no assigned poem for user', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user2', // user1 is not host
-      });
-      // Room players - user is a participant (checked before getCompletedGame)
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user1' },
-        { userId: 'user2' },
-      ]);
-      mockGetCompletedGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'COMPLETED',
-      });
-
-      // Poems query - no poems assigned to user1
-      mockDb.collect.mockResolvedValueOnce([
-        { _id: 'poem1', assignedReaderId: 'user2', indexInRoom: 0 },
-      ]);
-
-      // Players query
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user1', displayName: 'User 1' },
-        { userId: 'user2', displayName: 'User 2' },
-      ]);
-
-      // First line query (preview)
-      mockDb.first.mockResolvedValueOnce({ text: 'Line 1' });
-
-      // @ts-expect-error - calling handler
-      const result = await getRevealPhaseState.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toBeTruthy();
-      expect(result.isHost).toBe(false);
-      expect(result.poems).toHaveLength(1);
-      expect(result.myPoem).toBeNull();
-    });
-
-    it('returns state when game is completed', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({
-        _id: 'room1',
-        hostUserId: 'user1',
-      });
-      // Room players - user is a participant (checked before getCompletedGame)
-      mockDb.collect.mockResolvedValueOnce([{ userId: 'user1' }]);
-      mockGetCompletedGame.mockResolvedValue({
-        _id: 'game1',
-        status: 'COMPLETED',
-      });
-
-      // Poems query
-      mockDb.collect.mockResolvedValueOnce([
-        { _id: 'poem1', assignedReaderId: 'user1', indexInRoom: 0 },
-      ]);
-
-      // Players query
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user1', displayName: 'User 1' },
-      ]);
-
-      // First line query (preview)
-      mockDb.first.mockResolvedValueOnce({ text: 'Line 1' });
-
-      // User poem lines query (for myPoem details)
-      mockDb.collect.mockResolvedValueOnce([
-        { text: 'Line 1', authorUserId: 'user1', indexInPoem: 0 },
-      ]);
-
-      // @ts-expect-error - calling handler
-      const result = await getRevealPhaseState.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toBeTruthy();
-      expect(result.isHost).toBe(true);
-      expect(result.poems).toHaveLength(1);
-    });
+    const line = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemIds[0]).eq('indexInPoem', 0)
+        )
+        .first()
+    );
+    expect(line).not.toBeNull();
+    expect(line!.text).toBe(exactText);
+    expect(line!.wordCount).toBe(1);
   });
 
-  describe('revealPoem', () => {
-    it('reveals poem successfully', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get.mockResolvedValue({
-        _id: 'poem1',
-        assignedReaderId: 'user1',
-        revealedAt: null,
-      });
-
-      // @ts-expect-error - calling handler
-      await revealPoem.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token',
-      });
-
-      expect(mockDb.patch).toHaveBeenCalledWith(
-        'poem1',
-        expect.objectContaining({
-          revealedAt: expect.any(Number),
-        })
-      );
+  it('succeeds silently if line already submitted (idempotent)', async () => {
+    const t = setupConvexTest();
+    const { poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL05' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL05' },
+      ],
+      code: 'SL05',
+      currentRound: 0,
     });
 
-    it('throws if user not found', async () => {
-      mockGetUser.mockResolvedValue(null);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        revealPoem.handler(mockCtx, {
-          poemId: 'poem1',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('User not found');
+    await asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 0,
+      text: 'hello',
+    });
+    await asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 0,
+      text: 'hello',
     });
 
-    it('throws if poem not found', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get.mockResolvedValue(null);
-
-      await expect(
-        // @ts-expect-error - calling handler
-        revealPoem.handler(mockCtx, {
-          poemId: 'poem1',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Poem not found');
-    });
-
-    it('throws if poem not assigned to user', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get.mockResolvedValue({
-        _id: 'poem1',
-        assignedReaderId: 'user2', // Different user
-        revealedAt: null,
-      });
-
-      await expect(
-        // @ts-expect-error - calling handler
-        revealPoem.handler(mockCtx, {
-          poemId: 'poem1',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('This poem is not assigned to you');
-    });
-
-    it('throws if poem already revealed', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get.mockResolvedValue({
-        _id: 'poem1',
-        assignedReaderId: 'user1',
-        revealedAt: 1234567890, // Already revealed
-      });
-
-      await expect(
-        // @ts-expect-error - calling handler
-        revealPoem.handler(mockCtx, {
-          poemId: 'poem1',
-          guestToken: 'token',
-        })
-      ).rejects.toThrow('Poem already revealed');
-    });
+    const lines = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemIds[0]).eq('indexInPoem', 0)
+        )
+        .collect()
+    );
+    expect(lines).toHaveLength(1);
   });
 
-  describe('getRoundProgress', () => {
-    it('returns null when user not authenticated', async () => {
-      mockGetUser.mockResolvedValue(null);
+  it('throws if user not assigned to this poem', async () => {
+    const t = setupConvexTest();
+    const { poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL06' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL06' },
+      ],
+      code: 'SL06',
+      currentRound: 0,
+    });
+    // matrix[0][1] = Bob → poem 1; Alice is NOT assigned to poem 1
+    await expect(
+      asUser(t, 'aliceSL06').mutation(api.game.submitLine, {
+        poemId: poemIds[1],
+        lineIndex: 0,
+        text: 'hello',
+      })
+    ).rejects.toThrow('Not your turn');
+  });
 
-      // @ts-expect-error - calling handler
-      const result = await getRoundProgress.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'invalid-token',
-      });
+  it('throws if submitting for a future round', async () => {
+    const t = setupConvexTest();
+    const { poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL07' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL07' },
+      ],
+      code: 'SL07',
+      currentRound: 0,
+    });
+    // Alice at poem 0, round 0; trying lineIndex 1 (future)
+    await expect(
+      asUser(t, 'aliceSL07').mutation(api.game.submitLine, {
+        poemId: poemIds[0],
+        lineIndex: 1,
+        text: 'hello world',
+      })
+    ).rejects.toThrow('Round not started yet');
+  });
 
-      expect(result).toBeNull();
+  it('submits line successfully — inserts line with correct fields', async () => {
+    const t = setupConvexTest();
+    const { poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL08' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL08' },
+      ],
+      code: 'SL08',
+      currentRound: 0,
     });
 
-    it('returns null when room not found', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue(null);
-
-      // @ts-expect-error - calling handler
-      const result = await getRoundProgress.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'valid-token',
-      });
-
-      expect(result).toBeNull();
+    await asUser(t, 'aliceSL08').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 0,
+      text: 'hello',
     });
 
-    it('returns null when user is not a participant', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Room players list - user1 not included (only user2 and user3)
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user2', displayName: 'User 2' },
-        { userId: 'user3', displayName: 'User 3' },
-      ]);
+    const line = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemIds[0]).eq('indexInPoem', 0)
+        )
+        .first()
+    );
+    expect(line).not.toBeNull();
+    expect(line!.text).toBe('hello');
+    expect(line!.authorUserId).toBe(userIds[0]);
+    expect(line!.wordCount).toBe(1);
+  });
 
-      // @ts-expect-error - calling handler
-      const result = await getRoundProgress.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'valid-token',
-      });
-
-      expect(result).toBeNull();
+  it('advances round when all poems have lines (both players submit)', async () => {
+    const t = setupConvexTest();
+    const { poemIds, gameId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL09' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL09' },
+      ],
+      code: 'SL09',
+      currentRound: 0,
     });
 
-    it('returns null when no active game', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Room players list - user is a participant
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user1', displayName: 'User 1' },
-        { userId: 'user2', displayName: 'User 2' },
-      ]);
-      mockGetActiveGame.mockResolvedValue(null);
-
-      // @ts-expect-error - calling handler
-      const result = await getRoundProgress.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'valid-token',
-      });
-
-      expect(result).toBeNull();
+    await asUser(t, 'aliceSL09').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 0,
+      text: 'hello',
+    });
+    await asUser(t, 'bobSL09').mutation(api.game.submitLine, {
+      poemId: poemIds[1],
+      lineIndex: 0,
+      text: 'world',
     });
 
-    it('returns progress', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      // Room players (used for both participation check and progress display)
-      mockDb.collect.mockResolvedValueOnce([
-        { userId: 'user1', displayName: 'User 1' },
-        { userId: 'user2', displayName: 'User 2' },
-      ]);
-      mockGetActiveGame.mockResolvedValue({
-        _id: 'game1',
-        currentRound: 0,
-        assignmentMatrix: [['user1', 'user2']],
-      });
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    expect(game!.currentRound).toBe(1);
+  });
 
-      // Poems batch fetch (collect)
-      mockDb.collect.mockResolvedValueOnce([
-        { _id: 'poem1', indexInRoom: 0 },
-        { _id: 'poem2', indexInRoom: 1 },
-      ]);
-
-      // Parallel line checks (first)
-      mockDb.first.mockResolvedValueOnce(null); // User 1 not submitted
-      mockDb.first.mockResolvedValueOnce({ _id: 'line1' }); // User 2 submitted
-
-      // @ts-expect-error - calling handler
-      const result = await getRoundProgress.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'valid-token',
-      });
-
-      expect(result).toBeTruthy();
-      expect(result.round).toBe(0);
-      expect(result.players).toHaveLength(2);
-      expect(result.players[0].submitted).toBe(false);
-      expect(result.players[1].submitted).toBe(true);
+  it('marks room and game completed when humans submit the final round', async () => {
+    const t = setupConvexTest();
+    const { roomId, gameId, poemIds, matrix } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSL10' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSL10' },
+      ],
+      code: 'SL10',
+      currentRound: 8,
     });
+
+    // Fill rounds 0-7 directly with valid lines
+    await t.run(async (ctx) => {
+      for (let r = 0; r < 8; r++) {
+        const wc = WORD_COUNTS[r];
+        const words = Array.from({ length: wc }, (_, i) => `w${i}`).join(' ');
+        for (let p = 0; p < 2; p++) {
+          await ctx.db.insert('lines', {
+            poemId: poemIds[p],
+            indexInPoem: r,
+            text: words,
+            wordCount: wc,
+            authorUserId: matrix[r][p],
+            createdAt: Date.now(),
+          });
+        }
+      }
+    });
+
+    // matrix[8][0] = userIds[(0+8)%2] = userIds[0] = Alice → poem 0
+    await asUser(t, 'aliceSL10').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 8,
+      text: 'finale',
+    });
+    // matrix[8][1] = userIds[(1+8)%2] = userIds[1] = Bob → poem 1
+    await asUser(t, 'bobSL10').mutation(api.game.submitLine, {
+      poemId: poemIds[1],
+      lineIndex: 8,
+      text: 'ending',
+    });
+
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    const room = await t.run((ctx) => ctx.db.get(roomId));
+
+    expect(game?.status).toBe('COMPLETED');
+    expect(room?.status).toBe('COMPLETED');
+
+    const poems = await t.run((ctx) =>
+      ctx.db
+        .query('poems')
+        .withIndex('by_game', (q) => q.eq('gameId', gameId))
+        .collect()
+    );
+    expect(poems.every((p) => p.assignedReaderId !== undefined)).toBe(true);
+  });
+});
+
+// ─── getRevealPhaseState ──────────────────────────────────────────────────────
+
+describe('getRevealPhaseState', () => {
+  it('returns null if user not found (no identity)', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedCompletedRoom(t, 'RV01');
+
+    const result = await t.query(api.game.getRevealPhaseState, {
+      roomCode: code,
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null if room not found', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'rv02user');
+
+    const result = await asUser(t, 'rv02user').query(
+      api.game.getRevealPhaseState,
+      {
+        roomCode: 'ZZZZ',
+      }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null if no completed game', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobby(t, 'RV03');
+
+    const result = await asUser(t, 'hostRV03').query(
+      api.game.getRevealPhaseState,
+      {
+        roomCode: code,
+      }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null if user is not a participant', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedCompletedRoom(t, 'RV04');
+    await seedClerkUser(t, 'outsiderRV04');
+
+    const result = await asUser(t, 'outsiderRV04').query(
+      api.game.getRevealPhaseState,
+      { roomCode: code }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns state with no assigned poem when user has no poem assigned', async () => {
+    const t = setupConvexTest();
+    const { code, hostId, gameId, roomId } = await seedCompletedRoom(t, 'RV05');
+
+    // Poem assigned to host only
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        assignedReaderId: hostId,
+      })
+    );
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId,
+        indexInPoem: 0,
+        text: 'opening',
+        wordCount: 1,
+        authorUserId: hostId,
+        createdAt: 0,
+      })
+    );
+
+    // guestRV05 is a participant but has no poem assigned
+    const result = await asUser(t, 'guestRV05').query(
+      api.game.getRevealPhaseState,
+      { roomCode: code }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.isHost).toBe(false);
+    expect(result!.myPoem).toBeNull();
+    expect(result!.poems).toHaveLength(1);
+  });
+
+  it('returns state with isHost=true when user is host and has an assigned poem', async () => {
+    const t = setupConvexTest();
+    const { code, hostId, gameId, roomId } = await seedCompletedRoom(t, 'RV06');
+
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        assignedReaderId: hostId,
+      })
+    );
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId,
+        indexInPoem: 0,
+        text: 'opening',
+        wordCount: 1,
+        authorUserId: hostId,
+        createdAt: 0,
+      })
+    );
+
+    const result = await asUser(t, 'hostRV06').query(
+      api.game.getRevealPhaseState,
+      {
+        roomCode: code,
+      }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.isHost).toBe(true);
+    expect(result!.poems).toHaveLength(1);
+    expect(result!.myPoem).not.toBeNull();
+    expect(result!.myPoem!.lines).toBeDefined();
+  });
+});
+
+// ─── revealPoem ───────────────────────────────────────────────────────────────
+
+describe('revealPoem', () => {
+  it('reveals poem successfully — sets revealedAt timestamp', async () => {
+    const t = setupConvexTest();
+    const { hostId, gameId, roomId } = await seedCompletedRoom(t, 'RP01');
+
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        assignedReaderId: hostId,
+      })
+    );
+
+    await asUser(t, 'hostRP01').mutation(api.game.revealPoem, { poemId });
+
+    const poem = await t.run((ctx) => ctx.db.get(poemId));
+    expect(poem?.revealedAt).toBeDefined();
+    expect(typeof poem?.revealedAt).toBe('number');
+  });
+
+  it('throws if user not found (no identity)', async () => {
+    const t = setupConvexTest();
+    const { hostId, gameId, roomId } = await seedCompletedRoom(t, 'RP02');
+
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        assignedReaderId: hostId,
+      })
+    );
+
+    await expect(t.mutation(api.game.revealPoem, { poemId })).rejects.toThrow(
+      'User not found'
+    );
+  });
+
+  it('throws if poem not found', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedCompletedRoom(t, 'RP03');
+    await seedClerkUser(t, 'rp03user');
+
+    // Insert a poem, capture its id, then delete it — the id is now a valid
+    // poem-shaped id with no matching row, which triggers "Poem not found".
+    const ghostPoemId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 99,
+        createdAt: 0,
+      });
+      await ctx.db.delete(id);
+      return id;
+    });
+
+    await expect(
+      asUser(t, 'rp03user').mutation(api.game.revealPoem, {
+        poemId: ghostPoemId,
+      })
+    ).rejects.toThrow('Poem not found');
+  });
+
+  it('throws if poem not assigned to user', async () => {
+    const t = setupConvexTest();
+    const { hostId, gameId, roomId } = await seedCompletedRoom(t, 'RP04');
+
+    // Assigned to host, reveal attempt by guest
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        assignedReaderId: hostId,
+      })
+    );
+
+    await expect(
+      asUser(t, 'guestRP04').mutation(api.game.revealPoem, { poemId })
+    ).rejects.toThrow('This poem is not assigned to you');
+  });
+
+  it('throws if poem already revealed', async () => {
+    const t = setupConvexTest();
+    const { hostId, gameId, roomId } = await seedCompletedRoom(t, 'RP05');
+
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        assignedReaderId: hostId,
+        revealedAt: 1234567890,
+      })
+    );
+
+    await expect(
+      asUser(t, 'hostRP05').mutation(api.game.revealPoem, { poemId })
+    ).rejects.toThrow('Poem already revealed');
+  });
+});
+
+// ─── getRoundProgress ─────────────────────────────────────────────────────────
+
+describe('getRoundProgress', () => {
+  it('returns null when user not authenticated (no identity)', async () => {
+    const t = setupConvexTest();
+    await seedInProgressGame(t, {
+      players: [{ name: 'A' }, { name: 'B' }],
+      code: 'GP01',
+    });
+
+    const result = await t.query(api.game.getRoundProgress, {
+      roomCode: 'GP01',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when room not found', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'gp02user');
+
+    const result = await asUser(t, 'gp02user').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: 'ZZZZ',
+      }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null when user is not a participant', async () => {
+    const t = setupConvexTest();
+    await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceGP03' },
+        { name: 'Bob', clerkUserId: 'clerk_bobGP03' },
+      ],
+      code: 'GP03',
+    });
+    await seedClerkUser(t, 'outsiderGP03');
+
+    const result = await asUser(t, 'outsiderGP03').query(
+      api.game.getRoundProgress,
+      { roomCode: 'GP03' }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null when no active game', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobby(t, 'GP04');
+
+    const result = await asUser(t, 'hostGP04').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: code,
+      }
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns progress with submitted and isAway fields (not raw lastSeenAt)', async () => {
+    const t = setupConvexTest();
+    const { poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceGP05' },
+        { name: 'Bob', clerkUserId: 'clerk_bobGP05' },
+      ],
+      code: 'GP05',
+      currentRound: 0,
+    });
+
+    // Alice submits; Bob hasn't yet
+    await asUser(t, 'aliceGP05').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 0,
+      text: 'hello',
+    });
+
+    const result = await asUser(t, 'aliceGP05').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: 'GP05',
+      }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.round).toBe(0);
+    expect(result!.players).toHaveLength(2);
+
+    const alice = result!.players.find((p) => p.userId === userIds[0]);
+    const bob = result!.players.find((p) => p.userId === userIds[1]);
+
+    expect(alice?.submitted).toBe(true);
+    expect(bob?.submitted).toBe(false);
+
+    // isAway must be present; raw lastSeenAt must NOT appear in the shape
+    expect(typeof alice?.isAway).toBe('boolean');
+    expect(typeof bob?.isAway).toBe('boolean');
+    expect((alice as Record<string, unknown>)['lastSeenAt']).toBeUndefined();
+  });
+
+  it('returns correct totalRounds for quick mode', async () => {
+    const t = setupConvexTest();
+    await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceGP06' },
+        { name: 'Bob', clerkUserId: 'clerk_bobGP06' },
+      ],
+      code: 'GP06',
+      currentRound: 0,
+      mode: 'quick',
+    });
+
+    const result = await asUser(t, 'aliceGP06').query(
+      api.game.getRoundProgress,
+      {
+        roomCode: 'GP06',
+      }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.totalRounds).toBe(5);
   });
 });

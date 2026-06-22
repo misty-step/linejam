@@ -7,9 +7,10 @@
  * run its glob from inside node_modules, which Vite never transforms. Passing the
  * glob from a project file fixes it. See `tests/helpers/convexTest.ts`.
  *
- * Prefer this harness over the mock DB (`tests/helpers/mockConvexDb.ts`) whenever
- * a test needs real read-your-writes semantics or scheduled functions — e.g. the
- * multi-round completion chain in `tests/convex/abandonment.test.ts`.
+ * This is the only Convex test harness: every `tests/convex/*` suite runs on it
+ * (backlog 018 removed the hand-rolled mock DB), so DB reads/writes and scheduled
+ * functions are exercised for real — e.g. the multi-round completion chain in
+ * `tests/convex/abandonment.test.ts`.
  */
 
 import { describe, it, expect } from 'vitest';

@@ -1,463 +1,415 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
+import { describe, it, expect } from 'vitest';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
+import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 
-// Mock Convex server functions
-vi.mock('../../convex/_generated/server', () => ({
-  mutation: (args: unknown) => args,
-  query: (args: unknown) => args,
-}));
+/**
+ * favorites queries/mutations on the real convex-test engine (backlog 018):
+ * real read-your-writes + real auth (Clerk identity), asserting observable DB
+ * state and return values instead of mock-call stubs.
+ */
 
-import {
-  toggleFavorite,
-  getMyFavorites,
-  isFavorited,
-  getSessionFavorites,
-} from '../../convex/favorites';
+async function seedRoomGamePoems(
+  t: T,
+  opts: {
+    hostUserId: Id<'users'>;
+    poemCount?: number;
+    status?: 'COMPLETED' | 'IN_PROGRESS';
+  }
+): Promise<{
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  poemIds: Id<'poems'>[];
+}> {
+  const { hostUserId, poemCount = 2, status = 'COMPLETED' } = opts;
+  return t.run(async (ctx) => {
+    const roomId = await ctx.db.insert('rooms', {
+      code: 'ABCD',
+      hostUserId,
+      status,
+      createdAt: 0,
+    });
+    const gameId = await ctx.db.insert('games', {
+      roomId,
+      status,
+      cycle: 1,
+      currentRound: 0,
+      assignmentMatrix: [],
+      createdAt: 0,
+    });
+    const poemIds: Id<'poems'>[] = [];
+    for (let i = 0; i < poemCount; i++) {
+      poemIds.push(
+        await ctx.db.insert('poems', {
+          roomId,
+          gameId,
+          indexInRoom: i,
+          createdAt: 0,
+        })
+      );
+    }
+    return { roomId, gameId, poemIds };
+  });
+}
 
-// Mock auth helpers
-const mockGetUser = vi.fn();
-const mockCheckParticipation = vi.fn();
-vi.mock('../../convex/lib/auth', () => ({
-  getUser: (...args: unknown[]) => mockGetUser(...args),
-  checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
-}));
-
-// Mock room helpers
-const mockGetRoomByCode = vi.fn();
-const mockGetCompletedGame = vi.fn();
-vi.mock('../../convex/lib/room', () => ({
-  getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
-  getCompletedGame: (...args: unknown[]) => mockGetCompletedGame(...args),
-}));
+function userFavorites(t: T, userId: Id<'users'>) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('favorites')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect()
+  );
+}
 
 describe('favorites', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockDb: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockCtx: any;
+  describe('toggleFavorite', () => {
+    it('creates a favorite on first toggle, owned by the authenticated user', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 1,
+      });
 
-  beforeEach(() => {
-    mockDb = createMockDb();
-    mockCtx = createMockCtx(mockDb);
-    mockGetUser.mockReset();
-    mockCheckParticipation.mockReset();
-    mockGetRoomByCode.mockReset();
-    mockGetCompletedGame.mockReset();
+      await asUser(t, 'user1').mutation(api.favorites.toggleFavorite, {
+        poemId: poemIds[0],
+      });
+
+      const favs = await userFavorites(t, userId);
+      expect(favs).toHaveLength(1);
+      expect(favs[0].poemId).toBe(poemIds[0]);
+      expect(favs[0].userId).toBe(userId);
+    });
+
+    it('removes the favorite on the second toggle', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 1,
+      });
+      const as = asUser(t, 'user1');
+
+      await as.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] });
+      await as.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] });
+
+      expect(await userFavorites(t, userId)).toHaveLength(0);
+    });
+
+    it('re-creates the favorite on a third toggle (on/off/on)', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 1,
+      });
+      const as = asUser(t, 'user1');
+
+      await as.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] });
+      await as.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] });
+      await as.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] });
+
+      expect(await userFavorites(t, userId)).toHaveLength(1);
+    });
+
+    it('throws when no user is authenticated', async () => {
+      const t = setupConvexTest();
+      const hostId = await seedClerkUser(t, 'host');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: hostId,
+        poemCount: 1,
+      });
+
+      await expect(
+        t.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] })
+      ).rejects.toThrow('User not found');
+    });
+  });
+
+  describe('getMyFavorites', () => {
+    it('returns [] when no user is authenticated', async () => {
+      const t = setupConvexTest();
+      expect(await t.query(api.favorites.getMyFavorites, {})).toEqual([]);
+    });
+
+    it('returns [] when the user has no favorites', async () => {
+      const t = setupConvexTest();
+      await seedClerkUser(t, 'user1');
+      expect(
+        await asUser(t, 'user1').query(api.favorites.getMyFavorites, {})
+      ).toEqual([]);
+    });
+
+    it('returns the user favorites with first-line preview and favoritedAt', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 2,
+      });
+      await t.run(async (ctx) => {
+        await ctx.db.insert('favorites', {
+          userId,
+          poemId: poemIds[0],
+          createdAt: 1000,
+        });
+        await ctx.db.insert('favorites', {
+          userId,
+          poemId: poemIds[1],
+          createdAt: 2000,
+        });
+        await ctx.db.insert('lines', {
+          poemId: poemIds[0],
+          indexInPoem: 0,
+          text: 'first one',
+          wordCount: 2,
+          authorUserId: userId,
+          createdAt: 0,
+        });
+        await ctx.db.insert('lines', {
+          poemId: poemIds[1],
+          indexInPoem: 0,
+          text: 'first two',
+          wordCount: 2,
+          authorUserId: userId,
+          createdAt: 0,
+        });
+      });
+
+      const result = await asUser(t, 'user1').query(
+        api.favorites.getMyFavorites,
+        {}
+      );
+      expect(result).toHaveLength(2);
+      const byId = Object.fromEntries(result.map((r) => [r._id, r]));
+      expect(byId[poemIds[0]]).toMatchObject({
+        preview: 'first one',
+        favoritedAt: 1000,
+      });
+      expect(byId[poemIds[1]]).toMatchObject({
+        preview: 'first two',
+        favoritedAt: 2000,
+      });
+    });
+
+    it('drops favorites whose poem was deleted', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 2,
+      });
+      await t.run(async (ctx) => {
+        await ctx.db.insert('favorites', {
+          userId,
+          poemId: poemIds[0],
+          createdAt: 1000,
+        });
+        await ctx.db.insert('favorites', {
+          userId,
+          poemId: poemIds[1],
+          createdAt: 2000,
+        });
+        await ctx.db.delete(poemIds[1]);
+      });
+
+      const result = await asUser(t, 'user1').query(
+        api.favorites.getMyFavorites,
+        {}
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]._id).toBe(poemIds[0]);
+    });
+
+    it('falls back to "..." preview when the poem has no first line', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 1,
+      });
+      await t.run((ctx) =>
+        ctx.db.insert('favorites', {
+          userId,
+          poemId: poemIds[0],
+          createdAt: 1000,
+        })
+      );
+
+      const result = await asUser(t, 'user1').query(
+        api.favorites.getMyFavorites,
+        {}
+      );
+      expect(result[0].preview).toBe('...');
+    });
+
+    it('returns only the calling user favorites', async () => {
+      const t = setupConvexTest();
+      const user1 = await seedClerkUser(t, 'user1');
+      const user2 = await seedClerkUser(t, 'user2');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: user1,
+        poemCount: 2,
+      });
+      await t.run(async (ctx) => {
+        await ctx.db.insert('favorites', {
+          userId: user1,
+          poemId: poemIds[0],
+          createdAt: 1000,
+        });
+        await ctx.db.insert('favorites', {
+          userId: user2,
+          poemId: poemIds[1],
+          createdAt: 2000,
+        });
+      });
+
+      const result = await asUser(t, 'user1').query(
+        api.favorites.getMyFavorites,
+        {}
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]._id).toBe(poemIds[0]);
+    });
+  });
+
+  describe('isFavorited', () => {
+    it('returns true when the poem is favorited by the user', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 1,
+      });
+      await t.run((ctx) =>
+        ctx.db.insert('favorites', { userId, poemId: poemIds[0], createdAt: 0 })
+      );
+
+      expect(
+        await asUser(t, 'user1').query(api.favorites.isFavorited, {
+          poemId: poemIds[0],
+        })
+      ).toBe(true);
+    });
+
+    it('returns false when the poem is not favorited', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 1,
+      });
+
+      expect(
+        await asUser(t, 'user1').query(api.favorites.isFavorited, {
+          poemId: poemIds[0],
+        })
+      ).toBe(false);
+    });
+
+    it('returns false when no user is authenticated', async () => {
+      const t = setupConvexTest();
+      const hostId = await seedClerkUser(t, 'host');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: hostId,
+        poemCount: 1,
+      });
+
+      expect(
+        await t.query(api.favorites.isFavorited, { poemId: poemIds[0] })
+      ).toBe(false);
+    });
   });
 
   describe('getSessionFavorites', () => {
     it('returns null for non-participants', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'stranger' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockCheckParticipation.mockResolvedValue(false);
+      const t = setupConvexTest();
+      const hostId = await seedClerkUser(t, 'host');
+      await seedClerkUser(t, 'stranger');
+      await seedRoomGamePoems(t, { hostUserId: hostId, poemCount: 2 });
 
-      // @ts-expect-error - calling handler directly for test
-      const result = await getSessionFavorites.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
-      });
-
-      expect(result).toBeNull();
+      expect(
+        await asUser(t, 'stranger').query(api.favorites.getSessionFavorites, {
+          roomCode: 'ABCD',
+        })
+      ).toBeNull();
     });
 
-    it('crowns the most-hearted poem', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockCheckParticipation.mockResolvedValue(true);
-      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
-      // poems in the game
-      mockDb.collect.mockResolvedValueOnce([
-        { _id: 'poem1', indexInRoom: 0 },
-        { _id: 'poem2', indexInRoom: 1 },
-      ]);
-      // favorites per poem: poem1 has 1, poem2 has 3
-      mockDb.collect
-        .mockResolvedValueOnce([{ _id: 'f1' }])
-        .mockResolvedValueOnce([{ _id: 'f2' }, { _id: 'f3' }, { _id: 'f4' }]);
-
-      // @ts-expect-error - calling handler directly for test
-      const result = await getSessionFavorites.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
+    it('crowns the most-hearted poem among participants', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { roomId, poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 2,
+      });
+      await t.run(async (ctx) => {
+        await ctx.db.insert('roomPlayers', {
+          roomId,
+          userId,
+          displayName: 'user1',
+          joinedAt: 0,
+        });
+        // poem0: 1 heart; poem1: 3 hearts.
+        await ctx.db.insert('favorites', {
+          userId,
+          poemId: poemIds[0],
+          createdAt: 0,
+        });
+        for (let i = 0; i < 3; i++) {
+          const fan = await ctx.db.insert('users', {
+            displayName: `fan${i}`,
+            kind: 'human',
+            createdAt: 0,
+          });
+          await ctx.db.insert('favorites', {
+            userId: fan,
+            poemId: poemIds[1],
+            createdAt: 0,
+          });
+        }
       });
 
-      expect(result).toEqual({
-        counts: [
-          { poemId: 'poem1', indexInRoom: 0, count: 1 },
-          { poemId: 'poem2', indexInRoom: 1, count: 3 },
-        ],
+      const result = await asUser(t, 'user1').query(
+        api.favorites.getSessionFavorites,
+        { roomCode: 'ABCD' }
+      );
+      expect(result).toMatchObject({
         totalHearts: 4,
-        leaderPoemId: 'poem2',
+        leaderPoemId: poemIds[1],
         leaderCount: 3,
       });
+      expect(result?.counts).toEqual([
+        { poemId: poemIds[0], indexInRoom: 0, count: 1 },
+        { poemId: poemIds[1], indexInRoom: 1, count: 3 },
+      ]);
     });
 
     it('has no leader when no hearts were given', async () => {
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1' });
-      mockCheckParticipation.mockResolvedValue(true);
-      mockGetCompletedGame.mockResolvedValue({ _id: 'game1' });
-      mockDb.collect.mockResolvedValueOnce([
-        { _id: 'poem1', indexInRoom: 0 },
-        { _id: 'poem2', indexInRoom: 1 },
-      ]);
-      mockDb.collect.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-
-      // @ts-expect-error - calling handler directly for test
-      const result = await getSessionFavorites.handler(mockCtx, {
-        roomCode: 'TEST',
-        guestToken: 'token',
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'user1');
+      const { roomId } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 2,
       });
+      await t.run((ctx) =>
+        ctx.db.insert('roomPlayers', {
+          roomId,
+          userId,
+          displayName: 'user1',
+          joinedAt: 0,
+        })
+      );
 
+      const result = await asUser(t, 'user1').query(
+        api.favorites.getSessionFavorites,
+        { roomCode: 'ABCD' }
+      );
       expect(result).toMatchObject({
         totalHearts: 0,
         leaderPoemId: null,
         leaderCount: 0,
       });
-    });
-  });
-
-  describe('toggleFavorite', () => {
-    it('creates favorite on first toggle', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null); // No existing favorite
-      mockDb.insert.mockResolvedValue('favorite1');
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      await toggleFavorite.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(mockDb.insert).toHaveBeenCalledWith(
-        'favorites',
-        expect.objectContaining({
-          userId: 'user1',
-          poemId: 'poem1',
-          createdAt: expect.any(Number),
-        })
-      );
-    });
-
-    it('removes favorite on second toggle', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const existingFavorite = {
-        _id: 'favorite1',
-        userId: 'user1',
-        poemId: 'poem1',
-      };
-      mockDb.first.mockResolvedValue(existingFavorite);
-      mockDb.delete.mockResolvedValue(undefined);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      await toggleFavorite.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(mockDb.delete).toHaveBeenCalledWith('favorite1');
-      expect(mockDb.insert).not.toHaveBeenCalled();
-    });
-
-    it('creates favorite again on third toggle (idempotent)', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null); // Removed again
-      mockDb.insert.mockResolvedValue('favorite2');
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      await toggleFavorite.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(mockDb.insert).toHaveBeenCalledWith(
-        'favorites',
-        expect.objectContaining({
-          userId: 'user1',
-          poemId: 'poem1',
-        })
-      );
-    });
-
-    it('throws error when user not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue(null);
-
-      // Act & Assert
-      await expect(
-        // @ts-expect-error - calling handler directly for test
-        toggleFavorite.handler(mockCtx, {
-          poemId: 'poem1',
-          guestToken: 'token123',
-        })
-      ).rejects.toThrow('User not found');
-    });
-
-    it('enforces authorization (user owns favorite)', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null);
-      mockDb.insert.mockResolvedValue('favorite1');
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      await toggleFavorite.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert - Verify the favorite is created for the authenticated user
-      expect(mockDb.withIndex).toHaveBeenCalledWith(
-        'by_user_poem',
-        expect.any(Function)
-      );
-      expect(mockDb.insert).toHaveBeenCalledWith(
-        'favorites',
-        expect.objectContaining({
-          userId: 'user1',
-        })
-      );
-    });
-  });
-
-  describe('getMyFavorites', () => {
-    it('returns empty array when user not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyFavorites.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toEqual([]);
-    });
-
-    it('returns empty array when no favorites', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.collect.mockResolvedValue([]);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyFavorites.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toEqual([]);
-    });
-
-    it('returns all user favorites', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const favorites = [
-        { poemId: 'poem1', userId: 'user1', createdAt: 1000 },
-        { poemId: 'poem2', userId: 'user1', createdAt: 2000 },
-      ];
-      mockDb.collect.mockResolvedValue(favorites);
-
-      mockDb.get
-        .mockResolvedValueOnce({ _id: 'poem1', roomId: 'room1' })
-        .mockResolvedValueOnce({ _id: 'poem2', roomId: 'room2' });
-
-      mockDb.first
-        .mockResolvedValueOnce({ text: 'First line of poem 1' })
-        .mockResolvedValueOnce({ text: 'First line of poem 2' });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyFavorites.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toHaveLength(2);
-      expect(result[0]).toMatchObject({
-        _id: 'poem1',
-        preview: 'First line of poem 1',
-        favoritedAt: 1000,
-      });
-      expect(result[1]).toMatchObject({
-        _id: 'poem2',
-        preview: 'First line of poem 2',
-        favoritedAt: 2000,
-      });
-    });
-
-    it('resolves poem details for each favorite', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const favorites = [{ poemId: 'poem1', userId: 'user1', createdAt: 1000 }];
-      mockDb.collect.mockResolvedValue(favorites);
-
-      const poem = {
-        _id: 'poem1',
-        roomId: 'room1',
-        title: 'Beautiful Poem',
-        createdAt: 500,
-      };
-      mockDb.get.mockResolvedValue(poem);
-      mockDb.first.mockResolvedValue({ text: 'First line' });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyFavorites.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result[0]).toMatchObject({
-        ...poem,
-        preview: 'First line',
-        favoritedAt: 1000,
-      });
-    });
-
-    it('handles missing poems gracefully', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const favorites = [
-        { poemId: 'poem1', userId: 'user1', createdAt: 1000 },
-        { poemId: 'poem2', userId: 'user1', createdAt: 2000 },
-      ];
-      mockDb.collect.mockResolvedValue(favorites);
-
-      mockDb.get
-        .mockResolvedValueOnce({ _id: 'poem1', roomId: 'room1' })
-        .mockResolvedValueOnce(null); // Poem deleted
-
-      mockDb.first.mockResolvedValueOnce({ text: 'First line' });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyFavorites.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toHaveLength(1); // Only non-deleted poem
-      expect(result[0]._id).toBe('poem1');
-    });
-
-    it('uses fallback preview when no first line exists', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const favorites = [{ poemId: 'poem1', userId: 'user1', createdAt: 1000 }];
-      mockDb.collect.mockResolvedValue(favorites);
-
-      mockDb.get.mockResolvedValue({ _id: 'poem1', roomId: 'room1' });
-      mockDb.first.mockResolvedValue(null); // No first line
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyFavorites.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result[0].preview).toBe('...');
-    });
-
-    it('enforces authorization (only user favorites)', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.collect.mockResolvedValue([]);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      await getMyFavorites.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(mockDb.withIndex).toHaveBeenCalledWith(
-        'by_user',
-        expect.any(Function)
-      );
-    });
-  });
-
-  describe('isFavorited', () => {
-    it('returns true when favorited', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue({
-        _id: 'favorite1',
-        userId: 'user1',
-        poemId: 'poem1',
-      });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await isFavorited.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toBe(true);
-    });
-
-    it('returns false when not favorited', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await isFavorited.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toBe(false);
-    });
-
-    it('returns false when user not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await isFavorited.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toBe(false);
-    });
-
-    it('enforces authorization check', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.first.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      await isFavorited.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert - Verify we're checking for the specific user+poem combination
-      expect(mockDb.withIndex).toHaveBeenCalledWith(
-        'by_user_poem',
-        expect.any(Function)
-      );
     });
   });
 });

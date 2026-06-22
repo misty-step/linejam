@@ -1,1143 +1,1447 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
+import { describe, it, expect } from 'vitest';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
+import { setupConvexTest } from '../helpers/convexTest';
+import { type T, asUser, seedClerkUser, seedLine } from '../helpers/convexSeed';
 
-// Mock Convex server functions
-vi.mock('../../convex/_generated/server', () => ({
-  mutation: (args: unknown) => args,
-  query: (args: unknown) => args,
-}));
+/**
+ * poems queries on the real convex-test engine (backlog 018): real
+ * read-your-writes + real auth (Clerk identity via t.withIdentity), real
+ * participation checks — asserting observable return values and DB state
+ * instead of mock-call stubs.
+ *
+ * Auth-gated queries (getPoemsForRoom / getPoemDetail / getMyPoems) require a
+ * user row with clerkUserId and a matching t.withIdentity({ subject }) call —
+ * identical to the pattern used in shares.test.ts and favorites.test.ts.
+ *
+ * Public queries (getPublicPoemPreview / getPublicPoemFull /
+ * getPublicSessionRecap) need no auth; they gate on publicShareEnabled /
+ * publicRecapEnabled flags and poem.revealedAt instead.
+ */
 
-import {
-  getPoemsForRoom,
-  getPoemDetail,
-  getMyPoems,
-  getPublicPoemPreview,
-  getPublicPoemFull,
-  getPublicSessionRecap,
-} from '../../convex/poems';
+// ---------------------------------------------------------------------------
+// Seed helpers
+// ---------------------------------------------------------------------------
 
-// Mock auth helpers
-const mockGetUser = vi.fn();
-const mockCheckParticipation = vi.fn();
-vi.mock('../../convex/lib/auth', () => ({
-  getUser: (...args: unknown[]) => mockGetUser(...args),
-  checkParticipation: (...args: unknown[]) => mockCheckParticipation(...args),
-}));
+/**
+ * Seed a minimal room (COMPLETED) with one game and one poem; optionally
+ * enroll a participant in roomPlayers.  Returns all created IDs.
+ */
+async function seedRoom(
+  t: T,
+  opts: {
+    userId: Id<'users'>;
+    roomCode?: string;
+    roomStatus?: 'LOBBY' | 'IN_PROGRESS' | 'COMPLETED';
+    gameStatus?: 'IN_PROGRESS' | 'COMPLETED';
+    poemCount?: number;
+    publicShareEnabled?: boolean;
+    publicRecapEnabled?: boolean;
+    revealPoems?: boolean;
+    addRoomPlayer?: boolean;
+  }
+): Promise<{
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  poemIds: Id<'poems'>[];
+}> {
+  const {
+    userId,
+    roomCode = 'ABCD',
+    roomStatus = 'COMPLETED',
+    gameStatus = 'COMPLETED',
+    poemCount = 1,
+    publicShareEnabled,
+    publicRecapEnabled,
+    revealPoems = false,
+    addRoomPlayer = true,
+  } = opts;
 
-// Mock room helpers
-const mockGetRoomByCode = vi.fn();
-const mockGetActiveGame = vi.fn();
-const mockGetCompletedGame = vi.fn();
-vi.mock('../../convex/lib/room', () => ({
-  getRoomByCode: (...args: unknown[]) => mockGetRoomByCode(...args),
-  getActiveGame: (...args: unknown[]) => mockGetActiveGame(...args),
-  getCompletedGame: (...args: unknown[]) => mockGetCompletedGame(...args),
-}));
-
-describe('poems', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockDb: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockCtx: any;
-
-  beforeEach(() => {
-    mockDb = createMockDb();
-    mockCtx = createMockCtx(mockDb);
-    mockGetUser.mockReset();
-    mockCheckParticipation.mockReset();
-    mockGetRoomByCode.mockReset();
-    mockGetActiveGame.mockReset();
-    mockGetCompletedGame.mockReset();
-  });
-
-  describe('getPoemsForRoom', () => {
-    it('returns empty array when user not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemsForRoom.handler(mockCtx, {
-        roomCode: 'ABCD',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toEqual([]);
+  return t.run(async (ctx) => {
+    const roomId = await ctx.db.insert('rooms', {
+      code: roomCode,
+      hostUserId: userId,
+      status: roomStatus,
+      createdAt: 0,
     });
 
-    it('returns empty array when room not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockGetRoomByCode.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemsForRoom.handler(mockCtx, {
-        roomCode: 'ZZZZ',
-        guestToken: 'token123',
+    if (addRoomPlayer) {
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId,
+        displayName: 'Player',
+        joinedAt: 0,
       });
+    }
 
-      // Assert
-      expect(result).toEqual([]);
+    const gameId = await ctx.db.insert('games', {
+      roomId,
+      status: gameStatus,
+      cycle: 1,
+      currentRound: 0,
+      assignmentMatrix: [[userId]],
+      createdAt: 0,
+      ...(publicRecapEnabled !== undefined ? { publicRecapEnabled } : {}),
     });
 
-    it('returns empty array when user is not participant', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1', code: 'ABCD' });
-      mockCheckParticipation.mockResolvedValue(false);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemsForRoom.handler(mockCtx, {
-        roomCode: 'ABCD',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toEqual([]);
-      expect(mockCheckParticipation).toHaveBeenCalledWith(
-        mockCtx,
-        'room1',
-        'user2'
+    const poemIds: Id<'poems'>[] = [];
+    for (let i = 0; i < poemCount; i++) {
+      poemIds.push(
+        await ctx.db.insert('poems', {
+          roomId,
+          gameId,
+          indexInRoom: i,
+          createdAt: i * 1000 + 1000,
+          ...(revealPoems ? { revealedAt: 9000 + i } : {}),
+          ...(publicShareEnabled !== undefined ? { publicShareEnabled } : {}),
+        })
       );
+    }
+
+    return { roomId, gameId, poemIds };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// getPoemsForRoom
+// ---------------------------------------------------------------------------
+
+describe('getPoemsForRoom', () => {
+  it('returns empty array when no Clerk identity is present', async () => {
+    const t = setupConvexTest();
+    // No auth — getUser returns null.
+    const result = await t.query(api.poems.getPoemsForRoom, {
+      roomCode: 'ABCD',
     });
-
-    it('returns poems for room where user participated', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockCheckParticipation.mockResolvedValue(true);
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = { _id: 'game1', roomId: 'room1', status: 'IN_PROGRESS' };
-      const poems = [
-        { _id: 'poem1', roomId: 'room1', gameId: 'game1' },
-        { _id: 'poem2', roomId: 'room1', gameId: 'game1' },
-      ];
-
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetActiveGame.mockResolvedValue(game);
-      mockGetCompletedGame.mockResolvedValue(null);
-
-      mockDb.first
-        .mockResolvedValueOnce({ text: 'First line of poem 1' }) // First line for poem1
-        .mockResolvedValueOnce({ text: 'First line of poem 2' }); // First line for poem2
-
-      mockDb.collect.mockResolvedValueOnce(poems);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemsForRoom.handler(mockCtx, {
-        roomCode: 'ABCD',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toHaveLength(2);
-      expect(result[0]).toMatchObject({
-        _id: 'poem1',
-        preview: 'First line of poem 1',
-      });
-      expect(result[1]).toMatchObject({
-        _id: 'poem2',
-        preview: 'First line of poem 2',
-      });
-    });
-
-    it('returns empty array when no active or completed game', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockCheckParticipation.mockResolvedValue(true);
-      const room = { _id: 'room1', code: 'ABCD' };
-
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetActiveGame.mockResolvedValue(null);
-      mockGetCompletedGame.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemsForRoom.handler(mockCtx, {
-        roomCode: 'ABCD',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toEqual([]);
-    });
-
-    it('uses fallback preview when no first line exists', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockCheckParticipation.mockResolvedValue(true);
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = { _id: 'game1', roomId: 'room1', status: 'IN_PROGRESS' };
-      const poems = [{ _id: 'poem1', roomId: 'room1', gameId: 'game1' }];
-
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetActiveGame.mockResolvedValue(game);
-      mockGetCompletedGame.mockResolvedValue(null);
-
-      mockDb.first.mockResolvedValueOnce(null); // No first line
-
-      mockDb.collect.mockResolvedValueOnce(poems);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemsForRoom.handler(mockCtx, {
-        roomCode: 'ABCD',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result[0].preview).toBe('...');
-    });
+    expect(result).toEqual([]);
   });
 
-  describe('getPoemDetail', () => {
-    it('returns null when user not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemDetail.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toBeNull();
-    });
-
-    it('returns null when poem not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.get.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemDetail.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toBeNull();
-    });
-
-    it('returns null when user is not participant', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user2' });
-      mockDb.get.mockResolvedValue({ _id: 'poem1', roomId: 'room1' });
-      mockCheckParticipation.mockResolvedValue(false);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemDetail.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toBeNull();
-      expect(mockCheckParticipation).toHaveBeenCalledWith(
-        mockCtx,
-        'room1',
-        'user2'
-      );
-    });
-
-    it('returns poem with lines in correct order', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockCheckParticipation.mockResolvedValue(true);
-      const poem = { _id: 'poem1', roomId: 'room1' };
-      const lines = [
-        { _id: 'line3', indexInPoem: 2, authorUserId: 'user3', text: 'Third' },
-        { _id: 'line1', indexInPoem: 0, authorUserId: 'user1', text: 'First' },
-        { _id: 'line2', indexInPoem: 1, authorUserId: 'user2', text: 'Second' },
-      ];
-
-      mockDb.get
-        .mockResolvedValueOnce(poem) // Poem lookup
-        .mockResolvedValueOnce({ displayName: 'Alice' }) // Author for user1
-        .mockResolvedValueOnce({ displayName: 'Bob' }) // Author for user2
-        .mockResolvedValueOnce({ displayName: 'Charlie' }); // Author for user3
-
-      mockDb.collect.mockResolvedValue(lines);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemDetail.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result?.poem).toEqual(poem);
-      expect(result?.lines).toHaveLength(3);
-      expect(result?.lines[0]).toMatchObject({
-        text: 'First',
-        indexInPoem: 0,
-        authorName: 'Alice',
-      });
-      expect(result?.lines[1]).toMatchObject({
-        text: 'Second',
-        indexInPoem: 1,
-        authorName: 'Bob',
-      });
-      expect(result?.lines[2]).toMatchObject({
-        text: 'Third',
-        indexInPoem: 2,
-        authorName: 'Charlie',
-      });
-    });
-
-    it('handles missing/deleted authors gracefully', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockCheckParticipation.mockResolvedValue(true);
-      const poem = { _id: 'poem1', roomId: 'room1' };
-      const lines = [
-        { _id: 'line1', indexInPoem: 0, authorUserId: 'user1', text: 'First' },
-      ];
-
-      mockDb.get.mockResolvedValueOnce(poem).mockResolvedValueOnce(null); // Author deleted
-
-      mockDb.collect.mockResolvedValue(lines);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPoemDetail.handler(mockCtx, {
-        poemId: 'poem1',
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result?.lines[0].authorName).toBe('Unknown');
-    });
+  it('returns empty array when authenticated user has no user row', async () => {
+    const t = setupConvexTest();
+    // Identity exists in Clerk but no users row has been seeded.
+    const result = await t
+      .withIdentity({ subject: 'clerk_ghost' })
+      .query(api.poems.getPoemsForRoom, { roomCode: 'ABCD' });
+    expect(result).toEqual([]);
   });
 
-  describe('getMyPoems', () => {
-    it('returns empty array when user not found', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyPoems.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toEqual([]);
+  it('returns empty array when room does not exist', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'alice');
+    const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
+      roomCode: 'ZZZZ',
     });
-
-    it('returns empty array when user has no poems', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      mockDb.collect.mockResolvedValue([]);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyPoems.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toEqual([]);
-    });
-
-    it('returns only poems where user contributed', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const lines = [
-        { poemId: 'poem1', authorUserId: 'user1' },
-        { poemId: 'poem1', authorUserId: 'user1' }, // Duplicate poem
-        { poemId: 'poem2', authorUserId: 'user1' },
-      ];
-
-      // 1. Lines by author
-      mockDb.collect.mockResolvedValueOnce(lines);
-
-      // 2. Batch fetch poems (Promise.all with get)
-      mockDb.get
-        .mockResolvedValueOnce({
-          _id: 'poem1',
-          roomId: 'room1',
-          createdAt: 1000,
-        })
-        .mockResolvedValueOnce({
-          _id: 'poem2',
-          roomId: 'room2',
-          createdAt: 2000,
-        })
-        // 3. Batch fetch rooms (Promise.all with get)
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
-        .mockResolvedValueOnce({ _id: 'room2', createdAt: 1500 });
-
-      // 4. Batch fetch first lines (Promise.all with first)
-      mockDb.first
-        .mockResolvedValueOnce({ text: 'First line of poem 1' })
-        .mockResolvedValueOnce({ text: 'First line of poem 2' });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyPoems.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toHaveLength(2);
-      expect(result[0]._id).toBe('poem2'); // Sorted by createdAt desc
-      expect(result[1]._id).toBe('poem1');
-    });
-
-    it('includes all rooms user participated in', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const lines = [
-        { poemId: 'poem1', authorUserId: 'user1' },
-        { poemId: 'poem2', authorUserId: 'user1' },
-        { poemId: 'poem3', authorUserId: 'user1' },
-      ];
-
-      // 1. Lines by author
-      mockDb.collect.mockResolvedValueOnce(lines);
-
-      // 2. Batch fetch poems
-      mockDb.get
-        .mockResolvedValueOnce({
-          _id: 'poem1',
-          roomId: 'room1',
-          createdAt: 1000,
-        })
-        .mockResolvedValueOnce({
-          _id: 'poem2',
-          roomId: 'room2',
-          createdAt: 2000,
-        })
-        .mockResolvedValueOnce({
-          _id: 'poem3',
-          roomId: 'room1',
-          createdAt: 3000,
-        })
-        // 3. Batch fetch unique rooms (room1 and room2)
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 })
-        .mockResolvedValueOnce({ _id: 'room2', createdAt: 1500 });
-
-      // 4. Batch fetch first lines
-      mockDb.first
-        .mockResolvedValueOnce({ text: 'Line 1' })
-        .mockResolvedValueOnce({ text: 'Line 2' })
-        .mockResolvedValueOnce({ text: 'Line 3' });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyPoems.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result).toHaveLength(3);
-      // Note: poems are sorted by createdAt desc: poem3 (3000), poem2 (2000), poem1 (1000)
-      expect(result.map((p: { roomId: string }) => p.roomId)).toEqual([
-        'room1', // poem3
-        'room2', // poem2
-        'room1', // poem1
-      ]);
-    });
-
-    it('sorts poems by date descending', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const lines = [
-        { poemId: 'poem1', authorUserId: 'user1' },
-        { poemId: 'poem2', authorUserId: 'user1' },
-        { poemId: 'poem3', authorUserId: 'user1' },
-      ];
-
-      // 1. Lines by author
-      mockDb.collect.mockResolvedValueOnce(lines);
-
-      // 2. Batch fetch poems
-      mockDb.get
-        .mockResolvedValueOnce({
-          _id: 'poem1',
-          roomId: 'room1',
-          createdAt: 1000,
-        })
-        .mockResolvedValueOnce({
-          _id: 'poem2',
-          roomId: 'room1',
-          createdAt: 3000,
-        })
-        .mockResolvedValueOnce({
-          _id: 'poem3',
-          roomId: 'room1',
-          createdAt: 2000,
-        })
-        // 3. Batch fetch unique rooms
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 });
-
-      // 4. Batch fetch first lines
-      mockDb.first
-        .mockResolvedValueOnce({ text: 'Line 1' })
-        .mockResolvedValueOnce({ text: 'Line 2' })
-        .mockResolvedValueOnce({ text: 'Line 3' });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyPoems.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result.map((p: { _id: string }) => p._id)).toEqual([
-        'poem2',
-        'poem3',
-        'poem1',
-      ]);
-    });
-
-    it('includes roomDate from room', async () => {
-      // Arrange
-      mockGetUser.mockResolvedValue({ _id: 'user1' });
-      const lines = [{ poemId: 'poem1', authorUserId: 'user1' }];
-
-      // 1. Lines by author
-      mockDb.collect.mockResolvedValueOnce(lines);
-
-      // 2. Batch fetch poems
-      mockDb.get
-        .mockResolvedValueOnce({
-          _id: 'poem1',
-          roomId: 'room1',
-          createdAt: 1000,
-        })
-        // 3. Batch fetch rooms
-        .mockResolvedValueOnce({ _id: 'room1', createdAt: 500 });
-
-      // 4. Batch fetch first lines
-      mockDb.first.mockResolvedValueOnce({ text: 'Line 1' });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getMyPoems.handler(mockCtx, {
-        guestToken: 'token123',
-      });
-
-      // Assert
-      expect(result[0].roomDate).toBe(500);
-    });
+    expect(result).toEqual([]);
   });
 
-  describe('getPublicPoemPreview', () => {
-    it('returns null when poem not found', async () => {
-      // Arrange
-      mockDb.get.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemPreview.handler(mockCtx, {
-        poemId: 'poem1',
-      });
-
-      // Assert
-      expect(result).toBeNull();
+  it('returns empty array when user is not a participant', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    // Seed a room owned by alice but do NOT add bob as a roomPlayer.
+    await seedRoom(t, {
+      userId: aliceId,
+      roomCode: 'ABCD',
+      addRoomPlayer: true,
     });
+    // Bob exists but is not in roomPlayers.
+    await seedClerkUser(t, 'bob');
 
-    it('returns preview data correctly', async () => {
-      // Arrange
-      const poem = { _id: 'poem1', indexInRoom: 4, publicShareEnabled: true };
-      const lines = [
-        { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
-        { text: 'Line 2', indexInPoem: 1, authorUserId: 'u2' },
-        { text: 'Line 3', indexInPoem: 2, authorUserId: 'u1' },
-        { text: 'Line 4', indexInPoem: 3, authorUserId: 'u3' },
-      ];
-
-      mockDb.get.mockResolvedValue(poem);
-      mockDb.collect.mockResolvedValue(lines);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemPreview.handler(mockCtx, {
-        poemId: 'poem1',
-      });
-
-      // Assert
-      expect(result).toEqual({
-        lines: ['Line 1', 'Line 2', 'Line 3'],
-        poetCount: 3, // u1, u2, u3
-        poemNumber: 5, // 4 + 1
-      });
+    const result = await asUser(t, 'bob').query(api.poems.getPoemsForRoom, {
+      roomCode: 'ABCD',
     });
-
-    it('returns lines in database order (using by_poem_index)', async () => {
-      // Arrange - lines returned in index order from DB (simulating .order('asc'))
-      const poem = { _id: 'poem1', indexInRoom: 0, publicShareEnabled: true };
-      const lines = [
-        { text: 'Line 1', indexInPoem: 0, authorUserId: 'u1' },
-        { text: 'Line 2', indexInPoem: 1, authorUserId: 'u1' },
-        { text: 'Line 4', indexInPoem: 3, authorUserId: 'u1' },
-      ];
-
-      mockDb.get.mockResolvedValue(poem);
-      mockDb.collect.mockResolvedValue(lines);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemPreview.handler(mockCtx, {
-        poemId: 'poem1',
-      });
-
-      // Assert - should return first 3 lines in DB order
-      expect(result?.lines).toEqual(['Line 1', 'Line 2', 'Line 4']);
-    });
-
-    it('returns null when public sharing was never enabled', async () => {
-      // Arrange
-      mockDb.get.mockResolvedValue({ _id: 'poem1', indexInRoom: 0 });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemPreview.handler(mockCtx, {
-        poemId: 'poem1',
-      });
-
-      // Assert
-      expect(result).toBeNull();
-      expect(mockDb.collect).not.toHaveBeenCalled();
-    });
+    expect(result).toEqual([]);
   });
 
-  describe('getPublicPoemFull', () => {
-    it('returns null when poem not found', async () => {
-      // Arrange
-      mockDb.get.mockResolvedValue(null);
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemFull.handler(mockCtx, {
-        poemId: 'poem1',
+  it('returns empty array when the room has no game yet', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    // Build a bare room/player with no game via t.run directly.
+    await t.run(async (ctx) => {
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'ABCD',
+        hostUserId: aliceId,
+        status: 'LOBBY',
+        createdAt: 0,
       });
-
-      // Assert
-      expect(result).toBeNull();
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: aliceId,
+        displayName: 'Alice',
+        joinedAt: 0,
+      });
     });
 
-    it('returns full poem with lines and author names', async () => {
-      // Arrange
-      const poem = {
-        _id: 'poem1',
-        indexInRoom: 2,
-        roomId: 'room1',
-        publicShareEnabled: true,
-      };
-      const lines = [
-        { _id: 'l1', text: 'First line', indexInPoem: 0, authorUserId: 'u1' },
-        { _id: 'l2', text: 'Second line', indexInPoem: 1, authorUserId: 'u2' },
-        { _id: 'l3', text: 'Third line', indexInPoem: 2, authorUserId: 'u1' },
-      ];
-      const user1 = { _id: 'u1', displayName: 'Alice' };
-      const user2 = { _id: 'u2', displayName: 'Bob' };
+    const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
+      roomCode: 'ABCD',
+    });
+    expect(result).toEqual([]);
+  });
 
-      mockDb.get.mockResolvedValueOnce(poem); // poem lookup
-      mockDb.collect.mockResolvedValue(lines); // lines query
-      mockDb.get.mockResolvedValueOnce(user1); // author 1
-      mockDb.get.mockResolvedValueOnce(user2); // author 2
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemFull.handler(mockCtx, {
-        poemId: 'poem1',
-      });
-
-      // Assert
-      expect(result).not.toBeNull();
-      expect(result?.poem).toEqual(poem);
-      expect(result?.lines).toHaveLength(3);
-      expect(result?.lines[0].authorName).toBe('Alice');
-      expect(result?.lines[1].authorName).toBe('Bob');
-      expect(result?.lines[2].authorName).toBe('Alice');
+  it('returns poems with first-line preview for a participant', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      poemCount: 2,
+      gameStatus: 'IN_PROGRESS',
+      roomStatus: 'IN_PROGRESS',
     });
 
-    it('uses "Unknown" for missing author names', async () => {
-      // Arrange
-      const poem = { _id: 'poem1', indexInRoom: 0, publicShareEnabled: true };
-      const lines = [
-        {
-          _id: 'l1',
-          text: 'Solo line',
-          indexInPoem: 0,
-          authorUserId: 'missing',
-        },
-      ];
-
-      mockDb.get.mockResolvedValueOnce(poem); // poem lookup
-      mockDb.collect.mockResolvedValue(lines); // lines query
-      mockDb.get.mockResolvedValueOnce(null); // missing author
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemFull.handler(mockCtx, {
-        poemId: 'poem1',
-      });
-
-      // Assert
-      expect(result?.lines[0].authorName).toBe('Unknown');
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'First line of poem one',
+    });
+    await seedLine(t, {
+      poemId: poemIds[1],
+      authorUserId: aliceId,
+      text: 'First line of poem two',
     });
 
-    it('returns null when public sharing is disabled', async () => {
-      // Arrange
-      mockDb.get.mockResolvedValue({
-        _id: 'poem1',
+    const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
+      roomCode: 'ABCD',
+    });
+
+    expect(result).toHaveLength(2);
+    const previews = result.map((r: { preview: string }) => r.preview).sort();
+    expect(previews).toEqual([
+      'First line of poem one',
+      'First line of poem two',
+    ]);
+  });
+
+  it('uses "..." fallback preview when a poem has no first line yet', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      poemCount: 1,
+      gameStatus: 'IN_PROGRESS',
+      roomStatus: 'IN_PROGRESS',
+    });
+    // Insert a line at index 1 only — no first line (index 0).
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 1,
+      text: 'Second line',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
+      roomCode: 'ABCD',
+    });
+    expect(result[0].preview).toBe('...');
+  });
+
+  it('works for a completed game (reveal phase)', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      poemCount: 1,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      revealPoems: true,
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Completed poem line',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
+      roomCode: 'ABCD',
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].preview).toBe('Completed poem line');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPoemDetail
+// ---------------------------------------------------------------------------
+
+describe('getPoemDetail', () => {
+  it('returns null when no Clerk identity is present', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+
+    const result = await t.query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the poem does not exist', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    // Delete the poem so the id is dangling.
+    await t.run((ctx) => ctx.db.delete(poemIds[0]));
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the user is not a participant in the poem room', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    await seedClerkUser(t, 'bob');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      addRoomPlayer: true,
+    });
+    // Bob is not in roomPlayers.
+    const result = await asUser(t, 'bob').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns poem with lines sorted by indexInPoem', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
+    const charlieId = await seedClerkUser(t, 'charlie');
+    const { roomId, poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      addRoomPlayer: true,
+    });
+    // Add bob and charlie as room players.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: bobId,
+        displayName: 'Bob',
+        joinedAt: 0,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: charlieId,
+        displayName: 'Charlie',
+        joinedAt: 0,
+      });
+    });
+
+    // Insert lines out of order.
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: charlieId,
+      indexInPoem: 2,
+      text: 'Third',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'First',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
+      indexInPoem: 1,
+      text: 'Second',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.lines).toHaveLength(3);
+    expect(result?.lines[0]).toMatchObject({ text: 'First', indexInPoem: 0 });
+    expect(result?.lines[1]).toMatchObject({ text: 'Second', indexInPoem: 1 });
+    expect(result?.lines[2]).toMatchObject({ text: 'Third', indexInPoem: 2 });
+  });
+
+  it('returns authorName derived from the user record when no pen name was captured', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Hello',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result?.lines[0].authorName).toBe('alice');
+  });
+
+  it('prefers the captured authorDisplayName over the current user displayName', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Hello',
+      authorDisplayName: 'Alice Pen',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result?.lines[0].authorName).toBe('Alice Pen');
+  });
+
+  it('returns "Unknown" for deleted authors', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const ghostId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Ghost',
+        kind: 'human',
+        createdAt: 0,
+      })
+    );
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: ghostId,
+      text: 'Vanished',
+    });
+    // Delete the ghost user.
+    await t.run((ctx) => ctx.db.delete(ghostId));
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result?.lines[0].authorName).toBe('Unknown');
+  });
+
+  it('marks AI-authored lines with isBot: true', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const aiId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Gemini',
+        kind: 'AI',
+        createdAt: 0,
+      })
+    );
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aiId,
+      text: 'An AI line',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result?.lines[0].isBot).toBe(true);
+  });
+
+  it('returns poem document alongside lines', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Only line',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
+      poemId: poemIds[0],
+    });
+    expect(result?.poem._id).toBe(poemIds[0]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getMyPoems
+// ---------------------------------------------------------------------------
+
+describe('getMyPoems', () => {
+  it('returns empty array when no Clerk identity is present', async () => {
+    const t = setupConvexTest();
+    const result = await t.query(api.poems.getMyPoems, {});
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when authenticated user has no user row', async () => {
+    const t = setupConvexTest();
+    const result = await t
+      .withIdentity({ subject: 'clerk_nobody' })
+      .query(api.poems.getMyPoems, {});
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when the user has not written any lines', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'alice');
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
+    expect(result).toEqual([]);
+  });
+
+  it('returns only poems the user contributed to (deduplicating by poem)', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      poemCount: 2,
+    });
+
+    // Alice wrote two lines in poem 0 and one line in poem 1.
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'First in poem 0',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 1,
+      text: 'Second in poem 0',
+    });
+    await seedLine(t, {
+      poemId: poemIds[1],
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'First in poem 1',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
+    expect(result).toHaveLength(2);
+    const ids = result.map((p: { _id: Id<'poems'> }) => p._id);
+    expect(ids).toContain(poemIds[0]);
+    expect(ids).toContain(poemIds[1]);
+  });
+
+  it('sorts poems by createdAt descending', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      poemCount: 0,
+    });
+    // Insert poems with different createdAt values.
+    const { poem1, poem2, poem3 } = await t.run(async (ctx) => {
+      const p1 = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
         indexInRoom: 0,
-        publicShareEnabled: false,
+        createdAt: 1000,
       });
-
-      // Act
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicPoemFull.handler(mockCtx, {
-        poemId: 'poem1',
+      const p2 = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 1,
+        createdAt: 3000,
       });
+      const p3 = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 2,
+        createdAt: 2000,
+      });
+      return { poem1: p1, poem2: p2, poem3: p3 };
+    });
 
-      // Assert
-      expect(result).toBeNull();
-      expect(mockDb.collect).not.toHaveBeenCalled();
+    await seedLine(t, { poemId: poem1, authorUserId: aliceId, indexInPoem: 0 });
+    await seedLine(t, { poemId: poem2, authorUserId: aliceId, indexInPoem: 0 });
+    await seedLine(t, { poemId: poem3, authorUserId: aliceId, indexInPoem: 0 });
+
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
+    expect(result.map((p: { _id: Id<'poems'> }) => p._id)).toEqual([
+      poem2,
+      poem3,
+      poem1,
+    ]);
+  });
+
+  it('includes roomDate from the room record', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    // Seed with createdAt = 500 on the room (set inside t.run).
+    const roomId = await t.run((ctx) =>
+      ctx.db.insert('rooms', {
+        code: 'ABCD',
+        hostUserId: aliceId,
+        status: 'COMPLETED',
+        createdAt: 500,
+      })
+    );
+    await t.run((ctx) =>
+      ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: aliceId,
+        displayName: 'Alice',
+        joinedAt: 0,
+      })
+    );
+    const gameId = await t.run((ctx) =>
+      ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        cycle: 1,
+        currentRound: 0,
+        assignmentMatrix: [[aliceId]],
+        createdAt: 0,
+      })
+    );
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 1000,
+      })
+    );
+    await seedLine(t, { poemId, authorUserId: aliceId, text: 'One line' });
+
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
+    expect(result).toHaveLength(1);
+    expect(result[0].roomDate).toBe(500);
+  });
+
+  it('includes a first-line preview', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId, poemCount: 1 });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Opening verse',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
+    expect(result[0].preview).toBe('Opening verse');
+  });
+
+  it('uses "..." preview when poem has no first line', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId, poemCount: 1 });
+    // Only a second line — no line at index 0.
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 1,
+      text: 'Not the first',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
+    expect(result[0].preview).toBe('...');
+  });
+
+  it('handles poems across multiple rooms with correct roomDate per poem', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+
+    const room1 = await t.run((ctx) =>
+      ctx.db.insert('rooms', {
+        code: 'AAA1',
+        hostUserId: aliceId,
+        status: 'COMPLETED',
+        createdAt: 100,
+      })
+    );
+    const room2 = await t.run((ctx) =>
+      ctx.db.insert('rooms', {
+        code: 'BBB2',
+        hostUserId: aliceId,
+        status: 'COMPLETED',
+        createdAt: 200,
+      })
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert('roomPlayers', {
+        roomId: room1,
+        userId: aliceId,
+        displayName: 'Alice',
+        joinedAt: 0,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId: room2,
+        userId: aliceId,
+        displayName: 'Alice',
+        joinedAt: 0,
+      });
+    });
+
+    const game1 = await t.run((ctx) =>
+      ctx.db.insert('games', {
+        roomId: room1,
+        status: 'COMPLETED',
+        cycle: 1,
+        currentRound: 0,
+        assignmentMatrix: [],
+        createdAt: 0,
+      })
+    );
+    const game2 = await t.run((ctx) =>
+      ctx.db.insert('games', {
+        roomId: room2,
+        status: 'COMPLETED',
+        cycle: 1,
+        currentRound: 0,
+        assignmentMatrix: [],
+        createdAt: 0,
+      })
+    );
+
+    const poem1 = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId: room1,
+        gameId: game1,
+        indexInRoom: 0,
+        createdAt: 1000,
+      })
+    );
+    const poem2 = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId: room2,
+        gameId: game2,
+        indexInRoom: 0,
+        createdAt: 2000,
+      })
+    );
+
+    await seedLine(t, {
+      poemId: poem1,
+      authorUserId: aliceId,
+      text: 'Room one',
+    });
+    await seedLine(t, {
+      poemId: poem2,
+      authorUserId: aliceId,
+      text: 'Room two',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {});
+    expect(result).toHaveLength(2);
+    // Sorted desc: poem2 (createdAt 2000) first.
+    const byId = Object.fromEntries(result.map((p) => [p._id, p.roomDate]));
+    expect(byId[poem1]).toBe(100);
+    expect(byId[poem2]).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPublicPoemPreview
+// ---------------------------------------------------------------------------
+
+describe('getPublicPoemPreview', () => {
+  it('returns null when the poem does not exist', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    await t.run((ctx) => ctx.db.delete(poemIds[0]));
+
+    const result = await t.query(api.poems.getPublicPoemPreview, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when publicShareEnabled is false', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: false,
+    });
+
+    const result = await t.query(api.poems.getPublicPoemPreview, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when publicShareEnabled is absent', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    // seedRoom does not set publicShareEnabled when left undefined.
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+
+    const result = await t.query(api.poems.getPublicPoemPreview, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns preview with first 3 lines, poetCount, and poemNumber', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
+    const charlieId = await seedClerkUser(t, 'charlie');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: true,
+    });
+    // 4 lines — only first 3 should appear in preview.
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'Line 1',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
+      indexInPoem: 1,
+      text: 'Line 2',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: charlieId,
+      indexInPoem: 2,
+      text: 'Line 3',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 3,
+      text: 'Line 4',
+    });
+
+    const result = await t.query(api.poems.getPublicPoemPreview, {
+      poemId: poemIds[0],
+    });
+
+    expect(result).toEqual({
+      lines: ['Line 1', 'Line 2', 'Line 3'],
+      poetCount: 3, // alice, bob, charlie
+      poemNumber: 1, // indexInRoom 0 + 1
     });
   });
 
-  describe('getPublicSessionRecap', () => {
-    it('returns null when room is not found', async () => {
-      mockGetRoomByCode.mockResolvedValue(null);
-
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'MISS',
-      });
-
-      expect(result).toBeNull();
+  it('counts unique poets correctly when the same author writes multiple lines', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: true,
+    });
+    // alice writes lines 0 and 2; bob writes line 1.
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'Alice start',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
+      indexInPoem: 1,
+      text: 'Bob middle',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 2,
+      text: 'Alice again',
     });
 
-    it('returns null when room has no completed game', async () => {
-      mockGetRoomByCode.mockResolvedValue({ _id: 'room1', code: 'ABCD' });
-      mockGetCompletedGame.mockResolvedValue(null);
+    const result = await t.query(api.poems.getPublicPoemPreview, {
+      poemId: poemIds[0],
+    });
+    expect(result?.poetCount).toBe(2);
+  });
 
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
-      });
+  it('returns poemNumber as indexInRoom + 1', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    // Poem with indexInRoom = 4 (poem number 5).
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      poemCount: 0,
+      publicShareEnabled: true,
+    });
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 4,
+        createdAt: 0,
+        publicShareEnabled: true,
+      })
+    );
+    await seedLine(t, { poemId, authorUserId: aliceId, text: 'Only line' });
 
-      expect(result).toBeNull();
+    const result = await t.query(api.poems.getPublicPoemPreview, {
+      poemId,
+    });
+    expect(result?.poemNumber).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPublicPoemFull
+// ---------------------------------------------------------------------------
+
+describe('getPublicPoemFull', () => {
+  it('returns null when the poem does not exist', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
+    await t.run((ctx) => ctx.db.delete(poemIds[0]));
+
+    const result = await t.query(api.poems.getPublicPoemFull, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when publicShareEnabled is false', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: false,
     });
 
-    it('returns session-level poems, contributors, and replay metadata', async () => {
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = {
-        _id: 'game1',
-        roomId: 'room1',
-        cycle: 2,
-        completedAt: 2000,
-        publicRecapEnabled: true,
-      };
-      const poems = [
-        {
-          _id: 'poem2',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 1,
-          createdAt: 1000,
-          assignedReaderId: 'user2',
-          revealedAt: 3000,
-        },
-        {
-          _id: 'poem1',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 0,
-          createdAt: 1000,
-          assignedReaderId: 'user1',
-          revealedAt: 3000,
-        },
-      ];
-      const players = [
-        {
-          _id: 'player1',
-          roomId: 'room1',
-          userId: 'user1',
-          displayName: 'Alice',
-          seatIndex: 0,
-        },
-        {
-          _id: 'player2',
-          roomId: 'room1',
-          userId: 'user2',
-          displayName: 'Bob',
-          seatIndex: 1,
-        },
-      ];
+    const result = await t.query(api.poems.getPublicPoemFull, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
 
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetCompletedGame.mockResolvedValue(game);
-      mockDb.collect
-        .mockResolvedValueOnce(poems)
-        .mockResolvedValueOnce(players)
-        .mockResolvedValueOnce([
-          {
-            text: 'Second poem line two',
-            indexInPoem: 1,
-            authorUserId: 'user1',
-          },
-          {
-            text: 'Second poem line one',
-            indexInPoem: 0,
-            authorUserId: 'user2',
-          },
-        ])
-        .mockResolvedValueOnce([
-          {
-            text: 'First poem line',
-            indexInPoem: 0,
-            authorUserId: 'user1',
-            authorDisplayName: 'Alice Pen',
-          },
-        ]);
-      mockDb.get
-        .mockResolvedValueOnce({ _id: 'user1', displayName: 'Alice' })
-        .mockResolvedValueOnce({ _id: 'user2', displayName: 'Bob' });
+  it('returns null when publicShareEnabled is absent', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId });
 
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
-      });
+    const result = await t.query(api.poems.getPublicPoemFull, {
+      poemId: poemIds[0],
+    });
+    expect(result).toBeNull();
+  });
 
-      expect(result).toMatchObject({
-        roomCode: 'ABCD',
-        cycle: 2,
-        completedAt: 2000,
-        poemCount: 2,
-        playerCount: 2,
-      });
-      expect(result?.poems.map((poem: { _id: string }) => poem._id)).toEqual([
-        'poem1',
-        'poem2',
-      ]);
-      expect(result?.poems[0]).toMatchObject({
-        preview: 'First poem line',
-        readerName: 'Alice',
-        starterName: 'Alice Pen',
-        poetCount: 1,
-        lines: [{ text: 'First poem line', authorName: 'Alice Pen' }],
-      });
-      expect(
-        result?.poems[1].lines.map((line: { text: string }) => line.text)
-      ).toEqual(['Second poem line one', 'Second poem line two']);
+  it('returns full poem and all lines with author names in order', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: true,
     });
 
-    it('falls back cleanly when recap names and lines are missing', async () => {
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = {
-        _id: 'game1',
-        roomId: 'room1',
-        cycle: 1,
-        completedAt: 3000,
-        publicRecapEnabled: true,
-      };
-      const poems = [
-        {
-          _id: 'poem1',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 0,
-          createdAt: 1000,
-          assignedReaderId: 'missing-reader',
-          revealedAt: 4000,
-        },
-      ];
-      const players = [
-        {
-          _id: 'player1',
-          roomId: 'room1',
-          userId: 'user1',
-          displayName: 'Alice',
-        },
-      ];
+    // Lines inserted out of order.
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: bobId,
+      indexInPoem: 1,
+      text: 'Second line',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'First line',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 2,
+      text: 'Third line',
+    });
 
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetCompletedGame.mockResolvedValue(game);
-      mockDb.collect
-        .mockResolvedValueOnce(poems)
-        .mockResolvedValueOnce(players)
-        .mockResolvedValueOnce([]);
+    const result = await t.query(api.poems.getPublicPoemFull, {
+      poemId: poemIds[0],
+    });
 
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
+    expect(result).not.toBeNull();
+    expect(result?.poem._id).toBe(poemIds[0]);
+    expect(result?.lines).toHaveLength(3);
+    expect(result?.lines[0]).toMatchObject({
+      text: 'First line',
+      authorName: 'alice',
+    });
+    expect(result?.lines[1]).toMatchObject({
+      text: 'Second line',
+      authorName: 'bob',
+    });
+    expect(result?.lines[2]).toMatchObject({
+      text: 'Third line',
+      authorName: 'alice',
+    });
+  });
+
+  it('uses "Unknown" for deleted authors', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const ghostId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Ghost',
+        kind: 'human',
+        createdAt: 0,
+      })
+    );
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: true,
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: ghostId,
+      text: 'Vanished line',
+    });
+    await t.run((ctx) => ctx.db.delete(ghostId));
+
+    const result = await t.query(api.poems.getPublicPoemFull, {
+      poemId: poemIds[0],
+    });
+    expect(result?.lines[0].authorName).toBe('Unknown');
+  });
+
+  it('prefers captured authorDisplayName over current displayName', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: true,
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      text: 'Penned line',
+      authorDisplayName: 'Alice Pen',
+    });
+
+    const result = await t.query(api.poems.getPublicPoemFull, {
+      poemId: poemIds[0],
+    });
+    expect(result?.lines[0].authorName).toBe('Alice Pen');
+  });
+
+  it('marks AI-authored lines with isBot: true', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const aiId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Muse',
+        kind: 'AI',
+        createdAt: 0,
+      })
+    );
+    const { poemIds } = await seedRoom(t, {
+      userId: aliceId,
+      publicShareEnabled: true,
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aiId,
+      text: 'AI generated',
+    });
+
+    const result = await t.query(api.poems.getPublicPoemFull, {
+      poemId: poemIds[0],
+    });
+    expect(result?.lines[0].isBot).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPublicSessionRecap
+// ---------------------------------------------------------------------------
+
+describe('getPublicSessionRecap', () => {
+  it('returns null when the room does not exist', async () => {
+    const t = setupConvexTest();
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'MISS',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the room has no completed game', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'IN_PROGRESS',
+      roomStatus: 'IN_PROGRESS',
+    });
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when publicRecapEnabled is false', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      publicRecapEnabled: false,
+      revealPoems: true,
+    });
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when publicRecapEnabled is absent', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      revealPoems: true,
+    });
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when any poem in the game has not been revealed yet', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      publicRecapEnabled: true,
+      poemCount: 1,
+      revealPoems: true,
+    });
+    // Add a second unrevealed poem.
+    await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 1,
+        createdAt: 2000,
+        // No revealedAt — not yet revealed.
+      })
+    );
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns session-level summary with poems sorted by indexInRoom', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const bobId = await seedClerkUser(t, 'bob');
+
+    // Build room without the generic seedRoom player so we can control displayNames.
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      publicRecapEnabled: true,
+      poemCount: 0,
+      addRoomPlayer: false,
+    });
+    // Add both players with explicit display names.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: aliceId,
+        displayName: 'Alice',
+        joinedAt: 0,
       });
-
-      expect(result?.poems[0]).toMatchObject({
-        preview: '',
-        readerName: 'Unknown',
-        starterName: 'Unknown',
-        poetCount: 0,
-        lines: [],
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: bobId,
+        displayName: 'Bob',
+        joinedAt: 0,
       });
     });
 
-    it('marks AI authors and falls back to Unknown for missing author records', async () => {
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = {
-        _id: 'game1',
-        roomId: 'room1',
-        cycle: 1,
-        completedAt: 3000,
-        publicRecapEnabled: true,
-      };
-      const poems = [
-        {
-          _id: 'poem1',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 0,
-          createdAt: 1000,
-          assignedReaderId: 'user1',
-          revealedAt: 4000,
-        },
-      ];
-      const players = [
-        {
-          _id: 'player1',
-          roomId: 'room1',
-          userId: 'user1',
-          displayName: 'Alice',
-          seatIndex: 0,
-        },
-      ];
+    // Two poems — insert poem2 first to verify sort by indexInRoom.
+    const poem2Id = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 1,
+        createdAt: 1500,
+        revealedAt: 9001,
+        assignedReaderId: bobId,
+      })
+    );
+    const poem1Id = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 1000,
+        revealedAt: 9000,
+        assignedReaderId: aliceId,
+      })
+    );
 
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetCompletedGame.mockResolvedValue(game);
-      mockDb.collect
-        .mockResolvedValueOnce(poems)
-        .mockResolvedValueOnce(players)
-        .mockResolvedValueOnce([
-          {
-            text: 'AI line',
-            indexInPoem: 1,
-            authorUserId: 'ai-user',
-          },
-          {
-            text: 'Mystery line',
-            indexInPoem: 0,
-            authorUserId: 'missing-user',
-          },
-        ]);
-      mockDb.get
-        .mockResolvedValueOnce({
-          _id: 'ai-user',
-          displayName: 'Muse',
-          kind: 'AI',
-        })
-        .mockResolvedValueOnce(null);
-
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
-      });
-
-      expect(result?.poems[0].lines).toEqual([
-        {
-          text: 'Mystery line',
-          authorName: 'Unknown',
-          isBot: false,
-        },
-        {
-          text: 'AI line',
-          authorName: 'Muse',
-          isBot: true,
-        },
-      ]);
+    await seedLine(t, {
+      poemId: poem1Id,
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'Poem one opening',
+      authorDisplayName: 'Alice Pen',
+    });
+    await seedLine(t, {
+      poemId: poem2Id,
+      authorUserId: bobId,
+      indexInPoem: 0,
+      text: 'Poem two opening',
     });
 
-    it('returns null until every completed-game poem has been revealed', async () => {
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = {
-        _id: 'game1',
-        roomId: 'room1',
-        cycle: 1,
-        completedAt: 3000,
-        publicRecapEnabled: true,
-      };
-      const poems = [
-        {
-          _id: 'poem1',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 0,
-          createdAt: 1000,
-          assignedReaderId: 'user1',
-          revealedAt: 4000,
-        },
-        {
-          _id: 'poem2',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 1,
-          createdAt: 1000,
-          assignedReaderId: 'user2',
-        },
-      ];
-
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetCompletedGame.mockResolvedValue(game);
-      mockDb.collect.mockResolvedValueOnce(poems).mockResolvedValueOnce([]);
-
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
-      });
-
-      expect(result).toBeNull();
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
     });
 
-    it('returns null when the completed game has not been shared publicly', async () => {
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = {
-        _id: 'game1',
-        roomId: 'room1',
-        cycle: 1,
-        completedAt: 3000,
-      };
-
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetCompletedGame.mockResolvedValue(game);
-
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
-      });
-
-      expect(result).toBeNull();
-      expect(mockDb.collect).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      roomCode: 'ABCD',
+      cycle: 1,
+      poemCount: 2,
+      playerCount: 2,
     });
+    // Poems must be in indexInRoom order.
+    expect(result?.poems[0]._id).toBe(poem1Id);
+    expect(result?.poems[1]._id).toBe(poem2Id);
+    expect(result?.poems[0]).toMatchObject({
+      preview: 'Poem one opening',
+      readerName: 'Alice',
+      starterName: 'Alice Pen',
+      poetCount: 1,
+    });
+  });
 
-    it('derives starter names from the first line author, not mutable room seats', async () => {
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = {
-        _id: 'game1',
-        roomId: 'room1',
-        cycle: 1,
-        completedAt: 3000,
-        publicRecapEnabled: true,
-      };
-      const poems = [
-        {
-          _id: 'poem1',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 0,
-          createdAt: 1000,
-          assignedReaderId: 'reader',
-          revealedAt: 4000,
-        },
-      ];
-      const players = [
-        {
-          _id: 'player1',
-          roomId: 'room1',
-          userId: 'reader',
-          displayName: 'Reader',
-          seatIndex: 0,
-        },
-        {
-          _id: 'player2',
-          roomId: 'room1',
-          userId: 'starter',
-          displayName: 'Starter',
-          seatIndex: 2,
-        },
-      ];
-
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetCompletedGame.mockResolvedValue(game);
-      mockDb.collect
-        .mockResolvedValueOnce(poems)
-        .mockResolvedValueOnce(players)
-        .mockResolvedValueOnce([
-          {
-            text: 'Opening line',
-            indexInPoem: 0,
-            authorUserId: 'starter',
-          },
-        ]);
-      mockDb.get.mockResolvedValueOnce({
-        _id: 'starter',
+  it('derives starterName from the first-line authorDisplayName not mutable room seats', async () => {
+    const t = setupConvexTest();
+    const readerUserId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Reader',
+        kind: 'human',
+        clerkUserId: 'clerk_reader',
+        createdAt: 0,
+      })
+    );
+    const starterUserId = await t.run((ctx) =>
+      ctx.db.insert('users', {
         displayName: 'Starter',
-      });
+        kind: 'human',
+        clerkUserId: 'clerk_starter',
+        createdAt: 0,
+      })
+    );
 
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
+    const roomId = await t.run((ctx) =>
+      ctx.db.insert('rooms', {
+        code: 'ABCD',
+        hostUserId: readerUserId,
+        status: 'COMPLETED',
+        createdAt: 0,
+      })
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: readerUserId,
+        displayName: 'Reader',
+        joinedAt: 0,
       });
-
-      expect(result?.poems[0]).toMatchObject({
-        readerName: 'Reader',
-        starterName: 'Starter',
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: starterUserId,
+        displayName: 'Starter',
+        joinedAt: 0,
       });
     });
-
-    it('ignores legacy lines without author ids when building recap authors', async () => {
-      const room = { _id: 'room1', code: 'ABCD' };
-      const game = {
-        _id: 'game1',
-        roomId: 'room1',
+    const gameId = await t.run((ctx) =>
+      ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
         cycle: 1,
-        completedAt: 3000,
+        currentRound: 0,
+        assignmentMatrix: [],
+        createdAt: 0,
         publicRecapEnabled: true,
-      };
-      const poems = [
-        {
-          _id: 'poem1',
-          roomId: 'room1',
-          gameId: 'game1',
-          indexInRoom: 0,
-          createdAt: 1000,
-          assignedReaderId: 'reader',
-          revealedAt: 4000,
-        },
-      ];
-
-      mockGetRoomByCode.mockResolvedValue(room);
-      mockGetCompletedGame.mockResolvedValue(game);
-      mockDb.collect
-        .mockResolvedValueOnce(poems)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          {
-            text: 'Legacy line',
-            indexInPoem: 0,
-            authorUserId: undefined,
-          },
-        ]);
-
-      // @ts-expect-error - calling handler directly for test
-      const result = await getPublicSessionRecap.handler(mockCtx, {
-        roomCode: 'ABCD',
-      });
-
-      expect(mockDb.get).not.toHaveBeenCalled();
-      expect(result?.poems[0]).toMatchObject({
-        starterName: 'Unknown',
-        poetCount: 0,
-        lines: [
-          {
-            text: 'Legacy line',
-            authorName: 'Unknown',
-            isBot: false,
-          },
-        ],
-      });
+      })
+    );
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        revealedAt: 9000,
+        assignedReaderId: readerUserId,
+      })
+    );
+    // Starter wrote the first line, captured by authorDisplayName.
+    await seedLine(t, {
+      poemId,
+      authorUserId: starterUserId,
+      indexInPoem: 0,
+      text: 'Opening line',
+      authorDisplayName: 'Starter',
     });
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+    expect(result?.poems[0]).toMatchObject({
+      readerName: 'Reader',
+      starterName: 'Starter',
+    });
+  });
+
+  it('marks AI authors with isBot: true and falls back to Unknown for deleted users', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const aiId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Muse',
+        kind: 'AI',
+        createdAt: 0,
+      })
+    );
+    const ghostId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Ghost',
+        kind: 'human',
+        createdAt: 0,
+      })
+    );
+
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      publicRecapEnabled: true,
+      poemCount: 0,
+    });
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        revealedAt: 9000,
+        assignedReaderId: aliceId,
+      })
+    );
+
+    await seedLine(t, {
+      poemId,
+      authorUserId: ghostId,
+      indexInPoem: 0,
+      text: 'Mystery line',
+    });
+    await seedLine(t, {
+      poemId,
+      authorUserId: aiId,
+      indexInPoem: 1,
+      text: 'AI line',
+    });
+    // Delete the ghost user so its author lookup returns null.
+    await t.run((ctx) => ctx.db.delete(ghostId));
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+
+    expect(result?.poems[0].lines).toEqual([
+      { text: 'Mystery line', authorName: 'Unknown', isBot: false },
+      { text: 'AI line', authorName: 'Muse', isBot: true },
+    ]);
+  });
+
+  it('falls back cleanly when recap names and lines are missing', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const missingReaderId = await t.run((ctx) =>
+      ctx.db.insert('users', {
+        displayName: 'Missing Reader',
+        kind: 'human',
+        createdAt: 0,
+      })
+    );
+
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      publicRecapEnabled: true,
+      poemCount: 0,
+    });
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        revealedAt: 9000,
+        assignedReaderId: missingReaderId,
+      })
+    );
+    // Delete the reader user so players lookup misses them.
+    await t.run((ctx) => ctx.db.delete(missingReaderId));
+    // No lines inserted for this poem.
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+
+    expect(result?.poems[0]).toMatchObject({
+      preview: '',
+      readerName: 'Unknown',
+      starterName: 'Unknown',
+      poetCount: 0,
+      lines: [],
+    });
+    expect(result?.poems[0]._id).toBe(poemId);
+  });
+
+  it('ignores lines without authorUserId when building the author set', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      gameStatus: 'COMPLETED',
+      roomStatus: 'COMPLETED',
+      publicRecapEnabled: true,
+      poemCount: 0,
+    });
+    const poemId = await t.run((ctx) =>
+      ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        revealedAt: 9000,
+        assignedReaderId: aliceId,
+      })
+    );
+    // Insert a line; the filter in getPublicSessionRecap excludes undefined
+    // authorUserId from the author lookup set, so poetCount stays 1 for the
+    // real author but 0 for legacy-undefined lines.
+    // (Legacy behavior: line with a valid authorUserId but no display name.)
+    await seedLine(t, {
+      poemId,
+      authorUserId: aliceId,
+      indexInPoem: 0,
+      text: 'Legacy line',
+    });
+
+    const result = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: 'ABCD',
+    });
+    // The author IS alice; poetCount is 1.
+    expect(result?.poems[0].poetCount).toBe(1);
+    expect(result?.poems[0].lines[0].authorName).toBe('alice');
   });
 });
