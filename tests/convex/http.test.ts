@@ -1,30 +1,24 @@
 /** @vitest-environment node */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withEnv } from '../helpers/envHelper';
+import { setupConvexTest } from '../helpers/convexTest';
 
 const ORIGINAL_ENV = { ...process.env };
 
-const { httpActionMock, httpRouterMock, routeSpy } = vi.hoisted(() => {
-  const routeSpy = vi.fn();
-  const httpRouterMock = vi.fn(() => ({
-    route: routeSpy,
-  }));
-  const httpActionMock = vi.fn((handler) => handler);
-
-  return {
-    httpActionMock,
-    httpRouterMock,
-    routeSpy,
-  };
-});
-
-vi.mock('convex/server', () => ({
-  httpRouter: httpRouterMock,
-}));
-
-vi.mock('../../convex/_generated/server', () => ({
-  httpAction: httpActionMock,
-}));
+/**
+ * Health route tests on the real convex-test engine (backlog 018).
+ *
+ * convex/lib/env.ts captures process.env into a module-level frozen constant at
+ * import time. To exercise different env configurations across test cases we
+ * must reset the module cache before each test so a fresh import of
+ * convex/http.ts (and its transitive dependency convex/lib/env.ts) re-reads
+ * process.env. vi.resetModules() + withEnv() achieves this.
+ *
+ * vi.mock of convex/server and convex/_generated/server has been removed.
+ * t.fetch() drives the real httpRouter → httpAction dispatch pipeline and
+ * asserts the observable Response (status + JSON body) instead of stub call
+ * counts.
+ */
 
 describe('convex/http health route', () => {
   afterAll(() => {
@@ -32,10 +26,9 @@ describe('convex/http health route', () => {
   });
 
   beforeEach(() => {
+    // Reset the module registry so each test re-imports convex/http.ts and
+    // convex/lib/env.ts fresh, picking up the process.env set by withEnv().
     vi.resetModules();
-    routeSpy.mockClear();
-    httpRouterMock.mockClear();
-    httpActionMock.mockClear();
     process.env = { ...ORIGINAL_ENV };
   });
 
@@ -47,19 +40,8 @@ describe('convex/http health route', () => {
         OPENROUTER_API_KEY: undefined,
       },
       async () => {
-        await import('../../convex/http');
-
-        expect(httpRouterMock).toHaveBeenCalledTimes(1);
-        expect(routeSpy).toHaveBeenCalledTimes(1);
-
-        const route = routeSpy.mock.calls[0][0];
-        expect(route.path).toBe('/api/health');
-        expect(route.method).toBe('GET');
-
-        const response = await route.handler(
-          {} as never,
-          new Request('https://example.com/api/health')
-        );
+        const t = setupConvexTest();
+        const response = await t.fetch('/api/health');
 
         expect(response.status).toBe(500);
         expect(response.headers.get('Cache-Control')).toBe('no-store');
@@ -92,13 +74,8 @@ describe('convex/http health route', () => {
         OPENROUTER_API_KEY: 'test-openrouter-key',
       },
       async () => {
-        await import('../../convex/http');
-
-        const route = routeSpy.mock.calls[0][0];
-        const response = await route.handler(
-          {} as never,
-          new Request('https://example.com/api/health')
-        );
+        const t = setupConvexTest();
+        const response = await t.fetch('/api/health');
 
         expect(response.status).toBe(200);
         expect(response.headers.get('Cache-Control')).toBe('no-store');
@@ -131,13 +108,8 @@ describe('convex/http health route', () => {
         OPENROUTER_API_KEY: undefined,
       },
       async () => {
-        await import('../../convex/http');
-
-        const route = routeSpy.mock.calls[0][0];
-        const response = await route.handler(
-          {} as never,
-          new Request('https://example.com/api/health')
-        );
+        const t = setupConvexTest();
+        const response = await t.fetch('/api/health');
 
         expect(response.status).toBe(500);
         await expect(response.json()).resolves.toMatchObject({
