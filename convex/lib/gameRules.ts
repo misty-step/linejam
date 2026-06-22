@@ -114,6 +114,15 @@ export const PRESENCE_HEARTBEAT_MS = 15_000;
 export const PRESENCE_AWAY_MS = 45_000;
 
 /**
+ * How long the host may be silent before a present participant is promoted to
+ * host (backlog 017). Longer than the "away" indicator so a brief host blip
+ * doesn't hand off ownership, far shorter than ABANDONMENT_THRESHOLD_MS so host
+ * agency (summon ghostwriter, close room, pick the next mode) is never stranded
+ * behind a vanished host while the room is still live.
+ */
+export const HOST_MIGRATION_STALE_MS = 60_000;
+
+/**
  * Whether a heartbeat-bearing row has gone quiet past `thresholdMs`. A missing
  * `lastSeenAt` (legacy rows, never-heartbeat clients) counts as stale. Shared by
  * the "away" indicators (PRESENCE_AWAY_MS) and the abandonment sweep
