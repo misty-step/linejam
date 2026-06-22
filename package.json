@@ -61,7 +61,7 @@
     "import-in-the-middle": "^3.1.0",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
-    "posthog-js": "^1.391.2",
+    "posthog-js": "^1.391.9",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "require-in-the-middle": "^8.0.1",
