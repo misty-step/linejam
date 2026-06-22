@@ -1,125 +1,241 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { checkRateLimit } from '../../convex/lib/rateLimit';
-import { createMockDb, createMockCtx } from '../helpers/mockConvexDb';
+import { setupConvexTest } from '../helpers/convexTest';
+
+/**
+ * checkRateLimit on the real convex-test engine (backlog 018): real
+ * read-your-writes against the rateLimits table, asserting observable DB state
+ * and thrown errors instead of mock-call stubs.
+ *
+ * checkRateLimit takes a MutationCtx, so every call lives inside t.run().
+ * When checkRateLimit throws inside t.run, the t.run promise rejects — assert
+ * with `await expect(t.run(...)).rejects.toThrow(...)`.
+ *
+ * Date.now() is the only non-deterministic seam; freeze it with fake timers.
+ */
+
+const KEY = 'test:1';
+const OTHER_KEY = 'test:2';
+
+/**
+ * Read the rateLimits row for a key from the real DB.
+ */
+async function readRateLimit(
+  t: ReturnType<typeof setupConvexTest>,
+  key: string
+) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('rateLimits')
+      .withIndex('by_key', (q) => q.eq('key', key))
+      .first()
+  );
+}
 
 describe('checkRateLimit', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockDb: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockCtx: any;
-
   beforeEach(() => {
-    mockDb = createMockDb();
-    mockCtx = createMockCtx(mockDb);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
   });
 
-  it('allows request when no limit exists', async () => {
-    mockDb.first.mockResolvedValue(null);
-
-    await checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 });
-
-    expect(mockDb.insert).toHaveBeenCalledWith(
-      'rateLimits',
-      expect.objectContaining({
-        key: 'test:1',
-        hits: 1,
-      })
-    );
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('allows request when limit exists and under max', async () => {
-    mockDb.first.mockResolvedValue({
-      _id: 'limit1',
-      key: 'test:1',
-      hits: 2,
-      resetTime: Date.now() + 10000,
+  it('allows request when no limit exists and creates a row with hits=1', async () => {
+    const t = setupConvexTest();
+
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 1000 });
     });
 
-    await checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 });
-
-    expect(mockDb.patch).toHaveBeenCalledWith('limit1', {
-      hits: 3,
-    });
+    const row = await readRateLimit(t, KEY);
+    expect(row).not.toBeNull();
+    expect(row!.key).toBe(KEY);
+    expect(row!.hits).toBe(1);
+    expect(row!.resetTime).toBe(Date.now() + 1000);
   });
 
-  it('throws when limit exceeded within window', async () => {
-    mockDb.first.mockResolvedValue({
-      _id: 'limit1',
-      key: 'test:1',
-      hits: 5,
-      resetTime: Date.now() + 10000,
+  it('allows request when limit exists and under max, incrementing hits', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+
+    // Seed a row at hits=2 inside an active window
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rateLimits', {
+        key: KEY,
+        hits: 2,
+        resetTime: now + 10000,
+      });
+    });
+
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 1000 });
+    });
+
+    const row = await readRateLimit(t, KEY);
+    expect(row!.hits).toBe(3);
+    // resetTime should be unchanged (still within active window)
+    expect(row!.resetTime).toBe(now + 10000);
+  });
+
+  it('allows request at hits=max-1 and increments to max', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rateLimits', {
+        key: KEY,
+        hits: 4,
+        resetTime: now + 10000,
+      });
+    });
+
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 1000 });
+    });
+
+    const row = await readRateLimit(t, KEY);
+    expect(row!.hits).toBe(5);
+  });
+
+  it('throws when hits equals max within an active window', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rateLimits', {
+        key: KEY,
+        hits: 5,
+        resetTime: now + 10000,
+      });
     });
 
     await expect(
-      checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 })
+      t.run(async (ctx) => {
+        await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 1000 });
+      })
     ).rejects.toThrow('Rate limit exceeded');
+
+    // DB row must be untouched — hits stay at 5
+    const row = await readRateLimit(t, KEY);
+    expect(row!.hits).toBe(5);
   });
 
-  it('resets limit when window expired', async () => {
-    mockDb.first.mockResolvedValue({
-      _id: 'limit1',
-      key: 'test:1',
-      hits: 5,
-      resetTime: Date.now() - 1000, // Expired
-    });
-
-    await checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 });
-
-    expect(mockDb.patch).toHaveBeenCalledWith(
-      'limit1',
-      expect.objectContaining({
-        hits: 1,
-        resetTime: expect.any(Number),
-      })
-    );
-  });
-
-  it('resets when resetTime equals current time (boundary)', async () => {
+  it('resets limit when window has expired (resetTime in the past)', async () => {
+    const t = setupConvexTest();
     const now = Date.now();
-    mockDb.first.mockResolvedValue({
-      _id: 'limit1',
-      key: 'test:1',
-      hits: 5,
-      resetTime: now, // Exactly at boundary — should reset
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rateLimits', {
+        key: KEY,
+        hits: 5,
+        resetTime: now - 1000, // Expired
+      });
     });
 
-    await checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 });
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 60000 });
+    });
 
-    expect(mockDb.patch).toHaveBeenCalledWith(
-      'limit1',
-      expect.objectContaining({
-        hits: 1,
+    const row = await readRateLimit(t, KEY);
+    expect(row!.hits).toBe(1);
+    expect(row!.resetTime).toBe(now + 60000);
+  });
+
+  it('resets when resetTime equals current time exactly (boundary)', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rateLimits', {
+        key: KEY,
+        hits: 5,
+        resetTime: now, // Exactly at boundary — should reset (resetTime <= now)
+      });
+    });
+
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 1000 });
+    });
+
+    const row = await readRateLimit(t, KEY);
+    expect(row!.hits).toBe(1);
+  });
+
+  it('sets correct resetTime on a fresh window (no prior row)', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 60000 });
+    });
+
+    const row = await readRateLimit(t, KEY);
+    // Fake timers pin Date.now() so resetTime must be exactly now + windowMs
+    expect(row!.resetTime).toBe(now + 60000);
+  });
+
+  it('allows requests again after window expires (sequential calls)', async () => {
+    const t = setupConvexTest();
+
+    // Exhaust the limit
+    for (let i = 0; i < 3; i++) {
+      await t.run(async (ctx) => {
+        await checkRateLimit(ctx, { key: KEY, max: 3, windowMs: 60000 });
+      });
+    }
+
+    // Confirm it's blocked
+    await expect(
+      t.run(async (ctx) => {
+        await checkRateLimit(ctx, { key: KEY, max: 3, windowMs: 60000 });
       })
-    );
-  });
+    ).rejects.toThrow('Rate limit exceeded');
 
-  it('allows request at max-1 hits and increments to max', async () => {
-    mockDb.first.mockResolvedValue({
-      _id: 'limit1',
-      key: 'test:1',
-      hits: 4,
-      resetTime: Date.now() + 10000,
+    // Advance time past the window
+    vi.advanceTimersByTime(60001);
+
+    // Should be allowed again (window reset)
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: KEY, max: 3, windowMs: 60000 });
     });
 
-    await checkRateLimit(mockCtx, { key: 'test:1', max: 5, windowMs: 1000 });
-
-    expect(mockDb.patch).toHaveBeenCalledWith('limit1', { hits: 5 });
+    const row = await readRateLimit(t, KEY);
+    expect(row!.hits).toBe(1);
+    expect(row!.resetTime).toBe(Date.now() + 60000);
   });
 
-  it('sets correct resetTime on fresh window', async () => {
-    mockDb.first.mockResolvedValue(null);
+  it('independent keys are tracked independently', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
 
-    const before = Date.now();
-    await checkRateLimit(mockCtx, {
-      key: 'test:1',
-      max: 5,
-      windowMs: 60000,
+    // Seed KEY at max; OTHER_KEY has no row
+    await t.run(async (ctx) => {
+      await ctx.db.insert('rateLimits', {
+        key: KEY,
+        hits: 5,
+        resetTime: now + 10000,
+      });
     });
-    const after = Date.now();
 
-    const insertCall = mockDb.insert.mock.calls[0];
-    const resetTime = insertCall[1].resetTime;
-    expect(resetTime).toBeGreaterThanOrEqual(before + 60000);
-    expect(resetTime).toBeLessThanOrEqual(after + 60000);
+    // KEY is blocked
+    await expect(
+      t.run(async (ctx) => {
+        await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 1000 });
+      })
+    ).rejects.toThrow('Rate limit exceeded');
+
+    // OTHER_KEY is independent — must be allowed
+    await t.run(async (ctx) => {
+      await checkRateLimit(ctx, { key: OTHER_KEY, max: 5, windowMs: 1000 });
+    });
+
+    const otherRow = await readRateLimit(t, OTHER_KEY);
+    expect(otherRow!.hits).toBe(1);
+
+    // KEY row is still untouched
+    const keyRow = await readRateLimit(t, KEY);
+    expect(keyRow!.hits).toBe(5);
   });
 });
