@@ -30,9 +30,7 @@ interface WritingAssignment {
   lineIndex: number;
   targetWordCount: number;
   totalRounds?: number;
-  mode?: string;
   isFinalRound?: boolean;
-  rhymeTargetWord?: string | null;
   previousLineText?: string | null;
   roundStartedAt?: number;
 }
@@ -181,21 +179,6 @@ function WritingComposer({
           <div className="mb-16 animate-fade-in-up">
             <p className="text-2xl md:text-4xl lg:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
               {assignment.previousLineText}
-            </p>
-          </div>
-        )}
-
-        {/* Rhyme Relay: the closer's charge */}
-        {assignment.rhymeTargetWord && (
-          <div className="mb-12 animate-fade-in-up border-l-2 border-primary pl-4">
-            <p className="text-xs font-mono uppercase tracking-[0.32em] text-primary mb-1">
-              The last line
-            </p>
-            <p className="text-base text-text-secondary">
-              End on a word that rhymes with{' '}
-              <span className="font-[var(--font-display)] italic text-xl text-primary">
-                {assignment.rhymeTargetWord}
-              </span>
             </p>
           </div>
         )}

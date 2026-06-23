@@ -17,7 +17,7 @@ import { Id } from './_generated/dataModel';
 import { getUser } from './lib/auth';
 import { requireRoomByCode, getActiveGame } from './lib/room';
 import { getMatrixRound } from './lib/assignmentMatrix';
-import { getGameRules } from './lib/gameRules';
+import { WORD_COUNTS } from './lib/gameRules';
 import {
   pickRandomPersona,
   getPersona,
@@ -267,7 +267,7 @@ export const ensureAiLine = internalMutation({
       .first();
     if (!poem) return;
 
-    const expectedCount = getGameRules(game.mode).wordCounts[round];
+    const expectedCount = WORD_COUNTS[round];
     const committed = await commitAssignedLine(ctx, {
       roomId,
       gameId,
@@ -343,7 +343,7 @@ export const generateLineForRound = internalAction({
 
     // Get persona
     const persona = getPersona(aiPlayer.aiPersonaId as AiPersonaId);
-    const targetWordCount = getGameRules(game.mode).wordCounts[round];
+    const targetWordCount = WORD_COUNTS[round];
 
     // Generate line - graceful fallback if API key missing
     const apiKey = initialOpenRouterApiKey;
@@ -450,7 +450,7 @@ export async function commitAssignedLine(
   if (assignedUserId !== authorUserId) return false;
 
   const wordCount = countWords(text);
-  const expectedCount = getGameRules(game.mode).wordCounts[lineIndex];
+  const expectedCount = WORD_COUNTS[lineIndex];
   const finalText =
     wordCount === expectedCount ? text.trim() : getFallbackLine(expectedCount);
 
@@ -529,7 +529,7 @@ export const generateGhostLine = internalAction({
           })
         : null;
 
-    const targetWordCount = getGameRules(game.mode).wordCounts[round];
+    const targetWordCount = WORD_COUNTS[round];
     const apiKey = initialOpenRouterApiKey;
     const result = await (async () => {
       if (!apiKey) {
