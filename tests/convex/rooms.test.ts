@@ -9,8 +9,7 @@ import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
  * read-your-writes + real auth (Clerk identity), asserting observable DB state
  * and return values instead of mock-call stubs.
  *
- * Covers: createRoom, joinRoom, getRoom, getRoomState, leaveLobby, closeRoom,
- * selectGameMode.
+ * Covers: createRoom, joinRoom, getRoom, getRoomState, leaveLobby, closeRoom.
  */
 
 /**
