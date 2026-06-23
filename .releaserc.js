@@ -18,18 +18,6 @@ module.exports = {
         changelogTitle: '# Changelog\n\nAll notable changes to Linejam.',
       },
     ],
-    // Prettier-format CHANGELOG.md immediately after it's regenerated so the
-    // committed file matches `format:check` expectations — without this step,
-    // every release lands an unformatted CHANGELOG and the next push fails
-    // the format gate until a manual `style: prettier-format CHANGELOG.md`
-    // commit lands. Runs between `changelog` (which writes the file) and
-    // `git` (which commits `assets`), matching the prepare lifecycle phase.
-    [
-      '@semantic-release/exec',
-      {
-        prepareCmd: 'pnpm prettier --write CHANGELOG.md',
-      },
-    ],
     [
       '@semantic-release/npm',
       {
