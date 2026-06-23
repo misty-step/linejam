@@ -272,7 +272,7 @@ describe('host migration via heartbeat (real engine)', () => {
     expect(await hostOf(t, roomId)).toBe(userIds[0]); // host keeps the room
   });
 
-  it('gives the migrated host full agency once the game ends; the old host gets nothing', async () => {
+  it('gives the migrated host close-room agency once the game ends; the old host gets nothing', async () => {
     const t = setupConvexTest();
     const { roomId, gameId, userIds } = await seedGame(t, [
       { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() },
@@ -291,22 +291,7 @@ describe('host migration via heartbeat (real engine)', () => {
       await ctx.db.patch(roomId, { status: 'COMPLETED' });
     });
 
-    // New host can pick the next-cycle mode…
-    await asUser(t, 'guest').mutation(api.rooms.selectGameMode, {
-      roomCode: 'ABCD',
-      mode: 'quick',
-    });
-    expect(
-      await t.run((ctx) => ctx.db.get(roomId)).then((r) => r?.selectedMode)
-    ).toBe('quick');
-
-    // …while the departed old host has no host power.
-    await expect(
-      asUser(t, 'host').mutation(api.rooms.selectGameMode, {
-        roomCode: 'ABCD',
-        mode: 'classic',
-      })
-    ).rejects.toThrow('Only host can pick the game mode');
+    // The departed old host has no host power…
     await expect(
       asUser(t, 'host').mutation(api.rooms.closeRoom, { roomCode: 'ABCD' })
     ).rejects.toThrow('Only the host can close the room');

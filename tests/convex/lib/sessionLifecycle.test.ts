@@ -6,11 +6,7 @@ import {
   getSubmissionWindow,
   isRevealReady,
 } from '../../../convex/lib/sessionLifecycle';
-import {
-  WORD_COUNTS,
-  getGameRules,
-  getFinalRoundIndex,
-} from '../../../convex/lib/gameRules';
+import { WORD_COUNTS } from '../../../convex/lib/gameRules';
 import { setupConvexTest } from '../../helpers/convexTest';
 import { type T } from '../../helpers/convexSeed';
 import { getFallbackLine } from '../../../convex/lib/ai/fallbacks';
@@ -28,7 +24,9 @@ async function seedGame(
   t: T,
   opts: {
     players: Array<{ name: string; kind?: 'AI' | 'human' }>;
-    mode?: 'classic' | 'quick';
+    /** Round count for the matrix. Defaults to the one-game shape; a smaller
+     *  value seeds a legacy in-flight game (e.g. a pre-consolidation 5-round). */
+    rounds?: number;
     currentRound?: number;
     /** Pre-insert lines for these (poemIndex, lineIndex) pairs. */
     existingLines?: Array<{ poemIndex: number; lineIndex: number }>;
@@ -36,10 +34,8 @@ async function seedGame(
     gameStatus?: 'IN_PROGRESS' | 'COMPLETED';
   }
 ) {
-  const mode = opts.mode ?? 'classic';
   const currentRound = opts.currentRound ?? 0;
-  const rules = getGameRules(mode);
-  const rounds = rules.wordCounts.length;
+  const rounds = opts.rounds ?? WORD_COUNTS.length;
   const now = Date.now();
 
   return t.run(async (ctx) => {
@@ -86,7 +82,6 @@ async function seedGame(
       roomId,
       status: opts.gameStatus ?? 'IN_PROGRESS',
       cycle: 1,
-      mode,
       currentRound,
       roundStartedAt: now,
       assignmentMatrix,
@@ -107,7 +102,7 @@ async function seedGame(
 
     if (opts.existingLines) {
       for (const { poemIndex, lineIndex } of opts.existingLines) {
-        const wc = rules.wordCounts[lineIndex];
+        const wc = WORD_COUNTS[lineIndex];
         await ctx.db.insert('lines', {
           poemId: poemIds[poemIndex],
           indexInPoem: lineIndex,
@@ -146,13 +141,15 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('getSubmissionWindow (pure)', () => {
+  // The round count comes from the game's own matrix length; content is irrelevant here.
+  const matrixOf = (rounds: number): Id<'users'>[][] =>
+    Array.from({ length: rounds }, () => []);
+  const nine = matrixOf(WORD_COUNTS.length);
+
   it('allows final-round late submissions after completion', () => {
     expect(
       getSubmissionWindow(
-        {
-          status: 'COMPLETED',
-          currentRound: 8,
-        },
+        { status: 'COMPLETED', currentRound: 8, assignmentMatrix: nine },
         8
       )
     ).toEqual({ ok: true });
@@ -161,10 +158,7 @@ describe('getSubmissionWindow (pure)', () => {
   it('rejects future-round submissions while the game is in progress', () => {
     expect(
       getSubmissionWindow(
-        {
-          status: 'IN_PROGRESS',
-          currentRound: 2,
-        },
+        { status: 'IN_PROGRESS', currentRound: 2, assignmentMatrix: nine },
         3
       )
     ).toEqual({ ok: false, reason: 'ROUND_NOT_STARTED' });
@@ -173,34 +167,32 @@ describe('getSubmissionWindow (pure)', () => {
   it('rejects invalid round indexes before checking game state', () => {
     expect(
       getSubmissionWindow(
-        {
-          status: 'IN_PROGRESS',
-          currentRound: 2,
-        },
+        { status: 'IN_PROGRESS', currentRound: 2, assignmentMatrix: nine },
         -1
       )
     ).toEqual({ ok: false, reason: 'INVALID_ROUND' });
   });
 
-  it('scopes the submission window to the game mode', () => {
-    // Quick jam ends at round index 4; classic would still be mid-game there.
+  it("scopes the submission window to the game's round count (matrix length)", () => {
+    // A legacy 5-round game ends at index 4; a nine-round game is still mid-game there.
+    const five = matrixOf(5);
     expect(
       getSubmissionWindow(
-        { status: 'COMPLETED', currentRound: 4, mode: 'quick' },
+        { status: 'COMPLETED', currentRound: 4, assignmentMatrix: five },
         4
       )
     ).toEqual({ ok: true });
 
     expect(
       getSubmissionWindow(
-        { status: 'IN_PROGRESS', currentRound: 4, mode: 'quick' },
+        { status: 'IN_PROGRESS', currentRound: 4, assignmentMatrix: five },
         5
       )
     ).toEqual({ ok: false, reason: 'INVALID_ROUND' });
 
     expect(
       getSubmissionWindow(
-        { status: 'COMPLETED', currentRound: 4, mode: 'classic' },
+        { status: 'COMPLETED', currentRound: 4, assignmentMatrix: nine },
         4
       )
     ).toEqual({ ok: false, reason: 'GAME_NOT_IN_PROGRESS' });
@@ -467,16 +459,17 @@ describe('applyLineLifecycleTransition (real engine)', () => {
     expect(after?.status).toBe('IN_PROGRESS');
   });
 
-  it('completes a quick-jam game at its five-round boundary', async () => {
+  it('completes a legacy 5-round game at its own (shorter) boundary', async () => {
     const t = setupConvexTest();
-    const quickRules = getGameRules('quick');
-    const finalRound = getFinalRoundIndex(quickRules); // 4
+    // A pre-consolidation game shipped a 5-round matrix; its final round is index
+    // 4, derived from the matrix length — not the 9-round one-game shape.
+    const finalRound = 4;
 
-    // Seed a quick-jam game at the final round with all poems except one written.
-    // Then seed the last missing poem line and call the transition.
+    // Seed the 5-round game at the final round with every line written, then call
+    // the transition and expect completion at the game's own boundary.
     const { roomId, gameId } = await seedGame(t, {
       players: [{ name: 'Alice' }, { name: 'Bob' }],
-      mode: 'quick',
+      rounds: 5,
       currentRound: finalRound,
       existingLines: [
         // All rounds 0-3 fully written (both poems each)
@@ -516,9 +509,9 @@ describe('applyLineLifecycleTransition (real engine)', () => {
 
   it('treats final-round completion re-entry as stale once the game is completed', async () => {
     const t = setupConvexTest();
-    const finalRound = getFinalRoundIndex(getGameRules('classic')); // 8
+    const finalRound = WORD_COUNTS.length - 1; // 8
 
-    // Seed a classic game that is ALREADY COMPLETED at round 8.
+    // Seed a (default nine-round) game that is ALREADY COMPLETED at round 8.
     // The lifecycle should bail (freshGame.status !== IN_PROGRESS) and make no writes.
     const { roomId, gameId } = await seedGame(t, {
       players: [{ name: 'Alice' }, { name: 'Bob' }],

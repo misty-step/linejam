@@ -674,67 +674,6 @@ describe('leaveLobby', () => {
 // selectGameMode
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('selectGameMode', () => {
-  it('lets the host pick a mode in the lobby: DB row reflects selection', async () => {
-    const t = setupConvexTest();
-    await seedClerkUser(t, 'modehost', { displayName: 'ModeHost' });
-
-    const { code, roomId } = await seedLobbyRoom(t, 'modehost');
-
-    await asUser(t, 'modehost').mutation(api.rooms.selectGameMode, {
-      roomCode: code,
-      mode: 'rhyme',
-    });
-
-    const room = await t.run((ctx) => ctx.db.get(roomId));
-    expect(room?.selectedMode).toBe('rhyme');
-  });
-
-  it('rejects mode change by a non-host participant', async () => {
-    const t = setupConvexTest();
-    await seedClerkUser(t, 'modehosta', { displayName: 'ModeHostA' });
-    await seedClerkUser(t, 'modeguest', { displayName: 'ModeGuest' });
-
-    const { code } = await seedLobbyRoom(t, 'modehosta');
-    await asUser(t, 'modeguest').mutation(api.rooms.joinRoom, {
-      code,
-      displayName: 'ModeGuest',
-    });
-
-    await expect(
-      asUser(t, 'modeguest').mutation(api.rooms.selectGameMode, {
-        roomCode: code,
-        mode: 'quick',
-      })
-    ).rejects.toThrow('Only host can pick the game mode');
-  });
-
-  it('rejects mode change while a game is in progress', async () => {
-    const t = setupConvexTest();
-    const { code } = await seedRoomWithActiveGame(t, 'modehostb', 'modeguestb');
-
-    await expect(
-      asUser(t, 'modehostb').mutation(api.rooms.selectGameMode, {
-        roomCode: code,
-        mode: 'quick',
-      })
-    ).rejects.toThrow('Cannot change mode while a game is in progress');
-  });
-
-  it('rejects mode change when user is not authenticated', async () => {
-    const t = setupConvexTest();
-    await seedClerkUser(t, 'modehostc', { displayName: 'ModeHostC' });
-    const { code } = await seedLobbyRoom(t, 'modehostc');
-
-    await expect(
-      t.mutation(api.rooms.selectGameMode, {
-        roomCode: code,
-        mode: 'quick',
-      })
-    ).rejects.toThrow('User not found');
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // closeRoom
 // ─────────────────────────────────────────────────────────────────────────────

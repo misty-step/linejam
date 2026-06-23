@@ -30,8 +30,8 @@ import { applyLineLifecycleTransition } from './lib/sessionLifecycle';
 import {
   ABANDONMENT_HARD_DEADLINE_MS,
   ABANDONMENT_THRESHOLD_MS,
+  WORD_COUNTS,
   getFinalRoundIndex,
-  getGameRules,
   isPresenceStale,
 } from './lib/gameRules';
 import { log } from './lib/errors';
@@ -182,9 +182,9 @@ export const finishAbandonedGame = internalMutation({
       return { completed: false, filled: 0 };
     }
 
-    const rules = getGameRules(initial.mode);
     // One pass advances at most one round; bound the loop (CLAUDE.md loop-safety).
-    const maxPasses = getFinalRoundIndex(rules) + 2;
+    // Round count comes from the game's own matrix (legacy games may differ).
+    const maxPasses = getFinalRoundIndex(initial.assignmentMatrix) + 2;
 
     const poems = await ctx.db
       .query('poems')
@@ -241,7 +241,7 @@ export const finishAbandonedGame = internalMutation({
       const assignees = await Promise.all(
         missing.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
       );
-      const expectedCount = rules.wordCounts[round];
+      const expectedCount = WORD_COUNTS[round];
 
       for (let i = 0; i < missing.length; i++) {
         const poem = missing[i];

@@ -3,16 +3,12 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { getMatrixRound } from './assignmentMatrix';
 import { assignPoemReaders } from './assignPoemReaders';
-import {
-  AUTO_GHOST_FILL_MS,
-  getFinalRoundIndex,
-  getGameRules,
-} from './gameRules';
+import { AUTO_GHOST_FILL_MS, getFinalRoundIndex } from './gameRules';
 
 type LifecycleCtx = Pick<MutationCtx, 'db' | 'scheduler'>;
 type LifecycleGame = Pick<
   Doc<'games'>,
-  '_id' | 'assignmentMatrix' | 'currentRound' | 'status' | 'mode'
+  '_id' | 'assignmentMatrix' | 'currentRound' | 'status'
 >;
 type LifecyclePoem = Pick<Doc<'poems'>, '_id' | 'indexInRoom'>;
 type LifecyclePlayer = Pick<Doc<'users'>, '_id' | 'kind'>;
@@ -47,10 +43,10 @@ type CompletionPatchPlan = {
 };
 
 export function getSubmissionWindow(
-  game: Pick<Doc<'games'>, 'status' | 'currentRound' | 'mode'>,
+  game: Pick<Doc<'games'>, 'status' | 'currentRound' | 'assignmentMatrix'>,
   lineIndex: number
 ): SubmissionWindowResult {
-  const finalRoundIndex = getFinalRoundIndex(getGameRules(game.mode));
+  const finalRoundIndex = getFinalRoundIndex(game.assignmentMatrix);
   if (
     !Number.isInteger(lineIndex) ||
     lineIndex < 0 ||
@@ -220,7 +216,7 @@ export async function applyLineLifecycleTransition(
     return;
   }
 
-  if (args.lineIndex < getFinalRoundIndex(getGameRules(args.game.mode))) {
+  if (args.lineIndex < getFinalRoundIndex(args.game.assignmentMatrix)) {
     const nextRound = args.lineIndex + 1;
     await ctx.db.patch(args.game._id, {
       currentRound: nextRound,

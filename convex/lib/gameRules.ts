@@ -1,77 +1,23 @@
-import { v } from 'convex/values';
-
 /**
- * Game rules are data, keyed by mode. Every round structure literal in the
- * codebase lives in this module; game-path code resolves rules from the
- * game document's `mode` and never assumes a round count.
+ * The one game: a nine-round paper-fold, 1·2·3·4·5·4·3·2·1 words per line.
+ * `WORD_COUNTS` is the single source for the poem shape; per-game round bounds
+ * come from the game's own `assignmentMatrix` (so a legacy in-flight game with a
+ * different length still completes against its own structure).
  */
 
-/** Legacy alias for the classic shape. Game-path code must use getGameRules. */
+/** Words per line, by round. The poem shape — and the round count — of every game. */
 export const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1] as const;
 
-export const GAME_MODES = ['classic', 'rhyme', 'quick'] as const;
-export type GameMode = (typeof GAME_MODES)[number];
-
-/** Convex arg/schema validator matching GAME_MODES. */
-export const gameModeValidator = v.union(
-  v.literal('classic'),
-  v.literal('rhyme'),
-  v.literal('quick')
-);
-
-export interface GameRules {
-  mode: GameMode;
-  label: string;
-  tagline: string;
-  wordCounts: readonly number[];
-  /** Final line must rhyme with the poem's opening word. Judged by the room, never the server. */
-  finalRhyme: boolean;
-}
-
-const RULES: Record<GameMode, GameRules> = {
-  classic: {
-    mode: 'classic',
-    label: 'Classic',
-    tagline: 'The original 1·2·3·4·5·4·3·2·1.',
-    wordCounts: WORD_COUNTS,
-    finalRhyme: false,
-  },
-  rhyme: {
-    mode: 'rhyme',
-    label: 'Rhyme Relay',
-    tagline: 'Same shape — but the last word must rhyme with the first.',
-    wordCounts: WORD_COUNTS,
-    finalRhyme: true,
-  },
-  quick: {
-    mode: 'quick',
-    label: 'Quick Jam',
-    tagline: 'A five-round espresso shot: 1·2·3·2·1.',
-    wordCounts: [1, 2, 3, 2, 1] as const,
-    finalRhyme: false,
-  },
-};
-
-export const DEFAULT_GAME_MODE: GameMode = 'classic';
-
-export function isGameMode(value: unknown): value is GameMode {
-  return (
-    typeof value === 'string' &&
-    (GAME_MODES as readonly string[]).includes(value)
-  );
-}
-
-/** Legacy games predate modes; anything unrecognized plays classic. */
-export function normalizeGameMode(value: string | null | undefined): GameMode {
-  return isGameMode(value) ? value : DEFAULT_GAME_MODE;
-}
-
-export function getGameRules(mode?: string | null): GameRules {
-  return RULES[normalizeGameMode(mode)];
-}
-
-export function getFinalRoundIndex(rules: GameRules): number {
-  return rules.wordCounts.length - 1;
+/**
+ * Index of a game's final round, derived from its own assignment matrix. New
+ * games have `WORD_COUNTS.length` rounds; legacy games predating the
+ * single-mode consolidation may differ, so the matrix — not a constant — is the
+ * authority for how many rounds *this* game has.
+ */
+export function getFinalRoundIndex(
+  assignmentMatrix: readonly unknown[][]
+): number {
+  return assignmentMatrix.length - 1;
 }
 
 /** Soft pacing target for a round. The clock pressures; it never blocks. */
@@ -117,8 +63,8 @@ export const PRESENCE_AWAY_MS = 45_000;
  * How long the host may be silent before a present participant is promoted to
  * host (backlog 017). Longer than the "away" indicator so a brief host blip
  * doesn't hand off ownership, far shorter than ABANDONMENT_THRESHOLD_MS so host
- * agency (summon ghostwriter, close room, pick the next mode) is never stranded
- * behind a vanished host while the room is still live.
+ * agency (summon ghostwriter, close room) is never stranded behind a vanished
+ * host while the room is still live.
  */
 export const HOST_MIGRATION_STALE_MS = 60_000;
 

@@ -4,14 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import {
-  GAME_MODES,
-  getGameRules,
-  normalizeGameMode,
-  type GameMode,
-} from '../convex/lib/gameRules';
 import { useUser } from '../lib/auth';
-import { cn } from '../lib/utils';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
@@ -49,12 +42,8 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const removeAiMutation = useMutation(api.ai.removeAiPlayer);
   const leaveLobbyMutation = useMutation(api.rooms.leaveLobby);
   const closeRoomMutation = useMutation(api.rooms.closeRoom);
-  const selectGameModeMutation = useMutation(api.rooms.selectGameMode);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [modeSaving, setModeSaving] = useState(false);
-
-  const selectedMode = normalizeGameMode(room.selectedMode);
 
   // For unique avatar colors
   const allStableIds = players.map((p) => p.stableId);
@@ -117,24 +106,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
       setError(feedback.message);
     } finally {
       setAiLoading(false);
-    }
-  };
-
-  const handleSelectMode = async (mode: GameMode) => {
-    if (!isHost || modeSaving || mode === selectedMode) return;
-    setError(null);
-    setModeSaving(true);
-    try {
-      await selectGameModeMutation({
-        roomCode: room.code,
-        mode,
-        guestToken: guestToken || undefined,
-      });
-    } catch (err) {
-      const feedback = errorToFeedback(err);
-      setError(feedback.message);
-    } finally {
-      setModeSaving(false);
     }
   };
 
@@ -231,60 +202,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               <p className="text-base leading-relaxed text-text-secondary">
                 Share the code from the top bar. Add an AI player if needed.
               </p>
-            </div>
-
-            <div className="w-full space-y-3">
-              <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
-                Game mode
-              </p>
-              <div
-                role="radiogroup"
-                aria-label="Game mode"
-                className="space-y-2"
-              >
-                {GAME_MODES.map((mode) => {
-                  const rules = getGameRules(mode);
-                  const isSelected = selectedMode === mode;
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      aria-label={rules.label}
-                      disabled={!isHost || modeSaving}
-                      onClick={() => handleSelectMode(mode)}
-                      className={cn(
-                        'w-full min-h-14 border px-4 py-3 text-left transition-all duration-[var(--duration-normal)]',
-                        isSelected
-                          ? 'border-primary bg-surface shadow-sm'
-                          : 'border-border-subtle opacity-60',
-                        isHost &&
-                          !isSelected &&
-                          'hover:opacity-100 hover:border-border cursor-pointer',
-                        !isHost && 'cursor-default'
-                      )}
-                    >
-                      <span className="flex items-baseline justify-between gap-3">
-                        <span className="font-medium text-text-primary">
-                          {rules.label}
-                        </span>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
-                          {rules.wordCounts.length} rounds
-                        </span>
-                      </span>
-                      <span className="mt-0.5 block text-sm leading-snug text-text-secondary">
-                        {rules.tagline}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              {!isHost && (
-                <p className="text-xs text-text-muted">
-                  The host picks the mode.
-                </p>
-              )}
             </div>
 
             {canAddAi && (

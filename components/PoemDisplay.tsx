@@ -56,30 +56,6 @@ interface PoemDisplayProps {
   allStableIds?: string[];
   variant?: 'reveal' | 'archive';
   metadata?: PoemMetadata;
-  /** Rhyme Relay: spotlight the bookend words once the poem is fully revealed. */
-  rhymeMode?: boolean;
-}
-
-function LineText({
-  text,
-  emphasizeLastWord,
-}: {
-  text: string;
-  emphasizeLastWord: boolean;
-}) {
-  if (!emphasizeLastWord) return <>{text}</>;
-  const match = text.match(/^([\s\S]*?)(\S+)(\s*)$/);
-  if (!match) return <>{text}</>;
-  const [, head, last, tail] = match;
-  return (
-    <>
-      {head}
-      <span className="text-primary transition-colors duration-700">
-        {last}
-      </span>
-      {tail}
-    </>
-  );
 }
 
 function formatDate(timestamp: number): string {
@@ -96,7 +72,6 @@ export function PoemDisplay({
   allStableIds,
   variant = 'reveal',
   metadata,
-  rhymeMode = false,
 }: PoemDisplayProps) {
   const isArchive = variant === 'archive';
 
@@ -298,14 +273,7 @@ export function PoemDisplay({
                         clipPath: isVisible ? undefined : 'inset(0 100% 0 0)',
                       }}
                     >
-                      <LineText
-                        text={line.text}
-                        emphasizeLastWord={
-                          rhymeMode &&
-                          allRevealed &&
-                          (index === 0 || index === normalizedLines.length - 1)
-                        }
-                      />
+                      {line.text}
                     </p>
 
                     {/* Author byline.
