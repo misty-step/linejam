@@ -73,7 +73,7 @@
     "@clerk/backend": "^3.8.2",
     "@clerk/testing": "^2.1.5",
     "@commitlint/cli": "^21.0.2",
-    "@commitlint/config-conventional": "^20.5.0",
+    "@commitlint/config-conventional": "^21.0.2",
     "@edge-runtime/vm": "^5.0.0",
     "@playwright/test": "^1.58.2",
     "@semantic-release/changelog": "^6.0.3",
