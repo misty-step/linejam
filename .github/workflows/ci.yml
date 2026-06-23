@@ -37,7 +37,7 @@ jobs:
       NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -83,7 +83,7 @@ jobs:
       NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -124,7 +124,7 @@ jobs:
       NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -162,7 +162,7 @@ jobs:
       LINEJAM_BASE_URL: http://127.0.0.1:3333
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
