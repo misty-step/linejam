@@ -1,0 +1,17 @@
+product:
+  name: Linejam
+  description: Pass-the-poem party game for friends.
+audience: end-user
+voice: Playful, concise, and clear about what changed for players.
+changelog:
+  source: auto
+artifacts:
+  markdown: docs/releases/{version}.md
+  plaintext: docs/releases/{version}.txt
+  html: docs/releases/{version}.html
+  json: docs/releases/releases.json
+  rss: docs/releases/feed.xml
+release:
+  profile: full
+model:
+  policy: balanced
