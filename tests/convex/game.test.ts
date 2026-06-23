@@ -143,7 +143,9 @@ async function seedInProgressGame(
     code?: string;
     currentRound?: number;
     roundStartedAt?: number;
-    mode?: 'classic' | 'rhyme' | 'quick';
+    /** Matrix round count. Defaults to the one-game shape; a smaller value
+     *  seeds a legacy in-flight game (e.g. a pre-consolidation 5-round). */
+    rounds?: number;
   }
 ): Promise<{
   roomId: Id<'rooms'>;
@@ -155,9 +157,7 @@ async function seedInProgressGame(
 }> {
   const code = opts.code ?? 'TEST';
   const currentRound = opts.currentRound ?? 0;
-  const mode = opts.mode ?? 'classic';
-  const wordCounts = mode === 'quick' ? [1, 2, 3, 2, 1] : WORD_COUNTS;
-  const rounds = wordCounts.length;
+  const rounds = opts.rounds ?? WORD_COUNTS.length;
   const now = Date.now();
   const roundStartedAt = opts.roundStartedAt ?? now;
 
@@ -205,7 +205,6 @@ async function seedInProgressGame(
       roomId,
       status: 'IN_PROGRESS',
       cycle: 1,
-      mode,
       currentRound,
       roundStartedAt,
       assignmentMatrix: matrix,
@@ -1258,8 +1257,10 @@ describe('getRoundProgress', () => {
     expect((alice as Record<string, unknown>)['lastSeenAt']).toBeUndefined();
   });
 
-  it('returns correct totalRounds for quick mode', async () => {
+  it("reports a legacy short-matrix game's own round count", async () => {
     const t = setupConvexTest();
+    // A pre-consolidation game shipped a 5-round matrix; getRoundProgress must
+    // report 5 (the matrix length), not the 9-round one-game shape.
     await seedInProgressGame(t, {
       players: [
         { name: 'Alice', clerkUserId: 'clerk_aliceGP06' },
@@ -1267,7 +1268,7 @@ describe('getRoundProgress', () => {
       ],
       code: 'GP06',
       currentRound: 0,
-      mode: 'quick',
+      rounds: 5,
     });
 
     const result = await asUser(t, 'aliceGP06').query(
