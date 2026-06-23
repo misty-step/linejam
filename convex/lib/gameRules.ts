@@ -1,22 +1,29 @@
 /**
  * The one game: a nine-round paper-fold, 1·2·3·4·5·4·3·2·1 words per line.
- * `WORD_COUNTS` is the single source for the poem shape; per-game round bounds
- * come from the game's own `assignmentMatrix` (so a legacy in-flight game with a
- * different length still completes against its own structure).
+ * `WORD_COUNTS` is the single source for the poem shape.
+ *
+ * Round *bounds* come from each game's own `assignmentMatrix` length, not from a
+ * constant — so a pre-consolidation game still in flight at deploy (the only way
+ * a non-nine-round matrix can exist; no new game is ever anything but classic)
+ * finishes without an out-of-bounds throw. Its per-round *word counts* still read
+ * from the canonical shape below: a legacy 5-round "quick" game would see classic
+ * counts on its two divergent rounds (the original shape lived in the now-deleted
+ * `mode` field and isn't recoverable from the matrix). That cosmetic mismatch is
+ * acceptable for a deploy-window-only game; the crash the matrix bound avoids is
+ * not.
  */
 
 /** Words per line, by round. The poem shape — and the round count — of every game. */
 export const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1] as const;
 
 /**
- * Index of a game's final round, derived from its own assignment matrix. New
- * games have `WORD_COUNTS.length` rounds; legacy games predating the
- * single-mode consolidation may differ, so the matrix — not a constant — is the
- * authority for how many rounds *this* game has.
+ * A game's final round index = the last row of its own assignment matrix (see
+ * the module header on why this is matrix-derived, not a constant). Typed to
+ * what it uses — only the length — so it never widens a caller's matrix.
  */
-export function getFinalRoundIndex(
-  assignmentMatrix: readonly unknown[][]
-): number {
+export function getFinalRoundIndex(assignmentMatrix: {
+  readonly length: number;
+}): number {
   return assignmentMatrix.length - 1;
 }
 
