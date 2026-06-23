@@ -26,7 +26,10 @@ jobs:
           persist-credentials: false
 
       - name: Run Landmark
-        uses: misty-step/landmark@v1
+        # Pinned to the v1 tag's commit — this action holds GH_RELEASE_TOKEN
+        # (repo write: pushes the release commit + tags), so a floating tag is
+        # not acceptable here. Bump deliberately when upgrading Landmark.
+        uses: misty-step/landmark@b461fe11b6f609b1a09fd44ef947e8c4c1f234db # v1
         with:
           mode: full
           node-version: 22
