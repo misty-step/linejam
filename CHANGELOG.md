@@ -2,6 +2,18 @@
 
 All notable changes to Linejam.
 
+# [1.9.0](https://github.com/misty-step/linejam/compare/v1.8.0...v1.9.0) (2026-06-23)
+
+
+### Bug Fixes
+
+* **release:** drop pnpm exec step that broke Landmark release ([#276](https://github.com/misty-step/linejam/issues/276)) ([d431210](https://github.com/misty-step/linejam/commit/d431210278f6e8b09eb3e56382837b921c6d7577))
+
+
+### Features
+
+* **game:** consolidate to one core mode — delete rhyme + quick ([#275](https://github.com/misty-step/linejam/issues/275)) ([2eff35b](https://github.com/misty-step/linejam/commit/2eff35bf120f9dfa1e7b10ae25fb57a2fd48f571))
+
 # [1.8.0](https://github.com/misty-step/linejam/compare/v1.7.0...v1.8.0) (2026-06-22)
 
 ### Features
