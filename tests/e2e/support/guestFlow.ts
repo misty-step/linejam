@@ -335,6 +335,8 @@ export class GuestFlowSession {
   }
 
   async openHelpModal() {
+    // Help / Theme / archive now live behind the overflow ("More options") menu.
+    await this.hostPage.getByRole('button', { name: /More options/i }).click();
     await this.hostPage.getByRole('button', { name: /How to play/i }).click();
     await ensureVisible(
       this.hostPage.getByRole('heading', { name: /How to Play/i }),
@@ -347,7 +349,8 @@ export class GuestFlowSession {
   }
 
   async chooseHyperTheme() {
-    await this.hostPage.getByRole('button', { name: /Choose theme/i }).click();
+    await this.hostPage.getByRole('button', { name: /More options/i }).click();
+    await this.hostPage.getByRole('button', { name: /^Theme$/i }).click();
     await this.hostPage
       .getByRole('radio', { name: /Hyper theme: Digital chaos & brutalism/i })
       .click();
@@ -394,11 +397,13 @@ export class GuestFlowSession {
   }
 
   async expectRound(round: number) {
-    const roundLabel = `Round ${round} of ${TOTAL_ROUNDS}`;
-    await expect(this.hostPage.getByText(roundLabel)).toBeVisible({
+    // The writing chrome reads "Round N · M words"; the waiting chrome reads
+    // "Round N of 9". Match the round number across both copy forms.
+    const roundLabel = new RegExp(`\\bRound ${round}\\b`);
+    await expect(this.hostPage.getByText(roundLabel).first()).toBeVisible({
       timeout: 15000,
     });
-    await expect(this.guestPage.getByText(roundLabel)).toBeVisible({
+    await expect(this.guestPage.getByText(roundLabel).first()).toBeVisible({
       timeout: 15000,
     });
   }
@@ -420,13 +425,13 @@ export class GuestFlowSession {
 
   async expectSealDisabled(actor: Actor) {
     await expect(
-      this.page(actor).getByRole('button', { name: /Seal Your Line/i })
+      this.page(actor).getByRole('button', { name: /^Submit$/i })
     ).toBeDisabled();
   }
 
   async expectSealEnabled(actor: Actor) {
     await expect(
-      this.page(actor).getByRole('button', { name: /Seal Your Line/i })
+      this.page(actor).getByRole('button', { name: /^Submit$/i })
     ).toBeEnabled();
   }
 
@@ -447,7 +452,7 @@ export class GuestFlowSession {
   async submitCurrentLine(actor: Actor, line: string) {
     await this.fillCurrentLine(actor, line);
     await this.page(actor)
-      .getByRole('button', { name: /Seal Your Line/i })
+      .getByRole('button', { name: /^Submit$/i })
       .click();
   }
 

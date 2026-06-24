@@ -1,5 +1,4 @@
 import { test, expect, Browser, Page } from '@playwright/test';
-import { WORD_COUNTS } from '@/convex/lib/gameRules';
 import {
   ensureClerkAuthState,
   hasClerkBrowserAuth,
@@ -62,14 +61,13 @@ test.describe('Deployment Smoke', () => {
       ).toBeEnabled();
       await hostPage.click('button:has-text("Start Linejam")');
 
-      await expect(
-        hostPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
-      ).toBeVisible({
+      // Tolerate both copy forms so the smoke passes against current prod
+      // ("Round 1 of 9") and post-deploy prod ("Round 1 · 1 word").
+      const roundOne = /\bRound 1\b/;
+      await expect(hostPage.getByText(roundOne).first()).toBeVisible({
         timeout: 15000,
       });
-      await expect(
-        guestPage.getByText(new RegExp(`Round 1 of ${WORD_COUNTS.length}`))
-      ).toBeVisible({
+      await expect(guestPage.getByText(roundOne).first()).toBeVisible({
         timeout: 15000,
       });
 
