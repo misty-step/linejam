@@ -109,7 +109,6 @@ describe('RoomChrome component', () => {
     render(
       <RoomChrome
         roomCode="ABCD"
-        statusLabel="Lobby"
         title="Need 1 more player"
         subtitle="Share the code to start."
       />
@@ -198,6 +197,30 @@ describe('RoomChrome component', () => {
     await user.click(screen.getByRole('button', { name: /More options/i }));
     await user.click(screen.getByRole('button', { name: /^Theme$/i }));
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+  });
+
+  it('tracks aria-expanded and returns focus to the trigger on escape', async () => {
+    const user = userEvent.setup();
+    renderRoomChrome();
+
+    const trigger = screen.getByRole('button', { name: /More options/i });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByRole('link', { name: /Your poems/i })
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('link', { name: /Your poems/i })
+      ).not.toBeInTheDocument();
+    });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    // Keyboard focus is restored to the trigger, not dropped to <body>.
+    expect(trigger).toHaveFocus();
   });
 
   it('closes the theme chooser on outside click and escape', async () => {

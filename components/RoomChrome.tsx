@@ -19,9 +19,6 @@ import { formatRoomCode } from '@/lib/roomCode';
 
 interface RoomChromeProps {
   roomCode: string;
-  // Retained for the RoomChromeCopy contract; no longer shown as a badge — the
-  // phase is already obvious from the screen and the title.
-  statusLabel: string;
   title: string;
   subtitle: string;
 }
@@ -52,6 +49,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const { handleShare, copied, shared, shareError } = useShareLink({
     getShareData: () => ({
       url: `${window.location.origin}/join?code=${roomCode}`,
@@ -78,7 +76,12 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeAll();
+      if (event.key === 'Escape') {
+        closeAll();
+        // Return focus to the trigger so a keyboard user keeps their place
+        // instead of being dropped to <body>.
+        menuTriggerRef.current?.focus();
+      }
     };
 
     document.addEventListener('mousedown', handlePointer);
@@ -142,6 +145,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
 
               <div className="relative">
                 <button
+                  ref={menuTriggerRef}
                   type="button"
                   onClick={() => {
                     setShowThemes(false);

@@ -9,7 +9,6 @@ import {
 describe('roomChromeCopy', () => {
   it('builds lobby copy while the room still needs players', () => {
     expect(buildLobbyChromeCopy({ code: 'ABCD', playerCount: 1 })).toEqual({
-      statusLabel: 'Lobby',
       title: 'Need 1 more player',
       subtitle: 'Share AB CD to start.',
     });
@@ -17,7 +16,6 @@ describe('roomChromeCopy', () => {
 
   it('builds lobby copy when enough players are ready', () => {
     expect(buildLobbyChromeCopy({ code: 'ABCD', playerCount: 3 })).toEqual({
-      statusLabel: 'Lobby',
       title: '3 players ready',
       subtitle: 'Start when you are ready.',
     });
@@ -25,7 +23,6 @@ describe('roomChromeCopy', () => {
 
   it('pluralizes the lobby prompt when the room is empty', () => {
     expect(buildLobbyChromeCopy({ code: 'ABCD', playerCount: 0 })).toEqual({
-      statusLabel: 'Lobby',
       title: 'Need 2 more players',
       subtitle: 'Share AB CD to start.',
     });
@@ -40,7 +37,6 @@ describe('roomChromeCopy', () => {
         },
       })
     ).toEqual({
-      statusLabel: 'Writing',
       title: 'Round 5 · 5 words',
       subtitle: '',
     });
@@ -71,7 +67,6 @@ describe('roomChromeCopy', () => {
         },
       })
     ).toEqual({
-      statusLabel: 'Waiting',
       title: `Round 3 of ${WORD_COUNTS.length}`,
       subtitle: '2 of 3 ready.',
     });
@@ -79,7 +74,6 @@ describe('roomChromeCopy', () => {
 
   it('falls back to a loading state when neither assignment nor progress exists', () => {
     expect(buildInProgressChromeCopy({})).toEqual({
-      statusLabel: 'Writing',
       title: 'Writing',
       subtitle: 'Loading the next step.',
     });
@@ -87,13 +81,11 @@ describe('roomChromeCopy', () => {
 
   it('builds reveal copy for both active reading and completed sessions', () => {
     expect(buildRevealChromeCopy({ allRevealed: false })).toEqual({
-      statusLabel: 'Reveal',
       title: 'Reveal poems',
       subtitle: 'Read one poem at a time.',
     });
 
     expect(buildRevealChromeCopy({ allRevealed: true })).toEqual({
-      statusLabel: 'Done',
       title: 'All poems revealed',
       subtitle: 'Start again, open the archive, or leave the room.',
     });
