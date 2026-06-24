@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { isGameRoute } from '@/lib/routes';
 
 type FooterProps = {
   className?: string;
@@ -13,7 +14,7 @@ export function Footer({ className = '' }: FooterProps) {
   // Hide chrome during the game experience (Lobby → Writing → Reveal), matching
   // the Header. Gameplay screens are focus surfaces; marketing/legal links there
   // add height and dilute the play action, which on mobile pushes it off-fold.
-  if (pathname?.startsWith('/room/')) {
+  if (isGameRoute(pathname)) {
     return null;
   }
 

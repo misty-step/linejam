@@ -80,9 +80,11 @@ function WritingComposer({
   const handleTextareaFocus = () => {
     setHasFocus(true);
     setTimeout(() => {
+      // `nearest` keeps the line visible without driving the submit button down
+      // under the on-screen keyboard on the compact mobile layout.
       textareaRef.current?.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
+        block: 'nearest',
       });
     }, 300);
   };
@@ -205,7 +207,7 @@ function WritingComposer({
           <textarea
             ref={textareaRef}
             className={cn(
-              'w-full min-h-[110px] md:min-h-[320px] lg:min-h-[360px] bg-transparent border-none outline-none resize-none',
+              'w-full min-h-[110px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content bg-transparent border-none outline-none resize-none',
               'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
               'text-text-primary',
               'placeholder:text-text-muted/20',
