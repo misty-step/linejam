@@ -7,6 +7,7 @@ import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { Palette, Archive, LogIn } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { ThemeSelector } from './ThemeSelector';
+import { isGameRoute } from '@/lib/routes';
 
 type HeaderProps = {
   className?: string;
@@ -15,7 +16,7 @@ type HeaderProps = {
 export function Header({ className = '' }: HeaderProps) {
   const pathname = usePathname();
   const isHomepage = pathname === '/';
-  const isRoomPage = pathname?.startsWith('/room/');
+  const isRoomPage = isGameRoute(pathname);
   const [showThemes, setShowThemes] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

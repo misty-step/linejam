@@ -193,7 +193,7 @@ describe('WritingScreen component', () => {
 
     // Assert - Button should be disabled
     const submitButton = screen.getByRole('button', {
-      name: /Seal Your Line/i,
+      name: /^Submit$/i,
     });
     expect(submitButton).toBeDisabled();
   });
@@ -210,7 +210,7 @@ describe('WritingScreen component', () => {
     // Assert - Button should be enabled
     await waitFor(() => {
       const submitButton = screen.getByRole('button', {
-        name: /Seal Your Line/i,
+        name: /^Submit$/i,
       });
       expect(submitButton).not.toBeDisabled();
     });
@@ -244,7 +244,7 @@ describe('WritingScreen component', () => {
     // Assert - Button should still be disabled (need 5 words)
     await waitFor(() => {
       const submitButton = screen.getByRole('button', {
-        name: /Seal Your Line/i,
+        name: /^Submit$/i,
       });
       expect(submitButton).toBeDisabled();
     });
@@ -255,7 +255,7 @@ describe('WritingScreen component', () => {
     // Assert - Now button should be enabled
     await waitFor(() => {
       const submitButton = screen.getByRole('button', {
-        name: /Seal Your Line/i,
+        name: /^Submit$/i,
       });
       expect(submitButton).not.toBeDisabled();
     });
@@ -272,7 +272,7 @@ describe('WritingScreen component', () => {
     // Act - Type valid word and submit
     await user.type(textarea, 'Poetry');
     const submitButton = screen.getByRole('button', {
-      name: /Seal Your Line/i,
+      name: /^Submit$/i,
     });
     await user.click(submitButton);
 
@@ -288,7 +288,7 @@ describe('WritingScreen component', () => {
     await flushSubmitTransition();
   });
 
-  it('shows "Sealing..." during submission', async () => {
+  it('shows "Submitting…" during submission', async () => {
     // Arrange - Make mutation take time
     mockSubmitLineMutation.mockImplementation(
       () => new Promise((resolve) => setTimeout(resolve, 1000))
@@ -300,14 +300,14 @@ describe('WritingScreen component', () => {
     // Act - Type and submit
     await user.type(textarea, 'Word');
     const submitButton = screen.getByRole('button', {
-      name: /Seal Your Line/i,
+      name: /^Submit$/i,
     });
     await user.click(submitButton);
 
     // Assert - Button should show submitting state
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /Sealing/i })
+        screen.getByRole('button', { name: /Submitting/i })
       ).toBeInTheDocument();
     });
     await flushSubmitTransition();
@@ -323,7 +323,7 @@ describe('WritingScreen component', () => {
     // Act
     await user.type(textarea, 'Beautiful');
     const submitButton = screen.getByRole('button', {
-      name: /Seal Your Line/i,
+      name: /^Submit$/i,
     });
     await user.click(submitButton);
 
@@ -346,7 +346,7 @@ describe('WritingScreen component', () => {
     // Act
     await user.type(textarea, 'Verse');
     const submitButton = screen.getByRole('button', {
-      name: /Seal Your Line/i,
+      name: /^Submit$/i,
     });
     await user.click(submitButton);
 

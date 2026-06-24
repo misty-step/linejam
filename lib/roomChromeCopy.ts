@@ -2,7 +2,6 @@ import { WORD_COUNTS } from '@/convex/lib/gameRules';
 import { formatRoomCode } from '@/lib/roomCode';
 
 export interface RoomChromeCopy {
-  statusLabel: string;
   title: string;
   subtitle: string;
 }
@@ -29,7 +28,6 @@ export function buildLobbyChromeCopy({
   const needsMore = Math.max(0, 2 - playerCount);
 
   return {
-    statusLabel: 'Lobby',
     title:
       needsMore > 0
         ? `Need ${needsMore} more player${needsMore === 1 ? '' : 's'}`
@@ -58,11 +56,14 @@ export function buildInProgressChromeCopy({
 
   if (assignment) {
     const { targetWordCount } = assignment;
+    const wordLabel = `${targetWordCount} word${targetWordCount === 1 ? '' : 's'}`;
 
+    // The placeholder and the WordSlots squares already state the word count, and
+    // "you only see the previous line" is a one-time rule, not a per-round notice.
+    // Keep the chrome to a single glanceable line.
     return {
-      statusLabel: 'Writing',
-      title: roundTitle,
-      subtitle: `Write exactly ${targetWordCount} word${targetWordCount === 1 ? '' : 's'}. You only see the previous line.`,
+      title: roundNumber ? `Round ${roundNumber} · ${wordLabel}` : wordLabel,
+      subtitle: '',
     };
   }
 
@@ -72,14 +73,12 @@ export function buildInProgressChromeCopy({
     ).length;
 
     return {
-      statusLabel: 'Waiting',
       title: roundTitle,
       subtitle: `${submittedCount} of ${roundProgress.players.length} ready.`,
     };
   }
 
   return {
-    statusLabel: 'Writing',
     title: 'Writing',
     subtitle: 'Loading the next step.',
   };
@@ -91,7 +90,6 @@ export function buildRevealChromeCopy({
   allRevealed: boolean;
 }): RoomChromeCopy {
   return {
-    statusLabel: allRevealed ? 'Done' : 'Reveal',
     title: allRevealed ? 'All poems revealed' : 'Reveal poems',
     subtitle: allRevealed
       ? 'Start again, open the archive, or leave the room.'
