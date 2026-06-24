@@ -157,7 +157,7 @@ function WritingComposer({
   };
 
   return (
-    <div className="relative min-h-screen bg-background flex flex-col items-center px-6 pb-6 pt-8 md:px-8 md:pb-8 md:pt-12">
+    <div className="relative min-h-screen bg-background flex flex-col items-center px-6 pb-6 pt-4 md:px-8 md:pb-8 md:pt-12">
       {/* Screen reader live region for validation announcements */}
       <div
         className="sr-only"
@@ -169,14 +169,14 @@ function WritingComposer({
       </div>
 
       {/* Soft round clock — a hairline of gentle pressure, never a gate */}
-      <div className="w-full max-w-3xl mb-12 md:mb-16">
+      <div className="w-full max-w-3xl mb-5 md:mb-16">
         <RoundClock roundStartedAt={assignment.roundStartedAt} />
       </div>
 
-      <div className="w-full max-w-3xl space-y-16">
+      <div className="w-full max-w-3xl space-y-6 md:space-y-16">
         {/* The Memory - No container */}
         {assignment.previousLineText && (
-          <div className="mb-16 animate-fade-in-up">
+          <div className="mb-4 md:mb-16 animate-fade-in-up">
             <p className="text-2xl md:text-4xl lg:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
               {assignment.previousLineText}
             </p>
@@ -205,7 +205,7 @@ function WritingComposer({
           <textarea
             ref={textareaRef}
             className={cn(
-              'w-full min-h-[280px] md:min-h-[320px] lg:min-h-[360px] bg-transparent border-none outline-none resize-none',
+              'w-full min-h-[110px] md:min-h-[320px] lg:min-h-[360px] bg-transparent border-none outline-none resize-none',
               'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
               'text-text-primary',
               'placeholder:text-text-muted/20',
@@ -246,7 +246,7 @@ function WritingComposer({
         )}
 
         {/* The Seal - Submit Button */}
-        <div className="mt-16 flex justify-center">
+        <div className="mt-6 md:mt-16 flex justify-center">
           <Button
             onClick={handleSubmit}
             size="lg"
@@ -256,7 +256,10 @@ function WritingComposer({
               submissionState === 'confirmed'
             }
             stampAnimate={submissionState === 'confirmed'}
-            className={cn('min-w-[240px] text-xl h-20', isValid && 'shadow-md')}
+            className={cn(
+              'min-w-[240px] text-xl h-16 md:h-20',
+              isValid && 'shadow-md'
+            )}
           >
             {submissionState === 'submitting'
               ? 'Sealing...'
