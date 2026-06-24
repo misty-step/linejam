@@ -116,25 +116,27 @@ describe('RoomChrome component', () => {
     );
   }
 
-  it('renders room controls', () => {
+  it('renders room controls', async () => {
+    const user = userEvent.setup();
     renderRoomChrome();
 
     expect(
       screen.getByRole('button', { name: /Share room invite/i })
     ).toBeInTheDocument();
-    const archiveLink = screen.getByRole('link', {
-      name: /View your poem archive/i,
-    });
+    expect(screen.getByText('Room AB CD')).toBeInTheDocument();
+    expect(screen.getByText('Need 1 more player')).toBeInTheDocument();
+
+    // Archive / Help / Theme are tucked into the overflow menu.
+    await user.click(screen.getByRole('button', { name: /More options/i }));
+    const archiveLink = screen.getByRole('link', { name: /Your poems/i });
     expect(archiveLink).toHaveAttribute('href', '/me/poems');
     expect(archiveLink).toHaveAttribute('data-prefetch', 'false');
     expect(
       screen.getByRole('button', { name: /How to play/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Choose theme/i })
+      screen.getByRole('button', { name: /^Theme$/i })
     ).toBeInTheDocument();
-    expect(screen.getByText('Room AB CD')).toBeInTheDocument();
-    expect(screen.getByText('Need 1 more player')).toBeInTheDocument();
   });
 
   it('copies a join link when native share is unavailable', async () => {
@@ -185,14 +187,16 @@ describe('RoomChrome component', () => {
     });
   });
 
-  it('opens help and theme surfaces', async () => {
+  it('opens help and theme surfaces from the overflow menu', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
+    await user.click(screen.getByRole('button', { name: /More options/i }));
     await user.click(screen.getByRole('button', { name: /How to play/i }));
     expect(screen.getByText('Help modal')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Choose theme/i }));
+    await user.click(screen.getByRole('button', { name: /More options/i }));
+    await user.click(screen.getByRole('button', { name: /^Theme$/i }));
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
   });
 
@@ -200,7 +204,12 @@ describe('RoomChrome component', () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
-    await user.click(screen.getByRole('button', { name: /Choose theme/i }));
+    const openTheme = async () => {
+      await user.click(screen.getByRole('button', { name: /More options/i }));
+      await user.click(screen.getByRole('button', { name: /^Theme$/i }));
+    };
+
+    await openTheme();
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
@@ -208,7 +217,7 @@ describe('RoomChrome component', () => {
       expect(screen.queryByText('Theme chooser')).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /Choose theme/i }));
+    await openTheme();
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -221,7 +230,8 @@ describe('RoomChrome component', () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
-    await user.click(screen.getByRole('button', { name: /Choose theme/i }));
+    await user.click(screen.getByRole('button', { name: /More options/i }));
+    await user.click(screen.getByRole('button', { name: /^Theme$/i }));
     expect(screen.getByText('Theme chooser')).toBeInTheDocument();
 
     await user.click(

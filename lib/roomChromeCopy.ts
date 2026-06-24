@@ -58,11 +58,15 @@ export function buildInProgressChromeCopy({
 
   if (assignment) {
     const { targetWordCount } = assignment;
+    const wordLabel = `${targetWordCount} word${targetWordCount === 1 ? '' : 's'}`;
 
+    // The placeholder and the WordSlots squares already state the word count, and
+    // "you only see the previous line" is a one-time rule, not a per-round notice.
+    // Keep the chrome to a single glanceable line.
     return {
       statusLabel: 'Writing',
-      title: roundTitle,
-      subtitle: `Write exactly ${targetWordCount} word${targetWordCount === 1 ? '' : 's'}. You only see the previous line.`,
+      title: roundNumber ? `Round ${roundNumber} · ${wordLabel}` : wordLabel,
+      subtitle: '',
     };
   }
 

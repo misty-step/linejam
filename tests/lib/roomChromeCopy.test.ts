@@ -31,7 +31,7 @@ describe('roomChromeCopy', () => {
     });
   });
 
-  it('builds assignment-led in-progress copy using the shared round invariant', () => {
+  it('builds a compact one-line in-progress title (round + word count, no subtitle)', () => {
     expect(
       buildInProgressChromeCopy({
         assignment: {
@@ -41,8 +41,8 @@ describe('roomChromeCopy', () => {
       })
     ).toEqual({
       statusLabel: 'Writing',
-      title: `Round 5 of ${WORD_COUNTS.length}`,
-      subtitle: 'Write exactly 5 words. You only see the previous line.',
+      title: 'Round 5 · 5 words',
+      subtitle: '',
     });
   });
 
@@ -54,9 +54,8 @@ describe('roomChromeCopy', () => {
       },
     });
 
-    expect(copy.subtitle).toBe(
-      'Write exactly 1 word. You only see the previous line.'
-    );
+    expect(copy.title).toBe('Round 1 · 1 word');
+    expect(copy.subtitle).toBe('');
   });
 
   it('builds progress-led in-progress copy when the writer is waiting on the room', () => {

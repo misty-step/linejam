@@ -16,7 +16,6 @@ import { WordSlots } from '@/components/ui/WordSlots';
 import { RoundClock } from '@/components/ui/RoundClock';
 import { WaitingScreen } from '@/components/WaitingScreen';
 import { buildInProgressChromeCopy } from '@/lib/roomChromeCopy';
-import { getSpark } from '@/lib/sparks';
 
 interface WritingScreenProps {
   roomCode: string;
@@ -93,8 +92,6 @@ function WritingComposer({
   const targetCount = assignment.targetWordCount;
   const isValid = currentWordCount === targetCount;
   const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
-  // A gentle, ignorable nudge — stable per poem+round so it never rerolls.
-  const spark = getSpark(assignment.poemId, assignment.lineIndex);
 
   // Announce validation state changes to screen readers (debounced)
   useEffect(() => {
@@ -229,14 +226,7 @@ function WritingComposer({
           />
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          {spark ? (
-            <p className="text-sm italic text-text-muted/70 select-none">
-              spark: {spark}
-            </p>
-          ) : (
-            <span />
-          )}
+        <div className="flex justify-center">
           <WordSlots current={currentWordCount} target={targetCount} />
         </div>
 
@@ -264,10 +254,10 @@ function WritingComposer({
             )}
           >
             {submissionState === 'submitting'
-              ? 'Sealing...'
+              ? 'Submitting…'
               : submissionState === 'confirmed'
-                ? 'Sealed!'
-                : 'Seal Your Line'}
+                ? 'Submitted'
+                : 'Submit'}
           </Button>
         </div>
       </div>
