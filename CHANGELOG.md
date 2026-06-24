@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [1.9.1](https://github.com/misty-step/linejam/compare/v1.9.0...v1.9.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* **ui:** make the mobile writing surface playable and declutter room chrome ([#278](https://github.com/misty-step/linejam/issues/278)) ([ff443bc](https://github.com/misty-step/linejam/commit/ff443bc9ff74d8693714f88fdc8a1d7ef033dadd))
+
 # [1.9.0](https://github.com/misty-step/linejam/compare/v1.8.0...v1.9.0) (2026-06-23)
 
 
