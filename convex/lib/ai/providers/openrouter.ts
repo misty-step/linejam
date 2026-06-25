@@ -35,17 +35,17 @@ Continue the poem with your line. You may respond to, contrast with, or build up
 This is the FIRST line of a new collaborative poem. Begin with something evocative that others can build upon.`;
   }
 
+  // Numbered-slot scaffold: won a 7-variant eval (backlog 028) — 93% first-shot
+  // word-count compliance on flash-lite vs 73% for the prior instruction style.
+  // Over-instructing ("not N-1, not N+1, count carefully") tested WORST; the
+  // slot framing is the count lever, the persona is the voice.
+  const plural = targetWordCount !== 1 ? 's' : '';
   return `${persona.prompt}
 
 You are contributing one line to a collaborative poem. Other poets (human and AI) are writing the other lines.
 
-STRICT REQUIREMENTS:
-- Output EXACTLY ${targetWordCount} word${targetWordCount !== 1 ? 's' : ''}.
-- Output ONLY the line itself—no quotes, no explanation, no punctuation that isn't part of the line.
-- Do not use line breaks.
-${contextPart}
-
-Your ${targetWordCount}-word line:`;
+Write ONE line with EXACTLY ${targetWordCount} word${plural}. Think of it as ${targetWordCount} numbered slots; put exactly one word in each, leave none empty, add no extra words. Output ONLY the finished line, space-separated — no numbers, no quotes, no explanation, no line breaks.
+${contextPart}`;
 }
 
 /**

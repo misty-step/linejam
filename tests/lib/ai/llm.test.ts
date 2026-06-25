@@ -5,6 +5,7 @@ import {
   getFallbackLine,
   type LLMConfig,
 } from '../../../convex/lib/ai/llm';
+import { countWords } from '../../../lib/wordCount';
 
 // Shared test persona
 const bashoPersona = {
@@ -75,30 +76,30 @@ describe('LLM Provider', () => {
   });
 
   describe('getFallbackLine', () => {
-    it('returns "silence" for word count 1', () => {
-      expect(getFallbackLine(1)).toBe('silence');
+    it('returns a 1-word line for word count 1', () => {
+      expect(countWords(getFallbackLine(1))).toBe(1);
     });
 
-    it('returns "words linger" for word count 2', () => {
-      expect(getFallbackLine(2)).toBe('words linger');
+    it('returns a 2-word line for word count 2', () => {
+      expect(countWords(getFallbackLine(2))).toBe(2);
     });
 
-    it('returns "the path continues" for word count 3', () => {
-      expect(getFallbackLine(3)).toBe('the path continues');
+    it('returns a 3-word line for word count 3', () => {
+      expect(countWords(getFallbackLine(3))).toBe(3);
     });
 
-    it('returns "we write in circles" for word count 4', () => {
-      expect(getFallbackLine(4)).toBe('we write in circles');
+    it('returns a 4-word line for word count 4', () => {
+      expect(countWords(getFallbackLine(4))).toBe(4);
     });
 
-    it('returns "the poem finds its way" for word count 5', () => {
-      expect(getFallbackLine(5)).toBe('the poem finds its way');
+    it('returns a 5-word line for word count 5', () => {
+      expect(countWords(getFallbackLine(5))).toBe(5);
     });
 
-    it('returns 5-word fallback for unknown word count (defensive)', () => {
-      expect(getFallbackLine(10)).toBe('the poem finds its way');
-      expect(getFallbackLine(0)).toBe('the poem finds its way');
-      expect(getFallbackLine(-1)).toBe('the poem finds its way');
+    it('returns a 5-word fallback for unknown word count (defensive)', () => {
+      expect(countWords(getFallbackLine(10))).toBe(5);
+      expect(countWords(getFallbackLine(0))).toBe(5);
+      expect(countWords(getFallbackLine(-1))).toBe(5);
     });
   });
 
@@ -205,7 +206,7 @@ describe('LLM Provider', () => {
         testConfig
       );
 
-      expect(result.text).toBe('the path continues');
+      expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
     });
 
@@ -224,7 +225,7 @@ describe('LLM Provider', () => {
         testConfig
       );
 
-      expect(result.text).toBe('the path continues');
+      expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
     });
 
@@ -254,7 +255,7 @@ describe('LLM Provider', () => {
       );
 
       expect(fetchMock).toHaveBeenCalledTimes(3);
-      expect(result.text).toBe('the path continues');
+      expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
     });
 
@@ -426,7 +427,7 @@ describe('LLM Provider', () => {
         testConfig
       );
 
-      expect(result.text).toBe('the path continues');
+      expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
     });
   });

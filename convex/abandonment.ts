@@ -255,7 +255,7 @@ export const finishAbandonedGame = internalMutation({
           gameId,
           poemId: poem._id,
           lineIndex: round,
-          text: getFallbackLine(expectedCount),
+          text: getFallbackLine(expectedCount, `${poem._id}:${round}`),
           authorUserId: roundAssignments[poem.indexInRoom],
           authorDisplayName,
         });

@@ -11,6 +11,7 @@ import {
   internalMutation,
   internalAction,
   type MutationCtx,
+  type QueryCtx,
 } from './_generated/server';
 import { internal } from './_generated/api';
 import { Id } from './_generated/dataModel';
@@ -19,7 +20,7 @@ import { requireRoomByCode, getActiveGame } from './lib/room';
 import { getMatrixRound } from './lib/assignmentMatrix';
 import { WORD_COUNTS } from './lib/gameRules';
 import {
-  pickRandomPersona,
+  pickPersonaExcluding,
   getPersona,
   GHOSTWRITER_PERSONA,
   AiPersonaId,
@@ -35,6 +36,81 @@ import {
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
+
+/** Max bots per room (configurable). Solo play wants a few, not a swarm. */
+function getMaxAiPlayers(): number {
+  const raw = Number(process.env.MAX_AI_PLAYERS);
+  return Number.isInteger(raw) && raw > 0 ? raw : 3;
+}
+
+/**
+ * Bot model (configurable). Default `google/gemini-2.5-flash-lite` won an
+ * 11-model bake-off (backlog 028): best quality+latency in the cheap band,
+ * ~5× cheaper than the prior `gemini-3-flash-preview` default which scored
+ * worse. See 028 for the configured alternatives.
+ */
+function getAiModel(): string {
+  return process.env.AI_MODEL || 'google/gemini-2.5-flash-lite';
+}
+
+/** All AI players currently in a room (generalizes the old single-AI `.find`). */
+async function getRoomAiPlayers(
+  ctx: { db: QueryCtx['db'] },
+  roomId: Id<'rooms'>
+) {
+  const players = await ctx.db
+    .query('roomPlayers')
+    .withIndex('by_room', (q) => q.eq('roomId', roomId))
+    .collect();
+  const users = await Promise.all(players.map((p) => ctx.db.get(p.userId)));
+  return users.filter((u): u is NonNullable<typeof u> => u?.kind === 'AI');
+}
+
+/**
+ * Every AI-assigned poem cell for a round that has no committed line yet.
+ * The unit of AI work is the cell, not "the room's bot" — this is the
+ * load-bearing generalization for multi-bot never-die (a dead generation can
+ * never strand a round because the safety net fills *every* empty AI cell).
+ */
+async function getOpenAiCells(
+  ctx: { db: QueryCtx['db'] },
+  args: {
+    roomId: Id<'rooms'>;
+    gameId: Id<'games'>;
+    round: number;
+    matrix: Id<'users'>[][];
+  }
+): Promise<Array<{ poemId: Id<'poems'>; aiUserId: Id<'users'> }>> {
+  const aiPlayers = await getRoomAiPlayers(ctx, args.roomId);
+  if (aiPlayers.length === 0) return [];
+  const aiIds = new Set(aiPlayers.map((u) => u._id));
+  const roundRow = getMatrixRound(args.matrix, args.round);
+
+  const cells: Array<{ poemId: Id<'poems'>; aiUserId: Id<'users'> }> = [];
+  for (let poemIndex = 0; poemIndex < roundRow.length; poemIndex++) {
+    const assignedUserId = roundRow[poemIndex];
+    if (!aiIds.has(assignedUserId)) continue;
+    const poem = await ctx.db
+      .query('poems')
+      .withIndex('by_room_game_index', (q) =>
+        q
+          .eq('roomId', args.roomId)
+          .eq('gameId', args.gameId)
+          .eq('indexInRoom', poemIndex)
+      )
+      .first();
+    if (!poem) continue;
+    const existing = await ctx.db
+      .query('lines')
+      .withIndex('by_poem_index', (q) =>
+        q.eq('poemId', poem._id).eq('indexInPoem', args.round)
+      )
+      .first();
+    if (existing) continue;
+    cells.push({ poemId: poem._id, aiUserId: assignedUserId });
+  }
+  return cells;
+}
 
 /**
  * Add an AI player to a room (host-only, lobby-only).
@@ -64,15 +140,23 @@ export const addAiPlayer = mutation({
 
     if (players.length >= 8) throw new Error('Room is full');
 
-    // Check if AI already exists
-    const existingAi = await Promise.all(
+    // Bots are capped per room (configurable). Solo play wants a few, not a
+    // swarm. Selection stays inside this mutation so Convex OCC serializes the
+    // read-then-insert (the cap + distinct persona are safe under concurrent
+    // host clicks).
+    const existingUsers = await Promise.all(
       players.map((p) => ctx.db.get(p.userId))
     );
-    const hasAi = existingAi.some((u) => u?.kind === 'AI');
-    if (hasAi) throw new Error('Room already has an AI player');
+    const existingAi = existingUsers.filter((u) => u?.kind === 'AI');
+    if (existingAi.length >= getMaxAiPlayers()) {
+      throw new Error('Bot limit reached');
+    }
 
-    // Pick a random persona
-    const persona = pickRandomPersona();
+    // Distinct persona per bot until the roster is exhausted.
+    const usedPersonaIds = existingAi
+      .map((u) => u?.aiPersonaId)
+      .filter((id): id is string => Boolean(id));
+    const persona = pickPersonaExcluding(usedPersonaIds);
 
     // Create AI user record
     const aiUserId = await ctx.db.insert('users', {
@@ -107,8 +191,10 @@ export const removeAiPlayer = mutation({
   args: {
     code: v.string(),
     guestToken: v.optional(v.string()),
+    // Target a specific bot. Omit to remove any one bot (back-compat).
+    aiUserId: v.optional(v.id('users')),
   },
-  handler: async (ctx, { code, guestToken }) => {
+  handler: async (ctx, { code, guestToken, aiUserId }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
 
@@ -120,7 +206,6 @@ export const removeAiPlayer = mutation({
     const activeGame = await getActiveGame(ctx, room._id);
     if (activeGame) throw new Error('Can only remove AI in lobby');
 
-    // Find AI player
     const players = await ctx.db
       .query('roomPlayers')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
@@ -130,7 +215,9 @@ export const removeAiPlayer = mutation({
       players.map((p) => ctx.db.get(p.userId))
     );
 
-    const aiPlayerIndex = playerUsers.findIndex((u) => u?.kind === 'AI');
+    const aiPlayerIndex = playerUsers.findIndex((u) =>
+      aiUserId ? u?._id === aiUserId && u?.kind === 'AI' : u?.kind === 'AI'
+    );
     if (aiPlayerIndex === -1) {
       return { removed: false };
     }
@@ -161,46 +248,16 @@ export const scheduleAiTurn = internalMutation({
     // Allow scheduling for current round or past rounds (late arrivals OK)
     if (round > game.currentRound) return;
 
-    // Find AI player in room
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', roomId))
-      .collect();
-
-    const playerUsers = await Promise.all(
-      players.map((p) => ctx.db.get(p.userId))
-    );
-
-    const aiPlayer = playerUsers.find((u) => u?.kind === 'AI');
-    if (!aiPlayer) return; // No AI in this room
-
-    // Check if AI already submitted for this round
-    const aiPoemIndex = getMatrixRound(game.assignmentMatrix, round).findIndex(
-      (uid) => uid === aiPlayer._id
-    );
-    if (aiPoemIndex === -1) return; // AI not assigned this round (shouldn't happen)
-
-    const poem = await ctx.db
-      .query('poems')
-      .withIndex('by_room_game_index', (q) =>
-        q
-          .eq('roomId', roomId)
-          .eq('gameId', gameId)
-          .eq('indexInRoom', aiPoemIndex)
-      )
-      .first();
-
-    if (!poem) return;
-
-    // Check if line already exists
-    const existingLine = await ctx.db
-      .query('lines')
-      .withIndex('by_poem_index', (q) =>
-        q.eq('poemId', poem._id).eq('indexInPoem', round)
-      )
-      .first();
-
-    if (existingLine) return; // Already submitted
+    // Schedule once if ANY AI-assigned cell this round is still empty. The
+    // generation action and the safety net each fill *every* open AI cell, so
+    // one schedule covers all bots; re-nudge re-enters here idempotently.
+    const openCells = await getOpenAiCells(ctx, {
+      roomId,
+      gameId,
+      round,
+      matrix: game.assignmentMatrix,
+    });
+    if (openCells.length === 0) return;
 
     // Schedule with random delay (2-4 seconds)
     const randomBytes = new Uint32Array(1);
@@ -215,6 +272,9 @@ export const scheduleAiTurn = internalMutation({
 
     // Safety net: actions are not retried by Convex. If generation dies,
     // commit a deterministic fallback so the AI can never strand the round.
+    // Fills EVERY open AI cell (not one) — the multi-bot never-die backstop,
+    // which in solo play is the *only* backstop (the abandonment cron never
+    // fires while the human is present).
     await ctx.scheduler.runAfter(AI_SAFETY_NET_MS, internal.ai.ensureAiLine, {
       roomId,
       gameId,
@@ -241,49 +301,37 @@ export const ensureAiLine = internalMutation({
     if (!game || game.status !== 'IN_PROGRESS') return;
     if (round > game.currentRound) return;
 
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', roomId))
-      .collect();
-    const playerUsers = await Promise.all(
-      players.map((p) => ctx.db.get(p.userId))
-    );
-    const aiPlayer = playerUsers.find((u) => u?.kind === 'AI');
-    if (!aiPlayer) return;
-
-    const aiPoemIndex = getMatrixRound(game.assignmentMatrix, round).findIndex(
-      (uid) => uid === aiPlayer._id
-    );
-    if (aiPoemIndex === -1) return;
-
-    const poem = await ctx.db
-      .query('poems')
-      .withIndex('by_room_game_index', (q) =>
-        q
-          .eq('roomId', roomId)
-          .eq('gameId', gameId)
-          .eq('indexInRoom', aiPoemIndex)
-      )
-      .first();
-    if (!poem) return;
-
-    const expectedCount = WORD_COUNTS[round];
-    const committed = await commitAssignedLine(ctx, {
+    // Fill EVERY open AI cell — keyed on the actual line row, never on any
+    // generation claim. A dead generation action can therefore never strand a
+    // cell. Idempotent: commitAssignedLine no-ops on an already-filled cell.
+    const openCells = await getOpenAiCells(ctx, {
       roomId,
       gameId,
-      poemId: poem._id,
-      lineIndex: round,
-      text: getFallbackLine(expectedCount),
-      authorUserId: aiPlayer._id,
-      authorDisplayName: aiPlayer.displayName,
+      round,
+      matrix: game.assignmentMatrix,
     });
+    const expectedCount = WORD_COUNTS[round];
 
-    if (committed) {
-      log.warn('AI safety net committed a fallback line', {
+    for (const cell of openCells) {
+      const aiUser = await ctx.db.get(cell.aiUserId);
+      const committed = await commitAssignedLine(ctx, {
         roomId,
         gameId,
-        round,
+        poemId: cell.poemId,
+        lineIndex: round,
+        text: getFallbackLine(expectedCount, `${cell.poemId}:${round}`),
+        authorUserId: cell.aiUserId,
+        authorDisplayName: aiUser?.displayName ?? 'AI',
       });
+
+      if (committed) {
+        log.warn('AI safety net committed a fallback line', {
+          roomId,
+          gameId,
+          round,
+          poemId: cell.poemId,
+        });
+      }
     }
   },
 });
@@ -306,90 +354,97 @@ export const generateLineForRound = internalAction({
     // Allow generation for current round or past rounds (late arrivals OK)
     if (round > game.currentRound) return;
 
-    // Find AI player
-    const aiPlayer = await ctx.runQuery(internal.ai.getAiPlayerInRoom, {
-      roomId,
-    });
-    if (!aiPlayer) return;
-
-    // Find AI's assigned poem
-    const aiPoemIndex = getMatrixRound(game.assignmentMatrix, round).findIndex(
-      (uid: Id<'users'>) => uid === aiPlayer._id
-    );
-    if (aiPoemIndex === -1) return;
-
-    const poem = await ctx.runQuery(internal.ai.getPoemByIndex, {
+    // Generate for EVERY open AI cell this round (multi-bot). One dead cell
+    // never blocks the others, and any cell left empty is still covered by the
+    // ensureAiLine safety net.
+    const cells = await ctx.runQuery(internal.ai.getOpenAiCellsForRound, {
       roomId,
       gameId,
-      indexInRoom: aiPoemIndex,
-    });
-    if (!poem) return;
-
-    // Check if already submitted (idempotency)
-    const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
-      poemId: poem._id,
       round,
     });
-    if (alreadySubmitted) return;
+    if (cells.length === 0) return;
 
-    // Get previous line for context
-    const previousLine =
-      round > 0
-        ? await ctx.runQuery(internal.ai.getPreviousLine, {
-            poemId: poem._id,
-            round: round - 1,
-          })
-        : null;
-
-    // Get persona
-    const persona = getPersona(aiPlayer.aiPersonaId as AiPersonaId);
     const targetWordCount = WORD_COUNTS[round];
-
-    // Generate line - graceful fallback if API key missing
     const apiKey = initialOpenRouterApiKey;
-    const result = await (async () => {
-      if (!apiKey) {
-        log.error('OPENROUTER_API_KEY not configured - using fallback line', {
+
+    for (const cell of cells) {
+      // Re-check idempotency: another cell's commit may have advanced state.
+      const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
+        poemId: cell.poemId,
+        round,
+      });
+      if (alreadySubmitted) continue;
+
+      const aiUser = await ctx.runQuery(internal.ai.getUserById, {
+        userId: cell.aiUserId,
+      });
+      const persona = getPersona(aiUser?.aiPersonaId as AiPersonaId);
+
+      // Bots see ONLY the previous line — same constraint as a human (the
+      // game's defining symmetry, kept on purpose).
+      const previousLine =
+        round > 0
+          ? await ctx.runQuery(internal.ai.getPreviousLine, {
+              poemId: cell.poemId,
+              round: round - 1,
+            })
+          : null;
+
+      const result = await (async () => {
+        if (!apiKey) {
+          log.error('OPENROUTER_API_KEY not configured - using fallback line', {
+            roomId,
+            gameId,
+            round,
+          });
+          return {
+            text: getFallbackLine(targetWordCount, `${cell.poemId}:${round}`),
+            fallbackUsed: true,
+          };
+        }
+
+        const config: LLMConfig = {
+          provider: 'openrouter',
+          model: getAiModel(),
+          apiKey,
+          timeoutMs: 10000,
+          maxRetries: 3,
+        };
+
+        return generateLine(
+          {
+            persona,
+            previousLineText: previousLine?.text,
+            targetWordCount,
+          },
+          config
+        );
+      })();
+
+      // On any fallback (no key, API failure, or word-count miss) use the
+      // varied bank seeded by the cell, so multi-bot fallback reveals don't
+      // repeat one canned line.
+      const text = result.fallbackUsed
+        ? getFallbackLine(targetWordCount, `${cell.poemId}:${round}`)
+        : result.text;
+
+      await ctx.runMutation(internal.ai.commitAiLine, {
+        poemId: cell.poemId,
+        lineIndex: round,
+        text,
+        aiUserId: cell.aiUserId,
+        roomId,
+        gameId,
+      });
+
+      if (result.fallbackUsed) {
+        log.warn('AI fallback used', {
           roomId,
           gameId,
           round,
+          poemId: cell.poemId,
         });
-        return {
-          text: getFallbackLine(targetWordCount),
-          fallbackUsed: true,
-        };
       }
-
-      const config: LLMConfig = {
-        provider: 'openrouter',
-        model: process.env.AI_MODEL || 'google/gemini-3-flash-preview',
-        apiKey,
-        timeoutMs: 10000,
-        maxRetries: 3,
-      };
-
-      return generateLine(
-        {
-          persona,
-          previousLineText: previousLine?.text,
-          targetWordCount,
-        },
-        config
-      );
-    })();
-
-    // Commit the line
-    await ctx.runMutation(internal.ai.commitAiLine, {
-      poemId: poem._id,
-      lineIndex: round,
-      text: result.text,
-      aiUserId: aiPlayer._id,
-      roomId,
-      gameId,
-    });
-
-    if (result.fallbackUsed) {
-      log.warn('AI fallback used', { roomId, gameId, round });
     }
   },
 });
@@ -452,7 +507,9 @@ export async function commitAssignedLine(
   const wordCount = countWords(text);
   const expectedCount = WORD_COUNTS[lineIndex];
   const finalText =
-    wordCount === expectedCount ? text.trim() : getFallbackLine(expectedCount);
+    wordCount === expectedCount
+      ? text.trim()
+      : getFallbackLine(expectedCount, `${poemId}:${lineIndex}`);
 
   await ctx.db.insert('lines', {
     poemId,
@@ -533,12 +590,15 @@ export const generateGhostLine = internalAction({
     const apiKey = initialOpenRouterApiKey;
     const result = await (async () => {
       if (!apiKey) {
-        return { text: getFallbackLine(targetWordCount), fallbackUsed: true };
+        return {
+          text: getFallbackLine(targetWordCount, `${poemId}:${round}`),
+          fallbackUsed: true,
+        };
       }
 
       const config: LLMConfig = {
         provider: 'openrouter',
-        model: process.env.AI_MODEL || 'google/gemini-3-flash-preview',
+        model: getAiModel(),
         apiKey,
         timeoutMs: 10000,
         maxRetries: 2,
@@ -671,4 +731,28 @@ export const getPreviousLine = internalQuery({
       )
       .first();
   },
+});
+
+/** All AI-assigned, still-empty cells for a round (action-side accessor). */
+export const getOpenAiCellsForRound = internalQuery({
+  args: {
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+  },
+  handler: async (ctx, { roomId, gameId, round }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game) return [];
+    return getOpenAiCells(ctx, {
+      roomId,
+      gameId,
+      round,
+      matrix: game.assignmentMatrix,
+    });
+  },
+});
+
+export const getUserById = internalQuery({
+  args: { userId: v.id('users') },
+  handler: async (ctx, { userId }) => ctx.db.get(userId),
 });

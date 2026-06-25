@@ -4,6 +4,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
 import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
+import { countWords } from '../../convex/lib/wordCount';
 import { type T, getAllLines } from '../helpers/convexSeed';
 
 /**
@@ -204,7 +205,7 @@ describe('commitAiLine', () => {
         .first()
     );
     expect(aiLine).not.toBeNull();
-    expect(aiLine?.text).toBe(getFallbackLine(WORD_COUNTS[0]));
+    expect(countWords(aiLine!.text)).toBe(WORD_COUNTS[0]);
 
     // Round must remain at 1 — lifecycle must NOT advance it to 2.
     const game = await t.run((ctx) => ctx.db.get(gameId));
@@ -326,7 +327,7 @@ describe('commitAiLine', () => {
         .collect()
     );
     expect(lines).toHaveLength(1);
-    expect(lines[0].text).toBe(getFallbackLine(WORD_COUNTS[0]));
+    expect(countWords(lines[0].text)).toBe(WORD_COUNTS[0]);
   });
 });
 
@@ -365,7 +366,7 @@ describe('ensureAiLine (safety net)', () => {
         .first()
     );
     expect(line).not.toBeNull();
-    expect(line?.text).toBe(getFallbackLine(WORD_COUNTS[0]));
+    expect(countWords(line!.text)).toBe(WORD_COUNTS[0]);
     expect(line?.authorUserId).toBe(aiId);
     expect(line?.authorDisplayName).toBe('Bot');
   });
@@ -565,7 +566,7 @@ describe('generateLineForRound (action, fallback path)', () => {
     expect(line).not.toBeNull();
     expect(line?.authorUserId).toBe(aiId);
     // Fallback text (WORD_COUNTS[2] = 3 words).
-    expect(line?.text).toBe(getFallbackLine(WORD_COUNTS[2]));
+    expect(countWords(line!.text)).toBe(WORD_COUNTS[2]);
   });
 
   it('bails out when the game is no longer in progress', async () => {
@@ -667,7 +668,7 @@ describe('generateGhostLine (action, fallback path)', () => {
     expect(line).not.toBeNull();
     expect(line?.authorUserId).toBe(aliceId);
     expect(line?.authorDisplayName).toBe('Alice (ghost)');
-    expect(line?.text).toBe(getFallbackLine(WORD_COUNTS[2]));
+    expect(countWords(line!.text)).toBe(WORD_COUNTS[2]);
   });
 
   it('does nothing when the stalled turn was already filled', async () => {
@@ -752,5 +753,147 @@ describe('generateGhostLine (action, fallback path)', () => {
     );
     // No ghost line written for the stale round.
     expect(line).toBeNull();
+  });
+});
+
+// ─── Multi-bot (solo play) ────────────────────────────────────────────────────
+
+describe('multi-bot scheduling (solo play)', () => {
+  // 1 human + 3 bots. Cyclic-shift matrix at round 0: poem i → seat i, so the
+  // human owns poem 0 and the three bots own poems 1, 2, 3 — three open AI cells.
+  const SOLO_PLAYERS: SeedPlayer[] = [
+    { name: 'Human' },
+    { name: 'Bashō', kind: 'AI', aiPersonaId: 'bashō' },
+    { name: 'Emily', kind: 'AI', aiPersonaId: 'dickinson' },
+    { name: 'e.e.', kind: 'AI', aiPersonaId: 'cummings' },
+  ];
+
+  async function lineFor(t: T, poemId: Id<'poems'>, round: number) {
+    return t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemId).eq('indexInPoem', round)
+        )
+        .first()
+    );
+  }
+
+  it('ensureAiLine fills EVERY open AI cell, never just one (the never-die fix)', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: SOLO_PLAYERS, currentRound: 0 }
+    );
+    const aiIds = new Set([userIds[1], userIds[2], userIds[3]]);
+
+    // Safety net only — no generation ran (simulates all 3 actions dying).
+    await t.mutation(internal.ai.ensureAiLine, { roomId, gameId, round: 0 });
+
+    for (let poem = 0; poem < poemIds.length; poem++) {
+      const line = await lineFor(t, poemIds[poem], 0);
+      if (aiIds.has(matrix[0][poem])) {
+        expect(line).not.toBeNull(); // every bot cell filled
+        expect(countWords(line!.text)).toBe(WORD_COUNTS[0]);
+        expect(line!.authorUserId).toBe(matrix[0][poem]);
+      } else {
+        expect(line).toBeNull(); // the human cell is NOT auto-filled
+      }
+    }
+  });
+
+  it('generateLineForRound fills every bot cell on the fallback path', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: SOLO_PLAYERS, currentRound: 0 }
+    );
+    const aiIds = new Set([userIds[1], userIds[2], userIds[3]]);
+
+    await t.action(internal.ai.generateLineForRound, {
+      roomId,
+      gameId,
+      round: 0,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const aiPoemIndexes = [1, 2, 3].filter((p) => aiIds.has(matrix[0][p]));
+    for (const poem of aiPoemIndexes) {
+      const line = await lineFor(t, poemIds[poem], 0);
+      expect(line).not.toBeNull();
+      expect(countWords(line!.text)).toBe(WORD_COUNTS[0]);
+    }
+  });
+
+  it('a round whose bots all strand still completes via the safety net (no cron)', async () => {
+    // The critical solo invariant: the abandonment cron never fires while the
+    // human is present, so ensureAiLine alone must clear every bot cell so the
+    // round can advance. Drive a single round end-to-end with the human filling
+    // their own poem and the safety net filling all three bot poems.
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: SOLO_PLAYERS, currentRound: 0 }
+    );
+
+    // Human submits their assigned poem at round 0 (poem 0).
+    const humanPoem = poemIds[matrix[0].indexOf(userIds[0])];
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: humanPoem,
+        indexInPoem: 0,
+        text: getFallbackLine(WORD_COUNTS[0], 'human:0'),
+        wordCount: WORD_COUNTS[0],
+        authorUserId: userIds[0],
+        createdAt: Date.now(),
+      })
+    );
+
+    // Safety net clears all three bot cells.
+    await t.mutation(internal.ai.ensureAiLine, { roomId, gameId, round: 0 });
+
+    // Every poem at round 0 now has a line — the round is unblocked.
+    for (const poemId of poemIds) {
+      expect(await lineFor(t, poemId, 0)).not.toBeNull();
+    }
+  });
+
+  it('multi-bot fallback lines vary (no canned-line repetition across cells)', async () => {
+    // Use a higher word count where the combinatorial pool is large.
+    const t = setupConvexTest();
+    const { gameId, roomId, poemIds } = await seedClassicGame(t, {
+      players: SOLO_PLAYERS,
+      currentRound: 4, // WORD_COUNTS[4] = 5 → large fallback pool
+    });
+    // Pre-fill rounds 0–3 so the lifecycle sits at round 4.
+    await t.run(async (ctx) => {
+      const seeded = await ctx.db
+        .query('games')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .first();
+      const matrix = seeded!.assignmentMatrix;
+      for (let r = 0; r < 4; r++) {
+        for (let p = 0; p < poemIds.length; p++) {
+          await ctx.db.insert('lines', {
+            poemId: poemIds[p],
+            indexInPoem: r,
+            text: getFallbackLine(WORD_COUNTS[r], `${poemIds[p]}:${r}`),
+            wordCount: WORD_COUNTS[r],
+            authorUserId: matrix[r][p],
+            createdAt: Date.now(),
+          });
+        }
+      }
+    });
+
+    await t.mutation(internal.ai.ensureAiLine, { roomId, gameId, round: 4 });
+
+    const botLines = (await Promise.all(poemIds.map((id) => lineFor(t, id, 4))))
+      .filter((l): l is NonNullable<typeof l> => l !== null)
+      .map((l) => l.text);
+    // At least the three bot cells produced lines, and they are not all identical.
+    expect(botLines.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(botLines).size).toBeGreaterThan(1);
+    botLines.forEach((text) => expect(countWords(text)).toBe(WORD_COUNTS[4]));
   });
 });

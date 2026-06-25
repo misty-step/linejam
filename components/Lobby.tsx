@@ -70,9 +70,12 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const needsMore = minPlayers - players.length;
   const canStart = players.length >= minPlayers;
 
-  // Check if room has an AI player
-  const hasAi = players.some((p) => p.isBot);
-  const canAddAi = isHost && !hasAi && players.length < 8;
+  // Bots: a host can add up to MAX_BOTS so a single player can fill a room and
+  // play solo (backlog 028). Mirrors the MAX_AI_PLAYERS backend default; the
+  // server is the source of truth and rejects past the cap.
+  const MAX_BOTS = 3;
+  const botCount = players.filter((p) => p.isBot).length;
+  const canAddAi = isHost && botCount < MAX_BOTS && players.length < 8;
 
   const handleAddAi = async () => {
     if (!room || aiLoading) return;
@@ -213,7 +216,9 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                 className="w-full"
               >
                 <Bot className="w-4 h-4 mr-2" />
-                {aiLoading ? 'Adding...' : 'Add AI player'}
+                {aiLoading
+                  ? 'Adding...'
+                  : `Add a bot (${botCount}/${MAX_BOTS})`}
               </Button>
             )}
 
