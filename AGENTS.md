@@ -24,6 +24,7 @@ depth.
 
 Read these when you need the truth:
 
+- `project.md` — product north star: vision, current focus, anti-goals. Read first to know what excellence means here before changing direction.
 - `convex/_generated/api.d.ts` — current Convex API surface.
 - `convex/schema.ts` — source of truth for data model.
 - `convex/lib/assignmentMatrix.ts` — load-bearing derangement-like assignment logic.
@@ -34,7 +35,7 @@ Read these when you need the truth:
 
 ## Invariants
 
-1. **Never push on red Dagger.** `pnpm ci:prepush` must be green. Never use `--no-verify`.
+1. **Never push on red `pnpm ci:prepush`.** Pre-push runs the fast Docker-free subset (typecheck + lint + test); it must be green. Never use `--no-verify`.
 2. **Never run `pnpm dev`, `pnpm dev:convex`, `convex dev`, or other local server processes yourself.** The user runs them elsewhere.
 3. **Never deploy Convex production without `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.**
 4. **Never rely on placeholder Canary browser keys in build-bearing lanes.**
@@ -47,10 +48,19 @@ Read these when you need the truth:
 
 ## Gate Contract
 
-**`pnpm ci:prepush` IS the gate.** It shells to `pnpm ci:dagger:all`, which
-drives the Dagger module in `dagger/src/index.ts`.
+**Pre-push runs the fast, Docker-free subset, not the full Dagger contract.**
+`pnpm ci:prepush` = `typecheck` + `lint` + `test` (no Docker, ~45s, can't OOM).
+The monolithic `dagger-call.sh all` was removed from pre-push on 2026-06-21
+because it crammed build + authenticated browser E2E into one engine and
+OOM-killed (exit 137) on memory-limited machines.
 
-Composition:
+The **authoritative** full contract is the hosted `merge-gate`
+(`.github/workflows/ci.yml`) — the same Dagger functions decomposed across
+parallel runners, enforced by branch protection. Run `pnpm ci:dagger:all` on
+demand for full local fidelity (one monolithic engine; wants ample Docker
+memory).
+
+Full-contract composition (hosted / on-demand):
 
 - `format-check`
 - `lint`
@@ -64,18 +74,19 @@ Composition:
 Local enforcement:
 
 - Pre-commit: `gitleaks protect`, `eslint --fix`, `prettier --write`
-- Pre-push: `pnpm ci:prepush`
+- Pre-push: `pnpm ci:prepush` (fast subset only)
 - Commit-msg: commitlint
 
 Hosted workflows:
 
-- `.github/workflows/ci.yml` — split mirror jobs: `quality-gates`, `test-build`, `e2e`, advisory `qa-evidence`
+- `.github/workflows/ci.yml` — authoritative `merge-gate`: `quality-gates`, `test-build`, `e2e`, advisory `qa-evidence`
 - `.github/workflows/preview-smoke.yml` — preview smoke
 - `.github/workflows/prod-smoke.yml` — production smoke
-- `.github/workflows/release.yml` — semantic-release plus Gemini note synthesis
+- `.github/workflows/release.yml` — semantic-release plus note synthesis
 - `.github/workflows/trufflehog.yml` — extra hosted secret scan
 
-Local Dagger is authoritative. Hosted CI is secondary confirmation.
+The hosted `merge-gate` is authoritative; `pnpm ci:dagger:all` mirrors it
+locally on demand. Pre-push is the fast pre-filter, not the gate.
 
 ## Known-Debt Map
 

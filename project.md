@@ -6,7 +6,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 **North Star:** World-class casual party game with Stripe-level design and polish. Players feel delighted, not overwhelmed. The game works, it's fun, it creates memorable moments with friends.
 **Target User:** Friends at a gathering who want a quick, creative, funny activity. No signup required (guest mode). Works on phones. Minimal explanation needed.
-**Current Focus:** Polish and production-readiness—Stripe-level design quality, award-winning aesthetic (Kenya Hara minimalism + premium themes), rock-solid infrastructure. Don't overcomplicate—core works, ship and refine.
+**Current Focus:** One core loop, polished to a world-class bar. The mechanic is settled—9 rounds, 1,2,3,4,5,4,3,2,1 words—and depth now comes from design, feel, and reliability, not from more modes. Sequenced path: public-launch readiness → deeper aesthetic polish → revenue stretch. Don't overcomplicate; ship and refine.
 **Key Differentiators:** Lower friction than paper; persistent shareable artifacts; digital-native sharing; can evolve mechanics without physical constraints.
 
 ## Domain Glossary
@@ -27,9 +27,10 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 ## Active Focus
 
-- **Milestone:** Party-game depth — make the room experience magical, not just functional
-- **Key Items:** `backlog.d/` is authoritative. Current arc: 010 (game modes platform: Rhyme Relay + Quick Jam), 011 (realtime resilience: ghostwriter rescue, rematch for all), 012 (round clock + sparks), 013 (reveal ceremony staging), 014 (mobile thumb test), 015 (doc truth)
-- **Theme:** Engineered fun — tension, theater, and resilience on top of the proven core loop
+- **Milestone:** Public-launch readiness — close the Quality Bar gaps (open security advisories, security headers + rate limits, mobile polish) so Linejam can be promoted publicly with no caveats.
+- **Then:** deeper aesthetic polish (award-winning feel) → revenue stretch (print-on-demand booklets; see Stretch Goal).
+- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). `backlog.d/` is authoritative for shaped work; strategic bets get groomed in before they're built.
+- **Theme:** Restraint as the product — Kenya Hara minimalism applied to the mechanics as much as the visuals.
 
 ## Quality Bar
 
@@ -79,8 +80,10 @@ them, small revenue cut per book.
 
 ## Anti-Goals
 
-- Heavy monetization (no subscriptions, no ads)
+- Multiple game modes — one core loop, refined; variety comes from the players, not the mechanics (Rhyme Relay + Quick Jam were built and deleted, #275)
+- Ornamental in-game nudges — e.g. per-line "sparks"; the word constraint is the only prompt the player needs (deleted #278)
 - Feature bloat (no gamification, leaderboards, achievements)
+- Heavy monetization (no subscriptions, no ads) — print-on-demand booklets are the only revenue bet
 - Social network aspirations
 
 ## Lessons Learned
@@ -92,5 +95,5 @@ them, small revenue cut per book.
 
 ---
 
-_Last updated: 2026-06-12_
+_Last updated: 2026-06-25_
 _Updated during: /groom session (absorbed vision.md, which is now removed)_
