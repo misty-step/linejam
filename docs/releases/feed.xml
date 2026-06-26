@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>misty-step/linejam</title>
+<link>https://github.com/misty-step/linejam</link>
+<description>Release notes for misty-step/linejam</description>
+<lastBuildDate>Fri, 26 Jun 2026 15:03:47 +0000</lastBuildDate>
+<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<h2>New Features</h2>
+<ul>
+<li>You can now play with just one game mode that's perfectly tuned for collaborative poetry.</li>
+<li>The room automatically finds a new host when the current host leaves mid-game.</li>
+<li>Rooms now stay alive and self-heal if something goes wrong during your session.</li>
+<li>You can now view a shared recap of all the poems created in your game session.</li>
+</ul>
+<h2>Improvements</h2>
+<ul>
+<li>The mobile writing experience is now much easier to use with a cleaner interface.</li>
+</ul>
+]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
+</channel>
+</rss>
