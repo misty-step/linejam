@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [1.10.0](https://github.com/misty-step/linejam/compare/v1.9.1...v1.10.0) (2026-06-26)
+
+
+### Features
+
+* **ai:** multi-bot solo play + evidence-backed config (028 m1) ([#280](https://github.com/misty-step/linejam/issues/280)) ([3b10a17](https://github.com/misty-step/linejam/commit/3b10a17d48951a93fb5039c2653e698a4dfaf80f))
+
 ## [1.9.1](https://github.com/misty-step/linejam/compare/v1.9.0...v1.9.1) (2026-06-24)
 
 
