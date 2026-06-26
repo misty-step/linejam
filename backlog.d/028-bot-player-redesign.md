@@ -266,6 +266,24 @@ settled by review, not a fixed acceptance fixture.
 `/private/tmp/.../scratchpad/bot-redesign-plan.html` (authored + opened during
 shaping; see session).
 
+## Review follow-ups (m1 thermo-nuclear)
+
+Fixed in m1: deleted the orphaned single-bot queries (`getAiPlayerInRoom`/
+`getPoemByIndex`); extracted `fallbackSeed()` (was duplicated 6×); made the
+bot-persona invariant explicit (skip + let the safety net cover a deleted user).
+
+Deferred (do in m2, with the abandonment suite as the guardrail):
+
+- **Unify the fallback-fill loop.** `ensureAiLine` and the abandonment finisher
+  (`abandonment.ts`) are now the same "fill these cells with a seeded fallback,
+  bylined per cell" loop, differing only in cell-selection and byline. Extract
+  one `fillCellsWithFallback(ctx, { gameId, roomId, round, cells })` primitive
+  both call. Deferred because it touches the never-die-critical finisher; bundle
+  with m2's per-cell work so the change is tested once.
+- **Provider fallback wart.** `openrouter.ts` computes an un-seeded fallback the
+  action always re-derives (`getFallbackLine` after `fallbackUsed`). Thread the
+  seed into the provider (or return empty text) so there's one fallback source.
+
 ## Risks + Rollout
 
 - **Dying generation action in solo play (HIGHEST — critique residual).** Every

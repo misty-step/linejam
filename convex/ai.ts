@@ -25,7 +25,12 @@ import {
   GHOSTWRITER_PERSONA,
   AiPersonaId,
 } from './lib/ai/personas';
-import { generateLine, getFallbackLine, type LLMConfig } from './lib/ai/llm';
+import {
+  generateLine,
+  getFallbackLine,
+  fallbackSeed,
+  type LLMConfig,
+} from './lib/ai/llm';
 import { countWords } from './lib/wordCount';
 import { getConvexRuntimeConfig } from './lib/env';
 import { log } from './lib/errors';
@@ -319,7 +324,7 @@ export const ensureAiLine = internalMutation({
         gameId,
         poemId: cell.poemId,
         lineIndex: round,
-        text: getFallbackLine(expectedCount, `${cell.poemId}:${round}`),
+        text: getFallbackLine(expectedCount, fallbackSeed(cell.poemId, round)),
         authorUserId: cell.aiUserId,
         authorDisplayName: aiUser?.displayName ?? 'AI',
       });
@@ -378,7 +383,11 @@ export const generateLineForRound = internalAction({
       const aiUser = await ctx.runQuery(internal.ai.getUserById, {
         userId: cell.aiUserId,
       });
-      const persona = getPersona(aiUser?.aiPersonaId as AiPersonaId);
+      // Explicit invariant: a bot cell must resolve to an AI user with a
+      // persona. If not (e.g. user deleted mid-game), skip — the safety net
+      // fills the cell rather than throwing inside the action.
+      if (!aiUser?.aiPersonaId) continue;
+      const persona = getPersona(aiUser.aiPersonaId as AiPersonaId);
 
       // Bots see ONLY the previous line — same constraint as a human (the
       // game's defining symmetry, kept on purpose).
@@ -398,7 +407,10 @@ export const generateLineForRound = internalAction({
             round,
           });
           return {
-            text: getFallbackLine(targetWordCount, `${cell.poemId}:${round}`),
+            text: getFallbackLine(
+              targetWordCount,
+              fallbackSeed(cell.poemId, round)
+            ),
             fallbackUsed: true,
           };
         }
@@ -425,7 +437,7 @@ export const generateLineForRound = internalAction({
       // varied bank seeded by the cell, so multi-bot fallback reveals don't
       // repeat one canned line.
       const text = result.fallbackUsed
-        ? getFallbackLine(targetWordCount, `${cell.poemId}:${round}`)
+        ? getFallbackLine(targetWordCount, fallbackSeed(cell.poemId, round))
         : result.text;
 
       await ctx.runMutation(internal.ai.commitAiLine, {
@@ -509,7 +521,7 @@ export async function commitAssignedLine(
   const finalText =
     wordCount === expectedCount
       ? text.trim()
-      : getFallbackLine(expectedCount, `${poemId}:${lineIndex}`);
+      : getFallbackLine(expectedCount, fallbackSeed(poemId, lineIndex));
 
   await ctx.db.insert('lines', {
     poemId,
@@ -591,7 +603,7 @@ export const generateGhostLine = internalAction({
     const result = await (async () => {
       if (!apiKey) {
         return {
-          text: getFallbackLine(targetWordCount, `${poemId}:${round}`),
+          text: getFallbackLine(targetWordCount, fallbackSeed(poemId, round)),
           fallbackUsed: true,
         };
       }
@@ -665,41 +677,6 @@ export const getRoomState = internalQuery({
 export const getGameState = internalQuery({
   args: { gameId: v.id('games') },
   handler: async (ctx, { gameId }) => ctx.db.get(gameId),
-});
-
-export const getAiPlayerInRoom = internalQuery({
-  args: { roomId: v.id('rooms') },
-  handler: async (ctx, { roomId }) => {
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', roomId))
-      .collect();
-
-    const playerUsers = await Promise.all(
-      players.map((p) => ctx.db.get(p.userId))
-    );
-
-    return playerUsers.find((u) => u?.kind === 'AI') || null;
-  },
-});
-
-export const getPoemByIndex = internalQuery({
-  args: {
-    roomId: v.id('rooms'),
-    gameId: v.id('games'),
-    indexInRoom: v.number(),
-  },
-  handler: async (ctx, { roomId, gameId, indexInRoom }) => {
-    return ctx.db
-      .query('poems')
-      .withIndex('by_room_game_index', (q) =>
-        q
-          .eq('roomId', roomId)
-          .eq('gameId', gameId)
-          .eq('indexInRoom', indexInRoom)
-      )
-      .first();
-  },
 });
 
 export const hasLineForRound = internalQuery({

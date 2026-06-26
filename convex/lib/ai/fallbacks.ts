@@ -130,6 +130,15 @@ const TEMPLATES: Record<number, readonly (readonly string[])[]> = {
   ],
 };
 
+/**
+ * The deterministic key that makes a poem-cell's fallback line stable and
+ * distinct. One place to change the scheme (e.g. to fold in gameId later) so the
+ * six call sites can't drift.
+ */
+export function fallbackSeed(poemId: string, round: number): string {
+  return `${poemId}:${round}`;
+}
+
 /** FNV-1a — small, stable, dependency-free. */
 function hashSeed(seed: string): number {
   let h = 2166136261;

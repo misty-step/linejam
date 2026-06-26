@@ -6,7 +6,7 @@
  */
 
 export { generateLine, buildPrompt } from './providers/openrouter';
-export { getFallbackLine } from './fallbacks';
+export { getFallbackLine, fallbackSeed } from './fallbacks';
 export type {
   GenerateLineParams,
   GenerateLineResult,

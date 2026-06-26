@@ -25,7 +25,7 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 import { internal } from './_generated/api';
 import { commitAssignedLine } from './ai';
 import { getMatrixRound } from './lib/assignmentMatrix';
-import { getFallbackLine } from './lib/ai/llm';
+import { getFallbackLine, fallbackSeed } from './lib/ai/llm';
 import { applyLineLifecycleTransition } from './lib/sessionLifecycle';
 import {
   ABANDONMENT_HARD_DEADLINE_MS,
@@ -255,7 +255,7 @@ export const finishAbandonedGame = internalMutation({
           gameId,
           poemId: poem._id,
           lineIndex: round,
-          text: getFallbackLine(expectedCount, `${poem._id}:${round}`),
+          text: getFallbackLine(expectedCount, fallbackSeed(poem._id, round)),
           authorUserId: roundAssignments[poem.indexInRoom],
           authorDisplayName,
         });
