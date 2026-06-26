@@ -5,8 +5,12 @@
  * Current implementation: OpenRouter (supports Gemini, Claude, GPT, etc.)
  */
 
-export { generateLine, buildPrompt } from './providers/openrouter';
-export { getFallbackLine } from './fallbacks';
+export {
+  generateLine,
+  buildMessages,
+  buildPrompt,
+} from './providers/openrouter';
+export { getFallbackLine, fallbackSeed } from './fallbacks';
 export type {
   GenerateLineParams,
   GenerateLineResult,

@@ -7,24 +7,26 @@
 
 import { countWords } from '../wordCount';
 
-/**
- * Clean up AI output: remove quotes, extra whitespace, etc.
- */
+/** Clean up AI output: remove quotes and collapse whitespace to one line. */
 export function normalizeText(text: string): string {
   return text
+    .trim()
     .replace(/^["']|["']$/g, '') // Remove surrounding quotes
     .replace(/\s+/g, ' ') // Normalize whitespace
     .trim();
 }
 
-/**
- * Validate that text has exactly the target word count.
- */
+export function hasLineBreak(text: string): boolean {
+  return /[\r\n]/.test(text);
+}
+
+/** Validate that generated text is single-line and has the exact word count. */
 export function validateWordCount(
   text: string,
   targetWordCount: number
 ): boolean {
-  const actual = countWords(text);
+  if (hasLineBreak(text)) return false;
+  const actual = countWords(normalizeText(text));
   return actual === targetWordCount;
 }
 

@@ -141,6 +141,37 @@ export function getAllPersonaIds(): AiPersonaId[] {
 }
 
 /**
+ * Pick a persona not already in `excludeIds`, so each bot in a room gets a
+ * distinct voice. Once every persona is in use (more bots than personas), falls
+ * back to a random one. Caller must run this inside the mutation that inserts
+ * the bot so Convex OCC serializes the read-then-insert (distinctness is safe
+ * under concurrent host clicks).
+ */
+export function pickPersonaExcluding(
+  excludeIds: readonly string[],
+  randomFn: () => number = defaultRandomFn
+): AiPersona {
+  const available = PERSONA_IDS.filter((id) => !excludeIds.includes(id));
+  if (available.length === 0) return pickRandomPersona(randomFn);
+
+  // Rejection sampling over the available subset (unbiased, matches the pattern).
+  const count = available.length;
+  const limit = Math.floor(0xffffffff / count) * count;
+  let value: number;
+  let iterations = 0;
+  do {
+    if (iterations++ >= 100) {
+      throw new Error(
+        'pickPersonaExcluding: Failed to generate unbiased random after 100 attempts'
+      );
+    }
+    value = randomFn();
+  } while (value >= limit);
+
+  return PERSONAS[available[value % count]];
+}
+
+/**
  * The Ghostwriter covers stalled human turns when the host summons it.
  * Not part of the selectable roster — it has no AiPersonaId on purpose.
  */

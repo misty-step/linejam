@@ -279,7 +279,7 @@ describe('Lobby component', () => {
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     // Find Add AI button (has Bot icon)
-    const addAiButtons = screen.getAllByRole('button', { name: /Add AI/i });
+    const addAiButtons = screen.getAllByRole('button', { name: /Add a bot/i });
 
     // Act
     await user.click(addAiButtons[0]);
@@ -300,7 +300,7 @@ describe('Lobby component', () => {
 
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
-    const addAiButtons = screen.getAllByRole('button', { name: /Add AI/i });
+    const addAiButtons = screen.getAllByRole('button', { name: /Add a bot/i });
 
     // Act
     await user.click(addAiButtons[0]);
@@ -345,6 +345,7 @@ describe('Lobby component', () => {
       expect(mockMutations.removeAi).toHaveBeenCalledWith({
         code: 'ABCD',
         guestToken: 'mock-token',
+        aiUserId: 'user_ai',
       });
     });
   });

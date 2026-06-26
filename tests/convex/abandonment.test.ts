@@ -10,6 +10,7 @@ import {
   WORD_COUNTS,
 } from '../../convex/lib/gameRules';
 import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
+import { countWords } from '../../convex/lib/wordCount';
 
 /**
  * Integration coverage for "never let the room die" (backlog 016, children 3-5).
@@ -597,9 +598,9 @@ describe('OpenRouter outage (oracle 5c)', () => {
     expect(game?.status).toBe('COMPLETED');
     const lines = await getAllLines(t, gameId);
     expect(lines).toHaveLength(WORD_COUNTS.length * 2);
-    // Every line is a valid deterministic fallback for its round.
+    // Every line has the correct word count for its round (a valid fallback).
     for (const line of lines) {
-      expect(line.text).toBe(getFallbackLine(WORD_COUNTS[line.indexInPoem]));
+      expect(countWords(line.text)).toBe(WORD_COUNTS[line.indexInPoem]);
     }
   });
 });
