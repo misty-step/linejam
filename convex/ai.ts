@@ -31,7 +31,7 @@ import {
   fallbackSeed,
   type LLMConfig,
 } from './lib/ai/llm';
-import { countWords } from './lib/wordCount';
+import { normalizeText, validateWordCount } from './lib/ai/wordCountGuard';
 import { getConvexRuntimeConfig } from './lib/env';
 import { log } from './lib/errors';
 import {
@@ -41,6 +41,8 @@ import {
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
+
+type OpenAiCell = { poemId: Id<'poems'>; aiUserId: Id<'users'> };
 
 /** Max bots per room (configurable). Solo play wants a few, not a swarm. */
 function getMaxAiPlayers(): number {
@@ -56,6 +58,22 @@ function getMaxAiPlayers(): number {
  */
 function getAiModel(): string {
   return process.env.AI_MODEL || 'google/gemini-2.5-flash-lite';
+}
+
+/** Daily budget counts claimed AI generations; provider retries are bounded inside the claim. */
+function getAiDailyCallBudget(): number {
+  const raw = process.env.AI_DAILY_CALL_BUDGET?.trim();
+  if (!raw) return 250;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 250;
+}
+
+function isDeterministicAiMode(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.LINEJAM_AI_DETERMINISTIC ?? '');
+}
+
+function aiUsageDay(now = Date.now()): string {
+  return new Date(now).toISOString().slice(0, 10);
 }
 
 /** All AI players currently in a room (generalizes the old single-AI `.find`). */
@@ -85,36 +103,167 @@ async function getOpenAiCells(
     round: number;
     matrix: Id<'users'>[][];
   }
-): Promise<Array<{ poemId: Id<'poems'>; aiUserId: Id<'users'> }>> {
+): Promise<OpenAiCell[]> {
   const aiPlayers = await getRoomAiPlayers(ctx, args.roomId);
   if (aiPlayers.length === 0) return [];
   const aiIds = new Set(aiPlayers.map((u) => u._id));
   const roundRow = getMatrixRound(args.matrix, args.round);
 
-  const cells: Array<{ poemId: Id<'poems'>; aiUserId: Id<'users'> }> = [];
-  for (let poemIndex = 0; poemIndex < roundRow.length; poemIndex++) {
-    const assignedUserId = roundRow[poemIndex];
-    if (!aiIds.has(assignedUserId)) continue;
-    const poem = await ctx.db
-      .query('poems')
-      .withIndex('by_room_game_index', (q) =>
-        q
-          .eq('roomId', args.roomId)
-          .eq('gameId', args.gameId)
-          .eq('indexInRoom', poemIndex)
-      )
-      .first();
-    if (!poem) continue;
-    const existing = await ctx.db
-      .query('lines')
-      .withIndex('by_poem_index', (q) =>
-        q.eq('poemId', poem._id).eq('indexInPoem', args.round)
-      )
-      .first();
-    if (existing) continue;
-    cells.push({ poemId: poem._id, aiUserId: assignedUserId });
+  const candidateCells = roundRow
+    .map((assignedUserId, poemIndex) => ({ assignedUserId, poemIndex }))
+    .filter(({ assignedUserId }) => aiIds.has(assignedUserId));
+
+  const resolvedCells = await Promise.all(
+    candidateCells.map(async ({ assignedUserId, poemIndex }) => {
+      const poem = await ctx.db
+        .query('poems')
+        .withIndex('by_room_game_index', (q) =>
+          q
+            .eq('roomId', args.roomId)
+            .eq('gameId', args.gameId)
+            .eq('indexInRoom', poemIndex)
+        )
+        .first();
+      if (!poem) return null;
+
+      const existing = await ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poem._id).eq('indexInPoem', args.round)
+        )
+        .first();
+      if (existing) return null;
+
+      return { poemId: poem._id, aiUserId: assignedUserId };
+    })
+  );
+
+  return resolvedCells.filter((cell): cell is OpenAiCell => cell !== null);
+}
+
+async function getAiTurnByCell(
+  ctx: { db: QueryCtx['db'] },
+  poemId: Id<'poems'>,
+  round: number
+) {
+  return ctx.db
+    .query('aiTurns')
+    .withIndex('by_cell', (q) => q.eq('poemId', poemId).eq('round', round))
+    .first();
+}
+
+async function recordAiUsage(
+  ctx: { db: MutationCtx['db'] },
+  delta: {
+    day: string;
+    generationClaims?: number;
+    httpAttempts?: number;
+    fallbacks?: number;
   }
-  return cells;
+): Promise<void> {
+  const existing = await ctx.db
+    .query('aiUsage')
+    .withIndex('by_day', (q) => q.eq('day', delta.day))
+    .first();
+  const fields = {
+    day: delta.day,
+    generationClaims:
+      (existing?.generationClaims ?? 0) + (delta.generationClaims ?? 0),
+    httpAttempts: (existing?.httpAttempts ?? 0) + (delta.httpAttempts ?? 0),
+    fallbacks: (existing?.fallbacks ?? 0) + (delta.fallbacks ?? 0),
+    updatedAt: Date.now(),
+  };
+
+  if (existing) {
+    await ctx.db.patch(existing._id, fields);
+  } else {
+    await ctx.db.insert('aiUsage', fields);
+  }
+}
+
+async function commitFallbackForCell(
+  ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
+  args: {
+    roomId: Id<'rooms'>;
+    gameId: Id<'games'>;
+    round: number;
+    cell: OpenAiCell;
+  }
+): Promise<boolean> {
+  const aiUser = await ctx.db.get(args.cell.aiUserId);
+  return commitFallbackLine(ctx, {
+    roomId: args.roomId,
+    gameId: args.gameId,
+    poemId: args.cell.poemId,
+    lineIndex: args.round,
+    authorUserId: args.cell.aiUserId,
+    authorDisplayName: aiUser?.displayName ?? 'AI',
+  });
+}
+
+async function prepareAiCellForGeneration(
+  ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
+  args: {
+    roomId: Id<'rooms'>;
+    gameId: Id<'games'>;
+    round: number;
+    cell: OpenAiCell;
+  }
+): Promise<boolean> {
+  const existingTurn = await getAiTurnByCell(ctx, args.cell.poemId, args.round);
+  if (existingTurn) return false;
+
+  const day = aiUsageDay();
+  const now = Date.now();
+  const fallbackStatus = isDeterministicAiMode()
+    ? 'deterministic_fallback'
+    : 'budget_fallback';
+  const usage = await ctx.db
+    .query('aiUsage')
+    .withIndex('by_day', (q) => q.eq('day', day))
+    .first();
+  const budget = getAiDailyCallBudget();
+  const budgetExhausted = (usage?.generationClaims ?? 0) >= budget;
+
+  if (isDeterministicAiMode() || budgetExhausted) {
+    await ctx.db.insert('aiTurns', {
+      roomId: args.roomId,
+      gameId: args.gameId,
+      poemId: args.cell.poemId,
+      round: args.round,
+      aiUserId: args.cell.aiUserId,
+      day,
+      status: fallbackStatus,
+      claimedAt: now,
+      updatedAt: now,
+    });
+    const committed = await commitFallbackForCell(ctx, args);
+    if (committed) await recordAiUsage(ctx, { day, fallbacks: 1 });
+    if (committed && budgetExhausted && !isDeterministicAiMode()) {
+      log.warn('AI daily generation budget exhausted; committed fallback', {
+        roomId: args.roomId,
+        gameId: args.gameId,
+        round: args.round,
+        poemId: args.cell.poemId,
+        budget,
+      });
+    }
+    return false;
+  }
+
+  await ctx.db.insert('aiTurns', {
+    roomId: args.roomId,
+    gameId: args.gameId,
+    poemId: args.cell.poemId,
+    round: args.round,
+    aiUserId: args.cell.aiUserId,
+    day,
+    status: 'authorized',
+    claimedAt: now,
+    updatedAt: now,
+  });
+  await recordAiUsage(ctx, { day, generationClaims: 1 });
+  return true;
 }
 
 /**
@@ -264,6 +413,18 @@ export const scheduleAiTurn = internalMutation({
     });
     if (openCells.length === 0) return;
 
+    let authorizedCells = 0;
+    for (const cell of openCells) {
+      const authorized = await prepareAiCellForGeneration(ctx, {
+        roomId,
+        gameId,
+        round,
+        cell,
+      });
+      if (authorized) authorizedCells += 1;
+    }
+    if (authorizedCells === 0) return;
+
     // Schedule with random delay (2-4 seconds)
     const randomBytes = new Uint32Array(1);
     crypto.getRandomValues(randomBytes);
@@ -315,21 +476,19 @@ export const ensureAiLine = internalMutation({
       round,
       matrix: game.assignmentMatrix,
     });
-    const expectedCount = WORD_COUNTS[round];
-
     for (const cell of openCells) {
       const aiUser = await ctx.db.get(cell.aiUserId);
-      const committed = await commitAssignedLine(ctx, {
+      const committed = await commitFallbackLine(ctx, {
         roomId,
         gameId,
         poemId: cell.poemId,
         lineIndex: round,
-        text: getFallbackLine(expectedCount, fallbackSeed(cell.poemId, round)),
         authorUserId: cell.aiUserId,
         authorDisplayName: aiUser?.displayName ?? 'AI',
       });
 
       if (committed) {
+        await recordAiUsage(ctx, { day: aiUsageDay(), fallbacks: 1 });
         log.warn('AI safety net committed a fallback line', {
           roomId,
           gameId,
@@ -373,6 +532,12 @@ export const generateLineForRound = internalAction({
     const apiKey = initialOpenRouterApiKey;
 
     for (const cell of cells) {
+      const turn = await ctx.runQuery(internal.ai.getAiTurnForCell, {
+        poemId: cell.poemId,
+        round,
+      });
+      if (turn?.status !== 'authorized') continue;
+
       // Re-check idempotency: another cell's commit may have advanced state.
       const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
         poemId: cell.poemId,
@@ -412,6 +577,7 @@ export const generateLineForRound = internalAction({
               fallbackSeed(cell.poemId, round)
             ),
             fallbackUsed: true,
+            attemptsUsed: 0,
           };
         }
 
@@ -420,7 +586,7 @@ export const generateLineForRound = internalAction({
           model: getAiModel(),
           apiKey,
           timeoutMs: 10000,
-          maxRetries: 3,
+          maxRetries: 2,
         };
 
         return generateLine(
@@ -432,6 +598,12 @@ export const generateLineForRound = internalAction({
           config
         );
       })();
+      if (result.attemptsUsed > 0) {
+        await ctx.runMutation(internal.ai.recordAiHttpAttempts, {
+          day: turn.day,
+          attempts: result.attemptsUsed,
+        });
+      }
 
       // On any fallback (no key, API failure, or word-count miss) use the
       // varied bank seeded by the cell, so multi-bot fallback reveals don't
@@ -440,7 +612,7 @@ export const generateLineForRound = internalAction({
         ? getFallbackLine(targetWordCount, fallbackSeed(cell.poemId, round))
         : result.text;
 
-      await ctx.runMutation(internal.ai.commitAiLine, {
+      const committed = await ctx.runMutation(internal.ai.commitAiLine, {
         poemId: cell.poemId,
         lineIndex: round,
         text,
@@ -449,7 +621,11 @@ export const generateLineForRound = internalAction({
         gameId,
       });
 
-      if (result.fallbackUsed) {
+      if (result.fallbackUsed && committed) {
+        await ctx.runMutation(internal.ai.recordAiFallback, {
+          day: turn.day,
+          count: 1,
+        });
         log.warn('AI fallback used', {
           roomId,
           gameId,
@@ -516,12 +692,10 @@ export async function commitAssignedLine(
   ];
   if (assignedUserId !== authorUserId) return false;
 
-  const wordCount = countWords(text);
   const expectedCount = WORD_COUNTS[lineIndex];
-  const finalText =
-    wordCount === expectedCount
-      ? text.trim()
-      : getFallbackLine(expectedCount, fallbackSeed(poemId, lineIndex));
+  const finalText = validateWordCount(text, expectedCount)
+    ? normalizeText(text)
+    : getFallbackLine(expectedCount, fallbackSeed(poemId, lineIndex));
 
   await ctx.db.insert('lines', {
     poemId,
@@ -535,6 +709,20 @@ export async function commitAssignedLine(
 
   await applyLineLifecycleTransition(ctx, { game, roomId, lineIndex });
   return true;
+}
+
+export async function commitFallbackLine(
+  ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
+  args: Omit<CommitAssignedLineArgs, 'text'>
+): Promise<boolean> {
+  const expectedCount = WORD_COUNTS[args.lineIndex];
+  return commitAssignedLine(ctx, {
+    ...args,
+    text: getFallbackLine(
+      expectedCount,
+      fallbackSeed(args.poemId, args.lineIndex)
+    ),
+  });
 }
 
 /**
@@ -555,7 +743,7 @@ export const commitAiLine = internalMutation({
     { poemId, lineIndex, text, aiUserId, roomId, gameId }
   ) => {
     const aiUser = await ctx.db.get(aiUserId);
-    await commitAssignedLine(ctx, {
+    return commitAssignedLine(ctx, {
       roomId,
       gameId,
       poemId,
@@ -605,6 +793,7 @@ export const generateGhostLine = internalAction({
         return {
           text: getFallbackLine(targetWordCount, fallbackSeed(poemId, round)),
           fallbackUsed: true,
+          attemptsUsed: 0,
         };
       }
 
@@ -726,6 +915,37 @@ export const getOpenAiCellsForRound = internalQuery({
       round,
       matrix: game.assignmentMatrix,
     });
+  },
+});
+
+export const getAiTurnForCell = internalQuery({
+  args: {
+    poemId: v.id('poems'),
+    round: v.number(),
+  },
+  handler: async (ctx, { poemId, round }) =>
+    getAiTurnByCell(ctx, poemId, round),
+});
+
+export const recordAiHttpAttempts = internalMutation({
+  args: {
+    day: v.string(),
+    attempts: v.number(),
+  },
+  handler: async (ctx, { day, attempts }) => {
+    if (attempts <= 0) return;
+    await recordAiUsage(ctx, { day, httpAttempts: attempts });
+  },
+});
+
+export const recordAiFallback = internalMutation({
+  args: {
+    day: v.string(),
+    count: v.number(),
+  },
+  handler: async (ctx, { day, count }) => {
+    if (count <= 0) return;
+    await recordAiUsage(ctx, { day, fallbacks: count });
   },
 });
 

@@ -128,7 +128,12 @@ async function seedClassicGame(
 
 // ─── Test lifecycle ────────────────────────────────────────────────────────────
 
+const ORIGINAL_ENV = { ...process.env };
+
 beforeEach(() => {
+  process.env = { ...ORIGINAL_ENV };
+  delete process.env.AI_DAILY_CALL_BUDGET;
+  delete process.env.LINEJAM_AI_DETERMINISTIC;
   // Belt-and-suspenders: stub OpenRouter offline. In practice the test env has
   // no OPENROUTER_API_KEY, so the action code already falls back before fetch.
   vi.stubGlobal(
@@ -139,6 +144,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  process.env = { ...ORIGINAL_ENV };
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -329,6 +335,45 @@ describe('commitAiLine', () => {
     expect(lines).toHaveLength(1);
     expect(countWords(lines[0].text)).toBe(WORD_COUNTS[0]);
   });
+
+  it('substitutes fallback for multiline AI text before commit', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      {
+        players: [
+          { name: 'Human' },
+          { name: 'Bot', kind: 'AI', aiPersonaId: 'bashō' },
+        ],
+        currentRound: 2,
+      }
+    );
+
+    const aiId = userIds[1];
+    const aiPoem = poemIds[matrix[2].indexOf(aiId)];
+
+    await t.mutation(internal.ai.commitAiLine, {
+      poemId: aiPoem,
+      lineIndex: 2,
+      text: 'first line\nsecond third',
+      aiUserId: aiId,
+      roomId,
+      gameId,
+    });
+
+    const line = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', aiPoem).eq('indexInPoem', 2)
+        )
+        .first()
+    );
+    expect(line).not.toBeNull();
+    expect(line!.text).not.toContain('\n');
+    expect(line!.text).not.toBe('first line second third');
+    expect(countWords(line!.text)).toBe(WORD_COUNTS[2]);
+  });
 });
 
 // ─── ensureAiLine (safety net) ────────────────────────────────────────────────
@@ -517,6 +562,7 @@ describe('commitGhostLine', () => {
 
 describe('generateLineForRound (action, fallback path)', () => {
   it('commits a fallback line via commitAiLine when no API key is set', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '10';
     const t = setupConvexTest();
     const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
       t,
@@ -548,7 +594,7 @@ describe('generateLineForRound (action, fallback path)', () => {
     const aiId = userIds[1];
     const aiPoem = poemIds[matrix[2].indexOf(aiId)];
 
-    await t.action(internal.ai.generateLineForRound, {
+    await t.mutation(internal.ai.scheduleAiTurn, {
       roomId,
       gameId,
       round: 2,
@@ -567,6 +613,17 @@ describe('generateLineForRound (action, fallback path)', () => {
     expect(line?.authorUserId).toBe(aiId);
     // Fallback text (WORD_COUNTS[2] = 3 words).
     expect(countWords(line!.text)).toBe(WORD_COUNTS[2]);
+
+    const usage = await t.run((ctx) =>
+      ctx.db
+        .query('aiUsage')
+        .withIndex('by_day', (q) =>
+          q.eq('day', new Date().toISOString().slice(0, 10))
+        )
+        .first()
+    );
+    expect(usage?.generationClaims).toBe(1);
+    expect(usage?.fallbacks).toBe(1);
   });
 
   it('bails out when the game is no longer in progress', async () => {
@@ -779,6 +836,192 @@ describe('multi-bot scheduling (solo play)', () => {
     );
   }
 
+  async function aiUsageForToday(t: T) {
+    return t.run((ctx) =>
+      ctx.db
+        .query('aiUsage')
+        .withIndex('by_day', (q) =>
+          q.eq('day', new Date().toISOString().slice(0, 10))
+        )
+        .first()
+    );
+  }
+
+  async function aiTurnsForRound(t: T, gameId: Id<'games'>, round: number) {
+    return t.run((ctx) =>
+      ctx.db
+        .query('aiTurns')
+        .withIndex('by_game_round', (q) =>
+          q.eq('gameId', gameId).eq('round', round)
+        )
+        .collect()
+    );
+  }
+
+  it('claims one paid generation per open bot cell and dedups re-nudges', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '10';
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedClassicGame(t, {
+      players: SOLO_PLAYERS,
+      currentRound: 0,
+    });
+
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+
+    const usage = await aiUsageForToday(t);
+    expect(usage?.generationClaims).toBe(3);
+    expect(usage?.fallbacks).toBe(0);
+
+    const turns = await aiTurnsForRound(t, gameId, 0);
+    expect(turns).toHaveLength(3);
+    expect(turns.every((turn) => turn.status === 'authorized')).toBe(true);
+  });
+
+  it('treats a blank daily budget env as the documented default', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '   ';
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedClassicGame(t, {
+      players: SOLO_PLAYERS,
+      currentRound: 0,
+    });
+
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+
+    const usage = await aiUsageForToday(t);
+    expect(usage?.generationClaims).toBe(3);
+    expect(usage?.fallbacks).toBe(0);
+  });
+
+  it('commits deterministic fallbacks without generation claims when budget is zero', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '0';
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: SOLO_PLAYERS, currentRound: 0 }
+    );
+    const aiIds = new Set([userIds[1], userIds[2], userIds[3]]);
+
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+
+    const usage = await aiUsageForToday(t);
+    expect(usage?.generationClaims ?? 0).toBe(0);
+    expect(usage?.fallbacks).toBe(3);
+
+    for (let poem = 0; poem < poemIds.length; poem++) {
+      const line = await lineFor(t, poemIds[poem], 0);
+      if (aiIds.has(matrix[0][poem])) {
+        expect(line).not.toBeNull();
+        expect(countWords(line!.text)).toBe(WORD_COUNTS[0]);
+        expect(line!.authorUserId).toBe(matrix[0][poem]);
+      } else {
+        expect(line).toBeNull();
+      }
+    }
+  });
+
+  it('enforces the daily budget atomically before scheduling paid cells', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '1';
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: SOLO_PLAYERS, currentRound: 0 }
+    );
+    const aiIds = new Set([userIds[1], userIds[2], userIds[3]]);
+
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+
+    const usage = await aiUsageForToday(t);
+    expect(usage?.generationClaims).toBe(1);
+    expect(usage?.fallbacks).toBe(2);
+
+    const turns = await aiTurnsForRound(t, gameId, 0);
+    expect(turns.filter((turn) => turn.status === 'authorized')).toHaveLength(
+      1
+    );
+    expect(
+      turns.filter((turn) => turn.status === 'budget_fallback')
+    ).toHaveLength(2);
+
+    const committedBotLines = await Promise.all(
+      poemIds.map((poemId, poemIndex) =>
+        aiIds.has(matrix[0][poemIndex]) ? lineFor(t, poemId, 0) : null
+      )
+    );
+    expect(committedBotLines.filter(Boolean)).toHaveLength(2);
+  });
+
+  it('claim rows never block the safety net from filling a stranded cell', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '10';
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: SOLO_PLAYERS, currentRound: 0 }
+    );
+    const aiIds = new Set([userIds[1], userIds[2], userIds[3]]);
+
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+
+    // Do not run the generation action. This simulates the action dying after
+    // paid cells were claimed.
+    await t.mutation(internal.ai.ensureAiLine, { roomId, gameId, round: 0 });
+
+    for (let poem = 0; poem < poemIds.length; poem++) {
+      const line = await lineFor(t, poemIds[poem], 0);
+      if (aiIds.has(matrix[0][poem])) {
+        expect(line).not.toBeNull();
+        expect(countWords(line!.text)).toBe(WORD_COUNTS[0]);
+      } else {
+        expect(line).toBeNull();
+      }
+    }
+
+    const usage = await aiUsageForToday(t);
+    expect(usage?.generationClaims).toBe(3);
+    expect(usage?.fallbacks).toBe(3);
+  });
+
+  it('completes a full deterministic solo game with one human and three bots', async () => {
+    process.env.LINEJAM_AI_DETERMINISTIC = '1';
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: SOLO_PLAYERS, currentRound: 0 }
+    );
+    const humanId = userIds[0];
+
+    for (let round = 0; round < WORD_COUNTS.length; round++) {
+      const humanPoem = poemIds[matrix[round].indexOf(humanId)];
+      await t.run((ctx) =>
+        ctx.db.insert('lines', {
+          poemId: humanPoem,
+          indexInPoem: round,
+          text: getFallbackLine(WORD_COUNTS[round], `human:${round}`),
+          wordCount: WORD_COUNTS[round],
+          authorUserId: humanId,
+          authorDisplayName: 'Human',
+          createdAt: Date.now(),
+        })
+      );
+
+      await t.mutation(internal.ai.scheduleAiTurn, {
+        roomId,
+        gameId,
+        round,
+      });
+    }
+
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    expect(game?.status).toBe('COMPLETED');
+
+    const lines = await getAllLines(t, gameId);
+    expect(lines).toHaveLength(WORD_COUNTS.length * poemIds.length);
+    for (const line of lines) {
+      expect(countWords(line.text)).toBe(WORD_COUNTS[line.indexInPoem]);
+    }
+  });
+
   it('ensureAiLine fills EVERY open AI cell, never just one (the never-die fix)', async () => {
     const t = setupConvexTest();
     const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
@@ -803,6 +1046,7 @@ describe('multi-bot scheduling (solo play)', () => {
   });
 
   it('generateLineForRound fills every bot cell on the fallback path', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '10';
     const t = setupConvexTest();
     const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
       t,
@@ -810,7 +1054,7 @@ describe('multi-bot scheduling (solo play)', () => {
     );
     const aiIds = new Set([userIds[1], userIds[2], userIds[3]]);
 
-    await t.action(internal.ai.generateLineForRound, {
+    await t.mutation(internal.ai.scheduleAiTurn, {
       roomId,
       gameId,
       round: 0,

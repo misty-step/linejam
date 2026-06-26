@@ -24,6 +24,7 @@ export interface GenerateLineParams {
 export interface GenerateLineResult {
   text: string;
   fallbackUsed: boolean;
+  attemptsUsed: number;
 }
 
 /**

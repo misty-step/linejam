@@ -95,7 +95,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
     }
   };
 
-  const handleRemoveAi = async () => {
+  const handleRemoveAi = async (aiUserId: LobbyPlayer['userId']) => {
     if (!room || aiLoading) return;
     setError(null);
     setAiLoading(true);
@@ -103,6 +103,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
       await removeAiMutation({
         code: room.code,
         guestToken: guestToken || undefined,
+        aiUserId,
       });
     } catch (err) {
       const feedback = errorToFeedback(err);
@@ -259,7 +260,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                           <BotBadge />
                           {isHost && (
                             <button
-                              onClick={handleRemoveAi}
+                              onClick={() => handleRemoveAi(player.userId)}
                               disabled={aiLoading}
                               className="p-1.5 text-text-muted hover:text-primary transition-colors disabled:opacity-50"
                               aria-label="Remove AI player"

@@ -113,6 +113,33 @@ export default defineSchema({
     .index('by_poem_index', ['poemId', 'indexInPoem'])
     .index('by_author', ['authorUserId']),
 
+  aiTurns: defineTable({
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    poemId: v.id('poems'),
+    round: v.number(),
+    aiUserId: v.id('users'),
+    day: v.string(),
+    status: v.union(
+      v.literal('authorized'),
+      v.literal('budget_fallback'),
+      v.literal('deterministic_fallback')
+    ),
+    claimedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_cell', ['poemId', 'round'])
+    .index('by_game_round', ['gameId', 'round'])
+    .index('by_day', ['day']),
+
+  aiUsage: defineTable({
+    day: v.string(),
+    generationClaims: v.number(),
+    httpAttempts: v.number(),
+    fallbacks: v.number(),
+    updatedAt: v.number(),
+  }).index('by_day', ['day']),
+
   favorites: defineTable({
     userId: v.id('users'),
     poemId: v.id('poems'),

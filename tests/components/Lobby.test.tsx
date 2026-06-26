@@ -345,6 +345,7 @@ describe('Lobby component', () => {
       expect(mockMutations.removeAi).toHaveBeenCalledWith({
         code: 'ABCD',
         guestToken: 'mock-token',
+        aiUserId: 'user_ai',
       });
     });
   });

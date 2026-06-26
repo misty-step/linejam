@@ -23,14 +23,12 @@ import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { internal } from './_generated/api';
-import { commitAssignedLine } from './ai';
+import { commitFallbackLine } from './ai';
 import { getMatrixRound } from './lib/assignmentMatrix';
-import { getFallbackLine, fallbackSeed } from './lib/ai/llm';
 import { applyLineLifecycleTransition } from './lib/sessionLifecycle';
 import {
   ABANDONMENT_HARD_DEADLINE_MS,
   ABANDONMENT_THRESHOLD_MS,
-  WORD_COUNTS,
   getFinalRoundIndex,
   isPresenceStale,
 } from './lib/gameRules';
@@ -241,8 +239,6 @@ export const finishAbandonedGame = internalMutation({
       const assignees = await Promise.all(
         missing.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
       );
-      const expectedCount = WORD_COUNTS[round];
-
       for (let i = 0; i < missing.length; i++) {
         const poem = missing[i];
         const assignee = assignees[i];
@@ -250,12 +246,11 @@ export const finishAbandonedGame = internalMutation({
         // Honest byline: ghost for humans, the AI's own name for AI poems.
         const authorDisplayName =
           assignee?.kind === 'AI' ? baseName : `${baseName} (ghost)`;
-        const committed = await commitAssignedLine(ctx, {
+        const committed = await commitFallbackLine(ctx, {
           roomId: game.roomId,
           gameId,
           poemId: poem._id,
           lineIndex: round,
-          text: getFallbackLine(expectedCount, fallbackSeed(poem._id, round)),
           authorUserId: roundAssignments[poem.indexInRoom],
           authorDisplayName,
         });

@@ -54,27 +54,31 @@ vercel env ls
 
 #### Required Variables by Surface
 
-| Variable                                   | Environments                     | Description                                                                |
-| ------------------------------------------ | -------------------------------- | -------------------------------------------------------------------------- |
-| `GUEST_TOKEN_SECRET`                       | Production, Preview              | Guest token signing secret (must match Convex)                             |
-| `NEXT_PUBLIC_CONVEX_URL`                   | Production, Preview, Development | Convex deployment URL                                                      |
-| `CONVEX_DEPLOYMENT`                        | Production, Preview, Development | Convex deployment name                                                     |
-| `CONVEX_DEPLOY_KEY`                        | Production, Preview if forced    | Required for hosted production deploys; optional for compile-only previews |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`        | Production, Preview, Development | Clerk publishable key                                                      |
-| `CLERK_SECRET_KEY`                         | Production, Preview, Development | Clerk secret key                                                           |
-| `PLAYWRIGHT_CLERK_TEST_EMAIL`              | Production, Preview              | Optional override for the Clerk smoke user email                           |
-| `PLAYWRIGHT_REQUIRE_AUTH_E2E`              | Hosted CI mirror                 | Keep at `1` to mirror the local Dagger contract                            |
-| `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE` | Local only                       | Keep at `0`; live Clerk mutation must be explicit                          |
-| `CANARY_ENDPOINT`                          | Production, Preview              | Canary API base URL                                                        |
-| `CANARY_API_KEY`                           | Production, Preview              | Canary server ingest/query key                                             |
-| `NEXT_PUBLIC_CANARY_ENDPOINT`              | Production, Preview              | Canary browser ingest URL                                                  |
-| `NEXT_PUBLIC_CANARY_API_KEY`               | Production, Preview              | Canary browser write-only ingest key                                       |
-| `LINEJAM_CANARY_WEBHOOK_SECRET`            | Production, Preview              | Shared secret for signed Canary deliveries                                 |
-| `LINEJAM_CANARY_WEBHOOK_URL`               | Production, Preview              | URL registered with Canary webhook subscriptions                           |
-| `LINEJAM_SMOKE_RUNNER`                     | Responder only                   | Use `playwright` for hosted responders                                     |
-| `CANARY_WEBHOOK_SEND_TEST`                 | Local only                       | Set to `1` to send Canary's test ping after setup                          |
-| `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`            | Production, Preview              | Keep at `1` unless you intentionally skip auth                             |
-| `OPENROUTER_API_KEY`                       | Convex only (Production)         | OpenRouter API key for AI player LLM access                                |
+| Variable                                   | Environments                     | Description                                                                    |
+| ------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------ |
+| `GUEST_TOKEN_SECRET`                       | Production, Preview              | Guest token signing secret (must match Convex)                                 |
+| `NEXT_PUBLIC_CONVEX_URL`                   | Production, Preview, Development | Convex deployment URL                                                          |
+| `CONVEX_DEPLOYMENT`                        | Production, Preview, Development | Convex deployment name                                                         |
+| `CONVEX_DEPLOY_KEY`                        | Production, Preview if forced    | Required for hosted production deploys; optional for compile-only previews     |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`        | Production, Preview, Development | Clerk publishable key                                                          |
+| `CLERK_SECRET_KEY`                         | Production, Preview, Development | Clerk secret key                                                               |
+| `PLAYWRIGHT_CLERK_TEST_EMAIL`              | Production, Preview              | Optional override for the Clerk smoke user email                               |
+| `PLAYWRIGHT_REQUIRE_AUTH_E2E`              | Hosted CI mirror                 | Keep at `1` to mirror the local Dagger contract                                |
+| `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE` | Local only                       | Keep at `0`; live Clerk mutation must be explicit                              |
+| `CANARY_ENDPOINT`                          | Production, Preview              | Canary API base URL                                                            |
+| `CANARY_API_KEY`                           | Production, Preview              | Canary server ingest/query key                                                 |
+| `NEXT_PUBLIC_CANARY_ENDPOINT`              | Production, Preview              | Canary browser ingest URL                                                      |
+| `NEXT_PUBLIC_CANARY_API_KEY`               | Production, Preview              | Canary browser write-only ingest key                                           |
+| `LINEJAM_CANARY_WEBHOOK_SECRET`            | Production, Preview              | Shared secret for signed Canary deliveries                                     |
+| `LINEJAM_CANARY_WEBHOOK_URL`               | Production, Preview              | URL registered with Canary webhook subscriptions                               |
+| `LINEJAM_SMOKE_RUNNER`                     | Responder only                   | Use `playwright` for hosted responders                                         |
+| `CANARY_WEBHOOK_SEND_TEST`                 | Local only                       | Set to `1` to send Canary's test ping after setup                              |
+| `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`            | Production, Preview              | Keep at `1` unless you intentionally skip auth                                 |
+| `OPENROUTER_API_KEY`                       | Convex only (Production)         | OpenRouter API key for AI player LLM access                                    |
+| `AI_MODEL`                                 | Convex only                      | Optional OpenRouter model override; defaults to `google/gemini-2.5-flash-lite` |
+| `AI_DAILY_CALL_BUDGET`                     | Convex only                      | Optional daily claimed-generation budget for bot LLM calls; defaults to `250`  |
+| `MAX_AI_PLAYERS`                           | Convex only                      | Optional bot cap per room; defaults to `3`                                     |
+| `LINEJAM_AI_DETERMINISTIC`                 | Local/QA Convex only             | Set to `1` to force deterministic bot fallbacks and avoid OpenRouter calls     |
 
 ### 3. Configure Convex Environment Variables
 
