@@ -71,7 +71,11 @@ pnpm test         # Run once
 pnpm test:watch   # Watch mode
 pnpm test:ci      # With coverage
 
-# Local-first CI via Dagger
+# Fast local CI
+pnpm ci:fast
+pnpm ci:prepush
+
+# Full local Dagger parity
 pnpm ci:dagger:all-no-e2e
 pnpm ci:dagger:all
 
@@ -120,8 +124,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 - Canary is the primary error and incident system. Client errors, request failures, and explicit `captureError()` calls all flow there.
 - Critical route telemetry is structured JSON. `/api/health` and `/api/guest/session` log method, route, status, and duration without guest tokens, display names, or raw request payloads.
 - Completed rooms end in a shared recap hub. Players can replay every poem, share `/recap/<room-code>`, and keep the same group moving into the next round without relying on one-off archive links.
-- Treat Dagger as the source of truth for local engineering validation: `pnpm ci:dagger:all`.
-- GitHub Actions still enforces branch protection remotely. Keep the local Dagger contract green first, then expect hosted `merge-gate` and preview/prod smoke to mirror that branch on remote infrastructure.
+- Use `pnpm ci:fast` for the fast host loop: typecheck, lint, and tests without Docker. `pnpm ci:prepush` is the same command under the pre-push hook.
+- GitHub Actions enforces the authoritative full contract through hosted `merge-gate`. Run `pnpm ci:dagger:all` on demand for full local parity when Docker and the required env are available.
 - Local Dagger auto-hydrates `GUEST_TOKEN_SECRET` from the active Convex deployment when `NEXT_PUBLIC_CONVEX_URL` points at the same Convex dev or prod backend that the CLI resolves.
 - Local Dagger auto-syncs the active Convex dev deployment before `all` and `e2e` runs. It refuses to push production Convex code unless you explicitly set `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.
 - Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Dev/test Clerk keys can be bootstrapped automatically; live-key mutation stays blocked unless you explicitly set `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=1`.

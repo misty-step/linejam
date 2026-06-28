@@ -225,14 +225,17 @@ If you see `500 Internal Server Error` or "Token signature verification failed",
 - The values are **identical** in both environments
 - No trailing whitespace or encoding issues in the secret
 
-### 4. Run Local-First CI
+### 4. Run Local CI
 
 ```bash
-# Run the local-first CI contract
+# Run the fast host gate
+pnpm ci:fast
+
+# Run full local Dagger parity for the hosted merge-gate
 pnpm ci:dagger:all
 ```
 
-This should pass without guest-token verification mismatches. Local Dagger hydrates `GUEST_TOKEN_SECRET` from the matching Convex deployment automatically.
+The fast gate should pass before push. The full Dagger parity gate should pass without guest-token verification mismatches. Local Dagger hydrates `GUEST_TOKEN_SECRET` from the matching Convex deployment automatically.
 It also ensures the Clerk `convex` JWT template exists before authenticated browser coverage runs.
 
 ## Deployment Workflow

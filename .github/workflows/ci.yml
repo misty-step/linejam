@@ -172,9 +172,11 @@ jobs:
 
       - name: Set QA evidence paths
         run: |
-          echo "LINEJAM_EVIDENCE_DIR=$RUNNER_TEMP/linejam-evidence" >> "$GITHUB_ENV"
-          echo "LINEJAM_EVIDENCE_SERVER_LOG=$RUNNER_TEMP/linejam-evidence-server.log" >> "$GITHUB_ENV"
-          echo "LINEJAM_EVIDENCE_SERVER_PID=$RUNNER_TEMP/linejam-evidence-server.pid" >> "$GITHUB_ENV"
+          {
+            echo "LINEJAM_EVIDENCE_DIR=$RUNNER_TEMP/linejam-evidence"
+            echo "LINEJAM_EVIDENCE_SERVER_LOG=$RUNNER_TEMP/linejam-evidence-server.log"
+            echo "LINEJAM_EVIDENCE_SERVER_PID=$RUNNER_TEMP/linejam-evidence-server.pid"
+          } >> "$GITHUB_ENV"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -202,7 +204,7 @@ jobs:
           PORT=3333 pnpm start:next > "$LINEJAM_EVIDENCE_SERVER_LOG" 2>&1 &
           echo $! > "$LINEJAM_EVIDENCE_SERVER_PID"
 
-          for attempt in {1..60}; do
+          for _ in {1..60}; do
             if curl -sf "$LINEJAM_BASE_URL" >/dev/null; then
               exit 0
             fi
