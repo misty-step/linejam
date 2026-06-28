@@ -32,6 +32,7 @@
     "test:e2e:ui": "playwright test --ui --grep-invert \"@evidence|@slow\"",
     "qa:agentic:local": "node ./scripts/qa/agentic.mjs --target local",
     "qa:agentic:preview": "node ./scripts/qa/agentic.mjs --target preview",
+    "ci:fast": "pnpm ci:prepush",
     "ci:dagger:all": "./scripts/ci/dagger-call.sh all",
     "ci:dagger:all-no-e2e": "./scripts/ci/dagger-call.sh all-no-e2e",
     "ci:dagger:agentic-qa": "./scripts/ci/dagger-call.sh agentic-qa",

@@ -104,6 +104,7 @@ pnpm typecheck
 pnpm lint:fix
 
 # Gate
+pnpm ci:fast
 pnpm ci:prepush
 pnpm ci:dagger:{lint,typecheck,format-check,build-check,unit-test,e2e,audit,secret-scan,smoke,all-no-e2e,all}
 

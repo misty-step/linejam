@@ -14,9 +14,35 @@ import { join, resolve } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+const GIT_LOCAL_ENV_VARS = [
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_CONFIG',
+  'GIT_CONFIG_PARAMETERS',
+  'GIT_CONFIG_COUNT',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_IMPLICIT_WORK_TREE',
+  'GIT_GRAFT_FILE',
+  'GIT_INDEX_FILE',
+  'GIT_NO_REPLACE_OBJECTS',
+  'GIT_REPLACE_REF_BASE',
+  'GIT_PREFIX',
+  'GIT_SHALLOW_FILE',
+  'GIT_COMMON_DIR',
+];
+
 function writeExecutable(path: string, contents: string) {
   writeFileSync(path, contents);
   chmodSync(path, 0o755);
+}
+
+function cleanGitLocalEnv(env = process.env) {
+  const clean = { ...env };
+  for (const key of GIT_LOCAL_ENV_VARS) {
+    delete clean[key];
+  }
+  return clean;
 }
 
 function createWorkspaceFixture() {
@@ -59,6 +85,7 @@ for (const relative of raw) {
 function initGitRepo(workspace: string) {
   const gitInit = spawnSync('git', ['init', '-q'], {
     cwd: workspace,
+    env: cleanGitLocalEnv(),
     encoding: 'utf8',
   });
 
@@ -77,7 +104,7 @@ function runDaggerCall(
     {
       cwd: workspace,
       env: {
-        ...process.env,
+        ...cleanGitLocalEnv(),
         ...env,
         PATH: `${binDir}:${process.env.PATH ?? ''}`,
       },
@@ -124,7 +151,11 @@ printf '%s' "\${NEXT_PUBLIC_CANARY_API_KEY:-}" > "${envLog}"
 
     initGitRepo(workspace);
 
-    const result = runDaggerCall(workspace, binDir, 'format-check');
+    const result = runDaggerCall(workspace, binDir, 'format-check', {
+      GIT_DIR: join(workspace, 'not-this-repo.git'),
+      GIT_WORK_TREE: join(workspace, 'not-this-worktree'),
+      GIT_INDEX_FILE: join(workspace, 'not-this-index'),
+    });
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe('');

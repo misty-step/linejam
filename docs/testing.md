@@ -8,7 +8,8 @@ Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playw
 pnpm test          # Run unit tests once
 pnpm test:watch    # Watch mode for development
 pnpm test:ci       # CI mode with coverage
-pnpm ci:dagger:all # Local-first CI contract
+pnpm ci:fast       # Fast local gate: typecheck, lint, tests
+pnpm ci:dagger:all # Full local Dagger parity for hosted merge-gate
 pnpm test:e2e      # Run deterministic E2E tests (excludes @evidence)
 pnpm test:e2e:smoke # Remote preview/prod smoke
 pnpm test:e2e:evidence # Run the tagged evidence capture spec
