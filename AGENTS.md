@@ -24,7 +24,8 @@ depth.
 
 Read these when you need the truth:
 
-- `project.md` — product north star: vision, current focus, anti-goals. Read first to know what excellence means here before changing direction.
+- `VISION.md` — canonical north star: what Linejam is, what must stay true, and what the project refuses.
+- `project.md` — deeper product brief: current focus, glossary, quality bar, patterns, and anti-goals. Read it before changing direction.
 - `convex/_generated/api.d.ts` — current Convex API surface.
 - `convex/schema.ts` — source of truth for data model.
 - `convex/lib/assignmentMatrix.ts` — load-bearing derangement-like assignment logic.
@@ -104,7 +105,6 @@ pnpm typecheck
 pnpm lint:fix
 
 # Gate
-pnpm ci:fast
 pnpm ci:prepush
 pnpm ci:dagger:{lint,typecheck,format-check,build-check,unit-test,e2e,audit,secret-scan,smoke,all-no-e2e,all}
 
