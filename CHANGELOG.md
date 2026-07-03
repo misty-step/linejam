@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [1.13.0](https://github.com/misty-step/linejam/compare/v1.12.0...v1.13.0) (2026-07-03)
+
+
+### Features
+
+* **observability:** report canary health check-ins ([#289](https://github.com/misty-step/linejam/issues/289)) ([e69e32f](https://github.com/misty-step/linejam/commit/e69e32fbb183609db6f5aca8b5d941732d8e5add))
+
 # [1.12.0](https://github.com/misty-step/linejam/compare/v1.11.0...v1.12.0) (2026-07-03)
 
 
