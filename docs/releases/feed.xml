@@ -4,8 +4,21 @@
 <title>misty-step/linejam</title>
 <link>https://github.com/misty-step/linejam</link>
 <description>Release notes for misty-step/linejam</description>
-<lastBuildDate>Fri, 26 Jun 2026 15:03:47 +0000</lastBuildDate>
-<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<h2>New Features</h2>
+<lastBuildDate>Fri, 3 Jul 2026 00:36:31 +0000</lastBuildDate>
+<item><title>misty-step/linejam v1.11.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.11.0</link><guid>v1.11.0</guid><description><![CDATA[<h2>Breaking Changes</h2>
+<p>We've streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.</p>
+<h2>New Features</h2>
+<ul>
+<li>You can now keep playing even if your game host leaves, as we'll automatically pick a new host from your group.</li>
+<li>You can now see a shared recap page after each game to relive your best poem moments together.</li>
+<li>You can now vote for your favorite poem in each round, and we'll crown a room champion at the end.</li>
+</ul>
+<h2>Bug Fixes</h2>
+<ul>
+<li>Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go.</li>
+</ul>
+]]></description><pubDate>Fri, 3 Jul 2026 00:36:31 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now play with just one game mode that's perfectly tuned for collaborative poetry.</li>
 <li>The room automatically finds a new host when the current host leaves mid-game.</li>
@@ -16,6 +29,6 @@
 <ul>
 <li>The mobile writing experience is now much easier to use with a cleaner interface.</li>
 </ul>
-]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
+]]]]><![CDATA[>]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
 </channel>
 </rss>
