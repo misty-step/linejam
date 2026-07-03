@@ -4,8 +4,26 @@
 <title>misty-step/linejam</title>
 <link>https://github.com/misty-step/linejam</link>
 <description>Release notes for misty-step/linejam</description>
-<lastBuildDate>Fri, 3 Jul 2026 00:36:31 +0000</lastBuildDate>
-<item><title>misty-step/linejam v1.11.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.11.0</link><guid>v1.11.0</guid><description><![CDATA[<h2>Breaking Changes</h2>
+<lastBuildDate>Fri, 3 Jul 2026 00:45:14 +0000</lastBuildDate>
+<item><title>misty-step/linejam v1.12.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.12.0</link><guid>v1.12.0</guid><description><![CDATA[<h2>Breaking Changes</h2>
+<p><strong>Game modes simplified:</strong> Linejam now focuses on one core collaborative poetry experience. The separate Rhyme Relay and Quick Jam modes have been removed to streamline gameplay. All rooms now use the same fun, pass-the-poem format you love.</p>
+<h2>New Features</h2>
+<ul>
+<li>You can now vote for your favorite poem at the end of each game session.</li>
+<li>You can now view a shared recap hub that shows all the poems created during your session.</li>
+<li>The game now automatically keeps rooms alive and recovers from connection issues so your poetry sessions never get interrupted.</li>
+<li>You can now seamlessly continue playing even if the original host leaves the room.</li>
+</ul>
+<h2>Improvements</h2>
+<ul>
+<li>The mobile writing experience now works much better with improved touch controls and less screen clutter.</li>
+</ul>
+<h2>Bug Fixes</h2>
+<ul>
+<li>Fixed mobile touch targets to work properly with thumbs on all game screens.</li>
+</ul>
+]]></description><pubDate>Fri, 3 Jul 2026 00:45:14 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.11.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.11.0</link><guid>v1.11.0</guid><description><![CDATA[<![CDATA[<h2>Breaking Changes</h2>
 <p>We've streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.</p>
 <h2>New Features</h2>
 <ul>
@@ -17,8 +35,8 @@
 <ul>
 <li>Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go.</li>
 </ul>
-]]></description><pubDate>Fri, 3 Jul 2026 00:36:31 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<![CDATA[<h2>New Features</h2>
+]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:36:31 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now play with just one game mode that's perfectly tuned for collaborative poetry.</li>
 <li>The room automatically finds a new host when the current host leaves mid-game.</li>
@@ -29,6 +47,6 @@
 <ul>
 <li>The mobile writing experience is now much easier to use with a cleaner interface.</li>
 </ul>
-]]]]><![CDATA[>]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
+]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
 </channel>
 </rss>
