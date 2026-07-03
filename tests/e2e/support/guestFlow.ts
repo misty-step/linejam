@@ -337,7 +337,10 @@ export class GuestFlowSession {
   async openHelpModal() {
     // Help / Theme / archive now live behind the overflow ("More options") menu.
     await this.hostPage.getByRole('button', { name: /More options/i }).click();
-    await this.hostPage.getByRole('button', { name: /How to play/i }).click();
+    await this.hostPage
+      .getByRole('button', { name: /How to play/i })
+      .last()
+      .click();
     await ensureVisible(
       this.hostPage.getByRole('heading', { name: /How to Play/i }),
       'help modal'

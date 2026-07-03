@@ -2,10 +2,12 @@ import 'server-only';
 
 import {
   DEFAULT_CANARY_ENDPOINT,
+  type CanaryCheckInPayload,
   captureCanaryExceptionWith,
   isCanaryConfigured,
   normalizeApiKey,
   scrubCanaryContext,
+  sendCanaryCheckIn,
 } from '@/lib/canaryCore';
 
 function getCanaryConfig() {
@@ -40,6 +42,12 @@ export async function captureCanaryException(
   context?: Record<string, unknown>
 ): Promise<void> {
   await captureCanaryExceptionWith(getCanaryConfig, error, context);
+}
+
+export async function reportCanaryCheckIn(
+  payload: CanaryCheckInPayload
+): Promise<void> {
+  await sendCanaryCheckIn(getCanaryConfig(), payload);
 }
 
 export { scrubCanaryContext };

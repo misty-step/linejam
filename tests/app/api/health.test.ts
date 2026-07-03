@@ -44,6 +44,8 @@ describe('/api/health', () => {
     beforeAll(async () => {
       vi.resetModules();
       process.env = { ...originalEnv };
+      delete process.env.CANARY_API_KEY;
+      delete process.env.CANARY_ENDPOINT;
       process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
       process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
       process.env.NEXT_PUBLIC_CANARY_API_KEY =
@@ -53,6 +55,8 @@ describe('/api/health', () => {
         ConvexHttpClient: MockConvexHttpClient,
       }));
       mockQuery.mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
+      fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
 
       const mod = await import('@/app/api/health/route');
       GET = mod.GET;
@@ -61,6 +65,8 @@ describe('/api/health', () => {
     afterEach(() => {
       mockQuery.mockReset();
       mockQuery.mockResolvedValue({ ok: true });
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
       vi.useRealTimers();
     });
 
@@ -99,6 +105,16 @@ describe('/api/health', () => {
           durationMs: expect.any(Number),
           convex: 'connected',
           observabilityStatus: 'ready',
+        })
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/api\/v1\/check-ins$/),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer sk_test_canary',
+          }),
         })
       );
     });

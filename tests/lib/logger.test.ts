@@ -48,6 +48,39 @@ describe('logger', () => {
     });
   });
 
+  it('describes non-Error timestamp failures', () => {
+    vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
+      throw 'clock failed';
+    });
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    log.info('clock checked');
+
+    expect(parseJsonCall(consoleLogSpy)).toMatchObject({
+      level: 'info',
+      message: 'clock checked',
+      timestamp: 'timestamp-unavailable',
+      timestampErrorName: 'UnknownError',
+      timestampErrorMessage: 'clock failed',
+    });
+  });
+
+  it('serializes Error values embedded in structured context', () => {
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    log.warn('recoverable failure', { cause: new TypeError('bad input') });
+
+    expect(parseJsonCall(consoleLogSpy)).toMatchObject({
+      level: 'warn',
+      message: 'recoverable failure',
+      cause: {
+        name: 'TypeError',
+        message: 'bad input',
+        stack: expect.stringContaining('TypeError: bad input'),
+      },
+    });
+  });
+
   it('serializes Error objects and protects against circular context', () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
@@ -63,6 +96,21 @@ describe('logger', () => {
       errorName: 'Error',
       errorMessage: 'boom',
       circular: '[Non-serializable]',
+    });
+  });
+
+  it('logs non-Error failures with a string fallback', () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    logError('request failed', 'boom', { route: '/api/health' });
+
+    expect(parseJsonCall(consoleErrorSpy)).toMatchObject({
+      level: 'error',
+      message: 'request failed',
+      errorValue: 'boom',
+      route: '/api/health',
     });
   });
 });
