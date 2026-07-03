@@ -33,6 +33,13 @@ export type CanaryPayload = {
   fingerprint?: string[];
 };
 
+export type CanaryCheckInPayload = {
+  status: 'alive' | 'in_progress' | 'ok' | 'error';
+  summary: string;
+  ttlMs: number;
+  context?: Record<string, unknown>;
+};
+
 export type CanaryConfig = {
   apiKey: string;
   endpoint: string;
@@ -205,5 +212,47 @@ export async function sendCanaryPayload(
       originalError: scrubErrorForLogs(originalError),
       context: payload.context,
     });
+  }
+}
+
+export async function sendCanaryCheckIn(
+  config: CanaryConfig,
+  payload: CanaryCheckInPayload
+): Promise<void> {
+  if (!config.apiKey) return;
+
+  try {
+    const response = await fetch(
+      `${config.endpoint.replace(/\/$/, '')}/api/v1/check-ins`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          monitor: SERVICE,
+          status: payload.status,
+          summary: payload.summary,
+          ttl_ms: payload.ttlMs,
+          context: scrubCanaryContext(payload.context),
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Canary check-in returned ${response.status} ${response.statusText}`.trim()
+      );
+    }
+  } catch (reportingError) {
+    console.error(
+      'Canary check-in failed:',
+      scrubErrorForLogs(reportingError),
+      {
+        context: scrubCanaryContext(payload.context),
+      }
+    );
   }
 }

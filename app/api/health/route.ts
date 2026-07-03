@@ -1,6 +1,10 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
-import { captureCanaryException, isCanaryEnabled } from '@/lib/canaryServer';
+import {
+  captureCanaryException,
+  isCanaryEnabled,
+  reportCanaryCheckIn,
+} from '@/lib/canaryServer';
 import { log, logError, logRequest } from '@/lib/logger';
 
 const CONVEX_HEALTH_TIMEOUT_MS = 1_500;
@@ -39,6 +43,15 @@ export async function GET() {
       durationMs: elapsedMs(startedAt),
       convex: convexStatus,
       observabilityStatus: canaryReady ? 'ready' : 'degraded',
+    });
+
+    await reportHealthCheckIn({
+      status: serviceHealthy ? 'alive' : 'error',
+      summary: serviceHealthy
+        ? 'linejam health route ok'
+        : 'linejam health route degraded',
+      routeStatus: status,
+      startedAt,
     });
 
     return Response.json(body, {
@@ -121,6 +134,25 @@ async function logFailure(error: unknown, startedAt: number) {
   logError('Healthcheck failed', error, context);
 
   void captureCanaryException(error, context);
+}
+
+async function reportHealthCheckIn(input: {
+  status: 'alive' | 'error';
+  summary: string;
+  routeStatus: number;
+  startedAt: number;
+}) {
+  await reportCanaryCheckIn({
+    status: input.status,
+    summary: input.summary,
+    ttlMs: 300_000,
+    context: {
+      source: 'api.health',
+      route: ROUTE,
+      status: input.routeStatus,
+      durationMs: elapsedMs(input.startedAt),
+    },
+  });
 }
 
 function elapsedMs(startedAt: number) {

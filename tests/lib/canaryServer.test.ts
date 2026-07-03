@@ -102,4 +102,116 @@ describe('captureCanaryException (server)', () => {
     const body = JSON.parse(String(request?.body)) as { environment: string };
     expect(body.environment).toBe('staging');
   });
+
+  it('posts server-side health check-ins', async () => {
+    vi.stubEnv('CANARY_API_KEY', 'sk_server_canary');
+    vi.stubEnv('CANARY_ENDPOINT', 'https://server-canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+
+    const { reportCanaryCheckIn } = await import('@/lib/canaryServer');
+    await reportCanaryCheckIn({
+      status: 'alive',
+      summary: 'linejam health route ok',
+      ttlMs: 300_000,
+      context: {
+        source: 'api.health',
+        route: '/api/health',
+        status: 200,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://server-canary.test/api/v1/check-ins',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk_server_canary',
+        }),
+      })
+    );
+
+    const [, request] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(request?.body));
+    expect(body).toEqual({
+      monitor: 'linejam',
+      status: 'alive',
+      summary: 'linejam health route ok',
+      ttl_ms: 300_000,
+      context: {
+        source: 'api.health',
+        route: '/api/health',
+        status: 200,
+      },
+    });
+  });
+
+  it('does not post check-ins without an api key', async () => {
+    const { sendCanaryCheckIn } = await import('@/lib/canaryCore');
+
+    await sendCanaryCheckIn(
+      {
+        apiKey: '',
+        endpoint: 'https://server-canary.test/',
+        environment: 'test',
+      },
+      {
+        status: 'alive',
+        summary: 'linejam health route ok',
+        ttlMs: 300_000,
+      }
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('logs non-OK check-in responses with scrubbed context', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    fetchMock.mockResolvedValue(new Response(null, { status: 503 }));
+
+    const { sendCanaryCheckIn } = await import('@/lib/canaryCore');
+    await sendCanaryCheckIn(
+      {
+        apiKey: 'sk_server_canary',
+        endpoint: 'https://server-canary.test/',
+        environment: 'test',
+      },
+      {
+        status: 'error',
+        summary: 'linejam worker degraded',
+        ttlMs: 120_000,
+        context: {
+          source: 'worker',
+          route: '/jobs/sync',
+          authorization: 'secret',
+        },
+      }
+    );
+
+    const [, request] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(request?.body));
+    expect(body).toEqual({
+      monitor: 'linejam',
+      status: 'error',
+      summary: 'linejam worker degraded',
+      ttl_ms: 120_000,
+      context: {
+        source: 'worker',
+        route: '/jobs/sync',
+      },
+    });
+    expect(consoleError).toHaveBeenCalledWith(
+      'Canary check-in failed:',
+      expect.objectContaining({
+        errorClass: 'Error',
+        message: 'Canary check-in returned 503',
+      }),
+      {
+        context: {
+          source: 'worker',
+          route: '/jobs/sync',
+        },
+      }
+    );
+  });
 });

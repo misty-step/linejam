@@ -87,6 +87,37 @@ describe('canary helpers', () => {
     });
   });
 
+  it('uses Error constructor names before the generic fallback', async () => {
+    const { normalizeError } = await import('@/lib/canaryCore');
+
+    class CustomCanaryError extends Error {}
+    const namedByConstructor = new CustomCanaryError('constructor name');
+    Object.defineProperty(namedByConstructor, 'name', {
+      configurable: true,
+      value: '',
+    });
+
+    expect(normalizeError(namedByConstructor)).toMatchObject({
+      errorClass: 'CustomCanaryError',
+      message: 'constructor name',
+    });
+
+    const genericFallback = new Error('generic name');
+    Object.defineProperty(genericFallback, 'name', {
+      configurable: true,
+      value: '',
+    });
+    Object.defineProperty(genericFallback, 'constructor', {
+      configurable: true,
+      value: { name: '' },
+    });
+
+    expect(normalizeError(genericFallback)).toMatchObject({
+      errorClass: 'Error',
+      message: 'generic name',
+    });
+  });
+
   it('drops empty scrubbed collections and non-string structured stack traces', async () => {
     const { scrubCanaryContext, scrubErrorForLogs } =
       await import('@/lib/canaryCore');
@@ -95,8 +126,11 @@ describe('canary helpers', () => {
       scrubCanaryContext({
         path: [{ userId: 'x' }],
         route: { userId: 'y' },
+        status: { route: '/api/health', authorization: 'secret' },
       })
-    ).toBeUndefined();
+    ).toEqual({
+      status: { route: '/api/health' },
+    });
     expect(
       scrubErrorForLogs({
         errorClass: 'ManualError',
