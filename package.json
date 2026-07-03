@@ -63,6 +63,7 @@
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "posthog-js": "^1.391.9",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "require-in-the-middle": "^8.0.1",
@@ -102,8 +103,8 @@
     "semantic-release": "^25.0.5",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.9",
-    "vite": "7.3.5"
+    "vite": "7.3.5",
+    "vitest": "^4.1.9"
   },
   "packageManager": "pnpm@10.22.0+sha512.bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c",
   "pnpm": {

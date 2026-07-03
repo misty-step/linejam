@@ -15,6 +15,7 @@ import { BotBadge } from './ui/BotBadge';
 interface WaitingScreenProps {
   roomCode: string;
   guestToken?: string | null;
+  isLateJoiner?: boolean;
   progressOverride?: {
     round: number;
     roundStartedAt?: number;
@@ -36,6 +37,7 @@ const OVERTIME_TICK_MS = 5_000;
 export function WaitingScreen({
   roomCode,
   guestToken: propToken,
+  isLateJoiner = false,
   progressOverride,
 }: WaitingScreenProps) {
   // Use prop token if provided (from parent component), otherwise use hook token
@@ -120,6 +122,18 @@ export function WaitingScreen({
         className="w-full max-w-2xl flex flex-col items-center"
         style={{ minHeight: '72vh' }}
       >
+        {/* Late-joiner explanation */}
+        {isLateJoiner && (
+          <div className="flex-none mb-8 text-center">
+            <p className="text-sm font-mono uppercase tracking-wider text-[var(--color-primary)]">
+              Game in progress
+            </p>
+            <p className="mt-2 text-base text-[var(--color-text-secondary)]">
+              You&apos;re in for the next round. Sit tight.
+            </p>
+          </div>
+        )}
+
         {/* Center: Headline */}
         <div className="flex-none mb-24 md:mb-28 text-center space-y-6">
           <h2 className="text-6xl md:text-8xl font-[var(--font-display)] leading-[1.05]">
@@ -157,54 +171,48 @@ export function WaitingScreen({
             {players.map((player, index) => (
               <div
                 key={player.userId}
-                className="relative group"
+                className="relative"
                 style={{
                   animationDelay: `${index * 100}ms`,
                 }}
               >
-                {player.submitted ? (
-                  // Settled - subdued avatar
-                  <div className="opacity-50 transition-opacity duration-[var(--duration-normal)]">
-                    <Avatar
-                      stableId={player.stableId}
-                      displayName={player.displayName}
-                      allStableIds={allStableIds}
-                      size="sm"
-                    />
-                  </div>
-                ) : (
-                  // Active - avatar with pulse ring (dimmed if away)
-                  <div
-                    className={`relative ${player.isAway ? 'opacity-40' : ''}`}
-                  >
-                    <Avatar
-                      stableId={player.stableId}
-                      displayName={player.displayName}
-                      allStableIds={allStableIds}
-                      size="sm"
-                    />
-                    {/* Pulse ring - only for players who are present */}
-                    {!player.isAway && (
-                      <div
-                        className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
-                        style={{
-                          animation: 'avatar-pulse 2s ease-out infinite',
-                          color: 'var(--color-primary)',
-                        }}
+                <div className="flex flex-col items-center gap-1.5">
+                  {player.submitted ? (
+                    <div className="opacity-50 transition-opacity duration-[var(--duration-normal)]">
+                      <Avatar
+                        stableId={player.stableId}
+                        displayName={player.displayName}
+                        allStableIds={allStableIds}
+                        size="sm"
                       />
-                    )}
-                  </div>
-                )}
-                {/* Name tooltip on hover */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-                  <div className="bg-[var(--color-background)] border border-[var(--color-border)] px-3 py-1 rounded-full shadow-lg whitespace-nowrap flex items-center gap-1.5">
-                    <span
-                      className={`text-[var(--text-xs)] font-medium ${player.submitted ? 'text-[var(--color-text-secondary)] line-through' : 'text-[var(--color-text-primary)]'}`}
+                    </div>
+                  ) : (
+                    <div
+                      className={`relative ${player.isAway ? 'opacity-40' : ''}`}
                     >
-                      {player.displayName}
-                    </span>
-                    {player.isBot && <BotBadge showLabel={false} />}
-                  </div>
+                      <Avatar
+                        stableId={player.stableId}
+                        displayName={player.displayName}
+                        allStableIds={allStableIds}
+                        size="sm"
+                      />
+                      {!player.isAway && (
+                        <div
+                          className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
+                          style={{
+                            animation: 'avatar-pulse 2s ease-out infinite',
+                            color: 'var(--color-primary)',
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                  <span
+                    className={`text-[11px] font-medium leading-tight text-center max-w-[72px] truncate ${player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
+                  >
+                    {player.displayName}
+                  </span>
+                  {player.isBot && <BotBadge showLabel={false} />}
                 </div>
               </div>
             ))}

@@ -6,6 +6,7 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useRoomQueryArgs } from '@/hooks/useRoomQueryArgs';
 import { captureError } from '@/lib/error';
+import { errorToFeedback } from '@/lib/errorFeedback';
 import { cn } from '@/lib/utils';
 import { countWords } from '@/lib/wordCount';
 import { Alert } from '@/components/ui/Alert';
@@ -151,7 +152,7 @@ function WritingComposer({
     } catch (error) {
       captureError(error, { roomCode, poemId: assignment.poemId });
       setSubmissionState('idle');
-      setError('Failed to submit line. Please try again.');
+      setError(errorToFeedback(error).message);
     }
   };
 
@@ -297,6 +298,7 @@ export function WritingScreen({
           roomCode={roomCode}
           guestToken={guestToken}
           progressOverride={roundProgress}
+          isLateJoiner
         />
       </>
     );

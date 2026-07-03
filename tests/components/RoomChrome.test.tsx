@@ -130,9 +130,11 @@ describe('RoomChrome component', () => {
     const archiveLink = screen.getByRole('link', { name: /Your poems/i });
     expect(archiveLink).toHaveAttribute('href', '/me/poems');
     expect(archiveLink).toHaveAttribute('data-prefetch', 'false');
+    // There are two "How to play" buttons: the direct chrome button and the overflow menu item.
+    // Both are present when the menu is open.
     expect(
-      screen.getByRole('button', { name: /How to play/i })
-    ).toBeInTheDocument();
+      screen.getAllByRole('button', { name: /How to play/i }).length
+    ).toBeGreaterThanOrEqual(2);
     expect(
       screen.getByRole('button', { name: /^Theme$/i })
     ).toBeInTheDocument();
@@ -191,7 +193,11 @@ describe('RoomChrome component', () => {
     renderRoomChrome();
 
     await user.click(screen.getByRole('button', { name: /More options/i }));
-    await user.click(screen.getByRole('button', { name: /How to play/i }));
+    // There are two "How to play" buttons — the second is in the overflow menu.
+    const howToPlayBtns = screen.getAllByRole('button', {
+      name: /How to play/i,
+    });
+    await user.click(howToPlayBtns[1]);
     expect(screen.getByText('Help modal')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /More options/i }));

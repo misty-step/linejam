@@ -9,6 +9,7 @@ import {
   Palette,
   Share2,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { HelpModal } from './HelpModal';
 import { ThemeSelector } from './ThemeSelector';
 import { Alert } from './ui/Alert';
@@ -48,6 +49,8 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
   const [showThemes, setShowThemes] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const { handleShare, copied, shared, shareError } = useShareLink({
@@ -62,13 +65,26 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
     failureMessage: 'Failed to share invite. Please try again.',
   });
 
-  // Close the overflow menu / theme panel on outside click or Escape.
+  const joinUrl = `${window.location.origin}/join?code=${roomCode}`;
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable — no-op
+    }
+  };
+
+  // Close the overflow menu / theme panel / QR on outside click or Escape.
   useEffect(() => {
-    if (!showMenu && !showThemes) return;
+    if (!showMenu && !showThemes && !showQr) return;
 
     const closeAll = () => {
       setShowMenu(false);
       setShowThemes(false);
+      setShowQr(false);
     };
     const handlePointer = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -78,8 +94,6 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeAll();
-        // Return focus to the trigger so a keyboard user keeps their place
-        // instead of being dropped to <body>.
         menuTriggerRef.current?.focus();
       }
     };
@@ -90,7 +104,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
       document.removeEventListener('mousedown', handlePointer);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [showMenu, showThemes]);
+  }, [showMenu, showThemes, showQr]);
 
   return (
     <>
@@ -113,9 +127,53 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
           >
             <div className="min-w-0 space-y-1">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 px-2.5 py-0.5 text-[11px] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)]">
-                  Room {formatRoomCode(roomCode)}
-                </span>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowQr((current) => !current);
+                      setShowThemes(false);
+                      setShowMenu(false);
+                    }}
+                    className="shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 px-2.5 py-0.5 text-[11px] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
+                    aria-label={`Room code ${formatRoomCode(roomCode)} — tap to copy or scan QR`}
+                  >
+                    Room {formatRoomCode(roomCode)}
+                  </button>
+
+                  {showQr && (
+                    <div className="absolute left-0 top-full z-50 mt-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
+                      <div className="flex flex-col items-center gap-3">
+                        <QRCodeSVG
+                          value={joinUrl}
+                          size={160}
+                          level="M"
+                          fgColor="var(--color-text-primary)"
+                          bgColor="transparent"
+                        />
+                        <div className="flex items-center gap-2 w-full">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleCopyCode();
+                            }}
+                            className="flex-1 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-[var(--color-text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
+                          >
+                            {codeCopied ? 'Copied!' : `Copy ${roomCode}`}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowQr(false)}
+                            className="shrink-0 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1.5"
+                            aria-label="Close QR"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <h1 className="truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg">
                   {title}
                 </h1>
@@ -143,12 +201,22 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
                 </span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => setShowHelp(true)}
+                className={chromeButtonClasses({ iconOnly: true })}
+                aria-label="How to play"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+
               <div className="relative">
                 <button
                   ref={menuTriggerRef}
                   type="button"
                   onClick={() => {
                     setShowThemes(false);
+                    setShowQr(false);
                     setShowMenu((current) => !current);
                   }}
                   className={chromeButtonClasses({ iconOnly: true })}
