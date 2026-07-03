@@ -33,7 +33,7 @@ import {
 } from './lib/ai/llm';
 import { normalizeText, validateWordCount } from './lib/ai/wordCountGuard';
 import { getConvexRuntimeConfig } from './lib/env';
-import { log } from './lib/errors';
+import { log, logError } from './lib/errors';
 import {
   applyLineLifecycleTransition,
   getSubmissionWindow,
@@ -394,58 +394,77 @@ export const scheduleAiTurn = internalMutation({
     round: v.number(),
   },
   handler: async (ctx, { roomId, gameId, round }) => {
-    // Verify game state - use game directly, not room.currentGameId (race-prone)
-    const game = await ctx.db.get(gameId);
+    try {
+      // Verify game state - use game directly, not room.currentGameId (race-prone)
+      const game = await ctx.db.get(gameId);
 
-    if (!game) return;
-    if (game.status !== 'IN_PROGRESS') return;
-    // Allow scheduling for current round or past rounds (late arrivals OK)
-    if (round > game.currentRound) return;
+      if (!game) return;
+      if (game.status !== 'IN_PROGRESS') return;
+      // Allow scheduling for current round or past rounds (late arrivals OK)
+      if (round > game.currentRound) return;
 
-    // Schedule once if ANY AI-assigned cell this round is still empty. The
-    // generation action and the safety net each fill *every* open AI cell, so
-    // one schedule covers all bots; re-nudge re-enters here idempotently.
-    const openCells = await getOpenAiCells(ctx, {
-      roomId,
-      gameId,
-      round,
-      matrix: game.assignmentMatrix,
-    });
-    if (openCells.length === 0) return;
-
-    let authorizedCells = 0;
-    for (const cell of openCells) {
-      const authorized = await prepareAiCellForGeneration(ctx, {
+      // Schedule once if ANY AI-assigned cell this round is still empty. The
+      // generation action and the safety net each fill *every* open AI cell, so
+      // one schedule covers all bots; re-nudge re-enters here idempotently.
+      const openCells = await getOpenAiCells(ctx, {
         roomId,
         gameId,
         round,
-        cell,
+        matrix: game.assignmentMatrix,
       });
-      if (authorized) authorizedCells += 1;
+      if (openCells.length === 0) return;
+
+      let authorizedCells = 0;
+      for (const cell of openCells) {
+        const authorized = await prepareAiCellForGeneration(ctx, {
+          roomId,
+          gameId,
+          round,
+          cell,
+        });
+        if (authorized) authorizedCells += 1;
+      }
+      if (authorizedCells === 0) return;
+
+      // Schedule with random delay (2-4 seconds)
+      const randomBytes = new Uint32Array(1);
+      crypto.getRandomValues(randomBytes);
+      const delayMs = 2000 + (randomBytes[0] % 2001); // 2000-4000ms
+
+      await ctx.scheduler.runAfter(delayMs, internal.ai.generateLineForRound, {
+        roomId,
+        gameId,
+        round,
+      });
+
+      // Safety net: actions are not retried by Convex. If generation dies,
+      // commit a deterministic fallback so the AI can never strand the round.
+      // Fills EVERY open AI cell (not one) — the multi-bot never-die backstop,
+      // which in solo play is the *only* backstop (the abandonment cron never
+      // fires while the human is present).
+      await ctx.scheduler.runAfter(AI_SAFETY_NET_MS, internal.ai.ensureAiLine, {
+        roomId,
+        gameId,
+        round,
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError('scheduleAiTurn failed', err, { roomId, gameId, round });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'scheduleAiTurn',
+          roomId,
+          gameId,
+          round,
+        }
+      );
+      throw error;
     }
-    if (authorizedCells === 0) return;
-
-    // Schedule with random delay (2-4 seconds)
-    const randomBytes = new Uint32Array(1);
-    crypto.getRandomValues(randomBytes);
-    const delayMs = 2000 + (randomBytes[0] % 2001); // 2000-4000ms
-
-    await ctx.scheduler.runAfter(delayMs, internal.ai.generateLineForRound, {
-      roomId,
-      gameId,
-      round,
-    });
-
-    // Safety net: actions are not retried by Convex. If generation dies,
-    // commit a deterministic fallback so the AI can never strand the round.
-    // Fills EVERY open AI cell (not one) — the multi-bot never-die backstop,
-    // which in solo play is the *only* backstop (the abandonment cron never
-    // fires while the human is present).
-    await ctx.scheduler.runAfter(AI_SAFETY_NET_MS, internal.ai.ensureAiLine, {
-      roomId,
-      gameId,
-      round,
-    });
   },
 });
 
@@ -463,39 +482,58 @@ export const ensureAiLine = internalMutation({
     round: v.number(),
   },
   handler: async (ctx, { roomId, gameId, round }) => {
-    const game = await ctx.db.get(gameId);
-    if (!game || game.status !== 'IN_PROGRESS') return;
-    if (round > game.currentRound) return;
+    try {
+      const game = await ctx.db.get(gameId);
+      if (!game || game.status !== 'IN_PROGRESS') return;
+      if (round > game.currentRound) return;
 
-    // Fill EVERY open AI cell — keyed on the actual line row, never on any
-    // generation claim. A dead generation action can therefore never strand a
-    // cell. Idempotent: commitAssignedLine no-ops on an already-filled cell.
-    const openCells = await getOpenAiCells(ctx, {
-      roomId,
-      gameId,
-      round,
-      matrix: game.assignmentMatrix,
-    });
-    for (const cell of openCells) {
-      const aiUser = await ctx.db.get(cell.aiUserId);
-      const committed = await commitFallbackLine(ctx, {
+      // Fill EVERY open AI cell — keyed on the actual line row, never on any
+      // generation claim. A dead generation action can therefore never strand a
+      // cell. Idempotent: commitAssignedLine no-ops on an already-filled cell.
+      const openCells = await getOpenAiCells(ctx, {
         roomId,
         gameId,
-        poemId: cell.poemId,
-        lineIndex: round,
-        authorUserId: cell.aiUserId,
-        authorDisplayName: aiUser?.displayName ?? 'AI',
+        round,
+        matrix: game.assignmentMatrix,
       });
+      for (const cell of openCells) {
+        const aiUser = await ctx.db.get(cell.aiUserId);
+        const committed = await commitFallbackLine(ctx, {
+          roomId,
+          gameId,
+          poemId: cell.poemId,
+          lineIndex: round,
+          authorUserId: cell.aiUserId,
+          authorDisplayName: aiUser?.displayName ?? 'AI',
+        });
 
-      if (committed) {
-        await recordAiUsage(ctx, { day: aiUsageDay(), fallbacks: 1 });
-        log.warn('AI safety net committed a fallback line', {
+        if (committed) {
+          await recordAiUsage(ctx, { day: aiUsageDay(), fallbacks: 1 });
+          log.warn('AI safety net committed a fallback line', {
+            roomId,
+            gameId,
+            round,
+            poemId: cell.poemId,
+          });
+        }
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError('ensureAiLine failed', err, { roomId, gameId, round });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'ensureAiLine',
           roomId,
           gameId,
           round,
-          poemId: cell.poemId,
-        });
-      }
+        }
+      );
+      throw error;
     }
   },
 });
@@ -511,128 +549,151 @@ export const generateLineForRound = internalAction({
     round: v.number(),
   },
   handler: async (ctx, { roomId, gameId, round }) => {
-    // Load game state directly (not through room.currentGameId which is race-prone)
-    const game = await ctx.runQuery(internal.ai.getGameState, { gameId });
-    if (!game) return;
-    if (game.status !== 'IN_PROGRESS') return;
-    // Allow generation for current round or past rounds (late arrivals OK)
-    if (round > game.currentRound) return;
+    try {
+      // Load game state directly (not through room.currentGameId which is race-prone)
+      const game = await ctx.runQuery(internal.ai.getGameState, { gameId });
+      if (!game) return;
+      if (game.status !== 'IN_PROGRESS') return;
+      // Allow generation for current round or past rounds (late arrivals OK)
+      if (round > game.currentRound) return;
 
-    // Generate for EVERY open AI cell this round (multi-bot). One dead cell
-    // never blocks the others, and any cell left empty is still covered by the
-    // ensureAiLine safety net.
-    const cells = await ctx.runQuery(internal.ai.getOpenAiCellsForRound, {
-      roomId,
-      gameId,
-      round,
-    });
-    if (cells.length === 0) return;
-
-    const targetWordCount = WORD_COUNTS[round];
-    const apiKey = initialOpenRouterApiKey;
-
-    for (const cell of cells) {
-      const turn = await ctx.runQuery(internal.ai.getAiTurnForCell, {
-        poemId: cell.poemId,
+      // Generate for EVERY open AI cell this round (multi-bot). One dead cell
+      // never blocks the others, and any cell left empty is still covered by the
+      // ensureAiLine safety net.
+      const cells = await ctx.runQuery(internal.ai.getOpenAiCellsForRound, {
+        roomId,
+        gameId,
         round,
       });
-      if (turn?.status !== 'authorized') continue;
+      if (cells.length === 0) return;
 
-      // Re-check idempotency: another cell's commit may have advanced state.
-      const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
-        poemId: cell.poemId,
-        round,
-      });
-      if (alreadySubmitted) continue;
+      const targetWordCount = WORD_COUNTS[round];
+      const apiKey = initialOpenRouterApiKey;
 
-      const aiUser = await ctx.runQuery(internal.ai.getUserById, {
-        userId: cell.aiUserId,
-      });
-      // Explicit invariant: a bot cell must resolve to an AI user with a
-      // persona. If not (e.g. user deleted mid-game), skip — the safety net
-      // fills the cell rather than throwing inside the action.
-      if (!aiUser?.aiPersonaId) continue;
-      const persona = getPersona(aiUser.aiPersonaId as AiPersonaId);
+      for (const cell of cells) {
+        const turn = await ctx.runQuery(internal.ai.getAiTurnForCell, {
+          poemId: cell.poemId,
+          round,
+        });
+        if (turn?.status !== 'authorized') continue;
 
-      // Bots see ONLY the previous line — same constraint as a human (the
-      // game's defining symmetry, kept on purpose).
-      const previousLine =
-        round > 0
-          ? await ctx.runQuery(internal.ai.getPreviousLine, {
-              poemId: cell.poemId,
-              round: round - 1,
-            })
-          : null;
+        // Re-check idempotency: another cell's commit may have advanced state.
+        const alreadySubmitted = await ctx.runQuery(
+          internal.ai.hasLineForRound,
+          {
+            poemId: cell.poemId,
+            round,
+          }
+        );
+        if (alreadySubmitted) continue;
 
-      const result = await (async () => {
-        if (!apiKey) {
-          log.error('OPENROUTER_API_KEY not configured - using fallback line', {
+        const aiUser = await ctx.runQuery(internal.ai.getUserById, {
+          userId: cell.aiUserId,
+        });
+        // Explicit invariant: a bot cell must resolve to an AI user with a
+        // persona. If not (e.g. user deleted mid-game), skip — the safety net
+        // fills the cell rather than throwing inside the action.
+        if (!aiUser?.aiPersonaId) continue;
+        const persona = getPersona(aiUser.aiPersonaId as AiPersonaId);
+
+        // Bots see ONLY the previous line — same constraint as a human (the
+        // game's defining symmetry, kept on purpose).
+        const previousLine =
+          round > 0
+            ? await ctx.runQuery(internal.ai.getPreviousLine, {
+                poemId: cell.poemId,
+                round: round - 1,
+              })
+            : null;
+
+        const result = await (async () => {
+          if (!apiKey) {
+            log.error(
+              'OPENROUTER_API_KEY not configured - using fallback line',
+              {
+                roomId,
+                gameId,
+                round,
+              }
+            );
+            return {
+              text: getFallbackLine(
+                targetWordCount,
+                fallbackSeed(cell.poemId, round)
+              ),
+              fallbackUsed: true,
+              attemptsUsed: 0,
+            };
+          }
+
+          const config: LLMConfig = {
+            provider: 'openrouter',
+            model: getAiModel(),
+            apiKey,
+            timeoutMs: 10000,
+            maxRetries: 2,
+          };
+
+          return generateLine(
+            {
+              persona,
+              previousLineText: previousLine?.text,
+              targetWordCount,
+            },
+            config
+          );
+        })();
+        if (result.attemptsUsed > 0) {
+          await ctx.runMutation(internal.ai.recordAiHttpAttempts, {
+            day: turn.day,
+            attempts: result.attemptsUsed,
+          });
+        }
+
+        // On any fallback (no key, API failure, or word-count miss) use the
+        // varied bank seeded by the cell, so multi-bot fallback reveals don't
+        // repeat one canned line.
+        const text = result.fallbackUsed
+          ? getFallbackLine(targetWordCount, fallbackSeed(cell.poemId, round))
+          : result.text;
+
+        const committed = await ctx.runMutation(internal.ai.commitAiLine, {
+          poemId: cell.poemId,
+          lineIndex: round,
+          text,
+          aiUserId: cell.aiUserId,
+          roomId,
+          gameId,
+        });
+
+        if (result.fallbackUsed && committed) {
+          await ctx.runMutation(internal.ai.recordAiFallback, {
+            day: turn.day,
+            count: 1,
+          });
+          log.warn('AI fallback used', {
             roomId,
             gameId,
             round,
+            poemId: cell.poemId,
           });
-          return {
-            text: getFallbackLine(
-              targetWordCount,
-              fallbackSeed(cell.poemId, round)
-            ),
-            fallbackUsed: true,
-            attemptsUsed: 0,
-          };
         }
-
-        const config: LLMConfig = {
-          provider: 'openrouter',
-          model: getAiModel(),
-          apiKey,
-          timeoutMs: 10000,
-          maxRetries: 2,
-        };
-
-        return generateLine(
-          {
-            persona,
-            previousLineText: previousLine?.text,
-            targetWordCount,
-          },
-          config
-        );
-      })();
-      if (result.attemptsUsed > 0) {
-        await ctx.runMutation(internal.ai.recordAiHttpAttempts, {
-          day: turn.day,
-          attempts: result.attemptsUsed,
-        });
       }
-
-      // On any fallback (no key, API failure, or word-count miss) use the
-      // varied bank seeded by the cell, so multi-bot fallback reveals don't
-      // repeat one canned line.
-      const text = result.fallbackUsed
-        ? getFallbackLine(targetWordCount, fallbackSeed(cell.poemId, round))
-        : result.text;
-
-      const committed = await ctx.runMutation(internal.ai.commitAiLine, {
-        poemId: cell.poemId,
-        lineIndex: round,
-        text,
-        aiUserId: cell.aiUserId,
-        roomId,
-        gameId,
-      });
-
-      if (result.fallbackUsed && committed) {
-        await ctx.runMutation(internal.ai.recordAiFallback, {
-          day: turn.day,
-          count: 1,
-        });
-        log.warn('AI fallback used', {
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError('generateLineForRound failed', err, { roomId, gameId, round });
+      await ctx
+        .runAction(internal.errors.reportBackendErrorToCanary, {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'generateLineForRound',
           roomId,
           gameId,
           round,
-          poemId: cell.poemId,
-        });
-      }
+        })
+        .catch(() => {});
+      throw error;
     }
   },
 });
@@ -768,63 +829,86 @@ export const generateGhostLine = internalAction({
     forUserId: v.id('users'),
   },
   handler: async (ctx, { roomId, gameId, round, poemId, forUserId }) => {
-    const game = await ctx.runQuery(internal.ai.getGameState, { gameId });
-    if (!game || game.status !== 'IN_PROGRESS') return;
-    if (game.currentRound !== round) return;
+    try {
+      const game = await ctx.runQuery(internal.ai.getGameState, { gameId });
+      if (!game || game.status !== 'IN_PROGRESS') return;
+      if (game.currentRound !== round) return;
 
-    const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
-      poemId,
-      round,
-    });
-    if (alreadySubmitted) return;
+      const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
+        poemId,
+        round,
+      });
+      if (alreadySubmitted) return;
 
-    const previousLine =
-      round > 0
-        ? await ctx.runQuery(internal.ai.getPreviousLine, {
-            poemId,
-            round: round - 1,
-          })
-        : null;
+      const previousLine =
+        round > 0
+          ? await ctx.runQuery(internal.ai.getPreviousLine, {
+              poemId,
+              round: round - 1,
+            })
+          : null;
 
-    const targetWordCount = WORD_COUNTS[round];
-    const apiKey = initialOpenRouterApiKey;
-    const result = await (async () => {
-      if (!apiKey) {
-        return {
-          text: getFallbackLine(targetWordCount, fallbackSeed(poemId, round)),
-          fallbackUsed: true,
-          attemptsUsed: 0,
+      const targetWordCount = WORD_COUNTS[round];
+      const apiKey = initialOpenRouterApiKey;
+      const result = await (async () => {
+        if (!apiKey) {
+          return {
+            text: getFallbackLine(targetWordCount, fallbackSeed(poemId, round)),
+            fallbackUsed: true,
+            attemptsUsed: 0,
+          };
+        }
+
+        const config: LLMConfig = {
+          provider: 'openrouter',
+          model: getAiModel(),
+          apiKey,
+          timeoutMs: 10000,
+          maxRetries: 2,
         };
-      }
 
-      const config: LLMConfig = {
-        provider: 'openrouter',
-        model: getAiModel(),
-        apiKey,
-        timeoutMs: 10000,
-        maxRetries: 2,
-      };
+        return generateLine(
+          {
+            persona: GHOSTWRITER_PERSONA,
+            previousLineText: previousLine?.text,
+            targetWordCount,
+          },
+          config
+        );
+      })();
 
-      return generateLine(
-        {
-          persona: GHOSTWRITER_PERSONA,
-          previousLineText: previousLine?.text,
-          targetWordCount,
-        },
-        config
-      );
-    })();
+      await ctx.runMutation(internal.ai.commitGhostLine, {
+        roomId,
+        gameId,
+        poemId,
+        lineIndex: round,
+        text: result.text,
+        forUserId,
+      });
 
-    await ctx.runMutation(internal.ai.commitGhostLine, {
-      roomId,
-      gameId,
-      poemId,
-      lineIndex: round,
-      text: result.text,
-      forUserId,
-    });
-
-    log.warn('Ghostwriter covered a stalled turn', { roomId, gameId, round });
+      log.warn('Ghostwriter covered a stalled turn', { roomId, gameId, round });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError('generateGhostLine failed', err, {
+        roomId,
+        gameId,
+        round,
+        poemId,
+      });
+      await ctx
+        .runAction(internal.errors.reportBackendErrorToCanary, {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'generateGhostLine',
+          roomId,
+          gameId,
+          poemId,
+          round,
+        })
+        .catch(() => {});
+      throw error;
+    }
   },
 });
 
