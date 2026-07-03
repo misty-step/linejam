@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [1.12.0](https://github.com/misty-step/linejam/compare/v1.11.0...v1.12.0) (2026-07-03)
+
+
+### Features
+
+* **ux:** tap-to-copy room code, QR scan-to-join, one-tap help, fix submit error ([7f754ff](https://github.com/misty-step/linejam/commit/7f754ff7b2f90c6e7272cafd2e131ba0e26fe1df))
+
 # [1.11.0](https://github.com/misty-step/linejam/compare/v1.10.0...v1.11.0) (2026-07-03)
 
 
