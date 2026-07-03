@@ -352,7 +352,7 @@ describe('WritingScreen component', () => {
 
     // Assert - Error should appear
     await waitFor(() => {
-      expect(screen.getByText(/Failed to submit line/i)).toBeInTheDocument();
+      expect(screen.getByText(/Unable to connect/i)).toBeInTheDocument();
     });
     await flushDebounce();
   });
