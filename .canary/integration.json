@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "service": "linejam",
+  "environment": "production",
+  "canary_endpoint": "https://canary-obs.fly.dev",
+  "health_url": "https://www.linejam.app/api/health",
+  "target_id": "TGT-l1uqvd03m5tz",
+  "monitor_ids": [
+    "MON-sv32lndiexgo"
+  ],
+  "webhook_ids": [
+    "WHK-78ro85gmubzy"
+  ],
+  "api_key_id": null,
+  "verification_status": "verified",
+  "env_names": [
+    "CANARY_ENDPOINT",
+    "CANARY_API_KEY",
+    "NEXT_PUBLIC_CANARY_ENDPOINT",
+    "NEXT_PUBLIC_CANARY_API_KEY"
+  ],
+  "verification_commands": [
+    "bin/canary integrate status /Users/phaedrus/Development/linejam --service linejam --production-url https://www.linejam.app/api/health --json",
+    "bin/canary errors linejam --window 1h --json"
+  ],
+  "last_verified_at": "2026-07-03T22:43:37Z"
+}
