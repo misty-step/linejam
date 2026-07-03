@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [1.11.0](https://github.com/misty-step/linejam/compare/v1.10.0...v1.11.0) (2026-07-03)
+
+
+### Features
+
+* **observability:** wire Convex backend failures to Canary ([6eb32a4](https://github.com/misty-step/linejam/commit/6eb32a4031937e57a356bcf2c067cfb38978616a))
+
 # [1.10.0](https://github.com/misty-step/linejam/compare/v1.9.1...v1.10.0) (2026-06-26)
 
 
