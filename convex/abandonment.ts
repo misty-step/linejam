@@ -32,7 +32,7 @@ import {
   getFinalRoundIndex,
   isPresenceStale,
 } from './lib/gameRules';
-import { log } from './lib/errors';
+import { log, logError } from './lib/errors';
 
 /** The human roomPlayers rows for a game (AI players excluded). */
 async function getHumanPlayers(
@@ -125,34 +125,50 @@ function anyHumanPresent(
 export const sweepAbandonedGames = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const now = Date.now();
-    const idleCutoff = now - ABANDONMENT_THRESHOLD_MS;
-    const idleGames = await ctx.db
-      .query('games')
-      .withIndex('by_status_round', (q) =>
-        q.eq('status', 'IN_PROGRESS').lte('roundStartedAt', idleCutoff)
-      )
-      .collect();
+    try {
+      const now = Date.now();
+      const idleCutoff = now - ABANDONMENT_THRESHOLD_MS;
+      const idleGames = await ctx.db
+        .query('games')
+        .withIndex('by_status_round', (q) =>
+          q.eq('status', 'IN_PROGRESS').lte('roundStartedAt', idleCutoff)
+        )
+        .collect();
 
-    let scheduled = 0;
-    for (const game of idleGames) {
-      if (!(await isGameAbandoned(ctx, game, now))) continue;
+      let scheduled = 0;
+      for (const game of idleGames) {
+        if (!(await isGameAbandoned(ctx, game, now))) continue;
+        await ctx.scheduler.runAfter(
+          0,
+          internal.abandonment.finishAbandonedGame,
+          { gameId: game._id }
+        );
+        scheduled++;
+      }
+
+      if (scheduled > 0) {
+        log.warn('Abandonment sweep scheduled stranded games for completion', {
+          scheduled,
+          scanned: idleGames.length,
+        });
+      }
+
+      return { scheduled, scanned: idleGames.length };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError('sweepAbandonedGames failed', err, {});
       await ctx.scheduler.runAfter(
         0,
-        internal.abandonment.finishAbandonedGame,
-        { gameId: game._id }
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'sweepAbandonedGames',
+        }
       );
-      scheduled++;
+      throw error;
     }
-
-    if (scheduled > 0) {
-      log.warn('Abandonment sweep scheduled stranded games for completion', {
-        scheduled,
-        scanned: idleGames.length,
-      });
-    }
-
-    return { scheduled, scanned: idleGames.length };
   },
 });
 
@@ -168,104 +184,121 @@ export const sweepAbandonedGames = internalMutation({
 export const finishAbandonedGame = internalMutation({
   args: { gameId: v.id('games') },
   handler: async (ctx, { gameId }) => {
-    const initial = await ctx.db.get(gameId);
-    if (!initial || initial.status !== 'IN_PROGRESS') {
-      return { completed: false, filled: 0 };
-    }
+    try {
+      const initial = await ctx.db.get(gameId);
+      if (!initial || initial.status !== 'IN_PROGRESS') {
+        return { completed: false, filled: 0 };
+      }
 
-    // Re-derive abandonment from scratch. The sweep decided in an earlier
-    // transaction; a human may have reconnected since. Never complete a room
-    // out from under someone who just came back.
-    if (!(await isGameAbandoned(ctx, initial, Date.now()))) {
-      return { completed: false, filled: 0 };
-    }
+      // Re-derive abandonment from scratch. The sweep decided in an earlier
+      // transaction; a human may have reconnected since. Never complete a room
+      // out from under someone who just came back.
+      if (!(await isGameAbandoned(ctx, initial, Date.now()))) {
+        return { completed: false, filled: 0 };
+      }
 
-    // One pass advances at most one round; bound the loop (CLAUDE.md loop-safety).
-    // Round count comes from the game's own matrix (legacy games may differ).
-    const maxPasses = getFinalRoundIndex(initial.assignmentMatrix) + 2;
+      // One pass advances at most one round; bound the loop (CLAUDE.md loop-safety).
+      // Round count comes from the game's own matrix (legacy games may differ).
+      const maxPasses = getFinalRoundIndex(initial.assignmentMatrix) + 2;
 
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', gameId))
-      .collect();
+      const poems = await ctx.db
+        .query('poems')
+        .withIndex('by_game', (q) => q.eq('gameId', gameId))
+        .collect();
 
-    let filled = 0;
-    for (let pass = 0; pass < maxPasses; pass++) {
-      const game = await ctx.db.get(gameId);
-      if (!game || game.status !== 'IN_PROGRESS') break;
+      let filled = 0;
+      for (let pass = 0; pass < maxPasses; pass++) {
+        const game = await ctx.db.get(gameId);
+        if (!game || game.status !== 'IN_PROGRESS') break;
 
-      // A returning human ends the backstop immediately — judged by presence,
-      // not idle-age, because our own round advances reset roundStartedAt.
-      const humanPlayers = await getHumanPlayers(ctx, game.roomId);
-      if (anyHumanPresent(humanPlayers, Date.now())) break;
+        // A returning human ends the backstop immediately — judged by presence,
+        // not idle-age, because our own round advances reset roundStartedAt.
+        const humanPlayers = await getHumanPlayers(ctx, game.roomId);
+        if (anyHumanPresent(humanPlayers, Date.now())) break;
 
-      const round = game.currentRound;
-      const roundAssignments = getMatrixRound(game.assignmentMatrix, round);
+        const round = game.currentRound;
+        const roundAssignments = getMatrixRound(game.assignmentMatrix, round);
 
-      const lineChecks = await Promise.all(
-        poems.map((poem) =>
-          ctx.db
-            .query('lines')
-            .withIndex('by_poem_index', (q) =>
-              q.eq('poemId', poem._id).eq('indexInPoem', round)
-            )
-            .first()
-        )
-      );
-      const missing = poems.filter((_, index) => lineChecks[index] === null);
+        const lineChecks = await Promise.all(
+          poems.map((poem) =>
+            ctx.db
+              .query('lines')
+              .withIndex('by_poem_index', (q) =>
+                q.eq('poemId', poem._id).eq('indexInPoem', round)
+              )
+              .first()
+          )
+        );
+        const missing = poems.filter((_, index) => lineChecks[index] === null);
 
-      if (missing.length === 0) {
-        // Round fully present but the game has not advanced — a wedged state the
-        // per-line transition normally prevents (legacy data, a prior bug, a
-        // manual repair). Nudge the canonical transition to heal it instead of
-        // letting the cron reschedule a no-op forever.
-        await applyLineLifecycleTransition(ctx, {
-          game,
-          roomId: game.roomId,
-          lineIndex: round,
-        });
-        const after = await ctx.db.get(gameId);
-        if (
-          after &&
-          after.status === 'IN_PROGRESS' &&
-          after.currentRound === round
-        ) {
-          // Could not advance — nothing more this backstop can do.
-          break;
+        if (missing.length === 0) {
+          // Round fully present but the game has not advanced — a wedged state the
+          // per-line transition normally prevents (legacy data, a prior bug, a
+          // manual repair). Nudge the canonical transition to heal it instead of
+          // letting the cron reschedule a no-op forever.
+          await applyLineLifecycleTransition(ctx, {
+            game,
+            roomId: game.roomId,
+            lineIndex: round,
+          });
+          const after = await ctx.db.get(gameId);
+          if (
+            after &&
+            after.status === 'IN_PROGRESS' &&
+            after.currentRound === round
+          ) {
+            // Could not advance — nothing more this backstop can do.
+            break;
+          }
+          continue;
         }
-        continue;
+
+        const assignees = await Promise.all(
+          missing.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
+        );
+        for (let i = 0; i < missing.length; i++) {
+          const poem = missing[i];
+          const assignee = assignees[i];
+          const baseName = assignee?.displayName ?? 'A poet';
+          // Honest byline: ghost for humans, the AI's own name for AI poems.
+          const authorDisplayName =
+            assignee?.kind === 'AI' ? baseName : `${baseName} (ghost)`;
+          const committed = await commitFallbackLine(ctx, {
+            roomId: game.roomId,
+            gameId,
+            poemId: poem._id,
+            lineIndex: round,
+            authorUserId: roundAssignments[poem.indexInRoom],
+            authorDisplayName,
+          });
+          if (committed) filled++;
+        }
       }
 
-      const assignees = await Promise.all(
-        missing.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
-      );
-      for (let i = 0; i < missing.length; i++) {
-        const poem = missing[i];
-        const assignee = assignees[i];
-        const baseName = assignee?.displayName ?? 'A poet';
-        // Honest byline: ghost for humans, the AI's own name for AI poems.
-        const authorDisplayName =
-          assignee?.kind === 'AI' ? baseName : `${baseName} (ghost)`;
-        const committed = await commitFallbackLine(ctx, {
-          roomId: game.roomId,
+      const finalGame = await ctx.db.get(gameId);
+      const completed = finalGame?.status === 'COMPLETED';
+      if (completed) {
+        log.warn('Abandonment backstop completed a stranded game', {
           gameId,
-          poemId: poem._id,
-          lineIndex: round,
-          authorUserId: roundAssignments[poem.indexInRoom],
-          authorDisplayName,
+          filled,
         });
-        if (committed) filled++;
       }
+      return { completed, filled };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError('finishAbandonedGame failed', err, { gameId });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'finishAbandonedGame',
+          gameId,
+        }
+      );
+      throw error;
     }
-
-    const finalGame = await ctx.db.get(gameId);
-    const completed = finalGame?.status === 'COMPLETED';
-    if (completed) {
-      log.warn('Abandonment backstop completed a stranded game', {
-        gameId,
-        filled,
-      });
-    }
-    return { completed, filled };
   },
 });

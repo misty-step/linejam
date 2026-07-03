@@ -12,6 +12,7 @@ import type * as abandonment from "../abandonment.js";
 import type * as ai from "../ai.js";
 import type * as archive from "../archive.js";
 import type * as crons from "../crons.js";
+import type * as errors from "../errors.js";
 import type * as favorites from "../favorites.js";
 import type * as game from "../game.js";
 import type * as health from "../health.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   archive: typeof archive;
   crons: typeof crons;
+  errors: typeof errors;
   favorites: typeof favorites;
   game: typeof game;
   health: typeof health;
