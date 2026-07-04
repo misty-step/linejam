@@ -52,10 +52,10 @@ test('mobile reveal ceremony produces a one-tap shareable recap artifact', async
     await expect(
       session.hostPage.getByRole('button', { name: /Mute ceremony sound/i })
     ).toBeVisible();
-    await expect(session.hostPage.getByText('poetry')).toBeVisible({
+    await expect(session.hostPage.getByText('poetry').first()).toBeVisible({
       timeout: 10000,
     });
-    await expect(session.hostPage.getByText('end')).toBeVisible({
+    await expect(session.hostPage.getByText('end').first()).toBeVisible({
       timeout: 12000,
     });
     await session.capture('host', `${evidenceDir}/mobile-reveal-ceremony.png`);
