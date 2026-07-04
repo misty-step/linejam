@@ -76,6 +76,10 @@ function JoinForm() {
       </h1>
 
       <div className="p-8 border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
+        <p className="mb-8 text-base leading-relaxed text-[var(--color-text-secondary)]">
+          You&apos;ll add one hidden line at a time, then everyone reads the
+          finished poems together.
+        </p>
         <form onSubmit={handleJoin} className="space-y-8">
           <div className="space-y-3">
             <label

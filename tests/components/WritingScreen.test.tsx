@@ -74,6 +74,7 @@ describe('WritingScreen component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockUseQuery.mockReset();
     mockSubmitLineMutation.mockReset();
 
@@ -100,6 +101,7 @@ describe('WritingScreen component', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    localStorage.clear();
   });
 
   it('keeps the word counter visible in the composer flow', () => {
@@ -108,6 +110,26 @@ describe('WritingScreen component', () => {
 
     const wordSlots = document.getElementById('word-slots');
     expect(wordSlots).toBeInTheDocument();
+  });
+
+  it('shows the first-run writing coachmark inline without opening help', () => {
+    render(<WritingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.getByText(/you only see one carried line/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/match the word slots/i)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('does not repeat the writing coachmark after this device has seen it', () => {
+    localStorage.setItem('linejam:writing-coachmark-seen', '1');
+
+    render(<WritingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.queryByText(/you only see one carried line/i)
+    ).not.toBeInTheDocument();
   });
 
   it('resets scroll when the active assignment changes', () => {

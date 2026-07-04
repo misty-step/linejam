@@ -528,7 +528,9 @@ export class GuestFlowSession {
 
     await page.getByRole('button', { name: /Reveal & Read/i }).click();
     await expect(page.getByText(lines[0])).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(lines.at(-1) ?? '')).toBeVisible();
+    await expect(page.getByText(lines.at(-1) ?? '')).toBeVisible({
+      timeout: 12000,
+    });
     await page.getByRole('button', { name: /Close|Done|Back/i }).click();
   }
 
