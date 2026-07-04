@@ -18,6 +18,18 @@ vi.mock('server-only', () => ({}));
  * Each describe block reloads the module once in beforeAll.
  */
 
+function mockAllowedGuestSessionThrottle() {
+  const mutation = vi.fn().mockResolvedValue({ ok: true });
+
+  vi.doMock('convex/browser', () => ({
+    ConvexHttpClient: class {
+      mutation = mutation;
+    },
+  }));
+
+  return mutation;
+}
+
 describe('GET /api/guest/session', () => {
   describe('with normal operation', () => {
     let GET: typeof import('@/app/api/guest/session/route').GET;
@@ -33,6 +45,7 @@ describe('GET /api/guest/session', () => {
 
     beforeAll(async () => {
       vi.resetModules();
+      mockAllowedGuestSessionThrottle();
       const mod = await import('@/app/api/guest/session/route');
       GET = mod.GET;
       DELETE = mod.DELETE;
@@ -44,6 +57,10 @@ describe('GET /api/guest/session', () => {
 
     afterEach(() => {
       vi.restoreAllMocks();
+    });
+
+    afterAll(() => {
+      vi.doUnmock('convex/browser');
     });
 
     it('creates new guest session when no cookie exists', async () => {
@@ -218,6 +235,7 @@ describe('GET /api/guest/session', () => {
 
     beforeAll(async () => {
       vi.resetModules();
+      mockAllowedGuestSessionThrottle();
       vi.doMock('@/lib/guestToken', () => ({
         GUEST_TOKEN_MAX_AGE_SECONDS: 7 * 24 * 60 * 60,
         signGuestToken: vi.fn().mockResolvedValue('fresh-token'),
@@ -238,6 +256,7 @@ describe('GET /api/guest/session', () => {
 
     afterAll(() => {
       vi.doUnmock('@/lib/guestToken');
+      vi.doUnmock('convex/browser');
     });
 
     it('logs an unknown token verification failure without the token value', async () => {
@@ -273,6 +292,7 @@ describe('GET /api/guest/session', () => {
 
     beforeAll(async () => {
       vi.resetModules();
+      mockAllowedGuestSessionThrottle();
 
       // Mock signGuestToken to throw
       vi.doMock('@/lib/guestToken', () => ({
@@ -294,6 +314,9 @@ describe('GET /api/guest/session', () => {
     });
 
     afterAll(() => {
+      vi.doUnmock('@/lib/guestToken');
+      vi.doUnmock('@/lib/errorServer');
+      vi.doUnmock('convex/browser');
       vi.restoreAllMocks();
     });
 
