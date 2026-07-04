@@ -573,6 +573,7 @@ esac
 
 if [[ "$FUNCTION_NAME" == "all" || "$FUNCTION_NAME" == "e-2-e" ]]; then
 	append_arg "--playwright-require-auth-e2e" "${PLAYWRIGHT_REQUIRE_AUTH_E2E:-1}"
+	append_arg "--linejam-allow-unsynced-convex-throttle" "${LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE:-}"
 fi
 
 if [[ "$FUNCTION_NAME" == "smoke" ]]; then
