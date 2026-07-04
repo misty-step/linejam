@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [1.15.1](https://github.com/misty-step/linejam/compare/v1.15.0...v1.15.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* **convex:** bound launch reads and live game failures ([#294](https://github.com/misty-step/linejam/issues/294)) ([c80e449](https://github.com/misty-step/linejam/commit/c80e449738eb774352f5214d5ef01493cfc3a885))
+
 # [1.15.0](https://github.com/misty-step/linejam/compare/v1.14.0...v1.15.0) (2026-07-04)
 
 
