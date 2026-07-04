@@ -38,6 +38,24 @@ describe('nextConfig security headers', () => {
     expect(csp).not.toContain(' *');
   });
 
+  it('allows the production Clerk custom domain in every Clerk-bearing directive', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const csp = buildContentSecurityPolicy();
+    const directive = (name: string) =>
+      csp
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(name)) ?? '';
+
+    // Production Clerk serves clerk-js and its frontend API from the custom
+    // domain, not *.clerk.accounts.dev — blocking it dead-ends every auth
+    // flow (2026-07-04 outage: /host hung on "Setting up your room...").
+    expect(directive('script-src')).toContain('https://clerk.linejam.app');
+    expect(directive('connect-src')).toContain('https://clerk.linejam.app');
+    expect(directive('form-action')).toContain('https://clerk.linejam.app');
+  });
+
   it('does not include development-only script or localhost allowances in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
 
