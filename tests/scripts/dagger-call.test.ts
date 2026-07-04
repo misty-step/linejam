@@ -193,12 +193,16 @@ printf '%s\\n' "$@" > "${argsLog}"
     initGitRepo(workspace);
 
     const result = runDaggerCall(workspace, binDir, 'e2e', {
+      CLERK_PUBLISHABLE_KEY: '',
+      CLERK_SECRET_KEY: '',
       GUEST_TOKEN_SECRET: 'test-guest-token-secret',
       LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1',
       LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '0',
       NEXT_PUBLIC_CANARY_API_KEY: 'test-canary-browser-key',
       NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example.test',
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
       NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+      PLAYWRIGHT_CLERK_TEST_EMAIL: '',
     });
 
     expect(result.status).toBe(0);
