@@ -1,0 +1,43 @@
+name: Production Health Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: production-health-monitor
+  cancel-in-progress: true
+
+jobs:
+  poll:
+    name: Poll /api/health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      LINEJAM_HEALTH_URL: https://www.linejam.app/api/health
+      LINEJAM_HEALTH_TIMEOUT_MS: '10000'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Poll production health
+        run: node scripts/ops/check-health.mjs
+
+      - name: Page on failure
+        if: failure()
+        run: |
+          {
+            echo "## Production health monitor failed"
+            echo
+            echo "- URL: ${LINEJAM_HEALTH_URL}"
+            echo "- Contract: /api/health must return HTTP 200 with body status ok."
+            echo "- Paging: this scheduled workflow failure notifies repository watchers; the route also emits Canary check-ins when reachable."
+          } >> "$GITHUB_STEP_SUMMARY"
