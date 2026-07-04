@@ -7,8 +7,8 @@
  * a non-nine-round matrix can exist; no new game is ever anything but classic)
  * finishes without an out-of-bounds throw. Its per-round *word counts* still read
  * from the canonical shape below: a legacy 5-round "quick" game would see classic
- * counts on its two divergent rounds (the original shape lived in the now-deleted
- * `mode` field and isn't recoverable from the matrix). That cosmetic mismatch is
+ * counts on its two divergent rounds (the original shape is no longer stored and
+ * isn't recoverable from the matrix). That cosmetic mismatch is
  * acceptable for a deploy-window-only game; the crash the matrix bound avoids is
  * not.
  */

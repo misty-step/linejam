@@ -1,4 +1,5 @@
 import { convexTest } from 'convex-test';
+import type { GenericSchema, SchemaDefinition } from 'convex/server';
 import schema from '../../convex/schema';
 
 // `import.meta.glob` is a Vite transform — present at runtime under Vitest but
@@ -25,4 +26,10 @@ const modules = import.meta.glob('../../convex/**/*.*s');
 
 export function setupConvexTest() {
   return convexTest(schema, modules);
+}
+
+export function setupConvexTestWithSchema<Schema extends GenericSchema>(
+  testSchema: SchemaDefinition<Schema, boolean>
+) {
+  return convexTest(testSchema, modules);
 }

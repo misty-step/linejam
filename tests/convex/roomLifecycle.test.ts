@@ -64,7 +64,6 @@ async function seedCompletedRoom(
       roomId,
       status: 'COMPLETED',
       cycle: 1,
-      mode: 'classic',
       currentRound: 8,
       assignmentMatrix: [[hostId, guestId]],
       createdAt: 0,
