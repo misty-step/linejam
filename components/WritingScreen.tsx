@@ -5,6 +5,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useRoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
 import { cn } from '@/lib/utils';
@@ -186,7 +187,11 @@ function WritingComposer({
   };
 
   return (
-    <div className="relative min-h-screen bg-background flex flex-col items-center px-6 pb-6 pt-4 md:px-8 md:pb-8 md:pt-12">
+    <div
+      data-testid={E2E_TEST_IDS.writingPhase}
+      data-round={assignment.lineIndex + 1}
+      className="relative min-h-screen bg-background flex flex-col items-center px-6 pb-6 pt-4 md:px-8 md:pb-8 md:pt-12"
+    >
       {/* Screen reader live region for validation announcements */}
       <div
         className="sr-only"
@@ -242,6 +247,7 @@ function WritingComposer({
 
           <textarea
             ref={textareaRef}
+            data-testid={E2E_TEST_IDS.writingLineInput}
             className={cn(
               'w-full min-h-[110px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content bg-transparent border-none outline-none resize-none',
               'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
@@ -280,6 +286,7 @@ function WritingComposer({
         <div className="mt-6 md:mt-16 flex justify-center">
           <Button
             onClick={handleSubmit}
+            data-testid={E2E_TEST_IDS.writingSubmitLineButton}
             size="lg"
             disabled={
               !isValid ||

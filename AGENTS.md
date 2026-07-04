@@ -198,6 +198,7 @@ pnpm test             # vitest run
 pnpm test:watch       # vitest watch
 pnpm test:ci          # vitest run --coverage
 pnpm test:ui          # vitest interactive UI
+pnpm test:e2e:early-smoke # fast selector smoke to reveal phase
 ```
 
 For a non-destructive env bootstrap without installing dependencies:
@@ -237,6 +238,7 @@ Full-contract composition (hosted / on-demand):
 - `audit`
 - `unit-test` with 85% coverage floor (lines/branches/functions/statements)
 - `build-check`
+- `early-smoke` selector flow
 - `e2e`
 
 Local enforcement:
@@ -247,7 +249,7 @@ Local enforcement:
 
 Hosted workflows:
 
-- `.github/workflows/ci.yml` — authoritative `merge-gate`: `quality-gates`, `test-build`, `e2e`, advisory `qa-evidence`
+- `.github/workflows/ci.yml` — authoritative `merge-gate`: `quality-gates`, `test-build`, `early-smoke`, `e2e`, advisory `qa-evidence`
 - `.github/workflows/preview-smoke.yml` — preview smoke
 - `.github/workflows/prod-smoke.yml` — production smoke
 - `.github/workflows/release.yml` — semantic-release plus note synthesis
@@ -303,6 +305,7 @@ pnpm ci:dagger:{lint,typecheck,format-check,build-check,unit-test,e2e,audit,secr
 
 # E2E
 pnpm test:e2e
+pnpm test:e2e:early-smoke
 pnpm test:e2e:smoke
 pnpm test:e2e:evidence
 pnpm test:e2e:ui

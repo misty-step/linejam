@@ -81,6 +81,7 @@ pnpm ci:dagger:all
 
 # Browser suites
 pnpm test:e2e       # Local Playwright suite
+pnpm test:e2e:early-smoke # Fast selector smoke to reveal phase
 pnpm test:e2e:smoke # Remote preview/prod smoke via PLAYWRIGHT_BASE_URL
 pnpm test:e2e:ui    # Interactive UI mode
 
@@ -125,7 +126,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 - Critical route telemetry is structured JSON. `/api/health` and `/api/guest/session` log method, route, status, and duration without guest tokens, display names, or raw request payloads.
 - Completed rooms end in a shared recap hub. Players can replay every poem, share `/recap/<room-code>`, and keep the same group moving into the next round without relying on one-off archive links.
 - Use `pnpm ci:fast` for the fast host loop: typecheck, lint, and tests without Docker. `pnpm ci:prepush` is the same command under the pre-push hook.
-- GitHub Actions enforces the authoritative full contract through hosted `merge-gate`. Run `pnpm ci:dagger:all` on demand for full local parity when Docker and the required env are available.
+- GitHub Actions enforces the authoritative full contract through hosted `merge-gate`, including the non-draft-gated `early-smoke` selector flow. Run `pnpm ci:dagger:all` on demand for full local parity when Docker and the required env are available.
 - Local Dagger auto-hydrates `GUEST_TOKEN_SECRET` from the active Convex deployment when `NEXT_PUBLIC_CONVEX_URL` points at the same Convex dev or prod backend that the CLI resolves.
 - Local Dagger auto-syncs the active Convex dev deployment before `all` and `e2e` runs. It refuses to push production Convex code unless you explicitly set `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.
 - Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Dev/test Clerk keys can be bootstrapped automatically; live-key mutation stays blocked unless you explicitly set `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=1`.

@@ -102,6 +102,51 @@ jobs:
       - name: Build check
         run: ./scripts/ci/dagger-call.sh build-check
 
+  early-smoke:
+    name: Early Selector Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [quality-gates]
+    env:
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CI_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
+      GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
+      LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1'
+      CANARY_ENDPOINT: ${{ secrets.CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Set NEXT_PUBLIC_CONVEX_URL fallback
+        run: |
+          if [ -z "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "NEXT_PUBLIC_CONVEX_URL=http://localhost:8187" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:check
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Run early selector smoke
+        run: pnpm test:e2e:early-smoke
+
   e2e:
     name: E2E Mirror
     runs-on: ubuntu-latest
@@ -257,7 +302,7 @@ jobs:
   merge-gate:
     name: merge-gate
     runs-on: ubuntu-latest
-    needs: [quality-gates, test-build, e2e, qa-evidence]
+    needs: [quality-gates, test-build, early-smoke, e2e, qa-evidence]
     if: always()
     steps:
       - name: Check all jobs passed

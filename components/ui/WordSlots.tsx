@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 interface WordSlotsProps {
   current: number;
@@ -26,6 +27,7 @@ export function WordSlots({ current, target, className }: WordSlotsProps) {
   return (
     <div
       id="word-slots"
+      data-testid={E2E_TEST_IDS.writingWordSlots}
       className={cn('flex items-center gap-1', className)}
       role="status"
       aria-label={`${current} of ${target} words`}

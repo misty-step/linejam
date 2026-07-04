@@ -11,6 +11,7 @@ pnpm test:ci       # CI mode with coverage
 pnpm ci:fast       # Fast local gate: typecheck, lint, tests
 pnpm ci:dagger:all # Full local Dagger parity for hosted merge-gate
 pnpm test:e2e      # Run deterministic E2E tests (excludes @evidence)
+pnpm test:e2e:early-smoke # Fast selector smoke to reveal phase
 pnpm test:e2e:smoke # Remote preview/prod smoke
 pnpm test:e2e:evidence # Run the tagged evidence capture spec
 pnpm test:e2e:ui   # Playwright UI mode
@@ -186,6 +187,7 @@ test('host creates room', async ({ page }) => {
 - Port: 3333 (avoids conflicts with dev server)
 - Browser base URL: `http://localhost:${PORT_E2E:-3333}`
 - `E2E_BASE_URL=https://...` targets a remote deployment and skips the local web server bootstrap
+- `early-smoke.spec.ts` runs the frozen selector contract through host/create/start/play-to-reveal and is wired as the non-draft-gated `early-smoke` merge-gate job
 - `prod-smoke.spec.ts` is excluded from the local suite and runs only through `playwright.smoke.config.ts`
 
 **Environment contract**:

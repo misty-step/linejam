@@ -4,6 +4,7 @@ import {
   hasClerkBrowserAuth,
   requireClerkBrowserAuth,
 } from './support/clerk';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 const REQUIRE_AUTH_SMOKE =
   process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE?.trim() === '1';
@@ -14,8 +15,8 @@ async function createHostedRoom(hostPage: Page, hostName: string) {
     state: 'visible',
     timeout: 10000,
   });
-  await hostPage.fill('input#name', hostName);
-  await hostPage.click('button[type="submit"]');
+  await hostPage.getByTestId(E2E_TEST_IDS.hostNameInput).fill(hostName);
+  await hostPage.getByTestId(E2E_TEST_IDS.hostCreateRoomButton).click();
 
   await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30000 });
   const roomCode = hostPage.url().match(/\/room\/([A-Z]{4})$/)?.[1] || '';
@@ -27,6 +28,10 @@ async function openContextPage(browser: Browser) {
   const context = await browser.newContext();
   const page = await context.newPage();
   return { context, page };
+}
+
+function visibleTestId(page: Page, testId: string) {
+  return page.getByTestId(testId).filter({ visible: true });
 }
 
 test.describe('Deployment Smoke', () => {
@@ -46,8 +51,10 @@ test.describe('Deployment Smoke', () => {
         state: 'visible',
         timeout: 10000,
       });
-      await guestPage.fill('input#name', 'Canary Guest');
-      await guestPage.click('button[type="submit"]');
+      await guestPage
+        .getByTestId(E2E_TEST_IDS.joinNameInput)
+        .fill('Canary Guest');
+      await guestPage.getByTestId(E2E_TEST_IDS.joinRoomButton).click();
 
       await guestPage.waitForURL(`/room/${roomCode}`, { timeout: 15000 });
 
@@ -57,19 +64,16 @@ test.describe('Deployment Smoke', () => {
       await expect(guestPage.getByText('Canary Host')).toBeVisible();
 
       await expect(
-        hostPage.getByRole('button', { name: /Start Linejam/i })
+        visibleTestId(hostPage, E2E_TEST_IDS.lobbyStartGameButton)
       ).toBeEnabled();
-      await hostPage.click('button:has-text("Start Linejam")');
+      await visibleTestId(hostPage, E2E_TEST_IDS.lobbyStartGameButton).click();
 
-      // Tolerate both copy forms so the smoke passes against current prod
-      // ("Round 1 of 9") and post-deploy prod ("Round 1 · 1 word").
-      const roundOne = /\bRound 1\b/;
-      await expect(hostPage.getByText(roundOne).first()).toBeVisible({
-        timeout: 15000,
-      });
-      await expect(guestPage.getByText(roundOne).first()).toBeVisible({
-        timeout: 15000,
-      });
+      await expect(
+        hostPage.getByTestId(E2E_TEST_IDS.writingPhase)
+      ).toHaveAttribute('data-round', '1', { timeout: 15000 });
+      await expect(
+        guestPage.getByTestId(E2E_TEST_IDS.writingPhase)
+      ).toHaveAttribute('data-round', '1', { timeout: 15000 });
 
       await expect(
         hostPage.getByText(/unexpected error occurred/i)
@@ -105,8 +109,10 @@ test.describe('Deployment Smoke', () => {
         state: 'visible',
         timeout: 10000,
       });
-      await signedInPage.fill('input#name', 'Canary Clerk User');
-      await signedInPage.click('button[type="submit"]');
+      await signedInPage
+        .getByTestId(E2E_TEST_IDS.joinNameInput)
+        .fill('Canary Clerk User');
+      await signedInPage.getByTestId(E2E_TEST_IDS.joinRoomButton).click();
 
       await signedInPage.waitForURL(`/room/${roomCode}`, { timeout: 15000 });
 

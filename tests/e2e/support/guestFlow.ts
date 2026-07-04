@@ -8,6 +8,7 @@ import type {
   ViewportSize,
 } from '@playwright/test';
 import { WORD_COUNTS } from '@/convex/lib/gameRules';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 export const CANONICAL_GUEST_FLOW_LINES = [
   'poetry',
@@ -97,6 +98,10 @@ async function waitForRoomPath(page: Page, label: string, roomCode?: string) {
   if (!pathPattern.test(new URL(page.url()).pathname)) {
     throw new Error(`Unexpected URL for ${label}: ${page.url()}`);
   }
+}
+
+function visibleTestId(page: Page, testId: string) {
+  return page.getByTestId(testId).filter({ visible: true });
 }
 
 export function attachGuestFlowRuntimeErrorLogging(
@@ -319,9 +324,14 @@ export class GuestFlowSession {
 
   async createRoom() {
     await this.hostPage.goto('/host');
-    await ensureVisible(this.hostPage.locator('input#name'), 'host name input');
-    await this.hostPage.fill('input#name', this.hostName);
-    await this.hostPage.getByRole('button', { name: /Create Room/i }).click();
+    await ensureVisible(
+      this.hostPage.getByTestId(E2E_TEST_IDS.hostNameInput),
+      'host name input'
+    );
+    await this.hostPage
+      .getByTestId(E2E_TEST_IDS.hostNameInput)
+      .fill(this.hostName);
+    await this.hostPage.getByTestId(E2E_TEST_IDS.hostCreateRoomButton).click();
     await waitForRoomPath(this.hostPage, 'host room');
 
     const roomCode =
@@ -342,7 +352,7 @@ export class GuestFlowSession {
   async expectHostLobby() {
     await expect(this.playerName(this.hostPage, this.hostName)).toBeVisible();
     await expect(
-      this.hostPage.getByRole('button', { name: /Need.*player/i })
+      visibleTestId(this.hostPage, E2E_TEST_IDS.lobbyStartGameButton)
     ).toBeVisible();
   }
 
@@ -382,11 +392,13 @@ export class GuestFlowSession {
 
     await this.guestPage.goto(`/join?code=${this.roomCode}`);
     await ensureVisible(
-      this.guestPage.locator('input#name'),
+      this.guestPage.getByTestId(E2E_TEST_IDS.joinNameInput),
       'guest name input'
     );
-    await this.guestPage.fill('input#name', this.guestName);
-    await this.guestPage.getByRole('button', { name: /Enter Room/i }).click();
+    await this.guestPage
+      .getByTestId(E2E_TEST_IDS.joinNameInput)
+      .fill(this.guestName);
+    await this.guestPage.getByTestId(E2E_TEST_IDS.joinRoomButton).click();
     await waitForRoomPath(this.guestPage, 'guest room', this.roomCode);
     await this.expectJoinedLobby();
   }
@@ -398,55 +410,63 @@ export class GuestFlowSession {
       timeout: 10000,
     });
     await expect(
-      this.hostPage.getByRole('button', { name: /Start Linejam/i })
+      visibleTestId(this.hostPage, E2E_TEST_IDS.lobbyStartGameButton)
     ).toBeEnabled();
     await expect(
-      this.guestPage.getByRole('button', { name: /Waiting for Host/i })
+      visibleTestId(this.guestPage, E2E_TEST_IDS.lobbyWaitingForHostButton)
     ).toBeVisible();
   }
 
   async startGame() {
-    await this.hostPage.getByRole('button', { name: /Start Linejam/i }).click();
+    await visibleTestId(
+      this.hostPage,
+      E2E_TEST_IDS.lobbyStartGameButton
+    ).click();
     await this.expectRound(1);
     await this.expectWritingUi();
   }
 
   async expectRound(round: number) {
-    // The writing chrome reads "Round N · M words"; the waiting chrome reads
-    // "Round N of 9". Match the round number across both copy forms.
-    const roundLabel = new RegExp(`\\bRound ${round}\\b`);
-    await expect(this.hostPage.getByText(roundLabel).first()).toBeVisible({
-      timeout: 15000,
-    });
-    await expect(this.guestPage.getByText(roundLabel).first()).toBeVisible({
-      timeout: 15000,
-    });
+    await expect(
+      this.hostPage.getByTestId(E2E_TEST_IDS.writingPhase)
+    ).toHaveAttribute('data-round', String(round), { timeout: 15000 });
+    await expect(
+      this.guestPage.getByTestId(E2E_TEST_IDS.writingPhase)
+    ).toHaveAttribute('data-round', String(round), { timeout: 15000 });
   }
 
   async expectWritingUi() {
-    await expect(this.hostPage.getByRole('textbox')).toBeVisible();
-    await expect(this.guestPage.getByRole('textbox')).toBeVisible();
+    await expect(
+      this.hostPage.getByTestId(E2E_TEST_IDS.writingLineInput)
+    ).toBeVisible();
+    await expect(
+      this.guestPage.getByTestId(E2E_TEST_IDS.writingLineInput)
+    ).toBeVisible();
     await this.expectWordSlotsVisible('host');
     await this.expectWordSlotsVisible('guest');
   }
 
   async expectWordSlotsVisible(actor: Actor) {
-    await expect(this.page(actor).locator('#word-slots')).toBeVisible();
+    await expect(
+      this.page(actor).getByTestId(E2E_TEST_IDS.writingWordSlots)
+    ).toBeVisible();
   }
 
   async fillCurrentLine(actor: Actor, line: string) {
-    await this.page(actor).getByRole('textbox').fill(line);
+    await this.page(actor)
+      .getByTestId(E2E_TEST_IDS.writingLineInput)
+      .fill(line);
   }
 
   async expectSealDisabled(actor: Actor) {
     await expect(
-      this.page(actor).getByRole('button', { name: /^Submit$/i })
+      this.page(actor).getByTestId(E2E_TEST_IDS.writingSubmitLineButton)
     ).toBeDisabled();
   }
 
   async expectSealEnabled(actor: Actor) {
     await expect(
-      this.page(actor).getByRole('button', { name: /^Submit$/i })
+      this.page(actor).getByTestId(E2E_TEST_IDS.writingSubmitLineButton)
     ).toBeEnabled();
   }
 
@@ -467,13 +487,13 @@ export class GuestFlowSession {
   async submitCurrentLine(actor: Actor, line: string) {
     await this.fillCurrentLine(actor, line);
     await this.page(actor)
-      .getByRole('button', { name: /^Submit$/i })
+      .getByTestId(E2E_TEST_IDS.writingSubmitLineButton)
       .click();
   }
 
   async waitForWaitingState(actor: Actor) {
     await expect(
-      this.page(actor).getByRole('heading', { name: /Others are writing/i })
+      this.page(actor).getByTestId(E2E_TEST_IDS.waitingPhase)
     ).toBeVisible({ timeout: 15000 });
   }
 
@@ -507,16 +527,16 @@ export class GuestFlowSession {
 
   async expectReadingPhase() {
     await expect(
-      this.hostPage.getByRole('heading', { name: /Reveal poems/i })
+      this.hostPage.getByTestId(E2E_TEST_IDS.revealPhase)
     ).toBeVisible({ timeout: 30000 });
     await expect(
-      this.guestPage.getByRole('heading', { name: /Reveal poems/i })
+      this.guestPage.getByTestId(E2E_TEST_IDS.revealPhase)
     ).toBeVisible({ timeout: 30000 });
     await expect(
-      this.hostPage.getByRole('button', { name: /Reveal & Read/i })
+      this.hostPage.getByTestId(E2E_TEST_IDS.revealPoemButton).first()
     ).toBeVisible();
     await expect(
-      this.guestPage.getByRole('button', { name: /Reveal & Read/i })
+      this.guestPage.getByTestId(E2E_TEST_IDS.revealPoemButton).first()
     ).toBeVisible();
   }
 
@@ -526,12 +546,12 @@ export class GuestFlowSession {
   ) {
     const page = this.page(actor);
 
-    await page.getByRole('button', { name: /Reveal & Read/i }).click();
+    await page.getByTestId(E2E_TEST_IDS.revealPoemButton).first().click();
     await expect(page.getByText(lines[0])).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(lines.at(-1) ?? '')).toBeVisible({
       timeout: 12000,
     });
-    await page.getByRole('button', { name: /Close|Done|Back/i }).click();
+    await page.getByTestId(E2E_TEST_IDS.poemDoneButton).click();
   }
 
   async revealAllPoems(lines: readonly string[] = CANONICAL_GUEST_FLOW_LINES) {
@@ -542,10 +562,10 @@ export class GuestFlowSession {
 
   async expectSessionComplete() {
     await expect(
-      this.hostPage.getByRole('heading', { name: /All poems revealed/i })
+      this.hostPage.getByTestId(E2E_TEST_IDS.sessionComplete)
     ).toBeVisible({ timeout: 15000 });
     await expect(
-      this.guestPage.getByRole('heading', { name: /All poems revealed/i })
+      this.guestPage.getByTestId(E2E_TEST_IDS.sessionComplete)
     ).toBeVisible({ timeout: 15000 });
   }
 

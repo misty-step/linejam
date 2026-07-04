@@ -6,6 +6,7 @@ import { Heart, Volume2, VolumeX } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
 import { HeartButton } from './ui/HeartButton';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
@@ -360,7 +361,7 @@ export function PoemDisplay({
 
       {/* Footer / Actions - Fixed at bottom */}
       <div
-        data-testid="poem-actions"
+        data-testid={E2E_TEST_IDS.poemActions}
         className={cn(
           'px-6 md:px-12 lg:px-24 py-6 border-t border-border-subtle',
           'flex flex-col items-center gap-4',
@@ -397,6 +398,7 @@ export function PoemDisplay({
           {!isArchive && onDone && (
             <Button
               onClick={onDone}
+              data-testid={E2E_TEST_IDS.poemDoneButton}
               variant="ghost"
               size="lg"
               className="min-w-[100px] h-12 text-text-muted hover:text-text-primary"
