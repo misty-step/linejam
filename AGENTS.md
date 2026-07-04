@@ -131,7 +131,7 @@ Testing this needs the real scheduler/DB: use convex-test via
 Kenya Hara minimalism—Zen garden aesthetic.
 
 - **Accent**: Vermillion `oklch(0.55 0.22 25)` (calligrapher's seal)
-- **Typography**: Cormorant Garamond (display) + Inter (body)
+- **Typography**: Kenya uses Libre Baskerville (display) + IBM Plex Sans (body/UI) + JetBrains Mono (technical labels); other themes define their own pairings in `lib/themes/presets/`.
 - **Colors**: Warm white background, near-black text
 - **Tokens**: CSS custom properties in `globals.css`
 

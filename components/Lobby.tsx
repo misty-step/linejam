@@ -280,7 +280,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               ))}
             </ul>
 
-            <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[0_-8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_-8px_32px_rgba(0,0,0,0.4)]">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)]">
               {error && (
                 <Alert variant="error" className="mb-4">
                   {error}

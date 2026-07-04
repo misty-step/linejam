@@ -141,7 +141,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 
 ## Design
 
-Zen Garden aesthetic—Kenya Hara minimalism with warm white, near-black text, and vermillion accent. Typography: Cormorant Garamond for display, Inter for body.
+Zen Garden aesthetic—Kenya Hara minimalism with warm white, near-black text, and vermillion accent. The default Kenya theme uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels; other themes define their own pairings in `lib/themes/presets/`.
 
 ## License
 
