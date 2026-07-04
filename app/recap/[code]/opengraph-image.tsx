@@ -130,7 +130,7 @@ export default async function Image({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Poem {poem.number} / {poem.readerName}
+                  {`Poem ${poem.number} / ${poem.readerName}`}
                 </div>
                 <div
                   style={{
@@ -139,7 +139,7 @@ export default async function Image({
                     lineHeight: 1.18,
                   }}
                 >
-                  &ldquo;{poem.preview}&rdquo;
+                  {`“${poem.preview}”`}
                 </div>
               </div>
             ))}
