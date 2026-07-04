@@ -7,7 +7,7 @@ const mockUseClerkUser = vi.fn();
 const mockUseConvexAuth = vi.fn();
 const mockUseMutation = vi.fn();
 const mockMigrateGuestToUser = vi.fn();
-const mockGetGuestToken = vi.fn();
+const mockGetExistingGuestSession = vi.fn();
 const mockClearGuestSession = vi.fn();
 const mockCaptureError = vi.fn();
 
@@ -28,7 +28,7 @@ vi.mock('@clerk/nextjs', () => ({
 
 vi.mock('@/lib/guestSession', () => ({
   clearGuestSession: () => mockClearGuestSession(),
-  getGuestToken: () => mockGetGuestToken(),
+  getExistingGuestSession: () => mockGetExistingGuestSession(),
 }));
 
 vi.mock('@/lib/error', () => ({
@@ -49,11 +49,18 @@ describe('AuthCallbackPage', () => {
       isLoading: false,
       isAuthenticated: true,
     });
-    mockGetGuestToken.mockReturnValue('guest-token');
+    mockGetExistingGuestSession.mockResolvedValue({
+      guestId: 'guest-id',
+      token: 'guest-token',
+    });
+    mockClearGuestSession.mockResolvedValue(undefined);
   });
 
   it('redirects home immediately when no guest token exists', async () => {
-    mockGetGuestToken.mockReturnValue(null);
+    mockGetExistingGuestSession.mockResolvedValue({
+      guestId: null,
+      token: null,
+    });
 
     render(<AuthCallbackPage />);
 
@@ -137,6 +144,9 @@ describe('AuthCallbackPage', () => {
     mockMigrateGuestToUser
       .mockRejectedValueOnce(new Error('migration failed'))
       .mockResolvedValueOnce(undefined);
+    mockGetExistingGuestSession
+      .mockResolvedValueOnce({ guestId: 'guest-id', token: 'guest-token' })
+      .mockResolvedValueOnce({ guestId: 'guest-id', token: 'guest-token' });
 
     render(<AuthCallbackPage />);
 

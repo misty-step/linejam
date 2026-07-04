@@ -16,4 +16,11 @@ crons.interval(
   {}
 );
 
+crons.interval(
+  'cleanup expired rate limits',
+  { minutes: 30 },
+  internal.rateLimits.cleanupExpiredRateLimits,
+  {}
+);
+
 export default crons;

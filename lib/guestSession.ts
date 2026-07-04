@@ -17,30 +17,40 @@ export interface GuestSessionFetcher {
   fetch(): Promise<GuestSessionData>;
 }
 
-const STORAGE_KEY = 'linejam_guest_token';
+const LEGACY_STORAGE_KEY = 'linejam_guest_token';
 
-const persistGuestToken = (token: string | null) => {
+const clearLegacyGuestTokenMirror = () => {
   if (typeof window === 'undefined') return;
 
-  if (token) {
-    localStorage.setItem(STORAGE_KEY, token);
-    return;
-  }
-
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
 };
 
-export function getGuestToken(): string | null {
-  if (typeof window === 'undefined') return null;
-
-  const token = localStorage.getItem(STORAGE_KEY);
-  return token && token.trim() ? token : null;
-}
-
-export function clearGuestSession() {
+export async function clearGuestSession() {
   if (typeof window === 'undefined') return;
 
-  localStorage.removeItem(STORAGE_KEY);
+  clearLegacyGuestTokenMirror();
+  const res = await fetch('/api/guest/session', { method: 'DELETE' });
+  if (!res.ok) {
+    throw new Error(`Guest session revocation returned ${res.status}`);
+  }
+}
+
+export async function getExistingGuestSession(): Promise<GuestSessionData> {
+  return fetchGuestSession('/api/guest/session?existing=1');
+}
+
+async function fetchGuestSession(url: string): Promise<GuestSessionData> {
+  clearLegacyGuestTokenMirror();
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Guest session API returned ${res.status}`);
+  }
+  const data = await res.json();
+  const guestId = typeof data.guestId === 'string' ? data.guestId : null;
+  const token = typeof data.token === 'string' ? data.token : null;
+
+  return { guestId, token };
 }
 
 /**
@@ -50,17 +60,7 @@ export function clearGuestSession() {
 export const defaultGuestSessionFetcher: GuestSessionFetcher = {
   async fetch(): Promise<GuestSessionData> {
     try {
-      const res = await fetch('/api/guest/session');
-      if (!res.ok) {
-        throw new Error(`Guest session API returned ${res.status}`);
-      }
-      const data = await res.json();
-      const guestId = typeof data.guestId === 'string' ? data.guestId : null;
-      const token = typeof data.token === 'string' ? data.token : null;
-
-      persistGuestToken(token);
-
-      return { guestId, token };
+      return await fetchGuestSession('/api/guest/session');
     } catch (error) {
       throw new Error(
         `Failed to fetch guest session: ${error instanceof Error ? error.message : 'Unknown error'}`

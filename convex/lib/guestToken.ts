@@ -1,11 +1,13 @@
 import { getConvexRuntimeConfig } from './env';
 
-const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
 
-interface GuestTokenPayload {
+export interface GuestTokenPayload {
   guestId: string;
   issuedAt: number;
+  sessionId?: string;
+  rateLimitKey?: string;
 }
 
 const runtimeConfig = getConvexRuntimeConfig();
@@ -44,6 +46,13 @@ async function getKey(): Promise<CryptoKey> {
 }
 
 export async function verifyGuestToken(token: string): Promise<string> {
+  const payload = await verifyGuestTokenPayload(token);
+  return payload.guestId;
+}
+
+export async function verifyGuestTokenPayload(
+  token: string
+): Promise<GuestTokenPayload> {
   const parts = token.split('.');
   if (parts.length !== 2) {
     throw new Error('Invalid token format');
@@ -76,7 +85,7 @@ export async function verifyGuestToken(token: string): Promise<string> {
     throw new Error('Token expired');
   }
 
-  return payload.guestId;
+  return payload;
 }
 
 function base64UrlToArrayBuffer(base64Url: string): Uint8Array {

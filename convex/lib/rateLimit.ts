@@ -1,4 +1,8 @@
 import { MutationCtx } from '../_generated/server';
+import { ConvexError } from 'convex/values';
+
+export const RATE_LIMIT_EXCEEDED_MESSAGE =
+  'Rate limit exceeded. Please try again later.';
 
 export async function checkRateLimit(
   ctx: MutationCtx,
@@ -29,7 +33,7 @@ export async function checkRateLimit(
 
   // Within active window — enforce limit before incrementing
   if (existing.hits >= max) {
-    throw new Error('Rate limit exceeded. Please try again later.');
+    throw new ConvexError(RATE_LIMIT_EXCEEDED_MESSAGE);
   }
   await ctx.db.patch(existing._id, { hits: existing.hits + 1 });
 }

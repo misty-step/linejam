@@ -362,6 +362,7 @@ export class Ci {
   async e2e(
     source: Directory,
     playwrightRequireAuthE2e?: string,
+    linejamAllowUnsyncedConvexThrottle?: string,
     nextPublicConvexUrl?: string,
     nextPublicClerkPublishableKey?: string,
     clerkSecretKey?: Secret,
@@ -373,31 +374,37 @@ export class Ci {
     nextPublicCanaryEndpoint?: string,
     nextPublicCanaryApiKey?: string
   ): Promise<string> {
-    return withOptionalEnv(
-      baseContainer(
-        source,
-        {
-          nextPublicConvexUrl,
-          nextPublicClerkPublishableKey,
-          clerkSecretKey,
-          clerkJwtIssuerDomain,
-          playwrightClerkTestEmail,
-          guestTokenSecret: requireSecret(
-            'GUEST_TOKEN_SECRET',
-            guestTokenSecret,
-            'e2e'
-          ),
-          canaryEndpoint,
-          canaryApiKey,
-          nextPublicCanaryEndpoint,
-          nextPublicCanaryApiKey,
-        },
-        NODE_IMAGE,
-        'linejam-pnpm-playwright'
+    const container = withOptionalEnv(
+      withOptionalEnv(
+        baseContainer(
+          source,
+          {
+            nextPublicConvexUrl,
+            nextPublicClerkPublishableKey,
+            clerkSecretKey,
+            clerkJwtIssuerDomain,
+            playwrightClerkTestEmail,
+            guestTokenSecret: requireSecret(
+              'GUEST_TOKEN_SECRET',
+              guestTokenSecret,
+              'e2e'
+            ),
+            canaryEndpoint,
+            canaryApiKey,
+            nextPublicCanaryEndpoint,
+            nextPublicCanaryApiKey,
+          },
+          NODE_IMAGE,
+          'linejam-pnpm-playwright'
+        ),
+        'PLAYWRIGHT_REQUIRE_AUTH_E2E',
+        playwrightRequireAuthE2e
       ),
-      'PLAYWRIGHT_REQUIRE_AUTH_E2E',
-      playwrightRequireAuthE2e
-    )
+      'LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE',
+      linejamAllowUnsyncedConvexThrottle
+    );
+
+    return container
       .withExec([
         'pnpm',
         'exec',
@@ -626,6 +633,7 @@ export class Ci {
   async all(
     source: Directory,
     playwrightRequireAuthE2e?: string,
+    linejamAllowUnsyncedConvexThrottle?: string,
     nextPublicConvexUrl?: string,
     nextPublicClerkPublishableKey?: string,
     clerkSecretKey?: Secret,
@@ -661,6 +669,7 @@ export class Ci {
           this.e2e(
             source,
             playwrightRequireAuthE2e,
+            linejamAllowUnsyncedConvexThrottle,
             nextPublicConvexUrl,
             nextPublicClerkPublishableKey,
             clerkSecretKey,

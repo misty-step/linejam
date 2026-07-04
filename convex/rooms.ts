@@ -3,7 +3,7 @@ import { mutation, query } from './_generated/server';
 import { ensureUserHelper } from './users';
 import { getUser, checkParticipation } from './lib/auth';
 import { PRESENCE_AWAY_MS, isPresenceStale } from './lib/gameRules';
-import { checkRateLimit } from './lib/rateLimit';
+import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
 import {
   getRoomByCode,
   getRoomActivity,
@@ -39,11 +39,10 @@ export const createRoom = mutation({
       guestId,
     });
 
-    // Rate limit: 3 rooms per 10 minutes per user
-    await checkRateLimit(ctx, {
-      key: `createRoom:${user._id}`,
-      max: 3,
-      windowMs: 10 * 60 * 1000,
+    await checkMutationAbuseRateLimit(ctx, {
+      operation: 'createRoom',
+      userId: user._id,
+      guestToken: user.guestId ? guestToken : undefined,
     });
 
     const MAX_CODE_ATTEMPTS = 20;
@@ -93,11 +92,10 @@ export const joinRoom = mutation({
       guestId,
     });
 
-    // Rate limit: 10 joins per 10 minutes per user
-    await checkRateLimit(ctx, {
-      key: `joinRoom:${user._id}`,
-      max: 10,
-      windowMs: 10 * 60 * 1000,
+    await checkMutationAbuseRateLimit(ctx, {
+      operation: 'joinRoom',
+      userId: user._id,
+      guestToken: user.guestId ? guestToken : undefined,
     });
 
     const room = await requireRoomByCode(ctx, code);

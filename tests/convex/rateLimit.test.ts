@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { internal } from '../../convex/_generated/api';
 import { checkRateLimit } from '../../convex/lib/rateLimit';
 import { setupConvexTest } from '../helpers/convexTest';
 
@@ -237,5 +238,81 @@ describe('checkRateLimit', () => {
     // KEY row is still untouched
     const keyRow = await readRateLimit(t, KEY);
     expect(keyRow!.hits).toBe(5);
+  });
+});
+
+describe('cleanupExpiredRateLimits', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('deletes expired rows and preserves active windows', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await Promise.all([
+        ctx.db.insert('rateLimits', {
+          key: 'expired:past',
+          hits: 9,
+          resetTime: now - 1,
+        }),
+        ctx.db.insert('rateLimits', {
+          key: 'expired:boundary',
+          hits: 3,
+          resetTime: now,
+        }),
+        ctx.db.insert('rateLimits', {
+          key: 'active:future',
+          hits: 5,
+          resetTime: now + 1,
+        }),
+      ]);
+    });
+
+    const result = await t.mutation(
+      internal.rateLimits.cleanupExpiredRateLimits,
+      { now }
+    );
+
+    expect(result).toEqual({ deleted: 2, hasMore: false });
+    expect(await readRateLimit(t, 'expired:past')).toBeNull();
+    expect(await readRateLimit(t, 'expired:boundary')).toBeNull();
+    expect(await readRateLimit(t, 'active:future')).not.toBeNull();
+  });
+
+  it('caps each cleanup batch and reports when more rows may remain', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+
+    await t.run(async (ctx) => {
+      await Promise.all(
+        Array.from({ length: 3 }, (_, i) =>
+          ctx.db.insert('rateLimits', {
+            key: `expired:${i}`,
+            hits: 1,
+            resetTime: now - 1000 + i,
+          })
+        )
+      );
+    });
+
+    const result = await t.mutation(
+      internal.rateLimits.cleanupExpiredRateLimits,
+      { now, limit: 2 }
+    );
+
+    expect(result).toEqual({ deleted: 2, hasMore: true });
+
+    const remaining = await t.run((ctx) =>
+      ctx.db.query('rateLimits').collect()
+    );
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].key).toBe('expired:2');
   });
 });

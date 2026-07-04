@@ -14,11 +14,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
-import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
+import { type T, asUser, seedClerkUser, seedUser } from '../helpers/convexSeed';
 import {
   WORD_COUNTS,
   GHOSTWRITER_OVERTIME_MS,
 } from '../../convex/lib/gameRules';
+import { signGuestToken } from '../../lib/guestToken';
+import {
+  ABUSE_RATE_LIMITS,
+  type AbuseRateLimitOperation,
+  guestBucketRateLimitKey,
+} from '../../convex/lib/abuseRateLimit';
 
 /**
  * Seed a fully-wired LOBBY with two human players.
@@ -227,6 +233,20 @@ async function seedInProgressGame(
   });
 }
 
+async function seedExhaustedGuestBucket(
+  t: T,
+  operation: AbuseRateLimitOperation,
+  bucket: string
+) {
+  await t.run((ctx) =>
+    ctx.db.insert('rateLimits', {
+      key: guestBucketRateLimitKey(operation, bucket),
+      hits: ABUSE_RATE_LIMITS[operation].bucketMax,
+      resetTime: Date.now() + ABUSE_RATE_LIMITS[operation].windowMs,
+    })
+  );
+}
+
 beforeEach(() => {
   vi.stubGlobal(
     'fetch',
@@ -347,6 +367,22 @@ describe('startGame', () => {
         .collect()
     );
     expect(poems).toHaveLength(2);
+  });
+
+  it('rate-limits guest starts by signed network bucket before room lookup', async () => {
+    const t = setupConvexTest();
+    const bucket = 'guestSession:testStartBucket1234567890';
+    const guestId = 'guest-start-blocked';
+    await seedUser(t, { displayName: 'Blocked Starter', guestId });
+    await seedExhaustedGuestBucket(t, 'startGame', bucket);
+    const guestToken = await signGuestToken(guestId, {
+      sessionId: 'session-start-blocked',
+      rateLimitKey: bucket,
+    });
+
+    await expect(
+      t.mutation(api.game.startGame, { code: 'NOPE', guestToken })
+    ).rejects.toThrow('Rate limit exceeded');
   });
 
   it('blocks a non-host before the first game completes', async () => {
@@ -658,6 +694,35 @@ describe('submitLine', () => {
         text: 'hello',
       })
     ).rejects.toThrow('Game not in progress');
+  });
+
+  it('rate-limits guest submissions by signed network bucket before line validation', async () => {
+    const t = setupConvexTest();
+    const bucket = 'guestSession:testSubmitBucket1234567890';
+    const guestId = 'guest-submit-blocked';
+    const { poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSLRL' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSLRL' },
+      ],
+      code: 'SLRL',
+      currentRound: 0,
+    });
+    await t.run((ctx) => ctx.db.patch(userIds[0], { guestId }));
+    await seedExhaustedGuestBucket(t, 'submitLine', bucket);
+    const guestToken = await signGuestToken(guestId, {
+      sessionId: 'session-submit-blocked',
+      rateLimitKey: bucket,
+    });
+
+    await expect(
+      t.mutation(api.game.submitLine, {
+        poemId: poemIds[0],
+        lineIndex: 0,
+        text: 'hello',
+        guestToken,
+      })
+    ).rejects.toThrow('Rate limit exceeded');
   });
 
   it('throws if word count is incorrect', async () => {

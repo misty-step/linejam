@@ -1,11 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { internal } from '../../convex/_generated/api';
+import { api, internal } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
 import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
 import { countWords } from '../../convex/lib/wordCount';
-import { type T, getAllLines } from '../helpers/convexSeed';
+import { type T, getAllLines, seedUser } from '../helpers/convexSeed';
+import { signGuestToken } from '../../lib/guestToken';
+import {
+  ABUSE_RATE_LIMITS,
+  guestBucketRateLimitKey,
+} from '../../convex/lib/abuseRateLimit';
 
 /**
  * AI lifecycle integration tests on the real convex-test engine (backlog 018
@@ -126,6 +131,20 @@ async function seedClassicGame(
   });
 }
 
+async function seedExhaustedGuestBucket(
+  t: T,
+  operation: 'addAiPlayer',
+  bucket: string
+) {
+  await t.run((ctx) =>
+    ctx.db.insert('rateLimits', {
+      key: guestBucketRateLimitKey(operation, bucket),
+      hits: ABUSE_RATE_LIMITS[operation].bucketMax,
+      resetTime: Date.now() + ABUSE_RATE_LIMITS[operation].windowMs,
+    })
+  );
+}
+
 // ─── Test lifecycle ────────────────────────────────────────────────────────────
 
 const ORIGINAL_ENV = { ...process.env };
@@ -133,6 +152,8 @@ const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.AI_DAILY_CALL_BUDGET;
+  delete process.env.AI_DAILY_COST_BUDGET_USD;
+  delete process.env.AI_ESTIMATED_COST_PER_GENERATION_USD;
   delete process.env.LINEJAM_AI_DETERMINISTIC;
   // Belt-and-suspenders: stub OpenRouter offline. In practice the test env has
   // no OPENROUTER_API_KEY, so the action code already falls back before fetch.
@@ -147,6 +168,26 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+// ─── addAiPlayer ─────────────────────────────────────────────────────────────
+
+describe('addAiPlayer', () => {
+  it('rate-limits guest hosts by signed network bucket before room lookup', async () => {
+    const t = setupConvexTest();
+    const bucket = 'guestSession:testAiBucket1234567890';
+    const guestId = 'guest-ai-blocked';
+    await seedUser(t, { displayName: 'Blocked Host', guestId });
+    await seedExhaustedGuestBucket(t, 'addAiPlayer', bucket);
+    const guestToken = await signGuestToken(guestId, {
+      sessionId: 'session-ai-blocked',
+      rateLimitKey: bucket,
+    });
+
+    await expect(
+      t.mutation(api.ai.addAiPlayer, { code: 'NOPE', guestToken })
+    ).rejects.toThrow('Rate limit exceeded');
+  });
 });
 
 // ─── commitAiLine ─────────────────────────────────────────────────────────────
@@ -950,6 +991,32 @@ describe('multi-bot scheduling (solo play)', () => {
       )
     );
     expect(committedBotLines.filter(Boolean)).toHaveLength(2);
+  });
+
+  it('opens the breaker on estimated daily cost before scheduling paid cells', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '10';
+    process.env.AI_DAILY_COST_BUDGET_USD = '0.02';
+    process.env.AI_ESTIMATED_COST_PER_GENERATION_USD = '0.01';
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedClassicGame(t, {
+      players: SOLO_PLAYERS,
+      currentRound: 0,
+    });
+
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+
+    const usage = await aiUsageForToday(t);
+    expect(usage?.generationClaims).toBe(2);
+    expect(usage?.estimatedCostMicros).toBe(20_000);
+    expect(usage?.fallbacks).toBe(1);
+
+    const turns = await aiTurnsForRound(t, gameId, 0);
+    expect(turns.filter((turn) => turn.status === 'authorized')).toHaveLength(
+      2
+    );
+    expect(
+      turns.filter((turn) => turn.status === 'budget_fallback')
+    ).toHaveLength(1);
   });
 
   it('claim rows never block the safety net from filling a stranded cell', async () => {

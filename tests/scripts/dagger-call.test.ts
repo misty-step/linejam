@@ -173,6 +173,46 @@ printf '%s' "\${NEXT_PUBLIC_CANARY_API_KEY:-}" > "${envLog}"
     expect(readFileSync(envLog, 'utf8')).toBe('key\\value');
   });
 
+  it('passes the explicit unsynced Convex throttle flag into Dagger E2E', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const argsLog = join(workspace, 'dagger-args.log');
+
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeExecutable(
+      join(binDir, 'dagger'),
+      `#!/bin/sh
+printf '%s\\n' "$@" > "${argsLog}"
+`
+    );
+
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'e2e', {
+      CLERK_PUBLISHABLE_KEY: '',
+      CLERK_SECRET_KEY: '',
+      GUEST_TOKEN_SECRET: 'test-guest-token-secret',
+      LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1',
+      LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '0',
+      NEXT_PUBLIC_CANARY_API_KEY: 'test-canary-browser-key',
+      NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example.test',
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
+      NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+      PLAYWRIGHT_CLERK_TEST_EMAIL: '',
+    });
+
+    expect(result.status).toBe(0);
+
+    const args = readFileSync(argsLog, 'utf8').trim().split('\n');
+    expect(args).toContain('e-2-e');
+    expect(args).toContain('--playwright-require-auth-e2e=1');
+    expect(args).toContain('--linejam-allow-unsynced-convex-throttle=1');
+  });
+
   it('fails fast when dotenv loading fails before invoking dagger', () => {
     const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
     workspaces.push(workspace);
