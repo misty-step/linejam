@@ -21,6 +21,7 @@ Object.defineProperty(navigator, 'clipboard', {
 import { PoemDisplay, type PoemLine } from '@/components/PoemDisplay';
 import { Id } from '@/convex/_generated/dataModel';
 import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
+import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 describe('PoemDisplay component', () => {
   const mockPoemId = 'poem_test_123' as Id<'poems'>;
@@ -62,12 +63,19 @@ describe('PoemDisplay component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockClipboard.writeText.mockClear();
+    installMatchMedia(false);
+    Object.defineProperty(navigator, 'vibrate', {
+      value: vi.fn(),
+      configurable: true,
+    });
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    localStorage.clear();
   });
 
   describe('reveal animation', () => {
@@ -103,7 +111,7 @@ describe('PoemDisplay component', () => {
       });
     });
 
-    it('reveals lines progressively with staggered timing', async () => {
+    it('reveals lines with the poem-shaped ceremony cadence', async () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -118,21 +126,27 @@ describe('PoemDisplay component', () => {
       // Initially no lines revealed
       expect(lineDots[0]).toHaveClass('opacity-0');
 
-      // After 1000ms (BASE_REVEAL_DELAY), first line should reveal
+      // The reveal is not a flat metronome: it follows the poem diamond,
+      // swelling toward the five-word line before accelerating to the end.
       await act(async () => {
-        vi.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(559);
+      });
+      expect(lineDots[0]).toHaveClass('opacity-0');
+
+      await act(async () => {
+        vi.advanceTimersByTime(1);
       });
       expect(lineDots[0]).toHaveClass('opacity-100');
       expect(lineDots[1]).toHaveClass('opacity-0');
+      expect(navigator.vibrate).toHaveBeenCalledWith(8);
 
-      // After another 1000ms, second line reveals
       await act(async () => {
-        vi.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(680);
       });
       expect(lineDots[1]).toHaveClass('opacity-100');
     });
 
-    it('pauses after line 4 with extra delay', async () => {
+    it('crescendoes into the final line instead of pausing at a fixed beat', async () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -142,29 +156,87 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      // Advance timers to reveal first 5 lines (0-4)
-      for (let i = 0; i < 5; i++) {
+      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
+      const delays = [560, 680, 800, 940, 1120, 900, 720, 520, 360];
+
+      for (const delay of delays.slice(0, 5)) {
         await act(async () => {
-          vi.advanceTimersByTime(1000);
+          vi.advanceTimersByTime(delay);
         });
       }
 
-      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-
-      // Lines 0-4 should be revealed
       expect(lineDots[4]).toHaveClass('opacity-100');
       expect(lineDots[5]).toHaveClass('opacity-0');
 
-      // Line 5 (after pause point at PAUSE_AFTER_LINE=4) needs extra PAUSE_DURATION
       await act(async () => {
-        vi.advanceTimersByTime(1000); // Normal delay - not enough
+        vi.advanceTimersByTime(899);
       });
       expect(lineDots[5]).toHaveClass('opacity-0');
 
       await act(async () => {
-        vi.advanceTimersByTime(1200); // Extra pause delay
+        vi.advanceTimersByTime(1);
       });
       expect(lineDots[5]).toHaveClass('opacity-100');
+
+      for (const delay of delays.slice(6, 8)) {
+        await act(async () => {
+          vi.advanceTimersByTime(delay);
+        });
+      }
+
+      expect(lineDots[7]).toHaveClass('opacity-100');
+      expect(lineDots[8]).toHaveClass('opacity-0');
+
+      await act(async () => {
+        vi.advanceTimersByTime(359);
+      });
+      expect(lineDots[8]).toHaveClass('opacity-0');
+
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(lineDots[8]).toHaveClass('opacity-100');
+      expect(navigator.vibrate).toHaveBeenLastCalledWith([14, 30, 18]);
+    });
+
+    it('reveals immediately and skips haptics for reduced motion', async () => {
+      installMatchMedia(true);
+
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          onDone={mockOnDone}
+          alreadyRevealed={false}
+        />
+      );
+
+      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
+      lineDots.forEach((dot) => {
+        expect(dot).toHaveClass('opacity-100');
+      });
+      expect(navigator.vibrate).not.toHaveBeenCalled();
+    });
+
+    it('lets the reader mute reveal punctuation before the first line', async () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          onDone={mockOnDone}
+          alreadyRevealed={false}
+        />
+      );
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Mute ceremony sound/i })
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(560);
+      });
+
+      expect(navigator.vibrate).not.toHaveBeenCalled();
     });
 
     it('shows Share and Close buttons only after all lines revealed', async () => {
@@ -181,8 +253,7 @@ describe('PoemDisplay component', () => {
       expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-0');
 
       // Reveal all 9 lines one by one (with extra pause after line 4)
-      for (let i = 0; i < 9; i++) {
-        const delay = i === 5 ? 2200 : 1000; // Extra delay after pause point
+      for (const delay of [560, 680, 800, 940, 1120, 900, 720, 520, 360]) {
         await act(async () => {
           vi.advanceTimersByTime(delay);
         });

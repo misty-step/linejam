@@ -7,7 +7,20 @@ import { captureError } from '@/lib/error';
 import { trackPoemShared } from '@/lib/analytics';
 import { useShareLink } from '@/hooks/useShareLink';
 
-export function useSharePoem(poemId: Id<'poems'>, guestToken?: string) {
+function buildPoemShareText(openingLine?: string) {
+  const trimmed = openingLine?.trim();
+  if (!trimmed) return 'Read this poem from our Linejam session.';
+
+  const preview =
+    trimmed.length > 80 ? `${trimmed.slice(0, 77).trimEnd()}...` : trimmed;
+  return `Read "${preview}" from our Linejam session.`;
+}
+
+export function useSharePoem(
+  poemId: Id<'poems'>,
+  guestToken?: string,
+  openingLine?: string
+) {
   const enablePublicPoemShare = useMutation(api.shares.enablePublicPoemShare);
   const logShare = useMutation(api.shares.logShare);
 
@@ -21,7 +34,7 @@ export function useSharePoem(poemId: Id<'poems'>, guestToken?: string) {
     getShareData: () => ({
       url: `${window.location.origin}/poem/${poemId}`,
       title: 'Linejam poem',
-      text: 'Read this poem from our Linejam session.',
+      text: buildPoemShareText(openingLine),
     }),
     onShared: (method) => {
       logShare({ poemId }).catch(() => {});

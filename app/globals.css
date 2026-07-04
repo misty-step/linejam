@@ -231,6 +231,65 @@ h6 {
   }
 }
 
+@keyframes final-line-settle {
+  0% {
+    opacity: 0.88;
+    transform: translateY(0.35rem);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-0.08rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-final-line-settle {
+  animation:
+    wipe-reveal 800ms ease-out forwards,
+    final-line-settle 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes heart-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  34% {
+    opacity: 0.28;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+
+.animate-heart-burst {
+  animation: heart-burst 900ms ease-out both;
+}
+
+@keyframes crown-settle {
+  0% {
+    opacity: 0;
+    transform: translateY(-0.7rem) scale(0.86) rotate(-8deg);
+  }
+  58% {
+    opacity: 1;
+    transform: translateY(0.1rem) scale(1.04) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+.animate-crown-settle {
+  animation: crown-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Custom Caret - Theme color for ceremonial typing */
 textarea:focus {
   caret-color: var(--color-primary);

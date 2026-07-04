@@ -68,6 +68,7 @@ describe('SessionRecapHub', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockEnablePublicSessionRecapShare.mockResolvedValue(undefined);
     // Default: no hearts given → no room-favorite crown
     mockSessionFavorites.mockReturnValue(null);
@@ -86,6 +87,10 @@ describe('SessionRecapHub', () => {
     Object.defineProperty(navigator, 'share', {
       value: undefined,
       writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'vibrate', {
+      value: vi.fn(),
       configurable: true,
     });
 
@@ -111,6 +116,7 @@ describe('SessionRecapHub', () => {
       value: originalShare,
       configurable: true,
     });
+    localStorage.clear();
   });
 
   it('renders sorted poem replay links and host controls', async () => {
@@ -128,8 +134,8 @@ describe('SessionRecapHub', () => {
       screen.getByRole('link', { name: /Replay poem 2: Untitled poem/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /Open Shared Recap/i })
-    ).toHaveAttribute('href', '/recap/ABCD');
+      screen.queryByRole('link', { name: /Open Shared Recap/i })
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Start Next Round' }));
     await user.click(screen.getByRole('button', { name: 'Back to Lobby' }));
@@ -142,7 +148,9 @@ describe('SessionRecapHub', () => {
     const user = userEvent.setup();
     render(<SessionRecapHub {...defaultProps} playerCount={1} />);
 
-    await user.click(screen.getByRole('button', { name: /Share Session/i }));
+    await user.click(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Copied!')).toBeInTheDocument();
@@ -180,12 +188,14 @@ describe('SessionRecapHub', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: /Share Session/i }));
+    await user.click(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    );
 
     await waitFor(() => {
       expect(nativeShare).toHaveBeenCalledWith({
         title: 'Linejam session recap',
-        text: 'Replay every poem from our Linejam session in room ABCD.',
+        text: 'Share the whole set from Linejam room ABCD.',
         url: 'https://example.com/recap/ABCD',
       });
       expect(mockEnablePublicSessionRecapShare).toHaveBeenCalledWith({
@@ -215,6 +225,9 @@ describe('SessionRecapHub', () => {
 
     const crown = screen.getByText(/Room favorite/i).closest('.border-primary');
     expect(crown).toBeInTheDocument();
+    expect(screen.getByTestId('room-favorite-crown')).toHaveClass(
+      'animate-crown-settle'
+    );
     expect(screen.getByText(/3 hearts/i)).toBeInTheDocument();
     // The crowned poem's preview appears inside the crown card
     expect(crown).toHaveTextContent(/The moon hums/i);
