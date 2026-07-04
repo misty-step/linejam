@@ -8,6 +8,7 @@ import type { Doc } from '@/convex/_generated/dataModel';
 import { AuthErrorState } from '@/components/AuthErrorState';
 import { Lobby } from '@/components/Lobby';
 import { RevealPhase } from '@/components/RevealPhase';
+import { RoomPanelErrorBoundary } from '@/components/RoomPanelErrorBoundary';
 import { RoomChrome } from '@/components/RoomChrome';
 import { Button } from '@/components/ui/Button';
 import { WritingScreen } from '@/components/WritingScreen';
@@ -83,7 +84,11 @@ function ResolvedRoomPage({
 
   if (room.status === 'LOBBY') {
     return (
-      <>
+      <RoomPanelErrorBoundary
+        key={`${code}:lobby`}
+        roomCode={code}
+        panel="lobby"
+      >
         <RoomChrome
           roomCode={code}
           {...buildLobbyChromeCopy({
@@ -92,23 +97,38 @@ function ResolvedRoomPage({
           })}
         />
         <Lobby room={room} players={players} isHost={isHost} />
-      </>
+      </RoomPanelErrorBoundary>
     );
   }
 
   if (room.status === 'IN_PROGRESS') {
-    return <WritingScreen roomCode={code} showChrome />;
+    return (
+      <RoomPanelErrorBoundary
+        key={`${code}:writing`}
+        roomCode={code}
+        panel="writing"
+      >
+        <WritingScreen roomCode={code} showChrome />
+      </RoomPanelErrorBoundary>
+    );
   }
 
   if (room.status === 'COMPLETED') {
-    return <RevealPhase roomCode={code} showChrome />;
+    return (
+      <RoomPanelErrorBoundary
+        key={`${code}:reveal`}
+        roomCode={code}
+        panel="reveal"
+      >
+        <RevealPhase roomCode={code} showChrome />
+      </RoomPanelErrorBoundary>
+    );
   }
 
   return <UnexpectedRoomState code={code} status={String(room.status)} />;
 }
 
-export default function RoomPage({ params }: RoomPageProps) {
-  const { code } = use(params);
+function RoomPageContent({ code }: { code: string }) {
   const { isLoading, guestToken, authError, retryAuth } = useUser();
   const roomState = useQuery(api.rooms.getRoomState, {
     code,
@@ -144,4 +164,14 @@ export default function RoomPage({ params }: RoomPageProps) {
   }
 
   return <ResolvedRoomPage code={code} roomState={roomState} />;
+}
+
+export default function RoomPage({ params }: RoomPageProps) {
+  const { code } = use(params);
+
+  return (
+    <RoomPanelErrorBoundary roomCode={code} panel="room">
+      <RoomPageContent code={code} />
+    </RoomPanelErrorBoundary>
+  );
 }

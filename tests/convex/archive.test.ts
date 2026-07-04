@@ -84,10 +84,14 @@ async function seedFavorite(
 }
 
 /** Helper: call getArchiveData as the given Clerk user. */
-function queryArchive(t: T, clerkUserId: string, guestToken?: string) {
+function queryArchive(
+  t: T,
+  clerkUserId: string,
+  args: { guestToken?: string; limit?: number } = {}
+) {
   return t
     .withIdentity({ subject: clerkUserId })
-    .query(api.archive.getArchiveData, { guestToken });
+    .query(api.archive.getArchiveData, args);
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +122,40 @@ describe('archive', () => {
         uniqueCollaborators: 0,
         totalLinesWritten: 0,
       });
+    });
+
+    it('windows archive poems by explicit limit instead of returning the whole history', async () => {
+      const t = setupConvexTest();
+      const userId = await seedUser(t, {
+        displayName: 'Windowed',
+        clerkUserId: 'clerk_windowed',
+        guestId: 'guest_windowed',
+      });
+
+      const seeded = [];
+      for (let i = 0; i < 4; i++) {
+        const room = await seedCompletedRoom(t, userId, {
+          createdAt: 1000 + i,
+          poemCreatedAt: 1000 + i,
+        });
+        await seedLine(t, {
+          poemId: room.poemId,
+          authorUserId: userId,
+          text: `Line ${i}`,
+          wordCount: 2,
+          indexInPoem: 0,
+        });
+        seeded.push(room.poemId);
+      }
+
+      const result = await queryArchive(t, 'clerk_windowed', { limit: 2 });
+
+      expect(result.poems.map((poem) => poem._id)).toEqual([
+        seeded[3],
+        seeded[2],
+      ]);
+      expect(result.stats?.totalPoems).toBe(2);
+      expect(result.stats?.totalLinesWritten).toBe(2);
     });
 
     it('returns enriched poem with all metadata for user with one line', async () => {
