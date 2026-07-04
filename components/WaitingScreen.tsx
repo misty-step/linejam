@@ -4,6 +4,7 @@ import { api } from '../convex/_generated/api';
 import { GHOSTWRITER_OVERTIME_MS } from '../convex/lib/gameRules';
 import { useRoomQueryArgs } from '../hooks/useRoomQueryArgs';
 import { captureError } from '../lib/error';
+import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
@@ -116,7 +117,11 @@ export function WaitingScreen({
   const allStableIds = players.map((p) => p.stableId);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-8 md:p-12">
+    <div
+      data-testid={E2E_TEST_IDS.waitingPhase}
+      data-round={round + 1}
+      className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-8 md:p-12"
+    >
       {/* Floating vertical composition - massive breathing space */}
       <div
         className="w-full max-w-2xl flex flex-col items-center"

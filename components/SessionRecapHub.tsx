@@ -7,6 +7,7 @@ import { Crown, Heart, Share2, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { trackRoomInviteShared } from '@/lib/analytics';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { useShareLink } from '@/hooks/useShareLink';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { Alert } from './ui/Alert';
@@ -91,6 +92,7 @@ export function SessionRecapHub({
 
   return (
     <section
+      data-testid={E2E_TEST_IDS.sessionComplete}
       aria-labelledby="session-recap-title"
       className="space-y-8 pt-8 border-t border-border"
     >
@@ -131,7 +133,7 @@ export function SessionRecapHub({
           <div className="relative flex items-center gap-2 text-primary">
             <Heart className="h-4 w-4" fill="currentColor" />
             <Crown
-              data-testid="room-favorite-crown"
+              data-testid={E2E_TEST_IDS.roomFavoriteCrown}
               className="animate-crown-settle h-5 w-5"
               aria-hidden="true"
             />
@@ -186,7 +188,13 @@ export function SessionRecapHub({
       </div>
 
       <div className="grid gap-3">
-        <Button type="button" onClick={handleShare} size="lg" className="h-14">
+        <Button
+          type="button"
+          onClick={handleShare}
+          data-testid={E2E_TEST_IDS.sessionRecapShareButton}
+          size="lg"
+          className="h-14"
+        >
           <Share2 className="mr-2 h-4 w-4" />
           {shared ? 'Shared!' : copied ? 'Copied!' : 'Share the whole set'}
         </Button>

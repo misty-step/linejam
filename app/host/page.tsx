@@ -8,6 +8,7 @@ import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
 import { trackGameCreated } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
+import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Alert } from '../../components/ui/Alert';
@@ -77,6 +78,7 @@ export default function HostPage() {
               </label>
               <Input
                 id="name"
+                data-testid={E2E_TEST_IDS.hostNameInput}
                 placeholder="Enter your name..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -95,6 +97,7 @@ export default function HostPage() {
             <div className="pt-4">
               <Button
                 type="submit"
+                data-testid={E2E_TEST_IDS.hostCreateRoomButton}
                 className="w-full text-lg h-14"
                 disabled={!name.trim() || isSubmitting}
               >

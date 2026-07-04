@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
+import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
@@ -148,6 +149,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         <div className="space-y-3">
           <Button
             onClick={handleStartGame}
+            data-testid={E2E_TEST_IDS.lobbyStartGameButton}
             size="lg"
             className={`w-full h-16 text-lg ${className || ''}`}
             disabled={!canStart}
@@ -173,6 +175,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
       <div className="space-y-3">
         <Button
           disabled
+          data-testid={E2E_TEST_IDS.lobbyWaitingForHostButton}
           size="lg"
           className={`w-full h-16 text-lg opacity-50 cursor-not-allowed ${className || ''}`}
           variant="secondary"

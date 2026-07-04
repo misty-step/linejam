@@ -6,6 +6,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
+import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { trackGameJoined } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
@@ -90,6 +91,7 @@ function JoinForm() {
             </label>
             <Input
               id="code"
+              data-testid={E2E_TEST_IDS.joinRoomCodeInput}
               placeholder="ABCD"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -114,6 +116,7 @@ function JoinForm() {
             </label>
             <Input
               id="name"
+              data-testid={E2E_TEST_IDS.joinNameInput}
               placeholder="Enter your name..."
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -134,6 +137,7 @@ function JoinForm() {
           <div className="pt-4">
             <Button
               type="submit"
+              data-testid={E2E_TEST_IDS.joinRoomButton}
               className="w-full text-lg h-14"
               disabled={!name.trim() || !code.trim() || isSubmitting}
             >

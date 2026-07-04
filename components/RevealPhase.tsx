@@ -5,6 +5,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { cn } from '../lib/utils';
+import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { captureError } from '../lib/error';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
@@ -167,7 +168,10 @@ export function RevealPhase({
   return (
     <>
       {chrome}
-      <div className="min-h-screen bg-background flex flex-col">
+      <div
+        data-testid={E2E_TEST_IDS.revealPhase}
+        className="min-h-screen bg-background flex flex-col"
+      >
         <main className="flex-1 max-w-3xl mx-auto w-full space-y-12 p-6 md:p-12 lg:px-24 lg:pb-24 lg:pt-16">
           {/* 2. HERO - Your Assignment (primary action) */}
           {myPoems && myPoems.length > 0 && (
@@ -196,6 +200,7 @@ export function RevealPhase({
                     {error && <Alert variant="error">{error}</Alert>}
                     <Button
                       onClick={() => handleReveal(poem._id)}
+                      data-testid={E2E_TEST_IDS.revealPoemButton}
                       size="lg"
                       className="w-full h-12"
                       disabled={isRevealingId === poem._id}

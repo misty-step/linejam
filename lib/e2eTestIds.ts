@@ -1,0 +1,23 @@
+export const E2E_TEST_IDS = {
+  hostNameInput: 'host-name-input',
+  hostCreateRoomButton: 'host-create-room-button',
+  joinRoomCodeInput: 'join-room-code-input',
+  joinNameInput: 'join-name-input',
+  joinRoomButton: 'join-room-button',
+  lobbyStartGameButton: 'lobby-start-game-button',
+  lobbyWaitingForHostButton: 'lobby-waiting-for-host-button',
+  writingPhase: 'writing-phase',
+  writingLineInput: 'writing-line-input',
+  writingWordSlots: 'writing-word-slots',
+  writingSubmitLineButton: 'writing-submit-line-button',
+  waitingPhase: 'waiting-phase',
+  revealPhase: 'reveal-phase',
+  revealPoemButton: 'reveal-poem-button',
+  poemActions: 'poem-actions',
+  poemDoneButton: 'poem-done-button',
+  sessionComplete: 'session-complete',
+  roomFavoriteCrown: 'room-favorite-crown',
+  sessionRecapShareButton: 'session-recap-share-button',
+} as const;
+
+export type E2ETestId = (typeof E2E_TEST_IDS)[keyof typeof E2E_TEST_IDS];
