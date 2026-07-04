@@ -4,8 +4,20 @@
 <title>misty-step/linejam</title>
 <link>https://github.com/misty-step/linejam</link>
 <description>Release notes for misty-step/linejam</description>
-<lastBuildDate>Sat, 4 Jul 2026 05:22:15 +0000</lastBuildDate>
-<item><title>misty-step/linejam v1.14.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.14.0</link><guid>v1.14.0</guid><description><![CDATA[<h2>New Features</h2>
+<lastBuildDate>Sat, 4 Jul 2026 07:28:26 +0000</lastBuildDate>
+<item><title>misty-step/linejam v1.15.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.15.0</link><guid>v1.15.0</guid><description><![CDATA[<h2>Bug Fixes</h2>
+<ul>
+<li>Fixed mobile writing to be fully playable with cleaner room interface.</li>
+</ul>
+<h2>New Features</h2>
+<ul>
+<li>You can now play one streamlined core game mode (previous Rhyme and Quick modes have been combined).</li>
+<li>You can now automatically become the host when the original host leaves the room.</li>
+<li>The room now stays alive and recovers automatically if something goes wrong.</li>
+<li>You can now see a shared recap of your game session after playing.</li>
+</ul>
+]]></description><pubDate>Sat, 4 Jul 2026 07:28:26 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.14.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.14.0</link><guid>v1.14.0</guid><description><![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now vote for your favorite poem at the end of each game.</li>
 <li>The room automatically continues with a new host if the current host leaves mid-game.</li>
@@ -15,8 +27,8 @@
 <li>The mobile writing experience is now much easier to use with a cleaner, more spacious design.</li>
 <li>Rooms now stay active and self-heal if connection issues occur, so your game won't get stuck.</li>
 </ul>
-]]></description><pubDate>Sat, 4 Jul 2026 05:22:15 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.13.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.13.0</link><guid>v1.13.0</guid><description><![CDATA[<![CDATA[<h2>New Features</h2>
+]]]]><![CDATA[>]]></description><pubDate>Sat, 4 Jul 2026 05:22:15 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.13.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.13.0</link><guid>v1.13.0</guid><description><![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now enjoy a streamlined single game mode that combines the best of our previous play styles.</li>
 <li>The game now automatically passes host duties to another player when the current host leaves.</li>
@@ -26,8 +38,8 @@
 <ul>
 <li>Fixed mobile writing experience to work smoothly on phones and cleaned up the room interface.</li>
 </ul>
-]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 17:52:07 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.12.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.12.0</link><guid>v1.12.0</guid><description><![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
+]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 17:52:07 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.12.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.12.0</link><guid>v1.12.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
 <p><strong>Game modes simplified:</strong> Linejam now focuses on one core collaborative poetry experience. The separate Rhyme Relay and Quick Jam modes have been removed to streamline gameplay. All rooms now use the same fun, pass-the-poem format you love.</p>
 <h2>New Features</h2>
 <ul>
@@ -44,8 +56,8 @@
 <ul>
 <li>Fixed mobile touch targets to work properly with thumbs on all game screens.</li>
 </ul>
-]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:45:14 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.11.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.11.0</link><guid>v1.11.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
+]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:45:14 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.11.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.11.0</link><guid>v1.11.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
 <p>We've streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.</p>
 <h2>New Features</h2>
 <ul>
@@ -57,8 +69,8 @@
 <ul>
 <li>Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go.</li>
 </ul>
-]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:36:31 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
+]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:36:31 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now play with just one game mode that's perfectly tuned for collaborative poetry.</li>
 <li>The room automatically finds a new host when the current host leaves mid-game.</li>
@@ -69,6 +81,6 @@
 <ul>
 <li>The mobile writing experience is now much easier to use with a cleaner interface.</li>
 </ul>
-]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
+]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
 </channel>
 </rss>
