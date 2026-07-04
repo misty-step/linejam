@@ -363,8 +363,8 @@ export function PoemDisplay({
       <div
         data-testid={E2E_TEST_IDS.poemActions}
         className={cn(
-          'px-6 md:px-12 lg:px-24 py-6 border-t border-border-subtle',
-          'flex flex-col items-center gap-4',
+          'px-space-3 py-space-3 md:px-space-5 lg:px-space-6 border-t border-border-subtle',
+          'flex flex-col items-center gap-space-3',
           'transition-opacity duration-500',
           allRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
@@ -380,7 +380,7 @@ export function PoemDisplay({
             the recap.
           </p>
         )}
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-space-3">
           {/* Reveal variant: heart the poem toward the room-favorite crown */}
           {!isArchive && (
             <HeartButton poemId={poemId} guestToken={guestToken} />
