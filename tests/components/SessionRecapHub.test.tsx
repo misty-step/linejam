@@ -68,6 +68,7 @@ describe('SessionRecapHub', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockEnablePublicSessionRecapShare.mockResolvedValue(undefined);
     // Default: no hearts given → no room-favorite crown
     mockSessionFavorites.mockReturnValue(null);
@@ -86,6 +87,10 @@ describe('SessionRecapHub', () => {
     Object.defineProperty(navigator, 'share', {
       value: undefined,
       writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'vibrate', {
+      value: vi.fn(),
       configurable: true,
     });
 
@@ -111,6 +116,7 @@ describe('SessionRecapHub', () => {
       value: originalShare,
       configurable: true,
     });
+    localStorage.clear();
   });
 
   it('renders sorted poem replay links and host controls', async () => {
@@ -128,8 +134,8 @@ describe('SessionRecapHub', () => {
       screen.getByRole('link', { name: /Replay poem 2: Untitled poem/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /Open Shared Recap/i })
-    ).toHaveAttribute('href', '/recap/ABCD');
+      screen.queryByRole('link', { name: /Open Shared Recap/i })
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Start Next Round' }));
     await user.click(screen.getByRole('button', { name: 'Back to Lobby' }));
@@ -142,7 +148,9 @@ describe('SessionRecapHub', () => {
     const user = userEvent.setup();
     render(<SessionRecapHub {...defaultProps} playerCount={1} />);
 
-    await user.click(screen.getByRole('button', { name: /Share Session/i }));
+    await user.click(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Copied!')).toBeInTheDocument();
@@ -180,12 +188,14 @@ describe('SessionRecapHub', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: /Share Session/i }));
+    await user.click(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    );
 
     await waitFor(() => {
       expect(nativeShare).toHaveBeenCalledWith({
         title: 'Linejam session recap',
-        text: 'Replay every poem from our Linejam session in room ABCD.',
+        text: 'Share the whole set from Linejam room ABCD.',
         url: 'https://example.com/recap/ABCD',
       });
       expect(mockEnablePublicSessionRecapShare).toHaveBeenCalledWith({
@@ -215,6 +225,9 @@ describe('SessionRecapHub', () => {
 
     const crown = screen.getByText(/Room favorite/i).closest('.border-primary');
     expect(crown).toBeInTheDocument();
+    expect(screen.getByTestId('room-favorite-crown')).toHaveClass(
+      'animate-crown-settle'
+    );
     expect(screen.getByText(/3 hearts/i)).toBeInTheDocument();
     // The crowned poem's preview appears inside the crown card
     expect(crown).toHaveTextContent(/The moon hums/i);
@@ -231,6 +244,105 @@ describe('SessionRecapHub', () => {
     render(<SessionRecapHub {...defaultProps} />);
 
     expect(screen.queryByText(/Room favorite/i)).not.toBeInTheDocument();
+  });
+
+  it('does not re-punctuate the crown ceremony on an unrelated re-render', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [{ poemId: 'poem_1', indexInRoom: 0, count: 3 }],
+      totalHearts: 3,
+      leaderPoemId: 'poem_1',
+      leaderCount: 3,
+    });
+
+    const { rerender } = render(<SessionRecapHub {...defaultProps} />);
+    expect(navigator.vibrate).toHaveBeenCalledTimes(1);
+
+    // Same crowned poem, same leader count — a later re-render (e.g. from an
+    // unrelated prop change) must not replay the crown ceremony.
+    rerender(<SessionRecapHub {...defaultProps} playerCount={3} />);
+    expect(navigator.vibrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the singular "heart" label when exactly one heart was given', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [{ poemId: 'poem_1', indexInRoom: 0, count: 1 }],
+      totalHearts: 1,
+      leaderPoemId: 'poem_1',
+      leaderCount: 1,
+    });
+
+    render(<SessionRecapHub {...defaultProps} />);
+
+    expect(screen.getByText(/1 heart\b/i)).toBeInTheDocument();
+    expect(screen.queryByText(/1 hearts/i)).not.toBeInTheDocument();
+  });
+
+  it('falls back to "Untitled poem" when the crowned poem has no preview', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [{ poemId: 'poem_2', indexInRoom: 1, count: 2 }],
+      totalHearts: 2,
+      leaderPoemId: 'poem_2',
+      leaderCount: 2,
+    });
+
+    render(<SessionRecapHub {...defaultProps} />);
+
+    const crown = screen.getByText(/Room favorite/i).closest('.border-primary');
+    expect(crown).toHaveTextContent(/Untitled poem/i);
+  });
+
+  it('shows the share error alone when there is no separate room error', async () => {
+    mockEnablePublicSessionRecapShare.mockRejectedValueOnce(
+      new Error('Network down')
+    );
+    const user = userEvent.setup();
+    render(<SessionRecapHub {...defaultProps} />);
+
+    await user.click(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Failed to share recap. Please try again.')
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('toggles ceremony sound and persists the preference across mount', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<SessionRecapHub {...defaultProps} />);
+
+    const muteButton = screen.getByRole('button', {
+      name: 'Mute ceremony sound',
+    });
+    expect(screen.getByText('Sound')).toBeInTheDocument();
+
+    await user.click(muteButton);
+
+    expect(
+      screen.getByRole('button', { name: 'Turn ceremony sound on' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Muted')).toBeInTheDocument();
+    expect(localStorage.getItem('linejam:ceremony-muted')).toBe('1');
+
+    unmount();
+
+    // A remount should read the persisted preference back as muted.
+    render(<SessionRecapHub {...defaultProps} />);
+    expect(
+      screen.getByRole('button', { name: 'Turn ceremony sound on' })
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Turn ceremony sound on' })
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Mute ceremony sound' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Sound')).toBeInTheDocument();
+    expect(localStorage.getItem('linejam:ceremony-muted')).toBeNull();
   });
 
   it('lets anyone in the room continue (no host gating)', async () => {

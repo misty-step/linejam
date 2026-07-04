@@ -25,6 +25,8 @@ interface WritingScreenProps {
 
 type RoomQueryArgs = ReturnType<typeof useRoomQueryArgs>['queryArgs'];
 
+const WRITING_COACHMARK_STORAGE_KEY = 'linejam:writing-coachmark-seen';
+
 interface WritingAssignment {
   poemId: Id<'poems'>;
   lineIndex: number;
@@ -45,6 +47,26 @@ interface WritingComposerProps {
 function numberToWord(n: number): string {
   const words = ['zero', 'one', 'two', 'three', 'four', 'five'];
   return words[n] ?? String(n);
+}
+
+function shouldShowWritingCoachmark() {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    return window.localStorage.getItem(WRITING_COACHMARK_STORAGE_KEY) !== '1';
+  } catch {
+    return true;
+  }
+}
+
+function markWritingCoachmarkSeen() {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(WRITING_COACHMARK_STORAGE_KEY, '1');
+  } catch {
+    // The coachmark is still visible for this render if storage is unavailable.
+  }
 }
 
 function WritingComposer({
@@ -71,6 +93,7 @@ function WritingComposer({
   const [error, setError] = useState<string | null>(null);
   const [liveRegionMessage, setLiveRegionMessage] = useState('');
   const [hasFocus, setHasFocus] = useState(false);
+  const [showCoachmark] = useState(shouldShowWritingCoachmark);
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -125,6 +148,12 @@ function WritingComposer({
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [assignment.poemId, assignment.lineIndex]);
 
+  useEffect(() => {
+    if (showCoachmark) {
+      markWritingCoachmarkSeen();
+    }
+  }, [showCoachmark]);
+
   if (showWaitingScreen) {
     return <WaitingScreen roomCode={roomCode} guestToken={guestToken} />;
   }
@@ -174,6 +203,15 @@ function WritingComposer({
       </div>
 
       <div className="w-full max-w-3xl space-y-6 md:space-y-16">
+        {showCoachmark && (
+          <div className="border-l-2 border-primary py-1 pl-4 text-sm leading-relaxed text-text-secondary animate-fade-in-up">
+            <p className="font-medium text-text-primary">
+              You only see one carried line.
+            </p>
+            <p>Match the word slots, then pass it on.</p>
+          </div>
+        )}
+
         {/* The Memory - No container */}
         {assignment.previousLineText && (
           <div className="mb-4 md:mb-16 animate-fade-in-up">

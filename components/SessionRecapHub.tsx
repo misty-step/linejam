@@ -1,13 +1,14 @@
 'use client';
 
-import { MouseEvent, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery } from 'convex/react';
-import { Heart, Share2 } from 'lucide-react';
+import { Crown, Heart, Share2, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { trackRoomInviteShared } from '@/lib/analytics';
 import { useShareLink } from '@/hooks/useShareLink';
+import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { Label } from './ui/Label';
@@ -46,7 +47,8 @@ export function SessionRecapHub({
   onBackToLobby,
 }: SessionRecapHubProps) {
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
-  const [openError, setOpenError] = useState<string | null>(null);
+  const lastCrownedPoemId = useRef<Id<'poems'> | null>(null);
+  const { isMuted, punctuate, toggleMuted } = useCeremonyEffects();
 
   // Live tally — the crown can still change as late hearts land.
   const sessionFavorites = useQuery(api.favorites.getSessionFavorites, {
@@ -60,7 +62,6 @@ export function SessionRecapHub({
   const enablePublicSessionRecapShare = useMutation(
     api.shares.enablePublicSessionRecapShare
   );
-  const recapHref = `/recap/${roomCode}`;
   const enablePublicRecap = async () => {
     await enablePublicSessionRecapShare({
       roomCode,
@@ -72,7 +73,7 @@ export function SessionRecapHub({
     getShareData: () => ({
       url: sessionRecapUrl(roomCode),
       title: 'Linejam session recap',
-      text: `Replay every poem from our Linejam session in room ${roomCode}.`,
+      text: `Share the whole set from Linejam room ${roomCode}.`,
     }),
     onShared: (method) => {
       trackRoomInviteShared({ method, roomCode });
@@ -80,19 +81,13 @@ export function SessionRecapHub({
     failureMessage: 'Failed to share recap. Please try again.',
   });
 
-  const handleOpenSharedRecap = async (
-    event: MouseEvent<HTMLAnchorElement>
-  ) => {
-    event.preventDefault();
-    setOpenError(null);
+  useEffect(() => {
+    if (!favoritePoem || sessionFavorites?.leaderCount === 0) return;
+    if (lastCrownedPoemId.current === favoritePoem._id) return;
 
-    try {
-      await enablePublicRecap();
-      window.location.assign(recapHref);
-    } catch {
-      setOpenError('Failed to publish recap. Please try again.');
-    }
-  };
+    lastCrownedPoemId.current = favoritePoem._id;
+    punctuate('crown');
+  }, [favoritePoem, punctuate, sessionFavorites?.leaderCount]);
 
   return (
     <section
@@ -122,15 +117,24 @@ export function SessionRecapHub({
         </div>
       </div>
 
-      {(error || shareError || openError) && (
-        <Alert variant="error">{error || shareError || openError}</Alert>
+      {(error || shareError) && (
+        <Alert variant="error">{error || shareError}</Alert>
       )}
 
       {/* Room favorite — only crowned when the room actually gave hearts */}
       {favoritePoem && sessionFavorites && (
-        <div className="border border-primary bg-surface p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-primary">
+        <div className="relative overflow-hidden border border-primary bg-surface p-5 shadow-sm">
+          <div
+            aria-hidden="true"
+            className="animate-heart-burst absolute right-5 top-5 h-16 w-16 rounded-full bg-primary/20"
+          />
+          <div className="relative flex items-center gap-2 text-primary">
             <Heart className="h-4 w-4" fill="currentColor" />
+            <Crown
+              data-testid="room-favorite-crown"
+              className="animate-crown-settle h-5 w-5"
+              aria-hidden="true"
+            />
             <p className="text-[10px] font-mono uppercase tracking-widest">
               Room favorite · {sessionFavorites.leaderCount} heart
               {sessionFavorites.leaderCount === 1 ? '' : 's'}
@@ -181,25 +185,33 @@ export function SessionRecapHub({
         })}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3">
         <Button type="button" onClick={handleShare} size="lg" className="h-14">
           <Share2 className="mr-2 h-4 w-4" />
-          {shared ? 'Shared!' : copied ? 'Copied!' : 'Share Session'}
+          {shared ? 'Shared!' : copied ? 'Copied!' : 'Share the whole set'}
         </Button>
-
-        <Link
-          href={recapHref}
-          prefetch={false}
-          onClick={handleOpenSharedRecap}
-          className="inline-flex h-14 w-full items-center justify-center rounded-md border border-border bg-surface px-8 text-lg font-medium text-text-primary shadow-sm transition-all duration-[var(--duration-normal)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 active:scale-[0.96]"
-        >
-          Open Shared Recap
-        </Link>
       </div>
 
-      <p className="text-sm text-text-muted text-center">
-        Sharing makes the full session recap public to anyone with the link.
-      </p>
+      <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+        <p className="text-sm text-text-muted">
+          Sharing makes the full session recap public to anyone with the link.
+        </p>
+        <button
+          type="button"
+          onClick={toggleMuted}
+          className="inline-flex h-10 items-center gap-2 rounded-full border border-border-subtle px-3 text-xs font-mono uppercase tracking-wider text-text-muted transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          aria-label={
+            isMuted ? 'Turn ceremony sound on' : 'Mute ceremony sound'
+          }
+        >
+          {isMuted ? (
+            <VolumeX className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Volume2 className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span>{isMuted ? 'Muted' : 'Sound'}</span>
+        </button>
+      </div>
 
       {/* Anyone in the room can keep it moving — a vanished host never strands the recap. */}
       <div className="grid grid-cols-2 gap-3">

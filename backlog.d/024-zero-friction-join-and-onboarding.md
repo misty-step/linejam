@@ -1,6 +1,6 @@
 # Zero-friction join (QR + tap-copy) and teach-by-doing onboarding
 
-Priority: P1 · Status: pending · Estimate: L
+Priority: P1 · Status: done · Estimate: L
 
 Milestone: spans launch-readiness (join friction) and aesthetic polish
 (onboarding feel).
@@ -13,17 +13,17 @@ scanning/tapping the code, not retyping it.
 
 ## Oracle
 
-- [ ] The lobby shows a scannable QR that drops a phone straight into
+- [x] The lobby shows a scannable QR that drops a phone straight into
       `/join?code=…`; tapping the room code copies the bare 4-char code (distinct
       from the invite URL) — closes the long-standing issue #170 properly.
-- [ ] A first-run inline coachmark on the writing screen teaches the
+- [x] A first-run inline coachmark on the writing screen teaches the
       partial-visibility + word-count mechanic, shown once per device, without
       opening the help modal.
-- [ ] A late/mid-game arrival sees an explanatory "game in progress — you're in
+- [x] A late/mid-game arrival sees an explanatory "game in progress — you're in
       for the next round" state instead of an empty waiting screen.
-- [ ] The landing/join page has a one-sentence "what happens" beat before a
+- [x] The landing/join page has a one-sentence "what happens" beat before a
       cold-linked friend commits a name.
-- [ ] The submit-failure path routes through `errorToFeedback` (not the hardcoded
+- [x] The submit-failure path routes through `errorToFeedback` (not the hardcoded
       English string), matching the rest of the app.
 
 ## Verification System

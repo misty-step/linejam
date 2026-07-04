@@ -19,6 +19,10 @@ export default function Home() {
             <br />
             One line at a time.
           </p>
+          <p className="max-w-md text-base md:text-lg leading-relaxed text-[var(--color-text-secondary)]">
+            Pass the phone around a room-code game, then read the surprise poems
+            aloud.
+          </p>
 
           {/* Action Buttons */}
           <div className="space-y-4 max-w-md">

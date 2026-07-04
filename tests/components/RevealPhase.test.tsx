@@ -328,11 +328,11 @@ describe('RevealPhase component', () => {
     expect(screen.getByText(/2 poems/i)).toBeInTheDocument();
     expect(screen.getByText(/2 poets/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Share Session/i })
+      screen.getByRole('button', { name: /Share the whole set/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /Open Shared Recap/i })
-    ).toHaveAttribute('href', '/recap/ABCD');
+      screen.queryByRole('link', { name: /Open Shared Recap/i })
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', {
         name: /Replay poem 1: The stars align above/i,
@@ -399,14 +399,17 @@ describe('RevealPhase component', () => {
     });
   });
 
-  it('disables recap prefetch on the session-complete screen', () => {
+  it('collapses the old second recap link on the session-complete screen', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
     render(<RevealPhase roomCode="ABCD" />);
 
     expect(
-      screen.getByRole('link', { name: /Open Shared Recap/i })
-    ).toHaveAttribute('data-prefetch', 'false');
+      screen.queryByRole('link', { name: /Open Shared Recap/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    ).toBeInTheDocument();
   });
 
   it('gives non-hosts replay and share actions after completion', () => {
@@ -415,11 +418,11 @@ describe('RevealPhase component', () => {
     render(<RevealPhase roomCode="ABCD" />);
 
     expect(
-      screen.getByRole('button', { name: /Share Session/i })
+      screen.getByRole('button', { name: /Share the whole set/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /Open Shared Recap/i })
-    ).toHaveAttribute('href', '/recap/ABCD');
+      screen.queryByRole('link', { name: /Open Shared Recap/i })
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /Replay poem 1/i })
     ).toHaveAttribute('href', '/poem/poem_123');

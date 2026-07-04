@@ -31,6 +31,7 @@ vi.mock('@/lib/analytics', () => ({
 
 describe('useSharePoem', () => {
   const testPoemId = 'poem123' as Id<'poems'>;
+  const openingLine = 'The moon hums';
   let originalClipboard: Clipboard;
   let originalLocation: Location;
   let originalShare: Navigator['share'];
@@ -90,14 +91,18 @@ describe('useSharePoem', () => {
   });
 
   it('returns initial state with copied=false', () => {
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     expect(result.current.copied).toBe(false);
     expect(typeof result.current.handleShare).toBe('function');
   });
 
   it('copies URL to clipboard when handleShare is called', async () => {
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -113,7 +118,9 @@ describe('useSharePoem', () => {
   });
 
   it('sets copied=true after successful copy', async () => {
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -123,7 +130,9 @@ describe('useSharePoem', () => {
   });
 
   it('resets copied to false after 2000ms timeout', async () => {
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -140,7 +149,9 @@ describe('useSharePoem', () => {
   });
 
   it('logs share via mutation (fire-and-forget)', async () => {
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -152,7 +163,9 @@ describe('useSharePoem', () => {
 
   it('does not copy when public sharing cannot be enabled', async () => {
     mockEnablePublicPoemShare.mockRejectedValueOnce(new Error('Forbidden'));
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -167,7 +180,9 @@ describe('useSharePoem', () => {
 
   it('handles logShare mutation failure gracefully', async () => {
     mockLogShare.mockRejectedValueOnce(new Error('Network error'));
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     // Should not throw, mutation error is caught
     await act(async () => {
@@ -183,7 +198,9 @@ describe('useSharePoem', () => {
     (
       navigator.clipboard.writeText as ReturnType<typeof vi.fn>
     ).mockRejectedValueOnce(clipboardError);
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -203,7 +220,9 @@ describe('useSharePoem', () => {
     (
       navigator.clipboard.writeText as ReturnType<typeof vi.fn>
     ).mockRejectedValueOnce(new Error('Clipboard denied'));
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -220,7 +239,9 @@ describe('useSharePoem', () => {
       writable: true,
       configurable: true,
     });
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -228,7 +249,7 @@ describe('useSharePoem', () => {
 
     expect(nativeShare).toHaveBeenCalledWith({
       title: 'Linejam poem',
-      text: 'Read this poem from our Linejam session.',
+      text: 'Read "The moon hums" from our Linejam session.',
       url: 'https://example.com/poem/poem123',
     });
     expect(mockEnablePublicPoemShare).toHaveBeenCalledWith({
@@ -248,7 +269,9 @@ describe('useSharePoem', () => {
       writable: true,
       configurable: true,
     });
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -267,7 +290,9 @@ describe('useSharePoem', () => {
       writable: true,
       configurable: true,
     });
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
 
     await act(async () => {
       await result.current.handleShare();
@@ -276,5 +301,49 @@ describe('useSharePoem', () => {
     expect(result.current.shareError).toBeNull();
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
     expect(mockCaptureError).not.toHaveBeenCalled();
+  });
+
+  it('truncates a long opening line in the share text preview', async () => {
+    const nativeShare = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', {
+      value: nativeShare,
+      writable: true,
+      configurable: true,
+    });
+    const longOpeningLine =
+      'The moon hums a long forgotten tune while the tide pulls back from the shore, again and again, patient as ever';
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, longOpeningLine)
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(nativeShare).toHaveBeenCalledWith({
+      title: 'Linejam poem',
+      text: `Read "${longOpeningLine.slice(0, 77)}..." from our Linejam session.`,
+      url: 'https://example.com/poem/poem123',
+    });
+  });
+
+  it('uses a generic fallback only when the opening line is unavailable', async () => {
+    const nativeShare = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', {
+      value: nativeShare,
+      writable: true,
+      configurable: true,
+    });
+    const { result } = renderHook(() => useSharePoem(testPoemId));
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(nativeShare).toHaveBeenCalledWith({
+      title: 'Linejam poem',
+      text: 'Read this poem from our Linejam session.',
+      url: 'https://example.com/poem/poem123',
+    });
   });
 });

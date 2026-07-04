@@ -2,13 +2,14 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Heart } from 'lucide-react';
+import { Heart, Volume2, VolumeX } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
 import { HeartButton } from './ui/HeartButton';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
+import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
 
 /**
@@ -24,9 +25,15 @@ import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
  * - 'archive': Regular page flow for archive viewing
  */
 
-const BASE_REVEAL_DELAY = 1000;
-const PAUSE_AFTER_LINE = 4;
-const PAUSE_DURATION = 1200;
+const REVEAL_DELAYS_MS = [560, 680, 800, 940, 1120, 900, 720, 520, 360];
+
+function getRevealDelay(lineIndex: number, totalLines: number) {
+  if (totalLines <= 1) return REVEAL_DELAYS_MS[0];
+  const shapeIndex = Math.round(
+    (lineIndex / Math.max(totalLines - 1, 1)) * (REVEAL_DELAYS_MS.length - 1)
+  );
+  return REVEAL_DELAYS_MS[shapeIndex] ?? REVEAL_DELAYS_MS.at(-1)!;
+}
 
 export interface PoemLine {
   text: string;
@@ -77,18 +84,21 @@ export function PoemDisplay({
 
   // Archive variant is always fully revealed
   const effectiveAlreadyRevealed = isArchive ? true : alreadyRevealed;
+  const normalizedLines: PoemLine[] = lines.map((line) =>
+    typeof line === 'string' ? { text: line } : line
+  );
+  const firstLineText = normalizedLines[0]?.text ?? metadata?.firstLine ?? '';
+  const { isMuted, prefersReducedMotion, punctuate, toggleMuted } =
+    useCeremonyEffects();
 
   const [revealedCount, setRevealedCount] = useState(
-    effectiveAlreadyRevealed ? lines.length : 0
+    effectiveAlreadyRevealed || prefersReducedMotion ? lines.length : 0
   );
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const { handleShare, copied, shared, shareError } = useSharePoem(
     poemId,
-    guestToken
-  );
-
-  const normalizedLines: PoemLine[] = lines.map((line) =>
-    typeof line === 'string' ? { text: line } : line
+    guestToken,
+    firstLineText
   );
 
   // Get unique authors for legend (preserves order of first appearance)
@@ -107,19 +117,35 @@ export function PoemDisplay({
       }));
   }, [normalizedLines]);
 
-  // Staggered reveal with rhythmic pause after line 4
+  // Staggered reveal follows the 1,2,3,4,5,4,3,2,1 poem shape, then
+  // accelerates into the final one-word line.
   useEffect(() => {
-    if (!effectiveAlreadyRevealed && revealedCount < lines.length) {
-      const extraDelay =
-        revealedCount === PAUSE_AFTER_LINE + 1 ? PAUSE_DURATION : 0;
-      const delay = BASE_REVEAL_DELAY + extraDelay;
+    if (effectiveAlreadyRevealed || prefersReducedMotion) {
+      if (revealedCount < lines.length) {
+        const timer = setTimeout(() => {
+          setRevealedCount(lines.length);
+        }, 0);
+        return () => clearTimeout(timer);
+      }
+      return;
+    }
 
+    if (revealedCount < lines.length) {
+      const delay = getRevealDelay(revealedCount, lines.length);
       const timer = setTimeout(() => {
-        setRevealedCount((prev) => prev + 1);
+        const nextCount = revealedCount + 1;
+        punctuate(nextCount >= lines.length ? 'final-line' : 'line');
+        setRevealedCount(nextCount);
       }, delay);
       return () => clearTimeout(timer);
     }
-  }, [revealedCount, lines.length, effectiveAlreadyRevealed]);
+  }, [
+    revealedCount,
+    lines.length,
+    effectiveAlreadyRevealed,
+    prefersReducedMotion,
+    punctuate,
+  ]);
 
   // Clear selected line after 2s
   useEffect(() => {
@@ -131,16 +157,34 @@ export function PoemDisplay({
 
   const allRevealed = revealedCount >= lines.length;
 
-  // Get first line for preview (use metadata or extract from lines)
-  const firstLineText = metadata?.firstLine ?? normalizedLines[0]?.text ?? '';
-
   // Container classes based on variant
   const containerClasses = isArchive
     ? 'min-h-screen bg-background flex flex-col'
     : 'fixed inset-0 bg-background z-50 flex flex-col overflow-y-auto';
 
+  const ceremonyMuteButton = !isArchive ? (
+    <button
+      type="button"
+      onClick={toggleMuted}
+      className="inline-flex h-9 items-center gap-2 rounded-full border border-border-subtle bg-background/80 px-3 text-xs font-mono uppercase tracking-wider text-text-muted backdrop-blur-sm transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      aria-label={isMuted ? 'Turn ceremony sound on' : 'Mute ceremony sound'}
+      title={isMuted ? 'Turn ceremony sound on' : 'Mute ceremony'}
+    >
+      {isMuted ? (
+        <VolumeX className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        <Volume2 className="h-4 w-4" aria-hidden="true" />
+      )}
+      <span>{isMuted ? 'Muted' : 'Sound'}</span>
+    </button>
+  ) : null;
+
   return (
     <div className={containerClasses}>
+      {!metadata && ceremonyMuteButton && (
+        <div className="fixed right-4 top-4 z-10">{ceremonyMuteButton}</div>
+      )}
+
       {/* Poem Content */}
       <div className="flex-1 px-6 md:px-12 lg:px-24 py-12 md:py-16 lg:py-24 max-w-3xl mx-auto w-full">
         {/* Header: Poem Identity + Controls */}
@@ -163,6 +207,7 @@ export function PoemDisplay({
               <span className="text-sm font-mono text-text-muted uppercase tracking-wider">
                 {formatDate(metadata.createdAt)}
               </span>
+              {!isArchive && ceremonyMuteButton}
               {isArchive &&
                 metadata.isParticipant &&
                 metadata.onToggleFavorite && (
@@ -228,6 +273,13 @@ export function PoemDisplay({
           {normalizedLines.map((line, index) => {
             const isVisible = index < revealedCount;
             const isSelected = selectedLine === index;
+            const isFinalLine = index === normalizedLines.length - 1;
+            const revealAnimation =
+              isVisible && !prefersReducedMotion
+                ? isFinalLine
+                  ? 'wipe-reveal 800ms ease-out forwards, final-line-settle 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards'
+                  : 'wipe-reveal 800ms ease-out forwards'
+                : 'none';
             const dotColor = line.authorStableId
               ? allStableIds
                 ? getUniqueColor(line.authorStableId, allStableIds)
@@ -264,12 +316,14 @@ export function PoemDisplay({
                       className={cn(
                         'font-[var(--font-display)] leading-relaxed',
                         'text-lg md:text-xl lg:text-2xl',
-                        'text-text-primary'
+                        'text-text-primary',
+                        isVisible &&
+                          isFinalLine &&
+                          !prefersReducedMotion &&
+                          'animate-final-line-settle'
                       )}
                       style={{
-                        animation: isVisible
-                          ? `wipe-reveal 800ms ease-out forwards`
-                          : 'none',
+                        animation: revealAnimation,
                         clipPath: isVisible ? undefined : 'inset(0 100% 0 0)',
                       }}
                     >

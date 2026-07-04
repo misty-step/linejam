@@ -1,6 +1,6 @@
 # Make the reveal a ceremony and a one-tap shareable group artifact
 
-Priority: P1 · Status: pending · Estimate: L
+Priority: P1 · Status: done · Estimate: L
 
 Milestone: aesthetic polish + growth loop (sequence after the launch-readiness
 items 020–022).
@@ -13,17 +13,17 @@ the funniest minute of game night into the acquisition channel.
 
 ## Oracle
 
-- [ ] Reveal pacing follows the poem's own 1,2,3,4,5,4,3,2,1 word-shape with a
+- [x] Reveal pacing follows the poem's own 1,2,3,4,5,4,3,2,1 word-shape with a
       crescendo into the final line (not a flat 1000ms/line metronome),
       respecting `prefers-reduced-motion`.
-- [ ] The room-favorite "crown" is a distinct ceremonial moment (heart-burst →
+- [x] The room-favorite "crown" is a distinct ceremonial moment (heart-burst →
       crown settle), not a static badge.
-- [ ] Optional sound + haptic punctuation on reveal/crown (mobile-first,
+- [x] Optional sound + haptic punctuation on reveal/crown (mobile-first,
       default-on with a mute) — zero exists today.
-- [ ] At session end the group gets ONE "Share the whole set" action backed by a
+- [x] At session end the group gets ONE "Share the whole set" action backed by a
       typeset session OG image at `/recap/[code]/opengraph-image`; the two
       near-identical recap share buttons collapse to one.
-- [ ] Per-poem share text is seeded with the poem's actual opening line (not the
+- [x] Per-poem share text is seeded with the poem's actual opening line (not the
       generic "Read this poem from our Linejam session").
 
 ## Verification System

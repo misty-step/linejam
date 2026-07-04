@@ -21,14 +21,23 @@ export default async function Image({
   const subtitle = recap
     ? `${recap.poemCount} poems by ${recap.playerCount} poets`
     : 'Session recap';
-  const lines = recap?.poems
-    .slice(0, 3)
-    .map((poem) =>
-      poem.preview.length > 70
-        ? `${poem.preview.slice(0, 67)}...`
-        : poem.preview
-    )
-    .filter(Boolean);
+  const poemPreviews =
+    recap?.poems
+      .map((poem) => ({
+        key: String(poem._id),
+        number: (poem.indexInRoom + 1).toString().padStart(2, '0'),
+        readerName: poem.readerName,
+        preview:
+          poem.preview.length > 58
+            ? `${poem.preview.slice(0, 55).trimEnd()}...`
+            : poem.preview,
+      }))
+      .filter((poem) => poem.preview.length > 0) ?? [];
+  const midpoint = Math.ceil(poemPreviews.length / 2);
+  const previewColumns = [
+    poemPreviews.slice(0, midpoint),
+    poemPreviews.slice(midpoint),
+  ].filter((column) => column.length > 0);
 
   return new ImageResponse(
     <div
@@ -48,7 +57,7 @@ export default async function Image({
           fontSize: 30,
           color: tokens.colors.primary,
           fontFamily: 'sans-serif',
-          letterSpacing: '0.18em',
+          letterSpacing: 0,
           textTransform: 'uppercase',
         }}
       >
@@ -76,18 +85,65 @@ export default async function Image({
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
+          gap: 26,
           marginTop: 44,
-          fontSize: 30,
-          lineHeight: 1.25,
         }}
       >
-        {(lines && lines.length > 0
-          ? lines
-          : ['Write poems together, one line at a time.']
-        ).map((line) => (
-          <div key={line}>&ldquo;{line}&rdquo;</div>
+        {(previewColumns.length > 0
+          ? previewColumns
+          : [
+              [
+                {
+                  key: 'fallback',
+                  number: '01',
+                  readerName: 'Linejam',
+                  preview: 'Write poems together, one line at a time.',
+                },
+              ],
+            ]
+        ).map((column, columnIndex) => (
+          <div
+            key={`column-${columnIndex}`}
+            style={{
+              display: 'flex',
+              flex: 1,
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            {column.map((poem) => (
+              <div
+                key={poem.key}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderLeft: `3px solid ${tokens.colors.primary}`,
+                  paddingLeft: 16,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 16,
+                    color: tokens.colors.textMuted,
+                    fontFamily: 'sans-serif',
+                    letterSpacing: 0,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {`Poem ${poem.number} / ${poem.readerName}`}
+                </div>
+                <div
+                  style={{
+                    marginTop: 5,
+                    fontSize: 26,
+                    lineHeight: 1.18,
+                  }}
+                >
+                  {`“${poem.preview}”`}
+                </div>
+              </div>
+            ))}
+          </div>
         ))}
       </div>
       <div
