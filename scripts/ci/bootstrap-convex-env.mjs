@@ -2,6 +2,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { deriveClerkFrontendOrigin } from '../lib/clerk-domain.mjs';
 
 /**
  * @typedef {Record<string, string | undefined>} EnvShape
@@ -19,28 +20,7 @@ export function deriveClerkIssuerDomain(env = process.env) {
     env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
     env.CLERK_PUBLISHABLE_KEY?.trim() ||
     '';
-  if (!publishableKey) {
-    return '';
-  }
-
-  const encodedDomain = publishableKey.split('_').at(-1);
-  if (!encodedDomain) {
-    return '';
-  }
-
-  try {
-    const decoded = Buffer.from(encodedDomain, 'base64url')
-      .toString('utf8')
-      .replace(/\$+$/, '');
-
-    if (!decoded) {
-      return '';
-    }
-
-    return decoded.startsWith('https://') ? decoded : `https://${decoded}`;
-  } catch {
-    return '';
-  }
+  return deriveClerkFrontendOrigin(publishableKey);
 }
 
 function normalizeIssuer(value) {

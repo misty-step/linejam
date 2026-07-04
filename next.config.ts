@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import { validateEnv } from './lib/env';
+import { deriveClerkFrontendOrigin } from './scripts/lib/clerk-domain.mjs';
 
 // Validate required env vars during production builds
 // This prevents deploying with missing configuration
@@ -7,14 +8,26 @@ if (process.env.NODE_ENV === 'production') {
   validateEnv();
 }
 
-const STATIC_CLERK_SOURCES = [
+// Clerk's Frontend API is served from *.clerk.accounts.dev for dev/preview
+// keys, but a live key can point at a custom domain instead (production:
+// clerk.linejam.app). A custom domain is invisible to any generic wildcard,
+// so it must be derived from NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY at config
+// time rather than hand-listed — the 2026-07-04 outage was exactly this
+// list going stale: PR #291 hand-listed domains, missed the production
+// custom domain, and CSP blocked auth site-wide for ~16h because preview
+// smoke only ever exercised the (allowed) dev domain.
+const GENERIC_CLERK_SOURCES = [
   'https://*.clerk.accounts.dev',
   'https://*.clerk.com',
   'https://api.clerk.com',
-  // Production Clerk serves clerk-js and its frontend API from the custom
-  // domain; omitting it blocks auth entirely and dead-ends every room flow.
-  'https://clerk.linejam.app',
 ];
+
+function resolveClerkSources(): string[] {
+  const derivedOrigin = deriveClerkFrontendOrigin(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  );
+  return compactSources([...GENERIC_CLERK_SOURCES, derivedOrigin]);
+}
 
 const LOCAL_CONNECT_SOURCES = [
   'http://localhost:*',
@@ -58,13 +71,14 @@ export function buildContentSecurityPolicy() {
     originFrom(process.env.CANARY_ENDPOINT) ||
     'https://canary-obs.fly.dev';
   const posthogOrigin = originFrom(process.env.NEXT_PUBLIC_POSTHOG_HOST);
+  const clerkSources = resolveClerkSources();
 
   const directives: Array<[string, string[]]> = [
     ['default-src', ["'self'"]],
     ['base-uri', ["'self'"]],
     ['object-src', ["'none'"]],
     ['frame-ancestors', ["'none'"]],
-    ['form-action', ["'self'", ...STATIC_CLERK_SOURCES]],
+    ['form-action', ["'self'", ...clerkSources]],
     [
       'script-src',
       compactSources([
@@ -73,7 +87,7 @@ export function buildContentSecurityPolicy() {
         // inline scripts today. Nonces are the follow-up once app wiring exists.
         "'unsafe-inline'",
         isDevelopment ? "'unsafe-eval'" : null,
-        ...STATIC_CLERK_SOURCES,
+        ...clerkSources,
         'https://challenges.cloudflare.com',
         'https://us-assets.i.posthog.com',
         'https://va.vercel-scripts.com',
@@ -85,7 +99,7 @@ export function buildContentSecurityPolicy() {
         "'self'",
         "'unsafe-inline'",
         'https://fonts.googleapis.com',
-        ...STATIC_CLERK_SOURCES,
+        ...clerkSources,
       ]),
     ],
     [
@@ -96,7 +110,7 @@ export function buildContentSecurityPolicy() {
         'blob:',
         'https://img.clerk.com',
         'https://images.clerk.dev',
-        ...STATIC_CLERK_SOURCES,
+        ...clerkSources,
       ]),
     ],
     [
@@ -111,7 +125,7 @@ export function buildContentSecurityPolicy() {
         convexWsOrigin,
         'https://*.convex.cloud',
         'wss://*.convex.cloud',
-        ...STATIC_CLERK_SOURCES,
+        ...clerkSources,
         'https://challenges.cloudflare.com',
         'https://us.i.posthog.com',
         'https://us-assets.i.posthog.com',
@@ -127,7 +141,7 @@ export function buildContentSecurityPolicy() {
       'frame-src',
       compactSources([
         "'self'",
-        ...STATIC_CLERK_SOURCES,
+        ...clerkSources,
         'https://challenges.cloudflare.com',
       ]),
     ],
