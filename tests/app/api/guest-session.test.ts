@@ -601,4 +601,114 @@ describe('GET /api/guest/session', () => {
       expect(response.cookies.get('linejam_guest_token')?.value).toBeTruthy();
     });
   });
+
+  describe('with string and object throttle failures', () => {
+    const originalEnv = { ...process.env };
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+      vi.doUnmock('@/lib/guestToken');
+      vi.doUnmock('@/lib/errorServer');
+      vi.doUnmock('convex/browser');
+      vi.restoreAllMocks();
+    });
+
+    async function loadGetWithThrottleFailure(
+      error: unknown,
+      extraEnv: Partial<NodeJS.ProcessEnv> = {}
+    ) {
+      vi.resetModules();
+      vi.doUnmock('@/lib/guestToken');
+      process.env = {
+        ...originalEnv,
+        NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+        ...extraEnv,
+      };
+
+      const mutation = vi.fn().mockRejectedValue(error);
+      vi.doMock('convex/browser', () => ({
+        ConvexHttpClient: class {
+          mutation = mutation;
+        },
+      }));
+      vi.doMock('@/lib/errorServer', () => ({
+        captureServerError: vi.fn(),
+      }));
+
+      return {
+        GET: (await import('@/app/api/guest/session/route')).GET,
+        mutation,
+      };
+    }
+
+    it('treats string rate-limit failures as a closed guest-mint bucket', async () => {
+      const { GET, mutation } = await loadGetWithThrottleFailure(
+        'Rate limit exceeded'
+      );
+
+      const response = await GET(
+        new NextRequest('https://www.linejam.app/api/guest/session')
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(response.headers.get('Retry-After')).toBe('600');
+      expect(data.error).toBe('Too many guest sessions. Try again later.');
+      expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+      expect(mutation).toHaveBeenCalledOnce();
+    });
+
+    it('fails closed on string throttle errors that are not rate limits', async () => {
+      const { GET } = await loadGetWithThrottleFailure(
+        'temporary Convex transport failure'
+      );
+
+      const response = await GET(
+        new NextRequest('https://www.linejam.app/api/guest/session')
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to create guest session');
+      expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it('allows string missing-function errors only under the explicit local bypass', async () => {
+      const { GET } = await loadGetWithThrottleFailure(
+        "Could not find public function for 'guestSessions:checkGuestSessionThrottle'.",
+        { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' }
+      );
+
+      const response = await GET(
+        new NextRequest('http://localhost:3333/api/guest/session')
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.guestId).toEqual(expect.any(String));
+      expect(data.token).toEqual(expect.any(String));
+      expect(response.cookies.get('linejam_guest_token')?.value).toBeTruthy();
+    });
+
+    it('fails closed on opaque object-shaped throttle failures', async () => {
+      const { GET } = await loadGetWithThrottleFailure({
+        code: 'upstream_down',
+      });
+
+      const response = await GET(
+        new NextRequest('https://www.linejam.app/api/guest/session')
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to create guest session');
+      expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+    });
+  });
 });

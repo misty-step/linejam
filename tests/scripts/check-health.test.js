@@ -1,7 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
-import { runHealthCheck } from '../../scripts/ops/check-health.mjs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  DEFAULT_TIMEOUT_MS,
+  readTimeoutMs,
+  runHealthCheck,
+} from '../../scripts/ops/check-health.mjs';
 
 describe('runHealthCheck', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('returns a concise summary when /api/health is ok', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       new Response(
@@ -134,5 +142,23 @@ describe('runHealthCheck', () => {
         fetchImpl: longFetch,
       })
     ).rejects.toThrow(`${'x'.repeat(500)}...`);
+  });
+
+  it.each([
+    [undefined, DEFAULT_TIMEOUT_MS],
+    ['', DEFAULT_TIMEOUT_MS],
+    ['0', DEFAULT_TIMEOUT_MS],
+    ['-5', DEFAULT_TIMEOUT_MS],
+    ['not-a-number', DEFAULT_TIMEOUT_MS],
+    ['12.9', 12],
+    ['2500', 2500],
+  ])('reads timeout env value %s as %dms', (raw, expected) => {
+    if (raw === undefined) {
+      vi.stubEnv('LINEJAM_HEALTH_TIMEOUT_MS', undefined);
+    } else {
+      vi.stubEnv('LINEJAM_HEALTH_TIMEOUT_MS', raw);
+    }
+
+    expect(readTimeoutMs()).toBe(expected);
   });
 });

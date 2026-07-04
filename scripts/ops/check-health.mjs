@@ -76,7 +76,7 @@ function truncate(value) {
   return value.length > 500 ? `${value.slice(0, 500)}...` : value;
 }
 
-function readTimeoutMs() {
+export function readTimeoutMs() {
   const raw = process.env.LINEJAM_HEALTH_TIMEOUT_MS;
   if (!raw) return DEFAULT_TIMEOUT_MS;
   const parsed = Number(raw);
