@@ -95,7 +95,6 @@ async function seedGame(
       roomId,
       status: 'IN_PROGRESS',
       cycle: 1,
-      mode: 'classic',
       currentRound: 0,
       roundStartedAt,
       assignmentMatrix: matrix,

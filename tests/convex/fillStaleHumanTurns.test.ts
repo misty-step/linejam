@@ -98,7 +98,6 @@ async function seedGame(
       roomId,
       status,
       cycle: 1,
-      mode: 'classic',
       currentRound,
       roundStartedAt: now,
       assignmentMatrix: matrix,

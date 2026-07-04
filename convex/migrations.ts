@@ -1,7 +1,44 @@
 import { ConvexError, v } from 'convex/values';
-import { mutation } from './_generated/server';
+import { internalMutation, mutation } from './_generated/server';
 import { verifyGuestToken } from './lib/guestToken';
 import { ensureUserHelper } from './users';
+
+const hasOwn = (value: object, key: string) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const removeGameModePatch = { mode: undefined } as never;
+const removeSelectedModePatch = { selectedMode: undefined } as never;
+
+export const dropLegacyModeColumns = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const [games, rooms] = await Promise.all([
+      ctx.db.query('games').collect(),
+      ctx.db.query('rooms').collect(),
+    ]);
+
+    const gamesWithMode = games.filter((game) => hasOwn(game, 'mode'));
+    const roomsWithSelectedMode = rooms.filter((room) =>
+      hasOwn(room, 'selectedMode')
+    );
+
+    await Promise.all([
+      ...gamesWithMode.map((game) =>
+        ctx.db.patch(game._id, removeGameModePatch)
+      ),
+      ...roomsWithSelectedMode.map((room) =>
+        ctx.db.patch(room._id, removeSelectedModePatch)
+      ),
+    ]);
+
+    return {
+      gamesScanned: games.length,
+      gamesCleared: gamesWithMode.length,
+      roomsScanned: rooms.length,
+      roomsCleared: roomsWithSelectedMode.length,
+    };
+  },
+});
 
 export const migrateGuestToUser = mutation({
   args: {

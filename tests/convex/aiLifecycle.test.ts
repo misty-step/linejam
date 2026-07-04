@@ -108,7 +108,6 @@ async function seedClassicGame(
       roomId,
       status: 'IN_PROGRESS',
       cycle: 1,
-      mode: 'classic',
       currentRound,
       roundStartedAt: opts.roundStartedAt ?? createdAt,
       assignmentMatrix: matrix,

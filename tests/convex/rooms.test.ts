@@ -76,7 +76,6 @@ async function seedRoomWithActiveGame(
       roomId,
       status: 'IN_PROGRESS',
       cycle: 1,
-      mode: 'classic',
       currentRound: 0,
       assignmentMatrix: [[hostId, guestId]],
       createdAt: 0,

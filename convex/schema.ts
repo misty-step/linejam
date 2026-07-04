@@ -33,9 +33,6 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
     currentGameId: v.optional(v.id('games')),
     currentCycle: v.optional(v.number()),
-    /** Legacy, unused: the game is single-mode. Retained (optional string) so
-     *  existing rows that carry a mode value stay valid without a migration. */
-    selectedMode: v.optional(v.string()),
   })
     .index('by_code', ['code'])
     .index('by_host', ['hostUserId'])
@@ -59,9 +56,6 @@ export default defineSchema({
     status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
     /** Game session count for this room. First game = 1. */
     cycle: v.number(),
-    /** Legacy, unused: the game is single-mode. Retained (optional string) so
-     *  existing rows that carry a mode value stay valid without a migration. */
-    mode: v.optional(v.string()),
     /** Round index within current game. Shape comes from convex/lib/gameRules.ts. */
     currentRound: v.number(),
     /** When the current round opened. Drives the soft clock and ghostwriter overtime gate. */
