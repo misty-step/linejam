@@ -303,6 +303,30 @@ describe('useSharePoem', () => {
     expect(mockCaptureError).not.toHaveBeenCalled();
   });
 
+  it('truncates a long opening line in the share text preview', async () => {
+    const nativeShare = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', {
+      value: nativeShare,
+      writable: true,
+      configurable: true,
+    });
+    const longOpeningLine =
+      'The moon hums a long forgotten tune while the tide pulls back from the shore, again and again, patient as ever';
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, longOpeningLine)
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(nativeShare).toHaveBeenCalledWith({
+      title: 'Linejam poem',
+      text: `Read "${longOpeningLine.slice(0, 77)}..." from our Linejam session.`,
+      url: 'https://example.com/poem/poem123',
+    });
+  });
+
   it('uses a generic fallback only when the opening line is unavailable', async () => {
     const nativeShare = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'share', {

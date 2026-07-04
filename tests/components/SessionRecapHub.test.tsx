@@ -246,6 +246,42 @@ describe('SessionRecapHub', () => {
     expect(screen.queryByText(/Room favorite/i)).not.toBeInTheDocument();
   });
 
+  it('toggles ceremony sound and persists the preference across mount', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<SessionRecapHub {...defaultProps} />);
+
+    const muteButton = screen.getByRole('button', {
+      name: 'Mute ceremony sound',
+    });
+    expect(screen.getByText('Sound')).toBeInTheDocument();
+
+    await user.click(muteButton);
+
+    expect(
+      screen.getByRole('button', { name: 'Turn ceremony sound on' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Muted')).toBeInTheDocument();
+    expect(localStorage.getItem('linejam:ceremony-muted')).toBe('1');
+
+    unmount();
+
+    // A remount should read the persisted preference back as muted.
+    render(<SessionRecapHub {...defaultProps} />);
+    expect(
+      screen.getByRole('button', { name: 'Turn ceremony sound on' })
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Turn ceremony sound on' })
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Mute ceremony sound' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Sound')).toBeInTheDocument();
+    expect(localStorage.getItem('linejam:ceremony-muted')).toBeNull();
+  });
+
   it('lets anyone in the room continue (no host gating)', async () => {
     // A vanished host must never strand the recap: every participant gets
     // the continuation controls.
