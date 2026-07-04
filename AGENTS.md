@@ -368,15 +368,6 @@ pnpm test:e2e:ui      # Playwright interactive mode
 - Playwright: `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_CLERK_TEST_EMAIL`, `PLAYWRIGHT_REQUIRE_AUTH_E2E`, `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`
 - Smoke: `LINEJAM_SMOKE_RUNNER`
 
-## Recent Features (Dec 2025)
-
-- **AI Players**: Add AI players to games via OpenRouter/Gemini
-- **Premium Themes**: 4 visual themes (kenya, mono, vintage-paper, hyper)
-- **Poem Sharing**: Copy poem URLs to clipboard with analytics
-- **Help Modal**: Floating "?" button explains gameplay
-- **WordSlots**: Genkoyoushi-inspired word count indicator
-- **Pen Names**: Author display name captured at write-time
-
 ## Code Patterns
 
 ### Parallel Database Operations

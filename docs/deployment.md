@@ -361,16 +361,70 @@ Before deploying to production:
 
 If deployment issues occur:
 
+### Release pipeline gotcha
+
+The Landmark release action runs semantic-release in its own runtime, which
+has Node but **no `pnpm` on PATH**. Do not add a `pnpm`-shelling step (e.g.
+`@semantic-release/exec` with a `pnpm ...` `prepareCmd`) to `.releaserc.js` —
+it will fail with exit 127 and silently abort the release before it tags a
+version (see #276 / commit `d431210`, which dropped exactly this step and
+excluded `CHANGELOG.md` from `format:check` instead). If a generated artifact
+needs formatting, exclude it from the gate rather than shelling out to pnpm
+from inside the release action.
+
 ### Vercel Rollback
 
-Promote the last known-good deployment with your standard `vercel` CLI workflow.
+Promote the last known-good deployment:
+
+```bash
+vercel rollback [deployment-url-or-id]
+# or, with no argument, roll back to the previous production deployment:
+vercel rollback
+```
+
+Check `vercel rollback status` if a rollback is already in flight.
 
 ### Convex Rollback
 
-Convex doesn't support rollback of environment variables. If needed:
+Convex has no built-in "rollback" — there is no equivalent of `vercel
+rollback` for Convex functions or schema. Two drills exist depending on what
+broke:
 
-1. Update environment variables to previous values
-2. Redeploy Vercel (environment variables take effect immediately in Convex)
+**Env var rollback** (a bad env var change):
+
+1. Update the environment variable(s) back to previous values:
+   `pnpm exec convex env set <KEY> "<previous-value>" production`
+2. Redeploy Vercel (`vercel --prod`) — env vars take effect immediately in
+   Convex, no separate Convex deploy needed.
+
+**Forward-redeploy-of-prior-SHA** (a bad function/schema change):
+
+Convex deploys are forward-only, so "rolling back" means redeploying the
+last-known-good code, not reverting Convex state:
+
+1. Identify the last good commit SHA (the one before the breaking deploy).
+2. `git checkout <prior-sha> -- convex/` to stage the prior Convex source
+   (or work from a branch/worktree at that SHA if the app code also needs to
+   match).
+3. `pnpm exec convex deploy` to push that prior version forward as the new
+   current deployment.
+4. Once the underlying bug is fixed, forward-deploy the fixed version the
+   same way — don't leave the deployment pinned to the old SHA.
+
+**Data export/restore drill** (recover from bad data, not bad code):
+
+```bash
+# Before a risky migration or mutation, export a safety snapshot:
+pnpm exec convex export --path backup-$(date +%Y%m%d).zip
+
+# To restore from a snapshot (overwrites current deployment data — confirm
+# target deployment with `pnpm exec convex env list` first):
+pnpm exec convex import backup-<date>.zip
+```
+
+`convex import` replaces data in the target deployment; always verify
+`CONVEX_DEPLOYMENT` / the `--prod`/`--preview` flag points at the intended
+deployment before running it against anything with real player data.
 
 ## Additional Resources
 
