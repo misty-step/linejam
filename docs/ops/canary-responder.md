@@ -99,3 +99,23 @@ follow-up artifact is intentionally required for an incident or release
 decision.
 
 Canary itself treats generic signed webhooks as the stable product contract, so the responder should stay thin: verify, fetch context, store evidence, trigger the smoke harness, then hand off to follow-on agents.
+
+## Production Smoke Failure Wire (linejam-913)
+
+The `Production Smoke` workflow (`.github/workflows/prod-smoke.yml`) runs hourly and, before 2026-07-04, a red run just sat in the Actions tab: it failed hourly for ~15 hours before the operator found the outage by hand. The gate was working; nothing wired the red signal to a human or to BB triage.
+
+Two scripts close that wire, running as the last steps of the job regardless of outcome (`if: always()`):
+
+- `scripts/ops/count-consecutive-prod-smoke-failures.mjs` walks the workflow's recent completed-run history (via the GitHub REST API, `GITHUB_TOKEN`) to compute the consecutive-failure streak ending at the current run. A single blip does not escalate; only a genuine repeat does. On an API error it fails OPEN toward escalation rather than silence.
+- `scripts/ops/report-prod-smoke-status.mjs` reports the outcome to the `linejam-production-smoke` Canary TTL monitor (`expected_every_ms=3600000`, `grace_ms=1800000`, created via `POST /api/v1/monitors`) via `POST /api/v1/check-ins`:
+  - Success → `status: "ok"` (Canary's Up health state; resolves any open incident).
+  - Failure, streak < 2 → `status: "alive"` (still Up; recorded in the monitor's check-in history and the run's step summary, but does not open an incident).
+  - Failure, streak >= 2 → `status: "error"` (Canary maps `error` check-ins directly to its Down health state, which opens/holds a `health_transition` incident that BB triage and the bridge feed already consume — no linejam-side webhook or bridge-specific code needed).
+
+  Reuses the existing `NEXT_PUBLIC_CANARY_API_KEY`/`NEXT_PUBLIC_CANARY_ENDPOINT` repository secrets (already ingest-scoped for client-side error reporting); no new secret was provisioned.
+
+Live-verified end to end against the deployed monitor: a first simulated failure stayed `up`/`alive`; a second consecutive simulated failure flipped the monitor to `down` and opened `INC-bhg3g284flhp` (`signal_type: health_transition`); a simulated recovery run immediately resolved it. Query current state any time with:
+
+```bash
+curl -fsS "$CANARY_ENDPOINT/api/v1/report?window=24h" -H "Authorization: Bearer $CANARY_API_KEY" | jq '.monitors[] | select(.name=="linejam-production-smoke")'
+```
