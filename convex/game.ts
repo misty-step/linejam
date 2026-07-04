@@ -28,6 +28,7 @@ import {
   getSubmissionWindow,
   isRevealReady,
 } from './lib/sessionLifecycle';
+import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
 
 const MAX_LINE_LENGTH = 500; // More than enough for 5 words
 
@@ -39,6 +40,12 @@ export const startGame = mutation({
   handler: async (ctx, { code, guestToken }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
+
+    await checkMutationAbuseRateLimit(ctx, {
+      operation: 'startGame',
+      userId: user._id,
+      guestToken: user.guestId ? guestToken : undefined,
+    });
 
     const room = await requireRoomByCode(ctx, code);
 
@@ -242,6 +249,12 @@ export const submitLine = mutation({
   handler: async (ctx, { poemId, lineIndex, text, guestToken }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
+
+    await checkMutationAbuseRateLimit(ctx, {
+      operation: 'submitLine',
+      userId: user._id,
+      guestToken: user.guestId ? guestToken : undefined,
+    });
 
     const poem = await ctx.db.get(poemId);
     if (!poem) throw new Error('Poem not found');

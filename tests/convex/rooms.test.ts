@@ -3,6 +3,12 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
+import { signGuestToken } from '../../lib/guestToken';
+import {
+  ABUSE_RATE_LIMITS,
+  type AbuseRateLimitOperation,
+  guestBucketRateLimitKey,
+} from '../../convex/lib/abuseRateLimit';
 
 /**
  * rooms mutations/queries on the real convex-test engine (backlog 018): real
@@ -77,6 +83,20 @@ async function seedRoomWithActiveGame(
     })
   );
   return { roomId, code: 'XYZW' };
+}
+
+async function seedExhaustedGuestBucket(
+  t: T,
+  operation: AbuseRateLimitOperation,
+  bucket: string
+) {
+  await t.run((ctx) =>
+    ctx.db.insert('rateLimits', {
+      key: guestBucketRateLimitKey(operation, bucket),
+      hits: ABUSE_RATE_LIMITS[operation].bucketMax,
+      resetTime: Date.now() + ABUSE_RATE_LIMITS[operation].windowMs,
+    })
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,6 +200,34 @@ describe('createRoom', () => {
     await expect(
       asUser(t, 'eve').mutation(api.rooms.createRoom, { displayName: 'Eve' })
     ).rejects.toThrow();
+  });
+
+  it('rate-limits fresh guest ids that share one signed network bucket', async () => {
+    const t = setupConvexTest();
+    const bucket = 'guestSession:testCreateBucket1234567890';
+
+    for (let i = 0; i < ABUSE_RATE_LIMITS.createRoom.bucketMax; i++) {
+      const guestToken = await signGuestToken(`guest-create-${i}`, {
+        sessionId: `session-create-${i}`,
+        rateLimitKey: bucket,
+      });
+      await t.mutation(api.rooms.createRoom, {
+        displayName: `Guest ${i}`,
+        guestToken,
+      });
+    }
+
+    const blockedToken = await signGuestToken('guest-create-blocked', {
+      sessionId: 'session-create-blocked',
+      rateLimitKey: bucket,
+    });
+
+    await expect(
+      t.mutation(api.rooms.createRoom, {
+        displayName: 'Blocked',
+        guestToken: blockedToken,
+      })
+    ).rejects.toThrow('Rate limit exceeded');
   });
 });
 
@@ -324,6 +372,24 @@ describe('joinRoom', () => {
         displayName: 'Spammer',
       })
     ).rejects.toThrow();
+  });
+
+  it('rate-limits guest joins by signed network bucket before room lookup', async () => {
+    const t = setupConvexTest();
+    const bucket = 'guestSession:testJoinBucket1234567890';
+    await seedExhaustedGuestBucket(t, 'joinRoom', bucket);
+    const guestToken = await signGuestToken('guest-join-blocked', {
+      sessionId: 'session-join-blocked',
+      rateLimitKey: bucket,
+    });
+
+    await expect(
+      t.mutation(api.rooms.joinRoom, {
+        code: 'NOPE',
+        displayName: 'Blocked Joiner',
+        guestToken,
+      })
+    ).rejects.toThrow('Rate limit exceeded');
   });
 });
 

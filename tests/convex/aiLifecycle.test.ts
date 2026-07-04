@@ -1,11 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { internal } from '../../convex/_generated/api';
+import { api, internal } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
 import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
 import { countWords } from '../../convex/lib/wordCount';
-import { type T, getAllLines } from '../helpers/convexSeed';
+import { type T, getAllLines, seedUser } from '../helpers/convexSeed';
+import { signGuestToken } from '../../lib/guestToken';
+import {
+  ABUSE_RATE_LIMITS,
+  guestBucketRateLimitKey,
+} from '../../convex/lib/abuseRateLimit';
 
 /**
  * AI lifecycle integration tests on the real convex-test engine (backlog 018
@@ -126,6 +131,20 @@ async function seedClassicGame(
   });
 }
 
+async function seedExhaustedGuestBucket(
+  t: T,
+  operation: 'addAiPlayer',
+  bucket: string
+) {
+  await t.run((ctx) =>
+    ctx.db.insert('rateLimits', {
+      key: guestBucketRateLimitKey(operation, bucket),
+      hits: ABUSE_RATE_LIMITS[operation].bucketMax,
+      resetTime: Date.now() + ABUSE_RATE_LIMITS[operation].windowMs,
+    })
+  );
+}
+
 // ─── Test lifecycle ────────────────────────────────────────────────────────────
 
 const ORIGINAL_ENV = { ...process.env };
@@ -149,6 +168,26 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+// ─── addAiPlayer ─────────────────────────────────────────────────────────────
+
+describe('addAiPlayer', () => {
+  it('rate-limits guest hosts by signed network bucket before room lookup', async () => {
+    const t = setupConvexTest();
+    const bucket = 'guestSession:testAiBucket1234567890';
+    const guestId = 'guest-ai-blocked';
+    await seedUser(t, { displayName: 'Blocked Host', guestId });
+    await seedExhaustedGuestBucket(t, 'addAiPlayer', bucket);
+    const guestToken = await signGuestToken(guestId, {
+      sessionId: 'session-ai-blocked',
+      rateLimitKey: bucket,
+    });
+
+    await expect(
+      t.mutation(api.ai.addAiPlayer, { code: 'NOPE', guestToken })
+    ).rejects.toThrow('Rate limit exceeded');
+  });
 });
 
 // ─── commitAiLine ─────────────────────────────────────────────────────────────

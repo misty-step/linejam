@@ -38,6 +38,7 @@ import {
   applyLineLifecycleTransition,
   getSubmissionWindow,
 } from './lib/sessionLifecycle';
+import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
@@ -313,6 +314,12 @@ export const addAiPlayer = mutation({
   handler: async (ctx, { code, guestToken }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) throw new Error('User not found');
+
+    await checkMutationAbuseRateLimit(ctx, {
+      operation: 'addAiPlayer',
+      userId: user._id,
+      guestToken: user.guestId ? guestToken : undefined,
+    });
 
     const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
