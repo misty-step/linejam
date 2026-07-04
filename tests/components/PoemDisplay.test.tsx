@@ -498,6 +498,168 @@ describe('PoemDisplay component', () => {
     });
   });
 
+  describe('archive variant metadata header', () => {
+    // Noon UTC keeps the calendar day stable across the local test-runner's
+    // timezone, unlike a bare date string parsed at UTC midnight.
+    const testCreatedAt = Date.UTC(2026, 0, 15, 12);
+    const expectedDateText = new Date(testCreatedAt).toLocaleDateString(
+      'en-US',
+      { month: 'short', day: 'numeric' }
+    );
+    const archiveMetadata = {
+      createdAt: testCreatedAt,
+      backHref: '/archive',
+      backLabel: 'Back to archive',
+      isParticipant: true,
+      isFavorited: false,
+      onToggleFavorite: vi.fn(),
+    };
+
+    it('shows the back link and lets a participant toggle the room-favorite heart', () => {
+      const onToggleFavorite = vi.fn();
+      const { rerender } = render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          variant="archive"
+          metadata={{
+            ...archiveMetadata,
+            onToggleFavorite,
+            isFavorited: false,
+          }}
+        />
+      );
+
+      expect(
+        screen.getByRole('link', { name: 'Back to archive' })
+      ).toHaveAttribute('href', '/archive');
+
+      const heartButton = screen.getByRole('button', {
+        name: 'Add to favorites',
+      });
+      fireEvent.click(heartButton);
+      expect(onToggleFavorite).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          variant="archive"
+          metadata={{ ...archiveMetadata, onToggleFavorite, isFavorited: true }}
+        />
+      );
+
+      expect(
+        screen.getByRole('button', { name: 'Remove from favorites' })
+      ).toBeInTheDocument();
+    });
+
+    it('falls back to the default back label when none is provided', () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          variant="archive"
+          metadata={{ createdAt: testCreatedAt, backHref: '/archive' }}
+        />
+      );
+
+      expect(screen.getByRole('link', { name: '← Back' })).toBeInTheDocument();
+    });
+
+    it('does not offer favorite controls to a non-participant viewer', () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          variant="archive"
+          metadata={{
+            createdAt: testCreatedAt,
+            isParticipant: false,
+            onToggleFavorite: vi.fn(),
+          }}
+        />
+      );
+
+      expect(
+        screen.queryByRole('button', { name: /favorites/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('truncates a long first line in the header title', () => {
+      const longLine =
+        'A remarkably long opening line that easily exceeds forty characters';
+      const linesWithLongFirst: PoemLine[] = [
+        { text: longLine, authorName: 'Alice', authorStableId: 'stable_alice' },
+        ...mockLines.slice(1),
+      ];
+
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={linesWithLongFirst}
+          variant="archive"
+          metadata={{ createdAt: testCreatedAt }}
+        />
+      );
+
+      expect(
+        screen.getByText(`${longLine.slice(0, 40)}...`, { exact: false })
+      ).toBeInTheDocument();
+    });
+
+    it('falls back to the metadata first line when there are no poem lines yet', () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={[]}
+          variant="archive"
+          metadata={{
+            createdAt: testCreatedAt,
+            firstLine: 'Fallback title from metadata',
+          }}
+        />
+      );
+
+      expect(
+        screen.getByText(/Fallback title from metadata/)
+      ).toBeInTheDocument();
+      // A zero-line poem is trivially "fully revealed" the instant it mounts.
+      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-100');
+    });
+
+    it('shows an empty title when there is no line text and no metadata fallback', () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={[]}
+          variant="archive"
+          metadata={{ createdAt: testCreatedAt }}
+        />
+      );
+
+      // The header still renders (date is present) even with nothing to quote.
+      expect(screen.getByText(expectedDateText)).toBeInTheDocument();
+    });
+
+    it('labels a contributor as Unknown when no author name is recorded', () => {
+      const linesWithMysteryAuthor: PoemLine[] = [
+        { text: 'A quiet line', authorStableId: 'stable_mystery' },
+      ];
+
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={linesWithMysteryAuthor}
+          variant="archive"
+          metadata={{ createdAt: testCreatedAt }}
+        />
+      );
+
+      expect(screen.getByText('Unknown')).toBeInTheDocument();
+    });
+  });
+
   describe('string line normalization', () => {
     it('handles plain string lines array', () => {
       const stringLines = ['One', 'Two words', 'Three simple words'];

@@ -246,6 +246,69 @@ describe('SessionRecapHub', () => {
     expect(screen.queryByText(/Room favorite/i)).not.toBeInTheDocument();
   });
 
+  it('does not re-punctuate the crown ceremony on an unrelated re-render', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [{ poemId: 'poem_1', indexInRoom: 0, count: 3 }],
+      totalHearts: 3,
+      leaderPoemId: 'poem_1',
+      leaderCount: 3,
+    });
+
+    const { rerender } = render(<SessionRecapHub {...defaultProps} />);
+    expect(navigator.vibrate).toHaveBeenCalledTimes(1);
+
+    // Same crowned poem, same leader count — a later re-render (e.g. from an
+    // unrelated prop change) must not replay the crown ceremony.
+    rerender(<SessionRecapHub {...defaultProps} playerCount={3} />);
+    expect(navigator.vibrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the singular "heart" label when exactly one heart was given', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [{ poemId: 'poem_1', indexInRoom: 0, count: 1 }],
+      totalHearts: 1,
+      leaderPoemId: 'poem_1',
+      leaderCount: 1,
+    });
+
+    render(<SessionRecapHub {...defaultProps} />);
+
+    expect(screen.getByText(/1 heart\b/i)).toBeInTheDocument();
+    expect(screen.queryByText(/1 hearts/i)).not.toBeInTheDocument();
+  });
+
+  it('falls back to "Untitled poem" when the crowned poem has no preview', () => {
+    mockSessionFavorites.mockReturnValue({
+      counts: [{ poemId: 'poem_2', indexInRoom: 1, count: 2 }],
+      totalHearts: 2,
+      leaderPoemId: 'poem_2',
+      leaderCount: 2,
+    });
+
+    render(<SessionRecapHub {...defaultProps} />);
+
+    const crown = screen.getByText(/Room favorite/i).closest('.border-primary');
+    expect(crown).toHaveTextContent(/Untitled poem/i);
+  });
+
+  it('shows the share error alone when there is no separate room error', async () => {
+    mockEnablePublicSessionRecapShare.mockRejectedValueOnce(
+      new Error('Network down')
+    );
+    const user = userEvent.setup();
+    render(<SessionRecapHub {...defaultProps} />);
+
+    await user.click(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Failed to share recap. Please try again.')
+      ).toBeInTheDocument();
+    });
+  });
+
   it('toggles ceremony sound and persists the preference across mount', async () => {
     const user = userEvent.setup();
     const { unmount } = render(<SessionRecapHub {...defaultProps} />);

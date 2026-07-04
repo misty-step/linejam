@@ -95,6 +95,19 @@ describe('useCeremonyEffects', () => {
     expect(navigator.vibrate).not.toHaveBeenCalled();
   });
 
+  it('skips haptics gracefully on a device with no vibrate API', () => {
+    Reflect.deleteProperty(navigator, 'vibrate');
+    expect('vibrate' in navigator).toBe(false);
+
+    const { result } = renderHook(() => useCeremonyEffects());
+
+    expect(() => {
+      act(() => {
+        result.current.punctuate('line');
+      });
+    }).not.toThrow();
+  });
+
   it('does not vibrate or play a tone when the reader prefers reduced motion', () => {
     installMatchMedia(true);
     const { result } = renderHook(() => useCeremonyEffects());
