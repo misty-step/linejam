@@ -169,8 +169,9 @@ describe('GET /api/guest/session', () => {
     beforeAll(async () => {
       vi.resetModules();
       vi.doMock('@/lib/guestToken', () => ({
+        GUEST_TOKEN_MAX_AGE_SECONDS: 7 * 24 * 60 * 60,
         signGuestToken: vi.fn().mockResolvedValue('fresh-token'),
-        verifyGuestToken: vi.fn().mockRejectedValue('bad token'),
+        verifyGuestTokenPayload: vi.fn().mockRejectedValue('bad token'),
       }));
 
       const mod = await import('@/app/api/guest/session/route');
@@ -225,8 +226,11 @@ describe('GET /api/guest/session', () => {
 
       // Mock signGuestToken to throw
       vi.doMock('@/lib/guestToken', () => ({
+        GUEST_TOKEN_MAX_AGE_SECONDS: 7 * 24 * 60 * 60,
         signGuestToken: vi.fn().mockRejectedValue(new Error('Signing failed')),
-        verifyGuestToken: vi.fn().mockRejectedValue(new Error('Invalid token')),
+        verifyGuestTokenPayload: vi
+          .fn()
+          .mockRejectedValue(new Error('Invalid token')),
       }));
 
       // Mock captureServerError
@@ -257,6 +261,130 @@ describe('GET /api/guest/session', () => {
         expect.any(Error),
         expect.objectContaining({ operation: 'createGuestSession' })
       );
+    });
+  });
+
+  describe('with guest-session throttle', () => {
+    let GET: typeof import('@/app/api/guest/session/route').GET;
+    let mockMutation: ReturnType<typeof vi.fn>;
+    const originalEnv = { ...process.env };
+
+    beforeAll(async () => {
+      vi.resetModules();
+      vi.doUnmock('@/lib/guestToken');
+      vi.doUnmock('@/lib/errorServer');
+      process.env = {
+        ...originalEnv,
+        NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+      };
+      mockMutation = vi
+        .fn()
+        .mockRejectedValue(new Error('Rate limit exceeded'));
+
+      vi.doMock('convex/browser', () => ({
+        ConvexHttpClient: class {
+          mutation = mockMutation;
+        },
+      }));
+
+      const mod = await import('@/app/api/guest/session/route');
+      GET = mod.GET;
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+      vi.doUnmock('convex/browser');
+      vi.restoreAllMocks();
+    });
+
+    it('returns 429 before minting a new guest when the IP bucket is exhausted', async () => {
+      const request = new NextRequest(
+        'https://www.linejam.app/api/guest/session',
+        {
+          headers: {
+            'x-forwarded-for': '203.0.113.7, 10.0.0.1',
+          },
+        }
+      );
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(response.headers.get('Retry-After')).toBe('600');
+      expect(data.error).toBe('Too many guest sessions. Try again later.');
+      expect(mockMutation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          key: expect.stringMatching(/^guestSession:/),
+        })
+      );
+      expect(JSON.stringify(mockMutation.mock.calls)).not.toContain(
+        '203.0.113.7'
+      );
+      expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+    });
+  });
+
+  describe('with unsynced Convex throttle function', () => {
+    const originalEnv = { ...process.env };
+
+    afterEach(() => {
+      process.env = originalEnv;
+      vi.doUnmock('convex/browser');
+      vi.restoreAllMocks();
+    });
+
+    async function loadGetWithMissingThrottleFunction(allow: boolean) {
+      vi.resetModules();
+      vi.doUnmock('@/lib/guestToken');
+      vi.doUnmock('@/lib/errorServer');
+      process.env = {
+        ...originalEnv,
+        NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+        ...(allow ? { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' } : {}),
+      };
+
+      vi.doMock('convex/browser', () => ({
+        ConvexHttpClient: class {
+          mutation = vi
+            .fn()
+            .mockRejectedValue(
+              new Error(
+                "Could not find public function for 'guestSessions:checkGuestSessionThrottle'."
+              )
+            );
+        },
+      }));
+
+      return (await import('@/app/api/guest/session/route')).GET;
+    }
+
+    it('fails closed when Convex is missing the throttle function', async () => {
+      const GET = await loadGetWithMissingThrottleFunction(false);
+
+      const response = await GET(
+        new NextRequest('https://www.linejam.app/api/guest/session')
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to create guest session');
+      expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+    });
+
+    it('allows explicit local verification when the throttle function is unsynced', async () => {
+      const GET = await loadGetWithMissingThrottleFunction(true);
+
+      const response = await GET(
+        new NextRequest('http://localhost:3333/api/guest/session')
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.guestId).toEqual(expect.any(String));
+      expect(data.token).toEqual(expect.any(String));
+      expect(response.cookies.get('linejam_guest_token')?.value).toBeTruthy();
     });
   });
 });

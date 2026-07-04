@@ -137,6 +137,7 @@ export default defineSchema({
     generationClaims: v.number(),
     httpAttempts: v.number(),
     fallbacks: v.number(),
+    estimatedCostMicros: v.optional(v.number()),
     updatedAt: v.number(),
   }).index('by_day', ['day']),
 

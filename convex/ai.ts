@@ -68,6 +68,22 @@ function getAiDailyCallBudget(): number {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 250;
 }
 
+function usdToMicros(value: string | undefined, fallback: number): number {
+  const raw = value?.trim();
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return Math.round(parsed * 1_000_000);
+}
+
+function getAiDailyCostBudgetMicros(): number {
+  return usdToMicros(process.env.AI_DAILY_COST_BUDGET_USD, 1_000_000);
+}
+
+function getAiEstimatedCostMicrosPerGeneration(): number {
+  return usdToMicros(process.env.AI_ESTIMATED_COST_PER_GENERATION_USD, 2_000);
+}
+
 function isDeterministicAiMode(): boolean {
   return /^(1|true|yes)$/i.test(process.env.LINEJAM_AI_DETERMINISTIC ?? '');
 }
@@ -159,6 +175,7 @@ async function recordAiUsage(
     generationClaims?: number;
     httpAttempts?: number;
     fallbacks?: number;
+    estimatedCostMicros?: number;
   }
 ): Promise<void> {
   const existing = await ctx.db
@@ -171,6 +188,8 @@ async function recordAiUsage(
       (existing?.generationClaims ?? 0) + (delta.generationClaims ?? 0),
     httpAttempts: (existing?.httpAttempts ?? 0) + (delta.httpAttempts ?? 0),
     fallbacks: (existing?.fallbacks ?? 0) + (delta.fallbacks ?? 0),
+    estimatedCostMicros:
+      (existing?.estimatedCostMicros ?? 0) + (delta.estimatedCostMicros ?? 0),
     updatedAt: Date.now(),
   };
 
@@ -222,8 +241,16 @@ async function prepareAiCellForGeneration(
     .query('aiUsage')
     .withIndex('by_day', (q) => q.eq('day', day))
     .first();
-  const budget = getAiDailyCallBudget();
-  const budgetExhausted = (usage?.generationClaims ?? 0) >= budget;
+  const callBudget = getAiDailyCallBudget();
+  const costBudgetMicros = getAiDailyCostBudgetMicros();
+  const costPerGenerationMicros = getAiEstimatedCostMicrosPerGeneration();
+  const currentClaims = usage?.generationClaims ?? 0;
+  const currentCostMicros = usage?.estimatedCostMicros ?? 0;
+  const callBudgetExhausted = currentClaims >= callBudget;
+  const costBudgetExhausted =
+    costPerGenerationMicros > 0 &&
+    currentCostMicros + costPerGenerationMicros > costBudgetMicros;
+  const budgetExhausted = callBudgetExhausted || costBudgetExhausted;
 
   if (isDeterministicAiMode() || budgetExhausted) {
     await ctx.db.insert('aiTurns', {
@@ -240,12 +267,17 @@ async function prepareAiCellForGeneration(
     const committed = await commitFallbackForCell(ctx, args);
     if (committed) await recordAiUsage(ctx, { day, fallbacks: 1 });
     if (committed && budgetExhausted && !isDeterministicAiMode()) {
-      log.warn('AI daily generation budget exhausted; committed fallback', {
+      log.warn('AI daily budget exhausted; committed fallback', {
         roomId: args.roomId,
         gameId: args.gameId,
         round: args.round,
         poemId: args.cell.poemId,
-        budget,
+        callBudget,
+        costBudgetMicros,
+        currentClaims,
+        currentCostMicros,
+        costPerGenerationMicros,
+        reason: callBudgetExhausted ? 'call_budget' : 'cost_budget',
       });
     }
     return false;
@@ -262,7 +294,11 @@ async function prepareAiCellForGeneration(
     claimedAt: now,
     updatedAt: now,
   });
-  await recordAiUsage(ctx, { day, generationClaims: 1 });
+  await recordAiUsage(ctx, {
+    day,
+    generationClaims: 1,
+    estimatedCostMicros: costPerGenerationMicros,
+  });
   return true;
 }
 

@@ -133,6 +133,8 @@ const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.AI_DAILY_CALL_BUDGET;
+  delete process.env.AI_DAILY_COST_BUDGET_USD;
+  delete process.env.AI_ESTIMATED_COST_PER_GENERATION_USD;
   delete process.env.LINEJAM_AI_DETERMINISTIC;
   // Belt-and-suspenders: stub OpenRouter offline. In practice the test env has
   // no OPENROUTER_API_KEY, so the action code already falls back before fetch.
@@ -950,6 +952,32 @@ describe('multi-bot scheduling (solo play)', () => {
       )
     );
     expect(committedBotLines.filter(Boolean)).toHaveLength(2);
+  });
+
+  it('opens the breaker on estimated daily cost before scheduling paid cells', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '10';
+    process.env.AI_DAILY_COST_BUDGET_USD = '0.02';
+    process.env.AI_ESTIMATED_COST_PER_GENERATION_USD = '0.01';
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedClassicGame(t, {
+      players: SOLO_PLAYERS,
+      currentRound: 0,
+    });
+
+    await t.mutation(internal.ai.scheduleAiTurn, { roomId, gameId, round: 0 });
+
+    const usage = await aiUsageForToday(t);
+    expect(usage?.generationClaims).toBe(2);
+    expect(usage?.estimatedCostMicros).toBe(20_000);
+    expect(usage?.fallbacks).toBe(1);
+
+    const turns = await aiTurnsForRound(t, gameId, 0);
+    expect(turns.filter((turn) => turn.status === 'authorized')).toHaveLength(
+      2
+    );
+    expect(
+      turns.filter((turn) => turn.status === 'budget_fallback')
+    ).toHaveLength(1);
   });
 
   it('claim rows never block the safety net from filling a stranded cell', async () => {

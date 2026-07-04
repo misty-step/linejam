@@ -1,10 +1,13 @@
 const subtle = globalThis.crypto.subtle;
 
-const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const GUEST_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const GUEST_TOKEN_MAX_AGE_SECONDS = GUEST_TOKEN_TTL_MS / 1000;
 
-interface GuestTokenPayload {
+export interface GuestTokenPayload {
   guestId: string;
   issuedAt: number;
+  sessionId?: string;
+  rateLimitKey?: string;
 }
 
 /**
@@ -84,10 +87,15 @@ function base64UrlToString(base64Url: string): string {
  * Sign a guest token payload with HMAC-SHA256
  * Uses Web APIs for cross-platform compatibility with Convex
  */
-export async function signGuestToken(guestId: string): Promise<string> {
+export async function signGuestToken(
+  guestId: string,
+  options: { sessionId?: string; rateLimitKey?: string } = {}
+): Promise<string> {
   const payload: GuestTokenPayload = {
     guestId,
     issuedAt: Date.now(),
+    ...(options.sessionId ? { sessionId: options.sessionId } : {}),
+    ...(options.rateLimitKey ? { rateLimitKey: options.rateLimitKey } : {}),
   };
 
   const payloadJson = JSON.stringify(payload);
@@ -108,6 +116,19 @@ export async function signGuestToken(guestId: string): Promise<string> {
  * Uses Web APIs for cross-platform compatibility with Convex
  */
 export async function verifyGuestToken(token: string): Promise<string> {
+  const payload = await verifyGuestTokenPayload(token);
+  return payload.guestId;
+}
+
+/**
+ * Verify and parse a guest token payload.
+ *
+ * Callers that need launch-abuse metadata use this richer form; legacy callers
+ * keep using verifyGuestToken() and receive only the stable guest id.
+ */
+export async function verifyGuestTokenPayload(
+  token: string
+): Promise<GuestTokenPayload> {
   const parts = token.split('.');
   if (parts.length !== 2) {
     throw new Error('Invalid token format');
@@ -137,9 +158,9 @@ export async function verifyGuestToken(token: string): Promise<string> {
 
   // Check expiry (HMAC already guarantees payload integrity)
   const age = Date.now() - payload.issuedAt;
-  if (age > TOKEN_EXPIRY_MS) {
+  if (age > GUEST_TOKEN_TTL_MS) {
     throw new Error('Token expired');
   }
 
-  return payload.guestId;
+  return payload;
 }
