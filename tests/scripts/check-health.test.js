@@ -70,4 +70,69 @@ describe('runHealthCheck', () => {
       runHealthCheck({ url: 'https://www.linejam.app/api/health', fetchImpl })
     ).rejects.toThrow('response was not JSON');
   });
+
+  it('fails when fetch is unavailable', async () => {
+    await expect(runHealthCheck({ fetchImpl: null })).rejects.toThrow(
+      'fetch is not available'
+    );
+  });
+
+  it('reports timeout failures distinctly', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn((_url, init) => {
+        return new Promise((_resolve, reject) => {
+          init.signal.addEventListener('abort', () => {
+            const error = new Error('aborted');
+            error.name = 'AbortError';
+            reject(error);
+          });
+        });
+      });
+
+      const check = runHealthCheck({
+        url: 'https://www.linejam.app/api/health',
+        timeoutMs: 10,
+        fetchImpl,
+      });
+      const expectation = expect(check).rejects.toThrow('timed out after 10ms');
+      await vi.advanceTimersByTimeAsync(10);
+
+      await expectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('passes through non-timeout fetch failures', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new Error('network down'));
+
+    await expect(
+      runHealthCheck({ url: 'https://www.linejam.app/api/health', fetchImpl })
+    ).rejects.toThrow('network down');
+  });
+
+  it('handles empty and long failure bodies without leaking huge payloads', async () => {
+    const emptyFetch = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 503 }));
+    await expect(
+      runHealthCheck({
+        url: 'https://www.linejam.app/api/health',
+        fetchImpl: emptyFetch,
+      })
+    ).rejects.toThrow('<empty>');
+
+    const longBody = 'x'.repeat(600);
+    const longFetch = vi
+      .fn()
+      .mockResolvedValue(new Response(longBody, { status: 503 }));
+
+    await expect(
+      runHealthCheck({
+        url: 'https://www.linejam.app/api/health',
+        fetchImpl: longFetch,
+      })
+    ).rejects.toThrow(`${'x'.repeat(500)}...`);
+  });
 });

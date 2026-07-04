@@ -110,7 +110,10 @@ export function attachGuestFlowRuntimeErrorLogging(
 
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      if (isIgnoredRuntimeUrl(msg.location().url)) {
+      if (
+        isIgnoredRuntimeUrl(msg.location().url) ||
+        isIgnoredConsoleError(msg.text())
+      ) {
         return;
       }
 
@@ -176,6 +179,15 @@ function isIgnoredRuntimeUrl(requestUrl: string) {
   } catch {
     return false;
   }
+}
+
+function isIgnoredConsoleError(text: string) {
+  const scriptUrl =
+    /Refused to execute script from '([^']+)' because its MIME type \('text\/html'\) is not executable/.exec(
+      text
+    )?.[1];
+
+  return scriptUrl ? isIgnoredRuntimeUrl(scriptUrl) : false;
 }
 
 function hasSearchParam(requestUrl: string, param: string) {

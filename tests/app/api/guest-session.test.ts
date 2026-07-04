@@ -94,6 +94,29 @@ describe('GET /api/guest/session', () => {
       );
     });
 
+    it('creates a new guest session when the Convex throttle allows the bucket', async () => {
+      const originalConvexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+      process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
+
+      try {
+        const request = new NextRequest(
+          'http://localhost:3000/api/guest/session'
+        );
+
+        const response = await GET(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.guestId).toEqual(expect.any(String));
+      } finally {
+        if (originalConvexUrl === undefined) {
+          delete process.env.NEXT_PUBLIC_CONVEX_URL;
+        } else {
+          process.env.NEXT_PUBLIC_CONVEX_URL = originalConvexUrl;
+        }
+      }
+    });
+
     it('returns existing guestId when valid cookie exists', async () => {
       // First request to create session
       const request1 = new NextRequest(
@@ -126,6 +149,35 @@ describe('GET /api/guest/session', () => {
           durationMs: expect.any(Number),
           operation: 'reuseGuestSession',
           reusedExistingToken: true,
+        })
+      );
+    });
+
+    it('rotates a legacy guest cookie that lacks launch-abuse metadata', async () => {
+      const { signGuestToken } = await import('@/lib/guestToken');
+      const legacyToken = await signGuestToken('legacy-guest');
+      const request = new NextRequest(
+        'http://localhost:3000/api/guest/session'
+      );
+      request.cookies.set('linejam_guest_token', legacyToken);
+
+      const response = await GET(request);
+      const data = await response.json();
+      const guestCookie = response.cookies.get('linejam_guest_token');
+
+      expect(response.status).toBe(200);
+      expect(data.guestId).toBe('legacy-guest');
+      expect(data.token).not.toBe(legacyToken);
+      expect(guestCookie?.value).toBe(data.token);
+      expect(jsonLogs()).toContainEqual(
+        expect.objectContaining({
+          level: 'info',
+          message: 'Request completed',
+          method: 'GET',
+          route: '/api/guest/session',
+          status: 200,
+          operation: 'rotateLegacyGuestSession',
+          reusedExistingToken: false,
         })
       );
     });
@@ -173,6 +225,22 @@ describe('GET /api/guest/session', () => {
       );
     });
 
+    it('clears an invalid cookie when only an existing session is requested', async () => {
+      const request = new NextRequest(
+        'http://localhost:3000/api/guest/session?existing=1'
+      );
+      request.cookies.set('linejam_guest_token', 'tampered-invalid-token');
+
+      const response = await GET(request);
+      const data = await response.json();
+      const guestCookie = response.cookies.get('linejam_guest_token');
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({ guestId: null, token: null });
+      expect(guestCookie?.value).toBe('');
+      expect(guestCookie?.maxAge).toBe(0);
+    });
+
     it('does not mint a new session when only an existing cookie is requested', async () => {
       const request = new NextRequest(
         'http://localhost:3000/api/guest/session?existing=1'
@@ -195,6 +263,49 @@ describe('GET /api/guest/session', () => {
           reusedExistingToken: false,
         })
       );
+    });
+
+    it('allows test/dev session creation when no Convex URL is configured', async () => {
+      const originalConvexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+      delete process.env.NEXT_PUBLIC_CONVEX_URL;
+
+      try {
+        const request = new NextRequest(
+          'http://localhost:3000/api/guest/session'
+        );
+
+        const response = await GET(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.guestId).toEqual(expect.any(String));
+      } finally {
+        if (originalConvexUrl === undefined) {
+          delete process.env.NEXT_PUBLIC_CONVEX_URL;
+        } else {
+          process.env.NEXT_PUBLIC_CONVEX_URL = originalConvexUrl;
+        }
+      }
+    });
+
+    it('fails closed in production when no Convex URL is configured', async () => {
+      vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
+      vi.stubEnv('NODE_ENV', 'production');
+
+      try {
+        const request = new NextRequest(
+          'https://www.linejam.app/api/guest/session'
+        );
+
+        const response = await GET(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(500);
+        expect(data.error).toBe('Failed to create guest session');
+        expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
 
     it('clears the guest cookie on revocation', async () => {
@@ -364,6 +475,10 @@ describe('GET /api/guest/session', () => {
       GET = mod.GET;
     });
 
+    beforeEach(() => {
+      mockMutation.mockClear();
+    });
+
     afterAll(() => {
       process.env = originalEnv;
       vi.doUnmock('convex/browser');
@@ -396,6 +511,32 @@ describe('GET /api/guest/session', () => {
         '203.0.113.7'
       );
       expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+    });
+
+    it.each([
+      ['x-real-ip', '198.51.100.10'],
+      ['x-vercel-forwarded-for', '198.51.100.11'],
+      ['cf-connecting-ip', '198.51.100.12'],
+    ])('derives an opaque throttle key from %s', async (header, ip) => {
+      const request = new NextRequest(
+        'https://www.linejam.app/api/guest/session',
+        {
+          headers: {
+            [header]: ip,
+          },
+        }
+      );
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(429);
+      expect(mockMutation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          key: expect.stringMatching(/^guestSession:/),
+        })
+      );
+      expect(JSON.stringify(mockMutation.mock.calls)).not.toContain(ip);
     });
   });
 
