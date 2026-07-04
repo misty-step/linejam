@@ -42,35 +42,15 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 ## Patterns to Follow
 
-### Parallel Convex Mutations
+Code patterns and snippets live in `AGENTS.md`, not here — one copy, not a
+triplicated one:
 
-```typescript
-// GOOD — parallelize independent operations
-await Promise.all(
-  items.map((item) => ctx.db.patch(item._id, { field: value }))
-);
-```
-
-### Auth Helper
-
-```typescript
-// convex/lib/auth.ts — always use this, never re-implement
-const user = await getUser(ctx, args.guestId);
-```
-
-### Error Capture (Frontend)
-
-```typescript
-import { captureError } from '@/lib/error';
-captureError(err, { userId, operation: 'submitLine' });
-```
-
-### Structured Logging (Convex)
-
-```typescript
-import { logError } from './lib/errors';
-logError('API call failed', error, { roomId, round });
-```
+- Parallel Convex mutations, N+1 batching, loop-safety guards: `AGENTS.md`
+  → "Code Patterns".
+- The auth helper (`convex/lib/auth.ts`, Clerk + guest-UUID fallback):
+  `AGENTS.md` → "Architecture" → "Auth Pattern".
+- Frontend error capture (`captureError`) and Convex structured logging
+  (`logError`): `AGENTS.md` → "Observability".
 
 ## Stretch Goal
 
@@ -95,5 +75,7 @@ them, small revenue cut per book.
 
 ---
 
-_Last updated: 2026-06-25_
-_Updated during: /groom session (absorbed vision.md, which is now removed)_
+_Last updated: 2026-07-04_
+_Updated during: doc-truth sweep (backlog 026). `docs/vision.md` was not_
+_removed — it's demoted to a pointer at root `VISION.md`, the actual north_
+_star. This section no longer restates AGENTS.md's code patterns._
