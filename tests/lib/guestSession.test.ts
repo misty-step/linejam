@@ -2,22 +2,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   defaultGuestSessionFetcher,
-  getGuestToken,
+  getExistingGuestSession,
   clearGuestSession,
 } from '@/lib/guestSession';
 
 describe('defaultGuestSessionFetcher', () => {
   const originalFetch = global.fetch;
+  const legacyStorageKey = 'linejam_guest_token';
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    localStorage.clear();
   });
 
   it('returns guestId and token on successful fetch', async () => {
+    localStorage.setItem(legacyStorageKey, 'stale-token');
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ guestId: 'guest_123', token: 'token_abc' }),
@@ -30,6 +34,7 @@ describe('defaultGuestSessionFetcher', () => {
       token: 'token_abc',
     });
     expect(global.fetch).toHaveBeenCalledWith('/api/guest/session');
+    expect(localStorage.getItem(legacyStorageKey)).toBeNull();
   });
 
   it('throws error when API returns non-ok status', async () => {
@@ -82,59 +87,53 @@ describe('defaultGuestSessionFetcher', () => {
       'Failed to fetch guest session: Unknown error'
     );
   });
-});
+  it('reads an existing session without minting a new one', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ guestId: 'guest_existing', token: 'token_existing' }),
+    });
 
-describe('getGuestToken', () => {
-  const STORAGE_KEY = 'linejam_guest_token';
+    const result = await getExistingGuestSession();
 
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
-  it('returns null when localStorage has no token', () => {
-    expect(getGuestToken()).toBeNull();
-  });
-
-  it('returns token when localStorage has valid token', () => {
-    localStorage.setItem(STORAGE_KEY, 'valid_token_123');
-    expect(getGuestToken()).toBe('valid_token_123');
-  });
-
-  it('returns null when token is empty string', () => {
-    localStorage.setItem(STORAGE_KEY, '');
-    expect(getGuestToken()).toBeNull();
-  });
-
-  it('returns null when token is whitespace only', () => {
-    localStorage.setItem(STORAGE_KEY, '   ');
-    expect(getGuestToken()).toBeNull();
-  });
-
-  it('trims whitespace from valid token', () => {
-    localStorage.setItem(STORAGE_KEY, '  token_with_spaces  ');
-    expect(getGuestToken()).toBe('  token_with_spaces  ');
+    expect(result).toEqual({
+      guestId: 'guest_existing',
+      token: 'token_existing',
+    });
+    expect(global.fetch).toHaveBeenCalledWith('/api/guest/session?existing=1');
   });
 });
 
 describe('clearGuestSession', () => {
-  const STORAGE_KEY = 'linejam_guest_token';
+  const originalFetch = global.fetch;
+  const legacyStorageKey = 'linejam_guest_token';
 
   beforeEach(() => {
     localStorage.clear();
+    global.fetch = vi.fn().mockResolvedValue({ ok: true });
   });
 
-  it('removes token from localStorage', () => {
-    localStorage.setItem(STORAGE_KEY, 'token_to_clear');
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('token_to_clear');
-
-    clearGuestSession();
-
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
-  it('does nothing when no token exists', () => {
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-    clearGuestSession();
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  it('removes legacy localStorage token and revokes the cookie carrier', async () => {
+    localStorage.setItem(legacyStorageKey, 'token_to_clear');
+    expect(localStorage.getItem(legacyStorageKey)).toBe('token_to_clear');
+
+    await clearGuestSession();
+
+    expect(localStorage.getItem(legacyStorageKey)).toBeNull();
+    expect(global.fetch).toHaveBeenCalledWith('/api/guest/session', {
+      method: 'DELETE',
+    });
+  });
+
+  it('throws when revocation fails', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 });
+
+    await expect(clearGuestSession()).rejects.toThrow(
+      'Guest session revocation returned 503'
+    );
   });
 });

@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     method: request.method,
     route: ROUTE,
   };
+  const existingOnly = request.nextUrl.searchParams.get('existing') === '1';
 
   try {
     // Check for existing valid token in cookie
@@ -80,6 +81,21 @@ export async function GET(request: NextRequest) {
         });
         // Token invalid/expired - will create new one below
       }
+    }
+
+    if (existingOnly) {
+      const response = NextResponse.json({ guestId: null, token: null });
+      if (existingToken) {
+        clearGuestCookie(response);
+      }
+      logRequest({
+        ...baseContext,
+        status: 200,
+        durationMs: elapsedMs(startedAt),
+        operation: 'readExistingGuestSession',
+        reusedExistingToken: false,
+      });
+      return response;
     }
 
     const throttle = await enforceGuestSessionThrottle(request);
@@ -139,6 +155,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  const startedAt = Date.now();
+  const response = new NextResponse(null, { status: 204 });
+  clearGuestCookie(response);
+  logRequest({
+    method: request.method,
+    route: ROUTE,
+    status: 204,
+    durationMs: elapsedMs(startedAt),
+    operation: 'revokeGuestSession',
+  });
+  return response;
+}
+
 function elapsedMs(startedAt: number) {
   return Math.max(0, Date.now() - startedAt);
 }
@@ -149,6 +179,16 @@ function setGuestCookie(response: NextResponse, token: string) {
     sameSite: 'lax',
     path: '/',
     maxAge: GUEST_TOKEN_MAX_AGE_SECONDS,
+    secure: process.env.NODE_ENV === 'production',
+  });
+}
+
+function clearGuestCookie(response: NextResponse) {
+  response.cookies.set(COOKIE_NAME, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
     secure: process.env.NODE_ENV === 'production',
   });
 }

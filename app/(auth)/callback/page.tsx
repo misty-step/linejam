@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useConvexAuth, useMutation } from 'convex/react';
 import { useUser as useClerkUser } from '@clerk/nextjs';
 import { api } from '@/convex/_generated/api';
-import { clearGuestSession, getGuestToken } from '@/lib/guestSession';
+import { clearGuestSession, getExistingGuestSession } from '@/lib/guestSession';
 import { captureError } from '@/lib/error';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
@@ -25,7 +25,9 @@ export default function AuthCallbackPage() {
   const migrateGuestSession = useCallback(
     async (guestToken: string) => {
       await migrateGuestToUser({ guestToken });
-      clearGuestSession();
+      await clearGuestSession().catch((error) => {
+        captureError(error, { operation: 'clearGuestSession' });
+      });
       router.replace('/');
     },
     [migrateGuestToUser, router]
@@ -33,8 +35,7 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     if (!isLoaded || isConvexAuthLoading || hasRun.current) return;
-    const guestToken = getGuestToken();
-    if (!isSignedIn || !guestToken) {
+    if (!isSignedIn) {
       hasRun.current = true;
       router.replace('/');
       return;
@@ -58,10 +59,18 @@ export default function AuthCallbackPage() {
     }
 
     hasRun.current = true;
-    void migrateGuestSession(guestToken).catch((error) => {
-      captureError(error, { operation: 'migrateGuestToUser' });
-      setStatus('error');
-    });
+    void getExistingGuestSession()
+      .then((session) => {
+        if (!session.token) {
+          router.replace('/');
+          return;
+        }
+        return migrateGuestSession(session.token);
+      })
+      .catch((error) => {
+        captureError(error, { operation: 'migrateGuestToUser' });
+        setStatus('error');
+      });
   }, [
     isLoaded,
     isSignedIn,
@@ -73,8 +82,7 @@ export default function AuthCallbackPage() {
   ]);
 
   const handleRetry = useCallback(() => {
-    const guestToken = getGuestToken();
-    if (!isSignedIn || !guestToken) {
+    if (!isSignedIn) {
       router.replace('/');
       return;
     }

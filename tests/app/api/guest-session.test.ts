@@ -21,6 +21,7 @@ vi.mock('server-only', () => ({}));
 describe('GET /api/guest/session', () => {
   describe('with normal operation', () => {
     let GET: typeof import('@/app/api/guest/session/route').GET;
+    let DELETE: typeof import('@/app/api/guest/session/route').DELETE;
     let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
     function jsonLogs() {
@@ -34,6 +35,7 @@ describe('GET /api/guest/session', () => {
       vi.resetModules();
       const mod = await import('@/app/api/guest/session/route');
       GET = mod.GET;
+      DELETE = mod.DELETE;
     });
 
     beforeEach(() => {
@@ -151,6 +153,54 @@ describe('GET /api/guest/session', () => {
       );
       expect(JSON.stringify(jsonLogs())).not.toContain(
         'tampered-invalid-token'
+      );
+    });
+
+    it('does not mint a new session when only an existing cookie is requested', async () => {
+      const request = new NextRequest(
+        'http://localhost:3000/api/guest/session?existing=1'
+      );
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({ guestId: null, token: null });
+      expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+      expect(jsonLogs()).toContainEqual(
+        expect.objectContaining({
+          level: 'info',
+          message: 'Request completed',
+          method: 'GET',
+          route: '/api/guest/session',
+          status: 200,
+          operation: 'readExistingGuestSession',
+          reusedExistingToken: false,
+        })
+      );
+    });
+
+    it('clears the guest cookie on revocation', async () => {
+      const request = new NextRequest(
+        'http://localhost:3000/api/guest/session',
+        { method: 'DELETE' }
+      );
+
+      const response = await DELETE(request);
+      const guestCookie = response.cookies.get('linejam_guest_token');
+
+      expect(response.status).toBe(204);
+      expect(guestCookie?.value).toBe('');
+      expect(guestCookie?.maxAge).toBe(0);
+      expect(jsonLogs()).toContainEqual(
+        expect.objectContaining({
+          level: 'info',
+          message: 'Request completed',
+          method: 'DELETE',
+          route: '/api/guest/session',
+          status: 204,
+          operation: 'revokeGuestSession',
+        })
       );
     });
   });
