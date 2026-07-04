@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [1.15.0](https://github.com/misty-step/linejam/compare/v1.14.0...v1.15.0) (2026-07-04)
+
+
+### Features
+
+* make reveal shareable and teach first writers ([#292](https://github.com/misty-step/linejam/issues/292)) ([f931819](https://github.com/misty-step/linejam/commit/f93181982cfe55d7dad834a38c2395c135b9eef9))
+
 # [1.14.0](https://github.com/misty-step/linejam/compare/v1.13.0...v1.14.0) (2026-07-04)
 
 
