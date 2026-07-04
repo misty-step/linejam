@@ -16,6 +16,21 @@ function isPublicSessionRecapEnabled(
   return game?.publicRecapEnabled === true;
 }
 
+const DEFAULT_MY_POEMS_LIMIT = 24;
+const MAX_MY_POEMS_LIMIT = 48;
+const MAX_LINES_PER_POEM = 9;
+
+function boundedLimit(
+  value: number | undefined,
+  fallback: number,
+  max: number
+) {
+  if (value === undefined || !Number.isFinite(value)) return fallback;
+  const rounded = Math.floor(value);
+  if (rounded <= 0) return fallback;
+  return Math.min(rounded, max);
+}
+
 export const getPoemsForRoom = query({
   args: {
     roomCode: v.string(),
@@ -115,19 +130,35 @@ export const getPoemDetail = query({
 export const getMyPoems = query({
   args: {
     guestToken: v.optional(v.string()),
+    limit: v.optional(v.number()),
   },
-  handler: async (ctx, { guestToken }) => {
+  handler: async (ctx, { guestToken, limit }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) return [];
 
-    // Find all lines written by user
+    const poemLimit = boundedLimit(
+      limit,
+      DEFAULT_MY_POEMS_LIMIT,
+      MAX_MY_POEMS_LIMIT
+    );
+    const authorLineWindow = poemLimit * MAX_LINES_PER_POEM;
+
+    // Find a bounded window of latest lines written by user.
     const lines = await ctx.db
       .query('lines')
-      .withIndex('by_author', (q) => q.eq('authorUserId', user._id))
-      .collect();
+      .withIndex('by_author_created', (q) => q.eq('authorUserId', user._id))
+      .order('desc')
+      .take(authorLineWindow);
 
     // Get unique poem IDs
-    const poemIds = [...new Set(lines.map((l) => l.poemId))];
+    const poemIds: Id<'poems'>[] = [];
+    const seenPoemIds = new Set<Id<'poems'>>();
+    for (const line of lines) {
+      if (seenPoemIds.has(line.poemId)) continue;
+      seenPoemIds.add(line.poemId);
+      poemIds.push(line.poemId);
+      if (poemIds.length >= poemLimit) break;
+    }
     if (poemIds.length === 0) return [];
 
     // Batch fetch all poems in parallel
@@ -135,6 +166,7 @@ export const getMyPoems = query({
     const poems = poemsRaw.filter(
       (p): p is NonNullable<typeof p> => p !== null
     );
+    poems.sort((a, b) => b.createdAt - a.createdAt);
 
     // Batch fetch all rooms and first lines in parallel
     const uniqueRoomIds = [...new Set(poems.map((p) => p.roomId))];

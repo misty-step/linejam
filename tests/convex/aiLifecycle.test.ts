@@ -1136,6 +1136,106 @@ describe('multi-bot scheduling (solo play)', () => {
     }
   });
 
+  it('allows only one running AI generation action per game round', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedClassicGame(t, {
+      players: SOLO_PLAYERS,
+      currentRound: 0,
+    });
+
+    const first = await t.mutation(internal.ai.claimAiRoundGeneration, {
+      roomId,
+      gameId,
+      round: 0,
+    });
+    const second = await t.mutation(internal.ai.claimAiRoundGeneration, {
+      roomId,
+      gameId,
+      round: 0,
+    });
+
+    expect(first.claimed).toBe(true);
+    expect(first.lockId).toBeTruthy();
+    expect(second).toEqual({ claimed: false });
+
+    if (!first.lockId || !first.owner) {
+      throw new Error('expected the first AI round claim to return a lock id');
+    }
+
+    await t.mutation(internal.ai.finishAiRoundGeneration, {
+      lockId: first.lockId,
+      owner: first.owner,
+    });
+    const afterRelease = await t.mutation(internal.ai.claimAiRoundGeneration, {
+      roomId,
+      gameId,
+      round: 0,
+    });
+
+    expect(afterRelease.claimed).toBe(true);
+  });
+
+  it('does not let an old stale-lock owner finish a newer running claim', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId } = await seedClassicGame(t, {
+      players: SOLO_PLAYERS,
+      currentRound: 0,
+    });
+
+    const first = await t.mutation(internal.ai.claimAiRoundGeneration, {
+      roomId,
+      gameId,
+      round: 0,
+    });
+    if (!first.claimed || !first.lockId) {
+      throw new Error('expected first claim to succeed');
+    }
+
+    await t.run((ctx) =>
+      ctx.db.patch(first.lockId, {
+        updatedAt: Date.now() - 120_000,
+      })
+    );
+
+    const second = await t.mutation(internal.ai.claimAiRoundGeneration, {
+      roomId,
+      gameId,
+      round: 0,
+    });
+    expect(second.claimed).toBe(true);
+    if (!second.claimed || !second.lockId) {
+      throw new Error('expected stale reclaim to return a lock id');
+    }
+    expect(second.lockId).toBe(first.lockId);
+    expect(second.owner).not.toBe(first.owner);
+
+    await t.mutation(internal.ai.finishAiRoundGeneration, {
+      lockId: first.lockId,
+      owner: first.owner,
+    });
+    const third = await t.mutation(internal.ai.claimAiRoundGeneration, {
+      roomId,
+      gameId,
+      round: 0,
+    });
+
+    expect(third).toEqual({ claimed: false });
+
+    await t.mutation(internal.ai.finishAiRoundGeneration, {
+      lockId: second.lockId,
+      owner: second.owner,
+    });
+    const afterCurrentOwnerFinishes = await t.mutation(
+      internal.ai.claimAiRoundGeneration,
+      {
+        roomId,
+        gameId,
+        round: 0,
+      }
+    );
+    expect(afterCurrentOwnerFinishes.claimed).toBe(true);
+  });
+
   it('a round whose bots all strand still completes via the safety net (no cron)', async () => {
     // The critical solo invariant: the abandonment cron never fires while the
     // human is present, so ensureAiLine alone must clear every bot cell so the

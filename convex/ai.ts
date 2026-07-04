@@ -513,6 +513,71 @@ export const scheduleAiTurn = internalMutation({
 
 /** How long the LLM path gets before the fallback line lands. */
 const AI_SAFETY_NET_MS = 25_000;
+const AI_ROUND_GENERATION_LOCK_STALE_MS = 60_000;
+
+export const claimAiRoundGeneration = internalMutation({
+  args: {
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+  },
+  handler: async (ctx, { roomId, gameId, round }) => {
+    const now = Date.now();
+    const owner = crypto.randomUUID();
+    const existing = await ctx.db
+      .query('aiRoundLocks')
+      .withIndex('by_game_round', (q) =>
+        q.eq('gameId', gameId).eq('round', round)
+      )
+      .first();
+
+    if (
+      existing?.status === 'running' &&
+      now - existing.updatedAt < AI_ROUND_GENERATION_LOCK_STALE_MS
+    ) {
+      return { claimed: false as const };
+    }
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        roomId,
+        owner,
+        status: 'running',
+        claimedAt: now,
+        updatedAt: now,
+      });
+      return { claimed: true as const, lockId: existing._id, owner };
+    }
+
+    const lockId = await ctx.db.insert('aiRoundLocks', {
+      roomId,
+      gameId,
+      round,
+      owner,
+      status: 'running',
+      claimedAt: now,
+      updatedAt: now,
+    });
+
+    return { claimed: true as const, lockId, owner };
+  },
+});
+
+export const finishAiRoundGeneration = internalMutation({
+  args: {
+    lockId: v.id('aiRoundLocks'),
+    owner: v.string(),
+  },
+  handler: async (ctx, { lockId, owner }) => {
+    const existing = await ctx.db.get(lockId);
+    if (!existing) return;
+    if (existing.owner !== owner) return;
+    await ctx.db.patch(lockId, {
+      status: 'finished',
+      updatedAt: Date.now(),
+    });
+  },
+});
 
 /**
  * Last-resort committer for an AI turn. Idempotent: does nothing when the
@@ -592,7 +657,17 @@ export const generateLineForRound = internalAction({
     round: v.number(),
   },
   handler: async (ctx, { roomId, gameId, round }) => {
+    let generationLock: { lockId: Id<'aiRoundLocks'>; owner: string } | null =
+      null;
     try {
+      const claim = await ctx.runMutation(internal.ai.claimAiRoundGeneration, {
+        roomId,
+        gameId,
+        round,
+      });
+      if (!claim.claimed) return;
+      generationLock = { lockId: claim.lockId, owner: claim.owner };
+
       // Load game state directly (not through room.currentGameId which is race-prone)
       const game = await ctx.runQuery(internal.ai.getGameState, { gameId });
       if (!game) return;
@@ -737,6 +812,12 @@ export const generateLineForRound = internalAction({
         })
         .catch(() => {});
       throw error;
+    } finally {
+      if (generationLock) {
+        await ctx
+          .runMutation(internal.ai.finishAiRoundGeneration, generationLock)
+          .catch(() => {});
+      }
     }
   },
 });

@@ -38,7 +38,8 @@ export default defineSchema({
     selectedMode: v.optional(v.string()),
   })
     .index('by_code', ['code'])
-    .index('by_host', ['hostUserId']),
+    .index('by_host', ['hostUserId'])
+    .index('by_status_created', ['status', 'createdAt']),
 
   roomPlayers: defineTable({
     roomId: v.id('rooms'),
@@ -111,7 +112,8 @@ export default defineSchema({
   })
     .index('by_poem', ['poemId'])
     .index('by_poem_index', ['poemId', 'indexInPoem'])
-    .index('by_author', ['authorUserId']),
+    .index('by_author', ['authorUserId'])
+    .index('by_author_created', ['authorUserId', 'createdAt']),
 
   aiTurns: defineTable({
     roomId: v.id('rooms'),
@@ -140,6 +142,16 @@ export default defineSchema({
     estimatedCostMicros: v.optional(v.number()),
     updatedAt: v.number(),
   }).index('by_day', ['day']),
+
+  aiRoundLocks: defineTable({
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+    owner: v.string(),
+    status: v.union(v.literal('running'), v.literal('finished')),
+    claimedAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_game_round', ['gameId', 'round']),
 
   favorites: defineTable({
     userId: v.id('users'),

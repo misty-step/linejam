@@ -7,6 +7,10 @@ const mockReactUse = vi.fn();
 const mockUseClerkUser = vi.fn();
 const mockUseQuery = vi.fn();
 const mockPush = vi.fn();
+const mockPhaseFailure = vi.hoisted(() => ({
+  writing: false,
+  reveal: false,
+}));
 
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
@@ -46,11 +50,17 @@ vi.mock('@/components/WritingScreen', () => ({
   }: {
     roomCode: string;
     showChrome?: boolean;
-  }) => (
-    <div>
-      Writing view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
-    </div>
-  ),
+  }) => {
+    if (mockPhaseFailure.writing) {
+      throw new Error('assignment query failed');
+    }
+
+    return (
+      <div>
+        Writing view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
+      </div>
+    );
+  },
 }));
 
 vi.mock('@/components/RevealPhase', () => ({
@@ -60,11 +70,17 @@ vi.mock('@/components/RevealPhase', () => ({
   }: {
     roomCode: string;
     showChrome?: boolean;
-  }) => (
-    <div>
-      Reveal view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
-    </div>
-  ),
+  }) => {
+    if (mockPhaseFailure.reveal) {
+      throw new Error('reveal query failed');
+    }
+
+    return (
+      <div>
+        Reveal view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
+      </div>
+    );
+  },
 }));
 
 import RoomPage from '@/app/room/[code]/page';
@@ -80,6 +96,8 @@ describe('RoomPage', () => {
     vi.clearAllMocks();
     localStorage.clear();
     process.env.NEXT_PUBLIC_CANARY_API_KEY = '';
+    mockPhaseFailure.writing = false;
+    mockPhaseFailure.reveal = false;
     mockReactUse.mockReturnValue({ code: 'ABCD' });
     mockUseClerkUser.mockReturnValue({
       user: null,
@@ -247,6 +265,90 @@ describe('RoomPage', () => {
     expect(
       await screen.findByText(/Writing view ABCD chrome on/i)
     ).toBeInTheDocument();
+  });
+
+  it('keeps a writing query failure inside the room panel fallback', async () => {
+    mockPhaseFailure.writing = true;
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+
+      if (functionName === 'rooms:getRoomState') {
+        return {
+          room: {
+            _id: 'room_1',
+            _creationTime: Date.now(),
+            code: 'ABCD',
+            hostUserId: 'user_1',
+            createdAt: Date.now(),
+            status: 'IN_PROGRESS',
+          },
+          players: [],
+          isHost: true,
+        };
+      }
+
+      return null;
+    });
+
+    renderRoomPage();
+
+    expect(
+      await screen.findByText(/this room panel needs a refresh/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/failed while syncing live data/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Writing view ABCD chrome on/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('recovers from a failed writing panel when the room moves to reveal', async () => {
+    let status: 'IN_PROGRESS' | 'COMPLETED' = 'IN_PROGRESS';
+    mockPhaseFailure.writing = true;
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+
+      if (functionName === 'rooms:getRoomState') {
+        return {
+          room: {
+            _id: 'room_1',
+            _creationTime: Date.now(),
+            code: 'ABCD',
+            hostUserId: 'user_1',
+            createdAt: Date.now(),
+            status,
+          },
+          players: [],
+          isHost: true,
+        };
+      }
+
+      return null;
+    });
+
+    const { rerender } = renderRoomPage();
+    expect(
+      await screen.findByText(/this room panel needs a refresh/i)
+    ).toBeInTheDocument();
+
+    status = 'COMPLETED';
+    rerender(
+      <ThemeProvider>
+        <RoomPage params={Promise.resolve({ code: 'ABCD' })} />
+      </ThemeProvider>
+    );
+
+    expect(
+      await screen.findByText(/Reveal view ABCD chrome on/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/this room panel needs a refresh/i)
+    ).not.toBeInTheDocument();
   });
 
   it('routes completed rooms through the reveal phase with shared chrome enabled', async () => {

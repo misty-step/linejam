@@ -558,6 +558,48 @@ describe('getMyPoems', () => {
     ]);
   });
 
+  it('windows personal history by explicit limit', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { gameId, roomId } = await seedRoom(t, {
+      userId: aliceId,
+      poemCount: 0,
+    });
+
+    const poemIds = await t.run(async (ctx) => {
+      const ids: Id<'poems'>[] = [];
+      for (let i = 0; i < 4; i++) {
+        ids.push(
+          await ctx.db.insert('poems', {
+            roomId,
+            gameId,
+            indexInRoom: i,
+            createdAt: 1000 + i,
+          })
+        );
+      }
+      return ids;
+    });
+
+    for (const [index, poemId] of poemIds.entries()) {
+      await seedLine(t, {
+        poemId,
+        authorUserId: aliceId,
+        indexInPoem: 0,
+        text: `Poem ${index}`,
+      });
+    }
+
+    const result = await asUser(t, 'alice').query(api.poems.getMyPoems, {
+      limit: 2,
+    });
+
+    expect(result.map((poem: { _id: Id<'poems'> }) => poem._id)).toEqual([
+      poemIds[3],
+      poemIds[2],
+    ]);
+  });
+
   it('includes roomDate from the room record', async () => {
     const t = setupConvexTest();
     const aliceId = await seedClerkUser(t, 'alice');

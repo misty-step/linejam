@@ -44,6 +44,26 @@ export interface ArchiveStats {
   totalLinesWritten: number;
 }
 
+const DEFAULT_ARCHIVE_LIMIT = 24;
+const MAX_ARCHIVE_LIMIT = 48;
+const DEFAULT_RECENT_PUBLIC_LIMIT = 5;
+const MAX_RECENT_PUBLIC_LIMIT = 10;
+const MAX_LINES_PER_POEM = 9;
+const PUBLIC_POEMS_PER_ROOM = 2;
+const RECENT_PUBLIC_ROOM_WINDOW_FACTOR = 4;
+const MAX_RECENT_PUBLIC_ROOM_WINDOW = 40;
+
+function boundedLimit(
+  value: number | undefined,
+  fallback: number,
+  max: number
+) {
+  if (value === undefined || !Number.isFinite(value)) return fallback;
+  const rounded = Math.floor(value);
+  if (rounded <= 0) return fallback;
+  return Math.min(rounded, max);
+}
+
 /**
  * Get all poems for the user's archive with enriched metadata.
  *
@@ -59,18 +79,27 @@ export interface ArchiveStats {
 export const getArchiveData = query({
   args: {
     guestToken: v.optional(v.string()),
+    limit: v.optional(v.number()),
   },
-  handler: async (ctx, { guestToken }) => {
+  handler: async (ctx, { guestToken, limit }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) {
       return { poems: [] as ArchivePoem[], stats: null };
     }
 
-    // Step 1: Find all lines written by user
+    const poemLimit = boundedLimit(
+      limit,
+      DEFAULT_ARCHIVE_LIMIT,
+      MAX_ARCHIVE_LIMIT
+    );
+    const authorLineWindow = poemLimit * MAX_LINES_PER_POEM;
+
+    // Step 1: Find a bounded window of latest lines written by user.
     const userLines = await ctx.db
       .query('lines')
-      .withIndex('by_author', (q) => q.eq('authorUserId', user._id))
-      .collect();
+      .withIndex('by_author_created', (q) => q.eq('authorUserId', user._id))
+      .order('desc')
+      .take(authorLineWindow);
 
     // No poems yet
     if (userLines.length === 0) {
@@ -85,30 +114,49 @@ export const getArchiveData = query({
       };
     }
 
-    // Step 2: Get unique poem IDs and fetch poems + favorites in parallel
-    const poemIds = [...new Set(userLines.map((l) => l.poemId))];
+    // Step 2: Get unique poem IDs from the bounded line window.
+    const poemIds: Id<'poems'>[] = [];
+    const seenPoemIds = new Set<Id<'poems'>>();
+    for (const line of userLines) {
+      if (seenPoemIds.has(line.poemId)) continue;
+      seenPoemIds.add(line.poemId);
+      poemIds.push(line.poemId);
+      if (poemIds.length >= poemLimit) break;
+    }
 
-    const [poemsRaw, favorites] = await Promise.all([
+    const [poemsRaw, favoriteRows] = await Promise.all([
       Promise.all(poemIds.map((id) => ctx.db.get(id))),
-      ctx.db
-        .query('favorites')
-        .withIndex('by_user', (q) => q.eq('userId', user._id))
-        .collect(),
+      Promise.all(
+        poemIds.map((poemId) =>
+          ctx.db
+            .query('favorites')
+            .withIndex('by_user_poem', (q) =>
+              q.eq('userId', user._id).eq('poemId', poemId)
+            )
+            .first()
+        )
+      ),
     ]);
 
     // Filter out null poems and create lookup
     const poems = poemsRaw.filter(
       (p): p is NonNullable<typeof p> => p !== null
     );
-    const favoriteMap = new Map(favorites.map((f) => [f.poemId, f.createdAt]));
+    poems.sort((a, b) => b.createdAt - a.createdAt);
+    const favoriteMap = new Map(
+      favoriteRows
+        .filter((f): f is NonNullable<typeof f> => f !== null)
+        .map((f) => [f.poemId, f.createdAt])
+    );
 
-    // Step 3: Fetch all lines for all poems in parallel
+    // Step 3: Fetch bounded poem lines in parallel. Classic poems have 9 lines.
     const allPoemLines = await Promise.all(
       poems.map((poem) =>
         ctx.db
           .query('lines')
-          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
-          .collect()
+          .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
+          .order('asc')
+          .take(MAX_LINES_PER_POEM)
       )
     );
 
@@ -144,9 +192,7 @@ export const getArchiveData = query({
 
     // Step 7: Build enriched poem objects
     const enrichedPoems: ArchivePoem[] = poems.map((poem, poemIndex) => {
-      const lines = allPoemLines[poemIndex].sort(
-        (a, b) => a.indexInPoem - b.indexInPoem
-      );
+      const lines = allPoemLines[poemIndex];
       const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
       const favoritedAt = favoriteMap.get(poem._id) || null;
 
@@ -179,9 +225,6 @@ export const getArchiveData = query({
       };
     });
 
-    // Sort by creation date descending (most recent first)
-    enrichedPoems.sort((a, b) => b.createdAt - a.createdAt);
-
     // Step 8: Calculate stats
     const allCollaboratorIds = new Set<string>();
     for (const poem of enrichedPoems) {
@@ -195,11 +238,16 @@ export const getArchiveData = query({
       }
     }
 
+    const returnedPoemIds = new Set(enrichedPoems.map((poem) => poem._id));
+    const returnedUserLineCount = userLines.filter((line) =>
+      returnedPoemIds.has(line.poemId)
+    ).length;
+
     const stats: ArchiveStats = {
       totalPoems: enrichedPoems.length,
       totalFavorites: enrichedPoems.filter((p) => p.isFavorited).length,
       uniqueCollaborators: allCollaboratorIds.size,
-      totalLinesWritten: userLines.length,
+      totalLinesWritten: returnedUserLineCount,
     };
 
     return { poems: enrichedPoems, stats };
@@ -215,63 +263,57 @@ export const getRecentPublicPoems = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, { limit = 5 }) => {
-    // Get recent poems from rooms that are completed
+    const poemLimit = boundedLimit(
+      limit,
+      DEFAULT_RECENT_PUBLIC_LIMIT,
+      MAX_RECENT_PUBLIC_LIMIT
+    );
+    const roomWindow = Math.min(
+      MAX_RECENT_PUBLIC_ROOM_WINDOW,
+      Math.max(poemLimit * RECENT_PUBLIC_ROOM_WINDOW_FACTOR, poemLimit)
+    );
+
+    // Get a bounded, indexed window of recently created completed rooms.
     const rooms = await ctx.db
       .query('rooms')
-      .filter((q) => q.eq(q.field('status'), 'COMPLETED'))
+      .withIndex('by_status_created', (q) => q.eq('status', 'COMPLETED'))
       .order('desc')
-      .take(20);
+      .take(roomWindow);
 
     if (rooms.length === 0) {
       return [];
     }
 
-    // Batch fetch all poems for these rooms in a single query
-    const roomIdSet = new Set(rooms.map((r) => r._id));
-    const allRoomPoems = await ctx.db
-      .query('poems')
-      .filter((q) =>
-        q.or(...rooms.map((room) => q.eq(q.field('roomId'), room._id)))
+    const poemsByRoom = await Promise.all(
+      rooms.map((room) =>
+        ctx.db
+          .query('poems')
+          .withIndex('by_room', (q) => q.eq('roomId', room._id))
+          .order('desc')
+          .take(PUBLIC_POEMS_PER_ROOM)
       )
-      .collect();
-
-    // Group poems by room and take up to 2 per room
-    const poemsByRoom = new Map<Id<'rooms'>, typeof allRoomPoems>();
-    for (const poem of allRoomPoems) {
-      if (!roomIdSet.has(poem.roomId)) continue;
-      const existing = poemsByRoom.get(poem.roomId) || [];
-      if (existing.length < 2) {
-        poemsByRoom.set(poem.roomId, [...existing, poem]);
-      }
-    }
-    const poems = [...poemsByRoom.values()].flat().slice(0, limit * 2);
+    );
+    const poems = poemsByRoom
+      .flat()
+      .slice(0, poemLimit * PUBLIC_POEMS_PER_ROOM);
 
     if (poems.length === 0) {
       return [];
     }
 
-    // Batch fetch all lines for all poems in a single query
-    const poemIdSet = new Set(poems.map((p) => p._id));
-    const allLines = await ctx.db
-      .query('lines')
-      .filter((q) =>
-        q.or(...poems.map((poem) => q.eq(q.field('poemId'), poem._id)))
+    const linesByPoem = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
+          .order('asc')
+          .take(MAX_LINES_PER_POEM)
       )
-      .collect();
-
-    // Group lines by poemId for O(1) lookup
-    const linesByPoemId = new Map<Id<'poems'>, typeof allLines>();
-    for (const line of allLines) {
-      if (!poemIdSet.has(line.poemId)) continue;
-      const existing = linesByPoemId.get(line.poemId) || [];
-      linesByPoemId.set(line.poemId, [...existing, line]);
-    }
+    );
 
     // Build poemsWithLines without additional database calls
-    const poemsWithLines = poems.map((poem) => {
-      const lines = (linesByPoemId.get(poem._id) || []).sort(
-        (a, b) => a.indexInPoem - b.indexInPoem
-      );
+    const poemsWithLines = poems.map((poem, index) => {
+      const lines = linesByPoem[index];
       const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
 
       return {
@@ -282,9 +324,14 @@ export const getRecentPublicPoems = query({
       };
     });
 
-    // Filter to only poems with at least 3 lines (looks better in showcase)
-    const qualityPoems = poemsWithLines.filter((p) => p.lines.length >= 3);
+    // Keep only poems with at least 3 lines (looks better in showcase).
+    const qualityPoems = [];
+    for (const poem of poemsWithLines) {
+      if (poem.lines.length < 3) continue;
+      qualityPoems.push(poem);
+      if (qualityPoems.length >= poemLimit) break;
+    }
 
-    return qualityPoems.slice(0, limit);
+    return qualityPoems;
   },
 });
