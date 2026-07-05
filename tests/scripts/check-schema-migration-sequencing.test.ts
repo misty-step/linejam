@@ -1,10 +1,94 @@
 /** @vitest-environment node */
-import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import {
   checkSequencing,
   detectSchemaContractionWithMigration,
 } from '@/scripts/ci/check-schema-migration-sequencing.mjs';
+
+// Frozen copies of `git show 684de32 -- convex/schema.ts` and
+// `-- convex/migrations.ts` (the actual 2026-07-04 outage commit). Embedded
+// as literal fixtures rather than shelled out to `git show` at test time:
+// this suite also runs inside the Dagger unit-test container, which has no
+// `.git` directory (a hermetic source-tree snapshot, by design) -- shelling
+// out there fails with "fatal: not a git repository" regardless of host.
+const PR_298_SCHEMA_DIFF = `diff --git a/convex/schema.ts b/convex/schema.ts
+index bae9377..c759439 100644
+--- a/convex/schema.ts
++++ b/convex/schema.ts
+@@ -33,9 +33,6 @@ export default defineSchema({
+     completedAt: v.optional(v.number()),
+     currentGameId: v.optional(v.id('games')),
+     currentCycle: v.optional(v.number()),
+-    /** Legacy, unused: the game is single-mode. Retained (optional string) so
+-     *  existing rows that carry a mode value stay valid without a migration. */
+-    selectedMode: v.optional(v.string()),
+   })
+     .index('by_code', ['code'])
+     .index('by_host', ['hostUserId'])
+@@ -59,9 +56,6 @@ export default defineSchema({
+     status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
+     /** Game session count for this room. First game = 1. */
+     cycle: v.number(),
+-    /** Legacy, unused: the game is single-mode. Retained (optional string) so
+-     *  existing rows that carry a mode value stay valid without a migration. */
+-    mode: v.optional(v.string()),
+     /** Round index within current game. Shape comes from convex/lib/gameRules.ts. */
+     currentRound: v.number(),
+     /** When the current round opened. Drives the soft clock and ghostwriter overtime gate. */
+`;
+
+const PR_298_MIGRATIONS_DIFF = `diff --git a/convex/migrations.ts b/convex/migrations.ts
+index e21891d..d539e09 100644
+--- a/convex/migrations.ts
++++ b/convex/migrations.ts
+@@ -1,8 +1,45 @@
+ import { ConvexError, v } from 'convex/values';
+-import { mutation } from './_generated/server';
++import { internalMutation, mutation } from './_generated/server';
+ import { verifyGuestToken } from './lib/guestToken';
+ import { ensureUserHelper } from './users';
+
++const hasOwn = (value: object, key: string) =>
++  Object.prototype.hasOwnProperty.call(value, key);
++
++const removeGameModePatch = { mode: undefined } as never;
++const removeSelectedModePatch = { selectedMode: undefined } as never;
++
++export const dropLegacyModeColumns = internalMutation({
++  args: {},
++  handler: async (ctx) => {
++    const [games, rooms] = await Promise.all([
++      ctx.db.query('games').collect(),
++      ctx.db.query('rooms').collect(),
++    ]);
++
++    const gamesWithMode = games.filter((game) => hasOwn(game, 'mode'));
++    const roomsWithSelectedMode = rooms.filter((room) =>
++      hasOwn(room, 'selectedMode')
++    );
++
++    await Promise.all([
++      ...gamesWithMode.map((game) =>
++        ctx.db.patch(game._id, removeGameModePatch)
++      ),
++      ...roomsWithSelectedMode.map((room) =>
++        ctx.db.patch(room._id, removeSelectedModePatch)
++      ),
++    ]);
++
++    return {
++      gamesScanned: games.length,
++      gamesCleared: gamesWithMode.length,
++      roomsScanned: rooms.length,
++      roomsCleared: roomsWithSelectedMode.length,
++    };
++  },
++});
++
+ export const migrateGuestToUser = mutation({
+   args: {
+     guestToken: v.string(),
+`;
 
 describe('detectSchemaContractionWithMigration', () => {
   it('flags a real removed field alongside a real new migration export', () => {
@@ -41,20 +125,9 @@ describe('detectSchemaContractionWithMigration', () => {
     // mode columns"), which shipped the schema contraction and its migration
     // in the same change and wedged production. If this stops failing, the
     // check has regressed.
-    const schemaDiff = execFileSync(
-      'git',
-      ['show', '684de32', '--', 'convex/schema.ts'],
-      { encoding: 'utf8' }
-    );
-    const migrationsDiff = execFileSync(
-      'git',
-      ['show', '684de32', '--', 'convex/migrations.ts'],
-      { encoding: 'utf8' }
-    );
-
     const result = detectSchemaContractionWithMigration({
-      schemaDiff,
-      migrationsDiff,
+      schemaDiff: PR_298_SCHEMA_DIFF,
+      migrationsDiff: PR_298_MIGRATIONS_DIFF,
     });
 
     expect(result.violation).toBe(true);
