@@ -351,6 +351,10 @@ pnpm canary:smoke
 pnpm canary:webhook:setup
 pnpm evidence:guest-flow
 
+# Agent-facing faces (CLI + MCP over the Convex core — see .agents/skills/linejam-cli/SKILL.md)
+pnpm agent:cli -- --help
+pnpm agent:mcp
+
 # Release
 pnpm build
 pnpm generate:releases

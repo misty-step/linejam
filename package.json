@@ -52,7 +52,9 @@
     "canary:webhook:setup": "./scripts/canary/setup-webhook.sh",
     "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs",
     "evidence:static-server": "node scripts/evidence/static-server.mjs",
-    "generate:releases": "npx tsx scripts/generate-releases.ts"
+    "generate:releases": "npx tsx scripts/generate-releases.ts",
+    "agent:cli": "npx tsx scripts/cli/linejam-cli.ts",
+    "agent:mcp": "npx tsx scripts/mcp/linejam-mcp.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.5",
