@@ -3,7 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { writeReleaseFromGit } from '@/scripts/release/write-release-from-git.mjs';
+import {
+  defaultExec,
+  parseCliArgs,
+  readNotesFile,
+  writeReleaseFromGit,
+} from '@/scripts/release/write-release-from-git.mjs';
 
 let tmpDirs: string[] = [];
 
@@ -113,5 +118,51 @@ describe('writeReleaseFromGit', () => {
     expect(
       fs.readFileSync(path.join(contentDir, 'v1.15.2', 'notes.md'), 'utf8')
     ).toBe('Great release.\n');
+  });
+});
+
+describe('parseCliArgs', () => {
+  it('parses --key=value pairs', () => {
+    expect(parseCliArgs(['--tag=v1.15.2', '--previous-tag=v1.15.1'])).toEqual({
+      tag: 'v1.15.2',
+      'previous-tag': 'v1.15.1',
+    });
+  });
+
+  it('preserves "=" characters inside the value', () => {
+    expect(parseCliArgs(['--compare-url=https://x?a=1'])).toEqual({
+      'compare-url': 'https://x?a=1',
+    });
+  });
+
+  it('returns an empty object for no args', () => {
+    expect(parseCliArgs([])).toEqual({});
+  });
+});
+
+describe('readNotesFile', () => {
+  it('reads the file via the provided reader', () => {
+    const readFile = vi.fn().mockReturnValue('release notes content');
+    expect(readNotesFile('/tmp/notes.md', readFile)).toBe(
+      'release notes content'
+    );
+    expect(readFile).toHaveBeenCalledWith('cat', ['/tmp/notes.md']);
+  });
+
+  it('returns an empty string when no path is given', () => {
+    expect(readNotesFile(undefined)).toBe('');
+  });
+
+  it('returns an empty string rather than throwing when the read fails', () => {
+    const readFile = vi.fn().mockImplementation(() => {
+      throw new Error('ENOENT');
+    });
+    expect(readNotesFile('/tmp/missing.md', readFile)).toBe('');
+  });
+});
+
+describe('defaultExec', () => {
+  it('runs a real command and trims its output', () => {
+    expect(defaultExec('git', ['--version'])).toMatch(/^git version/);
   });
 });

@@ -7,8 +7,40 @@ import {
   writeReleaseEntry,
 } from './static-release-store.mjs';
 
-function defaultExec(command, args) {
+export function defaultExec(command, args) {
   return execFileSync(command, args, { encoding: 'utf8' }).trim();
+}
+
+/**
+ * Parse `--key=value` / `--flag` argv pairs into a plain object.
+ *
+ * @param {string[]} argv e.g. process.argv.slice(2)
+ * @returns {Record<string, string>}
+ */
+export function parseCliArgs(argv) {
+  return Object.fromEntries(
+    argv.map((arg) => {
+      const [key, ...rest] = arg.replace(/^--/, '').split('=');
+      return [key, rest.join('=')];
+    })
+  );
+}
+
+/**
+ * Read a notes file for the CLI's --notes-file flag, tolerating a missing
+ * or unreadable path (notes are optional -- a release with no synthesized
+ * prose still gets a technical changelog).
+ *
+ * @param {string | undefined} notesFile
+ * @param {(command: string, args: string[]) => string} [readFile]
+ */
+export function readNotesFile(notesFile, readFile = defaultExec) {
+  if (!notesFile) return '';
+  try {
+    return readFile('cat', [notesFile]);
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -46,12 +78,7 @@ export function writeReleaseFromGit({
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const args = Object.fromEntries(
-    process.argv.slice(2).map((arg) => {
-      const [key, ...rest] = arg.replace(/^--/, '').split('=');
-      return [key, rest.join('=')];
-    })
-  );
+  const args = parseCliArgs(process.argv.slice(2));
 
   if (!args.tag) {
     console.error(
@@ -61,14 +88,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   }
 
   const version = args.tag.replace(/^v/, '');
-  let notes = '';
-  if (args['notes-file']) {
-    try {
-      notes = defaultExec('cat', [args['notes-file']]);
-    } catch {
-      notes = '';
-    }
-  }
+  const notes = readNotesFile(args['notes-file']);
 
   const manifest = writeReleaseFromGit({
     version,

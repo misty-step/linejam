@@ -87,6 +87,25 @@ export function checkSequencing({ baseRef, exec = defaultExec }) {
   return detectSchemaContractionWithMigration({ schemaDiff, migrationsDiff });
 }
 
+/**
+ * @param {{ removedFields: string[], addedMigrations: string[] }} result
+ */
+export function formatViolationMessage(result) {
+  return (
+    'BLOCKED: this change removes a schema.ts field and adds its migration ' +
+    'in the same PR.\n\n' +
+    'Convex validates schema against live data at push time, so contracting ' +
+    'the schema and running its migration in the same deploy wedges every ' +
+    'future deploy (2026-07-04: PR #298 did exactly this and blocked prod ' +
+    'for ~1h until an operator ran a manual expand-migrate-contract dance).\n\n' +
+    `Removed field(s):\n${result.removedFields.map((l) => `  - ${l}`).join('\n')}\n\n` +
+    `New migration(s):\n${result.addedMigrations.map((l) => `  - ${l}`).join('\n')}\n\n` +
+    'Fix: split into two PRs. Ship the migration first, run it against ' +
+    'production, THEN ship the schema contraction in a follow-up PR. ' +
+    'See docs/convex-migrations.md.'
+  );
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const baseRef = process.argv[2];
   if (!baseRef) {
@@ -104,18 +123,6 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     process.exit(0);
   }
 
-  console.error(
-    'BLOCKED: this change removes a schema.ts field and adds its migration ' +
-      'in the same PR.\n\n' +
-      'Convex validates schema against live data at push time, so contracting ' +
-      'the schema and running its migration in the same deploy wedges every ' +
-      'future deploy (2026-07-04: PR #298 did exactly this and blocked prod ' +
-      'for ~1h until an operator ran a manual expand-migrate-contract dance).\n\n' +
-      `Removed field(s):\n${result.removedFields.map((l) => `  - ${l}`).join('\n')}\n\n` +
-      `New migration(s):\n${result.addedMigrations.map((l) => `  - ${l}`).join('\n')}\n\n` +
-      'Fix: split into two PRs. Ship the migration first, run it against ' +
-      'production, THEN ship the schema contraction in a follow-up PR. ' +
-      'See docs/convex-migrations.md.'
-  );
+  console.error(formatViolationMessage(result));
   process.exit(1);
 }

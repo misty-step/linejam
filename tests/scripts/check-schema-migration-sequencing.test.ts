@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   checkSequencing,
   detectSchemaContractionWithMigration,
+  formatViolationMessage,
 } from '@/scripts/ci/check-schema-migration-sequencing.mjs';
 
 // Frozen copies of `git show 684de32 -- convex/schema.ts` and
@@ -219,5 +220,21 @@ describe('checkSequencing', () => {
     expect(checkSequencing({ baseRef: 'origin/master', exec }).violation).toBe(
       false
     );
+  });
+});
+
+describe('formatViolationMessage', () => {
+  it('names the exact removed fields and added migrations', () => {
+    const message = formatViolationMessage({
+      removedFields: ['mode: v.optional(v.string()),'],
+      addedMigrations: [
+        'export const dropLegacyModeColumns = internalMutation({',
+      ],
+    });
+
+    expect(message).toContain('BLOCKED');
+    expect(message).toContain('mode: v.optional(v.string()),');
+    expect(message).toContain('dropLegacyModeColumns');
+    expect(message).toContain('docs/convex-migrations.md');
   });
 });
