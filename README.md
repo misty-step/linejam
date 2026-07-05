@@ -35,9 +35,17 @@ bash scripts/setup.sh --write-env --skip-install
 
 # Add your Convex, Clerk, guest-token, and Canary values to .env.local
 
+# Verify the workspace is actually configured, not just installed
+pnpm doctor
+
 # Run development servers (parallel)
 pnpm dev # Next.js :3000 + Convex backend
+
+# Re-run doctor once `pnpm dev` is up to confirm the app itself is live
+pnpm doctor
 ```
+
+`pnpm doctor` is the setup completion check: `bash scripts/setup.sh` installs dependencies and writes placeholder `.env.local` values, but "installed" is not "working." Doctor fails loudly (nonzero exit) on missing or placeholder env, verifies the Clerk publishable key actually decodes to a real host, and probes both Canary and the running app's `/api/health` -- warning (not failing) when the app or Canary aren't reachable yet, since that's expected before `pnpm dev` is running.
 
 Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.
 

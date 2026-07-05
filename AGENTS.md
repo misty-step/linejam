@@ -318,9 +318,12 @@ pnpm canary:smoke
 pnpm canary:webhook:setup
 pnpm evidence:guest-flow
 
-# Release
+# Release (see docs/releases-static-store.md; release.yml is the only writer
+# of content/releases/ -- there is no manual "generate releases" command)
 pnpm build
-pnpm generate:releases
+
+# Onboarding
+pnpm doctor
 
 # Backlog claiming
 source scripts/lib/claims.sh

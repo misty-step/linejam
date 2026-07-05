@@ -52,3 +52,17 @@ not equal `package.json`'s `version`, if the latest version isn't listed
 first, or if any listed version is missing its `changelog.json`. This is
 what makes drift structurally impossible to reintroduce silently: the build
 goes red before a release ships, not eight months after.
+
+## Deleted: the old manual generator
+
+`scripts/generate-releases.ts` + `lib/releases/parser.ts` predated this fix
+(the `v0.1.0`-era "static file-based releases infrastructure"). It parsed
+`CHANGELOG.md` and called OpenRouter directly with a bare prompt and no
+grounding gate — exactly the fabrication risk `landmark-907` exists to fix,
+but with no fallback protection at all beyond a generic "this release brings
+N features" string. It was never wired into CI or `release.yml`, had no
+tests, and nothing else imported it. Keeping it around would have left a
+second, riskier writer to `content/releases/` that could reintroduce the
+exact split-brain this card fixes the moment anyone ran
+`pnpm generate:releases` by habit. Deleted rather than fixed in place; the
+one authoritative writer is `release.yml` via `scripts/release/`.

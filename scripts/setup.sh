@@ -105,3 +105,4 @@ else
 fi
 
 printf 'setup complete\n'
+printf 'next: fill in %s, then run `pnpm doctor` to verify the workspace is actually configured (not just installed)\n' "$ENV_LOCAL"

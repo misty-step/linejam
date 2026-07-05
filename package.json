@@ -8,6 +8,7 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "doctor": "node ./scripts/doctor.mjs",
     "dev": "npm-run-all --parallel dev:next dev:convex",
     "dev:next": "next dev --turbopack",
     "dev:convex": "convex dev",
@@ -50,8 +51,7 @@
     "canary:responder": "node ./scripts/canary/responder.mjs",
     "canary:smoke": "node ./scripts/canary/trigger-smoke.mjs",
     "canary:webhook:setup": "./scripts/canary/setup-webhook.sh",
-    "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs",
-    "generate:releases": "npx tsx scripts/generate-releases.ts"
+    "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.5",

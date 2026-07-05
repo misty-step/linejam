@@ -18,6 +18,14 @@
  * @returns {string} the origin (e.g. "https://clerk.linejam.app"), or '' if
  *   it cannot be derived (missing/malformed key).
  */
+// base64url decoding rarely throws on arbitrary input, so a non-Clerk-shaped
+// string can decode "successfully" into garbage bytes -- reject anything
+// that doesn't look like a real hostname rather than returning it as a
+// silently-wrong origin (found via linejam-909's doctor tests: a malformed
+// NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY decoded to control-character garbage and
+// still reported "pass").
+const PLAUSIBLE_HOSTNAME_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+
 export function deriveClerkFrontendOrigin(publishableKey) {
   const key = publishableKey?.trim() ?? '';
   if (!key) return '';
@@ -32,7 +40,10 @@ export function deriveClerkFrontendOrigin(publishableKey) {
 
     if (!decoded) return '';
 
-    return decoded.startsWith('https://') ? decoded : `https://${decoded}`;
+    const host = decoded.replace(/^https:\/\//, '');
+    if (!PLAUSIBLE_HOSTNAME_PATTERN.test(host)) return '';
+
+    return `https://${host}`;
   } catch {
     return '';
   }
