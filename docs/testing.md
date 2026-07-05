@@ -231,6 +231,31 @@ pnpm evidence:guest-flow
 - When local Convex/Clerk wiring is unavailable, point the evidence run at a deployed target with `LINEJAM_BASE_URL=https://www.linejam.app`.
 - Protected Vercel previews require `VERCEL_AUTOMATION_BYPASS_SECRET` for smoke or QA browser runs; the preview smoke workflow fails in preflight when the repository secret is absent, and the smoke config sends Vercel's automation bypass header and requests the bypass cookie for in-browser navigation.
 
+#### Static Theme Screenshots (no guest/game flow)
+
+`pnpm test:e2e:evidence` / `pnpm evidence:guest-flow` exercise the full guest
+flow and need synced Convex + Clerk. For screenshots that only need a page to
+render (theme/CSS changes, `/host` layout, etc.), run the production server
+with `pnpm evidence:static-server` instead of raw `PORT=3340 pnpm start:next`.
+
+Running the raw command against an unsynced Convex deployment or a shell with
+an ambient `CANARY_API_KEY` (leaked in from another repo's dev profile,
+pointing at a local responder that isn't running) throws two errors that are
+noise for a static screenshot, not real defects:
+
+```text
+Could not find public function for 'guestSessions:checkGuestSessionThrottle'.
+Canary capture failed: [TypeError: fetch failed] ... ECONNREFUSED 127.0.0.1:4000
+```
+
+`pnpm evidence:static-server` sets `LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE=1`
+(the existing, tested escape hatch in `app/api/guest/session/route.ts`) and
+clears `CANARY_API_KEY`/`NEXT_PUBLIC_CANARY_API_KEY` before starting, so
+neither path can fire regardless of ambient shell config. `PORT` still
+defaults to `3340` and can be overridden the same way. See
+`scripts/evidence/static-server.mjs` and
+`tests/scripts/static-server.test.ts`.
+
 ### Agentic QA
 
 The agentic QA lane is advisory and writes stable artifacts under `.qa/runs/<run-id>/`. It does not replace `pnpm ci:prepush`, deterministic Playwright, or Dagger.

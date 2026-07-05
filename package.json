@@ -51,6 +51,7 @@
     "canary:smoke": "node ./scripts/canary/trigger-smoke.mjs",
     "canary:webhook:setup": "./scripts/canary/setup-webhook.sh",
     "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs",
+    "evidence:static-server": "node scripts/evidence/static-server.mjs",
     "generate:releases": "npx tsx scripts/generate-releases.ts"
   },
   "dependencies": {
