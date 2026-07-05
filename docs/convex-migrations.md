@@ -67,6 +67,19 @@ exact failure class, not every conceivable migration mistake. If migrations
 ever move out of the single `convex/migrations.ts` file, update
 `MIGRATIONS_FILE`/the glob in that script.
 
+**Known limitation** (found by a fresh-context critic reviewing this gate):
+because it only looks at `+` lines, a migration function _pre-scaffolded_ in
+an earlier PR (the `export const` line already exists, unchanged) and then
+filled in with its actual contraction logic in the same PR that also removes
+the schema field would not trip the `addedMigrations` match — the export
+line is unchanged context, not a new line. The gate also cannot know whether
+an _already-shipped_ migration was actually run against production before a
+later contraction PR merges; it only proves the two didn't land in the same
+diff, which is the invariant that actually burned us on 2026-07-04. Treat
+this as a heuristic tripwire for the exact known failure shape, not a
+guarantee against every sequencing mistake — code review is still the
+backstop.
+
 This is a **CI-only** check (it needs `git diff <base>...HEAD`, which
 requires the PR's base ref and enough history — the `quality-gates` job
 fetches both). It intentionally runs outside the Dagger containers the rest

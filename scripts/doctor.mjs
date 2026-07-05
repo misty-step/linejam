@@ -100,7 +100,8 @@ export function checkClerkConfig(env = process.env) {
     return {
       name: 'Clerk',
       status: 'fail',
-      message: 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY does not decode to a Frontend API host',
+      message:
+        'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY does not decode to a Frontend API host',
     };
   }
 
@@ -131,7 +132,8 @@ export function checkCanaryConfig(env = process.env) {
     return {
       name: 'Canary',
       status: 'fail',
-      message: 'NEXT_PUBLIC_CANARY_API_KEY is still the placeholder from .env.example',
+      message:
+        'NEXT_PUBLIC_CANARY_API_KEY is still the placeholder from .env.example',
     };
   }
 
@@ -156,9 +158,12 @@ export async function checkCanaryReachable({
   }
 
   try {
-    const response = await fetchImpl(`${url.replace(/\/$/, '')}/api/v1/status`, {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    const response = await fetchImpl(
+      `${url.replace(/\/$/, '')}/api/v1/status`,
+      {
+        signal: AbortSignal.timeout(timeoutMs),
+      }
+    );
     if (!response.ok) {
       return {
         name: 'Canary reachability',
@@ -166,7 +171,11 @@ export async function checkCanaryReachable({
         message: `HTTP ${response.status} from ${url}`,
       };
     }
-    return { name: 'Canary reachability', status: 'pass', message: 'reachable' };
+    return {
+      name: 'Canary reachability',
+      status: 'pass',
+      message: 'reachable',
+    };
   } catch (error) {
     return {
       name: 'Canary reachability',
@@ -181,7 +190,13 @@ export async function checkCanaryReachable({
  * @returns {Promise<CheckResult>}
  */
 export async function checkAppHealth({
-  url = 'http://localhost:3333/api/health',
+  // `pnpm dev` serves Next.js on :3000 (README). Port 3333 is deliberately
+  // reserved for Playwright E2E (playwright.config.ts) to avoid clashing
+  // with a running dev server -- doctor must point at dev's actual port,
+  // not E2E's, or "start it with `pnpm dev` and re-run doctor" always
+  // produces a false "no app running" warning (found live via a
+  // fresh-context critic: curled both ports against a real `next dev`).
+  url = 'http://localhost:3000/api/health',
   fetchImpl = globalThis.fetch,
   timeoutMs = 3_000,
 } = {}) {
@@ -207,7 +222,8 @@ export async function checkAppHealth({
     return { name: 'app health', status: 'pass', message: `ok (${url})` };
   } catch (error) {
     const isConnRefused =
-      error instanceof Error && /ECONNREFUSED|fetch failed/i.test(error.message);
+      error instanceof Error &&
+      /ECONNREFUSED|fetch failed/i.test(error.message);
     return {
       name: 'app health',
       status: 'warn',

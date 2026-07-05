@@ -129,6 +129,25 @@ describe('checkCanaryReachable', () => {
 });
 
 describe('checkAppHealth', () => {
+  it("defaults to the actual `pnpm dev` port, not Playwright's E2E port", async () => {
+    // Regression: an earlier version of this default pointed at :3333
+    // (Playwright's dedicated E2E port, reserved specifically to avoid
+    // colliding with a running dev server per playwright.config.ts) instead
+    // of :3000 (`pnpm dev`, per README). Following doctor's own instruction
+    // ("start it with `pnpm dev` and re-run `pnpm doctor`") always produced
+    // a false "no app running" warning against a real, healthy dev server.
+    // Found live via a fresh-context critic curling both ports.
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 'ok' }),
+    });
+    await checkAppHealth({ fetchImpl });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'http://localhost:3000/api/health',
+      expect.anything()
+    );
+  });
+
   it('passes when the app reports ok', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
