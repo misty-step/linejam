@@ -38,6 +38,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # linejam-914: the schema/migration sequencing check below needs
+          # full history to resolve a merge-base against the PR's base ref.
+          # This repo is small (a few hundred commits); a full fetch is cheap.
+          fetch-depth: 0
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -64,6 +69,17 @@ jobs:
 
       - name: Security audit
         run: ./scripts/ci/dagger-call.sh audit
+
+      # linejam-914 (2026-07-04 outage): PR #298 removed schema fields and
+      # added their migration in the same commit, wedging every deploy.
+      # This is a plain git-diff heuristic, not a Dagger container, because
+      # it operates on git history (base ref + merge-base) rather than the
+      # source tree -- see docs/convex-migrations.md.
+      - name: Check schema/migration sequencing
+        if: github.event_name == 'pull_request'
+        run: |
+          node scripts/ci/check-schema-migration-sequencing.mjs \
+            "origin/${{ github.event.pull_request.base.ref }}"
 
   test-build:
     name: Test & Build

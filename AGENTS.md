@@ -57,6 +57,7 @@ Read these when you need the truth:
 - `lefthook.yml` — local hook enforcement.
 - `docs/testing.md` — actual test commands and environment contract.
 - `docs/ops/canary-responder.md` — Canary responder operating contract.
+- `docs/convex-migrations.md` — expand-migrate-contract sequencing; read before touching `convex/schema.ts` or `convex/migrations.ts` together.
 
 ## Architecture
 
