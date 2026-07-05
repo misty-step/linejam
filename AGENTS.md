@@ -174,7 +174,7 @@ AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 ## Invariants
 
 1. **Never push on red `pnpm ci:prepush`.** Pre-push runs the fast Docker-free subset (typecheck + lint + test); it must be green. Never use `--no-verify`.
-2. **Never run `pnpm dev`, `pnpm dev:convex`, `convex dev`, or other local server processes yourself.** The user runs them elsewhere. (`pnpm dev` is documented under Development Commands below purely as a reference for what it does — do not invoke it.)
+2. **Never run `pnpm dev`, `pnpm dev:convex`, `convex dev`, or other local server processes yourself.** The user runs them elsewhere. (`pnpm dev` is documented under Development Commands below purely as a reference for what it does — do not invoke it.) This does not cover one-shot, read-only Convex CLI probes (`function-spec`, `env list`, `data`) — those terminate immediately and don't start a dev server; see "Agent-Safe Convex Probes" below for the non-interactive auth path in isolated worktrees.
 3. **Never deploy Convex production without `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.**
 4. **Never rely on placeholder Canary browser keys in build-bearing lanes.**
 5. **Never mock internal `@/` or `../../` modules in tests.** Mock only system boundaries and nondeterminism. See Mocking Rules below for the full boundary list.
@@ -209,6 +209,41 @@ bash scripts/setup.sh --write-env --skip-install
 
 This creates `.env.local` from `.env.example` only when `.env.local` does not
 already exist, and it prepares `.claims/` for local backlog coordination.
+
+### Agent-Safe Convex Probes
+
+Verifying a migration function's _logic_ needs no real deployment: use
+`convex-test` (see `tests/convex/migrations.test.ts` for the pattern). But
+confirming a function actually landed on a real dev deployment — before an
+operator runs a migration against it — needs a live, read-only probe. The
+canonical checkout works out of the box (`npx convex function-spec` or
+`pnpm exec convex function-spec`) because the CLI's personal access token
+already lives in `~/.convex/config.json`.
+
+An isolated/sandboxed worktree that doesn't share that `$HOME` fails with:
+
+```text
+MissingAccessToken: An access token is required for this command.
+Authenticate with `npx convex dev`
+```
+
+even with valid `CONVEX_DEPLOYMENT`/`NEXT_PUBLIC_CONVEX_URL` selectors,
+because CLI auth lives in that file, not the env (linejam-908). The Convex
+CLI also accepts `CONVEX_OVERRIDE_ACCESS_TOKEN` as an env var, which
+authenticates identically without that file. Operator handoff for a new
+isolated worktree: export the same token from `~/.convex/config.json`'s
+`accessToken` field as `CONVEX_OVERRIDE_ACCESS_TOKEN` into that worktree's
+env before dispatching the lane. Verified live (both directions): the exact
+error above reproduces with a worktree that has selectors but no token, and
+`scripts/convex/probe-function-exists.mjs <module.js:functionName>` succeeds
+in that same worktree once `CONVEX_OVERRIDE_ACCESS_TOKEN` is set — no
+`~/.convex/config.json`, no interactive login.
+
+This only unlocks read-only metadata probes (`function-spec`, `env list`,
+`data`) run once and exited — it does not authorize `convex dev` (Invariant 2) or `convex deploy` (Invariant 3), which stay operator-only regardless of
+token availability. `env list` prints real secret _values_; prefer
+`function-spec` for migration/schema checks and avoid displaying `env list`
+output.
 
 ## Gate Contract
 
@@ -363,7 +398,7 @@ pnpm test:e2e:ui      # Playwright interactive mode
 
 ## Critical Environment Variables
 
-- Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY` (production/preview deploy key, CI/CD only), `OPENROUTER_API_KEY` (AI player LLM access, Convex only)
+- Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY` (production/preview deploy key, CI/CD only), `CONVEX_OVERRIDE_ACCESS_TOKEN` (CLI auth for read-only probes in isolated worktrees without `~/.convex/config.json` — see Agent-Safe Convex Probes above), `OPENROUTER_API_KEY` (AI player LLM access, Convex only)
 - Guest auth: `GUEST_TOKEN_SECRET` (must match in Vercel + Convex)
 - Clerk: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_ISSUER_DOMAIN`
 - Canary: `CANARY_ENDPOINT`, `CANARY_API_KEY`, `NEXT_PUBLIC_CANARY_ENDPOINT`, `NEXT_PUBLIC_CANARY_API_KEY`, `LINEJAM_CANARY_WEBHOOK_SECRET`, `LINEJAM_CANARY_WEBHOOK_URL` (required for webhook setup, not responder runtime), `LINEJAM_CANARY_CONTEXT_TIMEOUT_MS`, `LINEJAM_CANARY_RETENTION_DAYS`
