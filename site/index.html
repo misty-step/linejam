@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en" data-ae-theme="ember">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Linejam - pass-the-poem party game</title>
+    <meta
+      name="description"
+      content="Linejam turns a room of friends into accidental poets - pass a line, see only what came before, and read the chaos aloud together."
+    />
+    <script>
+      try {
+        var m = localStorage.getItem('ae-mode');
+        if (m === 'dark' || m === 'light') {
+          document.documentElement.classList.add(m);
+          document.documentElement.style.colorScheme = m;
+        }
+      } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="aesthetic.css" />
+    <link rel="stylesheet" href="marketing.css" />
+  </head>
+  <body>
+    <svg aria-hidden="true" width="0" height="0" style="position: absolute">
+      <symbol id="i-scroll-text" viewBox="0 0 24 24">
+        <path d="M15 12h-5" />
+        <path d="M15 8h-5" />
+        <path
+          d="M19 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0 0 4h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"
+        />
+      </symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="m4.93 4.93 1.41 1.41" />
+        <path d="m17.66 17.66 1.41 1.41" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="m6.34 17.66-1.41 1.41" />
+        <path d="m19.07 4.93-1.41 1.41" />
+      </symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24">
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      </symbol>
+      <symbol id="i-circle-check" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </symbol>
+    </svg>
+
+    <div class="ae-screen ae-wide">
+      <header class="ae-bar msk-bar">
+        <a class="ae-logo" href="./" aria-label="Linejam home">
+          <span class="ae-app-mark" aria-hidden="true">
+            <svg class="ae-icon" data-lucide="scroll-text">
+              <use href="#i-scroll-text" />
+            </svg>
+          </span>
+          <span class="ae-name">Linejam</span>
+        </a>
+        <span class="msk-actions">
+          <nav class="ae-chrome msk-nav" aria-label="Site">
+            <a href="#features">features</a>
+            <a href="#screens">screens</a>
+            <a href="changelog.html">release notes</a>
+          </nav>
+          <button class="ae-mode" aria-label="toggle color mode">
+            <svg class="ae-icon ae-sun"><use href="#i-sun" /></svg>
+            <svg class="ae-icon ae-moon"><use href="#i-moon" /></svg>
+          </button>
+        </span>
+      </header>
+
+      <main class="ae-stage ae-stage-scroll" id="content">
+        <div class="msk-page">
+          <section class="msk-hero" aria-labelledby="hero-title">
+            <p class="ae-chrome">PASS-THE-POEM PARTY GAME</p>
+            <h1 class="ae-h" id="hero-title">
+              Write one line. See only the line before yours. Read the chaos
+              aloud together.
+            </h1>
+            <p class="msk-pitch">
+              Linejam is a party game for friends in the same room. Nine
+              rounds, word counts 1-2-3-4-5-4-3-2-1, and a reveal ceremony
+              where everyone finally sees the whole poem they helped write
+              without ever seeing it coming. The constraint is the game: no
+              single person could have written what you end up with.
+            </p>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label"
+                >Wedding-validated - real friends, real reveal night, real
+                laughter.</span
+              >
+            </p>
+          </section>
+
+          <section
+            class="msk-section"
+            id="features"
+            aria-labelledby="features-title"
+          >
+            <h2 class="ae-h" id="features-title">Why it's fun</h2>
+            <div class="ae-list-rows">
+              <div class="ae-list-row">
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">host</span>
+                  <span class="ae-list-value">Create a room, get a code.</span>
+                </span>
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">join</span>
+                  <span class="ae-list-value"
+                    >Code + name. No account needed.</span
+                  >
+                </span>
+              </div>
+              <div class="ae-list-row">
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">rounds</span>
+                  <span class="ae-list-value">9 rounds, 1→5→1 words.</span>
+                </span>
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">reveal</span>
+                  <span class="ae-list-value"
+                    >Everyone reads one poem aloud.</span
+                  >
+                </span>
+              </div>
+              <div class="ae-list-row">
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">short a seat?</span>
+                  <span class="ae-list-value">AI players fill it.</span>
+                </span>
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">stuck</span>
+                  <span class="ae-list-value"
+                    >In-game help, 4 visual themes.</span
+                  >
+                </span>
+              </div>
+              <div class="ae-list-row">
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">after</span>
+                  <span class="ae-list-value">Shareable recap hub.</span>
+                </span>
+                <span class="ae-list-cell">
+                  <span class="ae-list-label">where</span>
+                  <span class="ae-list-value"
+                    ><a href="https://www.linejam.app">linejam.app</a> -
+                    play free.</span
+                  >
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section
+            class="msk-section"
+            id="screens"
+            aria-labelledby="screens-title"
+          >
+            <div class="msk-section-head">
+              <h2 class="ae-h" id="screens-title">Screenshots</h2>
+              <p class="ae-dim">
+                Click a frame to inspect it. Every frame below is a real
+                capture: the landing page and an actual in-progress round
+                from a live room created at <code>linejam.app</code> during
+                this pass, plus the project's public GitHub release page.
+              </p>
+            </div>
+            <div class="msk-gallery" aria-label="Product screenshots">
+              <button
+                class="msk-shot"
+                type="button"
+                data-full="assets/screenshots/01-overview.png"
+                data-title="Landing page"
+              >
+                <img
+                  src="assets/screenshots/01-overview.png"
+                  alt="Linejam landing page at linejam.app"
+                />
+                <span class="ae-chrome">Landing page</span>
+              </button>
+              <button
+                class="msk-shot"
+                type="button"
+                data-full="assets/screenshots/02-workflow.png"
+                data-title="Round 1, one word"
+              >
+                <img
+                  src="assets/screenshots/02-workflow.png"
+                  alt="Live Linejam room mid-round: Round 1, 1 word, write your line"
+                />
+                <span class="ae-chrome">Live gameplay: Round 1</span>
+              </button>
+              <button
+                class="msk-shot"
+                type="button"
+                data-full="assets/screenshots/03-release.png"
+                data-title="Public release history"
+              >
+                <img
+                  src="assets/screenshots/03-release.png"
+                  alt="Linejam's public GitHub releases page"
+                />
+                <span class="ae-chrome">Public release history</span>
+              </button>
+            </div>
+          </section>
+
+          <section
+            class="msk-section msk-release-slot"
+            aria-labelledby="release-title"
+          >
+            <h2 class="ae-h" id="release-title">Release notes</h2>
+            <p>
+              Read the <a href="changelog.html">current release notes</a> for
+              what's new. Linejam ships continuously - the changelog above is
+              sourced from real commit history.
+            </p>
+          </section>
+        </div>
+      </main>
+
+      <footer class="ae-bar msk-footer">
+        <p class="ae-chrome">Linejam is part of the Misty Step fleet.</p>
+        <nav class="ae-foot-links ae-chrome" aria-label="Footer">
+          <a
+            data-footer-link="github"
+            href="https://github.com/misty-step/linejam"
+            >GitHub</a
+          >
+          <a data-footer-link="misty-step" href="https://mistystep.io"
+            >Misty Step</a
+          >
+        </nav>
+      </footer>
+    </div>
+
+    <dialog class="ae-dialog msk-zoom" aria-labelledby="zoom-title">
+      <div class="msk-zoom-head">
+        <h2 class="ae-dialog-title" id="zoom-title">Screenshot</h2>
+        <button
+          class="ae-button"
+          type="button"
+          data-zoom-close
+          aria-label="Close screenshot"
+        >
+          <svg class="ae-icon" aria-hidden="true"><use href="#i-x" /></svg>
+        </button>
+      </div>
+      <img class="msk-zoom-img" alt="" />
+    </dialog>
+
+    <script src="mode.js"></script>
+    <script src="theme.js"></script>
+    <script src="marketing.js"></script>
+  </body>
+</html>
