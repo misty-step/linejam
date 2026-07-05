@@ -1,0 +1,27 @@
+{
+  "version": "1.5.0",
+  "date": "2026-06-12",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "evidence",
+      "breaking": false,
+      "description": "govern smoke and qa artifacts",
+      "commit": "7320658"
+    },
+    {
+      "type": "chore",
+      "scope": "dev",
+      "breaking": false,
+      "description": "bootstrap local setup loop",
+      "commit": "ac9c221"
+    },
+    {
+      "type": "feat",
+      "scope": "sharing",
+      "breaking": false,
+      "description": "require explicit public links",
+      "commit": "0f5da62"
+    }
+  ]
+}

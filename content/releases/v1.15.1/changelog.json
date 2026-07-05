@@ -1,0 +1,22 @@
+{
+  "version": "1.15.1",
+  "date": "2026-07-04",
+  "changes": [
+    {
+      "type": "docs",
+      "scope": "truth-sweep",
+      "breaking": false,
+      "description": "retire orphaned vision.md, drop stale sections, add rollback runbook",
+      "pr": 293,
+      "commit": "4f5745f"
+    },
+    {
+      "type": "fix",
+      "scope": "convex",
+      "breaking": false,
+      "description": "bound launch reads and live game failures",
+      "pr": 294,
+      "commit": "c80e449"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "version": "1.3.0",
+  "date": "2026-06-11",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "record shipped ticket closure",
+      "commit": "3488246"
+    },
+    {
+      "type": "feat",
+      "scope": "observability",
+      "breaking": false,
+      "description": "add scrubbed route telemetry",
+      "commit": "3d31d4c"
+    }
+  ]
+}

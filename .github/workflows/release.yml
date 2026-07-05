@@ -26,13 +26,61 @@ jobs:
           persist-credentials: false
 
       - name: Run Landmark
-        # Pinned to the v1 tag's commit — this action holds GH_RELEASE_TOKEN
-        # (repo write: pushes the release commit + tags), so a floating tag is
-        # not acceptable here. Bump deliberately when upgrading Landmark.
+        id: landmark
+        # Pinned to the v1 tag's commit — this action pushes the release
+        # commit + tags, so a floating tag is not acceptable here. Bump
+        # deliberately when upgrading Landmark.
         uses: misty-step/landmark@b461fe11b6f609b1a09fd44ef947e8c4c1f234db # v1
         with:
           mode: full
           node-version: 22
           healthcheck: 'true'
-          github-token: ${{ secrets.GH_RELEASE_TOKEN }}
+          # linejam-916: GH_RELEASE_TOKEN was a personal gh-CLI OAuth token
+          # pasted into a repo secret. It started 403ing ("You do not have
+          # permission to create labels on this repository") the moment
+          # linejam went public (2026-07-04, PR #296) -- an ad-hoc personal
+          # credential, not a scoped service credential, so it silently broke
+          # when the authorizing user's effective access to this repo
+          # changed shape. master has no branch protection and no rulesets
+          # (verified: GET /branches/master/protection -> 404, GET
+          # /rulesets -> []), so nothing requires bypassing review checks
+          # here -- the job's own `contents: write` / `issues: write` /
+          # `pull-requests: write` permissions (declared above) are exactly
+          # what semantic-release + @semantic-release/github need, and
+          # GITHUB_TOKEN is ephemeral (minted per run, nothing to leak,
+          # rotate, or silently expire). No new secret was provisioned.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           llm-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+
+      # linejam-915: the /releases page used to read a static store that
+      # nothing wrote to after v0.1.0, while Landmark kept the RSS feed
+      # current -- two stores, one dead. This step makes the release
+      # workflow the single writer of content/releases/ on every release
+      # (see docs/releases-static-store.md), so the two can never diverge.
+      - name: Write static release content
+        if: steps.landmark.outputs.released == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.landmark.outputs.release-tag }}
+          RELEASE_NOTES: ${{ steps.landmark.outputs.release-notes }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          prev_tag="$(git describe --tags --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)"
+          notes_file="$(mktemp)"
+          printf '%s' "${RELEASE_NOTES}" > "${notes_file}"
+
+          node scripts/release/write-release-from-git.mjs \
+            --tag="${RELEASE_TAG}" \
+            ${prev_tag:+--previous-tag="${prev_tag}"} \
+            --notes-file="${notes_file}"
+
+          if [ -n "$(git status --porcelain content/releases)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add content/releases
+            git commit -m "chore(releases): update static release store for ${RELEASE_TAG} [skip ci]"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" HEAD:master
+          else
+            echo "content/releases unchanged; nothing to commit."
+          fi

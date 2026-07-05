@@ -1,0 +1,54 @@
+{
+  "version": "1.8.0",
+  "date": "2026-06-22",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump trufflesecurity/trufflehog",
+      "pr": 249,
+      "commit": "3aee7cc"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump the prod-minor-and-patch group across 1 directory with 7 updates",
+      "pr": 265,
+      "commit": "7d23142"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "override postcss to ^8.5.10 (clears GHSA-qx2v-qp2m-jg93)",
+      "pr": 267,
+      "commit": "659d39c"
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "breaking": false,
+      "description": "bump the dev-minor-and-patch group across 1 directory with 15 updates",
+      "pr": 266,
+      "commit": "94e2701"
+    },
+    {
+      "type": "test",
+      "scope": "convex",
+      "breaking": false,
+      "description": "migrate all convex suites to convex-test; delete mock DB (018)",
+      "pr": 273,
+      "commit": "9960ead"
+    },
+    {
+      "type": "feat",
+      "scope": "game",
+      "breaking": false,
+      "description": "migrate host to a present participant when the host leaves (017)",
+      "pr": 274,
+      "commit": "2ef5af9"
+    }
+  ]
+}

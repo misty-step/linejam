@@ -1,0 +1,14 @@
+{
+  "version": "1.13.0",
+  "date": "2026-07-03",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "observability",
+      "breaking": false,
+      "description": "report canary health check-ins",
+      "pr": 289,
+      "commit": "e69e32f"
+    }
+  ]
+}

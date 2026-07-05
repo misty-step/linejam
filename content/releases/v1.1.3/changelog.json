@@ -1,0 +1,53 @@
+{
+  "version": "1.1.3",
+  "date": "2026-04-21",
+  "changes": [
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "split dependabot majors into per-package PRs",
+      "pr": 219,
+      "commit": "3644e4c"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "improve Dependabot config and remove unused marked",
+      "pr": 227,
+      "commit": "3bde106"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump @vercel/speed-insights from 1.3.1 to 2.0.0",
+      "pr": 223,
+      "commit": "81c05ea"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump lucide-react from 0.574.0 to 1.8.0",
+      "pr": 222,
+      "commit": "069995e"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump @vercel/analytics from 1.6.1 to 2.0.1",
+      "pr": 226,
+      "commit": "8073f7a"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "breaking": false,
+      "description": "stop Dependabot from double-stamping commit scopes",
+      "pr": 232,
+      "commit": "082a2f6"
+    }
+  ]
+}

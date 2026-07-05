@@ -1,0 +1,1127 @@
+{
+  "version": "1.0.0",
+  "date": "2026-01-25",
+  "changes": [
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "initialize Next.js project with planning docs",
+      "commit": "c4ba46f"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "configure quality gates with Lefthook and CI",
+      "commit": "6a9112d"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement comprehensive design system with Tailwind 4",
+      "commit": "1f64c5e"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement structured logging with Pino",
+      "commit": "16658cf"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "configure Sentry error tracking with source maps",
+      "commit": "f1850b3"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "setup Changesets for version management",
+      "commit": "d32cd8a"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "initialize Convex with schema for game data model",
+      "commit": "ca00aa1"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement core game logic and frontend UI",
+      "commit": "8052011"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "update TODO.md to reflect completed implementation",
+      "commit": "399b5b5"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement Zen Garden design system and reveal ceremony",
+      "commit": "4e5bc30"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "add README with project overview",
+      "commit": "e40a91c"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "add backlog",
+      "commit": "a3d889f"
+    },
+    {
+      "type": "fix",
+      "scope": "build",
+      "breaking": false,
+      "description": "add convex deploy to build script",
+      "commit": "1fda1da"
+    },
+    {
+      "type": "refactor",
+      "scope": "auth",
+      "breaking": false,
+      "description": "centralize getUser helper to convex/lib/auth.ts",
+      "commit": "1663271"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "breaking": false,
+      "description": "enforce authorization on poem and favorite queries",
+      "commit": "28a62e1"
+    },
+    {
+      "type": "fix",
+      "scope": "logging",
+      "breaking": false,
+      "description": "wire structured logger in all catch blocks",
+      "commit": "6de2615"
+    },
+    {
+      "type": "fix",
+      "scope": "sentry",
+      "breaking": false,
+      "description": "add error capture to all catch blocks",
+      "commit": "9049e64"
+    },
+    {
+      "type": "feat",
+      "scope": "infra",
+      "breaking": false,
+      "description": "add test-error and health check endpoints",
+      "commit": "72f28b7"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "add project documentation and task tracking",
+      "commit": "7a1c984"
+    },
+    {
+      "type": "fix",
+      "scope": "hooks",
+      "breaking": false,
+      "description": "remove convex deploy from pre-push hooks",
+      "commit": "0de1ae1"
+    },
+    {
+      "type": "refactor",
+      "scope": "logging",
+      "breaking": false,
+      "description": "server-only Pino with captureError deep module",
+      "commit": "513f107"
+    },
+    {
+      "type": "test",
+      "breaking": false,
+      "description": "remove logger test incompatible with server-only",
+      "commit": "31f4fb0"
+    },
+    {
+      "type": "test",
+      "scope": "ci",
+      "breaking": false,
+      "description": "clear commit SHA env vars in sentry test",
+      "commit": "b78759a"
+    },
+    {
+      "type": "chore",
+      "scope": "ci",
+      "breaking": false,
+      "description": "use build:check to skip convex deploy",
+      "commit": "fadfc2c"
+    },
+    {
+      "type": "chore",
+      "scope": "ci",
+      "breaking": false,
+      "description": "add placeholder convex url for build validation",
+      "commit": "d120d18"
+    },
+    {
+      "type": "chore",
+      "scope": "ci",
+      "breaking": false,
+      "description": "add clerk placeholder key for build validation",
+      "commit": "ca9fa81"
+    },
+    {
+      "type": "chore",
+      "scope": "ci",
+      "breaking": false,
+      "description": "use valid-format clerk key placeholder",
+      "commit": "d133ecf"
+    },
+    {
+      "type": "chore",
+      "scope": "ci",
+      "breaking": false,
+      "description": "use secrets for clerk and convex env vars",
+      "commit": "4be9152"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "address PR review comments for auth and observability",
+      "commit": "bb9a264"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "docs cleanup",
+      "commit": "a39aea4"
+    },
+    {
+      "type": "style",
+      "breaking": false,
+      "description": "implement Kenya Hara minimalist design system",
+      "commit": "b2ca524"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "configure Convex deploy for Vercel builds",
+      "commit": "60de0fe"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "use pnpm for Convex build command",
+      "commit": "5ae5289"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "trigger Vercel deployment",
+      "commit": "a96f534"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "add ops hardening documentation and gitleaks config",
+      "commit": "6e6a376"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "wire gitleaks into lefthook pre-commit hook",
+      "commit": "88c220b"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "add secret scanning section to README",
+      "commit": "3aa7165"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "parallelize quality checks and add secret scanning",
+      "commit": "f84ce74"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "enhance health route with error handling and caching",
+      "commit": "d53aa73"
+    },
+    {
+      "type": "test",
+      "breaking": false,
+      "description": "add comprehensive tests for health route",
+      "commit": "237fdf4"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "externalize Pino packages to resolve build errors",
+      "commit": "85613b2"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "mark all operational reliability tasks complete",
+      "commit": "a14d93b"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "add GITLEAKS_LICENSE env var to secret scanning job",
+      "commit": "c2d8c95"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "add pull-requests write permission to gitleaks job",
+      "commit": "9315a0b"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "docs update",
+      "commit": "7b1de3c"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "apply custom gitleaks config in CI and pre-commit hooks",
+      "commit": "d4de3e7"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add multi-cycle game architecture with schema updates",
+      "commit": "f34b623"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement crypto-secure 6-char room codes with backward compatibility",
+      "commit": "8a016fa"
+    },
+    {
+      "type": "feat",
+      "breaking": true,
+      "description": "implement server-signed guest tokens with HttpOnly cookies",
+      "commit": "cc72f34"
+    },
+    {
+      "type": "test",
+      "breaking": false,
+      "description": "improve coverage for convex game logic and rate limiting",
+      "commit": "0575c8b"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "replace Node.js crypto with Web Crypto API in Convex runtime",
+      "commit": "20452ef"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "resolve P1 and P2 code review feedback",
+      "commit": "9e72e46"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "replace vague \"imprints\" terminology with clear UI language",
+      "commit": "ee1dd7e"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "reduce room codes from 6 to 4 characters",
+      "commit": "06c1e4a"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "improve poem display animation and layout",
+      "commit": "46425c2"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "remove unused poemNumber prop from PoemDisplay",
+      "commit": "5406039"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "reorganize reveal phase to emphasize user's poem",
+      "commit": "2ece594"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "escape apostrophe in quote",
+      "commit": "371b919"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "redesign archive poem with Literary Broadside aesthetic",
+      "commit": "34b19b0"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "redesign home page with Literary Broadside aesthetic",
+      "commit": "420b717"
+    },
+    {
+      "type": "chore",
+      "scope": "homepage",
+      "breaking": false,
+      "description": "polish homepage layout, add sticky footer, and add authentication buttons",
+      "commit": "93b5689"
+    },
+    {
+      "type": "chore",
+      "scope": "convex",
+      "breaking": false,
+      "description": "update generated files",
+      "commit": "47b3fa6"
+    },
+    {
+      "type": "style",
+      "breaking": false,
+      "description": "format generated convex files",
+      "commit": "d34869b"
+    },
+    {
+      "type": "chore",
+      "scope": "convex",
+      "breaking": false,
+      "description": "update generated files (again)",
+      "commit": "5655107"
+    },
+    {
+      "type": "chore",
+      "scope": "config",
+      "breaking": false,
+      "description": "add .prettierignore to exclude generated files",
+      "commit": "4f87611"
+    },
+    {
+      "type": "feat",
+      "scope": "infra",
+      "breaking": false,
+      "description": "add deep health check for uptimerobot monitoring",
+      "commit": "3042c89"
+    },
+    {
+      "type": "fix",
+      "scope": "test",
+      "breaking": false,
+      "description": "mock convex api in health check test to avoid server-only error",
+      "commit": "33c051e"
+    },
+    {
+      "type": "fix",
+      "scope": "test",
+      "breaking": false,
+      "description": "use node environment for health check test to resolve server-only error",
+      "commit": "d4fb1cf"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "harden health endpoint for ci",
+      "commit": "fde3631"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "add missing semantic color tokens to design system",
+      "commit": "2afd7cf"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "create Label component for editorial typography pattern",
+      "commit": "68b061a"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "migrate game flow components to use Label component",
+      "commit": "8835e88"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "complete label component migration across all pages",
+      "commit": "c386386"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add Alert component for inline error display",
+      "commit": "e3a02d6"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "replace browser alert with inline Alert in WritingScreen",
+      "commit": "2e1f8c1"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add Stamp component for Japanese ink seal graphics",
+      "commit": "b39d388"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "update TODO.md to reflect completed aesthetic tasks",
+      "commit": "3f9590f"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add ink seal stamps to WaitingScreen sealed state",
+      "commit": "77276d2"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add hanko stamp to host badge in lobby",
+      "commit": "6a6c3ed"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "create ornament component for editorial typography",
+      "commit": "8ff6da7"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "replace footer separators with dagger ornaments",
+      "commit": "4469d4e"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add persimmon tint to shadow design tokens",
+      "commit": "14b4e9d"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement asymmetric homepage layout with vertical label",
+      "commit": "96a01d9"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement staggered asymmetric poem reveal",
+      "commit": "06b159a"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add ink stamp press animation to buttons",
+      "commit": "dbcc5d5"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add smooth shadow crushing animation to buttons",
+      "commit": "ad028e7"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "breaking": false,
+      "description": "implement persimmon glow pulse animation for primary buttons",
+      "commit": "e3d2aae"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "breaking": false,
+      "description": "implement typewriter character shift animation for buttons",
+      "commit": "ac31c21"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "tighten and tidy TODO.md file",
+      "commit": "b5b54f5"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "breaking": false,
+      "description": "implement combined stamp hover animation (pulse + wiggle)",
+      "commit": "d555e70"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "breaking": false,
+      "description": "implement ink spread on hover animation for buttons",
+      "commit": "1593fdb"
+    },
+    {
+      "type": "refactor",
+      "scope": "ui",
+      "breaking": false,
+      "description": "simplify button animations for sophisticated mobile feel",
+      "commit": "041b14c"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "breaking": false,
+      "description": "split-view lobby + dark mode QR + conditional header",
+      "commit": "bc9122a"
+    },
+    {
+      "type": "test",
+      "breaking": false,
+      "description": "add error feedback system tests",
+      "commit": "db654d5"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add error feedback deep module",
+      "commit": "787bc44"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add error state to Lobby component",
+      "commit": "1b42e6c"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add error state to Host page",
+      "commit": "7244c02"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "migrate Join page to errorToFeedback + Alert",
+      "commit": "d6199e6"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add error state to RevealPhase component",
+      "commit": "230588a"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "make WritingScreen textarea visible with focus states",
+      "commit": "9fe4ec9"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add ARIA labels to WritingScreen textarea",
+      "commit": "3f51907"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add word count guidance text to WritingScreen",
+      "commit": "cadc70f"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add submission confirmation state machine",
+      "commit": "693f17d"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "render submission confirmation UI",
+      "commit": "2a6ce49"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add stamp animation to submit button on success",
+      "commit": "81fced4"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "create LoadingState deep module with preset messages",
+      "commit": "18463e0"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "replace generic loading states with contextual messages",
+      "commit": "18308f0"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "update TODO.md with completed Phases 1-3 and commit references",
+      "commit": "c1c9125"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "remove decorative noise from home page",
+      "commit": "6ae7b50"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "remove border slide animation from RevealList cards",
+      "commit": "df910d0"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "remove decorative elements from components",
+      "commit": "6e89698"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "delete unused code and document Stamp variants",
+      "commit": "470ca6d"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "mark Phase 4 complete in TODO.md",
+      "commit": "ef9f83b"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add screen reader live region for validation announcements",
+      "commit": "59fd5b5"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "mark Phase 1 complete with live region accessibility",
+      "commit": "9302004"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "create comprehensive design system documentation",
+      "commit": "cb511c0"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "mark design system documentation task complete",
+      "commit": "7e87ef9"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "add architectural decision record to Button component",
+      "commit": "fad9941"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "mark component ADR documentation task complete",
+      "commit": "a3ca1a2"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "consolidate animation durations to design tokens",
+      "commit": "06c0445"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "mark animation duration consolidation task complete",
+      "commit": "8376d51"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "reserve persimmon hover for primary actions only",
+      "commit": "33a0783"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "mark persimmon hover consolidation task complete",
+      "commit": "f859f7b"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "remove unused shadow tokens",
+      "commit": "eb9db42"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "mark shadow token audit task complete",
+      "commit": "686e5ce"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "breaking": false,
+      "description": "implement ceremonial WritingScreen redesign with \"Digital Ensō\" concept",
+      "commit": "198afcd"
+    },
+    {
+      "type": "refactor",
+      "scope": "ui",
+      "breaking": false,
+      "description": "elevate PoemDisplay with editorial precision",
+      "commit": "dd40ef1"
+    },
+    {
+      "type": "fix",
+      "scope": "accessibility",
+      "breaking": false,
+      "description": "address PR review feedback",
+      "commit": "a342c85"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "meant to push this to another branch lol",
+      "commit": "e14ebca"
+    },
+    {
+      "type": "feat",
+      "scope": "infrastructure",
+      "breaking": false,
+      "description": "implement structured logging, analytics, and sentry integration",
+      "commit": "b19c92e"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "clarify logger scope for Convex runtime constraints",
+      "commit": "5a46757"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "Implement comprehensive test coverage automation",
+      "pr": 8,
+      "commit": "f33770d"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "remove completed alert() task and add worktrees to gitignore",
+      "commit": "8313edc"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "guest token cross-platform compatibility and deployment",
+      "commit": "f0a4cfb"
+    },
+    {
+      "type": "perf",
+      "breaking": false,
+      "description": "eliminate N+1 query patterns in game and poems modules",
+      "pr": 9,
+      "commit": "d4bc813"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add build-time env validation and enhanced health checks",
+      "commit": "30397e8"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "configure coverage badges and repair CI build",
+      "commit": "b252533"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "resolve CI failures (pnpm version conflict + badge 409)",
+      "commit": "7802dff"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "use gh api PATCH for atomic gist badge updates",
+      "commit": "9ed59b2"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "update backlog",
+      "commit": "42bcbbf"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "Share and Export Poems",
+      "pr": 10,
+      "commit": "10a341b"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "update backlog",
+      "commit": "4f369ed"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "implement test helper for expired guest tokens",
+      "pr": 14,
+      "commit": "10b0b17"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "docs cleanup",
+      "commit": "9405cc1"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "delete unused lib/logger.ts",
+      "pr": 19,
+      "commit": "cbcb7b4"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "extract getRoomByCode helper, secure random shuffle",
+      "pr": 20,
+      "commit": "2ef5ebc"
+    },
+    {
+      "type": "test",
+      "scope": "e2e",
+      "breaking": false,
+      "description": "add complete 9-round game coverage",
+      "pr": 21,
+      "commit": "bc1f80e"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "migrate backlog to github issues",
+      "commit": "a94943a"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "eliminate race condition in round submission validation",
+      "pr": 64,
+      "commit": "152c68a"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "update convex generateds",
+      "commit": "32274ae"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "update placeholder to show required word count",
+      "pr": 63,
+      "commit": "52562f4"
+    },
+    {
+      "type": "feat",
+      "scope": "archive",
+      "breaking": false,
+      "description": "redesign archive page with Manuscript Gallery layout",
+      "pr": 69,
+      "commit": "afbf402"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "prevent auto-advancing to new game before poems are read",
+      "pr": 70,
+      "commit": "d98e84a"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "breaking": false,
+      "description": "remove legacy guestId fallback to prevent auth bypass (#22)",
+      "pr": 71,
+      "commit": "cbe719b"
+    },
+    {
+      "type": "fix",
+      "scope": "error",
+      "breaking": false,
+      "description": "consolidate duplicate captureError implementations (#52)",
+      "pr": 72,
+      "commit": "326ab8d"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "breaking": false,
+      "description": "upgrade @sentry/nextjs to fix CVE-2025-65944 (closes #36)",
+      "pr": 73,
+      "commit": "934f4fe"
+    },
+    {
+      "type": "feat",
+      "scope": "seo",
+      "breaking": false,
+      "description": "add robots.txt, sitemap.xml, and homepage OG image",
+      "pr": 80,
+      "commit": "f9d34ab"
+    },
+    {
+      "type": "feat",
+      "scope": "analytics",
+      "breaking": false,
+      "description": "add event tracking for key user actions",
+      "pr": 82,
+      "commit": "24bad23"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "breaking": false,
+      "description": "add security audit to quality gates pipeline",
+      "pr": 108,
+      "commit": "772ecb1"
+    },
+    {
+      "type": "fix",
+      "scope": "ux",
+      "breaking": false,
+      "description": "host leave lobby button now closes room (#92)",
+      "pr": 109,
+      "commit": "35abba2"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "breaking": false,
+      "description": "add length validation to displayName and line text",
+      "pr": 110,
+      "commit": "2782660"
+    },
+    {
+      "type": "feat",
+      "scope": "infra",
+      "breaking": false,
+      "description": "configure Dependabot for automated dependency updates (#99)",
+      "pr": 111,
+      "commit": "70d7c36"
+    },
+    {
+      "type": "refactor",
+      "scope": "ui",
+      "breaking": false,
+      "description": "consolidate navigation into header icon buttons",
+      "commit": "125562a"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump the minor-and-patch group with 26 updates",
+      "pr": 112,
+      "commit": "d5d8a92"
+    },
+    {
+      "type": "fix",
+      "scope": "game",
+      "breaking": false,
+      "description": "unify reader assignment algorithm",
+      "pr": 114,
+      "commit": "c767ac3"
+    },
+    {
+      "type": "perf",
+      "breaking": false,
+      "description": "parallelize serial database writes in game mutations",
+      "pr": 116,
+      "commit": "7db8d3b"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "comprehensive documentation audit and creation",
+      "commit": "9971552"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "breaking": false,
+      "description": "add auth check to getRoundProgress query (#38)",
+      "pr": 117,
+      "commit": "80c03d8"
+    },
+    {
+      "type": "feat",
+      "scope": "auth",
+      "breaking": false,
+      "description": "dedicated auth pages with guest migration",
+      "pr": 119,
+      "commit": "7cbe89a"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "require auth for getRoom query",
+      "pr": 121,
+      "commit": "acc8037"
+    },
+    {
+      "type": "refactor",
+      "breaking": false,
+      "description": "dedupe room query auth gating",
+      "pr": 124,
+      "commit": "9f1caa6"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "clarify schema field meaning",
+      "pr": 125,
+      "commit": "517edd9"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add observability infrastructure",
+      "pr": 126,
+      "commit": "5492b0a"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add changelog infrastructure with semantic-release",
+      "pr": 127,
+      "commit": "c0de3fa"
+    }
+  ]
+}

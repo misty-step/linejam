@@ -1,0 +1,46 @@
+{
+  "version": "1.9.1",
+  "date": "2026-06-24",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump the gha-all group across 1 directory with 2 updates",
+      "pr": 270,
+      "commit": "7556074"
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "breaking": false,
+      "description": "bump @commitlint/cli from 20.5.0 to 21.0.2",
+      "pr": 269,
+      "commit": "34dd3c2"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump posthog-js in the prod-minor-and-patch group",
+      "pr": 268,
+      "commit": "4ee18ba"
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "breaking": false,
+      "description": "bump @commitlint/config-conventional from 20.5.0 to 21.0.2",
+      "pr": 277,
+      "commit": "faa2c6a"
+    },
+    {
+      "type": "fix",
+      "scope": "ui",
+      "breaking": false,
+      "description": "make the mobile writing surface playable and declutter room chrome",
+      "pr": 278,
+      "commit": "ff443bc"
+    }
+  ]
+}

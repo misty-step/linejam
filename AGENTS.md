@@ -58,6 +58,7 @@ Read these when you need the truth:
 - `docs/testing.md` — actual test commands and environment contract.
 - `docs/ops/canary-responder.md` — Canary responder operating contract.
 - `docs/convex-migrations.md` — expand-migrate-contract sequencing; read before touching `convex/schema.ts` or `convex/migrations.ts` together.
+- `docs/releases-static-store.md` — how `content/releases/` is written and kept in sync with `package.json`'s version; read before touching `app/releases/`, `lib/releases/`, or `scripts/release/`.
 
 ## Architecture
 

@@ -1,0 +1,40 @@
+{
+  "version": "1.11.0",
+  "date": "2026-07-03",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "ci",
+      "breaking": false,
+      "description": "expose fast host gate",
+      "pr": 281,
+      "commit": "216fd3e"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "add Linejam vision",
+      "commit": "d8355f8"
+    },
+    {
+      "type": "docs",
+      "breaking": false,
+      "description": "wire Linejam vision direction",
+      "commit": "a19450e"
+    },
+    {
+      "type": "chore",
+      "scope": "harness",
+      "breaking": false,
+      "description": "merge AGENTS.md/CLAUDE.md, symlink CLAUDE.md",
+      "commit": "9830af5"
+    },
+    {
+      "type": "feat",
+      "scope": "observability",
+      "breaking": false,
+      "description": "wire Convex backend failures to Canary",
+      "commit": "6eb32a4"
+    }
+  ]
+}

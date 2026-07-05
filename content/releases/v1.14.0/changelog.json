@@ -1,0 +1,22 @@
+{
+  "version": "1.14.0",
+  "date": "2026-07-04",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "factory",
+      "breaking": false,
+      "description": "add Canary integration receipt",
+      "pr": 290,
+      "commit": "39a46b3"
+    },
+    {
+      "type": "feat",
+      "scope": "security",
+      "breaking": false,
+      "description": "harden launch exposure gates",
+      "pr": 291,
+      "commit": "28ca0ad"
+    }
+  ]
+}

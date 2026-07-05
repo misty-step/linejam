@@ -1,0 +1,269 @@
+{
+  "version": "1.1.0",
+  "date": "2026-04-15",
+  "changes": [
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "add vision doc",
+      "commit": "ad8c00b"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "breaking": false,
+      "description": "use GH_RELEASE_TOKEN for semantic-release",
+      "commit": "ca98baa"
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "breaking": false,
+      "description": "bump @types/node in the major group",
+      "pr": 115,
+      "commit": "a5cb1be"
+    },
+    {
+      "type": "ci",
+      "breaking": false,
+      "description": "integrate Cerberus AI code review council",
+      "pr": 137,
+      "commit": "61ee6e2"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "update vision",
+      "commit": "d950bfe"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "breaking": false,
+      "description": "upgrade Next.js 16.1.6 (CVE), fix Cerberus API key, fix crypto types",
+      "pr": 160,
+      "commit": "53366ec"
+    },
+    {
+      "type": "fix",
+      "scope": "game",
+      "breaking": false,
+      "description": "prevent double round advancement via idempotent guard",
+      "pr": 155,
+      "commit": "a01fca1"
+    },
+    {
+      "type": "fix",
+      "scope": "game",
+      "breaking": false,
+      "description": "add bounds checking to assignment matrix access",
+      "pr": 156,
+      "commit": "6371989"
+    },
+    {
+      "type": "perf",
+      "scope": "favorites",
+      "breaking": false,
+      "description": "parallelize getMyFavorites query — N+1 to batch",
+      "pr": 158,
+      "commit": "4e017e2"
+    },
+    {
+      "type": "fix",
+      "scope": "a11y",
+      "breaking": false,
+      "description": "use theme-aware focus ring token instead of hardcoded primary",
+      "pr": 159,
+      "commit": "25fa44b"
+    },
+    {
+      "type": "fix",
+      "scope": "lint",
+      "breaking": false,
+      "description": "add coverage/ to ESLint ignores",
+      "pr": 154,
+      "commit": "94a08bd"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump the major group with 2 updates",
+      "pr": 140,
+      "commit": "4206024"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "fix Cerberus OpenRouter secret + preflight",
+      "pr": 163,
+      "commit": "e03d444"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump the minor-and-patch group across 1 directory with 22 updates",
+      "pr": 161,
+      "commit": "35232a5"
+    },
+    {
+      "type": "fix",
+      "scope": "auth",
+      "breaking": false,
+      "description": "show error state with retry on guest auth failure",
+      "pr": 157,
+      "commit": "d44d146"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "logShare throws ConvexError on invalid poem ID instead of silent return",
+      "pr": 164,
+      "commit": "6295789"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "groom",
+      "commit": "7248b31"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "fix tests",
+      "commit": "3220823"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add PostHog analytics + harden Sentry privacy",
+      "pr": 165,
+      "commit": "94f2ddd"
+    },
+    {
+      "type": "ci",
+      "breaking": false,
+      "description": "standardize Cerberus workflow to default @master template",
+      "commit": "8e47351"
+    },
+    {
+      "type": "ci",
+      "breaking": false,
+      "description": "use CERBERUS_OPENROUTER_API_KEY for Cerberus workflow",
+      "commit": "dfa1411"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "improve quality gates, robustness, and test coverage",
+      "pr": 192,
+      "commit": "439f974"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "breaking": false,
+      "description": "settle trufflehog workflow",
+      "pr": 181,
+      "commit": "5a8a345"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "breaking": false,
+      "description": "pin trufflehog scanner version",
+      "pr": 195,
+      "commit": "ef2024f"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump flatted from 3.3.3 to 3.4.2",
+      "pr": 189,
+      "commit": "c9757c1"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "refresh next 16.1.7 on current master",
+      "commit": "fb14e69"
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "breaking": false,
+      "description": "refresh happy-dom 20.8.8 on current master",
+      "commit": "d5eeb99"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "pin picomatch 2.3.2 via pnpm override",
+      "commit": "79dd865"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "remove Cerberus workflow",
+      "commit": "5dc890c"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "ship canary-first qa and responder loop",
+      "pr": 206,
+      "commit": "a8eeb93"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "unblock hosted convex deployment flow",
+      "pr": 208,
+      "commit": "994b59d"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "redesign room chrome as sticky nav",
+      "pr": 209,
+      "commit": "d88075f"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "simplify room chrome copy",
+      "pr": 210,
+      "commit": "eaeac68"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "extract session lifecycle core",
+      "pr": 213,
+      "commit": "61fe2f9"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "scaffold qa and demo evidence harness",
+      "pr": 201,
+      "commit": "2499795"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "harden canary local dagger qa",
+      "commit": "01a269b"
+    },
+    {
+      "type": "fix",
+      "breaking": false,
+      "description": "replace pnpm audit with osv-scanner in dagger",
+      "commit": "6a76039"
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "version": "1.6.0",
+  "date": "2026-06-13",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "emit groomed strategy backlog (010-015)",
+      "commit": "d22c1ff"
+    },
+    {
+      "type": "docs",
+      "scope": "project",
+      "breaking": false,
+      "description": "absorb vision.md and refresh active focus",
+      "commit": "31c6177"
+    },
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "archive shipped ticket 015",
+      "commit": "f2bc173"
+    },
+    {
+      "type": "feat",
+      "scope": "game",
+      "breaking": false,
+      "description": "make rules data and ship Rhyme Relay + Quick Jam modes",
+      "commit": "c5b3d36"
+    },
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "archive shipped ticket 010",
+      "commit": "9eb925b"
+    },
+    {
+      "type": "feat",
+      "scope": "realtime",
+      "breaking": false,
+      "description": "make the room unstrandable — rescue, rematch, self-heal",
+      "commit": "a0e6eec"
+    },
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "archive shipped ticket 011",
+      "commit": "f5645ec"
+    },
+    {
+      "type": "feat",
+      "scope": "writing",
+      "breaking": false,
+      "description": "engineer tension — round clock, sparks, waiting theater",
+      "commit": "088bde4"
+    },
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "archive shipped ticket 012",
+      "commit": "2abd295"
+    },
+    {
+      "type": "feat",
+      "scope": "reveal",
+      "breaking": false,
+      "description": "stage the ceremony and crown a room favorite",
+      "commit": "f39c155"
+    },
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "archive shipped ticket 013",
+      "commit": "74e54b1"
+    },
+    {
+      "type": "fix",
+      "scope": "mobile",
+      "breaking": false,
+      "description": "pass the thumb test on every game surface",
+      "commit": "2f6c2be"
+    },
+    {
+      "type": "chore",
+      "scope": "backlog",
+      "breaking": false,
+      "description": "archive shipped ticket 014",
+      "commit": "71b8112"
+    },
+    {
+      "type": "test",
+      "breaking": false,
+      "description": "cover new ceremony, clock, and rescue branches",
+      "commit": "f06f27c"
+    },
+    {
+      "type": "chore",
+      "scope": "ci",
+      "breaking": false,
+      "description": "upgrade Dagger engine and SDK to v0.21.6",
+      "commit": "445fdd7"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "breaking": false,
+      "description": "force esbuild >=0.28.1 to clear GHSA-gv7w-rqvm-qjhr",
+      "commit": "23c1565"
+    },
+    {
+      "type": "test",
+      "scope": "ai",
+      "breaking": false,
+      "description": "cover ghostwriter and AI-turn action fallback paths",
+      "commit": "528297f"
+    }
+  ]
+}

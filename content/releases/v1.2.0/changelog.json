@@ -1,0 +1,41 @@
+{
+  "version": "1.2.0",
+  "date": "2026-06-10",
+  "changes": [
+    {
+      "type": "chore",
+      "scope": "convex",
+      "breaking": false,
+      "description": "regenerate api.d.ts for sessionLifecycle module",
+      "pr": 234,
+      "commit": "6c95be7"
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "breaking": false,
+      "description": "bump trufflesecurity/trufflehog in the gha-all group",
+      "pr": 233,
+      "commit": "d97efc0"
+    },
+    {
+      "type": "chore",
+      "scope": "harness",
+      "breaking": false,
+      "description": "retailor linejam skill bridges",
+      "commit": "9408be2"
+    },
+    {
+      "type": "chore",
+      "breaking": false,
+      "description": "use global spellbook harness",
+      "commit": "ba111a3"
+    },
+    {
+      "type": "feat",
+      "breaking": false,
+      "description": "add agentic qa harness",
+      "commit": "a7f3f1f"
+    }
+  ]
+}
