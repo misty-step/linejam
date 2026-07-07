@@ -1,5 +1,6 @@
 import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
 import { ensureClerkAuthState, requireClerkBrowserAuth } from './support/clerk';
+import { isolateGuestSessionIp } from './support/guestFlow';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -14,6 +15,7 @@ async function openIsolatedPage(browser: Browser): Promise<{
   page: Page;
 }> {
   const context = await browser.newContext();
+  await isolateGuestSessionIp(context);
   const page = await context.newPage();
   return { context, page };
 }

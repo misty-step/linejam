@@ -1,5 +1,7 @@
 import { test, expect, BrowserContext, Page, devices } from '@playwright/test';
 
+import { isolateGuestSessionIp } from './support/guestFlow';
+
 test.describe.configure({ mode: 'serial' });
 
 const missingGuestTokenSecret = !process.env.GUEST_TOKEN_SECRET;
@@ -83,6 +85,12 @@ test('room chrome does not cover lobby or writing content on desktop and mobile'
     mobileContext = await browser.newContext({
       ...devices['iPhone 14'],
     });
+
+    await Promise.all([
+      isolateGuestSessionIp(hostContext),
+      isolateGuestSessionIp(guestContext),
+      isolateGuestSessionIp(mobileContext),
+    ]);
 
     const hostPage = await hostContext.newPage();
     const guestPage = await guestContext.newPage();

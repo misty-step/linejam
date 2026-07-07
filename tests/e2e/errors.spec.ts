@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 
-import { GuestFlowSession } from './support/guestFlow';
+import { GuestFlowSession, isolateGuestSessionIp } from './support/guestFlow';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 
 /**
@@ -152,26 +152,16 @@ test.describe('Form Validation', () => {
 // (redacted in prod) instead of ConvexError.
 // ─────────────────────────────────────────────────────────────────────────────
 
-let ipCounter = 0;
-
 /**
- * New browser context with a unique client IP so per-IP guest-session
- * rate-limit buckets never bleed between tests or into the other spec files
- * sharing this server. The spoofed x-forwarded-for is scoped to the app's
- * guest-session route (where the bucket key is derived) — a context-wide
- * extraHTTPHeaders also hits Clerk/Convex third-party hosts, which choke on
- * untrusted forwarding headers and strand the page in its loading state.
+ * New browser context with its own client IP (see isolateGuestSessionIp) so
+ * per-IP rate-limit buckets never bleed between tests or into the other spec
+ * files sharing this server.
  */
 async function newGuestContext(
   browser: Browser
 ): Promise<{ context: BrowserContext; page: Page }> {
-  const ip = `10.94.1.${++ipCounter}`;
   const context = await browser.newContext();
-  await context.route('**/api/guest/session*', async (route) => {
-    await route.continue({
-      headers: { ...route.request().headers(), 'x-forwarded-for': ip },
-    });
-  });
+  await isolateGuestSessionIp(context);
   const page = await context.newPage();
   return { context, page };
 }
