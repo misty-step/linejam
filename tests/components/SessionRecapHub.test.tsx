@@ -119,6 +119,13 @@ describe('SessionRecapHub', () => {
     localStorage.clear();
   });
 
+  it('offsets the headline scroll target below the sticky room chrome (linejam-946)', () => {
+    render(<SessionRecapHub {...defaultProps} />);
+
+    const heading = screen.getByRole('heading', { name: 'Session complete' });
+    expect(heading).toHaveClass('scroll-mt-28');
+  });
+
   it('renders sorted poem replay links and host controls', async () => {
     const user = userEvent.setup();
     render(<SessionRecapHub {...defaultProps} />);
