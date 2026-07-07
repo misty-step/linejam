@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>linejam-943 — Print Stylesheet Evidence</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* Screen: reproduces the Hyper theme's dark palette, the way /recap/[code]
+     would render on screen for a viewer using that theme — proving the
+     print block below actually has something to override. */
+  :root {
+    --color-background: #050505;
+    --color-surface: #111111;
+    --color-foreground: #ffffff;
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #eeeeee;
+    --color-text-muted: #bbbbbb;
+    --color-border: #333333;
+    --color-border-subtle: #262626;
+    --color-primary: #ccff00;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 64px; background: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: Georgia, 'Cormorant Garamond', serif;
+  }
+  .badge {
+    display: inline-block; font: 11px/1 ui-monospace, monospace; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 6px 10px; border: 1px solid var(--color-border);
+    color: var(--color-text-muted); margin-bottom: 24px;
+  }
+  h1 { font-size: 44px; margin: 0 0 8px; }
+  .subtitle { color: var(--color-text-secondary); margin: 0 0 32px; font-family: sans-serif; }
+  .toolbar { display: flex; gap: 12px; margin-bottom: 32px; }
+  .btn {
+    font: 13px/1 sans-serif; padding: 12px 20px; border-radius: 6px; border: 1px solid var(--color-primary);
+    background: var(--color-primary); color: #000; font-weight: 600;
+  }
+  .btn.outline { background: transparent; color: var(--color-primary); }
+  article {
+    border: 1px solid var(--color-border); background: var(--color-surface);
+    padding: 24px 28px; margin-bottom: 28px;
+  }
+  .poem-meta {
+    display: flex; justify-content: space-between; font: 11px/1 ui-monospace, monospace;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-border-subtle); padding-bottom: 14px; margin-bottom: 18px;
+  }
+  article p { font-size: 21px; line-height: 1.5; margin: 0 0 14px; }
+  .attribution {
+    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--color-border-subtle);
+    font: 13px sans-serif; color: var(--color-text-muted);
+  }
+  footer { display: flex; gap: 12px; margin-top: 32px; }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     Verbatim copy of app/globals.css's @media print block (linejam-943).
+     Reproduced here — not compiled Tailwind output — so this fixture can
+     be print-to-PDF'd without running the Next.js build. The .demo-hidden
+     class below stands in for Tailwind's print:hidden utility, which this
+     static fixture can't compile; the effect (display: none under print)
+     is identical.
+     ═══════════════════════════════════════════════════════════════════ */
+  @media print {
+    :root,
+    [data-theme] {
+      --color-background: #ffffff;
+      --color-surface: #ffffff;
+      --color-foreground: #000000;
+      --color-text-primary: #000000;
+      --color-text-secondary: #333333;
+      --color-text-muted: #555555;
+      --color-border: #cccccc;
+      --color-border-subtle: #dddddd;
+    }
+
+    body {
+      background: #ffffff !important;
+      background-image: none !important;
+    }
+
+    a[href]::after {
+      content: none !important;
+    }
+
+    .poem-print-surface {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    @page {
+      margin: 0.75in;
+    }
+
+    /* Stand-in for Tailwind's print:hidden, applied at each real call site
+       in RecapExportButton.tsx / app/recap/[code]/page.tsx / PoemDisplay.tsx. */
+    .demo-hidden {
+      display: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <span class="badge">Screen preview — Hyper theme (dark)</span>
+  <h1>Session recap</h1>
+  <p class="subtitle">6 poems by 4 poets, gathered into one replayable Linejam session.</p>
+
+  <div class="toolbar demo-hidden">
+    <button class="btn">Export as PDF</button>
+  </div>
+
+  <article class="poem-print-surface">
+    <div class="poem-meta">
+      <span>Poem 03</span>
+      <span>Started by Emily / read by Marcus</span>
+    </div>
+    <p>Rain</p>
+    <p>on rooftops</p>
+    <p>counts the hours</p>
+    <p>we forgot to notice</p>
+    <p>while the kettle sang its slow forgotten song</p>
+    <p>steam curling into morning light</p>
+    <p>a small warm apology</p>
+    <p>for waiting</p>
+    <p>still</p>
+    <div class="attribution">Emily, Marcus, Priya, Wendell (AI)</div>
+  </article>
+
+  <article class="poem-print-surface">
+    <div class="poem-meta">
+      <span>Poem 04</span>
+      <span>Started by Wendell (AI) / read by Priya</span>
+    </div>
+    <p>Static</p>
+    <p>between stations</p>
+    <p>a voice half remembered</p>
+    <p>looking for the chorus</p>
+    <p>it never quite finds before the signal fades again</p>
+    <p>headlights sweep the ceiling</p>
+    <p>somebody hums along anyway</p>
+    <p>close enough</p>
+    <p>home</p>
+    <div class="attribution">Wendell (AI), Priya, Emily, Marcus</div>
+  </article>
+
+  <footer class="demo-hidden">
+    <button class="btn outline">Join this room</button>
+    <button class="btn outline">Start a new room</button>
+  </footer>
+</body>
+</html>

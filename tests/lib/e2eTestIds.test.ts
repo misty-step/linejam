@@ -25,6 +25,8 @@ const EXPECTED_TEST_IDS = {
   sessionComplete: 'session-complete',
   roomFavoriteCrown: 'room-favorite-crown',
   sessionRecapShareButton: 'session-recap-share-button',
+  poemSaveImageButton: 'poem-save-image-button',
+  recapExportButton: 'recap-export-button',
 } as const;
 
 const SOURCE_FILES = [
@@ -36,6 +38,7 @@ const SOURCE_FILES = [
   'components/RevealPhase.tsx',
   'components/PoemDisplay.tsx',
   'components/SessionRecapHub.tsx',
+  'components/RecapExportButton.tsx',
   'components/ui/WordSlots.tsx',
 ];
 
