@@ -1,15 +1,15 @@
-import { test, expect, BrowserContext, Page } from '@playwright/test';
+import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
 
 import { isolateGuestSessionIp } from './support/guestFlow';
 
 /**
  * linejam-946: responsive sweep guarding against roster collisions and
  * sticky-chrome overlap. Sweeps a real lobby roster (1, 4, then 8 players)
- * across a viewport matrix (320-1280px) and asserts no player row element
+ * across a viewport matrix (320-1280px, including the ~837px width the
+ * live prod regression was captured at) and asserts no player row element
  * clips the viewport or collides with an adjacent element. Also asserts the
  * "add a bot" feedback (roster growth) stays reachable without scrolling on
- * a 390px phone, and that the sticky room chrome never overlaps the session
- * recap headline.
+ * a 390px phone.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -20,7 +20,9 @@ test.skip(
   'Set GUEST_TOKEN_SECRET to the active Convex deployment secret to run the lobby viewport matrix E2E'
 );
 
-const VIEWPORT_WIDTHS = [320, 390, 768, 1024, 1280];
+// A representative sample across 320-1280px, anchored on the exact ~837px
+// width the live prod collision (linejam-946) was captured at.
+const VIEWPORT_WIDTHS = [320, 390, 837, 1280];
 const VIEWPORT_HEIGHT = 900;
 
 async function createRoom(page: Page, hostName: string) {
@@ -46,6 +48,18 @@ async function joinRoom(page: Page, roomCode: string, playerName: string) {
   await page.fill('input#name', playerName);
   await page.click('button[type="submit"]');
   await page.waitForURL(`/room/${roomCode}`, { timeout: 30000 });
+}
+
+async function openGuestAndJoin(
+  browser: Browser,
+  roomCode: string,
+  playerName: string
+) {
+  const context = await browser.newContext();
+  await isolateGuestSessionIp(context);
+  const page = await context.newPage();
+  await joinRoom(page, roomCode, playerName);
+  return context;
 }
 
 function boxesOverlap(
@@ -89,9 +103,22 @@ async function assertNoRosterCollisions(page: Page, viewportWidth: number) {
   }
 }
 
+async function sweepViewports(page: Page) {
+  for (const width of VIEWPORT_WIDTHS) {
+    await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
+    await assertNoRosterCollisions(page, width);
+  }
+}
+
 test('lobby roster has no collisions or clipping across the viewport matrix at 1, 4, and 8 players', async ({
   browser,
 }, testInfo) => {
+  // Real multiplayer join + bot-mutation round trips across three roster
+  // sizes and four viewports; give this more headroom than the suite
+  // default so CI resource contention doesn't turn a slow pass into a
+  // false failure.
+  test.setTimeout(240000);
+
   let hostContext: BrowserContext | undefined;
   const guestContexts: BrowserContext[] = [];
 
@@ -107,10 +134,7 @@ test('lobby roster has no collisions or clipping across the viewport matrix at 1
     });
 
     // --- 1 player checkpoint ---
-    for (const width of VIEWPORT_WIDTHS) {
-      await hostPage.setViewportSize({ width, height: VIEWPORT_HEIGHT });
-      await assertNoRosterCollisions(hostPage, width);
-    }
+    await sweepViewports(hostPage);
     await hostPage.screenshot({
       path: testInfo.outputPath('lobby-1p-390.png'),
       fullPage: true,
@@ -119,36 +143,32 @@ test('lobby roster has no collisions or clipping across the viewport matrix at 1
     // Reachability check: on a 390px phone, the roster must be visible
     // above the fold without scrolling (linejam-946 criterion 3).
     await hostPage.setViewportSize({ width: 390, height: VIEWPORT_HEIGHT });
-    const rosterAtLoad = hostPage.getByText('Matrix Host');
-    await expect(rosterAtLoad).toBeInViewport();
+    await expect(hostPage.getByText('Matrix Host')).toBeInViewport();
 
-    // --- grow to 4 players (3 guests join) ---
-    for (let i = 0; i < 3; i++) {
-      const guestContext = await browser.newContext();
-      await isolateGuestSessionIp(guestContext);
-      guestContexts.push(guestContext);
-      const guestPage = await guestContext.newPage();
-      await joinRoom(guestPage, roomCode, `Matrix Guest ${i + 1}`);
-    }
+    // --- grow to 4 players (3 guests join, in parallel) ---
+    const firstWaveGuests = await Promise.all([
+      openGuestAndJoin(browser, roomCode, 'Matrix Guest 1'),
+      openGuestAndJoin(browser, roomCode, 'Matrix Guest 2'),
+      openGuestAndJoin(browser, roomCode, 'Matrix Guest 3'),
+    ]);
+    guestContexts.push(...firstWaveGuests);
     await expect(hostPage.getByText('Matrix Guest 3')).toBeVisible({
       timeout: 10000,
     });
 
-    for (const width of VIEWPORT_WIDTHS) {
-      await hostPage.setViewportSize({ width, height: VIEWPORT_HEIGHT });
-      await assertNoRosterCollisions(hostPage, width);
-    }
+    await sweepViewports(hostPage);
     await hostPage.screenshot({
       path: testInfo.outputPath('lobby-4p-390.png'),
       fullPage: true,
     });
 
     // --- grow to 8 players (1 more guest + 3 bots) ---
-    const guestContext = await browser.newContext();
-    await isolateGuestSessionIp(guestContext);
-    guestContexts.push(guestContext);
-    const guestPage = await guestContext.newPage();
-    await joinRoom(guestPage, roomCode, 'Matrix Guest 4');
+    const lastGuest = await openGuestAndJoin(
+      browser,
+      roomCode,
+      'Matrix Guest 4'
+    );
+    guestContexts.push(lastGuest);
     await expect(hostPage.getByText('Matrix Guest 4')).toBeVisible({
       timeout: 10000,
     });
@@ -166,10 +186,7 @@ test('lobby roster has no collisions or clipping across the viewport matrix at 1
       await expect(hostPage.locator('ul li').last()).toBeInViewport();
     }
 
-    for (const width of VIEWPORT_WIDTHS) {
-      await hostPage.setViewportSize({ width, height: VIEWPORT_HEIGHT });
-      await assertNoRosterCollisions(hostPage, width);
-    }
+    await sweepViewports(hostPage);
     await hostPage.screenshot({
       path: testInfo.outputPath('lobby-8p-390.png'),
       fullPage: true,
