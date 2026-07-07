@@ -2,6 +2,20 @@
 
 Pass-the-poem party game for friends in the same room.
 
+**Play free at [linejam.app](https://linejam.app)** — no install, no account required. [Marketing site](https://misty-step.github.io/linejam/) · [Changelog](https://misty-step.github.io/linejam/changelog.html)
+
+A real poem from a played-through room (word counts 1/2/3/4/5/4/3/2/1):
+
+> Shadows
+> grows louder
+> in the hallway
+> where forgotten poems wait
+> for someone brave enough finally
+> where forgotten poems wait
+> in the hallway
+> grows louder
+> Silence
+
 ## What It Is
 
 Players take turns adding lines to poems they can't fully see. Each round, you see only the previous line—then write the next one with a specific word count. At the end, everyone reads the complete poems aloud. Chaos, beauty, and laughter ensue.
@@ -53,6 +67,14 @@ claim_release <backlog-id>
 ```
 
 `bash scripts/setup.sh` prepares the `.claims/` directory. Claim files are local coordination artifacts; release the claim when the item is done or abandoned.
+
+## Agent Faces
+
+Linejam ships thin agent-facing faces over the same Convex core the web app uses — no reimplemented game logic:
+
+- `pnpm agent:cli` — terminal CLI to create/join rooms, read game state, submit lines, browse and favorite poems.
+- `pnpm agent:mcp` — stdio MCP server exposing the same actions as tools.
+- [.agents/skills/linejam-cli/SKILL.md](.agents/skills/linejam-cli/SKILL.md) — full usage, identity model, and when to reach for these vs. the browser.
 
 ## Contributing & Security
 
@@ -122,22 +144,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 
 ## Observability & CI
 
-- Canary is the primary error and incident system. Client errors, request failures, and explicit `captureError()` calls all flow there.
-- Critical route telemetry is structured JSON. `/api/health` and `/api/guest/session` log method, route, status, and duration without guest tokens, display names, or raw request payloads.
-- Completed rooms end in a shared recap hub. Players can replay every poem, share `/recap/<room-code>`, and keep the same group moving into the next round without relying on one-off archive links.
-- Use `pnpm ci:fast` for the fast host loop: typecheck, lint, and tests without Docker. `pnpm ci:prepush` is the same command under the pre-push hook.
-- GitHub Actions enforces the authoritative full contract through hosted `merge-gate`, including the non-draft-gated `early-smoke` selector flow. Run `pnpm ci:dagger:all` on demand for full local parity when Docker and the required env are available.
-- Local Dagger auto-hydrates `GUEST_TOKEN_SECRET` from the active Convex deployment when `NEXT_PUBLIC_CONVEX_URL` points at the same Convex dev or prod backend that the CLI resolves.
-- Local Dagger auto-syncs the active Convex dev deployment before `all` and `e2e` runs. It refuses to push production Convex code unless you explicitly set `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.
-- Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Dev/test Clerk keys can be bootstrapped automatically; live-key mutation stays blocked unless you explicitly set `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=1`.
-- Hosted preview `pnpm build` is compile-only by default. It does not create or mutate Convex preview deployments unless you explicitly set `LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY=1`.
-- Hosted production `pnpm build` still bootstraps `GUEST_TOKEN_SECRET` plus `CLERK_JWT_ISSUER_DOMAIN` into Convex production before `convex deploy`, so the live app keeps Clerk and Convex auth aligned.
-- The authoritative Dagger contract now requires real browser-side Canary config for build-bearing lanes. Keep `NEXT_PUBLIC_CANARY_ENDPOINT` and `NEXT_PUBLIC_CANARY_API_KEY` set locally before running `pnpm ci:dagger:all`, `pnpm ci:dagger:all-no-e2e`, `pnpm ci:dagger:build-check`, or `pnpm ci:dagger:e2e`.
-- The default Dagger E2E contract is authenticated as well as guest coverage. Keep `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` configured locally; `PLAYWRIGHT_CLERK_TEST_EMAIL` is still optional for dev/test Clerk keys because the helper can provision the default smoke user automatically there. Live Clerk keys fail closed instead: point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke account. Authenticated Playwright coverage signs into Clerk inside each live browser context after the app is already serving traffic, which keeps protected-route checks aligned with the actual test session. Set `PLAYWRIGHT_REQUIRE_AUTH_E2E=0` only when you intentionally want a guest-only loop.
-- Local Dagger reads `.env.local` after `.env.production.local`, so localhost-safe Clerk test/dev keys in `.env.local` override production values during the local contract.
-- Remote smoke covers both guest and signed-in join flows. Set `PLAYWRIGHT_BASE_URL`, keep `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` available for the authenticated Clerk path, and point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke account for live Clerk tenants because remote smoke no longer auto-provisions against `sk_live_...` keys. For smoke runs, `scripts/ci/dagger-call.sh` now prefers `.env.production.local` over `.env.local` so deployed targets do not accidentally inherit localhost Clerk keys, it rejects `pk_test_...` or `sk_test_...` credentials against `https://www.linejam.app`, and it validates that Clerk already has the `convex` JWT template before launching authenticated smoke. Set `PLAYWRIGHT_REQUIRE_AUTH_SMOKE=0` only when you intentionally want to skip auth smoke.
-- Run the Canary responder locally with `pnpm canary:responder` and see [docs/ops/canary-responder.md](docs/ops/canary-responder.md). The responder now bounds Canary context fetches with a timeout, prunes stale `.canary/` artifacts on a rolling interval, and expects `pnpm canary:webhook:setup` to be rerunnable without creating duplicate Canary subscriptions. Hosted responder deployments use `LINEJAM_SMOKE_RUNNER=playwright`, [Dockerfile.responder](Dockerfile.responder), and [fly.responder.toml](fly.responder.toml) so the smoke loop can run outside GitHub Actions without embedding Dagger in the webhook worker. Set `CANARY_WEBHOOK_SEND_TEST=1` when you want setup to send Canary's `canary.ping` test delivery after ensuring the subscription.
-- `/api/health` reports app health separately from Canary readiness. Missing Canary ingest degrades observability metadata but no longer marks the entire app unhealthy.
+Canary is the primary error/incident system; `pnpm ci:fast` is the fast host loop (typecheck, lint, tests); GitHub Actions' `merge-gate` is the authoritative full contract, with `pnpm ci:dagger:all` for local parity. Dagger env requirements, Clerk/Convex auto-sync behavior, and the Canary responder setup are detailed in [docs/ops/observability-ci.md](docs/ops/observability-ci.md).
 
 ## Design
 
@@ -145,4 +152,4 @@ Zen Garden aesthetic—Kenya Hara minimalism with warm white, near-black text, a
 
 ## License
 
-Private. All rights reserved.
+MIT — see [LICENSE](LICENSE).
