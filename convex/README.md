@@ -46,3 +46,13 @@ LOBBY -> IN_PROGRESS (9 rounds) -> COMPLETED
 ```
 
 Assignment matrix ensures no player writes consecutive lines on same poem.
+
+## Error Convention
+
+Player-facing functions throw `ConvexError` (from `convex/values`), never
+plain `Error`: Convex redacts plain `Error` messages in production, which
+silently breaks the friendly-message mappings in `lib/errorFeedback.ts`.
+An eslint `no-restricted-syntax` gate (see `eslint.config.mjs`) enforces
+this for `convex/*.ts` and the player-path lib modules. Internal invariants
+(guest token internals, canary, AI providers) may keep plain `Error` —
+there, prod redaction is a feature.

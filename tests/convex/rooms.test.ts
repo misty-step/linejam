@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ConvexError } from 'convex/values';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
@@ -389,6 +390,148 @@ describe('joinRoom', () => {
         guestToken,
       })
     ).rejects.toThrow('Rate limit exceeded');
+  });
+
+  it('throws ConvexError (not plain Error) so messages survive prod redaction', async () => {
+    // Convex redacts plain Error messages in production, which breaks the
+    // lib/errorFeedback.ts friendly-message mappings (linejam-941 root cause).
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'redacted', { displayName: 'Redacted' });
+
+    let caught: unknown;
+    try {
+      await asUser(t, 'redacted').mutation(api.rooms.joinRoom, {
+        code: 'ZZZZ',
+        displayName: 'Redacted',
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ConvexError);
+    expect((caught as ConvexError<string>).data).toContain('Room not found');
+  });
+
+  it('throws ConvexError with data for in-progress and full rooms', async () => {
+    const t = setupConvexTest();
+
+    // Game in progress
+    await seedClerkUser(t, 'late-ce', { displayName: 'LateCE' });
+    const { code: activeCode } = await seedRoomWithActiveGame(
+      t,
+      'hostce',
+      'guestce'
+    );
+    let caught: unknown;
+    try {
+      await asUser(t, 'late-ce').mutation(api.rooms.joinRoom, {
+        code: activeCode,
+        displayName: 'LateCE',
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ConvexError);
+    expect((caught as ConvexError<string>).data).toContain('game in progress');
+
+    // Room full
+    const { code: fullCode, roomId: fullRoomId } = await seedLobbyRoom(
+      t,
+      'fullhost'
+    );
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 7; i++) {
+        const uid = await ctx.db.insert('users', {
+          displayName: `fillce${i}`,
+          kind: 'human',
+          createdAt: 0,
+        });
+        await ctx.db.insert('roomPlayers', {
+          roomId: fullRoomId,
+          userId: uid,
+          displayName: `fillce${i}`,
+          joinedAt: i,
+        });
+      }
+    });
+    await seedClerkUser(t, 'ninth-ce', { displayName: 'NinthCE' });
+    caught = undefined;
+    try {
+      await asUser(t, 'ninth-ce').mutation(api.rooms.joinRoom, {
+        code: fullCode,
+        displayName: 'NinthCE',
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ConvexError);
+    expect((caught as ConvexError<string>).data).toContain('Room is full');
+  });
+
+  it('rejects joining a closed room (COMPLETED with no players) with ConvexError', async () => {
+    const t = setupConvexTest();
+    const { code } = await seedLobbyRoom(t, 'closer');
+
+    // Host closes the room: players removed, status COMPLETED
+    await asUser(t, 'closer').mutation(api.rooms.closeRoom, {
+      roomCode: code,
+    });
+
+    await seedClerkUser(t, 'latecomer', { displayName: 'Latecomer' });
+    let caught: unknown;
+    try {
+      await asUser(t, 'latecomer').mutation(api.rooms.joinRoom, {
+        code,
+        displayName: 'Latecomer',
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ConvexError);
+    expect((caught as ConvexError<string>).data).toContain('Room is closed');
+  });
+
+  it('still allows joining a COMPLETED room that has players (between games)', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedLobbyRoom(t, 'recaphost');
+    await t.run((ctx) => ctx.db.patch(roomId, { status: 'COMPLETED' }));
+
+    await seedClerkUser(t, 'between', { displayName: 'Between' });
+    await asUser(t, 'between').mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Between',
+    });
+
+    const players = await t.run((ctx) =>
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect()
+    );
+    expect(players).toHaveLength(2);
+  });
+
+  it('honors the typed display name when an existing member rejoins', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedLobbyRoom(t, 'renamer', 'Phae');
+
+    // Same identity rejoins with a different typed name — input must not be
+    // silently discarded (linejam-941 secondary UX gap).
+    await asUser(t, 'renamer').mutation(api.rooms.joinRoom, {
+      code,
+      displayName: '  Emm  ',
+    });
+
+    const players = await t.run((ctx) =>
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect()
+    );
+    expect(players).toHaveLength(1);
+    expect(players[0].displayName).toBe('Emm');
+
+    const user = await t.run((ctx) => ctx.db.get(players[0].userId));
+    expect(user?.displayName).toBe('Emm');
   });
 });
 

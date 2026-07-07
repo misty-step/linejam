@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 
 import { GuestFlowSession } from './support/guestFlow';
+import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 
 /**
  * E2E Test: Error Scenarios and Validation
@@ -46,14 +48,14 @@ test.describe('Join Room Error Handling', () => {
     // Click join button
     await page.click('button[type="submit"]');
 
-    // The join form should surface a user-visible alert for an invalid code.
-    const errorAlert = page.locator('main [role="alert"]').filter({
-      hasText: /Room code not found|unexpected error occurred/i,
-    });
+    // The join form must surface the SPECIFIC friendly message — seeing the
+    // generic fallback here means the ConvexError taxonomy regressed
+    // (linejam-941: Convex redacts plain Error in prod).
+    const errorAlert = page.getByTestId(E2E_TEST_IDS.joinErrorAlert);
 
     await expect(errorAlert).toBeVisible({ timeout: 30000 });
     await expect(errorAlert).toContainText(
-      /Room code not found|unexpected error occurred/i
+      'Room code not found. Please check the code and try again.'
     );
   });
 
@@ -138,5 +140,175 @@ test.describe('Form Validation', () => {
     // Fill both - now enabled
     await page.fill('input#code', 'ABCD');
     await expect(submitButton).toBeEnabled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Party-path error taxonomy (linejam-941)
+//
+// Every join/create failure a party guest can hit must render its SPECIFIC
+// friendly message through the E2E_TEST_IDS contract. The generic fallback
+// appearing in any of these flows means a Convex function threw plain Error
+// (redacted in prod) instead of ConvexError.
+// ─────────────────────────────────────────────────────────────────────────────
+
+let ipCounter = 0;
+
+/**
+ * New browser context with a unique client IP (the app trusts
+ * x-forwarded-for) so per-IP guest-session rate-limit buckets never bleed
+ * between tests or into the other spec files sharing this dev server.
+ */
+async function newGuestContext(
+  browser: Browser
+): Promise<{ context: BrowserContext; page: Page }> {
+  const context = await browser.newContext({
+    extraHTTPHeaders: { 'x-forwarded-for': `10.94.1.${++ipCounter}` },
+  });
+  const page = await context.newPage();
+  return { context, page };
+}
+
+async function submitJoin(page: Page, code: string, name: string) {
+  await page.goto(`/join?code=${code}`);
+  await page
+    .getByTestId(E2E_TEST_IDS.joinNameInput)
+    .fill(name, { timeout: 30000 });
+  await page.getByTestId(E2E_TEST_IDS.joinRoomButton).click();
+}
+
+function joinErrorAlert(page: Page) {
+  return page.getByTestId(E2E_TEST_IDS.joinErrorAlert);
+}
+
+test.describe('Party-path error taxonomy', () => {
+  test('joining a room with a game in progress shows the started message', async ({
+    browser,
+  }) => {
+    const session = await GuestFlowSession.create(browser, {
+      hostName: 'Taxonomy Host',
+      guestName: 'Taxonomy Guest',
+    });
+    try {
+      await session.createRoom();
+      await session.joinRoom();
+      await session.startGame();
+
+      const { context, page } = await newGuestContext(browser);
+      try {
+        await submitJoin(page, session.roomCode, 'Latecomer');
+        await expect(joinErrorAlert(page)).toContainText(
+          'This game has already started. Please wait for the next session or ask the host to create a new room.',
+          { timeout: 30000 }
+        );
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await session.close();
+    }
+  });
+
+  test('joining a full room shows the room-full message', async ({
+    browser,
+  }) => {
+    test.setTimeout(240000); // fills 8 seats through the real UI
+
+    const session = await GuestFlowSession.create(browser, {
+      hostName: 'Full Host',
+    });
+    try {
+      await session.createRoom();
+
+      // Fill seats 2-8 (host holds seat 1)
+      for (let i = 0; i < 7; i++) {
+        const { context, page } = await newGuestContext(browser);
+        try {
+          await submitJoin(page, session.roomCode, `Filler ${i + 1}`);
+          await page.waitForURL(`**/room/${session.roomCode}`, {
+            timeout: 30000,
+          });
+        } finally {
+          await context.close();
+        }
+      }
+
+      // Seat 9 must bounce with the specific message
+      const { context, page } = await newGuestContext(browser);
+      try {
+        await submitJoin(page, session.roomCode, 'Ninth Wheel');
+        await expect(joinErrorAlert(page)).toContainText(
+          'This room is full (8 players max). Ask the host to start a new room.',
+          { timeout: 30000 }
+        );
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await session.close();
+    }
+  });
+
+  test('joining a closed room shows the closed message', async ({
+    browser,
+  }) => {
+    const session = await GuestFlowSession.create(browser, {
+      hostName: 'Closing Host',
+    });
+    try {
+      await session.createRoom();
+      const code = session.roomCode;
+
+      await session.hostPage
+        .getByRole('button', { name: /close room/i })
+        .click();
+      await session.hostPage.waitForURL('**/', { timeout: 30000 });
+
+      const { context, page } = await newGuestContext(browser);
+      try {
+        await submitJoin(page, code, 'Latecomer');
+        await expect(joinErrorAlert(page)).toContainText(
+          'This room has been closed. Ask the host for a new room code.',
+          { timeout: 30000 }
+        );
+      } finally {
+        await context.close();
+      }
+    } finally {
+      await session.close();
+    }
+  });
+
+  test('rate-limited room creation shows the too-many-attempts message', async ({
+    browser,
+  }) => {
+    test.setTimeout(240000);
+
+    // createRoom allows 3 per user per window; the 4th must bounce with the
+    // specific rate-limit message, not the generic fallback.
+    const { context, page } = await newGuestContext(browser);
+    try {
+      for (let i = 0; i < 3; i++) {
+        await page.goto('/host');
+        await page
+          .getByTestId(E2E_TEST_IDS.hostNameInput)
+          .fill('Eager Host', { timeout: 30000 });
+        await page.getByTestId(E2E_TEST_IDS.hostCreateRoomButton).click();
+        await page.waitForURL('**/room/**', { timeout: 30000 });
+      }
+
+      await page.goto('/host');
+      await page
+        .getByTestId(E2E_TEST_IDS.hostNameInput)
+        .fill('Eager Host', { timeout: 30000 });
+      await page.getByTestId(E2E_TEST_IDS.hostCreateRoomButton).click();
+
+      await expect(page.getByTestId(E2E_TEST_IDS.hostErrorAlert)).toContainText(
+        'Too many attempts. Please wait a few minutes before trying again.',
+        { timeout: 30000 }
+      );
+    } finally {
+      await context.close();
+    }
   });
 });

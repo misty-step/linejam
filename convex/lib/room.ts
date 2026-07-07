@@ -1,3 +1,4 @@
+import { ConvexError } from 'convex/values';
 import { QueryCtx, MutationCtx } from '../_generated/server';
 import { Doc, Id } from '../_generated/dataModel';
 import { isPresenceStale } from './gameRules';
@@ -96,7 +97,7 @@ export async function requireRoomByCode(
 ): Promise<Doc<'rooms'>> {
   const room = await getRoomByCode(ctx, code);
   if (!room) {
-    throw new Error('Room not found');
+    throw new ConvexError('Room not found');
   }
   return room;
 }

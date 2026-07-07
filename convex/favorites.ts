@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { getUser, checkParticipation } from './lib/auth';
 import { getRoomByCode, getCompletedGame } from './lib/room';
@@ -10,7 +10,7 @@ export const toggleFavorite = mutation({
   },
   handler: async (ctx, { poemId, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     const existing = await ctx.db
       .query('favorites')

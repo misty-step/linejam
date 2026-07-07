@@ -1,3 +1,4 @@
+import { ConvexError } from 'convex/values';
 import { QueryCtx, MutationCtx } from '../_generated/server';
 import { Doc, Id } from '../_generated/dataModel';
 import { verifyGuestToken } from './guestToken';
@@ -47,7 +48,7 @@ export async function requireUser(
 ): Promise<Doc<'users'>> {
   const user = await getUser(ctx, guestToken);
   if (!user) {
-    throw new Error('Unauthorized: User not found');
+    throw new ConvexError('Unauthorized: User not found');
   }
   return user;
 }

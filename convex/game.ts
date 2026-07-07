@@ -39,7 +39,7 @@ export const startGame = mutation({
   },
   handler: async (ctx, { code, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     await checkMutationAbuseRateLimit(ctx, {
       operation: 'startGame',
@@ -57,20 +57,20 @@ export const startGame = mutation({
         checkParticipation(ctx, room._id, user._id),
       ]);
       if (!completedGame || !isParticipant) {
-        throw new Error('Only host can start game');
+        throw new ConvexError('Only host can start game');
       }
     }
 
     // Check no game is currently in progress (authoritative check)
     const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) throw new Error('Game already in progress');
+    if (activeGame) throw new ConvexError('Game already in progress');
 
     const players = await ctx.db
       .query('roomPlayers')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    if (players.length < 2) throw new Error('Need at least 2 players');
+    if (players.length < 2) throw new ConvexError('Need at least 2 players');
 
     // Assign seats (cryptographically secure random shuffle)
     const shuffledPlayers = secureShuffle([...players]);
@@ -142,7 +142,7 @@ export const startNewCycle = mutation({
   },
   handler: async (ctx, { roomCode, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     const room = await requireRoomByCode(ctx, roomCode);
 
@@ -150,7 +150,7 @@ export const startNewCycle = mutation({
     // a vanished host must never strand the recap.
     const isParticipant = await checkParticipation(ctx, room._id, user._id);
     if (!isParticipant) {
-      throw new Error('Only players in this room can start a new cycle');
+      throw new ConvexError('Only players in this room can start a new cycle');
     }
 
     // Check that there's a completed game (authoritative check)
@@ -164,10 +164,10 @@ export const startNewCycle = mutation({
     });
     if (!cycleReset.ok) {
       if (cycleReset.reason === 'GAME_STILL_IN_PROGRESS') {
-        throw new Error('Game still in progress');
+        throw new ConvexError('Game still in progress');
       }
 
-      throw new Error('No completed game to continue from');
+      throw new ConvexError('No completed game to continue from');
     }
 
     // Reset room to LOBBY for the next cycle
@@ -248,7 +248,7 @@ export const submitLine = mutation({
   },
   handler: async (ctx, { poemId, lineIndex, text, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     await checkMutationAbuseRateLimit(ctx, {
       operation: 'submitLine',
@@ -257,16 +257,16 @@ export const submitLine = mutation({
     });
 
     const poem = await ctx.db.get(poemId);
-    if (!poem) throw new Error('Poem not found');
+    if (!poem) throw new ConvexError('Poem not found');
 
     // Get game directly from poem (stable, immutable reference)
     // This avoids race conditions from room.currentGameId pointer
     const game = await ctx.db.get(poem.gameId);
-    if (!game) throw new Error('Game not found');
+    if (!game) throw new ConvexError('Game not found');
 
     // Fetch room for completion logic (host assignment)
     const room = await ctx.db.get(poem.roomId);
-    if (!room) throw new Error('Room not found');
+    if (!room) throw new ConvexError('Room not found');
 
     // Check if already submitted (idempotent - silently succeed if already done)
     const existing = await ctx.db
@@ -286,21 +286,21 @@ export const submitLine = mutation({
     const submissionWindow = getSubmissionWindow(game, lineIndex);
     if (!submissionWindow.ok) {
       if (submissionWindow.reason === 'GAME_NOT_IN_PROGRESS') {
-        throw new Error('Game not in progress');
+        throw new ConvexError('Game not in progress');
       }
 
       if (submissionWindow.reason === 'INVALID_ROUND') {
-        throw new Error('Invalid round');
+        throw new ConvexError('Invalid round');
       }
 
-      throw new Error('Round not started yet');
+      throw new ConvexError('Round not started yet');
     }
 
     // Validate assignment (immutable matrix - always stable)
     const assignedUserId = getMatrixRound(game.assignmentMatrix, lineIndex)[
       poem.indexInRoom
     ];
-    if (assignedUserId !== user._id) throw new Error('Not your turn');
+    if (assignedUserId !== user._id) throw new ConvexError('Not your turn');
 
     // Validate line length (prevent storage abuse)
     if (text.length > MAX_LINE_LENGTH) {
@@ -313,7 +313,9 @@ export const submitLine = mutation({
     const wordCount = countWords(text);
     const expectedCount = WORD_COUNTS[lineIndex];
     if (wordCount !== expectedCount) {
-      throw new Error(`Expected ${expectedCount} words, got ${wordCount}`);
+      throw new ConvexError(
+        `Expected ${expectedCount} words, got ${wordCount}`
+      );
     }
 
     await ctx.db.insert('lines', {
@@ -341,20 +343,20 @@ export const summonGhostwriter = mutation({
   },
   handler: async (ctx, { roomCode, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     const room = await requireRoomByCode(ctx, roomCode);
     if (room.hostUserId !== user._id) {
-      throw new Error('Only host can summon the ghostwriter');
+      throw new ConvexError('Only host can summon the ghostwriter');
     }
 
     const game = await getActiveGame(ctx, room._id);
-    if (!game) throw new Error('No game in progress');
+    if (!game) throw new ConvexError('No game in progress');
 
     // The ghost only answers after real overtime — no skipping slow friends.
     const roundStartedAt = game.roundStartedAt ?? game.createdAt;
     if (Date.now() - roundStartedAt < GHOSTWRITER_OVERTIME_MS) {
-      throw new Error('The ghostwriter only answers after overtime');
+      throw new ConvexError('The ghostwriter only answers after overtime');
     }
 
     const poems = await ctx.db
@@ -560,17 +562,17 @@ export const revealPoem = mutation({
   },
   handler: async (ctx, { poemId, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     const poem = await ctx.db.get(poemId);
-    if (!poem) throw new Error('Poem not found');
+    if (!poem) throw new ConvexError('Poem not found');
 
     if (poem.assignedReaderId !== user._id) {
-      throw new Error('This poem is not assigned to you');
+      throw new ConvexError('This poem is not assigned to you');
     }
 
     if (poem.revealedAt) {
-      throw new Error('Poem already revealed');
+      throw new ConvexError('Poem already revealed');
     }
 
     await ctx.db.patch(poemId, {

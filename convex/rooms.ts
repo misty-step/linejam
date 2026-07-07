@@ -1,6 +1,6 @@
 import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
-import { ensureUserHelper } from './users';
+import { ensureUserHelper, normalizeDisplayName } from './users';
 import { getUser, checkParticipation } from './lib/auth';
 import { PRESENCE_AWAY_MS, isPresenceStale } from './lib/gameRules';
 import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
@@ -103,19 +103,7 @@ export const joinRoom = mutation({
     // Check no game is in progress (authoritative check)
     const activeGame = await getActiveGame(ctx, room._id);
     if (activeGame) {
-      throw new Error('Cannot join a room with a game in progress');
-    }
-
-    const roomPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room_user', (q) =>
-        q.eq('roomId', room._id).eq('userId', user._id)
-      )
-      .first();
-
-    if (roomPlayers) {
-      // User is already in the room, just return room state
-      return room;
+      throw new ConvexError('Cannot join a room with a game in progress');
     }
 
     const currentPlayers = await ctx.db
@@ -123,16 +111,40 @@ export const joinRoom = mutation({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
+    // A COMPLETED room with players is a between-games lobby (still
+    // joinable); a COMPLETED room with none was closed by the host or
+    // swept — a dead code, not a party.
+    if (room.status === 'COMPLETED' && currentPlayers.length === 0) {
+      throw new ConvexError('Room is closed');
+    }
+
+    const typedName = normalizeDisplayName(displayName);
+    const existingPlayer = currentPlayers.find((p) => p.userId === user._id);
+
+    if (existingPlayer) {
+      // User is already in the room. Honor the typed display name rather
+      // than silently discarding it (rejoins only reach here in lobby —
+      // the in-progress guard above fires first).
+      if (existingPlayer.displayName !== typedName) {
+        await ctx.db.patch(existingPlayer._id, { displayName: typedName });
+        await ctx.db.patch(user._id, { displayName: typedName });
+      }
+      return room;
+    }
+
     if (currentPlayers.length >= 8) {
-      throw new Error('Room is full');
+      throw new ConvexError('Room is full');
     }
 
     await ctx.db.insert('roomPlayers', {
       roomId: room._id,
       userId: user._id,
-      displayName: displayName,
+      displayName: typedName,
       joinedAt: Date.now(),
     });
+    if (user.displayName !== typedName) {
+      await ctx.db.patch(user._id, { displayName: typedName });
+    }
 
     return room;
   },

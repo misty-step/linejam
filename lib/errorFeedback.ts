@@ -77,6 +77,21 @@ export function errorToFeedback(error: unknown): ErrorFeedback {
     };
   }
 
+  if (isRoomFullError(message)) {
+    return {
+      message:
+        'This room is full (8 players max). Ask the host to start a new room.',
+      variant: 'error',
+    };
+  }
+
+  if (isRoomClosedError(message)) {
+    return {
+      message: 'This room has been closed. Ask the host for a new room code.',
+      variant: 'error',
+    };
+  }
+
   if (isRateLimitError(message)) {
     return {
       message:
@@ -102,6 +117,21 @@ export function errorToFeedback(error: unknown): ErrorFeedback {
  * Handles: Error objects, strings, unknown objects
  */
 function extractErrorMessage(error: unknown): string {
+  // ConvexError carries its payload in `data` — the ONLY field that survives
+  // Convex's production redaction (plain `Error.message` becomes "Server
+  // Error" in prod, which is why every player-path Convex function must throw
+  // ConvexError; see the eslint no-restricted-syntax gate in eslint.config.mjs).
+  // Duck-typed rather than instanceof so it works across bundler copies of
+  // the convex package.
+  if (
+    error &&
+    typeof error === 'object' &&
+    'data' in error &&
+    typeof (error as { data: unknown }).data === 'string'
+  ) {
+    return (error as { data: string }).data;
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
@@ -155,8 +185,17 @@ function isGameAlreadyStartedError(message: string): boolean {
   const lowerMessage = message.toLowerCase();
   return (
     lowerMessage.includes('not in lobby status') ||
-    lowerMessage.includes('already started')
+    lowerMessage.includes('already started') ||
+    lowerMessage.includes('game in progress')
   );
+}
+
+function isRoomFullError(message: string): boolean {
+  return message.toLowerCase().includes('room is full');
+}
+
+function isRoomClosedError(message: string): boolean {
+  return message.toLowerCase().includes('room is closed');
 }
 
 function isRateLimitError(message: string): boolean {

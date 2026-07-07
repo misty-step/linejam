@@ -79,7 +79,7 @@ export const ensureUser = mutation({
 
 const MAX_DISPLAY_NAME_LENGTH = 50;
 
-const normalizeDisplayName = (raw: string): string => {
+export const normalizeDisplayName = (raw: string): string => {
   const normalized = raw.trim().replace(/\s+/g, ' ');
   if (!normalized) {
     throw new ConvexError('Display name is required');
