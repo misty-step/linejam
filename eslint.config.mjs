@@ -52,6 +52,11 @@ const eslintConfig = defineConfig([
           message:
             "Convex redacts plain Error in production, so lib/errorFeedback.ts mappings never fire. Throw ConvexError (from 'convex/values') on player-facing paths instead.",
         },
+        {
+          selector: "ThrowStatement > CallExpression[callee.name='Error']",
+          message:
+            "Convex redacts plain Error in production, so lib/errorFeedback.ts mappings never fire. Throw ConvexError (from 'convex/values') on player-facing paths instead.",
+        },
       ],
     },
   },
