@@ -27,6 +27,7 @@ import {
   ArchiveStats,
   ArchiveStatsSkeleton,
   EmptyArchive,
+  ArchiveInfoStrip,
 } from '@/components/archive';
 
 export default function ArchivePage() {
@@ -35,6 +36,7 @@ export default function ArchivePage() {
     isLoading: authLoading,
     authError,
     retryAuth,
+    isAuthenticated,
   } = useUser();
 
   const archiveData = useQuery(
@@ -80,13 +82,13 @@ export default function ArchivePage() {
             ) : null}
           </div>
 
-          {/* Hint Text - sandwiched between hairlines */}
-          {!isLoading && poems.length > 0 && (
-            <div className="mt-8 py-4 border-y border-[var(--color-border-subtle)]">
-              <p className="text-sm text-[var(--color-text-muted)] font-mono">
-                Tap any poem to reveal the full verse
-              </p>
-            </div>
+          {/* Reveal hint (signed-in + has poems) and/or guest identity
+              explainer (always, per linejam-942 — never a dead end) */}
+          {!isLoading && (
+            <ArchiveInfoStrip
+              isAuthenticated={isAuthenticated}
+              hasPoems={poems.length > 0}
+            />
           )}
         </header>
 

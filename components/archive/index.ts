@@ -9,3 +9,4 @@ export { AuthorDots, AuthorDotsInline } from './AuthorDots';
 export { PoemCard, PoemCardSkeleton } from './PoemCard';
 export { ArchiveStats, ArchiveStatsSkeleton } from './ArchiveStats';
 export { EmptyArchive } from './EmptyArchive';
+export { ArchiveInfoStrip } from './ArchiveInfoStrip';
