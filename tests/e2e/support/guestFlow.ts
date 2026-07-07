@@ -203,6 +203,29 @@ function hasSearchParam(requestUrl: string, param: string) {
   }
 }
 
+/**
+ * Give a browser context its own client IP for guest-session issuance so the
+ * per-IP rate-limit buckets (the guest-session throttle, and the
+ * createRoom/joinRoom abuse buckets keyed off the token's rateLimitKey)
+ * never bleed between tests, spec files, or parallel workers sharing the CI
+ * server's single IP.
+ *
+ * The spoofed x-forwarded-for is scoped to the app's guest-session route
+ * (where the bucket key is derived) — a context-wide extraHTTPHeaders also
+ * hits Clerk/Convex third-party hosts, which choke on untrusted forwarding
+ * headers and strand the page in its loading state.
+ */
+export async function isolateGuestSessionIp(context: BrowserContext) {
+  const octet = () => 1 + Math.floor(Math.random() * 254);
+  const ip = `10.${octet()}.${octet()}.${octet()}`;
+  await context.route('**/api/guest/session*', async (route) => {
+    await route.continue({
+      headers: { ...route.request().headers(), 'x-forwarded-for': ip },
+    });
+  });
+  return ip;
+}
+
 export class GuestFlowSession {
   readonly guestContext: BrowserContext;
   readonly guestName: string;
@@ -263,6 +286,11 @@ export class GuestFlowSession {
           : {}),
       });
       guestContext = await browser.newContext({ viewport });
+
+      await Promise.all([
+        isolateGuestSessionIp(hostContext),
+        isolateGuestSessionIp(guestContext),
+      ]);
 
       const [hostPage, guestPage] = await Promise.all([
         hostContext.newPage(),

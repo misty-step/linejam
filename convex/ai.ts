@@ -5,7 +5,7 @@
  * AI players are real user records with kind='AI' for clean attribution.
  */
 
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import {
   mutation,
   internalMutation,
@@ -313,7 +313,7 @@ export const addAiPlayer = mutation({
   },
   handler: async (ctx, { code, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     await checkMutationAbuseRateLimit(ctx, {
       operation: 'addAiPlayer',
@@ -323,11 +323,11 @@ export const addAiPlayer = mutation({
 
     const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
-      throw new Error('Only host can add AI player');
+      throw new ConvexError('Only host can add AI player');
 
     // Can only add AI in lobby (no active game)
     const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) throw new Error('Can only add AI in lobby');
+    if (activeGame) throw new ConvexError('Can only add AI in lobby');
 
     // Check player count
     const players = await ctx.db
@@ -335,7 +335,7 @@ export const addAiPlayer = mutation({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    if (players.length >= 8) throw new Error('Room is full');
+    if (players.length >= 8) throw new ConvexError('Room is full');
 
     // Bots are capped per room (configurable). Solo play wants a few, not a
     // swarm. Selection stays inside this mutation so Convex OCC serializes the
@@ -346,7 +346,7 @@ export const addAiPlayer = mutation({
     );
     const existingAi = existingUsers.filter((u) => u?.kind === 'AI');
     if (existingAi.length >= getMaxAiPlayers()) {
-      throw new Error('Bot limit reached');
+      throw new ConvexError('Bot limit reached');
     }
 
     // Distinct persona per bot until the roster is exhausted.
@@ -393,15 +393,15 @@ export const removeAiPlayer = mutation({
   },
   handler: async (ctx, { code, guestToken, aiUserId }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new ConvexError('User not found');
 
     const room = await requireRoomByCode(ctx, code);
     if (room.hostUserId !== user._id)
-      throw new Error('Only host can remove AI player');
+      throw new ConvexError('Only host can remove AI player');
 
     // Can only remove AI in lobby (no active game)
     const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) throw new Error('Can only remove AI in lobby');
+    if (activeGame) throw new ConvexError('Can only remove AI in lobby');
 
     const players = await ctx.db
       .query('roomPlayers')

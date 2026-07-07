@@ -129,7 +129,11 @@ function JoinForm() {
           </div>
 
           {error && (
-            <Alert variant="error" className="mt-4">
+            <Alert
+              variant="error"
+              data-testid={E2E_TEST_IDS.joinErrorAlert}
+              className="mt-4"
+            >
               {error}
             </Alert>
           )}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ConvexError } from 'convex/values';
 import { errorToFeedback } from '@/lib/errorFeedback';
 
 describe('errorToFeedback', () => {
@@ -49,6 +50,62 @@ describe('errorToFeedback', () => {
 
       expect(feedback.message).toContain('Too many attempts');
       expect(feedback.message).toContain('wait');
+      expect(feedback.variant).toBe('error');
+    });
+  });
+
+  describe('ConvexError data extraction (survives production redaction)', () => {
+    it('classifies from ConvexError.data, the only field that survives prod', () => {
+      // In production Convex redacts Error.message to "Server Error" — only
+      // ConvexError.data reaches the client. Simulate that exact shape.
+      const error = new ConvexError('Room not found');
+      error.message = '[Request ID: abc123] Server Error';
+
+      const feedback = errorToFeedback(error);
+
+      expect(feedback.message).toBe(
+        'Room code not found. Please check the code and try again.'
+      );
+    });
+
+    it('classifies duck-typed ConvexError shapes with string data', () => {
+      const error = { message: 'Server Error', data: 'Room is full' };
+      const feedback = errorToFeedback(error);
+
+      expect(feedback.message).toContain('room is full');
+    });
+  });
+
+  describe('party-path error taxonomy', () => {
+    it('maps game-in-progress joins to the already-started message', () => {
+      const error = new ConvexError(
+        'Cannot join a room with a game in progress'
+      );
+      const feedback = errorToFeedback(error);
+
+      expect(feedback.message).toBe(
+        'This game has already started. Please wait for the next session or ask the host to create a new room.'
+      );
+      expect(feedback.variant).toBe('error');
+    });
+
+    it('maps room-full errors to a distinct message', () => {
+      const error = new ConvexError('Room is full');
+      const feedback = errorToFeedback(error);
+
+      expect(feedback.message).toBe(
+        'This room is full (8 players max). Ask the host to start a new room.'
+      );
+      expect(feedback.variant).toBe('error');
+    });
+
+    it('maps room-closed errors to a distinct message', () => {
+      const error = new ConvexError('Room is closed');
+      const feedback = errorToFeedback(error);
+
+      expect(feedback.message).toBe(
+        'This room has been closed. Ask the host for a new room code.'
+      );
       expect(feedback.variant).toBe('error');
     });
   });

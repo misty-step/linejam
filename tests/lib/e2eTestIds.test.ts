@@ -9,6 +9,8 @@ const EXPECTED_TEST_IDS = {
   joinRoomCodeInput: 'join-room-code-input',
   joinNameInput: 'join-name-input',
   joinRoomButton: 'join-room-button',
+  joinErrorAlert: 'join-error-alert',
+  hostErrorAlert: 'host-error-alert',
   lobbyStartGameButton: 'lobby-start-game-button',
   lobbyWaitingForHostButton: 'lobby-waiting-for-host-button',
   writingPhase: 'writing-phase',

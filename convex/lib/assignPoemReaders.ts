@@ -10,6 +10,7 @@
  * - No leaky abstractions: Callers don't know about AI players
  */
 
+import { ConvexError } from 'convex/values';
 import { Id } from '../_generated/dataModel';
 
 interface Poem {
@@ -49,7 +50,7 @@ export function assignPoemReaders(
   const humanPlayers = allPlayers.filter((p) => p.kind !== 'AI');
 
   if (humanPlayers.length === 0) {
-    throw new Error('Cannot assign readers: no human players');
+    throw new ConvexError('Cannot assign readers: no human players');
   }
 
   // Shuffle poems for randomness (avoid predictable patterns)
