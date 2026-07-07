@@ -63,6 +63,7 @@ function boxesOverlap(
  */
 async function assertNoRosterCollisions(page: Page, viewportWidth: number) {
   const rows = page.locator('ul li');
+  await rows.first().waitFor({ state: 'visible', timeout: 15000 });
   const rowCount = await rows.count();
   expect(rowCount).toBeGreaterThan(0);
 
@@ -101,6 +102,9 @@ test('lobby roster has no collisions or clipping across the viewport matrix at 1
     await isolateGuestSessionIp(hostContext);
     const hostPage = await hostContext.newPage();
     const roomCode = await createRoom(hostPage, 'Matrix Host');
+    await expect(hostPage.getByText('Matrix Host')).toBeVisible({
+      timeout: 15000,
+    });
 
     // --- 1 player checkpoint ---
     for (const width of VIEWPORT_WIDTHS) {
