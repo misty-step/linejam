@@ -236,28 +236,28 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative order-first md:order-none">
             <ul className="space-y-6 pb-24 md:pb-0">
               {players.map((player, i) => (
                 <StampAnimation key={player._id} delay={i * 150}>
-                  <li className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-2">
+                  <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Avatar
                         stableId={player.stableId}
                         displayName={player.displayName}
                         allStableIds={allStableIds}
                         size="md"
                       />
-                      <span className="text-2xl md:text-3xl font-medium text-text-primary">
+                      <span className="min-w-0 truncate text-2xl font-medium text-text-primary md:text-3xl">
                         {player.displayName}
                       </span>
                       {player.isAway && (
-                        <span className="text-xs font-mono uppercase tracking-widest text-text-muted">
+                        <span className="shrink-0 text-xs font-mono uppercase tracking-widest text-text-muted">
                           away
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       {player.isBot && (
                         <>
                           <BotBadge />

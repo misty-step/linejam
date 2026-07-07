@@ -349,4 +349,36 @@ describe('Lobby component', () => {
       });
     });
   });
+
+  it('flex-orders the roster ahead of the actions panel on mobile (linejam-946: above-the-fold)', () => {
+    // Arrange & Act — narrow viewports stack the two grid columns; the
+    // roster column is given `order-first md:order-none` so "add a bot"
+    // feedback is visible without scrolling on a 390px phone, while desktop
+    // keeps the original visual order.
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    // Assert
+    const rosterList = screen.getByText('Host Player').closest('ul');
+    const rosterColumn = rosterList!.closest('div.relative');
+    expect(rosterColumn).toHaveClass('order-first', 'md:order-none');
+  });
+
+  it('truncates long player names instead of overflowing the roster row (linejam-946: mid-width collision)', () => {
+    // Arrange
+    const longName = 'A'.repeat(80);
+    const playersWithLongName = [
+      { ...mockPlayers[0], displayName: longName },
+      mockPlayers[1],
+    ];
+
+    // Act
+    render(
+      <Lobby room={mockRoom} players={playersWithLongName} isHost={true} />
+    );
+
+    // Assert — the name span must be able to shrink/truncate rather than
+    // push the HOST badge past the container edge.
+    const nameSpan = screen.getByText(longName);
+    expect(nameSpan).toHaveClass('truncate', 'min-w-0');
+  });
 });

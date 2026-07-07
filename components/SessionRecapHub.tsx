@@ -101,7 +101,7 @@ export function SessionRecapHub({
         <div className="space-y-3">
           <h2
             id="session-recap-title"
-            className="text-4xl md:text-5xl font-[var(--font-display)] leading-tight"
+            className="scroll-mt-28 text-4xl md:text-5xl font-[var(--font-display)] leading-tight"
           >
             Session complete
           </h2>
