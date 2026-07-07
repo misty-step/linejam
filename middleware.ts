@@ -2,40 +2,32 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Route Protection Middleware
+ * Root Middleware
  *
- * Linejam uses hybrid auth: Clerk (authenticated) + guest tokens (anonymous).
- * Most routes are public since guests can play without accounts.
+ * Linejam uses hybrid identity: Clerk (authenticated) + guest tokens
+ * (anonymous, HttpOnly cookie). Every route is public; there is no
+ * Clerk-only route today.
  *
- * Protected routes (require Clerk auth):
- * - /me/* - User profile and poem archive
- *
- * Public routes (no auth required):
- * - / - Homepage
- * - /room/* - Game rooms (guests use localStorage token)
- * - /sign-in, /sign-up - Auth pages
- * - /api/* - API routes handle their own auth
+ * `/me/poems` and `/me/profile` look account-gated but are NOT — both
+ * resolve identity themselves via `useUser()` client-side and
+ * `getUser(ctx, guestToken)` in Convex, and work for guests and signed-in
+ * users alike. Do NOT reintroduce an `auth.protect()` gate on `/me/*` (or
+ * any future page built the same hybrid way) here: Clerk's `protect()`
+ * falls back to the hosted Account Portal (accounts.<domain>) when no
+ * in-app sign-in page is configured for it, which is exactly the "guest
+ * gets dumped on a stock wall with no way back to their poems" bug this
+ * middleware used to cause (linejam-942). A page that genuinely requires
+ * a Clerk account belongs behind its own guard in the page component, not
+ * a middleware-wide redirect.
  *
  * When Clerk is not configured (no CLERK_SECRET_KEY), the app runs in
- * guest-only mode. Protected routes redirect to home, auth pages show
- * a message that auth is unavailable.
+ * guest-only mode and this middleware is a no-op passthrough.
  */
 
 // Check if Clerk is configured (secret key available)
 const isClerkConfigured = !!process.env.CLERK_SECRET_KEY;
 
-// Route matchers (simple path checking to avoid Clerk import)
-function isProtectedRoute(pathname: string): boolean {
-  return pathname.startsWith('/me');
-}
-
-// Fallback middleware for when Clerk is not configured
-function guestOnlyMiddleware(req: NextRequest) {
-  // Redirect protected routes to home in guest-only mode
-  if (isProtectedRoute(req.nextUrl.pathname)) {
-    return NextResponse.redirect(new URL('/', req.url));
-  }
-  // Auth routes will show "auth unavailable" via their page logic
+function passthroughMiddleware() {
   return NextResponse.next();
 }
 
@@ -48,27 +40,20 @@ let middleware: (
 if (isClerkConfigured) {
   try {
     // Only import Clerk when configured to avoid initialization errors
+    const { clerkMiddleware } = require('@clerk/nextjs/server'); // eslint-disable-line @typescript-eslint/no-require-imports
 
-    const {
-      clerkMiddleware,
-      createRouteMatcher,
-    } = require('@clerk/nextjs/server'); // eslint-disable-line @typescript-eslint/no-require-imports
-    const isProtectedClerkRoute = createRouteMatcher(['/me(.*)']);
-
-    middleware = clerkMiddleware(
-      async (auth: { protect: () => Promise<void> }, req: NextRequest) => {
-        if (isProtectedClerkRoute(req)) {
-          await auth.protect();
-        }
-      }
-    );
+    // clerkMiddleware still wraps every request so Clerk can attach the
+    // session state (cookies/JWT) that useAuth()/ConvexProviderWithClerk
+    // read client-side. It intentionally takes no handler — nothing calls
+    // auth.protect() because no route is Clerk-only.
+    middleware = clerkMiddleware();
   } catch {
     // If Clerk initialization fails, fall back to guest-only mode
     console.warn('Clerk initialization failed, running in guest-only mode');
-    middleware = guestOnlyMiddleware;
+    middleware = passthroughMiddleware;
   }
 } else {
-  middleware = guestOnlyMiddleware;
+  middleware = passthroughMiddleware;
 }
 
 export default middleware;

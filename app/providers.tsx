@@ -7,11 +7,21 @@ import { ThemeProvider } from '@/lib/themes';
 import { PostHogProvider } from '@/lib/posthog/PostHogProvider';
 import { PostHogPageview } from '@/lib/posthog/PostHogPageview';
 import { CanaryClientObserver } from '@/components/CanaryClientObserver';
+import {
+  linejamClerkAppearance,
+  useClerkThemeVariables,
+} from '@/lib/clerk/appearance';
 import { ReactNode } from 'react';
 
 export function Providers({ children }: { children: ReactNode }) {
+  const variables = useClerkThemeVariables();
+
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      appearance={{ ...linejamClerkAppearance, variables }}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+    >
       <PostHogProvider>
         <PostHogPageview />
         <CanaryClientObserver />
