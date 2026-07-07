@@ -71,7 +71,13 @@ export const linejamClerkAppearance = {
   },
 };
 
-const FALLBACK_TOKENS = kenyaTheme.tokens.light;
+// kenyaTheme.tokens.light hardcodes every optional semantic color (see
+// lib/themes/presets/kenya.ts); this cast just tells TypeScript what's
+// already true so callers below don't need dead `?? 'literal'` fallbacks
+// for fields that can never actually be missing on this preset.
+const FALLBACK_TOKENS = kenyaTheme.tokens.light as Required<
+  typeof kenyaTheme.tokens.light
+>;
 
 function readCssVar(token: string, fallback: string): string {
   if (typeof document === 'undefined') return fallback;
@@ -111,18 +117,9 @@ export function resolveClerkThemeVariables() {
       'color-text-inverse',
       FALLBACK_TOKENS['color-text-inverse']
     ),
-    colorDanger: readCssVar(
-      'color-error',
-      FALLBACK_TOKENS['color-error'] ?? '#ef4444'
-    ),
-    colorSuccess: readCssVar(
-      'color-success',
-      FALLBACK_TOKENS['color-success'] ?? '#10b981'
-    ),
-    colorWarning: readCssVar(
-      'color-warning',
-      FALLBACK_TOKENS['color-warning'] ?? '#f59e0b'
-    ),
+    colorDanger: readCssVar('color-error', FALLBACK_TOKENS['color-error']),
+    colorSuccess: readCssVar('color-success', FALLBACK_TOKENS['color-success']),
+    colorWarning: readCssVar('color-warning', FALLBACK_TOKENS['color-warning']),
     colorBackground: readCssVar(
       'color-surface',
       FALLBACK_TOKENS['color-surface']

@@ -63,6 +63,22 @@ describe('resolveClerkThemeVariables', () => {
     );
   });
 
+  it('falls back to the kenya default during SSR (no document)', () => {
+    vi.stubGlobal('document', undefined);
+    try {
+      const variables = resolveClerkThemeVariables();
+
+      expect(variables.colorPrimary).toBe(
+        kenyaTheme.tokens.light['color-primary']
+      );
+      expect(variables.colorBorder).toBe(
+        kenyaTheme.tokens.light['color-border']
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('passes fontFamily/borderRadius through as live CSS variable references', () => {
     // These aren't parsed by Clerk's color-derivation math, so they can stay
     // reactive var() references rather than snapshotted literals.
