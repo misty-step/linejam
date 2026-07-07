@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Heart, Volume2, VolumeX } from 'lucide-react';
+import { Download, Heart, Volume2, VolumeX } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
 import { HeartButton } from './ui/HeartButton';
@@ -10,6 +10,7 @@ import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
 import { useSharePoem } from '@/hooks/useSharePoem';
+import { useSavePoemImage } from '@/hooks/useSavePoemImage';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
 
@@ -101,6 +102,10 @@ export function PoemDisplay({
     guestToken,
     firstLineText
   );
+  const { handleSaveImage, saving, saved, saveError } = useSavePoemImage(
+    poemId,
+    guestToken
+  );
 
   // Get unique authors for legend (preserves order of first appearance)
   const uniqueAuthors = useMemo(() => {
@@ -183,7 +188,9 @@ export function PoemDisplay({
   return (
     <div className={containerClasses}>
       {!metadata && ceremonyMuteButton && (
-        <div className="fixed right-4 top-4 z-10">{ceremonyMuteButton}</div>
+        <div className="fixed right-4 top-4 z-10 print:hidden">
+          {ceremonyMuteButton}
+        </div>
       )}
 
       {/* Poem Content */}
@@ -193,7 +200,7 @@ export function PoemDisplay({
           <header className="mb-12">
             {/* Back link (archive only) */}
             {isArchive && metadata.backHref && (
-              <div className="mb-6">
+              <div className="mb-6 print:hidden">
                 <Link
                   href={metadata.backHref}
                   className="text-sm font-mono uppercase tracking-widest text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
@@ -215,7 +222,7 @@ export function PoemDisplay({
                   <button
                     onClick={metadata.onToggleFavorite}
                     className={cn(
-                      'transition-colors',
+                      'print:hidden transition-colors',
                       metadata.isFavorited
                         ? 'text-[var(--color-primary)]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -363,15 +370,15 @@ export function PoemDisplay({
       <div
         data-testid={E2E_TEST_IDS.poemActions}
         className={cn(
-          'px-space-3 py-space-3 md:px-space-5 lg:px-space-6 border-t border-border-subtle',
+          'print:hidden px-space-3 py-space-3 md:px-space-5 lg:px-space-6 border-t border-border-subtle',
           'flex flex-col items-center gap-space-3',
           'transition-opacity duration-500',
           allRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
       >
-        {shareError && (
+        {(shareError || saveError) && (
           <Alert variant="error" className="w-full max-w-md">
-            {shareError}
+            {shareError || saveError}
           </Alert>
         )}
         {!isArchive && (
@@ -394,6 +401,29 @@ export function PoemDisplay({
           >
             {shared ? 'Shared!' : copied ? 'Copied!' : 'Share'}
           </Button>
+          <Button
+            onClick={handleSaveImage}
+            data-testid={E2E_TEST_IDS.poemSaveImageButton}
+            variant="outline"
+            size="lg"
+            className="min-w-[140px] h-12"
+            disabled={saving}
+          >
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+            {saving ? 'Saving...' : saved ? 'Saved!' : 'Save image'}
+          </Button>
+          {/* Print stylesheet lives in app/globals.css; only the archive
+              page (a stable, linkable poem) offers a Print action. */}
+          {isArchive && (
+            <Button
+              onClick={() => window.print()}
+              variant="ghost"
+              size="lg"
+              className="min-w-[100px] h-12"
+            >
+              Print
+            </Button>
+          )}
           {/* Reveal variant: Close button; Archive variant: navigation handles close */}
           {!isArchive && onDone && (
             <Button

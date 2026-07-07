@@ -504,3 +504,45 @@ textarea:focus {
   box-shadow: 10px 10px 0px var(--color-primary);
   transition: all var(--duration-fast) step-end;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Print (linejam-943): /poem/[id] and /recap/[code].
+   Every screen theme forces ink-on-paper regardless of the active theme —
+   printing a neon-dark Hyper page would waste toner and read as broken, not
+   "themed". The primary accent survives (a small amount of color ink is
+   normal for a title rule) but body/background always resolve to plain
+   black-on-white. Interactive chrome (buttons, nav, mute toggles) is culled
+   with the standard Tailwind `print:hidden` utility at each call site;
+   this block only owns the things a utility class can't reach.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media print {
+  :root,
+  [data-theme] {
+    --color-background: #ffffff;
+    --color-surface: #ffffff;
+    --color-foreground: #000000;
+    --color-text-primary: #000000;
+    --color-text-secondary: #333333;
+    --color-text-muted: #555555;
+    --color-border: #cccccc;
+    --color-border-subtle: #dddddd;
+  }
+
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+
+  a[href]::after {
+    content: none !important;
+  }
+
+  .poem-print-surface {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 0.75in;
+  }
+}

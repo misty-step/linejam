@@ -20,6 +20,8 @@ export const E2E_TEST_IDS = {
   sessionComplete: 'session-complete',
   roomFavoriteCrown: 'room-favorite-crown',
   sessionRecapShareButton: 'session-recap-share-button',
+  poemSaveImageButton: 'poem-save-image-button',
+  recapExportButton: 'recap-export-button',
 } as const;
 
 export type E2ETestId = (typeof E2E_TEST_IDS)[keyof typeof E2E_TEST_IDS];

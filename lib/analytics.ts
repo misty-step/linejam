@@ -6,6 +6,9 @@
  * Uses Vercel Analytics track() for funnel metrics:
  * - game_created, game_joined, game_started, game_completed
  * - poem_shared, ai_player_added
+ * - poem_image_saved, recap_exported (linejam-943: the keepable-artifact
+ *   funnel — measures save/export usage so the print-on-demand stretch
+ *   decision has real demand data behind it)
  *
  * @see https://vercel.com/docs/analytics/custom-events
  */
@@ -42,6 +45,15 @@ type RoomInviteSharedProps = {
 
 type AiPlayerAddedProps = {
   playerCount: number;
+};
+
+type PoemImageSavedProps = {
+  method: 'native-share' | 'download';
+};
+
+type RecapExportedProps = {
+  method: 'print';
+  poemCount: number;
 };
 
 /**
@@ -91,4 +103,20 @@ export function trackRoomInviteShared(props: RoomInviteSharedProps) {
  */
 export function trackAiPlayerAdded(props: AiPlayerAddedProps) {
   track('ai_player_added', props);
+}
+
+/**
+ * Track a poem's themed card image being saved (native share sheet or
+ * direct download) from the reveal or poem archive page.
+ */
+export function trackPoemImageSaved(props: PoemImageSavedProps) {
+  track('poem_image_saved', props);
+}
+
+/**
+ * Track a session recap export (currently: print-to-PDF via the browser's
+ * native print dialog, triggered from the recap page's Export action).
+ */
+export function trackRecapExported(props: RecapExportedProps) {
+  track('recap_exported', props);
 }

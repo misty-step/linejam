@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { fetchQuery } from 'convex/nextjs';
 import { notFound } from 'next/navigation';
 import { api } from '../../../convex/_generated/api';
+import { RecapExportButton } from '../../../components/RecapExportButton';
+import { formatAttribution } from '../../../lib/poemCard/PoemCard';
 export { generateMetadata } from './metadata';
 
 export default async function RecapPage({
@@ -38,40 +40,49 @@ export default async function RecapPage({
           </div>
         </header>
 
+        <RecapExportButton poemCount={recap.poemCount} />
+
         <section className="grid gap-8">
-          {recap.poems.map((poem) => (
-            <article
-              key={poem._id}
-              className="border border-border bg-surface p-6 shadow-sm md:p-8"
-            >
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4 text-xs font-mono uppercase tracking-widest text-text-muted">
-                <span>
-                  Poem {(poem.indexInRoom + 1).toString().padStart(2, '0')}
-                </span>
-                <span>
-                  Started by {poem.starterName} / read by {poem.readerName}
-                </span>
-              </div>
+          {recap.poems.map((poem) => {
+            // Unique, order-preserving attribution — every exported/public
+            // artifact must name its authors and mark AI ones (linejam-943
+            // criterion 3; the recap page previously showed only a count).
+            const attribution = formatAttribution(poem.lines);
 
-              <div className="space-y-5">
-                {poem.lines.map((line, index) => (
-                  <p
-                    key={`${poem._id}-${index}`}
-                    className="font-[var(--font-display)] text-xl leading-relaxed md:text-2xl"
-                  >
-                    {line.text}
-                  </p>
-                ))}
-              </div>
+            return (
+              <article
+                key={poem._id}
+                className="poem-print-surface border border-border bg-surface p-6 shadow-sm md:p-8"
+              >
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4 text-xs font-mono uppercase tracking-widest text-text-muted">
+                  <span>
+                    Poem {(poem.indexInRoom + 1).toString().padStart(2, '0')}
+                  </span>
+                  <span>
+                    Started by {poem.starterName} / read by {poem.readerName}
+                  </span>
+                </div>
 
-              <div className="mt-6 border-t border-border-subtle pt-4 text-sm text-text-muted">
-                By {poem.poetCount} poet{poem.poetCount === 1 ? '' : 's'}
-              </div>
-            </article>
-          ))}
+                <div className="space-y-5">
+                  {poem.lines.map((line, index) => (
+                    <p
+                      key={`${poem._id}-${index}`}
+                      className="font-[var(--font-display)] text-xl leading-relaxed md:text-2xl"
+                    >
+                      {line.text}
+                    </p>
+                  ))}
+                </div>
+
+                <div className="mt-6 border-t border-border-subtle pt-4 text-sm text-text-muted">
+                  {attribution}
+                </div>
+              </article>
+            );
+          })}
         </section>
 
-        <footer className="flex flex-col gap-3 border-t border-border pt-8 sm:flex-row">
+        <footer className="print:hidden flex flex-col gap-3 border-t border-border pt-8 sm:flex-row">
           <Link
             href={`/join?code=${recap.roomCode}`}
             className="inline-flex h-14 items-center justify-center rounded-md border border-primary bg-primary px-8 text-lg font-medium text-text-inverse hover:bg-primary-hover"
