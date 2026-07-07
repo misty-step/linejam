@@ -37,7 +37,11 @@ test.describe('guest archive access (no account)', () => {
     expect(page.url()).not.toContain('accounts.');
     expect(page.url()).not.toContain('/sign-in');
 
-    await expect(page.getByRole('heading', { name: 'Archive' })).toBeVisible({
+    // exact: true — the empty-archive state's "Your archive awaits" h2
+    // otherwise substring-matches the same role/name query.
+    await expect(
+      page.getByRole('heading', { name: 'Archive', exact: true })
+    ).toBeVisible({
       timeout: 15000,
     });
 
@@ -59,7 +63,9 @@ test.describe('guest archive access (no account)', () => {
     expect(page.url()).not.toContain('accounts.');
     expect(page.url()).not.toContain('/sign-in');
 
-    await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: 'Identity', exact: true })
+    ).toBeVisible({
       timeout: 15000,
     });
     await expect(
@@ -94,7 +100,7 @@ test.describe('guest archive access after a played game @slow', () => {
 
     expect(session.hostPage.url()).toContain('/me/poems');
     await expect(
-      session.hostPage.getByRole('heading', { name: 'Archive' })
+      session.hostPage.getByRole('heading', { name: 'Archive', exact: true })
     ).toBeVisible({ timeout: 15000 });
 
     // The poem this guest just wrote is reachable without an account.
