@@ -155,15 +155,22 @@ test.describe('Form Validation', () => {
 let ipCounter = 0;
 
 /**
- * New browser context with a unique client IP (the app trusts
- * x-forwarded-for) so per-IP guest-session rate-limit buckets never bleed
- * between tests or into the other spec files sharing this dev server.
+ * New browser context with a unique client IP so per-IP guest-session
+ * rate-limit buckets never bleed between tests or into the other spec files
+ * sharing this server. The spoofed x-forwarded-for is scoped to the app's
+ * guest-session route (where the bucket key is derived) — a context-wide
+ * extraHTTPHeaders also hits Clerk/Convex third-party hosts, which choke on
+ * untrusted forwarding headers and strand the page in its loading state.
  */
 async function newGuestContext(
   browser: Browser
 ): Promise<{ context: BrowserContext; page: Page }> {
-  const context = await browser.newContext({
-    extraHTTPHeaders: { 'x-forwarded-for': `10.94.1.${++ipCounter}` },
+  const ip = `10.94.1.${++ipCounter}`;
+  const context = await browser.newContext();
+  await context.route('**/api/guest/session*', async (route) => {
+    await route.continue({
+      headers: { ...route.request().headers(), 'x-forwarded-for': ip },
+    });
   });
   const page = await context.newPage();
   return { context, page };
