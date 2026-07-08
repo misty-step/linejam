@@ -1,0 +1,14 @@
+{
+  "version": "1.10.0",
+  "date": "2026-06-26",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "ai",
+      "description": "multi-bot solo play + evidence-backed config (028 m1)",
+      "breaking": false,
+      "pr": 280,
+      "commit": "3b10a17"
+    }
+  ]
+}

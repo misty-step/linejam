@@ -1,0 +1,12 @@
+{
+  "version": "1.2.0",
+  "date": "2026-06-10",
+  "changes": [
+    {
+      "type": "feat",
+      "description": "add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133)",
+      "breaking": false,
+      "commit": "a7f3f1f"
+    }
+  ]
+}

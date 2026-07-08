@@ -1,0 +1,14 @@
+{
+  "version": "1.8.0",
+  "date": "2026-06-22",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "game",
+      "description": "migrate host to a present participant when the host leaves (017)",
+      "breaking": false,
+      "pr": 274,
+      "commit": "2ef5af9"
+    }
+  ]
+}

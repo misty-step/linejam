@@ -1,0 +1,48 @@
+{
+  "version": "1.6.0",
+  "date": "2026-06-13",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "mobile",
+      "description": "pass the thumb test on every game surface",
+      "breaking": false,
+      "commit": "2f6c2be"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "force esbuild >=0.28.1 to clear GHSA-gv7w-rqvm-qjhr",
+      "breaking": false,
+      "commit": "23c1565"
+    },
+    {
+      "type": "feat",
+      "scope": "game",
+      "description": "make rules data and ship Rhyme Relay + Quick Jam modes",
+      "breaking": false,
+      "commit": "c5b3d36"
+    },
+    {
+      "type": "feat",
+      "scope": "realtime",
+      "description": "make the room unstrandable — rescue, rematch, self-heal",
+      "breaking": false,
+      "commit": "a0e6eec"
+    },
+    {
+      "type": "feat",
+      "scope": "reveal",
+      "description": "stage the ceremony and crown a room favorite",
+      "breaking": false,
+      "commit": "f39c155"
+    },
+    {
+      "type": "feat",
+      "scope": "writing",
+      "description": "engineer tension — round clock, sparks, waiting theater",
+      "breaking": false,
+      "commit": "088bde4"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+ci: stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231).

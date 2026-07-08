@@ -52,10 +52,12 @@ export interface ReleaseManifest {
 /** Mapping from Keep a Changelog section headers to change types */
 export const SECTION_TO_TYPE: Record<string, ChangeType> = {
   Added: 'feat',
+  Features: 'feat',
   Changed: 'refactor',
   Deprecated: 'chore',
   Removed: 'chore',
   Fixed: 'fix',
+  'Bug Fixes': 'fix',
   Security: 'fix',
   Performance: 'perf',
 };

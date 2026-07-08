@@ -1,0 +1,14 @@
+{
+  "version": "1.1.2",
+  "date": "2026-04-20",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "deps",
+      "description": "patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline",
+      "breaking": false,
+      "pr": 218,
+      "commit": "57740b5"
+    }
+  ]
+}

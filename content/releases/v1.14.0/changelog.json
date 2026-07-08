@@ -1,0 +1,14 @@
+{
+  "version": "1.14.0",
+  "date": "2026-07-04",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "security",
+      "description": "harden launch exposure gates",
+      "breaking": false,
+      "pr": 291,
+      "commit": "28ca0ad"
+    }
+  ]
+}

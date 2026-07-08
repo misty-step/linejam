@@ -1,0 +1,13 @@
+{
+  "version": "1.12.0",
+  "date": "2026-07-03",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "ux",
+      "description": "tap-to-copy room code, QR scan-to-join, one-tap help, fix submit error",
+      "breaking": false,
+      "commit": "7f754ff"
+    }
+  ]
+}

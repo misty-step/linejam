@@ -1,0 +1,22 @@
+{
+  "version": "1.9.0",
+  "date": "2026-06-23",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "release",
+      "description": "drop pnpm exec step that broke Landmark release",
+      "breaking": false,
+      "pr": 276,
+      "commit": "d431210"
+    },
+    {
+      "type": "feat",
+      "scope": "game",
+      "description": "consolidate to one core mode — delete rhyme + quick",
+      "breaking": false,
+      "pr": 275,
+      "commit": "2eff35b"
+    }
+  ]
+}
