@@ -70,7 +70,7 @@ claim_release <backlog-id>
 
 ## Agent Faces
 
-Linejam ships thin agent-facing faces over the same Convex core the web app uses — no reimplemented game logic:
+Linejam ships thin agent-facing faces over the same Convex core the web app uses — no reimplemented game logic. See [docs/agent-faces.md](docs/agent-faces.md) for the CLI/MCP command surface, identity model, environment contract, registration recipe, and API-face disposition.
 
 - `pnpm agent:cli` — terminal CLI to create/join rooms, read game state, submit lines, browse and favorite poems.
 - `pnpm agent:mcp` — stdio MCP server exposing the same actions as tools.
