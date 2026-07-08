@@ -2,6 +2,10 @@
 
 All notable changes to Linejam.
 
+## Version reset: v1.15.1 → v0.15.1 (2026-07-08)
+
+The fleet moved to pre-stable 0.x semantics (Powder landmark-016/017): versions below 1.0.0 use Cargo-style bumps (breaking→minor, feat/fix→patch) and never cross 1.0.0 automatically; promotion to 1.0.0 is a deliberate manual tag. v0.15.1 is the same commit as v1.15.1. Earlier 1.x/2.x entries below record real history under the old numbering; their tags and GitHub releases were retired.
+
 # [1.16.0](https://github.com/misty-step/linejam/compare/v1.15.1...v1.16.0) (2026-07-08)
 
 
