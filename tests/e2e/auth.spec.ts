@@ -1,4 +1,5 @@
 import { test, expect, BrowserContext, Page } from '@playwright/test';
+import { isolateGuestSessionIp } from './support/guestFlow';
 
 /**
  * E2E Test: Authentication Flow
@@ -22,6 +23,10 @@ test.skip(
   missingGuestTokenSecret,
   'Set GUEST_TOKEN_SECRET for local E2E, or E2E_BASE_URL for a remote target'
 );
+
+test.beforeEach(async ({ context }) => {
+  await isolateGuestSessionIp(context);
+});
 
 test.describe('Guest Session API', () => {
   test('returns guestId and token on first request', async ({ page }) => {
@@ -69,6 +74,7 @@ test.describe('Guest Session Persistence', () => {
 
   test.beforeAll(async ({ browser }) => {
     context = await browser.newContext();
+    await isolateGuestSessionIp(context);
     page = await context.newPage();
   });
 
@@ -150,6 +156,7 @@ test.describe('Isolated Guest Sessions', () => {
   }) => {
     // Create first context and trigger guest session
     const context1 = await browser.newContext();
+    await isolateGuestSessionIp(context1);
     const page1 = await context1.newPage();
     await page1.goto('/', { waitUntil: 'networkidle' });
 
@@ -169,6 +176,7 @@ test.describe('Isolated Guest Sessions', () => {
 
     // Create second context and trigger guest session
     const context2 = await browser.newContext();
+    await isolateGuestSessionIp(context2);
     const page2 = await context2.newPage();
     await page2.goto('/', { waitUntil: 'networkidle' });
 

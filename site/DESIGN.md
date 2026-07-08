@@ -8,7 +8,7 @@ inventing a second design system.
 
 - Playful, warm, human — this is a party game, not operator infrastructure.
 - Lead with the fun (chaos, laughter, the reveal) then the proof (real
-  screenshots, real round structure).
+  screenshots, real round structure, and a real completed poem).
 - Avoid corporate SaaS language ("leverage", "solution", "streamline"). Talk
   like you're describing game night to a friend.
 - Still honest: no invented user counts, testimonials, or metrics — the game
@@ -64,6 +64,18 @@ Start Linejam to reach the actual round-1 writing screen (no account or
 seed data needed). Supplementary evidence (mobile-width captures of the same
 flow) is saved alongside as `gameplay-mobile-390.png` and
 `linejam-app-mobile-390.png` but not used in the gallery.
+
+## Proof Asset Inventory
+
+| Surface                                                | Source                                      | Purpose                                                                          |
+| ------------------------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------- |
+| Finished poem in `site/index.html#proof`               | `https://www.linejam.app/recap/BFIO` Poem 1 | Shows the game artifact as readable HTML text, not as a screenshot.              |
+| CSS reveal loop in `site/index.html#proof`             | Same Room BFIO poem                         | Gives the marketing site reveal-in-motion with no external CDN media dependency. |
+| Public recap link `https://www.linejam.app/recap/BFIO` | Live signed-out recap route                 | Lets a stranger inspect a completed room with two poems by two poets.            |
+
+Design lab: `docs/labs/linejam-921-proof-assets/index.html`. Locked option:
+artifact plus reveal reel, recorded in
+`docs/labs/linejam-921-proof-assets/DECISION.md`.
 
 ## Footer Links
 

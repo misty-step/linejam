@@ -20,6 +20,8 @@ import { trackGameCompleted } from '../lib/analytics';
 import { RoomChrome } from './RoomChrome';
 import { buildRevealChromeCopy } from '../lib/roomChromeCopy';
 import { SessionRecapHub } from './SessionRecapHub';
+import { RevealStage } from './stage/RevealStage';
+import { Presentation } from 'lucide-react';
 
 interface RevealPhaseProps {
   roomCode: string;
@@ -35,6 +37,7 @@ export function RevealPhase({
   const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStartingNow, setIsStartingNow] = useState(false);
+  const [isPresenting, setIsPresenting] = useState(false);
 
   const state = useQuery(api.game.getRevealPhaseState, {
     roomCode,
@@ -80,7 +83,10 @@ export function RevealPhase({
     }
   };
 
-  const handleReveal = async (poemId: Id<'poems'>) => {
+  const revealPoem = async (
+    poemId: Id<'poems'>,
+    { showPoem }: { showPoem: boolean }
+  ) => {
     setIsRevealingId(poemId);
     setError(null);
 
@@ -89,7 +95,9 @@ export function RevealPhase({
         poemId,
         guestToken: guestToken || undefined,
       });
-      setShowingPoemId(poemId);
+      if (showPoem) {
+        setShowingPoemId(poemId);
+      }
     } catch (err) {
       const feedback = errorToFeedback(err);
       setError(feedback.message);
@@ -97,6 +105,14 @@ export function RevealPhase({
     } finally {
       setIsRevealingId(null);
     }
+  };
+
+  const handleReveal = async (poemId: Id<'poems'>) => {
+    await revealPoem(poemId, { showPoem: true });
+  };
+
+  const handleStageReveal = async (poemId: Id<'poems'>) => {
+    await revealPoem(poemId, { showPoem: false });
   };
 
   const handleStartNewCycle = async () => {
@@ -168,11 +184,37 @@ export function RevealPhase({
   return (
     <>
       {chrome}
+      {isPresenting && (
+        <RevealStage
+          poems={poems}
+          myPoems={myPoems ?? []}
+          revealedPoems={state.revealedPoems ?? []}
+          allStableIds={allStableIds}
+          error={error}
+          isRevealingId={isRevealingId}
+          onRevealPoem={handleStageReveal}
+          onExit={() => setIsPresenting(false)}
+        />
+      )}
       <div
         data-testid={E2E_TEST_IDS.revealPhase}
         className="min-h-screen bg-background flex flex-col"
       >
         <main className="flex-1 max-w-3xl mx-auto w-full space-y-12 p-6 md:p-12 lg:px-24 lg:pb-24 lg:pt-16">
+          {state.isHost && (
+            <Button
+              type="button"
+              onClick={() => setIsPresenting(true)}
+              data-testid={E2E_TEST_IDS.revealPresentationButton}
+              variant="outline"
+              size="md"
+              className="w-full"
+            >
+              <Presentation className="mr-2 h-4 w-4" />
+              Present reveal
+            </Button>
+          )}
+
           {/* 2. HERO - Your Assignment (primary action) */}
           {myPoems && myPoems.length > 0 && (
             <section className="space-y-6">

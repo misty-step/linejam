@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 
 // Mock Next.js router (external)
@@ -211,6 +211,69 @@ describe('Lobby component', () => {
     });
     expect(waitingButtons[0]).toBeDisabled();
     expect(waitingButtons[0]).toHaveClass('opacity-50', 'cursor-not-allowed');
+  });
+
+  it('lets the host open and exit a room-scale presentation lobby', async () => {
+    const user = userEvent.setup();
+
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    await user.click(screen.getByRole('button', { name: /Present room/i }));
+
+    const stage = screen.getByTestId('lobby-presentation-stage');
+    expect(
+      within(stage).getByRole('heading', { name: /Join from any phone/i })
+    ).toBeInTheDocument();
+    expect(within(stage).getByText('AB CD')).toBeInTheDocument();
+    expect(
+      within(stage).getByLabelText(/QR code for joining room AB CD/i)
+    ).toBeInTheDocument();
+    expect(within(stage).getByText('Host Player')).toBeInTheDocument();
+    expect(within(stage).getByText('Guest Player')).toBeInTheDocument();
+
+    await user.click(
+      within(stage).getByRole('button', { name: /Exit presentation/i })
+    );
+
+    expect(screen.queryByTestId('lobby-presentation-stage')).toBeNull();
+  });
+
+  it('keeps presentation mode host-only in the lobby', () => {
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
+
+    expect(
+      screen.queryByRole('button', { name: /Present room/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('marks a player who joins while the lobby presentation stage is open', async () => {
+    const user = userEvent.setup();
+    const latePlayer = {
+      _id: 'player_3' as Id<'roomPlayers'>,
+      _creationTime: Date.now(),
+      roomId: 'room_123' as Id<'rooms'>,
+      userId: 'user_late' as Id<'users'>,
+      displayName: 'Late Poet',
+      joinedAt: Date.now(),
+      stableId: 'stable_late_789',
+    };
+    const { rerender } = render(
+      <Lobby room={mockRoom} players={mockPlayers} isHost={true} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Present room/i }));
+
+    rerender(
+      <Lobby
+        room={mockRoom}
+        players={[...mockPlayers, latePlayer]}
+        isHost={true}
+      />
+    );
+
+    const stage = screen.getByTestId('lobby-presentation-stage');
+    expect(within(stage).getByText('Late Poet')).toBeInTheDocument();
+    expect(within(stage).getByText(/Just joined/i)).toBeInTheDocument();
   });
 
   it('Close room button calls mutation and navigates to home (host)', async () => {

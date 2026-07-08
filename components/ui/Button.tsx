@@ -64,24 +64,22 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           // Stamp animation (success celebration)
           stampAnimate && 'animate-stamp',
 
-          // Variants - Using @theme utilities (not arbitrary values)
-          // This ensures tailwind-merge handles them correctly
+          // Variants. Primary uses a named CSS class so runtime theme tokens
+          // resolve directly instead of passing through Tailwind color utilities.
           {
             // Primary - Solid Ink Block (Hanko press: translate + shadow crush)
-            'bg-primary text-text-inverse border-primary hover:bg-primary-hover shadow-sm active:translate-y-[2px] active:shadow-none':
+            'lj-button-primary shadow-sm active:translate-y-[2px] active:shadow-none':
               variant === 'primary',
 
             // Secondary - Paper Button (Washi press: scale only)
-            'bg-surface text-text-primary border-border shadow-sm hover:shadow-md active:scale-[0.96]':
+            'lj-button-secondary shadow-sm hover:shadow-md active:scale-[0.96]':
               variant === 'secondary',
 
             // Outline - Subtle background (Washi press: scale only)
-            'bg-surface/10 text-text-primary border-border hover:bg-surface/20 active:scale-[0.96]':
-              variant === 'outline',
+            'lj-button-outline active:scale-[0.96]': variant === 'outline',
 
             // Ghost - Minimal (Washi press: scale only)
-            'bg-transparent text-text-primary hover:bg-muted border-transparent active:scale-[0.96]':
-              variant === 'ghost',
+            'lj-button-ghost active:scale-[0.96]': variant === 'ghost',
           },
 
           // Sizes

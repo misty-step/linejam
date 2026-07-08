@@ -12,9 +12,10 @@ import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { HostBadge } from './ui/HostBadge';
 import { BotBadge } from './ui/BotBadge';
+import { LobbyStage } from './stage/LobbyStage';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
-import { Bot, UserMinus } from 'lucide-react';
+import { Bot, Presentation, UserMinus } from 'lucide-react';
 import { trackGameStarted, trackAiPlayerAdded } from '../lib/analytics';
 
 /**
@@ -45,6 +46,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const closeRoomMutation = useMutation(api.rooms.closeRoom);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [isPresenting, setIsPresenting] = useState(false);
 
   // For unique avatar colors
   const allStableIds = players.map((p) => p.stableId);
@@ -195,102 +197,126 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6 md:p-12">
-      <div className="w-full max-w-6xl mx-auto">
-        <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
-          <div className="flex flex-col items-center md:items-start space-y-8 md:self-start">
-            <div className="max-w-md space-y-4 text-center md:text-left">
-              <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
-                Room actions
-              </p>
-              <h2 className="text-2xl md:text-3xl font-[var(--font-display)] leading-tight text-text-primary">
-                Start when everyone is here.
-              </h2>
-              <p className="text-base leading-relaxed text-text-secondary">
-                Share the code from the top bar. Add an AI player if needed.
-              </p>
-            </div>
+    <>
+      {isPresenting && (
+        <LobbyStage
+          room={room}
+          players={players}
+          onExit={() => setIsPresenting(false)}
+        />
+      )}
 
-            {canAddAi && (
-              <Button
-                onClick={handleAddAi}
-                disabled={aiLoading}
-                variant="secondary"
-                size="md"
-                className="w-full"
-              >
-                <Bot className="w-4 h-4 mr-2" />
-                {aiLoading
-                  ? 'Adding...'
-                  : `Add a bot (${botCount}/${MAX_BOTS})`}
-              </Button>
-            )}
+      <div className="min-h-screen bg-background p-6 md:p-12">
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
+            <div className="flex flex-col items-center md:items-start space-y-8 md:self-start">
+              <div className="max-w-md space-y-4 text-center md:text-left">
+                <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
+                  Room actions
+                </p>
+                <h2 className="text-2xl md:text-3xl font-[var(--font-display)] leading-tight text-text-primary">
+                  Start when everyone is here.
+                </h2>
+                <p className="text-base leading-relaxed text-text-secondary">
+                  Share the code from the top bar. Add an AI player if needed.
+                </p>
+              </div>
 
-            <div className="hidden md:block w-full">
-              {error && (
-                <Alert variant="error" className="mb-4">
-                  {error}
-                </Alert>
+              {canAddAi && (
+                <Button
+                  onClick={handleAddAi}
+                  disabled={aiLoading}
+                  variant="secondary"
+                  size="md"
+                  className="w-full"
+                >
+                  <Bot className="w-4 h-4 mr-2" />
+                  {aiLoading
+                    ? 'Adding...'
+                    : `Add a bot (${botCount}/${MAX_BOTS})`}
+                </Button>
               )}
-              {renderButton()}
-            </div>
-          </div>
 
-          <div className="relative order-first md:order-none">
-            <ul className="space-y-6 pb-24 md:pb-0">
-              {players.map((player, i) => (
-                <StampAnimation key={player._id} delay={i * 150}>
-                  <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Avatar
-                        stableId={player.stableId}
-                        displayName={player.displayName}
-                        allStableIds={allStableIds}
-                        size="md"
-                      />
-                      <span className="min-w-0 truncate text-2xl font-medium text-text-primary md:text-3xl">
-                        {player.displayName}
-                      </span>
-                      {player.isAway && (
-                        <span className="shrink-0 text-xs font-mono uppercase tracking-widest text-text-muted">
-                          away
+              {isHost && (
+                <Button
+                  type="button"
+                  onClick={() => setIsPresenting(true)}
+                  data-testid={E2E_TEST_IDS.lobbyPresentationButton}
+                  variant="outline"
+                  size="md"
+                  className="w-full"
+                >
+                  <Presentation className="mr-2 h-4 w-4" />
+                  Present room
+                </Button>
+              )}
+
+              <div className="hidden md:block w-full">
+                {error && (
+                  <Alert variant="error" className="mb-4">
+                    {error}
+                  </Alert>
+                )}
+                {renderButton()}
+              </div>
+            </div>
+
+            <div className="relative order-first md:order-none">
+              <ul className="space-y-6 pb-24 md:pb-0">
+                {players.map((player, i) => (
+                  <StampAnimation key={player._id} delay={i * 150}>
+                    <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Avatar
+                          stableId={player.stableId}
+                          displayName={player.displayName}
+                          allStableIds={allStableIds}
+                          size="md"
+                        />
+                        <span className="min-w-0 truncate text-2xl font-medium text-text-primary md:text-3xl">
+                          {player.displayName}
                         </span>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {player.isBot && (
-                        <>
-                          <BotBadge />
-                          {isHost && (
-                            <button
-                              onClick={() => handleRemoveAi(player.userId)}
-                              disabled={aiLoading}
-                              className="p-1.5 text-text-muted hover:text-primary transition-colors disabled:opacity-50"
-                              aria-label="Remove AI player"
-                            >
-                              <UserMinus className="w-4 h-4" />
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {player.userId === room.hostUserId && <HostBadge />}
-                    </div>
-                  </li>
-                </StampAnimation>
-              ))}
-            </ul>
+                        {player.isAway && (
+                          <span className="shrink-0 text-xs font-mono uppercase tracking-widest text-text-muted">
+                            away
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {player.isBot && (
+                          <>
+                            <BotBadge />
+                            {isHost && (
+                              <button
+                                onClick={() => handleRemoveAi(player.userId)}
+                                disabled={aiLoading}
+                                className="p-1.5 text-text-muted hover:text-primary transition-colors disabled:opacity-50"
+                                aria-label="Remove AI player"
+                              >
+                                <UserMinus className="w-4 h-4" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {player.userId === room.hostUserId && <HostBadge />}
+                      </div>
+                    </li>
+                  </StampAnimation>
+                ))}
+              </ul>
 
-            <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)]">
-              {error && (
-                <Alert variant="error" className="mb-4">
-                  {error}
-                </Alert>
-              )}
-              {renderButton()}
+              <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)]">
+                {error && (
+                  <Alert variant="error" className="mb-4">
+                    {error}
+                  </Alert>
+                )}
+                {renderButton()}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
