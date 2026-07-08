@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { ensureClerkAuthState, hasClerkBrowserAuth } from './support/clerk';
+import { isolateGuestSessionIp } from './support/guestFlow';
 import { createAgenticManifest } from '@/qa/agentic/manifest.mjs';
 
 const RUN_DIR = process.env.LINEJAM_AGENTIC_RUN_DIR;
@@ -9,6 +10,7 @@ const RESULT_FILE = process.env.LINEJAM_AGENTIC_RESULT_FILE;
 
 async function openPage(browser: Browser) {
   const context = await browser.newContext();
+  await isolateGuestSessionIp(context);
   const page = await context.newPage();
   return { context, page };
 }

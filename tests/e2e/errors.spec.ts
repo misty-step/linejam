@@ -27,6 +27,10 @@ test.skip(
   'Set GUEST_TOKEN_SECRET for local E2E, or E2E_BASE_URL for a remote target'
 );
 
+test.beforeEach(async ({ context }) => {
+  await isolateGuestSessionIp(context);
+});
+
 test.describe('Join Room Error Handling', () => {
   test('shows error for invalid room code', async ({ page }) => {
     // Navigate to join page with invalid code

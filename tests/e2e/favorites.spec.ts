@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ensureClerkAuthState, requireClerkBrowserAuth } from './support/clerk';
+import { isolateGuestSessionIp } from './support/guestFlow';
 
 /**
  * E2E Test: Favorites Flow
@@ -16,8 +17,9 @@ import { ensureClerkAuthState, requireClerkBrowserAuth } from './support/clerk';
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Personal Archive Page', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
+  test.beforeEach(async ({ context, page }, testInfo) => {
     requireClerkBrowserAuth(testInfo, 'archive E2E');
+    await isolateGuestSessionIp(context);
     await ensureClerkAuthState(page);
   });
 
@@ -84,8 +86,9 @@ test.describe('Personal Archive Page', () => {
 });
 
 test.describe('Favorites Feature Structure', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
+  test.beforeEach(async ({ context, page }, testInfo) => {
     requireClerkBrowserAuth(testInfo, 'archive E2E');
+    await isolateGuestSessionIp(context);
     await ensureClerkAuthState(page);
   });
 
