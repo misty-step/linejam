@@ -250,6 +250,21 @@ describe('WritingScreen component', () => {
     await flushDebounce();
   });
 
+  it('shows a visible ready signal when the target word count is reached', async () => {
+    const user = setupUser();
+    render(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Word');
+
+    const submitButton = await screen.findByRole('button', {
+      name: /^Submit$/i,
+    });
+    expect(submitButton).not.toBeDisabled();
+    expect(submitButton).toHaveAttribute('data-ready', 'true');
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    await flushDebounce();
+  });
+
   it('displays previous line when available', () => {
     // Arrange - Use assignment with previous line
     mockUseQuery.mockReturnValue(mockAssignmentRound5);
@@ -261,6 +276,36 @@ describe('WritingScreen component', () => {
     expect(
       screen.getByText('The moon rises silently tonight')
     ).toBeInTheDocument();
+    expect(screen.getByText('Received line')).toBeInTheDocument();
+  });
+
+  it('names the final-round reveal handoff after the last submission', async () => {
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+      if (functionName === 'game:getRoundProgress') {
+        return { round: 8, players: [] };
+      }
+      return {
+        ...mockAssignment,
+        lineIndex: 8,
+        targetWordCount: 1,
+        isFinalRound: true,
+        totalRounds: 9,
+      };
+    });
+    mockSubmitLineMutation.mockResolvedValue(undefined);
+    const user = setupUser();
+
+    render(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Final');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+
+    expect(await screen.findByText(/Last line sealed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reveal is next/i)).toBeInTheDocument();
+    await flushSubmitTransition();
   });
 
   it('enforces correct round constraint (diamond pattern: 1,2,3,4,5,4,3,2,1)', async () => {
@@ -698,6 +743,28 @@ describe('WritingScreen component', () => {
       render(<WritingScreen roomCode="ABCD" showChrome />);
 
       expect(screen.getByText('Round 1 · 1 word')).toBeInTheDocument();
+    });
+
+    it('names the final round in the chrome when showChrome is set', () => {
+      mockUseQuery.mockImplementation((query) => {
+        const functionName = getFunctionName(
+          query as Parameters<typeof getFunctionName>[0]
+        );
+        if (functionName === 'game:getRoundProgress') {
+          return mockRoundProgress;
+        }
+        return {
+          ...mockAssignment,
+          lineIndex: 8,
+          targetWordCount: 1,
+          totalRounds: 9,
+          isFinalRound: true,
+        };
+      });
+
+      render(<WritingScreen roomCode="ABCD" showChrome />);
+
+      expect(screen.getByText('Last line · 1 word')).toBeInTheDocument();
     });
 
     it('shows the round chrome above the late-joiner waiting screen when showChrome is set', () => {

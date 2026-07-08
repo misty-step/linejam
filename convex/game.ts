@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import { mutation, query, internalMutation } from './_generated/server';
 import { internal } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 import {
   generateAssignmentMatrix,
   getMatrixRound,
@@ -478,34 +479,41 @@ export const getRevealPhaseState = query({
     const currentPlayer = players.find((p) => p.userId === user._id);
     const currentUserSeat = currentPlayer?.seatIndex;
 
+    const getPoemLines = async (poemId: Id<'poems'>) => {
+      const lines = await ctx.db
+        .query('lines')
+        .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+        .collect();
+
+      const uniqueAuthorIds = [...new Set(lines.map((l) => l.authorUserId))];
+      const authors = await Promise.all(
+        uniqueAuthorIds.map((id) => ctx.db.get(id))
+      );
+      const authorMap = new Map(
+        uniqueAuthorIds.map((id, i) => [id, authors[i]])
+      );
+
+      return lines
+        .sort((a, b) => a.indexInPoem - b.indexInPoem)
+        .map((line) => {
+          const author = authorMap.get(line.authorUserId);
+          return {
+            text: line.text,
+            authorUserId: line.authorUserId,
+            authorStableId: author?.clerkUserId || author?.guestId || '',
+            // Prefer captured pen name, fall back to current user name for legacy data
+            authorName:
+              line.authorDisplayName || author?.displayName || 'Unknown',
+            isBot: author?.kind === 'AI',
+            aiPersonaId: author?.aiPersonaId,
+          };
+        });
+    };
+
     // Get full lines for ALL user's poems
     const myPoems = await Promise.all(
       myPoemsRaw.map(async (poem) => {
-        const lines = await ctx.db
-          .query('lines')
-          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
-          .collect();
-
-        // Get author info for each line
-        const lineAuthors = await Promise.all(
-          lines.map((l) => ctx.db.get(l.authorUserId))
-        );
-
-        const poemLines = lines
-          .sort((a, b) => a.indexInPoem - b.indexInPoem)
-          .map((l, i) => {
-            const author = lineAuthors[i];
-            return {
-              text: l.text,
-              authorUserId: l.authorUserId,
-              authorStableId: author?.clerkUserId || author?.guestId || '',
-              // Prefer captured pen name, fall back to current user name for legacy data
-              authorName:
-                l.authorDisplayName || author?.displayName || 'Unknown',
-              isBot: author?.kind === 'AI',
-              aiPersonaId: author?.aiPersonaId,
-            };
-          });
+        const poemLines = await getPoemLines(poem._id);
 
         // Determine poem's origin: which player started this poem?
         const poemStarterPlayer = players.find(
@@ -530,6 +538,15 @@ export const getRevealPhaseState = query({
       })
     );
 
+    const revealedPoems = await Promise.all(
+      poemsWithPreview
+        .filter((poem) => poem.isRevealed)
+        .map(async (poem) => ({
+          ...poem,
+          lines: await getPoemLines(poem._id),
+        }))
+    );
+
     const allRevealed = poemsWithPreview.every((p) => p.isRevealed);
 
     // For backward compatibility, also return singular myPoem (first one)
@@ -539,6 +556,7 @@ export const getRevealPhaseState = query({
       poems: poemsWithPreview,
       myPoem,
       myPoems,
+      revealedPoems,
       allRevealed,
       isHost: room.hostUserId === user._id,
       players: players.map((p) => {

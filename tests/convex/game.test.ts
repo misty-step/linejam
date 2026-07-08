@@ -1110,6 +1110,91 @@ describe('getRevealPhaseState', () => {
     expect(result!.myPoem).not.toBeNull();
     expect(result!.myPoem!.lines).toBeDefined();
   });
+
+  it('returns full lines for revealed poems without leaking unrevealed poems', async () => {
+    const t = setupConvexTest();
+    const { code, hostId, guestId, gameId, roomId } = await seedCompletedRoom(
+      t,
+      'RV07'
+    );
+
+    const [revealedPoemId, hiddenPoemId] = await t.run(async (ctx) => {
+      const revealedId = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+        assignedReaderId: guestId,
+        revealedAt: 1234,
+      });
+      const hiddenId = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 1,
+        createdAt: 0,
+        assignedReaderId: guestId,
+      });
+
+      await Promise.all([
+        ctx.db.insert('lines', {
+          poemId: revealedId,
+          indexInPoem: 0,
+          text: 'First',
+          wordCount: 1,
+          authorUserId: hostId,
+          authorDisplayName: 'Host Pen',
+          createdAt: 0,
+        }),
+        ctx.db.insert('lines', {
+          poemId: revealedId,
+          indexInPoem: 1,
+          text: 'Second line',
+          wordCount: 2,
+          authorUserId: guestId,
+          authorDisplayName: 'Guest Pen',
+          createdAt: 0,
+        }),
+        ctx.db.insert('lines', {
+          poemId: hiddenId,
+          indexInPoem: 0,
+          text: 'Hidden',
+          wordCount: 1,
+          authorUserId: guestId,
+          authorDisplayName: 'Hidden Pen',
+          createdAt: 0,
+        }),
+      ]);
+
+      return [revealedId, hiddenId];
+    });
+
+    const result = await asUser(t, 'hostRV07').query(
+      api.game.getRevealPhaseState,
+      {
+        roomCode: code,
+      }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.myPoems).toHaveLength(0);
+    expect(result!.revealedPoems).toHaveLength(1);
+    expect(result!.revealedPoems[0]).toMatchObject({
+      _id: revealedPoemId,
+      readerName: 'GuestRV07',
+      isRevealed: true,
+      revealedAt: 1234,
+    });
+    expect(result!.revealedPoems[0].lines.map((line) => line.text)).toEqual([
+      'First',
+      'Second line',
+    ]);
+    expect(
+      result!.revealedPoems[0].lines.map((line) => line.authorName)
+    ).toEqual(['Host Pen', 'Guest Pen']);
+    expect(
+      result!.revealedPoems.some((poem) => poem._id === hiddenPoemId)
+    ).toBe(false);
+  });
 });
 
 // ─── revealPoem ───────────────────────────────────────────────────────────────

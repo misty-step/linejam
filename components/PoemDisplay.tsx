@@ -162,6 +162,11 @@ export function PoemDisplay({
   }, [selectedLine]);
 
   const allRevealed = revealedCount >= lines.length;
+  const shareStatus = shared
+    ? 'Poem shared.'
+    : copied
+      ? 'Poem link copied.'
+      : null;
 
   // Container classes based on variant
   const containerClasses = isArchive
@@ -387,7 +392,7 @@ export function PoemDisplay({
             the recap.
           </p>
         )}
-        <div className="flex items-center justify-center gap-space-3">
+        <div className="flex w-full max-w-md flex-wrap items-center justify-center gap-space-2 sm:gap-space-3">
           {/* Reveal variant: heart the poem toward the room-favorite crown */}
           {!isArchive && (
             <HeartButton poemId={poemId} guestToken={guestToken} />
@@ -396,7 +401,7 @@ export function PoemDisplay({
             onClick={handleShare}
             variant="primary"
             size="lg"
-            className="min-w-[140px] h-12"
+            className="h-12 min-w-[120px] flex-1"
             stampAnimate={copied}
           >
             {shared ? 'Shared!' : copied ? 'Copied!' : 'Share'}
@@ -406,7 +411,7 @@ export function PoemDisplay({
             data-testid={E2E_TEST_IDS.poemSaveImageButton}
             variant="outline"
             size="lg"
-            className="min-w-[140px] h-12"
+            className="h-12 min-w-[120px] flex-1"
             disabled={saving}
           >
             <Download className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -437,6 +442,14 @@ export function PoemDisplay({
             </Button>
           )}
         </div>
+        {shareStatus && (
+          <p
+            role="status"
+            className="text-center text-xs font-mono uppercase tracking-widest text-primary"
+          >
+            {shareStatus}
+          </p>
+        )}
       </div>
     </div>
   );

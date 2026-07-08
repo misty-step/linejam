@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>linejam-945 core-loop feel lab</title>
+    <style>
+      :root {
+        --ink: #171412;
+        --muted: #766f68;
+        --paper: #faf8f4;
+        --line: #ded7ce;
+        --seal: #e85d2b;
+        --seal-dark: #c44521;
+        --surface: #fffdf8;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+      body { margin: 0; background: var(--paper); color: var(--ink); }
+      main { max-width: 1180px; margin: 0 auto; padding: 48px 24px 80px; }
+      h1 {
+        margin: 0 0 10px;
+        font-family: Georgia, serif;
+        font-size: clamp(40px, 6vw, 78px);
+        line-height: 0.95;
+        font-weight: 500;
+      }
+      .deck {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 18px;
+        margin-top: 34px;
+      }
+      .option {
+        min-height: 250px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        padding: 22px;
+        display: grid;
+        align-content: space-between;
+        gap: 28px;
+      }
+      .option[data-winner="true"] {
+        border-color: var(--seal);
+        box-shadow: 8px 8px 0 rgb(232 93 43 / 0.16);
+      }
+      h2 { margin: 0; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; }
+      p { margin: 8px 0 0; color: var(--muted); line-height: 1.5; }
+      .line { font-family: Georgia, serif; font-size: 28px; font-style: italic; }
+      .slots { display: flex; gap: 8px; }
+      .slot { width: 26px; height: 34px; border: 1px solid var(--line); }
+      .slot.filled { background: var(--seal); border-color: var(--seal); }
+      .button {
+        justify-self: start;
+        border: 1px solid var(--line);
+        min-width: 170px;
+        height: 56px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+      }
+      .button.primary {
+        background: var(--seal);
+        border-color: var(--seal);
+        color: white;
+        box-shadow: 0 8px 0 rgb(232 93 43 / 0.16);
+      }
+      .button.ready { outline: 3px solid rgb(232 93 43 / 0.22); }
+      .tag {
+        display: inline-flex;
+        width: fit-content;
+        border-left: 2px solid var(--seal);
+        padding-left: 10px;
+        color: var(--seal-dark);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+      }
+      .dark { --ink: #faf9f7; --muted: #bcb4aa; --paper: #171412; --line: #3b332c; --surface: #211c18; }
+      .alt { --seal: #111; --seal-dark: #111; }
+      .hyper { --seal: #ccff00; --seal-dark: #89a900; --paper: #050507; --surface: #111116; --ink: #fff; --muted: #aaa; --line: #363646; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Core-loop feel lab</h1>
+      <p>Eight structurally distinct directions for Submit readiness, transition beats, and final-round tension. Winner: seal loaded.</p>
+      <section class="deck">
+        <article class="option"><div><h2>01 Ink Wash</h2><p>Background wash blooms behind the canvas.</p></div><div class="line">pine smoke</div><div class="slots"><i class="slot filled"></i><i class="slot filled"></i></div></article>
+        <article class="option"><div><h2>02 Countdown Rail</h2><p>Readiness is a right-side pressure rail.</p></div><div class="tag">2 words locked</div><div class="button">Submit</div></article>
+        <article class="option" data-winner="true"><div><h2>03 Seal Loaded</h2><p>Button resolves to seal color and gains one compact ready label.</p></div><div class="tag">Ready</div><div class="button primary ready">Submit</div></article>
+        <article class="option"><div><h2>04 Card Turn</h2><p>Every round enters as a small page-turn card.</p></div><div class="line">Received line</div><div class="button primary">Continue</div></article>
+        <article class="option"><div><h2>05 Quiet Confetti</h2><p>Completion emits a sparse mark field before reveal.</p></div><div class="line">Last line sealed</div><div class="button primary">Reveal next</div></article>
+        <article class="option alt"><div><h2>06 Mono Drum</h2><p>Heavy black bars beat each round forward.</p></div><div class="tag">Round 5 / 9</div><div class="button primary">Submit</div></article>
+        <article class="option dark"><div><h2>07 Type Prompt</h2><p>The ready state types a short instruction inline.</p></div><div class="tag">Ready to pass</div><div class="button primary">Submit</div></article>
+        <article class="option hyper"><div><h2>08 Final Overlay</h2><p>A high-tension final-round takeover.</p></div><div class="tag">Last line</div><div class="button primary ready">Seal it</div></article>
+      </section>
+    </main>
+  </body>
+</html>
