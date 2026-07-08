@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   CANONICAL_GUEST_FLOW_LINES,
   GuestFlowSession,
+  isolateGuestSessionIp,
 } from '@/tests/e2e/support/guestFlow';
 
 /**
@@ -27,50 +28,65 @@ test.skip(
 
 test.describe('guest archive access (no account)', () => {
   test('a guest who never played reaches /me/poems directly, no redirect', async ({
-    page,
+    browser,
   }) => {
-    await page.goto('/me/poems');
-    await page.waitForLoadState('networkidle');
+    const context = await browser.newContext();
+    await isolateGuestSessionIp(context);
+    const page = await context.newPage();
 
-    // Never bounced to Clerk's hosted Account Portal or an in-app sign-in wall.
-    expect(page.url()).toContain('/me/poems');
-    expect(page.url()).not.toContain('accounts.');
-    expect(page.url()).not.toContain('/sign-in');
+    try {
+      await page.goto('/me/poems');
+      await page.waitForLoadState('networkidle');
 
-    // exact: true — the empty-archive state's "Your archive awaits" h2
-    // otherwise substring-matches the same role/name query.
-    await expect(
-      page.getByRole('heading', { name: 'Archive', exact: true })
-    ).toBeVisible({
-      timeout: 15000,
-    });
+      // Never bounced to Clerk's hosted Account Portal or an in-app sign-in wall.
+      expect(page.url()).toContain('/me/poems');
+      expect(page.url()).not.toContain('accounts.');
+      expect(page.url()).not.toContain('/sign-in');
 
-    // Never a dead end: the guest identity explainer is always present.
-    await expect(page.getByText(/saved to this browser only/i)).toBeVisible();
-    await expect(page.getByRole('link', { name: /sign up/i })).toHaveAttribute(
-      'href',
-      '/sign-up'
-    );
+      // exact: true — the empty-archive state's "Your archive awaits" h2
+      // otherwise substring-matches the same role/name query.
+      await expect(
+        page.getByRole('heading', { name: 'Archive', exact: true })
+      ).toBeVisible({
+        timeout: 15000,
+      });
+
+      // Never a dead end: the guest identity explainer is always present.
+      await expect(page.getByText(/saved to this browser only/i)).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: /sign up/i })
+      ).toHaveAttribute('href', '/sign-up');
+    } finally {
+      await context.close();
+    }
   });
 
   test('a guest who never played reaches /me/profile directly, no redirect', async ({
-    page,
+    browser,
   }) => {
-    await page.goto('/me/profile');
-    await page.waitForLoadState('networkidle');
+    const context = await browser.newContext();
+    await isolateGuestSessionIp(context);
+    const page = await context.newPage();
 
-    expect(page.url()).toContain('/me/profile');
-    expect(page.url()).not.toContain('accounts.');
-    expect(page.url()).not.toContain('/sign-in');
+    try {
+      await page.goto('/me/profile');
+      await page.waitForLoadState('networkidle');
 
-    await expect(
-      page.getByRole('heading', { name: 'Identity', exact: true })
-    ).toBeVisible({
-      timeout: 15000,
-    });
-    await expect(
-      page.getByText(/authenticate to preserve your works/i)
-    ).toBeVisible();
+      expect(page.url()).toContain('/me/profile');
+      expect(page.url()).not.toContain('accounts.');
+      expect(page.url()).not.toContain('/sign-in');
+
+      await expect(
+        page.getByRole('heading', { name: 'Identity', exact: true })
+      ).toBeVisible({
+        timeout: 15000,
+      });
+      await expect(
+        page.getByText(/authenticate to preserve your works/i)
+      ).toBeVisible();
+    } finally {
+      await context.close();
+    }
   });
 });
 

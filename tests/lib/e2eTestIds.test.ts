@@ -13,6 +13,8 @@ const EXPECTED_TEST_IDS = {
   hostErrorAlert: 'host-error-alert',
   lobbyStartGameButton: 'lobby-start-game-button',
   lobbyWaitingForHostButton: 'lobby-waiting-for-host-button',
+  lobbyPresentationButton: 'lobby-presentation-button',
+  lobbyPresentationStage: 'lobby-presentation-stage',
   writingPhase: 'writing-phase',
   writingLineInput: 'writing-line-input',
   writingWordSlots: 'writing-word-slots',
@@ -20,6 +22,9 @@ const EXPECTED_TEST_IDS = {
   waitingPhase: 'waiting-phase',
   revealPhase: 'reveal-phase',
   revealPoemButton: 'reveal-poem-button',
+  revealPresentationButton: 'reveal-presentation-button',
+  revealPresentationStage: 'reveal-presentation-stage',
+  revealStageNextLineButton: 'reveal-stage-next-line-button',
   poemActions: 'poem-actions',
   poemDoneButton: 'poem-done-button',
   sessionComplete: 'session-complete',
@@ -33,6 +38,8 @@ const SOURCE_FILES = [
   'app/host/page.tsx',
   'app/join/page.tsx',
   'components/Lobby.tsx',
+  'components/stage/LobbyStage.tsx',
+  'components/stage/RevealStage.tsx',
   'components/WritingScreen.tsx',
   'components/WaitingScreen.tsx',
   'components/RevealPhase.tsx',
@@ -54,7 +61,7 @@ describe('E2E selector contract', () => {
 
     for (const key of Object.keys(EXPECTED_TEST_IDS)) {
       expect(source, `missing data-testid binding for ${key}`).toMatch(
-        new RegExp(`data-testid=\\{E2E_TEST_IDS\\.${key}\\}`)
+        new RegExp(`(?:data-testid|testId)=\\{E2E_TEST_IDS\\.${key}\\}`)
       );
     }
   });
