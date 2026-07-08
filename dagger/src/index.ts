@@ -11,6 +11,13 @@ import {
 const NODE_IMAGE = 'node:22-bookworm';
 const PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.58.2-noble';
 const PNPM_STORE_DIR = '/pnpm/store';
+const PNPM_INSTALL_COMMAND = [
+  'pnpm',
+  'install',
+  '--frozen-lockfile',
+  '--child-concurrency=1',
+  '--network-concurrency=4',
+];
 
 type AppEnv = {
   nextPublicConvexUrl?: string;
@@ -107,7 +114,7 @@ function baseContainer(
       .withMountedDirectory('/src', source)
       .withWorkdir('/src')
       .withExec(['corepack', 'enable'])
-      .withExec(['pnpm', 'install', '--frozen-lockfile']),
+      .withExec(PNPM_INSTALL_COMMAND),
     env
   );
 }

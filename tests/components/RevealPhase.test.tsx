@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 
 // Mock Next.js Link (external)
@@ -110,7 +110,11 @@ describe('RevealPhase component', () => {
   // Mock poem data
   const mockMyPoem = {
     _id: 'poem_123' as Id<'poems'>,
+    indexInRoom: 0,
+    createdAt: 1000,
     preview: 'The stars align above',
+    readerName: 'Alice',
+    readerStableId: 'stable_alice_123',
     isRevealed: false,
     isOwnPoem: true,
     isForAi: false,
@@ -130,6 +134,22 @@ describe('RevealPhase component', () => {
   const mockRevealedPoem = {
     ...mockMyPoem,
     isRevealed: true,
+    revealedAt: 2000,
+  };
+
+  const mockStageRevealedPoem = {
+    _id: 'poem_456' as Id<'poems'>,
+    indexInRoom: 1,
+    createdAt: 1000,
+    preview: 'Lanterns drift toward dawn',
+    readerName: 'Bob',
+    readerStableId: 'stable_bob_456',
+    isRevealed: true,
+    revealedAt: 3000,
+    lines: [
+      { text: 'Lanterns', authorName: 'Bob', isBot: false },
+      { text: 'toward dawn', authorName: 'Alice', isBot: false },
+    ],
   };
 
   const mockPoems = [
@@ -171,6 +191,7 @@ describe('RevealPhase component', () => {
   const mockStateNotRevealed = {
     myPoem: mockMyPoem,
     myPoems: [mockMyPoem],
+    revealedPoems: [mockStageRevealedPoem],
     allRevealed: false,
     isHost: true,
     poems: mockPoems,
@@ -180,6 +201,7 @@ describe('RevealPhase component', () => {
   const mockStateAllRevealed = {
     myPoem: mockRevealedPoem,
     myPoems: [mockRevealedPoem],
+    revealedPoems: [mockRevealedPoem, mockStageRevealedPoem],
     allRevealed: true,
     isHost: true,
     poems: mockPoems.map((p) => ({ ...p, isRevealed: true })),
@@ -273,6 +295,99 @@ describe('RevealPhase component', () => {
     expect(
       screen.getByRole('button', { name: /Reveal & Read/i })
     ).toBeInTheDocument();
+  });
+
+  it('lets the host open a reveal stage and pace their assigned poem manually', async () => {
+    mockRevealPoemMutation.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    render(<RevealPhase roomCode="ABCD" />);
+
+    await user.click(screen.getByRole('button', { name: /Present reveal/i }));
+
+    const stage = screen.getByTestId('reveal-presentation-stage');
+    expect(
+      within(stage).getByRole('heading', { name: /Alice reads Poem 01/i })
+    ).toBeInTheDocument();
+    expect(
+      within(stage).getByRole('button', { name: /Reveal on stage/i })
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(stage).getByRole('button', { name: /Reveal on stage/i })
+    );
+
+    await waitFor(() => {
+      expect(mockRevealPoemMutation).toHaveBeenCalledWith({
+        poemId: 'poem_123',
+        guestToken: 'mock-token',
+      });
+    });
+
+    expect(within(stage).getByText('One')).toBeInTheDocument();
+    expect(within(stage).queryByText('Two words')).not.toBeInTheDocument();
+
+    await user.click(within(stage).getByRole('button', { name: /Next line/i }));
+
+    expect(within(stage).getByText('Two words')).toBeInTheDocument();
+
+    for (let i = 0; i < 7; i += 1) {
+      await user.click(
+        within(stage).getByRole('button', { name: /Next line/i })
+      );
+    }
+
+    expect(within(stage).getByText('End')).toBeInTheDocument();
+    await user.click(
+      within(stage).getByRole('button', { name: /Finish poem/i })
+    );
+
+    expect(
+      within(stage).getByRole('button', { name: /Reveal on stage/i })
+    ).toBeInTheDocument();
+  });
+
+  it('keeps reveal presentation mode host-only', () => {
+    mockUseQuery.mockReturnValue({
+      ...mockStateNotRevealed,
+      isHost: false,
+    });
+
+    render(<RevealPhase roomCode="ABCD" />);
+
+    expect(
+      screen.queryByRole('button', { name: /Present reveal/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('lets the host presentation stage read an already revealed poem when the host has no assigned poem', async () => {
+    mockUseQuery.mockReturnValue({
+      ...mockStateNotRevealed,
+      myPoem: null,
+      myPoems: [],
+      revealedPoems: [mockStageRevealedPoem],
+    });
+    const user = userEvent.setup();
+
+    render(<RevealPhase roomCode="ABCD" />);
+
+    await user.click(screen.getByRole('button', { name: /Present reveal/i }));
+
+    const stage = screen.getByTestId('reveal-presentation-stage');
+    expect(
+      within(stage).getByRole('heading', { name: /Bob reads Poem 02/i })
+    ).toBeInTheDocument();
+    expect(
+      within(stage).getByRole('button', { name: /Read on stage/i })
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(stage).getByRole('button', { name: /Read on stage/i })
+    );
+
+    expect(within(stage).getByText('Lanterns')).toBeInTheDocument();
+    expect(within(stage).queryByText('toward dawn')).not.toBeInTheDocument();
+    expect(mockRevealPoemMutation).not.toHaveBeenCalled();
   });
 
   it('calls revealPoem mutation when Reveal button clicked', async () => {
