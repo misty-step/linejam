@@ -21,12 +21,15 @@ import type {
   Release,
   ReleaseManifest,
   ChangelogEntry,
+  ReleaseWithNotes,
 } from '../lib/releases/types';
 import { parseChangelog } from '../lib/releases/parser';
 import { TYPE_LABELS } from '../lib/releases/types';
+import { renderSiteChangelogHtml } from './releases/site-changelog';
 
 const CONTENT_DIR = path.join(process.cwd(), 'content', 'releases');
 const CHANGELOG_PATH = path.join(process.cwd(), 'CHANGELOG.md');
+const SITE_CHANGELOG_PATH = path.join(process.cwd(), 'site', 'changelog.html');
 
 // CLI args
 const args = process.argv.slice(2);
@@ -89,8 +92,11 @@ Output only the release notes text, no headers or version numbers.`;
     );
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenRouter API error:', error);
+      console.error(
+        'OpenRouter API error:',
+        response.status,
+        response.statusText
+      );
       return generateFallbackNotes(release);
     }
 
@@ -109,29 +115,27 @@ Output only the release notes text, no headers or version numbers.`;
  * Generate simple fallback notes when LLM unavailable.
  */
 function generateFallbackNotes(release: Release): string {
-  const grouped = groupByType(release.changes);
-  const lines: string[] = [];
+  const userFacingTypes = new Set(['feat', 'fix', 'perf', 'refactor']);
+  const selectedChanges = release.changes
+    .filter((change) => userFacingTypes.has(change.type))
+    .slice(0, 4);
 
-  // Lead with features if any
-  if (grouped.feat?.length) {
-    lines.push(
-      `This release brings ${grouped.feat.length} new feature${grouped.feat.length > 1 ? 's' : ''} to Linejam.`
-    );
+  if (selectedChanges.length === 0) {
+    return 'Maintenance updates for Linejam.';
   }
 
-  // Mention fixes
-  if (grouped.fix?.length) {
-    lines.push(
-      `We've also squashed ${grouped.fix.length} bug${grouped.fix.length > 1 ? 's' : ''} to make the game smoother.`
-    );
-  }
+  return selectedChanges.map(formatFallbackChange).join('\n\n');
+}
 
-  // Generic fallback
-  if (lines.length === 0) {
-    lines.push('Various improvements and updates to make Linejam better.');
-  }
+/**
+ * Format one parsed changelog entry as a plain-language fallback note.
+ */
+function formatFallbackChange(change: ChangelogEntry): string {
+  const scope = change.scope ? `${change.scope}: ` : '';
+  const description = change.description.replace(/\s+/g, ' ').trim();
+  const sentence = description.endsWith('.') ? description : `${description}.`;
 
-  return lines.join('\n\n');
+  return `${scope}${sentence}`;
 }
 
 /**
@@ -204,6 +208,40 @@ function writeManifest(releases: Release[]): void {
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
   console.log(`  ✅ Updated manifest (${manifest.versions.length} versions)`);
+}
+
+/**
+ * Read generated product notes for a release.
+ */
+function readProductNotes(release: Release): string {
+  const versionDir = path.join(
+    CONTENT_DIR,
+    `v${release.version.replace(/^v/, '')}`
+  );
+  const notesPath = path.join(versionDir, 'notes.md');
+
+  if (!fs.existsSync(notesPath)) {
+    return generateFallbackNotes(release);
+  }
+
+  return fs.readFileSync(notesPath, 'utf-8').trim();
+}
+
+/**
+ * Write the marketing-site changelog from the same release records as /releases.
+ */
+function writeSiteChangelog(releases: Release[]): void {
+  const releasesWithNotes: ReleaseWithNotes[] = releases.map((release) => ({
+    ...release,
+    productNotes: readProductNotes(release),
+  }));
+
+  fs.writeFileSync(
+    SITE_CHANGELOG_PATH,
+    renderSiteChangelogHtml(releasesWithNotes)
+  );
+
+  console.log('  ✅ Updated site/changelog.html');
 }
 
 /**
@@ -285,6 +323,7 @@ async function main(): Promise<void> {
   if (toProcess.length === 0) {
     console.log('\n✅ All releases already generated');
     writeManifest(releases);
+    writeSiteChangelog(releases);
     process.exit(0);
   }
 
@@ -300,6 +339,7 @@ async function main(): Promise<void> {
   // Update manifest with all releases
   console.log('\n📄 Updating manifest...');
   writeManifest(releases);
+  writeSiteChangelog(releases);
 
   console.log('\n✨ Done!');
 }

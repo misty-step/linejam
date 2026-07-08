@@ -1,0 +1,13 @@
+{
+  "version": "1.3.0",
+  "date": "2026-06-11",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "observability",
+      "description": "add scrubbed route telemetry",
+      "breaking": false,
+      "commit": "3d31d4c"
+    }
+  ]
+}

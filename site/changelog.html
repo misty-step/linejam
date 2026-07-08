@@ -75,105 +75,315 @@
         <article class="ae-doc msk-page" aria-labelledby="release-notes-title">
           <h1 id="release-notes-title">Release notes</h1>
           <p class="ae-lede">
-            Linejam ships continuously. These notes are reworded in plain
-            language from the project's real
+            Linejam ships continuously. These notes are generated in plain
+            language from the same
             <a href="https://github.com/misty-step/linejam/blob/master/CHANGELOG.md"
               >CHANGELOG.md</a
             >
-            (semantic-release generated).
+            source that feeds the app's /releases page.
           </p>
 
           <section class="msk-release">
             <p class="ae-chrome">2026-07-04 - v1.15.1</p>
-            <h2>Steadier live games</h2>
+            <h2>Version 1.15.1</h2>
             <ul>
-              <li>
-                Fixed a bug where reads during game launch could crash a live
-                room mid-game.
-              </li>
+              <li>convex: bound launch reads and live game failures.</li>
             </ul>
             <p class="ae-status">
               <svg class="ae-icon ae-ok" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label"
-                >Evidence: PR #294, commit c80e449.</span
-              >
+              <span class="ae-status-label">Evidence: PR #294.</span>
             </p>
           </section>
 
           <section class="msk-release">
             <p class="ae-chrome">2026-07-04 - v1.15.0</p>
-            <h2>Share the reveal, teach new players faster</h2>
+            <h2>Version 1.15.0</h2>
             <ul>
-              <li>
-                The reveal ceremony can now be shared - poems don't just live
-                in the room anymore.
-              </li>
-              <li>First-time writers get clearer in-game guidance.</li>
+              <li>make reveal shareable and teach first writers.</li>
             </ul>
             <p class="ae-status">
               <svg class="ae-icon ae-ok" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label"
-                >Evidence: PR #292, commit f931819.</span
-              >
+              <span class="ae-status-label">Evidence: PR #292.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-07-04 - v1.14.0</p>
+            <h2>Version 1.14.0</h2>
+            <ul>
+              <li>security: harden launch exposure gates.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #291.</span>
             </p>
           </section>
 
           <section class="msk-release">
             <p class="ae-chrome">2026-07-03 - v1.13.0</p>
-            <h2>Health visibility</h2>
+            <h2>Version 1.13.0</h2>
             <ul>
-              <li>
-                Linejam now reports check-ins to Canary, the fleet's
-                observability system, so outages surface faster.
-              </li>
+              <li>observability: report canary health check-ins.</li>
             </ul>
             <p class="ae-status">
               <svg class="ae-icon ae-ok" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label"
-                >Evidence: PR #289, commit e69e32f.</span
-              >
+              <span class="ae-status-label">Evidence: PR #289.</span>
             </p>
           </section>
 
           <section class="msk-release">
             <p class="ae-chrome">2026-07-03 - v1.12.0</p>
-            <h2>Faster joins</h2>
+            <h2>Version 1.12.0</h2>
             <ul>
-              <li>Tap-to-copy room code and QR scan-to-join.</li>
-              <li>One-tap help, and a fixed submit error.</li>
+              <li>ux: tap-to-copy room code, QR scan-to-join, one-tap help, fix submit error.</li>
             </ul>
             <p class="ae-status">
               <svg class="ae-icon ae-ok" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label"
-                >Evidence: commit 7f754ff.</span
-              >
+              <span class="ae-status-label">Evidence: commit 7f754ff.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-07-03 - v1.11.0</p>
+            <h2>Version 1.11.0</h2>
+            <ul>
+              <li>observability: wire Convex backend failures to Canary.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: commit 6eb32a4.</span>
             </p>
           </section>
 
           <section class="msk-release">
             <p class="ae-chrome">2026-06-26 - v1.10.0</p>
-            <h2>More AI players when the room is short a seat</h2>
+            <h2>Version 1.10.0</h2>
             <ul>
-              <li>
-                Multiple AI players can now fill empty seats in one solo
-                game, with configuration backed by real evidence.
-              </li>
+              <li>ai: multi-bot solo play + evidence-backed config (028 m1).</li>
             </ul>
             <p class="ae-status">
               <svg class="ae-icon ae-ok" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label"
-                >Evidence: PR #280, commit 3b10a17.</span
-              >
+              <span class="ae-status-label">Evidence: PR #280.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-24 - v1.9.1</p>
+            <h2>Version 1.9.1</h2>
+            <ul>
+              <li>ui: make the mobile writing surface playable and declutter room chrome.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #278.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-23 - v1.9.0</p>
+            <h2>Version 1.9.0</h2>
+            <ul>
+              <li>release: drop pnpm exec step that broke Landmark release.</li>
+              <li>game: consolidate to one core mode — delete rhyme + quick.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #276, PR #275.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-22 - v1.8.0</p>
+            <h2>Version 1.8.0</h2>
+            <ul>
+              <li>game: migrate host to a present participant when the host leaves (017).</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #274.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-21 - v1.7.0</p>
+            <h2>Version 1.7.0</h2>
+            <ul>
+              <li>game: never let the room die — presence, self-heal, abandonment cron (016).</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #264.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-13 - v1.6.0</p>
+            <h2>Version 1.6.0</h2>
+            <ul>
+              <li>mobile: pass the thumb test on every game surface.</li>
+              <li>security: force esbuild &gt;=0.28.1 to clear GHSA-gv7w-rqvm-qjhr.</li>
+              <li>game: make rules data and ship Rhyme Relay + Quick Jam modes.</li>
+              <li>realtime: make the room unstrandable — rescue, rematch, self-heal.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: commit 2f6c2be, commit 23c1565, commit c5b3d36, commit a0e6eec, commit f39c155, commit 088bde4.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-12 - v1.5.0</p>
+            <h2>Version 1.5.0</h2>
+            <ul>
+              <li>sharing: require explicit public links.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: commit 0f5da62.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-11 - v1.4.0</p>
+            <h2>Version 1.4.0</h2>
+            <ul>
+              <li>reveal: add shared session recap hub.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: commit aad40cb.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-11 - v1.3.0</p>
+            <h2>Version 1.3.0</h2>
+            <ul>
+              <li>observability: add scrubbed route telemetry.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: commit 3d31d4c.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-06-10 - v1.2.0</p>
+            <h2>Version 1.2.0</h2>
+            <ul>
+              <li>add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133).</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: commit a7f3f1f.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-04-21 - v1.1.3</p>
+            <h2>Version 1.1.3</h2>
+            <ul>
+              <li>ci: stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231).</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #232.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-04-20 - v1.1.2</p>
+            <h2>Version 1.1.2</h2>
+            <ul>
+              <li>deps: patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #218.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-04-15 - v1.1.1</p>
+            <h2>Version 1.1.1</h2>
+            <ul>
+              <li>deps: patch dompurify and ajv advisories.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: commit dc8f4e2.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2026-04-15 - v1.1.0</p>
+            <h2>Version 1.1.0</h2>
+            <ul>
+              <li>a11y: use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151).</li>
+              <li>auth: show error state with retry on guest auth failure , closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144).</li>
+              <li>ci: pin trufflehog scanner version.</li>
+              <li>ci: settle trufflehog workflow.</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: PR #159, PR #157, PR #195, PR #181, PR #160, commit ca98baa, PR #156, PR #155, commit 01a269b, PR #154, PR #164, commit 6a76039, PR #210, PR #208, PR #165, PR #213, PR #192, PR #209, PR #201, PR #206, PR #158, commit a342c85, commit c2d8c95, commit 2afd7cf, commit 9315a0b, commit bb9a264, commit d4de3e7, commit 1fda1da, PR #108, commit 60de0fe, commit b252533, PR #64, PR #72, commit 371b919, commit 85613b2, PR #114, commit f0a4cfb, commit fde3631, commit 0de1ae1, commit 6de2615, commit 9fe4ec9, PR #70, commit 2e1f8c1, commit 20452ef, PR #121, commit 7802dff, commit 9e72e46, PR #117, PR #110, commit 28a62e1, PR #71, PR #73, commit 9049e64, commit 33c051e, commit d4fb1cf, commit 9ed59b2, commit 5ae5289, PR #109, commit e3a02d6, commit 3f51907, commit 30397e8, PR #127, commit 787bc44, commit 7244c02, commit 1b42e6c, commit 230588a, commit 6a6c3ed, commit 77276d2, commit dbcc5d5, commit f34b623, PR #126, commit 14b4e9d, commit 59fd5b5, commit ad028e7, commit 81fced4, commit b39d388, commit 693f17d, commit cadc70f, PR #82, PR #69, PR #119, commit 6a9112d, commit f1850b3, commit 68b061a, commit 18463e0, commit 8ff6da7, commit d53aa73, commit 96a01d9, commit 1f64c5e, PR #8, commit 8052011, commit 8a016fa, commit cc72f34, commit 06b159a, commit 16658cf, PR #14, commit 4e5bc30, commit 46425c2, commit 3042c89, commit 72f28b7, PR #111, commit b19c92e, commit ca00aa1, commit c4ba46f, commit 34b19b0, commit 420b717, commit 06c1e4a, commit 2a6ce49, commit 4469d4e, commit 18308f0, PR #80, commit d32cd8a, PR #10, commit 198afcd, commit d555e70, commit 1593fdb, commit e3d2aae, commit ac31c21, commit bc9122a, PR #63, PR #9, PR #116.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="ae-chrome">2025-01-24 - v0.1.0</p>
+            <h2>Version 0.1.0</h2>
+            <ul>
+              <li>Get ready to unleash your inner poet! We&#39;re thrilled to announce the launch of Linejam, a brand new real-time collaborative poetry game where you and your friends can create beautiful verses together. Each game consists of 9 rounds, offering plenty of opportunities for creative expression and playful collaboration. If your muse is flying solo, don&#39;t fret! You can now play against AI opponents powered by Gemini, making Linejam a fun and engaging experience whether you&#39;re a lone wolf or part of a pack.</li>
+              <li>We&#39;ve also added some delightful visual flair to enhance your playing experience. Choose from four premium themes – Kenya, Mono, Vintage Paper, and Hyper – to set the mood and inspire your creativity. And when you&#39;ve crafted a poem you&#39;re proud of, easily share it with the world! A simple click lets you copy your masterpiece to the clipboard, ready to paste and share wherever your heart desires.</li>
+              <li>Need a little guidance? We&#39;ve included a handy floating help modal that clearly explains the game&#39;s rules. Plus, our unique word count indicator, inspired by traditional Japanese genkoyoushi paper, helps you keep track of your progress and stay within the flow.</li>
+              <li>Finally, we&#39;ve made some behind-the-scenes tweaks to ensure everything runs smoothly, including fixing an issue with word counting to handle those extra spaces. Happy jamming!</li>
+            </ul>
+            <p class="ae-status">
+              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span class="ae-status-label">Evidence: CHANGELOG.md.</span>
             </p>
           </section>
         </article>

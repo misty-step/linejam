@@ -1,0 +1,13 @@
+{
+  "version": "1.11.0",
+  "date": "2026-07-03",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "observability",
+      "description": "wire Convex backend failures to Canary",
+      "breaking": false,
+      "commit": "6eb32a4"
+    }
+  ]
+}

@@ -10,11 +10,15 @@
 import type { ChangelogEntry, ChangeType, Release } from './types';
 import { SECTION_TO_TYPE } from './types';
 
-/** Parse version header: ## [1.0.0] - 2024-01-15 */
-const VERSION_REGEX = /^##\s+\[([^\]]+)\](?:\s+-\s+(\d{4}-\d{2}-\d{2}))?/;
+/** Parse version headers:
+ * ## [1.0.0] - 2024-01-15
+ * # [1.0.0](https://example.test/compare) (2024-01-15)
+ */
+const VERSION_REGEX =
+  /^#{1,2}\s+\[([^\]]+)\](?:\([^)]+\))?(?:\s+(?:-\s*)?\(?(\d{4}-\d{2}-\d{2})\)?)?/;
 
-/** Parse section header: ### Added */
-const SECTION_REGEX = /^###\s+(\w+)/;
+/** Parse section header: ### Added / ### Bug Fixes */
+const SECTION_REGEX = /^###\s+(.+)/;
 
 /** Parse bullet point */
 const BULLET_REGEX = /^[-*]\s+(.+)/;
@@ -22,8 +26,14 @@ const BULLET_REGEX = /^[-*]\s+(.+)/;
 /** Parse PR/commit reference: (#123) or (abc1234) */
 const REF_REGEX = /\(#(\d+)\)|\(([a-f0-9]{7,40})\)/;
 
+/** Parse semantic-release markdown references: ([#123](...)) / ([abc1234](...)) */
+const MARKDOWN_REF_REGEX = /\(\[(?:#(\d+)|([a-f0-9]{7,40}))\]\([^)]+\)\)/g;
+
 /** Parse conventional commit prefix: feat(scope): description */
 const CONVENTIONAL_REGEX = /^(\w+)(?:\(([^)]+)\))?(!)?:\s*(.+)/;
+
+/** Parse semantic-release scope prefix: **scope:** description */
+const SEMANTIC_SCOPE_REGEX = /^\*\*([^*]+):\*\*\s*(.+)/;
 
 /**
  * Parse CHANGELOG.md content into structured releases.
@@ -56,7 +66,7 @@ export function parseChangelog(content: string): Release[] {
     // Section header (### Added, ### Fixed, etc.)
     const sectionMatch = trimmed.match(SECTION_REGEX);
     if (sectionMatch && currentRelease) {
-      const sectionName = sectionMatch[1];
+      const sectionName = sectionMatch[1].trim();
       currentSection = SECTION_TO_TYPE[sectionName] || 'chore';
       continue;
     }
@@ -94,8 +104,19 @@ function parseBullet(
   let pr: number | undefined;
   let commit: string | undefined;
 
-  // Extract PR/commit reference
-  const refMatch = text.match(REF_REGEX);
+  // Extract semantic-release markdown PR/commit references.
+  for (const refMatch of text.matchAll(MARKDOWN_REF_REGEX)) {
+    if (refMatch[1]) {
+      pr = parseInt(refMatch[1], 10);
+    }
+    if (refMatch[2]) {
+      commit = refMatch[2];
+    }
+  }
+  description = description.replace(MARKDOWN_REF_REGEX, '').trim();
+
+  // Extract plain PR/commit reference.
+  const refMatch = description.match(REF_REGEX);
   if (refMatch) {
     if (refMatch[1]) {
       pr = parseInt(refMatch[1], 10);
@@ -114,6 +135,12 @@ function parseBullet(
     breaking = !!conventionalMatch[3];
     description = conventionalMatch[4];
   } else {
+    const semanticScopeMatch = description.match(SEMANTIC_SCOPE_REGEX);
+    if (semanticScopeMatch) {
+      scope = semanticScopeMatch[1];
+      description = semanticScopeMatch[2];
+    }
+
     // Check for **BREAKING** prefix
     if (description.startsWith('**BREAKING**')) {
       breaking = true;

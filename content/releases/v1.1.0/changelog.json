@@ -1,0 +1,825 @@
+{
+  "version": "1.1.0",
+  "date": "2026-04-15",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "a11y",
+      "description": "use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151)",
+      "breaking": false,
+      "pr": 159,
+      "commit": "25fa44b"
+    },
+    {
+      "type": "fix",
+      "scope": "auth",
+      "description": "show error state with retry on guest auth failure , closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144)",
+      "breaking": false,
+      "pr": 157,
+      "commit": "d44d146"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "pin trufflehog scanner version",
+      "breaking": false,
+      "pr": 195,
+      "commit": "ef2024f"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "settle trufflehog workflow",
+      "breaking": false,
+      "pr": 181,
+      "commit": "5a8a345"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "upgrade Next.js 16.1.6 (CVE), fix Cerberus API key, fix crypto types , closes [hi#severity](https://github.com/hi/issues/severity)",
+      "breaking": false,
+      "pr": 160,
+      "commit": "53366ec"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "use GH_RELEASE_TOKEN for semantic-release",
+      "breaking": false,
+      "commit": "ca98baa"
+    },
+    {
+      "type": "fix",
+      "scope": "game",
+      "description": "add bounds checking to assignment matrix access , closes [#143](https://github.com/misty-step/linejam/issues/143)",
+      "breaking": false,
+      "pr": 156,
+      "commit": "6371989"
+    },
+    {
+      "type": "fix",
+      "scope": "game",
+      "description": "prevent double round advancement via idempotent guard , closes [#142](https://github.com/misty-step/linejam/issues/142)",
+      "breaking": false,
+      "pr": 155,
+      "commit": "a01fca1"
+    },
+    {
+      "type": "fix",
+      "description": "harden canary local dagger qa",
+      "breaking": false,
+      "commit": "01a269b"
+    },
+    {
+      "type": "fix",
+      "scope": "lint",
+      "description": "add coverage/ to ESLint ignores , closes [#130](https://github.com/misty-step/linejam/issues/130)",
+      "breaking": false,
+      "pr": 154,
+      "commit": "94a08bd"
+    },
+    {
+      "type": "fix",
+      "description": "logShare throws ConvexError on invalid poem ID instead of silent return",
+      "breaking": false,
+      "pr": 164,
+      "commit": "6295789"
+    },
+    {
+      "type": "fix",
+      "description": "replace pnpm audit with osv-scanner in dagger",
+      "breaking": false,
+      "commit": "6a76039"
+    },
+    {
+      "type": "fix",
+      "description": "simplify room chrome copy",
+      "breaking": false,
+      "pr": 210,
+      "commit": "eaeac68"
+    },
+    {
+      "type": "fix",
+      "description": "unblock hosted convex deployment flow",
+      "breaking": false,
+      "pr": 208,
+      "commit": "994b59d"
+    },
+    {
+      "type": "feat",
+      "description": "add PostHog analytics + harden Sentry privacy",
+      "breaking": false,
+      "pr": 165,
+      "commit": "94f2ddd"
+    },
+    {
+      "type": "feat",
+      "description": "extract session lifecycle core",
+      "breaking": false,
+      "pr": 213,
+      "commit": "61fe2f9"
+    },
+    {
+      "type": "feat",
+      "description": "improve quality gates, robustness, and test coverage",
+      "breaking": false,
+      "pr": 192,
+      "commit": "439f974"
+    },
+    {
+      "type": "feat",
+      "description": "redesign room chrome as sticky nav",
+      "breaking": false,
+      "pr": 209,
+      "commit": "d88075f"
+    },
+    {
+      "type": "feat",
+      "description": "scaffold qa and demo evidence harness",
+      "breaking": false,
+      "pr": 201,
+      "commit": "2499795"
+    },
+    {
+      "type": "feat",
+      "description": "ship canary-first qa and responder loop",
+      "breaking": false,
+      "pr": 206,
+      "commit": "a8eeb93"
+    },
+    {
+      "type": "chore",
+      "scope": "favorites",
+      "description": "parallelize getMyFavorites query — N+1 to batch , closes [#145](https://github.com/misty-step/linejam/issues/145)",
+      "breaking": false,
+      "pr": 158,
+      "commit": "4e017e2"
+    },
+    {
+      "type": "fix",
+      "scope": "accessibility",
+      "description": "address PR review feedback",
+      "breaking": false,
+      "commit": "a342c85"
+    },
+    {
+      "type": "fix",
+      "description": "add GITLEAKS_LICENSE env var to secret scanning job",
+      "breaking": false,
+      "commit": "c2d8c95"
+    },
+    {
+      "type": "fix",
+      "description": "add missing semantic color tokens to design system",
+      "breaking": false,
+      "commit": "2afd7cf"
+    },
+    {
+      "type": "fix",
+      "description": "add pull-requests write permission to gitleaks job",
+      "breaking": false,
+      "commit": "9315a0b"
+    },
+    {
+      "type": "fix",
+      "description": "address PR review comments for auth and observability",
+      "breaking": false,
+      "commit": "bb9a264"
+    },
+    {
+      "type": "fix",
+      "description": "apply custom gitleaks config in CI and pre-commit hooks",
+      "breaking": false,
+      "commit": "d4de3e7"
+    },
+    {
+      "type": "fix",
+      "scope": "build",
+      "description": "add convex deploy to build script",
+      "breaking": false,
+      "commit": "1fda1da"
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "add security audit to quality gates pipeline , closes [#36](https://github.com/misty-step/linejam/issues/36) [#98](https://github.com/misty-step/linejam/issues/98)",
+      "breaking": false,
+      "pr": 108,
+      "commit": "772ecb1"
+    },
+    {
+      "type": "fix",
+      "description": "configure Convex deploy for Vercel builds",
+      "breaking": false,
+      "commit": "60de0fe"
+    },
+    {
+      "type": "fix",
+      "description": "configure coverage badges and repair CI build",
+      "breaking": false,
+      "commit": "b252533"
+    },
+    {
+      "type": "fix",
+      "description": "eliminate race condition in round submission validation",
+      "breaking": false,
+      "pr": 64,
+      "commit": "152c68a"
+    },
+    {
+      "type": "fix",
+      "scope": "error",
+      "description": "consolidate duplicate captureError implementations",
+      "breaking": false,
+      "pr": 72,
+      "commit": "326ab8d"
+    },
+    {
+      "type": "fix",
+      "description": "escape apostrophe in quote",
+      "breaking": false,
+      "commit": "371b919"
+    },
+    {
+      "type": "fix",
+      "description": "externalize Pino packages to resolve build errors",
+      "breaking": false,
+      "commit": "85613b2"
+    },
+    {
+      "type": "fix",
+      "scope": "game",
+      "description": "unify reader assignment algorithm , closes [#89](https://github.com/misty-step/linejam/issues/89) [#89](https://github.com/misty-step/linejam/issues/89) [#89](https://github.com/misty-step/linejam/issues/89)",
+      "breaking": false,
+      "pr": 114,
+      "commit": "c767ac3"
+    },
+    {
+      "type": "fix",
+      "description": "guest token cross-platform compatibility and deployment",
+      "breaking": false,
+      "commit": "f0a4cfb"
+    },
+    {
+      "type": "fix",
+      "description": "harden health endpoint for ci",
+      "breaking": false,
+      "commit": "fde3631"
+    },
+    {
+      "type": "fix",
+      "scope": "hooks",
+      "description": "remove convex deploy from pre-push hooks",
+      "breaking": false,
+      "commit": "0de1ae1"
+    },
+    {
+      "type": "fix",
+      "scope": "logging",
+      "description": "wire structured logger in all catch blocks",
+      "breaking": false,
+      "commit": "6de2615"
+    },
+    {
+      "type": "fix",
+      "description": "make WritingScreen textarea visible with focus states , closes [#1](https://github.com/misty-step/linejam/issues/1)",
+      "breaking": false,
+      "commit": "9fe4ec9"
+    },
+    {
+      "type": "fix",
+      "description": "prevent auto-advancing to new game before poems are read",
+      "breaking": false,
+      "pr": 70,
+      "commit": "d98e84a"
+    },
+    {
+      "type": "fix",
+      "description": "replace browser alert with inline Alert in WritingScreen",
+      "breaking": false,
+      "commit": "2e1f8c1"
+    },
+    {
+      "type": "fix",
+      "description": "replace Node.js crypto with Web Crypto API in Convex runtime",
+      "breaking": false,
+      "commit": "20452ef"
+    },
+    {
+      "type": "fix",
+      "description": "require auth for getRoom query",
+      "breaking": false,
+      "pr": 121,
+      "commit": "acc8037"
+    },
+    {
+      "type": "fix",
+      "description": "resolve CI failures (pnpm version conflict + badge 409)",
+      "breaking": false,
+      "commit": "7802dff"
+    },
+    {
+      "type": "fix",
+      "description": "resolve P1 and P2 code review feedback",
+      "breaking": false,
+      "commit": "9e72e46"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "add auth check to getRoundProgress query",
+      "breaking": false,
+      "pr": 117,
+      "commit": "80c03d8"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "add length validation to displayName and line text , closes [#83](https://github.com/misty-step/linejam/issues/83) [#83](https://github.com/misty-step/linejam/issues/83) [#83](https://github.com/misty-step/linejam/issues/83)",
+      "breaking": false,
+      "pr": 110,
+      "commit": "2782660"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "enforce authorization on poem and favorite queries",
+      "breaking": false,
+      "commit": "28a62e1"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "remove legacy guestId fallback to prevent auth bypass",
+      "breaking": false,
+      "pr": 71,
+      "commit": "cbe719b"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "upgrade @sentry/nextjs to fix CVE-2025-65944 (closes [#36](https://github.com/misty-step/linejam/issues/36))",
+      "breaking": false,
+      "pr": 73,
+      "commit": "934f4fe"
+    },
+    {
+      "type": "fix",
+      "scope": "sentry",
+      "description": "add error capture to all catch blocks",
+      "breaking": false,
+      "commit": "9049e64"
+    },
+    {
+      "type": "fix",
+      "scope": "test",
+      "description": "mock convex api in health check test to avoid server-only error",
+      "breaking": false,
+      "commit": "33c051e"
+    },
+    {
+      "type": "fix",
+      "scope": "test",
+      "description": "use node environment for health check test to resolve server-only error",
+      "breaking": false,
+      "commit": "d4fb1cf"
+    },
+    {
+      "type": "fix",
+      "description": "use gh api PATCH for atomic gist badge updates",
+      "breaking": false,
+      "commit": "9ed59b2"
+    },
+    {
+      "type": "fix",
+      "description": "use pnpm for Convex build command",
+      "breaking": false,
+      "commit": "5ae5289"
+    },
+    {
+      "type": "fix",
+      "scope": "ux",
+      "description": "host leave lobby button now closes room",
+      "breaking": false,
+      "pr": 109,
+      "commit": "35abba2"
+    },
+    {
+      "type": "feat",
+      "description": "add Alert component for inline error display",
+      "breaking": false,
+      "commit": "e3a02d6"
+    },
+    {
+      "type": "feat",
+      "description": "add ARIA labels to WritingScreen textarea",
+      "breaking": false,
+      "commit": "3f51907"
+    },
+    {
+      "type": "feat",
+      "description": "add build-time env validation and enhanced health checks",
+      "breaking": false,
+      "commit": "30397e8"
+    },
+    {
+      "type": "feat",
+      "description": "add changelog infrastructure with semantic-release",
+      "breaking": false,
+      "pr": 127,
+      "commit": "c0de3fa"
+    },
+    {
+      "type": "feat",
+      "description": "add error feedback deep module",
+      "breaking": false,
+      "commit": "787bc44"
+    },
+    {
+      "type": "feat",
+      "description": "add error state to Host page",
+      "breaking": false,
+      "commit": "7244c02"
+    },
+    {
+      "type": "feat",
+      "description": "add error state to Lobby component",
+      "breaking": false,
+      "commit": "1b42e6c"
+    },
+    {
+      "type": "feat",
+      "description": "add error state to RevealPhase component",
+      "breaking": false,
+      "commit": "230588a"
+    },
+    {
+      "type": "feat",
+      "description": "add hanko stamp to host badge in lobby",
+      "breaking": false,
+      "commit": "6a6c3ed"
+    },
+    {
+      "type": "feat",
+      "description": "add ink seal stamps to WaitingScreen sealed state",
+      "breaking": false,
+      "commit": "77276d2"
+    },
+    {
+      "type": "feat",
+      "description": "add ink stamp press animation to buttons",
+      "breaking": false,
+      "commit": "dbcc5d5"
+    },
+    {
+      "type": "feat",
+      "description": "add multi-cycle game architecture with schema updates",
+      "breaking": false,
+      "commit": "f34b623"
+    },
+    {
+      "type": "feat",
+      "description": "add observability infrastructure",
+      "breaking": false,
+      "pr": 126,
+      "commit": "5492b0a"
+    },
+    {
+      "type": "feat",
+      "description": "add persimmon tint to shadow design tokens",
+      "breaking": false,
+      "commit": "14b4e9d"
+    },
+    {
+      "type": "feat",
+      "description": "add screen reader live region for validation announcements",
+      "breaking": false,
+      "commit": "59fd5b5"
+    },
+    {
+      "type": "feat",
+      "description": "add smooth shadow crushing animation to buttons",
+      "breaking": false,
+      "commit": "ad028e7"
+    },
+    {
+      "type": "feat",
+      "description": "add stamp animation to submit button on success",
+      "breaking": false,
+      "commit": "81fced4"
+    },
+    {
+      "type": "feat",
+      "description": "add Stamp component for Japanese ink seal graphics",
+      "breaking": false,
+      "commit": "b39d388"
+    },
+    {
+      "type": "feat",
+      "description": "add submission confirmation state machine",
+      "breaking": false,
+      "commit": "693f17d"
+    },
+    {
+      "type": "feat",
+      "description": "add word count guidance text to WritingScreen",
+      "breaking": false,
+      "commit": "cadc70f"
+    },
+    {
+      "type": "feat",
+      "scope": "analytics",
+      "description": "add event tracking for key user actions , closes [#78](https://github.com/misty-step/linejam/issues/78) [#78](https://github.com/misty-step/linejam/issues/78)",
+      "breaking": false,
+      "pr": 82,
+      "commit": "24bad23"
+    },
+    {
+      "type": "feat",
+      "scope": "archive",
+      "description": "redesign archive page with Manuscript Gallery layout",
+      "breaking": false,
+      "pr": 69,
+      "commit": "afbf402"
+    },
+    {
+      "type": "feat",
+      "scope": "auth",
+      "description": "dedicated auth pages with guest migration , closes [#118](https://github.com/misty-step/linejam/issues/118) [#118](https://github.com/misty-step/linejam/issues/118) [#116](https://github.com/misty-step/linejam/issues/116)",
+      "breaking": false,
+      "pr": 119,
+      "commit": "7cbe89a"
+    },
+    {
+      "type": "feat",
+      "description": "configure quality gates with Lefthook and CI",
+      "breaking": false,
+      "commit": "6a9112d"
+    },
+    {
+      "type": "feat",
+      "description": "configure Sentry error tracking with source maps",
+      "breaking": false,
+      "commit": "f1850b3"
+    },
+    {
+      "type": "feat",
+      "description": "create Label component for editorial typography pattern",
+      "breaking": false,
+      "commit": "68b061a"
+    },
+    {
+      "type": "feat",
+      "description": "create LoadingState deep module with preset messages",
+      "breaking": false,
+      "commit": "18463e0"
+    },
+    {
+      "type": "feat",
+      "description": "create ornament component for editorial typography",
+      "breaking": false,
+      "commit": "8ff6da7"
+    },
+    {
+      "type": "feat",
+      "description": "enhance health route with error handling and caching",
+      "breaking": false,
+      "commit": "d53aa73"
+    },
+    {
+      "type": "feat",
+      "description": "implement asymmetric homepage layout with vertical label",
+      "breaking": false,
+      "commit": "96a01d9"
+    },
+    {
+      "type": "feat",
+      "description": "implement comprehensive design system with Tailwind 4",
+      "breaking": false,
+      "commit": "1f64c5e"
+    },
+    {
+      "type": "feat",
+      "description": "Implement comprehensive test coverage automation",
+      "breaking": false,
+      "pr": 8,
+      "commit": "f33770d"
+    },
+    {
+      "type": "feat",
+      "description": "implement core game logic and frontend UI",
+      "breaking": false,
+      "commit": "8052011"
+    },
+    {
+      "type": "feat",
+      "description": "implement crypto-secure 6-char room codes with backward compatibility",
+      "breaking": false,
+      "commit": "8a016fa"
+    },
+    {
+      "type": "feat",
+      "description": "implement server-signed guest tokens with HttpOnly cookies",
+      "breaking": false,
+      "commit": "cc72f34"
+    },
+    {
+      "type": "feat",
+      "description": "implement staggered asymmetric poem reveal",
+      "breaking": false,
+      "commit": "06b159a"
+    },
+    {
+      "type": "feat",
+      "description": "implement structured logging with Pino",
+      "breaking": false,
+      "commit": "16658cf"
+    },
+    {
+      "type": "feat",
+      "description": "implement test helper for expired guest tokens",
+      "breaking": false,
+      "pr": 14,
+      "commit": "10b0b17"
+    },
+    {
+      "type": "feat",
+      "description": "implement Zen Garden design system and reveal ceremony",
+      "breaking": false,
+      "commit": "4e5bc30"
+    },
+    {
+      "type": "feat",
+      "description": "improve poem display animation and layout",
+      "breaking": false,
+      "commit": "46425c2"
+    },
+    {
+      "type": "feat",
+      "scope": "infra",
+      "description": "add deep health check for uptimerobot monitoring",
+      "breaking": false,
+      "commit": "3042c89"
+    },
+    {
+      "type": "feat",
+      "scope": "infra",
+      "description": "add test-error and health check endpoints",
+      "breaking": false,
+      "commit": "72f28b7"
+    },
+    {
+      "type": "feat",
+      "scope": "infra",
+      "description": "configure Dependabot for automated dependency updates",
+      "breaking": false,
+      "pr": 111,
+      "commit": "70d7c36"
+    },
+    {
+      "type": "feat",
+      "scope": "infrastructure",
+      "description": "implement structured logging, analytics, and sentry integration",
+      "breaking": false,
+      "commit": "b19c92e"
+    },
+    {
+      "type": "feat",
+      "description": "initialize Convex with schema for game data model",
+      "breaking": false,
+      "commit": "ca00aa1"
+    },
+    {
+      "type": "feat",
+      "description": "initialize Next.js project with planning docs",
+      "breaking": false,
+      "commit": "c4ba46f"
+    },
+    {
+      "type": "feat",
+      "description": "redesign archive poem with Literary Broadside aesthetic",
+      "breaking": false,
+      "commit": "34b19b0"
+    },
+    {
+      "type": "feat",
+      "description": "redesign home page with Literary Broadside aesthetic",
+      "breaking": false,
+      "commit": "420b717"
+    },
+    {
+      "type": "feat",
+      "description": "reduce room codes from 6 to 4 characters",
+      "breaking": false,
+      "commit": "06c1e4a"
+    },
+    {
+      "type": "feat",
+      "description": "render submission confirmation UI",
+      "breaking": false,
+      "commit": "2a6ce49"
+    },
+    {
+      "type": "feat",
+      "description": "replace footer separators with dagger ornaments",
+      "breaking": false,
+      "commit": "4469d4e"
+    },
+    {
+      "type": "feat",
+      "description": "replace generic loading states with contextual messages",
+      "breaking": false,
+      "commit": "18308f0"
+    },
+    {
+      "type": "feat",
+      "scope": "seo",
+      "description": "add robots.txt, sitemap.xml, and homepage OG image , closes [#76](https://github.com/misty-step/linejam/issues/76) [#76](https://github.com/misty-step/linejam/issues/76)",
+      "breaking": false,
+      "pr": 80,
+      "commit": "f9d34ab"
+    },
+    {
+      "type": "feat",
+      "description": "setup Changesets for version management",
+      "breaking": false,
+      "commit": "d32cd8a"
+    },
+    {
+      "type": "feat",
+      "description": "Share and Export Poems",
+      "breaking": false,
+      "pr": 10,
+      "commit": "10a341b"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "description": "implement ceremonial WritingScreen redesign with \"Digital Ensō\" concept",
+      "breaking": false,
+      "commit": "198afcd"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "description": "implement combined stamp hover animation (pulse + wiggle)",
+      "breaking": false,
+      "commit": "d555e70"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "description": "implement ink spread on hover animation for buttons",
+      "breaking": false,
+      "commit": "1593fdb"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "description": "implement persimmon glow pulse animation for primary buttons",
+      "breaking": false,
+      "commit": "e3d2aae"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "description": "implement typewriter character shift animation for buttons",
+      "breaking": false,
+      "commit": "ac31c21"
+    },
+    {
+      "type": "feat",
+      "scope": "ui",
+      "description": "split-view lobby + dark mode QR + conditional header , closes [#faf9f7](https://github.com/misty-step/linejam/issues/faf9f7) [#1c1917](https://github.com/misty-step/linejam/issues/1c1917)",
+      "breaking": false,
+      "commit": "bc9122a"
+    },
+    {
+      "type": "feat",
+      "description": "update placeholder to show required word count",
+      "breaking": false,
+      "pr": 63,
+      "commit": "52562f4"
+    },
+    {
+      "type": "chore",
+      "description": "eliminate N+1 query patterns in game and poems modules",
+      "breaking": false,
+      "pr": 9,
+      "commit": "d4bc813"
+    },
+    {
+      "type": "chore",
+      "description": "parallelize serial database writes in game mutations , closes [#86](https://github.com/misty-step/linejam/issues/86) [#86](https://github.com/misty-step/linejam/issues/86)",
+      "breaking": false,
+      "pr": 116,
+      "commit": "7db8d3b"
+    },
+    {
+      "type": "chore",
+      "description": "Existing localStorage guest IDs will be replaced with",
+      "breaking": false
+    }
+  ]
+}

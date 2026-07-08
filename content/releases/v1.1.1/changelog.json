@@ -1,0 +1,13 @@
+{
+  "version": "1.1.1",
+  "date": "2026-04-15",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "deps",
+      "description": "patch dompurify and ajv advisories",
+      "breaking": false,
+      "commit": "dc8f4e2"
+    }
+  ]
+}

@@ -3,6 +3,9 @@ name: pages
 on:
   push:
     branches: [main, master]
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,12 +19,25 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Generate release notes
+        run: pnpm generate:releases
       - name: Stage the marketing site
         run: cp -RL site _site
       - uses: actions/configure-pages@v5

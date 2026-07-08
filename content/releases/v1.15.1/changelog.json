@@ -1,0 +1,14 @@
+{
+  "version": "1.15.1",
+  "date": "2026-07-04",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "convex",
+      "description": "bound launch reads and live game failures",
+      "breaking": false,
+      "pr": 294,
+      "commit": "c80e449"
+    }
+  ]
+}

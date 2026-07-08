@@ -1,0 +1,14 @@
+{
+  "version": "1.9.1",
+  "date": "2026-06-24",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "ui",
+      "description": "make the mobile writing surface playable and declutter room chrome",
+      "breaking": false,
+      "pr": 278,
+      "commit": "ff443bc"
+    }
+  ]
+}

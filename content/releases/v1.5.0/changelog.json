@@ -1,0 +1,13 @@
+{
+  "version": "1.5.0",
+  "date": "2026-06-12",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "sharing",
+      "description": "require explicit public links",
+      "breaking": false,
+      "commit": "0f5da62"
+    }
+  ]
+}

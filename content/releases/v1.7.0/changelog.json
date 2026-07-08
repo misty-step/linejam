@@ -1,0 +1,14 @@
+{
+  "version": "1.7.0",
+  "date": "2026-06-21",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "game",
+      "description": "never let the room die — presence, self-heal, abandonment cron (016)",
+      "breaking": false,
+      "pr": 264,
+      "commit": "2b97309"
+    }
+  ]
+}

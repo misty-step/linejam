@@ -1,0 +1,13 @@
+{
+  "version": "1.4.0",
+  "date": "2026-06-11",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "reveal",
+      "description": "add shared session recap hub",
+      "breaking": false,
+      "commit": "aad40cb"
+    }
+  ]
+}
