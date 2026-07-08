@@ -479,6 +479,7 @@ describe('PoemDisplay component', () => {
       expect(mockClipboard.writeText).toHaveBeenCalledWith(
         expect.stringContaining('/poem/poem_test_123')
       );
+      expect(screen.getByText('Poem link copied.')).toBeInTheDocument();
     });
 
     it('calls onDone when Close button clicked', async () => {

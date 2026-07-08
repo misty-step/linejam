@@ -10,6 +10,7 @@ interface ChromeAssignment {
   lineIndex: number;
   targetWordCount: number;
   totalRounds?: number;
+  isFinalRound?: boolean;
 }
 
 interface ChromeRoundProgress {
@@ -61,8 +62,11 @@ export function buildInProgressChromeCopy({
     // The placeholder and the WordSlots squares already state the word count, and
     // "you only see the previous line" is a one-time rule, not a per-round notice.
     // Keep the chrome to a single glanceable line.
+    const roundLabel = assignment.isFinalRound ? 'Last line' : null;
+    const displayRoundLabel = roundLabel ?? `Round ${roundNumber}`;
+
     return {
-      title: roundNumber ? `Round ${roundNumber} · ${wordLabel}` : wordLabel,
+      title: roundNumber ? `${displayRoundLabel} · ${wordLabel}` : wordLabel,
       subtitle: '',
     };
   }

@@ -54,6 +54,20 @@ describe('roomChromeCopy', () => {
     expect(copy.subtitle).toBe('');
   });
 
+  it('names the final assignment as the last line', () => {
+    const copy = buildInProgressChromeCopy({
+      assignment: {
+        lineIndex: 8,
+        targetWordCount: 1,
+        totalRounds: 9,
+        isFinalRound: true,
+      },
+    });
+
+    expect(copy.title).toBe('Last line · 1 word');
+    expect(copy.subtitle).toBe('');
+  });
+
   it('builds progress-led in-progress copy when the writer is waiting on the room', () => {
     expect(
       buildInProgressChromeCopy({
