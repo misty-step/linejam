@@ -59,7 +59,7 @@ artifact. It does not come from more modes.
 3. Keep AI-player work as a reliability and access aid, not a product pivot.
 4. Treat print-on-demand booklets as the only revenue stretch worth revisiting
    after the core loop earns it.
-5. Keep `backlog.d/` shaped around product outcomes with concrete oracles.
+5. Keep Powder cards shaped around product outcomes with concrete oracles.
 
 ## Where The Depth Lives
 
@@ -68,6 +68,7 @@ artifact. It does not come from more modes.
 - `AGENTS.md` is the agent router, gate contract, invariants, and environment
   boundary map.
 - `README.md` is the public project orientation and contributor entrypoint.
-- `backlog.d/` is the authoritative shaped-work queue.
+- Powder is the authoritative work ledger (`powder list-cards --repo linejam`);
+  `backlog.d/` is a retired seed/archive.
 - `docs/testing.md`, Dagger code, and hosted `merge-gate` define the validation
   surface.

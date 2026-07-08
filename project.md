@@ -29,7 +29,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 - **Milestone:** Public-launch readiness — close the Quality Bar gaps (open security advisories, security headers + rate limits, mobile polish) so Linejam can be promoted publicly with no caveats.
 - **Then:** deeper aesthetic polish (award-winning feel) → revenue stretch (print-on-demand booklets; see Stretch Goal).
-- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). `backlog.d/` is authoritative for shaped work; strategic bets get groomed in before they're built.
+- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). Powder is authoritative for shaped work; `backlog.d/` is a retired seed/archive.
 - **Theme:** Restraint as the product — Kenya Hara minimalism applied to the mechanics as much as the visuals.
 
 ## Quality Bar
@@ -75,7 +75,7 @@ them, small revenue cut per book.
 
 ---
 
-_Last updated: 2026-07-04_
-_Updated during: doc-truth sweep (backlog 026). `docs/vision.md` was not_
-_removed — it's demoted to a pointer at root `VISION.md`, the actual north_
-_star. This section no longer restates AGENTS.md's code patterns._
+_Last updated: 2026-07-08_
+_Updated during: Powder ledger closeout. `docs/vision.md` stays demoted to a_
+_pointer at root `VISION.md`, the actual north star. This section no longer_
+_restates AGENTS.md's code patterns._

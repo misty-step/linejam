@@ -1,34 +1,22 @@
-# backlog.d
+# backlog.d — Retired
 
-`backlog.d/` is the source of truth for planned work in this repository.
+**Powder is the authoritative work ledger for Linejam.** This directory is a
+retired seed/archive. When the two disagree, Powder wins.
 
-## Ordering
-
-- Lower numbers are higher priority.
-- `Status: ready` means the item is shaped enough to build now.
-- `Status: blocked` means the item depends on another item landing first.
-- `Status: in-progress` means one agent owns it right now.
-- `Status: done` means the item moved to `backlog.d/_done/`.
-
-## Authoring Rules
-
-- Keep one outcome per file.
-- Prefer product outcomes over mechanism-only tasks.
-- Every item must include a concrete oracle with commands or observable outcomes.
-- If an item grows beyond one coherent delivery unit, split it.
-
-## Claiming
-
-Use `scripts/lib/claims.sh` before starting a `ready` item:
+## Query the live backlog
 
 ```bash
-source scripts/lib/claims.sh
-claim_acquire 001-harden-guest-first-room-flow
+source ~/.secrets  # loads POWDER_API_BASE_URL, POWDER_API_KEY
+powder list-cards --repo linejam          # all cards
+powder list-ready --repo linejam          # claimable cards only
+powder get-card linejam-NNN              # one card with goal + oracle + activity
 ```
 
-Release the claim when the work is done or abandoned:
+## Why the seed files were removed
 
-```bash
-source scripts/lib/claims.sh
-claim_release 001-harden-guest-first-room-flow
-```
+Items 000–029 were imported into Powder and truthed-up against the live
+codebase. Most are `done`; the open residuals (027 blocked on a product
+decision, 029 pending aesthetic evaluation, 905 Canary hermetic tests) live
+as Powder cards with their acceptance oracles intact. The seed markdown was
+stale — it said `ready` for shipped work — and keeping it in parallel with
+Powder created a dual-source-of-truth problem.
