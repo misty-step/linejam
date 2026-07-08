@@ -162,6 +162,11 @@ export function PoemDisplay({
   }, [selectedLine]);
 
   const allRevealed = revealedCount >= lines.length;
+  const shareStatus = shared
+    ? 'Poem shared.'
+    : copied
+      ? 'Poem link copied.'
+      : null;
 
   // Container classes based on variant
   const containerClasses = isArchive
@@ -437,6 +442,14 @@ export function PoemDisplay({
             </Button>
           )}
         </div>
+        {shareStatus && (
+          <p
+            role="status"
+            className="text-center text-xs font-mono uppercase tracking-widest text-primary"
+          >
+            {shareStatus}
+          </p>
+        )}
       </div>
     </div>
   );

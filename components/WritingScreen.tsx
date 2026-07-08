@@ -116,6 +116,7 @@ function WritingComposer({
   const currentWordCount = countWords(text);
   const targetCount = assignment.targetWordCount;
   const isValid = currentWordCount === targetCount;
+  const isReady = isValid && submissionState === 'idle';
   const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
 
   // Announce validation state changes to screen readers (debounced)
@@ -220,6 +221,9 @@ function WritingComposer({
         {/* The Memory - No container */}
         {assignment.previousLineText && (
           <div className="mb-4 md:mb-16 animate-fade-in-up">
+            <p className="mb-3 text-[10px] font-mono uppercase tracking-widest text-primary">
+              Received line
+            </p>
             <p className="text-2xl md:text-4xl lg:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
               {assignment.previousLineText}
             </p>
@@ -230,8 +234,15 @@ function WritingComposer({
         {submissionState === 'confirmed' && (
           <div className="mb-12 p-6 border-2 border-success bg-success/5 rounded-sm animate-fade-in-up">
             <div className="text-sm font-medium text-success mb-2 uppercase tracking-wide">
-              ✓ Your Line Submitted
+              {assignment.isFinalRound
+                ? 'Last line sealed'
+                : '✓ Your Line Submitted'}
             </div>
+            {assignment.isFinalRound && (
+              <p className="mb-3 text-sm text-text-secondary">
+                Reveal is next.
+              </p>
+            )}
             <p className="text-lg italic font-[var(--font-display)] text-text-primary">
               &ldquo;{text}&rdquo;
             </p>
@@ -283,10 +294,16 @@ function WritingComposer({
         )}
 
         {/* The Seal - Submit Button */}
-        <div className="mt-6 md:mt-16 flex justify-center">
+        <div className="mt-6 md:mt-16 flex flex-col items-center gap-3">
+          {isReady && (
+            <p className="text-xs font-mono uppercase tracking-widest text-primary animate-fade-in-up">
+              Ready
+            </p>
+          )}
           <Button
             onClick={handleSubmit}
             data-testid={E2E_TEST_IDS.writingSubmitLineButton}
+            data-ready={isReady ? 'true' : undefined}
             size="lg"
             disabled={
               !isValid ||
@@ -296,7 +313,7 @@ function WritingComposer({
             stampAnimate={submissionState === 'confirmed'}
             className={cn(
               'min-w-[240px] text-xl h-16 md:h-20',
-              isValid && 'shadow-md'
+              isReady && 'animate-ready-seal shadow-md'
             )}
           >
             {submissionState === 'submitting'

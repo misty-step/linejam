@@ -248,6 +248,64 @@ h6 {
   animation: fade-in-up var(--duration-normal) var(--ease-in) forwards;
 }
 
+/* Runtime-token button colors. These classes avoid the Tailwind v4
+   token-utility path that made primary actions render like disabled gray in
+   theme-heavy game surfaces. */
+.lj-button-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.lj-button-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.lj-button-secondary {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.lj-button-outline {
+  background-color: color-mix(in oklab, var(--color-surface) 10%, transparent);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.lj-button-outline:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--color-surface) 20%, transparent);
+}
+
+.lj-button-ghost {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--color-text-primary);
+}
+
+.lj-button-ghost:hover:not(:disabled) {
+  background-color: var(--color-muted);
+}
+
+@keyframes ready-seal {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-primary) 24%, transparent),
+      var(--shadow-md);
+  }
+  50% {
+    box-shadow:
+      0 0 0 7px color-mix(in oklab, var(--color-primary) 0%, transparent),
+      var(--shadow-md);
+  }
+}
+
+.animate-ready-seal {
+  animation: ready-seal 1250ms var(--ease-theme) infinite;
+}
+
 /* Wipe Reveal Animation - Document unsealing (clip-path) */
 @keyframes wipe-reveal {
   from {
