@@ -4,16 +4,24 @@
 <title>misty-step/linejam</title>
 <link>https://github.com/misty-step/linejam</link>
 <description>Release notes for misty-step/linejam</description>
-<lastBuildDate>Thu, 9 Jul 2026 21:07:30 +0000</lastBuildDate>
-<item><title>misty-step/linejam v0.16.2</title><link>https://github.com/misty-step/linejam/releases/tag/v0.16.2</link><guid>v0.16.2</guid><description><![CDATA[<h2>Bug Fixes</h2>
+<lastBuildDate>Thu, 9 Jul 2026 21:30:30 +0000</lastBuildDate>
+<item><title>misty-step/linejam v0.16.3</title><link>https://github.com/misty-step/linejam/releases/tag/v0.16.3</link><guid>v0.16.3</guid><description><![CDATA[<h2>Bug Fixes</h2>
+<ul>
+<li>Squashed a behind-the-scenes glitch in our automated testing setup that could cause smoke tests to run against the wrong browser — no player-facing impact, but it keeps Linejam more reliable under the hood.</li>
+</ul>
+<details>
+<summary>Release classification notes</summary>
+<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip</p>
+</details>]]></description><pubDate>Thu, 9 Jul 2026 21:30:30 +0000</pubDate></item>
+<item><title>misty-step/linejam v0.16.2</title><link>https://github.com/misty-step/linejam/releases/tag/v0.16.2</link><guid>v0.16.2</guid><description><![CDATA[<![CDATA[<h2>Bug Fixes</h2>
 <ul>
 <li>Fixed a behind-the-scenes hiccup in how updates get published, so new versions of Linejam roll out smoothly and reliably.</li>
 </ul>
 <details>
 <summary>Release classification notes</summary>
 <p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found security signals but model did not; deterministic floor prevented low-significance skip</p>
-</details>]]></description><pubDate>Thu, 9 Jul 2026 21:07:30 +0000</pubDate></item>
-<item><title>misty-step/linejam v0.16.1</title><link>https://github.com/misty-step/linejam/releases/tag/v0.16.1</link><guid>v0.16.1</guid><description><![CDATA[<![CDATA[<h2>Improvements</h2>
+</details>]]]]><![CDATA[>]]></description><pubDate>Thu, 9 Jul 2026 21:07:30 +0000</pubDate></item>
+<item><title>misty-step/linejam v0.16.1</title><link>https://github.com/misty-step/linejam/releases/tag/v0.16.1</link><guid>v0.16.1</guid><description><![CDATA[<![CDATA[<![CDATA[<h2>Improvements</h2>
 <ul>
 <li>Straightened out a hiccup in our deployment pipeline, so site updates go out smoothly and on time.</li>
 <li>Refreshed under-the-hood libraries that power the app, keeping things running reliably behind the scenes.</li>
@@ -21,8 +29,8 @@
 <details>
 <summary>Release classification notes</summary>
 <p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix, dependency) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</p>
-</details>]]]]><![CDATA[>]]></description><pubDate>Thu, 9 Jul 2026 20:55:04 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.16.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.16.0</link><guid>v1.16.0</guid><description><![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
+</details>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Thu, 9 Jul 2026 20:55:04 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.16.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.16.0</link><guid>v1.16.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>Save or print your finished poem as a keepsake image, ready to share or stick on the fridge.</li>
 <li>Hosts can now put the lobby and poem reveal up on a big screen or shared table, with an easy QR code join and room-readable text for everyone.</li>
@@ -35,13 +43,13 @@
 <details>
 <summary>Release classification notes</summary>
 <p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:feat, conventional:fix, conventional:perf, conventional:test, dependency, migration, security) disagreed with model classification; synthesis proceeded. deterministic floor found migration signals but model did not</p>
-</details>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Wed, 8 Jul 2026 23:17:09 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.15.1</title><link>https://github.com/misty-step/linejam/releases/tag/v1.15.1</link><guid>v1.15.1</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Bug Fixes</h2>
+</details>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Wed, 8 Jul 2026 23:17:09 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.15.1</title><link>https://github.com/misty-step/linejam/releases/tag/v1.15.1</link><guid>v1.15.1</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Bug Fixes</h2>
 <ul>
 <li>Fixed issues with game loading and stability during live gameplay.</li>
 </ul>
-]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Sat, 4 Jul 2026 19:59:12 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.15.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.15.0</link><guid>v1.15.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Bug Fixes</h2>
+]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Sat, 4 Jul 2026 19:59:12 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.15.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.15.0</link><guid>v1.15.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Bug Fixes</h2>
 <ul>
 <li>Fixed mobile writing to be fully playable with cleaner room interface.</li>
 </ul>
@@ -52,8 +60,8 @@
 <li>The room now stays alive and recovers automatically if something goes wrong.</li>
 <li>You can now see a shared recap of your game session after playing.</li>
 </ul>
-]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Sat, 4 Jul 2026 07:28:26 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.14.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.14.0</link><guid>v1.14.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
+]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Sat, 4 Jul 2026 07:28:26 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.14.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.14.0</link><guid>v1.14.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now vote for your favorite poem at the end of each game.</li>
 <li>The room automatically continues with a new host if the current host leaves mid-game.</li>
@@ -63,8 +71,8 @@
 <li>The mobile writing experience is now much easier to use with a cleaner, more spacious design.</li>
 <li>Rooms now stay active and self-heal if connection issues occur, so your game won't get stuck.</li>
 </ul>
-]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Sat, 4 Jul 2026 05:22:15 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.13.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.13.0</link><guid>v1.13.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
+]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Sat, 4 Jul 2026 05:22:15 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.13.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.13.0</link><guid>v1.13.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now enjoy a streamlined single game mode that combines the best of our previous play styles.</li>
 <li>The game now automatically passes host duties to another player when the current host leaves.</li>
@@ -74,8 +82,8 @@
 <ul>
 <li>Fixed mobile writing experience to work smoothly on phones and cleaned up the room interface.</li>
 </ul>
-]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 17:52:07 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.12.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.12.0</link><guid>v1.12.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
+]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 17:52:07 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.12.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.12.0</link><guid>v1.12.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
 <p><strong>Game modes simplified:</strong> Linejam now focuses on one core collaborative poetry experience. The separate Rhyme Relay and Quick Jam modes have been removed to streamline gameplay. All rooms now use the same fun, pass-the-poem format you love.</p>
 <h2>New Features</h2>
 <ul>
@@ -92,8 +100,8 @@
 <ul>
 <li>Fixed mobile touch targets to work properly with thumbs on all game screens.</li>
 </ul>
-]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:45:14 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.11.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.11.0</link><guid>v1.11.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
+]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:45:14 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.11.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.11.0</link><guid>v1.11.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>Breaking Changes</h2>
 <p>We've streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.</p>
 <h2>New Features</h2>
 <ul>
@@ -105,8 +113,8 @@
 <ul>
 <li>Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go.</li>
 </ul>
-]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:36:31 +0000</pubDate></item>
-<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
+]]]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 3 Jul 2026 00:36:31 +0000</pubDate></item>
+<item><title>misty-step/linejam v1.10.0</title><link>https://github.com/misty-step/linejam/releases/tag/v1.10.0</link><guid>v1.10.0</guid><description><![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<![CDATA[<h2>New Features</h2>
 <ul>
 <li>You can now play with just one game mode that's perfectly tuned for collaborative poetry.</li>
 <li>The room automatically finds a new host when the current host leaves mid-game.</li>
@@ -117,6 +125,6 @@
 <ul>
 <li>The mobile writing experience is now much easier to use with a cleaner interface.</li>
 </ul>
-]]]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
+]]]]]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]]]><![CDATA[><![CDATA[><![CDATA[><![CDATA[>]]]]]]]]><![CDATA[><![CDATA[><![CDATA[>]]]]]]><![CDATA[><![CDATA[>]]]]><![CDATA[>]]></description><pubDate>Fri, 26 Jun 2026 15:03:47 +0000</pubDate></item>
 </channel>
 </rss>
