@@ -183,6 +183,7 @@ AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 8. **`GUEST_TOKEN_SECRET` must match across local, Vercel, and Convex.**
 9. **Base branch is `master`.** Conventional Commits only (commitlint enforced).
 10. **Powder is the authoritative work ledger.** `backlog.d/` is a retired seed/archive; when the two disagree, Powder wins. List linejam cards: `powder list-cards --repo linejam`.
+11. **Every scheduler fan-out is bounded, and error reports must survive the failure they report.** Convex rejects a mutation that schedules >1,000 functions, and a throwing mutation rolls back everything it scheduled — including its own Canary error report. Cap per-tick scheduling (crons drain the rest) and never schedule-then-throw. See Code Patterns below; root cause of the 2026-07-09 incident (`docs/postmortems/2026-07-09-prod-env-and-sweep-outage.md`).
 
 ## Development Commands
 
@@ -452,6 +453,40 @@ let attempts = 0;
 while (condition && attempts < MAX_ATTEMPTS) {
   attempts++;
   ...
+}
+```
+
+### Scheduler Fan-Out and Error Reporting (see Invariant 11)
+
+Convex mutations are transactional: a throw rolls back every write **and every
+`ctx.scheduler.runAfter` call** made in that mutation. Two consequences:
+
+```typescript
+// BAD - unbounded fan-out: >1,000 scheduled functions throws, the rollback
+// erases every finisher, and the cron accomplishes nothing forever
+for (const item of backlog) {
+  await ctx.scheduler.runAfter(0, internal.worker.process, { id: item._id });
+}
+
+// GOOD - cap per tick; the recurring cron drains the rest
+for (const item of backlog) {
+  if (scheduled >= MAX_PER_TICK) break;
+  await ctx.scheduler.runAfter(0, internal.worker.process, { id: item._id });
+  scheduled++;
+}
+
+// BAD - schedule-then-throw: the report is rolled back with the transaction
+// and can never fire
+catch (error) {
+  await ctx.scheduler.runAfter(0, internal.errors.reportBackendErrorToCanary, {...});
+  throw error;
+}
+
+// GOOD - report, then return an error result; idempotent work + recurring
+// crons make the rethrow worthless anyway
+catch (error) {
+  await ctx.scheduler.runAfter(0, internal.errors.reportBackendErrorToCanary, {...});
+  return { ok: false, error: message };
 }
 ```
 
