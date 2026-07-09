@@ -129,13 +129,14 @@ vi.mock('../../convex/lib/auth', () => ({
 **Problem:** Files with 500-700 lines create maintenance burden and slow selective execution.
 
 **Top offenders:**
-| File | Lines | Tests | Purpose |
-|------|-------|-------|---------|
-| game.test.ts | 707 | 27 | Game state machine |
-| poems.test.ts | 657 | 23 | Poem queries |
-| rooms.test.ts | 552 | 22 | Room management |
-| favorites.test.ts | 377 | 16 | Favorite operations |
-| llm.test.ts | 433 | 21 | AI line generation |
+
+| File              | Lines | Tests | Purpose             |
+| ----------------- | ----- | ----- | ------------------- |
+| game.test.ts      | 707   | 27    | Game state machine  |
+| poems.test.ts     | 657   | 23    | Poem queries        |
+| rooms.test.ts     | 552   | 22    | Room management     |
+| favorites.test.ts | 377   | 16    | Favorite operations |
+| llm.test.ts       | 433   | 21    | AI line generation  |
 
 **Cost:**
 

@@ -21,8 +21,7 @@ export const onRequestError = async (
     routePath: string;
     routeType: 'render' | 'route' | 'action' | 'middleware';
     renderSource?:
-      | 'react-server-components'
-      | 'react-server-components-payload';
+      'react-server-components' | 'react-server-components-payload';
     revalidateReason?: 'on-demand' | 'stale';
   }
 ) => {
