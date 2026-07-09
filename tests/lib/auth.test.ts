@@ -129,6 +129,51 @@ describe('useUser hook', () => {
     );
   });
 
+  it('gives a late authenticated Clerk session precedence over guest fallback', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockUseClerkUser.mockReturnValue({
+      user: null,
+      isLoaded: false,
+    });
+    const fetcher = {
+      fetch: vi.fn().mockResolvedValue({
+        guestId: 'guest-before-clerk',
+        token: 'token-before-clerk',
+      }),
+    };
+    const { result, rerender } = renderHook(() => useUser(fetcher));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    await waitFor(() => {
+      expect(result.current.guestId).toBe('guest-before-clerk');
+    });
+
+    const clerkUser = {
+      id: 'clerk_late',
+      fullName: 'Late Clerk User',
+      firstName: 'Late',
+    };
+    mockUseClerkUser.mockReturnValue({ user: clerkUser, isLoaded: true });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+
+    expect(result.current.clerkUser).toEqual(clerkUser);
+    expect(result.current.guestId).toBeNull();
+    expect(result.current.guestToken).toBeNull();
+    expect(result.current.displayName).toBe('Late Clerk User');
+    expect(fetcher.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('returns Clerk user when authenticated, does not fetch guest session', async () => {
     // Arrange
     const clerkUser = {

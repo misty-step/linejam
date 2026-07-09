@@ -15,11 +15,15 @@ test.describe('Clerk frontend outage', () => {
     const context = await browser.newContext();
     await isolateGuestSessionIp(context);
     const alerts: CanaryErrorPayload[] = [];
+    const abortedClerkScriptRequests: string[] = [];
 
-    await context.route('**/npm/@clerk/**', (route) => route.abort('failed'));
-    await context.route('https://clerk.linejam.app/**', (route) =>
-      route.abort('failed')
-    );
+    // Match Clerk's runtime script path rather than a configured hostname so
+    // the same doctor covers custom-domain production keys and
+    // <slug>.clerk.accounts.dev development keys.
+    await context.route('**/npm/@clerk/**', (route) => {
+      abortedClerkScriptRequests.push(route.request().url());
+      return route.abort('failed');
+    });
     await context.route('**/api/v1/errors', async (route) => {
       const body = route.request().postData();
       if (body) alerts.push(JSON.parse(body) as CanaryErrorPayload);
@@ -33,6 +37,7 @@ test.describe('Clerk frontend outage', () => {
       await expect(page.getByTestId(E2E_TEST_IDS.hostNameInput)).toBeVisible({
         timeout: 8_000,
       });
+      expect(abortedClerkScriptRequests.length).toBeGreaterThan(0);
 
       await expect
         .poll(
