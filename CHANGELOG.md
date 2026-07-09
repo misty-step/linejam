@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.3](https://github.com/misty-step/linejam/compare/v0.16.2...v0.16.3) (2026-07-09)
+
+
+### Bug Fixes
+
+* **responder:** preserve Playwright browser path ([#326](https://github.com/misty-step/linejam/issues/326)) ([bb4e8bb](https://github.com/misty-step/linejam/commit/bb4e8bb2b018b83413a6c2fc45a8d10b394b7948))
+
 ## [0.16.2](https://github.com/misty-step/linejam/compare/v0.16.1...v0.16.2) (2026-07-09)
 
 
