@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.5](https://github.com/misty-step/linejam/compare/v0.16.4...v0.16.5) (2026-07-09)
+
+
+### Bug Fixes
+
+* bound abandonment sweep + gate health on Convex env capabilities (prod incident 2026-07-09) ([#328](https://github.com/misty-step/linejam/issues/328)) ([9d285e2](https://github.com/misty-step/linejam/commit/9d285e200189215b5447fa7f37022507ed0d57ea))
+
 ## [0.16.4](https://github.com/misty-step/linejam/compare/v0.16.3...v0.16.4) (2026-07-09)
 
 
