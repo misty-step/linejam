@@ -2,6 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const workflow = readFileSync('.github/workflows/pages.yml', 'utf8');
+const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
+  scripts: Record<string, string>;
+  devDependencies: Record<string, string>;
+};
 
 describe('Pages workflow', () => {
   it('installs pnpm before setup-node asks for the pnpm cache', () => {
@@ -20,5 +24,12 @@ describe('Pages workflow', () => {
       "github.event.workflow_run.conclusion == 'success'"
     );
     expect(workflow).toContain('workflow_dispatch:');
+  });
+
+  it('declares the TypeScript runner used by release generation', () => {
+    expect(packageJson.devDependencies.tsx).toBeDefined();
+    expect(packageJson.scripts['generate:releases']).toBe(
+      'tsx scripts/generate-releases.ts'
+    );
   });
 });

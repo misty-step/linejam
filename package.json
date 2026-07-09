@@ -52,7 +52,7 @@
     "canary:webhook:setup": "./scripts/canary/setup-webhook.sh",
     "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs",
     "evidence:static-server": "node scripts/evidence/static-server.mjs",
-    "generate:releases": "npx tsx scripts/generate-releases.ts",
+    "generate:releases": "tsx scripts/generate-releases.ts",
     "agent:cli": "npx tsx scripts/cli/linejam-cli.ts",
     "agent:mcp": "npx tsx scripts/mcp/linejam-mcp.ts"
   },
@@ -102,6 +102,7 @@
     "promptfoo": "0.121.17",
     "semantic-release": "^25.0.5",
     "tailwindcss": "^4",
+    "tsx": "4.22.4",
     "typescript": "^5",
     "vite": "7.3.5",
     "vitest": "^4.1.9"
