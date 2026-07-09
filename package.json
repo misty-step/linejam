@@ -1,6 +1,6 @@
 {
   "name": "linejam",
-  "version": "1.15.1",
+  "version": "1.16.0",
   "private": true,
   "engines": {
     "node": ">=22.0.0",
@@ -87,7 +87,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^25",
+    "@types/node": "^26",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.2.0",

@@ -28,8 +28,8 @@ sharing/export, help modal
 | `lib/posthog/` | PostHog                 | Canonical product analytics surface. `lib/analytics.ts` is legacy Vercel Analytics wiring.                             |
 | `tests/`       | Vitest 4 + Playwright   | Unit/integration plus `tests/e2e/`.                                                                                    |
 | `dagger/`      | Dagger TypeScript SDK   | Authoritative local gate.                                                                                              |
-| `scripts/`     | Node ESM + shell        | CI bootstrap, Canary responder/smoke tooling, evidence capture, claims helper.                                         |
-| `backlog.d/`   | Markdown                | Authoritative backlog.                                                                                                 |
+| `scripts/`     | Node ESM + shell        | CI bootstrap, Canary responder/smoke tooling, evidence capture, legacy claims helper.                                  |
+| `backlog.d/`   | Markdown                | Retired seed/archive. Powder is the authoritative work ledger (`powder list-cards --repo linejam`).                    |
 | `docs/adr/`    | Markdown                | ADRs 0001–0008.                                                                                                        |
 
 ### Key Directories (purpose view)
@@ -182,12 +182,12 @@ AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 7. **Every `while` loop needs a termination guard.** See Code Patterns below for the pattern.
 8. **`GUEST_TOKEN_SECRET` must match across local, Vercel, and Convex.**
 9. **Base branch is `master`.** Conventional Commits only (commitlint enforced).
-10. **`backlog.d/` is authoritative; GitHub Issues are empty by design.**
+10. **Powder is the authoritative work ledger.** `backlog.d/` is a retired seed/archive; when the two disagree, Powder wins. List linejam cards: `powder list-cards --repo linejam`.
 
 ## Development Commands
 
 ```bash
-bash scripts/setup.sh # bootstrap deps, .env.local, and .claims
+bash scripts/setup.sh # bootstrap deps, .env.local, and support directories
 pnpm dev              # Next.js :3000 + Convex dev (parallel) — user runs this, not the agent (see Invariant 2)
 pnpm build            # convex deploy + next build
 pnpm lint             # eslint
@@ -208,7 +208,7 @@ bash scripts/setup.sh --write-env --skip-install
 ```
 
 This creates `.env.local` from `.env.example` only when `.env.local` does not
-already exist, and it prepares `.claims/` for local backlog coordination.
+already exist, and it prepares support directories used by local tooling.
 
 ### Agent-Safe Convex Probes
 
@@ -319,7 +319,7 @@ browser config.
 
 ## Known-Debt Map
 
-No open known-debt rows. See `backlog.d/_done/` for archived items.
+No open known-debt rows. See Powder (`powder list-cards --repo linejam`) for the work ledger.
 
 Cerberus is out. Do not resurrect it.
 
@@ -359,15 +359,15 @@ pnpm agent:mcp
 pnpm build
 pnpm generate:releases
 
-# Backlog claiming
-source scripts/lib/claims.sh
-claim_acquire <backlog-id>
-claim_release <backlog-id>
+# Work claiming (Powder)
+source ~/.secrets  # loads POWDER_API_BASE_URL, POWDER_API_KEY
+powder list-ready --repo linejam
+powder claim linejam-NNN --agent <name>
+powder release-claim linejam-NNN --run <run-id>
 ```
 
-Before starting a ready item from `backlog.d/`, claim it locally with the
-`claim_acquire`/`claim_release` pair above. Release the claim when the item is
-done or abandoned. Claims are local coordination artifacts, not product state.
+Claim one card at a time before starting work. Release the claim when done or
+abandoned. Powder is the system of record; `backlog.d/` is a retired seed.
 
 ## Testing
 

@@ -6,7 +6,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 **North Star:** World-class casual party game with Stripe-level design and polish. Players feel delighted, not overwhelmed. The game works, it's fun, it creates memorable moments with friends.
 **Target User:** Friends at a gathering who want a quick, creative, funny activity. No signup required (guest mode). Works on phones. Minimal explanation needed.
-**Current Focus:** One core loop, polished to a world-class bar. The mechanic is settled—9 rounds, 1,2,3,4,5,4,3,2,1 words—and depth now comes from design, feel, and reliability, not from more modes. Sequenced path: public-launch readiness → deeper aesthetic polish → revenue stretch. Don't overcomplicate; ship and refine.
+**Current Focus:** Recover the public trust floor, then prove the party payoff. The mechanic is settled—9 rounds, 1,2,3,4,5,4,3,2,1 words—and depth comes from the people, reveal, and artifact, not from more modes. Sequenced path: anonymous-play and privacy incidents → truthful production control plane → privacy-safe funnel plus field playtests → accessibility and evidence-led polish → revenue stretch.
 **Key Differentiators:** Lower friction than paper; persistent shareable artifacts; digital-native sharing; can evolve mechanics without physical constraints.
 
 ## Domain Glossary
@@ -27,18 +27,20 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 ## Active Focus
 
-- **Milestone:** Public-launch readiness — close the Quality Bar gaps (open security advisories, security headers + rate limits, mobile polish) so Linejam can be promoted publicly with no caveats.
-- **Then:** deeper aesthetic polish (award-winning feel) → revenue stretch (print-on-demand booklets; see Stretch Goal).
-- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). `backlog.d/` is authoritative for shaped work; strategic bets get groomed in before they're built.
+- **Milestone:** Restore public trust — anonymous play must survive identity-provider failure, private poems must stay private until explicit publication, and functional smoke failures must page.
+- **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across every retained theme → evidence-led aesthetic polish → revenue stretch.
+- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). Powder is authoritative for shaped work; `backlog.d/` is a retired seed/archive.
 - **Theme:** Restraint as the product — Kenya Hara minimalism applied to the mechanics as much as the visuals.
 
 ## Quality Bar
 
-- [ ] Guest mode works without friction on mobile — no signup, no explanation needed
+- [ ] Guest mode works without friction on mobile and survives Clerk/OpenRouter failure
 - [ ] Themes render correctly on all 4 visual skins without hardcoded overrides
 - [ ] Core game loop completes reliably with 2-6 players (no silent failures)
-- [ ] Security headers and rate limits in place before public promotion
-- [ ] Poem sharing produces correct, readable output
+- [x] Security headers and rate limits are in place
+- [ ] Saving remains private; public poem/recap access requires explicit, reversible consent
+- [ ] Functional production smoke pages an operator and disagrees visibly with shallow health when the player loop is down
+- [ ] A privacy-safe funnel plus repeated field playtests identifies the next product improvement
 
 ## Patterns to Follow
 
@@ -75,7 +77,7 @@ them, small revenue cut per book.
 
 ---
 
-_Last updated: 2026-07-04_
-_Updated during: doc-truth sweep (backlog 026). `docs/vision.md` was not_
-_removed — it's demoted to a pointer at root `VISION.md`, the actual north_
-_star. This section no longer restates AGENTS.md's code patterns._
+_Last updated: 2026-07-08_
+_Updated during: Powder ledger closeout. `docs/vision.md` stays demoted to a_
+_pointer at root `VISION.md`, the actual north star. This section no longer_
+_restates AGENTS.md's code patterns._

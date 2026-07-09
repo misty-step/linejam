@@ -2,6 +2,37 @@
 
 All notable changes to Linejam.
 
+## Version reset: v1.15.1 → v0.15.1 (2026-07-08)
+
+The fleet moved to pre-stable 0.x semantics (Powder landmark-016/017): versions below 1.0.0 use Cargo-style bumps (breaking→minor, feat/fix→patch) and never cross 1.0.0 automatically; promotion to 1.0.0 is a deliberate manual tag. v0.15.1 is the same commit as v1.15.1. Earlier 1.x/2.x entries below record real history under the old numbering; their tags and GitHub releases were retired.
+
+# [1.16.0](https://github.com/misty-step/linejam/compare/v1.15.1...v1.16.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* clarify core loop submit readiness ([#310](https://github.com/misty-step/linejam/issues/310)) ([e953882](https://github.com/misty-step/linejam/commit/e95388280cb6fd002edeb35dc0af118a07f6b431))
+* **convex:** drop legacy mode columns ([#298](https://github.com/misty-step/linejam/issues/298)) ([684de32](https://github.com/misty-step/linejam/commit/684de323bc3ade15828e75e275d6dc2482dc9695))
+* **csp:** allow the production Clerk custom domain ([#299](https://github.com/misty-step/linejam/issues/299)) ([8b8da91](https://github.com/misty-step/linejam/commit/8b8da91755326e0890248e8c8d6272076bc1965e)), closes [#291](https://github.com/misty-step/linejam/issues/291)
+* **deps:** remove unused production dependencies ([#313](https://github.com/misty-step/linejam/issues/313)) ([415bbf1](https://github.com/misty-step/linejam/commit/415bbf189b19cf50e32bcced603bd4e64bffcd08))
+* **e2e:** isolate remaining guest session contexts ([#316](https://github.com/misty-step/linejam/issues/316)) ([866d788](https://github.com/misty-step/linejam/commit/866d78884ecd8c03495446b715d7cc4e16b20f9b))
+* **e2e:** stabilize guest archive and reveal share ([#315](https://github.com/misty-step/linejam/issues/315)) ([e7a8091](https://github.com/misty-step/linejam/commit/e7a8091bf2a0348a1c86f89d83acb50f36fc72fd)), closes [#308](https://github.com/misty-step/linejam/issues/308)
+* **errors:** ConvexError taxonomy so friendly messages survive production ([#303](https://github.com/misty-step/linejam/issues/303)) ([9a02299](https://github.com/misty-step/linejam/commit/9a022998d5501d78011ea9ed8b42562bda76e731))
+* **evidence:** wrap static theme evidence server to suppress stale Convex/Canary noise ([b90c6ae](https://github.com/misty-step/linejam/commit/b90c6ae0c885ee885944ab512d108381df2a262f))
+* **identity:** guest archive access + themed Clerk auth ([#307](https://github.com/misty-step/linejam/issues/307)) ([d29f6fd](https://github.com/misty-step/linejam/commit/d29f6fdfc8c98088e9649031e429d0a941c57636))
+* **releases:** generate site changelog from release content ([#312](https://github.com/misty-step/linejam/issues/312)) ([15cf3b1](https://github.com/misty-step/linejam/commit/15cf3b1687bbbbc4c5235a37382695dc44e48b3b))
+* **ui:** lobby roster collision and sticky-chrome heading overlap ([#306](https://github.com/misty-step/linejam/issues/306)) ([ebce842](https://github.com/misty-step/linejam/commit/ebce8429a8424b54ed0f7ee25224ef8f903df88a)), closes [#2](https://github.com/misty-step/linejam/issues/2)
+* **ui:** wire themed design tokens ([de6597e](https://github.com/misty-step/linejam/commit/de6597ec8e77df8557433a8c36c46497cc638139))
+
+
+### Features
+
+* **agent:** add CLI + MCP faces over the Convex core, plus the skill ([e3376af](https://github.com/misty-step/linejam/commit/e3376afc334d51ef2c34ae4c14046b1cbbad7d63))
+* **artifact:** add poem image and print exports ([#308](https://github.com/misty-step/linejam/issues/308)) ([23179c1](https://github.com/misty-step/linejam/commit/23179c172342339746910683efb8466edb5ad1d3))
+* **site:** add marketing proof assets ([#311](https://github.com/misty-step/linejam/issues/311)) ([3e2ab28](https://github.com/misty-step/linejam/commit/3e2ab28afbe806aa857196ddc653e30247261396))
+* **site:** add public marketing site from the Aesthetic site-kit ([7678974](https://github.com/misty-step/linejam/commit/767897474c010642224d3ca5b84bbeb4a2a9057f))
+* **stage:** host presentation mode — lobby and reveal as a room-scale stage ([#309](https://github.com/misty-step/linejam/issues/309)) ([af774e1](https://github.com/misty-step/linejam/commit/af774e109ba1be7ccbe80f7ad2048c975eb2cb5f))
+
 ## [1.15.1](https://github.com/misty-step/linejam/compare/v1.15.0...v1.15.1) (2026-07-04)
 
 

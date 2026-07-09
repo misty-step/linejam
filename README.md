@@ -41,7 +41,7 @@ The constraint is the game. You see only the line before yours. The result is co
 ## Getting Started
 
 ```bash
-# Bootstrap dependencies, .env.local, and local coordination state
+# Bootstrap dependencies, .env.local, and support directories
 bash scripts/setup.sh
 
 # Or create .env.local without installing dependencies
@@ -55,18 +55,18 @@ pnpm dev # Next.js :3000 + Convex backend
 
 Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.
 
-### Backlog Claims
+### Work Ledger
 
-Use local claims before starting a ready item from `backlog.d/` so parallel agents do not pick up the same work:
+Powder is the work ledger for shaped Linejam tasks. Claim one card before
+starting work so parallel agents do not pick up the same item:
 
 ```bash
-source scripts/lib/claims.sh
-claim_acquire <backlog-id>
+source ~/.secrets # loads POWDER_API_BASE_URL and POWDER_API_KEY
+powder list-ready --repo linejam
+powder claim linejam-NNN --agent <name>
 # ...work...
-claim_release <backlog-id>
+powder release-claim linejam-NNN --run <run-id>
 ```
-
-`bash scripts/setup.sh` prepares the `.claims/` directory. Claim files are local coordination artifacts; release the claim when the item is done or abandoned.
 
 ## Agent Faces
 
