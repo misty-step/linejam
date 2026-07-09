@@ -56,7 +56,7 @@ export function buildContentSecurityPolicy() {
   const canaryOrigin =
     originFrom(process.env.NEXT_PUBLIC_CANARY_ENDPOINT) ||
     originFrom(process.env.CANARY_ENDPOINT) ||
-    'https://canary-obs-3jzhr.ondigitalocean.app';
+    'https://canary-obs.fly.dev';
   const posthogOrigin = originFrom(process.env.NEXT_PUBLIC_POSTHOG_HOST);
 
   const directives: Array<[string, string[]]> = [

@@ -2,9 +2,7 @@
 
 import { CANARY_AUTOMATION_EVENT_TYPES_JSON } from './events.mjs';
 
-const endpoint = (
-  process.env.CANARY_ENDPOINT || 'https://canary-obs-3jzhr.ondigitalocean.app'
-)
+const endpoint = (process.env.CANARY_ENDPOINT || 'https://canary-obs.fly.dev')
   .trim()
   .replace(/\/$/, '');
 const apiKey = process.env.CANARY_API_KEY?.trim() || '';

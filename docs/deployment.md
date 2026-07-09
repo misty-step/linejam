@@ -147,7 +147,7 @@ Create the Fly app and webhook secret first, then deploy the responder with the 
 flyctl apps create linejam-canary-responder
 flyctl volumes create canary_data --app linejam-canary-responder --region ord --size 1
 export LINEJAM_CANARY_WEBHOOK_URL="https://linejam-canary-responder.fly.dev/canary/webhook"
-export CANARY_ENDPOINT="https://canary-obs-3jzhr.ondigitalocean.app"
+export CANARY_ENDPOINT="https://canary-obs.fly.dev"
 export CANARY_API_KEY="your-canary-api-key"
 LINEJAM_CANARY_WEBHOOK_URL="$LINEJAM_CANARY_WEBHOOK_URL" pnpm canary:webhook:setup -- --emit-secret
 ```
