@@ -16,6 +16,7 @@ test.describe('Clerk frontend outage', () => {
     await isolateGuestSessionIp(context);
     const alerts: CanaryErrorPayload[] = [];
 
+    await context.route('**/npm/@clerk/**', (route) => route.abort('failed'));
     await context.route('https://clerk.linejam.app/**', (route) =>
       route.abort('failed')
     );
