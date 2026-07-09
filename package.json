@@ -27,6 +27,7 @@
     "test:watch": "vitest --watch",
     "test:e2e": "playwright test --grep-invert \"@evidence|@slow\"",
     "test:e2e:early-smoke": "playwright test tests/e2e/early-smoke.spec.ts --project=chromium --workers=1 --retries=0 --reporter=line",
+    "test:e2e:clerk-outage": "playwright test tests/e2e/clerk-outage.spec.ts --project=chromium --workers=1 --retries=0 --reporter=line",
     "test:e2e:smoke": "playwright test --config=playwright.smoke.config.ts",
     "test:e2e:evidence": "playwright test tests/e2e/guest-flow.evidence.spec.ts --project=chromium --workers=1 --retries=0 --reporter=line",
     "test:e2e:leaver": "playwright test mid-game-leaver --project=chromium --workers=1 --retries=0 --reporter=line",
