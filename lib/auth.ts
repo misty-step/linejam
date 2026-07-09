@@ -7,8 +7,17 @@ import {
   defaultGuestSessionFetcher,
 } from '@/lib/guestSession';
 
+const CLERK_GUEST_FALLBACK_MS = 5_000;
+const CLERK_LOAD_TIMEOUT_MESSAGE =
+  'Clerk did not load in time; continuing with guest play';
+
 /**
  * Hook for managing user identity (Clerk or guest).
+ *
+ * Guest play is the runtime, so an unavailable Clerk frontend must not hold
+ * anonymous users on a loading screen forever. If Clerk does not settle within
+ * the bounded bootstrap window, the hook reports the outage and continues with
+ * the existing guest-session path. A late Clerk session still takes precedence.
  *
  * @param fetcher - Injectable fetcher for guest session (default: API fetch).
  *                  Tests can inject a mock to avoid network calls.
@@ -26,9 +35,25 @@ export function useUser(
   const [isLoaded, setIsLoaded] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [clerkLoadTimedOut, setClerkLoadTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!isClerkLoaded || typeof window === 'undefined') return;
+    if (isClerkLoaded || typeof window === 'undefined') return;
+
+    const timeout = window.setTimeout(() => {
+      const error = new Error(CLERK_LOAD_TIMEOUT_MESSAGE);
+      error.name = 'ClerkLoadTimeoutError';
+      captureError(error, { operation: 'clerkLoadTimeout' });
+      setClerkLoadTimedOut(true);
+    }, CLERK_GUEST_FALLBACK_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [isClerkLoaded]);
+
+  useEffect(() => {
+    if ((!isClerkLoaded && !clerkLoadTimedOut) || typeof window === 'undefined')
+      return;
+    if (isLoaded && !clerkUser) return;
     let isStale = false;
 
     // Signed-in users don't need guest-session setup to proceed.
@@ -93,7 +118,9 @@ export function useUser(
     };
   }, [
     isClerkLoaded,
+    clerkLoadTimedOut,
     clerkUser,
+    isLoaded,
     fetcher,
     retryCount,
     isConvexAuthLoading,
