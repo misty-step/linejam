@@ -15,7 +15,7 @@ export type ConvexRuntimeConfig = {
   openRouterApiKey?: string;
 };
 
-type ConvexEnvHealthReport = {
+export type ConvexEnvHealthReport = {
   ok: boolean;
   status: 200 | 500;
   environment: ConvexEnvironment;

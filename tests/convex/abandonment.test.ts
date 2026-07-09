@@ -403,6 +403,45 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
     expect(sweep).toEqual({ scheduled: 3, scanned: 3 });
   });
 
+  it('caps finishers per tick and drains the backlog across ticks', async () => {
+    // Regression: 2026-07-09 incident. With ≥1000 abandoned games, an
+    // unbounded sweep exceeded Convex's 1000-scheduled-functions limit,
+    // threw, rolled back every finisher, and completed nothing forever. The
+    // cap bounds each tick; the every-minute cron drains the rest.
+    const t = setupConvexTest();
+    const seeded: Id<'games'>[] = [];
+    for (let i = 0; i < 3; i++) {
+      const { gameId } = await seedClassicGame(t, {
+        players: [
+          { name: `Ada${i}`, lastSeenAt: staleStamp() },
+          { name: `Bo${i}`, lastSeenAt: staleStamp() },
+        ],
+        roundStartedAt: staleStamp() - i * 1_000,
+        createdAt: staleStamp() - i * 1_000,
+      });
+      seeded.push(gameId);
+    }
+
+    const first = await t.mutation(internal.abandonment.sweepAbandonedGames, {
+      limit: 2,
+    });
+    expect(first).toEqual({ scheduled: 2, scanned: 3 });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    // The two finished games leave the idle index; the next tick reaches the
+    // remaining one — a capped tick can only delay completion, never lose it.
+    const second = await t.mutation(internal.abandonment.sweepAbandonedGames, {
+      limit: 2,
+    });
+    expect(second).toEqual({ scheduled: 1, scanned: 1 });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    for (const gameId of seeded) {
+      const game = await t.run((ctx) => ctx.db.get(gameId));
+      expect(game?.status).toBe('COMPLETED');
+    }
+  });
+
   it('excludes still-active games from the scan so they cannot starve abandoned ones', async () => {
     const t = setupConvexTest();
     // Several fresh, actively-advancing games (recent roundStartedAt) plus one

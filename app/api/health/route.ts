@@ -1,5 +1,6 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
+import type { ConvexEnvHealthReport } from '@/convex/lib/env';
 import {
   captureCanaryException,
   isCanaryEnabled,
@@ -14,17 +15,19 @@ export async function GET() {
   const startedAt = Date.now();
 
   try {
-    const convexStatus = await checkConvex();
+    const { status: convexStatus, report: convexEnv } = await checkConvex();
     const envChecks = checkEnvVars();
     const serviceHealthy =
       envChecks.guestTokenSecret &&
       envChecks.convexUrl &&
-      convexStatus === 'connected';
+      convexStatus === 'connected' &&
+      convexEnv?.ok === true;
     const canaryReady = envChecks.canaryIngestKey;
     const status = serviceHealthy ? 200 : 503;
     const body = {
       status: serviceHealthy ? 'ok' : 'unhealthy',
       convex: convexStatus,
+      convexEnv: convexEnv?.capabilities ?? null,
       env: {
         nodeEnv: process.env.NODE_ENV ?? 'development',
         ...envChecks,
@@ -80,22 +83,29 @@ function checkEnvVars() {
   };
 }
 
+type ConvexHealth = {
+  status: 'connected' | 'unreachable' | 'skipped';
+  report: ConvexEnvHealthReport | null;
+};
+
 /**
- * Ping Convex without allowing network errors to explode the health endpoint.
- * Treat network errors as "unreachable" so the route can return an explicit
- * unhealthy signal instead of a 500 crash.
+ * One query proves Convex is reachable AND returns the deployment's env
+ * capability report (convex/health.ts `capabilities`), so a prod deployment
+ * missing a required env var (the 2026-07-09 incident: OPENROUTER_API_KEY
+ * absent for days while every monitor stayed green) fails this route instead
+ * of degrading silently. Network errors are "unreachable", never a 500 crash.
  */
-async function checkConvex() {
+async function checkConvex(): Promise<ConvexHealth> {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (!convexUrl) return 'skipped';
+  if (!convexUrl) return { status: 'skipped', report: null };
 
   const startedAt = Date.now();
 
   try {
     const client = new ConvexHttpClient(convexUrl);
-    await Promise.race([
-      client.query(api.health.ping),
-      new Promise((_, reject) => {
+    const report = (await Promise.race([
+      client.query(api.health.capabilities),
+      new Promise<never>((_, reject) => {
         setTimeout(() => {
           reject(
             new Error(
@@ -104,8 +114,8 @@ async function checkConvex() {
           );
         }, CONVEX_HEALTH_TIMEOUT_MS);
       }),
-    ]);
-    return 'connected';
+    ])) as ConvexEnvHealthReport;
+    return { status: 'connected', report };
   } catch (error) {
     log.warn('Convex health ping failed; marking unreachable', {
       method: 'GET',
@@ -115,7 +125,7 @@ async function checkConvex() {
       errorName: error instanceof Error ? error.name : 'UnknownError',
       errorMessage: error instanceof Error ? error.message : String(error),
     });
-    return 'unreachable';
+    return { status: 'unreachable', report: null };
   }
 }
 
