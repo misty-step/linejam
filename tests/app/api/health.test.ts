@@ -135,6 +135,43 @@ describe('/api/health', () => {
       expect(mockQuery).toHaveBeenCalled();
     });
 
+    it('returns 503 when Convex is reachable but a required capability is unconfigured', async () => {
+      // Regression: 2026-07-09 incident. Prod Convex was missing
+      // OPENROUTER_API_KEY for days while this route stayed green because it
+      // only proved connectivity. The capabilities report must gate health.
+      mockQuery.mockResolvedValue({
+        ok: false,
+        status: 500,
+        environment: 'production',
+        capabilities: {
+          guestTokenVerification: {
+            status: 'ready',
+            available: true,
+            required: true,
+          },
+          aiLineGeneration: {
+            status: 'missing_required',
+            available: false,
+            required: true,
+          },
+        },
+      });
+      const consoleLogSpy = vi
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
+
+      const response = await GET();
+      const data = await response.json();
+      consoleLogSpy.mockRestore();
+
+      expect(response.status).toBe(503);
+      expect(data.status).toBe('unhealthy');
+      expect(data.convex).toBe('connected');
+      expect(data.convexEnv).toMatchObject({
+        aiLineGeneration: { status: 'missing_required' },
+      });
+    });
+
     it('returns unhealthy when Convex ping fails', async () => {
       mockQuery.mockRejectedValue(new Error('Connection refused'));
       const consoleLogSpy = vi
