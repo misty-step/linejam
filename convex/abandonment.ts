@@ -111,20 +111,40 @@ function anyHumanPresent(
 }
 
 /**
+ * Hard bounds for one sweep tick. Convex rejects a mutation that schedules
+ * more than 1,000 functions — an unbounded sweep over a large stranded
+ * backlog throws, rolls back every finisher it scheduled, and completes
+ * nothing, forever (the 2026-07-09 incident). Capping the tick keeps each
+ * run small and lets the every-minute cron drain any backlog at
+ * MAX_FINISHERS_PER_SWEEP games per minute. The scan bound keeps read volume
+ * flat; index order is oldest-idle-first, so the queue drains front to back
+ * and completed games leave the index.
+ */
+const MAX_FINISHERS_PER_SWEEP = 200;
+const MAX_SWEEP_SCAN = 1000;
+
+/**
  * Cron entry point. Cheap and self-bounding: an indexed range scan reads only
  * games whose round has been idle past ABANDONMENT_THRESHOLD_MS. Still-active
  * games (recent roundStartedAt) are excluded by the index — not scanned then
  * discarded — so the work scales with the number of *stuck* games (≈0 in a
- * healthy system), never with total traffic. Every idle game is examined each
- * tick, so an idle-but-not-abandoned game (a present player whose round hasn't
- * advanced, a degenerate no-human game) can never pin the scan or starve an
- * abandoned room behind it. Heavy completion work is scheduled out per game. (If
- * the idle set itself ever grew huge, a cursor-paged scan would be the next step
- * — far beyond any realistic scale for this game.)
+ * healthy system), never with total traffic. An idle-but-not-abandoned game
+ * (a present player whose round hasn't advanced) consumes scan but never a
+ * finisher slot, so it cannot pin the batch cap either. Heavy completion work
+ * is scheduled out per game, at most MAX_FINISHERS_PER_SWEEP per tick.
+ *
+ * `limit` narrows the per-tick finisher cap (test seam); it can never raise
+ * it above MAX_FINISHERS_PER_SWEEP.
  */
 export const sweepAbandonedGames = internalMutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    const maxFinishers = Math.max(
+      1,
+      Math.min(limit ?? MAX_FINISHERS_PER_SWEEP, MAX_FINISHERS_PER_SWEEP)
+    );
+    let scheduled = 0;
+    let scanned = 0;
     try {
       const now = Date.now();
       const idleCutoff = now - ABANDONMENT_THRESHOLD_MS;
@@ -133,10 +153,15 @@ export const sweepAbandonedGames = internalMutation({
         .withIndex('by_status_round', (q) =>
           q.eq('status', 'IN_PROGRESS').lte('roundStartedAt', idleCutoff)
         )
-        .collect();
+        .take(MAX_SWEEP_SCAN);
+      scanned = idleGames.length;
 
-      let scheduled = 0;
+      let truncated = false;
       for (const game of idleGames) {
+        if (scheduled >= maxFinishers) {
+          truncated = true;
+          break;
+        }
         if (!(await isGameAbandoned(ctx, game, now))) continue;
         await ctx.scheduler.runAfter(
           0,
@@ -149,14 +174,20 @@ export const sweepAbandonedGames = internalMutation({
       if (scheduled > 0) {
         log.warn('Abandonment sweep scheduled stranded games for completion', {
           scheduled,
-          scanned: idleGames.length,
+          scanned,
+          truncated,
         });
       }
 
-      return { scheduled, scanned: idleGames.length };
+      return { scheduled, scanned };
     } catch (error) {
+      // Report without rethrowing: a mutation that throws rolls back
+      // everything it did — the finishers scheduled above AND this Canary
+      // report. Swallowing keeps the partial batch (finishers are idempotent
+      // and re-derived) and lets the error actually reach Canary; the cron
+      // retries the remainder next minute regardless.
       const err = error instanceof Error ? error : new Error(String(error));
-      logError('sweepAbandonedGames failed', err, {});
+      logError('sweepAbandonedGames failed', err, { scheduled, scanned });
       await ctx.scheduler.runAfter(
         0,
         internal.errors.reportBackendErrorToCanary,
@@ -167,7 +198,7 @@ export const sweepAbandonedGames = internalMutation({
           operation: 'sweepAbandonedGames',
         }
       );
-      throw error;
+      return { scheduled, scanned, error: err.message };
     }
   },
 });
@@ -285,6 +316,10 @@ export const finishAbandonedGame = internalMutation({
       }
       return { completed, filled };
     } catch (error) {
+      // Report without rethrowing — a throw would roll back this Canary
+      // report along with the lines committed above. Keeping partial fills is
+      // safe (commitFallbackLine is idempotent) and the next sweep tick
+      // re-derives state and resumes.
       const err = error instanceof Error ? error : new Error(String(error));
       logError('finishAbandonedGame failed', err, { gameId });
       await ctx.scheduler.runAfter(
@@ -298,7 +333,7 @@ export const finishAbandonedGame = internalMutation({
           gameId,
         }
       );
-      throw error;
+      return { completed: false, filled: 0, error: err.message };
     }
   },
 });
