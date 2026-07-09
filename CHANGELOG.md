@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.1](https://github.com/misty-step/linejam/compare/v0.16.0...v0.16.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **ci:** install pnpm before Pages cache lookup ([#323](https://github.com/misty-step/linejam/issues/323)) ([1e1ed2d](https://github.com/misty-step/linejam/commit/1e1ed2de09e4875678edbbe96849473c62f76fd7))
+
 ## Version reset: v1.15.1 → v0.15.1 (2026-07-08)
 
 The fleet moved to pre-stable 0.x semantics (Powder landmark-016/017): versions below 1.0.0 use Cargo-style bumps (breaking→minor, feat/fix→patch) and never cross 1.0.0 automatically; promotion to 1.0.0 is a deliberate manual tag. v0.15.1 is the same commit as v1.15.1. Earlier 1.x/2.x entries below record real history under the old numbering; their tags and GitHub releases were retired.
