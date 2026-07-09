@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.4](https://github.com/misty-step/linejam/compare/v0.16.3...v0.16.4) (2026-07-09)
+
+
+### Bug Fixes
+
+* **auth:** fail open to guest play ([#327](https://github.com/misty-step/linejam/issues/327)) ([d9ca6a0](https://github.com/misty-step/linejam/commit/d9ca6a06d22ce094c6a79753b6a2bfac1dd58b5b))
+
 ## [0.16.3](https://github.com/misty-step/linejam/compare/v0.16.2...v0.16.3) (2026-07-09)
 
 
