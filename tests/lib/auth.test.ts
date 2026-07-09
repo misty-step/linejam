@@ -174,6 +174,40 @@ describe('useUser hook', () => {
     expect(fetcher.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the guest session when Clerk loads late without a user', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockUseClerkUser.mockReturnValue({
+      user: null,
+      isLoaded: false,
+    });
+    const fetcher = {
+      fetch: vi.fn().mockResolvedValue({
+        guestId: 'guest-stable',
+        token: 'token-stable',
+      }),
+    };
+    const { result, rerender } = renderHook(() => useUser(fetcher));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    await waitFor(() => {
+      expect(result.current.guestId).toBe('guest-stable');
+    });
+
+    mockUseClerkUser.mockReturnValue({ user: null, isLoaded: true });
+    rerender();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetcher.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.guestId).toBe('guest-stable');
+    expect(result.current.guestToken).toBe('token-stable');
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it('returns Clerk user when authenticated, does not fetch guest session', async () => {
     // Arrange
     const clerkUser = {

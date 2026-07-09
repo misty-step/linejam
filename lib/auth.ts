@@ -53,6 +53,7 @@ export function useUser(
   useEffect(() => {
     if ((!isClerkLoaded && !clerkLoadTimedOut) || typeof window === 'undefined')
       return;
+    if (isLoaded && !clerkUser) return;
     let isStale = false;
 
     // Signed-in users don't need guest-session setup to proceed.
@@ -119,6 +120,7 @@ export function useUser(
     isClerkLoaded,
     clerkLoadTimedOut,
     clerkUser,
+    isLoaded,
     fetcher,
     retryCount,
     isConvexAuthLoading,
