@@ -27,6 +27,8 @@ artifact. It does not come from more modes.
 ## What Must Stay True
 
 - Guest mode and mobile play are launch-bar requirements, not polish.
+- Anonymous play is the runtime; accounts are optional persistence. Guest host,
+  join, play, and reveal must survive identity-provider and AI-provider failure.
 - One core mode is the product. The deleted expansion arc is evidence, not a
   backlog invitation.
 - The assignment matrix, word-count contract, reveal phase, room code, and
@@ -35,6 +37,10 @@ artifact. It does not come from more modes.
   be evidence-backed and should not replace human authorship as the point.
 - Sharing matters because poems are the memory of the game. Recap and artifact
   surfaces should preserve the moment without becoming a social network.
+- Saving remains private. Publication is a separate, explicit, reversible act;
+  missing or failed consent always means private.
+- Every shipped theme must meet the same mobile, contrast, text-scaling,
+  keyboard, screen-reader, and reduced-motion bar.
 - Reliability, security headers, rate limits, and observability are part of the
   launch promise.
 - Always-on availability matters more than feature breadth. A single game mode
@@ -53,13 +59,27 @@ artifact. It does not come from more modes.
 
 ## Current Bets
 
-1. Finish public-launch readiness before adding product surface.
-2. Polish the existing loop to an unusually high UI, UX, performance, and
-   resilience bar.
-3. Keep AI-player work as a reliability and access aid, not a product pivot.
-4. Treat print-on-demand booklets as the only revenue stretch worth revisiting
-   after the core loop earns it.
-5. Keep Powder cards shaped around product outcomes with concrete oracles.
+1. Restore the public trust floor first: anonymous play survives Clerk failure,
+   private poems stay private, and red functional smoke reaches an operator.
+2. Prove the party payoff through a privacy-safe room-cycle funnel and repeated
+   in-person playtests before adding more product surface.
+3. Polish the existing loop to an unusually high UI, UX, accessibility,
+   performance, and resilience bar; freeze new modes and themes.
+4. Collapse duplicate identity, analytics, deployment, and publication paths
+   toward one explicit owner each.
+5. Keep AI players as a reliability and access aid, not a product pivot.
+6. Treat print-on-demand booklets as the only revenue stretch worth revisiting
+   after the core loop earns repeat play.
+
+## What Excellent Looks Like In 6–12 Months
+
+Linejam is a host's default creative icebreaker for a 2–6 person gathering: a
+new group starts on phones without accounts or explanation, finishes reliably,
+performs the reveal aloud, keeps a private artifact, and intentionally chooses
+whether to publish it. The team can see where real parties stall or replay
+without collecting poem text. Every retained theme is accessible, one declared
+production control plane is boring to deploy and roll back, and incidents are
+visible before a player has to report them.
 
 ## Where The Depth Lives
 
