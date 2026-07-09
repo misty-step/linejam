@@ -44,6 +44,7 @@ describe('shouldTriggerSmoke', () => {
 describe('runSmoke', () => {
   const trackedEnvKeys = [
     'PLAYWRIGHT_BASE_URL',
+    'PLAYWRIGHT_BROWSERS_PATH',
     'CANARY_SMOKE_TIMEOUT_MS',
     'CANARY_SMOKE_KILL_GRACE_MS',
     'LINEJAM_SMOKE_RUNNER',
@@ -325,6 +326,7 @@ describe('runSmoke', () => {
 
   it('forwards only the smoke allowlist into the child environment', async () => {
     process.env.UNRELATED_SECRET = 'should-not-leak';
+    process.env.PLAYWRIGHT_BROWSERS_PATH = '/ms-playwright';
     process.env.CLERK_SECRET_KEY = 'clerk-secret';
     process.env.STAGEHAND_MODEL = 'openai/gpt-4.1-mini';
     process.env.STAGEHAND_MODEL_API_KEY = 'stagehand-model-key';
@@ -355,6 +357,7 @@ describe('runSmoke', () => {
       expect.objectContaining({
         env: expect.objectContaining({
           PLAYWRIGHT_BASE_URL: 'https://www.linejam.app',
+          PLAYWRIGHT_BROWSERS_PATH: '/ms-playwright',
           CLERK_SECRET_KEY: 'clerk-secret',
           LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1',
           LINEJAM_ALLOWED_SMOKE_ORIGINS: 'https://www.linejam.app',
