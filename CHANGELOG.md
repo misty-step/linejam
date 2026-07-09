@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.2](https://github.com/misty-step/linejam/compare/v0.16.1...v0.16.2) (2026-07-09)
+
+
+### Bug Fixes
+
+* **ci:** declare the Pages release runner ([#325](https://github.com/misty-step/linejam/issues/325)) ([d1232b5](https://github.com/misty-step/linejam/commit/d1232b587594d64f468e32e6f962de1c1752bab6))
+
 ## [0.16.1](https://github.com/misty-step/linejam/compare/v0.16.0...v0.16.1) (2026-07-09)
 
 
