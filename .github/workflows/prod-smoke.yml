@@ -66,12 +66,10 @@ jobs:
           fi
           cat "$RUNNER_TEMP/linejam-smoke/stdout.log"
           cat "$RUNNER_TEMP/linejam-smoke/stderr.log" >&2
-          {
-            echo "detail<<SMOKE_DETAIL_EOF"
-            tail -c 1000 "$RUNNER_TEMP/linejam-smoke/stdout.log"
-            tail -c 2000 "$RUNNER_TEMP/linejam-smoke/stderr.log"
-            echo "SMOKE_DETAIL_EOF"
-          } >> "$GITHUB_OUTPUT"
+          # The linked artifacts retain full diagnostics. Keep the alert-plane
+          # payload to the known failing corpus identity so stdout, account
+          # data, or provider responses can never be copied into Canary/Powder.
+          echo "detail=tests/e2e/prod-smoke.spec.ts" >> "$GITHUB_OUTPUT"
           exit "$code"
 
       - name: Upload production smoke logs
