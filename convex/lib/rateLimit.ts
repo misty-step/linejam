@@ -1,8 +1,6 @@
 import { MutationCtx } from '../_generated/server';
 import { ConvexError } from 'convex/values';
-
-export const RATE_LIMIT_EXCEEDED_MESSAGE =
-  'Rate limit exceeded. Please try again later.';
+import { RATE_LIMIT_EXCEEDED_MESSAGE } from '../../lib/rateLimit';
 
 export async function checkRateLimit(
   ctx: MutationCtx,
