@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.17.1](https://github.com/misty-step/linejam/compare/v0.17.0...v0.17.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **themes:** hydration-safe theme state in the picker hook ([#336](https://github.com/misty-step/linejam/issues/336)) ([3b34e62](https://github.com/misty-step/linejam/commit/3b34e62a06c0cd513e5ad44e8b441bf9bbc7623d)), closes [#418](https://github.com/misty-step/linejam/issues/418)
+
 # [0.17.0](https://github.com/misty-step/linejam/compare/v0.16.8...v0.17.0) (2026-07-10)
 
 
