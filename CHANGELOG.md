@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.6](https://github.com/misty-step/linejam/compare/v0.16.5...v0.16.6) (2026-07-10)
+
+
+### Bug Fixes
+
+* **ops:** page repeated production smoke failures ([#330](https://github.com/misty-step/linejam/issues/330)) ([35a4961](https://github.com/misty-step/linejam/commit/35a4961e351497a4d72611b550973b56d2b3a460))
+
 ## [0.16.5](https://github.com/misty-step/linejam/compare/v0.16.4...v0.16.5) (2026-07-09)
 
 
