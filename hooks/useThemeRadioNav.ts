@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
-import { useTheme, visibleThemeIds } from '@/lib/themes';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useTheme, visibleThemeIds, defaultThemeId } from '@/lib/themes';
+
+const emptySubscribe = () => () => {};
 
 /**
  * Shared roving-radiogroup behavior for theme pickers (/themes page and the
@@ -10,9 +12,21 @@ import { useTheme, visibleThemeIds } from '@/lib/themes';
  * is retired (which renders no card, so nothing else would be tabbable).
  */
 export function useThemeRadioNav(options?: { onEscape?: () => void }) {
-  const { themeId, mode, setTheme } = useTheme();
+  const { themeId: storedThemeId, mode: storedMode, setTheme } = useTheme();
   const listRef = useRef<HTMLDivElement>(null);
   const onEscape = options?.onEscape;
+
+  // Hydration safety: the server renders the default theme in light mode
+  // (localStorage is client-only), so the first client render must match it
+  // exactly or React throws a hydration mismatch (seen live as error #418 on
+  // /themes). Swap to the visitor's saved theme/mode right after mount.
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+  const themeId = hydrated ? storedThemeId : defaultThemeId;
+  const mode = hydrated ? storedMode : 'light';
 
   const tabAnchorId = visibleThemeIds.includes(themeId)
     ? themeId
