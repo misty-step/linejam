@@ -1,7 +1,7 @@
 import { resolveService } from './service.mjs';
 import { CANARY_AUTOMATION_EVENT_TYPES_QUERY } from './events.mjs';
 
-const DEFAULT_ENDPOINT = 'https://canary-obs.fly.dev';
+const DEFAULT_ENDPOINT = 'https://canary.mistystep.io';
 const DEFAULT_SERVICE = process.env.LINEJAM_CANARY_SERVICE || 'linejam';
 const DEFAULT_TIMEOUT_MS = 5_000;
 

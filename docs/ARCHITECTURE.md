@@ -75,7 +75,7 @@ Hybrid auth pattern:
 
 1. Try Clerk authentication first
 2. Fall back to guest token (signed JWT stored in localStorage)
-3. Token secret must match in Vercel + Convex environments
+3. Token secret must match in DigitalOcean App Platform + Convex environments
 
 ### 4. AI Players (`convex/ai.ts`, `convex/lib/ai/`)
 

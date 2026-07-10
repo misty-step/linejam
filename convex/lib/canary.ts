@@ -7,7 +7,7 @@
  */
 
 const SERVICE = 'linejam';
-const DEFAULT_CANARY_ENDPOINT = 'https://canary-obs.fly.dev';
+const DEFAULT_CANARY_ENDPOINT = 'https://canary.mistystep.io';
 const REQUEST_TIMEOUT_MS = 2_000;
 
 const SAFE_CONTEXT_KEYS = new Set([

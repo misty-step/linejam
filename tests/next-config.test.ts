@@ -38,6 +38,16 @@ describe('nextConfig security headers', () => {
     expect(csp).not.toContain(' *');
   });
 
+  it('uses the stable Canary hostname when no endpoint is configured', () => {
+    vi.stubEnv('CANARY_ENDPOINT', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
+
+    const csp = buildContentSecurityPolicy();
+
+    expect(csp).toContain('https://canary.mistystep.io');
+    expect(csp).not.toContain('.fly.dev');
+  });
+
   it('allows the production Clerk custom domain in every Clerk-bearing directive', () => {
     vi.stubEnv('NODE_ENV', 'production');
 
@@ -58,6 +68,8 @@ describe('nextConfig security headers', () => {
 
   it('does not include development-only script or localhost allowances in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('CANARY_ENDPOINT', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
 
     const csp = buildContentSecurityPolicy();
     expect(csp).not.toContain("'unsafe-eval'");
