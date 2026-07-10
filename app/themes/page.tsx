@@ -17,6 +17,11 @@ export default function ThemesPage() {
   const { themeId, mode, setTheme } = useTheme();
   const listRef = useRef<HTMLDivElement>(null);
   const activeTheme = getTheme(themeId);
+  // A retired active theme (saved before the top-10 roster) renders no card;
+  // anchor the roving tabindex on the first card so keyboard users can enter.
+  const tabAnchorId = visibleThemeIds.includes(themeId)
+    ? themeId
+    : visibleThemeIds[0];
 
   const focusCard = useCallback((index: number) => {
     const cards = listRef.current?.querySelectorAll('[role="radio"]');
@@ -88,7 +93,7 @@ export default function ThemesPage() {
             isSelected={id === themeId}
             currentMode={mode}
             onSelect={() => setTheme(id)}
-            tabIndex={id === themeId ? 0 : -1}
+            tabIndex={id === tabAnchorId ? 0 : -1}
           />
         ))}
       </div>

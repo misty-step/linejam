@@ -47,6 +47,25 @@ describe('/themes specimen page', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe(target);
   });
 
+  it('keeps keyboard entry working when the saved theme is retired', () => {
+    localStorage.setItem('linejam-theme-id', 'mono');
+    try {
+      renderPage();
+      // No card is checked (mono renders no card), but the roving tabindex
+      // anchors on the first card so the radiogroup stays reachable.
+      const group = screen.getByRole('radiogroup', { name: /select theme/i });
+      const radios = within(group).getAllByRole('radio');
+      expect(
+        radios.every((r) => r.getAttribute('aria-checked') === 'false')
+      ).toBe(true);
+      expect(
+        screen.getByTestId(`theme-specimen-${visibleThemeIds[0]}`)
+      ).toHaveAttribute('tabindex', '0');
+    } finally {
+      localStorage.removeItem('linejam-theme-id');
+    }
+  });
+
   it('every card previews the same canonical specimen line', () => {
     renderPage();
     expect(screen.getAllByText('moonlight over quiet stones')).toHaveLength(

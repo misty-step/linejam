@@ -21,6 +21,11 @@ interface ThemeSelectorProps {
 export function ThemeSelector({ className = '', onClose }: ThemeSelectorProps) {
   const { themeId, mode, setTheme } = useTheme();
   const themeListRef = useRef<HTMLDivElement>(null);
+  // A retired active theme (saved before the top-10 roster) renders no row;
+  // anchor the roving tabindex on the first row so keyboard users can enter.
+  const tabAnchorId = visibleThemeIds.includes(themeId)
+    ? themeId
+    : visibleThemeIds[0];
 
   const handleThemeSelect = (id: string) => {
     setTheme(id);
@@ -93,7 +98,7 @@ export function ThemeSelector({ className = '', onClose }: ThemeSelectorProps) {
             isSelected={id === themeId}
             currentMode={mode}
             onSelect={() => handleThemeSelect(id)}
-            tabIndex={id === themeId ? 0 : -1}
+            tabIndex={id === tabAnchorId ? 0 : -1}
           />
         ))}
       </div>
