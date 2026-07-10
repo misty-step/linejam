@@ -66,10 +66,19 @@ jobs:
           fi
           cat "$RUNNER_TEMP/linejam-smoke/stdout.log"
           cat "$RUNNER_TEMP/linejam-smoke/stderr.log" >&2
-          # The linked artifacts retain full diagnostics. Keep the alert-plane
-          # payload to the known failing corpus identity so stdout, account
-          # data, or provider responses can never be copied into Canary/Powder.
-          echo "detail=tests/e2e/prod-smoke.spec.ts" >> "$GITHUB_OUTPUT"
+          # The linked artifacts retain full diagnostics. Extract only the
+          # static spec path plus optional line/column from Playwright output;
+          # stdout, account data, and provider responses never enter the alert
+          # plane.
+          detail="$(
+            grep -Eho 'tests/e2e/prod-smoke\.spec\.ts(:[0-9]+){0,2}' \
+              "$RUNNER_TEMP/linejam-smoke/stdout.log" \
+              "$RUNNER_TEMP/linejam-smoke/stderr.log" | tail -n 1 || true
+          )"
+          if [ -z "$detail" ]; then
+            detail="tests/e2e/prod-smoke.spec.ts"
+          fi
+          echo "detail=$detail" >> "$GITHUB_OUTPUT"
           exit "$code"
 
       - name: Upload production smoke logs
