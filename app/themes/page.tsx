@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
-import { useTheme, visibleThemeIds, getTheme } from '@/lib/themes';
+import { visibleThemeIds, getTheme } from '@/lib/themes';
+import { useThemeRadioNav } from '@/hooks/useThemeRadioNav';
 import { ThemeModeControl } from '@/components/ThemeModeControl';
 import { ThemeSpecimenCard } from '@/components/ThemeSpecimenCard';
 
@@ -14,47 +14,9 @@ import { ThemeSpecimenCard } from '@/components/ThemeSpecimenCard';
  * (SELECTOR section winner, ANTHRO-6 "Specimen").
  */
 export default function ThemesPage() {
-  const { themeId, mode, setTheme } = useTheme();
-  const listRef = useRef<HTMLDivElement>(null);
+  const { themeId, mode, setTheme, listRef, tabAnchorId, handleKeyDown } =
+    useThemeRadioNav();
   const activeTheme = getTheme(themeId);
-  // A retired active theme (saved before the top-10 roster) renders no card;
-  // anchor the roving tabindex on the first card so keyboard users can enter.
-  const tabAnchorId = visibleThemeIds.includes(themeId)
-    ? themeId
-    : visibleThemeIds[0];
-
-  const focusCard = useCallback((index: number) => {
-    const cards = listRef.current?.querySelectorAll('[role="radio"]');
-    (cards?.[index] as HTMLElement)?.focus();
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      const currentIndex = visibleThemeIds.indexOf(themeId);
-      const move = (nextIndex: number) => {
-        event.preventDefault();
-        setTheme(visibleThemeIds[nextIndex]);
-        focusCard(nextIndex);
-      };
-      switch (event.key) {
-        case 'ArrowDown':
-          move((currentIndex + 1) % visibleThemeIds.length);
-          break;
-        case 'ArrowUp':
-          move(
-            (currentIndex - 1 + visibleThemeIds.length) % visibleThemeIds.length
-          );
-          break;
-        case 'Home':
-          move(0);
-          break;
-        case 'End':
-          move(visibleThemeIds.length - 1);
-          break;
-      }
-    },
-    [themeId, setTheme, focusCard]
-  );
 
   return (
     <main
