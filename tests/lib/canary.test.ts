@@ -1,5 +1,6 @@
 /** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConvexError } from 'convex/values';
 
 const fetchMock = vi.fn();
 
@@ -84,6 +85,31 @@ describe('canary helpers', () => {
     expect(normalizeError(error)).toMatchObject({
       errorClass: 'Error',
       message: 'Unknown error',
+    });
+  });
+
+  it('uses ConvexError data when production redacts the public message', async () => {
+    const { normalizeError } = await import('@/lib/canaryCore');
+    const error = new ConvexError(
+      'Rate limit exceeded. Please try again later.'
+    );
+    error.message = '[Request ID: production-request] Server Error';
+
+    expect(normalizeError(error)).toMatchObject({
+      errorClass: 'ConvexError',
+      message: 'Rate limit exceeded. Please try again later.',
+    });
+  });
+
+  it('does not treat unrelated Error data as a Canary message', async () => {
+    const { normalizeError } = await import('@/lib/canaryCore');
+    const error = Object.assign(new Error('safe boundary message'), {
+      data: 'vendor response body',
+    });
+
+    expect(normalizeError(error)).toMatchObject({
+      errorClass: 'Error',
+      message: 'safe boundary message',
     });
   });
 

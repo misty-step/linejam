@@ -10,6 +10,7 @@ import {
   vi,
 } from 'vitest';
 import { NextRequest } from 'next/server';
+import { ConvexError } from 'convex/values';
 
 vi.mock('server-only', () => ({}));
 
@@ -451,12 +452,12 @@ describe('GET /api/guest/session', () => {
   describe('with guest-session throttle', () => {
     let GET: typeof import('@/app/api/guest/session/route').GET;
     let mockMutation: ReturnType<typeof vi.fn>;
+    let mockCaptureServerError: ReturnType<typeof vi.fn>;
     const originalEnv = { ...process.env };
 
     beforeAll(async () => {
       vi.resetModules();
       vi.doUnmock('@/lib/guestToken');
-      vi.doUnmock('@/lib/errorServer');
       process.env = {
         ...originalEnv,
         NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
@@ -470,6 +471,10 @@ describe('GET /api/guest/session', () => {
           mutation = mockMutation;
         },
       }));
+      mockCaptureServerError = vi.fn();
+      vi.doMock('@/lib/errorServer', () => ({
+        captureServerError: mockCaptureServerError,
+      }));
 
       const mod = await import('@/app/api/guest/session/route');
       GET = mod.GET;
@@ -477,11 +482,13 @@ describe('GET /api/guest/session', () => {
 
     beforeEach(() => {
       mockMutation.mockClear();
+      mockCaptureServerError.mockClear();
     });
 
     afterAll(() => {
       process.env = originalEnv;
       vi.doUnmock('convex/browser');
+      vi.doUnmock('@/lib/errorServer');
       vi.restoreAllMocks();
     });
 
@@ -511,6 +518,29 @@ describe('GET /api/guest/session', () => {
         '203.0.113.7'
       );
       expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+    });
+
+    it('returns 429 when production Convex redacts the rate-limit message', async () => {
+      const error = new ConvexError(
+        'Rate limit exceeded. Please try again later.'
+      );
+      error.message = '[Request ID: production-request] Server Error';
+      mockMutation.mockRejectedValueOnce(error);
+
+      const response = await GET(
+        new NextRequest('https://www.linejam.app/api/guest/session', {
+          headers: {
+            'x-forwarded-for': '203.0.113.8',
+          },
+        })
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(response.headers.get('Retry-After')).toBe('600');
+      expect(data.error).toBe('Too many guest sessions. Try again later.');
+      expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+      expect(mockCaptureServerError).not.toHaveBeenCalled();
     });
 
     it.each([
