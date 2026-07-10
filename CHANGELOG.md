@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.7](https://github.com/misty-step/linejam/compare/v0.16.6...v0.16.7) (2026-07-10)
+
+
+### Bug Fixes
+
+* **ops:** classify production Convex rate limits ([#331](https://github.com/misty-step/linejam/issues/331)) ([59099ef](https://github.com/misty-step/linejam/commit/59099ef29021b8f67078c86d3f9fd1d8a97ea35f))
+
 ## [0.16.6](https://github.com/misty-step/linejam/compare/v0.16.5...v0.16.6) (2026-07-10)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "linejam",
-  "version": "0.16.6",
+  "version": "0.16.7",
   "private": true,
   "engines": {
     "node": ">=22.0.0",
