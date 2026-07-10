@@ -10,6 +10,10 @@ import {
   Righteous,
   Outfit,
   Space_Mono,
+  Fraunces,
+  Archivo,
+  Archivo_Black,
+  Anton,
 } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -95,6 +99,35 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+// Theme-collection fonts (Aloud/Fold/Catalog, Overprint, Broadside/Board)
+const fraunces = Fraunces({
+  variable: '--font-fraunces',
+  subsets: ['latin'],
+  weight: ['400', '600'],
+  display: 'swap',
+});
+
+const archivo = Archivo({
+  variable: '--font-archivo',
+  subsets: ['latin'],
+  weight: ['400', '600'],
+  display: 'swap',
+});
+
+const archivoBlack = Archivo_Black({
+  variable: '--font-archivo-black',
+  subsets: ['latin'],
+  weight: ['400'],
+  display: 'swap',
+});
+
+const anton = Anton({
+  variable: '--font-anton',
+  subsets: ['latin'],
+  weight: ['400'],
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: siteConfig.title,
   description: siteConfig.description,
@@ -169,7 +202,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable}`}
+      className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${archivo.variable} ${archivoBlack.variable} ${anton.variable}`}
     >
       <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />

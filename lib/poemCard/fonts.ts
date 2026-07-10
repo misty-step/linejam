@@ -50,6 +50,55 @@ const CARD_FONT_PAIRINGS: Record<string, CardFontPairing> = {
     displayUrl: fontsourceUrl('righteous', 400, 'normal'),
     sansUrl: fontsourceUrl('outfit', 400, 'normal'),
   },
+  // 2026-07 theme collection (mirrors app/layout.tsx next/font assignments)
+  fold: {
+    displayFamily: 'Fraunces',
+    sansFamily: 'Source Serif 4',
+    displayUrl: fontsourceUrl('fraunces', 400, 'normal'),
+    sansUrl: fontsourceUrl('source-serif-4', 400, 'normal'),
+  },
+  overprint: {
+    displayFamily: 'Archivo Black',
+    sansFamily: 'Archivo',
+    displayUrl: fontsourceUrl('archivo-black', 400, 'normal'),
+    sansUrl: fontsourceUrl('archivo', 400, 'normal'),
+  },
+  broadside: {
+    displayFamily: 'Anton',
+    sansFamily: 'IBM Plex Sans',
+    displayUrl: fontsourceUrl('anton', 400, 'normal'),
+    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
+  },
+  catalog: {
+    displayFamily: 'Fraunces',
+    sansFamily: 'Outfit',
+    displayUrl: fontsourceUrl('fraunces', 400, 'normal'),
+    sansUrl: fontsourceUrl('outfit', 400, 'normal'),
+  },
+  aloud: {
+    displayFamily: 'Fraunces',
+    sansFamily: 'IBM Plex Sans',
+    displayUrl: fontsourceUrl('fraunces', 400, 'normal'),
+    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
+  },
+  seats: {
+    displayFamily: 'Cormorant Garamond',
+    sansFamily: 'Outfit',
+    displayUrl: fontsourceUrl('cormorant-garamond', 400, 'normal'),
+    sansUrl: fontsourceUrl('outfit', 400, 'normal'),
+  },
+  console: {
+    displayFamily: 'JetBrains Mono',
+    sansFamily: 'IBM Plex Sans',
+    displayUrl: fontsourceUrl('jetbrains-mono', 400, 'normal'),
+    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
+  },
+  board: {
+    displayFamily: 'Anton',
+    sansFamily: 'IBM Plex Sans',
+    displayUrl: fontsourceUrl('anton', 400, 'normal'),
+    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
+  },
 };
 
 export const DEFAULT_CARD_THEME_ID = 'kenya';

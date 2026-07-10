@@ -125,6 +125,11 @@ export interface ThemePreset {
   label: string;
   /** Short description for theme picker */
   description: string;
+  /**
+   * Retired themes stay registered so existing users' saved choice keeps
+   * working, but pickers no longer offer them (see registry.visibleThemeIds).
+   */
+  retired?: boolean;
   /** Token definitions for light and dark modes */
   tokens: {
     light: ThemeTokens;
