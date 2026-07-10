@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.16.8](https://github.com/misty-step/linejam/compare/v0.16.7...v0.16.8) (2026-07-10)
+
+
+### Bug Fixes
+
+* **observability:** suppress expected convex throttles ([#332](https://github.com/misty-step/linejam/issues/332)) ([a11a7a2](https://github.com/misty-step/linejam/commit/a11a7a29917501b9faf6c4cb3e989cb1b607819b))
+
 ## [0.16.7](https://github.com/misty-step/linejam/compare/v0.16.6...v0.16.7) (2026-07-10)
 
 
