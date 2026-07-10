@@ -2,6 +2,12 @@ name: Production Smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      force_alert_test:
+        description: Force the smoke result red after the real browser corpus passes
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: '17 * * * *'
 
@@ -14,6 +20,9 @@ jobs:
     name: Production Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
     env:
       PLAYWRIGHT_BASE_URL: https://www.linejam.app
       PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1'
@@ -43,13 +52,33 @@ jobs:
         run: pnpm exec playwright install chromium --with-deps
 
       - name: Run production smoke
+        id: smoke
+        env:
+          LINEJAM_FORCE_ALERT_TEST: ${{ inputs.force_alert_test && '1' || '0' }}
         run: |
           mkdir -p "$RUNNER_TEMP/linejam-smoke"
           set +e
           pnpm canary:smoke > "$RUNNER_TEMP/linejam-smoke/stdout.log" 2> "$RUNNER_TEMP/linejam-smoke/stderr.log"
           code=$?
+          if [ "$LINEJAM_FORCE_ALERT_TEST" = "1" ] && [ "$code" -eq 0 ]; then
+            echo "forced alert drill: tests/e2e/prod-smoke.spec.ts" >> "$RUNNER_TEMP/linejam-smoke/stderr.log"
+            code=1
+          fi
           cat "$RUNNER_TEMP/linejam-smoke/stdout.log"
           cat "$RUNNER_TEMP/linejam-smoke/stderr.log" >&2
+          # The linked artifacts retain full diagnostics. Extract only the
+          # static spec path plus optional line/column from Playwright output;
+          # stdout, account data, and provider responses never enter the alert
+          # plane.
+          detail="$(
+            grep -Eho 'tests/e2e/prod-smoke\.spec\.ts(:[0-9]+){0,2}' \
+              "$RUNNER_TEMP/linejam-smoke/stdout.log" \
+              "$RUNNER_TEMP/linejam-smoke/stderr.log" | tail -n 1 || true
+          )"
+          if [ -z "$detail" ]; then
+            detail="tests/e2e/prod-smoke.spec.ts"
+          fi
+          echo "detail=$detail" >> "$GITHUB_OUTPUT"
           exit "$code"
 
       - name: Upload production smoke logs
@@ -70,3 +99,53 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
           retention-days: 14
+
+      # linejam-913 (2026-07-04 outage postmortem): Production Smoke was RED
+      # for ~15 hours before the operator found the outage by hand -- the
+      # gate worked, nothing wired the red signal to a human or to BB
+      # triage. These two steps close that wire: count the consecutive
+      # failure streak (so one blip is an annotation, not a page), then
+      # report status to the `linejam-production-smoke` Canary monitor,
+      # whose `error` check-in maps directly to Canary's Down health state
+      # and opens/holds an incident. The signed Linejam responder consumes
+      # that incident and persists its own browser-smoke evidence. A passing
+      # run always reports `ok`, which resolves the incident.
+      - name: Determine consecutive-failure streak
+        id: streak
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          count="$(node scripts/ops/count-consecutive-prod-smoke-failures.mjs '${{ steps.smoke.outcome }}')"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Report status to Canary
+        if: always()
+        env:
+          NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
+          NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+          CANARY_RESPONDER_API_KEY: ${{ secrets.CANARY_RESPONDER_API_KEY }}
+          LINEJAM_SMOKE_REQUIRE_ALERT_ANNOTATION: '1'
+          LINEJAM_SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          LINEJAM_SMOKE_CONSECUTIVE_FAILURES: ${{ steps.streak.outputs.count }}
+          LINEJAM_SMOKE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          LINEJAM_SMOKE_FAILURE_DETAIL: ${{ steps.smoke.outputs.detail }}
+        run: node scripts/ops/report-prod-smoke-status.mjs
+
+      - name: Annotate failure in the step summary
+        if: steps.smoke.outcome == 'failure'
+        env:
+          STREAK_COUNT: ${{ steps.streak.outputs.count }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "## Production Smoke failed"
+            echo
+            echo "- Consecutive failures: ${STREAK_COUNT}"
+            echo "- Run: ${RUN_URL}"
+            if [ "${STREAK_COUNT}" -ge 2 ]; then
+              echo "- Escalated: reported to the \`linejam-production-smoke\` Canary monitor as Down (opens/holds an incident)."
+            else
+              echo "- Not yet escalated: below the 2-run threshold. Recorded on the monitor without opening an incident."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
