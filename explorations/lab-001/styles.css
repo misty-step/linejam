@@ -1,0 +1,157 @@
+/* Lab-001 viewer shell styles. Shell only — nothing an option needs. */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  background: #0f0e11;
+  color: #e8e5ee;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+#topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2a2830;
+}
+.brand strong {
+  font: 700 13px/1 ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  color: #ffb454;
+}
+.brand span {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #9b97a3;
+}
+.viewport-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.viewport-controls button {
+  font: 600 11px/1 ui-monospace, monospace;
+  color: #9b97a3;
+  background: #1c1a20;
+  border: 1px solid #2a2830;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.viewport-controls button.active {
+  color: #0f0e11;
+  background: #e8e5ee;
+  border-color: #e8e5ee;
+}
+#vp-readout {
+  font: 11px/1 ui-monospace, monospace;
+  color: #6d6a75;
+  min-width: 90px;
+}
+#layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+#sidebar {
+  flex: none;
+  width: 320px;
+  overflow-y: auto;
+  border-right: 1px solid #2a2830;
+  padding: 14px;
+}
+.section-head h2 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+.section-head .round {
+  font: 11px/1.4 ui-monospace, monospace;
+  color: #ffb454;
+  margin: 0 0 6px;
+}
+.section-head .note,
+.section-head .count {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #9b97a3;
+  margin: 0 0 10px;
+}
+.opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #17161a;
+  border: 1px solid #2a2830;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  color: inherit;
+}
+.opt:hover {
+  border-color: #4a4653;
+}
+.opt.active {
+  border-color: #ffb454;
+  background: #1f1c17;
+}
+.opt-id {
+  font: 700 11px/1 ui-monospace, monospace;
+  color: #ffb454;
+  margin-right: 8px;
+}
+.opt-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.badge {
+  float: right;
+  font: 700 9px/1 ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  color: #0f0e11;
+  background: var(--hue, #888);
+  border-radius: 4px;
+  padding: 3px 6px;
+  margin-top: 1px;
+}
+.move {
+  display: block;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #9b97a3;
+  margin-top: 5px;
+}
+#stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  min-width: 0;
+  padding: 16px;
+}
+#frame-holder {
+  transform-origin: center center;
+  transition: width 0.15s, height 0.15s;
+  width: 100%;
+  height: 100%;
+}
+#frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: #17161a;
+}

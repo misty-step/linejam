@@ -59,3 +59,6 @@ thinktank_*/
 
 # task artifacts
 TASK_COMPLETE
+
+# Design-lab generated screenshots
+explorations/lab-001/.sweep/

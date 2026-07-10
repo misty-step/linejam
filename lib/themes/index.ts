@@ -14,6 +14,7 @@ export { defineTheme, validateTheme, REQUIRED_TOKENS } from './schema';
 export {
   themes,
   themeIds,
+  visibleThemeIds,
   defaultThemeId,
   getTheme,
   isValidThemeId,

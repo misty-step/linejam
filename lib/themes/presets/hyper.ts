@@ -38,7 +38,9 @@ export const hyperTheme = defineTheme({
       'color-text-secondary': '#000000',
       'color-text-muted': '#666666',
       'color-text-inverse': '#ffffff',
-      'color-focus-ring': '#00ffff', // Cyan focus
+      // Cyan family, darkened for light mode: raw #00ffff is 1.25:1 on the
+      // light background (invisible focus). #0891b2 keeps the hue at >3:1.
+      'color-focus-ring': '#0891b2',
       'color-success': '#00ff00',
       'color-error': '#ff0000',
       'color-warning': '#ffff00',

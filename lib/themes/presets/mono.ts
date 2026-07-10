@@ -18,6 +18,9 @@ export const monoTheme = defineTheme({
   id: 'mono',
   label: 'Mono',
   description: 'Swiss modernism',
+  // Retired from the picker 2026-07 (top-10 roster); kept registered so
+  // existing users' saved choice keeps working.
+  retired: true,
   tokens: {
     light: {
       // Colors - Pure black and white

@@ -1,0 +1,90 @@
+/* Lab chrome inside the frame — NOT part of any option's design. */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  background: #17161a;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+#mount {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.lab-tabs {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  justify-content: center;
+  background: #17161a;
+}
+.lab-tabs button {
+  font: 600 11px/1 ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9b97a3;
+  background: #26242b;
+  border: 1px solid #35323c;
+  border-radius: 999px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.lab-tabs button.active {
+  color: #17161a;
+  background: #e8e5ee;
+  border-color: #e8e5ee;
+}
+.lab-stage-wrap {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 12px;
+}
+.screen-root {
+  width: 390px;
+  height: 844px;
+  flex: none;
+  overflow: hidden;
+  position: relative;
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 1px #35323c,
+    0 24px 64px rgba(0, 0, 0, 0.55);
+  background: #fff;
+}
+/* When the iframe itself is phone-sized, the stage fills the space BELOW the
+   tab strip — lab chrome must never overlay an option's thumb-zone CTA. */
+@media (max-width: 480px) {
+  .lab-stage-wrap {
+    padding: 0;
+  }
+  .screen-root {
+    width: 100vw;
+    height: 100%;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+.frame-empty,
+.frame-error {
+  color: #9b97a3;
+  font: 14px/1.5 ui-monospace, monospace;
+  padding: 24px;
+  text-align: center;
+}
+.frame-error {
+  color: #ff7a7a;
+}

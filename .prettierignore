@@ -29,3 +29,6 @@ coverage/
 server/
 .canary/
 .evidence/
+
+# Design-lab artifacts
+explorations/

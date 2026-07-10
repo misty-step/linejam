@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>lab-001 frame</title>
+    <link rel="stylesheet" href="frame.css?v=4" />
+  </head>
+  <body>
+    <div id="mount"></div>
+    <script src="frame.js?v=4"></script>
+    <script src="lanes/baseline.js?v=4"></script>
+    <script src="lanes/anthro.js?v=4"></script>
+    <script src="lanes/taste.js?v=4"></script>
+    <script src="lanes/brut.js?v=4"></script>
+    <script src="lanes/hall.js?v=4"></script>
+    <script>
+      // Lane scripts loaded after frame.js: re-render once all are present.
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    </script>
+  </body>
+</html>
