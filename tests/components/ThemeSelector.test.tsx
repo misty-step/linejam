@@ -80,7 +80,7 @@ describe('ThemeSelector', () => {
     fireEvent.keyDown(radiogroup, { key: 'ArrowDown' });
     expect(
       screen.getByRole('radio', {
-        name: /mono theme: swiss modernism/i,
+        name: /the fold theme: folded manuscript, quiet ink/i,
       })
     ).toHaveAttribute('aria-checked', 'true');
 
