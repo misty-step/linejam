@@ -331,6 +331,23 @@ describe('useUser hook', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it('shows expected guest throttling without reporting it to Canary', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 429 });
+
+    const { result } = renderHook(() => useUser());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.authError).toBe(
+      'Too many guest sessions. Please wait a few minutes before trying again.'
+    );
+    expect(mockCaptureError).not.toHaveBeenCalled();
+    expect(result.current.guestId).toBeNull();
+    expect(result.current.guestToken).toBeNull();
+  });
+
   it('removes stale localStorage guest token when guest bootstrap fails', async () => {
     localStorage.setItem('linejam_guest_token', 'stale-token');
     mockFetch.mockRejectedValue(new Error('Network error'));

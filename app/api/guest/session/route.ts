@@ -267,26 +267,30 @@ function getClientIp(request: NextRequest): string {
 }
 
 function isRateLimitError(error: unknown) {
-  if (!error) return false;
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : String(error);
-  return /rate limit exceeded/i.test(message);
+  return /rate limit exceeded/i.test(extractErrorMessage(error));
 }
 
 function isMissingThrottleFunctionError(error: unknown) {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : String(error);
   return /Could not find public function for 'guestSessions:checkGuestSessionThrottle'/i.test(
-    message
+    extractErrorMessage(error)
   );
+}
+
+function extractErrorMessage(error: unknown) {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'name' in error &&
+    (error as { name: unknown }).name === 'ConvexError' &&
+    'data' in error &&
+    typeof (error as { data: unknown }).data === 'string'
+  ) {
+    return (error as { data: string }).data;
+  }
+
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return String(error);
 }
 
 function allowUnsyncedConvexThrottle() {

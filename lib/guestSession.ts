@@ -17,6 +17,22 @@ export interface GuestSessionFetcher {
   fetch(): Promise<GuestSessionData>;
 }
 
+export const GUEST_SESSION_RATE_LIMIT_MESSAGE =
+  'Too many guest sessions. Please wait a few minutes before trying again.';
+
+export class GuestSessionHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`Guest session API returned ${status}`);
+    this.name = 'GuestSessionHttpError';
+  }
+}
+
+export function isGuestSessionRateLimitError(
+  error: unknown
+): error is GuestSessionHttpError {
+  return error instanceof GuestSessionHttpError && error.status === 429;
+}
+
 const LEGACY_STORAGE_KEY = 'linejam_guest_token';
 
 const clearLegacyGuestTokenMirror = () => {
@@ -44,7 +60,7 @@ async function fetchGuestSession(url: string): Promise<GuestSessionData> {
 
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Guest session API returned ${res.status}`);
+    throw new GuestSessionHttpError(res.status);
   }
   const data = await res.json();
   const guestId = typeof data.guestId === 'string' ? data.guestId : null;
@@ -62,6 +78,8 @@ export const defaultGuestSessionFetcher: GuestSessionFetcher = {
     try {
       return await fetchGuestSession('/api/guest/session');
     } catch (error) {
+      if (isGuestSessionRateLimitError(error)) throw error;
+
       throw new Error(
         `Failed to fetch guest session: ${error instanceof Error ? error.message : 'Unknown error'}`
       );

@@ -61,7 +61,7 @@ export function normalizeError(error: unknown): {
   if (error instanceof Error) {
     return {
       errorClass: error.name || error.constructor.name || 'Error',
-      message: error.message || 'Unknown error',
+      message: extractStructuredErrorMessage(error) || 'Unknown error',
       stackTrace: error.stack,
     };
   }
@@ -77,6 +77,18 @@ export function normalizeError(error: unknown): {
     errorClass: 'UnknownError',
     message: String(error),
   };
+}
+
+function extractStructuredErrorMessage(error: Error): string {
+  if (
+    error.name === 'ConvexError' &&
+    'data' in error &&
+    typeof (error as Error & { data: unknown }).data === 'string'
+  ) {
+    return (error as Error & { data: string }).data;
+  }
+
+  return error.message;
 }
 
 export function scrubCanaryContext(

@@ -3,8 +3,10 @@ import { useConvexAuth } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 import { captureError } from '@/lib/error';
 import {
+  GUEST_SESSION_RATE_LIMIT_MESSAGE,
   GuestSessionFetcher,
   defaultGuestSessionFetcher,
+  isGuestSessionRateLimitError,
 } from '@/lib/guestSession';
 
 const CLERK_GUEST_FALLBACK_MS = 5_000;
@@ -107,10 +109,14 @@ export function useUser(
       })
       .catch((error) => {
         if (isStale) return;
-        captureError(error, { operation: 'fetchGuestSession' });
         setGuestId(null);
         setGuestToken(null);
-        setAuthError('Unable to connect. Please check your connection.');
+        if (isGuestSessionRateLimitError(error)) {
+          setAuthError(GUEST_SESSION_RATE_LIMIT_MESSAGE);
+        } else {
+          captureError(error, { operation: 'fetchGuestSession' });
+          setAuthError('Unable to connect. Please check your connection.');
+        }
         setIsLoaded(true);
       });
     return () => {

@@ -4,6 +4,7 @@ import {
   defaultGuestSessionFetcher,
   getExistingGuestSession,
   clearGuestSession,
+  GuestSessionHttpError,
 } from '@/lib/guestSession';
 
 describe('defaultGuestSessionFetcher', () => {
@@ -46,6 +47,18 @@ describe('defaultGuestSessionFetcher', () => {
     await expect(defaultGuestSessionFetcher.fetch()).rejects.toThrow(
       'Failed to fetch guest session: Guest session API returned 500'
     );
+  });
+
+  it('preserves a status-bearing error for guest-session rate limits', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+    });
+
+    const request = defaultGuestSessionFetcher.fetch();
+
+    await expect(request).rejects.toBeInstanceOf(GuestSessionHttpError);
+    await expect(request).rejects.toMatchObject({ status: 429 });
   });
 
   it('returns null for non-string guestId', async () => {
