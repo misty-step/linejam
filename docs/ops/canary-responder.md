@@ -84,16 +84,14 @@ pnpm test:e2e:smoke    # hosted responders with LINEJAM_SMOKE_RUNNER=playwright
 
 This uses `PLAYWRIGHT_BASE_URL` plus the dedicated `playwright.smoke.config.ts` configuration. When `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` are set, the smoke suite also exercises a signed-in Clerk join path; `PLAYWRIGHT_CLERK_TEST_EMAIL` only overrides the default smoke user, and live Clerk tenants should point it at a precreated account. Set `PLAYWRIGHT_REQUIRE_AUTH_SMOKE=1` anywhere auth coverage is mandatory, including preview and production smoke jobs.
 
-Local operators should keep the authoritative Dagger contract by leaving `LINEJAM_SMOKE_RUNNER=dagger`. Hosted responders should switch to `LINEJAM_SMOKE_RUNNER=playwright`; the same smoke suite runs directly with Playwright and avoids trying to embed Dagger inside the webhook worker. Hosted smoke still enforces the URL allowlist, rejects `pk_test_...` and `sk_test_...` keys against `https://www.linejam.app`, requires complete Clerk auth env when auth smoke is enabled, and validates the Clerk `convex` JWT template before it launches the browser. The committed Fly deployment files are [`Dockerfile.responder`](../../Dockerfile.responder) and [`fly.responder.toml`](../../fly.responder.toml).
+Local operators should keep the authoritative Dagger contract by leaving `LINEJAM_SMOKE_RUNNER=dagger`. The DigitalOcean App Platform responder switches to `LINEJAM_SMOKE_RUNNER=playwright`; the same smoke suite runs directly with Playwright and avoids trying to embed Dagger inside the webhook worker. Hosted smoke still enforces the URL allowlist, rejects `pk_test_...` and `sk_test_...` keys against `https://www.linejam.app`, requires complete Clerk auth env when auth smoke is enabled, and validates the Clerk `convex` JWT template before it launches the browser. App Platform builds the committed [`Dockerfile.responder`](../../Dockerfile.responder), listens on port `8787`, and probes `/healthz`.
 
 GitHub preview and production smoke workflows also use
 `LINEJAM_SMOKE_RUNNER=playwright` so they can upload durable stdout, stderr,
 `test-results/`, and `playwright-report/` artifacts on both success and
-failure. Protected Vercel previews require `VERCEL_AUTOMATION_BYPASS_SECRET`;
-the preview workflow fails in preflight when that repository secret is absent,
-and the smoke Playwright config sends it as the `x-vercel-protection-bypass`
-header and requests the bypass cookie for in-browser navigation. Agentic QA
-after smoke is manual/opt-in for preview and production: set
+failure. Preview smoke accepts an explicit DigitalOcean App Platform URL and
+allows only Linejam's `*.ondigitalocean.app` ingress hosts. Agentic QA after
+smoke is manual/opt-in for preview and production: set
 `LINEJAM_AGENTIC_QA_AFTER_SMOKE=1` and `STAGEHAND_MODEL_API_KEY` only when the
 follow-up artifact is intentionally required for an incident or release
 decision.

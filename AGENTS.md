@@ -180,7 +180,7 @@ AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 5. **Never mock internal `@/` or `../../` modules in tests.** Mock only system boundaries and nondeterminism. See Mocking Rules below for the full boundary list.
 6. **Parallelize independent Convex writes with `Promise.all`.** Avoid sequential write loops and obvious N+1 query shapes. See Code Patterns below for examples.
 7. **Every `while` loop needs a termination guard.** See Code Patterns below for the pattern.
-8. **`GUEST_TOKEN_SECRET` must match across local, Vercel, and Convex.**
+8. **`GUEST_TOKEN_SECRET` must match across local, DigitalOcean App Platform, and Convex.**
 9. **Base branch is `master`.** Conventional Commits only (commitlint enforced).
 10. **Powder is the authoritative work ledger.** `backlog.d/` is a retired seed/archive; when the two disagree, Powder wins. List linejam cards: `powder list-cards --repo linejam`.
 
@@ -403,7 +403,7 @@ pnpm test:e2e:ui      # Playwright interactive mode
 ## Critical Environment Variables
 
 - Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY` (production/preview deploy key, CI/CD only), `CONVEX_OVERRIDE_ACCESS_TOKEN` (CLI auth for read-only probes in isolated worktrees without `~/.convex/config.json` — see Agent-Safe Convex Probes above), `OPENROUTER_API_KEY` (AI player LLM access, Convex only)
-- Guest auth: `GUEST_TOKEN_SECRET` (must match in Vercel + Convex)
+- Guest auth: `GUEST_TOKEN_SECRET` (must match in App Platform + Convex)
 - Clerk: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_ISSUER_DOMAIN`
 - Canary: `CANARY_ENDPOINT`, `CANARY_API_KEY`, `NEXT_PUBLIC_CANARY_ENDPOINT`, `NEXT_PUBLIC_CANARY_API_KEY`, `LINEJAM_CANARY_WEBHOOK_SECRET`, `LINEJAM_CANARY_WEBHOOK_URL` (required for webhook setup, not responder runtime), `LINEJAM_CANARY_CONTEXT_TIMEOUT_MS`, `LINEJAM_CANARY_RETENTION_DAYS`
 - Dagger flags: `LINEJAM_ALLOW_PROD_CONVEX_SYNC`, `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE`, `LINEJAM_SYNC_CONVEX_BEFORE_DAGGER`
@@ -503,10 +503,9 @@ pnpm canary:webhook:setup
 one correct subscription for the responder URL instead of creating duplicates.
 
 The hosted `merge-gate` is the authoritative CI contract (`pnpm ci:dagger:all`
-mirrors it locally on demand). Hosted responders should set
-`LINEJAM_SMOKE_RUNNER=playwright` and use the committed
-`Dockerfile.responder`/`fly.responder.toml` path so the same remote smoke suite
-can run without embedding Dagger in the webhook worker.
+mirrors it locally on demand). The DigitalOcean App Platform responder sets
+`LINEJAM_SMOKE_RUNNER=playwright` and builds `Dockerfile.responder`, so the same
+remote smoke suite runs without embedding Dagger in the webhook worker.
 
 ### Alert Rules
 

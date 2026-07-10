@@ -24,8 +24,7 @@ jobs:
       PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1'
       LINEJAM_SMOKE_RUNNER: playwright
       LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1'
-      LINEJAM_ALLOWED_SMOKE_HOST_PATTERN: '^linejam(?:-[a-z0-9-]+)?\.vercel\.app$'
-      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      LINEJAM_ALLOWED_SMOKE_HOST_PATTERN: '^linejam(?:-[a-z0-9-]+)+\.ondigitalocean\.app$'
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CLERK_JWT_ISSUER_DOMAIN }}
@@ -38,14 +37,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-
-      - name: Verify Vercel protection bypass
-        run: |
-          if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
-            echo "::error::VERCEL_AUTOMATION_BYPASS_SECRET is required for protected Vercel preview smoke runs."
-            echo "Configure the repository secret, then rerun Preview Smoke for ${PLAYWRIGHT_BASE_URL}."
-            exit 1
-          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6

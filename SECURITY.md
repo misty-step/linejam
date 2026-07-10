@@ -31,7 +31,8 @@ In scope:
 - Guest-token handling and room/session authorization
 - Clerk and Convex auth alignment
 - Public poem sharing privacy
-- Secret handling in local, Vercel, Convex, GitHub Actions, and Canary flows
+- Secret handling in local, DigitalOcean App Platform, Convex, GitHub Actions,
+  and Canary flows
 - Cross-site scripting, request forgery, or data exposure in app routes
 
 Out of scope:

@@ -326,7 +326,7 @@ describe('captureCanaryException', () => {
     const [url, request] = fetchMock.mock.calls[0];
     const body = JSON.parse(String(request?.body)) as { environment: string };
 
-    expect(url).toBe('https://canary-obs.fly.dev/api/v1/errors');
+    expect(url).toBe('https://canary.mistystep.io/api/v1/errors');
     expect(body.environment).toBe('production');
   });
 

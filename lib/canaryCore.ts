@@ -1,6 +1,6 @@
 const REQUEST_TIMEOUT_MS = 2_000;
 const SERVICE = 'linejam';
-export const DEFAULT_CANARY_ENDPOINT = 'https://canary-obs.fly.dev';
+export const DEFAULT_CANARY_ENDPOINT = 'https://canary.mistystep.io';
 const PLACEHOLDER_API_KEYS = new Set([
   'example_canary_server_key',
   'example_canary_write_key',

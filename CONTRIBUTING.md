@@ -11,7 +11,7 @@ bash scripts/setup.sh
 
 Fill `.env.local` with the Convex, Clerk, guest-token, and Canary values needed
 for the loop you are running. Keep `GUEST_TOKEN_SECRET` aligned across local,
-Vercel, and Convex when testing room flows.
+DigitalOcean App Platform, and Convex when testing room flows.
 
 For backlog work, claim a ready item before starting:
 
