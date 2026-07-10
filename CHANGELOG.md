@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.17.0](https://github.com/misty-step/linejam/compare/v0.16.8...v0.17.0) (2026-07-10)
+
+
+### Features
+
+* ten-theme collection + /themes specimen picker (design lab-001 convergence) ([#333](https://github.com/misty-step/linejam/issues/333)) ([bd1b872](https://github.com/misty-step/linejam/commit/bd1b872b5d0104907472b0b86eacdd381f3c02ba))
+
 ## [0.16.8](https://github.com/misty-step/linejam/compare/v0.16.7...v0.16.8) (2026-07-10)
 
 
