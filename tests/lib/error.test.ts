@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConvexError } from 'convex/values';
 import { captureError } from '@/lib/error';
 import { captureReportedError } from '@/lib/errorCore';
 
@@ -63,6 +64,75 @@ describe('captureError', () => {
     captureError(new Error('Prod error'));
 
     expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('does not report expected Convex rate-limit rejections', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const error = new ConvexError(
+      'Rate limit exceeded. Please try again later.'
+    );
+    error.message = '[Request ID: prod123] Server Error';
+
+    captureError(error, { operation: 'createRoom', route: '/host' });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('still reports unexpected Convex failures', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const error = new ConvexError('Unexpected storage failure');
+    error.message = '[Request ID: prod456] Server Error';
+
+    captureError(error, { operation: 'createRoom', route: '/host' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports noncanonical Convex errors that mention rate limits', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const error = new ConvexError('Rate limit subsystem unavailable');
+    error.message = '[Request ID: prod789] Server Error';
+
+    captureError(error, { operation: 'createRoom', route: '/host' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports objects that only look like Convex errors', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const error = {
+      name: 'ConvexError',
+      message: '[Request ID: lookalike] Server Error',
+      data: 'Rate limit exceeded. Please try again later.',
+    };
+
+    captureError(error, { operation: 'createRoom', route: '/host' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports generic errors that merely mention rate limits', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+
+    captureError(new Error('Rate limit exceeded'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('logs to console when Canary is disabled', () => {

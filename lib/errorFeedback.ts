@@ -1,3 +1,6 @@
+import { ConvexError } from 'convex/values';
+import { RATE_LIMIT_EXCEEDED_MESSAGE } from '@/lib/rateLimit';
+
 /**
  * Error Feedback System — Deep Module for User-Facing Error Communication
  *
@@ -17,6 +20,20 @@ export interface ErrorFeedback {
   message: string;
   /** Visual variant for Alert component */
   variant: 'error' | 'warning' | 'info';
+}
+
+/**
+ * Return true only for an expected Convex rate-limit rejection.
+ *
+ * Convex production clients receive the actionable message in `data` while
+ * `message` is redacted. Requiring a genuine ConvexError instance and the
+ * exact canonical payload prevents generic failures that merely mention rate
+ * limits from being hidden from observability.
+ */
+export function isExpectedConvexRateLimitError(error: unknown): boolean {
+  return (
+    error instanceof ConvexError && error.data === RATE_LIMIT_EXCEEDED_MESSAGE
+  );
 }
 
 /**
