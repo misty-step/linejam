@@ -3,17 +3,22 @@
 /**
  * Lightweight analytics tracking for key user actions.
  *
- * Uses Vercel Analytics track() for funnel metrics:
+ * Uses the initialized PostHog client for privacy-safe funnel metrics:
  * - game_created, game_joined, game_started, game_completed
  * - poem_shared, ai_player_added
  * - poem_image_saved, recap_exported (linejam-943: the keepable-artifact
  *   funnel — measures save/export usage so the print-on-demand stretch
  *   decision has real demand data behind it)
  *
- * @see https://vercel.com/docs/analytics/custom-events
  */
 
-import { track } from '@vercel/analytics';
+import posthog from 'posthog-js';
+import { posthogIsReady } from '@/lib/posthog/posthogReady';
+
+function capture(event: string, properties: Record<string, unknown> = {}) {
+  if (!posthogIsReady()) return;
+  posthog.capture(event, properties);
+}
 
 type GameCreatedProps = {
   playerCount?: number;
@@ -60,49 +65,49 @@ type RecapExportedProps = {
  * Track game creation by host.
  */
 export function trackGameCreated(props?: GameCreatedProps) {
-  track('game_created', props ?? {});
+  capture('game_created', props ?? {});
 }
 
 /**
  * Track player joining a room.
  */
 export function trackGameJoined(props: GameJoinedProps) {
-  track('game_joined', props);
+  capture('game_joined', props);
 }
 
 /**
  * Track game start (host clicks Start).
  */
 export function trackGameStarted(props: GameStartedProps) {
-  track('game_started', props);
+  capture('game_started', props);
 }
 
 /**
  * Track game completion (all poems revealed).
  */
 export function trackGameCompleted(props: GameCompletedProps) {
-  track('game_completed', props);
+  capture('game_completed', props);
 }
 
 /**
  * Track poem shared via clipboard.
  */
 export function trackPoemShared(props: PoemSharedProps) {
-  track('poem_shared', props);
+  capture('poem_shared', props);
 }
 
 /**
  * Track room invite sharing from the in-room chrome.
  */
 export function trackRoomInviteShared(props: RoomInviteSharedProps) {
-  track('room_invite_shared', props);
+  capture('room_invite_shared', props);
 }
 
 /**
  * Track AI player added to room.
  */
 export function trackAiPlayerAdded(props: AiPlayerAddedProps) {
-  track('ai_player_added', props);
+  capture('ai_player_added', props);
 }
 
 /**
@@ -110,7 +115,7 @@ export function trackAiPlayerAdded(props: AiPlayerAddedProps) {
  * direct download) from the reveal or poem archive page.
  */
 export function trackPoemImageSaved(props: PoemImageSavedProps) {
-  track('poem_image_saved', props);
+  capture('poem_image_saved', props);
 }
 
 /**
@@ -118,5 +123,5 @@ export function trackPoemImageSaved(props: PoemImageSavedProps) {
  * native print dialog, triggered from the recap page's Export action).
  */
 export function trackRecapExported(props: RecapExportedProps) {
-  track('recap_exported', props);
+  capture('recap_exported', props);
 }

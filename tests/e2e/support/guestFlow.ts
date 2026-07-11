@@ -115,13 +115,6 @@ export function attachGuestFlowRuntimeErrorLogging(
 
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      if (
-        isIgnoredRuntimeUrl(msg.location().url) ||
-        isIgnoredConsoleError(msg.text())
-      ) {
-        return;
-      }
-
       runtimeErrors.push(`[${label}] console: ${msg.text()}`);
     }
   });
@@ -145,10 +138,6 @@ export function attachGuestFlowRuntimeErrorLogging(
   });
 
   page.on('response', (response) => {
-    if (isIgnoredRuntimeUrl(response.url())) {
-      return;
-    }
-
     if (response.status() >= 400) {
       const request = response.request();
       runtimeErrors.push(
@@ -163,36 +152,11 @@ function isIgnoredFailedRequest(
   requestUrl: string,
   errorText = ''
 ) {
-  if (isIgnoredRuntimeUrl(requestUrl)) {
-    return true;
-  }
-
   if (method === 'GET' && errorText === 'net::ERR_ABORTED') {
     return hasSearchParam(requestUrl, '_rsc');
   }
 
   return false;
-}
-
-function isIgnoredRuntimeUrl(requestUrl: string) {
-  try {
-    const url = new URL(requestUrl);
-    return (
-      url.pathname === '/_vercel/insights/script.js' ||
-      url.pathname === '/_vercel/speed-insights/script.js'
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isIgnoredConsoleError(text: string) {
-  const scriptUrl =
-    /Refused to execute script from '([^']+)' because its MIME type \('text\/html'\) is not executable/.exec(
-      text
-    )?.[1];
-
-  return scriptUrl ? isIgnoredRuntimeUrl(scriptUrl) : false;
 }
 
 function hasSearchParam(requestUrl: string, param: string) {

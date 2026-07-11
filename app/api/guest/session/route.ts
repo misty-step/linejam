@@ -248,19 +248,15 @@ function deriveGuestSessionRateLimitKey(request: NextRequest): string {
 }
 
 function getClientIp(request: NextRequest): string {
+  for (const header of ['do-connecting-ip', 'cf-connecting-ip', 'x-real-ip']) {
+    const value = request.headers.get(header)?.trim();
+    if (value) return value;
+  }
+
   const forwardedFor = request.headers.get('x-forwarded-for');
   if (forwardedFor) {
     const first = forwardedFor.split(',')[0]?.trim();
     if (first) return first;
-  }
-
-  for (const header of [
-    'x-real-ip',
-    'x-vercel-forwarded-for',
-    'cf-connecting-ip',
-  ]) {
-    const value = request.headers.get(header)?.trim();
-    if (value) return value;
   }
 
   return 'unknown';

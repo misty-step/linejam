@@ -1,10 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockTrack = vi.fn();
+const { mockCapture } = vi.hoisted(() => ({ mockCapture: vi.fn() }));
 
-vi.mock('@vercel/analytics', () => ({
-  track: (...args: unknown[]) => mockTrack(...args),
+vi.mock('posthog-js', () => ({
+  default: {
+    capture: (...args: unknown[]) => mockCapture(...args),
+  },
 }));
+
+import {
+  markPostHogReady,
+  resetPostHogReady,
+} from '@/lib/posthog/posthogReady';
 
 import {
   trackAiPlayerAdded,
@@ -21,12 +28,15 @@ import {
 describe('analytics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    markPostHogReady();
   });
+
+  afterEach(() => resetPostHogReady());
 
   it('uses an empty payload when game creation props are omitted', () => {
     trackGameCreated();
 
-    expect(mockTrack).toHaveBeenCalledWith('game_created', {});
+    expect(mockCapture).toHaveBeenCalledWith('game_created', {});
   });
 
   it('forwards the remaining analytics events with their payloads', () => {
@@ -40,7 +50,7 @@ describe('analytics', () => {
     trackPoemImageSaved({ method: 'native-share' });
     trackRecapExported({ method: 'print', poemCount: 6 });
 
-    expect(mockTrack.mock.calls).toEqual([
+    expect(mockCapture.mock.calls).toEqual([
       ['game_created', { playerCount: 4 }],
       ['game_joined', { roomCode: 'ABCD' }],
       ['game_started', { playerCount: 4, hasAi: true }],

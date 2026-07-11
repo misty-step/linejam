@@ -86,18 +86,24 @@ function resolveDeployKeyTarget(deployKey) {
  */
 function assertHostedDeploySignalsCompatible(env = process.env) {
   const deployKey = env.CONVEX_DEPLOY_KEY?.trim() || '';
-  const vercelEnv = env.VERCEL_ENV?.trim() || '';
+  const environment = env.LINEJAM_DEPLOY_ENVIRONMENT?.trim() || '';
   const deployKeyTarget = resolveDeployKeyTarget(deployKey);
 
-  if (vercelEnv === 'preview' && deployKeyTarget === 'prod') {
+  if (environment === 'production' && !deployKey) {
     throw new Error(
-      'Hosted preview builds cannot use a production CONVEX_DEPLOY_KEY. Fix the Vercel env so preview infrastructure cannot target Convex production.'
+      'Hosted production builds require CONVEX_DEPLOY_KEY. Refusing to ship frontend code against stale backend auth config.'
     );
   }
 
-  if (vercelEnv === 'production' && deployKeyTarget === 'preview') {
+  if (environment === 'preview' && deployKeyTarget === 'prod') {
     throw new Error(
-      'Hosted production builds cannot use a preview CONVEX_DEPLOY_KEY. Fix the Vercel env so production infrastructure cannot target Convex preview.'
+      'Hosted preview builds cannot use a production CONVEX_DEPLOY_KEY.'
+    );
+  }
+
+  if (environment === 'production' && deployKeyTarget === 'preview') {
+    throw new Error(
+      'Hosted production builds cannot use a preview CONVEX_DEPLOY_KEY.'
     );
   }
 }
@@ -110,13 +116,6 @@ export function resolveHostedConvexDeployMode(env = process.env) {
 
   const deployKey = env.CONVEX_DEPLOY_KEY?.trim() || '';
   if (!deployKey) {
-    if (env.VERCEL_ENV?.trim() === 'production') {
-      return {
-        kind: 'error',
-        reason: 'missing-prod-deploy-key',
-      };
-    }
-
     return {
       kind: 'build-only',
       reason: 'missing-deploy-key',
@@ -124,7 +123,7 @@ export function resolveHostedConvexDeployMode(env = process.env) {
   }
 
   if (
-    env.VERCEL_ENV?.trim() === 'preview' &&
+    resolveDeployKeyTarget(deployKey) === 'preview' &&
     env.LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY?.trim() !== '1'
   ) {
     return {
@@ -154,24 +153,20 @@ export function resolveConvexEnvTarget(env = process.env) {
     };
   }
 
-  const vercelEnv = env.VERCEL_ENV?.trim() || '';
-  if (vercelEnv === 'production' || deployKey.startsWith('prod:')) {
+  if (deployKey.startsWith('prod:')) {
     return {
       status: 'prod',
       args: ['--prod'],
     };
   }
 
-  if (vercelEnv === 'preview' || deployKey.startsWith('preview:')) {
+  if (deployKey.startsWith('preview:')) {
     const previewName =
-      env.VERCEL_GIT_COMMIT_REF?.trim() ||
-      env.GITHUB_HEAD_REF?.trim() ||
-      env.GITHUB_REF_NAME?.trim() ||
-      '';
+      env.GITHUB_HEAD_REF?.trim() || env.GITHUB_REF_NAME?.trim() || '';
 
     if (!previewName) {
       throw new Error(
-        'Preview Convex deploy detected but no preview branch name was provided. Set VERCEL_GIT_COMMIT_REF, GITHUB_HEAD_REF, or GITHUB_REF_NAME.'
+        'Preview Convex deploy detected but no preview branch name was provided. Set GITHUB_HEAD_REF or GITHUB_REF_NAME.'
       );
     }
 
@@ -323,12 +318,6 @@ export function deployHostedConvex({
   buildCommand = 'pnpm run build:check',
 } = {}) {
   const deployMode = resolveHostedConvexDeployMode(env);
-  if (deployMode.kind === 'error') {
-    throw new Error(
-      'Hosted production build is missing CONVEX_DEPLOY_KEY. Refusing to skip Convex deploy because that can ship frontend code against stale backend auth config.'
-    );
-  }
-
   if (deployMode.kind === 'build-only') {
     logger.log(
       `Skipping hosted Convex deploy for ${deployMode.reason}; running ${buildCommand} only.`

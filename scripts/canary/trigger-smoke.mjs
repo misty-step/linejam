@@ -41,8 +41,6 @@ const SMOKE_ENV_KEYS = [
   'TERM',
   'TMP',
   'TMPDIR',
-  'VERCEL_AUTOMATION_BYPASS_SECRET',
-  'VERCEL_SET_BYPASS_COOKIE',
 ];
 const SMOKE_RUNNER_COMMANDS = Object.freeze({
   dagger: ['pnpm', ['ci:dagger:smoke']],
