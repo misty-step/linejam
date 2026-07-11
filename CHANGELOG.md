@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.18.0](https://github.com/misty-step/linejam/compare/v0.17.1...v0.18.0) (2026-07-11)
+
+
+### Features
+
+* game-screen spine from design lab-001 (mobile-first, theme-agnostic) ([#338](https://github.com/misty-step/linejam/issues/338)) ([475bee1](https://github.com/misty-step/linejam/commit/475bee170ed2ca37472f7bb4073b77203551f81a))
+
 ## [0.17.1](https://github.com/misty-step/linejam/compare/v0.17.0...v0.17.1) (2026-07-10)
 
 
