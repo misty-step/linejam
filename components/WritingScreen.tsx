@@ -187,6 +187,42 @@ function WritingComposer({
     }
   };
 
+  const isSubmitDisabled =
+    !isValid ||
+    submissionState === 'submitting' ||
+    submissionState === 'confirmed';
+
+  // Shared Ready label + Button markup rendered in two places: in-flow on
+  // md+ (Law 1 only requires bottom-anchoring on phones), and inside the
+  // thumb-zone bar on mobile.
+  const submitBlock = (
+    <>
+      {isReady && (
+        <p className="text-xs font-mono uppercase tracking-widest text-primary animate-fade-in-up">
+          Ready
+        </p>
+      )}
+      <Button
+        onClick={handleSubmit}
+        data-testid={E2E_TEST_IDS.writingSubmitLineButton}
+        data-ready={isReady ? 'true' : undefined}
+        size="lg"
+        disabled={isSubmitDisabled}
+        stampAnimate={submissionState === 'confirmed'}
+        className={cn(
+          'min-w-[240px] text-xl h-16 md:h-20',
+          isReady && 'animate-ready-seal shadow-md'
+        )}
+      >
+        {submissionState === 'submitting'
+          ? 'Submitting…'
+          : submissionState === 'confirmed'
+            ? 'Submitted'
+            : 'Submit'}
+      </Button>
+    </>
+  );
+
   return (
     <div
       data-testid={E2E_TEST_IDS.writingPhase}
@@ -260,7 +296,7 @@ function WritingComposer({
             ref={textareaRef}
             data-testid={E2E_TEST_IDS.writingLineInput}
             className={cn(
-              'w-full min-h-[110px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content bg-transparent border-none outline-none resize-none',
+              'w-full min-h-[64px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content bg-transparent border-none outline-none resize-none',
               'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
               'text-text-primary',
               'placeholder:text-text-muted/20',
@@ -280,10 +316,22 @@ function WritingComposer({
             aria-invalid={!isValid}
             aria-describedby="word-slots"
           />
-        </div>
 
-        <div className="flex justify-center">
-          <WordSlots current={currentWordCount} target={targetCount} />
+          {/*
+            Word chips sit tight against the line, left-aligned with the
+            textarea's own `pl-6` — not centered in a full-width row, which
+            reads as one lonely floating box for short targets. Pulling this
+            out of the outer `space-y-*` stack (it's nested in the canvas,
+            not a sibling of it) is what removes the dead gap under the
+            textarea.
+          */}
+          <div className="mt-2 pl-6 md:mt-4">
+            <WordSlots
+              current={currentWordCount}
+              target={targetCount}
+              text={text}
+            />
+          </div>
         </div>
 
         {/* Error Display */}
@@ -293,35 +341,39 @@ function WritingComposer({
           </Alert>
         )}
 
-        {/* The Seal - Submit Button */}
-        <div className="mt-6 md:mt-16 flex flex-col items-center gap-3">
-          {isReady && (
-            <p className="text-xs font-mono uppercase tracking-widest text-primary animate-fade-in-up">
-              Ready
-            </p>
+        {/*
+          The Seal - Submit Button. One instance (not a duplicated mobile
+          copy) so `writingSubmitLineButton` stays a single, strict-mode-safe
+          element for Playwright — DESIGN.md Law 1 (bottom-anchored thumb
+          zone on phones, >=44px tall) is applied purely with responsive
+          classes, flipping to in-flow at md+.
+
+          `sticky` (not `fixed`): it stays in normal document flow and
+          reserves its own box height, so it is structurally impossible for
+          it to clip content above it (RoomChrome uses the same `sticky`
+          pattern for the top bar). `-mx-6`/`md:mx-0` bleeds it back out to
+          the viewport edges past the page's own `px-6` padding.
+          `env(safe-area-inset-bottom)` keeps it clear of the iOS/Android
+          home indicator on mobile; the background lets received-line and
+          canvas content scroll underneath it legibly.
+
+          Keyboard note: mobile browsers reposition sticky/fixed elements
+          against the *visual* viewport, so this bar sits just above the
+          on-screen keyboard rather than being covered by it. The
+          textarea's `scrollIntoView({ block: 'nearest' })` on focus (see
+          handleTextareaFocus above) only scrolls the minimum distance
+          needed to keep the caret visible, so it doesn't fight this bar
+          for space.
+        */}
+        <div
+          className={cn(
+            'sticky bottom-0 z-30 -mx-6 flex flex-col items-center gap-3',
+            'border-t-2 border-primary/20 bg-background/95 backdrop-blur-md shadow-[var(--shadow-lg)]',
+            'px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+            'md:static md:mx-0 md:mt-16 md:border-none md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none'
           )}
-          <Button
-            onClick={handleSubmit}
-            data-testid={E2E_TEST_IDS.writingSubmitLineButton}
-            data-ready={isReady ? 'true' : undefined}
-            size="lg"
-            disabled={
-              !isValid ||
-              submissionState === 'submitting' ||
-              submissionState === 'confirmed'
-            }
-            stampAnimate={submissionState === 'confirmed'}
-            className={cn(
-              'min-w-[240px] text-xl h-16 md:h-20',
-              isReady && 'animate-ready-seal shadow-md'
-            )}
-          >
-            {submissionState === 'submitting'
-              ? 'Submitting…'
-              : submissionState === 'confirmed'
-                ? 'Submitted'
-                : 'Submit'}
-          </Button>
+        >
+          {submitBlock}
         </div>
       </div>
     </div>

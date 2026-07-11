@@ -72,7 +72,10 @@ function JoinForm() {
 
   return (
     <div className="max-w-xl w-full ml-auto">
-      <h1 className="text-5xl md:text-6xl font-[var(--font-display)] mb-8 text-right">
+      <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted mb-3 text-right">
+        Join game
+      </p>
+      <h1 className="text-4xl md:text-6xl font-[var(--font-display)] leading-tight mb-8 text-right">
         Join Session
       </h1>
 
@@ -128,17 +131,14 @@ function JoinForm() {
             />
           </div>
 
-          {error && (
-            <Alert
-              variant="error"
-              data-testid={E2E_TEST_IDS.joinErrorAlert}
-              className="mt-4"
-            >
-              {error}
-            </Alert>
-          )}
+          {/* Thumb-zone on phones; settles inline on tablet/desktop */}
+          <div className="fixed inset-x-0 bottom-0 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)] md:static md:p-0 md:pt-4 md:bg-transparent md:backdrop-blur-none md:border-0 md:shadow-none">
+            {error && (
+              <Alert variant="error" data-testid={E2E_TEST_IDS.joinErrorAlert}>
+                {error}
+              </Alert>
+            )}
 
-          <div className="pt-4">
             <Button
               type="submit"
               data-testid={E2E_TEST_IDS.joinRoomButton}
@@ -156,7 +156,7 @@ function JoinForm() {
 
 export default function JoinPage() {
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-20 flex flex-col">
+    <div className="min-h-screen bg-[var(--color-background)] p-6 pb-32 md:p-12 lg:p-20 flex flex-col">
       <Suspense fallback={<div>Loading...</div>}>
         <JoinForm />
       </Suspense>

@@ -258,22 +258,102 @@ describe('RevealPhase component', () => {
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
 
-  it('shows revealed status with READ label for revealed poems', () => {
+  it('shows a Read chip for revealed poems in the reading circle', () => {
     // Arrange & Act
     render(<RevealPhase roomCode="ABCD" />);
 
-    // Assert - Bob's poem is revealed, should have READ label
-    const bobRow = screen.getByText('Bob').closest('div');
-    expect(bobRow?.parentElement?.textContent).toContain('READ');
+    // Assert - Bob's poem is revealed, should carry the Read chip. The row
+    // is the nearest ancestor carrying the shared row border, since the
+    // name sits inside a nested name/poem-label wrapper.
+    const bobRow = screen.getByText('Bob').closest('.border-b');
+    expect(bobRow?.textContent).toContain('Read');
   });
 
-  it('shows unrevealed status without READ label for unrevealed poems', () => {
+  it('shows a Reading now chip for the sole unrevealed poem in the reading circle', () => {
     // Arrange & Act
     render(<RevealPhase roomCode="ABCD" />);
 
-    // Assert - Alice's poem is not revealed, should not have READ label
-    const aliceRow = screen.getByText('Alice').closest('div');
-    expect(aliceRow?.parentElement?.textContent).not.toContain('READ');
+    // Assert - Alice's poem is the only unrevealed poem, so it is up now
+    const aliceRow = screen.getByText('Alice').closest('.border-b');
+    expect(aliceRow?.textContent).toContain('Reading now');
+  });
+
+  it('shows the reading-circle heading and explainer', () => {
+    render(<RevealPhase roomCode="ABCD" />);
+
+    expect(
+      screen.getByRole('heading', { name: /The reading circle/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Everyone reads one poem aloud\./i)
+    ).toBeInTheDocument();
+  });
+
+  it('drives all four reading-circle chip states off reveal order', () => {
+    // Arrange: 4 poems — one read, one reading now, one up next, one quiet.
+    // Names deliberately avoid the substring "Read" so the chip assertions
+    // below can't accidentally match the reader's own name.
+    const fourPoems = [
+      {
+        _id: 'poem_read' as Id<'poems'>,
+        indexInRoom: 0,
+        createdAt: 1000,
+        preview: 'Already read',
+        readerName: 'Ann',
+        readerStableId: 'stable_1',
+        isRevealed: true,
+      },
+      {
+        _id: 'poem_now' as Id<'poems'>,
+        indexInRoom: 1,
+        createdAt: 1000,
+        preview: 'Reading currently',
+        readerName: 'Ben',
+        readerStableId: 'stable_2',
+        isRevealed: false,
+      },
+      {
+        _id: 'poem_next' as Id<'poems'>,
+        indexInRoom: 2,
+        createdAt: 1000,
+        preview: 'On deck',
+        readerName: 'Cara',
+        readerStableId: 'stable_3',
+        isRevealed: false,
+      },
+      {
+        _id: 'poem_quiet' as Id<'poems'>,
+        indexInRoom: 3,
+        createdAt: 1000,
+        preview: 'Waiting quietly',
+        readerName: 'Dee',
+        readerStableId: 'stable_4',
+        isRevealed: false,
+      },
+    ];
+
+    mockUseQuery.mockReturnValue({
+      ...mockStateNotRevealed,
+      myPoems: [],
+      poems: fourPoems,
+    });
+
+    // Act
+    render(<RevealPhase roomCode="ABCD" />);
+
+    // Assert
+    const annRow = screen.getByText('Ann').closest('.border-b');
+    const benRow = screen.getByText('Ben').closest('.border-b');
+    const caraRow = screen.getByText('Cara').closest('.border-b');
+    const deeRow = screen.getByText('Dee').closest('.border-b');
+
+    expect(annRow?.textContent).toContain('Read');
+    expect(benRow?.textContent).toContain('Reading now');
+    expect(caraRow?.textContent).toContain('Up next');
+    // The quiet row carries no status chip at all.
+    expect(deeRow?.textContent).not.toContain('Read');
+    expect(deeRow?.textContent).not.toContain('Reading now');
+    expect(deeRow?.textContent).not.toContain('Up next');
   });
 
   it('displays my poem preview when not revealed', () => {
