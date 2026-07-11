@@ -53,7 +53,7 @@ export default function Home() {
       </main>
 
       {/* Thumb-zone action bar on phones */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)]">
         {renderActions()}
       </div>
     </div>

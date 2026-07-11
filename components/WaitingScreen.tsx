@@ -160,7 +160,7 @@ export function WaitingScreen({
               <div
                 key={segmentIndex}
                 className={cn(
-                  'h-1 flex-1 rounded-full transition-colors duration-[var(--duration-normal)]',
+                  'h-1 flex-1 rounded-full transition-colors motion-reduce:transition-none duration-[var(--duration-normal)]',
                   segmentIndex === round
                     ? 'bg-[var(--color-primary)]'
                     : segmentIndex < round

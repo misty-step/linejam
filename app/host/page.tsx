@@ -92,7 +92,7 @@ export default function HostPage() {
             </div>
 
             {/* Thumb-zone on phones; settles inline on tablet/desktop */}
-            <div className="fixed inset-x-0 bottom-0 p-6 space-y-4 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)] md:static md:p-0 md:pt-4 md:bg-transparent md:backdrop-blur-none md:border-0 md:shadow-none">
+            <div className="fixed inset-x-0 bottom-0 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)] md:static md:p-0 md:pt-4 md:bg-transparent md:backdrop-blur-none md:border-0 md:shadow-none">
               {error && (
                 <Alert
                   variant="error"

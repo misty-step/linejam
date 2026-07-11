@@ -322,8 +322,11 @@ export function RevealPhase({
                   return (
                     <div
                       key={poem._id}
+                      aria-current={
+                        status === 'reading-now' ? 'true' : undefined
+                      }
                       className={cn(
-                        'flex items-center justify-between gap-3 py-3 px-3 -mx-3 border-b border-border-subtle transition-colors',
+                        'flex items-center justify-between gap-3 py-3 px-3 -mx-3 border-b border-border-subtle transition-colors motion-reduce:transition-none',
                         status === 'reading-now' &&
                           'border-l-2 border-l-primary bg-primary/5'
                       )}
