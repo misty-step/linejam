@@ -7,6 +7,7 @@ import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
+import { formatRoomCode } from '../lib/roomCode';
 import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
@@ -206,22 +207,20 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         />
       )}
 
-      <div className="min-h-screen bg-background p-6 md:p-12">
-        <div className="w-full max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
-            <div className="flex flex-col items-center md:items-start space-y-8 md:self-start">
-              <div className="max-w-md space-y-4 text-center md:text-left">
-                <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
-                  Room actions
-                </p>
-                <h2 className="text-2xl md:text-3xl font-[var(--font-display)] leading-tight text-text-primary">
-                  Start when everyone is here.
-                </h2>
-                <p className="text-base leading-relaxed text-text-secondary">
-                  Share the code from the top bar. Add an AI player if needed.
-                </p>
-              </div>
+      <div className="min-h-screen bg-background px-6 pt-6 pb-56 md:px-12 md:pt-12 md:pb-12">
+        <div className="w-full max-w-6xl mx-auto space-y-10 md:space-y-16">
+          {/* Room code hero — legible across the table, the party's rallying point */}
+          <div className="text-center space-y-2">
+            <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
+              Share this code
+            </p>
+            <p className="font-[var(--font-display)] text-5xl sm:text-6xl md:text-7xl font-medium tracking-[0.08em] text-text-primary">
+              {formatRoomCode(room.code)}
+            </p>
+          </div>
 
+          <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
+            <div className="flex flex-col items-center md:items-start space-y-4 md:self-start">
               {canAddAi && (
                 <Button
                   onClick={handleAddAi}
@@ -262,7 +261,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             </div>
 
             <div className="relative order-first md:order-none">
-              <ul className="space-y-6 pb-24 md:pb-0">
+              <ul className="space-y-6 pb-8 md:pb-0">
                 {players.map((player, i) => (
                   <StampAnimation key={player._id} delay={i * 150}>
                     <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
@@ -305,7 +304,12 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                 ))}
               </ul>
 
-              <div className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)]">
+              <div
+                className="md:hidden fixed bottom-0 left-0 right-0 p-6 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)]"
+                style={{
+                  paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+                }}
+              >
                 {error && (
                   <Alert variant="error" className="mb-4">
                     {error}

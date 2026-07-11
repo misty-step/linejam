@@ -75,4 +75,86 @@ describe('WordSlots component', () => {
       expect(screen.queryByText(/\+\d+/)).not.toBeInTheDocument();
     });
   });
+
+  describe('growing word chips (text supplied)', () => {
+    it('renders each typed word as a chip and pads remaining target slots empty', () => {
+      const { container } = render(
+        <WordSlots current={2} target={5} text="brave new" />
+      );
+
+      expect(screen.getByText('brave')).toBeInTheDocument();
+      expect(screen.getByText('new')).toBeInTheDocument();
+
+      // 5 target slots total: 2 word chips + 3 empty squares
+      const slots = container.querySelectorAll('#word-slots > [data-slot]');
+      expect(slots).toHaveLength(5);
+      expect(container.querySelectorAll('[data-slot="filled"]')).toHaveLength(
+        2
+      );
+      expect(container.querySelectorAll('[data-slot="empty"]')).toHaveLength(3);
+    });
+
+    it('derives the aria-label word count from the text, not the current prop', () => {
+      render(<WordSlots current={0} target={5} text="brave new" />);
+
+      const status = screen.getByRole('status');
+      expect(status).toHaveAttribute('aria-label', '2 of 5 words');
+    });
+
+    it('renders a long word fully, unclipped, with no fixed-width style', () => {
+      render(<WordSlots current={1} target={1} text="extraordinarily" />);
+
+      const chip = screen.getByText('extraordinarily');
+      // The exact word, not truncated with an ellipsis or cut off.
+      expect(chip).toHaveTextContent('extraordinarily');
+      // Sized to content — no fixed-width utility class or inline width style.
+      expect(chip.className).not.toMatch(/(^|\s)w-\d/);
+      expect(chip.style.width).toBe('');
+      expect(chip.className).not.toContain('truncate');
+      expect(chip.className).not.toContain('overflow-hidden');
+    });
+
+    it('colors filled chips primary once the word count reaches target', () => {
+      render(<WordSlots current={2} target={2} text="right there" />);
+
+      const chip = screen.getByText('right');
+      expect(chip.className).toContain('bg-[var(--color-primary)]');
+    });
+
+    it('renders overflow words as error-styled chips showing the actual word', () => {
+      render(
+        <WordSlots
+          current={7}
+          target={5}
+          text="one two three four five six seven"
+        />
+      );
+
+      const overflowChip = screen.getByText('six');
+      expect(overflowChip.className).toContain('border-[var(--color-error)]');
+      expect(screen.getByText('seven')).toBeInTheDocument();
+    });
+
+    it('caps displayed overflow chips and shows a +N indicator beyond the cap', () => {
+      // 18 total words: 5 fill the target, 13 overflow.
+      const allWords = Array.from({ length: 18 }, (_, i) => `w${i}`).join(' ');
+      render(<WordSlots current={18} target={5} text={allWords} />);
+
+      // 13 overflow, capped at 10 displayed chips, so +3 extra
+      expect(
+        screen
+          .getByTestId('writing-word-slots')
+          .querySelectorAll('[data-slot="overflow"]')
+      ).toHaveLength(10);
+      expect(screen.getByText('+3')).toBeInTheDocument();
+    });
+
+    it('falls back to legacy square rendering when text is omitted', () => {
+      const { container } = render(<WordSlots current={2} target={5} />);
+
+      // No word text is rendered, only empty/filled squares.
+      const slots = container.querySelectorAll('#word-slots > div');
+      expect(slots).toHaveLength(5);
+    });
+  });
 });

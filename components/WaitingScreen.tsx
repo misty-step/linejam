@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { GHOSTWRITER_OVERTIME_MS } from '../convex/lib/gameRules';
+import { GHOSTWRITER_OVERTIME_MS, WORD_COUNTS } from '../convex/lib/gameRules';
 import { useRoomQueryArgs } from '../hooks/useRoomQueryArgs';
 import { captureError } from '../lib/error';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
+import { cn } from '../lib/utils';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
@@ -141,13 +142,35 @@ export function WaitingScreen({
 
         {/* Center: Headline */}
         <div className="flex-none mb-24 md:mb-28 text-center space-y-6">
-          <h2 className="text-6xl md:text-8xl font-[var(--font-display)] leading-[1.05]">
+          <h2 className="text-4xl md:text-6xl font-[var(--font-display)] leading-tight">
             {allSubmitted
               ? 'Ready'
               : isOvertime
                 ? 'Still writing…'
-                : 'Others are writing...'}
+                : "It's around the table now."}
           </h2>
+
+          {/* Round progress — nine segments, the current round lit */}
+          <div
+            className="mx-auto flex max-w-xs justify-center gap-1.5"
+            role="presentation"
+            aria-hidden="true"
+          >
+            {WORD_COUNTS.map((_, segmentIndex) => (
+              <div
+                key={segmentIndex}
+                className={cn(
+                  'h-1 flex-1 rounded-full transition-colors duration-[var(--duration-normal)]',
+                  segmentIndex === round
+                    ? 'bg-[var(--color-primary)]'
+                    : segmentIndex < round
+                      ? 'bg-[var(--color-text-muted)]/40'
+                      : 'bg-[var(--color-border-subtle)]'
+                )}
+              />
+            ))}
+          </div>
+
           {!allSubmitted && (
             <div className="space-y-3">
               <p className="text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">

@@ -90,6 +90,11 @@ export function PoemDisplay({
     typeof line === 'string' ? { text: line } : line
   );
   const firstLineText = normalizedLines[0]?.text ?? metadata?.firstLine ?? '';
+  // Law 3: line number gutter is one fixed width for every line (ch units,
+  // sized to the poem's line count) so line text always starts at the same
+  // x — no line's number or author dot can nudge the text that follows it.
+  const lineNumberGutterWidth = `${String(normalizedLines.length).length + 1}ch`;
+  const lineGridTemplate = `${lineNumberGutterWidth} 2.75rem 1fr`;
   const { isMuted, prefersReducedMotion, punctuate, toggleMuted } =
     useCeremonyEffects();
 
@@ -215,6 +220,14 @@ export function PoemDisplay({
               </div>
             )}
 
+            {/* Performance-toned kicker — the ceremony read is a group
+                moment, not silent reading. */}
+            {!isArchive && (
+              <p className="mb-2 text-xs font-mono uppercase tracking-widest text-primary">
+                Read it aloud
+              </p>
+            )}
+
             {/* Date + Favorite */}
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-mono text-text-muted uppercase tracking-wider">
@@ -301,7 +314,20 @@ export function PoemDisplay({
 
             return (
               <Fragment key={index}>
-                <div className="grid grid-cols-[2.75rem_1fr] items-center">
+                <div
+                  className="grid items-center"
+                  style={{ gridTemplateColumns: lineGridTemplate }}
+                >
+                  {/* Line number — fixed gutter, same width on every line
+                      (Law 3). Decorative: the reading order is already
+                      conveyed by document order. */}
+                  <span
+                    className="pr-2 text-right font-mono text-xs tabular-nums text-text-muted"
+                    aria-hidden="true"
+                  >
+                    {index + 1}
+                  </span>
+
                   {/* Author Dot (Hanko) — 8px ink mark inside a 44px tap target */}
                   <button
                     type="button"
@@ -438,7 +464,7 @@ export function PoemDisplay({
               size="lg"
               className="min-w-[100px] h-12 text-text-muted hover:text-text-primary"
             >
-              Close
+              Done
             </Button>
           )}
         </div>

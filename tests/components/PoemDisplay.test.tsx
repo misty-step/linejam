@@ -482,7 +482,7 @@ describe('PoemDisplay component', () => {
       expect(screen.getByText('Poem link copied.')).toBeInTheDocument();
     });
 
-    it('calls onDone when Close button clicked', async () => {
+    it('calls onDone when Done button clicked', async () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -493,9 +493,48 @@ describe('PoemDisplay component', () => {
       );
 
       await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /Close/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Done$/i }));
       });
       expect(mockOnDone).toHaveBeenCalled();
+    });
+  });
+
+  describe('line alignment (DESIGN.md Law 3)', () => {
+    it('gives every line the same fixed-width number gutter so line text always starts at the same x', () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          onDone={mockOnDone}
+          alreadyRevealed={true}
+        />
+      );
+
+      // Each line's number+dot+text row shares one grid template — the
+      // gutter width can never differ line to line, so text can never shift.
+      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
+      const rows = lineDots.map((dot) => dot.parentElement as HTMLElement);
+      const templates = rows.map((row) => row.style.gridTemplateColumns);
+
+      expect(templates).toHaveLength(mockLines.length);
+      expect(new Set(templates).size).toBe(1);
+      expect(templates[0]).toMatch(/^\d+ch /);
+    });
+
+    it('renders a visible line number ahead of every line, sized to the poem length', () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          onDone={mockOnDone}
+          alreadyRevealed={true}
+        />
+      );
+
+      // mockLines has 9 lines, so numbers 1-9 should each appear once.
+      for (let i = 1; i <= mockLines.length; i += 1) {
+        expect(screen.getByText(String(i))).toBeInTheDocument();
+      }
     });
   });
 

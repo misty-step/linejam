@@ -61,9 +61,12 @@ export default function HostPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 md:p-12 lg:p-20 flex flex-col">
+    <div className="min-h-screen bg-[var(--color-background)] p-6 pb-32 md:p-12 lg:p-20 flex flex-col">
       <div className="max-w-xl w-full">
-        <h1 className="text-5xl md:text-6xl font-[var(--font-display)] mb-8">
+        <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted mb-3">
+          New game
+        </p>
+        <h1 className="text-4xl md:text-6xl font-[var(--font-display)] leading-tight mb-8">
           Host Session
         </h1>
 
@@ -88,17 +91,17 @@ export default function HostPage() {
               />
             </div>
 
-            {error && (
-              <Alert
-                variant="error"
-                data-testid={E2E_TEST_IDS.hostErrorAlert}
-                className="mt-4"
-              >
-                {error}
-              </Alert>
-            )}
+            {/* Thumb-zone on phones; settles inline on tablet/desktop */}
+            <div className="fixed inset-x-0 bottom-0 p-6 space-y-4 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)] md:static md:p-0 md:pt-4 md:bg-transparent md:backdrop-blur-none md:border-0 md:shadow-none">
+              {error && (
+                <Alert
+                  variant="error"
+                  data-testid={E2E_TEST_IDS.hostErrorAlert}
+                >
+                  {error}
+                </Alert>
+              )}
 
-            <div className="pt-4">
               <Button
                 type="submit"
                 data-testid={E2E_TEST_IDS.hostCreateRoomButton}

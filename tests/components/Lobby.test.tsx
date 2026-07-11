@@ -107,13 +107,12 @@ describe('Lobby component', () => {
     global.fetch = originalFetch;
   });
 
-  it('renders the control-desk introduction', () => {
+  it('renders the room code as the lobby hero', () => {
     // Arrange & Act
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
-    expect(
-      screen.getByText(/start when everyone is here/i)
-    ).toBeInTheDocument();
+    // Room code "ABCD" is formatted as "AB CD" and shown as the in-body hero
+    expect(screen.getByText('AB CD')).toBeInTheDocument();
   });
 
   it('renders player list from room state', () => {

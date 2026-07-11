@@ -10,7 +10,6 @@ import { captureError } from '../lib/error';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
-import { Label } from './ui/Label';
 import { PoemDisplay } from './PoemDisplay';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
@@ -21,7 +20,18 @@ import { RoomChrome } from './RoomChrome';
 import { buildRevealChromeCopy } from '../lib/roomChromeCopy';
 import { SessionRecapHub } from './SessionRecapHub';
 import { RevealStage } from './stage/RevealStage';
-import { Presentation } from 'lucide-react';
+import { Presentation, Check } from 'lucide-react';
+
+type ReadingCircleStatus = 'read' | 'reading-now' | 'up-next' | null;
+
+const READING_CIRCLE_STATUS_LABEL: Record<
+  Exclude<ReadingCircleStatus, null>,
+  string
+> = {
+  read: 'Read',
+  'reading-now': 'Reading now',
+  'up-next': 'Up next',
+};
 
 interface RevealPhaseProps {
   roomCode: string;
@@ -280,72 +290,88 @@ export function RevealPhase({
             </section>
           )}
 
-          {/* 2b. UP NEXT - reader spotlight (the running order's on-deck poet) */}
-          {!allRevealed &&
-            (() => {
-              const upNext = [...poems]
-                .sort((a, b) => a.indexInRoom - b.indexInRoom)
-                .find((p) => !p.isRevealed);
-              if (!upNext) return null;
-              return (
-                <section className="flex items-center gap-4 border border-border-subtle bg-surface/60 p-5">
-                  <Avatar
-                    stableId={upNext.readerStableId}
-                    displayName={upNext.readerName}
-                    allStableIds={allStableIds}
-                    size="md"
-                  />
-                  <div>
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-primary">
-                      Up next on the mic
-                    </p>
-                    <p className="text-lg font-medium text-text-primary">
-                      {upNext.readerName} reads Poem{' '}
-                      {(upNext.indexInRoom + 1).toString().padStart(2, '0')}
-                    </p>
-                  </div>
-                </section>
-              );
-            })()}
-
-          {/* 3. STATUS - Poem Status list (the running order) */}
+          {/* 2b. THE READING CIRCLE - the running order, one row per reader,
+              each carrying a status chip driven by reveal state. */}
           <section className="space-y-4">
-            <Label className="block">Running order</Label>
+            <div className="space-y-1">
+              <h2 className="text-2xl md:text-3xl font-[var(--font-display)] leading-tight text-text-primary">
+                The reading circle
+              </h2>
+              <p className="text-sm text-text-muted">
+                Everyone reads one poem aloud.
+              </p>
+            </div>
             <div className="border-t border-border-subtle">
-              {poems
-                .sort((a, b) => a.indexInRoom - b.indexInRoom)
-                .map((poem, i) => (
-                  <div
-                    key={poem._id}
-                    className="flex items-center justify-between py-3 border-b border-border-subtle"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs text-text-muted w-6">
-                        {(i + 1).toString().padStart(2, '0')}
-                      </span>
-                      <Avatar
-                        stableId={poem.readerStableId}
-                        displayName={poem.readerName}
-                        allStableIds={allStableIds}
-                        size="sm"
-                        outlined={!poem.isRevealed}
-                      />
-                      <span
-                        className={cn(
-                          'text-sm font-medium',
-                          poem.isRevealed && 'opacity-50'
-                        )}
-                      >
-                        {poem.readerName}
-                      </span>
+              {(() => {
+                const sortedPoems = [...poems].sort(
+                  (a, b) => a.indexInRoom - b.indexInRoom
+                );
+                const unrevealed = sortedPoems.filter((p) => !p.isRevealed);
+                const readingNowId = unrevealed[0]?._id;
+                const upNextId = unrevealed[1]?._id;
+
+                return sortedPoems.map((poem, i) => {
+                  const status: ReadingCircleStatus = poem.isRevealed
+                    ? 'read'
+                    : poem._id === readingNowId
+                      ? 'reading-now'
+                      : poem._id === upNextId
+                        ? 'up-next'
+                        : null;
+
+                  return (
+                    <div
+                      key={poem._id}
+                      className={cn(
+                        'flex items-center justify-between gap-3 py-3 px-3 -mx-3 border-b border-border-subtle transition-colors',
+                        status === 'reading-now' &&
+                          'border-l-2 border-l-primary bg-primary/5'
+                      )}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="w-6 shrink-0 font-mono text-xs text-text-muted">
+                          {(i + 1).toString().padStart(2, '0')}
+                        </span>
+                        <Avatar
+                          stableId={poem.readerStableId}
+                          displayName={poem.readerName}
+                          allStableIds={allStableIds}
+                          size="sm"
+                          outlined={!poem.isRevealed}
+                        />
+                        <div className="min-w-0">
+                          <span
+                            className={cn(
+                              'block truncate text-sm font-medium text-text-primary',
+                              poem.isRevealed && 'opacity-50'
+                            )}
+                          >
+                            {poem.readerName}
+                          </span>
+                          <span className="block text-[10px] font-mono uppercase tracking-widest text-text-muted">
+                            Poem {(i + 1).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                      </div>
+                      {status && (
+                        <span
+                          className={cn(
+                            'inline-flex shrink-0 items-center gap-1 text-[10px] font-mono uppercase tracking-widest',
+                            status === 'read' && 'text-text-muted opacity-50',
+                            status === 'reading-now' && 'text-primary',
+                            status === 'up-next' && 'text-text-secondary'
+                          )}
+                        >
+                          {status === 'read' && (
+                            <Check className="h-3 w-3" aria-hidden="true" />
+                          )}
+                          {READING_CIRCLE_STATUS_LABEL[status]}
+                        </span>
+                      )}
                     </div>
-                    {poem.isRevealed && (
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
-                        READ
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                });
+              })()}
             </div>
           </section>
 

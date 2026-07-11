@@ -127,7 +127,7 @@ describe('WaitingScreen component', () => {
     expect(screen.getByText(/Round 3/)).toBeInTheDocument();
   });
 
-  it('shows "Others are writing..." when not all players submitted', () => {
+  it('shows "It\'s around the table now." when not all players submitted', () => {
     mockUseQuery.mockReturnValue({
       round: 0,
       players: [
@@ -150,7 +150,7 @@ describe('WaitingScreen component', () => {
 
     render(<WaitingScreen roomCode="ABCD" />);
 
-    expect(screen.getByText('Others are writing...')).toBeInTheDocument();
+    expect(screen.getByText("It's around the table now.")).toBeInTheDocument();
     expect(screen.getByText(/Round 1 · 1 of 2 ready/i)).toBeInTheDocument();
   });
 
@@ -209,7 +209,7 @@ describe('WaitingScreen component', () => {
     );
 
     expect(mockUseQuery).toHaveBeenCalledWith(expect.anything(), 'skip');
-    expect(screen.getByText('Others are writing...')).toBeInTheDocument();
+    expect(screen.getByText("It's around the table now.")).toBeInTheDocument();
     expect(screen.getByText(/Round 2 · 1 of 2 ready/i)).toBeInTheDocument();
   });
 
