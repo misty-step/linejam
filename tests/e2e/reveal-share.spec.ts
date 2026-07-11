@@ -5,6 +5,7 @@ import {
   CANONICAL_GUEST_FLOW_LINES,
   GuestFlowSession,
 } from '@/tests/e2e/support/guestFlow';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 const missingGuestTokenSecret =
   !process.env.GUEST_TOKEN_SECRET && !process.env.E2E_BASE_URL;
@@ -62,7 +63,9 @@ test('mobile reveal ceremony produces a one-tap shareable recap artifact', async
     await session.hostPage
       .getByRole('button', { name: /Favorite this poem/i })
       .click();
-    await session.hostPage.getByRole('button', { name: /Close/i }).click();
+    // "Close" became the plain-verb "Done" (DESIGN.md Law 4); target the
+    // stable testid so future copy changes can't strand this spec.
+    await session.hostPage.getByTestId(E2E_TEST_IDS.poemDoneButton).click();
 
     await session.revealAssignedPoem('guest', CANONICAL_GUEST_FLOW_LINES);
 
