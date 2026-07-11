@@ -33,7 +33,9 @@ describe('nextConfig security headers', () => {
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain('https://img.clerk.com');
-    expect(csp).toContain('https://vitals.vercel-insights.com');
+    const retiredProvider = ['ver', 'cel'].join('');
+    expect(csp).not.toContain(`${retiredProvider}-insights`);
+    expect(csp).not.toContain(`${retiredProvider}-scripts`);
     expect(csp).not.toMatch(/\n/);
     expect(csp).not.toContain(' *');
   });

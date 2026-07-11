@@ -41,13 +41,12 @@ describe('bootstrap-convex-env', () => {
     ).toBe('https://solid-beetle-24.clerk.accounts.dev');
   });
 
-  it('targets the named preview deployment for Vercel preview builds', () => {
+  it('targets the named preview deployment from its deploy key and GitHub branch', () => {
     expect(
       resolveConvexEnvTarget(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          VERCEL_ENV: 'preview',
-          VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+          GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         })
       )
     ).toEqual({
@@ -61,8 +60,7 @@ describe('bootstrap-convex-env', () => {
       buildConvexEnvBootstrapPlan(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          VERCEL_ENV: 'preview',
-          VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+          GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
           GUEST_TOKEN_SECRET: 'guest-secret',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
             'test',
@@ -96,8 +94,7 @@ describe('bootstrap-convex-env', () => {
     bootstrapConvexEnv({
       env: env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-        VERCEL_ENV: 'preview',
-        VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+        GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
           'test',
@@ -144,7 +141,6 @@ describe('bootstrap-convex-env', () => {
       buildConvexEnvBootstrapPlan(
         env({
           CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
-          VERCEL_ENV: 'production',
           GUEST_TOKEN_SECRET: 'guest-secret',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
             'live',
@@ -161,8 +157,7 @@ describe('bootstrap-convex-env', () => {
       buildHostedConvexDeployArgs(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          VERCEL_ENV: 'preview',
-          VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+          GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         })
       )
     ).toEqual([
@@ -186,8 +181,7 @@ describe('bootstrap-convex-env', () => {
     const result = deployHostedConvex({
       env: env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-        VERCEL_ENV: 'preview',
-        VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+        GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
       }),
       runner,
       logger: { log: vi.fn() },
@@ -202,41 +196,6 @@ describe('bootstrap-convex-env', () => {
     ]);
   });
 
-  it('fails fast when hosted production builds are missing CONVEX_DEPLOY_KEY', () => {
-    expect(() =>
-      deployHostedConvex({
-        env: env({
-          VERCEL_ENV: 'production',
-        }),
-        runner: vi.fn(),
-        logger: { log: vi.fn() },
-      })
-    ).toThrow(/missing CONVEX_DEPLOY_KEY/);
-  });
-
-  it('fails fast when hosted preview builds point at a production deploy key', () => {
-    expect(() =>
-      resolveHostedConvexDeployMode(
-        env({
-          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
-          VERCEL_ENV: 'preview',
-          VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
-        })
-      )
-    ).toThrow(/preview builds cannot use a production CONVEX_DEPLOY_KEY/);
-  });
-
-  it('fails fast when hosted production builds point at a preview deploy key', () => {
-    expect(() =>
-      resolveHostedConvexDeployMode(
-        env({
-          CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          VERCEL_ENV: 'production',
-        })
-      )
-    ).toThrow(/production builds cannot use a preview CONVEX_DEPLOY_KEY/);
-  });
-
   it('bootstraps env before running the hosted Convex deploy for production builds', () => {
     const calls: Array<{ bin: string; args: string[] }> = [];
     const runner = (bin: string, args: string[]) => {
@@ -247,7 +206,6 @@ describe('bootstrap-convex-env', () => {
     deployHostedConvex({
       env: env({
         CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
-        VERCEL_ENV: 'production',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
           'live',
@@ -305,8 +263,7 @@ describe('bootstrap-convex-env', () => {
     const result = deployHostedConvex({
       env: env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-        VERCEL_ENV: 'preview',
-        VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+        GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY: '1',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
@@ -346,7 +303,6 @@ describe('bootstrap-convex-env', () => {
       resolveConvexEnvTarget(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          VERCEL_ENV: 'preview',
         })
       )
     ).toThrow(/preview branch name/);
@@ -357,7 +313,6 @@ describe('bootstrap-convex-env', () => {
       resolveHostedConvexDeployMode(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          VERCEL_ENV: 'preview',
         })
       )
     ).toEqual({
@@ -371,6 +326,38 @@ describe('bootstrap-convex-env', () => {
       kind: 'build-only',
       reason: 'missing-deploy-key',
     });
+  });
+
+  it('fails fast when hosted production builds are missing CONVEX_DEPLOY_KEY', () => {
+    expect(() =>
+      deployHostedConvex({
+        env: env({ LINEJAM_DEPLOY_ENVIRONMENT: 'production' }),
+        runner: vi.fn(),
+        logger: { log: vi.fn() },
+      })
+    ).toThrow(/production builds require CONVEX_DEPLOY_KEY/);
+  });
+
+  it('fails fast when hosted preview builds point at a production deploy key', () => {
+    expect(() =>
+      resolveHostedConvexDeployMode(
+        env({
+          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
+          LINEJAM_DEPLOY_ENVIRONMENT: 'preview',
+        })
+      )
+    ).toThrow(/preview builds cannot use a production CONVEX_DEPLOY_KEY/);
+  });
+
+  it('fails fast when hosted production builds point at a preview deploy key', () => {
+    expect(() =>
+      resolveHostedConvexDeployMode(
+        env({
+          CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
+          LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        })
+      )
+    ).toThrow(/production builds cannot use a preview CONVEX_DEPLOY_KEY/);
   });
 
   it('runs the hosted build command via the shell', () => {
@@ -420,8 +407,7 @@ exit 0
             ...process.env,
             PATH: `${tempDir}:${process.env.PATH ?? ''}`,
             CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-            VERCEL_ENV: 'preview',
-            VERCEL_GIT_COMMIT_REF: 'codex/canary-local-ci-agentic-qa',
+            GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
             GUEST_TOKEN_SECRET: 'guest-secret',
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
               'test',
@@ -471,7 +457,6 @@ exit 0
             ...process.env,
             PATH: `${tempDir}:${process.env.PATH ?? ''}`,
             CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
-            VERCEL_ENV: 'production',
             GUEST_TOKEN_SECRET: 'guest-secret',
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
               'live',

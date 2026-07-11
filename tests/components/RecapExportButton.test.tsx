@@ -1,18 +1,27 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-const mockTrack = vi.fn();
-vi.mock('@vercel/analytics', () => ({
-  track: (...args: unknown[]) => mockTrack(...args),
+const { mockCapture } = vi.hoisted(() => ({ mockCapture: vi.fn() }));
+vi.mock('posthog-js', () => ({
+  default: {
+    capture: (...args: unknown[]) => mockCapture(...args),
+  },
 }));
 
+import {
+  markPostHogReady,
+  resetPostHogReady,
+} from '@/lib/posthog/posthogReady';
 import { RecapExportButton } from '@/components/RecapExportButton';
 
 describe('RecapExportButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    markPostHogReady();
   });
+
+  afterEach(() => resetPostHogReady());
 
   it('tracks the export and invokes the browser print dialog', () => {
     const printSpy = vi.fn();
@@ -26,7 +35,7 @@ describe('RecapExportButton', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Export as PDF/i }));
 
-    expect(mockTrack).toHaveBeenCalledWith('recap_exported', {
+    expect(mockCapture).toHaveBeenCalledWith('recap_exported', {
       method: 'print',
       poemCount: 6,
     });

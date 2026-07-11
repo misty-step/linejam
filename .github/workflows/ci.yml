@@ -59,6 +59,9 @@ jobs:
       - name: Type check
         run: ./scripts/ci/dagger-call.sh typecheck
 
+      - name: Provider retirement check
+        run: ./scripts/ci/dagger-call.sh provider-retirement
+
       - name: Secret scan
         run: ./scripts/ci/dagger-call.sh secret-scan
 

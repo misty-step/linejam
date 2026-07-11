@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import { vercelProtectionBypassHeaders } from './tests/e2e/support/vercelProtection';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL?.trim();
 
@@ -21,7 +20,6 @@ export default defineConfig({
   reporter: 'html',
   use: {
     baseURL: BASE_URL,
-    extraHTTPHeaders: vercelProtectionBypassHeaders(),
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

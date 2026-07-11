@@ -15,8 +15,6 @@ import {
   Archivo_Black,
   Anton,
 } from 'next/font/google';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 import { Providers } from './providers';
 import { Header } from '@/components/Header';
@@ -213,8 +211,6 @@ export default function RootLayout({
             <Footer />
           </div>
         </Providers>
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );

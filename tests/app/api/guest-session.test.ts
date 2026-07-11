@@ -545,7 +545,7 @@ describe('GET /api/guest/session', () => {
 
     it.each([
       ['x-real-ip', '198.51.100.10'],
-      ['x-vercel-forwarded-for', '198.51.100.11'],
+      ['do-connecting-ip', '198.51.100.11'],
       ['cf-connecting-ip', '198.51.100.12'],
     ])('derives an opaque throttle key from %s', async (header, ip) => {
       const request = new NextRequest(
@@ -567,6 +567,25 @@ describe('GET /api/guest/session', () => {
         })
       );
       expect(JSON.stringify(mockMutation.mock.calls)).not.toContain(ip);
+    });
+
+    it('prefers the App Platform client address over a forwarded chain', async () => {
+      const requestFor = (platformIp: string) =>
+        new NextRequest('https://www.linejam.app/api/guest/session', {
+          headers: {
+            'do-connecting-ip': platformIp,
+            'x-forwarded-for': '203.0.113.99, 10.0.0.1',
+          },
+        });
+
+      await GET(requestFor('198.51.100.21'));
+      const firstKey = mockMutation.mock.calls.at(-1)?.[1]?.key;
+      await GET(requestFor('198.51.100.22'));
+      const secondKey = mockMutation.mock.calls.at(-1)?.[1]?.key;
+
+      expect(firstKey).toMatch(/^guestSession:/);
+      expect(secondKey).toMatch(/^guestSession:/);
+      expect(secondKey).not.toBe(firstKey);
     });
   });
 

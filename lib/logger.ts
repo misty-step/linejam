@@ -1,7 +1,7 @@
 /**
  * Next.js Structured Logging
  *
- * JSON logging for Vercel log parsing. Errors go to stderr, rest to stdout.
+ * Provider-portable JSON logging. Errors go to stderr, rest to stdout.
  *
  * @example
  * log.info('User joined', { roomCode: 'ABCD' });

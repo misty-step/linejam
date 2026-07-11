@@ -76,6 +76,7 @@ must receive the identical value. A mismatch breaks guest-token verification.
 | `NEXT_PUBLIC_CONVEX_URL`            | production Convex URL                              |
 | `CONVEX_DEPLOYMENT`                 | production Convex deployment selector              |
 | `CONVEX_DEPLOY_KEY`                 | production deploy key used during the hosted build |
+| `LINEJAM_DEPLOY_ENVIRONMENT`        | `production`; fail-closed hosted deploy guard      |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | browser Clerk key                                  |
 | `CLERK_SECRET_KEY`                  | server Clerk key                                   |
 | `CLERK_JWT_ISSUER_DOMAIN`           | Clerk issuer used by Convex auth                   |

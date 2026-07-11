@@ -261,6 +261,13 @@ export class Ci {
   }
 
   @func()
+  async providerRetirement(source: Directory): Promise<string> {
+    return this.base(source)
+      .withExec(['pnpm', 'provider-retirement:check'])
+      .stdout();
+  }
+
+  @func()
   async unitTest(
     source: Directory,
     nextPublicConvexUrl?: string,
@@ -597,6 +604,7 @@ export class Ci {
             nextPublicCanaryApiKey
           ),
       ],
+      ['provider-retirement', () => this.providerRetirement(source)],
       ['secret-scan', () => this.secretScan(source)],
       ['audit', () => this.audit(source)],
       [

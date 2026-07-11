@@ -25,7 +25,7 @@ sharing/export, help modal
 | `convex/lib/`  | —                       | Auth, assignment matrix, AI personas/providers, structured errors.                                                     |
 | `lib/`         | —                       | Frontend domain utilities: auth, logger, error capture, room-code, word-count, error feedback.                         |
 | `lib/themes/`  | —                       | Theme presets and provider. Presets: `kenya`, `mono`, `vintage-paper`, `hyper`.                                        |
-| `lib/posthog/` | PostHog                 | Canonical product analytics surface. `lib/analytics.ts` is legacy Vercel Analytics wiring.                             |
+| `lib/posthog/` | PostHog                 | Canonical provider-portable product analytics surface. `lib/analytics.ts` owns typed funnel events.                    |
 | `tests/`       | Vitest 4 + Playwright   | Unit/integration plus `tests/e2e/`.                                                                                    |
 | `dagger/`      | Dagger TypeScript SDK   | Authoritative local gate.                                                                                              |
 | `scripts/`     | Node ESM + shell        | CI bootstrap, Canary responder/smoke tooling, evidence capture, legacy claims helper.                                  |
@@ -402,7 +402,7 @@ pnpm test:e2e:ui      # Playwright interactive mode
 
 ## Critical Environment Variables
 
-- Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY` (production/preview deploy key, CI/CD only), `CONVEX_OVERRIDE_ACCESS_TOKEN` (CLI auth for read-only probes in isolated worktrees without `~/.convex/config.json` — see Agent-Safe Convex Probes above), `OPENROUTER_API_KEY` (AI player LLM access, Convex only)
+- Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY` (production/preview deploy key, CI/CD only), `LINEJAM_DEPLOY_ENVIRONMENT=production` (DigitalOcean fail-closed deploy guard), `CONVEX_OVERRIDE_ACCESS_TOKEN` (CLI auth for read-only probes in isolated worktrees without `~/.convex/config.json` — see Agent-Safe Convex Probes above), `OPENROUTER_API_KEY` (AI player LLM access, Convex only)
 - Guest auth: `GUEST_TOKEN_SECRET` (must match in App Platform + Convex)
 - Clerk: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_ISSUER_DOMAIN`
 - Canary: `CANARY_ENDPOINT`, `CANARY_API_KEY`, `NEXT_PUBLIC_CANARY_ENDPOINT`, `NEXT_PUBLIC_CANARY_API_KEY`, `LINEJAM_CANARY_WEBHOOK_SECRET`, `LINEJAM_CANARY_WEBHOOK_URL` (required for webhook setup, not responder runtime), `LINEJAM_CANARY_CONTEXT_TIMEOUT_MS`, `LINEJAM_CANARY_RETENTION_DAYS`

@@ -69,14 +69,13 @@ export function buildContentSecurityPolicy() {
       'script-src',
       compactSources([
         "'self'",
-        // Next.js, Clerk, Vercel Analytics, and the theme bootstrap all inject
+        // Next.js, Clerk, PostHog, and the theme bootstrap all inject
         // inline scripts today. Nonces are the follow-up once app wiring exists.
         "'unsafe-inline'",
         isDevelopment ? "'unsafe-eval'" : null,
         ...STATIC_CLERK_SOURCES,
         'https://challenges.cloudflare.com',
         'https://us-assets.i.posthog.com',
-        'https://va.vercel-scripts.com',
       ]),
     ],
     [
@@ -117,8 +116,6 @@ export function buildContentSecurityPolicy() {
         'https://us-assets.i.posthog.com',
         'https://us.posthog.com',
         posthogOrigin,
-        'https://vitals.vercel-insights.com',
-        'https://va.vercel-scripts.com',
         canaryOrigin,
         ...(isDevelopment ? LOCAL_CONNECT_SOURCES : []),
       ]),

@@ -501,7 +501,7 @@ describe('guest-flow evidence verdicts', () => {
     });
   });
 
-  it('ignores local evidence runtime noise from Vercel probes and aborted RSC requests', () => {
+  it('ignores only aborted RSC requests from local evidence runs', () => {
     const page = new EventEmitter();
     const runtimeErrors: string[] = [];
     attachGuestFlowRuntimeErrorLogging(
@@ -512,30 +512,6 @@ describe('guest-flow evidence verdicts', () => {
       runtimeErrors
     );
 
-    page.emit('console', {
-      type: () => 'error',
-      text: () =>
-        'Failed to load resource: the server responded with a status of 404 (Not Found)',
-      location: () => ({
-        url: 'http://127.0.0.1:3333/_vercel/insights/script.js',
-      }),
-    });
-    page.emit('console', {
-      type: () => 'error',
-      text: () =>
-        "Refused to execute script from 'http://127.0.0.1:3333/_vercel/speed-insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
-      location: () => ({ url: 'http://127.0.0.1:3333/' }),
-    });
-    page.emit('response', {
-      status: () => 404,
-      url: () => 'http://127.0.0.1:3333/_vercel/speed-insights/script.js',
-      request: () => ({ method: () => 'GET' }),
-    });
-    page.emit('requestfailed', {
-      method: () => 'GET',
-      url: () => 'http://127.0.0.1:3333/_vercel/insights/script.js',
-      failure: () => ({ errorText: 'net::ERR_ABORTED' }),
-    });
     page.emit('requestfailed', {
       method: () => 'GET',
       url: () => 'http://127.0.0.1:3333/room/ABCD?_rsc=abc123',
