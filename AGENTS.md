@@ -29,7 +29,6 @@ sharing/export, help modal
 | `tests/`       | Vitest 4 + Playwright   | Unit/integration plus `tests/e2e/`.                                                                                    |
 | `dagger/`      | Dagger TypeScript SDK   | Authoritative local gate.                                                                                              |
 | `scripts/`     | Node ESM + shell        | CI bootstrap, Canary responder/smoke tooling, evidence capture, legacy claims helper.                                  |
-| `backlog.d/`   | Markdown                | Retired seed/archive. Powder is the authoritative work ledger (`powder list-cards --repo linejam`).                    |
 | `docs/adr/`    | Markdown                | ADRs 0001–0008.                                                                                                        |
 
 ### Key Directories (purpose view)
@@ -182,7 +181,7 @@ AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
 7. **Every `while` loop needs a termination guard.** See Code Patterns below for the pattern.
 8. **`GUEST_TOKEN_SECRET` must match across local, DigitalOcean App Platform, and Convex.**
 9. **Base branch is `master`.** Conventional Commits only (commitlint enforced).
-10. **Powder is the authoritative work ledger.** `backlog.d/` is a retired seed/archive; when the two disagree, Powder wins. List linejam cards: `powder list-cards --repo linejam`.
+10. **Powder is the only work ledger.** List Linejam cards with `powder list-cards --repo linejam`; never create a repository-local ticket directory.
 
 ## Development Commands
 
@@ -367,7 +366,7 @@ powder release-claim linejam-NNN --run <run-id>
 ```
 
 Claim one card at a time before starting work. Release the claim when done or
-abandoned. Powder is the system of record; `backlog.d/` is a retired seed.
+abandoned. Powder is the system of record.
 
 ## Testing
 

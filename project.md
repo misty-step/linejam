@@ -29,7 +29,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 - **Milestone:** Restore public trust — anonymous play must survive identity-provider failure, private poems must stay private until explicit publication, and functional smoke failures must page.
 - **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across every retained theme → evidence-led aesthetic polish → revenue stretch.
-- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). Powder is authoritative for shaped work; `backlog.d/` is a retired seed/archive.
+- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). Powder is the sole work ledger.
 - **Theme:** Restraint as the product — Kenya Hara minimalism applied to the mechanics as much as the visuals.
 
 ## Quality Bar
