@@ -9,7 +9,6 @@ const providerEnvPrefix = provider.toUpperCase() + '_';
 const historicalRoots = [
   '.groom',
   'CHANGELOG.md',
-  'backlog.d',
   'content/releases',
   'docs/evidence',
   'docs/labs',
