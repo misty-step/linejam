@@ -59,12 +59,12 @@
     "agent:mcp": "npx tsx scripts/mcp/linejam-mcp.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.39.5",
+    "@clerk/nextjs": "^6.39.6",
     "clsx": "^2.1.1",
     "convex": "^1.42.1",
-    "lucide-react": "^1.23.0",
+    "lucide-react": "^1.24.0",
     "next": "16.2.10",
-    "posthog-js": "^1.398.6",
+    "posthog-js": "^1.399.2",
     "qrcode.react": "^4.2.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
