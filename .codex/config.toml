@@ -5,4 +5,3 @@ project_doc_fallback_filenames = [
 
 [features]
 codex_hooks = true
-child_agents_md = true
