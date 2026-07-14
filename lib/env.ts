@@ -18,6 +18,18 @@ const PLACEHOLDER_CANARY_KEYS = new Set([
   'example_canary_server_key',
   'example_canary_write_key',
 ]);
+const DEV_GUEST_TOKEN_SECRET = 'dev-only-insecure-secret-change-in-production';
+
+export function getServerGuestTokenSecret(): string {
+  const secret = process.env.GUEST_TOKEN_SECRET?.trim();
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('GUEST_TOKEN_SECRET must be set in production environment');
+  }
+
+  return DEV_GUEST_TOKEN_SECRET;
+}
 
 /**
  * Validate that all required environment variables are set.

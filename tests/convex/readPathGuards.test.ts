@@ -21,9 +21,11 @@ describe('Convex launch read path guards', () => {
 
     expect(body).not.toContain('.filter(');
     expect(body).toContain(".withIndex('by_status_created'");
-    expect(body).toContain(".withIndex('by_room'");
+    expect(body).toContain(".withIndex('by_room_public_created'");
+    expect(body).toContain(".eq('publicShareEnabled', true)");
     expect(body).toContain(".withIndex('by_poem_index'");
     expect(schemaSource).toContain(".index('by_status_created'");
+    expect(schemaSource).toContain(".index('by_room_public_created'");
   });
 
   it('keeps user history reads explicitly windowed', () => {

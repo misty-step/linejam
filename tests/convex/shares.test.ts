@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { makeFunctionReference } from 'convex/server';
 import { api } from '../../convex/_generated/api';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser } from '../helpers/convexSeed';
@@ -179,58 +180,21 @@ describe('shares', () => {
     });
   });
 
-  describe('logShare', () => {
-    it('inserts a share record when the poem exists', async () => {
+  describe('durable share analytics', () => {
+    it('does not expose the retired unauthenticated row-creating mutation', async () => {
       const t = setupConvexTest();
       const { poemId } = await seedRoom(t);
+      const retiredLogShare = makeFunctionReference<
+        'mutation',
+        { poemId: typeof poemId }
+      >('shares:logShare');
 
-      await t.mutation(api.shares.logShare, { poemId });
-
-      const shares = await t.run((ctx) =>
-        ctx.db
-          .query('shares')
-          .withIndex('by_poem', (q) => q.eq('poemId', poemId))
-          .collect()
+      await expect(t.mutation(retiredLogShare, { poemId })).rejects.toThrow(
+        /no such export/
       );
-      expect(shares).toHaveLength(1);
-      expect(typeof shares[0].createdAt).toBe('number');
-    });
 
-    it('throws when the poem does not exist', async () => {
-      const t = setupConvexTest();
-      // A valid-but-dangling poem id: insert the row then delete it.
-      const danglingPoemId = await t.run(async (ctx) => {
-        const userId = await ctx.db.insert('users', {
-          displayName: 'x',
-          createdAt: 0,
-        });
-        const roomId = await ctx.db.insert('rooms', {
-          code: 'ZZZZ',
-          hostUserId: userId,
-          status: 'LOBBY',
-          createdAt: 0,
-        });
-        const gameId = await ctx.db.insert('games', {
-          roomId,
-          status: 'IN_PROGRESS',
-          cycle: 1,
-          currentRound: 0,
-          assignmentMatrix: [],
-          createdAt: 0,
-        });
-        const poemId = await ctx.db.insert('poems', {
-          roomId,
-          gameId,
-          indexInRoom: 0,
-          createdAt: 0,
-        });
-        await ctx.db.delete(poemId);
-        return poemId;
-      });
-
-      await expect(
-        t.mutation(api.shares.logShare, { poemId: danglingPoemId })
-      ).rejects.toThrow('Poem not found');
+      const shares = await t.run((ctx) => ctx.db.query('shares').collect());
+      expect(shares).toEqual([]);
     });
   });
 });

@@ -1,7 +1,6 @@
-import { getConvexRuntimeConfig } from './env';
+import { getConvexGuestTokenSecret } from './env';
 
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
 
 export interface GuestTokenPayload {
   guestId: string;
@@ -10,29 +9,15 @@ export interface GuestTokenPayload {
   rateLimitKey?: string;
 }
 
-const runtimeConfig = getConvexRuntimeConfig();
-
-// Production must fail before the first auth request if token verification
-// cannot be initialized.
-const initialSecret = runtimeConfig.guestTokenSecret;
-
-if (runtimeConfig.environment === 'production' && !initialSecret) {
-  throw new Error(
-    'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
-      'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
-  );
-}
-
-function getSecret(): string {
-  return initialSecret ?? DEV_FALLBACK_SECRET;
-}
+// Production fails at module load when token verification cannot be
+// initialized; only local/test runtimes receive the development fallback.
+const guestTokenSecret = getConvexGuestTokenSecret();
 
 let keyPromise: Promise<CryptoKey> | null = null;
 
 async function getKey(): Promise<CryptoKey> {
   if (!keyPromise) {
-    const secret = getSecret();
-    const keyData = new TextEncoder().encode(secret);
+    const keyData = new TextEncoder().encode(guestTokenSecret);
 
     keyPromise = crypto.subtle.importKey(
       'raw',

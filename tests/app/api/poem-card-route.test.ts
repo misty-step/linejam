@@ -7,6 +7,13 @@ vi.mock('convex/nextjs', () => ({
   fetchQuery: (...args: unknown[]) => mockFetchQuery(...args),
 }));
 
+const { mockGetToken } = vi.hoisted(() => ({
+  mockGetToken: vi.fn(),
+}));
+vi.mock('@clerk/nextjs/server', () => ({
+  auth: () => Promise.resolve({ getToken: mockGetToken }),
+}));
+
 // next/og's ImageResponse drives the real Satori/resvg render pipeline,
 // which needs a genuine font binary or it throws — that pipeline is a
 // third-party rendering boundary (like a DB or network client), not this
@@ -30,13 +37,16 @@ vi.mock('next/og', () => ({
 
 describe('GET /poem/[id]/card', () => {
   let GET: typeof import('@/app/poem/[id]/card/route').GET;
+  let POST: typeof import('@/app/poem/[id]/card/route').POST;
 
   beforeEach(async () => {
     vi.resetModules();
     mockFetchQuery.mockReset();
+    mockGetToken.mockReset();
     lastImageResponseCall = null;
     const mod = await import('@/app/poem/[id]/card/route');
     GET = mod.GET;
+    POST = mod.POST;
   });
 
   afterEach(() => {
@@ -129,5 +139,49 @@ describe('GET /poem/[id]/card', () => {
     expect(mockFetchQuery).toHaveBeenCalledWith(expect.anything(), {
       poemId: 'poem123',
     });
+  });
+
+  it('renders a private card for a guest participant without publishing it', async () => {
+    mockFetchQuery.mockResolvedValue(attributedPoem);
+    const request = new NextRequest(
+      'https://linejam.app/poem/poem123/card?theme=hyper&mode=dark',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guestToken: 'guest-token' }),
+      }
+    );
+
+    const response = await POST(request, {
+      params: Promise.resolve({ id: 'poem123' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockFetchQuery).toHaveBeenCalledWith(expect.anything(), {
+      poemId: 'poem123',
+      guestToken: 'guest-token',
+    });
+  });
+
+  it('forwards Clerk Convex auth for a signed-in participant card', async () => {
+    mockGetToken.mockResolvedValue('convex-jwt');
+    mockFetchQuery.mockResolvedValue(attributedPoem);
+    const request = new NextRequest('https://linejam.app/poem/poem123/card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ id: 'poem123' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockGetToken).toHaveBeenCalledWith({ template: 'convex' });
+    expect(mockFetchQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      { poemId: 'poem123', guestToken: undefined },
+      { token: 'convex-jwt' }
+    );
   });
 });

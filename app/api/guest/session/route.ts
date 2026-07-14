@@ -4,19 +4,20 @@ import {
   signGuestToken,
   verifyGuestTokenPayload,
 } from '@/lib/guestToken';
+import { getServerGuestTokenSecret } from '@/lib/env';
 import { createHmac, randomUUID } from 'crypto';
 import { ConvexHttpClient } from 'convex/browser';
 import { makeFunctionReference } from 'convex/server';
 import { captureServerError } from '@/lib/errorServer';
 import { log, logError, logRequest } from '@/lib/logger';
+import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 
 const COOKIE_NAME = 'linejam_guest_token';
 const ROUTE = '/api/guest/session';
 const GUEST_SESSION_RETRY_AFTER_SECONDS = 10 * 60;
-const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
 const checkGuestSessionThrottle = makeFunctionReference<
   'mutation',
-  { key: string },
+  { key: string; proof: string },
   { ok: true }
 >('guestSessions:checkGuestSessionThrottle');
 
@@ -209,8 +210,13 @@ async function enforceGuestSessionThrottle(
   }
 
   try {
+    const proof = await signGuestSessionThrottleProof(
+      rateLimitKey,
+      getServerGuestTokenSecret()
+    );
     await getConvexClient(convexUrl).mutation(checkGuestSessionThrottle, {
       key: rateLimitKey,
+      proof,
     });
     return { allowed: true, rateLimitKey };
   } catch (error) {
@@ -242,13 +248,20 @@ function getConvexClient(convexUrl: string) {
 
 function deriveGuestSessionRateLimitKey(request: NextRequest): string {
   const ip = getClientIp(request);
-  const secret = process.env.GUEST_TOKEN_SECRET || DEV_FALLBACK_SECRET;
+  const secret = getServerGuestTokenSecret();
   const digest = createHmac('sha256', secret).update(ip).digest('base64url');
   return `guestSession:${digest.slice(0, 32)}`;
 }
 
 function getClientIp(request: NextRequest): string {
-  for (const header of ['do-connecting-ip', 'cf-connecting-ip', 'x-real-ip']) {
+  const appPlatformIp = request.headers.get('do-connecting-ip')?.trim();
+  if (appPlatformIp) return appPlatformIp;
+
+  // DigitalOcean App Platform owns do-connecting-ip in production. Do not
+  // let callers select durable throttle buckets through forwarded headers.
+  if (process.env.NODE_ENV === 'production') return 'unknown';
+
+  for (const header of ['cf-connecting-ip', 'x-real-ip']) {
     const value = request.headers.get(header)?.trim();
     if (value) return value;
   }

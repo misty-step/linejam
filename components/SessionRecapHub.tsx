@@ -70,7 +70,7 @@ export function SessionRecapHub({
     });
   };
   const { handleShare, copied, shared, shareError } = useShareLink({
-    beforeShare: enablePublicRecap,
+    publishShare: enablePublicRecap,
     getShareData: () => ({
       url: sessionRecapUrl(roomCode),
       title: 'Linejam session recap',
@@ -155,6 +155,10 @@ export function SessionRecapHub({
         </div>
       )}
 
+      <p className="text-sm text-text-muted">
+        Sharing makes the full session recap public to anyone with the link.
+      </p>
+
       <div className="grid gap-3">
         {sortedPoems.map((poem) => {
           const poemNumber = poem.indexInRoom + 1;
@@ -201,9 +205,6 @@ export function SessionRecapHub({
       </div>
 
       <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
-        <p className="text-sm text-text-muted">
-          Sharing makes the full session recap public to anyone with the link.
-        </p>
         <button
           type="button"
           onClick={toggleMuted}

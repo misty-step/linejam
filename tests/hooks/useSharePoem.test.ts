@@ -6,15 +6,8 @@ import type { Id } from '../../convex/_generated/dataModel';
 
 // Mock convex/react
 const mockEnablePublicPoemShare = vi.fn().mockResolvedValue(undefined);
-const mockLogShare = vi.fn().mockResolvedValue(undefined);
-let mutationCallCount = 0;
 vi.mock('convex/react', () => ({
-  useMutation: () => {
-    mutationCallCount++;
-    return mutationCallCount % 2 === 1
-      ? mockEnablePublicPoemShare
-      : mockLogShare;
-  },
+  useMutation: () => mockEnablePublicPoemShare,
 }));
 
 // Mock lib/error's captureError
@@ -38,9 +31,7 @@ describe('useSharePoem', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mutationCallCount = 0;
     mockEnablePublicPoemShare.mockResolvedValue(undefined);
-    mockLogShare.mockResolvedValue(undefined);
     vi.useFakeTimers();
 
     // Store originals
@@ -148,7 +139,7 @@ describe('useSharePoem', () => {
     expect(result.current.copied).toBe(false);
   });
 
-  it('logs share via mutation (fire-and-forget)', async () => {
+  it('records a successful share through provider-portable analytics', async () => {
     const { result } = renderHook(() =>
       useSharePoem(testPoemId, undefined, openingLine)
     );
@@ -157,11 +148,10 @@ describe('useSharePoem', () => {
       await result.current.handleShare();
     });
 
-    expect(mockLogShare).toHaveBeenCalledWith({ poemId: testPoemId });
     expect(mockTrackPoemShared).toHaveBeenCalledWith({ method: 'clipboard' });
   });
 
-  it('does not copy when public sharing cannot be enabled', async () => {
+  it('reports an error when the copied private link cannot be published', async () => {
     mockEnablePublicPoemShare.mockRejectedValueOnce(new Error('Forbidden'));
     const { result } = renderHook(() =>
       useSharePoem(testPoemId, undefined, openingLine)
@@ -171,26 +161,13 @@ describe('useSharePoem', () => {
       await result.current.handleShare();
     });
 
-    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
-    expect(mockLogShare).not.toHaveBeenCalled();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      'https://example.com/poem/poem123'
+    );
+    expect(mockTrackPoemShared).not.toHaveBeenCalled();
     expect(result.current.shareError).toBe(
       'Failed to share poem. Please try again.'
     );
-  });
-
-  it('handles logShare mutation failure gracefully', async () => {
-    mockLogShare.mockRejectedValueOnce(new Error('Network error'));
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
-
-    // Should not throw, mutation error is caught
-    await act(async () => {
-      await result.current.handleShare();
-    });
-
-    expect(result.current.copied).toBe(true); // Copy still succeeded
-    expect(mockCaptureError).not.toHaveBeenCalled(); // Analytics error not captured
   });
 
   it('captures error when clipboard copy fails', async () => {
@@ -216,7 +193,7 @@ describe('useSharePoem', () => {
     );
   });
 
-  it('does not log share when clipboard fails', async () => {
+  it('does not record a share when clipboard fails', async () => {
     (
       navigator.clipboard.writeText as ReturnType<typeof vi.fn>
     ).mockRejectedValueOnce(new Error('Clipboard denied'));
@@ -228,8 +205,7 @@ describe('useSharePoem', () => {
       await result.current.handleShare();
     });
 
-    // logShare should not be called since clipboard failed
-    expect(mockLogShare).not.toHaveBeenCalled();
+    expect(mockTrackPoemShared).not.toHaveBeenCalled();
   });
 
   it('uses native share when available', async () => {
@@ -300,6 +276,8 @@ describe('useSharePoem', () => {
 
     expect(result.current.shareError).toBeNull();
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(mockEnablePublicPoemShare).not.toHaveBeenCalled();
+    expect(mockTrackPoemShared).not.toHaveBeenCalled();
     expect(mockCaptureError).not.toHaveBeenCalled();
   });
 

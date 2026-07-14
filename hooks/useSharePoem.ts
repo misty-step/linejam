@@ -22,10 +22,9 @@ export function useSharePoem(
   openingLine?: string
 ) {
   const enablePublicPoemShare = useMutation(api.shares.enablePublicPoemShare);
-  const logShare = useMutation(api.shares.logShare);
 
   return useShareLink({
-    beforeShare: async () => {
+    publishShare: async () => {
       await enablePublicPoemShare({
         poemId,
         guestToken: guestToken || undefined,
@@ -37,7 +36,6 @@ export function useSharePoem(
       text: buildPoemShareText(openingLine),
     }),
     onShared: (method) => {
-      logShare({ poemId }).catch(() => {});
       trackPoemShared({ method });
     },
     onError: (err) => {

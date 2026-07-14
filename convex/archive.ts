@@ -288,7 +288,9 @@ export const getRecentPublicPoems = query({
       rooms.map((room) =>
         ctx.db
           .query('poems')
-          .withIndex('by_room', (q) => q.eq('roomId', room._id))
+          .withIndex('by_room_public_created', (q) =>
+            q.eq('roomId', room._id).eq('publicShareEnabled', true)
+          )
           .order('desc')
           .take(PUBLIC_POEMS_PER_ROOM)
       )

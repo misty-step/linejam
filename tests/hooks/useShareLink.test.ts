@@ -101,11 +101,11 @@ describe('useShareLink', () => {
     });
   });
 
-  it('runs beforeShare before exposing the URL', async () => {
-    const beforeShare = vi.fn().mockResolvedValue(undefined);
+  it('publishes only after the URL has been exposed successfully', async () => {
+    const publishShare = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
       useShareLink({
-        beforeShare,
+        publishShare,
         getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
       })
     );
@@ -114,16 +114,16 @@ describe('useShareLink', () => {
       await result.current.handleShare();
     });
 
-    expect(beforeShare).toHaveBeenCalledBefore(
-      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
+    expect(navigator.clipboard.writeText).toHaveBeenCalledBefore(
+      publishShare as ReturnType<typeof vi.fn>
     );
   });
 
-  it('does not expose the URL when beforeShare fails', async () => {
+  it('reports an error when publication fails after copying the private URL', async () => {
     const onError = vi.fn();
     const { result } = renderHook(() =>
       useShareLink({
-        beforeShare: () => Promise.reject(new Error('Not allowed')),
+        publishShare: () => Promise.reject(new Error('Not allowed')),
         getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
         onError,
         failureMessage: 'Unable to publish link.',
@@ -134,8 +134,34 @@ describe('useShareLink', () => {
       await result.current.handleShare();
     });
 
-    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
     expect(result.current.shareError).toBe('Unable to publish link.');
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it('does not publish when the native share sheet is cancelled', async () => {
+    const publishShare = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', {
+      value: vi
+        .fn()
+        .mockRejectedValue(new DOMException('Cancelled', 'AbortError')),
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() =>
+      useShareLink({
+        publishShare,
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(publishShare).not.toHaveBeenCalled();
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBeNull();
   });
 });

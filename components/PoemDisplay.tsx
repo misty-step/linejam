@@ -418,6 +418,9 @@ export function PoemDisplay({
             the recap.
           </p>
         )}
+        <p className="max-w-md text-center text-sm text-text-muted">
+          Sharing makes this poem public to anyone with the link.
+        </p>
         <div className="flex w-full max-w-md flex-wrap items-center justify-center gap-space-2 sm:gap-space-3">
           {/* Reveal variant: heart the poem toward the room-favorite crown */}
           {!isArchive && (

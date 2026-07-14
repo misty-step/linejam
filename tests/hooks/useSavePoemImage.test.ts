@@ -86,7 +86,7 @@ describe('useSavePoemImage', () => {
     expect(result.current.saveError).toBeNull();
   });
 
-  it('enables public sharing, then fetches the active theme card', async () => {
+  it('fetches a participant-only card without enabling public sharing', async () => {
     const { result } = renderHook(() =>
       useSavePoemImage(testPoemId, 'guest-token')
     );
@@ -95,12 +95,14 @@ describe('useSavePoemImage', () => {
       await result.current.handleSaveImage();
     });
 
-    expect(mockEnablePublicPoemShare).toHaveBeenCalledWith({
-      poemId: testPoemId,
-      guestToken: 'guest-token',
-    });
+    expect(mockEnablePublicPoemShare).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledWith(
-      '/poem/poem123/card?theme=hyper&mode=dark'
+      '/poem/poem123/card?theme=hyper&mode=dark',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guestToken: 'guest-token' }),
+      }
     );
   });
 
@@ -112,7 +114,11 @@ describe('useSavePoemImage', () => {
       await result.current.handleSaveImage();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('/poem/poem123/card');
+    expect(global.fetch).toHaveBeenCalledWith('/poem/poem123/card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
   });
 
   it('downloads the PNG when the Web Share API is unavailable', async () => {
@@ -179,6 +185,7 @@ describe('useSavePoemImage', () => {
 
     expect(result.current.saveError).toBeNull();
     expect(result.current.saved).toBe(false);
+    expect(mockEnablePublicPoemShare).not.toHaveBeenCalled();
     expect(mockCaptureError).not.toHaveBeenCalled();
   });
 

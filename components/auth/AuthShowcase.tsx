@@ -7,12 +7,13 @@ import { api } from '@/convex/_generated/api';
  * AuthShowcase: Poem Preview for Auth Pages
  *
  * Displays a recent completed poem from the database as visual interest
- * on the auth screens. Falls back to a placeholder if no poems exist.
+ * on the auth screens. Falls back to a placeholder if no explicitly shared
+ * public poems exist.
  *
  * Theme-aware: Uses CSS variables for all colors and typography.
  */
 export function AuthShowcase() {
-  // Query recent poems to showcase
+  // Query only explicitly opted-in public poems for the showcase.
   const recentPoems = useQuery(api.archive.getRecentPublicPoems, { limit: 5 });
 
   // Show the most recent quality poem (deterministic selection)

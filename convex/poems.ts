@@ -3,18 +3,10 @@ import { query } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import { getUser, checkParticipation } from './lib/auth';
 import { getRoomByCode, getActiveGame, getCompletedGame } from './lib/room';
-
-function isPublicPoemShareEnabled(
-  poem: { publicShareEnabled?: boolean } | null
-) {
-  return poem?.publicShareEnabled === true;
-}
-
-function isPublicSessionRecapEnabled(
-  game: { publicRecapEnabled?: boolean } | null
-) {
-  return game?.publicRecapEnabled === true;
-}
+import {
+  isPublicPoemShareEnabled,
+  isPublicSessionRecapEnabled,
+} from './lib/sharing';
 
 const DEFAULT_MY_POEMS_LIMIT = 24;
 const MAX_MY_POEMS_LIMIT = 48;

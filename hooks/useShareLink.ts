@@ -14,7 +14,7 @@ interface ShareData {
 
 interface UseShareLinkOptions {
   getShareData: () => ShareData;
-  beforeShare?: () => Promise<void>;
+  publishShare?: () => Promise<void>;
   onShared?: (method: ShareMethod) => void | Promise<void>;
   onError?: (error: unknown) => void;
   failureMessage?: string;
@@ -23,7 +23,7 @@ interface UseShareLinkOptions {
 
 export function useShareLink({
   getShareData,
-  beforeShare,
+  publishShare,
   onShared,
   onError,
   failureMessage = 'Failed to share link. Please try again.',
@@ -56,20 +56,23 @@ export function useShareLink({
     Promise.resolve(onShared(method)).catch(() => {});
   };
 
+  const completeShare = async (method: ShareMethod) => {
+    await publishShare?.();
+    setStatus(method === 'native-share' ? 'shared' : 'copied');
+    notifyShared(method);
+    resetStatusSoon();
+  };
+
   const handleShare = async () => {
     setShareError(null);
 
     try {
-      await beforeShare?.();
-
       const { url, title, text } = getShareData();
 
       if (typeof navigator.share === 'function') {
         try {
           await navigator.share({ title, text, url });
-          setStatus('shared');
-          notifyShared('native-share');
-          resetStatusSoon();
+          await completeShare('native-share');
           return;
         } catch (error) {
           if (error instanceof DOMException && error.name === 'AbortError') {
@@ -80,9 +83,7 @@ export function useShareLink({
 
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
-        setStatus('copied');
-        notifyShared('clipboard');
-        resetStatusSoon();
+        await completeShare('clipboard');
         return;
       }
 

@@ -93,6 +93,11 @@ export default defineSchema({
     .index('by_room_index', ['roomId', 'indexInRoom'])
     .index('by_reader', ['assignedReaderId'])
     .index('by_game', ['gameId'])
+    .index('by_room_public_created', [
+      'roomId',
+      'publicShareEnabled',
+      'createdAt',
+    ])
     .index('by_room_game_index', ['roomId', 'gameId', 'indexInRoom']),
 
   lines: defineTable({

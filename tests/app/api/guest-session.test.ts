@@ -512,6 +512,7 @@ describe('GET /api/guest/session', () => {
         expect.anything(),
         expect.objectContaining({
           key: expect.stringMatching(/^guestSession:/),
+          proof: expect.stringMatching(/^[A-Za-z0-9_-]+$/),
         })
       );
       expect(JSON.stringify(mockMutation.mock.calls)).not.toContain(
@@ -586,6 +587,28 @@ describe('GET /api/guest/session', () => {
       expect(firstKey).toMatch(/^guestSession:/);
       expect(secondKey).toMatch(/^guestSession:/);
       expect(secondKey).not.toBe(firstKey);
+    });
+
+    it('ignores caller-controlled forwarding headers in production', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('GUEST_TOKEN_SECRET', 'production-test-secret');
+
+      try {
+        const requestFor = (forwardedIp: string) =>
+          new NextRequest('https://www.linejam.app/api/guest/session', {
+            headers: { 'x-forwarded-for': forwardedIp },
+          });
+
+        await GET(requestFor('198.51.100.31'));
+        const firstKey = mockMutation.mock.calls.at(-1)?.[1]?.key;
+        await GET(requestFor('198.51.100.32'));
+        const secondKey = mockMutation.mock.calls.at(-1)?.[1]?.key;
+
+        expect(firstKey).toMatch(/^guestSession:/);
+        expect(secondKey).toBe(firstKey);
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
   });
 
