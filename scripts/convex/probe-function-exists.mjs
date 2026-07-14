@@ -3,12 +3,11 @@
 /**
  * Non-interactive Convex deployment probe for agent lanes.
  *
- * `npx convex dev` (Invariant 2 in AGENTS.md) stays off-limits for agents --
- * it's an interactive, long-running dev server. But a one-shot, read-only
- * check of whether a specific function (e.g. a migration export) actually
- * exists on the configured deployment doesn't need that: `convex
- * function-spec` is metadata-only (no data, no secret values) and
- * terminates immediately.
+ * A one-shot, read-only check of whether a specific function (for example a
+ * migration export) exists on the configured deployment uses `convex
+ * function-spec`: metadata-only, value-free, and bounded. An explicitly
+ * authorized shared-dev code sync uses `pnpm convex:sync:shared-dev`; this
+ * probe never pushes code or starts a watcher.
  *
  * The catch (linejam-908): an isolated/sandboxed worktree that lacks
  * `~/.convex/config.json` fails with
@@ -19,10 +18,10 @@
  *
  * The Convex CLI also accepts CONVEX_OVERRIDE_ACCESS_TOKEN, which
  * authenticates the exact same way without that file
- * (node_modules/convex/dist/cli.bundle.cjs). An operator who wants an
- * isolated worktree to run migration probes exports that one token into
- * the worktree's env (see docs/testing.md); this script is what the lane
- * runs once it's there. `convex-test` remains the right tool for
+ * (node_modules/convex/dist/cli.bundle.cjs). An operator who authorizes an
+ * isolated worktree to run probes injects that token through the credential
+ * plane (see docs/ops/observability-ci.md); this script is what the lane runs
+ * once it is present. `convex-test` remains the right tool for
  * verifying migration *logic* with no deployment at all -- this is only
  * for confirming a function landed on a real dev deployment.
  */

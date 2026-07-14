@@ -11,6 +11,7 @@
     "dev": "npm-run-all --parallel dev:next dev:convex",
     "dev:next": "next dev --turbopack",
     "dev:convex": "convex dev",
+    "convex:sync:shared-dev": "./scripts/ci/dagger-call.sh sync-shared-dev",
     "build": "node ./scripts/ci/bootstrap-convex-env.mjs --deploy",
     "build:check": "next build",
     "start:next": "next start",

@@ -1,21 +1,97 @@
-# Observability & CI
+# Operations, authority, and CI
 
-Moved verbatim from README.md (linejam-918) so the front door stays short.
-Each bullet still names its source file where one is referenced.
+Canonical operating contract for agent and human delivery lanes. Provider
+commands and production recovery live in `docs/deployment.md`.
 
-- Canary is the primary error and incident system. Client errors, request failures, and explicit `captureError()` calls all flow there.
-- Critical route telemetry is structured JSON. `/api/health` and `/api/guest/session` log method, route, status, and duration without guest tokens, display names, or raw request payloads.
-- Completed rooms end in a shared recap hub. Players can replay every poem, share `/recap/<room-code>`, and keep the same group moving into the next round without relying on one-off archive links.
-- Use `pnpm ci:fast` for the fast host loop: typecheck, lint, and tests without Docker. `pnpm ci:prepush` is the same command under the pre-push hook.
-- GitHub Actions enforces the authoritative full contract through hosted `merge-gate`, including the non-draft-gated `early-smoke` selector flow. Run `pnpm ci:dagger:all` on demand for full local parity when Docker and the required env are available.
-- Local Dagger auto-hydrates `GUEST_TOKEN_SECRET` from the active Convex deployment when `NEXT_PUBLIC_CONVEX_URL` points at the same Convex dev or prod backend that the CLI resolves.
-- Local Dagger auto-syncs the active Convex dev deployment before `all` and `e2e` runs. It refuses to push production Convex code unless you explicitly set `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.
-- Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Dev/test Clerk keys can be bootstrapped automatically; live-key mutation stays blocked unless you explicitly set `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=1`.
-- Hosted preview `pnpm build` is compile-only by default. It does not create or mutate Convex preview deployments unless you explicitly set `LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY=1`.
-- Hosted production sets `LINEJAM_DEPLOY_ENVIRONMENT=production`; `pnpm build` then fails closed if `CONVEX_DEPLOY_KEY` is missing or targets preview, and otherwise bootstraps `GUEST_TOKEN_SECRET` plus `CLERK_JWT_ISSUER_DOMAIN` into Convex production before `convex deploy`.
-- The authoritative Dagger contract now requires real browser-side Canary config for build-bearing lanes. Keep `NEXT_PUBLIC_CANARY_ENDPOINT` and `NEXT_PUBLIC_CANARY_API_KEY` set locally before running `pnpm ci:dagger:all`, `pnpm ci:dagger:all-no-e2e`, `pnpm ci:dagger:build-check`, or `pnpm ci:dagger:e2e`.
-- The default Dagger E2E contract is authenticated as well as guest coverage. Keep `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` configured locally; `PLAYWRIGHT_CLERK_TEST_EMAIL` is still optional for dev/test Clerk keys because the helper can provision the default smoke user automatically there. Live Clerk keys fail closed instead: point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke account. Authenticated Playwright coverage signs into Clerk inside each live browser context after the app is already serving traffic, which keeps protected-route checks aligned with the actual test session. Set `PLAYWRIGHT_REQUIRE_AUTH_E2E=0` only when you intentionally want a guest-only loop.
-- Local Dagger reads `.env.local` after `.env.production.local`, so localhost-safe Clerk test/dev keys in `.env.local` override production values during the local contract.
-- Remote smoke covers both guest and signed-in join flows. Set `PLAYWRIGHT_BASE_URL`, keep `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` available for the authenticated Clerk path, and point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke account for live Clerk tenants because remote smoke no longer auto-provisions against `sk_live_...` keys. For smoke runs, `scripts/ci/dagger-call.sh` now prefers `.env.production.local` over `.env.local` so deployed targets do not accidentally inherit localhost Clerk keys, it rejects `pk_test_...` or `sk_test_...` credentials against `https://www.linejam.app`, and it validates that Clerk already has the `convex` JWT template before launching authenticated smoke. Set `PLAYWRIGHT_REQUIRE_AUTH_SMOKE=0` only when you intentionally want to skip auth smoke.
-- Run the Canary responder locally with `pnpm canary:responder` and see [docs/ops/canary-responder.md](canary-responder.md). The responder now bounds Canary context fetches with a timeout, prunes stale `.canary/` artifacts on a rolling interval, and expects `pnpm canary:webhook:setup` to be rerunnable without creating duplicate Canary subscriptions. The DigitalOcean App Platform responder uses `LINEJAM_SMOKE_RUNNER=playwright` and [Dockerfile.responder](../../Dockerfile.responder), so the smoke loop can run outside GitHub Actions without embedding Dagger in the webhook worker. Set `CANARY_WEBHOOK_SEND_TEST=1` when you want setup to send Canary's `canary.ping` test delivery after ensuring the subscription.
-- `/api/health` reports app health separately from Canary readiness. Missing Canary ingest degrades observability metadata but no longer marks the entire app unhealthy.
+## Three execution classes
+
+| Class                           | Examples                                                              | Rule                                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Long-running local process      | `pnpm dev`, `pnpm dev:convex`, watch modes, app/responder/MCP servers | Do not start unless explicitly commissioned with target, lifetime, and shutdown owner.                                  |
+| Bounded shared development      | metadata probes, `convex dev --once`, scoped dev migration            | Allowed with explicit operation authority, confirmed non-production target, redacted output, and a named postcondition. |
+| Production or external mutation | deploy, env/data write, smoke trigger, provider change, merge         | Requires explicit live authority for that operation and every repository/provider fail-closed guard.                    |
+
+An environment flag never grants authority; it only proves the caller crossed a
+named safety interlock after authority was granted.
+
+## Safe shared-development Convex sync
+
+Use the repository face, not bare `convex dev`:
+
+```bash
+LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC=1 pnpm convex:sync:shared-dev
+```
+
+The flag must be present in the invoking process; putting it in a dotenv file
+does not authorize the operation. `scripts/ci/dagger-call.sh` loads the normal
+env files, requires an explicit remote `NEXT_PUBLIC_CONVEX_URL`, resolves both
+the active dev and production URLs with `convex function-spec`, rejects local,
+production, and mismatched targets, runs exactly:
+
+```bash
+pnpm exec convex dev --once --typecheck disable --codegen disable
+```
+
+It suppresses routine sync output, then performs a fresh `function-spec` read
+and fails if the deployment identity changed. The command is bounded and does
+not start the Convex watcher.
+
+Convex CLI authentication normally comes from `~/.convex/config.json`. In an
+isolated environment, an operator may inject `CONVEX_OVERRIDE_ACCESS_TOKEN`
+through the approved credential plane. Never print, copy into chat, or commit
+that token.
+
+## Probes and dev migrations
+
+- Prefer `pnpm exec convex function-spec`; it returns function metadata without
+  data or environment values.
+- To assert one function landed, run
+  `node scripts/convex/probe-function-exists.mjs <module.js:functionName>`.
+- Avoid `convex env list`: it can reveal values. If names are essential, use
+  `--names-only` where the command supports it and still redact the receipt.
+- A dev migration requires explicit authority naming the function, arguments,
+  target deployment, expected affected rows/state, and rollback or recovery.
+  Confirm the target as above, run the bounded `pnpm exec convex run ...`
+  command without `--prod`, then execute the named query/probe postcondition.
+- Prove migration logic with `convex-test` before touching a shared deployment.
+
+Production Convex deploys remain fail-closed. Local Dagger rejects them unless
+`LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`; hosted builds additionally enforce the
+`LINEJAM_DEPLOY_ENVIRONMENT`/`CONVEX_DEPLOY_KEY` contract. These guards do not
+replace operator authority. See `docs/deployment.md`.
+
+## Verification ladder
+
+1. Focused test/lint/typecheck for the changed surface.
+2. `pnpm ci:prepush`: provider-retirement check, typecheck, lint, and Vitest.
+3. Proportionate browser, evidence, or live-dev proof from `docs/testing.md`.
+4. Hosted `.github/workflows/ci.yml` merge gate: quality, test/build, early
+   selector smoke, E2E, and QA evidence jobs as configured there.
+5. After an authorized merge/deploy, confirm source SHA, provider deployment
+   health, production smoke, public route postconditions, and relevant logs.
+
+`pnpm ci:dagger:all` is the local full-contract mirror when Docker and required
+Clerk, Convex, guest-token, and Canary inputs are available. Dagger may prepare
+the active dev backend for `all`/`e2e`; production sync still needs its explicit
+guard. Do not label `ci:prepush` or unit tests as deployment proof.
+
+## Review through production
+
+- Review the artifact and oracle, not the author's intent. Resolve actionable
+  findings and rerun affected checks.
+- A PR targets `master`, carries exact evidence and residual risk, and waits for
+  the hosted merge gate. Do not merge a red or stale head.
+- Merge, deployment, smoke, monitoring, and production verification are
+  separate authorized operations. A green PR does not prove production.
+- After deployment, match the live source SHA, verify App Platform phases and
+  health routes, run the relevant deterministic smoke, and inspect value-free
+  logs. Keep monitoring through the defined observation window; use a normal
+  revert/forward fix, never destructive history.
+
+## Observability facts
+
+Canary is the incident sink. Critical route logs are structured and must omit
+guest tokens, display names, request bodies, and secrets. `/api/health` reports
+application health separately from Canary readiness, so degraded ingest is not
+proof gameplay is down. Responder operation is documented in
+`docs/ops/canary-responder.md`.

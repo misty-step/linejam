@@ -213,6 +213,69 @@ printf '%s\\n' "$@" > "${argsLog}"
     expect(args).toContain('--linejam-allow-unsynced-convex-throttle=1');
   });
 
+  it('refuses a shared dev sync without per-invocation authority', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      [
+        'NEXT_PUBLIC_CONVEX_URL=https://dev.example.test',
+        'LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC=1',
+      ].join('\n')
+    );
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'sync-shared-dev');
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC=1');
+  });
+
+  it('syncs only the confirmed shared dev deployment and verifies it afterward', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const callsLog = join(workspace, 'pnpm-calls.log');
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      'NEXT_PUBLIC_CONVEX_URL=https://dev.example.test\n'
+    );
+    writeExecutable(
+      join(binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\n' "$*" >> "${callsLog}"
+case "$*" in
+  *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
+  *"function-spec"*) printf '{"url": "https://dev.example.test", "functions": []}\n' ;;
+  *"convex dev --once"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
+      LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Shared Convex dev sync verified');
+    const calls = readFileSync(callsLog, 'utf8');
+    expect(calls).toContain(
+      'exec convex dev --once --typecheck disable --codegen disable'
+    );
+    expect(calls.match(/exec convex function-spec/g)).toHaveLength(3);
+  });
+
   it('fails fast when dotenv loading fails before invoking dagger', () => {
     const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
     workspaces.push(workspace);
