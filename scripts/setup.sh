@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_EXAMPLE="$ROOT_DIR/.env.example"
 ENV_LOCAL="$ROOT_DIR/.env.local"
-CLAIMS_DIR="$ROOT_DIR/.claims"
 WRITE_ENV=1
 SKIP_INSTALL=0
 
@@ -20,7 +19,6 @@ Options:
   --skip-install          Skip pnpm install.
   --env-example <path>    Read env placeholders from a custom example file.
   --env-local <path>      Write env placeholders to a custom local file.
-  --claims-dir <path>     Prepare a custom local claims directory.
   -h, --help              Show this help.
 EOF
 }
@@ -58,11 +56,6 @@ while [[ $# -gt 0 ]]; do
       ENV_LOCAL="$2"
       shift 2
       ;;
-    --claims-dir)
-      require_value "$1" "${2-}"
-      CLAIMS_DIR="$2"
-      shift 2
-      ;;
     -h|--help)
       usage
       exit 0
@@ -90,9 +83,6 @@ if [[ "$WRITE_ENV" -eq 1 ]]; then
     printf 'edit %s with Convex, Clerk, guest-token, and Canary values before running the full local gate\n' "$ENV_LOCAL"
   fi
 fi
-
-mkdir -p "$CLAIMS_DIR"
-printf 'claims directory ready at %s\n' "$CLAIMS_DIR"
 
 if [[ "$SKIP_INSTALL" -eq 1 ]]; then
   printf 'skipped dependency install\n'

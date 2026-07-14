@@ -167,7 +167,32 @@ convex_url_for_mode() {
 is_local_convex_url() {
 	local url
 	url="$(normalize_url "${1:-}")"
-	[[ "$url" =~ ^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]
+	local authority
+	authority="${url#*://}"
+	[[ "$authority" != "$url" ]] || return 1
+	authority="${authority%%/*}"
+
+	local hostname
+	if [[ "$authority" == \[* ]]; then
+		hostname="${authority%%]*}"
+		hostname="${hostname#[}"
+	else
+		hostname="${authority%%:*}"
+	fi
+	hostname="${hostname%.}"
+	hostname="$(printf '%s' "$hostname" | tr '[:upper:]' '[:lower:]')"
+
+	case "$hostname" in
+		localhost|*.localhost) return 0 ;;
+	esac
+
+	# Convex deployment URLs are hostnames. Treat every IP literal as a
+	# non-shared target so loopback, wildcard, private, shorthand, and IPv6
+	# spellings cannot evade the shared-development guard.
+	[[ "$hostname" == *:* ]] && return 0
+	[[ "$hostname" =~ ^[0-9]+$ ]] && return 0
+	[[ "$hostname" =~ ^0[xX][0-9a-f]+$ ]] && return 0
+	[[ "$hostname" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]
 }
 
 function_requires_guest_token() {

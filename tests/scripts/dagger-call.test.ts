@@ -236,6 +236,32 @@ printf '%s\\n' "$@" > "${argsLog}"
     expect(result.stderr).toContain('LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC=1');
   });
 
+  it.each([
+    'http://localhost:8187',
+    'http://0.0.0.0:8187',
+    'http://[::1]:8187',
+  ])('refuses the non-shared Convex target %s', (targetUrl) => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      `NEXT_PUBLIC_CONVEX_URL=${targetUrl}\n`
+    );
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
+      LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('explicit remote NEXT_PUBLIC_CONVEX_URL');
+  });
+
   it('syncs only the confirmed shared dev deployment and verifies it afterward', () => {
     const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
     workspaces.push(workspace);
@@ -274,6 +300,122 @@ esac
       'exec convex dev --once --typecheck disable --codegen disable'
     );
     expect(calls.match(/exec convex function-spec/g)).toHaveLength(3);
+  });
+
+  it('refuses a shared dev sync when the configured target is production', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const callsLog = join(workspace, 'pnpm-calls.log');
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      'NEXT_PUBLIC_CONVEX_URL=https://prod.example.test\n'
+    );
+    writeExecutable(
+      join(binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\n' "$*" >> "${callsLog}"
+case "$*" in
+  *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
+  *"function-spec"*) printf '{"url": "https://dev.example.test", "functions": []}\n' ;;
+  *"convex dev --once"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
+      LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('resolves to production');
+    expect(readFileSync(callsLog, 'utf8')).not.toContain('convex dev --once');
+  });
+
+  it('refuses a shared dev sync when the configured target is not the active dev deployment', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const callsLog = join(workspace, 'pnpm-calls.log');
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      'NEXT_PUBLIC_CONVEX_URL=https://other.example.test\n'
+    );
+    writeExecutable(
+      join(binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\n' "$*" >> "${callsLog}"
+case "$*" in
+  *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
+  *"function-spec"*) printf '{"url": "https://dev.example.test", "functions": []}\n' ;;
+  *"convex dev --once"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
+      LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('does not match');
+    expect(readFileSync(callsLog, 'utf8')).not.toContain('convex dev --once');
+  });
+
+  it('fails when the shared dev deployment identity changes after sync', () => {
+    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
+    workspaces.push(workspace);
+
+    const callsLog = join(workspace, 'pnpm-calls.log');
+    const devProbeMarker = join(workspace, 'dev-probed');
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
+      join(scriptsDir, 'dotenv.mjs')
+    );
+    writeFileSync(
+      join(workspace, '.env.local'),
+      'NEXT_PUBLIC_CONVEX_URL=https://dev.example.test\n'
+    );
+    writeExecutable(
+      join(binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\n' "$*" >> "${callsLog}"
+case "$*" in
+  *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
+  *"function-spec"*)
+    if [ -f "${devProbeMarker}" ]; then
+      printf '{"url": "https://changed.example.test", "functions": []}\n'
+    else
+      : > "${devProbeMarker}"
+      printf '{"url": "https://dev.example.test", "functions": []}\n'
+    fi
+    ;;
+  *"convex dev --once"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+    initGitRepo(workspace);
+
+    const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
+      LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('postcondition probe resolved a different');
+    expect(readFileSync(callsLog, 'utf8')).toContain('convex dev --once');
   });
 
   it('fails fast when dotenv loading fails before invoking dagger', () => {

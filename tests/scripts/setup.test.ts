@@ -1,11 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -86,26 +80,10 @@ describe('scripts/setup.sh', () => {
     expect(result.stdout).toContain(`kept existing ${envLocal}`);
   });
 
-  it('prepares the claims directory when install is skipped', () => {
-    const workspace = createWorkspace();
-    workspaces.push(workspace);
-    const claimsDir = join(workspace, '.claims');
+  it('rejects the retired local claims option', () => {
+    const result = runSetup(['--skip-install', '--claims-dir', '.claims']);
 
-    const result = spawnSync(
-      'bash',
-      ['scripts/setup.sh', '--skip-install', '--claims-dir', claimsDir],
-      {
-        cwd: process.cwd(),
-        env: {
-          ...process.env,
-          CI: '1',
-        },
-        encoding: 'utf8',
-      }
-    );
-
-    expect(result.status).toBe(0);
-    expect(existsSync(claimsDir)).toBe(true);
-    expect(result.stdout).toContain(`claims directory ready at ${claimsDir}`);
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('unknown option: --claims-dir');
   });
 });

@@ -84,7 +84,7 @@ describe('useUser hook', () => {
   });
 
   it('falls back to a guest session when Clerk never finishes loading', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
     mockUseClerkUser.mockReturnValue({
       user: null,
       isLoaded: false,
@@ -110,12 +110,10 @@ describe('useUser hook', () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
+      await Promise.resolve();
     });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
+    expect(result.current.isLoading).toBe(false);
     expect(fetcher.fetch).toHaveBeenCalledTimes(1);
     expect(result.current.guestId).toBe('guest-clerk-outage');
     expect(result.current.guestToken).toBe('token-clerk-outage');
@@ -130,7 +128,7 @@ describe('useUser hook', () => {
   });
 
   it('gives a late authenticated Clerk session precedence over guest fallback', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
     mockUseClerkUser.mockReturnValue({
       user: null,
       isLoaded: false,
@@ -145,10 +143,9 @@ describe('useUser hook', () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
+      await Promise.resolve();
     });
-    await waitFor(() => {
-      expect(result.current.guestId).toBe('guest-before-clerk');
-    });
+    expect(result.current.guestId).toBe('guest-before-clerk');
 
     const clerkUser = {
       id: 'clerk_late',
@@ -160,13 +157,13 @@ describe('useUser hook', () => {
       isLoading: false,
       isAuthenticated: true,
     });
-    rerender();
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.isAuthenticated).toBe(true);
+    await act(async () => {
+      rerender();
+      await Promise.resolve();
     });
 
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.clerkUser).toEqual(clerkUser);
     expect(result.current.guestId).toBeNull();
     expect(result.current.guestToken).toBeNull();
@@ -175,7 +172,7 @@ describe('useUser hook', () => {
   });
 
   it('keeps the guest session when Clerk loads late without a user', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
     mockUseClerkUser.mockReturnValue({
       user: null,
       isLoaded: false,
@@ -190,10 +187,9 @@ describe('useUser hook', () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
+      await Promise.resolve();
     });
-    await waitFor(() => {
-      expect(result.current.guestId).toBe('guest-stable');
-    });
+    expect(result.current.guestId).toBe('guest-stable');
 
     mockUseClerkUser.mockReturnValue({ user: null, isLoaded: true });
     rerender();

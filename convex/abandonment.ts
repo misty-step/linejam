@@ -228,7 +228,7 @@ export const finishAbandonedGame = internalMutation({
         return { completed: false, filled: 0 };
       }
 
-      // One pass advances at most one round; bound the loop (CLAUDE.md loop-safety).
+      // One pass advances at most one round; keep the loop explicitly bounded.
       // Round count comes from the game's own matrix (legacy games may differ).
       const maxPasses = getFinalRoundIndex(initial.assignmentMatrix) + 2;
 
