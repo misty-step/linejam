@@ -6,8 +6,20 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 type ServerAddress = {
+  address: string;
+  family: string;
   port: number;
 };
+
+function serverBaseUrl(address: ServerAddress) {
+  if (address.family === 'IPv6') {
+    const host = address.address === '::' ? '::1' : address.address;
+    return `http://[${host}]:${address.port}`;
+  }
+
+  const host = address.address === '0.0.0.0' ? '127.0.0.1' : address.address;
+  return `http://${host}:${address.port}`;
+}
 
 function signPayload(secret: string, body: string) {
   return `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
@@ -28,8 +40,8 @@ describe('canary responder http server', () => {
     delete process.env.CANARY_SMOKE_MAX_PENDING;
     delete process.env.LINEJAM_CANARY_MAX_BODY_BYTES;
     vi.resetModules();
-    vi.unmock('@/scripts/canary/context.mjs');
-    vi.unmock('@/scripts/canary/trigger-smoke.mjs');
+    vi.doUnmock('@/scripts/canary/context.mjs');
+    vi.doUnmock('@/scripts/canary/trigger-smoke.mjs');
     await Promise.all(
       tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
     );
@@ -146,7 +158,7 @@ describe('canary responder http server', () => {
     await new Promise<void>((resolve) => server.once('listening', resolve));
 
     const address = server.address() as ServerAddress;
-    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const baseUrl = serverBaseUrl(address);
     return {
       server,
       baseUrl,

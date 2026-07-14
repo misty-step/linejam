@@ -13,14 +13,16 @@ Fill `.env.local` with the Convex, Clerk, guest-token, and Canary values needed
 for the loop you are running. Keep `GUEST_TOKEN_SECRET` aligned across local,
 DigitalOcean App Platform, and Convex when testing room flows.
 
-For backlog work, claim a ready item before starting:
+For backlog work, claim one ready Powder card before starting:
 
 ```bash
-source scripts/lib/claims.sh
-claim_acquire <backlog-id>
+source ~/.secrets
+powder list-ready --repo linejam
+powder claim linejam-NNN --agent <name>
 ```
 
-Release the claim if you abandon the work.
+Keep the returned run current, and complete the card or release the claim if
+you abandon the work. Powder is the only work ledger.
 
 ## Local Checks
 

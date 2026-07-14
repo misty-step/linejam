@@ -1,527 +1,78 @@
-# AGENTS.md — Linejam Router
-
-One-page map for AI agents. Not a manual. Read the linked files when you need
-depth.
-
-## Project Overview
-
-Linejam is a real-time collaborative poetry game. Players take turns adding
-constrained-length lines (1,2,3,4,5,4,3,2,1 words) to poems they can only
-partially see—creating absurdist shared poetry.
-
-**Stack**: Next.js 16.2 (React 19) + Convex 1.31 backend + Tailwind CSS 4 +
-Clerk auth (optional) + anonymous guests
-
-**Key Features**: AI players (Gemini via OpenRouter), 4 premium themes, poem
-sharing/export, help modal
-
-## Stack & Boundaries
-
-| Layer          | Version                 | Owns                                                                                                                   |
-| -------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `app/`         | Next.js 16.2 / React 19 | Routes, API handlers, page-level orchestration. Feature folders: `(auth)/`, `host/`, `join/`, `room/`, `poem/`, `me/`. |
-| `components/`  | React 19                | UI primitives plus `Lobby`, `WritingScreen`, `RevealPhase`, `RoomChrome`, `CanaryClientObserver.tsx`.                  |
-| `convex/`      | Convex 1.31             | Backend schema, queries, mutations, actions, scheduler, generated API surface.                                         |
-| `convex/lib/`  | —                       | Auth, assignment matrix, AI personas/providers, structured errors.                                                     |
-| `lib/`         | —                       | Frontend domain utilities: auth, logger, error capture, room-code, word-count, error feedback.                         |
-| `lib/themes/`  | —                       | Theme presets and provider. Presets: `kenya`, `mono`, `vintage-paper`, `hyper`.                                        |
-| `lib/posthog/` | PostHog                 | Canonical provider-portable product analytics surface. `lib/analytics.ts` owns typed funnel events.                    |
-| `tests/`       | Vitest 4 + Playwright   | Unit/integration plus `tests/e2e/`.                                                                                    |
-| `dagger/`      | Dagger TypeScript SDK   | Authoritative local gate.                                                                                              |
-| `scripts/`     | Node ESM + shell        | CI bootstrap, Canary responder/smoke tooling, evidence capture, legacy claims helper.                                  |
-| `docs/adr/`    | Markdown                | ADRs 0001–0008.                                                                                                        |
-
-### Key Directories (purpose view)
-
-| Path          | Purpose                                                              |
-| ------------- | -------------------------------------------------------------------- |
-| `app/`        | Next.js App Router routes (server-first; client components explicit) |
-| `components/` | UI primitives (Button, Card, Input) + game screens                   |
-| `convex/`     | Backend schema, queries, mutations, auth helpers                     |
-| `lib/`        | Shared utilities: auth hook, logger, word counting, cn()             |
-| `lib/themes/` | Premium theme system (4 themes: kenya, mono, vintage, hyper)         |
-| `hooks/`      | React hooks (useSharePoem for clipboard sharing)                     |
-| `tests/`      | Vitest unit tests + Playwright E2E                                   |
-
-## Ground-Truth Pointers
-
-Read these when you need the truth:
-
-- `VISION.md` — canonical north star: what Linejam is, what must stay true, and what the project refuses.
-- `project.md` — deeper product brief: current focus, glossary, quality bar, patterns, and anti-goals. Read it before changing direction.
-- `convex/_generated/api.d.ts` — current Convex API surface.
-- `convex/schema.ts` — source of truth for data model.
-- `convex/lib/assignmentMatrix.ts` — load-bearing derangement-like assignment logic.
-- `dagger/src/index.ts` — what the gate actually runs.
-- `lefthook.yml` — local hook enforcement.
-- `docs/testing.md` — actual test commands and environment contract.
-- `docs/ops/canary-responder.md` — Canary responder operating contract.
-
-## Architecture
-
-### Frontend/Backend Connection
-
-Convex is the serverless database + function layer. All queries/mutations run on Convex functions with auto-generated TypeScript types in `convex/_generated/api.d.ts`.
-
-```typescript
-// Frontend usage
-const data = useQuery(api.game.getCurrentAssignment, { roomCode, guestId });
-const mutation = useMutation(api.game.submitLine);
-```
-
-Real-time subscriptions via `useQuery` hook automatically sync across all players—no polling.
-
-### Auth Pattern
-
-Hybrid auth: Clerk (authenticated users) + guest UUID fallback (localStorage).
-
-```typescript
-// convex/lib/auth.ts
-export async function getUser(ctx, guestId?) {
-  // 1. Try Clerk: ctx.auth.getUserIdentity()
-  // 2. Fall back to: guestId from localStorage
-  // Returns user record or null
-}
-```
-
-Frontend `useUser()` hook (lib/auth.ts) manages guest UUID persistence and returns: `{ clerkUser, guestId, isLoading, isAuthenticated, displayName }`.
-
-### Game State Machine
-
-```
-LOBBY → IN_PROGRESS (9 rounds) → COMPLETED (reveal)
-```
-
-**Assignment Matrix** (convex/lib/assignmentMatrix.ts): 9×N array where each cell = user assigned to write that poem's line in that round. Constraint: no player writes consecutive lines for same poem (derangement-like).
-
-### Never Let the Room Die (presence + self-heal)
-
-A room must always reach `COMPLETED`, even if every human closes their tab.
-Three layers, all sharing the idempotent `commitAssignedLine` (so they are safe
-to overlap):
-
-- **Presence**: `convex/presence.ts` heartbeat stamps `roomPlayers.lastSeenAt`;
-  `isPresenceStale()` in `convex/lib/gameRules.ts` is the single staleness
-  predicate behind every "away" indicator and the sweep.
-- **Per-turn floor**: `game.fillStaleHumanTurns` is scheduled via `runAfter` at
-  every round open (`AUTO_GHOST_FILL_MS`); it ghost-fills any human poem still
-  missing its line, bylined `"<name> (ghost)"`.
-- **Abandonment cron**: `convex/crons.ts` → `abandonment.sweepAbandonedGames`
-  (every minute) finds `IN_PROGRESS` games (the `games.by_status` index) idle
-  past `ABANDONMENT_THRESHOLD_MS` with all humans stale, and schedules
-  `finishAbandonedGame` to deterministically complete them. It re-derives state
-  each tick, so it heals games the per-turn chain missed. Completion never
-  requires a host action.
-- **Host migration** (backlog 017): the room never reaching `COMPLETED` is the
-  floor; host _agency_ is the next layer. When the host goes stale past
-  `HOST_MIGRATION_STALE_MS` but the game continues, a present participant's
-  heartbeat (`convex/presence.ts`) calls `migrateHostIfStale` (`convex/lib/room.ts`)
-  to promote the lowest-seat present human (`selectNextHostId`) to
-  `rooms.hostUserId`, so host-only actions (`summonGhostwriter`, `closeRoom`,
-  mode select) are never stranded. Idempotent; never demotes a present host; a
-  never-heartbeat host is "present-unknown", not migrated.
-
-Testing this needs the real scheduler/DB: use convex-test via
-`setupConvexTest()` (`tests/helpers/convexTest.ts`), not the mock DB. See
-`tests/convex/abandonment.test.ts` and `tests/convex/hostMigration.test.ts`.
-
-## Design System
-
-Kenya Hara minimalism—Zen garden aesthetic.
-
-- **Accent**: Vermillion `oklch(0.55 0.22 25)` (calligrapher's seal)
-- **Typography**: Kenya uses Libre Baskerville (display) + IBM Plex Sans (body/UI) + JetBrains Mono (technical labels); other themes define their own pairings in `lib/themes/presets/`.
-- **Colors**: Warm white background, near-black text
-- **Tokens**: CSS custom properties in `globals.css`
-
-Use `cn()` helper (clsx + tailwind-merge) for className composition.
-
-### Theme System
-
-Four premium themes in `lib/themes/`:
-
-- **kenya** (default): Kenya Hara minimalism, warm white, vermillion accent
-- **mono**: Brutalist monochrome, high contrast
-- **vintage-paper**: Aged paper texture, sepia tones
-- **hyper**: Cyberpunk neon, dark mode
-
-Use `useTheme()` hook and `ThemeProvider` context. Themes apply via CSS variables.
-
-## Convex Schema
-
-Key indexes for common queries:
-
-- `rooms.by_code` - room lookup
-- `poems.by_room` - poems in room
-- `lines.by_poem` - lines in poem order
-- `favorites.by_user` - user's favorites
-
-All mutations validate args with `v` schema validators.
-
-### AI Players
-
-`convex/ai.ts` handles AI player lifecycle. Host can add AI players in lobby. AI uses OpenRouter API (Gemini) to generate lines matching word count constraints.
-
-Key functions:
-
-- `addAiPlayer`: Adds AI with random persona to room
-- `removeAiPlayer`: Removes AI from room
-- `generateAiTurn`: Internal action that generates AI line via LLM
-
-AI personas defined in `convex/lib/ai/personas.ts` with distinct writing styles.
-
-## Invariants
-
-1. **Never push on red `pnpm ci:prepush`.** Pre-push runs the fast Docker-free subset (typecheck + lint + test); it must be green. Never use `--no-verify`.
-2. **Never run `pnpm dev`, `pnpm dev:convex`, `convex dev`, or other local server processes yourself.** The user runs them elsewhere. (`pnpm dev` is documented under Development Commands below purely as a reference for what it does — do not invoke it.) This does not cover one-shot, read-only Convex CLI probes (`function-spec`, `env list`, `data`) — those terminate immediately and don't start a dev server; see "Agent-Safe Convex Probes" below for the non-interactive auth path in isolated worktrees.
-3. **Never deploy Convex production without `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`.**
-4. **Never rely on placeholder Canary browser keys in build-bearing lanes.**
-5. **Never mock internal `@/` or `../../` modules in tests.** Mock only system boundaries and nondeterminism. See Mocking Rules below for the full boundary list.
-6. **Parallelize independent Convex writes with `Promise.all`.** Avoid sequential write loops and obvious N+1 query shapes. See Code Patterns below for examples.
-7. **Every `while` loop needs a termination guard.** See Code Patterns below for the pattern.
-8. **`GUEST_TOKEN_SECRET` must match across local, DigitalOcean App Platform, and Convex.**
-9. **Base branch is `master`.** Conventional Commits only (commitlint enforced).
-10. **Powder is the only work ledger.** List Linejam cards with `powder list-cards --repo linejam`; never create a repository-local ticket directory.
-
-## Development Commands
-
-```bash
-bash scripts/setup.sh # bootstrap deps, .env.local, and support directories
-pnpm dev              # Next.js :3000 + Convex dev (parallel) — user runs this, not the agent (see Invariant 2)
-pnpm build            # convex deploy + next build
-pnpm lint             # eslint
-pnpm lint:fix         # eslint --fix
-pnpm format           # prettier --write
-pnpm typecheck        # app + Dagger TypeScript checks
-pnpm test             # vitest run
-pnpm test:watch       # vitest watch
-pnpm test:ci          # vitest run --coverage
-pnpm test:ui          # vitest interactive UI
-pnpm test:e2e:early-smoke # fast selector smoke to reveal phase
-```
-
-For a non-destructive env bootstrap without installing dependencies:
-
-```bash
-bash scripts/setup.sh --write-env --skip-install
-```
-
-This creates `.env.local` from `.env.example` only when `.env.local` does not
-already exist, and it prepares support directories used by local tooling.
-
-### Agent-Safe Convex Probes
-
-Verifying a migration function's _logic_ needs no real deployment: use
-`convex-test` (see `tests/convex/migrations.test.ts` for the pattern). But
-confirming a function actually landed on a real dev deployment — before an
-operator runs a migration against it — needs a live, read-only probe. The
-canonical checkout works out of the box (`npx convex function-spec` or
-`pnpm exec convex function-spec`) because the CLI's personal access token
-already lives in `~/.convex/config.json`.
-
-An isolated/sandboxed worktree that doesn't share that `$HOME` fails with:
-
-```text
-MissingAccessToken: An access token is required for this command.
-Authenticate with `npx convex dev`
-```
-
-even with valid `CONVEX_DEPLOYMENT`/`NEXT_PUBLIC_CONVEX_URL` selectors,
-because CLI auth lives in that file, not the env (linejam-908). The Convex
-CLI also accepts `CONVEX_OVERRIDE_ACCESS_TOKEN` as an env var, which
-authenticates identically without that file. Operator handoff for a new
-isolated worktree: export the same token from `~/.convex/config.json`'s
-`accessToken` field as `CONVEX_OVERRIDE_ACCESS_TOKEN` into that worktree's
-env before dispatching the lane. Verified live (both directions): the exact
-error above reproduces with a worktree that has selectors but no token, and
-`scripts/convex/probe-function-exists.mjs <module.js:functionName>` succeeds
-in that same worktree once `CONVEX_OVERRIDE_ACCESS_TOKEN` is set — no
-`~/.convex/config.json`, no interactive login.
-
-This only unlocks read-only metadata probes (`function-spec`, `env list`,
-`data`) run once and exited — it does not authorize `convex dev` (Invariant 2) or `convex deploy` (Invariant 3), which stay operator-only regardless of
-token availability. `env list` prints real secret _values_; prefer
-`function-spec` for migration/schema checks and avoid displaying `env list`
-output.
-
-## Gate Contract
-
-**Pre-push runs the fast, Docker-free subset, not the full Dagger contract.**
-`pnpm ci:prepush` = `typecheck` + `lint` + `test` (no Docker, ~45s, can't OOM).
-The monolithic `dagger-call.sh all` was removed from pre-push on 2026-06-21
-because it crammed build + authenticated browser E2E into one engine and
-OOM-killed (exit 137) on memory-limited machines.
-
-The **authoritative** full contract is the hosted `merge-gate`
-(`.github/workflows/ci.yml`) — the same Dagger functions decomposed across
-parallel runners, enforced by branch protection. Run `pnpm ci:dagger:all` on
-demand for full local fidelity (one monolithic engine; wants ample Docker
-memory). It auto-syncs the active Convex dev deployment before auth-heavy E2E
-and hydrates `GUEST_TOKEN_SECRET` from the matching deployment automatically,
-and refuses to push Convex production code unless
-`LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is set explicitly. Use it before opening a
-PR when you want full local fidelity; pre-push deliberately runs only the fast
-Docker-free subset.
-
-Full-contract composition (hosted / on-demand):
-
-- `format-check`
-- `lint`
-- `typecheck`
-- `secret-scan`
-- `audit`
-- `unit-test` with 85% coverage floor (lines/branches/functions/statements)
-- `build-check`
-- `early-smoke` selector flow
-- `e2e`
-
-Local enforcement:
-
-- Pre-commit: `gitleaks protect`, `eslint --fix`, `prettier --write`
-- Pre-push: `pnpm ci:prepush` (fast subset only)
-- Commit-msg: commitlint
-
-Hosted workflows:
-
-- `.github/workflows/ci.yml` — authoritative `merge-gate`: `quality-gates`, `test-build`, `early-smoke`, `e2e`, advisory `qa-evidence`
-- `.github/workflows/preview-smoke.yml` — preview smoke
-- `.github/workflows/prod-smoke.yml` — production smoke
-- `.github/workflows/release.yml` — semantic-release plus note synthesis
-- `.github/workflows/trufflehog.yml` — extra hosted secret scan
-
-The hosted `merge-gate` is authoritative; `pnpm ci:dagger:all` mirrors it
-locally on demand. Pre-push is the fast pre-filter, not the gate.
-
-Local Dagger also ensures the Clerk `convex` JWT template exists before local
-authenticated browser coverage runs. Keep
-`LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=0` unless you intentionally want the
-CLI to create that template against a live Clerk instance.
-
-Authenticated Playwright coverage only needs `CLERK_SECRET_KEY` plus
-`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. `PLAYWRIGHT_CLERK_TEST_EMAIL` remains an
-optional override for dev/test Clerk keys because the helper can provision the
-default smoke user there automatically. Live Clerk keys fail closed instead, so
-point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke account.
-
-Authenticated Playwright routes sign into Clerk inside each live browser
-context after the app is already serving traffic. Do not depend on serialized
-Clerk storage state for protected-route coverage.
-
-Local Dagger loads `.env.local` after `.env.production.local`, so localhost-safe
-Clerk keys in `.env.local` override production values during the local
-contract.
-
-Local Dagger now requires real `NEXT_PUBLIC_CANARY_ENDPOINT` and
-`NEXT_PUBLIC_CANARY_API_KEY` values for build-bearing lanes. The authoritative
-contract should fail fast instead of silently substituting placeholder Canary
-browser config.
-
-## Known-Debt Map
-
-No open known-debt rows. See Powder (`powder list-cards --repo linejam`) for the work ledger.
-
-Cerberus is out. Do not resurrect it.
-
-(No known issues currently tracked, consistent with the above.)
-
-## Commands Cheat Sheet
-
-```bash
-# Inner loop
-pnpm test --run <path>
-pnpm test:watch
-pnpm typecheck
-pnpm lint:fix
-
-# Gate
-pnpm ci:prepush
-pnpm ci:dagger:{lint,typecheck,format-check,build-check,unit-test,e2e,audit,secret-scan,smoke,all-no-e2e,all}
-
-# E2E
-pnpm test:e2e
-pnpm test:e2e:early-smoke
-pnpm test:e2e:smoke
-pnpm test:e2e:evidence
-pnpm test:e2e:ui
-
-# Canary / evidence
-pnpm canary:responder
-pnpm canary:smoke
-pnpm canary:webhook:setup
-pnpm evidence:guest-flow
-
-# Agent-facing faces (CLI + MCP over the Convex core — see .agents/skills/linejam-cli/SKILL.md)
-pnpm agent:cli -- --help
-pnpm agent:mcp
-
-# Release
-pnpm build
-pnpm generate:releases
-
-# Work claiming (Powder)
-source ~/.secrets  # loads POWDER_API_BASE_URL, POWDER_API_KEY
-powder list-ready --repo linejam
-powder claim linejam-NNN --agent <name>
-powder release-claim linejam-NNN --run <run-id>
-```
-
-Claim one card at a time before starting work. Release the claim when done or
-abandoned. Powder is the system of record.
-
-## Testing
-
-500+ tests across Vitest (unit/integration) and Playwright (E2E). Coverage
-threshold: 85% lines/branches/functions/statements (see Gate Contract above).
-
-```bash
-pnpm test:watch       # Development
-pnpm test:ci          # CI with coverage
-pnpm test:e2e         # Playwright E2E
-pnpm test:e2e:ui      # Playwright interactive mode
-```
-
-### Debugging Test Hangs
-
-1. **Isolate first** - run single file: `pnpm vitest run path/to/file.test.ts`
-2. **Binary search** - if file hangs, comment out half the tests to find culprit
-3. **Check for infinite loops** - while loops without termination guards
-4. **Don't assume systemic issues** - verify on specific failing case before assuming framework bug
-
-### Mocking Rules
-
-**Mock at system boundaries only** (this is the full detail behind Invariant 5):
-
-- Yes: External APIs, third-party libraries (convex/react, @clerk/nextjs)
-- Yes: Network requests, browser APIs (fetch, localStorage, clipboard)
-- Yes: Non-deterministic behavior (Date.now, Math.random)
-- No: Internal modules (@/lib/_, @/hooks/_, convex/lib/\*)
-- No: Internal utilities (avatarColor, wordCount, auth helpers)
-
-**Red flag:** If you're mocking `@/` or `../../` paths, you're mocking internal collaborators. Use the real implementation instead.
-
-## Critical Environment Variables
-
-- Convex: `CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, `CONVEX_DEPLOY_KEY` (production/preview deploy key, CI/CD only), `LINEJAM_DEPLOY_ENVIRONMENT=production` (DigitalOcean fail-closed deploy guard), `CONVEX_OVERRIDE_ACCESS_TOKEN` (CLI auth for read-only probes in isolated worktrees without `~/.convex/config.json` — see Agent-Safe Convex Probes above), `OPENROUTER_API_KEY` (AI player LLM access, Convex only)
-- Guest auth: `GUEST_TOKEN_SECRET` (must match in App Platform + Convex)
-- Clerk: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_JWT_ISSUER_DOMAIN`
-- Canary: `CANARY_ENDPOINT`, `CANARY_API_KEY`, `NEXT_PUBLIC_CANARY_ENDPOINT`, `NEXT_PUBLIC_CANARY_API_KEY`, `LINEJAM_CANARY_WEBHOOK_SECRET`, `LINEJAM_CANARY_WEBHOOK_URL` (required for webhook setup, not responder runtime), `LINEJAM_CANARY_CONTEXT_TIMEOUT_MS`, `LINEJAM_CANARY_RETENTION_DAYS`
-- Dagger flags: `LINEJAM_ALLOW_PROD_CONVEX_SYNC`, `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE`, `LINEJAM_SYNC_CONVEX_BEFORE_DAGGER`
-- Playwright: `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_CLERK_TEST_EMAIL`, `PLAYWRIGHT_REQUIRE_AUTH_E2E`, `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`
-- Smoke: `LINEJAM_SMOKE_RUNNER`
-
-## Code Patterns
-
-### Parallel Database Operations
-
-Always use `Promise.all` for multiple independent database operations (see Invariant 6):
-
-```typescript
-// BAD - sequential (slow)
-for (const item of items) {
-  await ctx.db.patch(item._id, { field: value });
-}
-
-// GOOD - parallel (fast)
-await Promise.all(
-  items.map((item) => ctx.db.patch(item._id, { field: value }))
-);
-```
-
-For N+1 query patterns, batch with `q.or()` when possible:
-
-```typescript
-// Fetch all poems for multiple rooms in one query
-const allPoems = await ctx.db
-  .query('poems')
-  .filter((q) => q.or(...roomIds.map((id) => q.eq(q.field('roomId'), id))))
-  .collect();
-// Then group in application code
-```
-
-### Loop Safety
-
-All `while` loops must have a termination guard to prevent infinite loops (see Invariant 7):
-
-```typescript
-// BAD - can infinite loop
-while (condition) { ... }
-
-// GOOD - bounded iterations
-let attempts = 0;
-while (condition && attempts < MAX_ATTEMPTS) {
-  attempts++;
-  ...
-}
-```
-
-## Observability
-
-### Error Tracking
-
-**Frontend (Next.js):**
-
-- Browser globals are bridged into Canary by `components/CanaryClientObserver.tsx`
-- Use `captureError()` from `lib/error.ts` for explicit error capture with context
-- Request failures flow through `instrumentation.ts` and `/api/health`
-
-**Backend (Convex):**
-
-- Use `log` and `logError` from `convex/lib/errors.ts`
-- Outputs structured JSON to stdout for Convex dashboard parsing
-- Convex still uses structured logs; Canary is the app-side incident sink
-- `/api/health` reports core app health separately from Canary readiness, so
-  missing Canary ingest should be treated as degraded observability, not proof
-  that gameplay is down
-
-**Structured Logging:**
-
-```typescript
-// Next.js
-import { log } from '@/lib/logger';
-log.error('Operation failed', { userId, operation: 'submitLine' });
-
-// Convex
-import { log, logError } from './lib/errors';
-logError('API call failed', error, { roomId, round });
-```
-
-### Canary Responder
-
-```bash
-# Local-first CI
-pnpm ci:dagger:all
-
-# Start webhook responder
-pnpm canary:responder
-
-# Register webhook subscription in Canary
-pnpm canary:webhook:setup
-```
-
-`pnpm canary:webhook:setup` is expected to be rerunnable. It should converge on
-one correct subscription for the responder URL instead of creating duplicates.
-
-The hosted `merge-gate` is the authoritative CI contract (`pnpm ci:dagger:all`
-mirrors it locally on demand). The DigitalOcean App Platform responder sets
-`LINEJAM_SMOKE_RUNNER=playwright` and builds `Dockerfile.responder`, so the same
-remote smoke suite runs without embedding Dagger in the webhook worker.
-
-### Alert Rules
-
-1. **Alert on new issues** - Email on first occurrence
-2. **High frequency spike** - Email when >10 events/hour
-
-## Terminology
-
-- **Poem**
-- **Line**
-- **Round**
-- **Assignment matrix**
-- **Cycle**
-- **Pen name**
-- **Guest UUID** / **guest token**
-- **Host**
-- **Room code**
-- **Reveal phase**
-- **Dagger** / **Dagger lane**
-- **Canary**
+# AGENTS.md — Linejam
+
+Compact router for repository agents. Read only the depth your lane needs.
+
+## Start here
+
+- State the goal, files/systems in scope, and live authority before mutation.
+- Read `VISION.md` and `project.md` before changing product direction.
+- Preserve user work: inspect `git status`, never overwrite unrelated changes,
+  and never use destructive Git commands.
+- Powder is the only ledger. Before implementation, run
+  `source ~/.secrets`, `/usr/bin/env powder list-ready --repo linejam`, then
+  claim one shaped card as the authenticated actor. Keep its run current and
+  complete or release it; never create a repository-local ticket store.
+- Base branch: `master`. Commits and PR titles use Conventional Commits.
+
+## Sources of truth
+
+| Concern                         | Source                                                       |
+| ------------------------------- | ------------------------------------------------------------ |
+| Product and architecture        | `VISION.md`, `project.md`, `docs/ARCHITECTURE.md`            |
+| Data/API                        | `convex/schema.ts`, `convex/_generated/api.d.ts`             |
+| Assignment rules                | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`  |
+| Tests and QA                    | `docs/testing.md`, `vitest.config.ts`, Playwright configs    |
+| CI and live-operation authority | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`  |
+| Production operations           | `docs/deployment.md`                                         |
+| Agent CLI/MCP                   | `.agents/skills/linejam-cli/SKILL.md`, `docs/agent-faces.md` |
+
+The live stack is declared in `package.json`; do not copy dependency versions
+or test counts into agent prose.
+
+## Authority boundaries
+
+- Read-only inspection, focused tests, and requested worktree edits are local
+  lane actions. External writes need authority from the task or operator.
+- Do not start long-running processes (`pnpm dev`, `pnpm dev:convex`,
+  `pnpm start:next`, responders, watch modes, MCP servers) unless the lane
+  explicitly commissions that process and names its shutdown/monitoring owner.
+- Authorized bounded shared-development work is allowed. For a one-shot Convex
+  code sync, use the fail-closed `pnpm convex:sync:shared-dev` flow documented
+  in `docs/ops/observability-ci.md`; do not substitute a bare deploy command.
+  Read-only `function-spec` probes and explicitly scoped dev migrations follow
+  the same target, redaction, and postcondition rules.
+- Production deploys, data writes, environment changes, smoke triggers, merges,
+  and provider mutations require explicit live authority for that operation.
+  Keep production guards enabled; a flag is a safety condition, not authority.
+- Never print, paste, commit, or persist credentials. Avoid value-bearing env
+  listings; prefer metadata and names-only probes.
+
+## Engineering invariants
+
+- Work red → green → refactor for behavior changes. Build the real acceptance
+  loop first; unit tests alone do not prove browser, scheduler, or deployment
+  behavior.
+- Fix causes at the highest-leverage layer. Do not weaken tests, coverage,
+  lint, hooks, auth, allowlists, or fail-closed deployment checks to get green.
+- Mock external systems and nondeterminism, not the behavior under test. Convex
+  scheduler/database behavior uses `setupConvexTest()`.
+- Parallelize independent Convex reads/writes; avoid sequential write loops and
+  N+1 queries. Every `while` loop needs an explicit bound.
+- `GUEST_TOKEN_SECRET` must match the web and target Convex deployment. Treat
+  guest tokens as credentials.
+- Never bypass hooks with `--no-verify`. Never push when `pnpm ci:prepush` is
+  red. Never claim validation without the exact command and exercised surface.
+
+## Delivery and evidence
+
+Run the narrowest useful check while editing, then the change-type acceptance
+in `docs/testing.md`. `pnpm ci:prepush` is the required fast local gate;
+GitHub's `.github/workflows/ci.yml` merge gate is authoritative for merge.
+Use `pnpm ci:dagger:all` only when the full Docker/browser contract is relevant
+and its required environment is available.
+
+Before handoff, adversarially review the diff for stale claims, authority
+ambiguity, accidental scope, secret exposure, and safety regressions. Record
+exact tests, live evidence, residual risk, and commit/PR/deployment identifiers
+in Powder. Review, merge, deploy, monitor, and production verification are
+distinct acceptance surfaces; perform only the ones authorized by the lane.

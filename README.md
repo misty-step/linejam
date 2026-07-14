@@ -29,7 +29,7 @@ Players take turns adding lines to poems they can't fully see. Each round, you s
 
 The constraint is the game. You see only the line before yours. The result is collaborative absurdity—poems that no single person could have written.
 
-**Features**: AI players (fill empty seats), 4 visual themes, poem sharing, in-game help
+**Features**: AI players (fill empty seats), curated visual themes, poem sharing, in-game help
 
 ## Tech Stack
 
@@ -41,7 +41,7 @@ The constraint is the game. You see only the line before yours. The result is co
 ## Getting Started
 
 ```bash
-# Bootstrap dependencies, .env.local, and support directories
+# Bootstrap dependencies and .env.local
 bash scripts/setup.sh
 
 # Or create .env.local without installing dependencies
@@ -85,7 +85,8 @@ Linejam ships thin agent-facing faces over the same Convex core the web app uses
 
 ## Testing
 
-500+ tests across unit, integration, and E2E layers with 85% coverage enforcement.
+Unit, integration, and E2E suites enforce the coverage thresholds declared in
+`vitest.config.ts`.
 
 ```bash
 # Unit & integration tests

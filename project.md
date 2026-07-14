@@ -42,17 +42,18 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 - [ ] Functional production smoke pages an operator and disagrees visibly with shallow health when the player loop is down
 - [ ] A privacy-safe funnel plus repeated field playtests identifies the next product improvement
 
-## Patterns to Follow
+## Engineering Pointers
 
-Code patterns and snippets live in `AGENTS.md`, not here — one copy, not a
-triplicated one:
+`AGENTS.md` is the compact agent router, not a second architecture manual.
+Read the owning source for implementation detail:
 
-- Parallel Convex mutations, N+1 batching, loop-safety guards: `AGENTS.md`
-  → "Code Patterns".
-- The auth helper (`convex/lib/auth.ts`, Clerk + guest-UUID fallback):
-  `AGENTS.md` → "Architecture" → "Auth Pattern".
-- Frontend error capture (`captureError`) and Convex structured logging
-  (`logError`): `AGENTS.md` → "Observability".
+- Game rules and assignment: `convex/lib/gameRules.ts` and
+  `convex/lib/assignmentMatrix.ts`.
+- Identity: `lib/auth.ts`, `lib/guestToken.ts`, and `convex/lib/auth.ts`.
+- Error capture and structured logs: `lib/error.ts`, `lib/logger.ts`, and
+  `convex/lib/errors.ts`.
+- Verification and authority: `docs/testing.md` and
+  `docs/ops/observability-ci.md`.
 
 ## Stretch Goal
 
