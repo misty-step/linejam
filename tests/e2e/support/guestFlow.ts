@@ -174,17 +174,19 @@ function hasSearchParam(requestUrl: string, param: string) {
  * never bleed between tests, spec files, or parallel workers sharing the CI
  * server's single IP.
  *
- * The spoofed x-forwarded-for is scoped to the app's guest-session route
- * (where the bucket key is derived) — a context-wide extraHTTPHeaders also
- * hits Clerk/Convex third-party hosts, which choke on untrusted forwarding
- * headers and strand the page in its loading state.
+ * The simulated DigitalOcean ingress header is scoped to the app's
+ * guest-session route (where the bucket key is derived). Production-mode
+ * builds intentionally ignore caller-controlled forwarding headers, so local
+ * E2E must model the trusted platform boundary instead. A context-wide
+ * extraHTTPHeaders value would also hit Clerk/Convex third-party hosts, which
+ * choke on forwarding headers and strand the page in its loading state.
  */
 export async function isolateGuestSessionIp(context: BrowserContext) {
   const octet = () => 1 + Math.floor(Math.random() * 254);
   const ip = `10.${octet()}.${octet()}.${octet()}`;
   await context.route('**/api/guest/session*', async (route) => {
     await route.continue({
-      headers: { ...route.request().headers(), 'x-forwarded-for': ip },
+      headers: { ...route.request().headers(), 'do-connecting-ip': ip },
     });
   });
   return ip;
