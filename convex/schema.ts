@@ -98,6 +98,7 @@ export default defineSchema({
       'publicShareEnabled',
       'createdAt',
     ])
+    .index('by_public_created', ['publicShareEnabled', 'createdAt'])
     .index('by_room_game_index', ['roomId', 'gameId', 'indexInRoom']),
 
   lines: defineTable({

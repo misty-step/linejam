@@ -879,6 +879,83 @@ describe('archive', () => {
       expect(privatePreviews).toEqual([null, null]);
     });
 
+    it('finds an older public poem beyond a window of newer private rooms', async () => {
+      const t = setupConvexTest();
+      const publicPoemId = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert('users', {
+          displayName: 'Public Host',
+          guestId: 'public-window-host',
+          createdAt: 0,
+        });
+        const publicRoomId = await ctx.db.insert('rooms', {
+          code: 'PUB0',
+          hostUserId: userId,
+          status: 'COMPLETED',
+          createdAt: 1,
+        });
+        const publicGameId = await ctx.db.insert('games', {
+          roomId: publicRoomId,
+          status: 'COMPLETED',
+          cycle: 1,
+          currentRound: 9,
+          assignmentMatrix: [[userId]],
+          createdAt: 1,
+        });
+        const poemId = await ctx.db.insert('poems', {
+          roomId: publicRoomId,
+          gameId: publicGameId,
+          indexInRoom: 0,
+          publicShareEnabled: true,
+          createdAt: 1,
+        });
+        await Promise.all(
+          Array.from({ length: 3 }, (_, indexInPoem) =>
+            ctx.db.insert('lines', {
+              poemId,
+              authorUserId: userId,
+              text: `Public line ${indexInPoem}`,
+              wordCount: 3,
+              indexInPoem,
+              createdAt: indexInPoem,
+            })
+          )
+        );
+
+        await Promise.all(
+          Array.from({ length: 41 }, async (_, index) => {
+            const roomId = await ctx.db.insert('rooms', {
+              code: `P${String(index).padStart(3, '0')}`,
+              hostUserId: userId,
+              status: 'COMPLETED',
+              createdAt: 100 + index,
+            });
+            const gameId = await ctx.db.insert('games', {
+              roomId,
+              status: 'COMPLETED',
+              cycle: 1,
+              currentRound: 9,
+              assignmentMatrix: [[userId]],
+              createdAt: 100 + index,
+            });
+            await ctx.db.insert('poems', {
+              roomId,
+              gameId,
+              indexInRoom: 0,
+              createdAt: 100 + index,
+            });
+          })
+        );
+
+        return poemId;
+      });
+
+      const result = await t.query(api.archive.getRecentPublicPoems, {
+        limit: 5,
+      });
+
+      expect(result.map((poem) => poem._id)).toEqual([publicPoemId]);
+    });
+
     it('returns poems with line counts and poet counts', async () => {
       const t = setupConvexTest();
       const poemId = await t.run(async (ctx) => {

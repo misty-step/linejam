@@ -161,6 +161,7 @@ describe('GET /poem/[id]/card', () => {
       poemId: 'poem123',
       guestToken: 'guest-token',
     });
+    expect(mockGetToken).not.toHaveBeenCalled();
   });
 
   it('forwards Clerk Convex auth for a signed-in participant card', async () => {

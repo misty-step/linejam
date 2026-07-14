@@ -70,14 +70,19 @@ export function useShareLink({
       const { url, title, text } = getShareData();
 
       if (typeof navigator.share === 'function') {
+        let nativeShareSucceeded = false;
         try {
           await navigator.share({ title, text, url });
-          await completeShare('native-share');
-          return;
+          nativeShareSucceeded = true;
         } catch (error) {
           if (error instanceof DOMException && error.name === 'AbortError') {
             return;
           }
+        }
+
+        if (nativeShareSucceeded) {
+          await completeShare('native-share');
+          return;
         }
       }
 

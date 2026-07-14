@@ -139,6 +139,34 @@ describe('useShareLink', () => {
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
   });
 
+  it('does not expose the URL twice when publication fails after native sharing', async () => {
+    const publishError = new Error('Publication failed');
+    const onError = vi.fn();
+    Object.defineProperty(navigator, 'share', {
+      value: vi.fn().mockResolvedValue(undefined),
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() =>
+      useShareLink({
+        publishShare: () => Promise.reject(publishError),
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+        onError,
+        failureMessage: 'Unable to publish link.',
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(navigator.share).toHaveBeenCalledOnce();
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(publishError);
+    expect(result.current.shareError).toBe('Unable to publish link.');
+  });
+
   it('does not publish when the native share sheet is cancelled', async () => {
     const publishShare = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'share', {
