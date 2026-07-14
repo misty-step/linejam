@@ -13,7 +13,7 @@ const SAMPLE_SPEC = JSON.stringify({
     { functionType: 'Mutation', identifier: 'rooms.js:createRoom' },
     {
       functionType: 'Mutation',
-      identifier: 'guestSessions.js:checkGuestSessionThrottle',
+      identifier: 'guestSessions.js:checkSignedGuestSessionThrottle',
     },
     {
       functionType: 'Mutation',
@@ -27,7 +27,7 @@ describe('parseFunctionIdentifiers', () => {
     expect(parseFunctionIdentifiers(SAMPLE_SPEC)).toEqual(
       new Set([
         'rooms.js:createRoom',
-        'guestSessions.js:checkGuestSessionThrottle',
+        'guestSessions.js:checkSignedGuestSessionThrottle',
         'migrations.js:dropLegacyModeColumns',
       ])
     );
@@ -76,7 +76,7 @@ describe('probeFunctionExists', () => {
 
     expect(
       probeFunctionExists(
-        'guestSessions.js:checkGuestSessionThrottle',
+        'guestSessions.js:checkSignedGuestSessionThrottle',
         {},
         runner
       )

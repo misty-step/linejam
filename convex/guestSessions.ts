@@ -10,7 +10,7 @@ const GUEST_SESSION_THROTTLE_WINDOW_MS = 10 * 60 * 1000;
 // secret cannot expose the public mutation with a guessable fallback key.
 const guestSessionThrottleSecret = getConvexGuestTokenSecret();
 
-export const checkGuestSessionThrottle = mutation({
+export const checkSignedGuestSessionThrottle = mutation({
   args: {
     key: v.string(),
     proof: v.string(),

@@ -244,7 +244,7 @@ pointing at a local responder that isn't running) throws two errors that are
 noise for a static screenshot, not real defects:
 
 ```text
-Could not find public function for 'guestSessions:checkGuestSessionThrottle'.
+Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'.
 Canary capture failed: [TypeError: fetch failed] ... ECONNREFUSED 127.0.0.1:4000
 ```
 

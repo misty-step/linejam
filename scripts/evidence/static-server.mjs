@@ -8,7 +8,7 @@
  * ordinary env, it throws two errors that are noise for that use case, not
  * real defects:
  *
- *   - `guestSessions:checkGuestSessionThrottle` missing on the active Convex
+ *   - `guestSessions:checkSignedGuestSessionThrottle` missing on the active Convex
  *     deployment (the build wasn't pushed against the same deployment the
  *     guest-session route is throttling against).
  *   - `Canary capture failed: ECONNREFUSED` when an ambient `CANARY_API_KEY`

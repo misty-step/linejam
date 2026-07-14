@@ -637,7 +637,7 @@ describe('GET /api/guest/session', () => {
             .fn()
             .mockRejectedValue(
               new Error(
-                "Could not find public function for 'guestSessions:checkGuestSessionThrottle'."
+                "Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'."
               )
             );
         },
@@ -753,7 +753,7 @@ describe('GET /api/guest/session', () => {
 
     it('allows string missing-function errors only under the explicit local bypass', async () => {
       const { GET } = await loadGetWithThrottleFailure(
-        "Could not find public function for 'guestSessions:checkGuestSessionThrottle'.",
+        "Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'.",
         { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' }
       );
 

@@ -15,11 +15,11 @@ import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 const COOKIE_NAME = 'linejam_guest_token';
 const ROUTE = '/api/guest/session';
 const GUEST_SESSION_RETRY_AFTER_SECONDS = 10 * 60;
-const checkGuestSessionThrottle = makeFunctionReference<
+const checkSignedGuestSessionThrottle = makeFunctionReference<
   'mutation',
   { key: string; proof: string },
   { ok: true }
->('guestSessions:checkGuestSessionThrottle');
+>('guestSessions:checkSignedGuestSessionThrottle');
 
 let convexClient: ConvexHttpClient | null = null;
 
@@ -214,7 +214,7 @@ async function enforceGuestSessionThrottle(
       rateLimitKey,
       getServerGuestTokenSecret()
     );
-    await getConvexClient(convexUrl).mutation(checkGuestSessionThrottle, {
+    await getConvexClient(convexUrl).mutation(checkSignedGuestSessionThrottle, {
       key: rateLimitKey,
       proof,
     });
@@ -280,7 +280,7 @@ function isRateLimitError(error: unknown) {
 }
 
 function isMissingThrottleFunctionError(error: unknown) {
-  return /Could not find public function for 'guestSessions:checkGuestSessionThrottle'/i.test(
+  return /Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'/i.test(
     extractErrorMessage(error)
   );
 }

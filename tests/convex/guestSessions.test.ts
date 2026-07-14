@@ -1,11 +1,27 @@
 import { describe, expect, it } from 'vitest';
+import { makeFunctionReference } from 'convex/server';
 import { api } from '../../convex/_generated/api';
 import { signGuestSessionThrottleProof } from '../../lib/guestSessionThrottleProof';
 import { setupConvexTest } from '../helpers/convexTest';
 
 const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
+const legacyGuestSessionThrottle = makeFunctionReference<
+  'mutation',
+  { key: string },
+  { ok: true }
+>('guestSessions:checkGuestSessionThrottle');
 
 describe('guest session throttle', () => {
+  it('does not expose the legacy throttle endpoint', async () => {
+    const t = setupConvexTest();
+
+    await expect(
+      t.mutation(legacyGuestSessionThrottle, {
+        key: 'guestSession:0123456789abcdef',
+      })
+    ).rejects.toThrow(/there is no such export/i);
+  });
+
   it('accepts a server-signed bucket and keeps repeated writes to one row', async () => {
     const t = setupConvexTest();
     const key = 'guestSession:0123456789abcdef';
@@ -16,7 +32,10 @@ describe('guest session throttle', () => {
 
     await Promise.all(
       Array.from({ length: 10 }, () =>
-        t.mutation(api.guestSessions.checkGuestSessionThrottle, { key, proof })
+        t.mutation(api.guestSessions.checkSignedGuestSessionThrottle, {
+          key,
+          proof,
+        })
       )
     );
 
@@ -29,7 +48,7 @@ describe('guest session throttle', () => {
     const t = setupConvexTest();
     const attempts = await Promise.allSettled(
       Array.from({ length: 25 }, (_, index) =>
-        t.mutation(api.guestSessions.checkGuestSessionThrottle, {
+        t.mutation(api.guestSessions.checkSignedGuestSessionThrottle, {
           key: `guestSession:${index.toString().padStart(16, '0')}`,
           proof: 'forged-proof',
         })
