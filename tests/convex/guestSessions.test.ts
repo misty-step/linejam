@@ -1,44 +1,20 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { makeFunctionReference } from 'convex/server';
 import { api } from '../../convex/_generated/api';
 import { signGuestSessionThrottleProof } from '../../lib/guestSessionThrottleProof';
 import { setupConvexTest } from '../helpers/convexTest';
 
 const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
-const legacyGuestSessionThrottle = makeFunctionReference<
-  'mutation',
-  { key: string },
-  { ok: true }
->('guestSessions:checkGuestSessionThrottle');
-
 describe('guest session throttle', () => {
-  it('keeps the legacy endpoint available during the compatibility rollout', async () => {
-    const t = setupConvexTest();
-
-    await expect(
-      t.mutation(legacyGuestSessionThrottle, {
-        key: 'guestSession:0123456789abcdef',
-      })
-    ).resolves.toEqual({ ok: true });
-  });
-
-  it('collapses arbitrary legacy keys into one bounded rollout bucket', async () => {
-    const t = setupConvexTest();
-
-    await Promise.all(
-      Array.from({ length: 25 }, (_, index) =>
-        t.mutation(legacyGuestSessionThrottle, {
-          key: `guestSession:${index.toString().padStart(16, '0')}`,
-        })
-      )
+  it('does not expose the unsigned rollout endpoint after production cutover', () => {
+    const source = readFileSync(
+      new URL('../../convex/guestSessions.ts', import.meta.url),
+      'utf8'
     );
 
-    const rows = await t.run((ctx) => ctx.db.query('rateLimits').collect());
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({
-      key: 'guestSession:legacy-rollout-global',
-      hits: 25,
-    });
+    expect(source).not.toMatch(
+      /export const checkGuestSessionThrottle\s*=\s*mutation/
+    );
   });
 
   it('accepts a server-signed bucket and keeps repeated writes to one row', async () => {
