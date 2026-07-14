@@ -2,22 +2,39 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConvexError } from 'convex/values';
 import { probeSignedThrottleReady } from '@/scripts/convex/probe-signed-throttle-ready.mjs';
+import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
+
+const TEST_SECRET = 'test-guest-token-secret-with-enough-entropy';
 
 describe('probeSignedThrottleReady', () => {
-  it('accepts the signed function rejecting a forged proof', async () => {
-    const error = new ConvexError('Invalid guest session throttle proof');
-    const mutate = vi.fn().mockRejectedValue(error);
+  it('accepts the signed function validating the real secret without writing', async () => {
+    const mutate = vi.fn().mockResolvedValue({ ok: true });
 
     await expect(
-      probeSignedThrottleReady('https://test.convex.cloud', mutate)
+      probeSignedThrottleReady('https://test.convex.cloud', TEST_SECRET, mutate)
     ).resolves.toBe(true);
-    expect(mutate).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        key: 'guestSession:deployment-readiness',
-        proof: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
-      })
+
+    const expectedProof = await signGuestSessionThrottleProof(
+      'guestSession:deployment-readiness',
+      TEST_SECRET
     );
+    expect(mutate).toHaveBeenCalledWith(expect.anything(), {
+      key: 'guestSession:deployment-readiness',
+      proof: expectedProof,
+      dryRun: true,
+    });
+  });
+
+  it('surfaces a web and Convex secret mismatch', async () => {
+    const mismatch = new ConvexError('Invalid guest session throttle proof');
+
+    await expect(
+      probeSignedThrottleReady(
+        'https://test.convex.cloud',
+        TEST_SECRET,
+        vi.fn().mockRejectedValue(mismatch)
+      )
+    ).rejects.toBe(mismatch);
   });
 
   it('reports a stale deployment without swallowing the missing export', async () => {
@@ -30,7 +47,7 @@ describe('probeSignedThrottleReady', () => {
       );
 
     await expect(
-      probeSignedThrottleReady('https://test.convex.cloud', mutate)
+      probeSignedThrottleReady('https://test.convex.cloud', TEST_SECRET, mutate)
     ).resolves.toBe(false);
   });
 
@@ -40,14 +57,21 @@ describe('probeSignedThrottleReady', () => {
     await expect(
       probeSignedThrottleReady(
         'https://test.convex.cloud',
+        TEST_SECRET,
         vi.fn().mockRejectedValue(failure)
       )
     ).rejects.toBe(failure);
   });
 
   it('requires an explicit deployment URL', async () => {
-    await expect(probeSignedThrottleReady('', vi.fn())).rejects.toThrow(
-      'NEXT_PUBLIC_CONVEX_URL is required'
-    );
+    await expect(
+      probeSignedThrottleReady('', TEST_SECRET, vi.fn())
+    ).rejects.toThrow('NEXT_PUBLIC_CONVEX_URL is required');
+  });
+
+  it('requires the web signing secret', async () => {
+    await expect(
+      probeSignedThrottleReady('https://test.convex.cloud', '', vi.fn())
+    ).rejects.toThrow('GUEST_TOKEN_SECRET is required');
   });
 });

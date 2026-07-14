@@ -1,33 +1,39 @@
 #!/usr/bin/env node
 
+import { createHmac } from 'node:crypto';
 import { ConvexHttpClient } from 'convex/browser';
 import { makeFunctionReference } from 'convex/server';
 
 const FUNCTION_NAME = 'guestSessions:checkSignedGuestSessionThrottle';
+const READINESS_KEY = 'guestSession:deployment-readiness';
+const THROTTLE_PROOF_CONTEXT = 'linejam:guest-session-throttle:v1:';
 const signedThrottle = makeFunctionReference(FUNCTION_NAME);
 
 /**
- * Prove the deployed public API contains the signed throttle without writing a
- * rate-limit row. A correctly deployed function rejects the deliberately
- * forged, correctly shaped proof before persistence; a stale deployment
- * reports a missing function instead.
+ * Prove the deployed public API contains the signed throttle and shares the
+ * web deployment's secret without writing a rate-limit row. A stale deployment
+ * reports a missing function; a mismatched secret fails closed.
  */
-export async function probeSignedThrottleReady(convexUrl, mutate) {
+export async function probeSignedThrottleReady(convexUrl, secret, mutate) {
   if (!convexUrl) throw new Error('NEXT_PUBLIC_CONVEX_URL is required');
+  if (!secret) throw new Error('GUEST_TOKEN_SECRET is required');
+
+  const proof = createHmac('sha256', secret)
+    .update(`${THROTTLE_PROOF_CONTEXT}${READINESS_KEY}`)
+    .digest('base64url');
 
   try {
     await mutate(signedThrottle, {
-      key: 'guestSession:deployment-readiness',
-      proof: 'A'.repeat(43),
+      key: READINESS_KEY,
+      proof,
+      dryRun: true,
     });
+    return true;
   } catch (error) {
     const message = extractErrorMessage(error);
-    if (/Invalid guest session throttle proof/i.test(message)) return true;
     if (/Could not find public function/i.test(message)) return false;
     throw error;
   }
-
-  throw new Error('Signed throttle unexpectedly accepted a forged proof');
 }
 
 function extractErrorMessage(error) {
@@ -40,9 +46,11 @@ function extractErrorMessage(error) {
 
 async function main() {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
+  const secret = process.env.GUEST_TOKEN_SECRET?.trim();
   const client = convexUrl ? new ConvexHttpClient(convexUrl) : null;
   const ready = await probeSignedThrottleReady(
     convexUrl,
+    secret,
     client ? client.mutation.bind(client) : async () => undefined
   );
 

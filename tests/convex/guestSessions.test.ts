@@ -22,6 +22,25 @@ describe('guest session throttle', () => {
     ).resolves.toEqual({ ok: true });
   });
 
+  it('collapses arbitrary legacy keys into one bounded rollout bucket', async () => {
+    const t = setupConvexTest();
+
+    await Promise.all(
+      Array.from({ length: 25 }, (_, index) =>
+        t.mutation(legacyGuestSessionThrottle, {
+          key: `guestSession:${index.toString().padStart(16, '0')}`,
+        })
+      )
+    );
+
+    const rows = await t.run((ctx) => ctx.db.query('rateLimits').collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      key: 'guestSession:legacy-rollout-global',
+      hits: 25,
+    });
+  });
+
   it('accepts a server-signed bucket and keeps repeated writes to one row', async () => {
     const t = setupConvexTest();
     const key = 'guestSession:0123456789abcdef';
@@ -42,6 +61,26 @@ describe('guest session throttle', () => {
     const rows = await t.run((ctx) => ctx.db.query('rateLimits').collect());
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ key, hits: 10 });
+  });
+
+  it('validates a signed readiness proof without writing durable state', async () => {
+    const t = setupConvexTest();
+    const key = 'guestSession:deployment-readiness';
+    const proof = await signGuestSessionThrottleProof(
+      key,
+      process.env.GUEST_TOKEN_SECRET || DEV_FALLBACK_SECRET
+    );
+
+    await expect(
+      t.mutation(api.guestSessions.checkSignedGuestSessionThrottle, {
+        key,
+        proof,
+        dryRun: true,
+      })
+    ).resolves.toEqual({ ok: true });
+
+    const rows = await t.run((ctx) => ctx.db.query('rateLimits').collect());
+    expect(rows).toEqual([]);
   });
 
   it('rejects forged unique buckets before they can grow durable state', async () => {
