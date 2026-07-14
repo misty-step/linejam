@@ -104,9 +104,9 @@ afterEach(() => {
   delete process.env.CANARY_SMOKE_TRIGGER_ENABLED;
   delete process.env.LINEJAM_CANARY_SERVICE;
   vi.resetModules();
-  vi.unmock('@/scripts/canary/store.mjs');
-  vi.unmock('@/scripts/canary/context.mjs');
-  vi.unmock('@/scripts/canary/trigger-smoke.mjs');
+  vi.doUnmock('@/scripts/canary/store.mjs');
+  vi.doUnmock('@/scripts/canary/context.mjs');
+  vi.doUnmock('@/scripts/canary/trigger-smoke.mjs');
 });
 
 describe('verifySignature', () => {
