@@ -70,6 +70,9 @@ export const enablePublicPoemShare = mutation({
   },
   handler: async (ctx, { poemId, guestToken }) => {
     const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    if (poem.revealedAt === undefined || poem.revealedAt === null) {
+      throw new ConvexError('Poem is not ready to share');
+    }
     const now = Date.now();
 
     await ctx.db.patch(poemId, {

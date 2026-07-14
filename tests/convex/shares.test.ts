@@ -101,6 +101,20 @@ describe('shares', () => {
       const poem = await t.run((ctx) => ctx.db.get(poemId));
       expect(poem?.publicShareEnabled).toBeUndefined();
     });
+
+    it('rejects poem sharing before the poem has been revealed', async () => {
+      const t = setupConvexTest();
+      const { poemId } = await seedRoom(t, { revealed: false });
+
+      await expect(
+        asUser(t, 'owner').mutation(api.shares.enablePublicPoemShare, {
+          poemId,
+        })
+      ).rejects.toThrow('Poem is not ready to share');
+
+      const poem = await t.run((ctx) => ctx.db.get(poemId));
+      expect(poem?.publicShareEnabled).toBeUndefined();
+    });
   });
 
   describe('disablePublicPoemShare', () => {
