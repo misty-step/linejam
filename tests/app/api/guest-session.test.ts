@@ -621,7 +621,10 @@ describe('GET /api/guest/session', () => {
       vi.restoreAllMocks();
     });
 
-    async function loadGetWithMissingThrottleFunction(allow: boolean) {
+    async function loadGetWithMissingThrottleFunction(
+      allow: boolean,
+      extraEnv: Partial<NodeJS.ProcessEnv> = {}
+    ) {
       vi.resetModules();
       vi.doUnmock('@/lib/guestToken');
       vi.doUnmock('@/lib/errorServer');
@@ -629,6 +632,7 @@ describe('GET /api/guest/session', () => {
         ...originalEnv,
         NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
         ...(allow ? { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' } : {}),
+        ...extraEnv,
       };
 
       vi.doMock('convex/browser', () => ({
@@ -672,6 +676,23 @@ describe('GET /api/guest/session', () => {
       expect(data.token).toEqual(expect.any(String));
       expect(response.cookies.get('linejam_guest_token')?.value).toBeTruthy();
     });
+
+    it.each<[string, Partial<NodeJS.ProcessEnv>]>([
+      ['production', { NODE_ENV: 'production' }],
+      ['hosted CI', { CI: 'true' }],
+    ])(
+      'fails closed in %s even when the local bypass flag is set',
+      async (_, env) => {
+        const GET = await loadGetWithMissingThrottleFunction(true, env);
+
+        const response = await GET(
+          new NextRequest('https://www.linejam.app/api/guest/session')
+        );
+
+        expect(response.status).toBe(500);
+        expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+      }
+    );
   });
 
   describe('with string and object throttle failures', () => {

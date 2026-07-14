@@ -303,5 +303,9 @@ function extractErrorMessage(error: unknown) {
 }
 
 function allowUnsyncedConvexThrottle() {
-  return process.env.LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE === '1';
+  return (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.CI !== 'true' &&
+    process.env.LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE === '1'
+  );
 }

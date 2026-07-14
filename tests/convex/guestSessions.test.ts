@@ -12,14 +12,14 @@ const legacyGuestSessionThrottle = makeFunctionReference<
 >('guestSessions:checkGuestSessionThrottle');
 
 describe('guest session throttle', () => {
-  it('does not expose the legacy throttle endpoint', async () => {
+  it('keeps the legacy endpoint available during the compatibility rollout', async () => {
     const t = setupConvexTest();
 
     await expect(
       t.mutation(legacyGuestSessionThrottle, {
         key: 'guestSession:0123456789abcdef',
       })
-    ).rejects.toThrow(/there is no such export/i);
+    ).resolves.toEqual({ ok: true });
   });
 
   it('accepts a server-signed bucket and keeps repeated writes to one row', async () => {
