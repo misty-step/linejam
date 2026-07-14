@@ -512,6 +512,7 @@ describe('GET /api/guest/session', () => {
         expect.anything(),
         expect.objectContaining({
           key: expect.stringMatching(/^guestSession:/),
+          proof: expect.stringMatching(/^[A-Za-z0-9_-]+$/),
         })
       );
       expect(JSON.stringify(mockMutation.mock.calls)).not.toContain(
@@ -587,6 +588,28 @@ describe('GET /api/guest/session', () => {
       expect(secondKey).toMatch(/^guestSession:/);
       expect(secondKey).not.toBe(firstKey);
     });
+
+    it('ignores caller-controlled forwarding headers in production', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('GUEST_TOKEN_SECRET', 'production-test-secret');
+
+      try {
+        const requestFor = (forwardedIp: string) =>
+          new NextRequest('https://www.linejam.app/api/guest/session', {
+            headers: { 'x-forwarded-for': forwardedIp },
+          });
+
+        await GET(requestFor('198.51.100.31'));
+        const firstKey = mockMutation.mock.calls.at(-1)?.[1]?.key;
+        await GET(requestFor('198.51.100.32'));
+        const secondKey = mockMutation.mock.calls.at(-1)?.[1]?.key;
+
+        expect(firstKey).toMatch(/^guestSession:/);
+        expect(secondKey).toBe(firstKey);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
   });
 
   describe('with unsynced Convex throttle function', () => {
@@ -598,7 +621,10 @@ describe('GET /api/guest/session', () => {
       vi.restoreAllMocks();
     });
 
-    async function loadGetWithMissingThrottleFunction(allow: boolean) {
+    async function loadGetWithMissingThrottleFunction(
+      allow: boolean,
+      extraEnv: Partial<NodeJS.ProcessEnv> = {}
+    ) {
       vi.resetModules();
       vi.doUnmock('@/lib/guestToken');
       vi.doUnmock('@/lib/errorServer');
@@ -606,6 +632,7 @@ describe('GET /api/guest/session', () => {
         ...originalEnv,
         NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
         ...(allow ? { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' } : {}),
+        ...extraEnv,
       };
 
       vi.doMock('convex/browser', () => ({
@@ -614,7 +641,7 @@ describe('GET /api/guest/session', () => {
             .fn()
             .mockRejectedValue(
               new Error(
-                "Could not find public function for 'guestSessions:checkGuestSessionThrottle'."
+                "Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'."
               )
             );
         },
@@ -649,6 +676,23 @@ describe('GET /api/guest/session', () => {
       expect(data.token).toEqual(expect.any(String));
       expect(response.cookies.get('linejam_guest_token')?.value).toBeTruthy();
     });
+
+    it.each<[string, Partial<NodeJS.ProcessEnv>]>([
+      ['production', { NODE_ENV: 'production' }],
+      ['hosted CI', { CI: 'true' }],
+    ])(
+      'fails closed in %s even when the local bypass flag is set',
+      async (_, env) => {
+        const GET = await loadGetWithMissingThrottleFunction(true, env);
+
+        const response = await GET(
+          new NextRequest('https://www.linejam.app/api/guest/session')
+        );
+
+        expect(response.status).toBe(500);
+        expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+      }
+    );
   });
 
   describe('with string and object throttle failures', () => {
@@ -730,7 +774,7 @@ describe('GET /api/guest/session', () => {
 
     it('allows string missing-function errors only under the explicit local bypass', async () => {
       const { GET } = await loadGetWithThrottleFailure(
-        "Could not find public function for 'guestSessions:checkGuestSessionThrottle'.",
+        "Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'.",
         { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' }
       );
 

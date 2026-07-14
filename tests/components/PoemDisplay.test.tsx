@@ -264,6 +264,26 @@ describe('PoemDisplay component', () => {
     });
   });
 
+  it('discloses that sharing publishes the poem before the share control', () => {
+    render(
+      <PoemDisplay
+        poemId={mockPoemId}
+        lines={mockLines}
+        onDone={mockOnDone}
+        alreadyRevealed
+      />
+    );
+
+    const disclosure = screen.getByText(
+      'Sharing makes this poem public to anyone with the link.'
+    );
+    const shareButton = screen.getByRole('button', { name: 'Share' });
+    expect(
+      disclosure.compareDocumentPosition(shareButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   describe('author interaction', () => {
     it('shows author name on dot click', async () => {
       render(

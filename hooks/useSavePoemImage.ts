@@ -1,8 +1,6 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
 import { trackPoemImageSaved } from '@/lib/analytics';
@@ -26,23 +24,23 @@ export type SaveImageStatus = 'idle' | 'saving' | 'saved' | 'error';
 export function useSavePoemImage(poemId: Id<'poems'>, guestToken?: string) {
   const [status, setStatus] = useState<SaveImageStatus>('idle');
   const [error, setError] = useState<string | null>(null);
-  const enablePublicPoemShare = useMutation(api.shares.enablePublicPoemShare);
 
   const handleSaveImage = useCallback(async () => {
     setStatus('saving');
     setError(null);
 
     try {
-      await enablePublicPoemShare({
-        poemId,
-        guestToken: guestToken || undefined,
-      });
-
       const applied = getAppliedTheme();
       const url = applied
         ? `/poem/${poemId}/card?theme=${encodeURIComponent(applied.themeId)}&mode=${applied.mode}`
         : `/poem/${poemId}/card`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(guestToken ? { guestToken } : {}),
+        }),
+      });
       if (!response.ok) {
         throw new Error(`Card render failed (${response.status})`);
       }
@@ -87,7 +85,7 @@ export function useSavePoemImage(poemId: Id<'poems'>, guestToken?: string) {
       setError('Failed to save image. Please try again.');
       captureError(err, { operation: 'savePoemImage', poemId });
     }
-  }, [enablePublicPoemShare, poemId, guestToken]);
+  }, [poemId, guestToken]);
 
   return {
     handleSaveImage,

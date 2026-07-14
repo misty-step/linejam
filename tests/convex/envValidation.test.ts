@@ -29,6 +29,20 @@ describe('Convex env validation', () => {
     );
   });
 
+  it('does not expose the guest-session throttle with a fallback secret in production', async () => {
+    await withEnv(
+      {
+        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        GUEST_TOKEN_SECRET: undefined,
+      },
+      async () => {
+        await expect(import('../../convex/guestSessions')).rejects.toThrow(
+          'GUEST_TOKEN_SECRET must be set in Convex environment'
+        );
+      }
+    );
+  });
+
   it('does not throw at module load when GUEST_TOKEN_SECRET is missing in development', async () => {
     await withEnv(
       {

@@ -1,3 +1,5 @@
+import { getServerGuestTokenSecret } from './env';
+
 const subtle = globalThis.crypto.subtle;
 
 export const GUEST_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -11,30 +13,13 @@ export interface GuestTokenPayload {
 }
 
 /**
- * Get HMAC secret from environment
- * Falls back to development-only default if not set (warns in production)
- */
-function getSecret(): string {
-  const secret = process.env.GUEST_TOKEN_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'GUEST_TOKEN_SECRET must be set in production environment'
-      );
-    }
-    return 'dev-only-insecure-secret-change-in-production';
-  }
-  return secret;
-}
-
-/**
  * Cached HMAC key to avoid re-importing on every operation
  */
 let keyPromise: Promise<CryptoKey> | null = null;
 
 async function getKey(): Promise<CryptoKey> {
   if (!keyPromise) {
-    const secret = getSecret();
+    const secret = getServerGuestTokenSecret();
     // Use TextEncoder for explicit cross-platform compatibility with Convex
     const keyData = new TextEncoder().encode(secret);
 

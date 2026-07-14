@@ -799,6 +799,163 @@ describe('archive', () => {
       expect(result).toEqual([]);
     });
 
+    it('returns only poems with an explicit true public-share flag', async () => {
+      const t = setupConvexTest();
+      const { privatePoemIds, publicPoemId } = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert('users', {
+          displayName: 'Host',
+          guestId: 'privacy-host',
+          createdAt: 0,
+        });
+        const roomId = await ctx.db.insert('rooms', {
+          code: 'PRIV',
+          hostUserId: userId,
+          status: 'COMPLETED',
+          createdAt: 0,
+        });
+        const gameId = await ctx.db.insert('games', {
+          roomId,
+          status: 'COMPLETED',
+          cycle: 1,
+          currentRound: 9,
+          assignmentMatrix: [[userId]],
+          createdAt: 0,
+        });
+
+        const poems = await Promise.all([
+          ctx.db.insert('poems', {
+            roomId,
+            gameId,
+            indexInRoom: 0,
+            createdAt: 0,
+          }),
+          ctx.db.insert('poems', {
+            roomId,
+            gameId,
+            indexInRoom: 1,
+            publicShareEnabled: false,
+            createdAt: 1,
+          }),
+          ctx.db.insert('poems', {
+            roomId,
+            gameId,
+            indexInRoom: 2,
+            publicShareEnabled: true,
+            createdAt: 2,
+          }),
+        ]);
+
+        await Promise.all(
+          poems.flatMap((poemId) =>
+            Array.from({ length: 3 }, (_, indexInPoem) =>
+              ctx.db.insert('lines', {
+                poemId,
+                authorUserId: userId,
+                text: `Line ${indexInPoem}`,
+                wordCount: 2,
+                indexInPoem,
+                createdAt: indexInPoem,
+              })
+            )
+          )
+        );
+
+        return { privatePoemIds: poems.slice(0, 2), publicPoemId: poems[2] };
+      });
+
+      const result = await t.query(api.archive.getRecentPublicPoems, {
+        limit: 5,
+      });
+
+      expect(result.map((poem) => poem._id)).toEqual([publicPoemId]);
+
+      const [recentPreview, ...privatePreviews] = await Promise.all([
+        t.query(api.poems.getPublicPoemPreview, { poemId: publicPoemId }),
+        ...privatePoemIds.map((poemId) =>
+          t.query(api.poems.getPublicPoemPreview, { poemId })
+        ),
+      ]);
+      expect(recentPreview).not.toBeNull();
+      expect(privatePreviews).toEqual([null, null]);
+    });
+
+    it('finds an older public poem beyond a window of newer private rooms', async () => {
+      const t = setupConvexTest();
+      const publicPoemId = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert('users', {
+          displayName: 'Public Host',
+          guestId: 'public-window-host',
+          createdAt: 0,
+        });
+        const publicRoomId = await ctx.db.insert('rooms', {
+          code: 'PUB0',
+          hostUserId: userId,
+          status: 'COMPLETED',
+          createdAt: 1,
+        });
+        const publicGameId = await ctx.db.insert('games', {
+          roomId: publicRoomId,
+          status: 'COMPLETED',
+          cycle: 1,
+          currentRound: 9,
+          assignmentMatrix: [[userId]],
+          createdAt: 1,
+        });
+        const poemId = await ctx.db.insert('poems', {
+          roomId: publicRoomId,
+          gameId: publicGameId,
+          indexInRoom: 0,
+          publicShareEnabled: true,
+          createdAt: 1,
+        });
+        await Promise.all(
+          Array.from({ length: 3 }, (_, indexInPoem) =>
+            ctx.db.insert('lines', {
+              poemId,
+              authorUserId: userId,
+              text: `Public line ${indexInPoem}`,
+              wordCount: 3,
+              indexInPoem,
+              createdAt: indexInPoem,
+            })
+          )
+        );
+
+        await Promise.all(
+          Array.from({ length: 41 }, async (_, index) => {
+            const roomId = await ctx.db.insert('rooms', {
+              code: `P${String(index).padStart(3, '0')}`,
+              hostUserId: userId,
+              status: 'COMPLETED',
+              createdAt: 100 + index,
+            });
+            const gameId = await ctx.db.insert('games', {
+              roomId,
+              status: 'COMPLETED',
+              cycle: 1,
+              currentRound: 9,
+              assignmentMatrix: [[userId]],
+              createdAt: 100 + index,
+            });
+            await ctx.db.insert('poems', {
+              roomId,
+              gameId,
+              indexInRoom: 0,
+              createdAt: 100 + index,
+            });
+          })
+        );
+
+        return poemId;
+      });
+
+      const result = await t.query(api.archive.getRecentPublicPoems, {
+        limit: 5,
+      });
+
+      expect(result.map((poem) => poem._id)).toEqual([publicPoemId]);
+    });
+
     it('returns poems with line counts and poet counts', async () => {
       const t = setupConvexTest();
       const poemId = await t.run(async (ctx) => {
@@ -830,6 +987,7 @@ describe('archive', () => {
           roomId,
           gameId,
           indexInRoom: 0,
+          publicShareEnabled: true,
           createdAt: 0,
         });
         await ctx.db.insert('lines', {
@@ -897,6 +1055,7 @@ describe('archive', () => {
           roomId,
           gameId,
           indexInRoom: 0,
+          publicShareEnabled: true,
           createdAt: 0,
         });
         // Only 2 lines — below the minimum 3
@@ -947,6 +1106,7 @@ describe('archive', () => {
             roomId,
             gameId,
             indexInRoom: 0,
+            publicShareEnabled: true,
             createdAt: roomIdx,
           });
           for (let i = 0; i < 3; i++) {
@@ -995,6 +1155,7 @@ describe('archive', () => {
           roomId,
           gameId,
           indexInRoom: 0,
+          publicShareEnabled: true,
           createdAt: 0,
         });
         // Insert 9 lines
@@ -1045,6 +1206,7 @@ describe('archive', () => {
             roomId,
             gameId,
             indexInRoom: idx,
+            publicShareEnabled: true,
             createdAt: idx,
           });
           ids.push(poemId);
@@ -1101,6 +1263,7 @@ describe('archive', () => {
             roomId,
             gameId,
             indexInRoom: 0,
+            publicShareEnabled: true,
             createdAt: i,
           });
           for (let j = 0; j < 3; j++) {
@@ -1154,6 +1317,7 @@ describe('archive', () => {
           roomId: room1,
           gameId: game1,
           indexInRoom: 0,
+          publicShareEnabled: true,
           createdAt: 0,
         });
         for (let i = 0; i < 3; i++) {
@@ -1186,6 +1350,7 @@ describe('archive', () => {
           roomId: room2,
           gameId: game2,
           indexInRoom: 0,
+          publicShareEnabled: true,
           createdAt: 1,
         });
         for (let i = 0; i < 3; i++) {

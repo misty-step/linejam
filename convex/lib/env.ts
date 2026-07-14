@@ -26,6 +26,7 @@ export type ConvexEnvHealthReport = {
 };
 
 const CONVEX_PRODUCTION_HOST = 'convex.cloud';
+const DEV_GUEST_TOKEN_SECRET = 'dev-only-insecure-secret-change-in-production';
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -74,6 +75,21 @@ if (
 
 export function getConvexRuntimeConfig(): ConvexRuntimeConfig {
   return convexRuntimeConfig;
+}
+
+export function getConvexGuestTokenSecret(): string {
+  if (convexRuntimeConfig.guestTokenSecret) {
+    return convexRuntimeConfig.guestTokenSecret;
+  }
+
+  if (convexRuntimeConfig.environment === 'production') {
+    throw new Error(
+      'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
+        'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
+    );
+  }
+
+  return DEV_GUEST_TOKEN_SECRET;
 }
 
 export function getConvexEnvHealthReport(): ConvexEnvHealthReport {

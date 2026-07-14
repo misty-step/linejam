@@ -151,6 +151,21 @@ describe('SessionRecapHub', () => {
     expect(defaultProps.onBackToLobby).toHaveBeenCalledTimes(1);
   });
 
+  it('discloses recap publication before the share control', () => {
+    render(<SessionRecapHub {...defaultProps} />);
+
+    const disclosure = screen.getByText(
+      'Sharing makes the full session recap public to anyone with the link.'
+    );
+    const shareButton = screen.getByRole('button', {
+      name: /Share the whole set/i,
+    });
+    expect(
+      disclosure.compareDocumentPosition(shareButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it('copies the session recap link when native share is unavailable', async () => {
     const user = userEvent.setup();
     render(<SessionRecapHub {...defaultProps} playerCount={1} />);

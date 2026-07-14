@@ -50,8 +50,8 @@ const DEFAULT_RECENT_PUBLIC_LIMIT = 5;
 const MAX_RECENT_PUBLIC_LIMIT = 10;
 const MAX_LINES_PER_POEM = 9;
 const PUBLIC_POEMS_PER_ROOM = 2;
-const RECENT_PUBLIC_ROOM_WINDOW_FACTOR = 4;
-const MAX_RECENT_PUBLIC_ROOM_WINDOW = 40;
+const RECENT_PUBLIC_CANDIDATE_FACTOR = 4;
+const MAX_RECENT_PUBLIC_CANDIDATE_WINDOW = 40;
 
 function boundedLimit(
   value: number | undefined,
@@ -268,34 +268,42 @@ export const getRecentPublicPoems = query({
       DEFAULT_RECENT_PUBLIC_LIMIT,
       MAX_RECENT_PUBLIC_LIMIT
     );
-    const roomWindow = Math.min(
-      MAX_RECENT_PUBLIC_ROOM_WINDOW,
-      Math.max(poemLimit * RECENT_PUBLIC_ROOM_WINDOW_FACTOR, poemLimit)
+    const candidateWindow = Math.min(
+      MAX_RECENT_PUBLIC_CANDIDATE_WINDOW,
+      Math.max(poemLimit * RECENT_PUBLIC_CANDIDATE_FACTOR, poemLimit)
     );
 
-    // Get a bounded, indexed window of recently created completed rooms.
-    const rooms = await ctx.db
-      .query('rooms')
-      .withIndex('by_status_created', (q) => q.eq('status', 'COMPLETED'))
+    // Drive the bounded window from explicitly public poems, not recent rooms:
+    // a run of private sessions must not hide older shared work.
+    const publicCandidates = await ctx.db
+      .query('poems')
+      .withIndex('by_public_created', (q) => q.eq('publicShareEnabled', true))
       .order('desc')
-      .take(roomWindow);
+      .take(candidateWindow);
 
-    if (rooms.length === 0) {
+    if (publicCandidates.length === 0) {
       return [];
     }
 
-    const poemsByRoom = await Promise.all(
-      rooms.map((room) =>
-        ctx.db
-          .query('poems')
-          .withIndex('by_room', (q) => q.eq('roomId', room._id))
-          .order('desc')
-          .take(PUBLIC_POEMS_PER_ROOM)
-      )
+    const roomIds = [...new Set(publicCandidates.map((poem) => poem.roomId))];
+    const rooms = await Promise.all(
+      roomIds.map((roomId) => ctx.db.get(roomId))
     );
-    const poems = poemsByRoom
-      .flat()
-      .slice(0, poemLimit * PUBLIC_POEMS_PER_ROOM);
+    const completedRoomIds = new Set(
+      rooms
+        .filter((room) => room?.status === 'COMPLETED')
+        .map((room) => room!._id)
+    );
+
+    const poems: typeof publicCandidates = [];
+    const poemsPerRoom = new Map<Id<'rooms'>, number>();
+    for (const poem of publicCandidates) {
+      if (!completedRoomIds.has(poem.roomId)) continue;
+      const roomCount = poemsPerRoom.get(poem.roomId) ?? 0;
+      if (roomCount >= PUBLIC_POEMS_PER_ROOM) continue;
+      poems.push(poem);
+      poemsPerRoom.set(poem.roomId, roomCount + 1);
+    }
 
     if (poems.length === 0) {
       return [];

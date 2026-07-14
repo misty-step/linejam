@@ -4,21 +4,22 @@ import {
   signGuestToken,
   verifyGuestTokenPayload,
 } from '@/lib/guestToken';
+import { getServerGuestTokenSecret } from '@/lib/env';
 import { createHmac, randomUUID } from 'crypto';
 import { ConvexHttpClient } from 'convex/browser';
 import { makeFunctionReference } from 'convex/server';
 import { captureServerError } from '@/lib/errorServer';
 import { log, logError, logRequest } from '@/lib/logger';
+import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 
 const COOKIE_NAME = 'linejam_guest_token';
 const ROUTE = '/api/guest/session';
 const GUEST_SESSION_RETRY_AFTER_SECONDS = 10 * 60;
-const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
-const checkGuestSessionThrottle = makeFunctionReference<
+const checkSignedGuestSessionThrottle = makeFunctionReference<
   'mutation',
-  { key: string },
+  { key: string; proof: string },
   { ok: true }
->('guestSessions:checkGuestSessionThrottle');
+>('guestSessions:checkSignedGuestSessionThrottle');
 
 let convexClient: ConvexHttpClient | null = null;
 
@@ -209,8 +210,13 @@ async function enforceGuestSessionThrottle(
   }
 
   try {
-    await getConvexClient(convexUrl).mutation(checkGuestSessionThrottle, {
+    const proof = await signGuestSessionThrottleProof(
+      rateLimitKey,
+      getServerGuestTokenSecret()
+    );
+    await getConvexClient(convexUrl).mutation(checkSignedGuestSessionThrottle, {
       key: rateLimitKey,
+      proof,
     });
     return { allowed: true, rateLimitKey };
   } catch (error) {
@@ -242,13 +248,20 @@ function getConvexClient(convexUrl: string) {
 
 function deriveGuestSessionRateLimitKey(request: NextRequest): string {
   const ip = getClientIp(request);
-  const secret = process.env.GUEST_TOKEN_SECRET || DEV_FALLBACK_SECRET;
+  const secret = getServerGuestTokenSecret();
   const digest = createHmac('sha256', secret).update(ip).digest('base64url');
   return `guestSession:${digest.slice(0, 32)}`;
 }
 
 function getClientIp(request: NextRequest): string {
-  for (const header of ['do-connecting-ip', 'cf-connecting-ip', 'x-real-ip']) {
+  const appPlatformIp = request.headers.get('do-connecting-ip')?.trim();
+  if (appPlatformIp) return appPlatformIp;
+
+  // DigitalOcean App Platform owns do-connecting-ip in production. Do not
+  // let callers select durable throttle buckets through forwarded headers.
+  if (process.env.NODE_ENV === 'production') return 'unknown';
+
+  for (const header of ['cf-connecting-ip', 'x-real-ip']) {
     const value = request.headers.get(header)?.trim();
     if (value) return value;
   }
@@ -267,7 +280,7 @@ function isRateLimitError(error: unknown) {
 }
 
 function isMissingThrottleFunctionError(error: unknown) {
-  return /Could not find public function for 'guestSessions:checkGuestSessionThrottle'/i.test(
+  return /Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'/i.test(
     extractErrorMessage(error)
   );
 }
@@ -290,5 +303,9 @@ function extractErrorMessage(error: unknown) {
 }
 
 function allowUnsyncedConvexThrottle() {
-  return process.env.LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE === '1';
+  return (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.CI !== 'true' &&
+    process.env.LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE === '1'
+  );
 }

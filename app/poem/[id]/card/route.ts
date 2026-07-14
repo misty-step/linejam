@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { ImageResponse } from 'next/og';
 import { fetchQuery } from 'convex/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { resolveCardColors } from '@/lib/poemCard/colors';
@@ -18,6 +19,13 @@ import { isValidThemeId } from '@/lib/themes/registry';
 
 export const runtime = 'edge';
 
+type CardPoem = {
+  poem: { indexInRoom: number };
+  lines: Array<{ text: string; authorName: string; isBot: boolean }>;
+};
+
+type CardRouteContext = { params: Promise<{ id: string }> };
+
 /**
  * Downloadable, themed, fully-attributed poem card — the "save as image"
  * target for the reveal and archive pages (linejam-943 criterion 1). Reuses
@@ -25,13 +33,46 @@ export const runtime = 'edge';
  * (lib/poemCard/PoemCard.tsx) at full length and the room's active theme,
  * rather than a second bespoke renderer.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: CardRouteContext) {
   const { id } = await params;
   const poemId = id as Id<'poems'>;
 
+  const poem = await fetchQuery(api.poems.getPublicPoemFull, { poemId }).catch(
+    () => null
+  );
+
+  return renderCard(request, poem);
+}
+
+export async function POST(request: NextRequest, { params }: CardRouteContext) {
+  const { id } = await params;
+  const poemId = id as Id<'poems'>;
+  const body: unknown = await request.json().catch(() => ({}));
+  const guestToken =
+    body &&
+    typeof body === 'object' &&
+    'guestToken' in body &&
+    typeof body.guestToken === 'string'
+      ? body.guestToken
+      : undefined;
+
+  const clerkToken = guestToken
+    ? null
+    : await (await auth()).getToken({ template: 'convex' });
+  const poem = await (
+    clerkToken
+      ? fetchQuery(
+          api.poems.getPoemDetail,
+          { poemId, guestToken: undefined },
+          { token: clerkToken }
+        )
+      : fetchQuery(api.poems.getPoemDetail, { poemId, guestToken })
+  ).catch(() => null);
+
+  return renderCard(request, poem);
+}
+
+async function renderCard(request: NextRequest, poem: CardPoem | null) {
   const { searchParams } = new URL(request.url);
   const requestedTheme = searchParams.get('theme');
   const themeId = isValidThemeId(requestedTheme)
@@ -39,12 +80,8 @@ export async function GET(
     : DEFAULT_CARD_THEME_ID;
   const mode = searchParams.get('mode') === 'dark' ? 'dark' : 'light';
 
-  const poem = await fetchQuery(api.poems.getPublicPoemFull, { poemId }).catch(
-    () => null
-  );
-
   if (!poem) {
-    return new Response('Poem not found or not shared publicly.', {
+    return new Response('Poem not found or unavailable.', {
       status: 404,
     });
   }

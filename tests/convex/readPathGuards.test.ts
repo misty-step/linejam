@@ -19,11 +19,11 @@ describe('Convex launch read path guards', () => {
   it('keeps getRecentPublicPoems on indexed reads instead of query filters', () => {
     const body = exportedFunctionBody(archiveSource, 'getRecentPublicPoems');
 
-    expect(body).not.toContain('.filter(');
-    expect(body).toContain(".withIndex('by_status_created'");
-    expect(body).toContain(".withIndex('by_room'");
+    expect(body).not.toContain('.filter((q)');
+    expect(body).toContain(".withIndex('by_public_created'");
+    expect(body).toContain(".eq('publicShareEnabled', true)");
     expect(body).toContain(".withIndex('by_poem_index'");
-    expect(schemaSource).toContain(".index('by_status_created'");
+    expect(schemaSource).toContain(".index('by_public_created'");
   });
 
   it('keeps user history reads explicitly windowed', () => {
