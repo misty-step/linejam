@@ -68,4 +68,21 @@ describe('guest session throttle', () => {
     const rows = await t.run((ctx) => ctx.db.query('rateLimits').collect());
     expect(rows).toEqual([]);
   });
+
+  it('rejects malformed proof encodings before they can grow durable state', async () => {
+    const t = setupConvexTest();
+    const key = 'guestSession:0123456789abcdef';
+
+    for (const proof of ['not+base64url', 'a'.repeat(42), 'a'.repeat(44)]) {
+      await expect(
+        t.mutation(api.guestSessions.checkSignedGuestSessionThrottle, {
+          key,
+          proof,
+        })
+      ).rejects.toThrow('Invalid guest session throttle proof');
+    }
+
+    const rows = await t.run((ctx) => ctx.db.query('rateLimits').collect());
+    expect(rows).toEqual([]);
+  });
 });

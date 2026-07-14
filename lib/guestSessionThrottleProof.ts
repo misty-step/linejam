@@ -1,4 +1,5 @@
 const THROTTLE_PROOF_CONTEXT = 'linejam:guest-session-throttle:v1:';
+const SHA256_BASE64URL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 export async function signGuestSessionThrottleProof(
   key: string,
@@ -19,6 +20,8 @@ export async function verifyGuestSessionThrottleProof(
   proof: string,
   secret: string
 ) {
+  if (!SHA256_BASE64URL_PATTERN.test(proof)) return false;
+
   try {
     const cryptoKey = await importHmacKey(secret, ['verify']);
     return await crypto.subtle.verify(
