@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.18.1](https://github.com/misty-step/linejam/compare/v0.18.0...v0.18.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **privacy:** require explicit successful sharing ([#344](https://github.com/misty-step/linejam/issues/344)) ([e62e389](https://github.com/misty-step/linejam/commit/e62e389962c8735e7ac364f75e710cd64886adf0))
+
 # [0.18.0](https://github.com/misty-step/linejam/compare/v0.17.1...v0.18.0) (2026-07-11)
 
 
