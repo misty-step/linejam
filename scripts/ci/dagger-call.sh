@@ -21,6 +21,7 @@ unset \
 
 FUNCTION_NAME="${1:?Usage: scripts/ci/dagger-call.sh <function> [extra dagger args...]}"
 shift || true
+EXPLICIT_SHARED_DEV_SYNC_AUTHORITY="${LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC:-0}"
 
 CONVEX_DEV_URL=""
 CONVEX_PROD_URL=""
@@ -166,7 +167,32 @@ convex_url_for_mode() {
 is_local_convex_url() {
 	local url
 	url="$(normalize_url "${1:-}")"
-	[[ "$url" =~ ^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$ ]]
+	local authority
+	authority="${url#*://}"
+	[[ "$authority" != "$url" ]] || return 1
+	authority="${authority%%/*}"
+
+	local hostname
+	if [[ "$authority" == \[* ]]; then
+		hostname="${authority%%]*}"
+		hostname="${hostname#[}"
+	else
+		hostname="${authority%%:*}"
+	fi
+	hostname="${hostname%.}"
+	hostname="$(printf '%s' "$hostname" | tr '[:upper:]' '[:lower:]')"
+
+	case "$hostname" in
+		localhost|*.localhost) return 0 ;;
+	esac
+
+	# Convex deployment URLs are hostnames. Treat every IP literal as a
+	# non-shared target so loopback, wildcard, private, shorthand, and IPv6
+	# spellings cannot evade the shared-development guard.
+	[[ "$hostname" == *:* ]] && return 0
+	[[ "$hostname" =~ ^[0-9]+$ ]] && return 0
+	[[ "$hostname" =~ ^0[xX][0-9a-f]+$ ]] && return 0
+	[[ "$hostname" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]
 }
 
 function_requires_guest_token() {
@@ -407,6 +433,48 @@ prepare_local_convex_backend() {
 	return 1
 }
 
+sync_shared_dev_once() {
+	if [[ "$EXPLICIT_SHARED_DEV_SYNC_AUTHORITY" != "1" ]]; then
+		echo >&2 "Refusing shared Convex dev sync without per-invocation authority. Set LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC=1 only for an explicitly authorized sync."
+		return 1
+	fi
+
+	local target_url
+	target_url="$(normalize_url "${NEXT_PUBLIC_CONVEX_URL:-}")"
+	if [[ -z "$target_url" ]] || is_local_convex_url "$target_url"; then
+		echo >&2 "Shared Convex dev sync requires an explicit remote NEXT_PUBLIC_CONVEX_URL."
+		return 1
+	fi
+
+	local dev_url
+	dev_url="$(convex_url_for_mode dev)"
+	local prod_url
+	prod_url="$(convex_url_for_mode prod)"
+
+	if [[ "$target_url" == "$prod_url" ]]; then
+		echo >&2 "Refusing shared Convex dev sync because NEXT_PUBLIC_CONVEX_URL resolves to production."
+		return 1
+	fi
+
+	if [[ -z "$dev_url" || "$target_url" != "$dev_url" ]]; then
+		echo >&2 "Refusing shared Convex dev sync because NEXT_PUBLIC_CONVEX_URL does not match the CLI's active dev deployment."
+		return 1
+	fi
+
+	echo "Preflight confirmed the active non-production Convex dev deployment; syncing once..." >&2
+	run_npx convex dev --once --typecheck disable --codegen disable >/dev/null
+
+	CONVEX_DEV_URL=""
+	local verified_url
+	verified_url="$(convex_url_for_mode dev)"
+	if [[ "$verified_url" != "$target_url" ]]; then
+		echo >&2 "Shared Convex dev sync completed, but the postcondition probe resolved a different deployment."
+		return 1
+	fi
+
+	echo "Shared Convex dev sync verified by a fresh function-spec read."
+}
+
 hydrate_guest_token_secret() {
 	if [[ -n "${GUEST_TOKEN_SECRET:-}" ]]; then
 		return 0
@@ -498,6 +566,11 @@ for env_file in "${env_files[@]}"; do
 		load_env_file "$env_file"
 	fi
 done
+
+if [[ "$FUNCTION_NAME" == "sync-shared-dev" ]]; then
+	sync_shared_dev_once
+	exit 0
+fi
 
 if function_requires_local_convex_sync && should_prepare_local_convex; then
 	prepare_local_convex_backend

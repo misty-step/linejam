@@ -1,351 +1,108 @@
-# Testing Guide
+# Testing and QA
 
-Linejam uses a hybrid testing stack: Vitest for unit/integration tests and Playwright for E2E tests. 500+ tests with 85% coverage enforcement.
+Use the smallest test that can fail for the changed behavior, then prove the
+real acceptance surface. Command definitions live in `package.json`; coverage
+thresholds live in `vitest.config.ts`.
 
-## Quick Reference
-
-```bash
-pnpm test          # Run unit tests once
-pnpm test:watch    # Watch mode for development
-pnpm test:ci       # CI mode with coverage
-pnpm ci:fast       # Fast local gate: typecheck, lint, tests
-pnpm ci:dagger:all # Full local Dagger parity for hosted merge-gate
-pnpm test:e2e      # Run deterministic E2E tests (excludes @evidence)
-pnpm test:e2e:early-smoke # Fast selector smoke to reveal phase
-pnpm test:e2e:smoke # Remote preview/prod smoke
-pnpm test:e2e:evidence # Run the tagged evidence capture spec
-pnpm test:e2e:ui   # Playwright UI mode
-pnpm evidence:guest-flow # Package screenshots, video, GIF, and summary
-pnpm qa:agentic:local --mission guest-host-signed-in-join # Advisory agentic QA against an already-running local target
-pnpm qa:agentic:preview --mission guest-host-signed-in-join --base-url https://<preview-url> # Advisory preview QA
-```
-
-## Test Structure
-
-```
-tests/
-├── app/api/           # API route tests
-├── components/        # React component tests
-├── convex/           # Convex function tests
-│   └── lib/          # Auth and utility tests
-├── e2e/              # Playwright E2E tests
-├── helpers/          # Shared test utilities
-└── lib/              # Frontend utility tests
-```
-
-## Test Patterns
-
-### AAA Pattern (Arrange-Act-Assert)
-
-All tests follow the AAA pattern for clarity:
-
-```typescript
-it('creates room with valid host', async () => {
-  // Arrange
-  mockDb.first.mockResolvedValue(null);
-  mockDb.insert.mockResolvedValue('room_123');
-
-  // Act
-  const result = await mutation.handler(mockCtx, { hostName: 'Alice' });
-
-  // Assert
-  expect(result.roomCode).toMatch(/^[A-Z]{4}$/);
-});
-```
-
-### Descriptive Test Names
-
-Test names are complete sentences describing behavior:
-
-```typescript
-// Good
-it('returns empty array when user has no poems');
-it('throws Unauthorized when guest token is invalid');
-it('displays error message when submission fails');
-
-// Bad
-it('empty poems');
-it('invalid token');
-it('error');
-```
-
-### Minimal Mocking
-
-Mock at boundaries, test real behavior:
-
-```typescript
-// Good: Mock the database, test the function logic
-mockDb.first.mockResolvedValue({ id: 'room_1', state: 'LOBBY' });
-const result = await joinRoom.handler(mockCtx, args);
-expect(result.playerId).toBeTruthy();
-
-// Bad: Mock the function under test
-vi.mock('./rooms', () => ({ joinRoom: vi.fn() }));
-```
-
-## Test Helpers
-
-### Database Mock Factory
-
-```typescript
-import { createMockDb, createMockCtx } from '@/tests/helpers/mockConvexDb';
-
-const mockDb = createMockDb();
-const mockCtx = createMockCtx(mockDb);
-
-// Configure mock responses
-mockDb.first.mockResolvedValue({ id: 'room_1', code: 'ABCD' });
-mockDb.collect.mockResolvedValue([{ id: 'player_1' }]);
-```
-
-### Environment Helper
-
-```typescript
-import { withEnv } from '@/tests/helpers/envHelper';
-
-it('uses production secret', async () => {
-  await withEnv({ GUEST_TOKEN_SECRET: 'prod-secret' }, async () => {
-    // Test runs with env var set, restored afterward
-  });
-});
-```
-
-## Convex Function Testing
-
-Convex functions are tested by mocking the generated server module:
-
-```typescript
-// Mock Convex server
-vi.mock('../../convex/_generated/server', () => ({
-  mutation: (args: unknown) => args,
-  query: (args: unknown) => args,
-}));
-
-// Import after mocking
-import { createRoom } from '@/convex/rooms';
-
-// Cast to access handler
-const mutation = createRoom as unknown as { handler: Function };
-
-// Call handler directly
-const result = await mutation.handler(mockCtx, { hostName: 'Alice' });
-```
-
-**Why this pattern?**
-
-- Convex wraps functions in runtime machinery
-- We test the handler logic directly
-- `@ts-expect-error` comments document the type escape hatch
-
-## Component Testing
-
-React components are tested with Testing Library:
-
-```typescript
-import { render, screen, waitFor } from '@testing-library/react';
-import { userEvent } from '@testing-library/user-event';
-
-it('enables submit when word count matches', async () => {
-  const user = userEvent.setup();
-  render(<WritingScreen roomCode="ABCD" />);
-
-  await user.type(screen.getByRole('textbox'), 'Hello');
-
-  await waitFor(() => {
-    expect(screen.getByRole('button', { name: /Submit/i })).toBeEnabled();
-  });
-});
-```
-
-**Key practices**:
-
-- Mock Convex hooks (`useQuery`, `useMutation`)
-- Mock auth hook (`useUser`)
-- Use `userEvent` for realistic interactions
-- Use `waitFor` for async state updates
-
-## E2E Testing
-
-Playwright tests run against a real dev server:
-
-```typescript
-test('host creates room', async ({ page }) => {
-  await page.goto('/host');
-  await page.fill('input#name', 'Host Player');
-  await page.click('button[type="submit"]');
-
-  await page.waitForURL(/\/room\/[A-Z]{4}$/);
-  expect(page.url()).toMatch(/\/room\/[A-Z]{4}$/);
-});
-```
-
-**Configuration** (playwright.config.ts):
-
-- Retries: 2 on CI, 0 locally
-- Traces: collected on first retry
-- Screenshots: on failure only
-- Port: 3333 (avoids conflicts with dev server)
-- Browser base URL: `http://localhost:${PORT_E2E:-3333}`
-- `E2E_BASE_URL=https://...` targets a remote deployment and skips the local web server bootstrap
-- `early-smoke.spec.ts` runs the frozen selector contract through host/create/start/play-to-reveal and is wired as the non-draft-gated `early-smoke` merge-gate job
-- `prod-smoke.spec.ts` is excluded from the local suite and runs only through `playwright.smoke.config.ts`
-
-**Environment contract**:
-
-- Local Dagger hydrates `GUEST_TOKEN_SECRET` automatically when `NEXT_PUBLIC_CONVEX_URL` points at the same Convex dev or prod deployment that the CLI resolves.
-- `CLERK_SECRET_KEY` plus `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` enable authenticated browser coverage. The Playwright harness mirrors that publishable key into `CLERK_PUBLISHABLE_KEY` for Clerk's testing helpers. `PLAYWRIGHT_CLERK_TEST_EMAIL` is optional for dev/test Clerk keys because the harness can provision a default smoke user automatically there. Live Clerk keys fail closed instead: point `PLAYWRIGHT_CLERK_TEST_EMAIL` at a precreated smoke user.
-- Local Dagger syncs the active Convex dev deployment before `pnpm ci:dagger:all` and `pnpm ci:dagger:e2e` so auth-heavy browser coverage exercises backend code from the current branch. Set `LINEJAM_SYNC_CONVEX_BEFORE_DAGGER=0` only when you intentionally want to skip that preparation step.
-- Local Dagger ensures the Clerk `convex` JWT template exists before local auth-heavy browser coverage. Dev/test Clerk keys can be bootstrapped automatically; live-key creation requires `LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE=1`.
-- Local Dagger refuses to push Convex production code unless `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` is set explicitly.
-- Local Dagger loads `.env.local` after `.env.production.local`, so authenticated browser coverage can use localhost-safe Clerk test/dev keys from `.env.local`.
-- The authoritative Dagger contract requires real browser-side Canary config for build-bearing lanes. Keep `NEXT_PUBLIC_CANARY_ENDPOINT` and `NEXT_PUBLIC_CANARY_API_KEY` set before running `pnpm ci:dagger:all`, `pnpm ci:dagger:all-no-e2e`, `pnpm ci:dagger:build-check`, or `pnpm ci:dagger:e2e`.
-- Dagger treats authenticated browser coverage as part of the default contract. Set `PLAYWRIGHT_REQUIRE_AUTH_E2E=0` only when you are intentionally running a guest-only loop.
-- Authenticated Playwright coverage signs into Clerk inside each live browser context after the app is serving traffic. That avoids depending on serialized auth state for dev-session syncing and keeps protected-route checks aligned with the actual test context.
-- Remote smoke inverts the env preference: `.env.production.local` wins over `.env.local` so deployed targets use production-aligned Clerk keys by default. Authenticated smoke against `https://www.linejam.app` now fails fast if the active Clerk publishable key is still a `pk_test_...` localhost key or the secret key is still `sk_test_...`, and authenticated smoke validates that Clerk already has the `convex` JWT template before starting the browser run.
-- `/api/health` reports app health separately from Canary readiness, so missing Canary ingest should be treated as degraded observability rather than proof that the game flow is down.
-- Request telemetry assertions should verify structured JSON fields, not prose logs. Critical app routes must emit method, route, status, and duration while keeping guest tokens, display names, and raw request payloads out of logs and Canary context.
-
-**Multi-player tests** use separate browser contexts:
-
-```typescript
-const hostContext = await browser.newContext();
-const guestContext = await browser.newContext();
-```
-
-### Evidence Capture
-
-The visual QA/demo path is a tagged Playwright spec plus a packaging wrapper:
+## Commands
 
 ```bash
-pnpm test:e2e:evidence
-pnpm evidence:guest-flow
+pnpm vitest run tests/path/to/file.test.ts # focused Vitest
+pnpm test                                  # all Vitest tests
+pnpm test:ci                               # Vitest with coverage
+pnpm lint
+pnpm typecheck
+pnpm ci:prepush                            # required fast local gate
+
+pnpm test:e2e                              # deterministic Playwright suite
+pnpm test:e2e:early-smoke                  # host-to-reveal selector contract
+pnpm test:e2e:smoke                        # explicit remote target
+pnpm test:e2e:evidence                     # tagged evidence spec
+pnpm evidence:guest-flow                   # packaged visual/runtime evidence
+
+pnpm ci:dagger:all-no-e2e                  # full contract without browser E2E
+pnpm ci:dagger:all                         # local hosted-gate mirror
 ```
 
-- `pnpm test:e2e` excludes the `@evidence` suite so merge-gating stays deterministic.
-- `pnpm evidence:guest-flow` runs the canonical guest flow, then writes screenshots, `guest-flow.webm`, `guest-flow.gif`, `server.log`, `qa-summary.md`, and `manifest.json`.
-- GIF packaging requires `ffmpeg`. The hosted `qa-evidence` job installs it before capture; local evidence runs need it available on `PATH`.
-- Evidence is fail-or-waive. Browser console/page errors, missing screenshots, missing video, GIF packaging failures, and missing server logs fail the command unless a typed JSON waiver is passed with `--allowlist <path>` or `LINEJAM_EVIDENCE_ALLOWLIST`.
-- Evidence runtime capture ignores known non-app noise from legacy analytics probes and aborted Next RSC GET requests. Other browser console/page, failed request, and 4xx/5xx response errors remain fail-or-waive.
-- Waivers must name `runtimeErrors[].pattern` or `artifactErrors[].artifact`, include a human `reason`, and expire with `expiresOn: YYYY-MM-DD`. Waived evidence exits successfully as `PASS_WITH_WAIVERS` and records the waiver in the summary and manifest.
-- `qa-evidence` participates in `merge-gate`; a branch is not PR-ready if visual evidence fails without a waiver.
-- When local Convex/Clerk wiring is unavailable, point the evidence run at a deployed target with `LINEJAM_BASE_URL=https://www.linejam.app`.
-- Preview smoke requires an explicit DigitalOcean App Platform URL and rejects hosts outside Linejam's `*.ondigitalocean.app` ingress pattern.
+`pnpm ci:prepush` runs provider-retirement, TypeScript, ESLint, and Vitest. The
+hosted merge gate remains authoritative for merge. Convex preparation and live
+authority are defined in `docs/ops/observability-ci.md`.
 
-#### Static Theme Screenshots (no guest/game flow)
+## Match evidence to the change
 
-`pnpm test:e2e:evidence` / `pnpm evidence:guest-flow` exercise the full guest
-flow and need synced Convex + Clerk. For screenshots that only need a page to
-render (theme/CSS changes, `/host` layout, etc.), run the production server
-with `pnpm evidence:static-server` instead of raw `PORT=3340 pnpm start:next`.
+| Change                          | Minimum acceptance                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| Pure documentation/config       | formatting, link/path/command verification, relevant script test, `pnpm ci:prepush` |
+| Domain utility                  | focused Vitest plus `pnpm ci:prepush`                                               |
+| Convex query/mutation/scheduler | `convex-test` integration on the real scheduler/DB plus fast gate                   |
+| Component interaction           | Testing Library behavior test plus the relevant browser route                       |
+| Game flow/auth/realtime         | Playwright with separate contexts and the targeted Convex deployment                |
+| Visual/theme                    | deterministic browser flow and retained screenshots/video/manifest                  |
+| Deployment/observability        | local gates plus authorized provider, smoke, health, and log postconditions         |
 
-Running the raw command against an unsynced Convex deployment or a shell with
-an ambient `CANARY_API_KEY` (leaked in from another repo's dev profile,
-pointing at a local responder that isn't running) throws two errors that are
-noise for a static screenshot, not real defects:
+Unit tests are not acceptance for browser rendering, real scheduling,
+deployment identity, or production health.
 
-```text
-Could not find public function for 'guestSessions:checkGuestSessionThrottle'.
-Canary capture failed: [TypeError: fetch failed] ... ECONNREFUSED 127.0.0.1:4000
-```
+## Test seams
 
-`pnpm evidence:static-server` sets `LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE=1`
-(the existing, tested escape hatch in `app/api/guest/session/route.ts`) and
-clears `CANARY_API_KEY`/`NEXT_PUBLIC_CANARY_API_KEY` before starting, so
-neither path can fire regardless of ambient shell config. `PORT` still
-defaults to `3340` and can be overridden the same way. See
-`scripts/evidence/static-server.mjs` and
-`tests/scripts/static-server.test.ts`.
+- Mock network calls, browser APIs, third-party adapters, clocks, randomness,
+  and other system boundaries.
+- Do not mock the behavior under test. Prefer dependency injection at the
+  external boundary over replacing internal modules.
+- Test Convex functions with `setupConvexTest()` from
+  `tests/helpers/convexTest.ts`; seed with `tests/helpers/convexSeed.ts` where
+  applicable. This exercises indexes, transactions, scheduled functions, and
+  generated handlers instead of a hand-built database mock.
+- Component tests may mock `convex/react`, Clerk, clipboard, or fetch. Keep
+  domain utilities and component-owned decision logic real.
+- Every regression starts red on the defect, turns green on the fix, then gets
+  refactored without changing the oracle.
 
-### Agentic QA
+## Browser and live-target rules
 
-The agentic QA lane is advisory and writes stable artifacts under `.qa/runs/<run-id>/`. It does not replace `pnpm ci:prepush`, deterministic Playwright, or Dagger.
+Playwright uses the checked-in `playwright.config.ts` and
+`playwright.smoke.config.ts`. Multi-player scenarios use separate browser
+contexts. Never call a remote suite without confirming its base URL and
+mutation authority.
+
+The full Dagger E2E lane needs deployment-aligned Convex, Clerk, guest-token,
+and Canary configuration. It can sync the active shared dev deployment through
+the guarded path. It refuses local production Convex sync without
+`LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`; that flag is not operator authority.
+
+Remote smoke requires an explicit `PLAYWRIGHT_BASE_URL`. Production auth smoke
+fails closed on test Clerk keys and requires the pre-created smoke account.
+Keep `PLAYWRIGHT_REQUIRE_AUTH_E2E` and `PLAYWRIGHT_REQUIRE_AUTH_SMOKE` enabled
+unless the lane explicitly requests guest-only evidence and records the gap.
+
+## Evidence and agentic QA
+
+`pnpm evidence:guest-flow` packages screenshots, video, GIF, server log,
+summary, and manifest. Runtime or artifact errors fail unless a typed,
+expiring allowlist names the exact known issue and reason. A waiver is visible
+evidence of a gap, not proof the behavior passed.
+
+For static rendering that does not need a room flow, use
+`pnpm evidence:static-server`; it owns the narrow unsynced-Convex and Canary
+isolation needed by that capture. Do not generalize its escape hatch to game
+tests.
+
+Agentic QA is advisory and never replaces deterministic checks:
 
 ```bash
 pnpm qa:agentic:local --mission guest-host-signed-in-join
-pnpm qa:agentic:local --mission signed-in-host-guest-join
 pnpm qa:agentic:preview --mission guest-host-signed-in-join --base-url https://<preview-url>
 ```
 
-- Local runs target `PLAYWRIGHT_BASE_URL` or `http://localhost:3333`; start the app outside the harness before running the command.
-- Preview runs require an explicit `--base-url`.
-- Stagehand exploration is required for a passing agentic QA run. Set `STAGEHAND_MODEL_API_KEY` or a provider key such as `OPENAI_API_KEY`; override the default `openai/gpt-4.1-mini` model with `STAGEHAND_MODEL` when needed.
-- Authenticated missions reuse the Clerk browser auth posture and fail closed when Clerk credentials are missing.
-- Each run writes `manifest.json`, `stagehand.json`, screenshots, `critic.json`, `critic-summary.md`, and a Promptfoo receipt when model grading is enabled.
-- Deterministic manifest checks decide pass/fail first. Set `LINEJAM_PROMPTFOO_CRITIC=1` to run the optional `qa/agentic/promptfoo.yaml` advisory model critic; a Promptfoo failure is recorded in the manifest but does not replace deterministic critic findings.
-- Agentic QA after smoke is intentionally manual/opt-in for preview and production. Set `LINEJAM_AGENTIC_QA_AFTER_SMOKE=1`, `STAGEHAND_MODEL_API_KEY`, and optionally `LINEJAM_AGENTIC_QA_MISSION=<mission>` to attach an agentic artifact path after deterministic smoke succeeds; deterministic smoke remains the blocking signal.
+Retain the `.qa/runs/<run-id>/` manifest and critic artifacts when that lane is
+part of acceptance.
 
-## Coverage
+## Debugging and evidence quality
 
-### Thresholds
-
-| Metric     | Threshold | Current       | Rationale                        |
-| ---------- | --------- | ------------- | -------------------------------- |
-| Lines      | 85%       | See latest CI | Standard coverage target         |
-| Branches   | 85%       | See latest CI | Ensures conditional logic tested |
-| Functions  | 85%       | See latest CI | Standard coverage target         |
-| Statements | 85%       | See latest CI | Standard coverage target         |
-
-### Viewing Coverage
-
-```bash
-pnpm test:ci              # Generates coverage/
-open coverage/index.html  # Interactive report
-```
-
-## Adding New Tests
-
-### Unit Test Checklist
-
-1. Create file: `tests/[module].test.ts`
-2. Add mocks at top of file
-3. Use `describe` blocks for grouping
-4. Follow AAA pattern
-5. Use complete sentence test names
-6. Run with coverage: `pnpm test:ci`
-
-### E2E Test Checklist
-
-1. Create file: `tests/e2e/[feature].spec.ts`
-2. Use `test.describe` for grouping
-3. Set `mode: 'serial'` if tests share state
-4. Add `test.skip` for environment-dependent tests
-5. Ensure `NEXT_PUBLIC_CONVEX_URL` points at the backend you want Dagger to exercise. Local Dagger will sync the matching Convex dev deployment automatically unless you disable it.
-6. Run locally: `pnpm test:e2e`
-7. Run with UI: `pnpm test:e2e:ui`
-
-## Troubleshooting
-
-### "Cannot find module" errors
-
-Ensure imports happen after mocks:
-
-```typescript
-// Mocks first
-vi.mock('convex/react', () => ({ useQuery: vi.fn() }));
-
-// Then imports
-import { MyComponent } from '@/components/MyComponent';
-```
-
-### Slow tests
-
-Check for:
-
-- Missing mock resolutions (use `mockResolvedValue`, not real async)
-- Real network calls (mock fetch/API endpoints)
-- Large DOM renders (isolate component under test)
-
-### Flaky E2E tests
-
-- Use explicit waits: `waitForURL`, `waitForSelector`
-- Use serial mode for dependent tests
-- Check for race conditions in real-time sync
-
-### Coverage not updating
-
-Clear cache and regenerate:
-
-```bash
-rm -rf coverage/
-pnpm test:ci
-```
+- Isolate a hanging/failing file first, then narrow to one test. Check leaked
+  timers/processes, unresolved mocks, network calls, and unbounded loops.
+- Use semantic waits (`waitForURL`, visible/ready state), not sleeps.
+- Never silently skip environment-dependent acceptance. Supply the environment
+  or name the unverified surface and residual risk.
+- Record the exact command, exit result, target surface/deployment, and artifact
+  path. Do not infer a pass from an adjacent test or fabricate a receipt.

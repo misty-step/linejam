@@ -1,5 +1,4 @@
-# Gemini CLI Operational Rules
+# Gemini CLI
 
-- The agent **must not** run Convex development server (`npx convex dev`) or any other local server/database commands directly.
-- The agent **must ask the user** to start or stop Convex development server or other local server/database commands.
-- The agent **must ask the user** to execute Convex CLI commands that modify the database or interact with the local development server (e.g., `npx convex run`).
+Read and follow `AGENTS.md`. It is the single canonical repository instruction
+router; this file intentionally adds no Gemini-specific policy.

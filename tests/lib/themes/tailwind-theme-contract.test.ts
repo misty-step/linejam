@@ -7,7 +7,7 @@ const globalError = readFileSync('app/global-error.tsx', 'utf8');
 const lobby = readFileSync('components/Lobby.tsx', 'utf8');
 const poemDisplay = readFileSync('components/PoemDisplay.tsx', 'utf8');
 const readme = readFileSync('README.md', 'utf8');
-const agents = readFileSync('AGENTS.md', 'utf8');
+const kenyaPreset = readFileSync('lib/themes/presets/kenya.ts', 'utf8');
 
 const textTokens = [
   'text-xs',
@@ -88,13 +88,13 @@ describe('Tailwind theme contract', () => {
     expect(poemDisplay).toContain('gap-space-3');
   });
 
-  it('documents the default Kenya font pairing without stale preset drift', () => {
-    for (const source of [readme, agents]) {
-      expect(source).toContain('Libre Baskerville');
-      expect(source).toContain('IBM Plex Sans');
-      expect(source).not.toContain(
-        'Cormorant Garamond for display, Inter for body'
-      );
-    }
+  it('keeps the documented default Kenya font pairing aligned with its preset', () => {
+    expect(kenyaPreset).toContain('var(--font-libre-baskerville)');
+    expect(kenyaPreset).toContain('var(--font-ibm-plex)');
+    expect(readme).toContain('Libre Baskerville');
+    expect(readme).toContain('IBM Plex Sans');
+    expect(readme).not.toContain(
+      'Cormorant Garamond for display, Inter for body'
+    );
   });
 });
