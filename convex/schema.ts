@@ -145,6 +145,20 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index('by_day', ['day']),
 
+  // One aggregate row per UTC hour. This keeps fallback-rate observability
+  // bounded regardless of room or generation volume and stores no content or
+  // player identifiers.
+  aiGenerationMetrics: defineTable({
+    bucketStart: v.number(),
+    totalGenerations: v.number(),
+    fallbackGenerations: v.number(),
+    budgetExhaustion: v.number(),
+    providerError: v.number(),
+    invalidOutput: v.number(),
+    missingConfiguration: v.number(),
+    updatedAt: v.number(),
+  }).index('by_bucket', ['bucketStart']),
+
   aiRoundLocks: defineTable({
     roomId: v.id('rooms'),
     gameId: v.id('games'),

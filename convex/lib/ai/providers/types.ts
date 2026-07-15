@@ -25,6 +25,7 @@ export interface GenerateLineResult {
   text: string;
   fallbackUsed: boolean;
   attemptsUsed: number;
+  fallbackReason?: 'provider_error' | 'invalid_output';
 }
 
 /**

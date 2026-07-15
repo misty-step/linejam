@@ -227,6 +227,7 @@ describe('LLM Provider', () => {
 
       expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
+      expect(result.fallbackReason).toBe('provider_error');
     });
 
     it('uses fallback when fetch throws network error', async () => {
@@ -246,6 +247,7 @@ describe('LLM Provider', () => {
 
       expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
+      expect(result.fallbackReason).toBe('provider_error');
     });
 
     it('uses fallback after 3 failed word count attempts', async () => {
@@ -276,6 +278,7 @@ describe('LLM Provider', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
+      expect(result.fallbackReason).toBe('invalid_output');
     });
 
     it('handles empty response content', async () => {

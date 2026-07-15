@@ -26,7 +26,7 @@ import {
  * abandonment.test.ts). Because OPENROUTER_API_KEY is absent in the test
  * environment, generateLineForRound / generateGhostLine always take the
  * no-API-key fallback path anyway; the fetch stub is a belt-and-suspenders
- * guard in case a future env change leaks a key into tests.
+ * guard and exercises the provider-error path when the harness supplies a key.
  */
 
 // ─── Seed helpers ─────────────────────────────────────────────────────────────
@@ -157,9 +157,12 @@ beforeEach(() => {
   delete process.env.AI_DAILY_CALL_ALERT_THRESHOLD;
   delete process.env.AI_DAILY_COST_BUDGET_USD;
   delete process.env.AI_ESTIMATED_COST_PER_GENERATION_USD;
+  delete process.env.AI_FALLBACK_ALERT_THRESHOLD_PERCENT;
+  delete process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS;
   delete process.env.LINEJAM_AI_DETERMINISTIC;
-  // Belt-and-suspenders: stub OpenRouter offline. In practice the test env has
-  // no OPENROUTER_API_KEY, so the action code already falls back before fetch.
+  delete process.env.CANARY_API_KEY;
+  delete process.env.CANARY_ENDPOINT;
+  // The only mocked seam is the external provider boundary.
   vi.stubGlobal(
     'fetch',
     vi.fn(() => Promise.reject(new Error('network disabled in test')))
@@ -605,7 +608,7 @@ describe('commitGhostLine', () => {
 // ─── generateLineForRound (action, fallback path) ────────────────────────────
 
 describe('generateLineForRound (action, fallback path)', () => {
-  it('commits a fallback line via commitAiLine when no API key is set', async () => {
+  it('commits and classifies a fallback for the loaded provider capability', async () => {
     process.env.AI_DAILY_CALL_BUDGET = '10';
     const t = setupConvexTest();
     const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
@@ -643,6 +646,11 @@ describe('generateLineForRound (action, fallback path)', () => {
       gameId,
       round: 2,
     });
+    await t.action(internal.ai.generateLineForRound, {
+      roomId,
+      gameId,
+      round: 2,
+    });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     const line = await t.run((ctx) =>
@@ -668,6 +676,21 @@ describe('generateLineForRound (action, fallback path)', () => {
     );
     expect(usage?.generationClaims).toBe(1);
     expect(usage?.fallbacks).toBe(1);
+
+    const metric = await t.run((ctx) =>
+      ctx.db.query('aiGenerationMetrics').first()
+    );
+    const providerConfiguredAtModuleLoad = Boolean(
+      ORIGINAL_ENV.OPENROUTER_API_KEY?.trim()
+    );
+    expect(metric).toMatchObject({
+      totalGenerations: 1,
+      fallbackGenerations: 1,
+      budgetExhaustion: 0,
+      providerError: providerConfiguredAtModuleLoad ? 1 : 0,
+      invalidOutput: 0,
+      missingConfiguration: providerConfiguredAtModuleLoad ? 0 : 1,
+    });
   });
 
   it('bails out when the game is no longer in progress', async () => {
@@ -714,6 +737,105 @@ describe('generateLineForRound (action, fallback path)', () => {
 
     const lines = await getAllLines(t, gameId);
     expect(lines).toHaveLength(0);
+  });
+});
+
+describe('AI fallback observability', () => {
+  it('keeps the non-production capability drill bounded', async () => {
+    const t = setupConvexTest();
+
+    await expect(
+      t.mutation(internal.ai.probeAiFallbackMonitor, { samples: 0 })
+    ).rejects.toThrow(/between 1 and 25/);
+    await expect(
+      t.mutation(internal.ai.probeAiFallbackMonitor, { samples: 26 })
+    ).rejects.toThrow(/between 1 and 25/);
+
+    const result = await t.mutation(internal.ai.probeAiFallbackMonitor, {
+      samples: 3,
+    });
+    const metric = await t.run((ctx) =>
+      ctx.db.query('aiGenerationMetrics').first()
+    );
+    expect(metric?.totalGenerations).toBe(3);
+    expect(metric?.fallbackGenerations).toBe(
+      result.aiLineGenerationAvailable ? 0 : 3
+    );
+  });
+
+  it('aggregates every reason and emits one privacy-safe Canary event per fallback', async () => {
+    process.env.CANARY_API_KEY = 'test-canary-key';
+    process.env.CANARY_ENDPOINT = 'https://canary.test';
+    process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS = '1';
+    process.env.AI_FALLBACK_ALERT_THRESHOLD_PERCENT = '80';
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const t = setupConvexTest();
+    const reasons = [
+      'budget_exhaustion',
+      'provider_error',
+      'invalid_output',
+      'missing_configuration',
+    ] as const;
+
+    for (const fallbackReason of reasons) {
+      await t.mutation(internal.ai.recordAiGenerationOutcome, {
+        fallbackReason,
+      });
+    }
+    await t.mutation(internal.ai.recordAiGenerationOutcome, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const metric = await t.run((ctx) =>
+      ctx.db.query('aiGenerationMetrics').first()
+    );
+    expect(metric).toMatchObject({
+      totalGenerations: 5,
+      fallbackGenerations: 4,
+      budgetExhaustion: 1,
+      providerError: 1,
+      invalidOutput: 1,
+      missingConfiguration: 1,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+
+    const payloads = fetchMock.mock.calls.map(([, init]) =>
+      JSON.parse(init.body)
+    );
+    expect(
+      payloads.slice(0, 4).map((payload) => payload.context.fallbackReason)
+    ).toEqual(reasons);
+    expect(
+      payloads.slice(0, 4).every((payload) => payload.status === 'error')
+    ).toBe(true);
+    expect(payloads[4]).toMatchObject({
+      status: 'ok',
+      context: {
+        totalGenerations: 5,
+        fallbackGenerations: 4,
+        fallbackRatePercent: 80,
+      },
+    });
+    expect(
+      payloads.every(
+        (payload) => payload.monitor === 'linejam-ai-fallback-rate'
+      )
+    ).toBe(true);
+    for (const payload of payloads) {
+      expect(Object.keys(payload.context)).not.toEqual(
+        expect.arrayContaining([
+          'poemId',
+          'roomId',
+          'guestId',
+          'text',
+          'userId',
+        ])
+      );
+    }
   });
 });
 
@@ -956,6 +1078,18 @@ describe('generateGhostLine (action, fallback path)', () => {
     expect(usage?.fallbacks).toBe(1);
     expect(turns).toHaveLength(1);
     expect(turns[0].status).toBe('budget_fallback');
+
+    const metric = await t.run((ctx) =>
+      ctx.db.query('aiGenerationMetrics').first()
+    );
+    expect(metric).toMatchObject({
+      totalGenerations: 1,
+      fallbackGenerations: 1,
+      budgetExhaustion: 1,
+      providerError: 0,
+      invalidOutput: 0,
+      missingConfiguration: 0,
+    });
   });
 
   it('does not consume a second claim for a duplicate generation attempt', async () => {

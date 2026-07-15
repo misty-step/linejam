@@ -104,6 +104,7 @@ export async function generateLine(
   const maxAttempts = config.maxRetries ?? DEFAULT_MAX_RETRIES;
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   let attemptsUsed = 0;
+  let providerErrorSeen = false;
   let priorAttempt: {
     text: string;
     wordCount: number;
@@ -177,6 +178,7 @@ export async function generateLine(
       }
     } catch (error) {
       clearTimeout(timeoutId);
+      providerErrorSeen = true;
 
       if (error instanceof Error && error.name === 'AbortError') {
         log.error('OpenRouter API timeout', {
@@ -203,5 +205,6 @@ export async function generateLine(
     text: getFallbackLine(params.targetWordCount),
     fallbackUsed: true,
     attemptsUsed,
+    fallbackReason: providerErrorSeen ? 'provider_error' : 'invalid_output',
   };
 }

@@ -11,6 +11,7 @@ import { internalAction } from './_generated/server';
 import {
   buildBackendCanaryPayload,
   isBackendCanaryEnabled,
+  sendBackendCanaryCheckIn,
   sendBackendCanaryPayload,
 } from './lib/canary';
 
@@ -56,5 +57,40 @@ export const reportBackendErrorToCanary = internalAction({
     await sendBackendCanaryPayload(
       buildBackendCanaryPayload(new Error(errorMessage), context)
     );
+  },
+});
+
+const fallbackReasonValidator = v.union(
+  v.literal('budget_exhaustion'),
+  v.literal('provider_error'),
+  v.literal('invalid_output'),
+  v.literal('missing_configuration')
+);
+
+/** Report one aggregate, privacy-safe fallback-rate monitor update. */
+export const reportAiFallbackRateToCanary = internalAction({
+  args: {
+    status: v.union(v.literal('alive'), v.literal('ok'), v.literal('error')),
+    summary: v.string(),
+    totalGenerations: v.number(),
+    fallbackGenerations: v.number(),
+    fallbackRatePercent: v.number(),
+    fallbackReason: v.optional(fallbackReasonValidator),
+    thresholdPercent: v.number(),
+  },
+  handler: async (_ctx, args) => {
+    if (!isBackendCanaryEnabled()) return;
+
+    await sendBackendCanaryCheckIn({
+      status: args.status,
+      summary: args.summary,
+      context: {
+        totalGenerations: args.totalGenerations,
+        fallbackGenerations: args.fallbackGenerations,
+        fallbackRatePercent: args.fallbackRatePercent,
+        ...(args.fallbackReason ? { fallbackReason: args.fallbackReason } : {}),
+        thresholdPercent: args.thresholdPercent,
+      },
+    });
   },
 });
