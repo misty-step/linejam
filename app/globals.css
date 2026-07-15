@@ -158,6 +158,55 @@ h6 {
    Utilities
    ========================================================================== */
 
+/*
+ * Game surfaces use the stable viewport as their CSS-only baseline and the
+ * dynamic viewport where supported. The VisualViewport observer supplies the
+ * final override for mobile browsers whose software keyboard overlays rather
+ * than resizes the layout viewport.
+ */
+.lj-game-viewport {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: var(--lj-visual-viewport-height, 100dvh);
+}
+
+.lj-game-frame {
+  height: 100vh;
+  height: 100svh;
+  height: var(--lj-visual-viewport-height, 100dvh);
+}
+
+.lj-viewport-offset {
+  top: var(--lj-visual-viewport-offset-top, 0px);
+}
+
+.lj-safe-inline {
+  padding-left: max(
+    var(--lj-safe-inline-space, 1.5rem),
+    env(safe-area-inset-left)
+  );
+  padding-right: max(
+    var(--lj-safe-inline-space, 1.5rem),
+    env(safe-area-inset-right)
+  );
+}
+
+.lj-safe-frame {
+  padding-top: max(var(--lj-safe-frame-space, 1rem), env(safe-area-inset-top));
+  padding-right: max(
+    var(--lj-safe-frame-space, 1rem),
+    env(safe-area-inset-right)
+  );
+  padding-bottom: max(
+    var(--lj-safe-frame-space, 1rem),
+    env(safe-area-inset-bottom)
+  );
+  padding-left: max(
+    var(--lj-safe-frame-space, 1rem),
+    env(safe-area-inset-left)
+  );
+}
+
 /* Paper Sheet Effect */
 .paper {
   background-color: var(--color-surface);

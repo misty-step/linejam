@@ -13,6 +13,7 @@ import {
   useClerkThemeVariables,
 } from '@/lib/clerk/appearance';
 import { ReactNode } from 'react';
+import { useVisualViewport } from '@/hooks/useVisualViewport';
 
 export function Providers({
   children,
@@ -22,6 +23,7 @@ export function Providers({
   deploymentId?: string;
 }) {
   const variables = useClerkThemeVariables();
+  useVisualViewport();
 
   return (
     <ClerkProvider

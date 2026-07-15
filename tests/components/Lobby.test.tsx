@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 // Mock Next.js router (external)
 const mockPush = vi.fn();
@@ -122,6 +123,17 @@ describe('Lobby component', () => {
     // Assert - Both players should be visible
     expect(screen.getByText('Host Player')).toBeInTheDocument();
     expect(screen.getByText('Guest Player')).toBeInTheDocument();
+  });
+
+  it('keeps the primary action in a non-overlapping viewport sibling', () => {
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    const scrollRegion = screen.getByTestId(E2E_TEST_IDS.lobbyScrollRegion);
+    const actionZone = screen.getByTestId(E2E_TEST_IDS.lobbyActionZone);
+
+    expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
+    expect(actionZone).toHaveClass('flex-none', 'max-h-1/2');
+    expect(actionZone).not.toHaveClass('fixed', 'sticky');
   });
 
   it('Start Game button disabled with <2 players', () => {

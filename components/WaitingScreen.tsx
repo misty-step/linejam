@@ -17,6 +17,7 @@ import { BotBadge } from './ui/BotBadge';
 interface WaitingScreenProps {
   roomCode: string;
   guestToken?: string | null;
+  embedded?: boolean;
   isLateJoiner?: boolean;
   progressOverride?: {
     round: number;
@@ -39,6 +40,7 @@ const OVERTIME_TICK_MS = 5_000;
 export function WaitingScreen({
   roomCode,
   guestToken: propToken,
+  embedded = false,
   isLateJoiner = false,
   progressOverride,
 }: WaitingScreenProps) {
@@ -69,7 +71,12 @@ export function WaitingScreen({
   // Loading state (query in flight or skipped)
   if (progress === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+      <div
+        className={cn(
+          'flex items-center justify-center bg-[var(--color-background)]',
+          embedded ? 'min-h-0 flex-1' : 'lj-game-viewport'
+        )}
+      >
         <LoadingState message={LoadingMessages.LOADING_ROOM} />
       </div>
     );
@@ -79,7 +86,12 @@ export function WaitingScreen({
   // the room page swaps to the right phase on the same state update.
   if (progress === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+      <div
+        className={cn(
+          'flex items-center justify-center bg-[var(--color-background)]',
+          embedded ? 'min-h-0 flex-1' : 'lj-game-viewport'
+        )}
+      >
         <LoadingState message={LoadingMessages.LOADING_ROOM} />
       </div>
     );
@@ -121,13 +133,13 @@ export function WaitingScreen({
     <div
       data-testid={E2E_TEST_IDS.waitingPhase}
       data-round={round + 1}
-      className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] p-8 md:p-12"
+      className={cn(
+        'lj-safe-frame flex flex-col items-center overflow-x-hidden bg-[var(--color-background)] md:[--lj-safe-frame-space:3rem]',
+        embedded ? 'min-h-0 flex-1 overflow-y-auto' : 'lj-game-viewport'
+      )}
     >
       {/* Floating vertical composition - massive breathing space */}
-      <div
-        className="w-full max-w-2xl flex flex-col items-center"
-        style={{ minHeight: '72vh' }}
-      >
+      <div className="flex w-full max-w-2xl flex-1 flex-col items-center py-4 md:justify-center md:py-8">
         {/* Late-joiner explanation */}
         {isLateJoiner && (
           <div className="flex-none mb-8 text-center">
@@ -141,7 +153,7 @@ export function WaitingScreen({
         )}
 
         {/* Center: Headline */}
-        <div className="flex-none mb-24 md:mb-28 text-center space-y-6">
+        <div className="mb-12 flex-none space-y-6 text-center md:mb-20">
           <h2 className="text-4xl md:text-6xl font-[var(--font-display)] leading-tight">
             {allSubmitted
               ? 'Ready'

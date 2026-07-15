@@ -127,6 +127,27 @@ describe('WaitingScreen component', () => {
     expect(screen.getByText(/Round 3/)).toBeInTheDocument();
   });
 
+  it('fills and scrolls its parent frame when embedded after submission', () => {
+    mockUseQuery.mockReturnValue({
+      round: 0,
+      players: [
+        {
+          userId: 'user_1',
+          stableId: 'stable_1',
+          displayName: 'Alice',
+          submitted: true,
+          isBot: false,
+        },
+      ],
+    });
+
+    render(<WaitingScreen roomCode="ABCD" embedded />);
+
+    const phase = screen.getByTestId('waiting-phase');
+    expect(phase).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+    expect(phase).not.toHaveClass('lj-game-viewport');
+  });
+
   it('shows "It\'s around the table now." when not all players submitted', () => {
     mockUseQuery.mockReturnValue({
       round: 0,

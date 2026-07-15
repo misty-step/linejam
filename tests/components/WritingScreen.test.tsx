@@ -52,6 +52,7 @@ const originalFetch = global.fetch;
 // Import after mocking
 import { WritingScreen } from '@/components/WritingScreen';
 import { Id } from '@/convex/_generated/dataModel';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 describe('WritingScreen component', () => {
   const setupUser = () => userEvent.setup();
@@ -123,6 +124,20 @@ describe('WritingScreen component', () => {
 
     const wordSlots = document.getElementById('word-slots');
     expect(wordSlots).toBeInTheDocument();
+  });
+
+  it('owns the dynamic game viewport and reserves a non-overlapping action zone', () => {
+    render(<WritingScreen roomCode="ABCD" />);
+
+    const phase = screen.getByTestId(E2E_TEST_IDS.writingPhase);
+    const submit = screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton);
+    const actionZone = submit.parentElement;
+    const scrollRegion = screen.getByTestId(E2E_TEST_IDS.writingScrollRegion);
+
+    expect(phase).toHaveClass('lj-game-frame', 'overflow-hidden');
+    expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
+    expect(actionZone).toHaveClass('flex-none');
+    expect(actionZone).not.toHaveClass('fixed', 'sticky');
   });
 
   it('shows the first-run writing coachmark inline without opening help', () => {

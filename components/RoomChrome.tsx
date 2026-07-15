@@ -110,7 +110,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
     <>
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-      <div className="sticky top-0 z-40 px-4 pt-3 md:px-6">
+      <div className="lj-safe-inline sticky top-0 z-40 flex-none pt-[max(0.75rem,env(safe-area-inset-top))] md:[--lj-safe-inline-space:1.5rem]">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
           {shareError && (
             <Alert

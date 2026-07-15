@@ -142,7 +142,7 @@ export function RevealPhase({
 
   if (!state)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="lj-game-viewport flex items-center justify-center bg-background">
         <LoadingState message={LoadingMessages.UNSEALING_POEMS} />
       </div>
     );
@@ -194,7 +194,7 @@ export function RevealPhase({
 
   // Single-column editorial layout
   return (
-    <>
+    <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col overflow-hidden bg-background">
       {chrome}
       {isPresenting && (
         <RevealStage
@@ -210,23 +210,9 @@ export function RevealPhase({
       )}
       <div
         data-testid={E2E_TEST_IDS.revealPhase}
-        className="min-h-screen bg-background flex flex-col"
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-background"
       >
-        <main className="flex-1 max-w-3xl mx-auto w-full space-y-12 p-6 md:p-12 lg:px-24 lg:pb-24 lg:pt-16">
-          {state.isHost && (
-            <Button
-              type="button"
-              onClick={() => setIsPresenting(true)}
-              data-testid={E2E_TEST_IDS.revealPresentationButton}
-              variant="outline"
-              size="md"
-              className="w-full"
-            >
-              <Presentation className="mr-2 h-4 w-4" />
-              Present reveal
-            </Button>
-          )}
-
+        <main className="lj-safe-inline mx-auto w-full max-w-3xl flex-1 space-y-12 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:[--lj-safe-inline-space:3rem] md:py-12 lg:[--lj-safe-inline-space:6rem] lg:pb-24 lg:pt-16">
           {/* 2. HERO - Your Assignment (primary action) */}
           {myPoems && myPoems.length > 0 && (
             <section className="space-y-6">
@@ -294,6 +280,20 @@ export function RevealPhase({
                   </Button>
                 ))}
             </section>
+          )}
+
+          {state.isHost && (
+            <Button
+              type="button"
+              onClick={() => setIsPresenting(true)}
+              data-testid={E2E_TEST_IDS.revealPresentationButton}
+              variant="outline"
+              size="md"
+              className="w-full"
+            >
+              <Presentation className="mr-2 h-4 w-4" />
+              Present reveal
+            </Button>
           )}
 
           {/* 2b. THE READING CIRCLE - the running order, one row per reader,
@@ -398,6 +398,6 @@ export function RevealPhase({
           )}
         </main>
       </div>
-    </>
+    </div>
   );
 }

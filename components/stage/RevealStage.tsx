@@ -134,8 +134,8 @@ export function RevealStage({
       subtitle="The reader controls the poem one line at a time."
       onExit={onExit}
     >
-      <div className="grid min-h-[calc(100vh-14rem)] gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.42fr)] xl:items-stretch">
-        <section className="flex min-h-[42rem] flex-col justify-between border border-border bg-surface p-8 shadow-[var(--shadow-lg)] md:p-12">
+      <div className="grid min-h-full gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.42fr)] xl:items-stretch">
+        <section className="flex min-h-0 flex-col justify-between border border-border bg-surface p-6 shadow-[var(--shadow-lg)] md:p-12">
           {headlinePoem ? (
             <div className="space-y-8">
               <div className="flex items-center gap-5">
@@ -212,7 +212,7 @@ export function RevealStage({
                 onClick={handleAdvance}
                 data-testid={E2E_TEST_IDS.revealStageNextLineButton}
                 size="lg"
-                className="h-16 min-w-[16rem] text-xl"
+                className="min-h-16 w-full text-xl sm:w-auto sm:min-w-64"
               >
                 {canAdvance ? 'Next line' : 'Finish poem'}
               </Button>
@@ -221,7 +221,7 @@ export function RevealStage({
                 type="button"
                 onClick={handleReadOnStage}
                 size="lg"
-                className="h-16 min-w-[16rem] text-xl"
+                className="min-h-16 w-full text-xl sm:w-auto sm:min-w-64"
                 disabled={
                   !!readableAssignedPoem &&
                   isRevealingId === readableAssignedPoem._id

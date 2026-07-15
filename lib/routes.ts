@@ -8,3 +8,10 @@
 export function isGameRoute(pathname: string | null | undefined): boolean {
   return Boolean(pathname?.startsWith('/room/'));
 }
+
+/** Entry and live-play routes suppress marketing chrome and own the viewport. */
+export function isFocusedPlayRoute(
+  pathname: string | null | undefined
+): boolean {
+  return pathname === '/host' || isGameRoute(pathname);
+}
