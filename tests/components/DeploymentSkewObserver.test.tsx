@@ -36,6 +36,10 @@ describe('DeploymentSkewObserver', () => {
     expect(
       await screen.findByRole('status', { name: /linejam was updated/i })
     ).toHaveTextContent(/your draft is safe/i);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/deployment',
+      expect.objectContaining({ cache: 'no-store' })
+    );
     expect(
       screen.getByRole('button', { name: /reload linejam/i })
     ).toBeInTheDocument();

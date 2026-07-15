@@ -1,7 +1,9 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import type { ConvexEnvHealthReport } from '@/convex/lib/env';
+import { resolveDeploymentId } from '@/lib/deploymentId';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
+import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
 import {
   captureCanaryException,
   isCanaryEnabled,
@@ -87,10 +89,10 @@ export async function GET() {
 }
 
 function deploymentReadiness() {
-  const id = process.env.NEXT_DEPLOYMENT_ID?.trim() || null;
+  const id = resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID) ?? null;
   const skewProtection = id !== null;
-  const stableServerActions = Boolean(
-    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?.trim()
+  const stableServerActions = isValidServerActionEncryptionKey(
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
   );
   const required = process.env.LINEJAM_DEPLOY_ENVIRONMENT === 'production';
 

@@ -5,6 +5,8 @@
  * Prevents deploying with missing configuration.
  */
 
+import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
+
 // Required for Next.js runtime (signing guest tokens)
 const REQUIRED_SERVER_ENV = ['GUEST_TOKEN_SECRET'] as const;
 
@@ -108,15 +110,5 @@ export function validateEnv(): void {
     throw new Error(
       `${sections.join('\n\n')}\n\nSee .env.example for documentation.`
     );
-  }
-}
-
-function isValidServerActionEncryptionKey(value: string) {
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return false;
-
-  try {
-    return Buffer.from(value, 'base64').byteLength === 32;
-  } catch {
-    return false;
   }
 }

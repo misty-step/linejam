@@ -167,6 +167,24 @@ describe('/api/health', () => {
       expect(response.headers.get('Cache-Control')).toBe('no-store');
     });
 
+    it('fails production readiness for malformed Server Action key material', async () => {
+      const previousEnvironment = process.env.LINEJAM_DEPLOY_ENVIRONMENT;
+      const previousKey = process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY;
+      try {
+        process.env.LINEJAM_DEPLOY_ENVIRONMENT = 'production';
+        process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'malformed-key';
+
+        const response = await GET();
+        const data = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(data.deployment.stableServerActions).toBe(false);
+      } finally {
+        process.env.LINEJAM_DEPLOY_ENVIRONMENT = previousEnvironment;
+        process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = previousKey;
+      }
+    });
+
     it('returns connected when Convex ping succeeds', async () => {
       mockQuery.mockResolvedValue(HEALTHY_REPORT);
 

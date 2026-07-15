@@ -29,7 +29,7 @@ export function DeploymentSkewObserver({
       if (!deploymentId || disposed) return;
 
       try {
-        const response = await fetch('/api/health', {
+        const response = await fetch('/api/deployment', {
           cache: 'no-store',
           headers: { Accept: 'application/json' },
         });
