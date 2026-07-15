@@ -672,6 +672,61 @@ describe('summonGhostwriter', () => {
     ).toBeNull();
   });
 
+  it('does not debit summon quotas for an already-claimed cell', async () => {
+    const t = setupConvexTest();
+    const { code, roomId, gameId, poemIds, userIds } = await seedInProgressGame(
+      t,
+      {
+        players: [
+          { name: 'Host', clerkUserId: 'clerk_ghostclaimedhost' },
+          { name: 'Guest' },
+        ],
+        code: 'GWCL',
+        currentRound: 0,
+        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+      }
+    );
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('lines', {
+        poemId: poemIds[1],
+        indexInPoem: 0,
+        text: 'done',
+        wordCount: 1,
+        authorUserId: userIds[1],
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert('aiTurns', {
+        roomId,
+        gameId,
+        poemId: poemIds[0],
+        round: 0,
+        aiUserId: userIds[0],
+        day: new Date().toISOString().slice(0, 10),
+        status: 'authorized',
+        claimedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await asUser(t, 'ghostclaimedhost').mutation(
+      api.game.summonGhostwriter,
+      { roomCode: code }
+    );
+
+    expect(result).toEqual({ summoned: 0 });
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('rateLimits')
+          .withIndex('by_key', (q) =>
+            q.eq('key', `mutation:summonGhostwriter:room:${roomId}`)
+          )
+          .first()
+      )
+    ).toBeNull();
+  });
+
   it('is a no-op when every poem already has its line', async () => {
     const t = setupConvexTest();
     const { code, poemIds, userIds, gameId } = await seedInProgressGame(t, {
