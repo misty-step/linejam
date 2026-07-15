@@ -278,12 +278,18 @@ describe('bootstrap-convex-env', () => {
       },
       {
         bin: 'node',
-        args: ['scripts/convex/probe-signed-throttle-ready.mjs'],
+        args: [
+          'scripts/convex/probe-signed-throttle-ready.mjs',
+          '--assert-prod-target',
+        ],
       },
     ]);
     expect(calls.at(-1)).toEqual({
       bin: 'node',
-      args: ['scripts/convex/probe-signed-throttle-ready.mjs'],
+      args: [
+        'scripts/convex/probe-signed-throttle-ready.mjs',
+        '--assert-prod-target',
+      ],
     });
   });
 
@@ -313,7 +319,10 @@ describe('bootstrap-convex-env', () => {
 
     expect(runner).not.toHaveBeenCalledWith(
       'node',
-      ['scripts/convex/probe-signed-throttle-ready.mjs'],
+      [
+        'scripts/convex/probe-signed-throttle-ready.mjs',
+        '--assert-prod-target',
+      ],
       expect.anything()
     );
   });
@@ -555,7 +564,7 @@ exit 0
         'exec convex env --prod set LINEJAM_DEPLOY_ENVIRONMENT production',
         'exec convex deploy --cmd pnpm run build:check',
         'node scripts/ci/reconcile-convex-env.mjs',
-        'node scripts/convex/probe-signed-throttle-ready.mjs',
+        'node scripts/convex/probe-signed-throttle-ready.mjs --assert-prod-target',
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

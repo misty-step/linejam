@@ -81,7 +81,9 @@ function extractErrorMessage(error) {
 async function main() {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
   const secret = process.env.GUEST_TOKEN_SECRET?.trim();
-  assertSelectedDeploymentMatches(convexUrl, process.env);
+  if (process.argv.includes('--assert-prod-target')) {
+    assertSelectedDeploymentMatches(convexUrl, process.env);
+  }
   const client = convexUrl ? new ConvexHttpClient(convexUrl) : null;
   const ready = await probeSignedThrottleReady(
     convexUrl,

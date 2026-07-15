@@ -375,7 +375,7 @@ function runPostDeployVerification({ env, target, runner }) {
 
   const parity = runner(
     'node',
-    ['scripts/convex/probe-signed-throttle-ready.mjs'],
+    ['scripts/convex/probe-signed-throttle-ready.mjs', '--assert-prod-target'],
     { stdio: 'inherit', env }
   );
   if (parity.status !== 0) {
