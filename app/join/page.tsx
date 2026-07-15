@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -23,6 +23,7 @@ function JoinForm() {
   const searchParams = useSearchParams();
   const { guestToken, isLoading, authError, retryAuth } = useUser();
   const joinRoomMutation = useMutation(api.rooms.joinRoom);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [code, setCode] = useState(
     () => searchParams.get('code')?.toUpperCase() || ''
@@ -33,17 +34,18 @@ function JoinForm() {
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code || !name) return;
+
+    const normalizedCode = code.replace(/\s/g, '');
+    const normalizedName = name.trim();
+    if (!normalizedCode || !normalizedName) return;
 
     setIsSubmitting(true);
     setError('');
 
-    const normalizedCode = code.replace(/\s/g, '');
-
     try {
       await joinRoomMutation({
         code: normalizedCode,
-        displayName: name,
+        displayName: normalizedName,
         guestToken: guestToken || undefined,
       });
       trackGameJoined({ roomCode: normalizedCode });
@@ -72,20 +74,20 @@ function JoinForm() {
 
   return (
     <div className="max-w-xl w-full ml-auto">
-      <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted mb-3 text-right">
+      <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted mb-2 sm:mb-3 text-right">
         Join game
       </p>
-      <h1 className="text-4xl md:text-6xl font-[var(--font-display)] leading-tight mb-8 text-right">
+      <h1 className="text-3xl sm:text-4xl md:text-6xl font-[var(--font-display)] leading-tight mb-5 sm:mb-8 text-right break-words">
         Join Session
       </h1>
 
-      <div className="p-8 border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
-        <p className="mb-8 text-base leading-relaxed text-[var(--color-text-secondary)]">
+      <div className="p-5 sm:p-8 border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
+        <p className="mb-5 sm:mb-8 text-base leading-relaxed text-[var(--color-text-secondary)]">
           You&apos;ll add one hidden line at a time, then everyone reads the
           finished poems together.
         </p>
-        <form onSubmit={handleJoin} className="space-y-8">
-          <div className="space-y-3">
+        <form onSubmit={handleJoin} className="space-y-5 sm:space-y-8">
+          <div className="space-y-2 sm:space-y-3">
             <label
               htmlFor="code"
               className="block text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wide"
@@ -106,11 +108,18 @@ function JoinForm() {
               autoCorrect="off"
               autoComplete="off"
               spellCheck={false}
-              className="uppercase tracking-[0.5em] text-center font-mono text-2xl h-16 bg-[var(--color-muted)] border-2"
+              enterKeyHint="next"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  nameInputRef.current?.focus();
+                }
+              }}
+              className="uppercase tracking-[0.35em] sm:tracking-[0.5em] text-center font-mono text-2xl h-14 sm:h-16 bg-[var(--color-muted)] border-2 scroll-mb-28"
             />
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <label
               htmlFor="name"
               className="block text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wide"
@@ -118,6 +127,7 @@ function JoinForm() {
               Your Name
             </label>
             <Input
+              ref={nameInputRef}
               id="name"
               data-testid={E2E_TEST_IDS.joinNameInput}
               placeholder="Enter your name..."
@@ -127,12 +137,12 @@ function JoinForm() {
               autoFocus={hasCode}
               autoCapitalize="words"
               autoComplete="off"
-              className="text-lg h-14"
+              enterKeyHint="go"
+              className="text-lg h-14 scroll-mb-28"
             />
           </div>
 
-          {/* Thumb-zone on phones; settles inline on tablet/desktop */}
-          <div className="fixed inset-x-0 bottom-0 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)] md:static md:p-0 md:pt-4 md:bg-transparent md:backdrop-blur-none md:border-0 md:shadow-none">
+          <div className="pt-1 sm:pt-4 space-y-4">
             {error && (
               <Alert variant="error" data-testid={E2E_TEST_IDS.joinErrorAlert}>
                 {error}
@@ -142,10 +152,10 @@ function JoinForm() {
             <Button
               type="submit"
               data-testid={E2E_TEST_IDS.joinRoomButton}
-              className="w-full text-lg h-14"
+              className="w-full text-base sm:text-lg h-12 sm:h-14"
               disabled={!name.trim() || !code.trim() || isSubmitting}
             >
-              {isSubmitting ? 'Authenticating...' : 'Enter Room'}
+              {isSubmitting ? 'Joining...' : 'Enter Room'}
             </Button>
           </div>
         </form>
@@ -156,7 +166,7 @@ function JoinForm() {
 
 export default function JoinPage() {
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 pb-32 md:p-12 lg:p-20 flex flex-col">
+    <div className="min-h-screen w-full bg-[var(--color-background)] px-4 py-6 sm:p-6 md:p-12 lg:p-20 flex flex-col">
       <Suspense fallback={<div>Loading...</div>}>
         <JoinForm />
       </Suspense>

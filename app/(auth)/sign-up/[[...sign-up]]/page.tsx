@@ -75,19 +75,6 @@ export default function SignUpPage() {
         signInUrl="/sign-in"
         fallbackRedirectUrl="/callback"
       />
-
-      {/* Footer Link */}
-      <div className="pt-4 border-t border-[var(--color-border-subtle)]">
-        <p className="text-sm text-[var(--color-text-muted)] font-[var(--font-sans)]">
-          Already have an account?{' '}
-          <Link
-            href="/sign-in"
-            className="text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-medium transition-colors"
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
     </div>
   );
 }

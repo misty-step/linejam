@@ -85,6 +85,7 @@ describe('resolveClerkThemeVariables', () => {
     const variables = resolveClerkThemeVariables();
 
     expect(variables.fontFamily).toBe('var(--font-sans)');
+    expect(variables.fontSize).toBe('1rem');
     expect(variables.borderRadius).toBe('var(--radius-md)');
   });
 });
