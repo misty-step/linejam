@@ -34,6 +34,7 @@ interface RevealStageReadablePoem extends RevealStagePoemSummary {
 interface RevealStageAssignedPoem extends RevealStageReadablePoem {
   isForAi?: boolean;
   aiPersonaName?: string;
+  isFallbackReader?: boolean;
 }
 
 interface RevealStageProps {
@@ -173,9 +174,11 @@ export function RevealStage({
               ) : readablePoem ? (
                 <div className="max-w-5xl space-y-5">
                   <p className="text-xs font-mono uppercase tracking-[0.28em] text-text-muted">
-                    {readableAssignedPoem
-                      ? 'Ready on this device'
-                      : 'Ready on stage'}
+                    {readableAssignedPoem?.isFallbackReader
+                      ? `Step in for ${readableAssignedPoem.readerName}`
+                      : readableAssignedPoem
+                        ? 'Ready on this device'
+                        : 'Ready on stage'}
                   </p>
                   <p className="font-[var(--font-display)] text-[clamp(2.25rem,5vw,5.5rem)] italic leading-[1.1] text-text-secondary">
                     &ldquo;{readablePoem.preview}...&rdquo;
@@ -227,9 +230,11 @@ export function RevealStage({
                 {readableAssignedPoem &&
                 isRevealingId === readableAssignedPoem._id
                   ? 'Unsealing...'
-                  : readableAssignedPoem
-                    ? 'Reveal on stage'
-                    : 'Read on stage'}
+                  : readableAssignedPoem?.isFallbackReader
+                    ? 'Step in on stage'
+                    : readableAssignedPoem
+                      ? 'Reveal on stage'
+                      : 'Read on stage'}
               </Button>
             ) : null}
           </div>

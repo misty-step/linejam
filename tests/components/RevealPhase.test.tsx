@@ -484,6 +484,38 @@ describe('RevealPhase component', () => {
     });
   });
 
+  it('makes an absent reader fallback explicit before revealing', async () => {
+    mockRevealPoemMutation.mockResolvedValue(undefined);
+    mockUseQuery.mockReturnValue({
+      ...mockStateNotRevealed,
+      myPoem: {
+        ...mockMyPoem,
+        readerName: 'Reader Away',
+        isFallbackReader: true,
+      },
+      myPoems: [
+        {
+          ...mockMyPoem,
+          readerName: 'Reader Away',
+          isFallbackReader: true,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+
+    render(<RevealPhase roomCode="ABCD" />);
+
+    expect(screen.getByText('Step in for Reader Away')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Step In & Read' }));
+
+    await waitFor(() => {
+      expect(mockRevealPoemMutation).toHaveBeenCalledWith({
+        poemId: 'poem_123',
+        guestToken: 'mock-token',
+      });
+    });
+  });
+
   it('shows Unsealing... during reveal mutation', async () => {
     // Arrange - Make mutation take time
     mockRevealPoemMutation.mockImplementation(

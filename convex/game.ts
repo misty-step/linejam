@@ -30,6 +30,10 @@ import {
   isRevealReady,
 } from './lib/sessionLifecycle';
 import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
+import {
+  buildRevealParticipants,
+  selectRevealAuthority,
+} from './lib/revealAuthorization';
 
 const MAX_LINE_LENGTH = 500; // More than enough for 5 words
 
@@ -469,10 +473,21 @@ export const getRevealPhaseState = query({
     const userRecordById = new Map(
       players.map((p, i) => [p.userId, playerUserRecords[i]])
     );
+    const now = Date.now();
+    const revealParticipants = buildRevealParticipants(
+      players,
+      playerUserRecords
+    );
 
     // Get first line of each poem for preview
     const poemsWithPreview = await Promise.all(
       poems.map(async (poem) => {
+        const revealAuthority = selectRevealAuthority(
+          revealParticipants,
+          poem.assignedReaderId,
+          room.hostUserId,
+          now
+        );
         const firstLine = await ctx.db
           .query('lines')
           .withIndex('by_poem_index', (q) =>
@@ -499,13 +514,22 @@ export const getRevealPhaseState = query({
             '',
           revealedAt: poem.revealedAt,
           isRevealed: !!poem.revealedAt,
+          canReveal:
+            poem.assignedReaderId === user._id ||
+            revealAuthority?.userId === user._id,
+          isFallbackReader:
+            poem.assignedReaderId !== user._id &&
+            revealAuthority?.userId === user._id,
         };
       })
     );
 
-    // Find ALL poems assigned to current user (host may have multiple if AI reassigned)
+    // Full lines stay scoped to poems this device may reveal, plus the current
+    // user's already-revealed assignments for re-reading.
     const myPoemsRaw = poemsWithPreview.filter(
-      (p) => p.assignedReaderId === user._id
+      (poem) =>
+        (!poem.isRevealed && poem.canReveal) ||
+        (poem.isRevealed && poem.assignedReaderId === user._id)
     );
 
     // Find current user's seat
@@ -618,17 +642,47 @@ export const revealPoem = mutation({
     const poem = await ctx.db.get(poemId);
     if (!poem) throw new ConvexError('Poem not found');
 
-    if (poem.assignedReaderId !== user._id) {
-      throw new ConvexError('This poem is not assigned to you');
+    const [room, game, players] = await Promise.all([
+      ctx.db.get(poem.roomId),
+      ctx.db.get(poem.gameId),
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', poem.roomId))
+        .collect(),
+    ]);
+    if (!room) throw new ConvexError('Room not found');
+    if (!isRevealReady(game)) {
+      throw new ConvexError('Poem is not ready to reveal');
     }
 
+    const currentPlayer = players.find((player) => player.userId === user._id);
+    if (!currentPlayer) throw new ConvexError('Not a room participant');
+
     if (poem.revealedAt) {
-      throw new ConvexError('Poem already revealed');
+      return { revealed: false };
+    }
+
+    const playerUsers = await Promise.all(
+      players.map((player) => ctx.db.get(player.userId))
+    );
+    const revealAuthority = selectRevealAuthority(
+      buildRevealParticipants(players, playerUsers),
+      poem.assignedReaderId,
+      room.hostUserId,
+      Date.now()
+    );
+
+    if (
+      poem.assignedReaderId !== user._id &&
+      revealAuthority?.userId !== user._id
+    ) {
+      throw new ConvexError('This poem is not assigned to you');
     }
 
     await ctx.db.patch(poemId, {
       revealedAt: Date.now(),
     });
+    return { revealed: true };
   },
 });
 

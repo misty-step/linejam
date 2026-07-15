@@ -18,6 +18,7 @@ import { type T, asUser, seedClerkUser, seedUser } from '../helpers/convexSeed';
 import {
   WORD_COUNTS,
   GHOSTWRITER_OVERTIME_MS,
+  PRESENCE_AWAY_MS,
 } from '../../convex/lib/gameRules';
 import { signGuestToken } from '../../lib/guestToken';
 import {
@@ -132,6 +133,86 @@ async function seedCompletedRoom(
       createdAt: 0,
     });
     return { roomId, gameId, hostId, guestId, code };
+  });
+}
+
+async function seedRevealFallbackRoom(
+  t: T,
+  suffix: string,
+  lastSeenAt: {
+    host: number;
+    reader: number;
+    fallback: number;
+  }
+): Promise<{
+  code: string;
+  poemId: Id<'poems'>;
+  hostId: Id<'users'>;
+  readerId: Id<'users'>;
+  fallbackId: Id<'users'>;
+}> {
+  const code = suffix
+    .toUpperCase()
+    .replace(/[^A-Z]/g, 'X')
+    .slice(0, 4);
+
+  return t.run(async (ctx) => {
+    const [hostId, readerId, fallbackId] = await Promise.all(
+      ['host', 'reader', 'fallback'].map((role) =>
+        ctx.db.insert('users', {
+          displayName: `${role}${suffix}`,
+          kind: 'human',
+          clerkUserId: `clerk_${role}${suffix}`,
+          createdAt: 0,
+        })
+      )
+    );
+    const roomId = await ctx.db.insert('rooms', {
+      code,
+      hostUserId: hostId,
+      status: 'COMPLETED',
+      createdAt: 0,
+    });
+
+    await Promise.all(
+      [
+        { userId: hostId, role: 'host' as const, seatIndex: 0 },
+        { userId: readerId, role: 'reader' as const, seatIndex: 1 },
+        { userId: fallbackId, role: 'fallback' as const, seatIndex: 2 },
+      ].map(({ userId, role, seatIndex }) =>
+        ctx.db.insert('roomPlayers', {
+          roomId,
+          userId,
+          displayName: `${role}${suffix}`,
+          seatIndex,
+          joinedAt: 0,
+          lastSeenAt: lastSeenAt[role],
+        })
+      )
+    );
+
+    const gameId = await ctx.db.insert('games', {
+      roomId,
+      status: 'COMPLETED',
+      cycle: 1,
+      currentRound: WORD_COUNTS.length - 1,
+      assignmentMatrix: Array.from({ length: WORD_COUNTS.length }, () => [
+        hostId,
+        readerId,
+        fallbackId,
+      ]),
+      createdAt: 0,
+      completedAt: 1,
+    });
+    const poemId = await ctx.db.insert('poems', {
+      roomId,
+      gameId,
+      indexInRoom: 0,
+      createdAt: 0,
+      assignedReaderId: readerId,
+    });
+
+    return { code, poemId, hostId, readerId, fallbackId };
   });
 }
 
@@ -1467,6 +1548,62 @@ describe('getRevealPhaseState', () => {
     expect(result!.myPoem!.lines).toBeDefined();
   });
 
+  it('exposes a stale-reader poem only to the deterministic fallback device', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+    const stale = now - PRESENCE_AWAY_MS - 1;
+    const { code, poemId, readerId } = await seedRevealFallbackRoom(t, 'RV08', {
+      host: now,
+      reader: stale,
+      fallback: now,
+    });
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId,
+        indexInPoem: 0,
+        text: 'opening',
+        wordCount: 1,
+        authorUserId: readerId,
+        createdAt: 0,
+      })
+    );
+
+    const [hostState, fallbackState] = await Promise.all([
+      asUser(t, 'hostRV08').query(api.game.getRevealPhaseState, {
+        roomCode: code,
+      }),
+      asUser(t, 'fallbackRV08').query(api.game.getRevealPhaseState, {
+        roomCode: code,
+      }),
+    ]);
+
+    expect(hostState?.myPoem).toMatchObject({
+      _id: poemId,
+      canReveal: true,
+      isFallbackReader: true,
+      readerName: 'readerRV08',
+    });
+    expect(hostState?.myPoem?.lines.map((line) => line.text)).toEqual([
+      'opening',
+    ]);
+    expect(fallbackState?.myPoem).toBeNull();
+    expect(fallbackState?.poems[0]).toMatchObject({
+      _id: poemId,
+      canReveal: false,
+      isFallbackReader: false,
+    });
+
+    await asUser(t, 'hostRV08').mutation(api.game.revealPoem, { poemId });
+    const hostStateAfterReveal = await asUser(t, 'hostRV08').query(
+      api.game.getRevealPhaseState,
+      { roomCode: code }
+    );
+    expect(hostStateAfterReveal?.myPoem).toBeNull();
+    expect(hostStateAfterReveal?.revealedPoems).toEqual([
+      expect.objectContaining({ _id: poemId, isRevealed: true }),
+    ]);
+  });
+
   it('returns full lines for revealed poems without leaking unrevealed poems', async () => {
     const t = setupConvexTest();
     const { code, hostId, guestId, gameId, roomId } = await seedCompletedRoom(
@@ -1556,6 +1693,33 @@ describe('getRevealPhaseState', () => {
 // ─── revealPoem ───────────────────────────────────────────────────────────────
 
 describe('revealPoem', () => {
+  it('rejects fallback reveal attempts before the game is complete', async () => {
+    const t = setupConvexTest();
+    const { poemIds, roomId, userIds } = await seedInProgressGame(t, {
+      code: 'RP00',
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_hostRP00' },
+        { name: 'Guest', clerkUserId: 'clerk_guestRP00' },
+      ],
+    });
+    await t.run(async (ctx) => {
+      const hostPlayer = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', userIds[0])
+        )
+        .unique();
+      if (!hostPlayer) throw new Error('Seeded host player missing');
+      await ctx.db.patch(hostPlayer._id, { lastSeenAt: Date.now() });
+    });
+
+    await expect(
+      asUser(t, 'hostRP00').mutation(api.game.revealPoem, {
+        poemId: poemIds[0],
+      })
+    ).rejects.toThrow('Poem is not ready to reveal');
+  });
+
   it('reveals poem successfully — sets revealedAt timestamp', async () => {
     const t = setupConvexTest();
     const { hostId, gameId, roomId } = await seedCompletedRoom(t, 'RP01');
@@ -1641,7 +1805,7 @@ describe('revealPoem', () => {
     ).rejects.toThrow('This poem is not assigned to you');
   });
 
-  it('throws if poem already revealed', async () => {
+  it('treats an already revealed poem as an idempotent success', async () => {
     const t = setupConvexTest();
     const { hostId, gameId, roomId } = await seedCompletedRoom(t, 'RP05');
 
@@ -1658,7 +1822,64 @@ describe('revealPoem', () => {
 
     await expect(
       asUser(t, 'hostRP05').mutation(api.game.revealPoem, { poemId })
-    ).rejects.toThrow('Poem already revealed');
+    ).resolves.toEqual({ revealed: false });
+  });
+
+  it('keeps reveal agency exclusive to a present assigned reader', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+    const { poemId } = await seedRevealFallbackRoom(t, 'RP06', {
+      host: now,
+      reader: now,
+      fallback: now,
+    });
+
+    await expect(
+      asUser(t, 'hostRP06').mutation(api.game.revealPoem, { poemId })
+    ).rejects.toThrow('This poem is not assigned to you');
+  });
+
+  it('lets the present host reveal for a stale reader idempotently', async () => {
+    const t = setupConvexTest();
+    const now = Date.now();
+    const stale = now - PRESENCE_AWAY_MS - 1;
+    const { poemId } = await seedRevealFallbackRoom(t, 'RP07', {
+      host: now,
+      reader: stale,
+      fallback: now,
+    });
+
+    await expect(
+      asUser(t, 'hostRP07').mutation(api.game.revealPoem, { poemId })
+    ).resolves.toEqual({ revealed: true });
+    await expect(
+      asUser(t, 'hostRP07').mutation(api.game.revealPoem, { poemId })
+    ).resolves.toEqual({ revealed: false });
+
+    const poem = await t.run((ctx) => ctx.db.get(poemId));
+    expect(poem?.revealedAt).toBeDefined();
+  });
+
+  it('becomes recoverable when one participant returns to an empty reveal', async () => {
+    const t = setupConvexTest();
+    const stale = Date.now() - PRESENCE_AWAY_MS - 1;
+    const { code, poemId } = await seedRevealFallbackRoom(t, 'RP08', {
+      host: stale,
+      reader: stale,
+      fallback: stale,
+    });
+
+    await expect(
+      asUser(t, 'fallbackRP08').mutation(api.game.revealPoem, { poemId })
+    ).rejects.toThrow('This poem is not assigned to you');
+
+    await asUser(t, 'fallbackRP08').mutation(api.presence.heartbeat, {
+      roomCode: code,
+    });
+
+    await expect(
+      asUser(t, 'fallbackRP08').mutation(api.game.revealPoem, { poemId })
+    ).resolves.toEqual({ revealed: true });
   });
 });
 
