@@ -6,7 +6,7 @@ const SCHEMA_FILE = 'convex/schema.ts';
 const MIGRATIONS_FILE = 'convex/migrations.ts';
 const FIELD_DEFINITION = /^[A-Za-z_$][\w$]*:\s*v\./;
 const MIGRATION_EXPORT =
-  /^export const [A-Za-z_$][\w$]*\s*=\s*(internalMutation|mutation|internalAction|action)\s*\(/;
+  /^\+\s*export const ([A-Za-z_$][\w$]*)\s*=\s*(?:(?:\r?\n)\+\s*)?(internalMutation|mutation|internalAction|action)\s*\(/gm;
 
 function changedLines(diff, marker) {
   const header = marker.repeat(3);
@@ -15,6 +15,13 @@ function changedLines(diff, marker) {
     .split('\n')
     .filter((line) => line.startsWith(marker) && !line.startsWith(header))
     .map((line) => line.slice(1).trim());
+}
+
+function addedMigrationExports(diff) {
+  return Array.from(
+    diff.matchAll(MIGRATION_EXPORT),
+    ([, name, kind]) => `export const ${name} = ${kind}(`
+  );
 }
 
 /**
@@ -29,9 +36,7 @@ export function detectSchemaContractionWithMigration({
   const removedFields = changedLines(schemaDiff, '-').filter((line) =>
     FIELD_DEFINITION.test(line)
   );
-  const addedMigrations = changedLines(migrationsDiff, '+').filter((line) =>
-    MIGRATION_EXPORT.test(line)
-  );
+  const addedMigrations = addedMigrationExports(migrationsDiff);
 
   return {
     violation: removedFields.length > 0 && addedMigrations.length > 0,

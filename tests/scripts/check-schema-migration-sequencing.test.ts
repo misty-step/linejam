@@ -34,7 +34,26 @@ describe('detectSchemaContractionWithMigration', () => {
         'selectedMode: v.optional(v.string()),',
       ],
       addedMigrations: [
-        'export const dropLegacyModeColumns = internalMutation({',
+        'export const dropLegacyModeColumns = internalMutation(',
+      ],
+    });
+  });
+
+  it('blocks a migration export that Prettier wraps after the assignment', () => {
+    const wrappedMigrationDiff = `@@ -1,3 +1,8 @@
++export const dropLegacyModeColumnsWithAnIntentionallyLongName =
++  internalMutation({
++    args: {},`;
+
+    expect(
+      detectSchemaContractionWithMigration({
+        schemaDiff: incidentSchemaDiff,
+        migrationsDiff: wrappedMigrationDiff,
+      })
+    ).toMatchObject({
+      violation: true,
+      addedMigrations: [
+        'export const dropLegacyModeColumnsWithAnIntentionallyLongName = internalMutation(',
       ],
     });
   });
