@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.18.5](https://github.com/misty-step/linejam/compare/v0.18.4...v0.18.5) (2026-07-15)
+
+
+### Bug Fixes
+
+* **reveal:** recover from absent readers ([#349](https://github.com/misty-step/linejam/issues/349)) ([e0abb0a](https://github.com/misty-step/linejam/commit/e0abb0af5771ca1b8f2882b7daca258b4b38b679))
+
 ## [0.18.4](https://github.com/misty-step/linejam/compare/v0.18.3...v0.18.4) (2026-07-15)
 
 
