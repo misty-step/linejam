@@ -154,7 +154,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             onClick={handleStartGame}
             data-testid={E2E_TEST_IDS.lobbyStartGameButton}
             size="lg"
-            className={`w-full h-16 text-lg ${className || ''}`}
+            className={`h-[64px] w-full min-w-0 px-[16px] text-[clamp(1rem,5vw,1.125rem)] md:h-16 md:px-8 md:text-lg ${className || ''}`}
             disabled={!canStart}
             variant={canStart ? 'primary' : 'secondary'}
           >
@@ -165,7 +165,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           <Button
             onClick={handleCloseRoom}
             size="md"
-            className="w-full"
+            className="w-full min-w-0 px-[16px] text-[clamp(0.875rem,4.5vw,1rem)] md:px-6 md:text-base"
             variant="ghost"
           >
             Close room
@@ -180,7 +180,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           disabled
           data-testid={E2E_TEST_IDS.lobbyWaitingForHostButton}
           size="lg"
-          className={`w-full h-16 text-lg opacity-50 cursor-not-allowed ${className || ''}`}
+          className={`h-[64px] w-full min-w-0 px-[16px] text-[clamp(1rem,5vw,1.125rem)] opacity-50 cursor-not-allowed md:h-16 md:px-8 md:text-lg ${className || ''}`}
           variant="secondary"
         >
           Waiting for host
@@ -188,7 +188,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         <Button
           onClick={handleLeaveLobby}
           size="md"
-          className="w-full"
+          className="w-full min-w-0 px-[16px] text-[clamp(0.875rem,4.5vw,1rem)] md:px-6 md:text-base"
           variant="ghost"
         >
           Leave room
@@ -218,7 +218,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
                 Share this code
               </p>
-              <p className="font-[var(--font-display)] text-5xl sm:text-6xl md:text-7xl font-medium tracking-[0.08em] text-text-primary">
+              <p className="font-[var(--font-display)] text-[clamp(2rem,16vw,3rem)] sm:text-6xl md:text-7xl font-medium tracking-[0.08em] text-text-primary">
                 {formatRoomCode(room.code)}
               </p>
             </div>
@@ -258,7 +258,11 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               <div className="relative order-first md:order-none">
                 <ul className="space-y-6 pb-8 md:pb-0">
                   {players.map((player, i) => (
-                    <StampAnimation key={player._id} delay={i * 150}>
+                    <StampAnimation
+                      key={player._id}
+                      delay={i * 150}
+                      className="mx-3 sm:mx-0"
+                    >
                       <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <Avatar

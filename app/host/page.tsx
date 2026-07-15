@@ -73,7 +73,7 @@ export default function HostPage() {
           <p className="mb-3 text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
             New game
           </p>
-          <h1 className="mb-8 text-4xl font-[var(--font-display)] leading-tight md:text-6xl">
+          <h1 className="mb-8 break-words text-4xl font-[var(--font-display)] leading-tight md:text-6xl">
             Host Session
           </h1>
 
@@ -114,7 +114,7 @@ export default function HostPage() {
           <Button
             type="submit"
             data-testid={E2E_TEST_IDS.hostCreateRoomButton}
-            className="h-14 w-full text-lg"
+            className="h-[56px] w-full min-w-0 px-[16px] text-[clamp(1rem,5vw,1.125rem)] md:h-14 md:px-6 md:text-lg"
             disabled={!name.trim() || isSubmitting}
           >
             {isSubmitting ? 'One moment...' : 'Create Room'}

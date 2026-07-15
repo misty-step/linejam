@@ -113,7 +113,9 @@ describe('Lobby component', () => {
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     // Room code "ABCD" is formatted as "AB CD" and shown as the in-body hero
-    expect(screen.getByText('AB CD')).toBeInTheDocument();
+    expect(screen.getByText('AB CD')).toHaveClass(
+      'text-[clamp(2rem,16vw,3rem)]'
+    );
   });
 
   it('renders player list from room state', () => {
@@ -123,6 +125,9 @@ describe('Lobby component', () => {
     // Assert - Both players should be visible
     expect(screen.getByText('Host Player')).toBeInTheDocument();
     expect(screen.getByText('Guest Player')).toBeInTheDocument();
+    expect(
+      screen.getByText('Host Player').closest('.animate-stamp')
+    ).toHaveClass('mx-3', 'sm:mx-0');
   });
 
   it('keeps the primary action in a non-overlapping viewport sibling', () => {
@@ -130,9 +135,11 @@ describe('Lobby component', () => {
 
     const scrollRegion = screen.getByTestId(E2E_TEST_IDS.lobbyScrollRegion);
     const actionZone = screen.getByTestId(E2E_TEST_IDS.lobbyActionZone);
+    const start = screen.getByTestId(E2E_TEST_IDS.lobbyStartGameButton);
 
     expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
     expect(actionZone).toHaveClass('min-h-0', 'max-h-[50%]', 'flex-[0_1_auto]');
+    expect(start).toHaveClass('min-w-0', 'px-[16px]');
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
   });
