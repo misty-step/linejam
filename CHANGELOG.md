@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.19.2](https://github.com/misty-step/linejam/compare/v0.19.1...v0.19.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* recover stale clients across production deploys ([#353](https://github.com/misty-step/linejam/issues/353)) ([64ee0d5](https://github.com/misty-step/linejam/commit/64ee0d5c0cfb5f4dffa41b3f551e3e1e84da1cd5))
+
 ## [0.19.1](https://github.com/misty-step/linejam/compare/v0.19.0...v0.19.1) (2026-07-15)
 
 
