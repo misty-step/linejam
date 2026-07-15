@@ -853,6 +853,14 @@ describe('WritingScreen component', () => {
 
       expect(screen.getByText('Round 3 of 9')).toBeInTheDocument();
       expect(screen.getByText('1 of 2 ready.')).toBeInTheDocument();
+      const waitingPhase = screen.getByTestId(E2E_TEST_IDS.waitingPhase);
+      expect(waitingPhase).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+      expect(waitingPhase).not.toHaveClass('lj-game-viewport');
+      expect(waitingPhase.parentElement).toHaveClass(
+        'lj-game-frame',
+        'lj-viewport-offset',
+        'overflow-hidden'
+      );
     });
   });
 });

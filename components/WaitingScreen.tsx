@@ -248,7 +248,7 @@ export function WaitingScreen({
                     </div>
                   )}
                   <span
-                    className={`text-[11px] font-medium leading-tight text-center max-w-[72px] truncate ${player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
+                    className={`text-[0.6875rem] font-medium leading-tight text-center max-w-[72px] truncate ${player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
                   >
                     {player.displayName}
                   </span>

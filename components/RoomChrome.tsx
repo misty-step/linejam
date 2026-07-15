@@ -135,7 +135,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
                       setShowThemes(false);
                       setShowMenu(false);
                     }}
-                    className="shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 px-2.5 py-0.5 text-[11px] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
+                    className="shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 px-2.5 py-0.5 text-[0.6875rem] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
                     aria-label={`Room code ${formatRoomCode(roomCode)} — tap to copy or scan QR`}
                   >
                     Room {formatRoomCode(roomCode)}

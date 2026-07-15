@@ -2,9 +2,11 @@ import { expect, Locator, Page, test } from '@playwright/test';
 
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import {
+  attachGuestFlowRuntimeErrorLogging,
   CANONICAL_GUEST_FLOW_LINES,
   GuestFlowSession,
 } from './support/guestFlow';
+import { GHOSTWRITER_OVERTIME_MS } from '@/convex/lib/gameRules';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -39,6 +41,14 @@ async function expectNoHorizontalScroll(page: Page) {
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+}
+
+async function expectNoHorizontalOverflow(locator: Locator) {
+  const geometry = await locator.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
   }));
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
 }
@@ -193,6 +203,69 @@ async function waitForStableBoundingBox(page: Page, locator: Locator) {
     .toBe(true);
 }
 
+async function expectSplitPaneGeometry(
+  page: Page,
+  scrollRegion: Locator,
+  actionZone: Locator,
+  primaryAction: Locator,
+  content: Locator[] = []
+) {
+  await waitForStableBoundingBox(page, actionZone);
+  await Promise.all([
+    expectInitiallyInsideVisualViewport(page, actionZone),
+    expectInitiallyInsideVisualViewport(page, primaryAction),
+    expectNoHorizontalOverflow(scrollRegion),
+    expectNoHorizontalOverflow(actionZone),
+    expectNoHorizontalScroll(page),
+  ]);
+
+  const [scrollBox, actionBox] = await Promise.all([
+    scrollRegion.boundingBox(),
+    actionZone.boundingBox(),
+  ]);
+  expect(scrollBox).not.toBeNull();
+  expect(actionBox).not.toBeNull();
+  expect(scrollBox!.y + scrollBox!.height).toBeLessThanOrEqual(
+    actionBox!.y + 1
+  );
+  expect(boxesOverlap(scrollBox!, actionBox!)).toBe(false);
+
+  for (const locator of content) {
+    await locator.scrollIntoViewIfNeeded();
+    const [contentBox, currentScrollBox, currentActionBox] = await Promise.all([
+      locator.boundingBox(),
+      scrollRegion.boundingBox(),
+      actionZone.boundingBox(),
+    ]);
+    expect(contentBox).not.toBeNull();
+    expect(currentScrollBox).not.toBeNull();
+    expect(currentActionBox).not.toBeNull();
+    const paintedContentBox = clippedIntersection(
+      contentBox!,
+      currentScrollBox!
+    );
+    expect(paintedContentBox).not.toBeNull();
+    expect(boxesOverlap(paintedContentBox!, currentActionBox!)).toBe(false);
+  }
+}
+
+async function expectOwnsVisualViewport(page: Page, frame: Locator) {
+  const [frameBox, visibleViewport] = await Promise.all([
+    frame.boundingBox(),
+    page.evaluate(() => ({
+      height: Math.round(window.visualViewport?.height ?? window.innerHeight),
+      offsetTop: Math.round(window.visualViewport?.offsetTop ?? 0),
+    })),
+  ]);
+  expect(frameBox).not.toBeNull();
+  expect(frameBox!.y).toBeCloseTo(visibleViewport.offsetTop, 0);
+  expect(frameBox!.height).toBeCloseTo(visibleViewport.height, 0);
+  expect(frameBox!.y + frameBox!.height).toBeCloseTo(
+    visibleViewport.offsetTop + visibleViewport.height,
+    0
+  );
+}
+
 async function expectWritingGeometry(page: Page) {
   const phase = page.getByTestId(E2E_TEST_IDS.writingPhase);
   const scrollRegion = page.getByTestId(E2E_TEST_IDS.writingScrollRegion);
@@ -209,13 +282,10 @@ async function expectWritingGeometry(page: Page) {
   );
   await expectNoHorizontalScroll(page);
 
-  const regionWidth = await scrollRegion.evaluate((region) => ({
-    clientWidth: region.clientWidth,
-    scrollWidth: region.scrollWidth,
-  }));
-  expect(regionWidth.scrollWidth).toBeLessThanOrEqual(
-    regionWidth.clientWidth + 1
-  );
+  await Promise.all([
+    expectNoHorizontalOverflow(scrollRegion),
+    expectNoHorizontalOverflow(actionZone),
+  ]);
 
   const [scrollBox, actionBox] = await Promise.all([
     scrollRegion.boundingBox(),
@@ -255,20 +325,7 @@ async function expectWritingGeometry(page: Page) {
     expect(boxesOverlap(paintedCarriedBox!, currentActionBox!)).toBe(false);
   }
 
-  const [phaseBox, visibleViewport] = await Promise.all([
-    phase.boundingBox(),
-    page.evaluate(() => ({
-      height: Math.round(window.visualViewport?.height ?? window.innerHeight),
-      offsetTop: Math.round(window.visualViewport?.offsetTop ?? 0),
-    })),
-  ]);
-  expect(phaseBox).not.toBeNull();
-  expect(phaseBox!.y).toBeCloseTo(visibleViewport.offsetTop, 0);
-  expect(phaseBox!.height).toBeCloseTo(visibleViewport.height, 0);
-  expect(phaseBox!.y + phaseBox!.height).toBeCloseTo(
-    visibleViewport.offsetTop + visibleViewport.height,
-    0
-  );
+  await expectOwnsVisualViewport(page, phase);
 }
 
 test('the complete mobile game holds primary actions through keyboard, rotation, and text scaling', async ({
@@ -304,8 +361,13 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     await session.hostPage.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });
-    await expectInitiallyInsideVisualViewport(session.hostPage, createRoom);
-    await expectNoHorizontalScroll(session.hostPage);
+    await expectSplitPaneGeometry(
+      session.hostPage,
+      session.hostPage.getByTestId(E2E_TEST_IDS.hostScrollRegion),
+      session.hostPage.getByTestId(E2E_TEST_IDS.hostActionZone),
+      createRoom,
+      [hostName]
+    );
     await session.hostPage.screenshot({
       path: testInfo.outputPath('host-320x667-200-percent.png'),
     });
@@ -321,8 +383,18 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     const start = session.hostPage.getByTestId(
       E2E_TEST_IDS.lobbyStartGameButton
     );
-    await expectInitiallyInsideVisualViewport(session.hostPage, start);
-    await expectNoHorizontalScroll(session.hostPage);
+    const lobbyScrollRegion = session.hostPage.getByTestId(
+      E2E_TEST_IDS.lobbyScrollRegion
+    );
+    const lobbyActionZone = session.hostPage.getByTestId(
+      E2E_TEST_IDS.lobbyActionZone
+    );
+    await expectSplitPaneGeometry(
+      session.hostPage,
+      lobbyScrollRegion,
+      lobbyActionZone,
+      start
+    );
 
     await session.hostPage.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
@@ -338,7 +410,40 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
         expectInitiallyInsideVisualViewport(session.hostPage, locator)
       )
     );
-    await expectNoHorizontalScroll(session.hostPage);
+    await expectSplitPaneGeometry(
+      session.hostPage,
+      lobbyScrollRegion,
+      lobbyActionZone,
+      start,
+      [session.hostPage.getByText('Share this code')]
+    );
+
+    const moreOptions = session.hostPage.getByRole('button', {
+      name: /More options/i,
+    });
+    await moreOptions.click();
+    const menuPopover = session.hostPage.locator('.lj-room-popover').filter({
+      visible: true,
+    });
+    await expectInitiallyInsideVisualViewport(session.hostPage, menuPopover);
+    await expectNoHorizontalOverflow(menuPopover);
+    await session.hostPage.getByRole('button', { name: 'Theme' }).click();
+    const themePopover = session.hostPage.locator('.lj-room-popover').filter({
+      visible: true,
+    });
+    await expectInitiallyInsideVisualViewport(session.hostPage, themePopover);
+    await expectNoHorizontalOverflow(themePopover);
+    await session.hostPage.keyboard.press('Escape');
+
+    await session.hostPage
+      .getByRole('button', { name: /Room code .*scan QR/i })
+      .click();
+    const qrPopover = session.hostPage.locator('.lj-room-popover').filter({
+      visible: true,
+    });
+    await expectInitiallyInsideVisualViewport(session.hostPage, qrPopover);
+    await expectNoHorizontalOverflow(qrPopover);
+    await session.hostPage.keyboard.press('Escape');
     await session.hostPage.screenshot({
       path: testInfo.outputPath('lobby-320x667-200-percent.png'),
     });
@@ -493,7 +598,56 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
         session.hostPage,
         waitingPhase.getByText('Mobile Guest', { exact: true })
       );
+      await expectNoHorizontalOverflow(waitingPhase);
       if (roundIndex === 0) {
+        const directWaitingPage = await session.hostPage.context().newPage();
+        attachGuestFlowRuntimeErrorLogging(
+          directWaitingPage,
+          'direct waiting reload',
+          runtimeErrors
+        );
+        try {
+          await installSyntheticVisualViewport(directWaitingPage);
+          await directWaitingPage.clock.install({
+            time: Date.now() + GHOSTWRITER_OVERTIME_MS + 5_000,
+          });
+          await directWaitingPage.setViewportSize({
+            width: 375,
+            height: 667,
+          });
+          await directWaitingPage.goto(`/room/${session.roomCode}`, {
+            waitUntil: 'domcontentloaded',
+          });
+          await setSyntheticVisualViewport(directWaitingPage, 360, 20);
+          await directWaitingPage.evaluate(() => {
+            document.documentElement.style.fontSize = '200%';
+          });
+
+          const directWaitingPhase = directWaitingPage.getByTestId(
+            E2E_TEST_IDS.waitingPhase
+          );
+          await expect(directWaitingPhase).toBeVisible();
+          await expectOwnsVisualViewport(
+            directWaitingPage,
+            directWaitingPhase.locator('..')
+          );
+          await expectNoHorizontalScroll(directWaitingPage);
+          await expectNoHorizontalOverflow(directWaitingPhase);
+          await expectReachableInsideVisualViewport(
+            directWaitingPage,
+            directWaitingPage.getByRole('button', {
+              name: 'Summon the ghostwriter',
+            })
+          );
+          await directWaitingPage.screenshot({
+            path: testInfo.outputPath(
+              'waiting-reload-overtime-375x667-200-percent.png'
+            ),
+          });
+        } finally {
+          await directWaitingPage.close();
+        }
+
         await session.hostPage.screenshot({
           path: testInfo.outputPath('waiting-200-percent.png'),
         });
@@ -533,6 +687,9 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
         .first();
       await expectInitiallyInsideVisualViewport(page, revealAction);
       await expectNoHorizontalScroll(page);
+      const revealPhase = page.getByTestId(E2E_TEST_IDS.revealPhase);
+      await expectNoHorizontalOverflow(revealPhase);
+      await expectOwnsVisualViewport(page, revealPhase.locator('..'));
       if (pageIndex === 0) {
         await page.screenshot({
           path: testInfo.outputPath('reveal-390x844-200-percent.png'),

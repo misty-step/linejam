@@ -357,7 +357,7 @@ export function RevealPhase({
                           >
                             {poem.readerName}
                           </span>
-                          <span className="block text-[10px] font-mono uppercase tracking-widest text-text-muted">
+                          <span className="block text-[0.625rem] font-mono uppercase tracking-widest text-text-muted">
                             Poem {(i + 1).toString().padStart(2, '0')}
                           </span>
                         </div>
@@ -365,7 +365,7 @@ export function RevealPhase({
                       {status && (
                         <span
                           className={cn(
-                            'inline-flex shrink-0 items-center gap-1 text-[10px] font-mono uppercase tracking-widest',
+                            'inline-flex shrink-0 items-center gap-1 text-[0.625rem] font-mono uppercase tracking-widest',
                             status === 'read' && 'text-text-muted opacity-50',
                             status === 'reading-now' && 'text-primary',
                             status === 'up-next' && 'text-text-secondary'

@@ -290,7 +290,7 @@ function WritingComposer({
                 data-testid={E2E_TEST_IDS.writingCarriedLine}
                 className="mb-4 animate-fade-in-up md:mb-16"
               >
-                <p className="mb-3 text-[10px] font-mono uppercase tracking-widest text-primary">
+                <p className="mb-3 text-[0.625rem] font-mono uppercase tracking-widest text-primary">
                   Received line
                 </p>
                 <p className="text-2xl md:text-4xl lg:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
@@ -413,7 +413,7 @@ export function WritingScreen({
 
   if (assignment === null) {
     return (
-      <>
+      <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col overflow-hidden bg-background">
         {showChrome && (
           <RoomChrome
             roomCode={roomCode}
@@ -425,8 +425,9 @@ export function WritingScreen({
           guestToken={guestToken}
           progressOverride={roundProgress}
           isLateJoiner
+          embedded
         />
-      </>
+      </div>
     );
   }
 
