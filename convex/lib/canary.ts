@@ -9,6 +9,7 @@
 const SERVICE = 'linejam';
 const DEFAULT_CANARY_ENDPOINT = 'https://canary.mistystep.io';
 const REQUEST_TIMEOUT_MS = 2_000;
+const AI_FALLBACK_MONITOR = 'linejam-ai-fallback-rate';
 
 const SAFE_CONTEXT_KEYS = new Set([
   'boundary',
@@ -63,6 +64,18 @@ export interface BackendCanaryPayload {
   severity: 'error' | 'warning' | 'info';
   stackTrace?: string;
   context?: Record<string, unknown>;
+}
+
+export interface BackendCanaryCheckIn {
+  status: 'alive' | 'ok' | 'error';
+  summary: string;
+  context: {
+    totalGenerations: number;
+    fallbackGenerations: number;
+    fallbackRatePercent: number;
+    fallbackReason?: string;
+    thresholdPercent: number;
+  };
 }
 
 export function buildBackendCanaryPayload(
@@ -137,6 +150,45 @@ export async function sendBackendCanaryPayload(
         errorClass: payload.errorClass,
         message: payload.message,
       },
+    });
+  }
+}
+
+/** Send the aggregate AI fallback monitor update without user or poem data. */
+export async function sendBackendCanaryCheckIn(
+  checkIn: BackendCanaryCheckIn
+): Promise<void> {
+  const { apiKey, endpoint } = config();
+  if (!apiKey) return;
+
+  try {
+    const response = await fetch(
+      `${endpoint.replace(/\/$/, '')}/api/v1/check-ins`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          monitor: AI_FALLBACK_MONITOR,
+          status: checkIn.status,
+          summary: checkIn.summary,
+          context: checkIn.context,
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Canary check-in returned ${response.status} ${response.statusText}`.trim()
+      );
+    }
+  } catch (reportingError) {
+    console.error('Canary AI fallback check-in failed:', reportingError, {
+      status: checkIn.status,
+      context: checkIn.context,
     });
   }
 }

@@ -39,6 +39,11 @@ import {
   getSubmissionWindow,
 } from './lib/sessionLifecycle';
 import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
+import {
+  aiGenerationBucket,
+  planAiFallbackCheckIn,
+  type AiFallbackReason,
+} from './lib/ai/fallbackMetrics';
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
@@ -91,6 +96,16 @@ function getAiDailyCallAlertThreshold(): number {
 
   const budget = getAiDailyCallBudget();
   return Math.max(1, Math.ceil(budget * 0.8));
+}
+
+function getAiFallbackAlertThresholdPercent(): number {
+  const parsed = Number(process.env.AI_FALLBACK_ALERT_THRESHOLD_PERCENT);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : 20;
+}
+
+function getAiFallbackAlertMinimumGenerations(): number {
+  const parsed = Number(process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 5;
 }
 
 function usdToMicros(value: string | undefined, fallback: number): number {
@@ -225,6 +240,61 @@ async function recordAiUsage(
   }
 }
 
+async function recordAiGenerationMetric(
+  ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
+  fallbackReason?: AiFallbackReason,
+  count = 1
+): Promise<void> {
+  const now = Date.now();
+  const bucketStart = aiGenerationBucket(now);
+  const existing = await ctx.db
+    .query('aiGenerationMetrics')
+    .withIndex('by_bucket', (q) => q.eq('bucketStart', bucketStart))
+    .first();
+  const next = {
+    bucketStart,
+    totalGenerations: (existing?.totalGenerations ?? 0) + count,
+    fallbackGenerations:
+      (existing?.fallbackGenerations ?? 0) + (fallbackReason ? count : 0),
+    budgetExhaustion:
+      (existing?.budgetExhaustion ?? 0) +
+      (fallbackReason === 'budget_exhaustion' ? count : 0),
+    providerError:
+      (existing?.providerError ?? 0) +
+      (fallbackReason === 'provider_error' ? count : 0),
+    invalidOutput:
+      (existing?.invalidOutput ?? 0) +
+      (fallbackReason === 'invalid_output' ? count : 0),
+    missingConfiguration:
+      (existing?.missingConfiguration ?? 0) +
+      (fallbackReason === 'missing_configuration' ? count : 0),
+    updatedAt: now,
+  };
+
+  if (existing) {
+    await ctx.db.patch(existing._id, next);
+  } else {
+    await ctx.db.insert('aiGenerationMetrics', next);
+  }
+
+  const checkIn = planAiFallbackCheckIn({
+    totalGenerations: next.totalGenerations,
+    fallbackGenerations: next.fallbackGenerations,
+    fallbackReason: fallbackReason ?? null,
+    thresholdPercent: getAiFallbackAlertThresholdPercent(),
+    minimumGenerations: getAiFallbackAlertMinimumGenerations(),
+  });
+  await ctx.scheduler.runAfter(
+    0,
+    internal.errors.reportAiFallbackRateToCanary,
+    {
+      status: checkIn.status,
+      summary: checkIn.summary,
+      ...checkIn.context,
+    }
+  );
+}
+
 /**
  * Atomically own one machine-written cell and charge the shared daily budget.
  * The mutation boundary is the claim: concurrent bot, automatic ghost, and
@@ -292,7 +362,14 @@ async function claimGenerationForCell(
       authorUserId: cell.authorUserId,
       authorDisplayName: cell.authorDisplayName,
     });
-    if (committed) await recordAiUsage(ctx, { day, fallbacks: 1 });
+    if (committed) {
+      await Promise.all([
+        recordAiUsage(ctx, { day, fallbacks: 1 }),
+        ...(isDeterministicAiMode()
+          ? []
+          : [recordAiGenerationMetric(ctx, 'budget_exhaustion')]),
+      ]);
+    }
     if (committed && budgetExhausted && !isDeterministicAiMode()) {
       log.warn('AI daily budget exhausted; committed fallback', {
         roomId: cell.roomId,
@@ -692,7 +769,10 @@ export const ensureAiLine = internalMutation({
         });
 
         if (committed) {
-          await recordAiUsage(ctx, { day: aiUsageDay(), fallbacks: 1 });
+          await Promise.all([
+            recordAiUsage(ctx, { day: aiUsageDay(), fallbacks: 1 }),
+            recordAiGenerationMetric(ctx, 'provider_error'),
+          ]);
           log.warn('AI safety net committed a fallback line', {
             roomId,
             gameId,
@@ -817,6 +897,7 @@ export const generateLineForRound = internalAction({
               ),
               fallbackUsed: true,
               attemptsUsed: 0,
+              fallbackReason: 'missing_configuration' as const,
             };
           }
 
@@ -860,11 +941,25 @@ export const generateLineForRound = internalAction({
           gameId,
         });
 
+        if (committed) {
+          await Promise.all([
+            ctx.runMutation(internal.ai.recordAiGenerationOutcome, {
+              fallbackReason: result.fallbackUsed
+                ? result.fallbackReason
+                : undefined,
+            }),
+            ...(result.fallbackUsed
+              ? [
+                  ctx.runMutation(internal.ai.recordAiFallback, {
+                    day: turn.day,
+                    count: 1,
+                  }),
+                ]
+              : []),
+          ]);
+        }
+
         if (result.fallbackUsed && committed) {
-          await ctx.runMutation(internal.ai.recordAiFallback, {
-            day: turn.day,
-            count: 1,
-          });
           log.warn('AI fallback used', {
             roomId,
             gameId,
@@ -1105,7 +1200,10 @@ export const ensureGhostLine = internalMutation({
     });
     if (!committed) return;
 
-    await recordAiUsage(ctx, { day: turn.day, fallbacks: 1 });
+    await Promise.all([
+      recordAiUsage(ctx, { day: turn.day, fallbacks: 1 }),
+      recordAiGenerationMetric(ctx, 'provider_error'),
+    ]);
     log.warn('Ghostwriter safety net committed a fallback line', {
       roomId,
       gameId,
@@ -1158,6 +1256,7 @@ export const generateGhostLine = internalAction({
             text: getFallbackLine(targetWordCount, fallbackSeed(poemId, round)),
             fallbackUsed: true,
             attemptsUsed: 0,
+            fallbackReason: 'missing_configuration' as const,
           };
         }
 
@@ -1195,11 +1294,22 @@ export const generateGhostLine = internalAction({
         forUserId,
       });
 
-      if (result.fallbackUsed && committed) {
-        await ctx.runMutation(internal.ai.recordAiFallback, {
-          day: claim.day ?? aiUsageDay(),
-          count: 1,
-        });
+      if (committed) {
+        await Promise.all([
+          ctx.runMutation(internal.ai.recordAiGenerationOutcome, {
+            fallbackReason: result.fallbackUsed
+              ? result.fallbackReason
+              : undefined,
+          }),
+          ...(result.fallbackUsed
+            ? [
+                ctx.runMutation(internal.ai.recordAiFallback, {
+                  day: claim.day ?? aiUsageDay(),
+                  count: 1,
+                }),
+              ]
+            : []),
+        ]);
       }
 
       if (committed) {
@@ -1352,6 +1462,48 @@ export const recordAiFallback = internalMutation({
   handler: async (ctx, { day, count }) => {
     if (count <= 0) return;
     await recordAiUsage(ctx, { day, fallbacks: count });
+  },
+});
+
+export const recordAiGenerationOutcome = internalMutation({
+  args: {
+    fallbackReason: v.optional(
+      v.union(
+        v.literal('budget_exhaustion'),
+        v.literal('provider_error'),
+        v.literal('invalid_output'),
+        v.literal('missing_configuration')
+      )
+    ),
+  },
+  handler: async (ctx, { fallbackReason }) => {
+    await recordAiGenerationMetric(ctx, fallbackReason);
+  },
+});
+
+/** Non-production capability drill for the fallback monitor wiring. */
+export const probeAiFallbackMonitor = internalMutation({
+  args: { samples: v.number() },
+  handler: async (ctx, { samples }) => {
+    const config = getConvexRuntimeConfig();
+    if (config.environment === 'production') {
+      throw new ConvexError(
+        'AI fallback monitor drill is disabled in production'
+      );
+    }
+    if (!Number.isInteger(samples) || samples < 1 || samples > 25) {
+      throw new ConvexError('samples must be an integer between 1 and 25');
+    }
+
+    const fallbackReason = config.openRouterApiKey
+      ? undefined
+      : ('missing_configuration' as const);
+    await recordAiGenerationMetric(ctx, fallbackReason, samples);
+    return {
+      samples,
+      aiLineGenerationAvailable: !fallbackReason,
+      fallbackReason,
+    };
   },
 });
 

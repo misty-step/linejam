@@ -124,3 +124,52 @@ Live-verified end to end against the deployed monitor: a first simulated failure
 ```bash
 curl -fsS "$CANARY_ENDPOINT/api/v1/report?window=24h" -H "Authorization: Bearer $CANARY_API_KEY" | jq '.monitors[] | select(.name=="linejam-production-smoke")'
 ```
+
+## AI Fallback-Rate Monitor (linejam-962)
+
+Every committed bot or ghostwriter outcome increments one aggregate
+`aiGenerationMetrics` row for the current UTC hour. Successful generations
+increment the denominator; fallbacks increment both numerator and denominator,
+plus exactly one reason counter:
+
+- `budget_exhaustion`
+- `provider_error`
+- `invalid_output`
+- `missing_configuration`
+
+The aggregate contains no poem text, room/player/guest identifiers, or provider
+response bodies. Storage is bounded to one row per hour rather than one row per
+generation.
+
+Each outcome sends the aggregate to Canary's
+`linejam-ai-fallback-rate` monitor (`MON-zg7jhjavfp51`). The monitor's one-year
+TTL plus one-year grace deliberately makes missing traffic non-actionable; only
+an explicit `error` rate check-in should page. Defaults:
+
+- `AI_FALLBACK_ALERT_THRESHOLD_PERCENT=20`
+- `AI_FALLBACK_ALERT_MIN_GENERATIONS=5`
+
+Below the sample floor the check-in is `alive`; at or below the threshold it is
+`ok`; above the threshold it is `error`, opening or holding a Canary health
+incident. Later healthy generation traffic sends `ok` and resolves that
+incident. Both settings are optional Convex environment variables declared in
+`config/convex-env-manifest.json`.
+
+The release oracle is a non-production deployment with `OPENROUTER_API_KEY`
+temporarily absent: complete enough AI turns to cross the sample floor, verify
+the monitor becomes Down with reason `missing_configuration`, restore the key,
+then complete successful turns until the hourly aggregate is at or below the
+threshold and verify the incident resolves. Never perform this drill against
+production, and retain only the numeric monitor/incident receipt.
+
+The bounded internal probe avoids creating rooms or poem content during that
+drill:
+
+```bash
+pnpm exec convex run ai:probeAiFallbackMonitor '{"samples":5}'
+```
+
+It reads the target deployment's cached capability state, records at most 25
+synthetic numeric samples, and rejects production deployments. After changing
+`OPENROUTER_API_KEY`, wait for the deployment runtime to reload before running
+the recovery probe.

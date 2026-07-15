@@ -274,4 +274,54 @@ describe('Backend Canary reporter (convex/lib/canary)', () => {
       expect(init.signal).toBeInstanceOf(AbortSignal);
     });
   });
+
+  describe('sendBackendCanaryCheckIn', () => {
+    it('sends a privacy-safe fallback-rate monitor update', async () => {
+      process.env.CANARY_API_KEY = 'sk-test';
+      process.env.CANARY_ENDPOINT = 'https://canary.test';
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const mod = await canaryModule();
+      await mod.sendBackendCanaryCheckIn({
+        status: 'error',
+        summary: 'AI fallback rate is 40.0% (2/5) in the current hour.',
+        context: {
+          totalGenerations: 5,
+          fallbackGenerations: 2,
+          fallbackRatePercent: 40,
+          fallbackReason: 'provider_error',
+          thresholdPercent: 20,
+        },
+      });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://canary.test/api/v1/check-ins');
+      expect(JSON.parse(init.body)).toEqual({
+        monitor: 'linejam-ai-fallback-rate',
+        status: 'error',
+        summary: 'AI fallback rate is 40.0% (2/5) in the current hour.',
+        context: {
+          totalGenerations: 5,
+          fallbackGenerations: 2,
+          fallbackRatePercent: 40,
+          fallbackReason: 'provider_error',
+          thresholdPercent: 20,
+        },
+      });
+      expect(Object.keys(JSON.parse(init.body).context)).not.toEqual(
+        expect.arrayContaining([
+          'poemId',
+          'roomId',
+          'guestId',
+          'text',
+          'userId',
+        ])
+      );
+    });
+  });
 });
