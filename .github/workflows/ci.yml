@@ -38,6 +38,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # The schema sequencing guard compares HEAD with the PR merge base.
+          fetch-depth: 0
+
+      - name: Check schema migration sequencing
+        if: github.event_name == 'pull_request'
+        run: >-
+          node scripts/ci/check-schema-migration-sequencing.mjs
+          "origin/${{ github.event.pull_request.base.ref }}"
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
