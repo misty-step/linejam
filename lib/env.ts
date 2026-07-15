@@ -5,6 +5,8 @@
  * Prevents deploying with missing configuration.
  */
 
+import { isValidServerActionEncryptionKey } from './serverActionEncryptionKey';
+
 // Required for Next.js runtime (signing guest tokens)
 const REQUIRED_SERVER_ENV = ['GUEST_TOKEN_SECRET'] as const;
 
@@ -13,6 +15,10 @@ const REQUIRED_PUBLIC_ENV = [
   'NEXT_PUBLIC_CONVEX_URL',
   'NEXT_PUBLIC_CANARY_ENDPOINT',
   'NEXT_PUBLIC_CANARY_API_KEY',
+] as const;
+const REQUIRED_PRODUCTION_SKEW_ENV = [
+  'NEXT_DEPLOYMENT_ID',
+  'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
 ] as const;
 const PLACEHOLDER_CANARY_KEYS = new Set([
   'example_canary_server_key',
@@ -37,6 +43,7 @@ export function getServerGuestTokenSecret(): string {
  */
 export function validateEnv(): void {
   const missing: string[] = [];
+  const invalidPlaceholders: string[] = [];
   const invalid: string[] = [];
   const isDependabot = process.env.GITHUB_ACTOR === 'dependabot[bot]';
 
@@ -52,12 +59,28 @@ export function validateEnv(): void {
     }
   }
 
-  const canaryApiKey = process.env.NEXT_PUBLIC_CANARY_API_KEY?.trim();
-  if (canaryApiKey && PLACEHOLDER_CANARY_KEYS.has(canaryApiKey)) {
-    invalid.push('NEXT_PUBLIC_CANARY_API_KEY');
+  if (process.env.LINEJAM_DEPLOY_ENVIRONMENT === 'production') {
+    for (const key of REQUIRED_PRODUCTION_SKEW_ENV) {
+      if (!process.env[key]?.trim()) missing.push(key);
+    }
+
+    const serverActionKey =
+      process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?.trim();
+    if (serverActionKey && !isValidServerActionEncryptionKey(serverActionKey)) {
+      invalid.push('NEXT_SERVER_ACTIONS_ENCRYPTION_KEY');
+    }
   }
 
-  if (missing.length > 0 || invalid.length > 0) {
+  const canaryApiKey = process.env.NEXT_PUBLIC_CANARY_API_KEY?.trim();
+  if (canaryApiKey && PLACEHOLDER_CANARY_KEYS.has(canaryApiKey)) {
+    invalidPlaceholders.push('NEXT_PUBLIC_CANARY_API_KEY');
+  }
+
+  if (
+    missing.length > 0 ||
+    invalidPlaceholders.length > 0 ||
+    invalid.length > 0
+  ) {
     const sections: string[] = [];
 
     if (missing.length > 0) {
@@ -68,9 +91,17 @@ export function validateEnv(): void {
       );
     }
 
+    if (invalidPlaceholders.length > 0) {
+      sections.push(
+        `Invalid placeholder environment variables:\n${invalidPlaceholders
+          .map((k) => `  - ${k}`)
+          .join('\n')}`
+      );
+    }
+
     if (invalid.length > 0) {
       sections.push(
-        `Invalid placeholder environment variables:\n${invalid
+        `Invalid environment variables:\n${invalid
           .map((k) => `  - ${k}`)
           .join('\n')}`
       );

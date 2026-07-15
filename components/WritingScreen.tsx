@@ -18,6 +18,12 @@ import { WordSlots } from '@/components/ui/WordSlots';
 import { RoundClock } from '@/components/ui/RoundClock';
 import { WaitingScreen } from '@/components/WaitingScreen';
 import { buildInProgressChromeCopy } from '@/lib/roomChromeCopy';
+import {
+  clearWritingDraft,
+  readWritingDraft,
+  saveWritingDraft,
+  writingDraftKey,
+} from '@/lib/writingDraft';
 
 interface WritingScreenProps {
   roomCode: string;
@@ -77,7 +83,13 @@ function WritingComposer({
   roomCode,
 }: WritingComposerProps) {
   const submitLine = useMutation(api.game.submitLine);
-  const [text, setText] = useState('');
+  const draftKey = writingDraftKey(
+    roomCode,
+    assignment.poemId,
+    assignment.lineIndex
+  );
+  const [text, setText] = useState(() => readWritingDraft(draftKey));
+  const [draftWasRestored] = useState(() => text.length > 0);
   const [submissionState, setSubmissionState] = useState<
     'idle' | 'submitting' | 'confirmed'
   >('idle');
@@ -120,6 +132,10 @@ function WritingComposer({
   const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
 
   // Announce validation state changes to screen readers (debounced)
+  useEffect(() => {
+    saveWritingDraft(draftKey, text);
+  }, [draftKey, text]);
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (isValid) {
@@ -171,6 +187,7 @@ function WritingComposer({
         text,
         guestToken: guestToken || undefined,
       });
+      clearWritingDraft(draftKey);
 
       // Show confirmation state briefly before transitioning to waiting
       setSubmissionState('confirmed');
@@ -252,6 +269,12 @@ function WritingComposer({
             </p>
             <p>Match the word slots, then pass it on.</p>
           </div>
+        )}
+
+        {draftWasRestored && (
+          <p aria-live="polite" className="text-sm text-text-secondary">
+            Draft restored
+          </p>
         )}
 
         {/* The Memory - No container */}

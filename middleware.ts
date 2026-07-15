@@ -33,7 +33,7 @@ function passthroughMiddleware() {
 
 // Conditionally create middleware based on Clerk configuration
 // We use a dynamic approach to avoid importing Clerk when not configured
-let middleware: (
+let upstreamMiddleware: (
   req: NextRequest
 ) => Promise<NextResponse | Response> | NextResponse;
 
@@ -46,17 +46,29 @@ if (isClerkConfigured) {
     // session state (cookies/JWT) that useAuth()/ConvexProviderWithClerk
     // read client-side. It intentionally takes no handler — nothing calls
     // auth.protect() because no route is Clerk-only.
-    middleware = clerkMiddleware();
+    upstreamMiddleware = clerkMiddleware();
   } catch {
     // If Clerk initialization fails, fall back to guest-only mode
     console.warn('Clerk initialization failed, running in guest-only mode');
-    middleware = passthroughMiddleware;
+    upstreamMiddleware = passthroughMiddleware;
   }
 } else {
-  middleware = passthroughMiddleware;
+  upstreamMiddleware = passthroughMiddleware;
 }
 
-export default middleware;
+const SERVER_ACTION_ID = /^[a-f0-9]{40,64}$/;
+
+export default function middleware(req: NextRequest) {
+  const actionId = req.headers.get('next-action');
+  if (actionId && !SERVER_ACTION_ID.test(actionId)) {
+    return new NextResponse(null, {
+      status: 404,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
+
+  return upstreamMiddleware(req);
+}
 
 export const config = {
   matcher: [

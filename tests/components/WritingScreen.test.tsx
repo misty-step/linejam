@@ -85,6 +85,7 @@ describe('WritingScreen component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     mockUseQuery.mockReset();
     mockSubmitLineMutation.mockReset();
     mockUseUserReturn.guestToken = 'mock-token';
@@ -113,6 +114,7 @@ describe('WritingScreen component', () => {
   afterEach(() => {
     global.fetch = originalFetch;
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('keeps the word counter visible in the composer flow', () => {
@@ -218,6 +220,46 @@ describe('WritingScreen component', () => {
       expect(wordSlots).toHaveAttribute('aria-label', '1 of 1 words');
     });
     await flushDebounce();
+  });
+
+  it('keeps an in-progress line in session storage for reload recovery', async () => {
+    const user = setupUser();
+    render(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Hello');
+
+    expect(
+      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+    ).toBe('Hello');
+  });
+
+  it('restores the current assignment draft after a reload', () => {
+    sessionStorage.setItem(
+      'linejam:writing-draft:ABCD:poem_123:0',
+      'Recovered'
+    );
+
+    render(<WritingScreen roomCode="ABCD" />);
+
+    expect(screen.getByRole('textbox')).toHaveValue('Recovered');
+    expect(screen.getByText('Draft restored')).toBeInTheDocument();
+  });
+
+  it('clears the saved draft once Convex confirms the line', async () => {
+    mockSubmitLineMutation.mockResolvedValue(undefined);
+    sessionStorage.setItem(
+      'linejam:writing-draft:ABCD:poem_123:0',
+      'Recovered'
+    );
+    const user = setupUser();
+    render(<WritingScreen roomCode="ABCD" />);
+
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+
+    await waitFor(() => expect(mockSubmitLineMutation).toHaveBeenCalled());
+    expect(
+      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+    ).toBeNull();
   });
 
   it('submit button disabled when word count is wrong', () => {

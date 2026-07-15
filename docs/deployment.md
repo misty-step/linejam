@@ -94,26 +94,28 @@ must receive the identical value. A mismatch breaks guest-token verification.
 
 ### Web application
 
-| Variable                            | Purpose                                            |
-| ----------------------------------- | -------------------------------------------------- |
-| `GUEST_TOKEN_SECRET`                | signs web guest tokens; must match Convex          |
-| `NEXT_PUBLIC_CONVEX_URL`            | production Convex URL                              |
-| `CONVEX_DEPLOYMENT`                 | production Convex deployment selector              |
-| `CONVEX_DEPLOYMENT_URL`             | production Convex deployment URL                   |
-| `CONVEX_DEPLOY_KEY`                 | production deploy key used during the hosted build |
-| `LINEJAM_DEPLOY_ENVIRONMENT`        | `production`; fail-closed hosted deploy guard      |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | browser Clerk key                                  |
-| `CLERK_SECRET_KEY`                  | server Clerk key                                   |
-| `CLERK_JWT_ISSUER_DOMAIN`           | Clerk issuer used by Convex auth                   |
-| `CANARY_ENDPOINT`                   | `https://canary.mistystep.io`                      |
-| `CANARY_API_KEY`                    | server-side Canary credential                      |
-| `NEXT_PUBLIC_CANARY_ENDPOINT`       | `https://canary.mistystep.io`                      |
-| `NEXT_PUBLIC_CANARY_API_KEY`        | browser write-only Canary credential               |
-| `NEXT_PUBLIC_SENTRY_DSN`            | browser Sentry destination                         |
-| `PLAYWRIGHT_CLERK_TEST_EMAIL`       | pre-created production smoke user                  |
-| `SENTRY_AUTH_TOKEN`                 | source-map upload credential                       |
-| `SENTRY_ORG`                        | Sentry organization slug                           |
-| `SENTRY_PROJECT`                    | Sentry project slug                                |
+| Variable                             | Purpose                                            |
+| ------------------------------------ | -------------------------------------------------- |
+| `GUEST_TOKEN_SECRET`                 | signs web guest tokens; must match Convex          |
+| `NEXT_PUBLIC_CONVEX_URL`             | production Convex URL                              |
+| `CONVEX_DEPLOYMENT`                  | production Convex deployment selector              |
+| `CONVEX_DEPLOYMENT_URL`              | production Convex deployment URL                   |
+| `CONVEX_DEPLOY_KEY`                  | production deploy key used during the hosted build |
+| `LINEJAM_DEPLOY_ENVIRONMENT`         | `production`; fail-closed hosted deploy guard      |
+| `NEXT_DEPLOYMENT_ID`                 | `${_self.COMMIT_HASH}`; rolling-build identifier   |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | stable 32-byte base64 Server Action key            |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`  | browser Clerk key                                  |
+| `CLERK_SECRET_KEY`                   | server Clerk key                                   |
+| `CLERK_JWT_ISSUER_DOMAIN`            | Clerk issuer used by Convex auth                   |
+| `CANARY_ENDPOINT`                    | `https://canary.mistystep.io`                      |
+| `CANARY_API_KEY`                     | server-side Canary credential                      |
+| `NEXT_PUBLIC_CANARY_ENDPOINT`        | `https://canary.mistystep.io`                      |
+| `NEXT_PUBLIC_CANARY_API_KEY`         | browser write-only Canary credential               |
+| `NEXT_PUBLIC_SENTRY_DSN`             | browser Sentry destination                         |
+| `PLAYWRIGHT_CLERK_TEST_EMAIL`        | pre-created production smoke user                  |
+| `SENTRY_AUTH_TOKEN`                  | source-map upload credential                       |
+| `SENTRY_ORG`                         | Sentry organization slug                           |
+| `SENTRY_PROJECT`                     | Sentry project slug                                |
 
 ### Canary responder
 
@@ -149,6 +151,32 @@ rm /tmp/linejam-app.yaml
 
 Repeat with `LINEJAM_RESPONDER_APP_ID` for responder-only configuration. Read
 the resulting deployment phase and health route before continuing.
+
+### Rolling-deploy skew protection
+
+App Platform can briefly serve a browser bundle from one release against a
+server from the next release. Two production-only variables make that handoff
+recoverable:
+
+- Set `NEXT_DEPLOYMENT_ID` to the App Platform bindable value
+  `${_self.COMMIT_HASH}`. Next.js includes it in framework requests and the
+  Linejam health receipt exposes the current identifier for a values-free
+  client/version comparison.
+- Generate `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` once with
+  `openssl rand -base64 32`, store it as an encrypted App Platform value, and
+  preserve it across releases. Rotating it invalidates outstanding Server
+  Action references, so rotate only as a controlled incident operation.
+
+Production builds fail closed when either variable is absent or when the
+Server Action key does not decode to exactly 32 bytes. `/api/health` reports
+only the deployment identifier and boolean readiness; it never returns the
+key or a fingerprint.
+
+During a rollout, keep one pre-deploy room tab open with an unsubmitted line.
+After the new deployment becomes `ACTIVE`, the tab must present the Linejam
+update banner, reload only on the player's action, and restore the draft. Then
+run two consecutive production smokes and inspect activation logs for any
+unclassified `Failed to find Server Action` burst.
 
 ## Convex configuration
 

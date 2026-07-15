@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { resolveDeploymentId } from './lib/deploymentId';
 import { validateEnv } from './lib/env';
 
 // Validate required env vars during production builds
@@ -177,6 +178,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  deploymentId: resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID),
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
   images: {
     remotePatterns: [
