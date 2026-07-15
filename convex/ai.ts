@@ -235,16 +235,16 @@ async function claimGenerationForCell(
   ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
   cell: GenerationCell
 ): Promise<{ status: GenerationClaimStatus; day?: string }> {
-  const existingTurn = await getAiTurnByCell(ctx, cell.poemId, cell.round);
-  if (existingTurn) return { status: 'duplicate' };
-
-  const existingLine = await ctx.db
-    .query('lines')
-    .withIndex('by_poem_index', (q) =>
-      q.eq('poemId', cell.poemId).eq('indexInPoem', cell.round)
-    )
-    .first();
-  if (existingLine) return { status: 'duplicate' };
+  const [existingTurn, existingLine] = await Promise.all([
+    getAiTurnByCell(ctx, cell.poemId, cell.round),
+    ctx.db
+      .query('lines')
+      .withIndex('by_poem_index', (q) =>
+        q.eq('poemId', cell.poemId).eq('indexInPoem', cell.round)
+      )
+      .first(),
+  ]);
+  if (existingTurn || existingLine) return { status: 'duplicate' };
 
   const day = aiUsageDay();
   const now = Date.now();
@@ -1026,8 +1026,10 @@ export const claimGhostGeneration = internalMutation({
     forUserId: v.id('users'),
   },
   handler: async (ctx, { roomId, gameId, round, poemId, forUserId }) => {
-    const game = await ctx.db.get(gameId);
-    const poem = await ctx.db.get(poemId);
+    const [game, poem] = await Promise.all([
+      ctx.db.get(gameId),
+      ctx.db.get(poemId),
+    ]);
     if (
       !game ||
       game.status !== 'IN_PROGRESS' ||
@@ -1076,11 +1078,13 @@ export const ensureGhostLine = internalMutation({
     forUserId: v.id('users'),
   },
   handler: async (ctx, { roomId, gameId, round, poemId, forUserId }) => {
-    const game = await ctx.db.get(gameId);
+    const [game, turn] = await Promise.all([
+      ctx.db.get(gameId),
+      getAiTurnByCell(ctx, poemId, round),
+    ]);
     if (!game || game.status !== 'IN_PROGRESS' || round > game.currentRound)
       return;
 
-    const turn = await getAiTurnByCell(ctx, poemId, round);
     if (
       !turn ||
       turn.status !== 'authorized' ||
