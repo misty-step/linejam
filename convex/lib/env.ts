@@ -1,6 +1,7 @@
 import { log } from './errors';
+import convexEnvManifest from '../../config/convex-env-manifest.json';
 
-type ConvexEnvironment = 'production' | 'development';
+type ConvexEnvironment = 'production' | 'preview' | 'development';
 type CapabilityStatus = 'ready' | 'disabled' | 'missing_required';
 
 type ConvexCapabilityHealth = {
@@ -11,21 +12,30 @@ type ConvexCapabilityHealth = {
 
 export type ConvexRuntimeConfig = {
   environment: ConvexEnvironment;
+  deploymentMarkerValid: boolean;
+  deploymentUrl?: string;
   guestTokenSecret?: string;
   openRouterApiKey?: string;
+  requiredEnvironmentVariables: Readonly<Record<string, boolean>>;
 };
 
 export type ConvexEnvHealthReport = {
   ok: boolean;
   status: 200 | 500;
   environment: ConvexEnvironment;
+  deployment: {
+    markerValid: boolean;
+    url: string | null;
+  };
   capabilities: {
     guestTokenVerification: ConvexCapabilityHealth;
     aiLineGeneration: ConvexCapabilityHealth;
   };
+  configuration: {
+    missingRequired: string[];
+  };
 };
 
-const CONVEX_PRODUCTION_HOST = 'convex.cloud';
 const DEV_GUEST_TOKEN_SECRET = 'dev-only-insecure-secret-change-in-production';
 
 function readEnv(name: string): string | undefined {
@@ -33,17 +43,44 @@ function readEnv(name: string): string | undefined {
   return value ? value : undefined;
 }
 
-function readEnvironment(): ConvexEnvironment {
-  return readEnv('CONVEX_CLOUD_URL')?.includes(CONVEX_PRODUCTION_HOST)
-    ? 'production'
-    : 'development';
+function readEnvironment(): {
+  environment: ConvexEnvironment;
+  markerValid: boolean;
+} {
+  const declared = readEnv('LINEJAM_DEPLOY_ENVIRONMENT');
+  if (!declared) {
+    return {
+      environment: 'development',
+      markerValid: !readEnv('CONVEX_CLOUD_URL'),
+    };
+  }
+  if (
+    declared === 'production' ||
+    declared === 'preview' ||
+    declared === 'development'
+  ) {
+    return { environment: declared, markerValid: true };
+  }
+  return { environment: 'development', markerValid: false };
 }
 
 function loadConvexRuntimeConfig(): ConvexRuntimeConfig {
+  const { environment, markerValid: deploymentMarkerValid } = readEnvironment();
+  const manifestEnvironment = environment;
+  const requiredEnvironmentVariables = Object.fromEntries(
+    convexEnvManifest.environments[manifestEnvironment].required.map((name) => [
+      name,
+      Boolean(readEnv(name)),
+    ])
+  );
+
   return {
-    environment: readEnvironment(),
+    environment,
+    deploymentMarkerValid,
+    deploymentUrl: readEnv('CONVEX_CLOUD_URL'),
     guestTokenSecret: readEnv('GUEST_TOKEN_SECRET'),
     openRouterApiKey: readEnv('OPENROUTER_API_KEY'),
+    requiredEnvironmentVariables: Object.freeze(requiredEnvironmentVariables),
   };
 }
 
@@ -65,7 +102,7 @@ function evaluateCapability(
 const convexRuntimeConfig = Object.freeze(loadConvexRuntimeConfig());
 
 if (
-  convexRuntimeConfig.environment === 'production' &&
+  convexRuntimeConfig.environment !== 'development' &&
   !convexRuntimeConfig.openRouterApiKey
 ) {
   log.error('OPENROUTER_API_KEY not configured at module load', {
@@ -82,7 +119,10 @@ export function getConvexGuestTokenSecret(): string {
     return convexRuntimeConfig.guestTokenSecret;
   }
 
-  if (convexRuntimeConfig.environment === 'production') {
+  if (
+    convexRuntimeConfig.environment !== 'development' ||
+    convexRuntimeConfig.deploymentUrl
+  ) {
     throw new Error(
       'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
         'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
@@ -93,7 +133,7 @@ export function getConvexGuestTokenSecret(): string {
 }
 
 export function getConvexEnvHealthReport(): ConvexEnvHealthReport {
-  const required = convexRuntimeConfig.environment === 'production';
+  const required = convexRuntimeConfig.environment !== 'development';
   const guestTokenVerification = evaluateCapability(
     Boolean(convexRuntimeConfig.guestTokenSecret),
     required
@@ -102,7 +142,15 @@ export function getConvexEnvHealthReport(): ConvexEnvHealthReport {
     Boolean(convexRuntimeConfig.openRouterApiKey),
     required
   );
+  const missingRequired = Object.entries(
+    convexRuntimeConfig.requiredEnvironmentVariables
+  )
+    .filter(([, available]) => !available)
+    .map(([name]) => name)
+    .sort();
   const ok =
+    convexRuntimeConfig.deploymentMarkerValid &&
+    missingRequired.length === 0 &&
     guestTokenVerification.status !== 'missing_required' &&
     aiLineGeneration.status !== 'missing_required';
 
@@ -110,9 +158,16 @@ export function getConvexEnvHealthReport(): ConvexEnvHealthReport {
     ok,
     status: ok ? 200 : 500,
     environment: convexRuntimeConfig.environment,
+    deployment: {
+      markerValid: convexRuntimeConfig.deploymentMarkerValid,
+      url: convexRuntimeConfig.deploymentUrl ?? null,
+    },
     capabilities: {
       guestTokenVerification,
       aiLineGeneration,
+    },
+    configuration: {
+      missingRequired,
     },
   };
 }

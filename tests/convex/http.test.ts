@@ -36,6 +36,7 @@ describe('convex/http health route', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: undefined,
         OPENROUTER_API_KEY: undefined,
       },
@@ -70,6 +71,10 @@ describe('convex/http health route', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        CANARY_API_KEY: 'test-canary-key',
+        CANARY_ENDPOINT: 'https://canary.test',
+        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.test',
         GUEST_TOKEN_SECRET: 'test-secret',
         OPENROUTER_API_KEY: 'test-openrouter-key',
       },
@@ -104,6 +109,7 @@ describe('convex/http health route', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: 'test-secret',
         OPENROUTER_API_KEY: undefined,
       },

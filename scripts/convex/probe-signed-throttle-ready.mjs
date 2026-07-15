@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawnSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { ConvexHttpClient } from 'convex/browser';
 import { makeFunctionReference } from 'convex/server';
@@ -36,6 +37,39 @@ export async function probeSignedThrottleReady(convexUrl, secret, mutate) {
   }
 }
 
+export function parseFunctionSpecDeploymentUrl(functionSpecJson) {
+  const parsed = JSON.parse(functionSpecJson);
+  if (!parsed || typeof parsed.url !== 'string') {
+    throw new Error('Convex function-spec omitted its deployment URL.');
+  }
+  return new URL(parsed.url).origin;
+}
+
+export function assertSelectedDeploymentMatches(
+  convexUrl,
+  env = process.env,
+  runner = spawnSync
+) {
+  if (!convexUrl) throw new Error('NEXT_PUBLIC_CONVEX_URL is required');
+  const result = runner('pnpm', ['exec', 'convex', 'function-spec', '--prod'], {
+    env,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    throw new Error(
+      `Convex production deployment identity read failed with status ${result.status ?? 'unknown'}.`
+    );
+  }
+
+  const selectedUrl = parseFunctionSpecDeploymentUrl(result.stdout ?? '');
+  if (selectedUrl !== new URL(convexUrl).origin) {
+    throw new Error(
+      'NEXT_PUBLIC_CONVEX_URL does not match the production deployment selected by CONVEX_DEPLOY_KEY.'
+    );
+  }
+  return selectedUrl;
+}
+
 function extractErrorMessage(error) {
   if (error && typeof error === 'object' && typeof error.data === 'string') {
     return error.data;
@@ -47,6 +81,7 @@ function extractErrorMessage(error) {
 async function main() {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
   const secret = process.env.GUEST_TOKEN_SECRET?.trim();
+  assertSelectedDeploymentMatches(convexUrl, process.env);
   const client = convexUrl ? new ConvexHttpClient(convexUrl) : null;
   const ready = await probeSignedThrottleReady(
     convexUrl,

@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import type { ConvexEnvHealthReport } from '@/convex/lib/env';
+import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 import {
   captureCanaryException,
   isCanaryEnabled,
@@ -8,17 +9,25 @@ import {
 } from '@/lib/canaryServer';
 import { log, logError, logRequest } from '@/lib/logger';
 
-const CONVEX_HEALTH_TIMEOUT_MS = 1_500;
+const CONVEX_HEALTH_TIMEOUT_MS = 3_000;
 const ROUTE = '/api/health';
+const GUEST_PARITY_KEY = 'guestSession:deployment-readiness';
 
 export async function GET() {
   const startedAt = Date.now();
 
   try {
-    const { status: convexStatus, report: convexEnv } = await checkConvex();
-    const envChecks = checkEnvVars();
+    const {
+      status: convexStatus,
+      report: convexEnv,
+      guestTokenParity,
+      deploymentMatch,
+    } = await checkConvex();
+    const envChecks = checkEnvVars(guestTokenParity, deploymentMatch);
     const serviceHealthy =
       envChecks.guestTokenSecret &&
+      envChecks.guestTokenParity &&
+      envChecks.convexDeploymentMatch &&
       envChecks.convexUrl &&
       convexStatus === 'connected' &&
       convexEnv?.ok === true;
@@ -74,9 +83,14 @@ export async function GET() {
  * Check presence of critical environment variables.
  * Does not expose actual values, only boolean presence.
  */
-function checkEnvVars() {
+function checkEnvVars(
+  guestTokenParity: boolean,
+  convexDeploymentMatch: boolean
+) {
   return {
     guestTokenSecret: !!process.env.GUEST_TOKEN_SECRET,
+    guestTokenParity,
+    convexDeploymentMatch,
     convexUrl: !!process.env.NEXT_PUBLIC_CONVEX_URL,
     clerkPublishableKey: !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     canaryIngestKey: isCanaryEnabled(),
@@ -86,6 +100,8 @@ function checkEnvVars() {
 type ConvexHealth = {
   status: 'connected' | 'unreachable' | 'skipped';
   report: ConvexEnvHealthReport | null;
+  guestTokenParity: boolean;
+  deploymentMatch: boolean;
 };
 
 /**
@@ -97,14 +113,24 @@ type ConvexHealth = {
  */
 async function checkConvex(): Promise<ConvexHealth> {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (!convexUrl) return { status: 'skipped', report: null };
+  if (!convexUrl) {
+    return {
+      status: 'skipped',
+      report: null,
+      guestTokenParity: false,
+      deploymentMatch: false,
+    };
+  }
 
   const startedAt = Date.now();
 
   try {
     const client = new ConvexHttpClient(convexUrl);
-    const report = (await Promise.race([
-      client.query(api.health.capabilities),
+    const [report, guestTokenParity] = (await Promise.race([
+      Promise.all([
+        client.query(api.health.capabilities),
+        checkGuestTokenParity(client),
+      ]),
       new Promise<never>((_, reject) => {
         setTimeout(() => {
           reject(
@@ -114,8 +140,13 @@ async function checkConvex(): Promise<ConvexHealth> {
           );
         }, CONVEX_HEALTH_TIMEOUT_MS);
       }),
-    ])) as ConvexEnvHealthReport;
-    return { status: 'connected', report };
+    ])) as [ConvexEnvHealthReport, boolean];
+    return {
+      status: 'connected',
+      report,
+      guestTokenParity,
+      deploymentMatch: deploymentMatchesWebTarget(convexUrl, report),
+    };
   } catch (error) {
     log.warn('Convex health ping failed; marking unreachable', {
       method: 'GET',
@@ -125,7 +156,57 @@ async function checkConvex(): Promise<ConvexHealth> {
       errorName: error instanceof Error ? error.name : 'UnknownError',
       errorMessage: error instanceof Error ? error.message : String(error),
     });
-    return { status: 'unreachable', report: null };
+    return {
+      status: 'unreachable',
+      report: null,
+      guestTokenParity: false,
+      deploymentMatch: false,
+    };
+  }
+}
+
+function deploymentMatchesWebTarget(
+  convexUrl: string,
+  report: ConvexEnvHealthReport
+) {
+  const declared = process.env.LINEJAM_DEPLOY_ENVIRONMENT?.trim();
+  const expectedEnvironment =
+    declared === 'production' || declared === 'preview'
+      ? declared
+      : 'development';
+
+  try {
+    return (
+      report.deployment.markerValid &&
+      report.environment === expectedEnvironment &&
+      report.deployment.url !== null &&
+      new URL(report.deployment.url).origin === new URL(convexUrl).origin
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function checkGuestTokenParity(client: ConvexHttpClient) {
+  const secret = process.env.GUEST_TOKEN_SECRET?.trim();
+  if (!secret) return false;
+
+  try {
+    const proof = await signGuestSessionThrottleProof(GUEST_PARITY_KEY, secret);
+    await client.mutation(api.guestSessions.checkSignedGuestSessionThrottle, {
+      key: GUEST_PARITY_KEY,
+      proof,
+      dryRun: true,
+    });
+    return true;
+  } catch (error) {
+    log.warn('Guest token parity probe failed; marking unhealthy', {
+      method: 'GET',
+      route: ROUTE,
+      operation: 'guestTokenParity',
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    });
+    return false;
   }
 }
 

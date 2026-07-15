@@ -24,6 +24,7 @@ Compact router for repository agents. Read only the depth your lane needs.
 | Tests and QA                    | `docs/testing.md`, `vitest.config.ts`, Playwright configs    |
 | CI and live-operation authority | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`  |
 | Production operations           | `docs/deployment.md`                                         |
+| Convex environment contract     | `config/convex-env-manifest.json`                            |
 | Agent CLI/MCP                   | `.agents/skills/linejam-cli/SKILL.md`, `docs/agent-faces.md` |
 
 The live stack is declared in `package.json`; do not copy dependency versions
@@ -45,7 +46,9 @@ or test counts into agent prose.
   and provider mutations require explicit live authority for that operation.
   Keep production guards enabled; a flag is a safety condition, not authority.
 - Never print, paste, commit, or persist credentials. Avoid value-bearing env
-  listings; prefer metadata and names-only probes.
+  listings. Use `pnpm convex:env:reconcile` for development or
+  `node scripts/ci/reconcile-convex-env.mjs --target production` for a bounded,
+  values-free production readback.
 
 ## Engineering invariants
 

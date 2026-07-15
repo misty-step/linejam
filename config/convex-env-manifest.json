@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "environments": {
+    "development": {
+      "required": [],
+      "optional": [
+        "AI_DAILY_CALL_ALERT_THRESHOLD",
+        "AI_DAILY_CALL_BUDGET",
+        "AI_DAILY_COST_BUDGET_USD",
+        "AI_ESTIMATED_COST_PER_GENERATION_USD",
+        "AI_MODEL",
+        "CANARY_API_KEY",
+        "CANARY_ENDPOINT",
+        "CLERK_JWT_ISSUER_DOMAIN",
+        "GUEST_TOKEN_SECRET",
+        "LINEJAM_DEPLOY_ENVIRONMENT",
+        "MAX_AI_PLAYERS",
+        "OPENROUTER_API_KEY"
+      ]
+    },
+    "preview": {
+      "required": [
+        "CANARY_API_KEY",
+        "CANARY_ENDPOINT",
+        "CLERK_JWT_ISSUER_DOMAIN",
+        "GUEST_TOKEN_SECRET",
+        "LINEJAM_DEPLOY_ENVIRONMENT",
+        "OPENROUTER_API_KEY"
+      ],
+      "optional": [
+        "AI_DAILY_CALL_ALERT_THRESHOLD",
+        "AI_DAILY_CALL_BUDGET",
+        "AI_DAILY_COST_BUDGET_USD",
+        "AI_ESTIMATED_COST_PER_GENERATION_USD",
+        "AI_MODEL",
+        "MAX_AI_PLAYERS"
+      ]
+    },
+    "production": {
+      "required": [
+        "CANARY_API_KEY",
+        "CANARY_ENDPOINT",
+        "CLERK_JWT_ISSUER_DOMAIN",
+        "GUEST_TOKEN_SECRET",
+        "LINEJAM_DEPLOY_ENVIRONMENT",
+        "OPENROUTER_API_KEY"
+      ],
+      "optional": [
+        "AI_DAILY_CALL_ALERT_THRESHOLD",
+        "AI_DAILY_CALL_BUDGET",
+        "AI_DAILY_COST_BUDGET_USD",
+        "AI_ESTIMATED_COST_PER_GENERATION_USD",
+        "AI_MODEL",
+        "MAX_AI_PLAYERS"
+      ]
+    }
+  }
+}

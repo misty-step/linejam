@@ -19,6 +19,10 @@ describe('Convex env validation', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        CANARY_API_KEY: undefined,
+        CANARY_ENDPOINT: undefined,
+        CLERK_JWT_ISSUER_DOMAIN: undefined,
         GUEST_TOKEN_SECRET: undefined,
       },
       async () => {
@@ -33,6 +37,7 @@ describe('Convex env validation', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: undefined,
       },
       async () => {
@@ -59,6 +64,21 @@ describe('Convex env validation', () => {
     );
   });
 
+  it('never enables the development fallback secret on an unmarked remote deployment', async () => {
+    await withEnv(
+      {
+        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: undefined,
+        GUEST_TOKEN_SECRET: undefined,
+      },
+      async () => {
+        await expect(import('../../convex/lib/guestToken')).rejects.toThrow(
+          'GUEST_TOKEN_SECRET must be set in Convex environment'
+        );
+      }
+    );
+  });
+
   it('logs a structured error at module load when OPENROUTER_API_KEY is missing in production-like Convex env', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
@@ -67,6 +87,7 @@ describe('Convex env validation', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: 'test-secret',
         OPENROUTER_API_KEY: undefined,
       },
@@ -96,6 +117,7 @@ describe('Convex env validation', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: 'test-secret',
         OPENROUTER_API_KEY: 'test-openrouter-key',
       },
@@ -117,6 +139,10 @@ describe('Convex env validation', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        CANARY_API_KEY: undefined,
+        CANARY_ENDPOINT: undefined,
+        CLERK_JWT_ISSUER_DOMAIN: undefined,
         GUEST_TOKEN_SECRET: undefined,
         OPENROUTER_API_KEY: undefined,
       },
@@ -140,6 +166,15 @@ describe('Convex env validation', () => {
               required: true,
             },
           },
+          configuration: {
+            missingRequired: expect.arrayContaining([
+              'CANARY_API_KEY',
+              'CANARY_ENDPOINT',
+              'CLERK_JWT_ISSUER_DOMAIN',
+              'GUEST_TOKEN_SECRET',
+              'OPENROUTER_API_KEY',
+            ]),
+          },
         });
       }
     );
@@ -149,6 +184,7 @@ describe('Convex env validation', () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: undefined,
         OPENROUTER_API_KEY: 'test-openrouter-key',
       },
@@ -171,6 +207,36 @@ describe('Convex env validation', () => {
               available: true,
               required: true,
             },
+          },
+        });
+      }
+    );
+  });
+
+  it('uses the manifest to fail health when a non-capability production name is missing', async () => {
+    await withEnv(
+      {
+        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        CANARY_API_KEY: 'test-canary-key',
+        CANARY_ENDPOINT: 'https://canary.test',
+        CLERK_JWT_ISSUER_DOMAIN: undefined,
+        GUEST_TOKEN_SECRET: 'test-secret',
+        OPENROUTER_API_KEY: 'test-openrouter-key',
+      },
+      async () => {
+        const { getConvexEnvHealthReport } =
+          await import('../../convex/lib/env');
+
+        expect(getConvexEnvHealthReport()).toMatchObject({
+          ok: false,
+          status: 500,
+          capabilities: {
+            guestTokenVerification: { status: 'ready' },
+            aiLineGeneration: { status: 'ready' },
+          },
+          configuration: {
+            missingRequired: ['CLERK_JWT_ISSUER_DOMAIN'],
           },
         });
       }
@@ -209,10 +275,39 @@ describe('Convex env validation', () => {
     );
   });
 
+  it('fails health for a missing or invalid deployment marker on a remote deployment', async () => {
+    for (const marker of [undefined, 'prod']) {
+      vi.resetModules();
+      await withEnv(
+        {
+          CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+          LINEJAM_DEPLOY_ENVIRONMENT: marker,
+          GUEST_TOKEN_SECRET: 'test-secret',
+          OPENROUTER_API_KEY: 'test-openrouter-key',
+        },
+        async () => {
+          const { getConvexEnvHealthReport } =
+            await import('../../convex/lib/env');
+
+          expect(getConvexEnvHealthReport()).toMatchObject({
+            ok: false,
+            status: 500,
+            environment: 'development',
+            deployment: {
+              markerValid: false,
+              url: 'https://linejam.convex.cloud',
+            },
+          });
+        }
+      );
+    }
+  });
+
   it('keeps runtime config and health report stable after module load', async () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: 'first-secret',
         OPENROUTER_API_KEY: undefined,
       },
