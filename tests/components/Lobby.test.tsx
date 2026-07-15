@@ -142,6 +142,8 @@ describe('Lobby component', () => {
     const actionZone = screen.getByTestId(E2E_TEST_IDS.lobbyActionZone);
     const start = screen.getByTestId(E2E_TEST_IDS.lobbyStartGameButton);
 
+    expect(scrollRegion.parentElement).toBe(actionZone.parentElement);
+    expect(scrollRegion.nextElementSibling).toBe(actionZone);
     expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
     expect(actionZone).toHaveClass('min-h-0', 'max-h-[50%]', 'flex-[0_1_auto]');
     expect(start).toHaveClass(
