@@ -136,6 +136,8 @@ export default defineSchema({
 
   aiUsage: defineTable({
     day: v.string(),
+    // Total bot + ghostwriter generation claims for the day. This is the
+    // production-readable spend counter and the source for the threshold alert.
     generationClaims: v.number(),
     httpAttempts: v.number(),
     fallbacks: v.number(),

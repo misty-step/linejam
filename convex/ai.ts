@@ -45,6 +45,19 @@ const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
 
 type OpenAiCell = { poemId: Id<'poems'>; aiUserId: Id<'users'> };
 
+type GenerationCell = {
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  round: number;
+  poemId: Id<'poems'>;
+  authorUserId: Id<'users'>;
+  authorDisplayName: string;
+  source: 'bot' | 'ghost';
+};
+
+type GenerationClaimStatus =
+  'authorized' | 'fallback' | 'duplicate' | 'rejected';
+
 /** Max bots per room (configurable). Solo play wants a few, not a swarm. */
 function getMaxAiPlayers(): number {
   const raw = Number(process.env.MAX_AI_PLAYERS);
@@ -67,6 +80,17 @@ function getAiDailyCallBudget(): number {
   if (!raw) return 250;
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 250;
+}
+
+function getAiDailyCallAlertThreshold(): number {
+  const raw = process.env.AI_DAILY_CALL_ALERT_THRESHOLD?.trim();
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed >= 0) return parsed;
+  }
+
+  const budget = getAiDailyCallBudget();
+  return Math.max(1, Math.ceil(budget * 0.8));
 }
 
 function usdToMicros(value: string | undefined, fallback: number): number {
@@ -201,37 +225,26 @@ async function recordAiUsage(
   }
 }
 
-async function commitFallbackForCell(
+/**
+ * Atomically own one machine-written cell and charge the shared daily budget.
+ * The mutation boundary is the claim: concurrent bot, automatic ghost, and
+ * host-summoned ghost attempts serialize on `aiTurns.by_cell` before any
+ * provider call can happen.
+ */
+async function claimGenerationForCell(
   ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
-  args: {
-    roomId: Id<'rooms'>;
-    gameId: Id<'games'>;
-    round: number;
-    cell: OpenAiCell;
-  }
-): Promise<boolean> {
-  const aiUser = await ctx.db.get(args.cell.aiUserId);
-  return commitFallbackLine(ctx, {
-    roomId: args.roomId,
-    gameId: args.gameId,
-    poemId: args.cell.poemId,
-    lineIndex: args.round,
-    authorUserId: args.cell.aiUserId,
-    authorDisplayName: aiUser?.displayName ?? 'AI',
-  });
-}
+  cell: GenerationCell
+): Promise<{ status: GenerationClaimStatus; day?: string }> {
+  const existingTurn = await getAiTurnByCell(ctx, cell.poemId, cell.round);
+  if (existingTurn) return { status: 'duplicate' };
 
-async function prepareAiCellForGeneration(
-  ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
-  args: {
-    roomId: Id<'rooms'>;
-    gameId: Id<'games'>;
-    round: number;
-    cell: OpenAiCell;
-  }
-): Promise<boolean> {
-  const existingTurn = await getAiTurnByCell(ctx, args.cell.poemId, args.round);
-  if (existingTurn) return false;
+  const existingLine = await ctx.db
+    .query('lines')
+    .withIndex('by_poem_index', (q) =>
+      q.eq('poemId', cell.poemId).eq('indexInPoem', cell.round)
+    )
+    .first();
+  if (existingLine) return { status: 'duplicate' };
 
   const day = aiUsageDay();
   const now = Date.now();
@@ -253,26 +266,39 @@ async function prepareAiCellForGeneration(
     currentCostMicros + costPerGenerationMicros > costBudgetMicros;
   const budgetExhausted = callBudgetExhausted || costBudgetExhausted;
 
+  await ctx.db.insert('aiTurns', {
+    roomId: cell.roomId,
+    gameId: cell.gameId,
+    poemId: cell.poemId,
+    round: cell.round,
+    // Legacy field name retained for expand/migrate/contract compatibility;
+    // for ghost rows it stores the human author being covered.
+    aiUserId: cell.authorUserId,
+    day,
+    status:
+      isDeterministicAiMode() || budgetExhausted
+        ? fallbackStatus
+        : 'authorized',
+    claimedAt: now,
+    updatedAt: now,
+  });
+
   if (isDeterministicAiMode() || budgetExhausted) {
-    await ctx.db.insert('aiTurns', {
-      roomId: args.roomId,
-      gameId: args.gameId,
-      poemId: args.cell.poemId,
-      round: args.round,
-      aiUserId: args.cell.aiUserId,
-      day,
-      status: fallbackStatus,
-      claimedAt: now,
-      updatedAt: now,
+    const committed = await commitFallbackLine(ctx, {
+      roomId: cell.roomId,
+      gameId: cell.gameId,
+      poemId: cell.poemId,
+      lineIndex: cell.round,
+      authorUserId: cell.authorUserId,
+      authorDisplayName: cell.authorDisplayName,
     });
-    const committed = await commitFallbackForCell(ctx, args);
     if (committed) await recordAiUsage(ctx, { day, fallbacks: 1 });
     if (committed && budgetExhausted && !isDeterministicAiMode()) {
       log.warn('AI daily budget exhausted; committed fallback', {
-        roomId: args.roomId,
-        gameId: args.gameId,
-        round: args.round,
-        poemId: args.cell.poemId,
+        roomId: cell.roomId,
+        gameId: cell.gameId,
+        round: cell.round,
+        poemId: cell.poemId,
         callBudget,
         costBudgetMicros,
         currentClaims,
@@ -281,26 +307,76 @@ async function prepareAiCellForGeneration(
         reason: callBudgetExhausted ? 'call_budget' : 'cost_budget',
       });
     }
-    return false;
+    return { status: 'fallback', day };
   }
 
-  await ctx.db.insert('aiTurns', {
-    roomId: args.roomId,
-    gameId: args.gameId,
-    poemId: args.cell.poemId,
-    round: args.round,
-    aiUserId: args.cell.aiUserId,
-    day,
-    status: 'authorized',
-    claimedAt: now,
-    updatedAt: now,
-  });
   await recordAiUsage(ctx, {
     day,
     generationClaims: 1,
     estimatedCostMicros: costPerGenerationMicros,
   });
-  return true;
+
+  const nextClaims = currentClaims + 1;
+  const alertThreshold = getAiDailyCallAlertThreshold();
+  if (currentClaims < alertThreshold && nextClaims >= alertThreshold) {
+    log.warn('AI generation claim threshold reached', {
+      day,
+      generationClaims: nextClaims,
+      alertThreshold,
+      callBudget,
+      estimatedCostMicros: currentCostMicros + costPerGenerationMicros,
+    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.errors.reportBackendErrorToCanary,
+      {
+        errorName: 'AiGenerationBudgetThreshold',
+        errorMessage: 'AI generation claim threshold reached',
+        operation: 'aiGenerationBudgetThreshold',
+      }
+    );
+  }
+
+  if (cell.source === 'ghost') {
+    // The claim owns its own recovery schedule. A provider crash after this
+    // mutation cannot strand the room, and a late provider result loses to the
+    // idempotent line commit if the safety net wins the race.
+    await ctx.scheduler.runAfter(
+      AI_SAFETY_NET_MS,
+      internal.ai.ensureGhostLine,
+      {
+        roomId: cell.roomId,
+        gameId: cell.gameId,
+        round: cell.round,
+        poemId: cell.poemId,
+        forUserId: cell.authorUserId,
+      }
+    );
+  }
+
+  return { status: 'authorized', day };
+}
+
+async function prepareAiCellForGeneration(
+  ctx: { db: MutationCtx['db']; scheduler: MutationCtx['scheduler'] },
+  args: {
+    roomId: Id<'rooms'>;
+    gameId: Id<'games'>;
+    round: number;
+    cell: OpenAiCell;
+  }
+): Promise<boolean> {
+  const aiUser = await ctx.db.get(args.cell.aiUserId);
+  const result = await claimGenerationForCell(ctx, {
+    roomId: args.roomId,
+    gameId: args.gameId,
+    round: args.round,
+    poemId: args.cell.poemId,
+    authorUserId: args.cell.aiUserId,
+    authorDisplayName: aiUser?.displayName ?? 'AI',
+    source: 'bot',
+  });
+  return result.status === 'authorized';
 }
 
 /**
@@ -940,6 +1016,101 @@ export const commitAiLine = internalMutation({
   },
 });
 
+/** Claim a ghostwriter cell before loading context or calling the provider. */
+export const claimGhostGeneration = internalMutation({
+  args: {
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+    poemId: v.id('poems'),
+    forUserId: v.id('users'),
+  },
+  handler: async (ctx, { roomId, gameId, round, poemId, forUserId }) => {
+    const game = await ctx.db.get(gameId);
+    const poem = await ctx.db.get(poemId);
+    if (
+      !game ||
+      game.status !== 'IN_PROGRESS' ||
+      game.currentRound !== round ||
+      !poem ||
+      poem.roomId !== roomId ||
+      poem.gameId !== gameId ||
+      round < 0 ||
+      round >= game.assignmentMatrix.length
+    ) {
+      return { status: 'rejected' as const };
+    }
+
+    const assignedUserId = getMatrixRound(game.assignmentMatrix, round)[
+      poem.indexInRoom
+    ];
+    if (assignedUserId !== forUserId) return { status: 'rejected' as const };
+
+    const stalledUser = await ctx.db.get(forUserId);
+    if (!stalledUser || stalledUser.kind === 'AI') {
+      return { status: 'rejected' as const };
+    }
+    return claimGenerationForCell(ctx, {
+      roomId,
+      gameId,
+      round,
+      poemId,
+      authorUserId: forUserId,
+      authorDisplayName: `${stalledUser?.displayName ?? 'A poet'} (ghost)`,
+      source: 'ghost',
+    });
+  },
+});
+
+/**
+ * Bounded recovery for a ghost claim whose action/provider crashed. The
+ * claim is required so an untrusted or stale internal invocation cannot write
+ * an unaccounted-for line.
+ */
+export const ensureGhostLine = internalMutation({
+  args: {
+    roomId: v.id('rooms'),
+    gameId: v.id('games'),
+    round: v.number(),
+    poemId: v.id('poems'),
+    forUserId: v.id('users'),
+  },
+  handler: async (ctx, { roomId, gameId, round, poemId, forUserId }) => {
+    const game = await ctx.db.get(gameId);
+    if (!game || game.status !== 'IN_PROGRESS' || round > game.currentRound)
+      return;
+
+    const turn = await getAiTurnByCell(ctx, poemId, round);
+    if (
+      !turn ||
+      turn.status !== 'authorized' ||
+      turn.roomId !== roomId ||
+      turn.gameId !== gameId ||
+      turn.aiUserId !== forUserId
+    )
+      return;
+
+    const stalledUser = await ctx.db.get(forUserId);
+    const committed = await commitFallbackLine(ctx, {
+      roomId,
+      gameId,
+      poemId,
+      lineIndex: round,
+      authorUserId: forUserId,
+      authorDisplayName: `${stalledUser?.displayName ?? 'A poet'} (ghost)`,
+    });
+    if (!committed) return;
+
+    await recordAiUsage(ctx, { day: turn.day, fallbacks: 1 });
+    log.warn('Ghostwriter safety net committed a fallback line', {
+      roomId,
+      gameId,
+      round,
+      poemId,
+    });
+  },
+});
+
 /**
  * Ghostwriter: generate a line for a stalled human turn (host-summoned).
  * Attribution stays honest — the line is bylined "<name> (ghost)".
@@ -958,11 +1129,14 @@ export const generateGhostLine = internalAction({
       if (!game || game.status !== 'IN_PROGRESS') return;
       if (game.currentRound !== round) return;
 
-      const alreadySubmitted = await ctx.runQuery(internal.ai.hasLineForRound, {
-        poemId,
+      const claim = await ctx.runMutation(internal.ai.claimGhostGeneration, {
+        roomId,
+        gameId,
         round,
+        poemId,
+        forUserId,
       });
-      if (alreadySubmitted) return;
+      if (claim.status !== 'authorized') return;
 
       const previousLine =
         round > 0
@@ -1001,7 +1175,14 @@ export const generateGhostLine = internalAction({
         );
       })();
 
-      await ctx.runMutation(internal.ai.commitGhostLine, {
+      if (result.attemptsUsed > 0) {
+        await ctx.runMutation(internal.ai.recordAiHttpAttempts, {
+          day: claim.day ?? aiUsageDay(),
+          attempts: result.attemptsUsed,
+        });
+      }
+
+      const committed = await ctx.runMutation(internal.ai.commitGhostLine, {
         roomId,
         gameId,
         poemId,
@@ -1010,7 +1191,20 @@ export const generateGhostLine = internalAction({
         forUserId,
       });
 
-      log.warn('Ghostwriter covered a stalled turn', { roomId, gameId, round });
+      if (result.fallbackUsed && committed) {
+        await ctx.runMutation(internal.ai.recordAiFallback, {
+          day: claim.day ?? aiUsageDay(),
+          count: 1,
+        });
+      }
+
+      if (committed) {
+        log.warn('Ghostwriter covered a stalled turn', {
+          roomId,
+          gameId,
+          round,
+        });
+      }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logError('generateGhostLine failed', err, {
@@ -1051,7 +1245,7 @@ export const commitGhostLine = internalMutation({
   ) => {
     const stalledUser = await ctx.db.get(forUserId);
     const baseName = stalledUser?.displayName ?? 'A poet';
-    await commitAssignedLine(ctx, {
+    return commitAssignedLine(ctx, {
       roomId,
       gameId,
       poemId,
