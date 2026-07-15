@@ -462,6 +462,41 @@ describe('summonGhostwriter', () => {
     ).rejects.toThrow('Only host can summon the ghostwriter');
   });
 
+  it('does not let a non-host consume the room summon quota', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghostquotaHost' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostquotaGuest' },
+      ],
+      code: 'GWQ1',
+      currentRound: 0,
+      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+    });
+    const key = `mutation:summonGhostwriter:room:${roomId}`;
+    await t.run((ctx) =>
+      ctx.db.insert('rateLimits', {
+        key,
+        hits: ABUSE_RATE_LIMITS.summonGhostwriter.roomMax - 1,
+        resetTime: Date.now() + ABUSE_RATE_LIMITS.summonGhostwriter.windowMs,
+      })
+    );
+
+    await expect(
+      asUser(t, 'ghostquotaGuest').mutation(api.game.summonGhostwriter, {
+        roomCode: code,
+      })
+    ).rejects.toThrow('Only host can summon the ghostwriter');
+
+    const limit = await t.run((ctx) =>
+      ctx.db
+        .query('rateLimits')
+        .withIndex('by_key', (q) => q.eq('key', key))
+        .first()
+    );
+    expect(limit?.hits).toBe(ABUSE_RATE_LIMITS.summonGhostwriter.roomMax - 1);
+  });
+
   it('rejects before overtime', async () => {
     const t = setupConvexTest();
     const { code } = await seedInProgressGame(t, {
@@ -478,6 +513,69 @@ describe('summonGhostwriter', () => {
         roomCode: code,
       })
     ).rejects.toThrow('The ghostwriter only answers after overtime');
+  });
+
+  it('rate-limits summon attempts per actor', async () => {
+    const t = setupConvexTest();
+    const { code, userIds, gameId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghostlimitactor' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostlimitactorguest' },
+      ],
+      code: 'GWL1',
+      currentRound: 0,
+      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+    });
+    await t.run((ctx) =>
+      ctx.db.insert('rateLimits', {
+        key: `mutation:summonGhostwriter:user:${userIds[0]}`,
+        hits: ABUSE_RATE_LIMITS.summonGhostwriter.userMax,
+        resetTime: Date.now() + ABUSE_RATE_LIMITS.summonGhostwriter.windowMs,
+      })
+    );
+
+    await expect(
+      asUser(t, 'ghostlimitactor').mutation(api.game.summonGhostwriter, {
+        roomCode: code,
+      })
+    ).rejects.toThrow('Rate limit exceeded');
+
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('aiTurns')
+          .withIndex('by_game_round', (q) =>
+            q.eq('gameId', gameId).eq('round', 0)
+          )
+          .collect()
+      )
+    ).toHaveLength(0);
+  });
+
+  it('rate-limits summon attempts per room', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghostlimitroom' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostlimitroomguest' },
+      ],
+      code: 'GWL2',
+      currentRound: 0,
+      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+    });
+    await t.run((ctx) =>
+      ctx.db.insert('rateLimits', {
+        key: `mutation:summonGhostwriter:room:${roomId}`,
+        hits: ABUSE_RATE_LIMITS.summonGhostwriter.roomMax,
+        resetTime: Date.now() + ABUSE_RATE_LIMITS.summonGhostwriter.windowMs,
+      })
+    );
+
+    await expect(
+      asUser(t, 'ghostlimitroom').mutation(api.game.summonGhostwriter, {
+        roomCode: code,
+      })
+    ).rejects.toThrow('Rate limit exceeded');
   });
 
   it('schedules ghost lines for every missing poem after overtime', async () => {
@@ -529,6 +627,104 @@ describe('summonGhostwriter', () => {
         .first()
     );
     expect(line).not.toBeNull();
+  });
+
+  it('does not summon a ghostwriter for an AI-assigned cell', async () => {
+    const t = setupConvexTest();
+    const { code, roomId, poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghosthumanhost' },
+        { name: 'Bot', kind: 'AI' },
+      ],
+      code: 'GWAI',
+      currentRound: 0,
+      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+    });
+
+    // Round zero assigns the host to poem 0 and the bot to poem 1. Leave only
+    // the bot cell open: its generation action, not the ghostwriter, owns it.
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 0,
+        text: 'done',
+        wordCount: 1,
+        authorUserId: userIds[0],
+        createdAt: Date.now(),
+      })
+    );
+
+    const result = await asUser(t, 'ghosthumanhost').mutation(
+      api.game.summonGhostwriter,
+      { roomCode: code }
+    );
+
+    expect(result).toEqual({ summoned: 0 });
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('rateLimits')
+          .withIndex('by_key', (q) =>
+            q.eq('key', `mutation:summonGhostwriter:room:${roomId}`)
+          )
+          .first()
+      )
+    ).toBeNull();
+  });
+
+  it('does not debit summon quotas for an already-claimed cell', async () => {
+    const t = setupConvexTest();
+    const { code, roomId, gameId, poemIds, userIds } = await seedInProgressGame(
+      t,
+      {
+        players: [
+          { name: 'Host', clerkUserId: 'clerk_ghostclaimedhost' },
+          { name: 'Guest' },
+        ],
+        code: 'GWCL',
+        currentRound: 0,
+        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+      }
+    );
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('lines', {
+        poemId: poemIds[1],
+        indexInPoem: 0,
+        text: 'done',
+        wordCount: 1,
+        authorUserId: userIds[1],
+        createdAt: Date.now(),
+      });
+      await ctx.db.insert('aiTurns', {
+        roomId,
+        gameId,
+        poemId: poemIds[0],
+        round: 0,
+        aiUserId: userIds[0],
+        day: new Date().toISOString().slice(0, 10),
+        status: 'authorized',
+        claimedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const result = await asUser(t, 'ghostclaimedhost').mutation(
+      api.game.summonGhostwriter,
+      { roomCode: code }
+    );
+
+    expect(result).toEqual({ summoned: 0 });
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('rateLimits')
+          .withIndex('by_key', (q) =>
+            q.eq('key', `mutation:summonGhostwriter:room:${roomId}`)
+          )
+          .first()
+      )
+    ).toBeNull();
   });
 
   it('is a no-op when every poem already has its line', async () => {

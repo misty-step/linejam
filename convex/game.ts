@@ -365,25 +365,55 @@ export const summonGhostwriter = mutation({
       .withIndex('by_game', (q) => q.eq('gameId', game._id))
       .collect();
 
-    const lineChecks = await Promise.all(
-      poems.map((poem) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
-          )
-          .first()
-      )
-    );
-    const missingPoems = poems.filter((_, i) => lineChecks[i] === null);
-    if (missingPoems.length === 0) {
-      return { summoned: 0 };
-    }
-
     const roundAssignments = getMatrixRound(
       game.assignmentMatrix,
       game.currentRound
     );
+    const [lineChecks, assignedUsers, claimedTurns] = await Promise.all([
+      Promise.all(
+        poems.map((poem) =>
+          ctx.db
+            .query('lines')
+            .withIndex('by_poem_index', (q) =>
+              q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
+            )
+            .first()
+        )
+      ),
+      Promise.all(
+        poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
+      ),
+      ctx.db
+        .query('aiTurns')
+        .withIndex('by_game_round', (q) =>
+          q.eq('gameId', game._id).eq('round', game.currentRound)
+        )
+        .collect(),
+    ]);
+    // The ghostwriter covers stalled humans only. AI-assigned cells already
+    // have their own generation action and claim; scheduling a ghost for one
+    // would create two consumers for the same authorized cell.
+    const claimedPoemIds = new Set(claimedTurns.map((turn) => turn.poemId));
+    const missingPoems = poems.filter(
+      (poem, i) =>
+        lineChecks[i] === null &&
+        assignedUsers[i]?.kind !== 'AI' &&
+        !claimedPoemIds.has(poem._id)
+    );
+    if (missingPoems.length === 0) {
+      return { summoned: 0 };
+    }
+
+    // Charge only a valid, productive host summon. A non-host must not be able
+    // to grief the room quota, and retries after every cell is already claimed
+    // should remain a harmless no-op.
+    await checkMutationAbuseRateLimit(ctx, {
+      operation: 'summonGhostwriter',
+      userId: user._id,
+      guestToken: user.guestId ? guestToken : undefined,
+      roomId: room._id,
+    });
+
     await Promise.all(
       missingPoems.map((poem) =>
         ctx.scheduler.runAfter(0, internal.ai.generateGhostLine, {

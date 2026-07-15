@@ -29,6 +29,12 @@ export const ABUSE_RATE_LIMITS = {
     bucketMax: 10,
     windowMs: 10 * 60 * 1000,
   },
+  summonGhostwriter: {
+    userMax: 5,
+    bucketMax: 10,
+    roomMax: 8,
+    windowMs: 10 * 60 * 1000,
+  },
 } as const;
 
 export type AbuseRateLimitOperation = keyof typeof ABUSE_RATE_LIMITS;
@@ -47,12 +53,20 @@ export function userRateLimitKey(
   return `mutation:${operation}:user:${userId}`;
 }
 
+export function roomRateLimitKey(
+  operation: AbuseRateLimitOperation,
+  roomId: Id<'rooms'>
+) {
+  return `mutation:${operation}:room:${roomId}`;
+}
+
 export async function checkMutationAbuseRateLimit(
   ctx: MutationCtx,
   args: {
     operation: AbuseRateLimitOperation;
     userId: Id<'users'>;
     guestToken?: string;
+    roomId?: Id<'rooms'>;
   }
 ) {
   const limits = ABUSE_RATE_LIMITS[args.operation];
@@ -66,6 +80,14 @@ export async function checkMutationAbuseRateLimit(
         windowMs: limits.windowMs,
       });
     }
+  }
+
+  if ('roomMax' in limits && limits.roomMax !== undefined && args.roomId) {
+    await checkRateLimit(ctx, {
+      key: roomRateLimitKey(args.operation, args.roomId),
+      max: limits.roomMax,
+      windowMs: limits.windowMs,
+    });
   }
 
   await checkRateLimit(ctx, {

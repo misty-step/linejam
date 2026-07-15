@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { api, internal } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
-import { WORD_COUNTS } from '../../convex/lib/gameRules';
+import {
+  GHOSTWRITER_OVERTIME_MS,
+  WORD_COUNTS,
+} from '../../convex/lib/gameRules';
 import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
 import { countWords } from '../../convex/lib/wordCount';
 import { type T, getAllLines, seedUser } from '../helpers/convexSeed';
@@ -151,6 +154,7 @@ const ORIGINAL_ENV = { ...process.env };
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.AI_DAILY_CALL_BUDGET;
+  delete process.env.AI_DAILY_CALL_ALERT_THRESHOLD;
   delete process.env.AI_DAILY_COST_BUDGET_USD;
   delete process.env.AI_ESTIMATED_COST_PER_GENERATION_USD;
   delete process.env.LINEJAM_AI_DETERMINISTIC;
@@ -850,6 +854,174 @@ describe('generateGhostLine (action, fallback path)', () => {
     );
     // No ghost line written for the stale round.
     expect(line).toBeNull();
+  });
+
+  it('shares one atomic cell claim across automatic and host scheduling', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, poemIds, matrix } = await seedClassicGame(t, {
+      players: [
+        { name: 'Host', clerkUserId: 'clerk_ghostclaimhost' },
+        { name: 'Guest', clerkUserId: 'clerk_ghostclaimguest' },
+      ],
+      currentRound: 0,
+      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+    });
+    const roomCode = await t.run((ctx) =>
+      ctx.db.get(roomId).then((r) => r!.code)
+    );
+
+    // Leave exactly one cell open so both schedulers target the same cell.
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[1],
+        indexInPoem: 0,
+        text: 'already',
+        wordCount: WORD_COUNTS[0],
+        authorUserId: matrix[0][1],
+        createdAt: Date.now(),
+      })
+    );
+
+    await Promise.all([
+      t.mutation(internal.game.fillStaleHumanTurns, {
+        roomId,
+        gameId,
+        round: 0,
+      }),
+      t
+        .withIdentity({ subject: 'clerk_ghostclaimhost' })
+        .mutation(api.game.summonGhostwriter, { roomCode }),
+    ]);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const usage = await t.run((ctx) =>
+      ctx.db
+        .query('aiUsage')
+        .withIndex('by_day', (q) =>
+          q.eq('day', new Date().toISOString().slice(0, 10))
+        )
+        .first()
+    );
+    const turns = await t.run((ctx) =>
+      ctx.db
+        .query('aiTurns')
+        .withIndex('by_cell', (q) => q.eq('poemId', poemIds[0]).eq('round', 0))
+        .collect()
+    );
+    const allTurns = await t.run((ctx) => ctx.db.query('aiTurns').collect());
+    const cellKeys = new Set(
+      allTurns.map((turn) => `${turn.poemId}:${turn.round}`)
+    );
+
+    expect(usage?.generationClaims).toBe(allTurns.length);
+    expect(cellKeys.size).toBe(allTurns.length);
+    expect(turns).toHaveLength(1);
+  });
+
+  it('uses a deterministic fallback without a provider attempt when the global budget is zero', async () => {
+    process.env.AI_DAILY_CALL_BUDGET = '0';
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: [{ name: 'Alice' }, { name: 'Bob' }], currentRound: 0 }
+    );
+
+    await t.action(internal.ai.generateGhostLine, {
+      roomId,
+      gameId,
+      round: 0,
+      poemId: poemIds[matrix[0].indexOf(userIds[0])],
+      forUserId: userIds[0],
+    });
+
+    const usage = await t.run((ctx) =>
+      ctx.db
+        .query('aiUsage')
+        .withIndex('by_day', (q) =>
+          q.eq('day', new Date().toISOString().slice(0, 10))
+        )
+        .first()
+    );
+    const turns = await t.run((ctx) =>
+      ctx.db
+        .query('aiTurns')
+        .withIndex('by_cell', (q) =>
+          q.eq('poemId', poemIds[matrix[0].indexOf(userIds[0])]).eq('round', 0)
+        )
+        .collect()
+    );
+
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(usage?.generationClaims ?? 0).toBe(0);
+    expect(usage?.fallbacks).toBe(1);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].status).toBe('budget_fallback');
+  });
+
+  it('does not consume a second claim for a duplicate generation attempt', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: [{ name: 'Alice' }, { name: 'Bob' }], currentRound: 0 }
+    );
+    const poemId = poemIds[matrix[0].indexOf(userIds[0])];
+
+    await t.action(internal.ai.generateGhostLine, {
+      roomId,
+      gameId,
+      round: 0,
+      poemId,
+      forUserId: userIds[0],
+    });
+    await t.action(internal.ai.generateGhostLine, {
+      roomId,
+      gameId,
+      round: 0,
+      poemId,
+      forUserId: userIds[0],
+    });
+
+    const usage = await t.run((ctx) =>
+      ctx.db
+        .query('aiUsage')
+        .withIndex('by_day', (q) =>
+          q.eq('day', new Date().toISOString().slice(0, 10))
+        )
+        .first()
+    );
+    expect(usage?.generationClaims).toBe(1);
+  });
+
+  it('recovers a claimed ghost cell through the bounded safety net', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
+      t,
+      { players: [{ name: 'Alice' }, { name: 'Bob' }], currentRound: 0 }
+    );
+    const poemId = poemIds[matrix[0].indexOf(userIds[0])];
+
+    const claim = await t.mutation(internal.ai.claimGhostGeneration, {
+      roomId,
+      gameId,
+      round: 0,
+      poemId,
+      forUserId: userIds[0],
+    });
+    expect(claim.status).toBe('authorized');
+
+    // Simulate an action/provider crash after the claim. The claim-owned
+    // scheduler must fill the cell without a second provider authorization.
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const line = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemId).eq('indexInPoem', 0)
+        )
+        .first()
+    );
+    expect(line?.authorDisplayName).toBe('Alice (ghost)');
   });
 });
 
