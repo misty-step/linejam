@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.20.0](https://github.com/misty-step/linejam/compare/v0.19.4...v0.20.0) (2026-07-15)
+
+
+### Features
+
+* **ci:** enforce safe schema migration sequencing ([#357](https://github.com/misty-step/linejam/issues/357)) ([5e012f9](https://github.com/misty-step/linejam/commit/5e012f974d1c07974862b7e7eb5c8cb283b056e1))
+
 ## [0.19.4](https://github.com/misty-step/linejam/compare/v0.19.3...v0.19.4) (2026-07-15)
 
 
