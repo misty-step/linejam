@@ -151,7 +151,9 @@ export function RevealPhase({
   const allStableIds = poems.map((p) => p.readerStableId);
 
   const displayingPoem = showingPoemId
-    ? myPoems?.find((p) => p._id === showingPoemId)
+    ? [...(myPoems ?? []), ...(state.revealedPoems ?? [])].find(
+        (poem) => poem._id === showingPoemId
+      )
     : null;
   const chrome = showChrome ? (
     <RoomChrome
@@ -239,9 +241,11 @@ export function RevealPhase({
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <p className="text-xs font-mono uppercase tracking-widest text-primary">
-                          {poem.isForAi
-                            ? `Read for ${poem.aiPersonaName}`
-                            : 'Your Assignment'}
+                          {poem.isFallbackReader
+                            ? `Step in for ${poem.readerName}`
+                            : poem.isForAi
+                              ? `Read for ${poem.aiPersonaName}`
+                              : 'Your Assignment'}
                         </p>
                         {poem.isForAi && <BotBadge />}
                       </div>
@@ -259,7 +263,9 @@ export function RevealPhase({
                     >
                       {isRevealingId === poem._id
                         ? 'Unsealing...'
-                        : 'Reveal & Read'}
+                        : poem.isFallbackReader
+                          ? 'Step In & Read'
+                          : 'Reveal & Read'}
                     </Button>
                   </div>
                 ))}

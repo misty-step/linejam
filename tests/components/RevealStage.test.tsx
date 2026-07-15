@@ -101,6 +101,38 @@ describe('RevealStage', () => {
     expect(screen.getByRole('button', { name: /Unsealing/i })).toBeDisabled();
   });
 
+  it('labels a fallback reveal without pretending the poem was reassigned', () => {
+    const onRevealPoem = vi.fn().mockResolvedValue(undefined);
+    const fallbackPoem = {
+      _id: 'poem_fallback' as Id<'poems'>,
+      indexInRoom: 0,
+      readerName: 'Reader Away',
+      readerStableId: 'stable_away',
+      preview: 'Someone keeps the circle moving',
+      isRevealed: false,
+      isFallbackReader: true,
+      lines: [{ text: 'Someone', authorName: 'Host' }],
+    };
+
+    render(
+      <RevealStage
+        poems={[fallbackPoem]}
+        myPoems={[fallbackPoem]}
+        revealedPoems={[]}
+        allStableIds={['stable_away']}
+        error={null}
+        isRevealingId={null}
+        onExit={vi.fn()}
+        onRevealPoem={onRevealPoem}
+      />
+    );
+
+    expect(screen.getByText('Step in for Reader Away')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Step in on stage' })
+    ).toBeInTheDocument();
+  });
+
   it('renders an empty stage state when no poems are ready', () => {
     render(
       <RevealStage
