@@ -13,6 +13,7 @@
     "dev:convex": "convex dev",
     "convex:sync:shared-dev": "./scripts/ci/dagger-call.sh sync-shared-dev",
     "convex:env:reconcile": "node ./scripts/ci/reconcile-convex-env.mjs --target development",
+    "ops:do-drift": "node ./scripts/ops/check-digitalocean-app-drift.mjs",
     "build": "node ./scripts/ci/bootstrap-convex-env.mjs --deploy",
     "build:check": "next build",
     "start:next": "next start",

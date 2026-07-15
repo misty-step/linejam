@@ -25,6 +25,7 @@ Compact router for repository agents. Read only the depth your lane needs.
 | CI and live-operation authority | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`  |
 | Production operations           | `docs/deployment.md`                                         |
 | Convex environment contract     | `config/convex-env-manifest.json`                            |
+| DigitalOcean topology contract  | `config/digitalocean-apps.json`, `pnpm ops:do-drift`         |
 | Agent CLI/MCP                   | `.agents/skills/linejam-cli/SKILL.md`, `docs/agent-faces.md` |
 
 The live stack is declared in `package.json`; do not copy dependency versions

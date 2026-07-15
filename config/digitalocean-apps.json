@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "deploymentAuthority": {
+    "source": {
+      "repository": "misty-step/linejam",
+      "branch": "master"
+    },
+    "frontendProductionOwner": {
+      "app": "linejam",
+      "component": "web"
+    },
+    "convexProductionOwner": {
+      "app": "linejam",
+      "component": "web",
+      "buildCommand": "pnpm install --frozen-lockfile && pnpm build"
+    }
+  },
+  "apps": [
+    {
+      "id": "53289d4b-0e9e-4e96-816c-f91348f2473f",
+      "name": "linejam",
+      "region": "nyc",
+      "features": ["buildpack-stack=ubuntu-22"],
+      "domains": [
+        {
+          "domain": "linejam.app",
+          "type": "PRIMARY",
+          "zone": "linejam.app"
+        },
+        {
+          "domain": "www.linejam.app",
+          "type": "ALIAS",
+          "zone": "linejam.app"
+        }
+      ],
+      "ingress": [{ "pathPrefix": "/", "component": "web" }],
+      "services": [
+        {
+          "name": "web",
+          "source": {
+            "repository": "misty-step/linejam",
+            "branch": "master",
+            "deployOnPush": true
+          },
+          "buildCommand": "pnpm install --frozen-lockfile && pnpm build",
+          "runCommand": "pnpm run start:next",
+          "httpPort": 3000,
+          "instanceCount": 1,
+          "instanceSize": "apps-s-1vcpu-1gb",
+          "healthCheckPath": "/api/health",
+          "environment": [
+            {
+              "name": "CANARY_API_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "CANARY_ENDPOINT",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "CLERK_JWT_ISSUER_DOMAIN",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "CLERK_SECRET_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "CONVEX_DEPLOYMENT",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "CONVEX_DEPLOYMENT_URL",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "CONVEX_DEPLOY_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "GUEST_TOKEN_SECRET",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "LINEJAM_DEPLOY_ENVIRONMENT",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "NEXT_PUBLIC_CANARY_API_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "NEXT_PUBLIC_CANARY_ENDPOINT",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "NEXT_PUBLIC_CONVEX_URL",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "NEXT_PUBLIC_SENTRY_DSN",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "PLAYWRIGHT_CLERK_TEST_EMAIL",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "SENTRY_AUTH_TOKEN",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "SENTRY_ORG",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "SENTRY_PROJECT",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ba0f56a7-f866-4238-af72-57bb64528f78",
+      "name": "linejam-canary-responder",
+      "region": "nyc",
+      "features": ["buildpack-stack=ubuntu-22"],
+      "domains": [],
+      "ingress": [{ "pathPrefix": "/", "component": "responder" }],
+      "services": [
+        {
+          "name": "responder",
+          "source": {
+            "repository": "misty-step/linejam",
+            "branch": "master",
+            "deployOnPush": true
+          },
+          "dockerfilePath": "Dockerfile.responder",
+          "httpPort": 8787,
+          "instanceCount": 1,
+          "instanceSize": "apps-s-1vcpu-2gb",
+          "healthCheckPath": "/healthz",
+          "environment": [
+            {
+              "name": "CANARY_API_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "CANARY_ENDPOINT",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "CLERK_SECRET_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "LINEJAM_ALLOWED_SMOKE_ORIGINS",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "LINEJAM_CANARY_RESPONDER_PORT",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "LINEJAM_CANARY_SERVICE",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "LINEJAM_CANARY_STORE_DIR",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "LINEJAM_CANARY_WEBHOOK_PATH",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "LINEJAM_CANARY_WEBHOOK_SECRET",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "LINEJAM_SMOKE_RUNNER",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "PLAYWRIGHT_BASE_URL",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "PLAYWRIGHT_CLERK_TEST_EMAIL",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "PLAYWRIGHT_REQUIRE_AUTH_SMOKE",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
