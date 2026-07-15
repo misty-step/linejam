@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.18.4](https://github.com/misty-step/linejam/compare/v0.18.3...v0.18.4) (2026-07-15)
+
+
+### Bug Fixes
+
+* **gameplay:** preserve rematch assignments ([#348](https://github.com/misty-step/linejam/issues/348)) ([8f5cf76](https://github.com/misty-step/linejam/commit/8f5cf76c515e8bf5d8f142e730be7ff1f86e84a4))
+
 ## [0.18.3](https://github.com/misty-step/linejam/compare/v0.18.2...v0.18.3) (2026-07-15)
 
 
