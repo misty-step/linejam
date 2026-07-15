@@ -154,15 +154,20 @@ describe('WritingScreen component', () => {
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
     expect(submit).toHaveClass(
-      'min-h-[64px]',
+      'h-[64px]',
       'w-full',
       'min-w-0',
       'max-w-[240px]',
-      'md:min-h-[80px]',
+      'md:h-[80px]',
       'md:w-auto',
       'md:min-w-[240px]'
     );
-    expect(submit).not.toHaveClass('min-w-[240px]');
+    expect(submit).not.toHaveClass(
+      'h-auto',
+      'min-h-[64px]',
+      'min-w-[240px]',
+      'py-[12px]'
+    );
 
     const textarea = screen.getByRole('textbox');
     expect(textarea).toHaveClass('min-w-0', 'max-w-full', 'overflow-x-hidden');
