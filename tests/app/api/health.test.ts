@@ -18,6 +18,8 @@ const HEALTHY_ENV = {
   LINEJAM_DEPLOY_ENVIRONMENT: 'development',
   NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
   NEXT_PUBLIC_CANARY_API_KEY: 'sk_test_canary',
+  NEXT_DEPLOYMENT_ID: 'test-deployment',
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
 };
 
 const HEALTHY_REPORT = {
@@ -78,6 +80,9 @@ describe('/api/health', () => {
       process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
       process.env.NEXT_PUBLIC_CANARY_API_KEY =
         HEALTHY_ENV.NEXT_PUBLIC_CANARY_API_KEY;
+      process.env.NEXT_DEPLOYMENT_ID = HEALTHY_ENV.NEXT_DEPLOYMENT_ID;
+      process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY =
+        HEALTHY_ENV.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY;
 
       vi.doMock('convex/browser', () => ({
         ConvexHttpClient: MockConvexHttpClient,
@@ -112,6 +117,11 @@ describe('/api/health', () => {
       expect(data).toMatchObject({
         status: 'ok',
         timestamp: expect.any(String),
+        deployment: {
+          id: HEALTHY_ENV.NEXT_DEPLOYMENT_ID,
+          skewProtection: true,
+          stableServerActions: true,
+        },
         env: {
           nodeEnv: expect.stringMatching(/^(development|test|production)$/),
           guestTokenSecret: true,

@@ -95,6 +95,11 @@
               "secret": false
             },
             {
+              "name": "NEXT_DEPLOYMENT_ID",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
               "name": "NEXT_PUBLIC_CANARY_API_KEY",
               "scope": "RUN_AND_BUILD_TIME",
               "secret": true
@@ -116,6 +121,11 @@
             },
             {
               "name": "NEXT_PUBLIC_SENTRY_DSN",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
               "scope": "RUN_AND_BUILD_TIME",
               "secret": true
             },

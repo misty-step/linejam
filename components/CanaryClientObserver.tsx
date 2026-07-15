@@ -2,6 +2,10 @@
 
 import { useEffect } from 'react';
 import { captureCanaryException } from '@/lib/canary';
+import {
+  isUnrecognizedServerActionError,
+  notifyDeploymentStale,
+} from '@/lib/deploymentSkew';
 
 function captureBrowserFailure(error: unknown, source: string) {
   void captureCanaryException(error, {
@@ -20,6 +24,12 @@ export function CanaryClientObserver() {
     };
 
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (isUnrecognizedServerActionError(event.reason)) {
+        event.preventDefault();
+        notifyDeploymentStale();
+        return;
+      }
+
       captureBrowserFailure(
         event.reason ?? new Error('Unhandled promise rejection'),
         'window.unhandledrejection'

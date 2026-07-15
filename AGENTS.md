@@ -64,6 +64,9 @@ or test counts into agent prose.
   N+1 queries. Every `while` loop needs an explicit bound.
 - `GUEST_TOKEN_SECRET` must match the web and target Convex deployment. Treat
   guest tokens as credentials.
+- Production rolling deploys require `NEXT_DEPLOYMENT_ID` bound to the source
+  commit and one stable 32-byte base64 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`.
+  Never rotate that key as part of a normal release.
 - Never bypass hooks with `--no-verify`. Never push when `pnpm ci:prepush` is
   red. Never claim validation without the exact command and exercised surface.
 

@@ -93,6 +93,29 @@ describe('CanaryClientObserver', () => {
     });
   });
 
+  it('classifies stale Server Actions as deploy skew without incident noise', async () => {
+    render(<CanaryClientObserver />);
+    const staleListener = vi.fn();
+    window.addEventListener('linejam:deployment-stale', staleListener);
+
+    const event = new Event('unhandledrejection', {
+      cancelable: true,
+    }) as PromiseRejectionEvent;
+    Object.defineProperty(event, 'reason', {
+      value: Object.assign(
+        new Error('Server Action "[redacted]" was not found on the server.'),
+        { name: 'UnrecognizedActionError' }
+      ),
+      configurable: true,
+    });
+    window.dispatchEvent(event);
+
+    await waitFor(() => expect(staleListener).toHaveBeenCalledTimes(1));
+    expect(event.defaultPrevented).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    window.removeEventListener('linejam:deployment-stale', staleListener);
+  });
+
   it('falls back when unhandled rejection reason is missing', async () => {
     render(<CanaryClientObserver />);
 

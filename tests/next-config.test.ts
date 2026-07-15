@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import nextConfig, { buildContentSecurityPolicy } from '../next.config';
+import nextConfig, {
+  buildContentSecurityPolicy,
+  resolveDeploymentId,
+} from '../next.config';
 
 describe('nextConfig security headers', () => {
   afterEach(() => {
@@ -77,5 +80,16 @@ describe('nextConfig security headers', () => {
     expect(csp).not.toContain("'unsafe-eval'");
     expect(csp).not.toContain('localhost');
     expect(csp).not.toContain('127.0.0.1');
+  });
+});
+
+describe('nextConfig deployment skew protection', () => {
+  it('uses the provider commit as the deployment identifier', () => {
+    expect(resolveDeploymentId('  abc123_DEF-9  ')).toBe('abc123_DEF-9');
+  });
+
+  it('leaves local builds unversioned when the provider supplies no commit', () => {
+    expect(resolveDeploymentId(undefined)).toBeUndefined();
+    expect(resolveDeploymentId('   ')).toBeUndefined();
   });
 });

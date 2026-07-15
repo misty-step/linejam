@@ -7,13 +7,20 @@ import { ThemeProvider } from '@/lib/themes';
 import { PostHogProvider } from '@/lib/posthog/PostHogProvider';
 import { PostHogPageview } from '@/lib/posthog/PostHogPageview';
 import { CanaryClientObserver } from '@/components/CanaryClientObserver';
+import { DeploymentSkewObserver } from '@/components/DeploymentSkewObserver';
 import {
   linejamClerkAppearance,
   useClerkThemeVariables,
 } from '@/lib/clerk/appearance';
 import { ReactNode } from 'react';
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  deploymentId,
+}: {
+  children: ReactNode;
+  deploymentId?: string;
+}) {
   const variables = useClerkThemeVariables();
 
   return (
@@ -25,6 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <PostHogProvider>
         <PostHogPageview />
         <CanaryClientObserver />
+        <DeploymentSkewObserver deploymentId={deploymentId} />
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <ThemeProvider>{children}</ThemeProvider>
         </ConvexProviderWithClerk>

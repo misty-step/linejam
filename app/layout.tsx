@@ -204,7 +204,7 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <Providers>
+        <Providers deploymentId={process.env.NEXT_DEPLOYMENT_ID?.trim()}>
           <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
             <Header />
             <main className="flex-1 flex flex-col">{children}</main>

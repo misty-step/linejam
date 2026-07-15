@@ -32,9 +32,15 @@ export async function GET() {
       convexStatus === 'connected' &&
       convexEnv?.ok === true;
     const canaryReady = envChecks.canaryIngestKey;
-    const status = serviceHealthy ? 200 : 503;
+    const deployment = deploymentReadiness();
+    const status = serviceHealthy && deployment.ready ? 200 : 503;
     const body = {
-      status: serviceHealthy ? 'ok' : 'unhealthy',
+      status: status === 200 ? 'ok' : 'unhealthy',
+      deployment: {
+        id: deployment.id,
+        skewProtection: deployment.skewProtection,
+        stableServerActions: deployment.stableServerActions,
+      },
       convex: convexStatus,
       convexEnv: convexEnv?.capabilities ?? null,
       env: {
@@ -58,10 +64,11 @@ export async function GET() {
     });
 
     await reportHealthCheckIn({
-      status: serviceHealthy ? 'alive' : 'error',
-      summary: serviceHealthy
-        ? 'linejam health route ok'
-        : 'linejam health route degraded',
+      status: status === 200 ? 'alive' : 'error',
+      summary:
+        status === 200
+          ? 'linejam health route ok'
+          : 'linejam health route degraded',
       routeStatus: status,
       startedAt,
     });
@@ -77,6 +84,22 @@ export async function GET() {
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }
+}
+
+function deploymentReadiness() {
+  const id = process.env.NEXT_DEPLOYMENT_ID?.trim() || null;
+  const skewProtection = id !== null;
+  const stableServerActions = Boolean(
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?.trim()
+  );
+  const required = process.env.LINEJAM_DEPLOY_ENVIRONMENT === 'production';
+
+  return {
+    id,
+    skewProtection,
+    stableServerActions,
+    ready: !required || (skewProtection && stableServerActions),
+  };
 }
 
 /**

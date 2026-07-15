@@ -31,6 +31,35 @@ afterEach(() => {
 });
 
 describe('middleware — guest-only mode (Clerk not configured)', () => {
+  it('drops malformed Server Action identifiers before Next.js logs them', async () => {
+    delete process.env.CLERK_SECRET_KEY;
+    vi.resetModules();
+
+    const { default: middleware } = await import('../middleware');
+    const req = new NextRequest('http://localhost:3000/room/ABCD', {
+      method: 'POST',
+      headers: { 'next-action': 'not-a-server-action-id' },
+    });
+    const res = await middleware(req);
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('allows a well-formed Server Action identifier to reach Next.js', async () => {
+    delete process.env.CLERK_SECRET_KEY;
+    vi.resetModules();
+
+    const { default: middleware } = await import('../middleware');
+    const req = new NextRequest('http://localhost:3000/room/ABCD', {
+      method: 'POST',
+      headers: { 'next-action': 'a'.repeat(40) },
+    });
+    const res = await middleware(req);
+
+    expect(res.status).toBe(200);
+  });
+
   it('does not redirect /me/poems away', async () => {
     delete process.env.CLERK_SECRET_KEY;
     vi.resetModules();

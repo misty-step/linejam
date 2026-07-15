@@ -138,6 +138,10 @@ export function buildContentSecurityPolicy() {
     .join('; ');
 }
 
+export function resolveDeploymentId(value: string | undefined) {
+  return value?.trim() || undefined;
+}
+
 const securityHeaders = [
   {
     key: 'Content-Security-Policy',
@@ -177,6 +181,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  deploymentId: resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID),
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
   images: {
     remotePatterns: [
