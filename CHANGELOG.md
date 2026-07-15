@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.19.4](https://github.com/misty-step/linejam/compare/v0.19.3...v0.19.4) (2026-07-15)
+
+
+### Bug Fixes
+
+* **mobile:** own the visual game viewport ([#356](https://github.com/misty-step/linejam/issues/356)) ([953abc7](https://github.com/misty-step/linejam/commit/953abc75d632b7fa8bc2ed144012a6be8320832e))
+
 ## [0.19.3](https://github.com/misty-step/linejam/compare/v0.19.2...v0.19.3) (2026-07-15)
 
 
