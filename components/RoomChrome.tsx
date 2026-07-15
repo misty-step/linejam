@@ -179,7 +179,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
                 </h1>
               </div>
               {subtitle && (
-                <p className="hidden max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] md:block">
+                <p className="max-w-3xl truncate text-xs leading-tight text-[var(--color-text-secondary)] md:text-sm md:leading-relaxed">
                   {subtitle}
                 </p>
               )}

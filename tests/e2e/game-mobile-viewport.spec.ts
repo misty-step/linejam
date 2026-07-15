@@ -302,6 +302,7 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     await session.createRoom();
     await session.joinRoom();
 
+    await session.hostPage.setViewportSize({ width: 320, height: 667 });
     const start = session.hostPage.getByTestId(
       E2E_TEST_IDS.lobbyStartGameButton
     );
@@ -311,10 +312,20 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     await session.hostPage.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });
-    await expectInitiallyInsideVisualViewport(session.hostPage, start);
+    const roomChrome = session.hostPage.getByTestId('room-chrome');
+    await Promise.all(
+      [
+        roomChrome,
+        session.hostPage.getByRole('button', { name: /Share room invite/i }),
+        session.hostPage.getByRole('button', { name: /More options/i }),
+        start,
+      ].map((locator) =>
+        expectInitiallyInsideVisualViewport(session.hostPage, locator)
+      )
+    );
     await expectNoHorizontalScroll(session.hostPage);
     await session.hostPage.screenshot({
-      path: testInfo.outputPath('lobby-375x667-200-percent.png'),
+      path: testInfo.outputPath('lobby-320x667-200-percent.png'),
     });
     await session.hostPage.evaluate(() => {
       document.documentElement.style.removeProperty('font-size');
@@ -346,10 +357,35 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       .click();
 
     await Promise.all([
-      session.hostPage.setViewportSize({ width: 375, height: 667 }),
+      session.hostPage.setViewportSize({ width: 320, height: 667 }),
       session.guestPage.setViewportSize({ width: 390, height: 844 }),
     ]);
     await session.startGame();
+    await session.hostPage.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
+    await Promise.all([
+      expectWritingGeometry(session.hostPage),
+      expectInitiallyInsideVisualViewport(
+        session.hostPage,
+        session.hostPage.getByTestId('room-chrome')
+      ),
+      expectInitiallyInsideVisualViewport(
+        session.hostPage,
+        session.hostPage.getByRole('button', { name: /Share room invite/i })
+      ),
+      expectInitiallyInsideVisualViewport(
+        session.hostPage,
+        session.hostPage.getByRole('button', { name: /More options/i })
+      ),
+    ]);
+    await session.hostPage.screenshot({
+      path: testInfo.outputPath('writing-320x667-200-percent.png'),
+    });
+    await session.hostPage.evaluate(() => {
+      document.documentElement.style.removeProperty('font-size');
+    });
+    await session.hostPage.setViewportSize({ width: 375, height: 667 });
     await Promise.all([
       expectWritingGeometry(session.hostPage),
       expectWritingGeometry(session.guestPage),

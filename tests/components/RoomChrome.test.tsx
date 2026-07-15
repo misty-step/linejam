@@ -128,8 +128,9 @@ describe('RoomChrome component', () => {
       screen.getByRole('button', { name: /Share room invite/i })
     ).toHaveClass('min-w-0', 'flex-1');
     expect(screen.getByText('Share the code to start.')).toHaveClass(
-      'hidden',
-      'md:block'
+      'truncate',
+      'text-xs',
+      'md:text-sm'
     );
 
     // Archive / Help / Theme are tucked into the overflow menu.
