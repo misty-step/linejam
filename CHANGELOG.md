@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.19.3](https://github.com/misty-step/linejam/compare/v0.19.2...v0.19.3) (2026-07-15)
+
+
+### Bug Fixes
+
+* make mobile entry flows viewport safe ([#355](https://github.com/misty-step/linejam/issues/355)) ([44b0abe](https://github.com/misty-step/linejam/commit/44b0abef83c82fd41925e819ecefa5355b6d26b5))
+
 ## [0.19.2](https://github.com/misty-step/linejam/compare/v0.19.1...v0.19.2) (2026-07-15)
 
 
