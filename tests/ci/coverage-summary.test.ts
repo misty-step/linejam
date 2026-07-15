@@ -107,6 +107,29 @@ describe('coverage summary guard', () => {
     ).toThrow('Coverage metric lines percentage does not match its counts');
   });
 
+  it('matches the two-decimal flooring used by Istanbul coverage summaries', () => {
+    const summary = {
+      total: {
+        lines: metric(3, 2),
+        statements: metric(1, 1),
+        functions: metric(1, 1),
+        branches: metric(1, 1),
+      },
+    };
+
+    expect(assertCoverageSummary(summary)).toMatchObject({
+      lines: { pct: 66.66 },
+    });
+    expect(() =>
+      assertCoverageSummary({
+        total: {
+          ...summary.total,
+          lines: { ...summary.total.lines, pct: 66.67 },
+        },
+      })
+    ).toThrow('Coverage metric lines percentage does not match its counts');
+  });
+
   it('loads a machine-readable summary and fails closed on invalid JSON', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'linejam-coverage-'));
     const summaryPath = path.join(directory, 'coverage-summary.json');

@@ -1,6 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { normalizePath } from 'vite';
+
+const rootCoverageExclude = (directory: string) =>
+  normalizePath(path.join(__dirname, directory, '**'));
 
 export default defineConfig({
   plugins: [react()],
@@ -41,11 +45,11 @@ export default defineConfig({
         '**/*.config.{js,ts}',
         '**/*.d.ts',
         '**/convex/migrations.ts', // One-time migration scripts, not runtime code
-        path.join(__dirname, '.agents', '**'),
-        path.join(__dirname, '.claude', '**'),
-        path.join(__dirname, '.codex', '**'),
-        path.join(__dirname, '.pi', '**'),
-        path.join(__dirname, '.spellbook', '**'),
+        rootCoverageExclude('.agents'),
+        rootCoverageExclude('.claude'),
+        rootCoverageExclude('.codex'),
+        rootCoverageExclude('.pi'),
+        rootCoverageExclude('.spellbook'),
       ],
       thresholds: {
         lines: 85,
