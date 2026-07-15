@@ -378,13 +378,13 @@ function WritingComposer({
       </div>
 
       {/*
-        The action zone is a flex sibling, not an overlay. Its actual rendered
-        height is therefore reserved at every text scale, and the draft region
-        alone scrolls when the keyboard reduces the visual viewport.
+        The action zone is a flex sibling, not an overlay. It may shrink into
+        its own scroll region when room chrome plus 200% text would otherwise
+        push it below the visual viewport.
       */}
       <div
         data-testid={E2E_TEST_IDS.writingActionZone}
-        className="lj-safe-inline max-h-[55%] flex-none overflow-y-auto flex flex-col items-center gap-3 border-t-2 border-primary/20 bg-background/95 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:2rem] md:gap-4 md:pt-4 md:pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="lj-safe-inline min-h-0 max-h-[55%] flex-[0_1_auto] overflow-y-auto flex flex-col items-center gap-3 border-t-2 border-primary/20 bg-background/95 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:2rem] md:gap-4 md:pt-4 md:pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
         {submitBlock}
       </div>

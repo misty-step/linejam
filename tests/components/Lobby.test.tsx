@@ -132,7 +132,8 @@ describe('Lobby component', () => {
     const actionZone = screen.getByTestId(E2E_TEST_IDS.lobbyActionZone);
 
     expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
-    expect(actionZone).toHaveClass('flex-none', 'max-h-1/2');
+    expect(actionZone).toHaveClass('min-h-0', 'max-h-1/2', 'flex-[0_1_auto]');
+    expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
   });
 

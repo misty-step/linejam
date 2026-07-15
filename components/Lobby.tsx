@@ -305,7 +305,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
 
         <div
           data-testid={E2E_TEST_IDS.lobbyActionZone}
-          className="lj-safe-inline max-h-1/2 flex-none overflow-y-auto border-t-2 border-primary/20 bg-background/95 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:3rem]"
+          className="lj-safe-inline min-h-0 max-h-1/2 flex-[0_1_auto] overflow-y-auto border-t-2 border-primary/20 bg-background/95 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:3rem]"
         >
           <div className="mx-auto w-full max-w-sm">
             {error && (
