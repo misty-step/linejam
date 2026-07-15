@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.18.6](https://github.com/misty-step/linejam/compare/v0.18.5...v0.18.6) (2026-07-15)
+
+
+### Bug Fixes
+
+* **infra:** reconcile Convex environment drift ([#350](https://github.com/misty-step/linejam/issues/350)) ([050d266](https://github.com/misty-step/linejam/commit/050d2662e1468c822db6acf76b70ea2a7382f20c))
+
 ## [0.18.5](https://github.com/misty-step/linejam/compare/v0.18.4...v0.18.5) (2026-07-15)
 
 
