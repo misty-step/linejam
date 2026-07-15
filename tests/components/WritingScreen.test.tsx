@@ -140,6 +140,7 @@ describe('WritingScreen component', () => {
     expect(actionZone).toHaveClass('min-h-0', 'flex-[0_1_auto]');
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
+    expect(submit).toHaveClass('h-[64px]', 'md:h-[80px]');
   });
 
   it('shows the first-run writing coachmark inline without opening help', () => {

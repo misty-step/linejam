@@ -233,7 +233,7 @@ function WritingComposer({
         disabled={isSubmitDisabled}
         stampAnimate={submissionState === 'confirmed'}
         className={cn(
-          'min-w-[240px] text-xl h-16 md:h-20',
+          'min-w-[240px] text-xl h-[64px] md:h-[80px]',
           isReady && 'animate-ready-seal shadow-md'
         )}
       >

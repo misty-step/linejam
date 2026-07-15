@@ -110,7 +110,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
     <>
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-      <div className="lj-safe-inline sticky top-0 z-40 flex-none pt-[max(0.75rem,env(safe-area-inset-top))] md:[--lj-safe-inline-space:1.5rem]">
+      <div className="lj-safe-inline sticky top-0 z-40 flex-none [--lj-safe-inline-space:0.75rem] pt-[max(0.75rem,env(safe-area-inset-top))] md:[--lj-safe-inline-space:1.5rem]">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
           {shareError && (
             <Alert
@@ -179,7 +179,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
                 </h1>
               </div>
               {subtitle && (
-                <p className="max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                <p className="hidden max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] md:block">
                   {subtitle}
                 </p>
               )}
@@ -187,16 +187,19 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
 
             <div
               ref={menuRef}
-              className="flex items-center gap-2 md:justify-end"
+              className="flex min-w-0 items-center gap-2 md:justify-end"
             >
               <button
                 type="button"
                 onClick={handleShare}
-                className={chromeButtonClasses({ emphasized: true })}
+                className={cn(
+                  chromeButtonClasses({ emphasized: true }),
+                  'min-w-0 flex-1 md:flex-none'
+                )}
                 aria-label="Share room invite"
               >
                 <Share2 className="mr-2 h-4 w-4" />
-                <span>
+                <span className="truncate">
                   {shared ? 'Shared!' : copied ? 'Copied!' : 'Invite'}
                 </span>
               </button>
@@ -204,7 +207,10 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
               <button
                 type="button"
                 onClick={() => setShowHelp(true)}
-                className={chromeButtonClasses({ iconOnly: true })}
+                className={cn(
+                  chromeButtonClasses({ iconOnly: true }),
+                  'hidden md:inline-flex'
+                )}
                 aria-label="How to play"
               >
                 <HelpCircle className="h-4 w-4" />

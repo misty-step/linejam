@@ -124,6 +124,13 @@ describe('RoomChrome component', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Room AB CD')).toBeInTheDocument();
     expect(screen.getByText('Need 1 more player')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Share room invite/i })
+    ).toHaveClass('min-w-0', 'flex-1');
+    expect(screen.getByText('Share the code to start.')).toHaveClass(
+      'hidden',
+      'md:block'
+    );
 
     // Archive / Help / Theme are tucked into the overflow menu.
     await user.click(screen.getByRole('button', { name: /More options/i }));
