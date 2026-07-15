@@ -24,6 +24,17 @@ function boxesOverlap(a: Box, b: Box) {
   );
 }
 
+function clippedIntersection(box: Box, clip: Box): Box | null {
+  const left = Math.max(box.x, clip.x);
+  const top = Math.max(box.y, clip.y);
+  const right = Math.min(box.x + box.width, clip.x + clip.width);
+  const bottom = Math.min(box.y + box.height, clip.y + clip.height);
+
+  return right > left && bottom > top
+    ? { x: left, y: top, width: right - left, height: bottom - top }
+    : null;
+}
+
 async function expectNoHorizontalScroll(page: Page) {
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
@@ -225,7 +236,9 @@ async function expectWritingGeometry(page: Page) {
     ]);
     expect(contentBox).not.toBeNull();
     expect(currentActionBox).not.toBeNull();
-    expect(boxesOverlap(contentBox!, currentActionBox!)).toBe(false);
+    const paintedContentBox = clippedIntersection(contentBox!, scrollBox!);
+    expect(paintedContentBox).not.toBeNull();
+    expect(boxesOverlap(paintedContentBox!, currentActionBox!)).toBe(false);
   }
 
   const carriedLine = page.getByTestId(E2E_TEST_IDS.writingCarriedLine);
@@ -237,7 +250,9 @@ async function expectWritingGeometry(page: Page) {
     ]);
     expect(carriedBox).not.toBeNull();
     expect(currentActionBox).not.toBeNull();
-    expect(boxesOverlap(carriedBox!, currentActionBox!)).toBe(false);
+    const paintedCarriedBox = clippedIntersection(carriedBox!, scrollBox!);
+    expect(paintedCarriedBox).not.toBeNull();
+    expect(boxesOverlap(paintedCarriedBox!, currentActionBox!)).toBe(false);
   }
 
   const [phaseBox, visibleViewport] = await Promise.all([
