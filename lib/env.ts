@@ -5,7 +5,7 @@
  * Prevents deploying with missing configuration.
  */
 
-import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
+import { isValidServerActionEncryptionKey } from './serverActionEncryptionKey';
 
 // Required for Next.js runtime (signing guest tokens)
 const REQUIRED_SERVER_ENV = ['GUEST_TOKEN_SECRET'] as const;
