@@ -99,6 +99,7 @@ must receive the identical value. A mismatch breaks guest-token verification.
 | `GUEST_TOKEN_SECRET`                | signs web guest tokens; must match Convex          |
 | `NEXT_PUBLIC_CONVEX_URL`            | production Convex URL                              |
 | `CONVEX_DEPLOYMENT`                 | production Convex deployment selector              |
+| `CONVEX_DEPLOYMENT_URL`             | production Convex deployment URL                   |
 | `CONVEX_DEPLOY_KEY`                 | production deploy key used during the hosted build |
 | `LINEJAM_DEPLOY_ENVIRONMENT`        | `production`; fail-closed hosted deploy guard      |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | browser Clerk key                                  |
@@ -108,7 +109,11 @@ must receive the identical value. A mismatch breaks guest-token verification.
 | `CANARY_API_KEY`                    | server-side Canary credential                      |
 | `NEXT_PUBLIC_CANARY_ENDPOINT`       | `https://canary.mistystep.io`                      |
 | `NEXT_PUBLIC_CANARY_API_KEY`        | browser write-only Canary credential               |
+| `NEXT_PUBLIC_SENTRY_DSN`            | browser Sentry destination                         |
 | `PLAYWRIGHT_CLERK_TEST_EMAIL`       | pre-created production smoke user                  |
+| `SENTRY_AUTH_TOKEN`                 | source-map upload credential                       |
+| `SENTRY_ORG`                        | Sentry organization slug                           |
+| `SENTRY_PROJECT`                    | Sentry project slug                                |
 
 ### Canary responder
 

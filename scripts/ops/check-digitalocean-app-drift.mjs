@@ -42,6 +42,7 @@ const MODELED_SERVICE_FIELDS = [
   'health_check',
   'envs',
 ];
+const MODELED_ENVIRONMENT_FIELDS = ['key', 'scope', 'type', 'value'];
 const DEFAULT_MANIFEST_URL = new URL(
   '../../config/digitalocean-apps.json',
   import.meta.url
@@ -387,6 +388,13 @@ export function normalizeDigitalOceanApp(readback) {
       (service.envs ?? []).map((entry) => entry.key),
       `DigitalOcean app ${spec.name || 'unknown'} service ${service.name || 'unknown'} environment`
     );
+    (service.envs ?? []).forEach((entry) =>
+      assertExactKeys(
+        entry,
+        MODELED_ENVIRONMENT_FIELDS,
+        `DigitalOcean app ${spec.name || 'unknown'} service ${service.name || 'unknown'} environment entry`
+      )
+    );
     const normalized = {
       name: service.name,
       source: {
@@ -453,7 +461,7 @@ function comparisonTree(app) {
     id: app.id,
     name: app.name,
     region: app.region,
-    features: app.features,
+    features: [...app.features].sort(),
     domains: Object.fromEntries(
       app.domains.map(({ domain, ...details }) => [domain, details])
     ),

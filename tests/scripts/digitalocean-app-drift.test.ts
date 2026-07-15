@@ -396,6 +396,15 @@ describe('DigitalOcean app drift', () => {
     ).toEqual([]);
   });
 
+  it('compares features without treating ordering as drift', () => {
+    const expected = structuredClone(manifest.apps[0]);
+    const actual = structuredClone(manifest.apps[0]);
+    expected.features = ['z-feature', 'a-feature'];
+    actual.features = ['a-feature', 'z-feature'];
+
+    expect(diffDigitalOceanApp(expected, actual)).toEqual([]);
+  });
+
   it('reports meaningful drift without replaying environment values', () => {
     const live = liveApp();
     live.spec.services[0].build_command = 'pnpm exec next build';
@@ -504,6 +513,17 @@ describe('DigitalOcean app drift', () => {
 
     expect(() => normalizeDigitalOceanApp(live)).toThrow(
       'environment contains duplicates'
+    );
+  });
+
+  it('fails closed on unknown live environment fields', () => {
+    const live = liveApp();
+    Object.assign(live.spec.services[0].envs[0], {
+      generated_metadata: 'must-not-replay',
+    });
+
+    expect(() => normalizeDigitalOceanApp(live)).toThrow(
+      'environment entry has unsupported fields: generated_metadata'
     );
   });
 
