@@ -136,8 +136,16 @@ describe('WritingScreen component', () => {
 
     expect(phase).toHaveClass('lj-game-frame');
     expect(phase).not.toHaveClass('overflow-hidden');
-    expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
-    expect(actionZone).toHaveClass('min-h-0', 'flex-[0_1_auto]');
+    expect(scrollRegion).toHaveClass(
+      'min-h-0',
+      'overflow-x-hidden',
+      'overflow-y-auto'
+    );
+    expect(actionZone).toHaveClass(
+      'min-h-0',
+      'flex-[0_1_auto]',
+      'overflow-x-hidden'
+    );
     expect(actionZone).toHaveClass(
       'gap-[12px]',
       'pt-[12px]',
@@ -145,7 +153,19 @@ describe('WritingScreen component', () => {
     );
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
-    expect(submit).toHaveClass('h-[64px]', 'md:h-[80px]');
+    expect(submit).toHaveClass(
+      'min-h-[64px]',
+      'w-full',
+      'min-w-0',
+      'max-w-[240px]',
+      'md:min-h-[80px]',
+      'md:w-auto',
+      'md:min-w-[240px]'
+    );
+    expect(submit).not.toHaveClass('min-w-[240px]');
+
+    const textarea = screen.getByRole('textbox');
+    expect(textarea).toHaveClass('min-w-0', 'max-w-full', 'overflow-x-hidden');
   });
 
   it('shows the first-run writing coachmark inline without opening help', () => {

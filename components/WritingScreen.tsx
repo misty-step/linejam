@@ -233,7 +233,7 @@ function WritingComposer({
         disabled={isSubmitDisabled}
         stampAnimate={submissionState === 'confirmed'}
         className={cn(
-          'min-w-[240px] text-xl h-[64px] md:h-[80px]',
+          'h-auto min-h-[64px] w-full min-w-0 max-w-[240px] px-[16px] py-[12px] text-xl md:min-h-[80px] md:w-auto md:min-w-[240px] md:max-w-none md:px-8',
           isReady && 'animate-ready-seal shadow-md'
         )}
       >
@@ -260,7 +260,7 @@ function WritingComposer({
 
       <div
         data-testid={E2E_TEST_IDS.writingScrollRegion}
-        className="lj-safe-inline min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6 pt-4 md:[--lj-safe-inline-space:2rem] md:pb-8 md:pt-12"
+        className="lj-safe-inline min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-6 pt-4 [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:pb-8 md:pt-12"
       >
         <div className="mx-auto w-full max-w-3xl">
           {/* Soft round clock — a hairline of gentle pressure, never a gate */}
@@ -329,7 +329,7 @@ function WritingComposer({
                 ref={textareaRef}
                 data-testid={E2E_TEST_IDS.writingLineInput}
                 className={cn(
-                  'w-full min-h-[64px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content bg-transparent border-none outline-none resize-none',
+                  'w-full min-w-0 max-w-full min-h-[64px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content overflow-x-hidden bg-transparent border-none outline-none resize-none',
                   'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
                   'text-text-primary',
                   'placeholder:text-text-muted/20',
@@ -384,7 +384,7 @@ function WritingComposer({
       */}
       <div
         data-testid={E2E_TEST_IDS.writingActionZone}
-        className="lj-safe-inline min-h-0 max-h-[55%] flex-[0_1_auto] overflow-y-auto flex flex-col items-center gap-[12px] border-t-2 border-primary/20 bg-background/95 pt-[12px] pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:2rem] md:gap-[16px] md:pt-[16px] md:pb-[max(16px,env(safe-area-inset-bottom))]"
+        className="lj-safe-inline min-h-0 max-h-[55%] flex-[0_1_auto] overflow-x-hidden overflow-y-auto flex flex-col items-center gap-[12px] border-t-2 border-primary/20 bg-background/95 pt-[12px] pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:gap-[16px] md:pt-[16px] md:pb-[max(16px,env(safe-area-inset-bottom))]"
       >
         {submitBlock}
       </div>
