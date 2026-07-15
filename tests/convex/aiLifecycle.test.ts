@@ -608,7 +608,7 @@ describe('commitGhostLine', () => {
 // ─── generateLineForRound (action, fallback path) ────────────────────────────
 
 describe('generateLineForRound (action, fallback path)', () => {
-  it('commits and classifies a fallback when the provider is unavailable', async () => {
+  it('commits and classifies a fallback for the loaded provider capability', async () => {
     process.env.AI_DAILY_CALL_BUDGET = '10';
     const t = setupConvexTest();
     const { gameId, roomId, userIds, poemIds, matrix } = await seedClassicGame(
@@ -680,13 +680,16 @@ describe('generateLineForRound (action, fallback path)', () => {
     const metric = await t.run((ctx) =>
       ctx.db.query('aiGenerationMetrics').first()
     );
+    const providerConfiguredAtModuleLoad = Boolean(
+      ORIGINAL_ENV.OPENROUTER_API_KEY?.trim()
+    );
     expect(metric).toMatchObject({
       totalGenerations: 1,
       fallbackGenerations: 1,
       budgetExhaustion: 0,
-      providerError: 1,
+      providerError: providerConfiguredAtModuleLoad ? 1 : 0,
       invalidOutput: 0,
-      missingConfiguration: 0,
+      missingConfiguration: providerConfiguredAtModuleLoad ? 0 : 1,
     });
   });
 

@@ -134,7 +134,7 @@ beforeEach(() => {
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      if (url.includes('/api/v1/errors')) {
+      if (url.includes('/api/v1/errors') || url.includes('/api/v1/check-ins')) {
         return new Response('{}', { status: 200 });
       }
       throw new Error(`Unexpected fetch: ${url}`);
