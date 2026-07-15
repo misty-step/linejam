@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.19.0](https://github.com/misty-step/linejam/compare/v0.18.6...v0.19.0) (2026-07-15)
+
+
+### Features
+
+* **ops:** declare DigitalOcean topology ([#351](https://github.com/misty-step/linejam/issues/351)) ([80c1717](https://github.com/misty-step/linejam/commit/80c17174fe2c7663022adc492fbe90c9e09f776a))
+
 ## [0.18.6](https://github.com/misty-step/linejam/compare/v0.18.5...v0.18.6) (2026-07-15)
 
 
