@@ -41,11 +41,11 @@ export default defineConfig({
         '**/*.config.{js,ts}',
         '**/*.d.ts',
         '**/convex/migrations.ts', // One-time migration scripts, not runtime code
-        '**/.agents/**',
-        '**/.claude/**',
-        '**/.codex/**',
-        '**/.pi/**',
-        '**/.spellbook/**', // Harness config, not app code
+        path.join(__dirname, '.agents', '**'),
+        path.join(__dirname, '.claude', '**'),
+        path.join(__dirname, '.codex', '**'),
+        path.join(__dirname, '.pi', '**'),
+        path.join(__dirname, '.spellbook', '**'),
       ],
       thresholds: {
         lines: 85,

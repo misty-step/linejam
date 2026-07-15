@@ -75,6 +75,10 @@ GitHub's `.github/workflows/ci.yml` merge gate is authoritative for merge.
 Use `pnpm ci:dagger:all` only when the full Docker/browser contract is relevant
 and its required environment is available.
 
+`pnpm test:ci` must report nonzero totals for all four 85% metrics and pass the
+explicit `coverage:check` guard. A `0/0 Unknown%` result is a hard failure in
+every checkout path, including isolated harness worktrees.
+
 Before handoff, adversarially review the diff for stale claims, authority
 ambiguity, accidental scope, secret exposure, and safety regressions. Record
 exact tests, live evidence, residual risk, and commit/PR/deployment identifiers
