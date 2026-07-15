@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.18.3](https://github.com/misty-step/linejam/compare/v0.18.2...v0.18.3) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai:** budget ghostwriter generations ([4d6bed0](https://github.com/misty-step/linejam/commit/4d6bed0b725d8e3aeee896c75d9a640c078f1763))
+
 ## [0.18.2](https://github.com/misty-step/linejam/compare/v0.18.1...v0.18.2) (2026-07-15)
 
 
