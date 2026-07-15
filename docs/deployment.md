@@ -16,6 +16,12 @@ Both apps deploy automatically from `master`. The public application is
 `https://linejam.app`; the responder is currently reachable at
 `https://linejam-canary-responder-fdflj.ondigitalocean.app`.
 
+[`config/digitalocean-apps.json`](../config/digitalocean-apps.json) is the
+canonical, values-free topology contract. It pins components, routes, domains,
+health checks, source, build/run commands, environment variable names, and the
+single frontend and Convex production deploy owner. The live provider spec must
+reconcile with it before a release is accepted.
+
 The stable Canary API origin is `https://canary.mistystep.io`. Use that custom
 hostname in application defaults and provider configuration rather than a
 provider-generated hostname.
@@ -29,9 +35,10 @@ provider-generated hostname.
   the approved credential plane
 - GitHub Actions access for the hosted quality and smoke gates
 
-Never commit an exported App Platform spec or print secret values. Exported
-specs can contain encrypted provider values and belong in a mode-`0600`
-temporary file only.
+Never commit a raw exported App Platform spec or print secret values. Raw
+exports can contain encrypted provider values and belong in a mode-`0600`
+temporary file only. The committed topology contract is separately constructed
+and validated to reject every environment `value` field.
 
 ## Discover the live apps
 
@@ -63,6 +70,23 @@ doctl apps get "$LINEJAM_RESPONDER_APP_ID" -o json |
 
 Both active deployments must report `ACTIVE` before a release is accepted.
 
+Reconcile every meaningful, non-value provider field against the committed
+contract with:
+
+```bash
+pnpm ops:do-drift
+```
+
+The command performs bounded, read-only `doctl apps get` calls. It discards
+provider-generated deployment fields and all environment values before the
+comparison. A bounded account inventory also rejects undeclared App Platform
+apps sourced from `misty-step/linejam@master`. Workers, jobs, functions, static
+sites, databases, and app-level environment blocks fail closed until the
+canonical model explicitly supports them. Failures report only sanitized field
+paths; provider stdout and stderr are never replayed. A component, build
+command, route, source, health check, environment name/type/scope, domain, or
+sizing change is meaningful drift.
+
 ## Environment contract
 
 `GUEST_TOKEN_SECRET` is load-bearing: the App Platform web service and Convex
@@ -75,6 +99,7 @@ must receive the identical value. A mismatch breaks guest-token verification.
 | `GUEST_TOKEN_SECRET`                | signs web guest tokens; must match Convex          |
 | `NEXT_PUBLIC_CONVEX_URL`            | production Convex URL                              |
 | `CONVEX_DEPLOYMENT`                 | production Convex deployment selector              |
+| `CONVEX_DEPLOYMENT_URL`             | production Convex deployment URL                   |
 | `CONVEX_DEPLOY_KEY`                 | production deploy key used during the hosted build |
 | `LINEJAM_DEPLOY_ENVIRONMENT`        | `production`; fail-closed hosted deploy guard      |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | browser Clerk key                                  |
@@ -84,7 +109,11 @@ must receive the identical value. A mismatch breaks guest-token verification.
 | `CANARY_API_KEY`                    | server-side Canary credential                      |
 | `NEXT_PUBLIC_CANARY_ENDPOINT`       | `https://canary.mistystep.io`                      |
 | `NEXT_PUBLIC_CANARY_API_KEY`        | browser write-only Canary credential               |
+| `NEXT_PUBLIC_SENTRY_DSN`            | browser Sentry destination                         |
 | `PLAYWRIGHT_CLERK_TEST_EMAIL`       | pre-created production smoke user                  |
+| `SENTRY_AUTH_TOKEN`                 | source-map upload credential                       |
+| `SENTRY_ORG`                        | Sentry organization slug                           |
+| `SENTRY_PROJECT`                    | Sentry project slug                                |
 
 ### Canary responder
 
@@ -325,6 +354,7 @@ pnpm exec convex import --replace-all ./convex-backup.zip --prod
 ## Release checklist
 
 - [ ] `pnpm ci:prepush` passes
+- [ ] `pnpm ops:do-drift` reports both production apps clean
 - [ ] `pnpm ci:dagger:all` passes or its environment limitation is recorded
 - [ ] hosted merge and smoke gates pass
 - [ ] web and responder active deployments match the intended source SHA

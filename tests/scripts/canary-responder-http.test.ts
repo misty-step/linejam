@@ -398,6 +398,10 @@ describe('canary responder http server', () => {
       await waitForMockCalls(mocks.runSmoke, 2);
       expect(mocks.runSmoke).toHaveBeenCalledTimes(2);
       await waitForStoredFiles(dir, 'smoke', 2);
+      // A smoke artifact is written before the delivery update and summary.
+      // Wait for all three request summaries plus both terminal smoke summaries
+      // so teardown cannot race the background follow-up's remaining writes.
+      await waitForStoredFiles(dir, 'summaries', 5);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
