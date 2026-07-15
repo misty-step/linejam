@@ -39,6 +39,12 @@ const runScheduledRetentionSweep = makeFunctionReference<
   { dryRun: boolean; deleted: number }
 >('retention:runScheduledRetentionSweep');
 
+const getRetentionTrend = makeFunctionReference<
+  'query',
+  { limit?: number },
+  Array<{ dryRun: boolean; deleted: number; errors: number }>
+>('retention:getRetentionTrend');
+
 async function seedCompletedArtifact(
   t: T,
   args: {
@@ -227,6 +233,15 @@ describe('bounded data retention', () => {
     });
     expect(await t.run((ctx) => ctx.db.get(expired.roomId))).toBeNull();
 
+    const [newestOnly, defaultTrend, upperClampedTrend] = await Promise.all([
+      t.query(getRetentionTrend, { limit: 0 }),
+      t.query(getRetentionTrend, {}),
+      t.query(getRetentionTrend, { limit: 1_000 }),
+    ]);
+    expect(newestOnly).toHaveLength(1);
+    expect(defaultTrend.length).toBeGreaterThan(1);
+    expect(upperClampedTrend).toHaveLength(defaultTrend.length);
+
     for (const kept of [published, favorited, recent]) {
       expect(await t.run((ctx) => ctx.db.get(kept.poemId))).not.toBeNull();
       expect(await t.run((ctx) => ctx.db.get(kept.lineIds[0]))).not.toBeNull();
@@ -298,6 +313,29 @@ describe('bounded data retention', () => {
     }
   });
 
+  it('deletes through the scheduled face only after explicit enablement', async () => {
+    const original = process.env.RETENTION_GC_ENABLED;
+    process.env.RETENTION_GC_ENABLED = '1';
+    try {
+      const now = Date.now();
+      const t = setupConvexTest();
+      const rowId = await t.run((ctx) =>
+        ctx.db.insert('rateLimits', {
+          key: 'expired:enabled',
+          hits: 1,
+          resetTime: now - 1,
+        })
+      );
+
+      const receipt = await t.action(runScheduledRetentionSweep, {});
+      expect(receipt).toMatchObject({ dryRun: false, deleted: 1, errors: 0 });
+      expect(await t.run((ctx) => ctx.db.get(rowId))).toBeNull();
+    } finally {
+      if (original === undefined) delete process.env.RETENTION_GC_ENABLED;
+      else process.env.RETENTION_GC_ENABLED = original;
+    }
+  });
+
   it('deletes orphan guest identities but defers identities referenced by kept lines', async () => {
     const now = Date.UTC(2026, 6, 15, 20);
     const t = setupConvexTest();
@@ -306,7 +344,7 @@ describe('bounded data retention', () => {
       now,
       publicShare: true,
     });
-    const { orphanId, referencedId } = await t.run(async (ctx) => {
+    const { orphanId, referencedId, clerkId } = await t.run(async (ctx) => {
       const orphanId = await ctx.db.insert('users', {
         guestId: 'orphan-guest',
         displayName: 'Orphan',
@@ -324,7 +362,15 @@ describe('bounded data retention', () => {
         retentionEligibleAt: now - 1,
       });
       await ctx.db.patch(kept.lineIds[0], { authorUserId: referencedId });
-      return { orphanId, referencedId };
+      const clerkId = await ctx.db.insert('users', {
+        clerkUserId: 'misclassified-clerk',
+        displayName: 'Member',
+        kind: 'human',
+        createdAt: now - 200 * 24 * 60 * 60 * 1000,
+        retentionState: 'pending',
+        retentionEligibleAt: now - 1,
+      });
+      return { orphanId, referencedId, clerkId };
     });
 
     await t.mutation(runRetentionSweep, { dryRun: false, now });
@@ -332,6 +378,9 @@ describe('bounded data retention', () => {
     const referenced = await t.run((ctx) => ctx.db.get(referencedId));
     expect(referenced).not.toBeNull();
     expect(referenced?.retentionEligibleAt).toBeGreaterThan(now);
+    const clerk = await t.run((ctx) => ctx.db.get(clerkId));
+    expect(clerk?.retentionState).toBe('protected');
+    expect(clerk?.retentionEligibleAt).toBeUndefined();
   });
 
   it('reports and skips an over-cardinality poem instead of partially deleting it', async () => {
@@ -453,5 +502,76 @@ describe('bounded data retention', () => {
       now,
     });
     expect(rerun).toMatchObject({ scanned: 0, patched: 0, hasMore: false });
+  });
+
+  it('marks regular Clerk users as protected without patching during a dry run', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const t = setupConvexTest();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('users', {
+        clerkUserId: 'dry-run-clerk',
+        displayName: 'Member',
+        kind: 'human',
+        createdAt: now - 200 * 24 * 60 * 60 * 1000,
+        retentionState: 'pending',
+        retentionEligibleAt: now - 1,
+      });
+    });
+
+    const receipt = await t.mutation(runRetentionSweep, {
+      dryRun: true,
+      now,
+    });
+    expect(receipt.deleted).toBe(0);
+    // Dry run must not patch — the user stays pending until a real sweep.
+    const user = await t.run((ctx) =>
+      ctx.db
+        .query('users')
+        .withIndex('by_clerk', (q) => q.eq('clerkUserId', 'dry-run-clerk'))
+        .first()
+    );
+    expect(user?.retentionState).toBe('pending');
+    expect(user?.retentionEligibleAt).toBe(now - 1);
+  });
+
+  it('returns trend results within the bounded limit range', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const t = setupConvexTest();
+    const emptyCounts = {
+      rooms: 0,
+      games: 0,
+      poems: 0,
+      users: 0,
+      migrations: 0,
+      aiTurns: 0,
+      aiRoundLocks: 0,
+      aiUsage: 0,
+      aiGenerationMetrics: 0,
+      shares: 0,
+      rateLimits: 0,
+      retentionRuns: 0,
+    };
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 5; i++) {
+        await ctx.db.insert('retentionRuns', {
+          policyVersion: 'linejam-retention-v1',
+          startedAt: now + i * 1000 - 500,
+          completedAt: now + i * 1000,
+          dryRun: i % 2 === 0,
+          eligible: i,
+          deleted: i,
+          errors: 0,
+          eligibleByTable: { ...emptyCounts },
+          deletedByTable: { ...emptyCounts },
+        });
+      }
+    });
+
+    const [five, three] = await Promise.all([
+      t.query(getRetentionTrend, { limit: 5 }),
+      t.query(getRetentionTrend, { limit: 3 }),
+    ]);
+    expect(five).toHaveLength(5);
+    expect(three).toHaveLength(3);
   });
 });
