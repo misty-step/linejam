@@ -247,7 +247,7 @@ function WritingComposer({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,auto)] overflow-hidden bg-background">
       {/* Screen reader live region for validation announcements */}
       <div
         className="sr-only"
@@ -260,7 +260,7 @@ function WritingComposer({
 
       <div
         data-testid={E2E_TEST_IDS.writingScrollRegion}
-        className="lj-safe-inline min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-6 pt-4 [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:pb-8 md:pt-12"
+        className="lj-safe-inline min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain pb-6 pt-4 [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:pb-8 md:pt-12"
       >
         <div className="mx-auto w-full max-w-3xl">
           {/* Soft round clock — a hairline of gentle pressure, never a gate */}
@@ -384,7 +384,7 @@ function WritingComposer({
       */}
       <div
         data-testid={E2E_TEST_IDS.writingActionZone}
-        className="lj-safe-inline min-h-0 max-h-[55%] flex-[0_1_auto] overflow-x-hidden overflow-y-auto flex flex-col items-center gap-[12px] border-t-2 border-primary/20 bg-background/95 pt-[12px] pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:gap-[16px] md:pt-[16px] md:pb-[max(16px,env(safe-area-inset-bottom))]"
+        className="lj-safe-inline min-h-0 max-h-[55%] overflow-x-hidden overflow-y-auto flex flex-col items-center gap-[12px] border-t-2 border-primary/20 bg-background/95 pt-[12px] pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:gap-[16px] md:pt-[16px] md:pb-[max(16px,env(safe-area-inset-bottom))]"
       >
         {submitBlock}
       </div>
@@ -418,6 +418,7 @@ export function WritingScreen({
           <RoomChrome
             roomCode={roomCode}
             {...buildInProgressChromeCopy({ roundProgress })}
+            compact
           />
         )}
         <WaitingScreen
@@ -441,6 +442,7 @@ export function WritingScreen({
         <RoomChrome
           roomCode={roomCode}
           {...buildInProgressChromeCopy({ assignment })}
+          compact
         />
       )}
       <WritingComposer

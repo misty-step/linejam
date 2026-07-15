@@ -132,6 +132,7 @@ describe('WritingScreen component', () => {
     const phase = screen.getByTestId(E2E_TEST_IDS.writingPhase);
     const submit = screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton);
     const actionZone = submit.parentElement;
+    const composer = actionZone?.parentElement;
     const scrollRegion = screen.getByTestId(E2E_TEST_IDS.writingScrollRegion);
 
     expect(phase).toHaveClass('lj-game-frame');
@@ -141,17 +142,17 @@ describe('WritingScreen component', () => {
       'overflow-x-hidden',
       'overflow-y-auto'
     );
-    expect(actionZone).toHaveClass(
-      'min-h-0',
-      'flex-[0_1_auto]',
-      'overflow-x-hidden'
+    expect(composer).toHaveClass(
+      'grid',
+      'grid-rows-[minmax(0,1fr)_minmax(0,auto)]'
     );
+    expect(actionZone).toHaveClass('min-h-0', 'overflow-x-hidden');
     expect(actionZone).toHaveClass(
       'gap-[12px]',
       'pt-[12px]',
       'pb-[max(12px,env(safe-area-inset-bottom))]'
     );
-    expect(actionZone).not.toHaveClass('flex-none');
+    expect(actionZone).not.toHaveClass('flex-[0_1_auto]', 'flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
     expect(submit).toHaveClass(
       'h-[64px]',

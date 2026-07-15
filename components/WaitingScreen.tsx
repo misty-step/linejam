@@ -139,10 +139,10 @@ export function WaitingScreen({
       )}
     >
       {/* Floating vertical composition - massive breathing space */}
-      <div className="flex w-full max-w-2xl flex-1 flex-col items-center py-4 md:justify-center md:py-8">
+      <div className="flex min-w-0 w-full max-w-2xl flex-1 flex-col items-center py-4 md:justify-center md:py-8">
         {/* Late-joiner explanation */}
         {isLateJoiner && (
-          <div className="flex-none mb-8 text-center">
+          <div className="mb-8 w-full min-w-0 max-w-full flex-none text-center">
             <p className="text-sm font-mono uppercase tracking-wider text-[var(--color-primary)]">
               Game in progress
             </p>
@@ -153,8 +153,8 @@ export function WaitingScreen({
         )}
 
         {/* Center: Headline */}
-        <div className="mb-12 flex-none space-y-6 text-center md:mb-20">
-          <h2 className="text-4xl md:text-6xl font-[var(--font-display)] leading-tight">
+        <div className="mb-12 w-full min-w-0 max-w-full flex-none space-y-6 text-center md:mb-20">
+          <h2 className="max-w-full break-words text-4xl md:text-6xl font-[var(--font-display)] leading-tight">
             {allSubmitted
               ? 'Ready'
               : isOvertime
@@ -164,7 +164,7 @@ export function WaitingScreen({
 
           {/* Round progress — nine segments, the current round lit */}
           <div
-            className="mx-auto flex max-w-xs justify-center gap-1.5"
+            className="mx-auto flex w-full max-w-xs justify-center gap-1.5"
             role="presentation"
             aria-hidden="true"
           >
@@ -184,12 +184,12 @@ export function WaitingScreen({
           </div>
 
           {!allSubmitted && (
-            <div className="space-y-3">
-              <p className="text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
+            <div className="w-full min-w-0 max-w-full space-y-3">
+              <p className="max-w-full break-words text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
                 Round {round + 1} · {submittedCount} of {players.length} ready
               </p>
               <p
-                className="text-base text-[var(--color-text-muted)]"
+                className="max-w-full break-words text-base text-[var(--color-text-muted)]"
                 aria-live="polite"
               >
                 {isOvertime
@@ -207,7 +207,7 @@ export function WaitingScreen({
 
         {/* Center-bottom: Poet presence indicators */}
         <div className="flex-1 flex items-start justify-center w-full mb-12">
-          <div className="flex flex-wrap gap-4 md:gap-5 justify-center max-w-xl">
+          <div className="flex w-full min-w-0 max-w-xl flex-wrap justify-center gap-4 md:gap-5">
             {players.map((player, index) => (
               <div
                 key={player.userId}

@@ -171,7 +171,15 @@ describe('WaitingScreen component', () => {
 
     render(<WaitingScreen roomCode="ABCD" />);
 
-    expect(screen.getByText("It's around the table now.")).toBeInTheDocument();
+    const heading = screen.getByRole('heading', {
+      name: "It's around the table now.",
+    });
+    expect(heading).toHaveClass('max-w-full', 'break-words');
+    expect(heading.parentElement).toHaveClass(
+      'w-full',
+      'min-w-0',
+      'max-w-full'
+    );
     expect(screen.getByText(/Round 1 · 1 of 2 ready/i)).toBeInTheDocument();
   });
 

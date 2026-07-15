@@ -186,7 +186,7 @@ async function expectInitiallyInsideVisualViewport(
 ) {
   await expect(locator).toBeVisible();
 
-  const [box, viewport] = await Promise.all([
+  const [box, viewport, ancestors] = await Promise.all([
     locator.boundingBox(),
     page.evaluate(() => {
       const visualViewport = window.visualViewport;
@@ -197,15 +197,41 @@ async function expectInitiallyInsideVisualViewport(
         height: visualViewport?.height ?? window.innerHeight,
       };
     }),
-  ]);
+    locator.evaluate((element) => {
+      const layout: Array<Record<string, string | number>> = [];
+      let current: Element | null = element;
 
-  expect(box).not.toBeNull();
-  expect(box!.x).toBeGreaterThanOrEqual(viewport.left - 1);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(
+      while (current && layout.length < 7) {
+        const rect = current.getBoundingClientRect();
+        const style = window.getComputedStyle(current);
+        layout.push({
+          element:
+            current.getAttribute('data-testid') ??
+            current.getAttribute('aria-label') ??
+            current.tagName.toLowerCase(),
+          top: Math.round(rect.top),
+          bottom: Math.round(rect.bottom),
+          height: Math.round(rect.height),
+          position: style.position,
+          overflowY: style.overflowY,
+          flex: style.flex,
+          minHeight: style.minHeight,
+        });
+        current = current.parentElement;
+      }
+
+      return layout;
+    }),
+  ]);
+  const message = `visual viewport geometry: ${JSON.stringify({ box, viewport, ancestors })}`;
+
+  expect(box, message).not.toBeNull();
+  expect(box!.x, message).toBeGreaterThanOrEqual(viewport.left - 1);
+  expect(box!.x + box!.width, message).toBeLessThanOrEqual(
     viewport.left + viewport.width + 1
   );
-  expect(box!.y).toBeGreaterThanOrEqual(viewport.top - 1);
-  expect(box!.y + box!.height).toBeLessThanOrEqual(
+  expect(box!.y, message).toBeGreaterThanOrEqual(viewport.top - 1);
+  expect(box!.y + box!.height, message).toBeLessThanOrEqual(
     viewport.top + viewport.height + 1
   );
 }

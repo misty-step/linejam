@@ -148,6 +148,33 @@ describe('RoomChrome component', () => {
     ).toBeInTheDocument();
   });
 
+  it('collapses active-game controls into one bounded toolbar', () => {
+    render(
+      <RoomChrome
+        roomCode="ABCD"
+        title="Round 1 · 1 word"
+        subtitle=""
+        compact
+      />
+    );
+
+    expect(screen.getByTestId('room-chrome')).toHaveClass(
+      'grid-cols-[minmax(0,1fr)_auto]',
+      'items-center',
+      'gap-[8px]',
+      'px-[12px]',
+      'py-[8px]'
+    );
+    expect(
+      screen.getByRole('button', { name: /Share room invite/i })
+    ).toHaveClass('h-[44px]', 'w-[44px]', 'flex-none', 'p-0');
+    expect(screen.getByText('Invite')).toHaveClass('sr-only');
+    expect(screen.getByRole('button', { name: /More options/i })).toHaveClass(
+      'h-[44px]',
+      'w-[44px]'
+    );
+  });
+
   it('copies a join link when native share is unavailable', async () => {
     renderRoomChrome();
 
