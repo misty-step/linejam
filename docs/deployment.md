@@ -132,6 +132,41 @@ pnpm exec convex env set --prod OPENROUTER_API_KEY
 pnpm exec convex env list --prod --names-only
 ```
 
+[`config/convex-env-manifest.json`](../config/convex-env-manifest.json) is the
+repo-owned declaration of required and optional Convex environment variable
+names for development, preview, and production. It never stores values. Run a
+bounded, values-free readback with:
+
+```bash
+node scripts/ci/reconcile-convex-env.mjs --target production
+```
+
+The reconciler invokes only `convex env ... list --names-only`, rejects any
+non-name output without echoing it, and fails on either a missing required name
+or an undeclared live name. The hosted production build runs this reconciliation
+after `convex deploy` and then runs the signed guest-token parity dry run before
+App Platform can activate the web build. A present-but-different
+`GUEST_TOKEN_SECRET` therefore fails deployment even though both providers have
+a variable with the right name.
+
+Run the production reconciliation before merging any manifest change. Strict
+unexpected-name detection intentionally makes undeclared operational variables
+a deployment blocker, so add a new name to the manifest before setting it live.
+The post-deploy parity probe also reads the selected production function spec's
+public deployment URL and refuses a `NEXT_PUBLIC_CONVEX_URL` that points at a
+sibling deployment.
+
+The same manifest also drives Convex runtime health. The five-minute Production
+Health Monitor reaches the exact web/Convex pair through `/api/health`, which
+checks required-name presence and repeats the zero-write signed parity probe.
+That catches drift introduced after a successful deployment without giving the
+scheduled workflow a production control-plane credential.
+
+`LINEJAM_DEPLOY_ENVIRONMENT` is a non-secret deployment-type marker maintained
+by the hosted bootstrap in the target Convex environment. Runtime health uses
+it instead of guessing from the `convex.cloud` hostname, which is shared by dev,
+preview, and production deployments.
+
 The production App Platform build executes the Convex deploy before the Next.js
 build. Local agents must not push production Convex code unless
 `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` was set deliberately for that operation.
@@ -162,6 +197,8 @@ doctl apps logs "$LINEJAM_APP_ID" web --type run --tail 200
 
 All three routes must return HTTP 200. `/api/health` must report the core app,
 Convex, guest-token, Clerk, AI, and Canary readiness expected for production.
+Its `guestTokenParity` boolean is a proof result only; neither secret nor a
+fingerprint is returned.
 
 ## Deploy the Canary responder
 
@@ -291,6 +328,7 @@ pnpm exec convex import --replace-all ./convex-backup.zip --prod
 - [ ] `pnpm ci:dagger:all` passes or its environment limitation is recorded
 - [ ] hosted merge and smoke gates pass
 - [ ] web and responder active deployments match the intended source SHA
+- [ ] production Convex env reconciliation names every required manifest entry
 - [ ] `linejam.app` health, host, and join routes return 200
 - [ ] responder liveness and readiness return 200
 - [ ] Canary uses `https://canary.mistystep.io`

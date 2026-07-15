@@ -48,7 +48,9 @@ that token.
 - To assert one function landed, run
   `node scripts/convex/probe-function-exists.mjs <module.js:functionName>`.
 - Avoid `convex env list`: it can reveal values. If names are essential, use
-  `--names-only` where the command supports it and still redact the receipt.
+  the repo-owned
+  `node scripts/ci/reconcile-convex-env.mjs --target <environment>` command. It
+  pins `--names-only`, validates the output shape, and emits names only.
 - A dev migration requires explicit authority naming the function, arguments,
   target deployment, expected affected rows/state, and rollback or recovery.
   Confirm the target as above, run the bounded `pnpm exec convex run ...`
@@ -69,6 +71,16 @@ replace operator authority. See `docs/deployment.md`.
    selector smoke, E2E, and QA evidence jobs as configured there.
 5. After an authorized merge/deploy, confirm source SHA, provider deployment
    health, production smoke, public route postconditions, and relevant logs.
+
+The production hosted build adds two postconditions before activation:
+
+1. `config/convex-env-manifest.json` must match the exact target deployment's
+   names-only inventory.
+2. The web `GUEST_TOKEN_SECRET` must sign a zero-write proof accepted by that
+   deployment's guest-session throttle.
+
+`/api/health` repeats the second postcondition and uses the same manifest for
+runtime required-name health, so the scheduled monitor catches later drift.
 
 `pnpm ci:dagger:all` is the local full-contract mirror when Docker and required
 Clerk, Convex, guest-token, and Canary inputs are available. Dagger may prepare

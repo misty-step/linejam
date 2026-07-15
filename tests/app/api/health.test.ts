@@ -15,11 +15,36 @@ const originalEnv = { ...process.env };
 
 const HEALTHY_ENV = {
   GUEST_TOKEN_SECRET: 'test-secret-for-health-checks',
+  LINEJAM_DEPLOY_ENVIRONMENT: 'development',
   NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
   NEXT_PUBLIC_CANARY_API_KEY: 'sk_test_canary',
 };
 
+const HEALTHY_REPORT = {
+  ok: true,
+  status: 200,
+  environment: 'development',
+  deployment: {
+    markerValid: true,
+    url: HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL,
+  },
+  capabilities: {
+    guestTokenVerification: {
+      status: 'ready',
+      available: true,
+      required: false,
+    },
+    aiLineGeneration: {
+      status: 'ready',
+      available: true,
+      required: false,
+    },
+  },
+  configuration: { missingRequired: [] },
+};
+
 const mockQuery = vi.fn();
+const mockMutation = vi.fn();
 const fetchMock = vi.fn();
 
 function parseJsonLogCalls(spy: ReturnType<typeof vi.spyOn>) {
@@ -31,6 +56,7 @@ function parseJsonLogCalls(spy: ReturnType<typeof vi.spyOn>) {
 
 class MockConvexHttpClient {
   query = mockQuery;
+  mutation = mockMutation;
 }
 
 describe('/api/health', () => {
@@ -47,6 +73,8 @@ describe('/api/health', () => {
       delete process.env.CANARY_API_KEY;
       delete process.env.CANARY_ENDPOINT;
       process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
+      process.env.LINEJAM_DEPLOY_ENVIRONMENT =
+        HEALTHY_ENV.LINEJAM_DEPLOY_ENVIRONMENT;
       process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
       process.env.NEXT_PUBLIC_CANARY_API_KEY =
         HEALTHY_ENV.NEXT_PUBLIC_CANARY_API_KEY;
@@ -54,7 +82,8 @@ describe('/api/health', () => {
       vi.doMock('convex/browser', () => ({
         ConvexHttpClient: MockConvexHttpClient,
       }));
-      mockQuery.mockResolvedValue({ ok: true });
+      mockQuery.mockResolvedValue(HEALTHY_REPORT);
+      mockMutation.mockResolvedValue({ ok: true });
       vi.stubGlobal('fetch', fetchMock);
       fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
 
@@ -64,7 +93,9 @@ describe('/api/health', () => {
 
     afterEach(() => {
       mockQuery.mockReset();
-      mockQuery.mockResolvedValue({ ok: true });
+      mockQuery.mockResolvedValue(HEALTHY_REPORT);
+      mockMutation.mockReset();
+      mockMutation.mockResolvedValue({ ok: true });
       fetchMock.mockClear();
       fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
       vi.useRealTimers();
@@ -84,6 +115,8 @@ describe('/api/health', () => {
         env: {
           nodeEnv: expect.stringMatching(/^(development|test|production)$/),
           guestTokenSecret: true,
+          guestTokenParity: true,
+          convexDeploymentMatch: true,
           convexUrl: true,
           canaryIngestKey: true,
         },
@@ -125,7 +158,7 @@ describe('/api/health', () => {
     });
 
     it('returns connected when Convex ping succeeds', async () => {
-      mockQuery.mockResolvedValue({ ok: true });
+      mockQuery.mockResolvedValue(HEALTHY_REPORT);
 
       const response = await GET();
       const data = await response.json();
@@ -133,6 +166,29 @@ describe('/api/health', () => {
       expect(response.status).toBe(200);
       expect(data.convex).toBe('connected');
       expect(mockQuery).toHaveBeenCalled();
+      expect(mockMutation).toHaveBeenCalledWith(expect.anything(), {
+        key: 'guestSession:deployment-readiness',
+        proof: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+        dryRun: true,
+      });
+    });
+
+    it('returns 503 without exposing values when web and Convex guest secrets differ', async () => {
+      mockMutation.mockRejectedValue(
+        new Error('Invalid guest session throttle proof')
+      );
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(data).toMatchObject({
+        status: 'unhealthy',
+        env: { guestTokenSecret: true, guestTokenParity: false },
+      });
+      expect(JSON.stringify(data)).not.toContain(
+        HEALTHY_ENV.GUEST_TOKEN_SECRET
+      );
     });
 
     it('returns 503 when Convex is reachable but a required capability is unconfigured', async () => {
@@ -143,6 +199,10 @@ describe('/api/health', () => {
         ok: false,
         status: 500,
         environment: 'production',
+        deployment: {
+          markerValid: true,
+          url: HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL,
+        },
         capabilities: {
           guestTokenVerification: {
             status: 'ready',
@@ -235,7 +295,7 @@ describe('/api/health', () => {
       vi.useFakeTimers();
 
       const responsePromise = GET();
-      await vi.advanceTimersByTimeAsync(1_500);
+      await vi.advanceTimersByTimeAsync(3_000);
 
       const response = await responsePromise;
       const data = await response.json();
@@ -263,6 +323,49 @@ describe('/api/health', () => {
           canaryIngestKey: false,
         },
       });
+    });
+
+    it('fails health when a remote deployment loses its environment marker', async () => {
+      const previous = process.env.LINEJAM_DEPLOY_ENVIRONMENT;
+      try {
+        process.env.LINEJAM_DEPLOY_ENVIRONMENT = 'production';
+        mockQuery.mockResolvedValue({
+          ...HEALTHY_REPORT,
+          environment: 'development',
+          deployment: {
+            markerValid: false,
+            url: HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL,
+          },
+        });
+
+        const response = await GET();
+        const data = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(data.env.convexDeploymentMatch).toBe(false);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.LINEJAM_DEPLOY_ENVIRONMENT;
+        } else {
+          process.env.LINEJAM_DEPLOY_ENVIRONMENT = previous;
+        }
+      }
+    });
+
+    it('fails health when the web deployment marker is missing', async () => {
+      const previous = process.env.LINEJAM_DEPLOY_ENVIRONMENT;
+      try {
+        delete process.env.LINEJAM_DEPLOY_ENVIRONMENT;
+        const response = await GET();
+        const data = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(data.env.convexDeploymentMatch).toBe(false);
+      } finally {
+        if (previous !== undefined) {
+          process.env.LINEJAM_DEPLOY_ENVIRONMENT = previous;
+        }
+      }
     });
 
     it('falls back to development when NODE_ENV is unset', async () => {
@@ -304,6 +407,7 @@ describe('/api/health', () => {
         status: 'unhealthy',
         env: {
           guestTokenSecret: false,
+          guestTokenParity: false,
           convexUrl: false,
           canaryIngestKey: false,
         },

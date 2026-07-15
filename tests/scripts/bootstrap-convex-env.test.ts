@@ -80,11 +80,12 @@ describe('bootstrap-convex-env', () => {
           'CLERK_JWT_ISSUER_DOMAIN',
           'https://solid-beetle-24.clerk.accounts.dev',
         ],
+        ['LINEJAM_DEPLOY_ENVIRONMENT', 'preview'],
       ],
     });
   });
 
-  it('seeds both required env vars into the hosted Convex target', () => {
+  it('seeds every bootstrap env var into the hosted Convex target', () => {
     const calls: Array<{ bin: string; args: string[] }> = [];
     const runner = (bin: string, args: string[]) => {
       calls.push({ bin, args });
@@ -131,6 +132,19 @@ describe('bootstrap-convex-env', () => {
           'set',
           'CLERK_JWT_ISSUER_DOMAIN',
           'https://solid-beetle-24.clerk.accounts.dev',
+        ],
+      },
+      {
+        bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'env',
+          '--preview-name',
+          'codex/canary-local-ci-agentic-qa',
+          'set',
+          'LINEJAM_DEPLOY_ENVIRONMENT',
+          'preview',
         ],
       },
     ]);
@@ -244,13 +258,78 @@ describe('bootstrap-convex-env', () => {
       },
       {
         bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'env',
+          '--prod',
+          'set',
+          'LINEJAM_DEPLOY_ENVIRONMENT',
+          'production',
+        ],
+      },
+      {
+        bin: 'pnpm',
         args: ['exec', 'convex', 'deploy', '--cmd', 'pnpm run build:check'],
+      },
+      {
+        bin: 'node',
+        args: ['scripts/ci/reconcile-convex-env.mjs'],
+      },
+      {
+        bin: 'node',
+        args: [
+          'scripts/convex/probe-signed-throttle-ready.mjs',
+          '--assert-prod-target',
+        ],
       },
     ]);
     expect(calls.at(-1)).toEqual({
-      bin: 'pnpm',
-      args: ['exec', 'convex', 'deploy', '--cmd', 'pnpm run build:check'],
+      bin: 'node',
+      args: [
+        'scripts/convex/probe-signed-throttle-ready.mjs',
+        '--assert-prod-target',
+      ],
     });
+  });
+
+  it('fails the hosted production build when post-deploy verification fails', () => {
+    const runner = vi.fn((bin: string, args: string[]) => ({
+      status:
+        bin === 'node' && args[0] === 'scripts/ci/reconcile-convex-env.mjs'
+          ? 1
+          : 0,
+    }));
+
+    expect(() =>
+      deployHostedConvex({
+        env: env({
+          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
+          GUEST_TOKEN_SECRET: 'guest-secret',
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
+            'live',
+            'clerk.linejam.app'
+          ),
+          CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+        }),
+        runner,
+        logger: { log: vi.fn() },
+      })
+    ).toThrow('Hosted Convex environment reconciliation failed');
+
+    expect(runner).not.toHaveBeenCalledWith(
+      'node',
+      [
+        'scripts/convex/probe-signed-throttle-ready.mjs',
+        '--assert-prod-target',
+      ],
+      expect.anything()
+    );
+    expect(runner).toHaveBeenCalledWith(
+      'node',
+      ['scripts/ci/reconcile-convex-env.mjs'],
+      expect.objectContaining({ timeout: 60_000 })
+    );
   });
 
   it('can force hosted preview builds to deploy Convex explicitly', () => {
@@ -284,7 +363,7 @@ describe('bootstrap-convex-env', () => {
       '--preview-create',
       'codex/canary-local-ci-agentic-qa',
     ]);
-    expect(calls.at(-1)).toEqual({
+    expect(calls).toContainEqual({
       bin: 'pnpm',
       args: [
         'exec',
@@ -295,6 +374,10 @@ describe('bootstrap-convex-env', () => {
         '--preview-create',
         'codex/canary-local-ci-agentic-qa',
       ],
+    });
+    expect(calls.at(-1)).toEqual({
+      bin: 'node',
+      args: ['scripts/ci/reconcile-convex-env.mjs'],
     });
   });
 
@@ -423,6 +506,7 @@ exit 0
       expect(readFileSync(logPath, 'utf8').trim().split('\n')).toEqual([
         'exec convex env --preview-name codex/canary-local-ci-agentic-qa set GUEST_TOKEN_SECRET guest-secret',
         'exec convex env --preview-name codex/canary-local-ci-agentic-qa set CLERK_JWT_ISSUER_DOMAIN https://solid-beetle-24.clerk.accounts.dev',
+        'exec convex env --preview-name codex/canary-local-ci-agentic-qa set LINEJAM_DEPLOY_ENVIRONMENT preview',
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
@@ -434,6 +518,7 @@ exit 0
       join(tmpdir(), 'linejam-bootstrap-convex-deploy-')
     );
     const fakePnpm = join(tempDir, 'pnpm');
+    const fakeNode = join(tempDir, 'node');
     const logPath = join(tempDir, 'pnpm.log');
 
     try {
@@ -445,6 +530,14 @@ exit 0
 `
       );
       chmodSync(fakePnpm, 0o755);
+      writeFileSync(
+        fakeNode,
+        `#!/bin/sh
+printf 'node %s\n' "$*" >> "${logPath}"
+exit 0
+`
+      );
+      chmodSync(fakeNode, 0o755);
 
       const result = spawnSync(
         process.execPath,
@@ -473,7 +566,10 @@ exit 0
       expect(readFileSync(logPath, 'utf8').trim().split('\n')).toEqual([
         'exec convex env --prod set GUEST_TOKEN_SECRET guest-secret',
         'exec convex env --prod set CLERK_JWT_ISSUER_DOMAIN https://clerk.linejam.app',
+        'exec convex env --prod set LINEJAM_DEPLOY_ENVIRONMENT production',
         'exec convex deploy --cmd pnpm run build:check',
+        'node scripts/ci/reconcile-convex-env.mjs',
+        'node scripts/convex/probe-signed-throttle-ready.mjs --assert-prod-target',
       ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

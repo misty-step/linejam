@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
  */
 
 const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];
+const POST_DEPLOY_VERIFY_TIMEOUT_MS = 60_000;
 
 /**
  * @param {EnvShape} [env]
@@ -208,11 +209,19 @@ export function buildConvexEnvBootstrapPlan(env = process.env) {
     );
   }
 
+  const deploymentEnvironment =
+    target.status === 'prod'
+      ? 'production'
+      : target.status === 'preview'
+        ? 'preview'
+        : 'development';
+
   return {
     target,
     entries: [
       ['GUEST_TOKEN_SECRET', guestTokenSecret],
       ['CLERK_JWT_ISSUER_DOMAIN', clerkIssuerDomain],
+      ['LINEJAM_DEPLOY_ENVIRONMENT', deploymentEnvironment],
     ],
   };
 }
@@ -337,7 +346,43 @@ export function deployHostedConvex({
     throw new Error('Hosted Convex deploy failed.');
   }
 
+  runPostDeployVerification({
+    env,
+    target: resolveConvexEnvTarget(env),
+    runner,
+  });
+
   return args;
+}
+
+/**
+ * App Platform does not activate the build until this process exits. Keep the
+ * values-free name reconciliation and zero-write guest-secret parity probe in
+ * this unskippable post-deploy path so frontend traffic cannot race stale or
+ * mismatched Convex configuration.
+ *
+ * @param {{ env: EnvShape; target: ReturnType<typeof resolveConvexEnvTarget>; runner: Runner }} options
+ */
+function runPostDeployVerification({ env, target, runner }) {
+  const reconcile = runner('node', ['scripts/ci/reconcile-convex-env.mjs'], {
+    stdio: 'inherit',
+    env,
+    timeout: POST_DEPLOY_VERIFY_TIMEOUT_MS,
+  });
+  if (reconcile.status !== 0) {
+    throw new Error('Hosted Convex environment reconciliation failed.');
+  }
+
+  if (target.status !== 'prod') return;
+
+  const parity = runner(
+    'node',
+    ['scripts/convex/probe-signed-throttle-ready.mjs', '--assert-prod-target'],
+    { stdio: 'inherit', env, timeout: POST_DEPLOY_VERIFY_TIMEOUT_MS }
+  );
+  if (parity.status !== 0) {
+    throw new Error('Hosted guest-token secret parity verification failed.');
+  }
 }
 
 async function main() {
