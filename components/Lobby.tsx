@@ -263,7 +263,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                       delay={i * 150}
                       className="mx-[12px] min-w-0 max-w-full sm:mx-0"
                     >
-                      <li className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+                      <li className="grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-2">
                         <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
                           <Avatar
                             stableId={player.stableId}
@@ -280,7 +280,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                             </span>
                           )}
                         </div>
-                        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+                        <div className="flex max-w-full flex-wrap items-center justify-self-end gap-2">
                           {player.isBot && (
                             <>
                               <BotBadge />

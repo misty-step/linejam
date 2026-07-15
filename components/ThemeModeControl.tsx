@@ -25,7 +25,7 @@ export function ThemeModeControl({ className = '' }: { className?: string }) {
   return (
     <div
       className={cn(
-        'flex p-1 bg-[var(--color-muted)] rounded-[var(--radius-md)]',
+        'flex min-w-0 max-w-full flex-wrap gap-[4px] rounded-[var(--radius-md)] bg-[var(--color-muted)] p-[4px]',
         className
       )}
       role="tablist"
@@ -40,7 +40,7 @@ export function ThemeModeControl({ className = '' }: { className?: string }) {
             aria-selected={isActive}
             onClick={() => setModePreference(value)}
             className={cn(
-              'flex-1 flex items-center justify-center gap-2 px-3 py-2',
+              'flex h-auto min-h-[44px] min-w-[min(100%,4.75rem)] flex-[1_1_4.75rem] items-center justify-center gap-[8px] px-[8px] py-[8px]',
               'text-[var(--text-sm)] font-medium',
               'rounded-[var(--radius-sm)]',
               'transition-all duration-[var(--duration-normal)]',
@@ -49,8 +49,8 @@ export function ThemeModeControl({ className = '' }: { className?: string }) {
                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
             )}
           >
-            <Icon className="w-4 h-4" />
-            <span>{label}</span>
+            <Icon className="h-[16px] w-[16px] shrink-0" />
+            <span className="min-w-0 break-words leading-tight">{label}</span>
           </button>
         );
       })}

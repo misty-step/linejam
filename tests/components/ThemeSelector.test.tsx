@@ -53,6 +53,21 @@ describe('ThemeSelector', () => {
     ).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('lets color modes wrap without overflowing a narrow scaled popover', () => {
+    installMatchMedia(false);
+
+    renderThemeSelector();
+
+    const modeControl = screen.getByRole('tablist', { name: /color mode/i });
+    expect(modeControl).toHaveClass('flex-wrap', 'min-w-0', 'max-w-full');
+
+    for (const mode of ['light', 'dark', 'system']) {
+      expect(
+        screen.getByRole('tab', { name: new RegExp(mode, 'i') })
+      ).toHaveClass('min-w-[min(100%,4.75rem)]', 'flex-[1_1_4.75rem]');
+    }
+  });
+
   it('supports keyboard navigation and closes on Escape', () => {
     installMatchMedia(false);
     const onClose = vi.fn();
