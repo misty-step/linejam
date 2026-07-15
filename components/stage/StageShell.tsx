@@ -31,7 +31,7 @@ export function StageShell({
       )}
     >
       <div className="lj-safe-frame mx-auto flex min-h-full w-full max-w-[1920px] flex-col md:[--lj-safe-frame-space:2.5rem] xl:[--lj-safe-frame-space:3.5rem]">
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4 md:gap-6">
+        <header className="mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 md:gap-6">
           <div className="min-w-0">
             <p className="text-xs font-mono uppercase tracking-[0.32em] text-primary">
               Linejam stage

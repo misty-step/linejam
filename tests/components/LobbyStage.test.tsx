@@ -39,6 +39,17 @@ describe('LobbyStage', () => {
     vi.useRealTimers();
   });
 
+  it('pins exit beside the stage heading instead of wrapping below scaled copy', () => {
+    render(<LobbyStage room={room} players={[hostPlayer]} onExit={vi.fn()} />);
+
+    const exit = screen.getByRole('button', { name: 'Exit presentation' });
+    expect(exit.closest('header')).toHaveClass(
+      'grid',
+      'grid-cols-[minmax(0,1fr)_auto]'
+    );
+    expect(exit.closest('header')).not.toHaveClass('flex-wrap');
+  });
+
   it('clears the just-joined badge after the join moment completes', () => {
     vi.useFakeTimers();
     const { rerender } = render(
