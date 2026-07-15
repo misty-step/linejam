@@ -384,7 +384,7 @@ function WritingComposer({
       */}
       <div
         data-testid={E2E_TEST_IDS.writingActionZone}
-        className="lj-safe-inline min-h-0 max-h-[55%] flex-[0_1_auto] overflow-y-auto flex flex-col items-center gap-3 border-t-2 border-primary/20 bg-background/95 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:2rem] md:gap-4 md:pt-4 md:pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="lj-safe-inline min-h-0 max-h-[55%] flex-[0_1_auto] overflow-y-auto flex flex-col items-center gap-[12px] border-t-2 border-primary/20 bg-background/95 pt-[12px] pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:2rem] md:gap-[16px] md:pt-[16px] md:pb-[max(16px,env(safe-area-inset-bottom))]"
       >
         {submitBlock}
       </div>

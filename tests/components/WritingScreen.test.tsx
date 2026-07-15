@@ -138,6 +138,11 @@ describe('WritingScreen component', () => {
     expect(phase).not.toHaveClass('overflow-hidden');
     expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
     expect(actionZone).toHaveClass('min-h-0', 'flex-[0_1_auto]');
+    expect(actionZone).toHaveClass(
+      'gap-[12px]',
+      'pt-[12px]',
+      'pb-[max(12px,env(safe-area-inset-bottom))]'
+    );
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
     expect(submit).toHaveClass('h-[64px]', 'md:h-[80px]');
