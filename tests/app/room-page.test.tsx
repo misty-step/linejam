@@ -137,6 +137,22 @@ describe('RoomPage', () => {
     );
   }
 
+  it('keeps the missing-room state centered inside safe mobile spacing', async () => {
+    mockUseQuery.mockImplementation((query) => {
+      const functionName = getFunctionName(
+        query as Parameters<typeof getFunctionName>[0]
+      );
+      return functionName === 'rooms:getRoomState' ? null : undefined;
+    });
+
+    renderRoomPage();
+
+    const title = await screen.findByText('Room not found');
+    const detail = screen.getByText(/room code may be incorrect/i);
+    expect(title.parentElement).toHaveClass('lj-safe-inline', 'text-center');
+    expect(detail).toHaveClass('max-w-md');
+  });
+
   it('renders an explicit recovery state when room status is unknown', async () => {
     mockUseQuery.mockImplementation((query) => {
       const functionName = getFunctionName(

@@ -180,6 +180,17 @@ h6 {
   top: var(--lj-visual-viewport-offset-top, 0px);
 }
 
+/*
+ * Room controls live above clipped phase bodies. Bound their dropdowns to the
+ * visual viewport so every option remains reachable at large text sizes.
+ */
+.lj-room-popover {
+  max-height: 45vh;
+  max-height: 45dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .lj-safe-inline {
   padding-left: max(
     var(--lj-safe-inline-space, 1.5rem),

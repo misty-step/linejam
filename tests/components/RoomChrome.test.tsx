@@ -202,7 +202,9 @@ describe('RoomChrome component', () => {
 
     await user.click(screen.getByRole('button', { name: /More options/i }));
     await user.click(screen.getByRole('button', { name: /^Theme$/i }));
-    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+    const themeChooser = screen.getByText('Theme chooser');
+    expect(themeChooser).toBeInTheDocument();
+    expect(themeChooser.closest('.lj-room-popover')).toBeInTheDocument();
   });
 
   it('tracks aria-expanded and returns focus to the trigger on escape', async () => {

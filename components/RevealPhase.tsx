@@ -194,7 +194,7 @@ export function RevealPhase({
 
   // Single-column editorial layout
   return (
-    <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col overflow-hidden bg-background">
+    <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background">
       {chrome}
       {isPresenting && (
         <RevealStage

@@ -401,7 +401,7 @@ export function PoemDisplay({
       <div
         data-testid={E2E_TEST_IDS.poemActions}
         className={cn(
-          'print:hidden px-space-3 py-space-3 md:px-space-5 lg:px-space-6 border-t border-border-subtle',
+          'print:hidden px-space-3 pt-space-3 pb-[max(var(--space-3),env(safe-area-inset-bottom))] md:px-space-5 lg:px-space-6 border-t border-border-subtle',
           'flex flex-col items-center gap-space-3',
           'transition-opacity duration-500',
           allRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'

@@ -142,7 +142,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
                   </button>
 
                   {showQr && (
-                    <div className="absolute left-0 top-full z-50 mt-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
+                    <div className="lj-room-popover absolute left-0 top-full z-50 mt-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
                       <div className="flex flex-col items-center gap-3">
                         <QRCodeSVG
                           value={joinUrl}
@@ -228,7 +228,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
                 </button>
 
                 {showMenu && (
-                  <div className="absolute right-0 top-full z-50 mt-3 w-56 max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-lg)]">
+                  <div className="lj-room-popover absolute right-0 top-full z-50 mt-3 w-56 max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-lg)]">
                     <Link
                       href="/me/poems"
                       prefetch={false}
@@ -264,7 +264,7 @@ export function RoomChrome({ roomCode, title, subtitle }: RoomChromeProps) {
                 )}
 
                 {showThemes && (
-                  <div className="absolute right-0 top-full z-50 mt-3 w-[320px] max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
+                  <div className="lj-room-popover absolute right-0 top-full z-50 mt-3 w-[320px] max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
                     <ThemeSelector onClose={() => setShowThemes(false)} />
                   </div>
                 )}

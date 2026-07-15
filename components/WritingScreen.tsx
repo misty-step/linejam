@@ -434,7 +434,7 @@ export function WritingScreen({
     <div
       data-testid={E2E_TEST_IDS.writingPhase}
       data-round={assignment.lineIndex + 1}
-      className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col overflow-hidden bg-background"
+      className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background"
     >
       {showChrome && (
         <RoomChrome

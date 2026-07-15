@@ -156,6 +156,32 @@ async function expectReachableInsideVisualViewport(
   await expectInitiallyInsideVisualViewport(page, locator);
 }
 
+async function waitForStableBoundingBox(page: Page, locator: Locator) {
+  let previous: string | null = null;
+  let stableSamples = 0;
+
+  await expect
+    .poll(async () => {
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          })
+      );
+      const box = await locator.boundingBox();
+      const sample = box
+        ? [box.x, box.y, box.width, box.height]
+            .map((value) => Math.round(value * 10) / 10)
+            .join(':')
+        : null;
+      stableSamples =
+        sample !== null && sample === previous ? stableSamples + 1 : 0;
+      previous = sample;
+      return stableSamples >= 1;
+    })
+    .toBe(true);
+}
+
 async function expectWritingGeometry(page: Page) {
   const phase = page.getByTestId(E2E_TEST_IDS.writingPhase);
   const scrollRegion = page.getByTestId(E2E_TEST_IDS.writingScrollRegion);
@@ -164,7 +190,7 @@ async function expectWritingGeometry(page: Page) {
   const slots = page.getByTestId(E2E_TEST_IDS.writingWordSlots);
 
   await input.focus();
-  await page.waitForTimeout(350);
+  await waitForStableBoundingBox(page, actionZone);
   await expectInitiallyInsideVisualViewport(page, actionZone);
   await expectInitiallyInsideVisualViewport(
     page,
@@ -389,12 +415,12 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
         );
       }
 
-      if (roundIndex === 4) {
+      if (roundIndex === CANONICAL_GUEST_FLOW_LINES.length - 1) {
         await session.hostPage.setViewportSize({ width: 667, height: 375 });
         await setSyntheticVisualViewport(session.hostPage, 300, 10);
         await expectWritingGeometry(session.hostPage);
         await session.hostPage.screenshot({
-          path: testInfo.outputPath('writing-round-5-landscape.png'),
+          path: testInfo.outputPath('writing-final-round-landscape.png'),
         });
       }
 

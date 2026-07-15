@@ -134,7 +134,8 @@ describe('WritingScreen component', () => {
     const actionZone = submit.parentElement;
     const scrollRegion = screen.getByTestId(E2E_TEST_IDS.writingScrollRegion);
 
-    expect(phase).toHaveClass('lj-game-frame', 'overflow-hidden');
+    expect(phase).toHaveClass('lj-game-frame');
+    expect(phase).not.toHaveClass('overflow-hidden');
     expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
     expect(actionZone).toHaveClass('min-h-0', 'flex-[0_1_auto]');
     expect(actionZone).not.toHaveClass('flex-none');
