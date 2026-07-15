@@ -102,6 +102,7 @@ async function seedCompletedRoom(
       code,
       hostUserId: hostId,
       status: 'COMPLETED',
+      currentCycle: 1,
       createdAt: 0,
     });
     await ctx.db.insert('roomPlayers', {
@@ -864,6 +865,165 @@ describe('getCurrentAssignment', () => {
     expect(result!.totalRounds).toBe(9);
     expect(result!.isFinalRound).toBe(false);
     expect(result!.previousLineText).toBe('one two');
+  });
+
+  it('stores every rematch submission in the active game poems', async () => {
+    const t = setupConvexTest();
+    const { code, roomId, gameId, hostId, guestId } = await seedCompletedRoom(
+      t,
+      'CA06'
+    );
+
+    const { oldPoemIds, oldPoemsBefore, oldLinesBefore } = await t.run(
+      async (ctx) => {
+        const poemIds = await Promise.all(
+          [0, 1].map((indexInRoom) =>
+            ctx.db.insert('poems', {
+              roomId,
+              gameId,
+              indexInRoom,
+              createdAt: 0,
+            })
+          )
+        );
+
+        await Promise.all(
+          poemIds.flatMap((poemId, poemIndex) =>
+            WORD_COUNTS.map((wordCount, lineIndex) =>
+              ctx.db.insert('lines', {
+                poemId,
+                indexInPoem: lineIndex,
+                text: Array.from(
+                  { length: wordCount },
+                  (_, wordIndex) => `old${poemIndex}${lineIndex}${wordIndex}`
+                ).join(' '),
+                wordCount,
+                authorUserId:
+                  (lineIndex + poemIndex) % 2 === 0 ? hostId : guestId,
+                createdAt: lineIndex,
+              })
+            )
+          )
+        );
+
+        const oldPoems = await Promise.all(
+          poemIds.map((poemId) => ctx.db.get(poemId))
+        );
+        const oldLines = await Promise.all(
+          poemIds.map((poemId) =>
+            ctx.db
+              .query('lines')
+              .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+              .collect()
+          )
+        );
+
+        return {
+          oldPoemIds: poemIds,
+          oldPoemsBefore: oldPoems,
+          oldLinesBefore: oldLines,
+        };
+      }
+    );
+
+    await asUser(t, 'hostCA06').mutation(api.game.startGame, { code });
+
+    const activeGameId = await t.run(async (ctx) => {
+      const room = await ctx.db.get(roomId);
+      expect(room?.currentCycle).toBe(2);
+      return room!.currentGameId!;
+    });
+    const expectedTextByCell = new Map<string, string>();
+
+    for (let round = 0; round < WORD_COUNTS.length; round += 1) {
+      const [hostAssignment, guestAssignment] = await Promise.all([
+        asUser(t, 'hostCA06').query(api.game.getCurrentAssignment, {
+          roomCode: code,
+        }),
+        asUser(t, 'guestCA06').query(api.game.getCurrentAssignment, {
+          roomCode: code,
+        }),
+      ]);
+
+      expect(hostAssignment?.lineIndex).toBe(round);
+      expect(guestAssignment?.lineIndex).toBe(round);
+
+      const assignments = [
+        {
+          identity: 'hostCA06',
+          assignment: hostAssignment!,
+          prefix: 'host',
+        },
+        {
+          identity: 'guestCA06',
+          assignment: guestAssignment!,
+          prefix: 'guest',
+        },
+      ];
+
+      for (const { assignment } of assignments) {
+        const poem = await t.run((ctx) => ctx.db.get(assignment.poemId));
+        expect(poem?.gameId).toBe(activeGameId);
+      }
+
+      await Promise.all(
+        assignments.map(async ({ identity, assignment, prefix }) => {
+          const text = Array.from(
+            { length: WORD_COUNTS[round] },
+            (_, wordIndex) => `${prefix}${round}${wordIndex}`
+          ).join(' ');
+          expectedTextByCell.set(`${assignment.poemId}:${round}`, text);
+          await asUser(t, identity).mutation(api.game.submitLine, {
+            poemId: assignment.poemId,
+            lineIndex: round,
+            text,
+          });
+        })
+      );
+    }
+
+    const result = await t.run(async (ctx) => {
+      const [activeGame, activePoems, oldPoems, oldLines] = await Promise.all([
+        ctx.db.get(activeGameId),
+        ctx.db
+          .query('poems')
+          .withIndex('by_game', (q) => q.eq('gameId', activeGameId))
+          .collect(),
+        Promise.all(oldPoemIds.map((poemId) => ctx.db.get(poemId))),
+        Promise.all(
+          oldPoemIds.map((poemId) =>
+            ctx.db
+              .query('lines')
+              .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+              .collect()
+          )
+        ),
+      ]);
+      const activeLines = await Promise.all(
+        activePoems.map(async (poem) => ({
+          poemId: poem._id,
+          lines: await ctx.db
+            .query('lines')
+            .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
+            .collect(),
+        }))
+      );
+      return { activeGame, activeLines, oldPoems, oldLines };
+    });
+
+    expect(result.activeGame?.status).toBe('COMPLETED');
+    expect(result.oldPoems).toEqual(oldPoemsBefore);
+    expect(result.oldLines).toEqual(oldLinesBefore);
+    expect(result.activeLines.flatMap(({ lines }) => lines)).toHaveLength(
+      2 * WORD_COUNTS.length
+    );
+    for (const { poemId, lines } of result.activeLines) {
+      for (const line of lines) {
+        expect(line.text).toBe(
+          expectedTextByCell.get(`${poemId}:${line.indexInPoem}`)
+        );
+      }
+    }
   });
 });
 

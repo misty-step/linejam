@@ -541,10 +541,11 @@ export class GuestFlowSession {
     const page = this.page(actor);
 
     await page.getByTestId(E2E_TEST_IDS.revealPoemButton).first().click();
-    await expect(page.getByText(lines[0])).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(lines.at(-1) ?? '')).toBeVisible({
-      timeout: 12000,
-    });
+    for (const line of lines) {
+      await expect(page.getByText(line, { exact: true })).toBeVisible({
+        timeout: 12000,
+      });
+    }
     await page.getByTestId(E2E_TEST_IDS.poemDoneButton).click();
   }
 
@@ -561,6 +562,14 @@ export class GuestFlowSession {
     await expect(
       this.guestPage.getByTestId(E2E_TEST_IDS.sessionComplete)
     ).toBeVisible({ timeout: 15000 });
+  }
+
+  async startNextRound() {
+    await this.hostPage
+      .getByRole('button', { name: 'Start Next Round', exact: true })
+      .click();
+    await this.expectRound(1);
+    await this.expectWritingUi();
   }
 
   async capture(actor: Actor, path: string) {
