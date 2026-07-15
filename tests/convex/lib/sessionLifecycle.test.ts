@@ -6,6 +6,7 @@ import {
   getSubmissionWindow,
   isRevealReady,
 } from '../../../convex/lib/sessionLifecycle';
+import { RETENTION_DURATIONS_MS } from '../../../convex/lib/retentionPolicy';
 import { WORD_COUNTS } from '../../../convex/lib/gameRules';
 import { setupConvexTest } from '../../helpers/convexTest';
 import { type T } from '../../helpers/convexSeed';
@@ -496,9 +497,15 @@ describe('applyLineLifecycleTransition (real engine)', () => {
     const after = await t.run((ctx) => ctx.db.get(gameId));
     expect(after?.status).toBe('COMPLETED');
     expect(after?.completedAt).toBeDefined();
+    expect(after?.completionKind).toBe('normal');
+    expect(after?.retentionState).toBe('pending');
+    expect(after?.retentionEligibleAt).toBe(
+      (after?.completedAt ?? 0) + RETENTION_DURATIONS_MS.privateCompleted
+    );
 
     const room = await t.run((ctx) => ctx.db.get(roomId));
     expect(room?.status).toBe('COMPLETED');
+    expect(room?.retentionState).toBe('pending');
 
     // No further scheduler jobs: game is complete, no runAfter should have fired
     // for a next round. Drain should be a no-op.

@@ -4,6 +4,7 @@ import type { MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import { checkParticipation, getUser } from './lib/auth';
 import { getCompletedGame, getRoomByCode } from './lib/room';
+import { retentionEligibleAt } from './lib/retentionPolicy';
 
 async function requirePoemParticipant(
   ctx: MutationCtx,
@@ -60,7 +61,7 @@ async function requireCompletedSessionParticipant(
     throw new ConvexError('Session recap not ready');
   }
 
-  return game;
+  return { game, room, poems };
 }
 
 export const enablePublicPoemShare = mutation({
@@ -75,11 +76,19 @@ export const enablePublicPoemShare = mutation({
     }
     const now = Date.now();
 
-    await ctx.db.patch(poemId, {
-      publicShareEnabled: true,
-      publicShareEnabledAt: poem.publicShareEnabledAt ?? now,
-      publicShareDisabledAt: undefined,
-    });
+    await Promise.all([
+      ctx.db.patch(poemId, {
+        publicShareEnabled: true,
+        publicShareEnabledAt: poem.publicShareEnabledAt ?? now,
+        publicShareDisabledAt: undefined,
+        retentionState: 'protected',
+        retentionEligibleAt: undefined,
+      }),
+      ctx.db.patch(poem.roomId, {
+        retentionState: 'protected',
+        retentionEligibleAt: undefined,
+      }),
+    ]);
   },
 });
 
@@ -89,12 +98,47 @@ export const disablePublicPoemShare = mutation({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { poemId, guestToken }) => {
-    await requirePoemParticipant(ctx, poemId, guestToken);
+    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    const [favorite, game] = await Promise.all([
+      ctx.db
+        .query('favorites')
+        .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+        .first(),
+      ctx.db.get(poem.gameId),
+    ]);
+    const now = Date.now();
+    const remainsProtected =
+      favorite !== null || game?.publicRecapEnabled === true;
 
     await ctx.db.patch(poemId, {
       publicShareEnabled: false,
-      publicShareDisabledAt: Date.now(),
+      publicShareDisabledAt: now,
+      retentionState: remainsProtected ? 'protected' : 'pending',
+      retentionEligibleAt: remainsProtected
+        ? undefined
+        : retentionEligibleAt(now, 'protectionRemoved'),
     });
+
+    const [otherPublicPoem, publicRecap] = await Promise.all([
+      ctx.db
+        .query('poems')
+        .withIndex('by_room_public_created', (q) =>
+          q.eq('roomId', poem.roomId).eq('publicShareEnabled', true)
+        )
+        .first(),
+      ctx.db
+        .query('games')
+        .withIndex('by_room_public', (q) =>
+          q.eq('roomId', poem.roomId).eq('publicRecapEnabled', true)
+        )
+        .first(),
+    ]);
+    if (!otherPublicPoem && !publicRecap) {
+      await ctx.db.patch(poem.roomId, {
+        retentionState: 'pending',
+        retentionEligibleAt: retentionEligibleAt(now, 'protectionRemoved'),
+      });
+    }
   },
 });
 
@@ -104,18 +148,32 @@ export const enablePublicSessionRecapShare = mutation({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { roomCode, guestToken }) => {
-    const game = await requireCompletedSessionParticipant(
+    const { game, room, poems } = await requireCompletedSessionParticipant(
       ctx,
       roomCode,
       guestToken
     );
     const now = Date.now();
 
-    await ctx.db.patch(game._id, {
-      publicRecapEnabled: true,
-      publicRecapEnabledAt: game.publicRecapEnabledAt ?? now,
-      publicRecapDisabledAt: undefined,
-    });
+    await Promise.all([
+      ctx.db.patch(game._id, {
+        publicRecapEnabled: true,
+        publicRecapEnabledAt: game.publicRecapEnabledAt ?? now,
+        publicRecapDisabledAt: undefined,
+        retentionState: 'protected',
+        retentionEligibleAt: undefined,
+      }),
+      ctx.db.patch(room._id, {
+        retentionState: 'protected',
+        retentionEligibleAt: undefined,
+      }),
+      ...poems.map((poem) =>
+        ctx.db.patch(poem._id, {
+          retentionState: 'protected',
+          retentionEligibleAt: undefined,
+        })
+      ),
+    ]);
   },
 });
 
@@ -125,15 +183,41 @@ export const disablePublicSessionRecapShare = mutation({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { roomCode, guestToken }) => {
-    const game = await requireCompletedSessionParticipant(
+    const { game, room, poems } = await requireCompletedSessionParticipant(
       ctx,
       roomCode,
       guestToken
     );
+    const now = Date.now();
+    const deadline = retentionEligibleAt(now, 'protectionRemoved');
+    const favorites = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('favorites')
+          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
+          .first()
+      )
+    );
 
-    await ctx.db.patch(game._id, {
-      publicRecapEnabled: false,
-      publicRecapDisabledAt: Date.now(),
-    });
+    await Promise.all([
+      ctx.db.patch(game._id, {
+        publicRecapEnabled: false,
+        publicRecapDisabledAt: now,
+        retentionState: 'pending',
+        retentionEligibleAt: deadline,
+      }),
+      ctx.db.patch(room._id, {
+        retentionState: 'pending',
+        retentionEligibleAt: deadline,
+      }),
+      ...poems.map((poem, index) => {
+        const remainsProtected =
+          poem.publicShareEnabled === true || favorites[index] !== null;
+        return ctx.db.patch(poem._id, {
+          retentionState: remainsProtected ? 'protected' : 'pending',
+          retentionEligibleAt: remainsProtected ? undefined : deadline,
+        });
+      }),
+    ]);
   },
 });

@@ -23,4 +23,11 @@ crons.interval(
   {}
 );
 
+crons.interval(
+  'apply bounded data retention',
+  { hours: 6 },
+  internal.retention.runScheduledRetentionSweep,
+  {}
+);
+
 export default crons;

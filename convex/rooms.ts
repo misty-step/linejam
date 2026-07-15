@@ -10,6 +10,7 @@ import {
   requireRoomByCode,
   getActiveGame,
 } from './lib/room';
+import { retentionEligibleAt } from './lib/retentionPolicy';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -65,6 +66,7 @@ export const createRoom = mutation({
       hostUserId: user._id,
       status: 'LOBBY',
       createdAt: Date.now(),
+      retentionState: 'active',
     });
 
     await ctx.db.insert('roomPlayers', {
@@ -294,7 +296,14 @@ export const closeRoom = mutation({
 
     await Promise.all(roomPlayers.map((rp) => ctx.db.delete(rp._id)));
 
-    // Mark room as completed
-    await ctx.db.patch(room._id, { status: 'COMPLETED' });
+    // Mark room as completed. Closed lobbies have no artifact to preserve, so
+    // they use the same short lifetime as an abandoned session.
+    const completedAt = Date.now();
+    await ctx.db.patch(room._id, {
+      status: 'COMPLETED',
+      completedAt,
+      retentionState: 'pending',
+      retentionEligibleAt: retentionEligibleAt(completedAt, 'abandoned'),
+    });
   },
 });

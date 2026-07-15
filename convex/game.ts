@@ -101,6 +101,7 @@ export const startGame = mutation({
       roundStartedAt: Date.now(),
       assignmentMatrix,
       createdAt: Date.now(),
+      retentionState: 'active',
     });
 
     // Create Poems
@@ -112,6 +113,7 @@ export const startGame = mutation({
           gameId,
           indexInRoom: i,
           createdAt: poemCreationTime,
+          retentionState: 'active',
         })
       )
     );
@@ -122,6 +124,8 @@ export const startGame = mutation({
       currentGameId: gameId,
       currentCycle: (room.currentCycle || 0) + 1, // Increment cycle on start if not set, or if set (redundant if startNewCycle handles it, but safe)
       startedAt: Date.now(),
+      retentionState: 'active',
+      retentionEligibleAt: undefined,
     });
 
     // Schedule AI turn if AI player present

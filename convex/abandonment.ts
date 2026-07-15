@@ -271,6 +271,7 @@ export const finishAbandonedGame = internalMutation({
             game,
             roomId: game.roomId,
             lineIndex: round,
+            completionKind: 'abandoned',
           });
           const after = await ctx.db.get(gameId);
           if (
@@ -301,6 +302,7 @@ export const finishAbandonedGame = internalMutation({
             lineIndex: round,
             authorUserId: roundAssignments[poem.indexInRoom],
             authorDisplayName,
+            completionKind: 'abandoned',
           });
           if (committed) filled++;
         }

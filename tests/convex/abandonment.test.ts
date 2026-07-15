@@ -11,6 +11,7 @@ import {
 } from '../../convex/lib/gameRules';
 import { getFallbackLine } from '../../convex/lib/ai/fallbacks';
 import { countWords } from '../../convex/lib/wordCount';
+import { RETENTION_DURATIONS_MS } from '../../convex/lib/retentionPolicy';
 
 /**
  * Integration coverage for "never let the room die" (backlog 016, children 3-5).
@@ -230,6 +231,11 @@ describe('abandonment cron (child 3 / oracle 5b)', () => {
     expect(game?.status).toBe('COMPLETED');
     expect(room?.status).toBe('COMPLETED');
     expect(game?.completedAt).toBeDefined();
+    expect(game?.completionKind).toBe('abandoned');
+    expect(game?.retentionState).toBe('pending');
+    expect(game?.retentionEligibleAt).toBe(
+      (game?.completedAt ?? 0) + RETENTION_DURATIONS_MS.abandoned
+    );
 
     // Every line of every poem is present (9 rounds x 2 poems), honestly
     // bylined, and word-count valid.

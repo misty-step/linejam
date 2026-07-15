@@ -67,16 +67,20 @@ describe('shares', () => {
   describe('enablePublicPoemShare', () => {
     it('marks a poem public when the caller participates in its room', async () => {
       const t = setupConvexTest();
-      const { poemId } = await seedRoom(t);
+      const { poemId, roomId } = await seedRoom(t);
 
       await asUser(t, 'owner').mutation(api.shares.enablePublicPoemShare, {
         poemId,
       });
 
       const poem = await t.run((ctx) => ctx.db.get(poemId));
+      const room = await t.run((ctx) => ctx.db.get(roomId));
       expect(poem?.publicShareEnabled).toBe(true);
       expect(typeof poem?.publicShareEnabledAt).toBe('number');
       expect(poem?.publicShareDisabledAt).toBeUndefined();
+      expect(poem?.retentionState).toBe('protected');
+      expect(poem?.retentionEligibleAt).toBeUndefined();
+      expect(room?.retentionState).toBe('protected');
     });
 
     it('rejects poem sharing for non-participants', async () => {
@@ -120,22 +124,30 @@ describe('shares', () => {
   describe('disablePublicPoemShare', () => {
     it('marks a shared poem private when the caller participates', async () => {
       const t = setupConvexTest();
-      const { poemId } = await seedRoom(t, { publicShareEnabled: true });
+      const { poemId, roomId } = await seedRoom(t, {
+        publicShareEnabled: true,
+      });
 
       await asUser(t, 'owner').mutation(api.shares.disablePublicPoemShare, {
         poemId,
       });
 
       const poem = await t.run((ctx) => ctx.db.get(poemId));
+      const room = await t.run((ctx) => ctx.db.get(roomId));
       expect(poem?.publicShareEnabled).toBe(false);
       expect(typeof poem?.publicShareDisabledAt).toBe('number');
+      expect(poem?.retentionState).toBe('pending');
+      expect(poem?.retentionEligibleAt).toBeGreaterThan(
+        poem?.publicShareDisabledAt ?? 0
+      );
+      expect(room?.retentionState).toBe('pending');
     });
   });
 
   describe('enablePublicSessionRecapShare', () => {
     it('marks a completed, fully-revealed recap public for participants', async () => {
       const t = setupConvexTest();
-      const { gameId } = await seedRoom(t, { revealed: true });
+      const { gameId, roomId, poemId } = await seedRoom(t, { revealed: true });
 
       await asUser(t, 'owner').mutation(
         api.shares.enablePublicSessionRecapShare,
@@ -145,8 +157,13 @@ describe('shares', () => {
       );
 
       const game = await t.run((ctx) => ctx.db.get(gameId));
+      const room = await t.run((ctx) => ctx.db.get(roomId));
+      const poem = await t.run((ctx) => ctx.db.get(poemId));
       expect(game?.publicRecapEnabled).toBe(true);
       expect(typeof game?.publicRecapEnabledAt).toBe('number');
+      expect(game?.retentionState).toBe('protected');
+      expect(room?.retentionState).toBe('protected');
+      expect(poem?.retentionState).toBe('protected');
     });
 
     it('rejects recap sharing before every poem is revealed', async () => {
@@ -176,7 +193,7 @@ describe('shares', () => {
   describe('disablePublicSessionRecapShare', () => {
     it('marks a public recap private for participants', async () => {
       const t = setupConvexTest();
-      const { gameId } = await seedRoom(t, {
+      const { gameId, roomId, poemId } = await seedRoom(t, {
         revealed: true,
         publicRecapEnabled: true,
       });
@@ -189,8 +206,13 @@ describe('shares', () => {
       );
 
       const game = await t.run((ctx) => ctx.db.get(gameId));
+      const room = await t.run((ctx) => ctx.db.get(roomId));
+      const poem = await t.run((ctx) => ctx.db.get(poemId));
       expect(game?.publicRecapEnabled).toBe(false);
       expect(typeof game?.publicRecapDisabledAt).toBe('number');
+      expect(game?.retentionState).toBe('pending');
+      expect(room?.retentionState).toBe('pending');
+      expect(poem?.retentionState).toBe('pending');
     });
   });
 
