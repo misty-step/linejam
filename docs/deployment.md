@@ -179,8 +179,10 @@ run two consecutive production smokes and inspect activation logs for any
 unclassified `Failed to find Server Action` burst.
 
 The deterministic production oracle stages that held room without logging its
-code or draft content, waits up to 30 minutes for a new deployment receipt, and
-verifies the banner, player-triggered reload, and restored draft:
+code or content, waits up to 30 minutes for a new deployment receipt, then
+enters the writing phase on the stale client and verifies the banner,
+player-triggered reload, and restored draft. Creating the draft only after the
+receipt changes keeps the proof inside the game's 90-second ghost-fill floor.
 
 ```bash
 PLAYWRIGHT_BASE_URL=https://www.linejam.app pnpm qa:deployment-skew

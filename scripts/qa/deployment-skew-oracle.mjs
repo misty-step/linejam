@@ -38,7 +38,7 @@ async function readDeploymentId(page) {
   return id;
 }
 
-async function establishHeldDraft(browser) {
+async function establishHeldRoom(browser) {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();
   const hostPage = await hostContext.newPage();
@@ -48,7 +48,10 @@ async function establishHeldDraft(browser) {
   await hostPage.getByTestId(TEST_ID.hostName).fill('Rollout Host');
   await hostPage.getByTestId(TEST_ID.createRoom).click();
   await hostPage.waitForURL(/\/room\/[A-Z]{4}$/);
-  const roomCode = new URL(hostPage.url()).pathname.split('/').pop();
+  const roomCode = new URL(hostPage.url()).pathname
+    .replace(/\/+$/, '')
+    .split('/')
+    .pop();
   if (!roomCode || !/^[A-Z]{4}$/.test(roomCode)) {
     throw new Error('Host did not reach a valid room');
   }
@@ -58,25 +61,27 @@ async function establishHeldDraft(browser) {
   await guestPage.getByTestId(TEST_ID.joinRoom).click();
   await guestPage.waitForURL(new RegExp(`/room/${roomCode}$`));
 
-  const start = hostPage.getByTestId(TEST_ID.startGame).filter({
+  return { guestContext, guestPage, hostContext, hostPage };
+}
+
+async function stageDraft(session) {
+  const start = session.hostPage.getByTestId(TEST_ID.startGame).filter({
     visible: true,
   });
   await start.waitFor({ state: 'visible' });
   await start.click();
-  await hostPage
+  await session.hostPage
     .getByTestId(TEST_ID.writingPhase)
     .waitFor({ state: 'visible' });
-  await guestPage
+  await session.guestPage
     .getByTestId(TEST_ID.writingPhase)
     .waitFor({ state: 'visible' });
 
-  const input = hostPage.getByTestId(TEST_ID.writingInput);
+  const input = session.hostPage.getByTestId(TEST_ID.writingInput);
   await input.fill(DRAFT);
   if ((await input.inputValue()) !== DRAFT) {
-    throw new Error('Draft was not accepted before rollout');
+    throw new Error('Draft was not accepted on the stale client');
   }
-
-  return { guestContext, hostContext, hostPage };
 }
 
 async function waitForNextDeployment(page, initialId) {
@@ -116,7 +121,7 @@ async function main() {
     const receiptPage = await receiptContext.newPage();
     const initialId = await readDeploymentId(receiptPage);
     await receiptContext.close();
-    session = await establishHeldDraft(browser);
+    session = await establishHeldRoom(browser);
     const stagedId = await readDeploymentId(session.hostPage);
     if (stagedId !== initialId) {
       throw new Error('Deployment changed while the held room was staged');
@@ -125,6 +130,7 @@ async function main() {
     console.log(`READY deployment=${initialId}`);
     const nextId = await waitForNextDeployment(session.hostPage, initialId);
     console.log(`DETECTED deployment=${nextId}`);
+    await stageDraft(session);
     await verifyRecovery(session.hostPage);
     console.log('PASS stale client reloaded with its draft restored');
   } finally {
