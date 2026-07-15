@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.21.0](https://github.com/misty-step/linejam/compare/v0.20.0...v0.21.0) (2026-07-15)
+
+
+### Features
+
+* **obs:** alert on AI fallback rate ([#358](https://github.com/misty-step/linejam/issues/358)) ([01086ca](https://github.com/misty-step/linejam/commit/01086ca4469cff9534119f08b78f9136f3016939))
+
 # [0.20.0](https://github.com/misty-step/linejam/compare/v0.19.4...v0.20.0) (2026-07-15)
 
 
