@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import nextConfig, {
-  buildContentSecurityPolicy,
-  resolveDeploymentId,
-} from '../next.config';
+import nextConfig, { buildContentSecurityPolicy } from '../next.config';
+import { resolveDeploymentId } from '@/lib/deploymentId';
 
 describe('nextConfig security headers', () => {
   afterEach(() => {
@@ -90,6 +88,7 @@ describe('nextConfig deployment skew protection', () => {
 
   it('leaves local builds unversioned when the provider supplies no commit', () => {
     expect(resolveDeploymentId(undefined)).toBeUndefined();
+    expect(resolveDeploymentId(false)).toBeUndefined();
     expect(resolveDeploymentId('   ')).toBeUndefined();
   });
 });

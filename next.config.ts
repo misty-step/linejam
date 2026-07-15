@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { resolveDeploymentId } from './lib/deploymentId';
 import { validateEnv } from './lib/env';
 
 // Validate required env vars during production builds
@@ -136,10 +137,6 @@ export function buildContentSecurityPolicy() {
   return directives
     .map(([directive, sources]) => `${directive} ${sources.join(' ')}`)
     .join('; ');
-}
-
-export function resolveDeploymentId(value: string | undefined) {
-  return value?.trim() || undefined;
 }
 
 const securityHeaders = [

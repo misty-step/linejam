@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { resolveDeploymentId } from '@/lib/deploymentId';
 import {
   Libre_Baskerville,
   IBM_Plex_Sans,
@@ -204,7 +205,9 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <Providers deploymentId={process.env.NEXT_DEPLOYMENT_ID?.trim()}>
+        <Providers
+          deploymentId={resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID)}
+        >
           <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
             <Header />
             <main className="flex-1 flex flex-col">{children}</main>

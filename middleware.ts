@@ -56,7 +56,7 @@ if (isClerkConfigured) {
   upstreamMiddleware = passthroughMiddleware;
 }
 
-const SERVER_ACTION_ID = /^[a-f0-9]{40}$/;
+const SERVER_ACTION_ID = /^[a-f0-9]{40,64}$/;
 
 export default function middleware(req: NextRequest) {
   const actionId = req.headers.get('next-action');

@@ -36,6 +36,8 @@ export function DeploymentSkewObserver({
         if (!response.ok || disposed) return;
 
         const payload = (await response.json()) as HealthPayload;
+        if (disposed) return;
+
         const serverDeploymentId = payload.deployment?.id;
         if (
           typeof serverDeploymentId === 'string' &&
@@ -53,20 +55,25 @@ export function DeploymentSkewObserver({
     };
 
     window.addEventListener(DEPLOYMENT_STALE_EVENT, markStale);
-    window.addEventListener('focus', checkDeployment);
-    document.addEventListener('visibilitychange', checkWhenVisible);
-    const intervalId = window.setInterval(
-      checkDeployment,
-      DEPLOYMENT_CHECK_INTERVAL_MS
-    );
-    void checkDeployment();
+    let intervalId: number | undefined;
+    if (deploymentId) {
+      window.addEventListener('focus', checkDeployment);
+      document.addEventListener('visibilitychange', checkWhenVisible);
+      intervalId = window.setInterval(
+        checkDeployment,
+        DEPLOYMENT_CHECK_INTERVAL_MS
+      );
+      void checkDeployment();
+    }
 
     return () => {
       disposed = true;
-      window.clearInterval(intervalId);
+      if (intervalId !== undefined) window.clearInterval(intervalId);
       window.removeEventListener(DEPLOYMENT_STALE_EVENT, markStale);
-      window.removeEventListener('focus', checkDeployment);
-      document.removeEventListener('visibilitychange', checkWhenVisible);
+      if (deploymentId) {
+        window.removeEventListener('focus', checkDeployment);
+        document.removeEventListener('visibilitychange', checkWhenVisible);
+      }
     };
   }, [deploymentId]);
 
