@@ -208,8 +208,11 @@ export const getCurrentAssignment = query({
 
     const poem = await ctx.db
       .query('poems')
-      .withIndex('by_room_index', (q) =>
-        q.eq('roomId', room._id).eq('indexInRoom', poemIndex)
+      .withIndex('by_room_game_index', (q) =>
+        q
+          .eq('roomId', room._id)
+          .eq('gameId', game._id)
+          .eq('indexInRoom', poemIndex)
       )
       .first();
     if (!poem) return null;

@@ -5,6 +5,18 @@ import {
   GuestFlowSession,
 } from '@/tests/e2e/support/guestFlow';
 
+const REMATCH_GUEST_FLOW_LINES = [
+  'rematch',
+  'fresh verse',
+  'new human lines',
+  'players write these words',
+  'second cycle keeps every word',
+  'mobile poets stay present',
+  'fresh lines remain',
+  'still human',
+  'preserved',
+] as const;
+
 /**
  * E2E Test: Complete Game Flow
  *
@@ -79,5 +91,11 @@ test.describe('Complete Game Flow', () => {
   test('complete 9-round game and reveal poems', async () => {
     await activeSession().playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
     await activeSession().revealAllPoems(CANONICAL_GUEST_FLOW_LINES);
+  });
+
+  test('play again completes a second game with its human lines intact', async () => {
+    await activeSession().startNextRound();
+    await activeSession().playCanonicalGame(REMATCH_GUEST_FLOW_LINES);
+    await activeSession().revealAllPoems(REMATCH_GUEST_FLOW_LINES);
   });
 });
