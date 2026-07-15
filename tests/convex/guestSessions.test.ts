@@ -1,20 +1,15 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { api } from '../../convex/_generated/api';
+import * as guestSessionFunctions from '../../convex/guestSessions';
 import { signGuestSessionThrottleProof } from '../../lib/guestSessionThrottleProof';
 import { setupConvexTest } from '../helpers/convexTest';
 
 const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-change-in-production';
 describe('guest session throttle', () => {
   it('does not expose the unsigned rollout endpoint after production cutover', () => {
-    const source = readFileSync(
-      new URL('../../convex/guestSessions.ts', import.meta.url),
-      'utf8'
-    );
-
-    expect(source).not.toMatch(
-      /export const checkGuestSessionThrottle\s*=\s*mutation/
-    );
+    expect(
+      Object.hasOwn(guestSessionFunctions, 'checkGuestSessionThrottle')
+    ).toBe(false);
   });
 
   it('accepts a server-signed bucket and keeps repeated writes to one row', async () => {
