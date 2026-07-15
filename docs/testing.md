@@ -9,7 +9,7 @@ thresholds live in `vitest.config.ts`.
 ```bash
 pnpm vitest run tests/path/to/file.test.ts # focused Vitest
 pnpm test                                  # all Vitest tests
-pnpm test:ci                               # Vitest with coverage
+pnpm test:ci                               # Vitest coverage + nonzero-total guard
 pnpm lint
 pnpm typecheck
 pnpm ci:prepush                            # required fast local gate
@@ -27,6 +27,13 @@ pnpm ci:dagger:all                         # local hosted-gate mirror
 `pnpm ci:prepush` runs provider-retirement, TypeScript, ESLint, and Vitest. The
 hosted merge gate remains authoritative for merge. Convex preparation and live
 authority are defined in `docs/ops/observability-ci.md`.
+
+`pnpm test:ci` must emit nonzero totals for lines, statements, functions, and
+branches before it can pass. Coverage paths are checkout-location independent:
+an isolated worktree nested under `.codex`, `.worktrees`, or another harness
+directory measures the same repository source surface as a normal checkout.
+The machine-readable receipt is `coverage/coverage-summary.json`; the explicit
+post-test guard rejects Vitest's otherwise threshold-safe `0/0 Unknown%` state.
 
 ## Match evidence to the change
 
