@@ -62,6 +62,31 @@ const manifest = {
   ],
 };
 
+type ExpectedApp = {
+  id: string;
+  name: string;
+  region: string;
+  features: string[];
+  domains: Array<{ domain: string; type: string; zone: string }>;
+  ingress: Array<{ pathPrefix: string; component: string }>;
+  services: Array<{
+    name: string;
+    source: {
+      repository: string;
+      branch: string;
+      deployOnPush: boolean;
+    };
+    dockerfilePath?: string;
+    buildCommand?: string;
+    runCommand?: string;
+    httpPort: number;
+    instanceCount: number;
+    instanceSize: string;
+    healthCheckPath: string;
+    environment: Array<{ name: string; scope: string; secret: boolean }>;
+  }>;
+};
+
 function manifestCopy(): typeof manifest {
   return structuredClone(manifest);
 }
@@ -114,6 +139,49 @@ function liveApp() {
           ],
         },
       ],
+    },
+  };
+}
+
+function liveAppFromExpected(expected: ExpectedApp) {
+  return {
+    id: expected.id,
+    spec: {
+      name: expected.name,
+      region: expected.region,
+      features: expected.features,
+      domains: expected.domains,
+      ingress: {
+        rules: expected.ingress.map((rule) => ({
+          match: { path: { prefix: rule.pathPrefix } },
+          component: { name: rule.component },
+        })),
+      },
+      services: expected.services.map((service) => ({
+        name: service.name,
+        github: {
+          repo: service.source.repository,
+          branch: service.source.branch,
+          deploy_on_push: service.source.deployOnPush,
+        },
+        ...(service.dockerfilePath
+          ? { dockerfile_path: service.dockerfilePath }
+          : {}),
+        ...(service.buildCommand
+          ? { build_command: service.buildCommand }
+          : {}),
+        ...(service.runCommand ? { run_command: service.runCommand } : {}),
+        http_port: service.httpPort,
+        instance_count: service.instanceCount,
+        instance_size_slug: service.instanceSize,
+        health_check: { http_path: service.healthCheckPath },
+        envs: service.environment.map((entry) => ({
+          key: entry.name,
+          scope: entry.scope,
+          ...(entry.secret ? { type: 'SECRET' } : {}),
+          value: entry.secret ? 'EV[1:redacted]' : 'redacted',
+        })),
+      })),
     },
   };
 }
@@ -552,6 +620,43 @@ describe('DigitalOcean app drift', () => {
     );
     expect(JSON.stringify(logger.log.mock.calls)).not.toContain(
       'must-not-replay'
+    );
+  });
+
+  it('checks both production apps, including the Canary responder', () => {
+    const production = loadDigitalOceanAppManifest() as {
+      apps: ExpectedApp[];
+    };
+    const liveApps = production.apps.map(liveAppFromExpected);
+    const runner = vi.fn((_command: string, args: string[]) => {
+      if (args[1] === 'list') {
+        return { status: 0, stdout: JSON.stringify(liveApps) };
+      }
+      const requested = liveApps.find((app) => app.id === args[2]);
+      return { status: 0, stdout: JSON.stringify([requested]) };
+    });
+
+    expect(
+      runDigitalOceanDriftCheck({
+        manifest: loadDigitalOceanAppManifest(),
+        runner,
+        logger: { log: vi.fn() },
+      })
+    ).toEqual({
+      checkedApps: ['linejam', 'linejam-canary-responder'],
+      drift: [],
+    });
+    expect(runner).toHaveBeenCalledWith(
+      'doctl',
+      [
+        'apps',
+        'get',
+        production.apps.find((app) => app.name === 'linejam-canary-responder')
+          ?.id,
+        '--output',
+        'json',
+      ],
+      expect.any(Object)
     );
   });
 
