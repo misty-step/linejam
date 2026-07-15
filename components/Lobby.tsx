@@ -215,7 +215,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           <div className="mx-auto w-full max-w-6xl space-y-10 md:space-y-16">
             {/* Room code hero — legible across the table, the party's rallying point */}
             <div className="text-center space-y-2">
-              <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
+              <p className="max-w-full break-words text-xs font-mono uppercase tracking-[0.16em] text-text-muted sm:tracking-[0.32em]">
                 Share this code
               </p>
               <p className="font-[var(--font-display)] text-[clamp(2rem,16vw,3rem)] sm:text-6xl md:text-7xl font-medium tracking-[0.08em] text-text-primary">
@@ -223,17 +223,17 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-[auto_1fr] gap-12 md:gap-24">
-              <div className="flex flex-col items-center space-y-4 md:items-start md:self-start">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-12 md:grid-cols-[auto_minmax(0,1fr)] md:gap-24">
+              <div className="flex min-w-0 max-w-full flex-col items-center space-y-4 md:items-start md:self-start">
                 {canAddAi && (
                   <Button
                     onClick={handleAddAi}
                     disabled={aiLoading}
                     variant="secondary"
                     size="md"
-                    className="w-full"
+                    className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
                   >
-                    <Bot className="w-4 h-4 mr-2" />
+                    <Bot className="mr-[8px] h-4 w-4" />
                     {aiLoading
                       ? 'Adding...'
                       : `Add a bot (${botCount}/${MAX_BOTS})`}
@@ -247,31 +247,31 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                     data-testid={E2E_TEST_IDS.lobbyPresentationButton}
                     variant="outline"
                     size="md"
-                    className="w-full"
+                    className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
                   >
-                    <Presentation className="mr-2 h-4 w-4" />
+                    <Presentation className="mr-[8px] h-4 w-4" />
                     Present room
                   </Button>
                 )}
               </div>
 
-              <div className="relative order-first md:order-none">
-                <ul className="space-y-6 pb-8 md:pb-0">
+              <div className="relative order-first min-w-0 max-w-full md:order-none">
+                <ul className="min-w-0 max-w-full space-y-6 pb-8 md:pb-0">
                   {players.map((player, i) => (
                     <StampAnimation
                       key={player._id}
                       delay={i * 150}
-                      className="mx-3 sm:mx-0"
+                      className="mx-[12px] min-w-0 max-w-full sm:mx-0"
                     >
-                      <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
-                        <div className="flex min-w-0 items-center gap-2">
+                      <li className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+                        <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
                           <Avatar
                             stableId={player.stableId}
                             displayName={player.displayName}
                             allStableIds={allStableIds}
                             size="md"
                           />
-                          <span className="min-w-0 truncate text-2xl font-medium text-text-primary md:text-3xl">
+                          <span className="min-w-0 flex-1 truncate text-2xl font-medium text-text-primary md:text-3xl">
                             {player.displayName}
                           </span>
                           {player.isAway && (
@@ -280,7 +280,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                             </span>
                           )}
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
                           {player.isBot && (
                             <>
                               <BotBadge />

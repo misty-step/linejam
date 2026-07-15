@@ -125,9 +125,14 @@ describe('Lobby component', () => {
     // Assert - Both players should be visible
     expect(screen.getByText('Host Player')).toBeInTheDocument();
     expect(screen.getByText('Guest Player')).toBeInTheDocument();
+    expect(screen.getByText('Host Player').parentElement).toHaveClass(
+      'min-w-0',
+      'max-w-full',
+      'flex-1'
+    );
     expect(
       screen.getByText('Host Player').closest('.animate-stamp')
-    ).toHaveClass('mx-3', 'sm:mx-0');
+    ).toHaveClass('mx-[12px]', 'sm:mx-0');
   });
 
   it('keeps the primary action in a non-overlapping viewport sibling', () => {
@@ -145,6 +150,14 @@ describe('Lobby component', () => {
       'min-w-0',
       'px-[16px]',
       'py-[12px]'
+    );
+    expect(screen.getByRole('button', { name: /Add a bot/i })).toHaveClass(
+      'h-auto',
+      'min-h-[44px]',
+      'min-w-0',
+      'max-w-full',
+      'px-[16px]',
+      'py-[10px]'
     );
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');

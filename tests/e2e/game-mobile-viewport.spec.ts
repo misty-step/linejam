@@ -46,11 +46,41 @@ async function expectNoHorizontalScroll(page: Page) {
 }
 
 async function expectNoHorizontalOverflow(locator: Locator) {
-  const geometry = await locator.evaluate((element) => ({
-    clientWidth: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-  }));
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  const geometry = await locator.evaluate((element) => {
+    const containerBox = element.getBoundingClientRect();
+    const offenders = Array.from(element.querySelectorAll<HTMLElement>('*'))
+      .map((child) => {
+        const box = child.getBoundingClientRect();
+        return {
+          label:
+            child.dataset.testid ??
+            child.getAttribute('aria-label') ??
+            child.textContent?.trim().slice(0, 48) ??
+            child.tagName.toLowerCase(),
+          left: Math.round(box.left),
+          right: Math.round(box.right),
+          clientWidth: child.clientWidth,
+          scrollWidth: child.scrollWidth,
+        };
+      })
+      .filter(
+        (child) =>
+          child.left < containerBox.left - 1 ||
+          child.right > containerBox.right + 1 ||
+          child.scrollWidth > child.clientWidth + 1
+      )
+      .slice(0, 8);
+
+    return {
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      offenders,
+    };
+  });
+  expect(
+    geometry.scrollWidth,
+    `horizontal overflow: ${JSON.stringify(geometry.offenders)}`
+  ).toBeLessThanOrEqual(geometry.clientWidth + 1);
 }
 
 async function expectContentFits(locator: Locator) {
@@ -408,6 +438,14 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       lobbyActionZone,
       soloStart
     );
+    await Promise.all([
+      expectContentFits(
+        session.hostPage.getByRole('button', { name: /Add a bot/i })
+      ),
+      expectContentFits(
+        session.hostPage.getByTestId(E2E_TEST_IDS.lobbyPresentationButton)
+      ),
+    ]);
     await session.hostPage.evaluate(() => {
       document.documentElement.style.removeProperty('font-size');
     });
