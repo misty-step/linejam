@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.18.2](https://github.com/misty-step/linejam/compare/v0.18.1...v0.18.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* **security:** remove unsigned throttle rollout endpoint ([#346](https://github.com/misty-step/linejam/issues/346)) ([912ae5b](https://github.com/misty-step/linejam/commit/912ae5bc4ba6ab54aaf8540bee28b9cae97a2ff1))
+
 ## [0.18.1](https://github.com/misty-step/linejam/compare/v0.18.0...v0.18.1) (2026-07-14)
 
 
