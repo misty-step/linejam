@@ -26,7 +26,7 @@ export const linejamClerkAppearance = {
     formButtonPrimary:
       'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-inverse)] font-[var(--font-sans)] font-medium h-12 rounded-[var(--radius-md)] transition-all duration-[var(--duration-normal)]',
     formFieldInput:
-      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-sans)] h-12 rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-[var(--color-focus-ring)] focus:ring-2 focus:ring-offset-2',
+      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-sans)] text-base h-12 rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-[var(--color-focus-ring)] focus:ring-2 focus:ring-offset-2',
     formFieldLabel:
       'text-[var(--color-text-secondary)] font-[var(--font-sans)] text-sm',
     formFieldInputShowPasswordButton:
@@ -147,6 +147,9 @@ export function resolveClerkThemeVariables() {
     // references and keep tracking the active theme with no extra plumbing.
     fontFamily: 'var(--font-sans)',
     fontFamilyButtons: 'var(--font-sans)',
+    // iOS Safari zooms focused form controls below 16px. Clerk's default is
+    // 13px, so make the no-zoom floor part of the provider contract.
+    fontSize: '1rem',
     borderRadius: 'var(--radius-md)',
   };
 }
