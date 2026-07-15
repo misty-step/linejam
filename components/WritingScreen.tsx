@@ -40,6 +40,7 @@ interface WritingAssignment {
   targetWordCount: number;
   totalRounds?: number;
   isFinalRound?: boolean;
+  hasSubmitted: boolean;
   previousLineText?: string | null;
   roundStartedAt?: number;
 }
@@ -93,7 +94,9 @@ function WritingComposer({
   const [submissionState, setSubmissionState] = useState<
     'idle' | 'submitting' | 'confirmed'
   >('idle');
-  const [showWaitingScreen, setShowWaitingScreen] = useState(false);
+  const [showWaitingScreen, setShowWaitingScreen] = useState(
+    assignment.hasSubmitted
+  );
 
   // Pre-fetch waiting screen data during confirmation for smooth transition
   // When submissionState becomes 'confirmed', Convex starts fetching getRoundProgress

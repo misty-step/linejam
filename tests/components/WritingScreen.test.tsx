@@ -783,6 +783,39 @@ describe('WritingScreen component', () => {
   });
 
   describe('round transitions', () => {
+    it('opens the waiting state when a submitted assignment reloads', () => {
+      mockUseQuery.mockImplementation((query) => {
+        const functionName = getFunctionName(
+          query as Parameters<typeof getFunctionName>[0]
+        );
+        if (functionName === 'game:getRoundProgress') {
+          return {
+            round: 0,
+            players: [
+              {
+                stableId: 'stable_alice',
+                displayName: 'Alice',
+                submitted: true,
+                userId: 'user_alice',
+              },
+              {
+                stableId: 'stable_bob',
+                displayName: 'Bob',
+                submitted: false,
+                userId: 'user_bob',
+              },
+            ],
+          };
+        }
+        return { ...mockAssignment, hasSubmitted: true };
+      });
+
+      render(<WritingScreen roomCode="ABCD" showChrome />);
+
+      expect(screen.getByTestId(E2E_TEST_IDS.waitingPhase)).toBeInTheDocument();
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
     it('resets the draft when the assignment advances to the next round', async () => {
       const user = setupUser();
       const { rerender } = render(<WritingScreen roomCode="ABCD" />);

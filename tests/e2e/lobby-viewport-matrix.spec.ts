@@ -79,6 +79,22 @@ function boxesOverlap(
 async function assertNoRosterCollisions(page: Page, viewportWidth: number) {
   const rows = page.locator('ul li');
   await rows.first().waitFor({ state: 'visible', timeout: 15000 });
+  await expect
+    .poll(
+      () =>
+        rows.evaluateAll((elements) =>
+          elements.every((row) =>
+            (row.parentElement?.getAnimations() ?? []).every(
+              (animation) => animation.playState === 'finished'
+            )
+          )
+        ),
+      {
+        message: 'lobby row entrance animations should settle before geometry',
+        timeout: 5000,
+      }
+    )
+    .toBe(true);
   const rowCount = await rows.count();
   expect(rowCount).toBeGreaterThan(0);
 
@@ -99,7 +115,10 @@ async function assertNoRosterCollisions(page: Page, viewportWidth: number) {
       expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(
         viewportWidth + 1
       );
-      expect(boxesOverlap(nameBox!, badgeBox!)).toBe(false);
+      expect(
+        boxesOverlap(nameBox!, badgeBox!),
+        `roster collision: ${JSON.stringify({ nameBox, badgeBox, viewportWidth })}`
+      ).toBe(false);
     }
   }
 }

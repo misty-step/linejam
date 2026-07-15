@@ -945,7 +945,37 @@ describe('getCurrentAssignment', () => {
     expect(result!.targetWordCount).toBe(3); // WORD_COUNTS[2]
     expect(result!.totalRounds).toBe(9);
     expect(result!.isFinalRound).toBe(false);
+    expect(result!.hasSubmitted).toBe(false);
     expect(result!.previousLineText).toBe('one two');
+  });
+
+  it('reports when the current assignment was already submitted', async () => {
+    const t = setupConvexTest();
+    const { code, poemIds, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceCA07' },
+        { name: 'Bob', clerkUserId: 'clerk_bobCA07' },
+      ],
+      code: 'CA07',
+    });
+
+    await t.run((ctx) =>
+      ctx.db.insert('lines', {
+        poemId: poemIds[0],
+        indexInPoem: 0,
+        text: 'sealed',
+        wordCount: 1,
+        authorUserId: userIds[0],
+        createdAt: Date.now(),
+      })
+    );
+
+    const result = await asUser(t, 'aliceCA07').query(
+      api.game.getCurrentAssignment,
+      { roomCode: code }
+    );
+
+    expect(result?.hasSubmitted).toBe(true);
   });
 
   it('stores every rematch submission in the active game poems', async () => {
