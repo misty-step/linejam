@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.19.1](https://github.com/misty-step/linejam/compare/v0.19.0...v0.19.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ci:** fail closed on empty coverage ([#352](https://github.com/misty-step/linejam/issues/352)) ([dca8a7d](https://github.com/misty-step/linejam/commit/dca8a7d79ca520262e7819774caecbe4735b62e5))
+
 # [0.19.0](https://github.com/misty-step/linejam/compare/v0.18.6...v0.19.0) (2026-07-15)
 
 
