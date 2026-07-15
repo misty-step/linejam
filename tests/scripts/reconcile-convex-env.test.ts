@@ -154,7 +154,7 @@ describe('Convex environment reconciliation', () => {
     expect(runner).toHaveBeenCalledWith(
       'pnpm',
       ['exec', 'convex', 'env', '--prod', 'list', '--names-only'],
-      expect.objectContaining({ encoding: 'utf8' })
+      expect.objectContaining({ encoding: 'utf8', timeout: 30_000 })
     );
     expect(logger.log).toHaveBeenCalledWith(
       expect.stringContaining(
@@ -205,5 +205,20 @@ describe('Convex environment reconciliation', () => {
         logger: { log: vi.fn() },
       })
     ).toThrow('Convex production names-only read failed with status 1');
+  });
+
+  it('fails closed when the names-only CLI times out', () => {
+    const timeout = Object.assign(new Error('do-not-replay'), {
+      code: 'ETIMEDOUT',
+    });
+
+    expect(() =>
+      runConvexEnvReconciliation({
+        target: { status: 'prod', args: ['--prod'] },
+        manifest,
+        runner: vi.fn().mockReturnValue({ status: null, error: timeout }),
+        logger: { log: vi.fn() },
+      })
+    ).toThrow('Convex production names-only read timed out');
   });
 });

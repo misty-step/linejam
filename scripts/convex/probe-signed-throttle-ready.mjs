@@ -8,6 +8,7 @@ import { makeFunctionReference } from 'convex/server';
 const FUNCTION_NAME = 'guestSessions:checkSignedGuestSessionThrottle';
 const READINESS_KEY = 'guestSession:deployment-readiness';
 const THROTTLE_PROOF_CONTEXT = 'linejam:guest-session-throttle:v1:';
+const FUNCTION_SPEC_TIMEOUT_MS = 30_000;
 const signedThrottle = makeFunctionReference(FUNCTION_NAME);
 
 /**
@@ -54,7 +55,15 @@ export function assertSelectedDeploymentMatches(
   const result = runner('pnpm', ['exec', 'convex', 'function-spec', '--prod'], {
     env,
     encoding: 'utf8',
+    timeout: FUNCTION_SPEC_TIMEOUT_MS,
   });
+  if (result.error) {
+    throw new Error(
+      result.error.code === 'ETIMEDOUT'
+        ? 'Convex production deployment identity read timed out.'
+        : 'Convex production deployment identity read failed to start.'
+    );
+  }
   if (result.status !== 0) {
     throw new Error(
       `Convex production deployment identity read failed with status ${result.status ?? 'unknown'}.`

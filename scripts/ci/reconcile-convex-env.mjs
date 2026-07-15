@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveConvexEnvTarget } from './bootstrap-convex-env.mjs';
 
 const ENV_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+const CONVEX_ENV_LIST_TIMEOUT_MS = 30_000;
 const ENVIRONMENTS = ['development', 'preview', 'production'];
 const DEFAULT_MANIFEST_URL = new URL(
   '../../config/convex-env-manifest.json',
@@ -17,7 +18,7 @@ const DEFAULT_MANIFEST_URL = new URL(
 /** @typedef {{ required: string[], optional: string[] }} ManifestEntry */
 /** @typedef {{ schemaVersion: 1, environments: Record<ManifestEnvironment, ManifestEntry> }} ConvexEnvManifest */
 /** @typedef {{ status: 'skipped' | 'default' | 'preview' | 'prod', reason?: string, args: string[], explicit?: boolean }} ConvexEnvTarget */
-/** @typedef {(command: string, args: string[], options: import('node:child_process').SpawnSyncOptionsWithStringEncoding) => { status: number | null, stdout?: string, stderr?: string }} Runner */
+/** @typedef {(command: string, args: string[], options: import('node:child_process').SpawnSyncOptionsWithStringEncoding) => { status: number | null, stdout?: string, stderr?: string, error?: NodeJS.ErrnoException }} Runner */
 
 /**
  * The manifest contains names only. Rejecting every other shape prevents this
@@ -197,8 +198,20 @@ export function runConvexEnvReconciliation({
   const result = runner(
     'pnpm',
     ['exec', 'convex', 'env', ...target.args, 'list', '--names-only'],
-    { encoding: 'utf8', env: childEnv }
+    {
+      encoding: 'utf8',
+      env: childEnv,
+      timeout: CONVEX_ENV_LIST_TIMEOUT_MS,
+    }
   );
+
+  if (result.error) {
+    throw new Error(
+      result.error.code === 'ETIMEDOUT'
+        ? `Convex ${environment} names-only read timed out.`
+        : `Convex ${environment} names-only read failed to start.`
+    );
+  }
 
   if (result.status !== 0) {
     throw new Error(

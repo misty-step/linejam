@@ -15,6 +15,7 @@ const originalEnv = { ...process.env };
 
 const HEALTHY_ENV = {
   GUEST_TOKEN_SECRET: 'test-secret-for-health-checks',
+  LINEJAM_DEPLOY_ENVIRONMENT: 'development',
   NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
   NEXT_PUBLIC_CANARY_API_KEY: 'sk_test_canary',
 };
@@ -72,6 +73,8 @@ describe('/api/health', () => {
       delete process.env.CANARY_API_KEY;
       delete process.env.CANARY_ENDPOINT;
       process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
+      process.env.LINEJAM_DEPLOY_ENVIRONMENT =
+        HEALTHY_ENV.LINEJAM_DEPLOY_ENVIRONMENT;
       process.env.NEXT_PUBLIC_CONVEX_URL = HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL;
       process.env.NEXT_PUBLIC_CANARY_API_KEY =
         HEALTHY_ENV.NEXT_PUBLIC_CANARY_API_KEY;
@@ -324,25 +327,44 @@ describe('/api/health', () => {
 
     it('fails health when a remote deployment loses its environment marker', async () => {
       const previous = process.env.LINEJAM_DEPLOY_ENVIRONMENT;
-      process.env.LINEJAM_DEPLOY_ENVIRONMENT = 'production';
-      mockQuery.mockResolvedValue({
-        ...HEALTHY_REPORT,
-        environment: 'development',
-        deployment: {
-          markerValid: false,
-          url: HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL,
-        },
-      });
+      try {
+        process.env.LINEJAM_DEPLOY_ENVIRONMENT = 'production';
+        mockQuery.mockResolvedValue({
+          ...HEALTHY_REPORT,
+          environment: 'development',
+          deployment: {
+            markerValid: false,
+            url: HEALTHY_ENV.NEXT_PUBLIC_CONVEX_URL,
+          },
+        });
 
-      const response = await GET();
-      const data = await response.json();
+        const response = await GET();
+        const data = await response.json();
 
-      expect(response.status).toBe(503);
-      expect(data.env.convexDeploymentMatch).toBe(false);
-      if (previous === undefined) {
+        expect(response.status).toBe(503);
+        expect(data.env.convexDeploymentMatch).toBe(false);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.LINEJAM_DEPLOY_ENVIRONMENT;
+        } else {
+          process.env.LINEJAM_DEPLOY_ENVIRONMENT = previous;
+        }
+      }
+    });
+
+    it('fails health when the web deployment marker is missing', async () => {
+      const previous = process.env.LINEJAM_DEPLOY_ENVIRONMENT;
+      try {
         delete process.env.LINEJAM_DEPLOY_ENVIRONMENT;
-      } else {
-        process.env.LINEJAM_DEPLOY_ENVIRONMENT = previous;
+        const response = await GET();
+        const data = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(data.env.convexDeploymentMatch).toBe(false);
+      } finally {
+        if (previous !== undefined) {
+          process.env.LINEJAM_DEPLOY_ENVIRONMENT = previous;
+        }
       }
     });
 

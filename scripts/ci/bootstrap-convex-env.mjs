@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
  */
 
 const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];
+const POST_DEPLOY_VERIFY_TIMEOUT_MS = 60_000;
 
 /**
  * @param {EnvShape} [env]
@@ -366,6 +367,7 @@ function runPostDeployVerification({ env, target, runner }) {
   const reconcile = runner('node', ['scripts/ci/reconcile-convex-env.mjs'], {
     stdio: 'inherit',
     env,
+    timeout: POST_DEPLOY_VERIFY_TIMEOUT_MS,
   });
   if (reconcile.status !== 0) {
     throw new Error('Hosted Convex environment reconciliation failed.');
@@ -376,7 +378,7 @@ function runPostDeployVerification({ env, target, runner }) {
   const parity = runner(
     'node',
     ['scripts/convex/probe-signed-throttle-ready.mjs', '--assert-prod-target'],
-    { stdio: 'inherit', env }
+    { stdio: 'inherit', env, timeout: POST_DEPLOY_VERIFY_TIMEOUT_MS }
   );
   if (parity.status !== 0) {
     throw new Error('Hosted guest-token secret parity verification failed.');

@@ -125,7 +125,7 @@ export function getConvexGuestTokenSecret(): string {
   ) {
     throw new Error(
       'GUEST_TOKEN_SECRET must be set in Convex environment. ' +
-        'Run: npx convex env set GUEST_TOKEN_SECRET "your-secret" production'
+        'Set it on the current Convex deployment before retrying.'
     );
   }
 

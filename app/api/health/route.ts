@@ -170,10 +170,14 @@ function deploymentMatchesWebTarget(
   report: ConvexEnvHealthReport
 ) {
   const declared = process.env.LINEJAM_DEPLOY_ENVIRONMENT?.trim();
-  const expectedEnvironment =
-    declared === 'production' || declared === 'preview'
-      ? declared
-      : 'development';
+  if (
+    declared !== 'production' &&
+    declared !== 'preview' &&
+    declared !== 'development'
+  ) {
+    return false;
+  }
+  const expectedEnvironment = declared;
 
   try {
     return (

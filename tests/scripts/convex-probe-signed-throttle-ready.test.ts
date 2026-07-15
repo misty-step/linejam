@@ -101,7 +101,7 @@ describe('deployment identity verification', () => {
     expect(runner).toHaveBeenCalledWith(
       'pnpm',
       ['exec', 'convex', 'function-spec', '--prod'],
-      expect.objectContaining({ encoding: 'utf8' })
+      expect.objectContaining({ encoding: 'utf8', timeout: 30_000 })
     );
   });
 
@@ -130,5 +130,19 @@ describe('deployment identity verification', () => {
         JSON.stringify({ url: 'https://test.convex.cloud', functions: [] })
       )
     ).toBe('https://test.convex.cloud');
+  });
+
+  it('fails closed when the deployment identity read times out', () => {
+    const timeout = Object.assign(new Error('do-not-replay'), {
+      code: 'ETIMEDOUT',
+    });
+
+    expect(() =>
+      assertSelectedDeploymentMatches(
+        'https://test.convex.cloud',
+        { ...process.env },
+        vi.fn().mockReturnValue({ status: null, error: timeout })
+      )
+    ).toThrow('deployment identity read timed out');
   });
 });

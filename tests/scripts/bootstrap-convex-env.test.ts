@@ -325,6 +325,11 @@ describe('bootstrap-convex-env', () => {
       ],
       expect.anything()
     );
+    expect(runner).toHaveBeenCalledWith(
+      'node',
+      ['scripts/ci/reconcile-convex-env.mjs'],
+      expect.objectContaining({ timeout: 60_000 })
+    );
   });
 
   it('can force hosted preview builds to deploy Convex explicitly', () => {
