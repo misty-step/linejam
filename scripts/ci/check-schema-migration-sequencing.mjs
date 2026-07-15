@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 
 const SCHEMA_FILE = 'convex/schema.ts';
 const MIGRATIONS_FILE = 'convex/migrations.ts';
-const FIELD_DEFINITION = /^[A-Za-z_$][\w$]*:\s*v\./;
+const SCHEMA_PROPERTY = /^([A-Za-z_$][\w$]*)\s*:/;
 const MIGRATION_EXPORT =
   /^\+\s*export const ([A-Za-z_$][\w$]*)\s*=\s*(?:(?:\r?\n)\+\s*)?(internalMutation|mutation|internalAction|action)\s*\(/gm;
 
@@ -33,9 +33,9 @@ export function detectSchemaContractionWithMigration({
   schemaDiff,
   migrationsDiff,
 }) {
-  const removedFields = changedLines(schemaDiff, '-').filter((line) =>
-    FIELD_DEFINITION.test(line)
-  );
+  const removedFields = changedLines(schemaDiff, '-')
+    .map((line) => SCHEMA_PROPERTY.exec(line)?.[1])
+    .filter((field) => field !== undefined);
   const addedMigrations = addedMigrationExports(migrationsDiff);
 
   return {

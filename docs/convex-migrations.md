@@ -46,7 +46,8 @@ failure shape without depending on historical Git objects.
 `scripts/ci/check-schema-migration-sequencing.mjs` compares a pull request with
 its base and blocks changes that both:
 
-- remove a Convex validator field from `convex/schema.ts`; and
+- remove a property from `convex/schema.ts`, including fields that use inline,
+  reusable, or multiline validators; and
 - add an exported Convex function to `convex/migrations.ts`.
 
 This is intentionally a conservative text-diff guard for the known outage

@@ -29,10 +29,7 @@ describe('detectSchemaContractionWithMigration', () => {
       })
     ).toEqual({
       violation: true,
-      removedFields: [
-        'mode: v.optional(v.string()),',
-        'selectedMode: v.optional(v.string()),',
-      ],
+      removedFields: ['mode', 'selectedMode'],
       addedMigrations: [
         'export const dropLegacyModeColumns = internalMutation(',
       ],
@@ -55,6 +52,24 @@ describe('detectSchemaContractionWithMigration', () => {
       addedMigrations: [
         'export const dropLegacyModeColumnsWithAnIntentionallyLongName = internalMutation(',
       ],
+    });
+  });
+
+  it.each([
+    ['reusable validator', '-    legacyMode: legacyModeValidator,'],
+    [
+      'multiline validator',
+      '-    legacyMode:\n-      v.optional(v.union(v.literal("solo"), v.literal("group"))),',
+    ],
+  ])('blocks a removed %s field', (_name, schemaDiff) => {
+    expect(
+      detectSchemaContractionWithMigration({
+        schemaDiff,
+        migrationsDiff: incidentMigrationDiff,
+      })
+    ).toMatchObject({
+      violation: true,
+      removedFields: ['legacyMode'],
     });
   });
 
