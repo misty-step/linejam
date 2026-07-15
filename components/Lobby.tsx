@@ -154,7 +154,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
             onClick={handleStartGame}
             data-testid={E2E_TEST_IDS.lobbyStartGameButton}
             size="lg"
-            className={`h-[64px] w-full min-w-0 px-[16px] text-[clamp(1rem,5vw,1.125rem)] md:h-16 md:px-8 md:text-lg ${className || ''}`}
+            className={`h-auto min-h-[64px] w-full min-w-0 px-[16px] py-[12px] text-[clamp(1rem,5vw,1.125rem)] md:min-h-16 md:px-8 md:text-lg ${className || ''}`}
             disabled={!canStart}
             variant={canStart ? 'primary' : 'secondary'}
           >
@@ -180,7 +180,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           disabled
           data-testid={E2E_TEST_IDS.lobbyWaitingForHostButton}
           size="lg"
-          className={`h-[64px] w-full min-w-0 px-[16px] text-[clamp(1rem,5vw,1.125rem)] opacity-50 cursor-not-allowed md:h-16 md:px-8 md:text-lg ${className || ''}`}
+          className={`h-auto min-h-[64px] w-full min-w-0 px-[16px] py-[12px] text-[clamp(1rem,5vw,1.125rem)] opacity-50 cursor-not-allowed md:min-h-16 md:px-8 md:text-lg ${className || ''}`}
           variant="secondary"
         >
           Waiting for host

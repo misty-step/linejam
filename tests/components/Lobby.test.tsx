@@ -139,7 +139,13 @@ describe('Lobby component', () => {
 
     expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
     expect(actionZone).toHaveClass('min-h-0', 'max-h-[50%]', 'flex-[0_1_auto]');
-    expect(start).toHaveClass('min-w-0', 'px-[16px]');
+    expect(start).toHaveClass(
+      'min-h-[64px]',
+      'h-auto',
+      'min-w-0',
+      'px-[16px]',
+      'py-[12px]'
+    );
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
   });

@@ -53,6 +53,17 @@ async function expectNoHorizontalOverflow(locator: Locator) {
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
 }
 
+async function expectContentFits(locator: Locator) {
+  const geometry = await locator.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    clientWidth: element.clientWidth,
+    scrollHeight: element.scrollHeight,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.clientHeight + 1);
+}
+
 async function installSyntheticVisualViewport(page: Page) {
   await page.addInitScript(() => {
     const nativeViewport = window.visualViewport;
@@ -214,6 +225,7 @@ async function expectSplitPaneGeometry(
   await Promise.all([
     expectInitiallyInsideVisualViewport(page, actionZone),
     expectInitiallyInsideVisualViewport(page, primaryAction),
+    expectContentFits(primaryAction),
     expectNoHorizontalOverflow(scrollRegion),
     expectNoHorizontalOverflow(actionZone),
     expectNoHorizontalScroll(page),
@@ -377,23 +389,32 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
 
     await session.hostPage.setViewportSize({ width: 375, height: 667 });
     await session.createRoom();
-    await session.joinRoom();
-
     await session.hostPage.setViewportSize({ width: 320, height: 667 });
-    const start = session.hostPage.getByTestId(
-      E2E_TEST_IDS.lobbyStartGameButton
-    );
     const lobbyScrollRegion = session.hostPage.getByTestId(
       E2E_TEST_IDS.lobbyScrollRegion
     );
     const lobbyActionZone = session.hostPage.getByTestId(
       E2E_TEST_IDS.lobbyActionZone
     );
+    const soloStart = session.hostPage.getByTestId(
+      E2E_TEST_IDS.lobbyStartGameButton
+    );
+    await session.hostPage.evaluate(() => {
+      document.documentElement.style.fontSize = '200%';
+    });
     await expectSplitPaneGeometry(
       session.hostPage,
       lobbyScrollRegion,
       lobbyActionZone,
-      start
+      soloStart
+    );
+    await session.hostPage.evaluate(() => {
+      document.documentElement.style.removeProperty('font-size');
+    });
+
+    await session.joinRoom();
+    const start = session.hostPage.getByTestId(
+      E2E_TEST_IDS.lobbyStartGameButton
     );
 
     await session.hostPage.evaluate(() => {
