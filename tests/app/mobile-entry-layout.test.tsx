@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 const mockUseSearchParams = vi.fn();
+const mockUsePathname = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/join',
+  usePathname: () => mockUsePathname(),
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => mockUseSearchParams(),
 }));
@@ -43,6 +44,7 @@ describe('mobile entry layout', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUsePathname.mockReturnValue('/join');
     mockUseSearchParams.mockReturnValue(new URLSearchParams('code=ABCD'));
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -126,6 +128,33 @@ describe('mobile entry layout', () => {
     expect(screen.getByRole('link', { name: 'Your poems' })).toHaveClass(
       'min-h-11'
     );
+  });
+
+  it('closes the mobile header menu outside or with Escape and restores focus', () => {
+    render(<Header />);
+
+    const menu = screen.getByRole('button', { name: 'More options' });
+    fireEvent.click(menu);
+    fireEvent.mouseDown(menu);
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    expect(menu).toHaveFocus();
+
+    fireEvent.click(menu);
+    fireEvent.mouseDown(document.body);
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('defers to focused account and gameplay chrome', () => {
+    mockUsePathname.mockReturnValue('/sign-in');
+    const { rerender } = render(<Header />);
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+
+    mockUsePathname.mockReturnValue('/room/ABCD');
+    rerender(<Header />);
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
   });
 
   it('renders exactly one account-switch prompt on sign-in', async () => {
