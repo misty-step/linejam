@@ -124,6 +124,18 @@ describe('RoomChrome component', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Room AB CD')).toBeInTheDocument();
     expect(screen.getByText('Need 1 more player')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Share room invite/i })
+    ).toHaveClass('min-w-0', 'flex-1');
+    expect(screen.getByText('Share the code to start.')).toHaveClass(
+      'whitespace-normal',
+      'break-words',
+      'text-xs',
+      'md:text-sm'
+    );
+    expect(screen.getByText('Share the code to start.')).not.toHaveClass(
+      'truncate'
+    );
 
     // Archive / Help / Theme are tucked into the overflow menu.
     await user.click(screen.getByRole('button', { name: /More options/i }));
@@ -138,6 +150,33 @@ describe('RoomChrome component', () => {
     expect(
       screen.getByRole('button', { name: /^Theme$/i })
     ).toBeInTheDocument();
+  });
+
+  it('collapses active-game controls into one bounded toolbar', () => {
+    render(
+      <RoomChrome
+        roomCode="ABCD"
+        title="Round 1 · 1 word"
+        subtitle=""
+        compact
+      />
+    );
+
+    expect(screen.getByTestId('room-chrome')).toHaveClass(
+      'grid-cols-[minmax(0,1fr)_auto]',
+      'items-center',
+      'gap-[8px]',
+      'px-[12px]',
+      'py-[8px]'
+    );
+    expect(
+      screen.getByRole('button', { name: /Share room invite/i })
+    ).toHaveClass('h-[44px]', 'w-[44px]', 'flex-none', 'p-0');
+    expect(screen.getByText('Invite')).toHaveClass('sr-only');
+    expect(screen.getByRole('button', { name: /More options/i })).toHaveClass(
+      'h-[44px]',
+      'w-[44px]'
+    );
   });
 
   it('copies a join link when native share is unavailable', async () => {
@@ -202,7 +241,9 @@ describe('RoomChrome component', () => {
 
     await user.click(screen.getByRole('button', { name: /More options/i }));
     await user.click(screen.getByRole('button', { name: /^Theme$/i }));
-    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+    const themeChooser = screen.getByText('Theme chooser');
+    expect(themeChooser).toBeInTheDocument();
+    expect(themeChooser.closest('.lj-room-popover')).toBeInTheDocument();
   });
 
   it('tracks aria-expanded and returns focus to the trigger on escape', async () => {

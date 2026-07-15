@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isGameRoute } from '@/lib/routes';
+import { isFocusedPlayRoute, isGameRoute } from '@/lib/routes';
 
 describe('isGameRoute', () => {
   it('matches the live room route where chrome should hide', () => {
@@ -18,5 +18,17 @@ describe('isGameRoute', () => {
   it('treats a null or undefined pathname as non-game', () => {
     expect(isGameRoute(null)).toBe(false);
     expect(isGameRoute(undefined)).toBe(false);
+  });
+});
+
+describe('isFocusedPlayRoute', () => {
+  it('includes host entry and live rooms', () => {
+    expect(isFocusedPlayRoute('/host')).toBe(true);
+    expect(isFocusedPlayRoute('/room/ABCD')).toBe(true);
+  });
+
+  it('keeps marketing chrome on non-play routes', () => {
+    expect(isFocusedPlayRoute('/join')).toBe(false);
+    expect(isFocusedPlayRoute('/')).toBe(false);
   });
 });

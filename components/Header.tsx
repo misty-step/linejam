@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { Palette, Archive, LogIn, MoreHorizontal } from 'lucide-react';
 import { HelpModal } from './HelpModal';
-import { isGameRoute } from '@/lib/routes';
+import { isFocusedPlayRoute } from '@/lib/routes';
 
 type HeaderProps = {
   className?: string;
@@ -21,7 +21,7 @@ const mobileMenuItemClasses =
 export function Header({ className = '' }: HeaderProps) {
   const pathname = usePathname();
   const isHomepage = pathname === '/';
-  const isRoomPage = isGameRoute(pathname);
+  const isFocusedPlay = isFocusedPlayRoute(pathname);
   const isAuthPage = /^\/(sign-in|sign-up|callback)(?:\/|$)/.test(pathname);
   const [showHelp, setShowHelp] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -52,7 +52,7 @@ export function Header({ className = '' }: HeaderProps) {
   }, [showMenu]);
 
   // Gameplay and account entry own their focused chrome.
-  if (isRoomPage || isAuthPage) {
+  if (isFocusedPlay || isAuthPage) {
     return null;
   }
 

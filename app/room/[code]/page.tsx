@@ -36,7 +36,7 @@ function UnexpectedRoomState({
   }, [code, status]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4 p-6 text-center">
+    <div className="lj-game-viewport flex flex-col items-center justify-center gap-4 bg-[var(--color-background)] p-6 text-center">
       <span className="text-[var(--color-text-primary)] text-xl">
         We lost track of this room state
       </span>
@@ -89,14 +89,16 @@ function ResolvedRoomPage({
         roomCode={code}
         panel="lobby"
       >
-        <RoomChrome
-          roomCode={code}
-          {...buildLobbyChromeCopy({
-            code,
-            playerCount: players.length,
-          })}
-        />
-        <Lobby room={room} players={players} isHost={isHost} />
+        <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background">
+          <RoomChrome
+            roomCode={code}
+            {...buildLobbyChromeCopy({
+              code,
+              playerCount: players.length,
+            })}
+          />
+          <Lobby room={room} players={players} isHost={isHost} />
+        </div>
       </RoomPanelErrorBoundary>
     );
   }
@@ -144,7 +146,7 @@ function RoomPageContent({ code }: { code: string }) {
 
   if (isLoading || roomState === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+      <div className="lj-game-viewport flex items-center justify-center bg-[var(--color-background)]">
         <LoadingState message={LoadingMessages.LOADING_ROOM} />
       </div>
     );
@@ -152,11 +154,11 @@ function RoomPageContent({ code }: { code: string }) {
 
   if (roomState === null) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--color-background)] gap-4">
+      <div className="lj-game-viewport lj-safe-inline flex flex-col items-center justify-center gap-4 bg-[var(--color-background)] text-center">
         <span className="text-[var(--color-text-primary)] text-xl">
           Room not found
         </span>
-        <span className="text-[var(--color-text-muted)] text-sm">
+        <span className="max-w-md text-[var(--color-text-muted)] text-sm">
           The room code may be incorrect or the room has expired.
         </span>
       </div>

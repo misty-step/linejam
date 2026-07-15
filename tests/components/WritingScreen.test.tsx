@@ -52,6 +52,7 @@ const originalFetch = global.fetch;
 // Import after mocking
 import { WritingScreen } from '@/components/WritingScreen';
 import { Id } from '@/convex/_generated/dataModel';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 describe('WritingScreen component', () => {
   const setupUser = () => userEvent.setup();
@@ -123,6 +124,54 @@ describe('WritingScreen component', () => {
 
     const wordSlots = document.getElementById('word-slots');
     expect(wordSlots).toBeInTheDocument();
+  });
+
+  it('owns the dynamic game viewport and reserves a non-overlapping action zone', () => {
+    render(<WritingScreen roomCode="ABCD" />);
+
+    const phase = screen.getByTestId(E2E_TEST_IDS.writingPhase);
+    const submit = screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton);
+    const actionZone = submit.parentElement;
+    const composer = actionZone?.parentElement;
+    const scrollRegion = screen.getByTestId(E2E_TEST_IDS.writingScrollRegion);
+
+    expect(phase).toHaveClass('lj-game-frame');
+    expect(phase).not.toHaveClass('overflow-hidden');
+    expect(scrollRegion).toHaveClass(
+      'min-h-0',
+      'overflow-x-hidden',
+      'overflow-y-auto'
+    );
+    expect(composer).toHaveClass(
+      'grid',
+      'grid-rows-[minmax(0,1fr)_minmax(0,auto)]'
+    );
+    expect(actionZone).toHaveClass('min-h-0', 'overflow-x-hidden');
+    expect(actionZone).toHaveClass(
+      'gap-[12px]',
+      'pt-[12px]',
+      'pb-[max(12px,env(safe-area-inset-bottom))]'
+    );
+    expect(actionZone).not.toHaveClass('flex-[0_1_auto]', 'flex-none');
+    expect(actionZone).not.toHaveClass('fixed', 'sticky');
+    expect(submit).toHaveClass(
+      'h-[64px]',
+      'w-full',
+      'min-w-0',
+      'max-w-[240px]',
+      'md:h-[80px]',
+      'md:w-auto',
+      'md:min-w-[240px]'
+    );
+    expect(submit).not.toHaveClass(
+      'h-auto',
+      'min-h-[64px]',
+      'min-w-[240px]',
+      'py-[12px]'
+    );
+
+    const textarea = screen.getByRole('textbox');
+    expect(textarea).toHaveClass('min-w-0', 'max-w-full', 'overflow-x-hidden');
   });
 
   it('shows the first-run writing coachmark inline without opening help', () => {
@@ -734,6 +783,39 @@ describe('WritingScreen component', () => {
   });
 
   describe('round transitions', () => {
+    it('opens the waiting state when a submitted assignment reloads', () => {
+      mockUseQuery.mockImplementation((query) => {
+        const functionName = getFunctionName(
+          query as Parameters<typeof getFunctionName>[0]
+        );
+        if (functionName === 'game:getRoundProgress') {
+          return {
+            round: 0,
+            players: [
+              {
+                stableId: 'stable_alice',
+                displayName: 'Alice',
+                submitted: true,
+                userId: 'user_alice',
+              },
+              {
+                stableId: 'stable_bob',
+                displayName: 'Bob',
+                submitted: false,
+                userId: 'user_bob',
+              },
+            ],
+          };
+        }
+        return { ...mockAssignment, hasSubmitted: true };
+      });
+
+      render(<WritingScreen roomCode="ABCD" showChrome />);
+
+      expect(screen.getByTestId(E2E_TEST_IDS.waitingPhase)).toBeInTheDocument();
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
     it('resets the draft when the assignment advances to the next round', async () => {
       const user = setupUser();
       const { rerender } = render(<WritingScreen roomCode="ABCD" />);
@@ -830,6 +912,14 @@ describe('WritingScreen component', () => {
 
       expect(screen.getByText('Round 3 of 9')).toBeInTheDocument();
       expect(screen.getByText('1 of 2 ready.')).toBeInTheDocument();
+      const waitingPhase = screen.getByTestId(E2E_TEST_IDS.waitingPhase);
+      expect(waitingPhase).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+      expect(waitingPhase).not.toHaveClass('lj-game-viewport');
+      expect(waitingPhase.parentElement).toHaveClass(
+        'lj-game-frame',
+        'lj-viewport-offset',
+        'overflow-hidden'
+      );
     });
   });
 });

@@ -21,13 +21,13 @@ export function ThemeSelector({ className = '', onClose }: ThemeSelectorProps) {
     useThemeRadioNav({ onEscape: onClose });
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('min-w-0 max-w-full space-y-4', className)}>
       <ThemeModeControl />
 
       {/* Theme list */}
       <div
         ref={listRef}
-        className="flex flex-col gap-2"
+        className="flex min-w-0 max-w-full flex-col gap-2"
         role="radiogroup"
         aria-label="Select theme"
         onKeyDown={handleKeyDown}

@@ -175,8 +175,8 @@ export function PoemDisplay({
 
   // Container classes based on variant
   const containerClasses = isArchive
-    ? 'min-h-screen bg-background flex flex-col'
-    : 'fixed inset-0 bg-background z-50 flex flex-col overflow-y-auto';
+    ? 'lj-game-viewport bg-background flex flex-col'
+    : 'lj-game-frame lj-viewport-offset fixed inset-0 bg-background z-50 flex flex-col overflow-y-auto overflow-x-hidden';
 
   const ceremonyMuteButton = !isArchive ? (
     <button
@@ -198,13 +198,13 @@ export function PoemDisplay({
   return (
     <div className={containerClasses}>
       {!metadata && ceremonyMuteButton && (
-        <div className="fixed right-4 top-4 z-10 print:hidden">
+        <div className="fixed right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 print:hidden">
           {ceremonyMuteButton}
         </div>
       )}
 
       {/* Poem Content */}
-      <div className="flex-1 px-6 md:px-12 lg:px-24 py-12 md:py-16 lg:py-24 max-w-3xl mx-auto w-full">
+      <div className="lj-safe-inline mx-auto w-full max-w-3xl flex-1 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(3rem,env(safe-area-inset-bottom))] md:[--lj-safe-inline-space:3rem] md:py-16 lg:[--lj-safe-inline-space:6rem] lg:py-24">
         {/* Header: Poem Identity + Controls */}
         {metadata && (
           <header className="mb-12">
@@ -397,11 +397,11 @@ export function PoemDisplay({
         </div>
       </div>
 
-      {/* Footer / Actions - Fixed at bottom */}
+      {/* Footer / Actions — in flow so expanded copy cannot cover the poem. */}
       <div
         data-testid={E2E_TEST_IDS.poemActions}
         className={cn(
-          'print:hidden px-space-3 py-space-3 md:px-space-5 lg:px-space-6 border-t border-border-subtle',
+          'print:hidden px-space-3 pt-space-3 pb-[max(var(--space-3),env(safe-area-inset-bottom))] md:px-space-5 lg:px-space-6 border-t border-border-subtle',
           'flex flex-col items-center gap-space-3',
           'transition-opacity duration-500',
           allRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'

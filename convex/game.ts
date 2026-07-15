@@ -221,16 +221,17 @@ export const getCurrentAssignment = query({
       .first();
     if (!poem) return null;
 
-    let previousLineText = undefined;
-    if (currentRound > 0) {
-      const prevLine = await ctx.db
+    const getLine = (indexInPoem: number) =>
+      ctx.db
         .query('lines')
         .withIndex('by_poem_index', (q) =>
-          q.eq('poemId', poem._id).eq('indexInPoem', currentRound - 1)
+          q.eq('poemId', poem._id).eq('indexInPoem', indexInPoem)
         )
         .first();
-      previousLineText = prevLine?.text;
-    }
+    const [previousLine, currentLine] = await Promise.all([
+      currentRound > 0 ? getLine(currentRound - 1) : Promise.resolve(null),
+      getLine(currentRound),
+    ]);
 
     const isFinalRound =
       currentRound === getFinalRoundIndex(game.assignmentMatrix);
@@ -241,7 +242,8 @@ export const getCurrentAssignment = query({
       targetWordCount: WORD_COUNTS[currentRound],
       totalRounds: game.assignmentMatrix.length,
       isFinalRound,
-      previousLineText,
+      hasSubmitted: currentLine !== null,
+      previousLineText: previousLine?.text,
       roundStartedAt: game.roundStartedAt ?? game.createdAt,
     };
   },

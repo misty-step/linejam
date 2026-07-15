@@ -51,7 +51,7 @@ export function ThemePreview({
       style={rowStyle}
       className={cn(
         // Layout
-        'relative w-full px-4 py-3 text-left',
+        'relative w-full min-w-0 max-w-full px-4 py-3 text-left',
         // Self-styling with theme tokens
         'bg-[var(--preview-bg)]',
         'border border-[var(--preview-border)]',
@@ -70,7 +70,7 @@ export function ThemePreview({
         <div className="min-w-0 flex-1">
           {/* Theme name - uses theme's display font */}
           <h3
-            className="font-semibold leading-normal"
+            className="break-words font-semibold leading-normal"
             style={{
               fontFamily: tokens['font-display'],
               color: tokens['color-text-primary'],
@@ -82,7 +82,7 @@ export function ThemePreview({
 
           {/* Description - full text, natural wrapping */}
           <p
-            className="leading-normal"
+            className="break-words leading-normal"
             style={{
               fontFamily: tokens['font-sans'],
               color: tokens['color-text-secondary'],

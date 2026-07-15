@@ -54,24 +54,30 @@ export default function HostPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+      <div className="lj-game-frame lj-viewport-offset relative flex items-center justify-center bg-[var(--color-background)]">
         <LoadingState message={LoadingMessages.SETTING_UP_ROOM} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-6 pb-32 md:p-12 lg:p-20 flex flex-col">
-      <div className="max-w-xl w-full">
-        <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted mb-3">
-          New game
-        </p>
-        <h1 className="text-4xl md:text-6xl font-[var(--font-display)] leading-tight mb-8">
-          Host Session
-        </h1>
+    <form
+      onSubmit={handleCreate}
+      className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col overflow-hidden bg-[var(--color-background)]"
+    >
+      <div
+        data-testid={E2E_TEST_IDS.hostScrollRegion}
+        className="lj-safe-frame min-h-0 flex-1 overflow-y-auto [--lj-safe-frame-space:1.5rem] md:[--lj-safe-frame-space:3rem] lg:[--lj-safe-frame-space:5rem]"
+      >
+        <div className="w-full max-w-xl">
+          <p className="mb-3 text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
+            New game
+          </p>
+          <h1 className="mb-8 break-words text-4xl font-[var(--font-display)] leading-tight md:text-6xl">
+            Host Session
+          </h1>
 
-        <div className="p-8 border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
-          <form onSubmit={handleCreate} className="space-y-8">
+          <div className="border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-lg)] md:p-8">
             <div className="space-y-3">
               <label
                 htmlFor="name"
@@ -90,30 +96,31 @@ export default function HostPage() {
                 className="text-lg h-14"
               />
             </div>
-
-            {/* Thumb-zone on phones; settles inline on tablet/desktop */}
-            <div className="fixed inset-x-0 bottom-0 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4 bg-background/95 backdrop-blur-md border-t-2 border-primary/20 shadow-[var(--shadow-lg)] md:static md:p-0 md:pt-4 md:bg-transparent md:backdrop-blur-none md:border-0 md:shadow-none">
-              {error && (
-                <Alert
-                  variant="error"
-                  data-testid={E2E_TEST_IDS.hostErrorAlert}
-                >
-                  {error}
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                data-testid={E2E_TEST_IDS.hostCreateRoomButton}
-                className="w-full text-lg h-14"
-                disabled={!name.trim() || isSubmitting}
-              >
-                {isSubmitting ? 'One moment...' : 'Create Room'}
-              </Button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
-    </div>
+
+      <div
+        data-testid={E2E_TEST_IDS.hostActionZone}
+        className="lj-safe-inline min-h-0 max-h-[50%] flex-[0_1_auto] overflow-y-auto border-t-2 border-primary/20 bg-background/95 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:3rem] lg:[--lj-safe-inline-space:5rem]"
+      >
+        <div className="w-full max-w-xl space-y-4">
+          {error && (
+            <Alert variant="error" data-testid={E2E_TEST_IDS.hostErrorAlert}>
+              {error}
+            </Alert>
+          )}
+
+          <Button
+            type="submit"
+            data-testid={E2E_TEST_IDS.hostCreateRoomButton}
+            className="h-[56px] w-full min-w-0 px-[16px] text-[clamp(1rem,5vw,1.125rem)] md:h-14 md:px-6 md:text-lg"
+            disabled={!name.trim() || isSubmitting}
+          >
+            {isSubmitting ? 'One moment...' : 'Create Room'}
+          </Button>
+        </div>
+      </div>
+    </form>
   );
 }

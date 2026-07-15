@@ -75,7 +75,7 @@ export function LobbyStage({ room, players, onExit }: LobbyStageProps) {
       subtitle="Scan the code, then look up when the poems begin."
       onExit={onExit}
     >
-      <div className="grid min-h-[calc(100vh-14rem)] gap-10 xl:grid-cols-[minmax(360px,0.85fr)_minmax(0,1fr)] xl:items-center">
+      <div className="grid min-h-full gap-10 xl:grid-cols-[minmax(360px,0.85fr)_minmax(0,1fr)] xl:items-center">
         <section className="flex flex-col items-center justify-center gap-8 text-center">
           <div className="rounded-[2rem] border border-border bg-surface p-5 shadow-[var(--shadow-lg)]">
             <QRCodeSVG

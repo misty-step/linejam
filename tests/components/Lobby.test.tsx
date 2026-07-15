@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 // Mock Next.js router (external)
 const mockPush = vi.fn();
@@ -112,7 +113,9 @@ describe('Lobby component', () => {
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     // Room code "ABCD" is formatted as "AB CD" and shown as the in-body hero
-    expect(screen.getByText('AB CD')).toBeInTheDocument();
+    expect(screen.getByText('AB CD')).toHaveClass(
+      'text-[clamp(2rem,16vw,3rem)]'
+    );
   });
 
   it('renders player list from room state', () => {
@@ -122,6 +125,44 @@ describe('Lobby component', () => {
     // Assert - Both players should be visible
     expect(screen.getByText('Host Player')).toBeInTheDocument();
     expect(screen.getByText('Guest Player')).toBeInTheDocument();
+    expect(screen.getByText('Host Player').parentElement).toHaveClass(
+      'min-w-0',
+      'max-w-full',
+      'flex-1'
+    );
+    expect(
+      screen.getByText('Host Player').closest('.animate-stamp')
+    ).toHaveClass('mx-[12px]', 'sm:mx-0');
+  });
+
+  it('keeps the primary action in a non-overlapping viewport sibling', () => {
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    const scrollRegion = screen.getByTestId(E2E_TEST_IDS.lobbyScrollRegion);
+    const actionZone = screen.getByTestId(E2E_TEST_IDS.lobbyActionZone);
+    const start = screen.getByTestId(E2E_TEST_IDS.lobbyStartGameButton);
+
+    expect(scrollRegion.parentElement).toBe(actionZone.parentElement);
+    expect(scrollRegion.nextElementSibling).toBe(actionZone);
+    expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
+    expect(actionZone).toHaveClass('min-h-0', 'max-h-[50%]', 'flex-[0_1_auto]');
+    expect(start).toHaveClass(
+      'min-h-[64px]',
+      'h-auto',
+      'min-w-0',
+      'px-[16px]',
+      'py-[12px]'
+    );
+    expect(screen.getByRole('button', { name: /Add a bot/i })).toHaveClass(
+      'h-auto',
+      'min-h-[44px]',
+      'min-w-0',
+      'max-w-full',
+      'px-[16px]',
+      'py-[10px]'
+    );
+    expect(actionZone).not.toHaveClass('flex-none');
+    expect(actionZone).not.toHaveClass('fixed', 'sticky');
   });
 
   it('Start Game button disabled with <2 players', () => {
@@ -442,5 +483,15 @@ describe('Lobby component', () => {
     // push the HOST badge past the container edge.
     const nameSpan = screen.getByText(longName);
     expect(nameSpan).toHaveClass('truncate', 'min-w-0');
+  });
+
+  it('reserves a separate roster column for badges at narrow widths', () => {
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    const hostPlayerItem = screen.getByText('Host Player').closest('li');
+    expect(hostPlayerItem).toHaveClass(
+      'grid',
+      'grid-cols-[minmax(0,1fr)_auto]'
+    );
   });
 });

@@ -260,7 +260,10 @@ describe('PoemDisplay component', () => {
       }
 
       // Footer should now be visible
-      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-100');
+      expect(screen.getByTestId('poem-actions')).toHaveClass(
+        'opacity-100',
+        'pb-[max(var(--space-3),env(safe-area-inset-bottom))]'
+      );
     });
   });
 
