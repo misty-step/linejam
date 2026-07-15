@@ -608,9 +608,9 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
         );
         try {
           await installSyntheticVisualViewport(directWaitingPage);
-          await directWaitingPage.clock.install({
-            time: Date.now() + GHOSTWRITER_OVERTIME_MS + 5_000,
-          });
+          await directWaitingPage.clock.setFixedTime(
+            Date.now() + GHOSTWRITER_OVERTIME_MS + 5_000
+          );
           await directWaitingPage.setViewportSize({
             width: 375,
             height: 667,
