@@ -501,7 +501,7 @@ describe('archive', () => {
       expect(result.poems[0].roomDate).toBe(poemCreatedAt);
     });
 
-    it('handles null author gracefully — falls back to Unknown and uses authorUserId as stableId', async () => {
+    it('handles null author gracefully — falls back to Unknown and uses a poem-local author key', async () => {
       const t = setupConvexTest();
       const userId = await seedUser(t, {
         displayName: 'User',
@@ -537,11 +537,11 @@ describe('archive', () => {
       const mysteryLine = result.poems[0].lines.find(
         (l: { text: string }) => l.text === 'Mystery'
       );
-      // authorMap entry for deleted user: { name: 'Unknown', isBot: false, stableId: authorUserId }
+      // Deleted authors still get a poem-local grouping key.
       expect(mysteryLine?.authorName).toBe('Unknown');
       expect(mysteryLine?.isBot).toBe(false);
-      // stableId falls back to authorUserId string (the ghostId)
-      expect(typeof mysteryLine?.authorStableId).toBe('string');
+      expect(typeof mysteryLine?.authorKey).toBe('string');
+      expect(JSON.stringify(result)).not.toContain(ghostId);
     });
 
     it('prefers authorDisplayName from line over author.displayName', async () => {
@@ -663,7 +663,7 @@ describe('archive', () => {
       expect(result.poems[0].coAuthors).toContain('Unknown');
     });
 
-    it('uses clerkUserId as authorStableId when available', async () => {
+    it('uses a poem-local author key instead of clerkUserId', async () => {
       const t = setupConvexTest();
       const userId = await seedUser(t, {
         displayName: 'Clerk User',
@@ -681,8 +681,10 @@ describe('archive', () => {
 
       const result = await queryArchive(t, 'clerk_stable');
 
-      // clerkUserId should be used as stableId when present
-      expect(result.poems[0].lines[0].authorStableId).toBe('clerk_stable');
+      const line = result.poems[0].lines[0];
+      expect(line.authorKey).toMatch(/^author-/);
+      expect(JSON.stringify(result)).not.toContain('clerk_stable');
+      expect(JSON.stringify(result)).not.toContain('guest_stable');
     });
 
     it('uniqueCollaborators counts distinct non-self stableIds across all poems', async () => {
@@ -868,6 +870,11 @@ describe('archive', () => {
       });
 
       expect(result.map((poem) => poem._id)).toEqual([publicPoemId]);
+      const serialized = JSON.stringify(result);
+      expect(serialized).not.toContain('authorUserId');
+      expect(serialized).not.toContain('clerkUserId');
+      expect(serialized).not.toContain('guestId');
+      expect(serialized).not.toContain('authorStableId');
 
       const [recentPreview, ...privatePreviews] = await Promise.all([
         t.query(api.poems.getPublicPoemPreview, { poemId: publicPoemId }),

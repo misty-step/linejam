@@ -7,6 +7,7 @@ import {
   isPublicPoemShareEnabled,
   isPublicSessionRecapEnabled,
 } from './lib/sharing';
+import { buildPoemAuthorKeys } from './lib/poemAuthorKey';
 
 const DEFAULT_MY_POEMS_LIMIT = 24;
 const MAX_MY_POEMS_LIMIT = 48;
@@ -101,19 +102,29 @@ export const getPoemDetail = query({
     );
     const authorMap = new Map(uniqueAuthorIds.map((id, i) => [id, authors[i]]));
 
+    const authorKeys = buildPoemAuthorKeys(poemId, uniqueAuthorIds);
     const linesWithAuthors = lines.map((line) => {
       const author = authorMap.get(line.authorUserId);
       return {
-        ...line,
+        _id: line._id,
+        poemId: line.poemId,
+        indexInPoem: line.indexInPoem,
+        text: line.text,
+        wordCount: line.wordCount,
+        createdAt: line.createdAt,
         // Prefer captured pen name, fall back to current user name for legacy data
         authorName: line.authorDisplayName || author?.displayName || 'Unknown',
-        authorStableId: author?.clerkUserId || author?.guestId || '',
+        authorKey: authorKeys.get(line.authorUserId)!,
         isBot: author?.kind === 'AI',
       };
     });
 
     return {
-      poem,
+      poem: {
+        _id: poem._id,
+        indexInRoom: poem.indexInRoom,
+        createdAt: poem.createdAt,
+      },
       lines: linesWithAuthors,
     };
   },
@@ -242,16 +253,27 @@ export const getPublicPoemFull = query({
     );
     const authorMap = new Map(uniqueAuthorIds.map((id, i) => [id, authors[i]]));
 
+    const authorKeys = buildPoemAuthorKeys(poemId, uniqueAuthorIds);
+
     return {
-      poem,
+      poem: {
+        _id: poem._id,
+        indexInRoom: poem.indexInRoom,
+        createdAt: poem.createdAt,
+      },
       lines: lines.map((line) => {
         const author = authorMap.get(line.authorUserId);
         return {
-          ...line,
+          _id: line._id,
+          poemId: line.poemId,
+          indexInPoem: line.indexInPoem,
+          text: line.text,
+          wordCount: line.wordCount,
+          createdAt: line.createdAt,
           // Prefer captured pen name, fall back to current user name for legacy data
           authorName:
             line.authorDisplayName || author?.displayName || 'Unknown',
-          authorStableId: author?.clerkUserId || author?.guestId || '',
+          authorKey: authorKeys.get(line.authorUserId)!,
           isBot: author?.kind === 'AI',
         };
       }),
