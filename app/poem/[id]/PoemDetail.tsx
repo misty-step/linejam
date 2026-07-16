@@ -31,14 +31,24 @@ export function PoemDetail({
     api.poems.getPublicPoemShareStatus,
     shareSlug ? { shareSlug } : 'skip'
   );
-  const [sharePendingExpired, setSharePendingExpired] = useState(false);
+  const pendingShareExpiresAt =
+    shareStatus?.state === 'pending' ? shareStatus.expiresAt : undefined;
+  const pendingShareKey =
+    shareSlug && pendingShareExpiresAt !== undefined
+      ? `${shareSlug}:${pendingShareExpiresAt}`
+      : null;
+  const [expiredShareKey, setExpiredShareKey] = useState<string | null>(null);
   useEffect(() => {
-    if (shareStatus?.state !== 'pending' || shareStatus.expiresAt === undefined)
-      return;
-    const remaining = Math.max(0, shareStatus.expiresAt - Date.now());
-    const timer = setTimeout(() => setSharePendingExpired(true), remaining);
+    if (pendingShareKey === null || pendingShareExpiresAt === undefined) return;
+    const remaining = Math.max(0, pendingShareExpiresAt - Date.now());
+    const timer = setTimeout(
+      () => setExpiredShareKey(pendingShareKey),
+      remaining
+    );
     return () => clearTimeout(timer);
-  }, [shareStatus?.state, shareStatus?.expiresAt]);
+  }, [pendingShareKey, pendingShareExpiresAt]);
+  const sharePendingExpired =
+    pendingShareKey !== null && expiredShareKey === pendingShareKey;
 
   // Use authenticated data if available, else public
   const data = poemDetail || publicPoem;

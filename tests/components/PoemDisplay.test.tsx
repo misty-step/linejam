@@ -3,8 +3,44 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 
 // Mock external dependencies only
+const mockApiRefs = vi.hoisted(() => ({
+  preparePublicPoemShare: {},
+  activatePublicPoemShare: {},
+  cancelPublicPoemShare: {},
+  disablePublicPoemShare: {},
+  isFavorited: {},
+  toggleFavorite: {},
+}));
+
+vi.mock('@/convex/_generated/api', () => ({
+  api: {
+    shares: {
+      preparePublicPoemShare: mockApiRefs.preparePublicPoemShare,
+      activatePublicPoemShare: mockApiRefs.activatePublicPoemShare,
+      cancelPublicPoemShare: mockApiRefs.cancelPublicPoemShare,
+      disablePublicPoemShare: mockApiRefs.disablePublicPoemShare,
+    },
+    favorites: {
+      isFavorited: mockApiRefs.isFavorited,
+      toggleFavorite: mockApiRefs.toggleFavorite,
+    },
+  },
+}));
+
 vi.mock('convex/react', () => ({
-  useMutation: () => vi.fn().mockResolvedValue(undefined),
+  useMutation: (mutationRef: unknown) => {
+    if (mutationRef === mockApiRefs.preparePublicPoemShare) {
+      return vi
+        .fn()
+        .mockResolvedValue({ slug: 'test-share-slug', nonce: 'test-nonce' });
+    }
+    if (mutationRef === mockApiRefs.activatePublicPoemShare) {
+      return vi
+        .fn()
+        .mockResolvedValue({ publicShareEnabled: true, changed: true });
+    }
+    return vi.fn().mockResolvedValue(undefined);
+  },
   useQuery: () => false, // isFavorited → not favorited
 }));
 

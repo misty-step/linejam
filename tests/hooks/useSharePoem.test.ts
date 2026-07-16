@@ -14,7 +14,9 @@ const mockApiRefs = vi.hoisted(() => ({
 const mockPreparePublicPoemShare = vi
   .fn()
   .mockResolvedValue({ slug: 'slug-1', nonce: 'nonce-1' });
-const mockActivatePublicPoemShare = vi.fn().mockResolvedValue(undefined);
+const mockActivatePublicPoemShare = vi
+  .fn()
+  .mockResolvedValue({ publicShareEnabled: true, changed: true });
 const mockCancelPublicPoemShare = vi.fn().mockResolvedValue(undefined);
 const mockDisablePublicPoemShare = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/convex/_generated/api', () => ({
@@ -65,7 +67,10 @@ describe('useSharePoem', () => {
       slug: 'slug-1',
       nonce: 'nonce-1',
     });
-    mockActivatePublicPoemShare.mockResolvedValue(undefined);
+    mockActivatePublicPoemShare.mockResolvedValue({
+      publicShareEnabled: true,
+      changed: true,
+    });
     mockCancelPublicPoemShare.mockResolvedValue(undefined);
     vi.useFakeTimers();
 
@@ -139,6 +144,57 @@ describe('useSharePoem', () => {
     );
     expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
     expect(mockActivatePublicPoemShare).toHaveBeenCalledOnce();
+  });
+
+  it('does not report success when activation loses the publication race', async () => {
+    mockActivatePublicPoemShare.mockResolvedValueOnce({
+      publicShareEnabled: false,
+      changed: false,
+    });
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      'https://example.com/poem/poem123?share=slug-1'
+    );
+    expect(mockCancelPublicPoemShare).toHaveBeenCalledWith({
+      poemId: testPoemId,
+      slug: 'slug-1',
+      nonce: 'nonce-1',
+      guestToken: undefined,
+    });
+    expect(result.current.copied).toBe(false);
+    expect(result.current.shared).toBe(false);
+    expect(result.current.shareError).toBe(
+      'Failed to share poem. Please try again.'
+    );
+    expect(mockTrackPoemShared).not.toHaveBeenCalled();
+    expect(mockCaptureError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Share activation expired or was superseded',
+      }),
+      { operation: 'sharePoem', poemId: testPoemId }
+    );
+  });
+
+  it('revokes the public share through the disable mutation', async () => {
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine)
+    );
+
+    await act(async () => {
+      await result.current.revokeShare();
+    });
+
+    expect(mockDisablePublicPoemShare).toHaveBeenCalledWith({
+      poemId: testPoemId,
+      guestToken: undefined,
+    });
   });
 
   it('sets copied=true after successful copy', async () => {

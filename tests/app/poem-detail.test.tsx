@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
 
 const mockApiRefs = vi.hoisted(() => ({
   getPoemDetail: {},
@@ -92,6 +92,10 @@ describe('PoemDetail', () => {
     mockGuestToken = null;
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows loading while poem queries are unresolved', () => {
     render(<PoemDetail poemId={'poem1' as Id<'poems'>} />);
 
@@ -107,6 +111,35 @@ describe('PoemDetail', () => {
       expiresAt: Date.now() + 1000,
     };
     render(<PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Preparing this shared poem'
+    );
+  });
+
+  it('resets pending expiry when a new share slug arrives', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    mockQueryResults.poemDetail = null;
+    mockQueryResults.publicPoem = null;
+    mockQueryResults.shareStatus = { state: 'pending', expiresAt: 1000 };
+
+    const view = render(
+      <PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Preparing this shared poem'
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByText('Poem not found')).toBeInTheDocument();
+
+    mockQueryResults.shareStatus = { state: 'pending', expiresAt: 2000 };
+    view.rerender(
+      <PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-2" />
+    );
     expect(screen.getByRole('status')).toHaveTextContent(
       'Preparing this shared poem'
     );

@@ -31,7 +31,7 @@ async function resolvesPublicShare(
   return (
     poem?.publicShareEnabled === true &&
     share?.poemId === poemId &&
-    share.state === 'active'
+    share?.state === 'active'
   );
 }
 

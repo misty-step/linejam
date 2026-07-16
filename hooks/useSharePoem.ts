@@ -49,12 +49,15 @@ export function useSharePoem(
     commitShare: async () => {
       const pending = pendingShareRef.current;
       if (!pending) throw new Error('Share preparation missing');
-      await activatePublicPoemShare({
+      const activation = await activatePublicPoemShare({
         poemId,
         slug: pending.slug,
         nonce: pending.nonce,
         guestToken: guestToken || undefined,
       });
+      if (activation.changed !== true) {
+        throw new Error('Share activation expired or was superseded');
+      }
       pendingShareRef.current = null;
     },
     rollbackShare: async () => {
