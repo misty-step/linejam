@@ -1,4 +1,5 @@
 /** @vitest-environment node */
+import './canary-test-env';
 import { createHmac } from 'node:crypto';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';

@@ -1,4 +1,5 @@
 /** @vitest-environment node */
+import { buildCanarySubprocessEnv } from './canary-test-env';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { execFile } from 'node:child_process';
@@ -141,13 +142,12 @@ describe('canary setup webhook script', () => {
 
     const { stdout, stderr } = await execFileAsync(scriptPath, {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
+      env: buildCanarySubprocessEnv({
         CANARY_ENDPOINT: stub.baseUrl,
         CANARY_API_KEY: 'canary-secret',
         LINEJAM_CANARY_WEBHOOK_URL:
           'https://linejam.example.com/canary/webhook',
-      },
+      }),
     });
 
     const result = JSON.parse(stdout) as {
@@ -173,13 +173,12 @@ describe('canary setup webhook script', () => {
       ['--emit-secret'],
       {
         cwd: process.cwd(),
-        env: {
-          ...process.env,
+        env: buildCanarySubprocessEnv({
           CANARY_ENDPOINT: stub.baseUrl,
           CANARY_API_KEY: 'canary-secret',
           LINEJAM_CANARY_WEBHOOK_URL:
             'https://linejam.example.com/canary/webhook',
-        },
+        }),
       }
     );
 
@@ -213,13 +212,12 @@ describe('canary setup webhook script', () => {
 
     const { stdout, stderr } = await execFileAsync(scriptPath, {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
+      env: buildCanarySubprocessEnv({
         CANARY_ENDPOINT: stub.baseUrl,
         CANARY_API_KEY: 'canary-secret',
         LINEJAM_CANARY_WEBHOOK_URL:
           'https://linejam.example.com/canary/webhook',
-      },
+      }),
     });
 
     const result = JSON.parse(stdout) as {
@@ -257,13 +255,12 @@ describe('canary setup webhook script', () => {
 
     const { stdout } = await execFileAsync(scriptPath, {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
+      env: buildCanarySubprocessEnv({
         CANARY_ENDPOINT: stub.baseUrl,
         CANARY_API_KEY: 'canary-secret',
         LINEJAM_CANARY_WEBHOOK_URL:
           'https://linejam.example.com/canary/webhook',
-      },
+      }),
     });
 
     const result = JSON.parse(stdout) as {
@@ -295,13 +292,12 @@ describe('canary setup webhook script', () => {
     await expect(
       execFileAsync(scriptPath, {
         cwd: process.cwd(),
-        env: {
-          ...process.env,
+        env: buildCanarySubprocessEnv({
           CANARY_ENDPOINT: stub.baseUrl,
           CANARY_API_KEY: 'canary-secret',
           LINEJAM_CANARY_WEBHOOK_URL:
             'https://linejam.example.com/canary/webhook',
-        },
+        }),
       })
     ).rejects.toThrow(/Canary API POST \/api\/v1\/webhooks returned 500/);
 
@@ -314,14 +310,13 @@ describe('canary setup webhook script', () => {
 
     const { stdout } = await execFileAsync(scriptPath, {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
+      env: buildCanarySubprocessEnv({
         CANARY_ENDPOINT: stub.baseUrl,
         CANARY_API_KEY: 'canary-secret',
         LINEJAM_CANARY_WEBHOOK_URL:
           'https://linejam.example.com/canary/webhook',
         CANARY_WEBHOOK_SEND_TEST: '1',
-      },
+      }),
     });
 
     const result = JSON.parse(stdout) as {

@@ -1,4 +1,5 @@
 /** @vitest-environment node */
+import './canary-test-env';
 import { createHmac } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
