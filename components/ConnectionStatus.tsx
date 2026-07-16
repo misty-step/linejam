@@ -1,10 +1,12 @@
 'use client';
 
 import { useConvexConnectionState } from 'convex/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
 type ConnectionNotice = 'offline' | 'reconnecting' | null;
+
+const RESTORED_MESSAGE = 'Connection restored.';
 export function ConnectionStatus() {
   const connection = useConvexConnectionState();
   const [browserOnline, setBrowserOnline] = useState(() =>
@@ -29,13 +31,34 @@ export function ConnectionStatus() {
       : connection.hasEverConnected || connection.connectionRetries > 0
         ? 'reconnecting'
         : null;
+  const [showRestored, setShowRestored] = useState(false);
+  const previousNoticeRef = useRef<ConnectionNotice>(null);
 
-  if (!notice) return null;
+  useEffect(() => {
+    if (notice) {
+      previousNoticeRef.current = notice;
+      return;
+    }
+
+    if (previousNoticeRef.current === null) return;
+
+    previousNoticeRef.current = null;
+    // This one-shot state update keeps the restored announcement synchronous
+    // with the connection transition; the timer only controls its dismissal.
+     
+    setShowRestored(true);
+    const timeoutId = window.setTimeout(() => setShowRestored(false), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [notice]);
+
+  if (!notice && !showRestored) return null;
 
   const message =
     notice === 'offline'
       ? 'You are offline. Your draft is safe; Linejam will reconnect automatically.'
-      : 'Connection interrupted. Reconnecting…';
+      : notice === 'reconnecting'
+        ? 'Connection interrupted. Reconnecting…'
+        : RESTORED_MESSAGE;
 
   return (
     <div

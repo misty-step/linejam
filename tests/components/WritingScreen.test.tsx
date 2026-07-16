@@ -311,6 +311,21 @@ describe('WritingScreen component', () => {
     ).toBe('Hello');
   });
 
+  it('preserves the draft when the browser goes offline', async () => {
+    const user = setupUser();
+    render(<WritingScreen roomCode="ABCD" />);
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'Still here');
+
+    act(() => window.dispatchEvent(new Event('offline')));
+
+    expect(textarea).toHaveValue('Still here');
+    expect(
+      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+    ).toBe('Still here');
+  });
+
   it('restores the current assignment draft after a reload', () => {
     sessionStorage.setItem(
       'linejam:writing-draft:ABCD:poem_123:0',
