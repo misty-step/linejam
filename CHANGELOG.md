@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.23.0](https://github.com/misty-step/linejam/compare/v0.22.0...v0.23.0) (2026-07-16)
+
+
+### Features
+
+* **ai:** add provider kill switch and spend guard ([#362](https://github.com/misty-step/linejam/issues/362)) ([e642696](https://github.com/misty-step/linejam/commit/e642696e795dcd5a10a9eb64691d4f120f6667fd))
+
 # [0.22.0](https://github.com/misty-step/linejam/compare/v0.21.0...v0.22.0) (2026-07-16)
 
 
