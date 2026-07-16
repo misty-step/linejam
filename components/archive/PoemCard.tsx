@@ -26,7 +26,7 @@ interface PoemCardProps {
     lines: Array<{
       text: string;
       wordCount: number;
-      authorStableId: string;
+      authorKey: string;
       authorName: string;
       isBot: boolean;
     }>;
@@ -66,7 +66,7 @@ export function PoemCard({
   const toggleFavorite = useMutation(api.favorites.toggleFavorite);
 
   const wordCounts = poem.lines.map((l) => l.wordCount);
-  const authorStableIds = poem.lines.map((l) => l.authorStableId);
+  const authorStableIds = poem.lines.map((l) => l.authorKey);
   const uniqueAuthorIds = [...new Set(authorStableIds)];
 
   const formattedDate = new Date(poem.createdAt).toLocaleDateString('en-US', {

@@ -355,6 +355,11 @@ describe('getPoemDetail', () => {
     expect(result?.lines[0]).toMatchObject({ text: 'First', indexInPoem: 0 });
     expect(result?.lines[1]).toMatchObject({ text: 'Second', indexInPoem: 1 });
     expect(result?.lines[2]).toMatchObject({ text: 'Third', indexInPoem: 2 });
+    expect(result?.lines[0].authorKey).not.toBe(result?.lines[1].authorKey);
+    expect(JSON.stringify(result)).not.toContain('authorUserId');
+    expect(JSON.stringify(result)).not.toContain('clerkUserId');
+    expect(JSON.stringify(result)).not.toContain('guestId');
+    expect(JSON.stringify(result)).not.toContain('authorStableId');
   });
 
   it('returns authorName derived from the user record when no pen name was captured', async () => {
@@ -1008,6 +1013,26 @@ describe('getPublicPoemFull', () => {
       text: 'Third line',
       authorName: 'alice',
     });
+
+    const publicLines = result!.lines as Array<Record<string, unknown>>;
+    expect(publicLines[0].authorKey).toBe(publicLines[2].authorKey);
+    expect(publicLines[0].authorKey).not.toBe(publicLines[1].authorKey);
+    expect(Object.keys(publicLines[0]).sort()).toEqual([
+      '_id',
+      'authorKey',
+      'authorName',
+      'createdAt',
+      'indexInPoem',
+      'isBot',
+      'poemId',
+      'text',
+      'wordCount',
+    ]);
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('authorUserId');
+    expect(serialized).not.toContain('clerkUserId');
+    expect(serialized).not.toContain('guestId');
+    expect(serialized).not.toContain('authorStableId');
   });
 
   it('uses "Unknown" for deleted authors', async () => {

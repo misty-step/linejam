@@ -10,6 +10,7 @@ import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { getUser } from './lib/auth';
 import { Id } from './_generated/dataModel';
+import { buildPoemAuthorKeys } from './lib/poemAuthorKey';
 
 /**
  * Enriched poem data for archive display.
@@ -21,7 +22,7 @@ export interface ArchivePoem {
   lines: Array<{
     text: string;
     wordCount: number;
-    authorStableId: string;
+    authorKey: string;
     authorName: string;
     isBot: boolean;
   }>;
@@ -177,8 +178,6 @@ export const getArchiveData = query({
         {
           name: authors[i]?.displayName || 'Unknown',
           isBot: authors[i]?.kind === 'AI',
-          // Stable ID for color assignment
-          stableId: authors[i]?.clerkUserId || authors[i]?.guestId || id,
         },
       ])
     );
@@ -195,6 +194,7 @@ export const getArchiveData = query({
       const lines = allPoemLines[poemIndex];
       const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
       const favoritedAt = favoriteMap.get(poem._id) || null;
+      const authorKeys = buildPoemAuthorKeys(poem._id, [...uniqueAuthors]);
 
       // Get co-author names (excluding current user)
       const coAuthors = [...uniqueAuthors]
@@ -210,7 +210,7 @@ export const getArchiveData = query({
           return {
             text: line.text,
             wordCount: line.wordCount,
-            authorStableId: author?.stableId || line.authorUserId,
+            authorKey: authorKeys.get(line.authorUserId)!,
             authorName: line.authorDisplayName || author?.name || 'Unknown',
             isBot: author?.isBot || false,
           };
@@ -226,14 +226,11 @@ export const getArchiveData = query({
     });
 
     // Step 8: Calculate stats
-    const allCollaboratorIds = new Set<string>();
-    for (const poem of enrichedPoems) {
-      for (const line of poem.lines) {
-        if (
-          line.authorStableId !== user.clerkUserId &&
-          line.authorStableId !== user.guestId
-        ) {
-          allCollaboratorIds.add(line.authorStableId);
+    const allCollaboratorIds = new Set<Id<'users'>>();
+    for (const lines of allPoemLines) {
+      for (const line of lines) {
+        if (line.authorUserId !== user._id) {
+          allCollaboratorIds.add(line.authorUserId);
         }
       }
     }

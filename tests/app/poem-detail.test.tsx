@@ -113,13 +113,13 @@ describe('PoemDetail', () => {
         {
           text: 'first line',
           authorName: 'Ada',
-          authorStableId: 'user-ada',
+          authorKey: 'user-ada',
           isBot: false,
         },
         {
           text: 'second line',
           authorName: 'Bot',
-          authorStableId: null,
+          authorKey: null,
           isBot: true,
         },
       ],
@@ -178,7 +178,7 @@ describe('PoemDetail', () => {
         {
           text: 'public first line',
           authorName: 'Ada',
-          authorStableId: 'public-ada',
+          authorKey: 'public-ada',
           isBot: false,
         },
       ],

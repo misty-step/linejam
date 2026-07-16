@@ -75,13 +75,13 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
   const poemLines: PoemLine[] = lines.map((line) => ({
     text: line.text,
     authorName: line.authorName,
-    authorStableId: line.authorStableId,
+    authorStableId: line.authorKey,
     isBot: line.isBot,
   }));
 
   // Collect all stable IDs for consistent color assignment
   const allStableIds = lines
-    .map((l) => l.authorStableId)
+    .map((l) => l.authorKey)
     .filter((id): id is string => !!id);
 
   // Calculate unique poets
