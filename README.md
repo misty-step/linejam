@@ -49,8 +49,14 @@ bash scripts/setup.sh --write-env --skip-install
 
 # Add your Convex, Clerk, guest-token, and Canary values to .env.local
 
+# Verify configuration before starting services (fails on missing or invalid values)
+pnpm run doctor
+
 # Run development servers (parallel)
 pnpm dev # Next.js :3000 + Convex backend
+
+# Verify the live app and health path once the dev server is running
+pnpm run doctor
 ```
 
 Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.

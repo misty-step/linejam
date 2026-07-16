@@ -95,3 +95,4 @@ else
 fi
 
 printf 'setup complete\n'
+printf 'next: fill in %s, then run pnpm run doctor to verify the workspace is configured and live\n' "$ENV_LOCAL"

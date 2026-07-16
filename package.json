@@ -7,6 +7,7 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
+    "doctor": "node ./scripts/doctor.mjs",
     "preinstall": "npx only-allow pnpm",
     "dev": "npm-run-all --parallel dev:next dev:convex",
     "dev:next": "next dev --turbopack",
