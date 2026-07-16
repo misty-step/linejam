@@ -21,6 +21,18 @@ import { WORD_COUNTS } from '../../convex/lib/gameRules';
 import { setupConvexTest } from '../helpers/convexTest';
 
 type T = ReturnType<typeof setupConvexTest>;
+/**
+ * convex-test can return after its in-flight scheduler set is empty while a
+ * fake-timer callback queued by the last scheduler turn is still pending.
+ * Keep pumping until both the scheduler and Vitest's timer queue are empty.
+ */
+async function finishScheduledFunctions(t: T) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    if (vi.getTimerCount() === 0) return;
+  }
+  throw new Error('scheduled functions did not drain their timer queue');
+}
 
 async function seedGame(
   t: T,
@@ -143,6 +155,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.clearAllTimers();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -230,7 +243,7 @@ describe('shared bot and ghost generation budget', () => {
       gameId,
       round: 0,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const game = await t.run((ctx) => ctx.db.get(gameId));
     expect(game?.status).toBe('COMPLETED');

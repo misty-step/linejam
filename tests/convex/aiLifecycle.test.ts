@@ -16,6 +16,18 @@ import {
 } from '../../convex/lib/abuseRateLimit';
 
 /**
+ * Drain Convex scheduler work and any timer callback queued by its final turn.
+ * The extra timer-queue check prevents fake-timer work leaking between tests.
+ */
+async function finishScheduledFunctions(t: T) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    if (vi.getTimerCount() === 0) return;
+  }
+  throw new Error('scheduled functions did not drain their timer queue');
+}
+
+/**
  * AI lifecycle integration tests on the real convex-test engine (backlog 018
  * / slice 014 groundwork). Replaces the mock-DB approach with real DB +
  * scheduler so every assertion reflects observable DB state instead of
@@ -171,6 +183,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.clearAllTimers();
   process.env = { ...ORIGINAL_ENV };
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -651,7 +664,7 @@ describe('generateLineForRound (action, fallback path)', () => {
       gameId,
       round: 2,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const line = await t.run((ctx) =>
       ctx.db
@@ -715,7 +728,7 @@ describe('generateLineForRound (action, fallback path)', () => {
       gameId,
       round: 8,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const lines = await getAllLines(t, gameId);
     expect(lines).toHaveLength(0);
@@ -733,7 +746,7 @@ describe('generateLineForRound (action, fallback path)', () => {
       gameId,
       round: 0,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const lines = await getAllLines(t, gameId);
     expect(lines).toHaveLength(0);
@@ -788,7 +801,7 @@ describe('AI fallback observability', () => {
       });
     }
     await t.mutation(internal.ai.recordAiGenerationOutcome, {});
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const metric = await t.run((ctx) =>
       ctx.db.query('aiGenerationMetrics').first()
@@ -878,7 +891,7 @@ describe('generateGhostLine (action, fallback path)', () => {
       poemId: alicePoem,
       forUserId: aliceId,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const line = await t.run((ctx) =>
       ctx.db
@@ -926,7 +939,7 @@ describe('generateGhostLine (action, fallback path)', () => {
       poemId: alicePoem,
       forUserId: aliceId,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     // Still exactly one line — the ghost must not overwrite.
     const lines = await t.run((ctx) =>
@@ -964,7 +977,7 @@ describe('generateGhostLine (action, fallback path)', () => {
       poemId: alicePoem,
       forUserId: aliceId,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const line = await t.run((ctx) =>
       ctx.db
@@ -1014,7 +1027,7 @@ describe('generateGhostLine (action, fallback path)', () => {
         .withIdentity({ subject: 'clerk_ghostclaimhost' })
         .mutation(api.game.summonGhostwriter, { roomCode }),
     ]);
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const usage = await t.run((ctx) =>
       ctx.db
@@ -1145,7 +1158,7 @@ describe('generateGhostLine (action, fallback path)', () => {
 
     // Simulate an action/provider crash after the claim. The claim-owned
     // scheduler must fill the cell without a second provider authorization.
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const line = await t.run((ctx) =>
       ctx.db
@@ -1431,7 +1444,7 @@ describe('multi-bot scheduling (solo play)', () => {
       gameId,
       round: 0,
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await finishScheduledFunctions(t);
 
     const aiPoemIndexes = [1, 2, 3].filter((p) => aiIds.has(matrix[0][p]));
     for (const poem of aiPoemIndexes) {
