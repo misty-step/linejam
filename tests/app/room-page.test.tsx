@@ -148,9 +148,13 @@ describe('RoomPage', () => {
     renderRoomPage();
 
     const title = await screen.findByText('Room not found');
-    const detail = screen.getByText(/room code may be incorrect/i);
+    const detail = screen.getByText(/room code is incorrect/i);
+    const recovery = screen.getByRole('button', { name: /return to join/i });
     expect(title.parentElement).toHaveClass('lj-safe-inline', 'text-center');
     expect(detail).toHaveClass('max-w-md');
+    expect(recovery).toHaveClass('min-h-11', 'w-full');
+    recovery.click();
+    expect(mockPush).toHaveBeenCalledWith('/join');
   });
 
   it('renders an explicit recovery state when room status is unknown', async () => {

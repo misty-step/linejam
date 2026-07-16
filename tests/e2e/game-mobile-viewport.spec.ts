@@ -521,7 +521,7 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     await session.hostPage.keyboard.press('Escape');
 
     await session.hostPage
-      .getByRole('button', { name: /Room code .*scan QR/i })
+      .getByRole('button', { name: /Open QR and copy options for room code/i })
       .click();
     const qrPopover = session.hostPage.locator('.lj-room-popover').filter({
       visible: true,

@@ -16,6 +16,7 @@ import {
   isPresenceStale,
 } from './lib/gameRules';
 import { countWords } from './lib/wordCount';
+import { MAX_LINE_LENGTH, normalizeLineText } from './lib/lineText';
 import { getUser, checkParticipation } from './lib/auth';
 import {
   getRoomByCode,
@@ -34,8 +35,6 @@ import {
   buildRevealParticipants,
   selectRevealAuthority,
 } from './lib/revealAuthorization';
-
-const MAX_LINE_LENGTH = 500; // More than enough for 5 words
 
 export const startGame = mutation({
   args: {
@@ -316,15 +315,18 @@ export const submitLine = mutation({
     ];
     if (assignedUserId !== user._id) throw new ConvexError('Not your turn');
 
-    // Validate line length (prevent storage abuse)
+    // Validate line length (prevent storage abuse) before normalization.
     if (text.length > MAX_LINE_LENGTH) {
       throw new ConvexError(
         `Line must be ${MAX_LINE_LENGTH} characters or less`
       );
     }
 
+    // Collapse pasted tabs/newlines before counting and storing.
+    const normalizedText = normalizeLineText(text);
+
     // Validate word count against the poem shape
-    const wordCount = countWords(text);
+    const wordCount = countWords(normalizedText);
     const expectedCount = WORD_COUNTS[lineIndex];
     if (wordCount !== expectedCount) {
       throw new ConvexError(
@@ -335,7 +337,7 @@ export const submitLine = mutation({
     await ctx.db.insert('lines', {
       poemId,
       indexInPoem: lineIndex,
-      text: text.trim(),
+      text: normalizedText,
       wordCount,
       authorUserId: user._id,
       authorDisplayName: user.displayName,

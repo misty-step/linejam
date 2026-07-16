@@ -296,7 +296,7 @@ export function WaitingScreen({
                   disabled={ghostState === 'summoning'}
                   variant="outline"
                   size="md"
-                  className="w-full"
+                  className="min-h-11 w-full"
                 >
                   {ghostState === 'summoning'
                     ? 'Summoning…'

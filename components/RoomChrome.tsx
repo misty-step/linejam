@@ -60,6 +60,7 @@ export function RoomChrome({
   const [showMenu, setShowMenu] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [codeCopyError, setCodeCopyError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const { handleShare, copied, shared, shareError } = useShareLink({
@@ -77,12 +78,15 @@ export function RoomChrome({
   const joinUrl = `${window.location.origin}/join?code=${roomCode}`;
 
   const handleCopyCode = async () => {
+    setCodeCopyError(false);
     try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(roomCode);
       setCodeCopied(true);
       setTimeout(() => setCodeCopied(false), 2000);
     } catch {
-      // Clipboard unavailable — no-op
+      setCodeCopied(false);
+      setCodeCopyError(true);
     }
   };
 
@@ -162,18 +166,18 @@ export function RoomChrome({
                       setShowMenu(false);
                     }}
                     className={cn(
-                      'rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 text-[0.6875rem] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer',
+                      'min-h-[44px] rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 text-[0.6875rem] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer',
                       compact
                         ? 'max-w-full truncate px-[10px] py-[2px]'
                         : 'shrink-0 px-2.5 py-0.5'
                     )}
-                    aria-label={`Room code ${formatRoomCode(roomCode)} — tap to copy or scan QR`}
+                    aria-label={`Open QR and copy options for room code ${formatRoomCode(roomCode)}`}
                   >
                     Room {formatRoomCode(roomCode)}
                   </button>
 
                   {showQr && (
-                    <div className="lj-room-popover absolute left-0 top-full z-50 mt-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
+                    <div className="lj-room-popover absolute left-0 top-full z-50 mt-3 max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
                       <div className="flex flex-col items-center gap-3">
                         <QRCodeSVG
                           value={joinUrl}
@@ -182,20 +186,32 @@ export function RoomChrome({
                           fgColor="var(--color-text-primary)"
                           bgColor="transparent"
                         />
-                        <div className="flex items-center gap-2 w-full">
+                        {codeCopyError && (
+                          <Alert variant="error" className="w-full text-xs">
+                            Couldn&apos;t copy the room code. Try again.
+                          </Alert>
+                        )}
+                        <div className="flex w-full items-center gap-2">
                           <button
                             type="button"
                             onClick={() => {
                               void handleCopyCode();
                             }}
-                            className="flex-1 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-[var(--color-text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
+                            className="min-h-[44px] min-w-0 flex-1 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-[var(--color-text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
+                            aria-label={
+                              codeCopyError
+                                ? 'Retry copying room code'
+                                : codeCopied
+                                  ? 'Room code copied'
+                                  : 'Copy room code'
+                            }
                           >
-                            {codeCopied ? 'Copied!' : `Copy ${roomCode}`}
+                            {codeCopied ? 'Copied!' : 'Copy code'}
                           </button>
                           <button
                             type="button"
                             onClick={() => setShowQr(false)}
-                            className="shrink-0 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1.5"
+                            className="flex h-[44px] w-[44px] shrink-0 items-center justify-center text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
                             aria-label="Close QR"
                           >
                             ✕

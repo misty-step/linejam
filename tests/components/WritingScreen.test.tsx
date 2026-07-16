@@ -1,6 +1,12 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { getFunctionName } from 'convex/server';
 
@@ -124,6 +130,23 @@ describe('WritingScreen component', () => {
 
     const wordSlots = document.getElementById('word-slots');
     expect(wordSlots).toBeInTheDocument();
+  });
+
+  it('declares the one-line 500-character mobile input contract', () => {
+    render(<WritingScreen roomCode="ABCD" />);
+
+    const textarea = screen.getByTestId(E2E_TEST_IDS.writingLineInput);
+    expect(textarea).toHaveAttribute('maxlength', '500');
+    expect(textarea).toHaveAttribute('inputmode', 'text');
+    expect(textarea).toHaveAttribute('autocapitalize', 'sentences');
+    expect(textarea).toHaveAttribute('autocorrect', 'on');
+    expect(textarea).toHaveAttribute('enterkeyhint', 'done');
+    expect(textarea).toHaveAttribute('wrap', 'soft');
+    expect(screen.getByText('0/500 characters')).toBeInTheDocument();
+
+    fireEvent.change(textarea, { target: { value: 'one\ntwo' } });
+    expect(textarea).toHaveValue('one two');
+    expect(screen.getByText('7/500 characters')).toBeInTheDocument();
   });
 
   it('owns the dynamic game viewport and reserves a non-overlapping action zone', () => {
@@ -292,6 +315,17 @@ describe('WritingScreen component', () => {
 
     expect(screen.getByRole('textbox')).toHaveValue('Recovered');
     expect(screen.getByText('Draft restored')).toBeInTheDocument();
+  });
+
+  it('normalizes a legacy multiline draft before rendering', () => {
+    sessionStorage.setItem(
+      'linejam:writing-draft:ABCD:poem_123:0',
+      '  Recovered\nline  '
+    );
+
+    render(<WritingScreen roomCode="ABCD" />);
+
+    expect(screen.getByRole('textbox')).toHaveValue('Recovered line');
   });
 
   it('clears the saved draft once Convex confirms the line', async () => {
