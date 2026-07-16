@@ -1,13 +1,20 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '../../../lib/auth';
 import { Id } from '../../../convex/_generated/dataModel';
 import { PoemDisplay, PoemLine } from '../../../components/PoemDisplay';
 
-export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
+export function PoemDetail({
+  poemId,
+  shareSlug,
+}: {
+  poemId: Id<'poems'>;
+  shareSlug?: string;
+}) {
   const { guestToken } = useUser();
 
   // Try authenticated query first (includes favorite capability)
@@ -16,7 +23,22 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
     guestToken: guestToken || undefined,
   });
   // Fallback to public query for outsiders
-  const publicPoem = useQuery(api.poems.getPublicPoemFull, { poemId });
+  const publicPoem = useQuery(api.poems.getPublicPoemFull, {
+    poemId,
+    shareSlug,
+  });
+  const shareStatus = useQuery(
+    api.poems.getPublicPoemShareStatus,
+    shareSlug ? { shareSlug } : 'skip'
+  );
+  const [sharePendingExpired, setSharePendingExpired] = useState(false);
+  useEffect(() => {
+    if (shareStatus?.state !== 'pending' || shareStatus.expiresAt === undefined)
+      return;
+    const remaining = Math.max(0, shareStatus.expiresAt - Date.now());
+    const timer = setTimeout(() => setSharePendingExpired(true), remaining);
+    return () => clearTimeout(timer);
+  }, [shareStatus?.state, shareStatus?.expiresAt]);
 
   // Use authenticated data if available, else public
   const data = poemDetail || publicPoem;
@@ -29,6 +51,22 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
     isParticipant ? { poemId, guestToken: guestToken || undefined } : 'skip'
   );
   const toggleFavorite = useMutation(api.favorites.toggleFavorite);
+  const disablePublicPoemShare = useMutation(api.shares.disablePublicPoemShare);
+
+  if (
+    !data &&
+    shareSlug &&
+    shareStatus?.state === 'pending' &&
+    !sharePendingExpired
+  ) {
+    return (
+      <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center px-6">
+        <p role="status" className="text-sm text-[var(--color-text-muted)]">
+          Preparing this shared poem…
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -100,7 +138,14 @@ export function PoemDetail({ poemId }: { poemId: Id<'poems'> }) {
         firstLine: lines[0]?.text ?? '',
         isParticipant,
         isFavorited: isFavorited ?? false,
+        isPublic: poemDetail?.poem.publicShareEnabled === true,
         onToggleFavorite: handleToggleFavorite,
+        onRevokeShare: async () => {
+          await disablePublicPoemShare({
+            poemId,
+            guestToken: guestToken || undefined,
+          });
+        },
         backHref: isParticipant ? '/me/poems' : '/',
         backLabel: isParticipant ? '← Archive' : '← Linejam',
         uniquePoets,

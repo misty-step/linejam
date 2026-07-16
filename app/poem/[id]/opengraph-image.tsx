@@ -24,17 +24,20 @@ const fonts = getCardFontPairing(OG_THEME_ID);
 
 export default async function Image({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ share?: string }>;
 }) {
   const { fonts: loadedFonts } = await loadCardFonts(OG_THEME_ID);
 
   const { id } = await params;
+  const { share } = (await searchParams) ?? {};
   const poemId = id as Id<'poems'>;
 
   const preview = await fetchQuery(
     api.poems.getPublicPoemPreview,
-    { poemId },
+    { poemId, shareSlug: share },
     {}
   ).catch(() => null);
 

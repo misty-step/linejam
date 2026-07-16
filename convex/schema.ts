@@ -125,6 +125,8 @@ export default defineSchema({
     publicShareEnabled: v.optional(v.boolean()),
     publicShareEnabledAt: v.optional(v.number()),
     publicShareDisabledAt: v.optional(v.number()),
+    /** Active native-share generation; stale activation/cancel cannot win. */
+    publicShareAttempt: v.optional(v.string()),
     retentionState: v.optional(retentionState),
     retentionEligibleAt: v.optional(v.number()),
   })
@@ -225,9 +227,17 @@ export default defineSchema({
 
   shares: defineTable({
     poemId: v.id('poems'),
+    slug: v.optional(v.string()),
+    nonce: v.optional(v.string()),
+    state: v.optional(
+      v.union(v.literal('pending'), v.literal('active'), v.literal('cancelled'))
+    ),
     createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    activatedAt: v.optional(v.number()),
   })
     .index('by_poem', ['poemId'])
+    .index('by_slug', ['slug'])
     .index('by_created', ['createdAt']),
 
   rateLimits: defineTable({

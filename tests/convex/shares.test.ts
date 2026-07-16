@@ -64,63 +64,6 @@ async function seedRoom(
 }
 
 describe('shares', () => {
-  describe('enablePublicPoemShare', () => {
-    it('marks a poem public when the caller participates in its room', async () => {
-      const t = setupConvexTest();
-      const { poemId, roomId } = await seedRoom(t);
-
-      await asUser(t, 'owner').mutation(api.shares.enablePublicPoemShare, {
-        poemId,
-      });
-
-      const poem = await t.run((ctx) => ctx.db.get(poemId));
-      const room = await t.run((ctx) => ctx.db.get(roomId));
-      expect(poem?.publicShareEnabled).toBe(true);
-      expect(typeof poem?.publicShareEnabledAt).toBe('number');
-      expect(poem?.publicShareDisabledAt).toBeUndefined();
-      expect(poem?.retentionState).toBe('protected');
-      expect(poem?.retentionEligibleAt).toBeUndefined();
-      expect(room?.retentionState).toBe('protected');
-    });
-
-    it('rejects poem sharing for non-participants', async () => {
-      const t = setupConvexTest();
-      const { poemId } = await seedRoom(t);
-      // A real, authenticated user who is NOT a member of the room.
-      await t.run((ctx) =>
-        ctx.db.insert('users', {
-          displayName: 'Outsider',
-          kind: 'human',
-          clerkUserId: 'clerk_outsider',
-          createdAt: 0,
-        })
-      );
-
-      await expect(
-        t
-          .withIdentity({ subject: 'clerk_outsider' })
-          .mutation(api.shares.enablePublicPoemShare, { poemId })
-      ).rejects.toThrow('Not authorized to share this poem');
-
-      const poem = await t.run((ctx) => ctx.db.get(poemId));
-      expect(poem?.publicShareEnabled).toBeUndefined();
-    });
-
-    it('rejects poem sharing before the poem has been revealed', async () => {
-      const t = setupConvexTest();
-      const { poemId } = await seedRoom(t, { revealed: false });
-
-      await expect(
-        asUser(t, 'owner').mutation(api.shares.enablePublicPoemShare, {
-          poemId,
-        })
-      ).rejects.toThrow('Poem is not ready to share');
-
-      const poem = await t.run((ctx) => ctx.db.get(poemId));
-      expect(poem?.publicShareEnabled).toBeUndefined();
-    });
-  });
-
   describe('disablePublicPoemShare', () => {
     it('marks a shared poem private when the caller participates', async () => {
       const t = setupConvexTest();
@@ -213,6 +156,171 @@ describe('shares', () => {
       expect(game?.retentionState).toBe('pending');
       expect(room?.retentionState).toBe('pending');
       expect(poem?.retentionState).toBe('pending');
+    });
+  });
+
+  describe('inert native-share publication', () => {
+    it('keeps a prepared slug private until activation', async () => {
+      const t = setupConvexTest();
+      const { poemId } = await seedRoom(t);
+      const pending = await asUser(t, 'owner').mutation(
+        api.shares.preparePublicPoemShare,
+        { poemId }
+      );
+
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: pending.slug,
+        })
+      ).toBeNull();
+      expect(
+        await t.query(api.poems.getPublicPoemShareStatus, {
+          shareSlug: pending.slug,
+        })
+      ).toMatchObject({ state: 'pending' });
+
+      await asUser(t, 'owner').mutation(api.shares.activatePublicPoemShare, {
+        poemId,
+        slug: pending.slug,
+        nonce: pending.nonce,
+      });
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: pending.slug,
+        })
+      ).not.toBeNull();
+      await asUser(t, 'owner').mutation(api.shares.disablePublicPoemShare, {
+        poemId,
+      });
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: pending.slug,
+        })
+      ).toBeNull();
+      expect(await t.query(api.poems.getPublicPoemFull, { poemId })).toBeNull();
+    });
+
+    it('does not let an inactive slug inherit another public generation', async () => {
+      const t = setupConvexTest();
+      const { poemId } = await seedRoom(t, { publicShareEnabled: true });
+      const pending = await asUser(t, 'owner').mutation(
+        api.shares.preparePublicPoemShare,
+        { poemId }
+      );
+
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: pending.slug,
+        })
+      ).toBeNull();
+      expect(
+        await t.query(api.poems.getPublicPoemPreview, {
+          poemId,
+          shareSlug: pending.slug,
+        })
+      ).toBeNull();
+    });
+
+    it('only activates the winning generation in a double-share race', async () => {
+      const t = setupConvexTest();
+      const { poemId } = await seedRoom(t);
+      const owner = asUser(t, 'owner');
+      const first = await owner.mutation(api.shares.preparePublicPoemShare, {
+        poemId,
+      });
+      const second = await owner.mutation(api.shares.preparePublicPoemShare, {
+        poemId,
+      });
+
+      const staleActivation = await owner.mutation(
+        api.shares.activatePublicPoemShare,
+        { poemId, slug: first.slug, nonce: first.nonce }
+      );
+      expect(staleActivation).toMatchObject({
+        publicShareEnabled: false,
+        changed: false,
+      });
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: first.slug,
+        })
+      ).toBeNull();
+
+      await owner.mutation(api.shares.activatePublicPoemShare, {
+        poemId,
+        slug: second.slug,
+        nonce: second.nonce,
+      });
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: second.slug,
+        })
+      ).not.toBeNull();
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: first.slug,
+        })
+      ).toBeNull();
+    });
+
+    it('rejects activation after cancellation', async () => {
+      const t = setupConvexTest();
+      const { poemId } = await seedRoom(t);
+      const pending = await asUser(t, 'owner').mutation(
+        api.shares.preparePublicPoemShare,
+        { poemId }
+      );
+      await asUser(t, 'owner').mutation(api.shares.cancelPublicPoemShare, {
+        poemId,
+        slug: pending.slug,
+        nonce: pending.nonce,
+      });
+      await asUser(t, 'owner').mutation(api.shares.activatePublicPoemShare, {
+        poemId,
+        slug: pending.slug,
+        nonce: pending.nonce,
+      });
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: pending.slug,
+        })
+      ).toBeNull();
+    });
+
+    it('stale cancellation cannot revoke a newer activated generation', async () => {
+      const t = setupConvexTest();
+      const { poemId } = await seedRoom(t);
+      const owner = asUser(t, 'owner');
+      const first = await owner.mutation(api.shares.preparePublicPoemShare, {
+        poemId,
+      });
+      const second = await owner.mutation(api.shares.preparePublicPoemShare, {
+        poemId,
+      });
+      await owner.mutation(api.shares.activatePublicPoemShare, {
+        poemId,
+        slug: second.slug,
+        nonce: second.nonce,
+      });
+      await owner.mutation(api.shares.cancelPublicPoemShare, {
+        poemId,
+        slug: first.slug,
+        nonce: first.nonce,
+      });
+      expect(
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: second.slug,
+        })
+      ).not.toBeNull();
     });
   });
 

@@ -5,12 +5,16 @@ import type { Metadata } from 'next';
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ share?: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  const { share } = (await searchParams) ?? {};
   const preview = await fetchQuery(api.poems.getPublicPoemPreview, {
     poemId: id as Id<'poems'>,
+    shareSlug: share,
   }).catch(() => null);
 
   if (!preview) {

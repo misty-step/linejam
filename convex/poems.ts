@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
 import { query } from './_generated/server';
+import type { QueryCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import { getUser, checkParticipation } from './lib/auth';
 import { getRoomByCode, getActiveGame, getCompletedGame } from './lib/room';
@@ -13,6 +14,26 @@ import { hashRoomId } from '../lib/roomIdHash';
 const DEFAULT_MY_POEMS_LIMIT = 24;
 const MAX_MY_POEMS_LIMIT = 48;
 const MAX_LINES_PER_POEM = 9;
+
+async function resolvesPublicShare(
+  ctx: QueryCtx,
+  poemId: Id<'poems'>,
+  shareSlug: string | undefined
+) {
+  if (!shareSlug) return false;
+  const [poem, share] = await Promise.all([
+    ctx.db.get(poemId),
+    ctx.db
+      .query('shares')
+      .withIndex('by_slug', (q) => q.eq('slug', shareSlug))
+      .first(),
+  ]);
+  return (
+    poem?.publicShareEnabled === true &&
+    share?.poemId === poemId &&
+    share.state === 'active'
+  );
+}
 
 function boundedLimit(
   value: number | undefined,
@@ -125,6 +146,7 @@ export const getPoemDetail = query({
         _id: poem._id,
         indexInRoom: poem.indexInRoom,
         createdAt: poem.createdAt,
+        publicShareEnabled: poem.publicShareEnabled === true,
       },
       lines: linesWithAuthors,
     };
@@ -209,11 +231,14 @@ export const getMyPoems = query({
 export const getPublicPoemPreview = query({
   args: {
     poemId: v.id('poems'),
+    shareSlug: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId }) => {
+  handler: async (ctx, { poemId, shareSlug }) => {
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
-    if (!isPublicPoemShareEnabled(poem)) return null;
+    const shareResolved = await resolvesPublicShare(ctx, poemId, shareSlug);
+    if (shareSlug ? !shareResolved : !isPublicPoemShareEnabled(poem))
+      return null;
 
     const lines = await ctx.db
       .query('lines')
@@ -235,11 +260,14 @@ export const getPublicPoemPreview = query({
 export const getPublicPoemFull = query({
   args: {
     poemId: v.id('poems'),
+    shareSlug: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId }) => {
+  handler: async (ctx, { poemId, shareSlug }) => {
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
-    if (!isPublicPoemShareEnabled(poem)) return null;
+    const shareResolved = await resolvesPublicShare(ctx, poemId, shareSlug);
+    if (shareSlug ? !shareResolved : !isPublicPoemShareEnabled(poem))
+      return null;
 
     const lines = await ctx.db
       .query('lines')
@@ -279,6 +307,27 @@ export const getPublicPoemFull = query({
         };
       }),
     };
+  },
+});
+
+export const getPublicPoemShareStatus = query({
+  args: { shareSlug: v.string() },
+  handler: async (ctx, { shareSlug }) => {
+    const share = await ctx.db
+      .query('shares')
+      .withIndex('by_slug', (q) => q.eq('slug', shareSlug))
+      .first();
+    if (!share) return { state: 'missing' as const };
+    if (share.state === 'active') {
+      const poem = await ctx.db.get(share.poemId);
+      return poem?.publicShareEnabled === true
+        ? { state: 'active' as const }
+        : { state: 'expired' as const };
+    }
+    if (share.state === 'pending' && (share.expiresAt ?? 0) > Date.now()) {
+      return { state: 'pending' as const, expiresAt: share.expiresAt };
+    }
+    return { state: 'expired' as const, expiresAt: share.expiresAt };
   },
 });
 

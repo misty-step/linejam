@@ -33,6 +33,7 @@ interface PoemCardProps {
     poetCount: number;
     lineCount: number;
     isFavorited: boolean;
+    publicShareEnabled?: boolean;
     createdAt: number;
     coAuthors: string[];
   };
@@ -64,6 +65,8 @@ export function PoemCard({
   const [localFavorited, setLocalFavorited] = useState(poem.isFavorited);
 
   const toggleFavorite = useMutation(api.favorites.toggleFavorite);
+  const disablePublicPoemShare = useMutation(api.shares.disablePublicPoemShare);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   const wordCounts = poem.lines.map((l) => l.wordCount);
   const authorStableIds = poem.lines.map((l) => l.authorKey);
@@ -175,6 +178,30 @@ export function PoemCard({
             </svg>
           </button>
         </div>
+
+        {poem.publicShareEnabled && (
+          <button
+            type="button"
+            disabled={isRevoking}
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (isRevoking) return;
+              setIsRevoking(true);
+              try {
+                await disablePublicPoemShare({
+                  poemId: poem._id,
+                  guestToken: guestToken || undefined,
+                });
+              } finally {
+                setIsRevoking(false);
+              }
+            }}
+            className="mb-4 text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)] underline hover:text-[var(--color-text-primary)]"
+          >
+            {isRevoking ? 'Revoking…' : 'Revoke public link'}
+          </button>
+        )}
 
         {/* Preview Text */}
         <div className="mb-6">

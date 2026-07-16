@@ -4,10 +4,37 @@ import { renderHook, act } from '@testing-library/react';
 import { useSharePoem } from '../../hooks/useSharePoem';
 import type { Id } from '../../convex/_generated/dataModel';
 
-// Mock convex/react
-const mockEnablePublicPoemShare = vi.fn().mockResolvedValue(undefined);
+// Mock Convex mutations independently so prepare/activate/cancel ordering is observable.
+const mockApiRefs = vi.hoisted(() => ({
+  prepare: {},
+  activate: {},
+  cancel: {},
+  disable: {},
+}));
+const mockPreparePublicPoemShare = vi
+  .fn()
+  .mockResolvedValue({ slug: 'slug-1', nonce: 'nonce-1' });
+const mockActivatePublicPoemShare = vi.fn().mockResolvedValue(undefined);
+const mockCancelPublicPoemShare = vi.fn().mockResolvedValue(undefined);
+const mockDisablePublicPoemShare = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/convex/_generated/api', () => ({
+  api: {
+    shares: {
+      preparePublicPoemShare: mockApiRefs.prepare,
+      activatePublicPoemShare: mockApiRefs.activate,
+      cancelPublicPoemShare: mockApiRefs.cancel,
+      disablePublicPoemShare: mockApiRefs.disable,
+    },
+  },
+}));
 vi.mock('convex/react', () => ({
-  useMutation: () => mockEnablePublicPoemShare,
+  useMutation: (ref: unknown) => {
+    if (ref === mockApiRefs.prepare) return mockPreparePublicPoemShare;
+    if (ref === mockApiRefs.activate) return mockActivatePublicPoemShare;
+    if (ref === mockApiRefs.cancel) return mockCancelPublicPoemShare;
+    if (ref === mockApiRefs.disable) return mockDisablePublicPoemShare;
+    throw new Error('Unexpected mutation reference');
+  },
 }));
 
 // Mock lib/error's captureError
@@ -34,7 +61,12 @@ describe('useSharePoem', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockEnablePublicPoemShare.mockResolvedValue(undefined);
+    mockPreparePublicPoemShare.mockResolvedValue({
+      slug: 'slug-1',
+      nonce: 'nonce-1',
+    });
+    mockActivatePublicPoemShare.mockResolvedValue(undefined);
+    mockCancelPublicPoemShare.mockResolvedValue(undefined);
     vi.useFakeTimers();
 
     // Store originals
@@ -103,12 +135,10 @@ describe('useSharePoem', () => {
     });
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      'https://example.com/poem/poem123'
+      'https://example.com/poem/poem123?share=slug-1'
     );
-    expect(mockEnablePublicPoemShare).toHaveBeenCalledWith({
-      poemId: testPoemId,
-      guestToken: undefined,
-    });
+    expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
+    expect(mockActivatePublicPoemShare).toHaveBeenCalledOnce();
   });
 
   it('sets copied=true after successful copy', async () => {
@@ -155,7 +185,7 @@ describe('useSharePoem', () => {
   });
 
   it('reports an error when the copied private link cannot be published', async () => {
-    mockEnablePublicPoemShare.mockRejectedValueOnce(new Error('Forbidden'));
+    mockActivatePublicPoemShare.mockRejectedValueOnce(new Error('Forbidden'));
     const { result } = renderHook(() =>
       useSharePoem(testPoemId, undefined, openingLine)
     );
@@ -165,9 +195,10 @@ describe('useSharePoem', () => {
     });
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      'https://example.com/poem/poem123'
+      'https://example.com/poem/poem123?share=slug-1'
     );
     expect(mockTrackPoemShared).not.toHaveBeenCalled();
+    expect(mockCancelPublicPoemShare).toHaveBeenCalledOnce();
     expect(result.current.shareError).toBe(
       'Failed to share poem. Please try again.'
     );
@@ -190,6 +221,8 @@ describe('useSharePoem', () => {
       operation: 'sharePoem',
       poemId: testPoemId,
     });
+    expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
+    expect(mockCancelPublicPoemShare).toHaveBeenCalledOnce();
     expect(result.current.copied).toBe(false); // Copy failed, so copied stays false
     expect(result.current.shareError).toBe(
       'Failed to share poem. Please try again.'
@@ -229,12 +262,10 @@ describe('useSharePoem', () => {
     expect(nativeShare).toHaveBeenCalledWith({
       title: 'Linejam poem',
       text: 'Read "The moon hums" from our Linejam session.',
-      url: 'https://example.com/poem/poem123',
+      url: 'https://example.com/poem/poem123?share=slug-1',
     });
-    expect(mockEnablePublicPoemShare).toHaveBeenCalledWith({
-      poemId: testPoemId,
-      guestToken: undefined,
-    });
+    expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
+    expect(mockActivatePublicPoemShare).toHaveBeenCalledOnce();
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
     expect(result.current.shared).toBe(true);
     expect(mockTrackPoemShared).toHaveBeenCalledWith({
@@ -242,7 +273,7 @@ describe('useSharePoem', () => {
     });
   });
 
-  it('falls back to clipboard when native share fails', async () => {
+  it('keeps a failed native share private', async () => {
     Object.defineProperty(navigator, 'share', {
       value: vi.fn().mockRejectedValue(new Error('Share sheet unavailable')),
       writable: true,
@@ -251,15 +282,13 @@ describe('useSharePoem', () => {
     const { result } = renderHook(() =>
       useSharePoem(testPoemId, undefined, openingLine)
     );
-
     await act(async () => {
       await result.current.handleShare();
     });
-
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      'https://example.com/poem/poem123'
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBe(
+      'Failed to share poem. Please try again.'
     );
-    expect(result.current.copied).toBe(true);
   });
 
   it('does not surface an error when native share is cancelled', async () => {
@@ -279,7 +308,8 @@ describe('useSharePoem', () => {
 
     expect(result.current.shareError).toBeNull();
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
-    expect(mockEnablePublicPoemShare).not.toHaveBeenCalled();
+    expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
+    expect(mockCancelPublicPoemShare).toHaveBeenCalledOnce();
     expect(mockTrackPoemShared).not.toHaveBeenCalled();
     expect(mockCaptureError).not.toHaveBeenCalled();
   });
@@ -304,7 +334,7 @@ describe('useSharePoem', () => {
     expect(nativeShare).toHaveBeenCalledWith({
       title: 'Linejam poem',
       text: `Read "${longOpeningLine.slice(0, 77)}..." from our Linejam session.`,
-      url: 'https://example.com/poem/poem123',
+      url: 'https://example.com/poem/poem123?share=slug-1',
     });
   });
 
@@ -324,7 +354,7 @@ describe('useSharePoem', () => {
     expect(nativeShare).toHaveBeenCalledWith({
       title: 'Linejam poem',
       text: 'Read this poem from our Linejam session.',
-      url: 'https://example.com/poem/poem123',
+      url: 'https://example.com/poem/poem123?share=slug-1',
     });
   });
 
