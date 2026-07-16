@@ -439,6 +439,7 @@ describe('Lobby component', () => {
     const removeAiButtons = screen.getAllByRole('button', {
       name: /Remove AI/i,
     });
+    expect(removeAiButtons[0]).toHaveClass('h-11', 'w-11');
 
     // Act
     await user.click(removeAiButtons[0]);

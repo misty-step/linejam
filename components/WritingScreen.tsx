@@ -10,6 +10,7 @@ import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
 import { cn } from '@/lib/utils';
 import { countWords } from '@/lib/wordCount';
+import { normalizeLineText } from '@/convex/lib/lineText';
 import { Alert } from '@/components/ui/Alert';
 import { RoomChrome } from '@/components/RoomChrome';
 import { Button } from '@/components/ui/Button';
@@ -89,7 +90,9 @@ function WritingComposer({
     assignment.poemId,
     assignment.lineIndex
   );
-  const [text, setText] = useState(() => readWritingDraft(draftKey));
+  const [text, setText] = useState(() =>
+    normalizeLineText(readWritingDraft(draftKey))
+  );
   const [draftWasRestored] = useState(() => text.length > 0);
   const [submissionState, setSubmissionState] = useState<
     'idle' | 'submitting' | 'confirmed'
@@ -137,6 +140,13 @@ function WritingComposer({
   const isValid = currentWordCount === targetCount;
   const isReady = isValid && submissionState === 'idle';
   const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
+
+  const handleTextChange = (value: string) => {
+    // Keep the client contract one-line while preserving pasted content. The
+    // mutation applies the same whitespace collapse before storing the line.
+    setText(value.replace(/[\r\n]+/g, ' '));
+    setError(null);
+  };
 
   // Announce validation state changes to screen readers (debounced)
   useEffect(() => {
@@ -196,7 +206,7 @@ function WritingComposer({
       await submitLine({
         poemId: assignment.poemId,
         lineIndex: assignment.lineIndex,
-        text,
+        text: normalizeLineText(text),
         guestToken: guestToken || undefined,
       });
       clearWritingDraft(draftKey);
@@ -296,7 +306,7 @@ function WritingComposer({
                 <p className="mb-3 text-[0.625rem] font-mono uppercase tracking-widest text-primary">
                   Received line
                 </p>
-                <p className="text-2xl md:text-4xl lg:text-5xl font-[var(--font-display)] italic leading-relaxed text-text-secondary">
+                <p className="break-words text-2xl leading-relaxed [overflow-wrap:anywhere] md:text-4xl lg:text-5xl font-[var(--font-display)] italic text-text-secondary">
                   {assignment.previousLineText}
                 </p>
               </div>
@@ -315,7 +325,7 @@ function WritingComposer({
                     Reveal is next.
                   </p>
                 )}
-                <p className="text-lg italic font-[var(--font-display)] text-text-primary">
+                <p className="break-words text-lg italic font-[var(--font-display)] text-text-primary [overflow-wrap:anywhere]">
                   &ldquo;{text}&rdquo;
                 </p>
               </div>
@@ -332,7 +342,7 @@ function WritingComposer({
                 ref={textareaRef}
                 data-testid={E2E_TEST_IDS.writingLineInput}
                 className={cn(
-                  'w-full min-w-0 max-w-full min-h-[64px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content overflow-x-hidden bg-transparent border-none outline-none resize-none',
+                  'w-full min-w-0 max-w-full min-h-[64px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content overflow-x-hidden [overflow-wrap:anywhere] bg-transparent border-none outline-none resize-none',
                   'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
                   'text-text-primary',
                   'placeholder:text-text-muted/20',
@@ -340,18 +350,32 @@ function WritingComposer({
                 )}
                 placeholder={placeholderText}
                 value={text}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  setError(null);
+                onChange={(e) => handleTextChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.preventDefault();
                 }}
                 onFocus={handleTextareaFocus}
                 onBlur={() => setHasFocus(false)}
                 spellCheck={false}
+                maxLength={500}
+                inputMode="text"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                enterKeyHint="done"
+                wrap="soft"
                 aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
                 aria-required="true"
                 aria-invalid={!isValid}
-                aria-describedby="word-slots"
+                aria-describedby="word-slots line-length"
               />
+
+              <p
+                id="line-length"
+                aria-live="polite"
+                className="mt-2 pl-6 text-xs font-mono text-text-muted"
+              >
+                {text.length}/500 characters
+              </p>
 
               {/*
             Word chips sit tight against the line, left-aligned with the

@@ -200,6 +200,24 @@ describe('RoomChrome component', () => {
     });
   });
 
+  it('surfaces room-code clipboard failures and recovers on retry', async () => {
+    mockWriteText.mockRejectedValueOnce(new Error('clipboard blocked'));
+    renderRoomChrome();
+
+    fireEvent.click(screen.getByRole('button', { name: /Room code AB CD/i }));
+    fireEvent.click(screen.getByRole('button', { name: /copy room code/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /couldn.t copy the room code/i
+    );
+
+    mockWriteText.mockResolvedValueOnce(undefined);
+    fireEvent.click(
+      screen.getByRole('button', { name: /retry copying room code/i })
+    );
+    expect(await screen.findByText('Copied!')).toBeInTheDocument();
+  });
+
   it('uses native share when available', async () => {
     const nativeShare = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'share', {

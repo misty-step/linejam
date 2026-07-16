@@ -131,6 +131,7 @@ function ResolvedRoomPage({
 }
 
 function RoomPageContent({ code }: { code: string }) {
+  const router = useRouter();
   const { isLoading, guestToken, authError, retryAuth } = useUser();
   const roomState = useQuery(api.rooms.getRoomState, {
     code,
@@ -154,13 +155,20 @@ function RoomPageContent({ code }: { code: string }) {
 
   if (roomState === null) {
     return (
-      <div className="lj-game-viewport lj-safe-inline flex flex-col items-center justify-center gap-4 bg-[var(--color-background)] text-center">
-        <span className="text-[var(--color-text-primary)] text-xl">
+      <div className="lj-game-viewport lj-safe-inline flex flex-col items-center justify-center gap-4 bg-[var(--color-background)] px-4 py-6 text-center">
+        <span className="break-words text-[var(--color-text-primary)] text-xl">
           Room not found
         </span>
-        <span className="max-w-md text-[var(--color-text-muted)] text-sm">
-          The room code may be incorrect or the room has expired.
+        <span className="max-w-md break-words text-[var(--color-text-muted)] text-sm [overflow-wrap:anywhere]">
+          This room code is incorrect or the room has expired.
         </span>
+        <button
+          type="button"
+          className="min-h-11 w-full max-w-xs rounded-md border border-transparent bg-[var(--color-surface)] px-4 py-2 font-medium text-[var(--color-text-primary)] shadow-sm"
+          onClick={() => router.push('/join')}
+        >
+          Return to join
+        </button>
       </div>
     );
   }

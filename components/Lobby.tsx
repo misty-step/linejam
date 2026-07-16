@@ -289,7 +289,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                                 <button
                                   onClick={() => handleRemoveAi(player.userId)}
                                   disabled={aiLoading}
-                                  className="p-1.5 text-text-muted hover:text-primary transition-colors disabled:opacity-50"
+                                  className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:text-primary disabled:opacity-50"
                                   aria-label="Remove AI player"
                                 >
                                   <UserMinus className="w-4 h-4" />

@@ -1264,6 +1264,35 @@ describe('submitLine', () => {
     expect(line!.wordCount).toBe(1);
   });
 
+  it('collapses pasted whitespace before storing a line', async () => {
+    const t = setupConvexTest();
+    const { poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSLWS' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSLWS' },
+      ],
+      code: 'SLWS',
+      currentRound: 1,
+    });
+
+    await asUser(t, 'bobSLWS').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 1,
+      text: 'hello\nworld',
+    });
+
+    const line = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemIds[0]).eq('indexInPoem', 1)
+        )
+        .first()
+    );
+    expect(line?.text).toBe('hello world');
+    expect(line?.wordCount).toBe(2);
+  });
+
   it('succeeds silently if line already submitted (idempotent)', async () => {
     const t = setupConvexTest();
     const { poemIds } = await seedInProgressGame(t, {
