@@ -45,7 +45,7 @@ export function ConnectionStatus() {
     previousNoticeRef.current = null;
     // This one-shot state update keeps the restored announcement synchronous
     // with the connection transition; the timer only controls its dismissal.
-     
+
     setShowRestored(true);
     const timeoutId = window.setTimeout(() => setShowRestored(false), 3000);
     return () => window.clearTimeout(timeoutId);
