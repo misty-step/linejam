@@ -1,127 +1,120 @@
 'use client';
 
 /**
- * Lightweight analytics tracking for key user actions.
- *
- * Uses the initialized PostHog client for privacy-safe funnel metrics:
- * - game_created, game_joined, game_started, game_completed
- * - poem_shared, ai_player_added
- * - poem_image_saved, recap_exported (linejam-943: the keepable-artifact
- *   funnel — measures save/export usage so the print-on-demand stretch
- *   decision has real demand data behind it)
- *
+ * Canonical room-cycle funnel events. PostHog is the sole client analytics
+ * provider; event properties deliberately contain no room code, guest token,
+ * guest id, display name, poem text, or other durable user identifier.
  */
-
 import posthog from 'posthog-js';
 import { posthogIsReady } from '@/lib/posthog/posthogReady';
 
-function capture(event: string, properties: Record<string, unknown> = {}) {
+export type PlayerKind = 'human' | 'AI';
+export type ArtifactAction = 'share' | 'save';
+
+export type RoomCycleEventProps = {
+  /** Stable one-way room key. Never pass a room code directly. */
+  roomIdHash: string;
+  cycle: number;
+  playerKind: PlayerKind;
+  round?: number;
+};
+
+export type ArtifactActionProps = RoomCycleEventProps & {
+  action: ArtifactAction;
+};
+
+const capturedEvents = new Set<string>();
+
+function capture(
+  event: string,
+  properties: RoomCycleEventProps | ArtifactActionProps
+) {
   if (!posthogIsReady()) return;
+
+  // Convex mutations and browser retries are idempotent. Keep the matching
+  // client event idempotent too so one room/cycle/round cannot inflate a
+  // conversion when a submit or navigation is retried.
+  const key = [
+    event,
+    properties.roomIdHash,
+    properties.cycle,
+    properties.round ?? '',
+    properties.playerKind,
+    'action' in properties ? properties.action : '',
+  ].join(':');
+  if (capturedEvents.has(key)) return;
+  capturedEvents.add(key);
   posthog.capture(event, properties);
 }
 
-type GameCreatedProps = {
-  playerCount?: number;
-};
+export { hashRoomId } from '@/lib/roomIdHash';
 
-type GameJoinedProps = {
-  roomCode: string;
-};
-
-type GameStartedProps = {
-  playerCount: number;
-  hasAi: boolean;
-};
-
-type GameCompletedProps = {
-  playerCount: number;
-  poemCount: number;
-  hasAi: boolean;
-};
-
-type PoemSharedProps = {
-  method: 'clipboard' | 'native-share';
-};
-
-type RoomInviteSharedProps = {
-  method: 'clipboard' | 'native-share';
-  roomCode: string;
-};
-
-type AiPlayerAddedProps = {
-  playerCount: number;
-};
-
-type PoemImageSavedProps = {
-  method: 'native-share' | 'download';
-};
-
-type RecapExportedProps = {
-  method: 'print';
-  poemCount: number;
-};
-
-/**
- * Track game creation by host.
- */
-export function trackGameCreated(props?: GameCreatedProps) {
-  capture('game_created', props ?? {});
+export function trackGameCreated(props: RoomCycleEventProps) {
+  capture('game_created', props);
 }
 
-/**
- * Track player joining a room.
- */
-export function trackGameJoined(props: GameJoinedProps) {
+export function trackGameJoined(props: RoomCycleEventProps) {
   capture('game_joined', props);
 }
 
-/**
- * Track game start (host clicks Start).
- */
-export function trackGameStarted(props: GameStartedProps) {
+export function trackLobbyReady(props: RoomCycleEventProps) {
+  capture('lobby_ready', props);
+}
+
+export function trackGameStarted(props: RoomCycleEventProps) {
   capture('game_started', props);
 }
 
-/**
- * Track game completion (all poems revealed).
- */
-export function trackGameCompleted(props: GameCompletedProps) {
+export function trackLineSubmitted(props: RoomCycleEventProps) {
+  capture('line_submitted', props);
+}
+
+export function trackGameCompleted(props: RoomCycleEventProps) {
   capture('game_completed', props);
 }
 
-/**
- * Track poem shared via clipboard.
- */
-export function trackPoemShared(props: PoemSharedProps) {
-  capture('poem_shared', props);
+export function trackArtifactAction(props: ArtifactActionProps) {
+  capture('artifact_action', props);
 }
 
-/**
- * Track room invite sharing from the in-room chrome.
- */
-export function trackRoomInviteShared(props: RoomInviteSharedProps) {
-  capture('room_invite_shared', props);
+/** Test seam: reset only in tests; no production caller should need this. */
+export function resetCapturedAnalyticsForTests() {
+  capturedEvents.clear();
 }
 
-/**
- * Track AI player added to room.
- */
-export function trackAiPlayerAdded(props: AiPlayerAddedProps) {
-  capture('ai_player_added', props);
+// Existing non-funnel product signals remain available to their focused UI
+// tests and consumers. The room-cycle report only consumes canonical events.
+export function trackAiPlayerAdded(props: { playerCount: number }) {
+  if (!posthogIsReady()) return;
+  posthog.capture('ai_player_added', props);
 }
 
-/**
- * Track a poem's themed card image being saved (native share sheet or
- * direct download) from the reveal or poem archive page.
- */
-export function trackPoemImageSaved(props: PoemImageSavedProps) {
-  capture('poem_image_saved', props);
+export function trackPoemShared(props: {
+  method: 'clipboard' | 'native-share';
+}) {
+  if (!posthogIsReady()) return;
+  posthog.capture('poem_shared', props);
 }
 
-/**
- * Track a session recap export (currently: print-to-PDF via the browser's
- * native print dialog, triggered from the recap page's Export action).
- */
-export function trackRecapExported(props: RecapExportedProps) {
-  capture('recap_exported', props);
+export function trackPoemImageSaved(props: {
+  method: 'native-share' | 'download';
+}) {
+  if (!posthogIsReady()) return;
+  posthog.capture('poem_image_saved', props);
+}
+
+export function trackRecapExported(props: {
+  method: 'print';
+  poemCount: number;
+}) {
+  if (!posthogIsReady()) return;
+  posthog.capture('recap_exported', props);
+}
+
+export function trackRoomInviteShared(props: {
+  method: 'clipboard' | 'native-share';
+  roomCode: string;
+}) {
+  if (!posthogIsReady()) return;
+  posthog.capture('room_invite_shared', props);
 }

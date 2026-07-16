@@ -15,7 +15,7 @@ import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { BotBadge } from './ui/BotBadge';
 import { Id } from '../convex/_generated/dataModel';
-import { trackGameCompleted } from '../lib/analytics';
+import { hashRoomId, trackGameCompleted } from '../lib/analytics';
 import { RoomChrome } from './RoomChrome';
 import { buildRevealChromeCopy } from '../lib/roomChromeCopy';
 import { SessionRecapHub } from './SessionRecapHub';
@@ -66,12 +66,14 @@ export function RevealPhase({
 
     if (allRevealed && !hasTrackedCompletion.current) {
       hasTrackedCompletion.current = true;
-      const hasAi = players.some((p) => p.isBot);
-      trackGameCompleted({
-        playerCount: players.length,
-        poemCount: poems.length,
-        hasAi,
-      });
+      if (state.roomId && state.cycle && state.currentPlayerKind) {
+        trackGameCompleted({
+          roomIdHash: hashRoomId(state.roomId),
+          cycle: state.cycle,
+          round: poems.length > 0 ? 8 : 0,
+          playerKind: state.currentPlayerKind,
+        });
+      }
     }
   }, [state]);
 
@@ -182,6 +184,9 @@ export function RevealPhase({
           onDone={() => setShowingPoemId(null)}
           alreadyRevealed={displayingPoem.isRevealed}
           allStableIds={allStableIds}
+          roomId={state.roomId}
+          cycle={state.cycle}
+          playerKind={state.currentPlayerKind}
           metadata={{
             createdAt: displayingPoem.createdAt,
             firstLine: displayingPoem.preview,
@@ -387,6 +392,9 @@ export function RevealPhase({
           {allRevealed && (
             <SessionRecapHub
               roomCode={roomCode}
+              roomId={state.roomId}
+              cycle={state.cycle}
+              playerKind={state.currentPlayerKind}
               guestToken={guestToken || undefined}
               poems={poems}
               playerCount={state.players.length}

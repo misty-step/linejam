@@ -242,6 +242,9 @@ export const getCurrentAssignment = query({
 
     return {
       poemId: poem._id,
+      roomId: room._id,
+      cycle: game.cycle,
+      playerKind: user.kind === 'AI' ? ('AI' as const) : ('human' as const),
       lineIndex: currentRound,
       targetWordCount: WORD_COUNTS[currentRound],
       totalRounds: game.assignmentMatrix.length,
@@ -616,6 +619,13 @@ export const getRevealPhaseState = query({
     const myPoem = myPoems.length > 0 ? myPoems[0] : null;
 
     return {
+      roomId: room._id,
+      cycle: game.cycle,
+      currentPlayerKind:
+        playerUserRecords.find((record) => record?._id === user._id)?.kind ===
+        'AI'
+          ? ('AI' as const)
+          : ('human' as const),
       poems: poemsWithPreview,
       myPoem,
       myPoems,

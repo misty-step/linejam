@@ -9,6 +9,7 @@ import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
 import { cn } from '@/lib/utils';
+import { hashRoomId, trackLineSubmitted } from '@/lib/analytics';
 import { countWords } from '@/lib/wordCount';
 import { Alert } from '@/components/ui/Alert';
 import { RoomChrome } from '@/components/RoomChrome';
@@ -36,6 +37,9 @@ const WRITING_COACHMARK_STORAGE_KEY = 'linejam:writing-coachmark-seen';
 
 interface WritingAssignment {
   poemId: Id<'poems'>;
+  roomId: string;
+  cycle: number;
+  playerKind: 'human' | 'AI';
   lineIndex: number;
   targetWordCount: number;
   totalRounds?: number;
@@ -200,6 +204,12 @@ function WritingComposer({
         guestToken: guestToken || undefined,
       });
       clearWritingDraft(draftKey);
+      trackLineSubmitted({
+        roomIdHash: hashRoomId(assignment.roomId),
+        cycle: assignment.cycle,
+        round: assignment.lineIndex,
+        playerKind: assignment.playerKind,
+      });
 
       // Show confirmation state briefly before transitioning to waiting
       setSubmissionState('confirmed');

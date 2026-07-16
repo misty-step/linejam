@@ -3,7 +3,11 @@
 import { useCallback, useState } from 'react';
 import { Id } from '@/convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
-import { trackPoemImageSaved } from '@/lib/analytics';
+import {
+  hashRoomId,
+  trackArtifactAction,
+  trackPoemImageSaved,
+} from '@/lib/analytics';
 import { getAppliedTheme } from '@/lib/themes';
 
 export type SaveImageStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -21,7 +25,13 @@ export type SaveImageStatus = 'idle' | 'saving' | 'saved' | 'error';
  * ancestor, and `getAppliedTheme()` degrades to the kenya/light default the
  * card route already falls back to when nothing is applied yet (SSR, tests).
  */
-export function useSavePoemImage(poemId: Id<'poems'>, guestToken?: string) {
+export function useSavePoemImage(
+  poemId: Id<'poems'>,
+  guestToken?: string,
+  roomId?: string,
+  cycle = 1,
+  playerKind: 'human' | 'AI' = 'human'
+) {
   const [status, setStatus] = useState<SaveImageStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +66,14 @@ export function useSavePoemImage(poemId: Id<'poems'>, guestToken?: string) {
           await navigator.share({ files: [file], title: 'Linejam poem' });
           setStatus('saved');
           trackPoemImageSaved({ method: 'native-share' });
+          if (roomId)
+            trackArtifactAction({
+              roomIdHash: hashRoomId(roomId),
+              cycle,
+              round: 8,
+              playerKind,
+              action: 'save',
+            });
           return;
         } catch (shareErr) {
           if (
@@ -80,12 +98,20 @@ export function useSavePoemImage(poemId: Id<'poems'>, guestToken?: string) {
 
       setStatus('saved');
       trackPoemImageSaved({ method: 'download' });
+      if (roomId)
+        trackArtifactAction({
+          roomIdHash: hashRoomId(roomId),
+          cycle,
+          round: 8,
+          playerKind,
+          action: 'save',
+        });
     } catch (err) {
       setStatus('error');
       setError('Failed to save image. Please try again.');
       captureError(err, { operation: 'savePoemImage', poemId });
     }
-  }, [poemId, guestToken]);
+  }, [poemId, guestToken, roomId, cycle, playerKind]);
 
   return {
     handleSaveImage,

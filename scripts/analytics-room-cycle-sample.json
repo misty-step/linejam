@@ -1,0 +1,56 @@
+{
+  "rooms": [
+    {
+      "roomIdHash": "0123456789abcdef",
+      "createdAt": 1770000000000,
+      "joins": [
+        {
+          "joinedAt": 1770000000100,
+          "playerKind": "human",
+          "participantKey": "sample-human-a"
+        },
+        {
+          "joinedAt": 1770000000200,
+          "playerKind": "human",
+          "participantKey": "sample-human-b"
+        },
+        {
+          "joinedAt": 1770000000300,
+          "playerKind": "AI"
+        }
+      ],
+      "cycles": [
+        {
+          "cycle": 1,
+          "startedAt": 1770000001000,
+          "writingCompletedAt": 1770000031000,
+          "allRevealedAt": 1770000035000,
+          "completionKind": "normal"
+        },
+        {
+          "cycle": 2,
+          "startedAt": 1770000040000,
+          "completionKind": "abandoned"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "event": "artifact_action",
+      "occurredAt": 1770000036000,
+      "roomIdHash": "0123456789abcdef",
+      "cycle": 1,
+      "playerKind": "human",
+      "action": "save"
+    },
+    {
+      "event": "artifact_action",
+      "occurredAt": 1770000036000,
+      "roomIdHash": "0123456789abcdef",
+      "cycle": 1,
+      "playerKind": "human",
+      "action": "save"
+    }
+  ]
+}

@@ -27,8 +27,11 @@ vi.mock('next/link', () => ({
 }));
 
 const mockTrackRoomInviteShared = vi.fn();
+const mockTrackArtifactAction = vi.fn();
 
 vi.mock('@/lib/analytics', () => ({
+  hashRoomId: () => 'test-room-hash',
+  trackArtifactAction: (props: unknown) => mockTrackArtifactAction(props),
   trackRoomInviteShared: (props: unknown) => mockTrackRoomInviteShared(props),
 }));
 
