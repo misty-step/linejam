@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
+import type { NextFetchEvent } from 'next/server';
 
 vi.mock('@clerk/nextjs/server', () => ({
   clerkMiddleware: () => (req: NextRequest) =>
     NextResponse.next({ request: { headers: req.headers } }),
 }));
+
+// Middleware's event parameter is only forwarded to upstream handlers; the
+// mocked Clerk handler and passthrough ignore it, so a bare stub suffices.
+const fetchEvent = {} as NextFetchEvent;
 
 /**
  * Regression coverage for linejam-942: a guest hitting /me/* must never be
@@ -45,7 +50,7 @@ describe('middleware — guest-only mode (Clerk not configured)', () => {
       method: 'POST',
       headers: { 'next-action': 'not-a-server-action-id' },
     });
-    const res = await middleware(req);
+    const res = (await middleware(req, fetchEvent))!;
 
     expect(res.status).toBe(404);
     expect(res.headers.get('Cache-Control')).toBe('no-store');
@@ -62,7 +67,7 @@ describe('middleware — guest-only mode (Clerk not configured)', () => {
         method: 'POST',
         headers: { 'next-action': 'a'.repeat(length) },
       });
-      const res = await middleware(req);
+      const res = (await middleware(req, fetchEvent))!;
 
       expect(res.status).toBe(200);
     }
@@ -74,7 +79,7 @@ describe('middleware — guest-only mode (Clerk not configured)', () => {
 
     const { default: middleware } = await import('../middleware');
     const req = new NextRequest('http://localhost:3000/me/poems');
-    const res = await middleware(req);
+    const res = (await middleware(req, fetchEvent))!;
 
     expect(res.headers.get('location')).toBeNull();
   });
@@ -85,7 +90,7 @@ describe('middleware — guest-only mode (Clerk not configured)', () => {
 
     const { default: middleware } = await import('../middleware');
     const req = new NextRequest('http://localhost:3000/me/profile');
-    const res = await middleware(req);
+    const res = (await middleware(req, fetchEvent))!;
 
     expect(res.headers.get('location')).toBeNull();
   });
@@ -97,21 +102,24 @@ describe('middleware — document CSP containment', () => {
     vi.resetModules();
 
     const { default: middleware } = await import('../middleware');
-    const dynamic = await middleware(
+    const dynamic = (await middleware(
       new NextRequest('http://localhost:3000/room/ABCD', {
         headers: { accept: 'text/html' },
-      })
-    );
-    const releases = await middleware(
+      }),
+      fetchEvent
+    ))!;
+    const releases = (await middleware(
       new NextRequest('http://localhost:3000/releases', {
         headers: { accept: 'text/html' },
-      })
-    );
-    const xml = await middleware(
+      }),
+      fetchEvent
+    ))!;
+    const xml = (await middleware(
       new NextRequest('http://localhost:3000/releases.xml', {
         headers: { accept: 'application/xml' },
-      })
-    );
+      }),
+      fetchEvent
+    ))!;
 
     const dynamicCsp = dynamic.headers.get('Content-Security-Policy') ?? '';
     const releasesCsp = releases.headers.get('Content-Security-Policy') ?? '';
@@ -136,9 +144,10 @@ describe('middleware — document CSP containment', () => {
     vi.resetModules();
 
     const { default: middleware } = await import('../middleware');
-    const response = await middleware(
-      new NextRequest('http://localhost:3000/api/health')
-    );
+    const response = (await middleware(
+      new NextRequest('http://localhost:3000/api/health'),
+      fetchEvent
+    ))!;
 
     expect(response.headers.get('Content-Security-Policy')).toBeNull();
   });
@@ -154,9 +163,10 @@ describe('middleware — Clerk configured', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const { default: middleware } = await import('../middleware');
-    const response = await middleware(
-      new NextRequest('http://localhost:3000/api/health')
-    );
+    const response = (await middleware(
+      new NextRequest('http://localhost:3000/api/health'),
+      fetchEvent
+    ))!;
 
     expect(response.status).toBe(200);
     expect(warnSpy).not.toHaveBeenCalled();

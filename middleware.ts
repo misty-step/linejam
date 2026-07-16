@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { NextFetchEvent, NextMiddleware } from 'next/server';
 import { buildContentSecurityPolicy } from './lib/contentSecurityPolicy';
 
 /**
@@ -30,14 +31,12 @@ function passthroughMiddleware(req: NextRequest) {
 
 // Resolve Clerk at request time so build-time and runtime environments cannot
 // disagree about whether authentication middleware is available.
-type UpstreamMiddleware = (
-  req: NextRequest
-) => Promise<NextResponse | Response> | NextResponse;
+type UpstreamMiddleware = NextMiddleware;
 
 let upstreamMiddleware: UpstreamMiddleware | undefined;
 let upstreamConfigured: boolean | undefined;
 
-function resolveUpstreamMiddleware(): UpstreamMiddleware {
+async function resolveUpstreamMiddleware(): Promise<UpstreamMiddleware> {
   const isClerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
   if (upstreamMiddleware && upstreamConfigured === isClerkConfigured) {
     return upstreamMiddleware;
@@ -51,7 +50,9 @@ function resolveUpstreamMiddleware(): UpstreamMiddleware {
 
   try {
     // Only import Clerk when configured to avoid initialization errors.
-    const { clerkMiddleware } = require('@clerk/nextjs/server'); // eslint-disable-line @typescript-eslint/no-require-imports
+    // A dynamic import (not require()) keeps this Edge-runtime compatible
+    // and lets Vitest's module mocks intercept the call in tests.
+    const { clerkMiddleware } = await import('@clerk/nextjs/server');
 
     // clerkMiddleware still wraps every request so Clerk can attach the
     // session state (cookies/JWT) that useAuth()/ConvexProviderWithClerk
@@ -116,7 +117,10 @@ function forwardRequestHeaders(
   return response;
 }
 
-export default async function middleware(req: NextRequest) {
+export default async function middleware(
+  req: NextRequest,
+  event: NextFetchEvent
+) {
   const actionId = req.headers.get('next-action');
   if (actionId && !SERVER_ACTION_ID.test(actionId)) {
     return new NextResponse(null, {
@@ -126,7 +130,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   if (!isDocumentRequest(req)) {
-    return resolveUpstreamMiddleware()(req);
+    return (await resolveUpstreamMiddleware())(req, event);
   }
 
   // These public, unauthenticated, non-user-generated force-static routes
@@ -141,7 +145,12 @@ export default async function middleware(req: NextRequest) {
   if (nonce) requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', csp);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
-  const response = await resolveUpstreamMiddleware()(requestWithNonce);
+  const upstreamResponse = await (
+    await resolveUpstreamMiddleware()
+  )(requestWithNonce, event);
+  const response =
+    upstreamResponse ??
+    NextResponse.next({ request: { headers: requestHeaders } });
   forwardRequestHeaders(response, requestHeaders);
   response.headers.set('Content-Security-Policy', csp);
   return response;
