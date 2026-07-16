@@ -6,7 +6,11 @@ import { useMutation, useQuery } from 'convex/react';
 import { Crown, Heart, Share2, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { trackRoomInviteShared } from '@/lib/analytics';
+import {
+  hashRoomId,
+  trackArtifactAction,
+  trackRoomInviteShared,
+} from '@/lib/analytics';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { useShareLink } from '@/hooks/useShareLink';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
@@ -23,6 +27,9 @@ export interface SessionRecapPoem {
 
 interface SessionRecapHubProps {
   roomCode: string;
+  roomId?: string;
+  cycle?: number;
+  playerKind?: 'human' | 'AI';
   guestToken?: string;
   poems: SessionRecapPoem[];
   playerCount: number;
@@ -39,6 +46,9 @@ function sessionRecapUrl(roomCode: string) {
 
 export function SessionRecapHub({
   roomCode,
+  roomId,
+  cycle,
+  playerKind,
   guestToken,
   poems,
   playerCount,
@@ -78,6 +88,13 @@ export function SessionRecapHub({
     }),
     onShared: (method) => {
       trackRoomInviteShared({ method, roomCode });
+      trackArtifactAction({
+        roomIdHash: hashRoomId(roomId ?? roomCode),
+        cycle: cycle ?? 1,
+        round: poems.length > 0 ? 8 : 0,
+        playerKind: playerKind ?? 'human',
+        action: 'share',
+      });
     },
     failureMessage: 'Failed to share recap. Please try again.',
   });

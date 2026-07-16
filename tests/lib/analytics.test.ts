@@ -1,65 +1,72 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockCapture } = vi.hoisted(() => ({ mockCapture: vi.fn() }));
-
 vi.mock('posthog-js', () => ({
-  default: {
-    capture: (...args: unknown[]) => mockCapture(...args),
-  },
+  default: { capture: (...args: unknown[]) => mockCapture(...args) },
 }));
 
 import {
   markPostHogReady,
   resetPostHogReady,
 } from '@/lib/posthog/posthogReady';
-
 import {
-  trackAiPlayerAdded,
+  hashRoomId,
+  resetCapturedAnalyticsForTests,
+  trackArtifactAction,
   trackGameCompleted,
   trackGameCreated,
   trackGameJoined,
   trackGameStarted,
-  trackPoemImageSaved,
-  trackPoemShared,
-  trackRecapExported,
-  trackRoomInviteShared,
+  trackLineSubmitted,
+  trackLobbyReady,
 } from '@/lib/analytics';
+
+const props = {
+  roomIdHash: hashRoomId('room-internal-id'),
+  cycle: 1,
+  playerKind: 'human' as const,
+};
 
 describe('analytics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetCapturedAnalyticsForTests();
     markPostHogReady();
   });
-
   afterEach(() => resetPostHogReady());
 
-  it('uses an empty payload when game creation props are omitted', () => {
-    trackGameCreated();
-
-    expect(mockCapture).toHaveBeenCalledWith('game_created', {});
+  it('hashes room ids without returning the raw value', () => {
+    expect(hashRoomId('room-internal-id')).toMatch(/^[0-9a-f]{16}$/);
+    expect(hashRoomId('room-internal-id')).toBe(hashRoomId('room-internal-id'));
+    expect(hashRoomId('room-internal-id')).not.toContain('room-internal-id');
   });
 
-  it('forwards the remaining analytics events with their payloads', () => {
-    trackGameCreated({ playerCount: 4 });
-    trackGameJoined({ roomCode: 'ABCD' });
-    trackGameStarted({ playerCount: 4, hasAi: true });
-    trackGameCompleted({ playerCount: 4, poemCount: 2, hasAi: true });
-    trackPoemShared({ method: 'clipboard' });
-    trackRoomInviteShared({ method: 'native-share', roomCode: 'WXYZ' });
-    trackAiPlayerAdded({ playerCount: 5 });
-    trackPoemImageSaved({ method: 'native-share' });
-    trackRecapExported({ method: 'print', poemCount: 6 });
+  it('emits one canonical event per room-cycle funnel stage', () => {
+    trackGameCreated(props);
+    trackGameJoined(props);
+    trackLobbyReady(props);
+    trackGameStarted(props);
+    trackLineSubmitted({ ...props, round: 0 });
+    trackGameCompleted({ ...props, round: 8 });
+    trackArtifactAction({ ...props, action: 'save', round: 8 });
 
     expect(mockCapture.mock.calls).toEqual([
-      ['game_created', { playerCount: 4 }],
-      ['game_joined', { roomCode: 'ABCD' }],
-      ['game_started', { playerCount: 4, hasAi: true }],
-      ['game_completed', { playerCount: 4, poemCount: 2, hasAi: true }],
-      ['poem_shared', { method: 'clipboard' }],
-      ['room_invite_shared', { method: 'native-share', roomCode: 'WXYZ' }],
-      ['ai_player_added', { playerCount: 5 }],
-      ['poem_image_saved', { method: 'native-share' }],
-      ['recap_exported', { method: 'print', poemCount: 6 }],
+      ['game_created', props],
+      ['game_joined', props],
+      ['lobby_ready', props],
+      ['game_started', props],
+      ['line_submitted', { ...props, round: 0 }],
+      ['game_completed', { ...props, round: 8 }],
+      ['artifact_action', { ...props, round: 8, action: 'save' }],
     ]);
+  });
+
+  it('deduplicates retries by room, cycle, round, player kind, and action', () => {
+    trackLineSubmitted({ ...props, round: 3 });
+    trackLineSubmitted({ ...props, round: 3 });
+    trackArtifactAction({ ...props, round: 8, action: 'save' });
+    trackArtifactAction({ ...props, round: 8, action: 'save' });
+    trackArtifactAction({ ...props, round: 8, action: 'share' });
+    expect(mockCapture).toHaveBeenCalledTimes(3);
   });
 });

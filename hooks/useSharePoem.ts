@@ -4,7 +4,11 @@ import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
-import { trackPoemShared } from '@/lib/analytics';
+import {
+  hashRoomId,
+  trackArtifactAction,
+  trackPoemShared,
+} from '@/lib/analytics';
 import { useShareLink } from '@/hooks/useShareLink';
 
 function buildPoemShareText(openingLine?: string) {
@@ -19,7 +23,10 @@ function buildPoemShareText(openingLine?: string) {
 export function useSharePoem(
   poemId: Id<'poems'>,
   guestToken?: string,
-  openingLine?: string
+  openingLine?: string,
+  roomId?: string,
+  cycle = 1,
+  playerKind: 'human' | 'AI' = 'human'
 ) {
   const enablePublicPoemShare = useMutation(api.shares.enablePublicPoemShare);
 
@@ -37,6 +44,15 @@ export function useSharePoem(
     }),
     onShared: (method) => {
       trackPoemShared({ method });
+      if (roomId) {
+        trackArtifactAction({
+          roomIdHash: hashRoomId(roomId),
+          cycle,
+          round: 8,
+          playerKind,
+          action: 'share',
+        });
+      }
     },
     onError: (err) => {
       captureError(err, { operation: 'sharePoem', poemId });

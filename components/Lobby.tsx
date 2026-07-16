@@ -17,7 +17,11 @@ import { LobbyJoinQr, LobbyStage } from './stage/LobbyStage';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
 import { Bot, Presentation, UserMinus } from 'lucide-react';
-import { trackGameStarted, trackAiPlayerAdded } from '../lib/analytics';
+import {
+  hashRoomId,
+  trackGameStarted,
+  trackLobbyReady,
+} from '../lib/analytics';
 
 /**
  * Lobby layout keeps actions separate from the live player list.
@@ -60,10 +64,17 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         code: room.code,
         guestToken: guestToken || undefined,
       });
-      trackGameStarted({
-        playerCount: players.length,
-        hasAi: players.some((p) => p.isBot),
-      });
+      // The mutation is authoritative and increments the cycle for rematches.
+      // Emit both transition stages only after it succeeds, so retries/failures
+      // cannot report a lobby as ready or use the previous cycle number.
+      const cycle = (room.currentCycle ?? 0) + 1;
+      const analyticsProps = {
+        roomIdHash: hashRoomId(room._id),
+        cycle,
+        playerKind: 'human' as const,
+      };
+      trackLobbyReady(analyticsProps);
+      trackGameStarted(analyticsProps);
     } catch (err) {
       const feedback = errorToFeedback(err);
       setError(feedback.message);
@@ -90,7 +101,8 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         code: room.code,
         guestToken: guestToken || undefined,
       });
-      trackAiPlayerAdded({ playerCount: players.length + 1 });
+      // AI seats are represented by playerKind on the canonical room event;
+      // no separate conversion event is emitted.
     } catch (err) {
       const feedback = errorToFeedback(err);
       setError(feedback.message);

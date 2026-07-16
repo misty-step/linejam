@@ -6,7 +6,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
-import { trackGameCreated } from '../../lib/analytics';
+import { hashRoomId, trackGameCreated } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { Button } from '../../components/ui/Button';
@@ -34,11 +34,15 @@ export default function HostPage() {
     setError(null); // Clear error before retry
 
     try {
-      const { code } = await createRoomMutation({
+      const { code, roomId } = await createRoomMutation({
         displayName: name,
         guestToken: guestToken || undefined,
       });
-      trackGameCreated();
+      trackGameCreated({
+        roomIdHash: hashRoomId(roomId),
+        cycle: 1,
+        playerKind: 'human',
+      });
       router.push(`/room/${code}`);
     } catch (err) {
       const feedback = errorToFeedback(err);

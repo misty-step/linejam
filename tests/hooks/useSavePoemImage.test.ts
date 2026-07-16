@@ -16,7 +16,10 @@ vi.mock('@/lib/error', () => ({
 }));
 
 const mockTrackPoemImageSaved = vi.fn();
+const mockTrackArtifactAction = vi.fn();
 vi.mock('@/lib/analytics', () => ({
+  hashRoomId: () => 'test-room-hash',
+  trackArtifactAction: (props: unknown) => mockTrackArtifactAction(props),
   trackPoemImageSaved: (props: unknown) => mockTrackPoemImageSaved(props),
 }));
 
@@ -209,5 +212,21 @@ describe('useSavePoemImage', () => {
         poemId: testPoemId,
       })
     );
+  });
+
+  it('emits a canonical save action for a downloaded card', async () => {
+    const { result } = renderHook(() =>
+      useSavePoemImage(testPoemId, undefined, 'room-id', 2, 'human')
+    );
+    await act(async () => {
+      await result.current.handleSaveImage();
+    });
+    expect(mockTrackArtifactAction).toHaveBeenCalledWith({
+      roomIdHash: 'test-room-hash',
+      cycle: 2,
+      round: 8,
+      playerKind: 'human',
+      action: 'save',
+    });
   });
 });

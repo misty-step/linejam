@@ -3,7 +3,7 @@
 import { Printer } from 'lucide-react';
 import { Button } from './ui/Button';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
-import { trackRecapExported } from '@/lib/analytics';
+import { trackArtifactAction, trackRecapExported } from '@/lib/analytics';
 
 /**
  * Whole-set export for the public recap page (linejam-943 criteria 2 & 4).
@@ -11,9 +11,26 @@ import { trackRecapExported } from '@/lib/analytics';
  * in app/globals.css rather than a bespoke PDF/image renderer — every poem
  * on the page, laid out with app/globals.css's print rules, one action.
  */
-export function RecapExportButton({ poemCount }: { poemCount: number }) {
+export function RecapExportButton({
+  poemCount,
+  roomIdHash,
+  cycle = 1,
+}: {
+  poemCount: number;
+  roomIdHash?: string;
+  cycle?: number;
+}) {
   const handleExport = () => {
     trackRecapExported({ method: 'print', poemCount });
+    if (roomIdHash) {
+      trackArtifactAction({
+        roomIdHash,
+        cycle,
+        round: 8,
+        playerKind: 'human',
+        action: 'save',
+      });
+    }
     window.print();
   };
 

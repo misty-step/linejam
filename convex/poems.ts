@@ -8,6 +8,7 @@ import {
   isPublicSessionRecapEnabled,
 } from './lib/sharing';
 import { buildPoemAuthorKeys } from './lib/poemAuthorKey';
+import { hashRoomId } from '../lib/roomIdHash';
 
 const DEFAULT_MY_POEMS_LIMIT = 24;
 const MAX_MY_POEMS_LIMIT = 48;
@@ -334,6 +335,7 @@ export const getPublicSessionRecap = query({
 
     return {
       roomCode: room.code,
+      roomIdHash: hashRoomId(room._id),
       cycle: game.cycle,
       completedAt: game.completedAt,
       poemCount: poems.length,

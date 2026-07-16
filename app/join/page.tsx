@@ -7,7 +7,7 @@ import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
-import { trackGameJoined } from '../../lib/analytics';
+import { hashRoomId, trackGameJoined } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -50,12 +50,16 @@ function JoinForm() {
     setError('');
 
     try {
-      await joinRoomMutation({
+      const room = await joinRoomMutation({
         code: normalizedCode,
         displayName: normalizedName,
         guestToken: guestToken || undefined,
       });
-      trackGameJoined({ roomCode: normalizedCode });
+      trackGameJoined({
+        roomIdHash: hashRoomId(room._id),
+        cycle: room.currentCycle ?? 1,
+        playerKind: 'human',
+      });
       router.push(`/room/${normalizedCode}`);
     } catch (err) {
       const feedback = errorToFeedback(err);

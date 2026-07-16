@@ -48,6 +48,16 @@ vi.mock('@clerk/nextjs', () => ({
 const mockFetch = vi.fn();
 const originalFetch = global.fetch;
 
+const { mockTrackLobbyReady, mockTrackGameStarted } = vi.hoisted(() => ({
+  mockTrackLobbyReady: vi.fn(),
+  mockTrackGameStarted: vi.fn(),
+}));
+vi.mock('@/lib/analytics', () => ({
+  hashRoomId: () => '0123456789abcdef',
+  trackLobbyReady: (props: unknown) => mockTrackLobbyReady(props),
+  trackGameStarted: (props: unknown) => mockTrackGameStarted(props),
+}));
+
 // Import after mocking
 import { Lobby } from '@/components/Lobby';
 import { Doc, Id } from '@/convex/_generated/dataModel';
@@ -217,6 +227,30 @@ describe('Lobby component', () => {
     });
   });
 
+  it('emits lobby-ready and started only after a successful start with the next cycle', async () => {
+    const rematchRoom = { ...mockRoom, currentCycle: 3 };
+    mockMutations.startGame.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    render(<Lobby room={rematchRoom} players={mockPlayers} isHost={true} />);
+    await user.click(
+      screen.getAllByRole('button', { name: /Start Linejam/i })[0]
+    );
+
+    await waitFor(() => {
+      expect(mockTrackLobbyReady).toHaveBeenCalledWith({
+        roomIdHash: '0123456789abcdef',
+        cycle: 4,
+        playerKind: 'human',
+      });
+      expect(mockTrackGameStarted).toHaveBeenCalledWith({
+        roomIdHash: '0123456789abcdef',
+        cycle: 4,
+        playerKind: 'human',
+      });
+    });
+  });
+
   it('displays error message when startGame mutation fails', async () => {
     // Arrange
     mockMutations.startGame.mockRejectedValue(new Error('Game start failed'));
@@ -238,6 +272,8 @@ describe('Lobby component', () => {
       const alerts = screen.getAllByText(/unexpected error/i);
       expect(alerts.length).toBeGreaterThan(0);
     });
+    expect(mockTrackLobbyReady).not.toHaveBeenCalled();
+    expect(mockTrackGameStarted).not.toHaveBeenCalled();
   });
 
   it('shows "Waiting for host" button when not host', () => {

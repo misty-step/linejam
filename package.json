@@ -62,7 +62,8 @@
     "evidence:static-server": "node scripts/evidence/static-server.mjs",
     "generate:releases": "tsx scripts/generate-releases.ts",
     "agent:cli": "npx tsx scripts/cli/linejam-cli.ts",
-    "agent:mcp": "npx tsx scripts/mcp/linejam-mcp.ts"
+    "agent:mcp": "npx tsx scripts/mcp/linejam-mcp.ts",
+    "analytics:room-cycle": "tsx scripts/analytics/room-cycle-funnel.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.6",

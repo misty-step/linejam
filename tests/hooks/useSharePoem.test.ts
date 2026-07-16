@@ -18,7 +18,10 @@ vi.mock('@/lib/error', () => ({
 }));
 
 const mockTrackPoemShared = vi.fn();
+const mockTrackArtifactAction = vi.fn();
 vi.mock('@/lib/analytics', () => ({
+  hashRoomId: () => 'test-room-hash',
+  trackArtifactAction: (props: unknown) => mockTrackArtifactAction(props),
   trackPoemShared: (props: unknown) => mockTrackPoemShared(props),
 }));
 
@@ -322,6 +325,22 @@ describe('useSharePoem', () => {
       title: 'Linejam poem',
       text: 'Read this poem from our Linejam session.',
       url: 'https://example.com/poem/poem123',
+    });
+  });
+
+  it('emits a canonical share action only after a successful share', async () => {
+    const { result } = renderHook(() =>
+      useSharePoem(testPoemId, undefined, openingLine, 'room-id', 2, 'human')
+    );
+    await act(async () => {
+      await result.current.handleShare();
+    });
+    expect(mockTrackArtifactAction).toHaveBeenCalledWith({
+      roomIdHash: 'test-room-hash',
+      cycle: 2,
+      round: 8,
+      playerKind: 'human',
+      action: 'share',
     });
   });
 });

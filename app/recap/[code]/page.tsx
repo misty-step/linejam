@@ -40,7 +40,11 @@ export default async function RecapPage({
           </div>
         </header>
 
-        <RecapExportButton poemCount={recap.poemCount} />
+        <RecapExportButton
+          poemCount={recap.poemCount}
+          roomIdHash={recap.roomIdHash}
+          cycle={recap.cycle}
+        />
 
         <section className="grid gap-8">
           {recap.poems.map((poem) => {

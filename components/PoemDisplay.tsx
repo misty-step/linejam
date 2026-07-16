@@ -57,6 +57,9 @@ interface PoemDisplayProps {
   allStableIds?: string[];
   variant?: 'reveal' | 'archive';
   metadata?: PoemMetadata;
+  roomId?: string;
+  cycle?: number;
+  playerKind?: 'human' | 'AI';
 }
 
 function formatDate(timestamp: number): string {
@@ -72,6 +75,9 @@ export function PoemDisplay({
   allStableIds,
   variant = 'reveal',
   metadata,
+  roomId,
+  cycle = 1,
+  playerKind = 'human',
 }: PoemDisplayProps) {
   const isArchive = variant === 'archive';
 
@@ -98,11 +104,17 @@ export function PoemDisplay({
   const { handleShare, copied, shared, shareError } = useSharePoem(
     poemId,
     guestToken,
-    firstLineText
+    firstLineText,
+    roomId,
+    cycle,
+    playerKind
   );
   const { handleSaveImage, saving, saved, saveError } = useSavePoemImage(
     poemId,
-    guestToken
+    guestToken,
+    roomId,
+    cycle,
+    playerKind
   );
 
   // Get unique authors for legend (preserves order of first appearance)
