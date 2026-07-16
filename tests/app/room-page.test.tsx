@@ -33,6 +33,16 @@ vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
   useMutation: () => vi.fn().mockResolvedValue(undefined),
   useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
+  useConvexConnectionState: () => ({
+    hasInflightRequests: false,
+    isWebSocketConnected: true,
+    timeOfOldestInflightRequest: null,
+    hasEverConnected: true,
+    connectionCount: 1,
+    connectionRetries: 0,
+    inflightMutations: 0,
+    inflightActions: 0,
+  }),
 }));
 
 vi.mock('@clerk/nextjs', () => ({

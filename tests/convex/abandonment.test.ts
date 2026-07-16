@@ -207,6 +207,51 @@ describe('per-turn auto ghost-fill (child 2 / oracle 5a)', () => {
 });
 
 describe('abandonment cron (child 3 / oracle 5b)', () => {
+  it('leaves a fresh writer turn for the reconnecting client', async () => {
+    const t = setupConvexTest();
+    const { gameId, roomId, userIds } = await seedClassicGame(t, {
+      players: [
+        { name: 'Ada', lastSeenAt: Date.now() },
+        { name: 'Bo', lastSeenAt: staleStamp() },
+      ],
+      currentRound: 0,
+    });
+
+    await t.run((ctx) =>
+      ctx.scheduler.runAfter(
+        AUTO_GHOST_FILL_MS,
+        internal.game.fillStaleHumanTurns,
+        { roomId, gameId, round: 0 }
+      )
+    );
+    vi.advanceTimersByTime(AUTO_GHOST_FILL_MS);
+    await t.run(async (ctx) => {
+      const player = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', userIds[0])
+        )
+        .first();
+      if (player) await ctx.db.patch(player._id, { lastSeenAt: Date.now() });
+    });
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const round0 = (await getAllLines(t, gameId)).filter(
+      (line) => line.indexInPoem === 0
+    );
+    expect(round0).toHaveLength(1);
+    expect(
+      round0.filter((line) => line.authorDisplayName === 'Bo (ghost)')
+    ).toHaveLength(1);
+    expect(
+      round0.some((line) => line.authorDisplayName === 'Ada (ghost)')
+    ).toBe(false);
+    expect((await t.run((ctx) => ctx.db.get(gameId)))?.status).toBe(
+      'IN_PROGRESS'
+    );
+  });
+
   it('sweeps an all-humans-stale game and finishes it to COMPLETED', async () => {
     const t = setupConvexTest();
     const { gameId, roomId } = await seedClassicGame(t, {

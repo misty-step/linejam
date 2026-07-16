@@ -17,6 +17,7 @@ import { useUser } from '@/lib/auth';
 import { captureError } from '@/lib/error';
 import { buildLobbyChromeCopy } from '@/lib/roomChromeCopy';
 import { usePresence } from '@/hooks/usePresence';
+import { ConnectionStatus } from '@/components/ConnectionStatus';
 
 function UnexpectedRoomState({
   code,
@@ -173,7 +174,12 @@ function RoomPageContent({ code }: { code: string }) {
     );
   }
 
-  return <ResolvedRoomPage code={code} roomState={roomState} />;
+  return (
+    <>
+      <ConnectionStatus />
+      <ResolvedRoomPage code={code} roomState={roomState} />
+    </>
+  );
 }
 
 export default function RoomPage({ params }: RoomPageProps) {

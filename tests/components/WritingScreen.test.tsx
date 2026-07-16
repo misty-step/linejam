@@ -566,6 +566,31 @@ describe('WritingScreen component', () => {
     await flushSubmitTransition();
   });
 
+  it('offers one safe retry and displays the stored line outcome', async () => {
+    mockSubmitLineMutation
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({
+        status: 'already_submitted',
+        text: 'Stored line',
+      });
+    const user = setupUser();
+    render(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Draft');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+    const retry = await screen.findByRole('button', { name: /Retry once/i });
+    await user.click(retry);
+
+    await waitFor(() => {
+      expect(mockSubmitLineMutation).toHaveBeenCalledTimes(2);
+      expect(
+        screen.getByText(/Your line was already recorded/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Stored line/)).toBeInTheDocument();
+    });
+    await flushSubmitTransition();
+  });
+
   it('shows error message when submission fails', async () => {
     // Arrange
     mockSubmitLineMutation.mockRejectedValue(new Error('Network error'));

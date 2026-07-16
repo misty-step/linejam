@@ -1304,16 +1304,20 @@ describe('submitLine', () => {
       currentRound: 0,
     });
 
-    await asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
-      poemId: poemIds[0],
-      lineIndex: 0,
-      text: 'hello',
-    });
-    await asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
-      poemId: poemIds[0],
-      lineIndex: 0,
-      text: 'hello',
-    });
+    await expect(
+      asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
+        poemId: poemIds[0],
+        lineIndex: 0,
+        text: 'hello',
+      })
+    ).resolves.toEqual({ status: 'committed', text: 'hello' });
+    await expect(
+      asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
+        poemId: poemIds[0],
+        lineIndex: 0,
+        text: 'different draft',
+      })
+    ).resolves.toEqual({ status: 'already_submitted', text: 'hello' });
 
     const lines = await t.run((ctx) =>
       ctx.db
