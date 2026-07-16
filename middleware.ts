@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { buildContentSecurityPolicy } from './lib/contentSecurityPolicy';
 
 /**
  * Root Middleware
@@ -57,8 +57,29 @@ if (isClerkConfigured) {
 }
 
 const SERVER_ACTION_ID = /^[a-f0-9]{40,64}$/;
+const STATIC_ASSET =
+  /\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)$/i;
+const STATIC_CSP_ROUTES = new Set(['/releases', '/releases.xml']);
 
-export default function middleware(req: NextRequest) {
+function isDocumentRequest(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  if (
+    pathname === '/api' ||
+    pathname.startsWith('/api/') ||
+    pathname === '/trpc' ||
+    pathname.startsWith('/trpc/')
+  ) {
+    return false;
+  }
+  return !STATIC_ASSET.test(pathname);
+}
+
+function createNonce() {
+  return Buffer.from(crypto.randomUUID()).toString('base64');
+}
+
+export default async function middleware(req: NextRequest) {
   const actionId = req.headers.get('next-action');
   if (actionId && !SERVER_ACTION_ID.test(actionId)) {
     return new NextResponse(null, {
@@ -67,7 +88,25 @@ export default function middleware(req: NextRequest) {
     });
   }
 
-  return upstreamMiddleware(req);
+  if (!isDocumentRequest(req)) {
+    return upstreamMiddleware(req);
+  }
+
+  // These public, unauthenticated, non-user-generated force-static routes
+  // retain inline scripts for their cached RSC/theme HTML. This is a scoped
+  // exception: every other document gets a fresh nonce policy.
+  const isScopedStaticRoute = STATIC_CSP_ROUTES.has(req.nextUrl.pathname);
+  const nonce = isScopedStaticRoute ? undefined : createNonce();
+  const csp = buildContentSecurityPolicy(nonce, {
+    allowUnsafeInlineScript: isScopedStaticRoute,
+  });
+  const requestHeaders = new Headers(req.headers);
+  if (nonce) requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
+  const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
+  const response = await upstreamMiddleware(requestWithNonce);
+  response.headers.set('Content-Security-Policy', csp);
+  return response;
 }
 
 export const config = {

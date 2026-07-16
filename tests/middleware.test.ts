@@ -86,6 +86,53 @@ describe('middleware — guest-only mode (Clerk not configured)', () => {
   });
 });
 
+describe('middleware — document CSP containment', () => {
+  it('uses strict nonces for dynamic documents and a scoped policy for static releases', async () => {
+    delete process.env.CLERK_SECRET_KEY;
+    vi.resetModules();
+
+    const { default: middleware } = await import('../middleware');
+    const dynamic = await middleware(
+      new NextRequest('http://localhost:3000/room/ABCD', {
+        headers: { accept: 'text/html' },
+      })
+    );
+    const releases = await middleware(
+      new NextRequest('http://localhost:3000/releases', {
+        headers: { accept: 'text/html' },
+      })
+    );
+    const xml = await middleware(
+      new NextRequest('http://localhost:3000/releases.xml', {
+        headers: { accept: 'application/xml' },
+      })
+    );
+
+    const dynamicCsp = dynamic.headers.get('Content-Security-Policy') ?? '';
+    const releasesCsp = releases.headers.get('Content-Security-Policy') ?? '';
+    const xmlCsp = xml.headers.get('Content-Security-Policy') ?? '';
+
+    expect(dynamicCsp).toMatch(/script-src[^;]*'nonce-[^']+'/);
+    expect(dynamicCsp).not.toContain("script-src 'unsafe-inline'");
+    expect(releasesCsp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(xmlCsp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(releasesCsp).not.toMatch(/script-src[^;]*'nonce-/);
+    expect(xmlCsp).not.toMatch(/script-src[^;]*'nonce-/);
+  });
+
+  it('does not add document CSP to API responses', async () => {
+    delete process.env.CLERK_SECRET_KEY;
+    vi.resetModules();
+
+    const { default: middleware } = await import('../middleware');
+    const response = await middleware(
+      new NextRequest('http://localhost:3000/api/health')
+    );
+
+    expect(response.headers.get('Content-Security-Policy')).toBeNull();
+  });
+});
+
 describe('middleware — Clerk configured', () => {
   it('takes the clerkMiddleware() success path, not the init-failure fallback', async () => {
     // Not a real credential — just needs to be a non-empty string so
