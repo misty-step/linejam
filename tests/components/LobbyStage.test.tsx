@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 
-import { LobbyStage } from '@/components/stage/LobbyStage';
+import { LobbyJoinQr, LobbyStage } from '@/components/stage/LobbyStage';
 import { Doc, Id } from '@/convex/_generated/dataModel';
 
 describe('LobbyStage', () => {
@@ -37,6 +37,18 @@ describe('LobbyStage', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('shows the join QR and direct link without entering presentation mode', () => {
+    render(<LobbyJoinQr room={room} />);
+
+    expect(screen.getByTestId('lobby-join-qr')).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'QR code for joining room AB CD' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Open join link' })
+    ).toHaveAttribute('href', expect.stringContaining('/join?code=ABCD'));
   });
 
   it('pins exit beside the stage heading instead of wrapping below scaled copy', () => {

@@ -13,7 +13,7 @@ import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { HostBadge } from './ui/HostBadge';
 import { BotBadge } from './ui/BotBadge';
-import { LobbyStage } from './stage/LobbyStage';
+import { LobbyJoinQr, LobbyStage } from './stage/LobbyStage';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
 import { Bot, Presentation, UserMinus } from 'lucide-react';
@@ -225,6 +225,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
 
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-12 md:grid-cols-[auto_minmax(0,1fr)] md:gap-24">
               <div className="flex min-w-0 max-w-full flex-col items-center space-y-4 md:items-start md:self-start">
+                <LobbyJoinQr room={room} />
                 {canAddAi && (
                   <Button
                     onClick={handleAddAi}

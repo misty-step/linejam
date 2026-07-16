@@ -899,6 +899,7 @@ describe('WritingScreen component', () => {
         if (functionName === 'game:getRoundProgress') {
           return {
             round: 2,
+            isCurrentUserSpectator: true,
             players: [
               { stableId: 'stable_alice', submitted: true },
               { stableId: 'stable_bob', submitted: false },
@@ -912,6 +913,10 @@ describe('WritingScreen component', () => {
 
       expect(screen.getByText('Round 3 of 9')).toBeInTheDocument();
       expect(screen.getByText('1 of 2 ready.')).toBeInTheDocument();
+      expect(screen.getByText('Game in progress')).toBeInTheDocument();
+      expect(
+        screen.getByText(/You're watching this game/i)
+      ).toBeInTheDocument();
       const waitingPhase = screen.getByTestId(E2E_TEST_IDS.waitingPhase);
       expect(waitingPhase).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
       expect(waitingPhase).not.toHaveClass('lj-game-viewport');

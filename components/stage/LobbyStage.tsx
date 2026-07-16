@@ -17,10 +17,44 @@ interface LobbyStagePlayer extends Doc<'roomPlayers'> {
   isAway?: boolean;
 }
 
+function buildJoinUrl(roomCode: string): string {
+  return typeof window === 'undefined'
+    ? `/join?code=${roomCode}`
+    : `${window.location.origin}/join?code=${roomCode}`;
+}
+
 interface LobbyStageProps {
   room: Doc<'rooms'>;
   players: LobbyStagePlayer[];
   onExit: () => void;
+}
+
+export function LobbyJoinQr({ room }: { room: Doc<'rooms'> }) {
+  const joinUrl = buildJoinUrl(room.code);
+
+  return (
+    <div
+      className="flex min-w-0 flex-col items-center gap-3"
+      data-testid="lobby-join-qr"
+    >
+      <QRCodeSVG
+        value={joinUrl}
+        size={180}
+        level="M"
+        fgColor="var(--color-text-primary)"
+        bgColor="var(--color-surface)"
+        role="img"
+        aria-label={`QR code for joining room ${formatRoomCode(room.code)}`}
+        className="h-44 w-44 rounded-lg border border-border bg-surface p-2"
+      />
+      <a
+        href={joinUrl}
+        className="text-sm font-mono text-primary underline underline-offset-4"
+      >
+        Open join link
+      </a>
+    </div>
+  );
 }
 
 export function LobbyStage({ room, players, onExit }: LobbyStageProps) {
@@ -34,10 +68,7 @@ export function LobbyStage({ room, players, onExit }: LobbyStageProps) {
     [players]
   );
   const formattedCode = formatRoomCode(room.code);
-  const joinUrl =
-    typeof window === 'undefined'
-      ? `/join?code=${room.code}`
-      : `${window.location.origin}/join?code=${room.code}`;
+  const joinUrl = buildJoinUrl(room.code);
 
   useEffect(() => {
     const currentIds = new Set(players.map((player) => String(player._id)));

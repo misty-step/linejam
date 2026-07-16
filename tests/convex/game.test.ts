@@ -2001,6 +2001,7 @@ describe('getRoundProgress', () => {
     expect(result).not.toBeNull();
     expect(result!.round).toBe(0);
     expect(result!.players).toHaveLength(2);
+    expect(result!.isCurrentUserSpectator).toBe(false);
 
     const alice = result!.players.find((p) => p.userId === userIds[0]);
     const bob = result!.players.find((p) => p.userId === userIds[1]);
@@ -2012,6 +2013,39 @@ describe('getRoundProgress', () => {
     expect(typeof alice?.isAway).toBe('boolean');
     expect(typeof bob?.isAway).toBe('boolean');
     expect((alice as Record<string, unknown>)['lastSeenAt']).toBeUndefined();
+  });
+
+  it('marks a late arrival as a spectator outside the active matrix', async () => {
+    const t = setupConvexTest();
+    const { roomId } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceGP07' },
+        { name: 'Bob', clerkUserId: 'clerk_bobGP07' },
+      ],
+      code: 'GP07',
+      currentRound: 3,
+    });
+    const lateId = await seedClerkUser(t, 'lateGP07', {
+      displayName: 'Late',
+    });
+    await t.run((ctx) =>
+      ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: lateId,
+        displayName: 'Late',
+        joinedAt: Date.now(),
+      })
+    );
+
+    const result = await asUser(t, 'lateGP07').query(
+      api.game.getRoundProgress,
+      { roomCode: 'GP07' }
+    );
+
+    const late = result?.players.find((p) => p.userId === lateId);
+    expect(late?.isSpectator).toBe(true);
+    expect(result?.isCurrentUserSpectator).toBe(true);
+    expect(result?.players.filter((p) => !p.isSpectator)).toHaveLength(2);
   });
 
   it("reports a legacy short-matrix game's own round count", async () => {

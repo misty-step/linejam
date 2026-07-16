@@ -18,6 +18,13 @@ import {
   LoadingMessages,
 } from '../../components/ui/LoadingState';
 
+function normalizeRoomCode(value: string): string {
+  return value
+    .replace(/[^a-zA-Z]/g, '')
+    .toUpperCase()
+    .slice(0, 4);
+}
+
 function JoinForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -25,8 +32,8 @@ function JoinForm() {
   const joinRoomMutation = useMutation(api.rooms.joinRoom);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  const [code, setCode] = useState(
-    () => searchParams.get('code')?.toUpperCase() || ''
+  const [code, setCode] = useState(() =>
+    normalizeRoomCode(searchParams.get('code') || '')
   );
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -35,7 +42,7 @@ function JoinForm() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const normalizedCode = code.replace(/\s/g, '');
+    const normalizedCode = normalizeRoomCode(code);
     const normalizedName = name.trim();
     if (!normalizedCode || !normalizedName) return;
 
@@ -86,6 +93,14 @@ function JoinForm() {
           You&apos;ll add one hidden line at a time, then everyone reads the
           finished poems together.
         </p>
+        {hasCode && (
+          <p
+            id="join-invite-hint"
+            className="mb-5 text-sm text-[var(--color-text-secondary)]"
+          >
+            Invite link loaded. Enter your name to join room {code}.
+          </p>
+        )}
         <form onSubmit={handleJoin} className="space-y-5 sm:space-y-8">
           <div className="space-y-2 sm:space-y-3">
             <label
@@ -99,8 +114,10 @@ function JoinForm() {
               data-testid={E2E_TEST_IDS.joinRoomCodeInput}
               placeholder="ABCD"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              maxLength={4}
+              onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
+              maxLength={7}
+              readOnly={hasCode}
+              aria-describedby={hasCode ? 'join-invite-hint' : undefined}
               required
               autoFocus={!hasCode}
               inputMode="text"

@@ -2,7 +2,11 @@ import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper, normalizeDisplayName } from './users';
 import { getUser, checkParticipation } from './lib/auth';
-import { PRESENCE_AWAY_MS, isPresenceStale } from './lib/gameRules';
+import {
+  PRESENCE_AWAY_MS,
+  isLateJoinAllowed,
+  isPresenceStale,
+} from './lib/gameRules';
 import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
 import {
   getRoomByCode,
@@ -102,10 +106,13 @@ export const joinRoom = mutation({
 
     const room = await requireRoomByCode(ctx, code);
 
-    // Check no game is in progress (authoritative check)
+    // Active-game joins are deliberately allowed as spectators. The current
+    // game keeps its immutable assignment matrix and poem count; this row is
+    // eligible for the next game only. Capacity and idempotency still apply
+    // below, so a scan cannot create an unbounded spectator list.
     const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) {
-      throw new ConvexError('Cannot join a room with a game in progress');
+    if (activeGame && !isLateJoinAllowed(activeGame)) {
+      throw new ConvexError('Cannot join this game state');
     }
 
     const currentPlayers = await ctx.db
@@ -125,8 +132,8 @@ export const joinRoom = mutation({
 
     if (existingPlayer) {
       // User is already in the room. Honor the typed display name rather
-      // than silently discarding it (rejoins only reach here in lobby —
-      // the in-progress guard above fires first).
+      // than silently discarding it. This is also idempotent for a
+      // late-join spectator refreshing the direct invite.
       if (existingPlayer.displayName !== typedName) {
         await ctx.db.patch(existingPlayer._id, { displayName: typedName });
         await ctx.db.patch(user._id, { displayName: typedName });
