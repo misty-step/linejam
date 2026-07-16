@@ -45,7 +45,7 @@ export function LobbyJoinQr({ room }: { room: Doc<'rooms'> }) {
         bgColor="var(--color-surface)"
         role="img"
         aria-label={`QR code for joining room ${formatRoomCode(room.code)}`}
-        className="h-44 w-44 rounded-lg border border-border bg-surface p-2"
+        className="block h-auto w-full max-w-[180px] rounded-lg border border-border bg-surface p-2"
       />
       <a
         href={joinUrl}
