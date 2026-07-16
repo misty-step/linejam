@@ -24,7 +24,7 @@ const poems = [
 ];
 
 describe('RevealStage', () => {
-  it('uses the latest revealed poem when the host has no assigned poem', async () => {
+  it('uses the earliest poem in running order when the host has no assigned poem', async () => {
     const user = userEvent.setup();
 
     render(
@@ -58,7 +58,7 @@ describe('RevealStage', () => {
     const stage = screen.getByTestId('reveal-presentation-stage');
     expect(
       within(stage).getByRole('heading', {
-        name: /Latest Reader reads Poem 02/i,
+        name: /Older Reader reads Poem 01/i,
       })
     ).toBeInTheDocument();
 
@@ -66,8 +66,8 @@ describe('RevealStage', () => {
       within(stage).getByRole('button', { name: /Read on stage/i })
     );
 
-    expect(within(stage).getByText('Latest')).toBeInTheDocument();
-    expect(within(stage).queryByText('Old')).not.toBeInTheDocument();
+    expect(within(stage).getByText('Old')).toBeInTheDocument();
+    expect(within(stage).queryByText('Latest')).not.toBeInTheDocument();
   });
 
   it('shows AI reader context, error feedback, and disabled reveal state', () => {

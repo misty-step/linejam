@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
@@ -48,6 +48,8 @@ export function RevealPhase({
   const [error, setError] = useState<string | null>(null);
   const [isStartingNow, setIsStartingNow] = useState(false);
   const [isPresenting, setIsPresenting] = useState(false);
+  const readingNowRef = useRef<HTMLDivElement>(null);
+  const previousReadingNowId = useRef<Id<'poems'> | null>(null);
 
   const state = useQuery(api.game.getRevealPhaseState, {
     roomCode,
@@ -57,6 +59,20 @@ export function RevealPhase({
   const revealPoemMutation = useMutation(api.game.revealPoem);
   const startNewCycleMutation = useMutation(api.game.startNewCycle);
   const startGameMutation = useMutation(api.game.startGame);
+  const sortedPoems = useMemo(
+    () =>
+      [...(state?.poems ?? [])].sort((a, b) => a.indexInRoom - b.indexInRoom),
+    [state?.poems]
+  );
+  const readingNowPoem = sortedPoems.find((poem) => !poem.isRevealed) ?? null;
+  const readingNowId = readingNowPoem?._id ?? null;
+
+  useEffect(() => {
+    if (readingNowId && readingNowId !== previousReadingNowId.current) {
+      readingNowRef.current?.focus();
+      previousReadingNowId.current = readingNowId;
+    }
+  }, [readingNowId]);
 
   // Track game completion once when all poems are revealed
   const hasTrackedCompletion = useRef(false);
@@ -186,6 +202,8 @@ export function RevealPhase({
             createdAt: displayingPoem.createdAt,
             firstLine: displayingPoem.preview,
             uniquePoets,
+            readerName: displayingPoem.readerName,
+            poemNumber: displayingPoem.indexInRoom + 1,
           }}
         />
       </>
@@ -308,79 +326,87 @@ export function RevealPhase({
               </p>
             </div>
             <div className="border-t border-border-subtle">
-              {(() => {
-                const sortedPoems = [...poems].sort(
-                  (a, b) => a.indexInRoom - b.indexInRoom
-                );
-                const unrevealed = sortedPoems.filter((p) => !p.isRevealed);
-                const readingNowId = unrevealed[0]?._id;
-                const upNextId = unrevealed[1]?._id;
+              <>
+                <p role="status" aria-live="polite" className="sr-only">
+                  {readingNowPoem
+                    ? readingNowPoem.readerName + ' is reading now.'
+                    : 'The reading circle is complete.'}
+                </p>
+                {(() => {
+                  const upNextId = sortedPoems.find(
+                    (poem) => !poem.isRevealed && poem._id !== readingNowId
+                  )?._id;
 
-                return sortedPoems.map((poem, i) => {
-                  const status: ReadingCircleStatus = poem.isRevealed
-                    ? 'read'
-                    : poem._id === readingNowId
-                      ? 'reading-now'
-                      : poem._id === upNextId
-                        ? 'up-next'
-                        : null;
+                  return sortedPoems.map((poem, i) => {
+                    const status: ReadingCircleStatus = poem.isRevealed
+                      ? 'read'
+                      : poem._id === readingNowId
+                        ? 'reading-now'
+                        : poem._id === upNextId
+                          ? 'up-next'
+                          : null;
 
-                  return (
-                    <div
-                      key={poem._id}
-                      aria-current={
-                        status === 'reading-now' ? 'true' : undefined
-                      }
-                      className={cn(
-                        'flex items-center justify-between gap-3 py-3 px-3 -mx-3 border-b border-border-subtle transition-colors motion-reduce:transition-none',
-                        status === 'reading-now' &&
-                          'border-l-2 border-l-primary bg-primary/5'
-                      )}
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="w-6 shrink-0 font-mono text-xs text-text-muted">
-                          {(i + 1).toString().padStart(2, '0')}
-                        </span>
-                        <Avatar
-                          stableId={poem.readerStableId}
-                          displayName={poem.readerName}
-                          allStableIds={allStableIds}
-                          size="sm"
-                          outlined={!poem.isRevealed}
-                        />
-                        <div className="min-w-0">
+                    return (
+                      <div
+                        key={poem._id}
+                        ref={
+                          status === 'reading-now' ? readingNowRef : undefined
+                        }
+                        tabIndex={status === 'reading-now' ? -1 : undefined}
+                        aria-current={
+                          status === 'reading-now' ? 'true' : undefined
+                        }
+                        className={cn(
+                          'flex items-center justify-between gap-3 py-3 px-3 -mx-3 border-b border-border-subtle transition-colors motion-reduce:transition-none',
+                          status === 'reading-now' &&
+                            'border-l-2 border-l-primary bg-primary/5'
+                        )}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="w-6 shrink-0 font-mono text-xs text-text-muted">
+                            {(i + 1).toString().padStart(2, '0')}
+                          </span>
+                          <Avatar
+                            stableId={poem.readerStableId}
+                            displayName={poem.readerName}
+                            allStableIds={allStableIds}
+                            size="sm"
+                            outlined={!poem.isRevealed}
+                          />
+                          <div className="min-w-0">
+                            <span
+                              className={cn(
+                                'block truncate text-sm font-medium text-text-primary',
+                                poem.isRevealed && 'opacity-50'
+                              )}
+                            >
+                              {poem.readerName}
+                            </span>
+                            <span className="block text-[0.625rem] font-mono uppercase tracking-widest text-text-muted">
+                              Poem {(i + 1).toString().padStart(2, '0')}
+                            </span>
+                          </div>
+                        </div>
+                        {status && (
                           <span
                             className={cn(
-                              'block truncate text-sm font-medium text-text-primary',
-                              poem.isRevealed && 'opacity-50'
+                              'inline-flex shrink-0 items-center gap-1 text-[0.625rem] font-mono uppercase tracking-widest',
+                              status === 'read' && 'text-text-muted opacity-50',
+                              status === 'reading-now' && 'text-primary',
+                              status === 'up-next' && 'text-text-secondary'
                             )}
                           >
-                            {poem.readerName}
+                            {status === 'read' && (
+                              <Check className="h-3 w-3" aria-hidden="true" />
+                            )}
+                            {READING_CIRCLE_STATUS_LABEL[status]}
                           </span>
-                          <span className="block text-[0.625rem] font-mono uppercase tracking-widest text-text-muted">
-                            Poem {(i + 1).toString().padStart(2, '0')}
-                          </span>
-                        </div>
+                        )}
                       </div>
-                      {status && (
-                        <span
-                          className={cn(
-                            'inline-flex shrink-0 items-center gap-1 text-[0.625rem] font-mono uppercase tracking-widest',
-                            status === 'read' && 'text-text-muted opacity-50',
-                            status === 'reading-now' && 'text-primary',
-                            status === 'up-next' && 'text-text-secondary'
-                          )}
-                        >
-                          {status === 'read' && (
-                            <Check className="h-3 w-3" aria-hidden="true" />
-                          )}
-                          {READING_CIRCLE_STATUS_LABEL[status]}
-                        </span>
-                      )}
-                    </div>
-                  );
-                });
-              })()}
+                    );
+                  });
+                })()}
+              </>
             </div>
           </section>
 

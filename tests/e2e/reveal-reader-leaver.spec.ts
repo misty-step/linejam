@@ -46,7 +46,11 @@ async function submitLine(page: Page, line: string) {
 }
 
 async function revealAssignedPoem(page: Page) {
-  await visibleTestId(page, E2E_TEST_IDS.revealPoemButton).click();
+  const assignedButton = page
+    .getByRole('button', { name: 'Reveal & Read', exact: true })
+    .filter({ visible: true });
+  await expect(assignedButton).toHaveCount(1);
+  await assignedButton.click();
   await expect(visibleTestId(page, E2E_TEST_IDS.poemDoneButton)).toBeVisible();
   await visibleTestId(page, E2E_TEST_IDS.poemDoneButton).click();
 }
@@ -114,11 +118,12 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
     }
 
     await Promise.all(
-      [hostPage, presentReaderPage, departedReaderPage].map((page) =>
-        expect(visibleTestId(page, E2E_TEST_IDS.revealPoemButton)).toBeVisible({
-          timeout: 30_000,
-        })
-      )
+      [hostPage, presentReaderPage, departedReaderPage].map(async (page) => {
+        const assignedButton = page
+          .getByRole('button', { name: 'Reveal & Read', exact: true })
+          .filter({ visible: true });
+        await expect(assignedButton).toHaveCount(1, { timeout: 30_000 });
+      })
     );
 
     await departedReaderContext.close();

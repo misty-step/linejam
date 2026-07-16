@@ -526,12 +526,14 @@ export class GuestFlowSession {
     await expect(
       this.guestPage.getByTestId(E2E_TEST_IDS.revealPhase)
     ).toBeVisible({ timeout: 30000 });
-    await expect(
-      this.hostPage.getByTestId(E2E_TEST_IDS.revealPoemButton).first()
-    ).toBeVisible();
-    await expect(
-      this.guestPage.getByTestId(E2E_TEST_IDS.revealPoemButton).first()
-    ).toBeVisible();
+    await Promise.all(
+      [this.hostPage, this.guestPage].map(async (page) => {
+        const assignedButton = page
+          .getByRole('button', { name: 'Reveal & Read', exact: true })
+          .filter({ visible: true });
+        await expect(assignedButton).toHaveCount(1);
+      })
+    );
   }
 
   async revealAssignedPoem(
@@ -540,12 +542,18 @@ export class GuestFlowSession {
   ) {
     const page = this.page(actor);
 
-    await page.getByTestId(E2E_TEST_IDS.revealPoemButton).first().click();
-    for (const line of lines) {
-      await expect(page.getByText(line, { exact: true })).toBeVisible({
-        timeout: 12000,
-      });
-    }
+    const assignedButton = page
+      .getByRole('button', { name: 'Reveal & Read', exact: true })
+      .filter({ visible: true });
+    await expect(assignedButton).toHaveCount(1);
+    await assignedButton.click();
+    await Promise.all(
+      lines.map((line) =>
+        expect(page.getByText(line, { exact: true })).toBeVisible({
+          timeout: 12000,
+        })
+      )
+    );
     await page.getByTestId(E2E_TEST_IDS.poemDoneButton).click();
   }
 
