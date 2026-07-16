@@ -99,8 +99,16 @@ function WritingComposer({
   );
   const [draftWasRestored] = useState(() => text.length > 0);
   const [submissionState, setSubmissionState] = useState<
-    'idle' | 'submitting' | 'confirmed'
+    'idle' | 'submitting' | 'confirmed' | 'retryable' | 'failed'
   >('idle');
+  const [retryCount, setRetryCount] = useState(0);
+  const [confirmedText, setConfirmedText] = useState('');
+  const [confirmedMessage, setConfirmedMessage] = useState(
+    'Your Line Submitted'
+  );
+  const [browserOnline, setBrowserOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine
+  );
   const [showWaitingScreen, setShowWaitingScreen] = useState(
     assignment.hasSubmitted
   );
@@ -120,6 +128,17 @@ function WritingComposer({
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const handleOnline = () => setBrowserOnline(true);
+    const handleOffline = () => setBrowserOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Keep the line visible when the on-screen keyboard opens. The composer has
   // its own scroll region, so `nearest` does not move the in-flow action tray.
@@ -187,6 +206,10 @@ function WritingComposer({
   }, []);
 
   useEffect(() => {
+    if (assignment.hasSubmitted) clearWritingDraft(draftKey);
+  }, [assignment.hasSubmitted, draftKey]);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [assignment.poemId, assignment.lineIndex]);
 
@@ -196,23 +219,42 @@ function WritingComposer({
     }
   }, [showCoachmark]);
 
-  if (showWaitingScreen) {
+  if (showWaitingScreen || assignment.hasSubmitted) {
     return (
       <WaitingScreen roomCode={roomCode} guestToken={guestToken} embedded />
     );
   }
 
-  const handleSubmit = async () => {
-    if (!isValid) return;
+  const submit = async (isRetry = false) => {
+    if (!isValid || (!isRetry && submissionState !== 'idle')) return;
 
     setSubmissionState('submitting');
+    setError(null);
     try {
-      await submitLine({
+      const result = await submitLine({
         poemId: assignment.poemId,
         lineIndex: assignment.lineIndex,
         text: normalizeLineText(text),
         guestToken: guestToken || undefined,
       });
+      const storedText =
+        typeof result === 'object' &&
+        result !== null &&
+        'text' in result &&
+        typeof result.text === 'string'
+          ? result.text
+          : text.trim();
+      const wasAlreadySubmitted =
+        typeof result === 'object' &&
+        result !== null &&
+        'status' in result &&
+        result.status === 'already_submitted';
+      setConfirmedText(storedText);
+      setConfirmedMessage(
+        wasAlreadySubmitted
+          ? 'Your line was already recorded'
+          : 'Your Line Submitted'
+      );
       clearWritingDraft(draftKey);
       // Telemetry is best-effort: a tracking failure (e.g. deploy-skew
       // assignment payloads without funnel fields) must never surface as a
@@ -233,22 +275,44 @@ function WritingComposer({
       // Show confirmation state briefly before transitioning to waiting
       setSubmissionState('confirmed');
 
-      // After 1500ms, transition to waiting screen
+      // Show confirmation briefly; the live assignment query also moves us
+      // immediately if the server advances the round.
       submitTimeoutRef.current = setTimeout(() => {
         setShowWaitingScreen(true);
         submitTimeoutRef.current = null;
       }, 1500);
     } catch (error) {
       captureError(error, { roomCode, poemId: assignment.poemId });
-      setSubmissionState('idle');
-      setError(errorToFeedback(error).message);
+      if (!isRetry) {
+        setSubmissionState('retryable');
+        setError(
+          `${errorToFeedback(error).message} Your draft is safe. Reconnect, then retry once.`
+        );
+      } else {
+        setSubmissionState('failed');
+        setError(
+          `${errorToFeedback(error).message} Your draft is still saved; reload after reconnecting to check the room.`
+        );
+      }
     }
+  };
+
+  const handleSubmit = () => {
+    void submit();
+  };
+
+  const handleRetry = () => {
+    if (!browserOnline || retryCount > 0) return;
+    setRetryCount(1);
+    void submit(true);
   };
 
   const isSubmitDisabled =
     !isValid ||
     submissionState === 'submitting' ||
-    submissionState === 'confirmed';
+    submissionState === 'confirmed' ||
+    submissionState === 'retryable' ||
+    submissionState === 'failed';
 
   const submitBlock = (
     <>
@@ -273,7 +337,9 @@ function WritingComposer({
           ? 'Submitting…'
           : submissionState === 'confirmed'
             ? 'Submitted'
-            : 'Submit'}
+            : submissionState === 'failed'
+              ? 'Unable to confirm'
+              : 'Submit'}
       </Button>
     </>
   );
@@ -331,13 +397,28 @@ function WritingComposer({
               </div>
             )}
 
+            {submissionState === 'retryable' && (
+              <Alert variant="error" className="mt-8">
+                <p>{error}</p>
+                <Button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={!browserOnline || retryCount > 0}
+                  variant="secondary"
+                  className="mt-3"
+                >
+                  {browserOnline ? 'Retry once' : 'Waiting for connection…'}
+                </Button>
+              </Alert>
+            )}
+
             {/* Submission Confirmation */}
             {submissionState === 'confirmed' && (
               <div className="mb-12 p-6 border-2 border-success bg-success/5 rounded-sm animate-fade-in-up">
                 <div className="text-sm font-medium text-success mb-2 uppercase tracking-wide">
                   {assignment.isFinalRound
                     ? 'Last line sealed'
-                    : '✓ Your Line Submitted'}
+                    : '✓ ' + confirmedMessage}
                 </div>
                 {assignment.isFinalRound && (
                   <p className="mb-3 text-sm text-text-secondary">
@@ -345,7 +426,7 @@ function WritingComposer({
                   </p>
                 )}
                 <p className="break-words text-lg italic font-[var(--font-display)] text-text-primary [overflow-wrap:anywhere]">
-                  &ldquo;{text}&rdquo;
+                  &ldquo;{confirmedText}&rdquo;
                 </p>
               </div>
             )}
@@ -414,7 +495,7 @@ function WritingComposer({
             </div>
 
             {/* Error Display */}
-            {error && (
+            {error && submissionState !== 'retryable' && (
               <Alert variant="error" className="mt-8">
                 {error}
               </Alert>

@@ -1,15 +1,19 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { getFunctionName } from 'convex/server';
 
 const mockReactUse = vi.fn();
 const mockUseClerkUser = vi.fn();
 const mockUseQuery = vi.fn();
+const mockConnectionState = vi.fn();
 const mockPush = vi.fn();
 const mockPhaseFailure = vi.hoisted(() => ({
   writing: false,
   reveal: false,
+}));
+const mockWritingView = vi.hoisted(() => ({
+  value: 'writing' as 'writing' | 'waiting',
 }));
 
 vi.mock('react', async () => {
@@ -33,6 +37,7 @@ vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
   useMutation: () => vi.fn().mockResolvedValue(undefined),
   useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
+  useConvexConnectionState: () => mockConnectionState(),
 }));
 
 vi.mock('@clerk/nextjs', () => ({
@@ -57,7 +62,8 @@ vi.mock('@/components/WritingScreen', () => ({
 
     return (
       <div>
-        Writing view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
+        {mockWritingView.value === 'waiting' ? 'Waiting view' : 'Writing view'}{' '}
+        {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
       </div>
     );
   },
@@ -98,6 +104,17 @@ describe('RoomPage', () => {
     process.env.NEXT_PUBLIC_CANARY_API_KEY = '';
     mockPhaseFailure.writing = false;
     mockPhaseFailure.reveal = false;
+    mockWritingView.value = 'writing';
+    mockConnectionState.mockReturnValue({
+      hasInflightRequests: false,
+      isWebSocketConnected: true,
+      timeOfOldestInflightRequest: null,
+      hasEverConnected: true,
+      connectionCount: 1,
+      connectionRetries: 0,
+      inflightMutations: 0,
+      inflightActions: 0,
+    });
     mockReactUse.mockReturnValue({ code: 'ABCD' });
     mockUseClerkUser.mockReturnValue({
       user: null,
@@ -400,5 +417,77 @@ describe('RoomPage', () => {
     expect(
       await screen.findByText(/Reveal view ABCD chrome on/i)
     ).toBeInTheDocument();
+  });
+  it('keeps every room phase mounted across a transient disconnect', async () => {
+    const phaseCases = [
+      ['lobby', 'LOBBY', /Lobby view/i],
+      ['writing', 'IN_PROGRESS', /Writing view ABCD chrome on/i],
+      ['waiting', 'IN_PROGRESS', /Waiting view ABCD chrome on/i],
+      ['reveal', 'COMPLETED', /Reveal view ABCD chrome on/i],
+    ] as const;
+    for (const [name, status, phaseCopy] of phaseCases) {
+      mockWritingView.value = name === 'waiting' ? 'waiting' : 'writing';
+      mockUseQuery.mockImplementation((query) => {
+        const functionName = getFunctionName(
+          query as Parameters<typeof getFunctionName>[0]
+        );
+        if (functionName === 'rooms:getRoomState') {
+          return {
+            room: {
+              _id: 'room_1',
+              _creationTime: Date.now(),
+              code: 'ABCD',
+              hostUserId: 'user_1',
+              createdAt: Date.now(),
+              status,
+            },
+            players: [],
+            isHost: true,
+          };
+        }
+        return null;
+      });
+      const view = renderRoomPage();
+      expect(await screen.findByText(phaseCopy)).toBeInTheDocument();
+      mockConnectionState.mockReturnValue({
+        hasInflightRequests: true,
+        isWebSocketConnected: false,
+        timeOfOldestInflightRequest: Date.now(),
+        hasEverConnected: true,
+        connectionCount: 1,
+        connectionRetries: 1,
+        inflightMutations: 0,
+        inflightActions: 0,
+      });
+      act(() => window.dispatchEvent(new Event('offline')));
+      view.rerender(
+        <ThemeProvider>
+          <RoomPage params={Promise.resolve({ code: 'ABCD' })} />
+        </ThemeProvider>
+      );
+      expect(screen.getByText(phaseCopy)).toBeInTheDocument();
+      expect(screen.getByText(/you are offline/i)).toBeInTheDocument();
+      mockConnectionState.mockReturnValue({
+        hasInflightRequests: false,
+        isWebSocketConnected: true,
+        timeOfOldestInflightRequest: null,
+        hasEverConnected: true,
+        connectionCount: 2,
+        connectionRetries: 0,
+        inflightMutations: 0,
+        inflightActions: 0,
+      });
+      act(() => window.dispatchEvent(new Event('online')));
+      view.rerender(
+        <ThemeProvider>
+          <RoomPage params={Promise.resolve({ code: 'ABCD' })} />
+        </ThemeProvider>
+      );
+      expect(screen.getByText(phaseCopy)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/connection restored/i)
+      ).toBeInTheDocument();
+      view.unmount();
+    }
   });
 });

@@ -292,8 +292,9 @@ export const submitLine = mutation({
       )
       .first();
     if (existing) {
-      // Already submitted - idempotent success
-      return;
+      // A reconnect retry may discover that the first request committed. Return
+      // the stored text so the client never labels an unsaved draft as settled.
+      return { status: 'already_submitted' as const, text: existing.text };
     }
 
     // Validate game state with grace for race conditions:
@@ -352,6 +353,8 @@ export const submitLine = mutation({
       roomId: room._id,
       lineIndex,
     });
+
+    return { status: 'committed' as const, text: text.trim() };
   },
 });
 
@@ -387,35 +390,54 @@ export const summonGhostwriter = mutation({
       game.assignmentMatrix,
       game.currentRound
     );
-    const [lineChecks, assignedUsers, claimedTurns] = await Promise.all([
-      Promise.all(
-        poems.map((poem) =>
-          ctx.db
-            .query('lines')
-            .withIndex('by_poem_index', (q) =>
-              q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
-            )
-            .first()
-        )
-      ),
-      Promise.all(
-        poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
-      ),
-      ctx.db
-        .query('aiTurns')
-        .withIndex('by_game_round', (q) =>
-          q.eq('gameId', game._id).eq('round', game.currentRound)
-        )
-        .collect(),
-    ]);
+    const [lineChecks, assignedUsers, assignedPlayers, claimedTurns] =
+      await Promise.all([
+        Promise.all(
+          poems.map((poem) =>
+            ctx.db
+              .query('lines')
+              .withIndex('by_poem_index', (q) =>
+                q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
+              )
+              .first()
+          )
+        ),
+        Promise.all(
+          poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
+        ),
+        Promise.all(
+          poems.map((poem) =>
+            ctx.db
+              .query('roomPlayers')
+              .withIndex('by_room_user', (q) =>
+                q
+                  .eq('roomId', room._id)
+                  .eq('userId', roundAssignments[poem.indexInRoom])
+              )
+              .first()
+          )
+        ),
+        ctx.db
+          .query('aiTurns')
+          .withIndex('by_game_round', (q) =>
+            q.eq('gameId', game._id).eq('round', game.currentRound)
+          )
+          .collect(),
+      ]);
     // The ghostwriter covers stalled humans only. AI-assigned cells already
     // have their own generation action and claim; scheduling a ghost for one
     // would create two consumers for the same authorized cell.
     const claimedPoemIds = new Set(claimedTurns.map((turn) => turn.poemId));
+    const now = Date.now();
     const missingPoems = poems.filter(
       (poem, i) =>
         lineChecks[i] === null &&
         assignedUsers[i]?.kind !== 'AI' &&
+        isPresenceStale(
+          assignedPlayers[i]?.lastSeenAt,
+          now,
+          PRESENCE_AWAY_MS
+        ) &&
         !claimedPoemIds.has(poem._id)
     );
     if (missingPoems.length === 0) {
@@ -840,13 +862,32 @@ export const fillStaleHumanTurns = internalMutation({
       )
     );
 
-    // Fetch user records to distinguish humans from AI
-    const playerUsers = await Promise.all(
-      poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
-    );
+    // Fetch user records and presence rows together. A fresh heartbeat means
+    // the writer is still in the room; only stale human turns are ghost-filled.
+    const [playerUsers, playerRows] = await Promise.all([
+      Promise.all(
+        poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
+      ),
+      Promise.all(
+        poems.map((poem) =>
+          ctx.db
+            .query('roomPlayers')
+            .withIndex('by_room_user', (q) =>
+              q
+                .eq('roomId', roomId)
+                .eq('userId', roundAssignments[poem.indexInRoom])
+            )
+            .first()
+        )
+      ),
+    ]);
 
+    const now = Date.now();
     const staleHumanPoems = poems.filter(
-      (poem, i) => lineChecks[i] === null && playerUsers[i]?.kind !== 'AI'
+      (poem, i) =>
+        lineChecks[i] === null &&
+        playerUsers[i]?.kind !== 'AI' &&
+        isPresenceStale(playerRows[i]?.lastSeenAt, now, PRESENCE_AWAY_MS)
     );
     if (staleHumanPoems.length === 0) return;
 

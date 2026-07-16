@@ -311,6 +311,21 @@ describe('WritingScreen component', () => {
     ).toBe('Hello');
   });
 
+  it('preserves the draft when the browser goes offline', async () => {
+    const user = setupUser();
+    render(<WritingScreen roomCode="ABCD" />);
+
+    const textarea = screen.getByRole('textbox');
+    await user.type(textarea, 'Still here');
+
+    act(() => window.dispatchEvent(new Event('offline')));
+
+    expect(textarea).toHaveValue('Still here');
+    expect(
+      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+    ).toBe('Still here');
+  });
+
   it('restores the current assignment draft after a reload', () => {
     sessionStorage.setItem(
       'linejam:writing-draft:ABCD:poem_123:0',
@@ -562,6 +577,31 @@ describe('WritingScreen component', () => {
       expect(screen.getByText(/Your Line Submitted/i)).toBeInTheDocument();
       // Confirmation text is rendered inside a paragraph with curly quotes
       expect(screen.getByText(/\u201cBeautiful\u201d/)).toBeInTheDocument();
+    });
+    await flushSubmitTransition();
+  });
+
+  it('offers one safe retry and displays the stored line outcome', async () => {
+    mockSubmitLineMutation
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({
+        status: 'already_submitted',
+        text: 'Stored line',
+      });
+    const user = setupUser();
+    render(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Draft');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+    const retry = await screen.findByRole('button', { name: /Retry once/i });
+    await user.click(retry);
+
+    await waitFor(() => {
+      expect(mockSubmitLineMutation).toHaveBeenCalledTimes(2);
+      expect(
+        screen.getByText(/Your line was already recorded/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Stored line/)).toBeInTheDocument();
     });
     await flushSubmitTransition();
   });

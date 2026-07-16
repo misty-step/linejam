@@ -14,6 +14,7 @@ export const E2E_TEST_IDS = {
   lobbyPresentationStage: 'lobby-presentation-stage',
   lobbyScrollRegion: 'lobby-scroll-region',
   lobbyActionZone: 'lobby-action-zone',
+  connectionStatus: 'connection-status',
   writingPhase: 'writing-phase',
   writingScrollRegion: 'writing-scroll-region',
   writingActionZone: 'writing-action-zone',
