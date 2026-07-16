@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.23.1](https://github.com/misty-step/linejam/compare/v0.23.0...v0.23.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **privacy:** scrub durable author ids from poem payloads ([#363](https://github.com/misty-step/linejam/issues/363)) ([12d8e55](https://github.com/misty-step/linejam/commit/12d8e55e0022f8ead3a61f83c4e70b3f3309faed))
+
 # [0.23.0](https://github.com/misty-step/linejam/compare/v0.22.0...v0.23.0) (2026-07-16)
 
 
