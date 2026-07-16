@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Id } from '@/convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
@@ -63,22 +63,23 @@ export function RevealStage({
   onRevealPoem,
 }: RevealStageProps) {
   const [activePoemId, setActivePoemId] = useState<Id<'poems'> | null>(null);
-  const [revealedLineCount, setRevealedLineCount] = useState(0);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
 
   const sortedPoems = useMemo(
     () => [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom),
     [poems]
   );
   const sortedRevealedPoems = useMemo(
-    () =>
-      [...revealedPoems].sort(
-        (a, b) => (b.revealedAt ?? 0) - (a.revealedAt ?? 0)
-      ),
+    () => [...revealedPoems].sort((a, b) => a.indexInRoom - b.indexInRoom),
     [revealedPoems]
   );
-  const assignedPoem = myPoems.find((poem) => !poem.isRevealed) ?? null;
+  const sortedMyPoems = useMemo(
+    () => [...myPoems].sort((a, b) => a.indexInRoom - b.indexInRoom),
+    [myPoems]
+  );
+  const assignedPoem = sortedMyPoems.find((poem) => !poem.isRevealed) ?? null;
   const readablePoem =
-    assignedPoem ?? sortedRevealedPoems[0] ?? myPoems[0] ?? null;
+    assignedPoem ?? sortedRevealedPoems[0] ?? sortedMyPoems[0] ?? null;
   const readableAssignedPoem =
     assignedPoem && readablePoem?._id === assignedPoem._id
       ? assignedPoem
@@ -92,15 +93,23 @@ export function RevealStage({
     activePoem ??
     assignedPoem ??
     sortedRevealedPoems[0] ??
-    myPoems[0] ??
+    sortedMyPoems[0] ??
     sortedPoems.find((poem) => !poem.isRevealed) ??
     sortedPoems[0] ??
     null;
-  const visibleLines = activePoem
-    ? activePoem.lines.slice(0, revealedLineCount)
-    : [];
-  const canAdvance =
-    activePoem !== null && revealedLineCount < activePoem.lines.length;
+  useEffect(() => {
+    if (!headlinePoem) return;
+    headlineRef.current?.focus();
+  }, [activePoem, headlinePoem]);
+
+  const announcement = activePoem
+    ? 'Poem ' + poemNumber(activePoem) + ' is ready. Read from line one.'
+    : headlinePoem
+      ? headlinePoem.readerName +
+        ', poem ' +
+        poemNumber(headlinePoem) +
+        ' is ready to read.'
+      : '';
 
   const handleReadOnStage = async () => {
     if (!readablePoem) return;
@@ -110,31 +119,23 @@ export function RevealStage({
     }
 
     setActivePoemId(readablePoem._id);
-    setRevealedLineCount(Math.min(1, readablePoem.lines.length));
   };
 
-  const handleAdvance = () => {
-    if (!activePoem) return;
-
-    if (canAdvance) {
-      setRevealedLineCount((current) =>
-        Math.min(current + 1, activePoem.lines.length)
-      );
-      return;
-    }
-
+  const handleFinish = () => {
     setActivePoemId(null);
-    setRevealedLineCount(0);
   };
 
   return (
     <StageShell
       testId={E2E_TEST_IDS.revealPresentationStage}
       title="Reveal stage"
-      subtitle="The reader controls the poem one line at a time."
+      subtitle="Each reader takes the whole poem in a deliberate running order."
       onExit={onExit}
     >
       <div className="grid min-h-full gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.42fr)] xl:items-stretch">
+        <p role="status" aria-live="polite" className="sr-only">
+          {announcement}
+        </p>
         <section className="flex min-h-0 flex-col justify-between border border-border bg-surface p-6 shadow-[var(--shadow-lg)] md:p-12">
           {headlinePoem ? (
             <div className="space-y-8">
@@ -149,7 +150,11 @@ export function RevealStage({
                   <p className="text-xs font-mono uppercase tracking-[0.28em] text-primary">
                     Reader
                   </p>
-                  <h2 className="text-[clamp(3.25rem,8vw,9rem)] font-[var(--font-display)] leading-[0.92] text-text-primary">
+                  <h2
+                    ref={headlineRef}
+                    tabIndex={-1}
+                    className="text-[clamp(3.25rem,8vw,9rem)] font-[var(--font-display)] leading-[0.92] text-text-primary"
+                  >
                     {headlinePoem.readerName} reads Poem{' '}
                     {poemNumber(headlinePoem)}
                   </h2>
@@ -157,15 +162,11 @@ export function RevealStage({
               </div>
 
               {activePoem ? (
-                <div className="space-y-8">
-                  {visibleLines.map((line, index) => (
+                <div className="space-y-8" aria-label="Poem lines">
+                  {activePoem.lines.map((line, index) => (
                     <p
                       key={`${line.text}:${index}`}
-                      className={cn(
-                        'max-w-5xl font-[var(--font-display)] text-[clamp(2.4rem,5vw,6.25rem)] italic leading-[1.08] text-text-primary',
-                        index === visibleLines.length - 1 &&
-                          'animate-fade-in-up'
-                      )}
+                      className="max-w-5xl font-[var(--font-display)] text-[clamp(2.4rem,5vw,6.25rem)] italic leading-[1.08] text-text-primary"
                     >
                       {line.text}
                     </p>
@@ -209,12 +210,12 @@ export function RevealStage({
             {activePoem ? (
               <Button
                 type="button"
-                onClick={handleAdvance}
+                onClick={handleFinish}
                 data-testid={E2E_TEST_IDS.revealStageNextLineButton}
                 size="lg"
                 className="min-h-16 w-full text-xl sm:w-auto sm:min-w-64"
               >
-                {canAdvance ? 'Next line' : 'Finish poem'}
+                Finish poem
               </Button>
             ) : readablePoem ? (
               <Button
@@ -246,7 +247,11 @@ export function RevealStage({
           </p>
           <ol className="grid gap-2">
             {sortedPoems.map((poem) => {
-              const isCurrent = headlinePoem?._id === poem._id;
+              const readingNowId =
+                activePoem?._id ??
+                sortedPoems.find((candidate) => !candidate.isRevealed)?._id ??
+                sortedPoems[0]?._id;
+              const isCurrent = readingNowId === poem._id;
 
               return (
                 <li

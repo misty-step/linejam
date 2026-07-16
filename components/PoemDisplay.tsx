@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Download, Heart, Volume2, VolumeX } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -19,23 +19,13 @@ import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
  *
  * Design:
  * - Author dots in left gutter (tap to reveal name)
- * - Wipe-reveal animation with rhythmic pacing
+ * - Whole-poem presentation with a deliberate reading order
  * - Poem identity: date + first line preview + contributor dots
  *
  * Variants:
  * - 'reveal': Full-screen overlay for post-game reveal (default)
  * - 'archive': Regular page flow for archive viewing
  */
-
-const REVEAL_DELAYS_MS = [560, 680, 800, 940, 1120, 900, 720, 520, 360];
-
-function getRevealDelay(lineIndex: number, totalLines: number) {
-  if (totalLines <= 1) return REVEAL_DELAYS_MS[0];
-  const shapeIndex = Math.round(
-    (lineIndex / Math.max(totalLines - 1, 1)) * (REVEAL_DELAYS_MS.length - 1)
-  );
-  return REVEAL_DELAYS_MS[shapeIndex] ?? REVEAL_DELAYS_MS.at(-1)!;
-}
 
 export interface PoemLine {
   text: string;
@@ -54,6 +44,8 @@ export interface PoemMetadata {
   backHref?: string;
   backLabel?: string;
   uniquePoets?: number;
+  readerName?: string;
+  poemNumber?: number;
 }
 
 interface PoemDisplayProps {
@@ -77,15 +69,12 @@ export function PoemDisplay({
   guestToken,
   lines,
   onDone,
-  alreadyRevealed = false,
   allStableIds,
   variant = 'reveal',
   metadata,
 }: PoemDisplayProps) {
   const isArchive = variant === 'archive';
 
-  // Archive variant is always fully revealed
-  const effectiveAlreadyRevealed = isArchive ? true : alreadyRevealed;
   const normalizedLines: PoemLine[] = lines.map((line) =>
     typeof line === 'string' ? { text: line } : line
   );
@@ -95,12 +84,16 @@ export function PoemDisplay({
   // x — no line's number or author dot can nudge the text that follows it.
   const lineNumberGutterWidth = `${String(normalizedLines.length).length + 1}ch`;
   const lineGridTemplate = `${lineNumberGutterWidth} 2.75rem 1fr`;
-  const { isMuted, prefersReducedMotion, punctuate, toggleMuted } =
-    useCeremonyEffects();
-
-  const [revealedCount, setRevealedCount] = useState(
-    effectiveAlreadyRevealed || prefersReducedMotion ? lines.length : 0
-  );
+  const { isMuted, toggleMuted } = useCeremonyEffects();
+  const poemHeadingRef = useRef<HTMLHeadingElement>(null);
+  const announcement = isArchive
+    ? ''
+    : metadata?.readerName && metadata.poemNumber
+      ? metadata.readerName +
+        ', poem ' +
+        metadata.poemNumber +
+        ' is ready. Read from line one.'
+      : 'Poem revealed. Read from line one.';
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const { handleShare, copied, shared, shareError } = useSharePoem(
     poemId,
@@ -128,35 +121,12 @@ export function PoemDisplay({
       }));
   }, [normalizedLines]);
 
-  // Staggered reveal follows the 1,2,3,4,5,4,3,2,1 poem shape, then
-  // accelerates into the final one-word line.
+  // The ceremony presents each poem as one composition. Focus the reading
+  // target and announce only the transition, never the poem text itself.
   useEffect(() => {
-    if (effectiveAlreadyRevealed || prefersReducedMotion) {
-      if (revealedCount < lines.length) {
-        const timer = setTimeout(() => {
-          setRevealedCount(lines.length);
-        }, 0);
-        return () => clearTimeout(timer);
-      }
-      return;
-    }
-
-    if (revealedCount < lines.length) {
-      const delay = getRevealDelay(revealedCount, lines.length);
-      const timer = setTimeout(() => {
-        const nextCount = revealedCount + 1;
-        punctuate(nextCount >= lines.length ? 'final-line' : 'line');
-        setRevealedCount(nextCount);
-      }, delay);
-      return () => clearTimeout(timer);
-    }
-  }, [
-    revealedCount,
-    lines.length,
-    effectiveAlreadyRevealed,
-    prefersReducedMotion,
-    punctuate,
-  ]);
+    if (isArchive) return;
+    poemHeadingRef.current?.focus();
+  }, [isArchive, poemId]);
 
   // Clear selected line after 2s
   useEffect(() => {
@@ -166,7 +136,6 @@ export function PoemDisplay({
     }
   }, [selectedLine]);
 
-  const allRevealed = revealedCount >= lines.length;
   const shareStatus = shared
     ? 'Poem shared.'
     : copied
@@ -182,7 +151,7 @@ export function PoemDisplay({
     <button
       type="button"
       onClick={toggleMuted}
-      className="inline-flex h-9 items-center gap-2 rounded-full border border-border-subtle bg-background/80 px-3 text-xs font-mono uppercase tracking-wider text-text-muted backdrop-blur-sm transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      className="inline-flex h-11 min-w-11 items-center gap-2 rounded-full border border-border-subtle bg-background/80 px-3 text-xs font-mono uppercase tracking-wider text-text-muted backdrop-blur-sm transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       aria-label={isMuted ? 'Turn ceremony sound on' : 'Mute ceremony sound'}
       title={isMuted ? 'Turn ceremony sound on' : 'Mute ceremony'}
     >
@@ -204,7 +173,30 @@ export function PoemDisplay({
       )}
 
       {/* Poem Content */}
-      <div className="lj-safe-inline mx-auto w-full max-w-3xl flex-1 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(3rem,env(safe-area-inset-bottom))] md:[--lj-safe-inline-space:3rem] md:py-16 lg:[--lj-safe-inline-space:6rem] lg:py-24">
+      <div
+        className="lj-safe-inline mx-auto w-full max-w-3xl flex-1 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(3rem,env(safe-area-inset-bottom))] md:[--lj-safe-inline-space:3rem] md:py-16 lg:[--lj-safe-inline-space:6rem] lg:py-24"
+        aria-labelledby={!isArchive ? 'poem-display-title' : undefined}
+      >
+        {!isArchive && (
+          <>
+            <h1
+              id="poem-display-title"
+              ref={poemHeadingRef}
+              tabIndex={-1}
+              className="sr-only"
+            >
+              Poem ready to read
+            </h1>
+            <p
+              role="status"
+              aria-live="polite"
+              aria-label={announcement}
+              className="sr-only"
+            >
+              {announcement}
+            </p>
+          </>
+        )}
         {/* Header: Poem Identity + Controls */}
         {metadata && (
           <header className="mb-12">
@@ -240,7 +232,7 @@ export function PoemDisplay({
                   <button
                     onClick={metadata.onToggleFavorite}
                     className={cn(
-                      'print:hidden transition-colors',
+                      'print:hidden inline-flex min-h-11 min-w-11 items-center justify-center transition-colors',
                       metadata.isFavorited
                         ? 'text-[var(--color-primary)]'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -297,15 +289,7 @@ export function PoemDisplay({
         {/* The Poem - Grid with dot gutter */}
         <div className="space-y-6">
           {normalizedLines.map((line, index) => {
-            const isVisible = index < revealedCount;
             const isSelected = selectedLine === index;
-            const isFinalLine = index === normalizedLines.length - 1;
-            const revealAnimation =
-              isVisible && !prefersReducedMotion
-                ? isFinalLine
-                  ? 'wipe-reveal 800ms ease-out forwards, final-line-settle 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards'
-                  : 'wipe-reveal 800ms ease-out forwards'
-                : 'none';
             const dotColor = line.authorStableId
               ? allStableIds
                 ? getUniqueColor(line.authorStableId, allStableIds)
@@ -331,13 +315,12 @@ export function PoemDisplay({
                   {/* Author Dot (Hanko) — 8px ink mark inside a 44px tap target */}
                   <button
                     type="button"
-                    tabIndex={isVisible ? 0 : -1}
-                    disabled={!isVisible}
+                    tabIndex={0}
                     className={cn(
                       'flex h-11 w-11 items-center justify-center rounded-full',
                       '-ml-1.5 cursor-pointer transition-opacity',
                       'focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
-                      isVisible ? 'opacity-100' : 'opacity-0'
+                      'opacity-100'
                     )}
                     onClick={() => setSelectedLine(index)}
                     title={line.authorName}
@@ -355,16 +338,8 @@ export function PoemDisplay({
                       className={cn(
                         'font-[var(--font-display)] leading-relaxed',
                         'text-lg md:text-xl lg:text-2xl',
-                        'text-text-primary',
-                        isVisible &&
-                          isFinalLine &&
-                          !prefersReducedMotion &&
-                          'animate-final-line-settle'
+                        'text-text-primary'
                       )}
-                      style={{
-                        animation: revealAnimation,
-                        clipPath: isVisible ? undefined : 'inset(0 100% 0 0)',
-                      }}
                     >
                       {line.text}
                     </p>
@@ -379,9 +354,7 @@ export function PoemDisplay({
                           'absolute top-full left-0 text-sm italic',
                           'transition-opacity duration-500',
                           line.isBot ? 'text-primary' : 'text-text-muted',
-                          isSelected || (line.isBot && isVisible)
-                            ? 'opacity-100'
-                            : 'opacity-0'
+                          isSelected || line.isBot ? 'opacity-100' : 'opacity-0'
                         )}
                       >
                         {line.isBot ? '✦ ' : '— '}
@@ -403,8 +376,7 @@ export function PoemDisplay({
         className={cn(
           'print:hidden px-space-3 pt-space-3 pb-[max(var(--space-3),env(safe-area-inset-bottom))] md:px-space-5 lg:px-space-6 border-t border-border-subtle',
           'flex flex-col items-center gap-space-3',
-          'transition-opacity duration-500',
-          allRevealed ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          'transition-opacity duration-500 opacity-100'
         )}
       >
         {(shareError || saveError) && (

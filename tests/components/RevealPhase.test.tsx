@@ -32,6 +32,7 @@ const mockStartNewCycleMutation = vi.fn();
 const mockStartGameMutation = vi.fn();
 const mockEnablePublicSessionRecapShare = vi.fn();
 const mockEnablePublicPoemShare = vi.fn();
+const mockToggleFavorite = vi.fn();
 const mockUseQuery = vi.fn();
 
 const mockApiRefs = vi.hoisted(() => ({
@@ -80,6 +81,7 @@ vi.mock('convex/react', () => ({
     if (mutationRef === mockApiRefs.enablePublicPoemShare) {
       return mockEnablePublicPoemShare;
     }
+    if (mutationRef === mockApiRefs.toggleFavorite) return mockToggleFavorite;
     throw new Error('Unexpected mutation reference');
   },
   useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
@@ -372,7 +374,7 @@ describe('RevealPhase component', () => {
     ).toBeInTheDocument();
   });
 
-  it('lets the host open a reveal stage and pace their assigned poem manually', async () => {
+  it('lets the host open a reveal stage and read the whole assigned poem at once', async () => {
     mockRevealPoemMutation.mockResolvedValue(undefined);
     const user = userEvent.setup();
 
@@ -399,26 +401,14 @@ describe('RevealPhase component', () => {
       });
     });
 
-    expect(within(stage).getByText('One')).toBeInTheDocument();
-    expect(within(stage).queryByText('Two words')).not.toBeInTheDocument();
-
-    await user.click(within(stage).getByRole('button', { name: /Next line/i }));
-
-    expect(within(stage).getByText('Two words')).toBeInTheDocument();
-
-    for (let i = 0; i < 7; i += 1) {
-      await user.click(
-        within(stage).getByRole('button', { name: /Next line/i })
-      );
-    }
-
-    expect(within(stage).getByText('End')).toBeInTheDocument();
-    await user.click(
-      within(stage).getByRole('button', { name: /Finish poem/i })
-    );
-
+    mockMyPoem.lines.forEach((line) => {
+      expect(within(stage).getAllByText(line.text).length).toBeGreaterThan(0);
+    });
     expect(
-      within(stage).getByRole('button', { name: /Reveal on stage/i })
+      within(stage).queryByRole('button', { name: /Next line/i })
+    ).not.toBeInTheDocument();
+    expect(
+      within(stage).getByRole('button', { name: /Finish poem/i })
     ).toBeInTheDocument();
   });
 
@@ -450,9 +440,6 @@ describe('RevealPhase component', () => {
 
     const stage = screen.getByTestId('reveal-presentation-stage');
     expect(
-      within(stage).getByRole('heading', { name: /Bob reads Poem 02/i })
-    ).toBeInTheDocument();
-    expect(
       within(stage).getByRole('button', { name: /Read on stage/i })
     ).toBeInTheDocument();
 
@@ -461,7 +448,7 @@ describe('RevealPhase component', () => {
     );
 
     expect(within(stage).getByText('Lanterns')).toBeInTheDocument();
-    expect(within(stage).queryByText('toward dawn')).not.toBeInTheDocument();
+    expect(within(stage).getByText('toward dawn')).toBeInTheDocument();
     expect(mockRevealPoemMutation).not.toHaveBeenCalled();
   });
 

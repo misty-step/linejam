@@ -78,8 +78,8 @@ describe('PoemDisplay component', () => {
     localStorage.clear();
   });
 
-  describe('reveal animation', () => {
-    it('starts with no lines revealed when alreadyRevealed is false', () => {
+  describe('whole-poem ceremony', () => {
+    it('renders every line and author target on the first reveal paint', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -89,29 +89,15 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      // Lines should have opacity-0 initially (not revealed)
-      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-      expect(lineDots[0]).toHaveClass('opacity-0');
-    });
-
-    it('reveals all lines immediately when alreadyRevealed is true', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      // All lines should be visible immediately
-      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-      lineDots.forEach((dot) => {
-        expect(dot).toHaveClass('opacity-100');
+      mockLines.forEach((line) => {
+        expect(screen.getAllByText(line.text).length).toBeGreaterThan(0);
       });
+      screen
+        .getAllByRole('button', { name: /Show author/i })
+        .forEach((dot) => expect(dot).not.toBeDisabled());
     });
 
-    it('reveals lines with the poem-shaped ceremony cadence', async () => {
+    it('makes share, save, and done actions immediately discoverable', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -121,32 +107,13 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-
-      // Initially no lines revealed
-      expect(lineDots[0]).toHaveClass('opacity-0');
-
-      // The reveal is not a flat metronome: it follows the poem diamond,
-      // swelling toward the five-word line before accelerating to the end.
-      await act(async () => {
-        vi.advanceTimersByTime(559);
-      });
-      expect(lineDots[0]).toHaveClass('opacity-0');
-
-      await act(async () => {
-        vi.advanceTimersByTime(1);
-      });
-      expect(lineDots[0]).toHaveClass('opacity-100');
-      expect(lineDots[1]).toHaveClass('opacity-0');
-      expect(navigator.vibrate).toHaveBeenCalledWith(8);
-
-      await act(async () => {
-        vi.advanceTimersByTime(680);
-      });
-      expect(lineDots[1]).toHaveClass('opacity-100');
+      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-100');
+      expect(screen.getByRole('button', { name: 'Share' })).toBeVisible();
+      expect(screen.getByRole('button', { name: /Save image/i })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
     });
 
-    it('crescendoes into the final line instead of pausing at a fixed beat', async () => {
+    it('focuses the poem heading and announces one concise transition', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -156,113 +123,11 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-      const delays = [560, 680, 800, 940, 1120, 900, 720, 520, 360];
-
-      for (const delay of delays.slice(0, 5)) {
-        await act(async () => {
-          vi.advanceTimersByTime(delay);
-        });
-      }
-
-      expect(lineDots[4]).toHaveClass('opacity-100');
-      expect(lineDots[5]).toHaveClass('opacity-0');
-
-      await act(async () => {
-        vi.advanceTimersByTime(899);
-      });
-      expect(lineDots[5]).toHaveClass('opacity-0');
-
-      await act(async () => {
-        vi.advanceTimersByTime(1);
-      });
-      expect(lineDots[5]).toHaveClass('opacity-100');
-
-      for (const delay of delays.slice(6, 8)) {
-        await act(async () => {
-          vi.advanceTimersByTime(delay);
-        });
-      }
-
-      expect(lineDots[7]).toHaveClass('opacity-100');
-      expect(lineDots[8]).toHaveClass('opacity-0');
-
-      await act(async () => {
-        vi.advanceTimersByTime(359);
-      });
-      expect(lineDots[8]).toHaveClass('opacity-0');
-
-      await act(async () => {
-        vi.advanceTimersByTime(1);
-      });
-      expect(lineDots[8]).toHaveClass('opacity-100');
-      expect(navigator.vibrate).toHaveBeenLastCalledWith([14, 30, 18]);
-    });
-
-    it('reveals immediately and skips haptics for reduced motion', async () => {
-      installMatchMedia(true);
-
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={false}
-        />
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { name: 'Poem ready to read' })
       );
-
-      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-      lineDots.forEach((dot) => {
-        expect(dot).toHaveClass('opacity-100');
-      });
-      expect(navigator.vibrate).not.toHaveBeenCalled();
-    });
-
-    it('lets the reader mute reveal punctuation before the first line', async () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={false}
-        />
-      );
-
-      fireEvent.click(
-        screen.getByRole('button', { name: /Mute ceremony sound/i })
-      );
-
-      await act(async () => {
-        vi.advanceTimersByTime(560);
-      });
-
-      expect(navigator.vibrate).not.toHaveBeenCalled();
-    });
-
-    it('shows Share and Close buttons only after all lines revealed', async () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={false}
-        />
-      );
-
-      // Initially footer should be hidden (opacity-0 pointer-events-none)
-      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-0');
-
-      // Reveal all 9 lines one by one (with extra pause after line 4)
-      for (const delay of [560, 680, 800, 940, 1120, 900, 720, 520, 360]) {
-        await act(async () => {
-          vi.advanceTimersByTime(delay);
-        });
-      }
-
-      // Footer should now be visible
-      expect(screen.getByTestId('poem-actions')).toHaveClass(
-        'opacity-100',
-        'pb-[max(var(--space-3),env(safe-area-inset-bottom))]'
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Poem revealed. Read from line one.'
       );
     });
   });
@@ -370,7 +235,7 @@ describe('PoemDisplay component', () => {
       expect(aliceBylines[0]).toHaveClass('opacity-100');
     });
 
-    it('does not expose hidden lines as tappable targets', () => {
+    it('keeps every author target keyboard and touch reachable', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -380,11 +245,11 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      // Before reveal, the dot is disabled so a stray tap reveals nothing.
-      const firstDot = screen.getAllByRole('button', {
-        name: /Show author/i,
-      })[0];
-      expect(firstDot).toBeDisabled();
+      const dots = screen.getAllByRole('button', { name: /Show author/i });
+      dots.forEach((dot) => {
+        expect(dot).not.toBeDisabled();
+        expect(dot).toHaveClass('opacity-100');
+      });
     });
 
     it('announces the AI persona as a reveal moment (no tap needed)', () => {
@@ -687,8 +552,7 @@ describe('PoemDisplay component', () => {
       expect(
         screen.getByText(/Fallback title from metadata/)
       ).toBeInTheDocument();
-      // A zero-line poem is trivially "fully revealed" the instant it mounts.
-      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-100');
+      expect(screen.getByTestId('poem-actions')).toBeVisible();
     });
 
     it('shows an empty title when there is no line text and no metadata fallback', () => {
