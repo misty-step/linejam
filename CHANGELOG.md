@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.22.0](https://github.com/misty-step/linejam/compare/v0.21.0...v0.22.0) (2026-07-16)
+
+
+### Features
+
+* **retention:** enforce bounded data lifecycle ([#359](https://github.com/misty-step/linejam/issues/359)) ([83a0083](https://github.com/misty-step/linejam/commit/83a00839d1797eb05be03eccdf3fa5ab8687c43e))
+
 # [0.21.0](https://github.com/misty-step/linejam/compare/v0.20.0...v0.21.0) (2026-07-15)
 
 
