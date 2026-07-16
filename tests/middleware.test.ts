@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+vi.mock('@clerk/nextjs/server', () => ({
+  clerkMiddleware: () => (req: NextRequest) =>
+    NextResponse.next({ request: { headers: req.headers } }),
+}));
 
 /**
  * Regression coverage for linejam-942: a guest hitting /me/* must never be
@@ -113,6 +118,12 @@ describe('middleware — document CSP containment', () => {
     const xmlCsp = xml.headers.get('Content-Security-Policy') ?? '';
 
     expect(dynamicCsp).toMatch(/script-src[^;]*'nonce-[^']+'/);
+    const nonce = dynamicCsp.match(/'nonce-([^']+)'/)?.[1];
+    expect(nonce).toBeTruthy();
+    expect(dynamic.headers.get('x-middleware-override-headers')).toContain(
+      'x-nonce'
+    );
+    expect(dynamic.headers.get('x-middleware-request-x-nonce')).toBe(nonce);
     expect(dynamicCsp).not.toContain("script-src 'unsafe-inline'");
     expect(releasesCsp).toContain("script-src 'self' 'unsafe-inline'");
     expect(xmlCsp).toContain("script-src 'self' 'unsafe-inline'");
@@ -136,21 +147,18 @@ describe('middleware — document CSP containment', () => {
 describe('middleware — Clerk configured', () => {
   it('takes the clerkMiddleware() success path, not the init-failure fallback', async () => {
     // Not a real credential — just needs to be a non-empty string so
-    // isClerkConfigured is true. clerkMiddleware() itself doesn't validate
-    // key format or touch the network until a request is actually handled
-    // (Clerk's key/publishable-key checks live inside the per-request
-    // handler), so this covers the `if (isClerkConfigured)` branch without
-    // needing to drive a full authenticated request through Clerk.
+    // the request-time resolver takes the Clerk branch. The mocked handler
+    // keeps this test local while exercising the lazy initialization path.
     process.env.CLERK_SECRET_KEY = 'test-value-not-a-real-clerk-secret';
     vi.resetModules();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const { default: middleware } = await import('../middleware');
+    const response = await middleware(
+      new NextRequest('http://localhost:3000/api/health')
+    );
 
-    // Proves the `try` succeeded (middleware is a real function, not the
-    // passthrough init-failure fallback) with no auth.protect() call site
-    // anywhere in this file.
-    expect(typeof middleware).toBe('function');
+    expect(response.status).toBe(200);
     expect(warnSpy).not.toHaveBeenCalled();
   });
 });

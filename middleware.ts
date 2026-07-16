@@ -24,22 +24,33 @@ import { buildContentSecurityPolicy } from './lib/contentSecurityPolicy';
  * guest-only mode and this middleware is a no-op passthrough.
  */
 
-// Check if Clerk is configured (secret key available)
-const isClerkConfigured = !!process.env.CLERK_SECRET_KEY;
-
-function passthroughMiddleware() {
-  return NextResponse.next();
+function passthroughMiddleware(req: NextRequest) {
+  return NextResponse.next({ request: { headers: req.headers } });
 }
 
-// Conditionally create middleware based on Clerk configuration
-// We use a dynamic approach to avoid importing Clerk when not configured
-let upstreamMiddleware: (
+// Resolve Clerk at request time so build-time and runtime environments cannot
+// disagree about whether authentication middleware is available.
+type UpstreamMiddleware = (
   req: NextRequest
 ) => Promise<NextResponse | Response> | NextResponse;
 
-if (isClerkConfigured) {
+let upstreamMiddleware: UpstreamMiddleware | undefined;
+let upstreamConfigured: boolean | undefined;
+
+function resolveUpstreamMiddleware(): UpstreamMiddleware {
+  const isClerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
+  if (upstreamMiddleware && upstreamConfigured === isClerkConfigured) {
+    return upstreamMiddleware;
+  }
+
+  upstreamConfigured = isClerkConfigured;
+  if (!isClerkConfigured) {
+    upstreamMiddleware = passthroughMiddleware;
+    return upstreamMiddleware;
+  }
+
   try {
-    // Only import Clerk when configured to avoid initialization errors
+    // Only import Clerk when configured to avoid initialization errors.
     const { clerkMiddleware } = require('@clerk/nextjs/server'); // eslint-disable-line @typescript-eslint/no-require-imports
 
     // clerkMiddleware still wraps every request so Clerk can attach the
@@ -48,14 +59,13 @@ if (isClerkConfigured) {
     // auth.protect() because no route is Clerk-only.
     upstreamMiddleware = clerkMiddleware();
   } catch {
-    // If Clerk initialization fails, fall back to guest-only mode
+    // If Clerk initialization fails, fall back to guest-only mode.
     console.warn('Clerk initialization failed, running in guest-only mode');
     upstreamMiddleware = passthroughMiddleware;
   }
-} else {
-  upstreamMiddleware = passthroughMiddleware;
+  if (upstreamMiddleware) return upstreamMiddleware;
+  return passthroughMiddleware;
 }
-
 const SERVER_ACTION_ID = /^[a-f0-9]{40,64}$/;
 const STATIC_ASSET =
   /\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)$/i;
@@ -76,7 +86,34 @@ function isDocumentRequest(req: NextRequest) {
 }
 
 function createNonce() {
-  return Buffer.from(crypto.randomUUID()).toString('base64');
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function forwardRequestHeaders(
+  response: NextResponse | Response,
+  requestHeaders: Headers
+) {
+  const forwarded = NextResponse.next({ request: { headers: requestHeaders } });
+  const forwardedNames = forwarded.headers.get('x-middleware-override-headers');
+  if (!forwardedNames) return response;
+
+  const existingNames = response.headers.get('x-middleware-override-headers');
+  const names = new Set(
+    [...(existingNames?.split(',') ?? []), ...forwardedNames.split(',')].filter(
+      Boolean
+    )
+  );
+  response.headers.set('x-middleware-override-headers', [...names].join(','));
+  for (const [key, value] of forwarded.headers) {
+    if (key.startsWith('x-middleware-request-')) {
+      response.headers.set(key, value);
+    }
+  }
+  return response;
 }
 
 export default async function middleware(req: NextRequest) {
@@ -89,7 +126,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   if (!isDocumentRequest(req)) {
-    return upstreamMiddleware(req);
+    return resolveUpstreamMiddleware()(req);
   }
 
   // These public, unauthenticated, non-user-generated force-static routes
@@ -104,7 +141,8 @@ export default async function middleware(req: NextRequest) {
   if (nonce) requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', csp);
   const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
-  const response = await upstreamMiddleware(requestWithNonce);
+  const response = await resolveUpstreamMiddleware()(requestWithNonce);
+  forwardRequestHeaders(response, requestHeaders);
   response.headers.set('Content-Security-Policy', csp);
   return response;
 }
