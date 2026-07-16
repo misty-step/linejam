@@ -50,6 +50,7 @@ export function readDotEnv(filePath = path.join(process.cwd(), '.env.local')) {
   return parsed;
 }
 
+/** @param {{ env?: Env, envFile?: string }} [options] */
 export function loadEnvironment({ env = process.env, envFile } = {}) {
   return { ...readDotEnv(envFile), ...env };
 }
