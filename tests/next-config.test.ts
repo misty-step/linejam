@@ -27,18 +27,25 @@ describe('nextConfig security headers', () => {
     expect(headers.get('Permissions-Policy')).toContain('camera=()');
     expect(headers.get('Permissions-Policy')).toContain('microphone=()');
 
-    const csp = headers.get('Content-Security-Policy');
-    expect(csp).toBeDefined();
-    expect(csp).toContain("default-src 'self'");
-    expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).toContain("object-src 'none'");
-    expect(csp).toContain("base-uri 'self'");
-    expect(csp).toContain('https://img.clerk.com');
-    const retiredProvider = ['ver', 'cel'].join('');
-    expect(csp).not.toContain(`${retiredProvider}-insights`);
-    expect(csp).not.toContain(`${retiredProvider}-scripts`);
+    // Document CSP is owned by middleware so each response gets exactly one
+    // request-bound nonce-bearing policy instead of intersecting static and
+    // dynamic policies.
+    expect(headers.has('Content-Security-Policy')).toBe(false);
+  });
+
+  it('builds a nonce-bearing script policy without unsafe-inline', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const csp = buildContentSecurityPolicy('nonce-for-test');
+    const scriptDirective =
+      csp
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith('script-src')) ?? '';
+
+    expect(scriptDirective).toContain("'nonce-nonce-for-test'");
+    expect(scriptDirective).not.toContain("'unsafe-inline'");
     expect(csp).not.toMatch(/\n/);
-    expect(csp).not.toContain(' *');
   });
 
   it('uses the stable Canary hostname when no endpoint is configured', () => {

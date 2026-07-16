@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import type { Metadata, Viewport } from 'next';
 import { resolveDeploymentId } from '@/lib/deploymentId';
 import {
@@ -165,11 +166,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   // Blocking script: apply theme before first paint to prevent FOUC
   // Theme IDs injected from registry to avoid duplication
   const themeInitScript = `
@@ -206,7 +209,10 @@ export default function RootLayout({
       className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${archivo.variable} ${archivoBlack.variable} ${anton.variable}`}
     >
       <body className="antialiased">
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
         <Providers
           deploymentId={resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID)}
         >

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import type { NextFetchEvent, NextMiddleware } from 'next/server';
+import { buildContentSecurityPolicy } from './lib/contentSecurityPolicy';
 
 /**
  * Root Middleware
@@ -24,23 +25,34 @@ import type { NextRequest } from 'next/server';
  * guest-only mode and this middleware is a no-op passthrough.
  */
 
-// Check if Clerk is configured (secret key available)
-const isClerkConfigured = !!process.env.CLERK_SECRET_KEY;
-
-function passthroughMiddleware() {
-  return NextResponse.next();
+function passthroughMiddleware(req: NextRequest) {
+  return NextResponse.next({ request: { headers: req.headers } });
 }
 
-// Conditionally create middleware based on Clerk configuration
-// We use a dynamic approach to avoid importing Clerk when not configured
-let upstreamMiddleware: (
-  req: NextRequest
-) => Promise<NextResponse | Response> | NextResponse;
+// Resolve Clerk at request time so build-time and runtime environments cannot
+// disagree about whether authentication middleware is available.
+type UpstreamMiddleware = NextMiddleware;
 
-if (isClerkConfigured) {
+let upstreamMiddleware: UpstreamMiddleware | undefined;
+let upstreamConfigured: boolean | undefined;
+
+async function resolveUpstreamMiddleware(): Promise<UpstreamMiddleware> {
+  const isClerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
+  if (upstreamMiddleware && upstreamConfigured === isClerkConfigured) {
+    return upstreamMiddleware;
+  }
+
+  upstreamConfigured = isClerkConfigured;
+  if (!isClerkConfigured) {
+    upstreamMiddleware = passthroughMiddleware;
+    return upstreamMiddleware;
+  }
+
   try {
-    // Only import Clerk when configured to avoid initialization errors
-    const { clerkMiddleware } = require('@clerk/nextjs/server'); // eslint-disable-line @typescript-eslint/no-require-imports
+    // Only import Clerk when configured to avoid initialization errors.
+    // A dynamic import (not require()) keeps this Edge-runtime compatible
+    // and lets Vitest's module mocks intercept the call in tests.
+    const { clerkMiddleware } = await import('@clerk/nextjs/server');
 
     // clerkMiddleware still wraps every request so Clerk can attach the
     // session state (cookies/JWT) that useAuth()/ConvexProviderWithClerk
@@ -48,17 +60,67 @@ if (isClerkConfigured) {
     // auth.protect() because no route is Clerk-only.
     upstreamMiddleware = clerkMiddleware();
   } catch {
-    // If Clerk initialization fails, fall back to guest-only mode
+    // If Clerk initialization fails, fall back to guest-only mode.
     console.warn('Clerk initialization failed, running in guest-only mode');
     upstreamMiddleware = passthroughMiddleware;
   }
-} else {
-  upstreamMiddleware = passthroughMiddleware;
+  if (upstreamMiddleware) return upstreamMiddleware;
+  return passthroughMiddleware;
+}
+const SERVER_ACTION_ID = /^[a-f0-9]{40,64}$/;
+const STATIC_ASSET =
+  /\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)$/i;
+const STATIC_CSP_ROUTES = new Set(['/releases', '/releases.xml']);
+
+function isDocumentRequest(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  if (
+    pathname === '/api' ||
+    pathname.startsWith('/api/') ||
+    pathname === '/trpc' ||
+    pathname.startsWith('/trpc/')
+  ) {
+    return false;
+  }
+  return !STATIC_ASSET.test(pathname);
 }
 
-const SERVER_ACTION_ID = /^[a-f0-9]{40,64}$/;
+function createNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
 
-export default function middleware(req: NextRequest) {
+function forwardRequestHeaders(
+  response: NextResponse | Response,
+  requestHeaders: Headers
+) {
+  const forwarded = NextResponse.next({ request: { headers: requestHeaders } });
+  const forwardedNames = forwarded.headers.get('x-middleware-override-headers');
+  if (!forwardedNames) return response;
+
+  const existingNames = response.headers.get('x-middleware-override-headers');
+  const names = new Set(
+    [...(existingNames?.split(',') ?? []), ...forwardedNames.split(',')].filter(
+      Boolean
+    )
+  );
+  response.headers.set('x-middleware-override-headers', [...names].join(','));
+  for (const [key, value] of forwarded.headers) {
+    if (key.startsWith('x-middleware-request-')) {
+      response.headers.set(key, value);
+    }
+  }
+  return response;
+}
+
+export default async function middleware(
+  req: NextRequest,
+  event: NextFetchEvent
+) {
   const actionId = req.headers.get('next-action');
   if (actionId && !SERVER_ACTION_ID.test(actionId)) {
     return new NextResponse(null, {
@@ -67,7 +129,31 @@ export default function middleware(req: NextRequest) {
     });
   }
 
-  return upstreamMiddleware(req);
+  if (!isDocumentRequest(req)) {
+    return (await resolveUpstreamMiddleware())(req, event);
+  }
+
+  // These public, unauthenticated, non-user-generated force-static routes
+  // retain inline scripts for their cached RSC/theme HTML. This is a scoped
+  // exception: every other document gets a fresh nonce policy.
+  const isScopedStaticRoute = STATIC_CSP_ROUTES.has(req.nextUrl.pathname);
+  const nonce = isScopedStaticRoute ? undefined : createNonce();
+  const csp = buildContentSecurityPolicy(nonce, {
+    allowUnsafeInlineScript: isScopedStaticRoute,
+  });
+  const requestHeaders = new Headers(req.headers);
+  if (nonce) requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
+  const requestWithNonce = new NextRequest(req, { headers: requestHeaders });
+  const upstreamResponse = await (
+    await resolveUpstreamMiddleware()
+  )(requestWithNonce, event);
+  const response =
+    upstreamResponse ??
+    NextResponse.next({ request: { headers: requestHeaders } });
+  forwardRequestHeaders(response, requestHeaders);
+  response.headers.set('Content-Security-Policy', csp);
+  return response;
 }
 
 export const config = {
