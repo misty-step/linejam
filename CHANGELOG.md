@@ -2,6 +2,23 @@
 
 All notable changes to Linejam.
 
+# [0.24.0](https://github.com/misty-step/linejam/compare/v0.23.1...v0.24.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* polish mobile game core loop ([#370](https://github.com/misty-step/linejam/issues/370)) ([8b6166f](https://github.com/misty-step/linejam/commit/8b6166f53e48f5d12539b385249256496ff77762))
+* **security:** contain document scripts with nonce CSP ([#367](https://github.com/misty-step/linejam/issues/367)) ([7d9e22c](https://github.com/misty-step/linejam/commit/7d9e22c432a6d66bb15bf56e016b045139f734d1))
+
+
+### Features
+
+* **analytics:** add privacy-safe room cycle funnel ([#372](https://github.com/misty-step/linejam/issues/372)) ([e49c20a](https://github.com/misty-step/linejam/commit/e49c20af68a8b57a0f34c82121b5c01335bf164c))
+* **game:** recover live rooms after reconnect ([#369](https://github.com/misty-step/linejam/issues/369)) ([e5b3d92](https://github.com/misty-step/linejam/commit/e5b3d927ea5daaa2608eb056069ffa6bce9decf1))
+* **onboarding:** add verified-live doctor ([#365](https://github.com/misty-step/linejam/issues/365)) ([87b686d](https://github.com/misty-step/linejam/commit/87b686d5fc5eb25d766cadfb577549da9aa8aff4))
+* **reveal:** present whole poems in ordered accessible ceremony ([#366](https://github.com/misty-step/linejam/issues/366)) ([f2efb47](https://github.com/misty-step/linejam/commit/f2efb4701f416eeb71854830e8578001fdf80fa0))
+* support late arrivals and zero-tap QR joining ([#368](https://github.com/misty-step/linejam/issues/368)) ([0680d1f](https://github.com/misty-step/linejam/commit/0680d1f4078ac8108411fede44b9af8d70b18cb1))
+
 ## [0.23.1](https://github.com/misty-step/linejam/compare/v0.23.0...v0.23.1) (2026-07-16)
 
 
