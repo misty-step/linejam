@@ -222,7 +222,6 @@ export function buildRoomCycleFunnelReport(
   const humanRooms = cohort.filter(
     (room) => uniqueHumanParticipants(room).size >= 2
   );
-  const humanRoomKeys = new Set(humanRooms.map((room) => room.roomIdHash));
   const firstCycles = humanRooms.map((room) => room.cycles[0]);
 
   const started = firstCycles.filter((cycle) =>
