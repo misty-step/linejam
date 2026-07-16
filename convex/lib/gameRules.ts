@@ -17,6 +17,29 @@
 export const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1] as const;
 
 /**
+ * Late-arrival contract for the one-game loop. A join during an active game
+ * gets a room seat but not a retroactive assignment: the current game keeps
+ * its matrix, poem count, and round position unchanged. The newcomer is a
+ * spectator until the next lobby cycle, can watch the reveal, and becomes a
+ * normal matrix participant only when the next game starts.
+ */
+export const LATE_JOIN_POLICY = {
+  allowedStatus: 'IN_PROGRESS',
+  assignment: 'next-game-only',
+  fairness: 'preserve-completed-and-active-matrix-rows',
+  poemCount: 'unchanged',
+  roundPosition: 'current-round-spectator',
+  spectatorFallback: 'wait-until-next-game',
+  revealParticipation: 'viewer',
+} as const;
+
+export function isLateJoinAllowed(
+  game: { readonly status: 'IN_PROGRESS' | 'COMPLETED' } | null | undefined
+): boolean {
+  return game?.status === LATE_JOIN_POLICY.allowedStatus;
+}
+
+/**
  * A game's final round index = the last row of its own assignment matrix (see
  * the module header on why this is matrix-derived, not a constant). Typed to
  * what it uses — only the length — so it never widens a caller's matrix.

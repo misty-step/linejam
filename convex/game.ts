@@ -761,11 +761,15 @@ export const getRoundProgress = query({
       )
     );
     const now = Date.now();
-    const progress = playerAssignments.map(({ player }, i) => {
+    const progress = playerAssignments.map(({ player, poemIndex }, i) => {
       const userRecord = userById.get(player.userId);
       return {
         displayName: player.displayName,
         submitted: lineChecks[i] !== null,
+        // Late arrivals have a room seat but no column in this game's
+        // immutable matrix. They observe the current round and never block
+        // completion; the next game will include them normally.
+        isSpectator: poemIndex === -1,
         userId: player.userId,
         stableId:
           userRecord?.clerkUserId || userRecord?.guestId || player.userId,
@@ -780,6 +784,9 @@ export const getRoundProgress = query({
       totalRounds: game.assignmentMatrix.length,
       roundStartedAt: game.roundStartedAt ?? game.createdAt,
       isHost: room.hostUserId === user._id,
+      isCurrentUserSpectator:
+        playerAssignments.find(({ player }) => player.userId === user._id)
+          ?.poemIndex === -1,
       players: progress,
     };
   },

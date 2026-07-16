@@ -428,7 +428,7 @@ export function WritingScreen({
           roomCode={roomCode}
           guestToken={guestToken}
           progressOverride={roundProgress}
-          isLateJoiner
+          isLateJoiner={roundProgress?.isCurrentUserSpectator ?? false}
           embedded
         />
       </div>

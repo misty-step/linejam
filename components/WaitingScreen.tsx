@@ -30,6 +30,7 @@ interface WaitingScreenProps {
       displayName: string;
       isBot?: boolean;
       isAway?: boolean;
+      isSpectator?: boolean;
     }>;
   } | null;
 }
@@ -98,9 +99,13 @@ export function WaitingScreen({
   }
 
   const { round, players } = progress;
-  const submittedCount = players.filter((p) => p.submitted).length;
-  const allSubmitted = submittedCount === players.length;
-  const waitingNames = players
+  const activePlayers = players.filter((player) => !player.isSpectator);
+  const spectatorNames = players
+    .filter((player) => player.isSpectator)
+    .map((player) => player.displayName);
+  const submittedCount = activePlayers.filter((p) => p.submitted).length;
+  const allSubmitted = submittedCount === activePlayers.length;
+  const waitingNames = activePlayers
     .filter((p) => !p.submitted)
     .map((p) => (p.isAway ? `${p.displayName} (away)` : p.displayName));
 
@@ -147,7 +152,7 @@ export function WaitingScreen({
               Game in progress
             </p>
             <p className="mt-2 text-base text-[var(--color-text-secondary)]">
-              You&apos;re in for the next round. Sit tight.
+              You&apos;re watching this game. You can play in the next one.
             </p>
           </div>
         )}
@@ -183,10 +188,20 @@ export function WaitingScreen({
             ))}
           </div>
 
+          {spectatorNames.length > 0 && (
+            <p
+              className="mb-6 max-w-full break-words text-center text-sm text-[var(--color-text-muted)]"
+              aria-live="polite"
+            >
+              Watching this round: {spectatorNames.join(', ')}
+            </p>
+          )}
+
           {!allSubmitted && (
             <div className="w-full min-w-0 max-w-full space-y-3">
               <p className="max-w-full break-words text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
-                Round {round + 1} · {submittedCount} of {players.length} ready
+                Round {round + 1} · {submittedCount} of {activePlayers.length}{' '}
+                ready
               </p>
               <p
                 className="max-w-full break-words text-base text-[var(--color-text-muted)]"
@@ -216,8 +231,10 @@ export function WaitingScreen({
                   animationDelay: `${index * 100}ms`,
                 }}
               >
-                <div className="flex flex-col items-center gap-1.5">
-                  {player.submitted ? (
+                <div
+                  className={`flex flex-col items-center gap-1.5 ${player.isSpectator ? 'opacity-60' : ''}`}
+                >
+                  {player.submitted && !player.isSpectator ? (
                     <div className="opacity-50 transition-opacity duration-[var(--duration-normal)]">
                       <Avatar
                         stableId={player.stableId}
@@ -228,7 +245,7 @@ export function WaitingScreen({
                     </div>
                   ) : (
                     <div
-                      className={`relative ${player.isAway ? 'opacity-40' : ''}`}
+                      className={`relative ${player.isAway || player.isSpectator ? 'opacity-40' : ''}`}
                     >
                       <Avatar
                         stableId={player.stableId}
@@ -236,7 +253,7 @@ export function WaitingScreen({
                         allStableIds={allStableIds}
                         size="sm"
                       />
-                      {!player.isAway && (
+                      {!player.isAway && !player.isSpectator && (
                         <div
                           className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
                           style={{
@@ -248,9 +265,14 @@ export function WaitingScreen({
                     </div>
                   )}
                   <span
-                    className={`text-[0.6875rem] font-medium leading-tight text-center max-w-[72px] truncate ${player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
+                    className={`max-w-[72px] break-words text-center text-[0.6875rem] font-medium leading-tight [overflow-wrap:anywhere] ${player.isSpectator ? 'text-[var(--color-text-muted)]' : player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
                   >
                     {player.displayName}
+                    {player.isSpectator && (
+                      <span className="block text-[0.5625rem] uppercase tracking-wider">
+                        watching
+                      </span>
+                    )}
                   </span>
                   {player.isBot && <BotBadge showLabel={false} />}
                 </div>

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LATE_JOIN_POLICY,
   WORD_COUNTS,
   getFinalRoundIndex,
+  isLateJoinAllowed,
   isPresenceStale,
 } from '../../convex/lib/gameRules';
 
@@ -13,6 +15,26 @@ describe('gameRules', () => {
   it('opens and closes on a single word — the read-aloud bookends', () => {
     expect(WORD_COUNTS[0]).toBe(1);
     expect(WORD_COUNTS[WORD_COUNTS.length - 1]).toBe(1);
+  });
+
+  describe('late arrivals', () => {
+    it('preserves matrix fairness and uses a spectator fallback for the active game', () => {
+      expect(LATE_JOIN_POLICY).toMatchObject({
+        allowedStatus: 'IN_PROGRESS',
+        assignment: 'next-game-only',
+        fairness: 'preserve-completed-and-active-matrix-rows',
+        poemCount: 'unchanged',
+        roundPosition: 'current-round-spectator',
+        spectatorFallback: 'wait-until-next-game',
+        revealParticipation: 'viewer',
+      });
+    });
+
+    it('only permits joins while a game is actively running', () => {
+      expect(isLateJoinAllowed({ status: 'IN_PROGRESS' })).toBe(true);
+      expect(isLateJoinAllowed({ status: 'COMPLETED' })).toBe(false);
+      expect(isLateJoinAllowed(null)).toBe(false);
+    });
   });
 
   describe('getFinalRoundIndex', () => {

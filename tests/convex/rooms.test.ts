@@ -301,17 +301,59 @@ describe('joinRoom', () => {
     ).rejects.toThrow('Room not found');
   });
 
-  it('throws when a game is in progress', async () => {
+  it('allows a late join as a spectator without changing the active game', async () => {
     const t = setupConvexTest();
-    await seedClerkUser(t, 'late', { displayName: 'Late' });
-    const { code } = await seedRoomWithActiveGame(t, 'hosta', 'guesta');
+    const lateId = await seedClerkUser(t, 'late', { displayName: 'Late' });
+    const { code, roomId } = await seedRoomWithActiveGame(t, 'hosta', 'guesta');
+    const before = await t.run(async (ctx) => ({
+      game: (await ctx.db
+        .query('games')
+        .withIndex('by_room_status', (q) =>
+          q.eq('roomId', roomId).eq('status', 'IN_PROGRESS')
+        )
+        .first())!,
+      poems: await ctx.db
+        .query('poems')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect(),
+    }));
 
     await expect(
       asUser(t, 'late').mutation(api.rooms.joinRoom, {
-        code,
+        code: code.toLowerCase(),
         displayName: 'Late',
       })
-    ).rejects.toThrow('Cannot join a room with a game in progress');
+    ).resolves.toMatchObject({ _id: roomId });
+
+    await asUser(t, 'late').mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Late Again',
+    });
+
+    const after = await t.run(async (ctx) => ({
+      game: (await ctx.db
+        .query('games')
+        .withIndex('by_room_status', (q) =>
+          q.eq('roomId', roomId).eq('status', 'IN_PROGRESS')
+        )
+        .first())!,
+      players: await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect(),
+      poems: await ctx.db
+        .query('poems')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect(),
+    }));
+
+    expect(after.game.assignmentMatrix).toEqual(before.game.assignmentMatrix);
+    expect(after.game.currentRound).toBe(before.game.currentRound);
+    expect(after.poems).toHaveLength(before.poems.length);
+    expect(after.players.filter((p) => p.userId === lateId)).toHaveLength(1);
+    expect(after.players.find((p) => p.userId === lateId)?.displayName).toBe(
+      'Late Again'
+    );
   });
 
   it('throws when room is at capacity (8 players)', async () => {
@@ -413,25 +455,7 @@ describe('joinRoom', () => {
 
   it('throws ConvexError with data for in-progress and full rooms', async () => {
     const t = setupConvexTest();
-
-    // Game in progress
-    await seedClerkUser(t, 'late-ce', { displayName: 'LateCE' });
-    const { code: activeCode } = await seedRoomWithActiveGame(
-      t,
-      'hostce',
-      'guestce'
-    );
     let caught: unknown;
-    try {
-      await asUser(t, 'late-ce').mutation(api.rooms.joinRoom, {
-        code: activeCode,
-        displayName: 'LateCE',
-      });
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(ConvexError);
-    expect((caught as ConvexError<string>).data).toContain('game in progress');
 
     // Room full
     const { code: fullCode, roomId: fullRoomId } = await seedLobbyRoom(

@@ -386,6 +386,38 @@ describe('WaitingScreen component', () => {
     expect(screen.getByText('Waiting on Bob')).toBeInTheDocument();
   });
 
+  it('does not count late spectators as missing round submissions', () => {
+    mockUseQuery.mockReturnValue({
+      round: 2,
+      players: [
+        {
+          userId: 'user_1',
+          stableId: 'stable_1',
+          displayName: 'Alice',
+          submitted: true,
+          isBot: false,
+        },
+        {
+          userId: 'user_late',
+          stableId: 'stable_late',
+          displayName: 'Late Poet',
+          submitted: false,
+          isBot: false,
+          isSpectator: true,
+        },
+      ],
+    });
+
+    render(<WaitingScreen roomCode="ABCD" />);
+
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(
+      screen.getByText('Watching this round: Late Poet')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/of.*ready/)).not.toBeInTheDocument();
+    expect(screen.getByText('watching')).toBeInTheDocument();
+  });
+
   it('offers the host a ghostwriter rescue after overtime', async () => {
     mockUseQuery.mockReturnValue({
       round: 1,
