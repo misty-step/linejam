@@ -40,8 +40,8 @@ export function readDotEnv(filePath = path.join(process.cwd(), '.env.local')) {
   let contents;
   try { contents = readFileSync(filePath, 'utf8'); } catch { return {}; }
   const parsed = {};
-  for (const line of contents.split(/\\r?\\n/u)) {
-    const match = line.match(/^\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*?)\\s*$/u);
+  for (const line of contents.split(/\r?\n/u)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/u);
     if (!match) continue;
     let parsedValue = match[2];
     if ((parsedValue.startsWith('"') && parsedValue.endsWith('"')) || (parsedValue.startsWith("'") && parsedValue.endsWith("'"))) parsedValue = parsedValue.slice(1, -1);
