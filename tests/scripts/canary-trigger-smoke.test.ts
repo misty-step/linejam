@@ -1,4 +1,5 @@
 /** @vitest-environment node */
+import './canary-test-env';
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

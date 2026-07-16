@@ -1,3 +1,4 @@
+import './canary-test-env';
 import { describe, expect, it } from 'vitest';
 
 import { getSmokeClerkKeyError } from '@/scripts/canary/smoke-auth.mjs';
