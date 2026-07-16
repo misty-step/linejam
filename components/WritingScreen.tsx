@@ -204,12 +204,21 @@ function WritingComposer({
         guestToken: guestToken || undefined,
       });
       clearWritingDraft(draftKey);
-      trackLineSubmitted({
-        roomIdHash: hashRoomId(assignment.roomId),
-        cycle: assignment.cycle,
-        round: assignment.lineIndex,
-        playerKind: assignment.playerKind,
-      });
+      // Telemetry is best-effort: a tracking failure (e.g. deploy-skew
+      // assignment payloads without funnel fields) must never surface as a
+      // submit error for a line that already persisted.
+      try {
+        if (assignment.roomId) {
+          trackLineSubmitted({
+            roomIdHash: hashRoomId(assignment.roomId),
+            cycle: assignment.cycle,
+            round: assignment.lineIndex,
+            playerKind: assignment.playerKind,
+          });
+        }
+      } catch {
+        // Analytics must not break gameplay.
+      }
 
       // Show confirmation state briefly before transitioning to waiting
       setSubmissionState('confirmed');

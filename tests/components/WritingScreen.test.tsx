@@ -67,6 +67,9 @@ describe('WritingScreen component', () => {
   // Mock assignment data matching the getCurrentAssignment return type
   const mockAssignment = {
     poemId: 'poem_123' as Id<'poems'>,
+    roomId: 'room_123',
+    cycle: 1,
+    playerKind: 'human' as const,
     lineIndex: 0, // First round, requires 1 word
     targetWordCount: 1,
     previousLineText: null,
@@ -74,6 +77,9 @@ describe('WritingScreen component', () => {
 
   const mockAssignmentRound5 = {
     poemId: 'poem_456' as Id<'poems'>,
+    roomId: 'room_456',
+    cycle: 1,
+    playerKind: 'human' as const,
     lineIndex: 4, // Fifth round, requires 5 words (peak of diamond)
     targetWordCount: 5,
     previousLineText: 'The moon rises silently tonight',
