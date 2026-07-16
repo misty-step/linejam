@@ -26,6 +26,7 @@ import type {
 import { parseChangelog } from '../lib/releases/parser';
 import { TYPE_LABELS } from '../lib/releases/types';
 import { renderSiteChangelogHtml } from './releases/site-changelog';
+import { getAiBudgetConfig } from '../convex/lib/ai/budget';
 
 const CONTENT_DIR = path.join(process.cwd(), 'content', 'releases');
 const CHANGELOG_PATH = path.join(process.cwd(), 'CHANGELOG.md');
@@ -42,7 +43,18 @@ const verbose = args.includes('--verbose') || args.includes('-v');
  */
 async function generateProductNotes(release: Release): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
+  const budget = getAiBudgetConfig();
 
+  if (budget.providerSwitchState === 'invalid') {
+    console.warn('⚠️  AI_PROVIDER_ENABLED is invalid; using fallback notes');
+    return generateFallbackNotes(release);
+  }
+  if (!budget.providerEnabled) {
+    console.warn(
+      '⚠️  AI_PROVIDER_ENABLED disables OpenRouter, using fallback notes'
+    );
+    return generateFallbackNotes(release);
+  }
   if (!apiKey) {
     console.warn('⚠️  OPENROUTER_API_KEY not set, using fallback notes');
     return generateFallbackNotes(release);

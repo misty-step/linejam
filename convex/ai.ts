@@ -45,6 +45,7 @@ import {
   type AiFallbackReason,
 } from './lib/ai/fallbackMetrics';
 import { retentionEligibleAt } from './lib/retentionPolicy';
+import { getAiBudgetConfig, isAiProviderEnabled } from './lib/ai/budget';
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
@@ -80,14 +81,6 @@ function getAiModel(): string {
   return process.env.AI_MODEL || 'google/gemini-2.5-flash-lite';
 }
 
-/** Daily budget counts claimed AI generations; provider retries are bounded inside the claim. */
-function getAiDailyCallBudget(): number {
-  const raw = process.env.AI_DAILY_CALL_BUDGET?.trim();
-  if (!raw) return 250;
-  const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 250;
-}
-
 function getAiDailyCallAlertThreshold(): number {
   const raw = process.env.AI_DAILY_CALL_ALERT_THRESHOLD?.trim();
   if (raw) {
@@ -95,7 +88,7 @@ function getAiDailyCallAlertThreshold(): number {
     if (Number.isInteger(parsed) && parsed >= 0) return parsed;
   }
 
-  const budget = getAiDailyCallBudget();
+  const budget = getAiBudgetConfig().dailyCallBudget;
   return Math.max(1, Math.ceil(budget * 0.8));
 }
 
@@ -107,22 +100,6 @@ function getAiFallbackAlertThresholdPercent(): number {
 function getAiFallbackAlertMinimumGenerations(): number {
   const parsed = Number(process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 5;
-}
-
-function usdToMicros(value: string | undefined, fallback: number): number {
-  const raw = value?.trim();
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
-  return Math.round(parsed * 1_000_000);
-}
-
-function getAiDailyCostBudgetMicros(): number {
-  return usdToMicros(process.env.AI_DAILY_COST_BUDGET_USD, 1_000_000);
-}
-
-function getAiEstimatedCostMicrosPerGeneration(): number {
-  return usdToMicros(process.env.AI_ESTIMATED_COST_PER_GENERATION_USD, 2_000);
 }
 
 function isDeterministicAiMode(): boolean {
@@ -326,15 +303,26 @@ async function claimGenerationForCell(
     .query('aiUsage')
     .withIndex('by_day', (q) => q.eq('day', day))
     .first();
-  const callBudget = getAiDailyCallBudget();
-  const costBudgetMicros = getAiDailyCostBudgetMicros();
-  const costPerGenerationMicros = getAiEstimatedCostMicrosPerGeneration();
+  const budget = getAiBudgetConfig();
+  const {
+    dailyCallBudget: callBudget,
+    dailyCostBudgetMicros: costBudgetMicros,
+    estimatedCostPerGenerationMicros: costPerGenerationMicros,
+  } = budget;
+  if (budget.providerSwitchState === 'invalid') {
+    log.warn('AI provider switch value is invalid; using fallback', {
+      roomId: cell.roomId,
+      gameId: cell.gameId,
+      round: cell.round,
+    });
+  }
   const currentClaims = usage?.generationClaims ?? 0;
   const currentCostMicros = usage?.estimatedCostMicros ?? 0;
   const callBudgetExhausted = currentClaims >= callBudget;
   const costBudgetExhausted =
     costPerGenerationMicros > 0 &&
     currentCostMicros + costPerGenerationMicros > costBudgetMicros;
+  const providerDisabled = !budget.providerEnabled;
   const budgetExhausted = callBudgetExhausted || costBudgetExhausted;
 
   await ctx.db.insert('aiTurns', {
@@ -347,14 +335,14 @@ async function claimGenerationForCell(
     aiUserId: cell.authorUserId,
     day,
     status:
-      isDeterministicAiMode() || budgetExhausted
+      isDeterministicAiMode() || providerDisabled || budgetExhausted
         ? fallbackStatus
         : 'authorized',
     claimedAt: now,
     updatedAt: now,
   });
 
-  if (isDeterministicAiMode() || budgetExhausted) {
+  if (isDeterministicAiMode() || providerDisabled || budgetExhausted) {
     const committed = await commitFallbackLine(ctx, {
       roomId: cell.roomId,
       gameId: cell.gameId,
@@ -366,12 +354,16 @@ async function claimGenerationForCell(
     if (committed) {
       await Promise.all([
         recordAiUsage(ctx, { day, fallbacks: 1 }),
-        ...(isDeterministicAiMode()
-          ? []
-          : [recordAiGenerationMetric(ctx, 'budget_exhaustion')]),
+        ...(!isDeterministicAiMode()
+          ? [recordAiGenerationMetric(ctx, 'budget_exhaustion')]
+          : []),
       ]);
     }
-    if (committed && budgetExhausted && !isDeterministicAiMode()) {
+    if (
+      committed &&
+      (providerDisabled || budgetExhausted) &&
+      !isDeterministicAiMode()
+    ) {
       log.warn('AI daily budget exhausted; committed fallback', {
         roomId: cell.roomId,
         gameId: cell.gameId,
@@ -382,7 +374,11 @@ async function claimGenerationForCell(
         currentClaims,
         currentCostMicros,
         costPerGenerationMicros,
-        reason: callBudgetExhausted ? 'call_budget' : 'cost_budget',
+        reason: providerDisabled
+          ? 'provider_switch'
+          : callBudgetExhausted
+            ? 'call_budget'
+            : 'cost_budget',
       });
     }
     return { status: 'fallback', day };
@@ -847,6 +843,15 @@ export const generateLineForRound = internalAction({
 
       const targetWordCount = WORD_COUNTS[round];
       const apiKey = initialOpenRouterApiKey;
+      const providerEnabled = isAiProviderEnabled();
+      if (!providerEnabled) {
+        log.warn('AI provider disabled; bot lines use fallback', {
+          roomId,
+          gameId,
+          round,
+          switchState: getAiBudgetConfig().providerSwitchState,
+        });
+      }
 
       for (const cell of cells) {
         const turn = await ctx.runQuery(internal.ai.getAiTurnForCell, {
@@ -885,15 +890,17 @@ export const generateLineForRound = internalAction({
             : null;
 
         const result = await (async () => {
-          if (!apiKey) {
-            log.error(
-              'OPENROUTER_API_KEY not configured - using fallback line',
-              {
-                roomId,
-                gameId,
-                round,
-              }
-            );
+          if (!apiKey || !providerEnabled) {
+            if (!apiKey) {
+              log.error(
+                'OPENROUTER_API_KEY not configured - using fallback line',
+                {
+                  roomId,
+                  gameId,
+                  round,
+                }
+              );
+            }
             return {
               text: getFallbackLine(
                 targetWordCount,
@@ -1261,8 +1268,17 @@ export const generateGhostLine = internalAction({
 
       const targetWordCount = WORD_COUNTS[round];
       const apiKey = initialOpenRouterApiKey;
+      const providerEnabled = isAiProviderEnabled();
+      if (!providerEnabled) {
+        log.warn('AI provider disabled; ghostwriter uses fallback', {
+          roomId,
+          gameId,
+          round,
+          switchState: getAiBudgetConfig().providerSwitchState,
+        });
+      }
       const result = await (async () => {
-        if (!apiKey) {
+        if (!apiKey || !providerEnabled) {
           return {
             text: getFallbackLine(targetWordCount, fallbackSeed(poemId, round)),
             fallbackUsed: true,

@@ -18,6 +18,7 @@ const env = vi.hoisted(() => {
 import { internal } from '../../convex/_generated/api';
 import type { Doc, Id } from '../../convex/_generated/dataModel';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
+import { getAiBudgetConfig } from '../../convex/lib/ai/budget';
 import { setupConvexTest } from '../helpers/convexTest';
 
 type T = ReturnType<typeof setupConvexTest>;
@@ -118,6 +119,7 @@ beforeEach(() => {
   process.env = { ...testEnv };
   delete process.env.AI_DAILY_CALL_BUDGET;
   delete process.env.AI_DAILY_CALL_ALERT_THRESHOLD;
+  delete process.env.AI_PROVIDER_ENABLED;
   vi.useFakeTimers();
   vi.stubGlobal(
     'fetch',
@@ -152,6 +154,63 @@ afterAll(() => {
 });
 
 describe('shared bot and ghost generation budget', () => {
+  it.each([
+    [undefined, 'enabled_default', 2, 2],
+    ['   ', 'enabled_default', 2, 2],
+    ['1', 'enabled', 2, 2],
+    ['false', 'disabled', 0, 0],
+    ['0', 'disabled', 0, 0],
+    ['typo', 'invalid', 0, 0],
+  ] as const)(
+    'applies AI_PROVIDER_ENABLED=%s as %s without bypassing the shared guard',
+    async (
+      switchValue,
+      expectedSwitchState,
+      expectedProviderCalls,
+      expectedClaims
+    ) => {
+      if (switchValue === undefined) delete process.env.AI_PROVIDER_ENABLED;
+      else process.env.AI_PROVIDER_ENABLED = switchValue;
+      expect(getAiBudgetConfig().providerSwitchState).toBe(expectedSwitchState);
+      const t = setupConvexTest();
+      const { roomId, gameId, userIds, poemIds } = await seedGame(t, [
+        { name: 'Ada' },
+        { name: 'Bo', kind: 'AI', aiPersonaId: 'bashō' },
+      ]);
+
+      await t.action(internal.ai.generateGhostLine, {
+        roomId,
+        gameId,
+        round: 0,
+        poemId: poemIds[0],
+        forUserId: userIds[0],
+      });
+      await t.mutation(internal.ai.scheduleAiTurn, {
+        roomId,
+        gameId,
+        round: 0,
+      });
+      if (expectedProviderCalls > 0) {
+        await t.action(internal.ai.generateLineForRound, {
+          roomId,
+          gameId,
+          round: 0,
+        });
+      }
+
+      const providerCalls = vi
+        .mocked(fetch)
+        .mock.calls.filter(([input]) =>
+          String(input).includes('openrouter.ai')
+        );
+      expect(providerCalls).toHaveLength(expectedProviderCalls);
+      const usage = await t.run((ctx) => ctx.db.query('aiUsage').first());
+      expect(usage?.generationClaims ?? 0).toBe(expectedClaims);
+      expect(usage?.fallbacks ?? 0).toBe(expectedProviderCalls === 0 ? 2 : 0);
+      expect(await getGameLines(t, gameId)).toHaveLength(2);
+    }
+  );
+
   it('allows at most one provider call for concurrent attempts on one cell', async () => {
     const t = setupConvexTest();
     const { roomId, gameId, userIds, poemIds } = await seedGame(t, [
