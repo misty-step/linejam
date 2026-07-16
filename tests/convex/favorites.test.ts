@@ -80,6 +80,9 @@ describe('favorites', () => {
       expect(favs).toHaveLength(1);
       expect(favs[0].poemId).toBe(poemIds[0]);
       expect(favs[0].userId).toBe(userId);
+      const poem = await t.run((ctx) => ctx.db.get(poemIds[0]));
+      expect(poem?.retentionState).toBe('protected');
+      expect(poem?.retentionEligibleAt).toBeUndefined();
     });
 
     it('removes the favorite on the second toggle', async () => {
@@ -95,6 +98,9 @@ describe('favorites', () => {
       await as.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] });
 
       expect(await userFavorites(t, userId)).toHaveLength(0);
+      const poem = await t.run((ctx) => ctx.db.get(poemIds[0]));
+      expect(poem?.retentionState).toBe('pending');
+      expect(poem?.retentionEligibleAt).toBeGreaterThan(Date.now());
     });
 
     it('re-creates the favorite on a third toggle (on/off/on)', async () => {

@@ -4,6 +4,7 @@ import type { MutationCtx } from '../_generated/server';
 import { getMatrixRound } from './assignmentMatrix';
 import { assignPoemReaders } from './assignPoemReaders';
 import { AUTO_GHOST_FILL_MS, getFinalRoundIndex } from './gameRules';
+import { retentionEligibleAt } from './retentionPolicy';
 
 type LifecycleCtx = Pick<MutationCtx, 'db' | 'scheduler'>;
 type LifecycleGame = Pick<
@@ -28,16 +29,23 @@ type CompletionPatchPlan = {
   gamePatch: {
     status: 'COMPLETED';
     completedAt: number;
+    completionKind: 'normal' | 'abandoned';
+    retentionState: 'pending';
+    retentionEligibleAt: number;
   };
   roomPatch: {
     status: 'COMPLETED';
     completedAt: number;
+    retentionState: 'pending';
+    retentionEligibleAt: number;
   };
   poemPatches: Array<{
     poemId: Id<'poems'>;
     patch: {
       completedAt: number;
       assignedReaderId: Id<'users'> | undefined;
+      retentionState: 'pending';
+      retentionEligibleAt: number;
     };
   }>;
 };
@@ -96,6 +104,7 @@ function buildCompletionPatchPlan(args: {
   poems: LifecyclePoem[];
   playerUsers: LifecyclePlayer[];
   completionTime: number;
+  completionKind: 'normal' | 'abandoned';
 }): CompletionPatchPlan {
   const readerAssignments = assignPoemReaders(
     args.poems.map((poem) => ({
@@ -110,20 +119,32 @@ function buildCompletionPatchPlan(args: {
     }))
   );
 
+  const retentionDeadline = retentionEligibleAt(
+    args.completionTime,
+    args.completionKind === 'abandoned' ? 'abandoned' : 'privateCompleted'
+  );
+
   return {
     gamePatch: {
       status: 'COMPLETED',
       completedAt: args.completionTime,
+      completionKind: args.completionKind,
+      retentionState: 'pending',
+      retentionEligibleAt: retentionDeadline,
     },
     roomPatch: {
       status: 'COMPLETED',
       completedAt: args.completionTime,
+      retentionState: 'pending',
+      retentionEligibleAt: retentionDeadline,
     },
     poemPatches: args.poems.map((poem) => ({
       poemId: poem._id,
       patch: {
         completedAt: args.completionTime,
         assignedReaderId: readerAssignments.get(poem._id),
+        retentionState: 'pending',
+        retentionEligibleAt: retentionDeadline,
       },
     })),
   };
@@ -197,6 +218,7 @@ export async function applyLineLifecycleTransition(
     game: LifecycleGame;
     roomId: Id<'rooms'>;
     lineIndex: number;
+    completionKind?: 'normal' | 'abandoned';
   }
 ): Promise<void> {
   const poems = await getGamePoems(ctx, args.game._id);
@@ -254,6 +276,7 @@ export async function applyLineLifecycleTransition(
       (user): user is NonNullable<typeof user> => user !== null
     ),
     completionTime,
+    completionKind: args.completionKind ?? 'normal',
   });
 
   await Promise.all([

@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { getUser, checkParticipation } from './lib/auth';
 import { getRoomByCode, getCompletedGame } from './lib/room';
+import { retentionEligibleAt } from './lib/retentionPolicy';
 
 export const toggleFavorite = mutation({
   args: {
@@ -12,20 +13,48 @@ export const toggleFavorite = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) throw new ConvexError('User not found');
 
-    const existing = await ctx.db
-      .query('favorites')
-      .withIndex('by_user_poem', (q) =>
-        q.eq('userId', user._id).eq('poemId', poemId)
-      )
-      .first();
+    const [existing, poem] = await Promise.all([
+      ctx.db
+        .query('favorites')
+        .withIndex('by_user_poem', (q) =>
+          q.eq('userId', user._id).eq('poemId', poemId)
+        )
+        .first(),
+      ctx.db.get(poemId),
+    ]);
 
     if (existing) {
       await ctx.db.delete(existing._id);
+      if (!poem) return;
+
+      const [remainingFavorite, game] = await Promise.all([
+        ctx.db
+          .query('favorites')
+          .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+          .first(),
+        ctx.db.get(poem.gameId),
+      ]);
+      const remainsProtected =
+        remainingFavorite !== null ||
+        poem.publicShareEnabled === true ||
+        game?.publicRecapEnabled === true;
+      const now = Date.now();
+      await ctx.db.patch(poemId, {
+        retentionState: remainsProtected ? 'protected' : 'pending',
+        retentionEligibleAt: remainsProtected
+          ? undefined
+          : retentionEligibleAt(now, 'protectionRemoved'),
+      });
     } else {
+      if (!poem) throw new ConvexError('Poem not found');
       await ctx.db.insert('favorites', {
         userId: user._id,
         poemId,
         createdAt: Date.now(),
+      });
+      await ctx.db.patch(poemId, {
+        retentionState: 'protected',
+        retentionEligibleAt: undefined,
       });
     }
   },

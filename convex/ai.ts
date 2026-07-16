@@ -44,6 +44,7 @@ import {
   planAiFallbackCheckIn,
   type AiFallbackReason,
 } from './lib/ai/fallbackMetrics';
+import { retentionEligibleAt } from './lib/retentionPolicy';
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
@@ -509,13 +510,16 @@ export const addAiPlayer = mutation({
     const persona = pickPersonaExcluding(usedPersonaIds);
 
     // Create AI user record
+    const createdAt = Date.now();
     const aiUserId = await ctx.db.insert('users', {
       // System ID that can't be impersonated
       clerkUserId: `system:ai:${crypto.randomUUID()}`,
       displayName: persona.displayName,
       kind: 'AI',
       aiPersonaId: persona.id,
-      createdAt: Date.now(),
+      createdAt,
+      retentionState: 'pending',
+      retentionEligibleAt: retentionEligibleAt(createdAt, 'aiBookkeeping'),
     });
 
     // Add to room
@@ -523,7 +527,7 @@ export const addAiPlayer = mutation({
       roomId: room._id,
       userId: aiUserId,
       displayName: persona.displayName,
-      joinedAt: Date.now(),
+      joinedAt: createdAt,
     });
 
     return {
@@ -1001,6 +1005,7 @@ type CommitAssignedLineArgs = {
   text: string;
   authorUserId: Id<'users'>;
   authorDisplayName: string;
+  completionKind?: 'normal' | 'abandoned';
 };
 
 /**
@@ -1019,6 +1024,7 @@ export async function commitAssignedLine(
     text,
     authorUserId,
     authorDisplayName,
+    completionKind,
   }: CommitAssignedLineArgs
 ): Promise<boolean> {
   const room = await ctx.db.get(roomId);
@@ -1063,7 +1069,12 @@ export async function commitAssignedLine(
     createdAt: Date.now(),
   });
 
-  await applyLineLifecycleTransition(ctx, { game, roomId, lineIndex });
+  await applyLineLifecycleTransition(ctx, {
+    game,
+    roomId,
+    lineIndex,
+    completionKind,
+  });
   return true;
 }
 

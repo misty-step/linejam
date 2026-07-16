@@ -1,6 +1,27 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
+const retentionState = v.union(
+  v.literal('active'),
+  v.literal('pending'),
+  v.literal('protected')
+);
+
+const retentionTableCounts = v.object({
+  rooms: v.number(),
+  games: v.number(),
+  poems: v.number(),
+  users: v.number(),
+  migrations: v.number(),
+  aiTurns: v.number(),
+  aiRoundLocks: v.number(),
+  aiUsage: v.number(),
+  aiGenerationMetrics: v.number(),
+  shares: v.number(),
+  rateLimits: v.number(),
+  retentionRuns: v.number(),
+});
+
 export default defineSchema({
   users: defineTable({
     clerkUserId: v.optional(v.string()),
@@ -10,15 +31,21 @@ export default defineSchema({
     // AI player fields
     kind: v.optional(v.union(v.literal('human'), v.literal('AI'))),
     aiPersonaId: v.optional(v.string()),
+    retentionState: v.optional(retentionState),
+    retentionEligibleAt: v.optional(v.number()),
   })
     .index('by_clerk', ['clerkUserId'])
-    .index('by_guest', ['guestId']),
+    .index('by_guest', ['guestId'])
+    .index('by_retention', ['retentionState', 'retentionEligibleAt']),
 
   migrations: defineTable({
     guestUserId: v.id('users'),
     clerkUserId: v.string(),
     migratedAt: v.number(),
-  }).index('by_clerk', ['clerkUserId']),
+  })
+    .index('by_clerk', ['clerkUserId'])
+    .index('by_guest', ['guestUserId'])
+    .index('by_migrated', ['migratedAt']),
 
   rooms: defineTable({
     code: v.string(),
@@ -33,10 +60,13 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
     currentGameId: v.optional(v.id('games')),
     currentCycle: v.optional(v.number()),
+    retentionState: v.optional(retentionState),
+    retentionEligibleAt: v.optional(v.number()),
   })
     .index('by_code', ['code'])
     .index('by_host', ['hostUserId'])
-    .index('by_status_created', ['status', 'createdAt']),
+    .index('by_status_created', ['status', 'createdAt'])
+    .index('by_retention', ['retentionState', 'retentionEligibleAt']),
 
   roomPlayers: defineTable({
     roomId: v.id('rooms'),
@@ -66,14 +96,21 @@ export default defineSchema({
     publicRecapEnabled: v.optional(v.boolean()),
     publicRecapEnabledAt: v.optional(v.number()),
     publicRecapDisabledAt: v.optional(v.number()),
+    completionKind: v.optional(
+      v.union(v.literal('normal'), v.literal('abandoned'))
+    ),
+    retentionState: v.optional(retentionState),
+    retentionEligibleAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
     .index('by_room_cycle', ['roomId', 'cycle'])
     .index('by_room_status', ['roomId', 'status'])
+    .index('by_room_public', ['roomId', 'publicRecapEnabled'])
     // Idle-age-ordered scan for the abandonment sweep cron (convex/abandonment.ts):
     // status === IN_PROGRESS ordered by roundStartedAt, so the sweep reads only
     // games already idle past the threshold, oldest first — bounded, no starvation.
-    .index('by_status_round', ['status', 'roundStartedAt']),
+    .index('by_status_round', ['status', 'roundStartedAt'])
+    .index('by_retention', ['retentionState', 'retentionEligibleAt']),
 
   poems: defineTable({
     roomId: v.id('rooms'),
@@ -88,6 +125,8 @@ export default defineSchema({
     publicShareEnabled: v.optional(v.boolean()),
     publicShareEnabledAt: v.optional(v.number()),
     publicShareDisabledAt: v.optional(v.number()),
+    retentionState: v.optional(retentionState),
+    retentionEligibleAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
     .index('by_room_index', ['roomId', 'indexInRoom'])
@@ -99,7 +138,8 @@ export default defineSchema({
       'createdAt',
     ])
     .index('by_public_created', ['publicShareEnabled', 'createdAt'])
-    .index('by_room_game_index', ['roomId', 'gameId', 'indexInRoom']),
+    .index('by_room_game_index', ['roomId', 'gameId', 'indexInRoom'])
+    .index('by_retention', ['retentionState', 'retentionEligibleAt']),
 
   lines: defineTable({
     poemId: v.id('poems'),
@@ -132,7 +172,8 @@ export default defineSchema({
   })
     .index('by_cell', ['poemId', 'round'])
     .index('by_game_round', ['gameId', 'round'])
-    .index('by_day', ['day']),
+    .index('by_day', ['day'])
+    .index('by_updated', ['updatedAt']),
 
   aiUsage: defineTable({
     day: v.string(),
@@ -143,7 +184,9 @@ export default defineSchema({
     fallbacks: v.number(),
     estimatedCostMicros: v.optional(v.number()),
     updatedAt: v.number(),
-  }).index('by_day', ['day']),
+  })
+    .index('by_day', ['day'])
+    .index('by_updated', ['updatedAt']),
 
   // One aggregate row per UTC hour. This keeps fallback-rate observability
   // bounded regardless of room or generation volume and stores no content or
@@ -167,7 +210,9 @@ export default defineSchema({
     status: v.union(v.literal('running'), v.literal('finished')),
     claimedAt: v.number(),
     updatedAt: v.number(),
-  }).index('by_game_round', ['gameId', 'round']),
+  })
+    .index('by_game_round', ['gameId', 'round'])
+    .index('by_updated', ['updatedAt']),
 
   favorites: defineTable({
     userId: v.id('users'),
@@ -192,4 +237,16 @@ export default defineSchema({
   })
     .index('by_key', ['key'])
     .index('by_reset_time', ['resetTime']), // For cleanup if needed
+
+  retentionRuns: defineTable({
+    policyVersion: v.string(),
+    dryRun: v.boolean(),
+    startedAt: v.number(),
+    completedAt: v.number(),
+    eligible: v.number(),
+    deleted: v.number(),
+    errors: v.number(),
+    eligibleByTable: retentionTableCounts,
+    deletedByTable: retentionTableCounts,
+  }).index('by_completed', ['completedAt']),
 });

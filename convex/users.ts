@@ -3,6 +3,7 @@ import type { Doc } from './_generated/dataModel';
 import { ConvexError, v } from 'convex/values';
 import { getUser } from './lib/auth';
 import { verifyGuestToken } from './lib/guestToken';
+import { retentionEligibleAt } from './lib/retentionPolicy';
 
 type UserDoc = Doc<'users'>;
 type UserInsert = Omit<UserDoc, '_id' | '_creationTime'>;
@@ -99,9 +100,15 @@ const insertUser = async (
   values: Pick<UserInsert, 'displayName'> &
     (Pick<UserInsert, 'clerkUserId'> | Pick<UserInsert, 'guestId'>)
 ): Promise<UserDoc> => {
+  const createdAt = Date.now();
+  const isGuest = 'guestId' in values;
   const userId = await db.insert('users', {
     ...values,
-    createdAt: Date.now(),
+    createdAt,
+    retentionState: isGuest ? 'pending' : 'protected',
+    ...(isGuest
+      ? { retentionEligibleAt: retentionEligibleAt(createdAt, 'guestIdentity') }
+      : {}),
   });
 
   const createdUser = await db.get(userId);

@@ -17,7 +17,8 @@
         "GUEST_TOKEN_SECRET",
         "LINEJAM_DEPLOY_ENVIRONMENT",
         "MAX_AI_PLAYERS",
-        "OPENROUTER_API_KEY"
+        "OPENROUTER_API_KEY",
+        "RETENTION_GC_ENABLED"
       ]
     },
     "preview": {
@@ -37,7 +38,8 @@
         "AI_FALLBACK_ALERT_MIN_GENERATIONS",
         "AI_FALLBACK_ALERT_THRESHOLD_PERCENT",
         "AI_MODEL",
-        "MAX_AI_PLAYERS"
+        "MAX_AI_PLAYERS",
+        "RETENTION_GC_ENABLED"
       ]
     },
     "production": {
@@ -57,7 +59,8 @@
         "AI_FALLBACK_ALERT_MIN_GENERATIONS",
         "AI_FALLBACK_ALERT_THRESHOLD_PERCENT",
         "AI_MODEL",
-        "MAX_AI_PLAYERS"
+        "MAX_AI_PLAYERS",
+        "RETENTION_GC_ENABLED"
       ]
     }
   }
