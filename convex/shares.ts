@@ -27,6 +27,130 @@ async function requirePoemParticipant(
   return poem;
 }
 
+const SHARE_SLUG_TTL_MS = 30_000;
+
+export const preparePublicPoemShare = mutation({
+  args: { poemId: v.id('poems'), guestToken: v.optional(v.string()) },
+  handler: async (ctx, { poemId, guestToken }) => {
+    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    if (poem.revealedAt === undefined || poem.revealedAt === null) {
+      throw new ConvexError('Poem is not ready to share');
+    }
+    const nonce = crypto.randomUUID();
+    const slug = crypto.randomUUID();
+    const now = Date.now();
+    const expiresAt = now + SHARE_SLUG_TTL_MS;
+    await Promise.all([
+      ctx.db.insert('shares', {
+        poemId,
+        slug,
+        nonce,
+        state: 'pending',
+        createdAt: now,
+        expiresAt,
+      }),
+      ctx.db.patch(poemId, { publicShareAttempt: nonce }),
+    ]);
+    return { slug, nonce, expiresAt };
+  },
+});
+
+export const activatePublicPoemShare = mutation({
+  args: {
+    poemId: v.id('poems'),
+    slug: v.string(),
+    nonce: v.string(),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { poemId, slug, nonce, guestToken }) => {
+    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    const share = await ctx.db
+      .query('shares')
+      .withIndex('by_slug', (q) => q.eq('slug', slug))
+      .first();
+    if (
+      !share ||
+      share.poemId !== poemId ||
+      share.nonce !== nonce ||
+      poem.publicShareAttempt !== nonce
+    ) {
+      return {
+        publicShareEnabled: poem.publicShareEnabled === true,
+        changed: false,
+      };
+    }
+    if (share.state === 'active')
+      return { publicShareEnabled: true, changed: false };
+    if (
+      share.state !== 'pending' ||
+      share.expiresAt === undefined ||
+      share.expiresAt <= Date.now()
+    ) {
+      if (share.state === 'pending')
+        await ctx.db.patch(share._id, { state: 'cancelled' });
+      await ctx.db.patch(poemId, { publicShareAttempt: undefined });
+      return { publicShareEnabled: false, changed: false };
+    }
+    const now = Date.now();
+    await Promise.all([
+      ctx.db.patch(share._id, {
+        state: 'active',
+        activatedAt: now,
+        expiresAt: undefined,
+      }),
+      ctx.db.patch(poemId, {
+        publicShareEnabled: true,
+        publicShareEnabledAt: poem.publicShareEnabledAt ?? now,
+        publicShareDisabledAt: undefined,
+        publicShareAttempt: undefined,
+        retentionState: 'protected',
+        retentionEligibleAt: undefined,
+      }),
+      ctx.db.patch(poem.roomId, {
+        retentionState: 'protected',
+        retentionEligibleAt: undefined,
+      }),
+    ]);
+    return { publicShareEnabled: true, changed: true };
+  },
+});
+
+export const cancelPublicPoemShare = mutation({
+  args: {
+    poemId: v.id('poems'),
+    slug: v.string(),
+    nonce: v.string(),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { poemId, slug, nonce, guestToken }) => {
+    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    const share = await ctx.db
+      .query('shares')
+      .withIndex('by_slug', (q) => q.eq('slug', slug))
+      .first();
+    if (
+      !share ||
+      share.poemId !== poemId ||
+      share.nonce !== nonce ||
+      share.state !== 'pending' ||
+      poem.publicShareAttempt !== nonce
+    ) {
+      return {
+        cancelled: false,
+        publicShareEnabled: poem.publicShareEnabled === true,
+      };
+    }
+    await Promise.all([
+      ctx.db.patch(share._id, { state: 'cancelled' }),
+      ctx.db.patch(poemId, { publicShareAttempt: undefined }),
+    ]);
+    return {
+      cancelled: true,
+      publicShareEnabled: poem.publicShareEnabled === true,
+    };
+  },
+});
+
 async function requireCompletedSessionParticipant(
   ctx: MutationCtx,
   roomCode: string,
@@ -64,34 +188,6 @@ async function requireCompletedSessionParticipant(
   return { game, room, poems };
 }
 
-export const enablePublicPoemShare = mutation({
-  args: {
-    poemId: v.id('poems'),
-    guestToken: v.optional(v.string()),
-  },
-  handler: async (ctx, { poemId, guestToken }) => {
-    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
-    if (poem.revealedAt === undefined || poem.revealedAt === null) {
-      throw new ConvexError('Poem is not ready to share');
-    }
-    const now = Date.now();
-
-    await Promise.all([
-      ctx.db.patch(poemId, {
-        publicShareEnabled: true,
-        publicShareEnabledAt: poem.publicShareEnabledAt ?? now,
-        publicShareDisabledAt: undefined,
-        retentionState: 'protected',
-        retentionEligibleAt: undefined,
-      }),
-      ctx.db.patch(poem.roomId, {
-        retentionState: 'protected',
-        retentionEligibleAt: undefined,
-      }),
-    ]);
-  },
-});
-
 export const disablePublicPoemShare = mutation({
   args: {
     poemId: v.id('poems'),
@@ -99,6 +195,16 @@ export const disablePublicPoemShare = mutation({
   },
   handler: async (ctx, { poemId, guestToken }) => {
     const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    if (poem.publicShareEnabled !== true) {
+      if (poem.publicShareAttempt !== undefined) {
+        await ctx.db.patch(poemId, { publicShareAttempt: undefined });
+      }
+      return {
+        publicShareEnabled: false,
+        changed: false,
+        publicShareDisabledAt: poem.publicShareDisabledAt,
+      };
+    }
     const [favorite, game] = await Promise.all([
       ctx.db
         .query('favorites')
@@ -113,6 +219,7 @@ export const disablePublicPoemShare = mutation({
     await ctx.db.patch(poemId, {
       publicShareEnabled: false,
       publicShareDisabledAt: now,
+      publicShareAttempt: undefined,
       retentionState: remainsProtected ? 'protected' : 'pending',
       retentionEligibleAt: remainsProtected
         ? undefined
@@ -139,6 +246,12 @@ export const disablePublicPoemShare = mutation({
         retentionEligibleAt: retentionEligibleAt(now, 'protectionRemoved'),
       });
     }
+
+    return {
+      publicShareEnabled: false,
+      changed: true,
+      publicShareDisabledAt: now,
+    };
   },
 });
 

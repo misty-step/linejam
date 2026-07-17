@@ -31,7 +31,6 @@ const mockRevealPoemMutation = vi.fn();
 const mockStartNewCycleMutation = vi.fn();
 const mockStartGameMutation = vi.fn();
 const mockEnablePublicSessionRecapShare = vi.fn();
-const mockEnablePublicPoemShare = vi.fn();
 const mockToggleFavorite = vi.fn();
 const mockUseQuery = vi.fn();
 
@@ -41,7 +40,6 @@ const mockApiRefs = vi.hoisted(() => ({
   startNewCycle: {},
   startGame: {},
   enablePublicSessionRecapShare: {},
-  enablePublicPoemShare: {},
   getSessionFavorites: {},
   isFavorited: {},
   toggleFavorite: {},
@@ -57,7 +55,6 @@ vi.mock('@/convex/_generated/api', () => ({
     },
     shares: {
       enablePublicSessionRecapShare: mockApiRefs.enablePublicSessionRecapShare,
-      enablePublicPoemShare: mockApiRefs.enablePublicPoemShare,
     },
     favorites: {
       getSessionFavorites: mockApiRefs.getSessionFavorites,
@@ -77,9 +74,6 @@ vi.mock('convex/react', () => ({
     if (mutationRef === mockApiRefs.startGame) return mockStartGameMutation;
     if (mutationRef === mockApiRefs.enablePublicSessionRecapShare) {
       return mockEnablePublicSessionRecapShare;
-    }
-    if (mutationRef === mockApiRefs.enablePublicPoemShare) {
-      return mockEnablePublicPoemShare;
     }
     if (mutationRef === mockApiRefs.toggleFavorite) return mockToggleFavorite;
     throw new Error('Unexpected mutation reference');
@@ -217,7 +211,6 @@ describe('RevealPhase component', () => {
     mockStartNewCycleMutation.mockClear();
     mockStartGameMutation.mockClear();
     mockEnablePublicSessionRecapShare.mockClear();
-    mockEnablePublicPoemShare.mockClear();
 
     // Default state
     mockUseQuery.mockReturnValue(mockStateNotRevealed);

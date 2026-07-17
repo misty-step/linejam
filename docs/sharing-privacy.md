@@ -17,8 +17,20 @@ legacy link is not enough by itself to publish content.
   HTML and social previews.
 - Share controls must tell players that anyone with the link can read the
   shared artifact before copying the URL or opening a native share sheet.
-- Publication happens only after the copy or native-share action completes.
-  Canceling a native share sheet leaves the artifact private.
+- Copying poem text or saving a poem image is local-only and never publishes.
+  Copying the share link is an explicit publication act: it mints a
+  non-guessable inert slug, writes that URL, then activates the slug only after
+  the clipboard write succeeds. A clipboard failure leaves the slug inactive.
+- Native sharing first mints the same kind of inert slug before opening the
+  operating-system share sheet. The recipient can receive the real URL while
+  it resolves to a bounded pending state, but no poem content is readable until
+  the explicit success activation mutation commits. Cancel, failure, or timeout
+  leaves the slug inactive and the artifact private.
+- Activation and cancellation are generation-guarded, so a stale retry cannot
+  revoke a newer successful share. Inactive slugs expire after 30 seconds and
+  never return poem text. When a `share` slug is supplied, public queries resolve
+  only that slug's own active share row; unknown or inactive slugs never fall
+  back to the poem's `publicShareEnabled` state.
 - Saving a poem image is participant-only local export. It never enables public
   poem access; the card route authorizes the participant separately.
 - Successful-share product analytics flow through the provider-portable client

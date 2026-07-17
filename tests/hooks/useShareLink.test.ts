@@ -192,4 +192,202 @@ describe('useShareLink', () => {
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
     expect(result.current.shareError).toBeNull();
   });
+  it('rolls back when native share preparation fails', async () => {
+    const prepareShare = vi.fn().mockRejectedValue(new Error('Prepare failed'));
+    const rollbackShare = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    Object.defineProperty(navigator, 'share', {
+      value: vi.fn().mockResolvedValue(undefined),
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() =>
+      useShareLink({
+        prepareShare,
+        rollbackShare,
+        onError,
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(prepareShare).toHaveBeenCalledOnce();
+    expect(navigator.share).not.toHaveBeenCalled();
+    expect(rollbackShare).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBe(
+      'Failed to share link. Please try again.'
+    );
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Prepare failed' })
+    );
+  });
+
+  it('rolls back a staged native share that times out', async () => {
+    const prepareShare = vi.fn().mockResolvedValue(undefined);
+    const rollbackShare = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    Object.defineProperty(navigator, 'share', {
+      value: vi.fn().mockImplementation(() => new Promise(() => {})),
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() =>
+      useShareLink({
+        prepareShare,
+        rollbackShare,
+        onError,
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+    const sharing = result.current.handleShare();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      vi.advanceTimersByTime(30_000);
+      await sharing;
+    });
+
+    expect(rollbackShare).toHaveBeenCalledOnce();
+    expect(result.current.shareError).toBe(
+      'Failed to share link. Please try again.'
+    );
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Native share timed out' })
+    );
+  });
+
+  it('rolls back a staged clipboard share when clipboard is unavailable', async () => {
+    const prepareShare = vi.fn().mockResolvedValue(undefined);
+    const rollbackShare = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() =>
+      useShareLink({
+        prepareShare,
+        rollbackShare,
+        onError,
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(prepareShare).not.toHaveBeenCalled();
+    expect(rollbackShare).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBe(
+      'Failed to share link. Please try again.'
+    );
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Clipboard is unavailable' })
+    );
+  });
+
+  it('keeps a staged native failure private without clipboard fallback', async () => {
+    const prepareShare = vi.fn().mockResolvedValue(undefined);
+    const rollbackShare = vi.fn().mockResolvedValue(undefined);
+    const nativeError = new Error('Native share failed');
+    const onError = vi.fn();
+    Object.defineProperty(navigator, 'share', {
+      value: vi.fn().mockRejectedValue(nativeError),
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() =>
+      useShareLink({
+        prepareShare,
+        rollbackShare,
+        onError,
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(rollbackShare).toHaveBeenCalledOnce();
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBe(
+      'Failed to share link. Please try again.'
+    );
+    expect(onError).toHaveBeenCalledWith(nativeError);
+  });
+
+  it('keeps the original error when rollback itself fails', async () => {
+    const clipboardError = new Error('Clipboard denied');
+    const prepareShare = vi.fn().mockResolvedValue(undefined);
+    const rollbackShare = vi
+      .fn()
+      .mockRejectedValue(new Error('Rollback failed'));
+    const onError = vi.fn();
+    (
+      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
+    ).mockRejectedValueOnce(clipboardError);
+
+    const { result } = renderHook(() =>
+      useShareLink({
+        prepareShare,
+        rollbackShare,
+        onError,
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleShare();
+    });
+
+    expect(rollbackShare).toHaveBeenCalledOnce();
+    expect(onError).toHaveBeenCalledWith(clipboardError);
+    expect(result.current.shareError).toBe(
+      'Failed to share link. Please try again.'
+    );
+  });
+
+  it('ignores a concurrent share request while one is in flight', async () => {
+    let resolveWrite!: () => void;
+    const writeText = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveWrite = resolve;
+        })
+    );
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    });
+    const { result } = renderHook(() =>
+      useShareLink({
+        getShareData: () => ({ url: 'https://example.com/room/ABCD' }),
+      })
+    );
+
+    const first = result.current.handleShare();
+    const second = result.current.handleShare();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(writeText).toHaveBeenCalledOnce();
+
+    resolveWrite();
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+    expect(result.current.copied).toBe(true);
+  });
 });

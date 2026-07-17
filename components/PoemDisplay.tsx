@@ -40,7 +40,9 @@ export interface PoemMetadata {
   // Archive-specific
   isParticipant?: boolean;
   isFavorited?: boolean;
+  isPublic?: boolean;
   onToggleFavorite?: () => void;
+  onRevokeShare?: () => void | Promise<void>;
   backHref?: string;
   backLabel?: string;
   uniquePoets?: number;
@@ -262,6 +264,19 @@ export function PoemDisplay({
                   </button>
                 )}
             </div>
+
+            {isArchive &&
+              metadata.isParticipant &&
+              metadata.isPublic &&
+              metadata.onRevokeShare && (
+                <button
+                  type="button"
+                  onClick={() => void metadata.onRevokeShare?.()}
+                  className="mb-4 text-xs font-mono uppercase tracking-widest text-text-muted underline hover:text-text-primary"
+                >
+                  Revoke public link
+                </button>
+              )}
 
             {/* Title (first line preview) */}
             <p className="text-xl md:text-2xl font-[var(--font-display)] italic text-text-secondary leading-relaxed mb-4">

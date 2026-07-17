@@ -16,19 +16,31 @@ async function seedRoomGamePoems(
     hostUserId: Id<'users'>;
     poemCount?: number;
     status?: 'COMPLETED' | 'IN_PROGRESS';
+    publicShareEnabled?: boolean;
   }
 ): Promise<{
   roomId: Id<'rooms'>;
   gameId: Id<'games'>;
   poemIds: Id<'poems'>[];
 }> {
-  const { hostUserId, poemCount = 2, status = 'COMPLETED' } = opts;
+  const {
+    hostUserId,
+    poemCount = 2,
+    status = 'COMPLETED',
+    publicShareEnabled,
+  } = opts;
   return t.run(async (ctx) => {
     const roomId = await ctx.db.insert('rooms', {
       code: 'ABCD',
       hostUserId,
       status,
       createdAt: 0,
+    });
+    await ctx.db.insert('roomPlayers', {
+      roomId,
+      userId: hostUserId,
+      displayName: 'Host',
+      joinedAt: 0,
     });
     const gameId = await ctx.db.insert('games', {
       roomId,
@@ -46,6 +58,7 @@ async function seedRoomGamePoems(
           gameId,
           indexInRoom: i,
           createdAt: 0,
+          ...(publicShareEnabled !== undefined ? { publicShareEnabled } : {}),
         })
       );
     }
@@ -131,6 +144,49 @@ describe('favorites', () => {
         t.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] })
       ).rejects.toThrow('User not found');
     });
+  });
+
+  it('blocks strangers from adding a private favorite', async () => {
+    const t = setupConvexTest();
+    const host = await seedClerkUser(t, 'host');
+    await seedClerkUser(t, 'stranger');
+    const { poemIds } = await seedRoomGamePoems(t, {
+      hostUserId: host,
+      poemCount: 1,
+    });
+    await expect(
+      asUser(t, 'stranger').mutation(api.favorites.toggleFavorite, {
+        poemId: poemIds[0],
+      })
+    ).rejects.toThrow('Not authorized to favorite this poem');
+  });
+
+  it('hides a stranger favorite after publication is revoked but permits removal', async () => {
+    const t = setupConvexTest();
+    const host = await seedClerkUser(t, 'host');
+    await seedClerkUser(t, 'stranger');
+    const { poemIds } = await seedRoomGamePoems(t, {
+      hostUserId: host,
+      poemCount: 1,
+      publicShareEnabled: true,
+    });
+    const stranger = asUser(t, 'stranger');
+    await stranger.mutation(api.favorites.toggleFavorite, {
+      poemId: poemIds[0],
+    });
+    await t.run((ctx) =>
+      ctx.db.patch(poemIds[0], { publicShareEnabled: false })
+    );
+    expect(await stranger.query(api.favorites.getMyFavorites, {})).toEqual([]);
+    expect(
+      await stranger.query(api.favorites.isFavorited, { poemId: poemIds[0] })
+    ).toBe(false);
+    await stranger.mutation(api.favorites.toggleFavorite, {
+      poemId: poemIds[0],
+    });
+    expect(
+      await t.run((ctx) => ctx.db.query('favorites').collect())
+    ).toHaveLength(0);
   });
 
   describe('getMyFavorites', () => {

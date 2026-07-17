@@ -4,9 +4,12 @@ export { generateMetadata } from './metadata';
 
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ share?: string }>;
 }) {
   const { id } = await params;
-  return <PoemDetail poemId={id as Id<'poems'>} />;
+  const { share } = (await searchParams) ?? {};
+  return <PoemDetail poemId={id as Id<'poems'>} shareSlug={share} />;
 }

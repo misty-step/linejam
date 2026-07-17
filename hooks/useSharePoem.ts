@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation } from 'convex/react';
+import { useRef } from 'react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
@@ -28,17 +29,59 @@ export function useSharePoem(
   cycle = 1,
   playerKind: 'human' | 'AI' = 'human'
 ) {
-  const enablePublicPoemShare = useMutation(api.shares.enablePublicPoemShare);
+  const preparePublicPoemShare = useMutation(api.shares.preparePublicPoemShare);
+  const activatePublicPoemShare = useMutation(
+    api.shares.activatePublicPoemShare
+  );
+  const cancelPublicPoemShare = useMutation(api.shares.cancelPublicPoemShare);
+  const disablePublicPoemShare = useMutation(api.shares.disablePublicPoemShare);
+  const pendingShareRef = useRef(
+    null as { slug: string; nonce: string } | null
+  );
 
-  return useShareLink({
-    publishShare: async () => {
-      await enablePublicPoemShare({
+  const share = useShareLink({
+    prepareShare: async () => {
+      pendingShareRef.current = await preparePublicPoemShare({
         poemId,
         guestToken: guestToken || undefined,
       });
     },
+    commitShare: async () => {
+      const pending = pendingShareRef.current;
+      if (!pending) throw new Error('Share preparation missing');
+      const activation = await activatePublicPoemShare({
+        poemId,
+        slug: pending.slug,
+        nonce: pending.nonce,
+        guestToken: guestToken || undefined,
+      });
+      if (activation.changed !== true) {
+        throw new Error('Share activation expired or was superseded');
+      }
+      pendingShareRef.current = null;
+    },
+    rollbackShare: async () => {
+      const pending = pendingShareRef.current;
+      if (!pending) return;
+      try {
+        await cancelPublicPoemShare({
+          poemId,
+          slug: pending.slug,
+          nonce: pending.nonce,
+          guestToken: guestToken || undefined,
+        });
+      } finally {
+        pendingShareRef.current = null;
+      }
+    },
     getShareData: () => ({
-      url: `${window.location.origin}/poem/${poemId}`,
+      url:
+        window.location.origin +
+        '/poem/' +
+        poemId +
+        (pendingShareRef.current
+          ? '?share=' + encodeURIComponent(pendingShareRef.current.slug)
+          : ''),
       title: 'Linejam poem',
       text: buildPoemShareText(openingLine),
     }),
@@ -59,4 +102,14 @@ export function useSharePoem(
     },
     failureMessage: 'Failed to share poem. Please try again.',
   });
+
+  return {
+    ...share,
+    revokeShare: async () => {
+      await disablePublicPoemShare({
+        poemId,
+        guestToken: guestToken || undefined,
+      });
+    },
+  };
 }

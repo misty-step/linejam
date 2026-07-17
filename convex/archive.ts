@@ -29,6 +29,7 @@ export interface ArchivePoem {
   poetCount: number;
   lineCount: number;
   isFavorited: boolean;
+  publicShareEnabled: boolean;
   favoritedAt: number | null;
   createdAt: number;
   roomDate: number;
@@ -218,6 +219,7 @@ export const getArchiveData = query({
         poetCount: uniqueAuthors.size,
         lineCount: lines.length,
         isFavorited: favoritedAt !== null,
+        publicShareEnabled: poem.publicShareEnabled === true,
         favoritedAt,
         createdAt: poem.createdAt,
         roomDate: roomMap.get(poem.roomId) || poem.createdAt,

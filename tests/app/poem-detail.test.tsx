@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
 
 const mockApiRefs = vi.hoisted(() => ({
   getPoemDetail: {},
   getPublicPoemFull: {},
+  getPublicPoemShareStatus: {},
   isFavorited: {},
   toggleFavorite: {},
 }));
@@ -15,7 +16,9 @@ vi.mock('@/convex/_generated/api', () => ({
     poems: {
       getPoemDetail: mockApiRefs.getPoemDetail,
       getPublicPoemFull: mockApiRefs.getPublicPoemFull,
+      getPublicPoemShareStatus: mockApiRefs.getPublicPoemShareStatus,
     },
+    shares: { disablePublicPoemShare: {} },
     favorites: {
       isFavorited: mockApiRefs.isFavorited,
       toggleFavorite: mockApiRefs.toggleFavorite,
@@ -48,6 +51,7 @@ const mockQueryResults = {
   poemDetail: undefined as unknown,
   publicPoem: undefined as unknown,
   isFavorited: undefined as unknown,
+  shareStatus: undefined as unknown,
 };
 const mockToggleFavorite = vi.fn();
 let mockGuestToken: string | null = null;
@@ -60,6 +64,9 @@ vi.mock('convex/react', () => ({
     }
     if (queryRef === mockApiRefs.getPublicPoemFull) {
       return mockQueryResults.publicPoem;
+    }
+    if (queryRef === mockApiRefs.getPublicPoemShareStatus) {
+      return mockQueryResults.shareStatus;
     }
     if (queryRef === mockApiRefs.isFavorited) {
       return mockQueryResults.isFavorited;
@@ -81,13 +88,61 @@ describe('PoemDetail', () => {
     mockQueryResults.poemDetail = undefined;
     mockQueryResults.publicPoem = undefined;
     mockQueryResults.isFavorited = undefined;
+    mockQueryResults.shareStatus = undefined;
     mockGuestToken = null;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('shows loading while poem queries are unresolved', () => {
     render(<PoemDetail poemId={'poem1' as Id<'poems'>} />);
 
     expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('shows a bounded pending state for an inactive share slug', () => {
+    mockPoemDisplay.mockClear();
+    mockQueryResults.poemDetail = null;
+    mockQueryResults.publicPoem = null;
+    mockQueryResults.shareStatus = {
+      state: 'pending',
+      expiresAt: Date.now() + 1000,
+    };
+    render(<PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Preparing this shared poem'
+    );
+  });
+
+  it('resets pending expiry when a new share slug arrives', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    mockQueryResults.poemDetail = null;
+    mockQueryResults.publicPoem = null;
+    mockQueryResults.shareStatus = { state: 'pending', expiresAt: 1000 };
+
+    const view = render(
+      <PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Preparing this shared poem'
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByText('Poem not found')).toBeInTheDocument();
+
+    mockQueryResults.shareStatus = { state: 'pending', expiresAt: 2000 };
+    view.rerender(
+      <PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-2" />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Preparing this shared poem'
+    );
   });
 
   it('shows not found when both participant and public queries return null', () => {

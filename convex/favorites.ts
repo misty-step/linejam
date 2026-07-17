@@ -24,6 +24,7 @@ export const toggleFavorite = mutation({
     ]);
 
     if (existing) {
+      // Removing an old favorite remains allowed after publication is revoked.
       await ctx.db.delete(existing._id);
       if (!poem) return;
 
@@ -47,6 +48,14 @@ export const toggleFavorite = mutation({
       });
     } else {
       if (!poem) throw new ConvexError('Poem not found');
+      const isParticipant = await checkParticipation(
+        ctx,
+        poem.roomId,
+        user._id
+      );
+      if (!isParticipant && poem.publicShareEnabled !== true) {
+        throw new ConvexError('Not authorized to favorite this poem');
+      }
       await ctx.db.insert('favorites', {
         userId: user._id,
         poemId,
@@ -78,16 +87,33 @@ export const getMyFavorites = query({
       favorites.map((fav) => ctx.db.get(fav.poemId))
     );
 
-    // Filter nulls, keep fav metadata aligned
+    // A favorite is readable to its owner only while they still participate,
+    // or while the poem is explicitly public. This filters stale favorites
+    // created by outsiders before a later revocation without exposing text.
+    const access = await Promise.all(
+      favorites.map(async (fav, i) => {
+        const poem = poemResults[i];
+        if (!poem) return false;
+        const [room, isParticipant] = await Promise.all([
+          ctx.db.get(poem.roomId),
+          checkParticipation(ctx, poem.roomId, user._id),
+        ]);
+        return (
+          room !== null && (isParticipant || poem.publicShareEnabled === true)
+        );
+      })
+    );
+
     const validEntries = favorites
       .map((fav, i) => ({ fav, poem: poemResults[i] }))
       .filter(
         (
-          entry
+          entry,
+          i
         ): entry is {
           fav: (typeof favorites)[0];
           poem: NonNullable<(typeof poemResults)[0]>;
-        } => entry.poem !== null
+        } => entry.poem !== null && access[i]
       );
 
     // Batch 2: fetch first lines in parallel
@@ -180,13 +206,18 @@ export const isFavorited = query({
     const user = await getUser(ctx, guestToken);
     if (!user) return false;
 
-    const existing = await ctx.db
-      .query('favorites')
-      .withIndex('by_user_poem', (q) =>
-        q.eq('userId', user._id).eq('poemId', poemId)
-      )
-      .first();
+    const [poem, existing] = await Promise.all([
+      ctx.db.get(poemId),
+      ctx.db
+        .query('favorites')
+        .withIndex('by_user_poem', (q) =>
+          q.eq('userId', user._id).eq('poemId', poemId)
+        )
+        .first(),
+    ]);
+    if (!poem || !existing) return false;
 
-    return !!existing;
+    const isParticipant = await checkParticipation(ctx, poem.roomId, user._id);
+    return isParticipant || poem.publicShareEnabled === true;
   },
 });
