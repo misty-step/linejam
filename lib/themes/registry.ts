@@ -71,11 +71,6 @@ export function isValidThemeId(value: unknown): value is string {
   return typeof value === 'string' && themeIds.includes(value);
 }
 
-/** Get theme IDs as JSON string (for SSR script) */
-export function getThemeIdsForScript(): string {
-  return JSON.stringify(themeIds);
-}
-
 // Re-export individual themes for direct import
 export { kenyaTheme } from './presets/kenya';
 export { monoTheme } from './presets/mono';

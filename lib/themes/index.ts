@@ -18,7 +18,6 @@ export {
   defaultThemeId,
   getTheme,
   isValidThemeId,
-  getThemeIdsForScript,
   kenyaTheme,
   monoTheme,
   vintagePaperTheme,

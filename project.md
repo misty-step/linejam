@@ -11,19 +11,19 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 ## Domain Glossary
 
-| Term              | Definition                                                             |
-| ----------------- | ---------------------------------------------------------------------- |
-| Room              | A game session, identified by a short room code                        |
-| Poem              | One collaborative poem being written in a room (multiple per game)     |
-| Line              | A single contribution to a poem; constrained word count per round      |
-| Assignment Matrix | 9×N array assigning which player writes which poem's line per round    |
-| Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                       |
-| Reveal            | End-of-game state where complete poems are shown to all players        |
-| Guest             | Anonymous player identified by UUID in localStorage                    |
-| AI Player         | Bot player using OpenRouter/Gemini to generate lines                   |
-| Pen Name          | Author display name captured at write-time                             |
-| WordSlot          | Genkoyoshi-inspired word count indicator UI component                  |
-| Theme             | Visual skin (kenya/mono/vintage-paper/hyper) applied via CSS variables |
+| Term              | Definition                                                          |
+| ----------------- | ------------------------------------------------------------------- |
+| Room              | A game session, identified by a short room code                     |
+| Poem              | One collaborative poem being written in a room (multiple per game)  |
+| Line              | A single contribution to a poem; constrained word count per round   |
+| Assignment Matrix | 9×N array assigning which player writes which poem's line per round |
+| Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                    |
+| Reveal            | End-of-game state where complete poems are shown to all players     |
+| Guest             | Anonymous player identified by UUID in localStorage                 |
+| AI Player         | Bot player using an OpenRouter-configured model to generate lines   |
+| Pen Name          | Author display name captured at write-time                          |
+| WordSlot          | Genkoyoshi-inspired word count indicator UI component               |
+| Theme             | Visual skin registered in `lib/themes/registry.ts`                  |
 
 ## Active Focus
 
@@ -35,7 +35,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 ## Quality Bar
 
 - [ ] Guest mode works without friction on mobile and survives Clerk/OpenRouter failure
-- [ ] Themes render correctly on all 4 visual skins without hardcoded overrides
+- [ ] Every retained theme renders correctly without hardcoded overrides
 - [ ] Core game loop completes reliably with 2-6 players (no silent failures)
 - [x] Security headers and rate limits are in place
 - [ ] Saving remains private; public poem/recap access requires explicit, reversible consent

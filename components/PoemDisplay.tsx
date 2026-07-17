@@ -372,9 +372,8 @@ export function PoemDisplay({
                     </p>
 
                     {/* Author byline.
-                        AI lines get their persona moment: the name announces
-                        itself the instant the line reveals (the persona is part
-                        of the comedy). Human authors stay hidden until tapped. */}
+                        AI bylines stay visible as part of the whole-poem first
+                        paint. Human authors stay hidden until tapped. */}
                     {line.authorName && (
                       <span
                         className={cn(
