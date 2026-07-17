@@ -77,10 +77,10 @@ describe('errorToFeedback', () => {
   });
 
   describe('party-path error taxonomy', () => {
-    it('maps game-in-progress joins to the already-started message', () => {
-      const error = new ConvexError(
-        'Cannot join a room with a game in progress'
-      );
+    it('maps unjoinable-game-state rejections to the already-started message', () => {
+      // Live server message since linejam-974: in-progress games admit
+      // latecomers; joinRoom only rejects when late join is not allowed.
+      const error = new ConvexError('Cannot join this game state');
       const feedback = errorToFeedback(error);
 
       expect(feedback.message).toBe(
