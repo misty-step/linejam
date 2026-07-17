@@ -65,7 +65,7 @@ export const linejamClerkAppearance = {
     modalBackdrop: 'bg-[var(--color-background)]/80',
     modalContent: 'bg-[var(--color-surface)]',
   },
-  layout: {
+  options: {
     socialButtonsPlacement: 'top' as const,
     socialButtonsVariant: 'blockButton' as const,
   },

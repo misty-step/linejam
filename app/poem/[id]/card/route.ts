@@ -56,9 +56,16 @@ export async function POST(request: NextRequest, { params }: CardRouteContext) {
       ? body.guestToken
       : undefined;
 
-  const clerkToken = guestToken
-    ? null
-    : await (await auth()).getToken({ template: 'convex' });
+  let clerkToken: string | null = null;
+  if (!guestToken) {
+    try {
+      clerkToken = await (await auth()).getToken({ template: 'convex' });
+    } catch {
+      // Clerk v7 surfaces offline/token-service failures from getToken().
+      // Do not turn an auth outage into a 500 or probe Convex anonymously.
+      return renderCard(request, null);
+    }
+  }
   const poem = await (
     clerkToken
       ? fetchQuery(

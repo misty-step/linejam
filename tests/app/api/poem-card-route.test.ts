@@ -164,6 +164,22 @@ describe('GET /poem/[id]/card', () => {
     expect(mockGetToken).not.toHaveBeenCalled();
   });
 
+  it('returns unavailable when Clerk cannot mint a Convex token', async () => {
+    mockGetToken.mockRejectedValue(new Error('Clerk is offline'));
+    const request = new NextRequest('https://linejam.app/poem/poem123/card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ id: 'poem123' }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(mockFetchQuery).not.toHaveBeenCalled();
+  });
+
   it('forwards Clerk Convex auth for a signed-in participant card', async () => {
     mockGetToken.mockResolvedValue('convex-jwt');
     mockFetchQuery.mockResolvedValue(attributedPoem);
