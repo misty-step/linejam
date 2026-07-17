@@ -12,7 +12,7 @@ import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
  *
  * Test Cases:
  * - Invalid room code → friendly error message
- * - Game already started → join blocked with explanation
+ * - Game in progress → latecomer admitted to the room (linejam-974)
  * - Word count validation → submit disabled until correct
  */
 
@@ -183,9 +183,12 @@ function joinErrorAlert(page: Page) {
 }
 
 test.describe('Party-path error taxonomy', () => {
-  test('joining a room with a game in progress shows the started message', async ({
+  test('joining a room with a game in progress admits the latecomer', async ({
     browser,
   }) => {
+    // Contract changed by linejam-974: an in-progress game with open seats
+    // is a supported late-arrival path (spectator for the current round),
+    // not a rejection. The old "already started" taxonomy entry is dead.
     const session = await GuestFlowSession.create(browser, {
       hostName: 'Taxonomy Host',
       guestName: 'Taxonomy Guest',
@@ -198,10 +201,10 @@ test.describe('Party-path error taxonomy', () => {
       const { context, page } = await newGuestContext(browser);
       try {
         await submitJoin(page, session.roomCode, 'Latecomer');
-        await expect(joinErrorAlert(page)).toContainText(
-          'This game has already started. Please wait for the next session or ask the host to create a new room.',
-          { timeout: 30000 }
-        );
+        await page.waitForURL(new RegExp(`/room/${session.roomCode}$`), {
+          timeout: 30000,
+        });
+        await expect(joinErrorAlert(page)).toHaveCount(0);
       } finally {
         await context.close();
       }

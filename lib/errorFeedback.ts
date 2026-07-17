@@ -203,7 +203,10 @@ function isGameAlreadyStartedError(message: string): boolean {
   return (
     lowerMessage.includes('not in lobby status') ||
     lowerMessage.includes('already started') ||
-    lowerMessage.includes('game in progress')
+    lowerMessage.includes('game in progress') ||
+    // Live server message since linejam-974: joinRoom only rejects a game
+    // state when late join is not allowed (e.g. the game just completed).
+    lowerMessage.includes('cannot join this game state')
   );
 }
 
