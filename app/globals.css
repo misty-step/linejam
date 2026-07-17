@@ -452,6 +452,13 @@ textarea:focus {
   caret-color: var(--color-primary);
 }
 
+/* Placeholder text is real content, not browser chrome: keep it on the
+   registry-driven muted-text contrast floor in every theme and mode. */
+::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
 /* Accessibility - Screen Reader Only */
 .sr-only {
   position: absolute;
@@ -466,9 +473,20 @@ textarea:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  .theme-transitioning,
+  .theme-transitioning *,
+  .theme-transitioning *::before,
+  .theme-transitioning *::after {
+    transition: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

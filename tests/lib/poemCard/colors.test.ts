@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { resolveCardColors } from '@/lib/poemCard/colors';
 
 describe('resolveCardColors', () => {
-  it('matches the legacy static kenya/light card palette exactly', () => {
-    // These are the hardcoded values lib/tokens.ts shipped before this
-    // refactor — the poem opengraph-image route must render byte-identical
-    // colors post-refactor (linejam-943), so pin them here.
+  it('pins the kenya/light card palette to the registry tokens', () => {
+    // Originally pinned to prove the linejam-943 static->registry refactor
+    // was byte-identical. Card colors intentionally track the live theme
+    // registry, so this pin follows deliberate token changes: linejam-954
+    // darkened kenya's light primary (#e85d2b -> #b43a12) to meet the 4.5:1
+    // small-text contrast floor.
     expect(resolveCardColors('kenya', 'light')).toEqual({
       background: '#faf9f7',
       foreground: '#1c1917',
-      primary: '#e85d2b',
+      primary: '#b43a12',
       textMuted: '#57534e',
     });
   });

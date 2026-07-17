@@ -36,10 +36,14 @@ export const monoTheme = defineTheme({
       'color-border-subtle': '#e5e5e5',
       'color-text-primary': '#000000',
       'color-text-secondary': '#404040',
-      'color-text-muted': '#737373',
+      'color-text-muted': '#5f5f5f',
       'color-text-inverse': '#ffffff',
       'color-focus-ring': '#000000',
-      // No semantic colors - grayscale only
+      'color-success': '#18794e',
+      'color-error': '#b42318',
+      'color-warning': '#8a5a00',
+      'color-info': '#075985',
+      // Semantic status colors retain contrast while staying explicit in light mode
 
       // Fonts
       'font-display': 'var(--font-noto-serif)',
@@ -111,9 +115,13 @@ export const monoTheme = defineTheme({
       'color-border-subtle': '#262626',
       'color-text-primary': '#ffffff',
       'color-text-secondary': '#d4d4d4',
-      'color-text-muted': '#737373',
+      'color-text-muted': '#b0b0b0',
       'color-text-inverse': '#000000',
       'color-focus-ring': '#ffffff',
+      'color-success': '#d4d4d4',
+      'color-error': '#d4d4d4',
+      'color-warning': '#d4d4d4',
+      'color-info': '#d4d4d4',
 
       // Fonts
       'font-display': 'var(--font-noto-serif)',

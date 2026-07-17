@@ -24,7 +24,7 @@ export const hyperTheme = defineTheme({
   tokens: {
     light: {
       // Colors - High contrast, neon on white
-      'color-primary': '#ff00ff', // Magenta
+      'color-primary': '#b000b0', // Magenta
       'color-primary-hover': '#cc00cc',
       'color-primary-active': '#990099',
       'color-background': '#ffffff',
@@ -36,15 +36,15 @@ export const hyperTheme = defineTheme({
       'color-border-subtle': '#cccccc',
       'color-text-primary': '#000000',
       'color-text-secondary': '#000000',
-      'color-text-muted': '#666666',
+      'color-text-muted': '#5f5f5f',
       'color-text-inverse': '#ffffff',
       // Cyan family, darkened for light mode: raw #00ffff is 1.25:1 on the
       // light background (invisible focus). #0891b2 keeps the hue at >3:1.
       'color-focus-ring': '#0891b2',
-      'color-success': '#00ff00',
-      'color-error': '#ff0000',
-      'color-warning': '#ffff00',
-      'color-info': '#00ffff',
+      'color-success': '#18794e',
+      'color-error': '#b42318',
+      'color-warning': '#8a5a00',
+      'color-info': '#075985',
 
       // Fonts
       'font-display': 'var(--font-righteous)',
@@ -116,7 +116,7 @@ export const hyperTheme = defineTheme({
       'color-border-subtle': '#444444',
       'color-text-primary': '#ffffff',
       'color-text-secondary': '#eeeeee',
-      'color-text-muted': '#888888',
+      'color-text-muted': '#b0b0b0',
       'color-text-inverse': '#000000',
       'color-focus-ring': '#ff00ff', // Hot Pink focus
       'color-success': '#00ff00',

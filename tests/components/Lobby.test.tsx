@@ -128,6 +128,16 @@ describe('Lobby component', () => {
     );
   });
 
+  it('announces the room code to screen readers without duplicating visual chrome', () => {
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+
+    const roomCodeStatus = screen
+      .getAllByRole('status')
+      .find((status) => status.textContent?.includes('Room code AB CD'));
+    expect(roomCodeStatus).toBeDefined();
+    expect(roomCodeStatus).toHaveClass('sr-only');
+  });
+
   it('renders player list from room state', () => {
     // Arrange & Act
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);

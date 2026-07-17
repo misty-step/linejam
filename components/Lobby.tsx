@@ -230,6 +230,9 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
               <p className="max-w-full break-words text-xs font-mono uppercase tracking-[0.16em] text-text-muted sm:tracking-[0.32em]">
                 Share this code
               </p>
+              <p role="status" aria-live="polite" className="sr-only">
+                Room code {formatRoomCode(room.code)}
+              </p>
               <p className="font-[var(--font-display)] text-[clamp(2rem,16vw,3rem)] sm:text-6xl md:text-7xl font-medium tracking-[0.08em] text-text-primary">
                 {formatRoomCode(room.code)}
               </p>
