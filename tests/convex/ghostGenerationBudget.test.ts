@@ -133,6 +133,11 @@ beforeEach(() => {
   delete process.env.AI_DAILY_CALL_ALERT_THRESHOLD;
   delete process.env.AI_PROVIDER_ENABLED;
   vi.useFakeTimers();
+  // Pin the mock clock mid-day UTC: aiUsage rows are keyed by UTC day, and
+  // draining scheduled timers advances Date.now(). A suite starting near
+  // 00:00 UTC otherwise splits claims across two day buckets and the
+  // day-scoped assertions read partial counts.
+  vi.setSystemTime(new Date('2026-06-15T12:00:00Z'));
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
