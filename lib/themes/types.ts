@@ -20,7 +20,7 @@ export type ThemeModePreference = 'light' | 'dark' | 'system';
  */
 export interface ThemeTokens {
   // ═══════════════════════════════════════════════════════════════════════════
-  // Colors (15 required + 4 optional)
+  // Colors (19 required)
   // ═══════════════════════════════════════════════════════════════════════════
   'color-primary': string;
   'color-primary-hover': string;
@@ -37,11 +37,11 @@ export interface ThemeTokens {
   'color-text-muted': string;
   'color-text-inverse': string;
   'color-focus-ring': string;
-  // Optional semantic colors
-  'color-success'?: string;
-  'color-error'?: string;
-  'color-warning'?: string;
-  'color-info'?: string;
+  // Semantic status colors used by shipped components
+  'color-success': string;
+  'color-error': string;
+  'color-warning': string;
+  'color-info': string;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Fonts (3)

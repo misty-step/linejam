@@ -8,7 +8,12 @@ export type {
 } from './types';
 
 // Schema
-export { defineTheme, validateTheme, REQUIRED_TOKENS } from './schema';
+export {
+  defineTheme,
+  validateTheme,
+  REQUIRED_TOKENS,
+  THEME_CONTRAST_REQUIREMENTS,
+} from './schema';
 
 // Registry
 export {

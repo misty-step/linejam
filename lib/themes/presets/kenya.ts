@@ -19,7 +19,7 @@ export const kenyaTheme = defineTheme({
   tokens: {
     light: {
       // Colors
-      'color-primary': '#e85d2b',
+      'color-primary': '#b43a12',
       'color-primary-hover': '#c44521',
       'color-primary-active': '#a8391a',
       'color-background': '#faf9f7',
@@ -31,13 +31,13 @@ export const kenyaTheme = defineTheme({
       'color-border-subtle': '#f5f5f4',
       'color-text-primary': '#1c1917',
       'color-text-secondary': '#57534e',
-      'color-text-muted': '#a8a29e',
+      'color-text-muted': '#5f5f5f',
       'color-text-inverse': '#faf9f7',
       'color-focus-ring': '#e85d2b',
-      'color-success': '#10b981',
-      'color-error': '#ef4444',
-      'color-warning': '#f59e0b',
-      'color-info': '#0ea5e9',
+      'color-success': '#18794e',
+      'color-error': '#b42318',
+      'color-warning': '#8a5a00',
+      'color-info': '#075985',
 
       // Fonts
       'font-display': 'var(--font-libre-baskerville)',
@@ -97,9 +97,9 @@ export const kenyaTheme = defineTheme({
     },
     dark: {
       // Colors
-      'color-primary': '#e85d2b',
+      'color-primary': '#f06b3b',
       'color-primary-hover': '#f06b3b',
-      'color-primary-active': '#d54a1f',
+      'color-primary-active': '#e86b3b',
       'color-background': '#1c1917',
       'color-foreground': '#faf9f7',
       'color-surface': '#292524',
@@ -109,11 +109,11 @@ export const kenyaTheme = defineTheme({
       'color-border-subtle': '#292524',
       'color-text-primary': '#faf9f7',
       'color-text-secondary': '#d6d3d1',
-      'color-text-muted': '#a8a29e',
+      'color-text-muted': '#b0b0b0',
       'color-text-inverse': '#1c1917',
       'color-focus-ring': '#e85d2b',
       'color-success': '#10b981',
-      'color-error': '#ef4444',
+      'color-error': '#f87171',
       'color-warning': '#f59e0b',
       'color-info': '#0ea5e9',
 

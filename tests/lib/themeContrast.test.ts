@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { themes, themeIds, visibleThemeIds } from '@/lib/themes/registry';
-import { validateTheme } from '@/lib/themes/schema';
+import {
+  THEME_CONTRAST_REQUIREMENTS,
+  validateTheme,
+} from '@/lib/themes/schema';
 
 /**
  * WCAG AA floor for every registered theme, both modes. The theme collection
@@ -72,6 +75,21 @@ describe('theme collection accessibility floor', () => {
           expect(
             contrastRatio(t['color-focus-ring'], t['color-background'])
           ).toBeGreaterThanOrEqual(3);
+        });
+        it(`${mode}: every shipped semantic color pair meets its contrast contract`, () => {
+          for (const requirement of THEME_CONTRAST_REQUIREMENTS) {
+            const foreground = t[requirement.foreground];
+            const background = t[requirement.background];
+
+            expect(
+              background,
+              `Missing background token ${requirement.background} for ${requirement.label}`
+            ).toBeDefined();
+            expect(
+              contrastRatio(foreground, background as string),
+              `${id} ${mode}: ${requirement.label} (${requirement.foreground} on ${requirement.background})`
+            ).toBeGreaterThanOrEqual(requirement.minimum);
+          }
         });
       }
     });

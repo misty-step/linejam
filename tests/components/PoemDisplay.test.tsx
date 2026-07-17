@@ -189,6 +189,48 @@ describe('PoemDisplay component', () => {
   });
 
   describe('author interaction', () => {
+    it('does not enumerate human contributors before reveal interaction', () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          onDone={mockOnDone}
+          alreadyRevealed={true}
+          metadata={{
+            createdAt: Date.now(),
+            firstLine: 'One',
+            uniquePoets: 2,
+            readerName: 'Alice',
+            poemNumber: 1,
+          }}
+        />
+      );
+
+      expect(
+        screen.queryByRole('list', { name: 'Poem contributors' })
+      ).not.toBeInTheDocument();
+    });
+    it('keeps undisclosed author names out of the screen-reader tree', async () => {
+      render(
+        <PoemDisplay
+          poemId={mockPoemId}
+          lines={mockLines}
+          onDone={mockOnDone}
+          alreadyRevealed={true}
+        />
+      );
+
+      const firstByline = screen.getAllByText(/— Alice/i)[0];
+      expect(firstByline).toHaveAttribute('aria-hidden', 'true');
+
+      await act(async () => {
+        fireEvent.click(
+          screen.getAllByRole('button', { name: /Show author/i })[0]
+        );
+      });
+
+      expect(firstByline).toHaveAttribute('aria-hidden', 'false');
+    });
     it('shows author name on dot click', async () => {
       render(
         <PoemDisplay
@@ -202,6 +244,8 @@ describe('PoemDisplay component', () => {
       const firstDot = screen.getAllByRole('button', {
         name: /Show author/i,
       })[0];
+      expect(firstDot).toHaveAccessibleName('Show author for line 1');
+      expect(firstDot).not.toHaveAttribute('title');
 
       // Click to show author
       await act(async () => {

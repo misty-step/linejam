@@ -287,11 +287,26 @@ export function PoemDisplay({
               &rdquo;
             </p>
 
-            {/* Poets legend - inline */}
-            {uniqueAuthors.length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mb-6">
-                {uniqueAuthors.map(({ name, stableId, isBot }) => (
-                  <div key={stableId} className="flex items-center gap-1.5">
+            {/* Poets legend - archive exposes all authors; reveal only names AI
+                is intentionally announcing at the moment they appear. */}
+            {(isArchive
+              ? uniqueAuthors
+              : uniqueAuthors.filter(({ isBot }) => isBot)
+            ).length > 0 && (
+              <div
+                role="list"
+                aria-label="Poem contributors"
+                className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mb-6"
+              >
+                {(isArchive
+                  ? uniqueAuthors
+                  : uniqueAuthors.filter(({ isBot }) => isBot)
+                ).map(({ name, stableId, isBot }) => (
+                  <div
+                    key={stableId}
+                    role="listitem"
+                    className="flex items-center gap-1.5"
+                  >
                     <div
                       className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{
@@ -350,7 +365,6 @@ export function PoemDisplay({
                       'opacity-100'
                     )}
                     onClick={() => setSelectedLine(index)}
-                    title={line.authorName}
                     aria-label={`Show author for line ${index + 1}`}
                   >
                     <span
@@ -383,6 +397,7 @@ export function PoemDisplay({
                           line.isBot ? 'text-primary' : 'text-text-muted',
                           isSelected || line.isBot ? 'opacity-100' : 'opacity-0'
                         )}
+                        aria-hidden={!isSelected && !line.isBot}
                       >
                         {line.isBot ? '✦ ' : '— '}
                         {line.authorName}
