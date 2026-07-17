@@ -238,6 +238,62 @@ The production App Platform build executes the Convex deploy before the Next.js
 build. Local agents must not push production Convex code unless
 `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` was set deliberately for that operation.
 
+## Backups and restore
+
+The `Convex Backup` workflow runs daily at 09:17 UTC and can also be started
+with `workflow_dispatch`. It authenticates only with the GitHub Actions
+secret `CONVEX_DEPLOY_KEY_PROD`, exports the production Convex deployment,
+and encrypts the export before it leaves the runner. The uploaded GitHub
+Actions artifact is named `linejam-convex-backup`; its encrypted file is
+`linejam-convex-<UTC date>-<short SHA>.zip.age` and its retention is 30 days.
+No plaintext export is uploaded.
+
+The workflow encrypts for the committed age recipient
+`age1pyuqjlecesessdwrqvk4hvav7ncrvuy0etus7aqrl6lq30r6g4asrskltu`. The
+matching private identity is an operator credential-plane secret named
+**linejam backup age identity**. Keep that identity out of GitHub artifacts,
+repository files, shell history, and chat. The public repository's artifact
+surface is treated as readable by an attacker; age encryption is the boundary
+that protects the export if an artifact is downloaded without authorization.
+
+### Restore drill
+
+1. Download one `linejam-convex-backup` artifact from a successful backup run
+   into a protected temporary directory. Keep the downloaded `.zip.age` file
+   and the identity file mode `0600`.
+2. Resolve the private **linejam backup age identity** from the operator
+   credential plane into a local identity-file path. Do not paste its value into
+   a command, log, issue, or pull request.
+3. Restore into the local anonymous deployment (the script's safe default), or
+   name a non-production target explicitly:
+
+   ```bash
+   scripts/ops/restore-convex-backup.sh \
+     ./linejam-convex-<UTC date>-<short SHA>.zip.age \
+     --identity "$AGE_IDENTITY_FILE" \
+     local
+   ```
+
+   For a non-production cloud deployment, replace `local` with `dev` or
+   `preview:<name>`. The script decrypts to a
+   temporary file, runs `pnpm exec convex import --replace-all`, and removes
+   the decrypted file on exit. It refuses a target that resolves to production
+   unless `--allow-production` is supplied deliberately after confirming
+   the target and obtaining operator authorization.
+
+   If `CONVEX_DEPLOY_KEY` or `CONVEX_DEPLOYMENT_TOKEN` is supplied by the
+   operator credential plane, omitting the target uses that deployment key.
+   Production-shaped keys remain blocked unless `--allow-production` is passed.
+
+4. Run the local or non-production health and representative data checks. Save
+   the command output, target, backup filename, and observed completion time as
+   the restore drill receipt on Powder card **linejam-952**.
+
+The declared recovery objectives are **RPO 24 hours** (the export is daily) and
+**RTO 30 minutes** (the restore drill receipt is retained on Powder card
+**linejam-952**). These objectives assume the operator credential plane and a
+working Convex CLI are available; they do not authorize a production import.
+
 ## Deploy the web application
 
 The normal path is declarative:
