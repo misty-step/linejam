@@ -180,6 +180,11 @@ beforeEach(() => {
     vi.fn(() => Promise.reject(new Error('network disabled in test')))
   );
   vi.useFakeTimers();
+  // Pin the mock clock mid-day UTC: aiUsage rows are keyed by UTC day, and
+  // draining scheduled timers advances Date.now(). A suite starting near
+  // 00:00 UTC otherwise splits claims across two day buckets and the
+  // day-scoped assertions read partial counts (the 4-vs-17 CI flake).
+  vi.setSystemTime(new Date('2026-06-15T12:00:00Z'));
 });
 
 afterEach(() => {
