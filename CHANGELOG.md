@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.25.1](https://github.com/misty-step/linejam/compare/v0.25.0...v0.25.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **deps:** clear dependabot alerts ([#380](https://github.com/misty-step/linejam/issues/380)) ([3436e01](https://github.com/misty-step/linejam/commit/3436e014f5f3b89ce6f02799bff9ddffaaa52b86))
+
 # [0.25.0](https://github.com/misty-step/linejam/compare/v0.24.1...v0.25.0) (2026-07-17)
 
 
