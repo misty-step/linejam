@@ -18,13 +18,14 @@ React components for game UI and design system primitives.
 Standard component library. Import directly:
 
 ```tsx
-import { Button, Card, Input, Avatar } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Avatar } from '@/components/ui/Avatar';
 ```
 
 Notable:
 
 - `WordSlots.tsx` - Genkoyoushi-style word counter
-- `Stamp.tsx` - Vermillion seal animation
 
 ## Archive (`archive/`)
 
@@ -36,6 +37,6 @@ import { PoemCard, ArchiveStats, EmptyArchive } from '@/components/archive';
 
 ## Layout
 
-- `Header.tsx` - Nav with theme toggle
+- `Header.tsx` - Nav with theme picker link
 - `Footer.tsx` - Minimal footer
 - `HelpModal.tsx` - Floating help button

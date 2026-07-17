@@ -16,7 +16,7 @@ stateDiagram-v2
     IN_PROGRESS --> IN_PROGRESS : submitLine() [round < 8]
     IN_PROGRESS --> COMPLETED : submitLine() [round 8, all submitted]
 
-    COMPLETED --> LOBBY : startNewCycle() [host only]
+    COMPLETED --> LOBBY : startNewCycle() [room participant]
     COMPLETED --> [*] : exit room
 
     note right of LOBBY
@@ -33,7 +33,7 @@ stateDiagram-v2
 
     note right of COMPLETED
         Reveal phase - poems read aloud
-        Host can start new cycle or return to lobby
+        Host can start an immediate next round; any room participant can return to the lobby
         Displays: RevealPhase component
     end note
 ```
@@ -138,7 +138,7 @@ stateDiagram-v2
 
     note right of generating
         internalAction (can call external API)
-        OpenRouter/Gemini via generateLine()
+        OpenRouter configured model via generateLine()
         10s timeout, 3 retries
     end note
 
@@ -232,7 +232,7 @@ stateDiagram-v2
 
     allRevealed --> revealList : view any poem
     allRevealed --> IN_PROGRESS : startGame() [host, immediate next cycle]
-    allRevealed --> LOBBY : startNewCycle() [host]
+    allRevealed --> LOBBY : startNewCycle() [room participant]
     allRevealed --> [*] : exit to archive/home
 
     state revealList {
@@ -248,13 +248,13 @@ stateDiagram-v2
 
     note right of myPoemView
         PoemDisplay component
-        Animated line reveal
+        Whole-poem first paint; focus announces the transition
         Share button available
     end note
 
     note right of allRevealed
-        Host sees cycle controls
-        Non-host waits
+        Participants see cycle controls
+        Host can start an immediate next round; any participant can return to the lobby
         Analytics: trackGameCompleted
     end note
 ```

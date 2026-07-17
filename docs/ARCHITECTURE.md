@@ -35,7 +35,7 @@ Linejam is a real-time collaborative poetry game. This doc explains how the piec
 │                                                  │               │
 │                                                  ▼               │
 │                                     ┌─────────────────────────┐ │
-│                                     │   OpenRouter (Gemini)   │ │
+│                                     │    OpenRouter (model)   │ │
 │                                     │   for AI player lines   │ │
 │                                     └─────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
@@ -81,7 +81,7 @@ Hybrid auth pattern:
 
 **Owns**: AI player lifecycle, LLM integration, persona management.
 
-AI players join games like humans but generate lines via OpenRouter/Gemini. Each AI has a distinct persona (stored in `personas.ts`) affecting writing style.
+AI players join games like humans and generate lines through OpenRouter using the configured model (Gemini by default; `AI_MODEL` can override it). Each AI has a distinct persona (stored in `convex/lib/ai/personas.ts`) affecting writing style.
 
 **Flow**: Round advances → scheduler triggers AI turn → LLM generates line → mutation submits.
 
@@ -89,9 +89,9 @@ AI players join games like humans but generate lines via OpenRouter/Gemini. Each
 
 **Owns**: Rendering, theme switching, user interactions.
 
-All pages are `'use client'` (React Server Components not used). Convex hooks handle data fetching and real-time sync.
+`app/layout.tsx` is a server component: it reads the middleware nonce and emits the first-paint theme script. Interactive game surfaces are client components, and Convex hooks handle their data fetching and real-time sync.
 
-Four themes: kenya (default), mono, vintage-paper, hyper. Theme context applies CSS variables globally.
+The theme picker roster is derived from `visibleThemeIds` in `lib/themes/registry.ts`; retired IDs remain in `themeIds` so existing users can keep working themes. Theme context applies CSS variables globally.
 
 ## Data Flow
 
@@ -118,11 +118,16 @@ Player submits line
     → if yes: advances round (or completes game)
     → triggers AI players via scheduler if applicable
     → clients see update immediately via useQuery subscription
+    → returns `{ status: 'committed' | 'already_submitted', text }`
 ```
 
 ### Real-Time Sync
 
 Convex `useQuery` hooks create WebSocket subscriptions. No polling. All clients sharing a room see changes within milliseconds.
+
+### Security headers
+
+`middleware.ts` creates a fresh nonce for ordinary document requests, forwards it as `x-nonce` to `app/layout.tsx`, and sets the resulting Content Security Policy on the response. `lib/contentSecurityPolicy.ts` owns directive construction; only the explicitly scoped release routes retain an `unsafe-inline` script exception.
 
 ## Database Schema
 

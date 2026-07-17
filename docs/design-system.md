@@ -236,7 +236,7 @@ Traditional Japanese woodblock prints use flat colors with hard edges—no gradi
 **Note on removed tokens:**
 
 - `--shadow-xl`: Removed (0 uses, unnecessary fourth scale)
-- `--shadow-stamp`: Removed (Stamp component uses inline drop-shadow for specificity)
+- `--shadow-stamp`: Removed (the success animation uses `animate-stamp` from `app/globals.css`)
 - `--shadow-hover`: Removed (buttons use `--shadow-md` for hover)
 
 **Hover/Active Pattern:**
@@ -398,27 +398,6 @@ Good design systems have **intentional violations**—moments where the rules br
 - `font-[var(--font-sans)]` (loses poetic context)
 - Smaller text (poetry needs visual weight)
 
-### Stamp Variants
-
-**File:** `components/ui/Stamp.tsx`
-
-**The Break:**
-
-- Hardcoded SVG shapes (circle vs square)
-- Hardcoded text content (詩 character, SEALED label)
-- No prop-based customization
-
-**Why:**
-
-- Only 2 variants needed (hanko, sealed)
-- Adding `text` prop would encourage misuse (stamps are symbolic, not labels)
-- Premature abstraction makes component harder to understand
-
-**Do not refactor to:**
-
-- Generic `<Icon>` component with text prop
-- SVG icon library (stamps are metaphorically distinct)
-
 ### Icon Library Standard
 
 **Library:** lucide-react
@@ -442,7 +421,7 @@ import { Crown, Sun, Moon } from 'lucide-react';
 **Components using lucide-react:**
 
 - `HostBadge` (Crown icon)
-- `ThemeToggle` (Sun/Moon icons)
+- `ThemeModeControl` (Sun/Moon/Monitor icons)
 
 **Do not:**
 
@@ -479,7 +458,7 @@ import { Crown, Sun, Moon } from 'lucide-react';
 
 **Do not refactor to:**
 
-- Extend Stamp component (different semantic meaning)
+- Extend `StampAnimation` (different semantic meaning)
 - Icon-only badge (reduces clarity)
 - Full background fill (too prominent, violates "use accent sparingly")
 - Custom SVG paths (use lucide-react for all icons)
