@@ -1,0 +1,90 @@
+name: Convex Backup
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: convex-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypted Convex backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v7
+        with:
+          ref: master
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Require production deploy key
+        env:
+          CONVEX_DEPLOY_KEY_PROD: ${{ secrets.CONVEX_DEPLOY_KEY_PROD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CONVEX_DEPLOY_KEY_PROD:-}" ]; then
+            echo "::error::CONVEX_DEPLOY_KEY_PROD is required; refusing to export a production Convex backup."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Export production Convex data
+        env:
+          CONVEX_DEPLOY_KEY_PROD: ${{ secrets.CONVEX_DEPLOY_KEY_PROD }}
+        run: |
+          set -euo pipefail
+          CONVEX_DEPLOY_KEY="$CONVEX_DEPLOY_KEY_PROD" pnpm exec convex export --path linejam-convex-export.zip
+
+      - name: Install age
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y age
+
+      - name: Encrypt backup and remove plaintext
+        run: |
+          set -euo pipefail
+          plaintext=linejam-convex-export.zip
+          cleanup() {
+            if [ -f "$plaintext" ]; then
+              shred --force --remove "$plaintext" || rm -f "$plaintext"
+            fi
+          }
+          trap cleanup EXIT
+          utc_date="$(date -u +%Y-%m-%d)"
+          short_sha="${GITHUB_SHA::7}"
+          age -r age1pyuqjlecesessdwrqvk4hvav7ncrvuy0etus7aqrl6lq30r6g4asrskltu \
+            -o "linejam-convex-${utc_date}-${short_sha}.zip.age" \
+            "$plaintext"
+
+      - name: Remove plaintext export
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f linejam-convex-export.zip ]; then
+            shred --force --remove linejam-convex-export.zip || rm -f linejam-convex-export.zip
+          fi
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v7
+        with:
+          name: linejam-convex-backup
+          path: linejam-convex-*.zip.age
+          if-no-files-found: error
+          retention-days: 30
