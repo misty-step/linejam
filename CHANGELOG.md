@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+## [0.24.1](https://github.com/misty-step/linejam/compare/v0.24.0...v0.24.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **privacy:** make poem sharing reversible and race-safe ([#371](https://github.com/misty-step/linejam/issues/371)) ([71b4afe](https://github.com/misty-step/linejam/commit/71b4afeef6eb841712c353a41ec11040040d85d9))
+
 # [0.24.0](https://github.com/misty-step/linejam/compare/v0.23.1...v0.24.0) (2026-07-16)
 
 
