@@ -2,6 +2,14 @@
 
 All notable changes to Linejam.
 
+# [0.25.0](https://github.com/misty-step/linejam/compare/v0.24.1...v0.25.0) (2026-07-17)
+
+
+### Features
+
+* **auth:** migrate Clerk from v6 to v7 ([#376](https://github.com/misty-step/linejam/issues/376)) ([1f3c913](https://github.com/misty-step/linejam/commit/1f3c913a87bb7797b3457b99b524f202b90fe754))
+* **themes:** enforce WCAG AA contrast across every registered theme ([#377](https://github.com/misty-step/linejam/issues/377)) ([fb3df29](https://github.com/misty-step/linejam/commit/fb3df294863432c22b0b3e44fa3fbc07e046b4cf))
+
 ## [0.24.1](https://github.com/misty-step/linejam/compare/v0.24.0...v0.24.1) (2026-07-17)
 
 
