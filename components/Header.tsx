@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import { Show, UserButton } from '@clerk/nextjs';
 import { Palette, Archive, LogIn, MoreHorizontal } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { isFocusedPlayRoute } from '@/lib/routes';
@@ -74,7 +74,7 @@ export function Header({ className = '' }: HeaderProps) {
 
         {/* Right: Auth + Theme */}
         <div className="flex shrink-0 items-center gap-1 min-[360px]:gap-2 sm:gap-4 ml-auto">
-          <SignedOut>
+          <Show when="signed-out">
             <Link
               href="/sign-in"
               className={`${headerIconClasses} flex`}
@@ -82,9 +82,9 @@ export function Header({ className = '' }: HeaderProps) {
             >
               <LogIn className="w-5 h-5" />
             </Link>
-          </SignedOut>
+          </Show>
 
-          <SignedIn>
+          <Show when="signed-in">
             <UserButton
               appearance={{
                 elements: {
@@ -94,7 +94,7 @@ export function Header({ className = '' }: HeaderProps) {
                 },
               }}
             />
-          </SignedIn>
+          </Show>
 
           {/* Archive link */}
           <Link

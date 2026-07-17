@@ -5,6 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 const mockUseSearchParams = vi.fn();
 const mockUsePathname = vi.fn();
+const mockClerkState = vi.hoisted(() => ({ isSignedIn: false }));
 
 vi.mock('next/navigation', () => ({
   usePathname: () => mockUsePathname(),
@@ -19,8 +20,13 @@ vi.mock('convex/react', () => ({
 }));
 
 vi.mock('@clerk/nextjs', () => ({
-  SignedIn: () => null,
-  SignedOut: ({ children }: { children: ReactNode }) => children,
+  Show: ({ when, children }: { when: string; children: ReactNode }) => {
+    const shouldShow =
+      when === 'signed-in'
+        ? mockClerkState.isSignedIn
+        : !mockClerkState.isSignedIn;
+    return shouldShow ? children : null;
+  },
   UserButton: () => <button type="button">Account</button>,
   useUser: () => ({ user: null, isLoaded: true }),
   SignIn: () => (
@@ -44,6 +50,7 @@ describe('mobile entry layout', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockClerkState.isSignedIn = false;
     mockUsePathname.mockReturnValue('/join');
     mockUseSearchParams.mockReturnValue(new URLSearchParams('code=ABCD'));
     global.fetch = vi.fn().mockResolvedValue({
@@ -128,6 +135,17 @@ describe('mobile entry layout', () => {
     expect(screen.getByRole('link', { name: 'Your poems' })).toHaveClass(
       'min-h-11'
     );
+  });
+
+  it('renders the signed-in account control through Show', () => {
+    mockClerkState.isSignedIn = true;
+
+    render(<Header />);
+
+    expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Sign in' })
+    ).not.toBeInTheDocument();
   });
 
   it('closes the mobile header menu outside or with Escape and restores focus', () => {
