@@ -435,6 +435,35 @@ forward fix to `master`. For a bad environment-only change, restore the prior
 entry in the active spec and redeploy. Never use destructive Git history to
 simulate rollback.
 
+For immediate mitigation while the forward fix is in flight, App Platform
+supports provider-level rollback to a prior successful deployment. This
+reuses the already-built container, so recovery is minutes, not a full
+pipeline cycle. The 2026-07-17 drill measured 104 seconds to `ACTIVE` for
+the rollback and 115 seconds for the roll-forward, with `/api/health`
+returning 200 throughout (frontend rollback RTO: about 2 minutes).
+
+```bash
+APP_ID="$LINEJAM_APP_ID"
+TARGET="$(doctl apps list-deployments "$APP_ID" \
+  --format ID,Phase --no-header | awk '$2 == "SUPERSEDED" { print $1; exit }')"
+
+# Validate, then execute. skip_pin keeps master pushes deploying normally.
+curl -s -X POST "https://api.digitalocean.com/v2/apps/$APP_ID/rollback/validate" \
+  -H "Authorization: Bearer $DIGITALOCEAN_TOKEN" -H "Content-Type: application/json" \
+  -d "{\"deployment_id\":\"$TARGET\",\"skip_pin\":true}"
+curl -s -X POST "https://api.digitalocean.com/v2/apps/$APP_ID/rollback" \
+  -H "Authorization: Bearer $DIGITALOCEAN_TOKEN" -H "Content-Type: application/json" \
+  -d "{\"deployment_id\":\"$TARGET\",\"skip_pin\":true}"
+```
+
+With `skip_pin: true` there is no pinned rollback state to revert: to return
+to the newest release, run the same rollback call against the most recent
+healthy deployment ID. `doctl` 1.163 has no rollback subcommand; the REST
+endpoint is the supported path. The rolled-back frontend must remain
+compatible with the live Convex functions, which forward deploys guarantee
+(`qa:deployment-skew`); never roll back across a Convex schema migration
+without restoring data to match.
+
 Convex has no state rollback. Redeploying prior function source is a forward
 deployment, while restoring data requires an explicit export/import operation.
 Before any import, verify the target deployment and preserve a fresh export:
