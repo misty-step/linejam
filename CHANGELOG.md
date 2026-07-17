@@ -2,6 +2,13 @@
 
 All notable changes to Linejam.
 
+# [0.26.0](https://github.com/misty-step/linejam/compare/v0.25.1...v0.26.0) (2026-07-17)
+
+
+### Features
+
+* **ops:** scheduled encrypted Convex backups with provable restore ([#381](https://github.com/misty-step/linejam/issues/381)) ([93e796b](https://github.com/misty-step/linejam/commit/93e796b55e8b6570f4506453c36abaded127e58b))
+
 ## [0.25.1](https://github.com/misty-step/linejam/compare/v0.25.0...v0.25.1) (2026-07-17)
 
 
