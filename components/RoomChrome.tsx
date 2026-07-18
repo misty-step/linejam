@@ -23,6 +23,7 @@ interface RoomChromeProps {
   title: string;
   subtitle: string;
   compact?: boolean;
+  statusBoard?: boolean;
 }
 
 function chromeButtonClasses({
@@ -54,6 +55,7 @@ export function RoomChrome({
   title,
   subtitle,
   compact = false,
+  statusBoard = false,
 }: RoomChromeProps) {
   const [showThemes, setShowThemes] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -145,14 +147,20 @@ export function RoomChrome({
               {shareError}
             </Alert>
           )}
-
           <div
             data-testid="room-chrome"
+            data-layout={statusBoard ? 'status-board' : undefined}
             className={cn(
-              'grid rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 shadow-[var(--shadow-lg)] backdrop-blur-xl',
-              compact
-                ? 'grid-cols-[minmax(0,1fr)_auto] items-center gap-[8px] px-[12px] py-[8px]'
-                : 'gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-5'
+              statusBoard
+                ? 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[8px] rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 px-[12px] py-[8px] shadow-[var(--shadow-lg)] backdrop-blur-xl'
+                : 'grid rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 shadow-[var(--shadow-lg)] backdrop-blur-xl',
+              statusBoard
+                ? compact
+                  ? ''
+                  : 'md:px-5 md:py-3'
+                : compact
+                  ? 'grid-cols-[minmax(0,1fr)_auto] items-center gap-[8px] px-[12px] py-[8px]'
+                  : 'gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-5'
             )}
           >
             <div className={cn('min-w-0', compact ? 'space-y-0' : 'space-y-1')}>
@@ -221,11 +229,22 @@ export function RoomChrome({
                     </div>
                   )}
                 </div>
-                <h1 className="truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg">
-                  {title}
-                </h1>
+                {statusBoard ? (
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className="min-w-0 truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg"
+                  >
+                    {title}
+                    {subtitle && <span className="sr-only">. {subtitle}</span>}
+                  </p>
+                ) : (
+                  <h1 className="truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg">
+                    {title}
+                  </h1>
+                )}
               </div>
-              {subtitle && (
+              {!statusBoard && subtitle && (
                 <p className="max-w-3xl whitespace-normal break-words text-xs leading-tight text-[var(--color-text-secondary)] md:text-sm md:leading-relaxed">
                   {subtitle}
                 </p>
@@ -235,8 +254,13 @@ export function RoomChrome({
             <div
               ref={menuRef}
               className={cn(
-                'flex min-w-0 items-center md:justify-end',
-                compact ? 'flex-none gap-[8px]' : 'gap-2'
+                'flex min-w-0 items-center',
+                statusBoard ? 'justify-end gap-[8px]' : 'md:justify-end',
+                statusBoard
+                  ? undefined
+                  : compact
+                    ? 'flex-none gap-[8px]'
+                    : 'gap-2'
               )}
             >
               <button
@@ -245,17 +269,25 @@ export function RoomChrome({
                 className={cn(
                   chromeButtonClasses({
                     emphasized: true,
-                    iconOnly: compact,
+                    iconOnly: statusBoard || compact,
                     compact,
                   }),
-                  compact ? 'flex-none p-0' : 'min-w-0 flex-1 md:flex-none'
+                  statusBoard || compact
+                    ? 'flex-none p-0'
+                    : 'min-w-0 flex-1 md:flex-none'
                 )}
                 aria-label="Share room invite"
               >
                 <Share2
-                  className={cn(compact ? 'h-[16px] w-[16px]' : 'mr-2 h-4 w-4')}
+                  className={cn(
+                    statusBoard || compact
+                      ? 'h-[16px] w-[16px]'
+                      : 'mr-2 h-4 w-4'
+                  )}
                 />
-                <span className={compact ? 'sr-only' : 'truncate'}>
+                <span
+                  className={statusBoard || compact ? 'sr-only' : 'truncate'}
+                >
                   {shared ? 'Shared!' : copied ? 'Copied!' : 'Invite'}
                 </span>
               </button>
@@ -265,7 +297,7 @@ export function RoomChrome({
                 onClick={() => setShowHelp(true)}
                 className={cn(
                   chromeButtonClasses({ iconOnly: true, compact }),
-                  'hidden md:inline-flex'
+                  !statusBoard && 'hidden md:inline-flex'
                 )}
                 aria-label="How to play"
               >

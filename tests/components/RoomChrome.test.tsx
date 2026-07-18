@@ -179,6 +179,23 @@ describe('RoomChrome component', () => {
     );
   });
 
+  it('renders the status-board ticker as one glanceable active-room status', () => {
+    render(
+      <RoomChrome
+        roomCode="ABCD"
+        title="Round 1 · 1 word"
+        subtitle=""
+        statusBoard
+      />
+    );
+
+    expect(screen.getByTestId('room-chrome')).toHaveAttribute(
+      'data-layout',
+      'status-board'
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Round 1 · 1 word');
+  });
+
   it('copies a join link when native share is unavailable', async () => {
     renderRoomChrome();
 

@@ -224,62 +224,54 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           data-testid={E2E_TEST_IDS.lobbyScrollRegion}
           className="lj-safe-frame min-h-0 flex-1 overflow-y-auto overflow-x-hidden md:[--lj-safe-frame-space:3rem]"
         >
-          <div className="mx-auto w-full max-w-6xl space-y-10 md:space-y-16">
-            {/* Room code hero — legible across the table, the party's rallying point */}
-            <div className="text-center space-y-2">
-              <p className="max-w-full break-words text-xs font-mono uppercase tracking-[0.16em] text-text-muted sm:tracking-[0.32em]">
-                Share this code
+          <div className="mx-auto w-full max-w-3xl space-y-6 px-4 sm:px-6 md:space-y-8">
+            <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-sm)] sm:p-6">
+              <div className="flex min-w-0 items-end justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-mono uppercase tracking-[0.2em] text-text-muted">
+                    Room code
+                  </p>
+                  <p role="status" aria-live="polite" className="sr-only">
+                    Room code {formatRoomCode(room.code)}
+                  </p>
+                  <p className="truncate font-[var(--font-display)] text-[clamp(2rem,16vw,3rem)] font-medium leading-none tracking-[0.08em] text-text-primary">
+                    {formatRoomCode(room.code)}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full border border-border-subtle bg-background px-3 py-1 text-xs font-mono uppercase tracking-wider text-text-muted">
+                  {players.length}/8 seats
+                </span>
+              </div>
+              <p className="mt-3 max-w-prose text-sm leading-relaxed text-text-secondary">
+                Share the code, then start when everyone is ready.
               </p>
-              <p role="status" aria-live="polite" className="sr-only">
-                Room code {formatRoomCode(room.code)}
-              </p>
-              <p className="font-[var(--font-display)] text-[clamp(2rem,16vw,3rem)] sm:text-6xl md:text-7xl font-medium tracking-[0.08em] text-text-primary">
-                {formatRoomCode(room.code)}
-              </p>
-            </div>
+            </section>
 
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-12 md:grid-cols-[auto_minmax(0,1fr)] md:gap-24">
-              <div className="flex min-w-0 max-w-full flex-col items-center space-y-4 md:items-start md:self-start">
-                <LobbyJoinQr room={room} />
-                {canAddAi && (
-                  <Button
-                    onClick={handleAddAi}
-                    disabled={aiLoading}
-                    variant="secondary"
-                    size="md"
-                    className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
-                  >
-                    <Bot className="mr-[8px] h-4 w-4" />
-                    {aiLoading
-                      ? 'Adding...'
-                      : `Add a bot (${botCount}/${MAX_BOTS})`}
-                  </Button>
-                )}
-
-                {isHost && (
-                  <Button
-                    type="button"
-                    onClick={() => setIsPresenting(true)}
-                    data-testid={E2E_TEST_IDS.lobbyPresentationButton}
-                    variant="outline"
-                    size="md"
-                    className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
-                  >
-                    <Presentation className="mr-[8px] h-4 w-4" />
-                    Present room
-                  </Button>
-                )}
+            <section
+              aria-labelledby="lobby-roster-heading"
+              className="rounded-[var(--radius-xl)] border border-border-subtle bg-surface/60 p-5 sm:p-6"
+            >
+              <div className="flex min-w-0 items-center justify-between gap-4">
+                <h2
+                  id="lobby-roster-heading"
+                  className="font-[var(--font-display)] text-xl font-medium text-text-primary"
+                >
+                  Players
+                </h2>
+                <span className="shrink-0 text-xs font-mono uppercase tracking-wider text-text-muted">
+                  {players.length} in room
+                </span>
               </div>
 
-              <div className="relative order-first min-w-0 max-w-full md:order-none">
-                <ul className="min-w-0 max-w-full space-y-6 pb-8 md:pb-0">
+              <div className="relative mt-4 min-w-0">
+                <ul className="flex min-w-0 max-w-full flex-wrap gap-2">
                   {players.map((player, i) => (
                     <StampAnimation
                       key={player._id}
                       delay={i * 150}
                       className="mx-[12px] min-w-0 max-w-full sm:mx-0"
                     >
-                      <li className="grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-2">
+                      <li className="grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-full border border-border bg-background/60 px-3 py-2">
                         <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
                           <Avatar
                             stableId={player.stableId}
@@ -287,16 +279,16 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                             allStableIds={allStableIds}
                             size="md"
                           />
-                          <span className="min-w-0 flex-1 truncate text-2xl font-medium text-text-primary md:text-3xl">
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
                             {player.displayName}
                           </span>
                           {player.isAway && (
-                            <span className="shrink-0 text-xs font-mono uppercase tracking-widest text-text-muted">
+                            <span className="shrink-0 text-[0.625rem] font-mono uppercase tracking-widest text-text-muted">
                               away
                             </span>
                           )}
                         </div>
-                        <div className="flex max-w-full flex-wrap items-center justify-self-end gap-2">
+                        <div className="flex max-w-full flex-wrap items-center justify-self-end gap-1.5">
                           {player.isBot && (
                             <>
                               <BotBadge />
@@ -307,7 +299,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                                   className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:text-primary disabled:opacity-50"
                                   aria-label="Remove AI player"
                                 >
-                                  <UserMinus className="w-4 h-4" />
+                                  <UserMinus className="h-4 w-4" />
                                 </button>
                               )}
                             </>
@@ -319,7 +311,54 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                   ))}
                 </ul>
               </div>
-            </div>
+            </section>
+
+            <details className="group rounded-[var(--radius-xl)] border border-border-subtle bg-surface/60">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-medium text-text-primary marker:hidden sm:px-6 [&::-webkit-details-marker]:hidden">
+                <span>Room tools</span>
+                <span
+                  aria-hidden="true"
+                  className="text-xl leading-none text-text-muted transition-transform group-open:rotate-45"
+                >
+                  +
+                </span>
+              </summary>
+              <div className="grid gap-6 border-t border-border-subtle p-5 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)] sm:items-start sm:p-6">
+                <div className="flex min-w-0 justify-center sm:justify-start">
+                  <LobbyJoinQr room={room} />
+                </div>
+                <div className="flex min-w-0 flex-col gap-3">
+                  {canAddAi && (
+                    <Button
+                      onClick={handleAddAi}
+                      disabled={aiLoading}
+                      variant="secondary"
+                      size="md"
+                      className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
+                    >
+                      <Bot className="mr-[8px] h-4 w-4" />
+                      {aiLoading
+                        ? 'Adding...'
+                        : `Add a bot (${botCount}/${MAX_BOTS})`}
+                    </Button>
+                  )}
+
+                  {isHost && (
+                    <Button
+                      type="button"
+                      onClick={() => setIsPresenting(true)}
+                      data-testid={E2E_TEST_IDS.lobbyPresentationButton}
+                      variant="outline"
+                      size="md"
+                      className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
+                    >
+                      <Presentation className="mr-[8px] h-4 w-4" />
+                      Present room
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </details>
           </div>
         </div>
 

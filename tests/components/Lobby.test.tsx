@@ -155,6 +155,26 @@ describe('Lobby component', () => {
     ).toHaveClass('mx-[12px]', 'sm:mx-0');
   });
 
+  it('puts lobby utilities behind the Status Board room-tools disclosure', async () => {
+    const user = userEvent.setup();
+    render(<Lobby room={mockRoom} players={mockPlayers} isHost />);
+
+    const tools = screen.getByText('Room tools').closest('summary');
+    expect(tools).toBeInTheDocument();
+    expect(tools?.parentElement).not.toHaveAttribute('open');
+
+    await user.click(tools!);
+
+    expect(tools?.parentElement).toHaveAttribute('open');
+    expect(
+      screen.getByRole('button', { name: /Add a bot/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Present room/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('lobby-join-qr')).toBeInTheDocument();
+  });
+
   it('keeps the primary action in a non-overlapping viewport sibling', () => {
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
@@ -500,17 +520,11 @@ describe('Lobby component', () => {
     });
   });
 
-  it('flex-orders the roster ahead of the actions panel on mobile (linejam-946: above-the-fold)', () => {
-    // Arrange & Act — narrow viewports stack the two grid columns; the
-    // roster column is given `order-first md:order-none` so "add a bot"
-    // feedback is visible without scrolling on a 390px phone, while desktop
-    // keeps the original visual order.
+  it('wraps roster chips before the action zone on narrow layouts', () => {
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
-    // Assert
     const rosterList = screen.getByText('Host Player').closest('ul');
-    const rosterColumn = rosterList!.closest('div.relative');
-    expect(rosterColumn).toHaveClass('order-first', 'md:order-none');
+    expect(rosterList).toHaveClass('flex', 'flex-wrap', 'min-w-0');
   });
 
   it('truncates long player names instead of overflowing the roster row (linejam-946: mid-width collision)', () => {

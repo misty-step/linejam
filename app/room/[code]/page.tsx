@@ -93,6 +93,7 @@ function ResolvedRoomPage({
         <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background">
           <RoomChrome
             roomCode={code}
+            statusBoard
             {...buildLobbyChromeCopy({
               code,
               playerCount: players.length,
