@@ -68,10 +68,10 @@
   "dependencies": {
     "@clerk/nextjs": "^7.5.20",
     "clsx": "^2.1.1",
-    "convex": "^1.42.1",
-    "lucide-react": "^1.24.0",
+    "convex": "^1.42.3",
+    "lucide-react": "^1.25.0",
     "next": "16.2.10",
-    "posthog-js": "^1.399.2",
+    "posthog-js": "^1.404.1",
     "qrcode.react": "^4.2.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
