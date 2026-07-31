@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>lab-002 frame</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="frame.css?v=2" />
+  </head>
+  <body>
+    <div id="mount"></div>
+    <script src="frame.js?v=4"></script>
+    <script src="lanes/baseline.js?v=4"></script>
+    <script src="lanes/dammy.js?v=4"></script>
+    <script src="lanes/taste.js?v=4"></script>
+    <script src="lanes/min.js?v=5"></script>
+    <script src="lanes/brut.js?v=4"></script>
+    <script src="lanes/swiss.js?v=4"></script>
+    <script src="lanes/redesign.js?v=4"></script>
+    <script>
+      // Lane scripts loaded after frame.js: re-render once all are present.
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    </script>
+  </body>
+</html>

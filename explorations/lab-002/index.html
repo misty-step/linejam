@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Linejam Design Lab 002 — Zero-Scroll Room Frame</title>
+    <link rel="stylesheet" href="styles.css?v=2" />
+  </head>
+  <body>
+    <header id="topbar">
+      <div class="brand">
+        <strong>LAB 002</strong>
+        <span>Room chrome + action zone · zero incidental scroll</span>
+      </div>
+      <div class="viewport-controls">
+        <button data-vp="390x844" class="active">phone 390</button>
+        <button data-vp="375x667">phone SE</button>
+        <button data-vp="430x932">phone 430</button>
+        <button data-vp="768x1024">tablet</button>
+        <button data-vp="1280x800">desktop</button>
+        <button data-vp="fit">fit</button>
+        <span id="vp-readout"></span>
+      </div>
+      <div class="theme-controls">
+        <button data-mode="light" class="active">Kenya (light)</button>
+        <button data-mode="dark">Aloud (dark)</button>
+      </div>
+    </header>
+    <div id="layout">
+      <aside id="sidebar"></aside>
+      <main id="stage">
+        <div id="frame-holder">
+          <iframe id="frame" src="frame.html?v=2" title="option frame"></iframe>
+        </div>
+        <div id="audit-readout"></div>
+      </main>
+    </div>
+    <script src="lanes/baseline.js?v=4"></script>
+    <script src="lanes/dammy.js?v=4"></script>
+    <script src="lanes/taste.js?v=4"></script>
+    <script src="lanes/min.js?v=5"></script>
+    <script src="lanes/brut.js?v=4"></script>
+    <script src="lanes/swiss.js?v=4"></script>
+    <script src="lanes/redesign.js?v=4"></script>
+    <script src="app.js?v=4"></script>
+  </body>
+</html>
