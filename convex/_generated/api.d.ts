@@ -35,6 +35,7 @@ import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_gameRules from "../lib/gameRules.js";
 import type * as lib_guestToken from "../lib/guestToken.js";
+import type * as lib_lineText from "../lib/lineText.js";
 import type * as lib_poemAuthorKey from "../lib/poemAuthorKey.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_retentionPolicy from "../lib/retentionPolicy.js";
@@ -86,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   "lib/errors": typeof lib_errors;
   "lib/gameRules": typeof lib_gameRules;
   "lib/guestToken": typeof lib_guestToken;
+  "lib/lineText": typeof lib_lineText;
   "lib/poemAuthorKey": typeof lib_poemAuthorKey;
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/retentionPolicy": typeof lib_retentionPolicy;
