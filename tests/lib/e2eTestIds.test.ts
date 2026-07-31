@@ -40,6 +40,11 @@ const EXPECTED_TEST_IDS = {
   sessionRecapShareButton: 'session-recap-share-button',
   poemSaveImageButton: 'poem-save-image-button',
   recapExportButton: 'recap-export-button',
+  presentModeEnterButton: 'present-mode-enter-button',
+  presentModeExitButton: 'present-mode-exit-button',
+  stageLobby: 'stage-lobby',
+  stageReveal: 'stage-reveal',
+  stageNextLineButton: 'stage-next-line-button',
 } as const;
 
 const SOURCE_FILES = [
@@ -56,6 +61,9 @@ const SOURCE_FILES = [
   'components/SessionRecapHub.tsx',
   'components/RecapExportButton.tsx',
   'components/ui/WordSlots.tsx',
+  'components/stage/StageShell.tsx',
+  'components/stage/LobbyStage.tsx',
+  'components/stage/RevealStage.tsx',
 ];
 
 describe('E2E selector contract', () => {

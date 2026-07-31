@@ -670,6 +670,78 @@ export const getRevealPhaseState = query({
   },
 });
 
+/**
+ * Full lines + reader attribution for a single poem, for the room's
+ * presentation stage (linejam-944).
+ *
+ * `getRevealPhaseState.myPoems` only returns full line text to a poem's own
+ * assigned reader — that's spoiler protection before the reader has tapped
+ * "Reveal & Read". This query relaxes that guard for exactly one case: once
+ * `revealedAt` is set the poem is no longer secret (the reader is reading
+ * it aloud to the whole room right now), so any room participant — not just
+ * the assigned reader — may fetch its full lines. This lets a host's
+ * presentation-stage device show what's being read even when the host
+ * isn't that poem's reader. An unrevealed poem always returns null here,
+ * regardless of who asks.
+ */
+export const getRevealedPoemStage = query({
+  args: {
+    roomCode: v.string(),
+    poemId: v.id('poems'),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, poemId, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) return null;
+
+    const room = await getRoomByCode(ctx, roomCode);
+    if (!room) return null;
+
+    if (!(await checkParticipation(ctx, room._id, user._id))) return null;
+
+    const poem = await ctx.db.get(poemId);
+    if (!poem || poem.roomId !== room._id) return null;
+    if (!poem.revealedAt) return null; // not yet public — never leak
+
+    const players = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+    const reader = players.find((p) => p.userId === poem.assignedReaderId);
+    const readerUserRecord = poem.assignedReaderId
+      ? await ctx.db.get(poem.assignedReaderId)
+      : null;
+
+    const lines = await ctx.db
+      .query('lines')
+      .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+      .collect();
+    const lineAuthors = await Promise.all(
+      lines.map((l) => ctx.db.get(l.authorUserId))
+    );
+
+    return {
+      poemId: poem._id,
+      indexInRoom: poem.indexInRoom,
+      revealedAt: poem.revealedAt,
+      readerName: reader?.displayName || 'Unknown',
+      readerStableId:
+        readerUserRecord?.clerkUserId || readerUserRecord?.guestId || '',
+      lines: lines
+        .sort((a, b) => a.indexInPoem - b.indexInPoem)
+        .map((l, i) => {
+          const author = lineAuthors[i];
+          return {
+            text: l.text,
+            authorName: l.authorDisplayName || author?.displayName || 'Unknown',
+            authorStableId: author?.clerkUserId || author?.guestId || '',
+            isBot: author?.kind === 'AI',
+          };
+        }),
+    };
+  },
+});
+
 export const revealPoem = mutation({
   args: {
     poemId: v.id('poems'),

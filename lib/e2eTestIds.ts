@@ -35,6 +35,11 @@ export const E2E_TEST_IDS = {
   sessionRecapShareButton: 'session-recap-share-button',
   poemSaveImageButton: 'poem-save-image-button',
   recapExportButton: 'recap-export-button',
+  presentModeEnterButton: 'present-mode-enter-button',
+  presentModeExitButton: 'present-mode-exit-button',
+  stageLobby: 'stage-lobby',
+  stageReveal: 'stage-reveal',
+  stageNextLineButton: 'stage-next-line-button',
 } as const;
 
 export type E2ETestId = (typeof E2E_TEST_IDS)[keyof typeof E2E_TEST_IDS];
