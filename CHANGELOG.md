@@ -2,6 +2,18 @@
 
 All notable changes to Linejam.
 
+# [0.27.0](https://github.com/misty-step/linejam/compare/v0.26.0...v0.27.0) (2026-08-01)
+
+
+### Bug Fixes
+
+* **repo:** invoke local commitlint in hook ([45019db](https://github.com/misty-step/linejam/commit/45019db5837e235b9c695b4de83e7f08ae8c3160))
+
+
+### Features
+
+* **lobby:** ship status board room frame ([9f03da5](https://github.com/misty-step/linejam/commit/9f03da5be4719723e402fad3e9e037b74ea81f72))
+
 # [0.26.0](https://github.com/misty-step/linejam/compare/v0.25.1...v0.26.0) (2026-07-17)
 
 
