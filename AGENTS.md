@@ -89,3 +89,5 @@ ambiguity, accidental scope, secret exposure, and safety regressions. Record
 exact tests, live evidence, residual risk, and commit/PR/deployment identifiers
 in Powder. Review, merge, deploy, monitor, and production verification are
 distinct acceptance surfaces; perform only the ones authorized by the lane.
+
+Organization root context: @~/Development/misty-step/AGENTS.md
