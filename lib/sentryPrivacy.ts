@@ -51,10 +51,6 @@ const SAFE_NUMERIC_CONTEXT: Readonly<Record<string, true>> = {
   thresholdPercent: true,
   totalGenerations: true,
 };
-const SAFE_CORRELATION_CONTEXT: Readonly<Record<string, true>> = {
-  correlationId: true,
-  requestId: true,
-};
 const SAFE_EXCEPTION_MESSAGES: Readonly<Record<string, true>> = {
   'Linejam preview privacy drill': true,
 };
@@ -136,11 +132,10 @@ const COMMIT_RELEASE = /^[a-f0-9]{7,64}$/i;
 const EVENT_ID = /^[a-f0-9]{32}$/i;
 const TRACE_ID = /^[a-f0-9]{32}$/i;
 const SPAN_ID = /^[a-f0-9]{16}$/i;
-const SAFE_CORRELATION_ID = /^[A-Za-z0-9_-]{8,128}$/;
 
 export type SentryReporterContext = {
   tags?: Record<string, string>;
-  contexts?: { linejam: Record<string, string | number> };
+  contexts?: { linejam: Record<string, number> };
 };
 
 function safeTag(key: keyof typeof SAFE_TAG_VALUES, value: unknown) {
@@ -169,12 +164,6 @@ function safeTimestamp(value: unknown) {
     : undefined;
 }
 
-function safeCorrelationId(value: unknown) {
-  return typeof value === 'string' && SAFE_CORRELATION_ID.test(value)
-    ? value
-    : undefined;
-}
-
 function sanitizeTags(tags: Record<string, unknown> | undefined) {
   if (!tags) return undefined;
 
@@ -197,14 +186,10 @@ function sanitizeLinejamContext(value: unknown) {
   if (!value || typeof value !== 'object') return undefined;
 
   const source = value as Record<string, unknown>;
-  const safe: Record<string, string | number> = {};
+  const safe: Record<string, number> = {};
   for (const key of Object.keys(SAFE_NUMERIC_CONTEXT)) {
     const numeric = safeNumber(source[key]);
     if (numeric !== undefined) safe[key] = numeric;
-  }
-  for (const key of Object.keys(SAFE_CORRELATION_CONTEXT)) {
-    const correlationId = safeCorrelationId(source[key]);
-    if (correlationId) safe[key] = correlationId;
   }
   return Object.keys(safe).length ? safe : undefined;
 }

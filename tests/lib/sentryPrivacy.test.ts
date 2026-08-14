@@ -35,7 +35,7 @@ function taintedEvent(): ErrorEvent {
       rejected: { poem: FORBIDDEN },
       linejam: {
         durationMs: 12,
-        requestId: 'request_12345678',
+        requestId: FORBIDDEN,
         poemId: FORBIDDEN,
       },
     },
@@ -101,7 +101,6 @@ describe('Sentry transport privacy boundary', () => {
       contexts: {
         linejam: {
           durationMs: 12,
-          requestId: 'request_12345678',
         },
       },
       exception: {
@@ -120,6 +119,7 @@ describe('Sentry transport privacy boundary', () => {
         ],
       },
     });
+    expect(sanitized).not.toHaveProperty('contexts.linejam.requestId');
     const frame = sanitized?.exception?.values?.[0]?.stacktrace?.frames?.[0];
     expect(frame).not.toHaveProperty('function');
     expect(frame).not.toHaveProperty('module');
@@ -220,14 +220,14 @@ describe('Sentry transport privacy boundary', () => {
     expect(beforeSend(taintedEvent(), { originalException: error })).toBeNull();
   });
 
-  it('reduces reporter context to closed tags and bounded numeric/correlation fields', () => {
+  it('reduces reporter context to closed tags and bounded numeric fields', () => {
     expect(
       sanitizeSentryReporterContext({
         operation: 'summonGhostwriter',
         failureCode: 'provider_error',
         durationMs: Number.POSITIVE_INFINITY,
         attempt: 3,
-        correlationId: 'correlation_12345678',
+        correlationId: FORBIDDEN,
         roomCode: FORBIDDEN,
         poemId: FORBIDDEN,
         prompt: FORBIDDEN,
@@ -240,7 +240,6 @@ describe('Sentry transport privacy boundary', () => {
       contexts: {
         linejam: {
           attempt: 3,
-          correlationId: 'correlation_12345678',
         },
       },
     });
