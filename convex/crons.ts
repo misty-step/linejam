@@ -31,6 +31,13 @@ crons.interval(
 );
 
 crons.interval(
+  'report AI fallback rate',
+  { hours: 1 },
+  internal.ai.reportCurrentAiFallbackRate,
+  {}
+);
+
+crons.interval(
   'recover expired Sentry GitHub bridge leases',
   { minutes: 1 },
   makeFunctionReference<

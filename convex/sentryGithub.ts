@@ -11,6 +11,7 @@ const SENTRY_BASE_URL = 'https://sentry.io/api/0';
 const GITHUB_BASE_URL = 'https://api.github.com';
 const MAX_ATTEMPTS = 10;
 const LEASE_MS = 2 * 60 * 1000;
+const BRIDGE_FETCH_TIMEOUT_MS = 5_000;
 const MAX_RETRY_MS = 60 * 60 * 1000;
 const FIXED_LABELS = ['p1', 'source/sentry', 'domain/infra'] as const;
 export const BRIDGE_RUNTIMES = ['convex', 'github-actions'] as const;
@@ -249,7 +250,11 @@ async function safeFetch(
   provider: 'sentry' | 'github' | 'link'
 ): Promise<Response> {
   try {
-    const response = await fetch(input, { ...init, redirect: 'error' });
+    const response = await fetch(input, {
+      ...init,
+      redirect: 'error',
+      signal: AbortSignal.timeout(BRIDGE_FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) throw providerFailure(provider, response, Date.now());
     return response;
   } catch (error) {

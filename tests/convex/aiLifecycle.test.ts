@@ -866,6 +866,46 @@ describe('AI fallback observability', () => {
       /"(?:poemId|roomId|guestId|text|userId)":/
     );
   });
+
+  it('emits an alive check-in without AI traffic', async () => {
+    process.env.LINEJAM_SENTRY_ENABLED = 'true';
+    process.env.SENTRY_DSN = [
+      'https://public123',
+      'sentry.example.test/42',
+    ].join('@');
+    process.env.SENTRY_ENVIRONMENT = 'preview';
+    process.env.SENTRY_RELEASE = '0123456789abcdef0123456789abcdef01234567';
+    process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS = '3';
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const t = setupConvexTest();
+
+    const checkIn = await t.mutation(
+      internal.ai.reportCurrentAiFallbackRate,
+      {}
+    );
+    await finishScheduledFunctions(t);
+
+    expect(checkIn).toMatchObject({
+      operation: 'aiFallbackRate',
+      status: 'alive',
+      totalGenerations: 0,
+      fallbackGenerations: 0,
+      fallbackRatePercent: 0,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0]!;
+    const [, item, payload] = String(init.body).split('\n');
+    expect(JSON.parse(item)).toMatchObject({ type: 'check_in' });
+    expect(JSON.parse(payload)).toMatchObject({
+      monitor_slug: 'linejam-ai-fallback-rate',
+      status: 'ok',
+    });
+  });
 });
 
 // ─── generateGhostLine (action, fallback path) ───────────────────────────────

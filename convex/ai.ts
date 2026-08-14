@@ -283,6 +283,34 @@ async function recordAiGenerationMetric(
 }
 
 /**
+ * Emit the fallback-rate monitor independently of generation traffic.
+ * A quiet bucket is alive, not a missed monitor.
+ */
+export const reportCurrentAiFallbackRate = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const bucketStart = aiGenerationBucket();
+    const metric = await ctx.db
+      .query('aiGenerationMetrics')
+      .withIndex('by_bucket', (q) => q.eq('bucketStart', bucketStart))
+      .first();
+    const checkIn = planAiFallbackCheckIn({
+      totalGenerations: metric?.totalGenerations ?? 0,
+      fallbackGenerations: metric?.fallbackGenerations ?? 0,
+      fallbackReason: null,
+      thresholdPercent: getAiFallbackAlertThresholdPercent(),
+      minimumGenerations: getAiFallbackAlertMinimumGenerations(),
+    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.errors.reportAiFallbackRate,
+      checkIn
+    );
+    return checkIn;
+  },
+});
+
+/**
  * Atomically own one machine-written cell and charge the shared daily budget.
  * The mutation boundary is the claim: concurrent bot, automatic ghost, and
  * host-summoned ghost attempts serialize on `aiTurns.by_cell` before any

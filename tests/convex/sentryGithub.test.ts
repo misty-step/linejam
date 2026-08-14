@@ -348,6 +348,11 @@ describe('durable Sentry to GitHub bridge', () => {
       externalIssue: '88',
     });
     expect(maximumConcurrentTagFetches).toBe(1);
+    expect(
+      fetchMock.mock.calls.every(
+        ([, init]) => init?.signal instanceof AbortSignal
+      )
+    ).toBe(true);
     const sentryTagUrls = fetchMock.mock.calls
       .map(([input]) => String(input))
       .filter((url) => url.includes('/tags/'));

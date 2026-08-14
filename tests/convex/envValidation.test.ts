@@ -252,6 +252,42 @@ describe('Convex env validation', () => {
     );
   });
 
+  it('reports preview env as healthy without the optional issue bridge', async () => {
+    await withEnv(
+      {
+        CONVEX_CLOUD_URL: 'https://preview-linejam.convex.cloud',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'preview',
+        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.preview.linejam.test',
+        GUEST_TOKEN_SECRET: 'test-secret',
+        OPENROUTER_API_KEY: 'test-openrouter-key',
+        LINEJAM_SENTRY_ENABLED: 'true',
+        SENTRY_DSN: ['https://public', 'sentry.example.test/42'].join('@'),
+        SENTRY_ENVIRONMENT: 'preview',
+        SENTRY_RELEASE: 'a'.repeat(40),
+        GITHUB_ISSUES_TOKEN: undefined,
+        GITHUB_REPOSITORY_NAME: undefined,
+        GITHUB_REPOSITORY_OWNER: undefined,
+        SENTRY_EVENT_WRITE_TOKEN: undefined,
+        SENTRY_EXPECTED_APP_ID: undefined,
+        SENTRY_EXPECTED_INSTALLATION_UUID: undefined,
+        SENTRY_EXPECTED_PROJECT_ID: undefined,
+        SENTRY_GITHUB_INTEGRATION_ID: undefined,
+        SENTRY_WEBHOOK_SECRET: undefined,
+      },
+      async () => {
+        const { getConvexEnvHealthReport } =
+          await import('../../convex/lib/env');
+
+        expect(getConvexEnvHealthReport()).toMatchObject({
+          ok: true,
+          status: 200,
+          environment: 'preview',
+          configuration: { missingRequired: [] },
+        });
+      }
+    );
+  });
+
   it('reports development env as healthy with optional capabilities disabled', async () => {
     await withEnv(
       {
