@@ -156,9 +156,9 @@ details:
 4. Route each actionable Sentry issue to exactly one canonical GitHub Issue.
    Deduplicate durably by Sentry installation, project, and issue IDs; retries
    must be leased and bounded. Sentry and GitHub link to each other.
-5. Keep diagnosis and fixes human-gated. Required checks, CODEOWNERS approval,
-   a separate last-push approval, and the normal deployment workflow retain
-   merge and release authority.
+5. Keep diagnosis and fixes operator-controlled. Required checks, resolved
+   review conversations, explicit live merge/deployment authority, and the
+   normal deployment workflow retain merge and release authority.
 6. Before cutover, exercise browser, server, worker, and scheduled paths in
    preview; prove privacy, symbolication, release/runtime attribution, monitor
    transitions, alert delivery, and GitHub deduplication. Compare the old and
@@ -232,12 +232,14 @@ The GitHub incident Issue links all four and the postmortem. Add a backlink to
 the incident/postmortem from the Sentry item, PR, and release record so the
 chain can be followed from any artifact. If an artifact genuinely does not
 exist, record `not applicable` and the observed reason; never invent a link or
-a root-cause claim. GitHub Actions and human review remain release authority:
-an agent-generated fix is never auto-merged or auto-deployed.
+a root-cause claim. GitHub Actions and explicitly authorized merge/deployment
+operations remain release authority: an agent-generated fix is never
+auto-merged or auto-deployed.
 
 `master` branch protection enforces the `merge-gate` status check, linear
-history, resolved review conversations, a current CODEOWNERS approval, and a
-separate approval of the last push. Administrators are subject to the same
-gate. Sentry Autofix automation remains off; generated diagnosis may draft a
-PR only after a human explicitly starts it, and that PR receives no merge or
-deployment authority.
+history, resolved review conversations, and pull-request-only changes. It
+deliberately requires zero approving reviews: this single-maintainer repository
+must not create an impossible self-approval gate. Administrators remain subject
+to the same required checks. Sentry Autofix automation remains off; generated
+diagnosis may draft a PR only after a human explicitly starts it, and that PR
+receives no independent merge or deployment authority.

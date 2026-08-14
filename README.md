@@ -83,7 +83,6 @@ Linejam ships thin agent-facing faces over the same Convex core the web app uses
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, local checks, commit style, and PR expectations.
 - See [SECURITY.md](SECURITY.md) for vulnerability reporting and response expectations.
 - See [docs/sharing-privacy.md](docs/sharing-privacy.md) for the public-by-link sharing contract.
-- Review routing is declared in [CODEOWNERS](CODEOWNERS).
 
 ## Testing
 
