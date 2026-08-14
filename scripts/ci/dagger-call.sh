@@ -240,16 +240,6 @@ function_requires_clerk_convex_template_validation() {
 	esac
 }
 
-function_requires_canary_browser_config() {
-	case "$FUNCTION_NAME" in
-		all|all-no-e-2-e|build-check|e-2-e)
-			return 0
-			;;
-		*)
-			return 1
-			;;
-	esac
-}
 
 should_prepare_local_convex() {
 	local sync_mode="${LINEJAM_SYNC_CONVEX_BEFORE_DAGGER:-auto}"
@@ -386,7 +376,7 @@ validate_smoke_auth_configuration() {
 	fi
 
 	run_node --input-type=module - <<'NODE'
-import { getSmokeClerkKeyError } from './scripts/canary/smoke-auth.mjs';
+import { getSmokeClerkKeyError } from './scripts/ops/smoke-auth.mjs';
 
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL?.trim() || '';
 const error = getSmokeClerkKeyError(baseUrl);
@@ -535,24 +525,6 @@ validate_clerk_convex_template() {
 	run_node ./scripts/ci/ensure-clerk-convex-template.mjs --check-only
 }
 
-ensure_canary_browser_config() {
-	if [[ -z "${NEXT_PUBLIC_CANARY_ENDPOINT:-}" && -n "${CANARY_ENDPOINT:-}" ]]; then
-		export NEXT_PUBLIC_CANARY_ENDPOINT="${CANARY_ENDPOINT}"
-	fi
-
-	local endpoint="${NEXT_PUBLIC_CANARY_ENDPOINT:-}"
-	local api_key="${NEXT_PUBLIC_CANARY_API_KEY:-}"
-
-	if [[ -z "$endpoint" || -z "$api_key" ]]; then
-		echo >&2 "NEXT_PUBLIC_CANARY_ENDPOINT and NEXT_PUBLIC_CANARY_API_KEY are required for ${FUNCTION_NAME}. Canary is the primary observability sink, so the authoritative Dagger contract must run with real browser-side Canary config."
-		return 1
-	fi
-
-	if [[ "$api_key" == "example_canary_write_key" ]]; then
-		echo >&2 "Refusing to run ${FUNCTION_NAME} with the placeholder NEXT_PUBLIC_CANARY_API_KEY. Export a real Canary browser write key before running the authoritative Dagger contract."
-		return 1
-	fi
-}
 
 env_files=(.env)
 if [[ "$FUNCTION_NAME" == "smoke" ]]; then
@@ -588,9 +560,6 @@ if function_requires_guest_token; then
 	hydrate_guest_token_secret
 fi
 
-if function_requires_canary_browser_config; then
-	ensure_canary_browser_config
-fi
 
 if [[ "$FUNCTION_NAME" == "smoke" ]]; then
 	validate_smoke_base_url
@@ -633,9 +602,8 @@ append_app_env() {
 	append_arg "--clerk-jwt-issuer-domain" "${CLERK_JWT_ISSUER_DOMAIN:-}"
 	append_arg "--playwright-clerk-test-email" "${PLAYWRIGHT_CLERK_TEST_EMAIL:-}"
 	append_secret_arg "--guest-token-secret" "GUEST_TOKEN_SECRET"
-	append_arg "--canary-endpoint" "${CANARY_ENDPOINT:-}"
-	append_arg "--next-public-canary-endpoint" "${NEXT_PUBLIC_CANARY_ENDPOINT:-}"
-	append_arg "--next-public-canary-api-key" "${NEXT_PUBLIC_CANARY_API_KEY:-}"
+	append_arg "--next-public-sentry-dsn" "${NEXT_PUBLIC_SENTRY_DSN:-}"
+	append_arg "--next-public-sentry-enabled" "${NEXT_PUBLIC_SENTRY_ENABLED:-}"
 }
 
 case "$FUNCTION_NAME" in

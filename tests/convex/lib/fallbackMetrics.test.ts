@@ -21,15 +21,13 @@ describe('AI fallback metric planning', () => {
         minimumGenerations: 5,
       })
     ).toEqual({
+      operation: 'aiFallbackRate',
       status: 'error',
-      summary: 'AI fallback rate is 40.0% (2/5) in the current hour.',
-      context: {
-        totalGenerations: 5,
-        fallbackGenerations: 2,
-        fallbackRatePercent: 40,
-        fallbackReason: 'provider_error',
-        thresholdPercent: 20,
-      },
+      totalGenerations: 5,
+      fallbackGenerations: 2,
+      fallbackRatePercent: 40,
+      failureCode: 'provider_error',
+      thresholdPercent: 20,
     });
   });
 
@@ -43,14 +41,23 @@ describe('AI fallback metric planning', () => {
     });
 
     expect(plan.status).toBe('ok');
-    expect(plan.context).toEqual({
+    expect(plan).toEqual({
+      operation: 'aiFallbackRate',
+      status: 'ok',
       totalGenerations: 10,
       fallbackGenerations: 2,
       fallbackRatePercent: 20,
       thresholdPercent: 20,
     });
-    expect(Object.keys(plan.context)).not.toEqual(
-      expect.arrayContaining(['poemId', 'roomId', 'guestId', 'text', 'userId'])
+    expect(Object.keys(plan)).not.toEqual(
+      expect.arrayContaining([
+        'summary',
+        'poemId',
+        'roomId',
+        'guestId',
+        'text',
+        'userId',
+      ])
     );
   });
 

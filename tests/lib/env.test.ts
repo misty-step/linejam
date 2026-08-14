@@ -7,14 +7,16 @@ describe('validateEnv', () => {
     vi.resetModules();
   });
 
-  it('accepts production env when Convex and Canary public vars are configured', async () => {
+  it('accepts production env when Convex and Sentry public vars are configured', async () => {
     await withEnv(
       {
         NODE_ENV: 'production',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
-        NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example',
-        NEXT_PUBLIC_CANARY_API_KEY: 'sk_test_canary',
+        NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(
+          '@'
+        ),
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
       },
       async () => {
         const { validateEnv } = await import('@/lib/env');
@@ -23,37 +25,39 @@ describe('validateEnv', () => {
     );
   });
 
-  it('throws when Canary public vars are missing in production', async () => {
+  it('throws when Sentry public vars are missing in production', async () => {
     await withEnv(
       {
         NODE_ENV: 'production',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
-        NEXT_PUBLIC_CANARY_ENDPOINT: undefined,
-        NEXT_PUBLIC_CANARY_API_KEY: undefined,
+        NEXT_PUBLIC_SENTRY_DSN: undefined,
+        NEXT_PUBLIC_SENTRY_ENABLED: undefined,
       },
       async () => {
         const { validateEnv } = await import('@/lib/env');
         expect(() => validateEnv()).toThrow(
-          /NEXT_PUBLIC_CANARY_ENDPOINT[\s\S]*NEXT_PUBLIC_CANARY_API_KEY/
+          /NEXT_PUBLIC_SENTRY_DSN[\s\S]*NEXT_PUBLIC_SENTRY_ENABLED/
         );
       }
     );
   });
 
-  it('throws when Canary uses the placeholder public write key in production', async () => {
+  it('throws when Sentry is not explicitly enabled', async () => {
     await withEnv(
       {
         NODE_ENV: 'production',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
-        NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example',
-        NEXT_PUBLIC_CANARY_API_KEY: 'example_canary_write_key',
+        NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(
+          '@'
+        ),
+        NEXT_PUBLIC_SENTRY_ENABLED: '0',
       },
       async () => {
         const { validateEnv } = await import('@/lib/env');
         expect(() => validateEnv()).toThrow(
-          /Invalid placeholder environment variables:[\s\S]*NEXT_PUBLIC_CANARY_API_KEY/
+          /Invalid environment variables:[\s\S]*NEXT_PUBLIC_SENTRY_ENABLED/
         );
       }
     );
@@ -66,8 +70,10 @@ describe('validateEnv', () => {
         LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
-        NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example',
-        NEXT_PUBLIC_CANARY_API_KEY: 'sk_test_canary',
+        NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(
+          '@'
+        ),
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
         NEXT_DEPLOYMENT_ID: undefined,
         NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: undefined,
       },
@@ -87,8 +93,10 @@ describe('validateEnv', () => {
         LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
-        NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example',
-        NEXT_PUBLIC_CANARY_API_KEY: 'sk_test_canary',
+        NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(
+          '@'
+        ),
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
         NEXT_DEPLOYMENT_ID: 'abc123',
         NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: 'not-a-valid-key',
       },

@@ -27,7 +27,6 @@ coverage/
 *.log
 .open-next/
 server/
-.canary/
 .evidence/
 
 # Design-lab artifacts

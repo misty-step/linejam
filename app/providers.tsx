@@ -6,13 +6,13 @@ import { convex } from '../lib/convex';
 import { ThemeProvider } from '@/lib/themes';
 import { PostHogProvider } from '@/lib/posthog/PostHogProvider';
 import { PostHogPageview } from '@/lib/posthog/PostHogPageview';
-import { CanaryClientObserver } from '@/components/CanaryClientObserver';
+import { DeploymentSkewRejectionObserver } from '@/components/DeploymentSkewRejectionObserver';
 import { DeploymentSkewObserver } from '@/components/DeploymentSkewObserver';
 import {
   linejamClerkAppearance,
   useClerkThemeVariables,
 } from '@/lib/clerk/appearance';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useVisualViewport } from '@/hooks/useVisualViewport';
 
 export function Providers({
@@ -33,7 +33,7 @@ export function Providers({
     >
       <PostHogProvider>
         <PostHogPageview />
-        <CanaryClientObserver />
+        <DeploymentSkewRejectionObserver />
         <DeploymentSkewObserver deploymentId={deploymentId} />
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <ThemeProvider>{children}</ThemeProvider>

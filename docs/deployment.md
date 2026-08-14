@@ -1,20 +1,18 @@
 # Deployment Guide
 
 Linejam runs on DigitalOcean App Platform. Convex remains the realtime backend,
-Clerk remains the optional identity provider, and Canary remains the incident
-sink. This guide is the production contract for the web application and its
-Canary responder.
+Clerk remains the optional identity provider, and Sentry is the incident,
+monitoring, and release-evidence platform. This guide is the production contract
+for the web application and its hosted Convex deployment.
 
 ## Production topology
 
-| Component        | App Platform name          | Source                                | Runtime contract                                |
-| ---------------- | -------------------------- | ------------------------------------- | ----------------------------------------------- |
-| Web application  | `linejam`                  | `misty-step/linejam`, branch `master` | buildpack, port `3000`, `/api/health`           |
-| Canary responder | `linejam-canary-responder` | `misty-step/linejam`, branch `master` | `Dockerfile.responder`, port `8787`, `/healthz` |
+| Component       | App Platform name | Source                                | Runtime contract                      |
+| --------------- | ----------------- | ------------------------------------- | ------------------------------------- |
+| Web application | `linejam`         | `misty-step/linejam`, branch `master` | buildpack, port `3000`, `/api/health` |
 
-Both apps deploy automatically from `master`. The public application is
-`https://linejam.app`; the responder is currently reachable at
-`https://linejam-canary-responder-fdflj.ondigitalocean.app`.
+The app deploys automatically from `master`. The public application is
+`https://linejam.app`.
 
 [`config/digitalocean-apps.json`](../config/digitalocean-apps.json) is the
 canonical, values-free topology contract. It pins components, routes, domains,
@@ -22,17 +20,13 @@ health checks, source, build/run commands, environment variable names, and the
 single frontend and Convex production deploy owner. The live provider spec must
 reconcile with it before a release is accepted.
 
-The stable Canary API origin is `https://canary.mistystep.io`. Use that custom
-hostname in application defaults and provider configuration rather than a
-provider-generated hostname.
-
 ## Prerequisites
 
 - `doctl` authenticated to the Misty Step DigitalOcean account
 - App Platform GitHub access to `misty-step/linejam`
 - Convex CLI access to the intended Linejam deployment
-- production Clerk, Convex, Canary, and guest-token values available through
-  the approved credential plane
+- production Clerk, Convex, Sentry, GitHub bridge, and guest-token values
+  available through the approved credential plane
 - GitHub Actions access for the hosted quality and smoke gates
 
 Never commit a raw exported App Platform spec or print secret values. Raw
@@ -49,13 +43,8 @@ LINEJAM_APP_ID="$(
   doctl apps list --format ID,Spec.Name --no-header |
     awk '$2 == "linejam" { print $1 }'
 )"
-LINEJAM_RESPONDER_APP_ID="$(
-  doctl apps list --format ID,Spec.Name --no-header |
-    awk '$2 == "linejam-canary-responder" { print $1 }'
-)"
 
 test -n "$LINEJAM_APP_ID"
-test -n "$LINEJAM_RESPONDER_APP_ID"
 ```
 
 Read back only non-secret deployment facts:
@@ -63,12 +52,9 @@ Read back only non-secret deployment facts:
 ```bash
 doctl apps get "$LINEJAM_APP_ID" -o json |
   jq '.[0] | {name: .spec.name, ingress: .default_ingress, deployment: .active_deployment.id, phase: .active_deployment.phase}'
-
-doctl apps get "$LINEJAM_RESPONDER_APP_ID" -o json |
-  jq '.[0] | {name: .spec.name, ingress: .default_ingress, deployment: .active_deployment.id, phase: .active_deployment.phase}'
 ```
 
-Both active deployments must report `ACTIVE` before a release is accepted.
+The active deployment must report `ACTIVE` before a release is accepted.
 
 Reconcile every meaningful, non-value provider field against the committed
 contract with:
@@ -94,48 +80,34 @@ must receive the identical value. A mismatch breaks guest-token verification.
 
 ### Web application
 
-| Variable                             | Purpose                                            |
-| ------------------------------------ | -------------------------------------------------- |
-| `GUEST_TOKEN_SECRET`                 | signs web guest tokens; must match Convex          |
-| `NEXT_PUBLIC_CONVEX_URL`             | production Convex URL                              |
-| `CONVEX_DEPLOYMENT`                  | production Convex deployment selector              |
-| `CONVEX_DEPLOYMENT_URL`              | production Convex deployment URL                   |
-| `CONVEX_DEPLOY_KEY`                  | production deploy key used during the hosted build |
-| `LINEJAM_DEPLOY_ENVIRONMENT`         | `production`; fail-closed hosted deploy guard      |
-| `NEXT_DEPLOYMENT_ID`                 | `${_self.COMMIT_HASH}`; rolling-build identifier   |
-| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | stable 32-byte base64 Server Action key            |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`  | browser Clerk key                                  |
-| `CLERK_SECRET_KEY`                   | server Clerk key                                   |
-| `CLERK_JWT_ISSUER_DOMAIN`            | Clerk issuer used by Convex auth                   |
-| `CANARY_ENDPOINT`                    | `https://canary.mistystep.io`                      |
-| `CANARY_API_KEY`                     | server-side Canary credential                      |
-| `NEXT_PUBLIC_CANARY_ENDPOINT`        | `https://canary.mistystep.io`                      |
-| `NEXT_PUBLIC_CANARY_API_KEY`         | browser write-only Canary credential               |
-| `NEXT_PUBLIC_SENTRY_DSN`             | browser Sentry destination                         |
-| `PLAYWRIGHT_CLERK_TEST_EMAIL`        | pre-created production smoke user                  |
-| `SENTRY_AUTH_TOKEN`                  | source-map upload credential                       |
-| `SENTRY_ORG`                         | Sentry organization slug                           |
-| `SENTRY_PROJECT`                     | Sentry project slug                                |
-
-### Canary responder
-
-| Variable                              | Required value or role            |
-| ------------------------------------- | --------------------------------- |
-| `LINEJAM_CANARY_RESPONDER_PORT`       | `8787`                            |
-| `LINEJAM_CANARY_WEBHOOK_PATH`         | `/canary/webhook`                 |
-| `LINEJAM_CANARY_STORE_DIR`            | `/tmp/canary`                     |
-| `LINEJAM_SMOKE_RUNNER`                | `playwright`                      |
-| `PLAYWRIGHT_BASE_URL`                 | `https://www.linejam.app`         |
-| `PLAYWRIGHT_REQUIRE_AUTH_SMOKE`       | `1`                               |
-| `LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST` | `1`                               |
-| `LINEJAM_ALLOWED_SMOKE_ORIGINS`       | `https://www.linejam.app`         |
-| `CANARY_ENDPOINT`                     | `https://canary.mistystep.io`     |
-| `CANARY_API_KEY`                      | responder query credential        |
-| `LINEJAM_CANARY_SERVICE`              | `linejam`                         |
-| `LINEJAM_CANARY_WEBHOOK_SECRET`       | signed-delivery secret            |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`   | production Clerk key              |
-| `CLERK_SECRET_KEY`                    | production Clerk key              |
-| `PLAYWRIGHT_CLERK_TEST_EMAIL`         | pre-created production smoke user |
+| Variable                             | Purpose                                                    |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `GUEST_TOKEN_SECRET`                 | signs web guest tokens; must match Convex                  |
+| `NEXT_PUBLIC_CONVEX_URL`             | production Convex URL                                      |
+| `CONVEX_DEPLOYMENT`                  | production Convex deployment selector                      |
+| `CONVEX_DEPLOYMENT_URL`              | production Convex deployment URL                           |
+| `CONVEX_DEPLOY_KEY`                  | production deploy key used during the hosted build         |
+| `LINEJAM_DEPLOY_ENVIRONMENT`         | `production`; fail-closed hosted deploy guard              |
+| `NEXT_DEPLOYMENT_ID`                 | `${_self.COMMIT_HASH}`; release and rolling-build identity |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | stable 32-byte base64 Server Action key                    |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`  | browser Clerk key                                          |
+| `CLERK_SECRET_KEY`                   | server Clerk key                                           |
+| `CLERK_JWT_ISSUER_DOMAIN`            | Clerk issuer used by Convex auth                           |
+| `NEXT_PUBLIC_SENTRY_ENABLED`         | exact `1`; enables browser and hosted Convex Sentry        |
+| `NEXT_PUBLIC_SENTRY_DSN`             | public write-only browser and Convex Sentry destination    |
+| `SENTRY_AUTH_TOKEN`                  | build-only source-map upload credential                    |
+| `SENTRY_ORG`                         | `misty-step`                                               |
+| `SENTRY_PROJECT`                     | `linejam`                                                  |
+| `SENTRY_WEBHOOK_SECRET`              | signed Sentry webhook verification secret                  |
+| `SENTRY_EVENT_WRITE_TOKEN`           | Sentry event update token for GitHub linkage               |
+| `GITHUB_ISSUES_TOKEN`                | GitHub Issue creation token used by the Convex worker      |
+| `SENTRY_EXPECTED_APP_ID`             | allowlisted Sentry integration application ID              |
+| `SENTRY_EXPECTED_INSTALLATION_UUID`  | allowlisted Sentry installation UUID                       |
+| `SENTRY_EXPECTED_PROJECT_ID`         | allowlisted Linejam Sentry project ID                      |
+| `SENTRY_GITHUB_INTEGRATION_ID`       | Sentry GitHub integration ID used for external issue links |
+| `GITHUB_REPOSITORY_OWNER`            | `misty-step`                                               |
+| `GITHUB_REPOSITORY_NAME`             | `linejam`                                                  |
+| `PLAYWRIGHT_CLERK_TEST_EMAIL`        | pre-created production smoke user                          |
 
 Update environment configuration in App Platform without copying values into
 the repository. For a scripted change, export the current spec into a protected
@@ -258,6 +230,10 @@ that protects the export if an artifact is downloaded without authorization.
 
 ### Restore drill
 
+Before downloading a backup, create or select the GitHub Issue that will own the
+redacted drill receipt. Direct operator authority can commission the drill, but
+the durable receipt still needs that public, sanitized record.
+
 1. Download one `linejam-convex-backup` artifact from a successful backup run
    into a protected temporary directory. Keep the downloaded `.zip.age` file
    and the identity file mode `0600`.
@@ -285,13 +261,15 @@ that protects the export if an artifact is downloaded without authorization.
    operator credential plane, omitting the target uses that deployment key.
    Production-shaped keys remain blocked unless `--allow-production` is passed.
 
-4. Run the local or non-production health and representative data checks. Save
-   the command output, target, backup filename, and observed completion time as
-   the restore drill receipt on Powder card **linejam-952**.
+4. Run the local or non-production health and representative data checks.
+   Record the redacted restore-drill receipt on the canonical GitHub Issue that
+   owns the drill. The receipt must link the backup workflow run and retained
+   proof artifact, and name the non-secret target class, backup filename, source
+   SHA, observed completion time, and check outcome.
 
 The declared recovery objectives are **RPO 24 hours** (the export is daily) and
-**RTO 30 minutes** (the restore drill receipt is retained on Powder card
-**linejam-952**). These objectives assume the operator credential plane and a
+**RTO 30 minutes** (the canonical GitHub Issue links the durable restore-drill
+receipt and proof). These objectives assume the operator credential plane and a
 working Convex CLI are available; they do not authorize a production import.
 
 ## Deploy the web application
@@ -319,57 +297,20 @@ doctl apps logs "$LINEJAM_APP_ID" web --type run --tail 200
 ```
 
 All three routes must return HTTP 200. `/api/health` must report the core app,
-Convex, guest-token, Clerk, AI, and Canary readiness expected for production.
+Convex, guest-token, Clerk, AI, and Sentry readiness expected for production.
 Its `guestTokenParity` boolean is a proof result only; neither secret nor a
 fingerprint is returned.
-
-## Deploy the Canary responder
-
-App Platform builds [`Dockerfile.responder`](../Dockerfile.responder) from
-`master`. A source merge therefore updates both App Platform apps; the web and
-responder health gates decide independently whether each deployment becomes
-active.
-
-To rebuild only the responder from the current source:
-
-```bash
-doctl apps create-deployment "$LINEJAM_RESPONDER_APP_ID" --force-rebuild --wait
-```
-
-Register or converge the signed Canary subscription on the App Platform URL:
-
-```bash
-export CANARY_ENDPOINT=https://canary.mistystep.io
-export LINEJAM_CANARY_WEBHOOK_URL=https://linejam-canary-responder-fdflj.ondigitalocean.app/canary/webhook
-# Resolve CANARY_API_KEY into this shell from the approved credential plane.
-: "${CANARY_API_KEY:?CANARY_API_KEY must be resolved before webhook setup}"
-pnpm canary:webhook:setup
-```
-
-`pnpm canary:webhook:setup` is idempotent. It preserves one exact active
-subscription and replaces duplicate or stale subscriptions for the same URL.
-Use `-- --emit-secret` only during an intentional signing-secret rotation, then
-write the new value directly to the credential plane and App Platform without
-recording it in shell output, chat, or Git.
-
-Responder acceptance probes:
-
-```bash
-curl -fsS https://linejam-canary-responder-fdflj.ondigitalocean.app/healthz
-curl -fsS https://linejam-canary-responder-fdflj.ondigitalocean.app/readyz
-doctl apps logs "$LINEJAM_RESPONDER_APP_ID" responder --type run --tail 200
-```
-
-Both routes must return HTTP 200, and readiness must be `ok`. For an intentional
-end-to-end delivery drill, set `CANARY_WEBHOOK_SEND_TEST=1` for one setup run
-after readiness passes, then verify the delivery and persisted smoke result.
 
 ## Preview smoke
 
 The `Preview Smoke` workflow accepts an explicit App Platform preview URL. It
 enforces the Linejam `*.ondigitalocean.app` hostname pattern before running the
-same Playwright smoke suite used by the responder. Preview infrastructure must
-never receive a production Convex deploy key.
+same Playwright smoke suite used by the production workflow. Preview
+infrastructure must never receive a production Convex deploy key.
+Failed preview runs emit a privacy-filtered Sentry issue tagged
+`github-actions`, `preview`, and `previewSmoke`. Successful runs remain in
+GitHub Actions only: this workflow is event-driven, so it must not create a
+Sentry Cron Monitor with an invented schedule.
 
 Run it only after a temporary preview app is ready, and remove that app after
 the review is complete.
@@ -401,19 +342,19 @@ others.
 Do not print either value to compare it. Compare secret fingerprints through an
 approved one-way check when direct control-plane verification is insufficient.
 
-### Responder is live but not ready
+### Sentry webhook is rejected
 
-`/healthz` is process liveness; `/readyz` fails closed until both
-`LINEJAM_CANARY_WEBHOOK_SECRET` and `CANARY_API_KEY` are configured. Read the
-App Platform environment-name inventory and runtime logs, repair the missing
-entry, then redeploy and probe both routes.
+Confirm the production Convex environment has all bridge variables named in
+`config/convex-env-manifest.json`, the Sentry internal integration sends
+`event_alert` payloads to `/api/webhooks/sentry`, and the signing secret matches.
+The route intentionally returns the same `400 Invalid webhook` for every
+authentication, allowlist, and schema rejection.
 
 ### Smoke cannot launch Chromium
 
-The responder image pins Playwright and sets
-`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`. Confirm that variable reaches the
-smoke child process and that the installed browser revision matches the package
-version. Do not install an unrelated browser revision at runtime.
+Confirm the GitHub Actions Playwright installation step completed and its
+browser revision matches the lockfile. Do not install an unrelated browser
+revision at runtime.
 
 ### Clerk-backed host or join hangs
 
@@ -425,9 +366,9 @@ Clerk instance. Guest mode should remain available when Clerk is degraded.
 
 For `GUEST_TOKEN_SECRET`, update App Platform and Convex in one bounded window,
 then redeploy and replay guest creation. Existing guest tokens become invalid.
-Rotate the Canary webhook secret by creating the converged subscription,
-updating App Platform, proving a test delivery, and deleting any stale
-subscription only after the new responder accepts it.
+Rotate `SENTRY_WEBHOOK_SECRET` by updating the Sentry internal integration and
+the production Convex environment in one bounded window, then verify one signed
+delivery before ending the window.
 
 App Platform deployments are source-driven. If a source release is bad, use a
 normal `git revert` of the offending commit, pass the gates, and merge the
@@ -477,15 +418,14 @@ pnpm exec convex import --replace-all ./convex-backup.zip --prod
 ## Release checklist
 
 - [ ] `pnpm ci:prepush` passes
-- [ ] `pnpm ops:do-drift` reports both production apps clean
+- [ ] `pnpm ops:do-drift` reports the production app clean
 - [ ] `pnpm ci:dagger:all` passes or its environment limitation is recorded
 - [ ] hosted merge and smoke gates pass
-- [ ] web and responder active deployments match the intended source SHA
+- [ ] the active web deployment matches the intended source SHA
 - [ ] production Convex env reconciliation names every required manifest entry
 - [ ] `linejam.app` health, host, and join routes return 200
-- [ ] responder liveness and readiness return 200
-- [ ] Canary uses `https://canary.mistystep.io`
-- [ ] the signed webhook targets the App Platform responder URL
+- [ ] production Sentry monitors report current check-ins
+- [ ] one signed Sentry alert creates or reuses exactly one canonical GitHub Issue
 - [ ] Clerk custom-domain DNS and TLS verify
 - [ ] runtime log scans contain no new fatal, panic, uncaught, or 5xx errors
 - [ ] rollback is a known prior source/config state, not another provider

@@ -19,15 +19,16 @@ describe('static evidence server env', () => {
     ).toBe('4001');
   });
 
-  it('strips ambient Canary credentials so no ingest call can fire', () => {
+  it('strips ambient Sentry credentials so no ingest call can fire', () => {
     const env = buildStaticEvidenceEnv({
-      CANARY_API_KEY: 'leaked-server-key',
-      NEXT_PUBLIC_CANARY_API_KEY: 'leaked-public-key',
-      CANARY_ENDPOINT: 'http://127.0.0.1:4000',
+      LINEJAM_SENTRY_ENABLED: 'true',
+      NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'example.test/42'].join('@'),
+      NEXT_PUBLIC_SENTRY_ENABLED: '1',
     } as unknown as NodeJS.ProcessEnv);
 
-    expect(env.CANARY_API_KEY).toBeUndefined();
-    expect(env.NEXT_PUBLIC_CANARY_API_KEY).toBeUndefined();
+    expect(env.LINEJAM_SENTRY_ENABLED).toBeUndefined();
+    expect(env.NEXT_PUBLIC_SENTRY_DSN).toBeUndefined();
+    expect(env.NEXT_PUBLIC_SENTRY_ENABLED).toBeUndefined();
   });
 
   it('leaves unrelated env untouched', () => {

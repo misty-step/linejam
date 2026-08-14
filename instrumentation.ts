@@ -1,38 +1,28 @@
-import { captureCanaryException } from '@/lib/canaryServer';
+import * as Sentry from '@sentry/nextjs';
 
 /**
- * Next.js instrumentation hook
- *
- * Linejam ships no extra runtime bootstrap today. Explicit Canary reporting
- * happens in request hooks, error boundaries, and client observers.
+ * Next.js loads this hook once in each server runtime. Runtime-specific SDK
+ * entrypoints keep Node-only integrations out of the Edge bundle.
  */
-
-export async function register() {}
-
-export const onRequestError = async (
-  error: Error,
-  request: {
-    path: string;
-    method: string;
-    headers: Record<string, string>;
-  },
-  context: {
-    routerKind: 'Pages Router' | 'App Router';
-    routePath: string;
-    routeType: 'render' | 'route' | 'action' | 'middleware';
-    renderSource?:
-      'react-server-components' | 'react-server-components-payload';
-    revalidateReason?: 'on-demand' | 'stale';
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./sentry.server.config');
   }
-) => {
-  void captureCanaryException(error, {
-    source: 'nextjs.onRequestError',
-    path: request.path,
-    method: request.method,
-    routerKind: context.routerKind,
-    routePath: context.routePath,
-    routeType: context.routeType,
-    renderSource: context.renderSource,
-    revalidateReason: context.revalidateReason,
-  });
-};
+
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    await import('./sentry.edge.config');
+  }
+}
+
+export function onRequestError(
+  ...args: Parameters<typeof Sentry.captureRequestError>
+) {
+  if (
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
+    !process.env.NEXT_PUBLIC_SENTRY_DSN?.trim()
+  ) {
+    return;
+  }
+
+  Sentry.captureRequestError(...args);
+}

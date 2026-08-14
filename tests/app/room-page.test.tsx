@@ -101,7 +101,6 @@ describe('RoomPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    process.env.NEXT_PUBLIC_CANARY_API_KEY = '';
     mockPhaseFailure.writing = false;
     mockPhaseFailure.reveal = false;
     mockWritingView.value = 'writing';
