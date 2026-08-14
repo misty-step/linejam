@@ -63,16 +63,12 @@ Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For lo
 
 ### Work Ledger
 
-Powder is the work ledger for shaped Linejam tasks. Claim one card before
-starting work so parallel agents do not pick up the same item:
-
-```bash
-source ~/.secrets # loads POWDER_API_BASE_URL and POWDER_API_KEY
-powder list-ready --repo linejam
-powder claim linejam-NNN --agent <name>
-# ...work...
-powder release-claim linejam-NNN --run <run-id>
-```
+[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
+work ledger. Before starting an issue, follow the single assignee plus
+`forest/<issue>-*` branch/PR claim contract in
+[CONTRIBUTING.md](CONTRIBUTING.md#claiming-work). Never create or update
+Linejam work in Powder. The authority cutover is tracked by
+[#393](https://github.com/misty-step/linejam/issues/393).
 
 ## Agent Faces
 

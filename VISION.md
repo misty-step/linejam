@@ -88,6 +88,7 @@ visible before a player has to report them.
 - `AGENTS.md` is the agent router, gate contract, invariants, and environment
   boundary map.
 - `README.md` is the public project orientation and contributor entrypoint.
-- Powder is the sole work ledger (`powder list-cards --repo linejam`).
+- GitHub Issues is the sole work ledger; `CONTRIBUTING.md` defines manual
+  claims and the gated `forest:ready` scheduling signal.
 - `docs/testing.md`, Dagger code, and hosted `merge-gate` define the validation
   surface.

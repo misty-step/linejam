@@ -286,13 +286,14 @@ that protects the export if an artifact is downloaded without authorization.
    Production-shaped keys remain blocked unless `--allow-production` is passed.
 
 4. Run the local or non-production health and representative data checks. Save
-   the command output, target, backup filename, and observed completion time as
-   the restore drill receipt on Powder card **linejam-952**.
+   the command output, target, backup filename, and observed completion time in
+   the GitHub Issue or pull request that commissioned the restore drill. Link
+   the retained workflow artifact rather than pasting credential-bearing logs.
 
 The declared recovery objectives are **RPO 24 hours** (the export is daily) and
-**RTO 30 minutes** (the restore drill receipt is retained on Powder card
-**linejam-952**). These objectives assume the operator credential plane and a
-working Convex CLI are available; they do not authorize a production import.
+**RTO 30 minutes** (the restore drill receipt is retained with its canonical
+GitHub work record). These objectives assume the operator credential plane and
+a working Convex CLI are available; they do not authorize a production import.
 
 ## Deploy the web application
 

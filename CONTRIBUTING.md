@@ -13,16 +13,34 @@ Fill `.env.local` with the Convex, Clerk, guest-token, and Canary values needed
 for the loop you are running. Keep `GUEST_TOKEN_SECRET` aligned across local,
 DigitalOcean App Platform, and Convex when testing room flows.
 
-For backlog work, claim one ready Powder card before starting:
+## Claiming Work
 
-```bash
-source ~/.secrets
-powder list-ready --repo linejam
-powder claim linejam-NNN --agent <name>
-```
+[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
+work ledger. Do not list, claim, update, or duplicate Linejam work in Powder.
+The cutover is tracked by
+[#393](https://github.com/misty-step/linejam/issues/393).
 
-Keep the returned run current, and complete the card or release the claim if
-you abandon the work. Powder is the only work ledger.
+A manual claim has exactly two parts:
+
+1. Assign the GitHub Issue to the contributor before changing the repository.
+   If self-assignment is unavailable, ask a maintainer to assign it rather than
+   starting an invisible claim.
+2. Create a `forest/<issue>-<slug>` branch. Open and link a draft pull request
+   as soon as the work has a pushable change.
+
+The assignee plus either that branch or its linked PR is the claim. An assignee
+with neither is only an intent to claim; a branch or PR with no assignee is
+unclaimed. Before starting, check both surfaces for an existing claim. On
+abandonment, remove the assignee and close or hand off the PR so the Issue is
+visibly available again. GitHub needs no lease, run record, or claim-status
+label.
+
+`forest:ready` is only an Iron Forest scheduling signal: it means an open,
+unclaimed Issue has executable acceptance criteria and no unresolved
+dependency or authority gate. It is not priority, status, or a manual claim.
+Linejam has no Iron Forest declaration yet, so Linejam cannot dispatch Iron
+Forest and no Linejam Issue may receive `forest:ready` until that declaration
+exists.
 
 ## Local Checks
 
