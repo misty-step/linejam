@@ -193,7 +193,21 @@ describe('RoomChrome component', () => {
       'data-layout',
       'status-board'
     );
+    expect(screen.getByTestId('room-chrome')).toHaveClass(
+      'grid-cols-1',
+      'sm:grid-cols-[minmax(0,1fr)_auto]'
+    );
     expect(screen.getByRole('status')).toHaveTextContent('Round 1 · 1 word');
+    for (const label of [
+      /Share room invite/i,
+      /How to play/i,
+      /More options/i,
+    ]) {
+      expect(screen.getByRole('button', { name: label })).toHaveClass(
+        'h-[44px]',
+        'w-[44px]'
+      );
+    }
   });
 
   it('copies a join link when native share is unavailable', async () => {

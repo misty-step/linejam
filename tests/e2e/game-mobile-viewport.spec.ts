@@ -464,6 +464,10 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       lobbyActionZone,
       soloStart
     );
+    const roomTools = session.hostPage
+      .locator('summary')
+      .filter({ hasText: 'Room tools' });
+    await roomTools.click();
     await Promise.all([
       expectContentFits(
         session.hostPage.getByRole('button', { name: /Add a bot/i })
@@ -500,7 +504,11 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       lobbyScrollRegion,
       lobbyActionZone,
       start,
-      [session.hostPage.getByText('Share this code')]
+      [
+        session.hostPage.getByText(
+          'Share the code, then start when everyone is ready.'
+        ),
+      ]
     );
 
     const moreOptions = session.hostPage.getByRole('button', {
