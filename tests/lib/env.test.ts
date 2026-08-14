@@ -63,6 +63,30 @@ describe('validateEnv', () => {
     );
   });
 
+  it.each([
+    'not-a-dsn',
+    ['http://public', 'sentry.example/1'].join('@'),
+    'https://sentry.example/1',
+    ['https://public:secret', 'sentry.example/1'].join('@'),
+    ['https://public', 'sentry.example/project'].join('@'),
+  ])('rejects malformed Sentry DSN %s', async (dsn) => {
+    await withEnv(
+      {
+        NODE_ENV: 'production',
+        GUEST_TOKEN_SECRET: 'guest-secret',
+        NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
+        NEXT_PUBLIC_SENTRY_DSN: dsn,
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
+      },
+      async () => {
+        const { validateEnv } = await import('@/lib/env');
+        expect(() => validateEnv()).toThrow(
+          /Invalid environment variables:[\s\S]*NEXT_PUBLIC_SENTRY_DSN/
+        );
+      }
+    );
+  });
+
   it('requires deployment skew controls for the real production target', async () => {
     await withEnv(
       {
@@ -86,6 +110,31 @@ describe('validateEnv', () => {
     );
   });
 
+  it('rejects a production deployment ID that is not the served commit SHA', async () => {
+    await withEnv(
+      {
+        NODE_ENV: 'production',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        GUEST_TOKEN_SECRET: 'guest-secret',
+        NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
+        NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(
+          '@'
+        ),
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
+        NEXT_DEPLOYMENT_ID: 'master',
+        NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString(
+          'base64'
+        ),
+      },
+      async () => {
+        const { validateEnv } = await import('@/lib/env');
+        expect(() => validateEnv()).toThrow(
+          /Invalid environment variables:[\s\S]*NEXT_DEPLOYMENT_ID/
+        );
+      }
+    );
+  });
+
   it('rejects a production Server Action key that is not 32-byte base64', async () => {
     await withEnv(
       {
@@ -97,7 +146,7 @@ describe('validateEnv', () => {
           '@'
         ),
         NEXT_PUBLIC_SENTRY_ENABLED: '1',
-        NEXT_DEPLOYMENT_ID: 'abc123',
+        NEXT_DEPLOYMENT_ID: 'a'.repeat(40),
         NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: 'not-a-valid-key',
       },
       async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   planSentryReport,
   reportSentryWorkflow,
-  sanitizePreviewSmokeEvent,
+  sanitizeWorkflowEvent,
   SENTRY_MONITOR_SLUGS,
 } from '@/scripts/ops/report-sentry-check-in.mjs';
 
@@ -51,7 +51,7 @@ describe('Sentry workflow reporting', () => {
       outcome: 'failure',
       consecutiveFailures: 2,
       sdk,
-      runtimeOptions: RUNTIME_OPTIONS,
+      runtimeOptions: { ...RUNTIME_OPTIONS, environment: 'production' },
     });
 
     expect(sdk.captureCheckIn).toHaveBeenCalledWith(
@@ -67,7 +67,44 @@ describe('Sentry workflow reporting', () => {
         timezone: 'UTC',
       }
     );
-    expect(sdk.captureException).not.toHaveBeenCalled();
+    expect(sdk.captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Linejam production smoke failed' }),
+      {
+        fingerprint: ['linejam-production-smoke'],
+        tags: {
+          runtime: 'github-actions',
+          operation: 'productionSmoke',
+          failure_code: 'unexpected_error',
+        },
+      }
+    );
+    expect(
+      sanitizeWorkflowEvent({
+        level: 'error',
+        environment: 'production',
+        release: RELEASE,
+        tags: {
+          runtime: 'github-actions',
+          operation: 'productionSmoke',
+          failure_code: 'unexpected_error',
+        },
+        exception: {
+          values: [{ type: 'Error', value: 'Linejam production smoke failed' }],
+        },
+      })
+    ).toMatchObject({
+      environment: 'production',
+      release: RELEASE,
+      fingerprint: ['linejam-production-smoke'],
+      tags: {
+        runtime: 'github-actions',
+        operation: 'productionSmoke',
+        failure_code: 'unexpected_error',
+      },
+      exception: {
+        values: [{ type: 'Error', value: 'Linejam production smoke failed' }],
+      },
+    });
     expect(sdk.flush).toHaveBeenCalledWith(5_000);
   });
 
@@ -99,7 +136,7 @@ describe('Sentry workflow reporting', () => {
 
     expect(result).toMatchObject({ kind: 'event', eventId: 'event-id' });
     expect(sdk.init).toHaveBeenCalledWith(
-      expect.objectContaining({ beforeSend: sanitizePreviewSmokeEvent })
+      expect.objectContaining({ beforeSend: sanitizeWorkflowEvent })
     );
     expect(sdk.captureException).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Linejam preview smoke failed' }),
@@ -114,7 +151,7 @@ describe('Sentry workflow reporting', () => {
     );
     expect(sdk.captureCheckIn).not.toHaveBeenCalled();
 
-    const filtered = sanitizePreviewSmokeEvent({
+    const filtered = sanitizeWorkflowEvent({
       event_id: 'b'.repeat(32),
       timestamp: 123,
       platform: 'node',
@@ -169,90 +206,32 @@ describe('Sentry workflow reporting', () => {
     expect(JSON.stringify(filtered)).not.toContain('PROHIBITED');
   });
 
-  it('reports an unresolved preview release without inventing attribution', async () => {
-    const sdk = sentrySdk();
+  it.each([
+    [SENTRY_MONITOR_SLUGS.previewSmoke, 'success'],
+    [SENTRY_MONITOR_SLUGS.productionSmoke, 'success'],
+  ])(
+    'fails the workflow without emitting an unbridgeable %s issue when release resolution fails',
+    async (monitorSlug, outcome) => {
+      const sdk = sentrySdk();
 
-    await reportSentryWorkflow({
-      monitorSlug: SENTRY_MONITOR_SLUGS.previewSmoke,
-      outcome: 'success',
-      releaseResolved: false,
-      sdk,
-      runtimeOptions: { ...RUNTIME_OPTIONS, release: undefined },
-    });
+      const result = await reportSentryWorkflow({
+        monitorSlug,
+        outcome,
+        releaseResolved: false,
+        sdk,
+        runtimeOptions: { ...RUNTIME_OPTIONS, release: undefined },
+      });
 
-    expect(sdk.init).toHaveBeenCalledWith(
-      expect.objectContaining({ release: undefined })
-    );
-    expect(sdk.captureException).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Linejam deployed release could not be resolved',
-      }),
-      expect.objectContaining({
-        tags: expect.objectContaining({
-          failure_code: 'release_unresolved',
-        }),
-      })
-    );
-    expect(
-      sanitizePreviewSmokeEvent({
-        level: 'error',
-        environment: 'preview',
-        release: 'f'.repeat(40),
-        tags: {
-          runtime: 'github-actions',
-          operation: 'previewSmoke',
-          failure_code: 'release_unresolved',
-        },
-        exception: {
-          values: [
-            {
-              type: 'Error',
-              value: 'Linejam deployed release could not be resolved',
-            },
-          ],
-        },
-      })
-    ).toEqual({
-      platform: 'node',
-      level: 'error',
-      environment: 'preview',
-      fingerprint: ['linejam-preview-smoke'],
-      tags: {
-        runtime: 'github-actions',
-        operation: 'previewSmoke',
-        failure_code: 'release_unresolved',
-      },
-      exception: {
-        values: [
-          {
-            type: 'Error',
-            value: 'Linejam deployed release could not be resolved',
-          },
-        ],
-      },
-    });
-  });
-
-  it('marks production monitoring unhealthy when release resolution fails', async () => {
-    const sdk = sentrySdk();
-
-    await reportSentryWorkflow({
-      monitorSlug: SENTRY_MONITOR_SLUGS.productionSmoke,
-      outcome: 'success',
-      releaseResolved: false,
-      sdk,
-      runtimeOptions: {
-        ...RUNTIME_OPTIONS,
-        environment: 'production',
-        release: undefined,
-      },
-    });
-
-    expect(sdk.captureCheckIn).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'error' }),
-      expect.any(Object)
-    );
-  });
+      expect(result).toMatchObject({
+        skipped: true,
+        reason:
+          'Exact deployed release unavailable; workflow failure is authoritative',
+      });
+      expect(sdk.init).not.toHaveBeenCalled();
+      expect(sdk.captureCheckIn).not.toHaveBeenCalled();
+      expect(sdk.captureException).not.toHaveBeenCalled();
+    }
+  );
 
   it('rejects an unconfigured workflow slug', () => {
     expect(() =>

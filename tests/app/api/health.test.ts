@@ -378,6 +378,32 @@ describe('/api/health', () => {
       }
     });
 
+    it('reports degraded observability for a malformed Sentry DSN', async () => {
+      const previous = process.env.NEXT_PUBLIC_SENTRY_DSN;
+      try {
+        process.env.NEXT_PUBLIC_SENTRY_DSN =
+          'https://sentry.example/not-a-project';
+
+        const response = await GET();
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data).toMatchObject({
+          status: 'ok',
+          env: {
+            sentryEnabled: false,
+          },
+          observability: {
+            status: 'degraded',
+            sentryEnabled: false,
+          },
+        });
+        expect(captureCheckInMock).not.toHaveBeenCalled();
+      } finally {
+        process.env.NEXT_PUBLIC_SENTRY_DSN = previous;
+      }
+    });
+
     it('preserves a healthy response when Sentry check-in capture fails', async () => {
       captureCheckInMock.mockImplementationOnce(() => {
         throw new Error('transport unavailable');

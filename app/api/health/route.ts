@@ -3,6 +3,7 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import type { ConvexEnvHealthReport } from '@/convex/lib/env';
 import { resolveDeploymentId } from '@/lib/deploymentId';
+import { isValidSentryDsn } from '@/lib/env';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
 import { captureServerError } from '@/lib/errorServer';
@@ -125,7 +126,7 @@ function checkEnvVars(
     clerkPublishableKey: !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     sentryEnabled:
       process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1' &&
-      !!process.env.NEXT_PUBLIC_SENTRY_DSN,
+      isValidSentryDsn(process.env.NEXT_PUBLIC_SENTRY_DSN),
   };
 }
 
@@ -279,7 +280,7 @@ async function reportHealthCheckIn(input: {
 function reportSentryHealthCheckIn(status: 'ok' | 'error', startedAt: number) {
   if (
     process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
-    !process.env.NEXT_PUBLIC_SENTRY_DSN
+    !isValidSentryDsn(process.env.NEXT_PUBLIC_SENTRY_DSN)
   ) {
     return;
   }

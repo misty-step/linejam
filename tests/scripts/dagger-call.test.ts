@@ -207,6 +207,7 @@ printf '%s\\n' "$@" > "${argsLog}"
       LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '0',
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
       NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
+      NEXT_PUBLIC_SENTRY_RELEASE: 'a'.repeat(40),
       PLAYWRIGHT_CLERK_TEST_EMAIL: '',
     });
 
@@ -216,6 +217,7 @@ printf '%s\\n' "$@" > "${argsLog}"
     expect(args).toContain('e-2-e');
     expect(args).toContain('--playwright-require-auth-e2e=1');
     expect(args).toContain('--linejam-allow-unsynced-convex-throttle=1');
+    expect(args).toContain(`--next-public-sentry-release=${'a'.repeat(40)}`);
   });
 
   it('refuses a shared dev sync without per-invocation authority', () => {

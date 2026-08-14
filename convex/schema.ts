@@ -294,7 +294,8 @@ export default defineSchema({
         v.literal('generateLineForRound'),
         v.literal('generateGhostLine'),
         v.literal('aiFallbackRate'),
-        v.literal('previewSmoke')
+        v.literal('previewSmoke'),
+        v.literal('productionSmoke')
       )
     ),
     failureCode: v.optional(

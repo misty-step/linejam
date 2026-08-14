@@ -110,11 +110,16 @@ incident-evidence platform:
 - `linejam-production-health`, `linejam-production-smoke`, and
   `linejam-ai-fallback-rate` are the canonical monitors. The first failed
   production smoke remains non-paging; the second consecutive failure opens the
-  monitor issue, and a passing run recovers it.
+  monitor and emits one closed-tag `productionSmoke` issue for the GitHub
+  bridge. A passing run recovers the monitor.
 - Event-driven preview smoke failures are Sentry issues tagged
   `github-actions`, `preview`, and `previewSmoke`; successful preview runs stay
   in GitHub Actions. They are not Cron Monitor check-ins because no schedule
   exists.
+- Smoke workflows read the served commit from `/api/health`; they never infer
+  it from the workflow checkout. If that receipt is unavailable, the smoke and
+  artifacts still run, Sentry issue emission is skipped to avoid ambiguous
+  attribution, and the workflow fails.
 - The signed Sentry `event_alert` webhook is accepted in preview and production.
   The listener projects only the closed action, installation, project, issue,
   and event identifiers needed for durable one-to-one GitHub Issue

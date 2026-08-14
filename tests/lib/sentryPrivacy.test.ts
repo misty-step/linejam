@@ -183,7 +183,10 @@ describe('Sentry transport privacy boundary', () => {
         },
         {
           type: 'sourcemap',
-          code_file: 'https://private-user@linejam.app/_next/static/chunk.js',
+          code_file: [
+            'https://private-user',
+            'linejam.app/_next/static/chunk.js',
+          ].join('@'),
           debug_id: '12345678-1234-1234-1234-123456789abc',
         },
         {
@@ -332,5 +335,225 @@ describe('Sentry transport privacy boundary', () => {
     expect(JSON.stringify(sanitized)).not.toContain(FORBIDDEN);
     expect(sanitized?.spans?.[0]).not.toHaveProperty('description');
     expect(sanitized?.spans?.[0]?.data).toEqual({});
+  });
+  it('retains the complete closed error topology and clamps numeric context', () => {
+    const event = taintedEvent();
+    Object.assign(event, {
+      timestamp: 123,
+      level: 'error',
+      platform: 'node',
+      environment: 'production',
+      release: 'c'.repeat(40),
+      tags: {
+        runtime: 'node',
+        environment: 'production',
+        release: 'd'.repeat(40),
+        operation: 'healthCheckIn',
+        failure_code: 'reportingFailure',
+      },
+      contexts: {
+        trace: {
+          trace_id: 'e'.repeat(32),
+          span_id: 'f'.repeat(16),
+          parent_span_id: '1'.repeat(16),
+          op: 'http.server',
+          status: 'internal_error',
+        },
+        linejam: {
+          attempt: -5,
+          durationMs: 2_000_000_000,
+          correlationId: 'correlation_12345678',
+        },
+      },
+    });
+    event.exception!.values![0] = {
+      type: 'Error',
+      value: 'Linejam preview privacy drill',
+      mechanism: { type: 'generic', handled: false },
+      stacktrace: {
+        frames: [
+          {
+            filename: '~/_next/static/chunks/app.mjs',
+            lineno: -2,
+            colno: 2_000_000_000,
+            in_app: false,
+          },
+        ],
+      },
+    };
+
+    expect(beforeSend(event, {})).toMatchObject({
+      event_id: 'a'.repeat(32),
+      timestamp: 123,
+      level: 'error',
+      platform: 'node',
+      environment: 'production',
+      release: 'c'.repeat(40),
+      tags: {
+        runtime: 'node',
+        environment: 'production',
+        release: 'd'.repeat(40),
+        operation: 'healthCheckIn',
+        failure_code: 'reportingFailure',
+      },
+      contexts: {
+        trace: {
+          trace_id: 'e'.repeat(32),
+          span_id: 'f'.repeat(16),
+          parent_span_id: '1'.repeat(16),
+          op: 'http.server',
+          status: 'internal_error',
+        },
+        linejam: {
+          attempt: 0,
+          durationMs: 1_000_000_000,
+          correlationId: 'correlation_12345678',
+        },
+      },
+      exception: {
+        values: [
+          {
+            type: 'Error',
+            value: 'Linejam preview privacy drill',
+            mechanism: { type: 'generic', handled: false },
+            stacktrace: {
+              frames: [
+                {
+                  filename: 'app:///_next/static/chunks/app.mjs',
+                  abs_path: 'app:///_next/static/chunks/app.mjs',
+                  lineno: 0,
+                  colno: 1_000_000_000,
+                  in_app: false,
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('drops malformed optional topology and events without a safe exception', () => {
+    const event = taintedEvent();
+    Object.assign(event, {
+      event_id: 'invalid',
+      timestamp: Number.NaN,
+      level: 'notice',
+      platform: 'python',
+      environment: 'staging',
+      release: 'invalid',
+      tags: {},
+      contexts: {
+        trace: { trace_id: 'invalid', span_id: 'invalid' },
+        linejam: false,
+      },
+      debug_meta: { images: [] },
+    });
+    event.exception!.values![0] = {
+      type: 'Error',
+      mechanism: { type: 'invalid', handled: true },
+      stacktrace: { frames: [] },
+    };
+
+    const sanitized = beforeSend(event, {});
+    expect(sanitized).toEqual({
+      type: undefined,
+      exception: { values: [{ type: 'Error' }] },
+    });
+    expect(beforeSend({ type: undefined }, {})).toBeNull();
+  });
+
+  it.each([
+    `https://linejam.app/_next/static/${'a'.repeat(1_025)}.js`,
+    String.raw`C:\linejam\_next\static\chunk.js`,
+    'https://linejam.app/_next/static/%E0%A4%A.js',
+    `https://linejam.app/_next/static/${'a'.repeat(513)}.js`,
+    'https://linejam.app/_next/static/chunks//page.js',
+    'https://linejam.app/_next/static/chunk.css',
+    'ftp://linejam.app/_next/static/chunk.js',
+    ['https://user:password', 'linejam.app/_next/static/chunk.js'].join('@'),
+  ])('rejects unsafe source location %s', (filename) => {
+    const event = taintedEvent();
+    event.exception!.values![0]!.stacktrace!.frames![0]!.filename = filename;
+    expect(
+      beforeSend(event, {})?.exception?.values?.[0]?.stacktrace?.frames?.[0]
+    ).not.toHaveProperty('filename');
+  });
+
+  it('filters malformed spans while retaining closed trace topology', () => {
+    const event: TransactionEvent = {
+      ...taintedEvent(),
+      type: 'transaction',
+      transaction: undefined,
+      start_timestamp: 10,
+      spans: [
+        {
+          trace_id: 'invalid',
+          span_id: '2'.repeat(16),
+          start_timestamp: 1,
+          timestamp: 2,
+          data: {},
+        },
+        {
+          trace_id: '2'.repeat(32),
+          span_id: '3'.repeat(16),
+          start_timestamp: Number.POSITIVE_INFINITY,
+          timestamp: 2,
+          data: {},
+        },
+        {
+          trace_id: '4'.repeat(32),
+          span_id: '5'.repeat(16),
+          parent_span_id: '6'.repeat(16),
+          start_timestamp: 1,
+          timestamp: 2,
+          op: 'http.client',
+          status: 'ok',
+          data: {},
+        },
+        {
+          trace_id: '7'.repeat(32),
+          span_id: '8'.repeat(16),
+          start_timestamp: 1,
+          timestamp: 2,
+          data: {},
+        },
+      ],
+    };
+
+    const sanitized = beforeSendTransaction(event);
+    expect(sanitized?.transaction).toBe('unknown-route');
+    expect(sanitized?.spans).toEqual([
+      {
+        trace_id: '4'.repeat(32),
+        span_id: '5'.repeat(16),
+        parent_span_id: '6'.repeat(16),
+        start_timestamp: 1,
+        timestamp: 2,
+        data: {},
+        op: 'http.client',
+        status: 'ok',
+      },
+      {
+        trace_id: '7'.repeat(32),
+        span_id: '8'.repeat(16),
+        start_timestamp: 1,
+        timestamp: 2,
+        data: {},
+      },
+    ]);
+    expect(
+      beforeSendTransaction({ ...event, start_timestamp: Number.NaN })
+    ).toBeNull();
+  });
+
+  it('returns no reporter context when no closed field survives', () => {
+    expect(sanitizeSentryReporterContext()).toBeUndefined();
+    expect(
+      sanitizeSentryReporterContext({
+        operation: 'invented',
+        prompt: FORBIDDEN,
+      })
+    ).toBeUndefined();
   });
 });

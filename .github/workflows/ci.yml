@@ -34,6 +34,8 @@ jobs:
       CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
       NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
       NEXT_PUBLIC_SENTRY_ENABLED: '1'
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
+      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7

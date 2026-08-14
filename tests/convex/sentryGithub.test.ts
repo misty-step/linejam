@@ -123,6 +123,16 @@ describe('durable Sentry to GitHub bridge', () => {
 
   it('accepts only the exact closed tag vocabulary', () => {
     expect(validateBridgeTags(TAGS)).toEqual(TAGS);
+    expect(
+      validateBridgeTags({
+        ...TAGS,
+        runtime: 'github-actions',
+        operation: 'productionSmoke',
+      })
+    ).toMatchObject({
+      runtime: 'github-actions',
+      operation: 'productionSmoke',
+    });
     expect(validateBridgeTags({ ...TAGS, runtime: 'node' })).toBeNull();
     expect(validateBridgeTags({ ...TAGS, release: 'A'.repeat(40) })).toBeNull();
     expect(validateBridgeTags({ ...TAGS, operation: 'arbitrary' })).toBeNull();
@@ -250,6 +260,29 @@ describe('durable Sentry to GitHub bridge', () => {
     expect(JSON.stringify(receipt)).not.toContain('PROHIBITED_PROVIDER_BODY');
   });
 
+  it('honors an HTTP-date Retry-After value', async () => {
+    const { t, receiptId } = await insertReceipt();
+    const before = Date.now();
+    const retryAt = new Date(before + 30_000).toUTCString();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(null, {
+        status: 429,
+        headers: { 'Retry-After': retryAt },
+      })
+    );
+
+    await t.action(processReceipt, { receiptId });
+
+    const receipt = await t.query(getReceipt, { dedupKey: DEDUP_KEY });
+    expect(receipt).toMatchObject({ state: 'pending', attempts: 1 });
+    expect(receipt?.nextAttemptAt as number).toBeGreaterThanOrEqual(
+      before + 28_000
+    );
+    expect(receipt?.nextAttemptAt as number).toBeLessThanOrEqual(
+      before + 31_000
+    );
+  });
+
   it('blocks a conflicting native Sentry link without custom sync', async () => {
     const { t, receiptId } = await insertReceipt();
     const marker = githubDedupMarker(DEDUP_KEY);
@@ -348,6 +381,11 @@ describe('durable Sentry to GitHub bridge', () => {
       externalIssue: '88',
     });
     expect(maximumConcurrentTagFetches).toBe(1);
+    expect(
+      fetchMock.mock.calls.every(
+        ([, init]) => init?.signal instanceof AbortSignal
+      )
+    ).toBe(true);
     const sentryTagUrls = fetchMock.mock.calls
       .map(([input]) => String(input))
       .filter((url) => url.includes('/tags/'));
@@ -391,6 +429,145 @@ describe('durable Sentry to GitHub bridge', () => {
         String(input).endsWith('/repos/misty-step/linejam/issues')
       )
     ).toBe(false);
+  });
+
+  it.each([
+    [401, 'blocked', 'sentry_auth'],
+    [404, 'blocked', 'sentry_missing'],
+    [400, 'blocked', 'invalid_tags'],
+    [500, 'pending', undefined],
+  ] as const)(
+    'classifies Sentry tag HTTP %i without storing provider content',
+    async (status, state, blockedCode) => {
+      const { t, receiptId } = await insertReceipt();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response('PROHIBITED_PROVIDER_BODY', { status })
+      );
+
+      await t.action(processReceipt, { receiptId });
+
+      const receipt = await t.query(getReceipt, { dedupKey: DEDUP_KEY });
+      expect(receipt).toMatchObject({ state, attempts: 1 });
+      if (blockedCode) {
+        expect(receipt).toMatchObject({ blockedCode });
+      } else {
+        expect(receipt).not.toHaveProperty('blockedCode');
+      }
+      expect(JSON.stringify(receipt)).not.toContain('PROHIBITED_PROVIDER_BODY');
+    }
+  );
+
+  it.each([
+    [401, 'blocked', 'github_auth'],
+    [403, 'blocked', 'github_forbidden'],
+    [422, 'blocked', 'github_invalid'],
+    [500, 'pending', undefined],
+  ] as const)(
+    'classifies GitHub search HTTP %i without creating an issue',
+    async (status, state, blockedCode) => {
+      const { t, receiptId } = await insertReceipt();
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const tag = tagResponse(String(input));
+        return tag ?? new Response(null, { status });
+      });
+
+      await t.action(processReceipt, { receiptId });
+
+      const receipt = await t.query(getReceipt, { dedupKey: DEDUP_KEY });
+      expect(receipt).toMatchObject({ state, attempts: 1 });
+      if (blockedCode) {
+        expect(receipt).toMatchObject({ blockedCode });
+      } else {
+        expect(receipt).not.toHaveProperty('blockedCode');
+      }
+    }
+  );
+
+  it.each([
+    [401, 'blocked', 'sentry_auth'],
+    [404, 'blocked', 'sentry_missing'],
+    [422, 'blocked', 'link_conflict'],
+    [500, 'pending', undefined],
+  ] as const)(
+    'classifies Sentry link HTTP %i after recovering the GitHub issue',
+    async (status, state, blockedCode) => {
+      const { t, receiptId } = await insertReceipt();
+      const marker = githubDedupMarker(DEDUP_KEY);
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const url = String(input);
+        const tag = tagResponse(url);
+        if (tag) return tag;
+        if (url.includes('/search/issues')) {
+          return Response.json({ items: [{ number: 77, body: marker }] });
+        }
+        return new Response(null, { status });
+      });
+
+      await t.action(processReceipt, { receiptId });
+
+      const receipt = await t.query(getReceipt, { dedupKey: DEDUP_KEY });
+      expect(receipt).toMatchObject({
+        state,
+        attempts: 1,
+        githubIssueNumber: 77,
+      });
+      if (blockedCode) {
+        expect(receipt).toMatchObject({ blockedCode });
+      } else {
+        expect(receipt).not.toHaveProperty('blockedCode');
+      }
+    }
+  );
+
+  it.each([
+    ['SENTRY_GITHUB_INTEGRATION_ID', undefined],
+    ['GITHUB_REPOSITORY_OWNER', 'another-owner'],
+  ] as const)(
+    'blocks invalid bridge configuration for %s',
+    async (name, value) => {
+      const { t, receiptId } = await insertReceipt();
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+      const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+      await t.action(processReceipt, { receiptId });
+
+      expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+        state: 'blocked',
+        blockedCode: 'configuration_invalid',
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it('blocks malformed and ambiguous GitHub search results', async () => {
+    for (const value of [
+      { unexpected: [] },
+      {
+        items: [
+          { number: 77, body: githubDedupMarker(DEDUP_KEY) },
+          { number: 78, body: githubDedupMarker(DEDUP_KEY) },
+        ],
+      },
+    ]) {
+      const { t, receiptId } = await insertReceipt();
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const tag = tagResponse(String(input));
+        return tag ?? Response.json(value);
+      });
+
+      await t.action(processReceipt, { receiptId });
+
+      expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+        state: 'blocked',
+        blockedCode:
+          'unexpected' in value ? 'github_invalid' : 'marker_conflict',
+      });
+      vi.restoreAllMocks();
+    }
   });
 
   it('maps one Sentry issue to one durable receipt under exact replay', async () => {

@@ -617,6 +617,10 @@ if [[ "$FUNCTION_NAME" == "all" || "$FUNCTION_NAME" == "e-2-e" ]]; then
 	append_arg "--linejam-allow-unsynced-convex-throttle" "${LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE:-}"
 fi
 
+if [[ "$FUNCTION_NAME" == "all" || "$FUNCTION_NAME" == "e-2-e" ]]; then
+	append_arg "--next-public-sentry-release" "${NEXT_PUBLIC_SENTRY_RELEASE:-}"
+fi
+
 if [[ "$FUNCTION_NAME" == "smoke" ]]; then
 	append_arg "--base-url" "${PLAYWRIGHT_BASE_URL:-}"
 	append_arg "--playwright-require-auth-smoke" "${PLAYWRIGHT_REQUIRE_AUTH_SMOKE:-}"

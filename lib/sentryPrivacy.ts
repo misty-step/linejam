@@ -133,7 +133,7 @@ const SAFE_ERROR_CLASSES: Readonly<Record<string, true>> = {
   URIError: true,
   UnrecognizedActionError: true,
 };
-const COMMIT_RELEASE = /^[a-f0-9]{7,64}$/i;
+const COMMIT_RELEASE = /^[a-f0-9]{40}$/;
 const EVENT_ID = /^[a-f0-9]{32}$/i;
 const TRACE_ID = /^[a-f0-9]{32}$/i;
 const SPAN_ID = /^[a-f0-9]{16}$/i;

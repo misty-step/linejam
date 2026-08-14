@@ -7,7 +7,7 @@ const SENTRY_ENVIRONMENTS = {
   test: true,
 };
 
-const COMMIT_RELEASE = /^[a-f0-9]{7,64}$/i;
+const COMMIT_RELEASE = /^[a-f0-9]{40}$/;
 
 function clean(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;

@@ -17,9 +17,8 @@ const PRODUCTION_SMOKE_MONITOR_CONFIG = Object.freeze({
 const ALLOWED_MONITOR_SLUGS = new Set(Object.values(SENTRY_MONITOR_SLUGS));
 const PROD_ESCALATION_THRESHOLD = 2;
 const PREVIEW_FAILURE_MESSAGE = 'Linejam preview smoke failed';
-const RELEASE_RESOLUTION_FAILURE_MESSAGE =
-  'Linejam deployed release could not be resolved';
-const COMMIT_RELEASE = /^[a-f0-9]{7,64}$/i;
+const PRODUCTION_FAILURE_MESSAGE = 'Linejam production smoke failed';
+const COMMIT_RELEASE = /^[a-f0-9]{40}$/;
 const EVENT_ID = /^[a-f0-9]{32}$/i;
 
 /** @typedef {Pick<typeof Sentry, 'init' | 'captureCheckIn' | 'captureException' | 'flush'>} SentryWorkflowSdk */
@@ -30,38 +29,36 @@ const EVENT_ID = /^[a-f0-9]{32}$/i;
  */
 
 /**
- * Rebuild the preview workflow event from a closed vocabulary. Node's SDK adds
- * host, module, stack, and runtime context by default; none is needed to route
- * this deterministic workflow failure.
+ * Rebuild workflow events from a closed vocabulary. Node's SDK adds host,
+ * module, stack, and runtime context by default; none is needed to route these
+ * deterministic failures.
  *
  * @param {import('@sentry/node').Event} event
  * @returns {import('@sentry/node').ErrorEvent | null}
  */
-export function sanitizePreviewSmokeEvent(event) {
+export function sanitizeWorkflowEvent(event) {
   const release =
     typeof event.release === 'string' && COMMIT_RELEASE.test(event.release)
       ? event.release
       : undefined;
   const tags = event.tags;
-  const failureCode = tags?.failure_code;
+  const operation = tags?.operation;
   const expectedMessage =
-    failureCode === 'release_unresolved'
-      ? RELEASE_RESOLUTION_FAILURE_MESSAGE
-      : failureCode === 'unexpected_error'
-        ? PREVIEW_FAILURE_MESSAGE
+    event.environment === 'preview' && operation === 'previewSmoke'
+      ? PREVIEW_FAILURE_MESSAGE
+      : event.environment === 'production' && operation === 'productionSmoke'
+        ? PRODUCTION_FAILURE_MESSAGE
         : undefined;
-  const releaseResolved = failureCode !== 'release_unresolved';
   const expectedException =
     expectedMessage &&
     event.exception?.values?.some(
       (value) => value?.type === 'Error' && value.value === expectedMessage
     );
   if (
-    event.environment !== 'preview' ||
-    (releaseResolved && !release) ||
+    !release ||
     event.level !== 'error' ||
     tags?.runtime !== 'github-actions' ||
-    tags.operation !== 'previewSmoke' ||
+    tags.failure_code !== 'unexpected_error' ||
     !expectedMessage ||
     !expectedException
   ) {
@@ -81,13 +78,15 @@ export function sanitizePreviewSmokeEvent(event) {
     ...(timestamp !== undefined ? { timestamp } : {}),
     platform: 'node',
     level: 'error',
-    environment: 'preview',
-    ...(releaseResolved && release ? { release } : {}),
-    fingerprint: ['linejam-preview-smoke'],
+    environment: event.environment,
+    release,
+    fingerprint: [
+      `linejam-${operation === 'previewSmoke' ? 'preview' : 'production'}-smoke`,
+    ],
     tags: {
       runtime: 'github-actions',
-      operation: 'previewSmoke',
-      failure_code: failureCode,
+      operation,
+      failure_code: 'unexpected_error',
     },
     exception: {
       values: [{ type: 'Error', value: expectedMessage }],
@@ -173,6 +172,14 @@ export async function reportSentryWorkflow({
       reason: 'Successful event-driven checks do not emit Sentry issues',
     };
   }
+  if (!releaseResolved) {
+    return {
+      ...plan,
+      skipped: true,
+      reason:
+        'Exact deployed release unavailable; workflow failure is authoritative',
+    };
+  }
   if (!runtimeOptions.enabled) {
     return {
       ...plan,
@@ -188,33 +195,38 @@ export async function reportSentryWorkflow({
       'LINEJAM_DEPLOY_ENVIRONMENT is required for Sentry reporting'
     );
   }
-  if (releaseResolved && !runtimeOptions.release) {
+  if (!runtimeOptions.release) {
     throw new Error('NEXT_DEPLOYMENT_ID is required for Sentry reporting');
   }
 
   sdk.init({
     ...runtimeOptions,
-    release: releaseResolved ? runtimeOptions.release : undefined,
     tracesSampleRate: 0,
-    beforeSend: sanitizePreviewSmokeEvent,
+    beforeSend: sanitizeWorkflowEvent,
   });
-  const failureCode = releaseResolved
-    ? 'unexpected_error'
-    : 'release_unresolved';
-  const failureMessage = releaseResolved
-    ? PREVIEW_FAILURE_MESSAGE
-    : RELEASE_RESOLUTION_FAILURE_MESSAGE;
-  const eventId =
-    plan.kind === 'event'
-      ? sdk.captureException(new Error(failureMessage), {
-          fingerprint: ['linejam-preview-smoke'],
-          tags: {
-            runtime: 'github-actions',
-            operation: plan.operation,
-            failure_code: failureCode,
-          },
-        })
-      : sdk.captureCheckIn(plan, PRODUCTION_SMOKE_MONITOR_CONFIG);
+  let eventId;
+  if (plan.kind === 'event') {
+    eventId = sdk.captureException(new Error(PREVIEW_FAILURE_MESSAGE), {
+      fingerprint: ['linejam-preview-smoke'],
+      tags: {
+        runtime: 'github-actions',
+        operation: plan.operation,
+        failure_code: 'unexpected_error',
+      },
+    });
+  } else {
+    eventId = sdk.captureCheckIn(plan, PRODUCTION_SMOKE_MONITOR_CONFIG);
+    if (plan.status === 'error') {
+      eventId = sdk.captureException(new Error(PRODUCTION_FAILURE_MESSAGE), {
+        fingerprint: ['linejam-production-smoke'],
+        tags: {
+          runtime: 'github-actions',
+          operation: 'productionSmoke',
+          failure_code: 'unexpected_error',
+        },
+      });
+    }
+  }
   const flushed = await sdk.flush(5_000);
   if (!flushed) {
     throw new Error('Sentry workflow report flush did not complete');

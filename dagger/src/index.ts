@@ -28,6 +28,7 @@ type AppEnv = {
   guestTokenSecret?: Secret;
   nextPublicSentryDsn?: string;
   nextPublicSentryEnabled?: string;
+  nextPublicSentryRelease?: string;
   stagehandModel?: string;
   stagehandModelApiKey?: Secret;
 };
@@ -75,6 +76,7 @@ function withAppEnv(container: Container, env: AppEnv): Container {
       'NEXT_PUBLIC_SENTRY_ENVIRONMENT',
       env.nextPublicSentryEnabled === '1' ? 'test' : undefined,
     ],
+    ['NEXT_PUBLIC_SENTRY_RELEASE', env.nextPublicSentryRelease],
     ['STAGEHAND_MODEL', env.stagehandModel],
   ];
   const withPublicEnv = publicEnvEntries.reduce(
@@ -361,7 +363,8 @@ export class Ci {
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
     nextPublicSentryDsn?: string,
-    nextPublicSentryEnabled?: string
+    nextPublicSentryEnabled?: string,
+    nextPublicSentryRelease?: string
   ): Promise<string> {
     const container = withOptionalEnv(
       withOptionalEnv(
@@ -380,6 +383,7 @@ export class Ci {
             ),
             nextPublicSentryDsn,
             nextPublicSentryEnabled,
+            nextPublicSentryRelease,
           },
           NODE_IMAGE,
           'linejam-pnpm-playwright'
@@ -609,7 +613,8 @@ export class Ci {
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
     nextPublicSentryDsn?: string,
-    nextPublicSentryEnabled?: string
+    nextPublicSentryEnabled?: string,
+    nextPublicSentryRelease?: string
   ): Promise<string> {
     return runChecks([
       [
@@ -641,7 +646,8 @@ export class Ci {
             playwrightClerkTestEmail,
             guestTokenSecret,
             nextPublicSentryDsn,
-            nextPublicSentryEnabled
+            nextPublicSentryEnabled,
+            nextPublicSentryRelease
           ),
       ],
     ]);
