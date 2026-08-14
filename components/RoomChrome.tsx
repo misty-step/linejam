@@ -249,10 +249,10 @@ export function RoomChrome({
                   <p
                     role="status"
                     aria-live="polite"
+                    aria-label={subtitle ? `${title}. ${subtitle}` : title}
                     className="min-w-0 truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg"
                   >
                     {title}
-                    {subtitle && <span className="sr-only">. {subtitle}</span>}
                   </p>
                 ) : (
                   <h1 className="truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg">

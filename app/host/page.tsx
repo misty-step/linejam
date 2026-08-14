@@ -118,7 +118,7 @@ export default function HostPage() {
           <Button
             type="submit"
             data-testid={E2E_TEST_IDS.hostCreateRoomButton}
-            className="h-[56px] w-full min-w-0 px-[16px] text-[clamp(1rem,5vw,1.125rem)] md:h-14 md:px-6 md:text-lg"
+            className="h-auto min-h-[56px] w-full min-w-0 px-[16px] py-3 text-[clamp(1rem,5vw,1.125rem)] md:min-h-14 md:px-6 md:text-lg"
             disabled={!name.trim() || isSubmitting}
           >
             {isSubmitting ? 'One moment...' : 'Create Room'}

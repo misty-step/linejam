@@ -269,9 +269,9 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                     <StampAnimation
                       key={player._id}
                       delay={i * 150}
-                      className="mx-[12px] min-w-0 max-w-full sm:mx-0"
+                      className="mx-[12px] min-w-0 max-w-[calc(100%-24px)] sm:mx-0 sm:max-w-full"
                     >
-                      <li className="grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-full border border-border bg-background/60 px-3 py-2">
+                      <li className="grid min-w-0 max-w-full grid-cols-1 items-center gap-x-2 gap-y-1 rounded-full border border-border bg-background/60 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                         <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
                           <Avatar
                             stableId={player.stableId}
@@ -288,7 +288,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                             </span>
                           )}
                         </div>
-                        <div className="flex max-w-full flex-wrap items-center justify-self-end gap-1.5">
+                        <div className="flex min-w-0 max-w-full flex-wrap items-center justify-self-start gap-1.5 sm:justify-self-end">
                           {player.isBot && (
                             <>
                               <BotBadge />
