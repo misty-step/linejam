@@ -73,7 +73,7 @@ contexts. Never call a remote suite without confirming its base URL and
 mutation authority.
 
 The full Dagger E2E lane needs deployment-aligned Convex, Clerk, guest-token,
-and Canary configuration. It can sync the active shared dev deployment through
+and Sentry configuration. It can sync the active shared dev deployment through
 the guarded path. It refuses local production Convex sync without
 `LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`; that flag is not operator authority.
 
@@ -90,9 +90,9 @@ expiring allowlist names the exact known issue and reason. A waiver is visible
 evidence of a gap, not proof the behavior passed.
 
 For static rendering that does not need a room flow, use
-`pnpm evidence:static-server`; it owns the narrow unsynced-Convex and Canary
-isolation needed by that capture. Do not generalize its escape hatch to game
-tests.
+`pnpm evidence:static-server`; it owns the narrow unsynced-Convex bypass and
+disables Sentry ingest for that capture. Do not generalize its escape hatch to
+game tests.
 
 Agentic QA is advisory and never replaces deterministic checks:
 

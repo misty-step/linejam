@@ -192,7 +192,6 @@ describe('DigitalOcean app drift', () => {
 
     expect(committed.apps.map((app: { name: string }) => app.name)).toEqual([
       'linejam',
-      'linejam-canary-responder',
     ]);
     expect(JSON.stringify(committed)).not.toContain('value');
     expect(committed.deploymentAuthority).toMatchObject({
@@ -623,7 +622,7 @@ describe('DigitalOcean app drift', () => {
     );
   });
 
-  it('checks both production apps, including the Canary responder', () => {
+  it('checks the sole production app from the committed manifest', () => {
     const production = loadDigitalOceanAppManifest() as {
       apps: ExpectedApp[];
     };
@@ -643,19 +642,12 @@ describe('DigitalOcean app drift', () => {
         logger: { log: vi.fn() },
       })
     ).toEqual({
-      checkedApps: ['linejam', 'linejam-canary-responder'],
+      checkedApps: ['linejam'],
       drift: [],
     });
     expect(runner).toHaveBeenCalledWith(
       'doctl',
-      [
-        'apps',
-        'get',
-        production.apps.find((app) => app.name === 'linejam-canary-responder')
-          ?.id,
-        '--output',
-        'json',
-      ],
+      ['apps', 'get', production.apps[0]?.id, '--output', 'json'],
       expect.any(Object)
     );
   });

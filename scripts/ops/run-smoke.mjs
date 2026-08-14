@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { isCanaryAutomationEvent } from './events.mjs';
 import { getSmokeClerkKeyError } from './smoke-auth.mjs';
 import { ensureClerkConvexTemplate } from '../ci/ensure-clerk-convex-template.mjs';
 
@@ -11,7 +10,6 @@ const DEFAULT_SMOKE_RUNNER = 'dagger';
 const MAX_CAPTURE_BYTES = 64 * 1024;
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const SMOKE_ENV_KEYS = [
-  'CANARY_ENDPOINT',
   'CI',
   'CLERK_JWT_ISSUER_DOMAIN',
   'CLERK_SECRET_KEY',
@@ -25,8 +23,6 @@ const SMOKE_ENV_KEYS = [
   'LINEJAM_AGENTIC_QA_MISSION',
   'LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST',
   'LINEJAM_PROMPTFOO_CRITIC',
-  'NEXT_PUBLIC_CANARY_API_KEY',
-  'NEXT_PUBLIC_CANARY_ENDPOINT',
   'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
   'NEXT_PUBLIC_CONVEX_URL',
   'NO_COLOR',
@@ -50,7 +46,7 @@ const DEFAULT_AGENTIC_QA_MISSION = 'guest-host-signed-in-join';
 
 function getSmokeTimeoutMs() {
   const parsed = Number.parseInt(
-    process.env.CANARY_SMOKE_TIMEOUT_MS || String(DEFAULT_SMOKE_TIMEOUT_MS),
+    process.env.LINEJAM_SMOKE_TIMEOUT_MS || String(DEFAULT_SMOKE_TIMEOUT_MS),
     10
   );
 
@@ -61,7 +57,7 @@ function getSmokeTimeoutMs() {
 
 function getSmokeKillGraceMs() {
   const parsed = Number.parseInt(
-    process.env.CANARY_SMOKE_KILL_GRACE_MS ||
+    process.env.LINEJAM_SMOKE_KILL_GRACE_MS ||
       String(DEFAULT_SMOKE_KILL_GRACE_MS),
     10
   );
@@ -81,10 +77,6 @@ function getAgenticQaTimeoutMs() {
   return Number.isFinite(parsed) && parsed > 0
     ? parsed
     : DEFAULT_AGENTIC_QA_TIMEOUT_MS;
-}
-
-export function shouldTriggerSmoke(eventName) {
-  return isCanaryAutomationEvent(eventName);
 }
 
 export function resolveSmokeRunner(

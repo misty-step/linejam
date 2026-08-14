@@ -1,21 +1,20 @@
 import 'server-only';
 
-import {
-  captureCanaryException,
-  isCanaryEnabled,
-  scrubCanaryContext,
-} from '@/lib/canaryServer';
-import { captureReportedError } from '@/lib/errorCore';
+import { captureException } from '@sentry/nextjs';
+import { captureReportedError, isSentryEnabled } from '@/lib/errorCore';
+import { sanitizeSentryReporterContext } from '@/lib/sentryPrivacy';
 
-/**
- * Server-only error capture helper that can prefer private Canary credentials.
- */
+/** Server-only capture for handled failures that Next.js cannot auto-report. */
 export function captureServerError(
   error: unknown,
   context?: Record<string, unknown>
 ) {
   captureReportedError(
-    { captureCanaryException, isCanaryEnabled, scrubCanaryContext },
+    {
+      captureException,
+      isEnabled: isSentryEnabled,
+      sanitizeContext: sanitizeSentryReporterContext,
+    },
     error,
     context
   );

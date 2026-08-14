@@ -38,11 +38,36 @@ function clippedIntersection(box: Box, clip: Box): Box | null {
 }
 
 async function expectNoHorizontalScroll(page: Page) {
-  const geometry = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  const geometry = await page.evaluate(() => {
+    const clientWidth = document.documentElement.clientWidth;
+    const offenders = Array.from(
+      document.querySelectorAll<HTMLElement>('body *')
+    )
+      .map((element) => {
+        const box = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          testId: element.dataset.testid,
+          className: element.className,
+          left: Math.round(box.left),
+          right: Math.round(box.right),
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        };
+      })
+      .filter((element) => element.left < -1 || element.right > clientWidth + 1)
+      .slice(-8);
+
+    return {
+      clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      offenders,
+    };
+  });
+  expect(
+    geometry.scrollWidth,
+    `document overflow: ${JSON.stringify(geometry.offenders)}`
+  ).toBeLessThanOrEqual(geometry.clientWidth + 1);
 }
 
 async function expectNoHorizontalOverflow(locator: Locator) {

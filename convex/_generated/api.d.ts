@@ -30,7 +30,6 @@ import type * as lib_ai_wordCountGuard from "../lib/ai/wordCountGuard.js";
 import type * as lib_assignPoemReaders from "../lib/assignPoemReaders.js";
 import type * as lib_assignmentMatrix from "../lib/assignmentMatrix.js";
 import type * as lib_auth from "../lib/auth.js";
-import type * as lib_canary from "../lib/canary.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_errors from "../lib/errors.js";
 import type * as lib_gameRules from "../lib/gameRules.js";
@@ -41,6 +40,7 @@ import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_retentionPolicy from "../lib/retentionPolicy.js";
 import type * as lib_revealAuthorization from "../lib/revealAuthorization.js";
 import type * as lib_room from "../lib/room.js";
+import type * as lib_sentry from "../lib/sentry.js";
 import type * as lib_sessionLifecycle from "../lib/sessionLifecycle.js";
 import type * as lib_sharing from "../lib/sharing.js";
 import type * as lib_wordCount from "../lib/wordCount.js";
@@ -50,6 +50,7 @@ import type * as presence from "../presence.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as retention from "../retention.js";
 import type * as rooms from "../rooms.js";
+import type * as sentryGithub from "../sentryGithub.js";
 import type * as shares from "../shares.js";
 import type * as users from "../users.js";
 
@@ -82,7 +83,6 @@ declare const fullApi: ApiFromModules<{
   "lib/assignPoemReaders": typeof lib_assignPoemReaders;
   "lib/assignmentMatrix": typeof lib_assignmentMatrix;
   "lib/auth": typeof lib_auth;
-  "lib/canary": typeof lib_canary;
   "lib/env": typeof lib_env;
   "lib/errors": typeof lib_errors;
   "lib/gameRules": typeof lib_gameRules;
@@ -93,6 +93,7 @@ declare const fullApi: ApiFromModules<{
   "lib/retentionPolicy": typeof lib_retentionPolicy;
   "lib/revealAuthorization": typeof lib_revealAuthorization;
   "lib/room": typeof lib_room;
+  "lib/sentry": typeof lib_sentry;
   "lib/sessionLifecycle": typeof lib_sessionLifecycle;
   "lib/sharing": typeof lib_sharing;
   "lib/wordCount": typeof lib_wordCount;
@@ -102,6 +103,7 @@ declare const fullApi: ApiFromModules<{
   rateLimits: typeof rateLimits;
   retention: typeof retention;
   rooms: typeof rooms;
+  sentryGithub: typeof sentryGithub;
   shares: typeof shares;
   users: typeof users;
 }>;

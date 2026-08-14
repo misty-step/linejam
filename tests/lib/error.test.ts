@@ -1,170 +1,102 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConvexError } from 'convex/values';
+
+const { captureExceptionMock } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
+}));
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: captureExceptionMock,
+}));
+
 import { captureError } from '@/lib/error';
 import { captureReportedError } from '@/lib/errorCore';
-
-const fetchMock = vi.fn();
 
 describe('captureError', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv(
+      'NEXT_PUBLIC_SENTRY_DSN',
+      ['https://public', 'sentry.example.test/1'].join('@')
+    );
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('forwards scrubbed context to Canary when enabled', () => {
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-    const error = new Error('Canary error');
-    const context = { route: '/room/ABCD', userId: 'user_123' };
+  it('forwards only closed Sentry context', () => {
+    const error = new Error('provider response containing a private poem');
 
-    captureError(error, context);
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    const [, request] = fetchMock.mock.calls[0];
-    const body = JSON.parse(String(request?.body)) as {
-      context?: Record<string, unknown>;
-      message: string;
-    };
-
-    expect(body.message).toBe('Canary error');
-    expect(body.context).toEqual({ route: '/room/ABCD' });
-  });
-
-  it('logs scrubbed context in development', () => {
-    vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-    const error = new Error('Dev error');
-    const context = { operation: 'test', guestToken: 'secret-token' };
-
-    captureError(error, context);
-
-    expect(console.error).toHaveBeenCalledWith('Captured error:', error, {
-      operation: 'test',
+    captureError(error, {
+      operation: 'summonGhostwriter',
+      attempt: 2,
+      roomCode: 'ABCD',
+      poemId: 'poem_123',
+      userId: 'user_123',
+      requestBody: { line: 'private poem draft' },
     });
-  });
 
-  it('does not log to console.error in production when Canary is enabled', () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-
-    captureError(new Error('Prod error'));
-
-    expect(console.error).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(error, {
+      tags: { operation: 'summonGhostwriter' },
+      contexts: { linejam: { attempt: 2 } },
+    });
+    expect(JSON.stringify(captureExceptionMock.mock.calls)).not.toContain(
+      'private poem draft'
+    );
+    expect(JSON.stringify(captureExceptionMock.mock.calls)).not.toContain(
+      'poem_123'
+    );
   });
 
   it('does not report expected Convex rate-limit rejections', () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
     const error = new ConvexError(
       'Rate limit exceeded. Please try again later.'
     );
     error.message = '[Request ID: prod123] Server Error';
 
-    captureError(error, { operation: 'createRoom', route: '/host' });
+    captureError(error, { operation: 'summonGhostwriter' });
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(console.error).not.toHaveBeenCalled();
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it('still reports unexpected Convex failures', () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
     const error = new ConvexError('Unexpected storage failure');
     error.message = '[Request ID: prod456] Server Error';
 
-    captureError(error, { operation: 'createRoom', route: '/host' });
+    captureError(error, { operation: 'summonGhostwriter' });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
-  it('still reports noncanonical Convex errors that mention rate limits', () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-    const error = new ConvexError('Rate limit subsystem unavailable');
-    error.message = '[Request ID: prod789] Server Error';
+  it('does not enqueue an SDK event when the DSN is missing', () => {
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', '');
+    const error = new Error('private disabled error');
 
-    captureError(error, { operation: 'createRoom', route: '/host' });
+    captureError(error, {
+      operation: 'summonGhostwriter',
+      roomCode: 'ABCD',
+    });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('still reports objects that only look like Convex errors', () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-    const error = {
-      name: 'ConvexError',
-      message: '[Request ID: lookalike] Server Error',
-      data: 'Rate limit exceeded. Please try again later.',
-    };
-
-    captureError(error, { operation: 'createRoom', route: '/host' });
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('still reports generic errors that merely mention rate limits', () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
-    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-
-    captureError(new Error('Rate limit exceeded'));
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('logs to console when Canary is disabled', () => {
-    vi.stubEnv('CANARY_API_KEY', '');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', '');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
-    const error = new Error('Test error');
-    const context = { operation: 'submitLine', userId: 'user_123' };
-
-    captureError(error, context);
-
+    expect(captureExceptionMock).not.toHaveBeenCalled();
     expect(console.error).toHaveBeenCalledWith(
-      'Error captured (Canary disabled):',
+      'Error captured (Sentry disabled):',
       error,
-      { operation: 'submitLine' }
+      { tags: { operation: 'summonGhostwriter' } }
     );
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('logs without context when Canary is disabled', () => {
-    vi.stubEnv('CANARY_API_KEY', '');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', '');
-    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
-    const error = new Error('Context-free error');
+  it('does not enqueue an SDK event when ingest is not explicitly enabled', () => {
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '0');
 
-    captureError(error);
+    captureError(new Error('disabled despite DSN'), {
+      operation: 'summonGhostwriter',
+    });
 
-    expect(console.error).toHaveBeenCalledWith(
-      'Error captured (Canary disabled):',
-      error
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 });
 
@@ -178,38 +110,20 @@ describe('captureReportedError', () => {
     vi.restoreAllMocks();
   });
 
-  it('passes only scrubbed context to the enabled reporter transport', () => {
-    const error = new Error('create room failed');
-    const captureCanaryException = vi.fn().mockResolvedValue(undefined);
-    const reporter = {
-      captureCanaryException,
-      isCanaryEnabled: vi.fn(() => true),
-      scrubCanaryContext: vi.fn(() => ({
-        operation: 'createRoom',
-        route: '/host',
-      })),
-    };
+  it('uses the reporter seam without waiting for transport', () => {
+    const captureException = vi.fn();
+    const context = { tags: { operation: 'renderRoomPanel' } };
 
-    captureReportedError(reporter, error, {
-      operation: 'createRoom',
-      route: '/host',
-      guestToken: 'secret-guest-token',
-      displayName: 'Ada Lovelace',
-      requestBody: { line: 'raw poem draft' },
-    });
+    captureReportedError(
+      {
+        captureException,
+        isEnabled: () => true,
+        sanitizeContext: () => context,
+      },
+      new Error('render failed'),
+      { roomCode: 'ABCD' }
+    );
 
-    expect(captureCanaryException).toHaveBeenCalledWith(error, {
-      operation: 'createRoom',
-      route: '/host',
-    });
-    expect(JSON.stringify(captureCanaryException.mock.calls)).not.toContain(
-      'secret-guest-token'
-    );
-    expect(JSON.stringify(captureCanaryException.mock.calls)).not.toContain(
-      'Ada Lovelace'
-    );
-    expect(JSON.stringify(captureCanaryException.mock.calls)).not.toContain(
-      'raw poem draft'
-    );
+    expect(captureException).toHaveBeenCalledWith(expect.any(Error), context);
   });
 });

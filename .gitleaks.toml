@@ -21,11 +21,6 @@ description = "Convex deploy key"
 regex = '''convex_[a-z0-9]{24,}'''
 keywords = ["CONVEX_DEPLOY_KEY", "convex_"]
 
-[[rules]]
-id = "linejam-canary-api-key"
-description = "Canary API key"
-regex = '''sk_(test|live)_[A-Za-z0-9]{24,}'''
-keywords = ["CANARY_API_KEY", "NEXT_PUBLIC_CANARY_API_KEY", "sk_live_", "sk_test_"]
 
 [[rules]]
 id = "linejam-generic-bearer-token"

@@ -206,20 +206,32 @@ describe('LLM Provider', () => {
       expect(result.fallbackUsed).toBe(false);
     });
 
-    it('uses fallback when API returns non-200', async () => {
+    it('never reads or reports a non-200 provider response body', async () => {
+      const responseText = vi.fn().mockResolvedValue(
+        JSON.stringify({
+          providerBody: 'private provider body',
+          prompt: bashoPersona.prompt,
+          poemText: 'private poem text',
+          poemId: 'poem_entity_id',
+          roomId: 'room_entity_id',
+        })
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue({
           ok: false,
-          status: 500,
-          text: () => Promise.resolve('Internal Server Error'),
+          status: 9_999,
+          text: responseText,
         })
       );
 
       const result = await generateLine(
         {
           persona: bashoPersona,
-          previousLineText: undefined,
+          previousLineText: 'private previous poem line',
           targetWordCount: 3,
         },
         testConfig
@@ -228,6 +240,50 @@ describe('LLM Provider', () => {
       expect(countWords(result.text)).toBe(3);
       expect(result.fallbackUsed).toBe(true);
       expect(result.fallbackReason).toBe('provider_error');
+      expect(responseText).not.toHaveBeenCalled();
+      const reported = consoleErrorSpy.mock.calls.flat().join(' ');
+      expect(reported).toContain('"failureCode":"http_error"');
+      expect(reported).toContain('"status":599');
+      expect(reported).not.toContain('private');
+      expect(reported).not.toContain('entity_id');
+      expect(reported).not.toContain(bashoPersona.prompt);
+    });
+
+    it('replaces body-bearing JSON failures with a typed safe failure', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: vi
+            .fn()
+            .mockRejectedValue(
+              new SyntaxError(
+                'Unexpected token in private provider body with poem_entity_id'
+              )
+            ),
+        })
+      );
+
+      const result = await generateLine(
+        {
+          persona: bashoPersona,
+          previousLineText: 'private previous poem line',
+          targetWordCount: 3,
+        },
+        testConfig
+      );
+
+      expect(result.fallbackReason).toBe('provider_error');
+      const reported = consoleErrorSpy.mock.calls.flat().join(' ');
+      expect(reported).toContain('"failureCode":"invalid_response"');
+      expect(reported).toContain('"status":200');
+      expect(reported).not.toContain('private provider body');
+      expect(reported).not.toContain('poem_entity_id');
+      expect(reported).not.toContain('private previous poem line');
     });
 
     it('uses fallback when fetch throws network error', async () => {

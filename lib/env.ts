@@ -13,18 +13,37 @@ const REQUIRED_SERVER_ENV = ['GUEST_TOKEN_SECRET'] as const;
 // Required at build time (public vars)
 const REQUIRED_PUBLIC_ENV = [
   'NEXT_PUBLIC_CONVEX_URL',
-  'NEXT_PUBLIC_CANARY_ENDPOINT',
-  'NEXT_PUBLIC_CANARY_API_KEY',
+  'NEXT_PUBLIC_SENTRY_DSN',
+  'NEXT_PUBLIC_SENTRY_ENABLED',
 ] as const;
 const REQUIRED_PRODUCTION_SKEW_ENV = [
   'NEXT_DEPLOYMENT_ID',
   'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
 ] as const;
-const PLACEHOLDER_CANARY_KEYS = new Set([
-  'example_canary_server_key',
-  'example_canary_write_key',
-]);
 const DEV_GUEST_TOKEN_SECRET = 'dev-only-insecure-secret-change-in-production';
+const COMMIT_SHA = /^[a-f0-9]{40}$/;
+
+export function isValidSentryDsn(value: unknown): value is string {
+  if (typeof value !== 'string' || value !== value.trim()) return false;
+
+  try {
+    const dsn = new URL(value);
+    const segments = dsn.pathname.split('/').filter(Boolean);
+    const projectId = segments.at(-1);
+    return (
+      dsn.protocol === 'https:' &&
+      /^[A-Za-z0-9_-]+$/.test(dsn.username) &&
+      !dsn.password &&
+      Boolean(dsn.hostname) &&
+      !dsn.search &&
+      !dsn.hash &&
+      typeof projectId === 'string' &&
+      /^[1-9]\d*$/.test(projectId)
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function getServerGuestTokenSecret(): string {
   const secret = process.env.GUEST_TOKEN_SECRET?.trim();
@@ -43,7 +62,6 @@ export function getServerGuestTokenSecret(): string {
  */
 export function validateEnv(): void {
   const missing: string[] = [];
-  const invalidPlaceholders: string[] = [];
   const invalid: string[] = [];
   const isDependabot = process.env.GITHUB_ACTOR === 'dependabot[bot]';
 
@@ -64,6 +82,11 @@ export function validateEnv(): void {
       if (!process.env[key]?.trim()) missing.push(key);
     }
 
+    const deploymentId = process.env.NEXT_DEPLOYMENT_ID?.trim();
+    if (deploymentId && !COMMIT_SHA.test(deploymentId)) {
+      invalid.push('NEXT_DEPLOYMENT_ID');
+    }
+
     const serverActionKey =
       process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?.trim();
     if (serverActionKey && !isValidServerActionEncryptionKey(serverActionKey)) {
@@ -71,29 +94,23 @@ export function validateEnv(): void {
     }
   }
 
-  const canaryApiKey = process.env.NEXT_PUBLIC_CANARY_API_KEY?.trim();
-  if (canaryApiKey && PLACEHOLDER_CANARY_KEYS.has(canaryApiKey)) {
-    invalidPlaceholders.push('NEXT_PUBLIC_CANARY_API_KEY');
+  if (process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1') {
+    invalid.push('NEXT_PUBLIC_SENTRY_ENABLED');
   }
 
   if (
-    missing.length > 0 ||
-    invalidPlaceholders.length > 0 ||
-    invalid.length > 0
+    process.env.NEXT_PUBLIC_SENTRY_DSN &&
+    !isValidSentryDsn(process.env.NEXT_PUBLIC_SENTRY_DSN)
   ) {
+    invalid.push('NEXT_PUBLIC_SENTRY_DSN');
+  }
+
+  if (missing.length > 0 || invalid.length > 0) {
     const sections: string[] = [];
 
     if (missing.length > 0) {
       sections.push(
         `Missing required environment variables:\n${missing
-          .map((k) => `  - ${k}`)
-          .join('\n')}`
-      );
-    }
-
-    if (invalidPlaceholders.length > 0) {
-      sections.push(
-        `Invalid placeholder environment variables:\n${invalidPlaceholders
           .map((k) => `  - ${k}`)
           .join('\n')}`
       );

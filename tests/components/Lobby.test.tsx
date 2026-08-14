@@ -546,13 +546,14 @@ describe('Lobby component', () => {
     expect(nameSpan).toHaveClass('truncate', 'min-w-0');
   });
 
-  it('reserves a separate roster column for badges at narrow widths', () => {
+  it('stacks roster badges at narrow widths and reserves a column when space permits', () => {
     render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     const hostPlayerItem = screen.getByText('Host Player').closest('li');
     expect(hostPlayerItem).toHaveClass(
       'grid',
-      'grid-cols-[minmax(0,1fr)_auto]'
+      'grid-cols-1',
+      'sm:grid-cols-[minmax(0,1fr)_auto]'
     );
   });
 });

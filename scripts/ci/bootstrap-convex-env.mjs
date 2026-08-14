@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const CONVEX_EXECUTABLE = ['pnpm', ['exec', 'convex']];
 const POST_DEPLOY_VERIFY_TIMEOUT_MS = 60_000;
+const SENTRY_RELEASE_PATTERN = /^[0-9a-f]{40}$/;
 
 /**
  * @param {EnvShape} [env]
@@ -183,6 +184,101 @@ export function resolveConvexEnvTarget(env = process.env) {
   };
 }
 
+function resolveHostedSentryEntries(env, deploymentEnvironment) {
+  if (
+    deploymentEnvironment !== 'preview' &&
+    deploymentEnvironment !== 'production'
+  ) {
+    return [];
+  }
+
+  const enabled =
+    env.LINEJAM_SENTRY_ENABLED?.trim() === 'true' ||
+    env.NEXT_PUBLIC_SENTRY_ENABLED?.trim() === '1';
+  if (!enabled) {
+    throw new Error(
+      'NEXT_PUBLIC_SENTRY_ENABLED=1 is required before deploying hosted Convex environments.'
+    );
+  }
+
+  const dsn =
+    env.SENTRY_DSN?.trim() || env.NEXT_PUBLIC_SENTRY_DSN?.trim() || '';
+  if (!dsn) {
+    throw new Error(
+      'NEXT_PUBLIC_SENTRY_DSN is required before deploying hosted Convex environments.'
+    );
+  }
+
+  const release =
+    env.SENTRY_RELEASE?.trim() || env.NEXT_DEPLOYMENT_ID?.trim() || '';
+  if (!SENTRY_RELEASE_PATTERN.test(release)) {
+    throw new Error(
+      'NEXT_DEPLOYMENT_ID or SENTRY_RELEASE must be a 40-character commit SHA before deploying hosted Convex environments.'
+    );
+  }
+
+  return [
+    ['LINEJAM_SENTRY_ENABLED', 'true'],
+    ['SENTRY_DSN', dsn],
+    ['SENTRY_ENVIRONMENT', deploymentEnvironment],
+    ['SENTRY_RELEASE', release],
+  ];
+}
+
+const BRIDGE_ENVIRONMENT = Object.freeze({
+  SENTRY_EXPECTED_APP_ID: '160944',
+  SENTRY_EXPECTED_INSTALLATION_UUID: '268a6e8e-c341-414e-bee6-20125b9987ef',
+  SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
+  SENTRY_GITHUB_INTEGRATION_ID: '338522',
+  GITHUB_REPOSITORY_OWNER: 'misty-step',
+  GITHUB_REPOSITORY_NAME: 'linejam',
+});
+const BRIDGE_SECRET_NAMES = Object.freeze([
+  'SENTRY_WEBHOOK_SECRET',
+  'SENTRY_EVENT_WRITE_TOKEN',
+  'GITHUB_ISSUES_TOKEN',
+]);
+
+function resolveHostedBridgeEntries(env, deploymentEnvironment) {
+  if (
+    deploymentEnvironment !== 'preview' &&
+    deploymentEnvironment !== 'production'
+  ) {
+    return [];
+  }
+
+  const expectedEntries = Object.entries(BRIDGE_ENVIRONMENT);
+  const secretEntries = BRIDGE_SECRET_NAMES.map((name) => [
+    name,
+    env[name]?.trim() || '',
+  ]);
+  const configuredSecretCount = secretEntries.filter(([, value]) =>
+    Boolean(value)
+  ).length;
+  const mismatchedEntry = expectedEntries.find(
+    ([name, expected]) => env[name]?.trim() && env[name]?.trim() !== expected
+  );
+  if (
+    deploymentEnvironment === 'preview' &&
+    configuredSecretCount === 0 &&
+    !mismatchedEntry
+  ) {
+    return [];
+  }
+  if (configuredSecretCount !== secretEntries.length || mismatchedEntry) {
+    throw new Error(
+      'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
+    );
+  }
+  return [
+    ...secretEntries,
+    ...expectedEntries.map(([name, expected]) => [
+      name,
+      env[name]?.trim() || expected,
+    ]),
+  ];
+}
+
 /**
  * @param {EnvShape} [env]
  */
@@ -215,6 +311,8 @@ export function buildConvexEnvBootstrapPlan(env = process.env) {
       : target.status === 'preview'
         ? 'preview'
         : 'development';
+  const sentryEntries = resolveHostedSentryEntries(env, deploymentEnvironment);
+  const bridgeEntries = resolveHostedBridgeEntries(env, deploymentEnvironment);
 
   return {
     target,
@@ -222,10 +320,11 @@ export function buildConvexEnvBootstrapPlan(env = process.env) {
       ['GUEST_TOKEN_SECRET', guestTokenSecret],
       ['CLERK_JWT_ISSUER_DOMAIN', clerkIssuerDomain],
       ['LINEJAM_DEPLOY_ENVIRONMENT', deploymentEnvironment],
+      ...sentryEntries,
+      ...bridgeEntries,
     ],
   };
 }
-
 /**
  * @param {{
  *   env?: EnvShape;
@@ -250,9 +349,10 @@ export function bootstrapConvexEnv({
     const [command, prefixArgs] = CONVEX_EXECUTABLE;
     const result = runner(
       command,
-      [...prefixArgs, 'env', ...plan.target.args, 'set', name, value],
+      [...prefixArgs, 'env', ...plan.target.args, 'set', name],
       {
-        stdio: 'inherit',
+        stdio: ['pipe', 'inherit', 'inherit'],
+        input: `${value}\n`,
         env,
       }
     );

@@ -20,8 +20,6 @@ describe('Convex env validation', () => {
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
         LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        CANARY_API_KEY: undefined,
-        CANARY_ENDPOINT: undefined,
         CLERK_JWT_ISSUER_DOMAIN: undefined,
         GUEST_TOKEN_SECRET: undefined,
       },
@@ -140,8 +138,6 @@ describe('Convex env validation', () => {
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
         LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        CANARY_API_KEY: undefined,
-        CANARY_ENDPOINT: undefined,
         CLERK_JWT_ISSUER_DOMAIN: undefined,
         GUEST_TOKEN_SECRET: undefined,
         OPENROUTER_API_KEY: undefined,
@@ -168,8 +164,9 @@ describe('Convex env validation', () => {
           },
           configuration: {
             missingRequired: expect.arrayContaining([
-              'CANARY_API_KEY',
-              'CANARY_ENDPOINT',
+              'GITHUB_ISSUES_TOKEN',
+              'SENTRY_EVENT_WRITE_TOKEN',
+              'SENTRY_WEBHOOK_SECRET',
               'CLERK_JWT_ISSUER_DOMAIN',
               'GUEST_TOKEN_SECRET',
               'OPENROUTER_API_KEY',
@@ -218,11 +215,23 @@ describe('Convex env validation', () => {
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
         LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        CANARY_API_KEY: 'test-canary-key',
-        CANARY_ENDPOINT: 'https://canary.test',
+        GITHUB_ISSUES_TOKEN: 'test-github-token',
+        GITHUB_REPOSITORY_NAME: 'linejam',
+        GITHUB_REPOSITORY_OWNER: 'misty-step',
         CLERK_JWT_ISSUER_DOMAIN: undefined,
         GUEST_TOKEN_SECRET: 'test-secret',
         OPENROUTER_API_KEY: 'test-openrouter-key',
+        LINEJAM_SENTRY_ENABLED: 'true',
+        SENTRY_DSN: ['https://public', 'sentry.example.test/1'].join('@'),
+        SENTRY_ENVIRONMENT: 'production',
+        SENTRY_RELEASE: 'a'.repeat(40),
+        SENTRY_EVENT_WRITE_TOKEN: 'test-event-token',
+        SENTRY_EXPECTED_APP_ID: '160944',
+        SENTRY_EXPECTED_INSTALLATION_UUID:
+          '268a6e8e-c341-414e-bee6-20125b9987ef',
+        SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
+        SENTRY_GITHUB_INTEGRATION_ID: '338522',
+        SENTRY_WEBHOOK_SECRET: 'test-webhook-secret',
       },
       async () => {
         const { getConvexEnvHealthReport } =

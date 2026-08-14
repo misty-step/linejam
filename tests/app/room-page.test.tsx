@@ -101,7 +101,6 @@ describe('RoomPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    process.env.NEXT_PUBLIC_CANARY_API_KEY = '';
     mockPhaseFailure.writing = false;
     mockPhaseFailure.reveal = false;
     mockWritingView.value = 'writing';
@@ -270,7 +269,9 @@ describe('RoomPage', () => {
 
     expect(await screen.findByText(/Room AB CD/i)).toBeInTheDocument();
     expect(screen.getByText(/need 1 more player/i)).toBeInTheDocument();
-    expect(screen.getByText(/share AB CD to start/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveAccessibleName(
+      'Need 1 more player. Share AB CD to start.'
+    );
   });
 
   it('routes in-progress rooms through the writing phase with shared chrome enabled', async () => {

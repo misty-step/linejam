@@ -1,7 +1,6 @@
 .git
 .github
 .next
-.canary
 .evidence
 coverage
 playwright-report

@@ -29,7 +29,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 - **Milestone:** Restore public trust — anonymous play must survive identity-provider failure, private poems must stay private until explicit publication, and functional smoke failures must page.
 - **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across every retained theme → evidence-led aesthetic polish → revenue stretch.
-- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). Powder is the sole work ledger.
+- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). [GitHub Issues](https://github.com/misty-step/linejam/issues) is the sole work ledger; `CONTRIBUTING.md` owns the claim and Iron Forest scheduling contract.
 - **Theme:** Restraint as the product — Kenya Hara minimalism applied to the mechanics as much as the visuals.
 
 ## Quality Bar
@@ -78,7 +78,6 @@ them, small revenue cut per book.
 
 ---
 
-_Last updated: 2026-07-08_
-_Updated during: Powder ledger closeout. `docs/vision.md` stays demoted to a_
-_pointer at root `VISION.md`, the actual north star. This section no longer_
-_restates AGENTS.md's code patterns._
+_Last updated: 2026-08-13_
+_Updated during: GitHub Issues authority cutover and preview-only Sentry_
+_migration [#393](https://github.com/misty-step/linejam/issues/393)._
