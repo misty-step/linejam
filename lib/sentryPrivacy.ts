@@ -56,6 +56,7 @@ const SAFE_CORRELATION_CONTEXT: Readonly<Record<string, true>> = {
   requestId: true,
 };
 const SAFE_EXCEPTION_MESSAGES: Readonly<Record<string, true>> = {
+  'Clerk did not load in time; continuing with guest play': true,
   'Linejam preview privacy drill': true,
 };
 const SAFE_LEVELS: Readonly<Record<string, true>> = {

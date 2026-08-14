@@ -71,6 +71,10 @@ function withAppEnv(container: Container, env: AppEnv): Container {
     ['PLAYWRIGHT_CLERK_TEST_EMAIL', env.playwrightClerkTestEmail],
     ['NEXT_PUBLIC_SENTRY_DSN', env.nextPublicSentryDsn],
     ['NEXT_PUBLIC_SENTRY_ENABLED', env.nextPublicSentryEnabled],
+    [
+      'NEXT_PUBLIC_SENTRY_ENVIRONMENT',
+      env.nextPublicSentryEnabled === '1' ? 'test' : undefined,
+    ],
     ['STAGEHAND_MODEL', env.stagehandModel],
   ];
   const withPublicEnv = publicEnvEntries.reduce(

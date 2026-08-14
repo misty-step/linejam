@@ -156,12 +156,28 @@ function isIgnoredFailedRequest(
     return hasSearchParam(requestUrl, '_rsc');
   }
 
+  if (method === 'POST' && errorText === 'net::ERR_ABORTED') {
+    return isSentryEnvelopeUrl(requestUrl);
+  }
+
   return false;
 }
 
 function hasSearchParam(requestUrl: string, param: string) {
   try {
     return new URL(requestUrl).searchParams.has(param);
+  } catch {
+    return false;
+  }
+}
+
+function isSentryEnvelopeUrl(requestUrl: string) {
+  try {
+    const parsed = new URL(requestUrl);
+    return (
+      /(^|\.)sentry\.io$/i.test(parsed.hostname) &&
+      /^\/api\/\d+\/envelope\/?$/.test(parsed.pathname)
+    );
   } catch {
     return false;
   }

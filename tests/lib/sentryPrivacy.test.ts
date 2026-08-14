@@ -201,13 +201,16 @@ describe('Sentry transport privacy boundary', () => {
     expect(sanitized).not.toHaveProperty('debug_meta');
   });
 
-  it('retains only the single fixed drill message', () => {
+  it.each([
+    'Clerk did not load in time; continuing with guest play',
+    'Linejam preview privacy drill',
+  ])('retains the fixed safe exception message %s', (message) => {
     const event = taintedEvent();
-    event.exception!.values![0]!.value = 'Linejam preview privacy drill';
+    event.exception!.values![0]!.value = message;
 
     expect(beforeSend(event, {})).toHaveProperty(
       'exception.values.0.value',
-      'Linejam preview privacy drill'
+      message
     );
   });
 
