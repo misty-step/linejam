@@ -1,7 +1,7 @@
 # Security Policy
 
 Linejam is a public repository for a party game that handles guest sessions,
-optional Clerk sign-in, Convex data, Sentry telemetry, and public poem sharing.
+optional Clerk sign-in, Convex data, Canary telemetry, and public poem sharing.
 
 ## Reporting a Vulnerability
 
@@ -32,7 +32,7 @@ In scope:
 - Clerk and Convex auth alignment
 - Public poem sharing privacy
 - Secret handling in local, DigitalOcean App Platform, Convex, GitHub Actions,
-  and Sentry flows
+  and Canary flows
 - Cross-site scripting, request forgery, or data exposure in app routes
 
 Out of scope:

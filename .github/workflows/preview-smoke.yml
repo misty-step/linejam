@@ -31,10 +31,9 @@ jobs:
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
       PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
-      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-      NEXT_PUBLIC_SENTRY_ENABLED: '1'
-      LINEJAM_DEPLOY_ENVIRONMENT: preview
-      NEXT_DEPLOYMENT_ID: ${{ github.sha }}
+      CANARY_ENDPOINT: ${{ secrets.CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_ENDPOINT: ${{ secrets.NEXT_PUBLIC_CANARY_ENDPOINT }}
+      NEXT_PUBLIC_CANARY_API_KEY: ${{ secrets.NEXT_PUBLIC_CANARY_API_KEY }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -55,11 +54,10 @@ jobs:
         run: pnpm exec playwright install chromium --with-deps
 
       - name: Run preview smoke
-        id: smoke
         run: |
           mkdir -p "$RUNNER_TEMP/linejam-smoke"
           set +e
-          pnpm smoke:run > "$RUNNER_TEMP/linejam-smoke/stdout.log" 2> "$RUNNER_TEMP/linejam-smoke/stderr.log"
+          pnpm canary:smoke > "$RUNNER_TEMP/linejam-smoke/stdout.log" 2> "$RUNNER_TEMP/linejam-smoke/stderr.log"
           code=$?
           cat "$RUNNER_TEMP/linejam-smoke/stdout.log"
           cat "$RUNNER_TEMP/linejam-smoke/stderr.log" >&2
@@ -83,10 +81,3 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
           retention-days: 14
-
-      - name: Report preview smoke failure to Sentry
-        if: always()
-        env:
-          LINEJAM_MONITOR_SLUG: linejam-preview-smoke
-          LINEJAM_MONITOR_OUTCOME: ${{ steps.smoke.outcome }}
-        run: node scripts/ops/report-sentry-check-in.mjs

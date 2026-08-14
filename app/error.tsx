@@ -12,8 +12,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // A digest marks a server-render failure already owned by onRequestError.
-    if (!error.digest) captureError(error);
+    captureError(error, {
+      boundary: 'app/error.tsx',
+      ...(error.digest ? { digest: error.digest } : {}),
+    });
   }, [error]);
 
   return (

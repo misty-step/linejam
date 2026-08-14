@@ -35,8 +35,8 @@ const eslintConfig = defineConfig([
   // silently breaks every friendly mapping in lib/errorFeedback.ts
   // (linejam-941). Top-level convex/*.ts modules hold all public
   // mutations/queries; the listed lib modules throw on player paths. Internal
-  // lib code (guestToken, Sentry transport, AI providers) may keep plain Error —
-  // for genuinely internal invariants, prod redaction is a feature.
+  // lib code (guestToken, canary, AI providers) may keep plain Error — for
+  // genuinely internal invariants, prod redaction is a feature.
   {
     files: [
       "convex/*.ts",

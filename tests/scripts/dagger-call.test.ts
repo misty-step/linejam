@@ -137,10 +137,7 @@ describe('dagger-call.sh', () => {
 
     writeFileSync(
       join(workspace, '.env.local'),
-      [
-        'NEXT_PUBLIC_SENTRY_DSN="https://public',
-        'example.test/42" # comment\n',
-      ].join('@')
+      'NEXT_PUBLIC_CANARY_API_KEY="key\\\\value" # comment\n'
     );
 
     writeExecutable(
@@ -148,7 +145,7 @@ describe('dagger-call.sh', () => {
       `#!/bin/sh
 printf '%s' "$PWD" > "${pwdLog}"
 printf '%s\n' "$@" > "${argsLog}"
-printf '%s' "\${NEXT_PUBLIC_SENTRY_DSN:-}" > "${envLog}"
+printf '%s' "\${NEXT_PUBLIC_CANARY_API_KEY:-}" > "${envLog}"
 `
     );
 
@@ -172,12 +169,8 @@ printf '%s' "\${NEXT_PUBLIC_SENTRY_DSN:-}" > "${envLog}"
     expect(args).toContain('call');
     expect(args).toContain('format-check');
     expect(args).toContain('--source=.');
-    expect(args).toContain(
-      ['--next-public-sentry-dsn=https://public', 'example.test/42'].join('@')
-    );
-    expect(readFileSync(envLog, 'utf8')).toBe(
-      ['https://public', 'example.test/42'].join('@')
-    );
+    expect(args).toContain('--next-public-canary-api-key=key\\value');
+    expect(readFileSync(envLog, 'utf8')).toBe('key\\value');
   });
 
   it('passes the explicit unsynced Convex throttle flag into Dagger E2E', () => {
@@ -205,6 +198,8 @@ printf '%s\\n' "$@" > "${argsLog}"
       GUEST_TOKEN_SECRET: 'test-guest-token-secret',
       LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1',
       LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '0',
+      NEXT_PUBLIC_CANARY_API_KEY: 'test-canary-browser-key',
+      NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example.test',
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
       NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
       PLAYWRIGHT_CLERK_TEST_EMAIL: '',
@@ -431,7 +426,7 @@ esac
 
     writeFileSync(
       join(workspace, '.env.local'),
-      ['NEXT_PUBLIC_SENTRY_DSN=https://public', 'example.test/42\n'].join('@')
+      'NEXT_PUBLIC_CANARY_API_KEY=1\n'
     );
     writeFileSync(
       join(scriptsDir, 'dotenv.mjs'),
@@ -522,16 +517,16 @@ printf 'called' > "${invokeLog}"
     workspaces.push(workspace);
 
     const invokeLog = join(workspace, 'dagger-invoked.log');
-    const opsScriptsDir = join(workspace, 'scripts/ops');
+    const canaryScriptsDir = join(workspace, 'scripts/canary');
 
-    mkdirSync(opsScriptsDir, { recursive: true });
+    mkdirSync(canaryScriptsDir, { recursive: true });
     copyFileSync(
       resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
       join(scriptsDir, 'dotenv.mjs')
     );
     copyFileSync(
-      resolve(process.cwd(), 'scripts/ops/smoke-auth.mjs'),
-      join(opsScriptsDir, 'smoke-auth.mjs')
+      resolve(process.cwd(), 'scripts/canary/smoke-auth.mjs'),
+      join(canaryScriptsDir, 'smoke-auth.mjs')
     );
     writeFileSync(
       join(workspace, '.env.local'),

@@ -1,57 +1,78 @@
 /** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { captureExceptionMock } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-}));
-
 vi.mock('server-only', () => ({}));
-vi.mock('@sentry/nextjs', () => ({
-  captureException: captureExceptionMock,
-}));
 
 import { captureServerError } from '@/lib/errorServer';
+
+const fetchMock = vi.fn();
 
 describe('captureServerError', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv(
-      'NEXT_PUBLIC_SENTRY_DSN',
-      ['https://public', 'sentry.example.test/1'].join('@')
-    );
-    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('reports a handled server failure with only closed context', () => {
-    const error = new Error('private request body');
+  it('forwards scrubbed context to Canary when enabled', () => {
+    vi.stubEnv('CANARY_API_KEY', 'sk_server_canary');
+    vi.stubEnv('CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const error = new Error('Server canary error');
+    const context = { route: '/api/guest/session', userId: 'user_123' };
 
-    captureServerError(error, {
-      operation: 'createGuestSession',
-      statusCode: 500,
-      userId: 'user_123',
-      requestBody: 'private prompt',
-    });
+    captureServerError(error, context);
 
-    expect(captureExceptionMock).toHaveBeenCalledWith(error, {
-      tags: { operation: 'createGuestSession' },
-      contexts: { linejam: { statusCode: 500 } },
-    });
-    expect(JSON.stringify(captureExceptionMock.mock.calls)).not.toContain(
-      'private prompt'
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [, request] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(request?.body)) as {
+      context?: Record<string, unknown>;
+      message: string;
+    };
+
+    expect(body.message).toBe('Server canary error');
+    expect(body.context).toEqual({ route: '/api/guest/session' });
   });
 
-  it('does not enqueue an SDK event when the DSN is missing', () => {
-    vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', '');
+  it('logs scrubbed context in development', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('CANARY_API_KEY', 'sk_server_canary');
+    vi.stubEnv('CANARY_ENDPOINT', 'https://canary.test/');
+    fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
+    const error = new Error('Server dev error');
+    const context = {
+      operation: 'createGuestSession',
+      guestToken: 'secret-token',
+    };
 
-    captureServerError(new Error('disabled'));
+    captureServerError(error, context);
 
-    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith('Captured error:', error, {
+      operation: 'createGuestSession',
+    });
+  });
+
+  it('logs to console when Canary is disabled', () => {
+    vi.stubEnv('CANARY_API_KEY', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
+    const error = new Error('Server disabled error');
+    const context = { operation: 'createGuestSession', userId: 'user_123' };
+
+    captureServerError(error, context);
+
+    expect(console.error).toHaveBeenCalledWith(
+      'Error captured (Canary disabled):',
+      error,
+      { operation: 'createGuestSession' }
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -80,7 +80,7 @@ if [[ "$WRITE_ENV" -eq 1 ]]; then
     mkdir -p "$(dirname "$ENV_LOCAL")"
     cp "$ENV_EXAMPLE" "$ENV_LOCAL"
     printf 'created %s from %s\n' "$ENV_LOCAL" "$ENV_EXAMPLE"
-    printf 'edit %s with Convex, Clerk, guest-token, and Sentry values before running the full local gate\n' "$ENV_LOCAL"
+    printf 'edit %s with Convex, Clerk, guest-token, and Canary values before running the full local gate\n' "$ENV_LOCAL"
   fi
 fi
 

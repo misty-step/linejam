@@ -1,102 +1,96 @@
 /**
- * Internal actions for privacy-safe backend reporting.
+ * Backend error reporting to Canary.
  *
- * Mutation callers may schedule reports only on paths that return and commit.
- * Action callers may report synchronously while preserving the original error.
+ * Provides a single internalAction that sends errors to Canary. For mutations,
+ * schedule it via ctx.scheduler.runAfter(0, ...). For actions, call via
+ * ctx.runAction(...).
  */
 
 import { v } from 'convex/values';
 import { internalAction } from './_generated/server';
 import {
-  sendAiFallbackSentryCheckIn,
-  sendAiFallbackSentryFailureEvent,
-  sendBackendSentryEvent,
-} from './lib/sentry';
+  buildBackendCanaryPayload,
+  isBackendCanaryEnabled,
+  sendBackendCanaryCheckIn,
+  sendBackendCanaryPayload,
+} from './lib/canary';
 
 /**
- * Wait for best-effort action reporting, then preserve the exact product
- * failure regardless of the reporting outcome.
+ * Report a backend error to Canary. The action is fire-and-forget — callers
+ * schedule it and move on so error reporting never blocks recovery.
  */
-export async function rethrowAfterBackendReport(
-  reporting: Promise<unknown>,
-  originalFailure: unknown
-): Promise<never> {
-  await reporting.catch(() => undefined);
-  throw originalFailure;
-}
-
-/**
- * A mutation must finish scheduling before it returns so both the report and
- * the product outcome commit in the same successful transaction.
- */
-export async function returnAfterBackendReportScheduled<T>(
-  scheduling: Promise<unknown>,
-  outcome: T
-): Promise<T> {
-  await scheduling;
-  return outcome;
-}
-
-const backendOperationValidator = v.union(
-  v.literal('sweepAbandonedGames'),
-  v.literal('finishAbandonedGame'),
-  v.literal('aiGenerationBudgetThreshold'),
-  v.literal('generateLineForRound'),
-  v.literal('generateGhostLine')
-);
-
-const backendFailureCodeValidator = v.union(
-  v.literal('unexpected_error'),
-  v.literal('budget_threshold_reached')
-);
-
-/**
- * Report a backend failure to each comparison sink independently using only a
- * closed classification and bounded numeric context.
- *
- * Mutation callers may schedule this action only on paths that return and
- * commit. A mutation that throws rolls back its scheduled work, so rollback-
- * thrown mutation failures remain unsupported by this source transport and
- * belong on the external Convex log-stream bridge.
- */
-export const reportBackendFailure = internalAction({
+export const reportBackendErrorToCanary = internalAction({
   args: {
-    operation: backendOperationValidator,
-    failureCode: backendFailureCodeValidator,
-    scheduled: v.optional(v.number()),
-    scanned: v.optional(v.number()),
-    filled: v.optional(v.number()),
-    observed: v.optional(v.number()),
-    threshold: v.optional(v.number()),
+    errorName: v.string(),
+    errorMessage: v.string(),
+    errorStack: v.optional(v.string()),
+    operation: v.optional(v.string()),
+    roomId: v.optional(v.string()),
+    gameId: v.optional(v.string()),
+    poemId: v.optional(v.string()),
     round: v.optional(v.number()),
   },
-  handler: async (_ctx, args) => {
-    await sendBackendSentryEvent(args);
+  handler: async (
+    _ctx,
+    {
+      errorName: _errorName,
+      errorMessage,
+      errorStack: _errorStack,
+      operation,
+      roomId,
+      gameId,
+      poemId,
+      round,
+    }
+  ) => {
+    void _errorName;
+    void _errorStack;
+    if (!isBackendCanaryEnabled()) return;
+
+    const context: Record<string, unknown> = {};
+    if (operation) context.operation = operation;
+    if (roomId) context.roomId = roomId;
+    if (gameId) context.gameId = gameId;
+    if (poemId) context.poemId = poemId;
+    if (round !== undefined) context.round = round;
+
+    await sendBackendCanaryPayload(
+      buildBackendCanaryPayload(new Error(errorMessage), context)
+    );
   },
 });
 
-const fallbackFailureCodeValidator = v.union(
+const fallbackReasonValidator = v.union(
   v.literal('budget_exhaustion'),
   v.literal('provider_error'),
   v.literal('invalid_output'),
   v.literal('missing_configuration')
 );
 
-/** Report one aggregate fallback-rate update to each comparison sink. */
-export const reportAiFallbackRate = internalAction({
+/** Report one aggregate, privacy-safe fallback-rate monitor update. */
+export const reportAiFallbackRateToCanary = internalAction({
   args: {
-    operation: v.literal('aiFallbackRate'),
     status: v.union(v.literal('alive'), v.literal('ok'), v.literal('error')),
-    failureCode: v.optional(fallbackFailureCodeValidator),
+    summary: v.string(),
     totalGenerations: v.number(),
     fallbackGenerations: v.number(),
     fallbackRatePercent: v.number(),
+    fallbackReason: v.optional(fallbackReasonValidator),
     thresholdPercent: v.number(),
   },
   handler: async (_ctx, args) => {
-    await Promise.allSettled([
-      sendAiFallbackSentryCheckIn(args),
-      sendAiFallbackSentryFailureEvent(args),
-    ]);
+    if (!isBackendCanaryEnabled()) return;
+
+    await sendBackendCanaryCheckIn({
+      status: args.status,
+      summary: args.summary,
+      context: {
+        totalGenerations: args.totalGenerations,
+        fallbackGenerations: args.fallbackGenerations,
+        fallbackRatePercent: args.fallbackRatePercent,
+        ...(args.fallbackReason ? { fallbackReason: args.fallbackReason } : {}),
+        thresholdPercent: args.thresholdPercent,
+      },
+    });
   },
 });

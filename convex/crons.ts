@@ -1,4 +1,4 @@
-import { cronJobs, makeFunctionReference } from 'convex/server';
+import { cronJobs } from 'convex/server';
 import { internal } from './_generated/api';
 
 const crons = cronJobs();
@@ -27,24 +27,6 @@ crons.interval(
   'apply bounded data retention',
   { hours: 6 },
   internal.retention.runScheduledRetentionSweep,
-  {}
-);
-
-crons.interval(
-  'report AI fallback rate',
-  { hours: 1 },
-  internal.ai.reportCurrentAiFallbackRate,
-  {}
-);
-
-crons.interval(
-  'recover expired Sentry GitHub bridge leases',
-  { minutes: 1 },
-  makeFunctionReference<
-    'mutation',
-    { now?: number; limit?: number },
-    { recovered: number }
-  >('sentryGithub:recoverExpiredLeases'),
   {}
 );
 

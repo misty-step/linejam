@@ -48,17 +48,14 @@ describe('nextConfig security headers', () => {
     expect(csp).not.toMatch(/\n/);
   });
 
-  it('allows only the Sentry DSN origin, never its public key', () => {
-    vi.stubEnv(
-      'NEXT_PUBLIC_SENTRY_DSN',
-      ['https://public-key', 'sentry.example.test/456'].join('@')
-    );
-    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
+  it('uses the stable Canary hostname when no endpoint is configured', () => {
+    vi.stubEnv('CANARY_ENDPOINT', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
 
     const csp = buildContentSecurityPolicy();
 
-    expect(csp).toContain('https://sentry.example.test');
-    expect(csp).not.toContain('public-key');
+    expect(csp).toContain('https://canary.mistystep.io');
+    expect(csp).not.toContain('.fly.dev');
   });
 
   it('allows the production Clerk custom domain in every Clerk-bearing directive', () => {
@@ -81,6 +78,8 @@ describe('nextConfig security headers', () => {
 
   it('does not include development-only script or localhost allowances in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('CANARY_ENDPOINT', '');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', '');
 
     const csp = buildContentSecurityPolicy();
     expect(csp).not.toContain("'unsafe-eval'");

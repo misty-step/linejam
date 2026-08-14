@@ -11,12 +11,7 @@ import {
 const env = vi.hoisted(() => {
   const original = { ...process.env };
   process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
-  process.env.LINEJAM_SENTRY_ENABLED = 'true';
-  process.env.SENTRY_DSN = ['https://public123', 'sentry.example.test/42'].join(
-    '@'
-  );
-  process.env.SENTRY_ENVIRONMENT = 'preview';
-  process.env.SENTRY_RELEASE = '0123456789abcdef0123456789abcdef01234567';
+  process.env.CANARY_API_KEY = 'test-canary-key';
   return { original };
 });
 
@@ -129,10 +124,7 @@ async function getGameLines(t: T, gameId: Id<'games'>) {
 const testEnv = {
   ...env.original,
   OPENROUTER_API_KEY: 'test-openrouter-key',
-  LINEJAM_SENTRY_ENABLED: 'true',
-  SENTRY_DSN: ['https://public123', 'sentry.example.test/42'].join('@'),
-  SENTRY_ENVIRONMENT: 'preview',
-  SENTRY_RELEASE: '0123456789abcdef0123456789abcdef01234567',
+  CANARY_API_KEY: 'test-canary-key',
 };
 
 beforeEach(() => {
@@ -161,8 +153,8 @@ beforeEach(() => {
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      if (url.startsWith('https://sentry.example.test/')) {
-        return new Response(null, { status: 200 });
+      if (url.includes('/api/v1/errors') || url.includes('/api/v1/check-ins')) {
+        return new Response('{}', { status: 200 });
       }
       throw new Error(`Unexpected fetch: ${url}`);
     })
@@ -330,7 +322,7 @@ describe('shared bot and ghost generation budget', () => {
     expect(usage?.fallbacks).toBe(WORD_COUNTS.length * 2);
   });
 
-  it('emits one Sentry event when combined bot and ghost claims cross the threshold', async () => {
+  it('emits one Canary alert when combined bot and ghost claims cross the threshold', async () => {
     process.env.AI_DAILY_CALL_ALERT_THRESHOLD = '2';
     const t = setupConvexTest();
     const { roomId, gameId, userIds, poemIds } = await seedGame(t, [
@@ -357,31 +349,14 @@ describe('shared bot and ghost generation budget', () => {
 
     const usage = await t.run((ctx) => ctx.db.query('aiUsage').first());
     expect(usage?.generationClaims).toBe(2);
-    const eventCalls = vi
+    const alertCalls = vi
       .mocked(fetch)
-      .mock.calls.filter(([input]) =>
-        String(input).startsWith('https://sentry.example.test/')
-      );
-    expect(eventCalls).toHaveLength(1);
-    const [, item, event] = String(
-      (eventCalls[0][1] as RequestInit | undefined)?.body
-    )
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line));
-    expect(item).toMatchObject({ type: 'event' });
-    expect(event).toMatchObject({
-      message: 'Convex backend operation failed',
-      tags: {
-        operation: 'aiGenerationBudgetThreshold',
-        failure_code: 'budget_threshold_reached',
-      },
-      contexts: {
-        linejam: {
-          observed: 2,
-          threshold: 2,
-        },
-      },
-    });
+      .mock.calls.filter(([input]) => String(input).includes('/api/v1/errors'));
+    expect(alertCalls).toHaveLength(1);
+    const alertBody = JSON.parse(
+      String((alertCalls[0][1] as RequestInit | undefined)?.body)
+    ) as { message: string; context?: { operation?: string } };
+    expect(alertBody.message).toBe('AI generation claim threshold reached');
+    expect(alertBody.context?.operation).toBe('aiGenerationBudgetThreshold');
   });
 });

@@ -47,7 +47,7 @@ bash scripts/setup.sh
 # Or create .env.local without installing dependencies
 bash scripts/setup.sh --write-env --skip-install
 
-# Add your Convex, Clerk, guest-token, and Sentry values to .env.local
+# Add your Convex, Clerk, guest-token, and Canary values to .env.local
 
 # Verify configuration before starting services (fails on missing or invalid values)
 pnpm run doctor
@@ -63,12 +63,16 @@ Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For lo
 
 ### Work Ledger
 
-[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
-work ledger. Before starting an issue, follow the single assignee plus
-`forest/<issue>-*` branch/PR claim contract in
-[CONTRIBUTING.md](CONTRIBUTING.md#claiming-work). Do not create or update a
-duplicate task in Powder. The authority cutover and observability migration are
-tracked by [#393](https://github.com/misty-step/linejam/issues/393).
+Powder is the work ledger for shaped Linejam tasks. Claim one card before
+starting work so parallel agents do not pick up the same item:
+
+```bash
+source ~/.secrets # loads POWDER_API_BASE_URL and POWDER_API_KEY
+powder list-ready --repo linejam
+powder claim linejam-NNN --agent <name>
+# ...work...
+powder release-claim linejam-NNN --run <run-id>
+```
 
 ## Agent Faces
 
@@ -131,7 +135,7 @@ See [docs/testing.md](docs/testing.md) for patterns and guidelines.
 
 ## Secret Scanning
 
-Pre-commit hooks automatically scan for leaked credentials (Clerk, Convex, Sentry keys).
+Pre-commit hooks automatically scan for leaked credentials (Clerk, Convex, Canary keys).
 
 ```bash
 # Install gitleaks (required for local development)
@@ -147,14 +151,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 
 ## Observability & CI
 
-Sentry is Linejam's sole error, monitor, release, and incident-evidence
-platform. Browser, Node, Edge, and Convex failures use release- and
-environment-tagged events; production smoke and AI fallback transitions use
-Sentry monitors. Actionable Sentry issues create one durable GitHub Issue
-through the signed Convex webhook bridge. `pnpm ci:fast` is the fast host loop
-(typecheck, lint, tests); GitHub Actions' `merge-gate` remains the authoritative
-full contract, with `pnpm ci:dagger:all` for local parity. See
-[docs/ops/observability-ci.md](docs/ops/observability-ci.md).
+Canary is the primary error/incident system; `pnpm ci:fast` is the fast host loop (typecheck, lint, tests); GitHub Actions' `merge-gate` is the authoritative full contract, with `pnpm ci:dagger:all` for local parity. Dagger env requirements, Clerk/Convex auto-sync behavior, and the Canary responder setup are detailed in [docs/ops/observability-ci.md](docs/ops/observability-ci.md).
 
 ## Design
 

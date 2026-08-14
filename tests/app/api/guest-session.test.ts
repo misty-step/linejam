@@ -630,8 +630,6 @@ describe('GET /api/guest/session', () => {
       vi.doUnmock('@/lib/errorServer');
       process.env = {
         ...originalEnv,
-        CI: undefined,
-        NODE_ENV: 'test',
         NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
         ...(allow ? { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' } : {}),
         ...extraEnv,
@@ -777,7 +775,7 @@ describe('GET /api/guest/session', () => {
     it('allows string missing-function errors only under the explicit local bypass', async () => {
       const { GET } = await loadGetWithThrottleFailure(
         "Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'.",
-        { CI: undefined, LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' }
+        { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' }
       );
 
       const response = await GET(

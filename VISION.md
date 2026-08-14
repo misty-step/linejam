@@ -88,9 +88,6 @@ visible before a player has to report them.
 - `AGENTS.md` is the agent router, gate contract, invariants, and environment
   boundary map.
 - `README.md` is the public project orientation and contributor entrypoint.
-- GitHub Issues is the sole work ledger; the claim and Iron Forest scheduling
-  contract lives in `CONTRIBUTING.md`. Sentry is the sole incident-evidence
-  platform; [#393](https://github.com/misty-step/linejam/issues/393) records its
-  production cutover.
+- Powder is the sole work ledger (`powder list-cards --repo linejam`).
 - `docs/testing.md`, Dagger code, and hosted `merge-gate` define the validation
   surface.

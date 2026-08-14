@@ -1,6 +1,7 @@
+import './canary-test-env';
 import { describe, expect, it } from 'vitest';
 
-import { getSmokeClerkKeyError } from '@/scripts/ops/smoke-auth.mjs';
+import { getSmokeClerkKeyError } from '@/scripts/canary/smoke-auth.mjs';
 
 describe('getSmokeClerkKeyError', () => {
   const env = (values: Record<string, string>): NodeJS.ProcessEnv => ({

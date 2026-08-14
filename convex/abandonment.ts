@@ -33,7 +33,6 @@ import {
   isPresenceStale,
 } from './lib/gameRules';
 import { log, logError } from './lib/errors';
-import { returnAfterBackendReportScheduled } from './errors';
 
 /** The human roomPlayers rows for a game (AI players excluded). */
 async function getHumanPlayers(
@@ -139,10 +138,7 @@ const MAX_SWEEP_SCAN = 1000;
  */
 export const sweepAbandonedGames = internalMutation({
   args: { limit: v.optional(v.number()) },
-  handler: async (
-    ctx,
-    { limit }
-  ): Promise<{ scheduled: number; scanned: number; error?: string }> => {
+  handler: async (ctx, { limit }) => {
     const maxFinishers = Math.max(
       1,
       Math.min(limit ?? MAX_FINISHERS_PER_SWEEP, MAX_FINISHERS_PER_SWEEP)
@@ -185,21 +181,24 @@ export const sweepAbandonedGames = internalMutation({
 
       return { scheduled, scanned };
     } catch (error) {
-      // Report without rethrowing: a mutation that throws rolls back the
-      // finishers scheduled above and any report scheduled here. Returning
-      // commits both; the cron retries the remaining idempotent work next
-      // minute.
+      // Report without rethrowing: a mutation that throws rolls back
+      // everything it did — the finishers scheduled above AND this Canary
+      // report. Swallowing keeps the partial batch (finishers are idempotent
+      // and re-derived) and lets the error actually reach Canary; the cron
+      // retries the remainder next minute regardless.
       const err = error instanceof Error ? error : new Error(String(error));
       logError('sweepAbandonedGames failed', err, { scheduled, scanned });
-      return returnAfterBackendReportScheduled(
-        ctx.scheduler.runAfter(0, internal.errors.reportBackendFailure, {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
           operation: 'sweepAbandonedGames',
-          failureCode: 'unexpected_error',
-          scheduled,
-          scanned,
-        }),
-        { scheduled, scanned, error: err.message }
+        }
       );
+      return { scheduled, scanned, error: err.message };
     }
   },
 });
@@ -215,11 +214,7 @@ export const sweepAbandonedGames = internalMutation({
  */
 export const finishAbandonedGame = internalMutation({
   args: { gameId: v.id('games') },
-  handler: async (
-    ctx,
-    { gameId }
-  ): Promise<{ completed: boolean; filled: number; error?: string }> => {
-    let filled = 0;
+  handler: async (ctx, { gameId }) => {
     try {
       const initial = await ctx.db.get(gameId);
       if (!initial || initial.status !== 'IN_PROGRESS') {
@@ -242,7 +237,7 @@ export const finishAbandonedGame = internalMutation({
         .withIndex('by_game', (q) => q.eq('gameId', gameId))
         .collect();
 
-      filled = 0;
+      let filled = 0;
       for (let pass = 0; pass < maxPasses; pass++) {
         const game = await ctx.db.get(gameId);
         if (!game || game.status !== 'IN_PROGRESS') break;
@@ -323,19 +318,24 @@ export const finishAbandonedGame = internalMutation({
       }
       return { completed, filled };
     } catch (error) {
-      // Report without rethrowing: returning commits both the partial,
-      // idempotent fills and the scheduled comparison report. A throw would
-      // roll both back; the next sweep tick re-derives state and resumes.
+      // Report without rethrowing — a throw would roll back this Canary
+      // report along with the lines committed above. Keeping partial fills is
+      // safe (commitFallbackLine is idempotent) and the next sweep tick
+      // re-derives state and resumes.
       const err = error instanceof Error ? error : new Error(String(error));
       logError('finishAbandonedGame failed', err, { gameId });
-      return returnAfterBackendReportScheduled(
-        ctx.scheduler.runAfter(0, internal.errors.reportBackendFailure, {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
           operation: 'finishAbandonedGame',
-          failureCode: 'unexpected_error',
-          filled,
-        }),
-        { completed: false, filled: 0, error: err.message }
+          gameId,
+        }
       );
+      return { completed: false, filled: 0, error: err.message };
     }
   },
 });

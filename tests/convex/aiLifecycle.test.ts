@@ -172,10 +172,8 @@ beforeEach(() => {
   delete process.env.AI_FALLBACK_ALERT_THRESHOLD_PERCENT;
   delete process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS;
   delete process.env.LINEJAM_AI_DETERMINISTIC;
-  delete process.env.LINEJAM_SENTRY_ENABLED;
-  delete process.env.SENTRY_DSN;
-  delete process.env.SENTRY_ENVIRONMENT;
-  delete process.env.SENTRY_RELEASE;
+  delete process.env.CANARY_API_KEY;
+  delete process.env.CANARY_ENDPOINT;
   // The only mocked seam is the external provider boundary.
   vi.stubGlobal(
     'fetch',
@@ -783,15 +781,10 @@ describe('AI fallback observability', () => {
     );
   });
 
-  it('emits aggregate Sentry transitions, never one event per line', async () => {
-    process.env.LINEJAM_SENTRY_ENABLED = 'true';
-    process.env.SENTRY_DSN = [
-      'https://public123',
-      'sentry.example.test/42',
-    ].join('@');
-    process.env.SENTRY_ENVIRONMENT = 'preview';
-    process.env.SENTRY_RELEASE = '0123456789abcdef0123456789abcdef01234567';
-    process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS = '3';
+  it('aggregates every reason and emits one privacy-safe Canary event per fallback', async () => {
+    process.env.CANARY_API_KEY = 'test-canary-key';
+    process.env.CANARY_ENDPOINT = 'https://canary.test';
+    process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS = '1';
     process.env.AI_FALLBACK_ALERT_THRESHOLD_PERCENT = '80';
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -826,85 +819,41 @@ describe('AI fallback observability', () => {
       invalidOutput: 1,
       missingConfiguration: 1,
     });
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
 
-    const sentryCalls = fetchMock.mock.calls.filter(([url]) =>
-      String(url).startsWith('https://sentry.example.test/')
+    const payloads = fetchMock.mock.calls.map(([, init]) =>
+      JSON.parse(init.body)
     );
-    expect(sentryCalls).toHaveLength(4);
-    const sentryEnvelopes = sentryCalls.map(([, init]) => {
-      const [, item, payload] = String(init.body).split('\n');
-      return { item: JSON.parse(item), payload: JSON.parse(payload) };
-    });
     expect(
-      sentryEnvelopes
-        .filter(({ item }) => item.type === 'check_in')
-        .map(({ payload: { monitor_slug, status } }) => ({
-          monitor_slug,
-          status,
-        }))
-    ).toEqual([
-      { monitor_slug: 'linejam-ai-fallback-rate', status: 'ok' },
-      { monitor_slug: 'linejam-ai-fallback-rate', status: 'error' },
-      { monitor_slug: 'linejam-ai-fallback-rate', status: 'ok' },
-    ]);
+      payloads.slice(0, 4).map((payload) => payload.context.fallbackReason)
+    ).toEqual(reasons);
     expect(
-      sentryEnvelopes
-        .filter(({ item }) => item.type === 'event')
-        .map(({ payload }) => payload.tags)
-    ).toEqual([
-      {
-        runtime: 'convex',
-        environment: 'preview',
-        release: '0123456789abcdef0123456789abcdef01234567',
-        operation: 'aiFallbackRate',
-        failure_code: 'invalid_output',
-        level: 'error',
-      },
-    ]);
-    expect(JSON.stringify(sentryEnvelopes)).not.toMatch(
-      /"(?:poemId|roomId|guestId|text|userId)":/
-    );
-  });
-
-  it('emits an alive check-in without AI traffic', async () => {
-    process.env.LINEJAM_SENTRY_ENABLED = 'true';
-    process.env.SENTRY_DSN = [
-      'https://public123',
-      'sentry.example.test/42',
-    ].join('@');
-    process.env.SENTRY_ENVIRONMENT = 'preview';
-    process.env.SENTRY_RELEASE = '0123456789abcdef0123456789abcdef01234567';
-    process.env.AI_FALLBACK_ALERT_MIN_GENERATIONS = '3';
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const t = setupConvexTest();
-
-    const checkIn = await t.mutation(
-      internal.ai.reportCurrentAiFallbackRate,
-      {}
-    );
-    await finishScheduledFunctions(t);
-
-    expect(checkIn).toMatchObject({
-      operation: 'aiFallbackRate',
-      status: 'alive',
-      totalGenerations: 0,
-      fallbackGenerations: 0,
-      fallbackRatePercent: 0,
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0]!;
-    const [, item, payload] = String(init.body).split('\n');
-    expect(JSON.parse(item)).toMatchObject({ type: 'check_in' });
-    expect(JSON.parse(payload)).toMatchObject({
-      monitor_slug: 'linejam-ai-fallback-rate',
+      payloads.slice(0, 4).every((payload) => payload.status === 'error')
+    ).toBe(true);
+    expect(payloads[4]).toMatchObject({
       status: 'ok',
+      context: {
+        totalGenerations: 5,
+        fallbackGenerations: 4,
+        fallbackRatePercent: 80,
+      },
     });
+    expect(
+      payloads.every(
+        (payload) => payload.monitor === 'linejam-ai-fallback-rate'
+      )
+    ).toBe(true);
+    for (const payload of payloads) {
+      expect(Object.keys(payload.context)).not.toEqual(
+        expect.arrayContaining([
+          'poemId',
+          'roomId',
+          'guestId',
+          'text',
+          'userId',
+        ])
+      );
+    }
   });
 });
 

@@ -4,10 +4,11 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   checkAppHealth,
+  checkCanaryConfig,
+  checkCanaryReachable,
   checkClerkConfig,
   checkConvexConfig,
   checkRequiredEnv,
-  checkSentryConfig,
   loadEnvironment,
   readDotEnv,
   runDoctor,
@@ -24,8 +25,8 @@ const GOOD_ENV = {
     'great-moose-1.clerk.accounts.dev'
   ),
   CLERK_SECRET_KEY: 'sk_test_something',
-  NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example.test/1'].join('@'),
-  NEXT_PUBLIC_SENTRY_ENABLED: '1',
+  NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example.test',
+  NEXT_PUBLIC_CANARY_API_KEY: 'real-key',
 };
 
 describe('checkRequiredEnv', () => {
@@ -87,29 +88,33 @@ describe('checkClerkConfig', () => {
   });
 });
 
-describe('checkSentryConfig', () => {
-  it('requires explicit enablement and a valid DSN', () => {
-    expect(checkSentryConfig(GOOD_ENV).status).toBe('pass');
+describe('checkCanaryConfig', () => {
+  it('rejects the public placeholder key', () => {
     expect(
-      checkSentryConfig({
-        NEXT_PUBLIC_SENTRY_DSN: [
-          'https://public',
-          'sentry.example.test/1',
-        ].join('@'),
-        NEXT_PUBLIC_SENTRY_ENABLED: '0',
-      })
-    ).toEqual({
-      status: 'fail',
-      name: 'Sentry',
-      message: 'NEXT_PUBLIC_SENTRY_ENABLED must be 1',
-    });
-    expect(checkSentryConfig({ NEXT_PUBLIC_SENTRY_ENABLED: '1' }).status).toBe(
-      'fail'
-    );
+      checkCanaryConfig({
+        NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example.test',
+        NEXT_PUBLIC_CANARY_API_KEY: 'example_canary_write_key',
+      }).status
+    ).toBe('fail');
+  });
+
+  it('requires a valid endpoint and non-placeholder key', () => {
+    expect(checkCanaryConfig(GOOD_ENV).status).toBe('pass');
+    expect(
+      checkCanaryConfig({ NEXT_PUBLIC_CANARY_API_KEY: 'real-key' }).status
+    ).toBe('fail');
   });
 });
 
 describe('network probes', () => {
+  it('warns when Canary is unreachable', async () => {
+    const result = await checkCanaryReachable({
+      url: 'https://canary.example.test',
+      fetchImpl: vi.fn().mockRejectedValue(new Error('fetch failed')),
+    });
+    expect(result.status).toBe('warn');
+  });
+
   it('fails when the running app health route is unhealthy', async () => {
     const result = await checkAppHealth({
       fetchImpl: vi.fn().mockResolvedValue({
@@ -214,9 +219,43 @@ describe('additional doctor failure paths', () => {
       }).status
     ).toBe('fail');
   });
+
+  it('requires a Canary key after validating its endpoint', () => {
+    expect(
+      checkCanaryConfig({
+        NEXT_PUBLIC_CANARY_ENDPOINT: 'https://canary.example.test',
+      })
+    ).toEqual({
+      status: 'fail',
+      name: 'Canary',
+      message: 'NEXT_PUBLIC_CANARY_API_KEY is not set',
+    });
+    expect(
+      checkCanaryConfig({
+        NEXT_PUBLIC_CANARY_ENDPOINT: 'not-a-url',
+        NEXT_PUBLIC_CANARY_API_KEY: 'real-key',
+      }).status
+    ).toBe('fail');
+  });
 });
 
 describe('network probe edge cases', () => {
+  it('skips an unconfigured Canary and warns on HTTP failures', async () => {
+    expect(await checkCanaryReachable()).toEqual({
+      name: 'Canary reachability',
+      status: 'skip',
+      message: 'no endpoint configured',
+    });
+    expect(
+      (
+        await checkCanaryReachable({
+          url: 'https://canary.example.test',
+          fetchImpl: vi.fn().mockResolvedValue({ ok: false, status: 503 }),
+        })
+      ).status
+    ).toBe('warn');
+  });
+
   it('warns on an unavailable app and fails on invalid health JSON', async () => {
     expect(
       (
@@ -251,11 +290,12 @@ describe('network probe edge cases', () => {
 });
 
 describe('runDoctor configuration branches', () => {
-  it('honors a custom health URL', async () => {
+  it('does not probe Canary when its configuration fails and honors a custom health URL', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('app offline'));
     const results = await runDoctor({
       env: {
         ...GOOD_ENV,
+        NEXT_PUBLIC_CANARY_API_KEY: '',
         LINEJAM_DOCTOR_HEALTH_URL: 'http://127.0.0.1:9999/health',
       },
       fetchImpl,
@@ -264,7 +304,7 @@ describe('runDoctor configuration branches', () => {
       'required env',
       'Convex',
       'Clerk',
-      'Sentry',
+      'Canary',
       'app health',
     ]);
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -286,7 +326,8 @@ describe('runDoctor', () => {
       'required env',
       'Convex',
       'Clerk',
-      'Sentry',
+      'Canary',
+      'Canary reachability',
       'app health',
     ]);
     expect(results.every((result) => result.status === 'pass')).toBe(true);

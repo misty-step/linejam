@@ -13,13 +13,17 @@ const REQUIRED_SERVER_ENV = ['GUEST_TOKEN_SECRET'] as const;
 // Required at build time (public vars)
 const REQUIRED_PUBLIC_ENV = [
   'NEXT_PUBLIC_CONVEX_URL',
-  'NEXT_PUBLIC_SENTRY_DSN',
-  'NEXT_PUBLIC_SENTRY_ENABLED',
+  'NEXT_PUBLIC_CANARY_ENDPOINT',
+  'NEXT_PUBLIC_CANARY_API_KEY',
 ] as const;
 const REQUIRED_PRODUCTION_SKEW_ENV = [
   'NEXT_DEPLOYMENT_ID',
   'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
 ] as const;
+const PLACEHOLDER_CANARY_KEYS = new Set([
+  'example_canary_server_key',
+  'example_canary_write_key',
+]);
 const DEV_GUEST_TOKEN_SECRET = 'dev-only-insecure-secret-change-in-production';
 
 export function getServerGuestTokenSecret(): string {
@@ -39,6 +43,7 @@ export function getServerGuestTokenSecret(): string {
  */
 export function validateEnv(): void {
   const missing: string[] = [];
+  const invalidPlaceholders: string[] = [];
   const invalid: string[] = [];
   const isDependabot = process.env.GITHUB_ACTOR === 'dependabot[bot]';
 
@@ -66,16 +71,29 @@ export function validateEnv(): void {
     }
   }
 
-  if (process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1') {
-    invalid.push('NEXT_PUBLIC_SENTRY_ENABLED');
+  const canaryApiKey = process.env.NEXT_PUBLIC_CANARY_API_KEY?.trim();
+  if (canaryApiKey && PLACEHOLDER_CANARY_KEYS.has(canaryApiKey)) {
+    invalidPlaceholders.push('NEXT_PUBLIC_CANARY_API_KEY');
   }
 
-  if (missing.length > 0 || invalid.length > 0) {
+  if (
+    missing.length > 0 ||
+    invalidPlaceholders.length > 0 ||
+    invalid.length > 0
+  ) {
     const sections: string[] = [];
 
     if (missing.length > 0) {
       sections.push(
         `Missing required environment variables:\n${missing
+          .map((k) => `  - ${k}`)
+          .join('\n')}`
+      );
+    }
+
+    if (invalidPlaceholders.length > 0) {
+      sections.push(
+        `Invalid placeholder environment variables:\n${invalidPlaceholders
           .map((k) => `  - ${k}`)
           .join('\n')}`
       );

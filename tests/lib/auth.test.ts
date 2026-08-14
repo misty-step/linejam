@@ -327,7 +327,7 @@ describe('useUser hook', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('shows expected guest throttling without reporting it to Sentry', async () => {
+  it('shows expected guest throttling without reporting it to Canary', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 429 });
 
     const { result } = renderHook(() => useUser());

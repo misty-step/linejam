@@ -27,16 +27,6 @@ describe('bootstrap-convex-env', () => {
     entries as NodeJS.ProcessEnv;
   const clerkPublishableKey = (kind: 'test' | 'live', issuerDomain: string) =>
     ['pk', kind, Buffer.from(issuerDomain).toString('base64url')].join('_');
-  const sentryEnv = {
-    NEXT_PUBLIC_SENTRY_ENABLED: '1',
-    NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join('@'),
-    NEXT_DEPLOYMENT_ID: 'a'.repeat(40),
-  };
-  const bridgeSecrets = {
-    SENTRY_WEBHOOK_SECRET: 'webhook-secret',
-    SENTRY_EVENT_WRITE_TOKEN: 'event-write-token',
-    GITHUB_ISSUES_TOKEN: 'github-issues-token',
-  };
 
   it('derives a Clerk issuer domain from the publishable key when needed', () => {
     expect(
@@ -56,12 +46,12 @@ describe('bootstrap-convex-env', () => {
       resolveConvexEnvTarget(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          GITHUB_HEAD_REF: 'codex/sentry-cutover',
+          GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         })
       )
     ).toEqual({
       status: 'preview',
-      args: ['--preview-name', 'codex/sentry-cutover'],
+      args: ['--preview-name', 'codex/canary-local-ci-agentic-qa'],
     });
   });
 
@@ -70,20 +60,19 @@ describe('bootstrap-convex-env', () => {
       buildConvexEnvBootstrapPlan(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          GITHUB_HEAD_REF: 'codex/sentry-cutover',
+          GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
           GUEST_TOKEN_SECRET: 'guest-secret',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
             'test',
             'solid-beetle-24.clerk.accounts.dev'
           ),
           CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
-          ...sentryEnv,
         })
       )
     ).toEqual({
       target: {
         status: 'preview',
-        args: ['--preview-name', 'codex/sentry-cutover'],
+        args: ['--preview-name', 'codex/canary-local-ci-agentic-qa'],
       },
       entries: [
         ['GUEST_TOKEN_SECRET', 'guest-secret'],
@@ -92,63 +81,8 @@ describe('bootstrap-convex-env', () => {
           'https://solid-beetle-24.clerk.accounts.dev',
         ],
         ['LINEJAM_DEPLOY_ENVIRONMENT', 'preview'],
-        ['LINEJAM_SENTRY_ENABLED', 'true'],
-        ['SENTRY_DSN', ['https://public', 'sentry.example/1'].join('@')],
-        ['SENTRY_ENVIRONMENT', 'preview'],
-        ['SENTRY_RELEASE', 'a'.repeat(40)],
       ],
     });
-  });
-
-  it('seeds the complete preview issue bridge only when all secrets exist', () => {
-    const plan = buildConvexEnvBootstrapPlan(
-      env({
-        CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-        GITHUB_HEAD_REF: 'forest/393-sentry-integration',
-        GUEST_TOKEN_SECRET: 'guest-secret',
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
-          'test',
-          'solid-beetle-24.clerk.accounts.dev'
-        ),
-        ...sentryEnv,
-        SENTRY_WEBHOOK_SECRET: 'webhook-secret',
-        SENTRY_EVENT_WRITE_TOKEN: 'event-write-token',
-        GITHUB_ISSUES_TOKEN: 'github-issues-token',
-      })
-    );
-
-    expect(plan.entries.slice(-9)).toEqual([
-      ['SENTRY_WEBHOOK_SECRET', 'webhook-secret'],
-      ['SENTRY_EVENT_WRITE_TOKEN', 'event-write-token'],
-      ['GITHUB_ISSUES_TOKEN', 'github-issues-token'],
-      ['SENTRY_EXPECTED_APP_ID', '160944'],
-      [
-        'SENTRY_EXPECTED_INSTALLATION_UUID',
-        '268a6e8e-c341-414e-bee6-20125b9987ef',
-      ],
-      ['SENTRY_EXPECTED_PROJECT_ID', '4510762050650112'],
-      ['SENTRY_GITHUB_INTEGRATION_ID', '338522'],
-      ['GITHUB_REPOSITORY_OWNER', 'misty-step'],
-      ['GITHUB_REPOSITORY_NAME', 'linejam'],
-    ]);
-  });
-
-  it('requires the complete issue bridge for production', () => {
-    expect(() =>
-      buildConvexEnvBootstrapPlan(
-        env({
-          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
-          GUEST_TOKEN_SECRET: 'guest-secret',
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
-            'live',
-            'clerk.linejam.app'
-          ),
-          ...sentryEnv,
-        })
-      )
-    ).toThrow(
-      'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
-    );
   });
 
   it('seeds every bootstrap env var into the hosted Convex target', () => {
@@ -161,14 +95,13 @@ describe('bootstrap-convex-env', () => {
     bootstrapConvexEnv({
       env: env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-        GITHUB_HEAD_REF: 'codex/sentry-cutover',
+        GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
           'test',
           'solid-beetle-24.clerk.accounts.dev'
         ),
         CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
-        ...sentryEnv,
       }),
       runner,
       logger: { log: vi.fn() },
@@ -182,9 +115,10 @@ describe('bootstrap-convex-env', () => {
           'convex',
           'env',
           '--preview-name',
-          'codex/sentry-cutover',
+          'codex/canary-local-ci-agentic-qa',
           'set',
           'GUEST_TOKEN_SECRET',
+          'guest-secret',
         ],
       },
       {
@@ -194,9 +128,10 @@ describe('bootstrap-convex-env', () => {
           'convex',
           'env',
           '--preview-name',
-          'codex/sentry-cutover',
+          'codex/canary-local-ci-agentic-qa',
           'set',
           'CLERK_JWT_ISSUER_DOMAIN',
+          'https://solid-beetle-24.clerk.accounts.dev',
         ],
       },
       {
@@ -206,57 +141,10 @@ describe('bootstrap-convex-env', () => {
           'convex',
           'env',
           '--preview-name',
-          'codex/sentry-cutover',
+          'codex/canary-local-ci-agentic-qa',
           'set',
           'LINEJAM_DEPLOY_ENVIRONMENT',
-        ],
-      },
-      {
-        bin: 'pnpm',
-        args: [
-          'exec',
-          'convex',
-          'env',
-          '--preview-name',
-          'codex/sentry-cutover',
-          'set',
-          'LINEJAM_SENTRY_ENABLED',
-        ],
-      },
-      {
-        bin: 'pnpm',
-        args: [
-          'exec',
-          'convex',
-          'env',
-          '--preview-name',
-          'codex/sentry-cutover',
-          'set',
-          'SENTRY_DSN',
-        ],
-      },
-      {
-        bin: 'pnpm',
-        args: [
-          'exec',
-          'convex',
-          'env',
-          '--preview-name',
-          'codex/sentry-cutover',
-          'set',
-          'SENTRY_ENVIRONMENT',
-        ],
-      },
-      {
-        bin: 'pnpm',
-        args: [
-          'exec',
-          'convex',
-          'env',
-          '--preview-name',
-          'codex/sentry-cutover',
-          'set',
-          'SENTRY_RELEASE',
+          'preview',
         ],
       },
     ]);
@@ -283,7 +171,7 @@ describe('bootstrap-convex-env', () => {
       buildHostedConvexDeployArgs(
         env({
           CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-          GITHUB_HEAD_REF: 'codex/sentry-cutover',
+          GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         })
       )
     ).toEqual([
@@ -293,7 +181,7 @@ describe('bootstrap-convex-env', () => {
       '--cmd',
       'pnpm run build:check',
       '--preview-create',
-      'codex/sentry-cutover',
+      'codex/canary-local-ci-agentic-qa',
     ]);
   });
 
@@ -307,7 +195,7 @@ describe('bootstrap-convex-env', () => {
     const result = deployHostedConvex({
       env: env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-        GITHUB_HEAD_REF: 'codex/sentry-cutover',
+        GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
       }),
       runner,
       logger: { log: vi.fn() },
@@ -338,42 +226,48 @@ describe('bootstrap-convex-env', () => {
           'clerk.linejam.app'
         ),
         CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
-        ...sentryEnv,
-        ...bridgeSecrets,
       }),
       runner,
       logger: { log: vi.fn() },
     });
 
-    expect(
-      calls
-        .filter(
-          ({ bin, args }) =>
-            bin === 'pnpm' &&
-            args[0] === 'exec' &&
-            args[1] === 'convex' &&
-            args[2] === 'env'
-        )
-        .map(({ args }) => args.at(-1))
-    ).toEqual([
-      'GUEST_TOKEN_SECRET',
-      'CLERK_JWT_ISSUER_DOMAIN',
-      'LINEJAM_DEPLOY_ENVIRONMENT',
-      'LINEJAM_SENTRY_ENABLED',
-      'SENTRY_DSN',
-      'SENTRY_ENVIRONMENT',
-      'SENTRY_RELEASE',
-      'SENTRY_WEBHOOK_SECRET',
-      'SENTRY_EVENT_WRITE_TOKEN',
-      'GITHUB_ISSUES_TOKEN',
-      'SENTRY_EXPECTED_APP_ID',
-      'SENTRY_EXPECTED_INSTALLATION_UUID',
-      'SENTRY_EXPECTED_PROJECT_ID',
-      'SENTRY_GITHUB_INTEGRATION_ID',
-      'GITHUB_REPOSITORY_OWNER',
-      'GITHUB_REPOSITORY_NAME',
-    ]);
-    expect(calls.slice(-3)).toEqual([
+    expect(calls).toEqual([
+      {
+        bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'env',
+          '--prod',
+          'set',
+          'GUEST_TOKEN_SECRET',
+          'guest-secret',
+        ],
+      },
+      {
+        bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'env',
+          '--prod',
+          'set',
+          'CLERK_JWT_ISSUER_DOMAIN',
+          'https://clerk.linejam.app',
+        ],
+      },
+      {
+        bin: 'pnpm',
+        args: [
+          'exec',
+          'convex',
+          'env',
+          '--prod',
+          'set',
+          'LINEJAM_DEPLOY_ENVIRONMENT',
+          'production',
+        ],
+      },
       {
         bin: 'pnpm',
         args: ['exec', 'convex', 'deploy', '--cmd', 'pnpm run build:check'],
@@ -417,8 +311,6 @@ describe('bootstrap-convex-env', () => {
             'clerk.linejam.app'
           ),
           CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
-          ...sentryEnv,
-          ...bridgeSecrets,
         }),
         runner,
         logger: { log: vi.fn() },
@@ -450,14 +342,13 @@ describe('bootstrap-convex-env', () => {
     const result = deployHostedConvex({
       env: env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-        GITHUB_HEAD_REF: 'codex/sentry-cutover',
+        GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
         LINEJAM_FORCE_HOSTED_PREVIEW_CONVEX_DEPLOY: '1',
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
           'test',
           'solid-beetle-24.clerk.accounts.dev'
         ),
-        ...sentryEnv,
       }),
       runner,
       logger: { log: vi.fn() },
@@ -470,7 +361,7 @@ describe('bootstrap-convex-env', () => {
       '--cmd',
       'pnpm run build:check',
       '--preview-create',
-      'codex/sentry-cutover',
+      'codex/canary-local-ci-agentic-qa',
     ]);
     expect(calls).toContainEqual({
       bin: 'pnpm',
@@ -481,7 +372,7 @@ describe('bootstrap-convex-env', () => {
         '--cmd',
         'pnpm run build:check',
         '--preview-create',
-        'codex/sentry-cutover',
+        'codex/canary-local-ci-agentic-qa',
       ],
     });
     expect(calls.at(-1)).toEqual({
@@ -599,13 +490,12 @@ exit 0
             ...process.env,
             PATH: `${tempDir}:${process.env.PATH ?? ''}`,
             CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
-            GITHUB_HEAD_REF: 'codex/sentry-cutover',
+            GITHUB_HEAD_REF: 'codex/canary-local-ci-agentic-qa',
             GUEST_TOKEN_SECRET: 'guest-secret',
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
               'test',
               'solid-beetle-24.clerk.accounts.dev'
             ),
-            ...sentryEnv,
           },
           encoding: 'utf8',
         }
@@ -613,18 +503,11 @@ exit 0
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
-      const loggedArgs = readFileSync(logPath, 'utf8').trim().split('\n');
-      expect(loggedArgs).toEqual([
-        'exec convex env --preview-name codex/sentry-cutover set GUEST_TOKEN_SECRET',
-        'exec convex env --preview-name codex/sentry-cutover set CLERK_JWT_ISSUER_DOMAIN',
-        'exec convex env --preview-name codex/sentry-cutover set LINEJAM_DEPLOY_ENVIRONMENT',
-        'exec convex env --preview-name codex/sentry-cutover set LINEJAM_SENTRY_ENABLED',
-        'exec convex env --preview-name codex/sentry-cutover set SENTRY_DSN',
-        'exec convex env --preview-name codex/sentry-cutover set SENTRY_ENVIRONMENT',
-        'exec convex env --preview-name codex/sentry-cutover set SENTRY_RELEASE',
+      expect(readFileSync(logPath, 'utf8').trim().split('\n')).toEqual([
+        'exec convex env --preview-name codex/canary-local-ci-agentic-qa set GUEST_TOKEN_SECRET guest-secret',
+        'exec convex env --preview-name codex/canary-local-ci-agentic-qa set CLERK_JWT_ISSUER_DOMAIN https://solid-beetle-24.clerk.accounts.dev',
+        'exec convex env --preview-name codex/canary-local-ci-agentic-qa set LINEJAM_DEPLOY_ENVIRONMENT preview',
       ]);
-      expect(loggedArgs.join('\n')).not.toContain('guest-secret');
-      expect(loggedArgs.join('\n')).not.toContain('public@sentry.example');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -673,8 +556,6 @@ exit 0
               'clerk.linejam.app'
             ),
             CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
-            ...sentryEnv,
-            ...bridgeSecrets,
           },
           encoding: 'utf8',
         }
@@ -682,30 +563,14 @@ exit 0
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
-      const loggedArgs = readFileSync(logPath, 'utf8').trim().split('\n');
-      expect(loggedArgs).toEqual([
-        'exec convex env --prod set GUEST_TOKEN_SECRET',
-        'exec convex env --prod set CLERK_JWT_ISSUER_DOMAIN',
-        'exec convex env --prod set LINEJAM_DEPLOY_ENVIRONMENT',
-        'exec convex env --prod set LINEJAM_SENTRY_ENABLED',
-        'exec convex env --prod set SENTRY_DSN',
-        'exec convex env --prod set SENTRY_ENVIRONMENT',
-        'exec convex env --prod set SENTRY_RELEASE',
-        'exec convex env --prod set SENTRY_WEBHOOK_SECRET',
-        'exec convex env --prod set SENTRY_EVENT_WRITE_TOKEN',
-        'exec convex env --prod set GITHUB_ISSUES_TOKEN',
-        'exec convex env --prod set SENTRY_EXPECTED_APP_ID',
-        'exec convex env --prod set SENTRY_EXPECTED_INSTALLATION_UUID',
-        'exec convex env --prod set SENTRY_EXPECTED_PROJECT_ID',
-        'exec convex env --prod set SENTRY_GITHUB_INTEGRATION_ID',
-        'exec convex env --prod set GITHUB_REPOSITORY_OWNER',
-        'exec convex env --prod set GITHUB_REPOSITORY_NAME',
+      expect(readFileSync(logPath, 'utf8').trim().split('\n')).toEqual([
+        'exec convex env --prod set GUEST_TOKEN_SECRET guest-secret',
+        'exec convex env --prod set CLERK_JWT_ISSUER_DOMAIN https://clerk.linejam.app',
+        'exec convex env --prod set LINEJAM_DEPLOY_ENVIRONMENT production',
         'exec convex deploy --cmd pnpm run build:check',
         'node scripts/ci/reconcile-convex-env.mjs',
         'node scripts/convex/probe-signed-throttle-ready.mjs --assert-prod-target',
       ]);
-      expect(loggedArgs.join('\n')).not.toContain('guest-secret');
-      expect(loggedArgs.join('\n')).not.toContain('public@sentry.example');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

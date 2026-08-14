@@ -44,7 +44,7 @@ test.describe('Deployment Smoke', () => {
       await openContextPage(browser);
 
     try {
-      const roomCode = await createHostedRoom(hostPage, 'Smoke Host');
+      const roomCode = await createHostedRoom(hostPage, 'Canary Host');
 
       await guestPage.goto(`/join?code=${roomCode}`);
       await guestPage.waitForSelector('input#name', {
@@ -53,15 +53,15 @@ test.describe('Deployment Smoke', () => {
       });
       await guestPage
         .getByTestId(E2E_TEST_IDS.joinNameInput)
-        .fill('Smoke Guest');
+        .fill('Canary Guest');
       await guestPage.getByTestId(E2E_TEST_IDS.joinRoomButton).click();
 
       await guestPage.waitForURL(`/room/${roomCode}`, { timeout: 15000 });
 
-      await expect(hostPage.getByText('Smoke Guest')).toBeVisible({
+      await expect(hostPage.getByText('Canary Guest')).toBeVisible({
         timeout: 10000,
       });
-      await expect(guestPage.getByText('Smoke Host')).toBeVisible();
+      await expect(guestPage.getByText('Canary Host')).toBeVisible();
 
       await expect(
         visibleTestId(hostPage, E2E_TEST_IDS.lobbyStartGameButton)
@@ -101,7 +101,7 @@ test.describe('Deployment Smoke', () => {
       await openContextPage(browser);
 
     try {
-      const roomCode = await createHostedRoom(hostPage, 'Smoke Guest Host');
+      const roomCode = await createHostedRoom(hostPage, 'Canary Guest Host');
 
       await ensureClerkAuthState(signedInPage);
       await signedInPage.goto(`/join?code=${roomCode}`);
@@ -111,15 +111,15 @@ test.describe('Deployment Smoke', () => {
       });
       await signedInPage
         .getByTestId(E2E_TEST_IDS.joinNameInput)
-        .fill('Smoke Clerk User');
+        .fill('Canary Clerk User');
       await signedInPage.getByTestId(E2E_TEST_IDS.joinRoomButton).click();
 
       await signedInPage.waitForURL(`/room/${roomCode}`, { timeout: 15000 });
 
-      await expect(hostPage.getByText('Smoke Clerk User')).toBeVisible({
+      await expect(hostPage.getByText('Canary Clerk User')).toBeVisible({
         timeout: 10000,
       });
-      await expect(signedInPage.getByText('Smoke Guest Host')).toBeVisible();
+      await expect(signedInPage.getByText('Canary Guest Host')).toBeVisible();
       await expect(
         signedInPage.getByText(/unexpected error occurred/i)
       ).not.toBeVisible();

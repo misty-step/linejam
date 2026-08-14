@@ -48,11 +48,11 @@ export function buildContentSecurityPolicy(
   const convexWsOrigin = websocketOriginFrom(
     process.env.NEXT_PUBLIC_CONVEX_URL
   );
+  const canaryOrigin =
+    originFrom(process.env.NEXT_PUBLIC_CANARY_ENDPOINT) ||
+    originFrom(process.env.CANARY_ENDPOINT) ||
+    'https://canary.mistystep.io';
   const posthogOrigin = originFrom(process.env.NEXT_PUBLIC_POSTHOG_HOST);
-  const sentryOrigin =
-    process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1'
-      ? originFrom(process.env.NEXT_PUBLIC_SENTRY_DSN)
-      : null;
 
   const directives: Array<[string, string[]]> = [
     ['default-src', ["'self'"]],
@@ -110,7 +110,7 @@ export function buildContentSecurityPolicy(
         'https://us-assets.i.posthog.com',
         'https://us.posthog.com',
         posthogOrigin,
-        sentryOrigin,
+        canaryOrigin,
         ...(isDevelopment ? LOCAL_CONNECT_SOURCES : []),
       ]),
     ],

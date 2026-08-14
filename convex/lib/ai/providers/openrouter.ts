@@ -23,21 +23,6 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_MAX_RETRIES = 3;
 
-export type OpenRouterFailureCode = 'http_error' | 'invalid_response';
-
-export class OpenRouterProviderFailure extends Error {
-  readonly name = 'OpenRouterProviderFailure';
-  readonly code: OpenRouterFailureCode;
-  readonly status: number;
-
-  constructor(code: OpenRouterFailureCode, status: number) {
-    super('OpenRouter request failed');
-    this.code = code;
-    const finiteStatus = Number.isFinite(status) ? Math.trunc(status) : 0;
-    this.status = Math.min(599, Math.max(0, finiteStatus));
-  }
-}
-
 type OpenRouterMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -152,18 +137,13 @@ export async function generateLine(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new OpenRouterProviderFailure('http_error', response.status);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new OpenRouterProviderFailure(
-          'invalid_response',
-          response.status
+        const errorText = await response.text();
+        throw new Error(
+          `OpenRouter API error: ${response.status} ${errorText}`
         );
       }
+
+      const data = await response.json();
       const rawText = data.choices?.[0]?.message?.content ?? '';
       const text = normalizeText(rawText);
       const finishReason = data.choices?.[0]?.finish_reason;
@@ -205,13 +185,6 @@ export async function generateLine(
           attempt,
           maxAttempts,
           timeoutMs,
-        });
-      } else if (error instanceof OpenRouterProviderFailure) {
-        log.error('OpenRouter API error', {
-          failureCode: error.code,
-          status: error.status,
-          attempt,
-          maxAttempts,
         });
       } else {
         logError('OpenRouter API error', error, {

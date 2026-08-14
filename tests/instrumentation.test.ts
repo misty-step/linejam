@@ -1,37 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { captureRequestErrorMock } = vi.hoisted(() => ({
-  captureRequestErrorMock: vi.fn(),
-}));
+vi.mock('server-only', () => ({}));
 
-vi.mock('@sentry/nextjs', () => ({
-  captureRequestError: captureRequestErrorMock,
-}));
+const fetchMock = vi.fn();
 
 describe('instrumentation', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.clearAllMocks();
+    fetchMock.mockReset();
+    vi.stubEnv('NEXT_PUBLIC_CANARY_API_KEY', 'sk_test_canary');
+    vi.stubEnv('NEXT_PUBLIC_CANARY_ENDPOINT', 'https://canary.test/');
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('does not initialize an unrelated runtime', async () => {
-    vi.stubEnv('NEXT_RUNTIME', '');
+  it('register is a no-op', async () => {
     const { register } = await import('@/instrumentation');
 
     await expect(register()).resolves.toBeUndefined();
   });
 
-  it('delegates Next request errors to the supported Sentry hook', async () => {
-    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
-    vi.stubEnv(
-      'NEXT_PUBLIC_SENTRY_DSN',
-      ['https://public', 'sentry.example.test/1'].join('@')
-    );
+  it('does not wait for Canary transport when request errors fire', async () => {
+    fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+
     const { onRequestError } = await import('@/instrumentation');
     const error = new Error('boom');
     const request = {
@@ -46,12 +42,18 @@ describe('instrumentation', () => {
       renderSource: 'react-server-components' as const,
     };
 
-    onRequestError(error, request, context);
+    await expect(
+      Promise.race([
+        onRequestError(error, request, context),
+        new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error('instrumentation request error timed out')),
+            100
+          );
+        }),
+      ])
+    ).resolves.toBeUndefined();
 
-    expect(captureRequestErrorMock).toHaveBeenCalledWith(
-      error,
-      request,
-      context
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -342,7 +342,7 @@ stateDiagram-v2
     note right of error
         Error displayed via Alert
         errorToFeedback() for user-friendly message
-        captureError() for Sentry
+        captureError() for Canary
     end note
 ```
 

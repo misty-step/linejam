@@ -1,9 +1,4 @@
 import type { NextConfig } from 'next';
-import { withSentryConfig } from '@sentry/nextjs';
-import {
-  resolveSentryEnvironment,
-  resolveSentryRelease,
-} from './sentry.runtime.mjs';
 import { resolveDeploymentId } from './lib/deploymentId';
 import { validateEnv } from './lib/env';
 
@@ -48,21 +43,8 @@ const securityHeaders = [
     ].join(', '),
   },
 ];
-const sentryEnvironment = resolveSentryEnvironment();
-const sentryRelease = resolveSentryRelease();
-const hasSentryUploadCredentials = Boolean(
-  process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1' &&
-  process.env.SENTRY_AUTH_TOKEN &&
-  process.env.SENTRY_ORG &&
-  process.env.SENTRY_PROJECT &&
-  sentryRelease
-);
 
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_SENTRY_ENVIRONMENT: sentryEnvironment,
-    ...(sentryRelease ? { NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease } : {}),
-  },
   deploymentId: resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID),
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
   images: {
@@ -98,23 +80,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: true,
-  telemetry: false,
-  disableLogger: true,
-  widenClientFileUpload: false,
-  sourcemaps: {
-    disable: !hasSentryUploadCredentials,
-    deleteSourcemapsAfterUpload: true,
-  },
-  release: sentryRelease
-    ? {
-        name: sentryRelease,
-        create: hasSentryUploadCredentials,
-        finalize: hasSentryUploadCredentials,
-      }
-    : { create: false, finalize: false },
-});
+export default nextConfig;

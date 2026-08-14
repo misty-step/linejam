@@ -54,5 +54,5 @@ plain `Error`: Convex redacts plain `Error` messages in production, which
 silently breaks the friendly-message mappings in `lib/errorFeedback.ts`.
 An eslint `no-restricted-syntax` gate (see `eslint.config.mjs`) enforces
 this for `convex/*.ts` and the player-path lib modules. Internal invariants
-(guest token internals and AI providers) may keep plain `Error` —
+(guest token internals, canary, AI providers) may keep plain `Error` —
 there, prod redaction is a feature.

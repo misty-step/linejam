@@ -46,7 +46,6 @@ import {
 } from './lib/ai/fallbackMetrics';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { getAiBudgetConfig, isAiProviderEnabled } from './lib/ai/budget';
-import { rethrowAfterBackendReport } from './errors';
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
@@ -255,60 +254,24 @@ async function recordAiGenerationMetric(
   } else {
     await ctx.db.insert('aiGenerationMetrics', next);
   }
-  const thresholdPercent = getAiFallbackAlertThresholdPercent();
-  const minimumGenerations = getAiFallbackAlertMinimumGenerations();
+
   const checkIn = planAiFallbackCheckIn({
     totalGenerations: next.totalGenerations,
     fallbackGenerations: next.fallbackGenerations,
     fallbackReason: fallbackReason ?? null,
-    thresholdPercent,
-    minimumGenerations,
+    thresholdPercent: getAiFallbackAlertThresholdPercent(),
+    minimumGenerations: getAiFallbackAlertMinimumGenerations(),
   });
-  const previousCheckIn = existing
-    ? planAiFallbackCheckIn({
-        totalGenerations: existing.totalGenerations,
-        fallbackGenerations: existing.fallbackGenerations,
-        fallbackReason: null,
-        thresholdPercent,
-        minimumGenerations,
-      })
-    : null;
-  if (!previousCheckIn || previousCheckIn.status !== checkIn.status) {
-    await ctx.scheduler.runAfter(
-      0,
-      internal.errors.reportAiFallbackRate,
-      checkIn
-    );
-  }
+  await ctx.scheduler.runAfter(
+    0,
+    internal.errors.reportAiFallbackRateToCanary,
+    {
+      status: checkIn.status,
+      summary: checkIn.summary,
+      ...checkIn.context,
+    }
+  );
 }
-
-/**
- * Emit the fallback-rate monitor independently of generation traffic.
- * A quiet bucket is alive, not a missed monitor.
- */
-export const reportCurrentAiFallbackRate = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const bucketStart = aiGenerationBucket();
-    const metric = await ctx.db
-      .query('aiGenerationMetrics')
-      .withIndex('by_bucket', (q) => q.eq('bucketStart', bucketStart))
-      .first();
-    const checkIn = planAiFallbackCheckIn({
-      totalGenerations: metric?.totalGenerations ?? 0,
-      fallbackGenerations: metric?.fallbackGenerations ?? 0,
-      fallbackReason: null,
-      thresholdPercent: getAiFallbackAlertThresholdPercent(),
-      minimumGenerations: getAiFallbackAlertMinimumGenerations(),
-    });
-    await ctx.scheduler.runAfter(
-      0,
-      internal.errors.reportAiFallbackRate,
-      checkIn
-    );
-    return checkIn;
-  },
-});
 
 /**
  * Atomically own one machine-written cell and charge the shared daily budget.
@@ -437,12 +400,15 @@ async function claimGenerationForCell(
       callBudget,
       estimatedCostMicros: currentCostMicros + costPerGenerationMicros,
     });
-    await ctx.scheduler.runAfter(0, internal.errors.reportBackendFailure, {
-      operation: 'aiGenerationBudgetThreshold',
-      failureCode: 'budget_threshold_reached',
-      observed: nextClaims,
-      threshold: alertThreshold,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.errors.reportBackendErrorToCanary,
+      {
+        errorName: 'AiGenerationBudgetThreshold',
+        errorMessage: 'AI generation claim threshold reached',
+        operation: 'aiGenerationBudgetThreshold',
+      }
+    );
   }
 
   if (cell.source === 'ghost') {
@@ -680,7 +646,19 @@ export const scheduleAiTurn = internalMutation({
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logError('scheduleAiTurn failed', err, { roomId, gameId, round });
-      // A scheduled reporter would roll back with this rethrown mutation.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'scheduleAiTurn',
+          roomId,
+          gameId,
+          round,
+        }
+      );
       throw error;
     }
   },
@@ -806,7 +784,19 @@ export const ensureAiLine = internalMutation({
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logError('ensureAiLine failed', err, { roomId, gameId, round });
-      // A scheduled reporter would roll back with this rethrown mutation.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.errors.reportBackendErrorToCanary,
+        {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
+          operation: 'ensureAiLine',
+          roomId,
+          gameId,
+          round,
+        }
+      );
       throw error;
     }
   },
@@ -992,14 +982,18 @@ export const generateLineForRound = internalAction({
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logError('generateLineForRound failed', err, { roomId, gameId, round });
-      await rethrowAfterBackendReport(
-        ctx.runAction(internal.errors.reportBackendFailure, {
+      await ctx
+        .runAction(internal.errors.reportBackendErrorToCanary, {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
           operation: 'generateLineForRound',
-          failureCode: 'unexpected_error',
+          roomId,
+          gameId,
           round,
-        }),
-        error
-      );
+        })
+        .catch(() => {});
+      throw error;
     } finally {
       if (generationLock) {
         await ctx
@@ -1360,14 +1354,19 @@ export const generateGhostLine = internalAction({
         round,
         poemId,
       });
-      await rethrowAfterBackendReport(
-        ctx.runAction(internal.errors.reportBackendFailure, {
+      await ctx
+        .runAction(internal.errors.reportBackendErrorToCanary, {
+          errorName: err.name || 'Error',
+          errorMessage: err.message,
+          errorStack: err.stack,
           operation: 'generateGhostLine',
-          failureCode: 'unexpected_error',
+          roomId,
+          gameId,
+          poemId,
           round,
-        }),
-        error
-      );
+        })
+        .catch(() => {});
+      throw error;
     }
   },
 });

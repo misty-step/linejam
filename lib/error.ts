@@ -1,12 +1,19 @@
-import { captureException } from '@sentry/nextjs';
-import { captureReportedError, isSentryEnabled } from '@/lib/errorCore';
+import {
+  captureCanaryException,
+  isCanaryEnabled,
+  scrubCanaryContext,
+} from '@/lib/canary';
+import { captureReportedError } from '@/lib/errorCore';
 import { isExpectedConvexRateLimitError } from '@/lib/errorFeedback';
-import { sanitizeSentryReporterContext } from '@/lib/sentryPrivacy';
 
 /**
- * Capture an unexpected browser-safe failure through the shared reporting seam.
- * Context is reduced to closed tags and bounded numeric/correlation fields
- * before it reaches the SDK.
+ * Capture an error to Canary with optional context.
+ *
+ * This is a deep module: callers report failures without learning transport
+ * details. Observability stays behind Canary.
+ *
+ * @example
+ * captureError(error, { roomCode: 'ABCD', poemId: '123' });
  */
 export function captureError(
   error: unknown,
@@ -15,11 +22,7 @@ export function captureError(
   if (isExpectedConvexRateLimitError(error)) return;
 
   captureReportedError(
-    {
-      captureException,
-      isEnabled: isSentryEnabled,
-      sanitizeContext: sanitizeSentryReporterContext,
-    },
+    { captureCanaryException, isCanaryEnabled, scrubCanaryContext },
     error,
     context
   );
