@@ -630,6 +630,8 @@ describe('GET /api/guest/session', () => {
       vi.doUnmock('@/lib/errorServer');
       process.env = {
         ...originalEnv,
+        CI: undefined,
+        NODE_ENV: 'test',
         NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
         ...(allow ? { LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1' } : {}),
         ...extraEnv,
@@ -719,6 +721,8 @@ describe('GET /api/guest/session', () => {
       vi.doUnmock('@/lib/guestToken');
       process.env = {
         ...originalEnv,
+        CI: undefined,
+        NODE_ENV: 'test',
         NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
         ...extraEnv,
       };

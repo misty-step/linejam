@@ -224,9 +224,9 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
           data-testid={E2E_TEST_IDS.lobbyScrollRegion}
           className="lj-safe-frame min-h-0 flex-1 overflow-y-auto overflow-x-hidden md:[--lj-safe-frame-space:3rem]"
         >
-          <div className="mx-auto w-full max-w-3xl space-y-6 px-4 sm:px-6 md:space-y-8">
-            <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-sm)] sm:p-6">
-              <div className="flex min-w-0 items-end justify-between gap-4">
+          <div className="mx-auto w-full max-w-3xl space-y-6 px-[16px] sm:px-6 md:space-y-8">
+            <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[20px] shadow-[var(--shadow-sm)] sm:p-6">
+              <div className="flex min-w-0 flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-mono uppercase tracking-[0.2em] text-text-muted">
                     Room code
@@ -238,7 +238,7 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                     {formatRoomCode(room.code)}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full border border-border-subtle bg-background px-3 py-1 text-xs font-mono uppercase tracking-wider text-text-muted">
+                <span className="min-w-0 max-w-full self-start whitespace-normal break-words rounded-full border border-border-subtle bg-background px-3 py-1 text-center text-xs font-mono uppercase tracking-wider text-text-muted sm:shrink-0 sm:self-auto">
                   {players.length}/8 seats
                 </span>
               </div>
@@ -249,16 +249,16 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
 
             <section
               aria-labelledby="lobby-roster-heading"
-              className="rounded-[var(--radius-xl)] border border-border-subtle bg-surface/60 p-5 sm:p-6"
+              className="rounded-[var(--radius-xl)] border border-border-subtle bg-surface/60 p-[20px] sm:p-6"
             >
-              <div className="flex min-w-0 items-center justify-between gap-4">
+              <div className="flex min-w-0 flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <h2
                   id="lobby-roster-heading"
                   className="font-[var(--font-display)] text-xl font-medium text-text-primary"
                 >
                   Players
                 </h2>
-                <span className="shrink-0 text-xs font-mono uppercase tracking-wider text-text-muted">
+                <span className="min-w-0 max-w-full self-start whitespace-normal break-words text-xs font-mono uppercase tracking-wider text-text-muted sm:shrink-0 sm:self-auto">
                   {players.length} in room
                 </span>
               </div>

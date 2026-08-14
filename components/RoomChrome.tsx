@@ -78,6 +78,7 @@ export function RoomChrome({
   });
 
   const joinUrl = `${window.location.origin}/join?code=${roomCode}`;
+  const usesBoundedControls = compact || statusBoard;
 
   const handleCopyCode = async () => {
     setCodeCopyError(false);
@@ -152,7 +153,7 @@ export function RoomChrome({
             data-layout={statusBoard ? 'status-board' : undefined}
             className={cn(
               statusBoard
-                ? 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[8px] rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 px-[12px] py-[8px] shadow-[var(--shadow-lg)] backdrop-blur-xl'
+                ? 'grid grid-cols-1 items-center gap-[8px] rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 px-[12px] py-[8px] shadow-[var(--shadow-lg)] backdrop-blur-xl sm:grid-cols-[minmax(0,1fr)_auto]'
                 : 'grid rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 shadow-[var(--shadow-lg)] backdrop-blur-xl',
               statusBoard
                 ? compact
@@ -163,9 +164,24 @@ export function RoomChrome({
                   : 'gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-5'
             )}
           >
-            <div className={cn('min-w-0', compact ? 'space-y-0' : 'space-y-1')}>
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="relative">
+            <div
+              className={cn(
+                'min-w-0',
+                compact ? 'space-y-0' : 'space-y-1',
+                statusBoard && 'overflow-hidden'
+              )}
+            >
+              <div
+                className={cn(
+                  'flex min-w-0',
+                  statusBoard
+                    ? 'flex-col items-stretch gap-[4px] sm:flex-row sm:items-center sm:gap-2'
+                    : 'items-center gap-2'
+                )}
+              >
+                <div
+                  className={cn('relative', usesBoundedControls && 'min-w-0')}
+                >
                   <button
                     type="button"
                     onClick={() => {
@@ -175,7 +191,7 @@ export function RoomChrome({
                     }}
                     className={cn(
                       'min-h-[44px] rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 text-[0.6875rem] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer',
-                      compact
+                      usesBoundedControls
                         ? 'max-w-full truncate px-[10px] py-[2px]'
                         : 'shrink-0 px-2.5 py-0.5'
                     )}
@@ -270,7 +286,7 @@ export function RoomChrome({
                   chromeButtonClasses({
                     emphasized: true,
                     iconOnly: statusBoard || compact,
-                    compact,
+                    compact: usesBoundedControls,
                   }),
                   statusBoard || compact
                     ? 'flex-none p-0'
@@ -280,9 +296,7 @@ export function RoomChrome({
               >
                 <Share2
                   className={cn(
-                    statusBoard || compact
-                      ? 'h-[16px] w-[16px]'
-                      : 'mr-2 h-4 w-4'
+                    usesBoundedControls ? 'h-[16px] w-[16px]' : 'mr-2 h-4 w-4'
                   )}
                 />
                 <span
@@ -296,7 +310,10 @@ export function RoomChrome({
                 type="button"
                 onClick={() => setShowHelp(true)}
                 className={cn(
-                  chromeButtonClasses({ iconOnly: true, compact }),
+                  chromeButtonClasses({
+                    iconOnly: true,
+                    compact: usesBoundedControls,
+                  }),
                   !statusBoard && 'hidden md:inline-flex'
                 )}
                 aria-label="How to play"
@@ -313,13 +330,18 @@ export function RoomChrome({
                     setShowQr(false);
                     setShowMenu((current) => !current);
                   }}
-                  className={chromeButtonClasses({ iconOnly: true, compact })}
+                  className={chromeButtonClasses({
+                    iconOnly: true,
+                    compact: usesBoundedControls,
+                  })}
                   aria-label="More options"
                   aria-haspopup="true"
                   aria-expanded={showMenu}
                 >
                   <MoreHorizontal
-                    className={compact ? 'h-[16px] w-[16px]' : 'h-4 w-4'}
+                    className={
+                      usesBoundedControls ? 'h-[16px] w-[16px]' : 'h-4 w-4'
+                    }
                   />
                 </button>
 
