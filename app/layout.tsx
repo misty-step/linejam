@@ -1,132 +1,12 @@
 import { headers } from 'next/headers';
 import type { Metadata, Viewport } from 'next';
 import { resolveDeploymentId } from '@/lib/deploymentId';
-import {
-  Libre_Baskerville,
-  IBM_Plex_Sans,
-  Noto_Serif,
-  Inter,
-  Cormorant_Garamond,
-  Source_Serif_4,
-  JetBrains_Mono,
-  Righteous,
-  Outfit,
-  Space_Mono,
-  Fraunces,
-  Archivo,
-  Archivo_Black,
-  Anton,
-} from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { themeIds, defaultThemeId } from '@/lib/themes';
 import { siteConfig } from '@/lib/config';
-
-// Kenya theme fonts
-const libreBaskerville = Libre_Baskerville({
-  variable: '--font-libre-baskerville',
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  display: 'swap',
-});
-
-const ibmPlex = IBM_Plex_Sans({
-  variable: '--font-ibm-plex',
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  display: 'swap',
-});
-
-// Mono theme fonts
-const notoSerif = Noto_Serif({
-  variable: '--font-noto-serif',
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  display: 'swap',
-});
-
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  display: 'swap',
-});
-
-// Vintage Paper theme fonts
-const cormorant = Cormorant_Garamond({
-  variable: '--font-cormorant',
-  subsets: ['latin'],
-  weight: ['400', '600'],
-  display: 'swap',
-});
-
-const sourceSerif = Source_Serif_4({
-  variable: '--font-source-serif',
-  subsets: ['latin'],
-  weight: ['400', '600'],
-  display: 'swap',
-});
-
-// Hyper theme fonts
-const righteous = Righteous({
-  variable: '--font-righteous',
-  subsets: ['latin'],
-  weight: ['400'],
-  display: 'swap',
-});
-
-const outfit = Outfit({
-  variable: '--font-outfit',
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  display: 'swap',
-});
-
-const spaceMono = Space_Mono({
-  variable: '--font-space-mono',
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  display: 'swap',
-});
-
-// Shared mono font (legacy/fallback)
-const jetbrainsMono = JetBrains_Mono({
-  variable: '--font-jetbrains-mono',
-  subsets: ['latin'],
-  weight: ['400'],
-  display: 'swap',
-});
-
-// Theme-collection fonts (Aloud/Fold/Catalog, Overprint, Broadside/Board)
-const fraunces = Fraunces({
-  variable: '--font-fraunces',
-  subsets: ['latin'],
-  weight: ['400', '600'],
-  display: 'swap',
-});
-
-const archivo = Archivo({
-  variable: '--font-archivo',
-  subsets: ['latin'],
-  weight: ['400', '600'],
-  display: 'swap',
-});
-
-const archivoBlack = Archivo_Black({
-  variable: '--font-archivo-black',
-  subsets: ['latin'],
-  weight: ['400'],
-  display: 'swap',
-});
-
-const anton = Anton({
-  variable: '--font-anton',
-  subsets: ['latin'],
-  weight: ['400'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: siteConfig.title,
@@ -203,11 +83,7 @@ export default async function RootLayout({
   `;
 
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${libreBaskerville.variable} ${ibmPlex.variable} ${notoSerif.variable} ${inter.variable} ${cormorant.variable} ${sourceSerif.variable} ${righteous.variable} ${outfit.variable} ${spaceMono.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${archivo.variable} ${archivoBlack.variable} ${anton.variable}`}
-    >
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <script
           nonce={nonce}
