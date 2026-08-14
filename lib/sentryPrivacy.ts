@@ -137,6 +137,10 @@ const EVENT_ID = /^[a-f0-9]{32}$/i;
 const TRACE_ID = /^[a-f0-9]{32}$/i;
 const SPAN_ID = /^[a-f0-9]{16}$/i;
 const SAFE_CORRELATION_ID = /^[A-Za-z0-9_-]{8,128}$/;
+const DEBUG_ID =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+const STATIC_BUNDLE_SEGMENT = /^[A-Za-z0-9._~!$&'()+,;=@\[\]-]+$/;
+const STATIC_BUNDLE_EXTENSION = /\.(?:js|mjs)$/i;
 
 export type SentryReporterContext = {
   tags?: Record<string, string>;
@@ -173,6 +177,78 @@ function safeCorrelationId(value: unknown) {
   return typeof value === 'string' && SAFE_CORRELATION_ID.test(value)
     ? value
     : undefined;
+}
+function safeSourceLocation(value: unknown) {
+  if (
+    typeof value !== 'string' ||
+    value.length > 1_024 ||
+    value.includes('\\')
+  ) {
+    return undefined;
+  }
+
+  try {
+    const candidate = value.startsWith('~/_next/static/')
+      ? value.slice(1)
+      : value;
+    const parsed = new URL(candidate, 'https://linejam.invalid');
+    if (
+      !['http:', 'https:', 'app:'].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password ||
+      parsed.pathname.length > 512
+    ) {
+      return undefined;
+    }
+
+    const decodedPathname = decodeURIComponent(parsed.pathname);
+    const segments = decodedPathname.split('/');
+    const bundleSegments = segments.slice(3);
+    if (
+      segments[0] !== '' ||
+      segments[1] !== '_next' ||
+      segments[2] !== 'static' ||
+      !bundleSegments.length ||
+      bundleSegments.some(
+        (segment) =>
+          !segment ||
+          segment === '.' ||
+          segment === '..' ||
+          !STATIC_BUNDLE_SEGMENT.test(segment)
+      ) ||
+      !STATIC_BUNDLE_EXTENSION.test(bundleSegments.at(-1) || '')
+    ) {
+      return undefined;
+    }
+
+    return `app://${parsed.pathname}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function sanitizeDebugMeta(
+  debugMeta: Event['debug_meta']
+): ErrorEvent['debug_meta'] {
+  const images = debugMeta?.images
+    ?.map((image) => {
+      const codeFile = safeSourceLocation(image.code_file);
+      const debugId =
+        typeof image.debug_id === 'string' && DEBUG_ID.test(image.debug_id)
+          ? image.debug_id
+          : undefined;
+      if (image.type !== 'sourcemap' || !codeFile || !debugId) {
+        return undefined;
+      }
+      return {
+        type: 'sourcemap' as const,
+        code_file: codeFile,
+        debug_id: debugId,
+      };
+    })
+    .filter((image): image is NonNullable<typeof image> => Boolean(image));
+
+  return images?.length ? { images } : undefined;
 }
 
 function sanitizeTags(tags: Record<string, unknown> | undefined) {
@@ -265,8 +341,12 @@ function sanitizeContexts(contexts: Event['contexts']): ErrorEvent['contexts'] {
 function sanitizeFrame(frame: Record<string, unknown>) {
   const lineNumber = safeNumber(frame.lineno);
   const columnNumber = safeNumber(frame.colno);
+  const sourceLocation = safeSourceLocation(frame.filename ?? frame.abs_path);
 
   return {
+    ...(sourceLocation
+      ? { filename: sourceLocation, abs_path: sourceLocation }
+      : {}),
     ...(lineNumber !== undefined ? { lineno: lineNumber } : {}),
     ...(columnNumber !== undefined ? { colno: columnNumber } : {}),
     ...(typeof frame.in_app === 'boolean' ? { in_app: frame.in_app } : {}),
@@ -335,6 +415,7 @@ function sanitizeBaseEvent(event: Event): ErrorEvent {
   const tags = sanitizeTags(event.tags);
   const contexts = sanitizeContexts(event.contexts);
   const exception = sanitizeException(event.exception);
+  const debugMeta = sanitizeDebugMeta(event.debug_meta);
 
   return {
     type: undefined,
@@ -347,6 +428,7 @@ function sanitizeBaseEvent(event: Event): ErrorEvent {
     ...(tags ? { tags } : {}),
     ...(contexts ? { contexts } : {}),
     ...(exception ? { exception } : {}),
+    ...(debugMeta ? { debug_meta: debugMeta } : {}),
   };
 }
 

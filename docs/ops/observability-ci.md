@@ -127,6 +127,10 @@ Critical route logs and Sentry payloads must omit poem or prompt content,
 provider bodies, room/game/poem IDs, guest or Clerk identifiers, email, IP
 addresses, request/response bodies, cookies, auth headers, query strings,
 arbitrary extras or breadcrumbs, frame-local values, and secrets.
+For symbolication, the transport retains only origin-free
+`app:///_next/static/**/*.js` bundle locations, line/column coordinates, and
+validated source-map debug IDs. It drops source origins, query strings,
+fragments, non-static paths, function/module names, and frame-local data.
 `/api/health` reports application health separately from observability ingest,
 so degraded ingest is not proof gameplay is down.
 

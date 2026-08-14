@@ -124,7 +124,15 @@ describe('Sentry transport privacy boundary', () => {
     expect(frame).not.toHaveProperty('function');
     expect(frame).not.toHaveProperty('module');
     expect(frame).not.toHaveProperty('filename');
-    expect(sanitized).not.toHaveProperty('debug_meta');
+    expect(sanitized?.debug_meta).toEqual({
+      images: [
+        {
+          type: 'sourcemap',
+          code_file: 'app:///_next/static/chunk.js',
+          debug_id: '12345678-1234-1234-1234-123456789abc',
+        },
+      ],
+    });
     expect(sanitized).not.toHaveProperty('user');
     expect(serialized).not.toContain('203.0.113.42');
     expect(sanitized).not.toHaveProperty('request');
@@ -132,14 +140,64 @@ describe('Sentry transport privacy boundary', () => {
     expect(sanitized).not.toHaveProperty('breadcrumbs');
   });
 
-  it('drops frame filenames and debug metadata even when they match', () => {
+  it('retains only normalized static bundle locations and debug IDs', () => {
+    const event = taintedEvent();
+    event.exception!.values![0]!.stacktrace!.frames![0]!.filename = `https://assets.example/_next/static/chunks/app/room/%5Bcode%5D/page.js?token=${FORBIDDEN}`;
+    event.exception!.values![0]!.stacktrace!.frames![0]!.abs_path = `https://assets.example/_next/static/chunks/app/room/%5Bcode%5D/page.js#${FORBIDDEN}`;
+    event.debug_meta!.images![0]!.code_file = `https://assets.example/_next/static/chunks/app/room/%5Bcode%5D/page.js?token=${FORBIDDEN}`;
+
+    const sanitized = beforeSend(event, {});
+    const frame = sanitized?.exception?.values?.[0]?.stacktrace?.frames?.[0];
+    expect(frame).toMatchObject({
+      filename: 'app:///_next/static/chunks/app/room/%5Bcode%5D/page.js',
+      abs_path: 'app:///_next/static/chunks/app/room/%5Bcode%5D/page.js',
+    });
+    expect(sanitized?.debug_meta).toEqual({
+      images: [
+        {
+          type: 'sourcemap',
+          code_file: 'app:///_next/static/chunks/app/room/%5Bcode%5D/page.js',
+          debug_id: '12345678-1234-1234-1234-123456789abc',
+        },
+      ],
+    });
+    expect(JSON.stringify(sanitized)).not.toContain(FORBIDDEN);
+    expect(JSON.stringify(sanitized)).not.toContain('assets.example');
+  });
+
+  it('drops traversal, non-static source locations, and malformed debug IDs', () => {
     const event = taintedEvent();
     event.exception!.values![0]!.stacktrace!.frames![0]!.filename =
-      'https://linejam.app/_next/static/chunk.js';
+      'https://linejam.app/_next/static/%2e%2e/server.js';
+    event.debug_meta = {
+      images: [
+        {
+          type: 'sourcemap',
+          code_file: 'file:///srv/linejam/server.js',
+          debug_id: '12345678-1234-1234-1234-123456789abc',
+        },
+        {
+          type: 'sourcemap',
+          code_file: 'https://linejam.app/_next/static/%2e%2e/server.js',
+          debug_id: '12345678-1234-1234-1234-123456789abc',
+        },
+        {
+          type: 'sourcemap',
+          code_file: 'https://private-user@linejam.app/_next/static/chunk.js',
+          debug_id: '12345678-1234-1234-1234-123456789abc',
+        },
+        {
+          type: 'sourcemap',
+          code_file: 'https://linejam.app/_next/static/chunk.js',
+          debug_id: FORBIDDEN,
+        },
+      ],
+    };
 
     const sanitized = beforeSend(event, {});
     const frame = sanitized?.exception?.values?.[0]?.stacktrace?.frames?.[0];
     expect(frame).not.toHaveProperty('filename');
+    expect(frame).not.toHaveProperty('abs_path');
     expect(sanitized).not.toHaveProperty('debug_meta');
   });
 
