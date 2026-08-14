@@ -1,5 +1,4 @@
 /** @vitest-environment node */
-import './canary-test-env';
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -23,31 +22,12 @@ function createMockChild(exitCode: number) {
   return child;
 }
 
-describe('shouldTriggerSmoke', () => {
-  it('returns true for configured trigger events and false for others', async () => {
-    vi.resetModules();
-    const { shouldTriggerSmoke } =
-      await import('@/scripts/canary/trigger-smoke.mjs');
-
-    expect(shouldTriggerSmoke('error.new_class')).toBe(true);
-    expect(shouldTriggerSmoke('error.regression')).toBe(true);
-    expect(shouldTriggerSmoke('incident.opened')).toBe(true);
-    expect(shouldTriggerSmoke('incident.updated')).toBe(true);
-    expect(shouldTriggerSmoke('incident.resolved')).toBe(true);
-    expect(shouldTriggerSmoke('health_check.down')).toBe(true);
-    expect(shouldTriggerSmoke('health_check.degraded')).toBe(true);
-    expect(shouldTriggerSmoke('health_check.recovered')).toBe(true);
-    expect(shouldTriggerSmoke('health_check.tls_expiring')).toBe(true);
-    expect(shouldTriggerSmoke('unknown')).toBe(false);
-  });
-});
-
 describe('runSmoke', () => {
   const trackedEnvKeys = [
     'PLAYWRIGHT_BASE_URL',
     'PLAYWRIGHT_BROWSERS_PATH',
-    'CANARY_SMOKE_TIMEOUT_MS',
-    'CANARY_SMOKE_KILL_GRACE_MS',
+    'LINEJAM_SMOKE_TIMEOUT_MS',
+    'LINEJAM_SMOKE_KILL_GRACE_MS',
     'LINEJAM_SMOKE_RUNNER',
     'LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST',
     'LINEJAM_ALLOWED_SMOKE_ORIGINS',
@@ -64,7 +44,6 @@ describe('runSmoke', () => {
     'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
     'CLERK_PUBLISHABLE_KEY',
     'CLERK_SECRET_KEY',
-    'CANARY_API_KEY',
   ] as const;
   const originalEnv = Object.fromEntries(
     trackedEnvKeys.map((key) => [key, process.env[key]])
@@ -85,7 +64,7 @@ describe('runSmoke', () => {
 
   it('skips smoke when base url is not configured', async () => {
     delete process.env.PLAYWRIGHT_BASE_URL;
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
       eventName: 'error.new_class',
@@ -104,8 +83,7 @@ describe('runSmoke', () => {
   it('runs dagger smoke and returns successful execution result', async () => {
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
-    process.env.CANARY_API_KEY = 'server-only-secret';
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -131,7 +109,9 @@ describe('runSmoke', () => {
         }),
       })
     );
-    expect(spawnMock.mock.calls[0]?.[2]?.env.CANARY_API_KEY).toBeUndefined();
+    expect(spawnMock.mock.calls[0]?.[2]?.env).not.toHaveProperty(
+      'UNRELATED_SECRET'
+    );
     expect(result.ok).toBe(true);
     expect(result.skipped).toBe(false);
     expect(result.code).toBe(0);
@@ -144,7 +124,7 @@ describe('runSmoke', () => {
   it('can run smoke with the direct Playwright runner for hosted responders', async () => {
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -171,7 +151,7 @@ describe('runSmoke', () => {
   it('returns failed execution result when smoke exits non-zero', async () => {
     const child = createMockChild(1);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://preview.linejam.app',
@@ -194,7 +174,7 @@ describe('runSmoke', () => {
 
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
     let settled = false;
 
     const pending = runSmoke({
@@ -225,7 +205,7 @@ describe('runSmoke', () => {
   it('returns a failure result when spawning smoke command errors', async () => {
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -247,14 +227,14 @@ describe('runSmoke', () => {
     });
   });
 
-  it('falls back to default timeout when CANARY_SMOKE_TIMEOUT_MS is invalid', async () => {
-    process.env.CANARY_SMOKE_TIMEOUT_MS = 'invalid';
-    process.env.CANARY_SMOKE_KILL_GRACE_MS = '1';
+  it('falls back to the default when LINEJAM_SMOKE_TIMEOUT_MS is invalid', async () => {
+    process.env.LINEJAM_SMOKE_TIMEOUT_MS = 'invalid';
+    process.env.LINEJAM_SMOKE_KILL_GRACE_MS = '1';
     vi.useFakeTimers();
 
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -269,16 +249,16 @@ describe('runSmoke', () => {
     expect(child.kill).toHaveBeenCalledWith('SIGTERM');
     expect(child.kill).toHaveBeenCalledWith('SIGKILL');
     expect(result.timedOut).toBe(true);
-    delete process.env.CANARY_SMOKE_TIMEOUT_MS;
+    delete process.env.LINEJAM_SMOKE_TIMEOUT_MS;
   });
 
   it('forcibly finishes timed-out smoke when the child ignores SIGTERM', async () => {
-    process.env.CANARY_SMOKE_KILL_GRACE_MS = '10';
+    process.env.LINEJAM_SMOKE_KILL_GRACE_MS = '10';
     vi.useFakeTimers();
 
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -304,7 +284,7 @@ describe('runSmoke', () => {
   it('bounds captured stdout and stderr from smoke runs', async () => {
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -339,7 +319,7 @@ describe('runSmoke', () => {
 
     const child = createMockChild(0);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -385,7 +365,7 @@ describe('runSmoke', () => {
       .fn()
       .mockReturnValueOnce(smokeChild)
       .mockReturnValueOnce(agenticChild);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://preview.linejam.app',
@@ -443,7 +423,7 @@ describe('runSmoke', () => {
     process.env.LINEJAM_AGENTIC_QA_AFTER_SMOKE = '1';
     const child = createMockChild(1);
     const spawnMock = vi.fn().mockReturnValue(child);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://preview.linejam.app',
@@ -468,14 +448,14 @@ describe('runSmoke', () => {
     vi.useFakeTimers();
     process.env.LINEJAM_AGENTIC_QA_AFTER_SMOKE = '1';
     process.env.LINEJAM_AGENTIC_QA_TIMEOUT_MS = '25';
-    process.env.CANARY_SMOKE_KILL_GRACE_MS = '10';
+    process.env.LINEJAM_SMOKE_KILL_GRACE_MS = '10';
     const smokeChild = createMockChild(0);
     const agenticChild = createMockChild(0);
     const spawnMock = vi
       .fn()
       .mockReturnValueOnce(smokeChild)
       .mockReturnValueOnce(agenticChild);
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
       baseUrl: 'https://preview.linejam.app',
@@ -500,7 +480,7 @@ describe('runSmoke', () => {
   });
 
   it('fails fast when LINEJAM_SMOKE_RUNNER is invalid', async () => {
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -521,7 +501,7 @@ describe('runSmoke', () => {
     process.env.LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST = '1';
     process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS = 'https://www.linejam.app';
 
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
       baseUrl: 'https://preview.linejam.app',
@@ -543,7 +523,7 @@ describe('runSmoke', () => {
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_example';
     process.env.CLERK_SECRET_KEY = 'sk_live_example';
 
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -564,7 +544,7 @@ describe('runSmoke', () => {
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_example';
     process.env.CLERK_SECRET_KEY = 'sk_test_example';
 
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -586,7 +566,7 @@ describe('runSmoke', () => {
     delete process.env.CLERK_PUBLISHABLE_KEY;
     delete process.env.CLERK_SECRET_KEY;
 
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -612,7 +592,7 @@ describe('runSmoke', () => {
       text: async () => JSON.stringify({ data: [] }),
     } as Response);
 
-    const { runSmoke } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
       baseUrl: 'https://www.linejam.app',
@@ -631,7 +611,7 @@ describe('runSmoke', () => {
 
 describe('trigger-smoke CLI entrypoint', () => {
   it('uses default stdout/exit callbacks in success path', async () => {
-    const { runCli } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runCli } = await import('@/scripts/ops/run-smoke.mjs');
     const stdoutSpy = vi
       .spyOn(process.stdout, 'write')
       .mockImplementation(() => true);
@@ -654,7 +634,7 @@ describe('trigger-smoke CLI entrypoint', () => {
   });
 
   it('uses default stderr/exit callbacks in failure path', async () => {
-    const { runCli } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runCli } = await import('@/scripts/ops/run-smoke.mjs');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const exitSpy = vi
       .spyOn(process, 'exit')
@@ -674,7 +654,7 @@ describe('trigger-smoke CLI entrypoint', () => {
   });
 
   it('writes JSON output and exits with success when smoke is ok', async () => {
-    const { runCli } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runCli } = await import('@/scripts/ops/run-smoke.mjs');
     const writeOut = vi.fn();
     const writeErr = vi.fn();
     const exitMock = vi.fn();
@@ -701,7 +681,7 @@ describe('trigger-smoke CLI entrypoint', () => {
   });
 
   it('writes error output and exits with failure when smoke runner throws', async () => {
-    const { runCli } = await import('@/scripts/canary/trigger-smoke.mjs');
+    const { runCli } = await import('@/scripts/ops/run-smoke.mjs');
     const writeOut = vi.fn();
     const writeErr = vi.fn();
     const exitMock = vi.fn();
@@ -725,7 +705,7 @@ describe('trigger-smoke CLI entrypoint', () => {
   });
 
   it('exits successfully when invoked without PLAYWRIGHT_BASE_URL', async () => {
-    const scriptPath = path.resolve('scripts/canary/trigger-smoke.mjs');
+    const scriptPath = path.resolve('scripts/ops/run-smoke.mjs');
 
     const result = await new Promise<{
       code: number | null;

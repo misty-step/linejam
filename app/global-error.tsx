@@ -12,10 +12,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    captureError(error, {
-      boundary: 'app/global-error.tsx',
-      ...(error.digest ? { digest: error.digest } : {}),
-    });
+    // A digest marks a server-render failure already owned by onRequestError.
+    if (!error.digest) captureError(error);
   }, [error]);
 
   return (

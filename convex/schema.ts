@@ -259,4 +259,72 @@ export default defineSchema({
     eligibleByTable: retentionTableCounts,
     deletedByTable: retentionTableCounts,
   }).index('by_completed', ['completedAt']),
+
+  sentryGithubReceipts: defineTable({
+    dedupKey: v.string(),
+    installationUuid: v.string(),
+    projectId: v.string(),
+    sentryIssueId: v.string(),
+    sentryEventId: v.string(),
+    state: v.union(
+      v.literal('pending'),
+      v.literal('leased'),
+      v.literal('linked'),
+      v.literal('blocked')
+    ),
+    attempts: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    nextAttemptAt: v.number(),
+    leaseId: v.optional(v.string()),
+    leaseExpiresAt: v.optional(v.number()),
+    runtime: v.optional(
+      v.union(v.literal('convex'), v.literal('github-actions'))
+    ),
+    environment: v.optional(
+      v.union(v.literal('preview'), v.literal('production'))
+    ),
+    release: v.optional(v.string()),
+    level: v.optional(v.literal('error')),
+    operation: v.optional(
+      v.union(
+        v.literal('sweepAbandonedGames'),
+        v.literal('finishAbandonedGame'),
+        v.literal('aiGenerationBudgetThreshold'),
+        v.literal('generateLineForRound'),
+        v.literal('generateGhostLine'),
+        v.literal('aiFallbackRate'),
+        v.literal('previewSmoke')
+      )
+    ),
+    failureCode: v.optional(
+      v.union(
+        v.literal('unexpected_error'),
+        v.literal('budget_threshold_reached'),
+        v.literal('budget_exhaustion'),
+        v.literal('provider_error'),
+        v.literal('invalid_output'),
+        v.literal('missing_configuration')
+      )
+    ),
+    githubIssueNumber: v.optional(v.number()),
+    blockedCode: v.optional(
+      v.union(
+        v.literal('configuration_invalid'),
+        v.literal('invalid_tags'),
+        v.literal('sentry_auth'),
+        v.literal('sentry_missing'),
+        v.literal('github_auth'),
+        v.literal('github_forbidden'),
+        v.literal('github_invalid'),
+        v.literal('marker_conflict'),
+        v.literal('link_conflict'),
+        v.literal('attempts_exhausted')
+      )
+    ),
+    linkedAt: v.optional(v.number()),
+  })
+    .index('by_dedupKey', ['dedupKey'])
+    .index('by_state_nextAttemptAt', ['state', 'nextAttemptAt'])
+    .index('by_state_leaseExpiresAt', ['state', 'leaseExpiresAt']),
 });

@@ -9,20 +9,27 @@ messages.
 bash scripts/setup.sh
 ```
 
-Fill `.env.local` with the Convex, Clerk, guest-token, and Canary values needed
+Fill `.env.local` with the Convex, Clerk, guest-token, and Sentry values needed
 for the loop you are running. Keep `GUEST_TOKEN_SECRET` aligned across local,
 DigitalOcean App Platform, and Convex when testing room flows.
 
-For backlog work, claim one ready Powder card before starting:
+## Claiming Work
 
-```bash
-source ~/.secrets
-powder list-ready --repo linejam
-powder claim linejam-NNN --agent <name>
-```
+[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
+work ledger. Do not claim, update, or duplicate Linejam work in Powder. The
+cutover is tracked by
+[#393](https://github.com/misty-step/linejam/issues/393).
 
-Keep the returned run current, and complete the card or release the claim if
-you abandon the work. Powder is the only work ledger.
+A manual claim is the GitHub Issue assignee. Assign the Issue to the contributor
+before changing the repository. If self-assignment is unavailable, ask a
+maintainer to assign it rather than starting invisible work. Before starting,
+check for an existing assignee.
+
+Create a `forest/<issue>-<slug>` branch and link its pull request to the Issue
+once the work has a pushable change. The branch and PR are delivery evidence,
+not a second lock. On abandonment, remove the assignee and close or hand off the
+PR so the Issue is visibly available again. GitHub needs no lease, run record,
+or claim-status label.
 
 ## Local Checks
 

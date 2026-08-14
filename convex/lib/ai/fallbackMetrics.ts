@@ -7,15 +7,13 @@ export type AiFallbackReason =
   | 'missing_configuration';
 
 export type AiFallbackCheckIn = {
+  operation: 'aiFallbackRate';
   status: 'alive' | 'ok' | 'error';
-  summary: string;
-  context: {
-    totalGenerations: number;
-    fallbackGenerations: number;
-    fallbackRatePercent: number;
-    fallbackReason?: AiFallbackReason;
-    thresholdPercent: number;
-  };
+  failureCode?: AiFallbackReason;
+  totalGenerations: number;
+  fallbackGenerations: number;
+  fallbackRatePercent: number;
+  thresholdPercent: number;
 };
 
 export function aiGenerationBucket(now = Date.now()): number {
@@ -41,39 +39,17 @@ export function planAiFallbackCheckIn({
       : Number(((fallbackGenerations / totalGenerations) * 100).toFixed(1));
   const enoughSamples = totalGenerations >= minimumGenerations;
   const breached = enoughSamples && fallbackRatePercent > thresholdPercent;
-  const context: AiFallbackCheckIn['context'] = {
+  const report = {
+    operation: 'aiFallbackRate' as const,
     totalGenerations,
     fallbackGenerations,
     fallbackRatePercent,
-    ...(fallbackReason ? { fallbackReason } : {}),
+    ...(fallbackReason ? { failureCode: fallbackReason } : {}),
     thresholdPercent,
   };
 
-  if (breached) {
-    return {
-      status: 'error',
-      summary:
-        `AI fallback rate is ${fallbackRatePercent.toFixed(1)}% ` +
-        `(${fallbackGenerations}/${totalGenerations}) in the current hour.`,
-      context,
-    };
-  }
-
-  if (!enoughSamples) {
-    return {
-      status: 'alive',
-      summary:
-        `AI fallback sample is ${fallbackGenerations}/${totalGenerations}; ` +
-        `waiting for ${minimumGenerations} generations.`,
-      context,
-    };
-  }
-
   return {
-    status: 'ok',
-    summary:
-      `AI fallback rate is ${fallbackRatePercent.toFixed(1)}% ` +
-      `(${fallbackGenerations}/${totalGenerations}) in the current hour.`,
-    context,
+    ...report,
+    status: breached ? 'error' : enoughSamples ? 'ok' : 'alive',
   };
 }
