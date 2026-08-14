@@ -54,6 +54,20 @@ describe('Sentry runtime options', () => {
     });
   });
 
+  it('does not mistake the workflow revision for the deployed release', () => {
+    expect(
+      getSentryRuntimeOptions({
+        NEXT_PUBLIC_SENTRY_DSN: [
+          'https://public',
+          'sentry.example.test/1',
+        ].join('@'),
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'preview',
+        GITHUB_SHA: 'c'.repeat(40),
+      }).release
+    ).toBeUndefined();
+  });
+
   it('rejects non-commit release values', () => {
     expect(
       getSentryRuntimeOptions({

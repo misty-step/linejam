@@ -17,6 +17,8 @@ const PRODUCTION_SMOKE_MONITOR_CONFIG = Object.freeze({
 const ALLOWED_MONITOR_SLUGS = new Set(Object.values(SENTRY_MONITOR_SLUGS));
 const PROD_ESCALATION_THRESHOLD = 2;
 const PREVIEW_FAILURE_MESSAGE = 'Linejam preview smoke failed';
+const RELEASE_RESOLUTION_FAILURE_MESSAGE =
+  'Linejam deployed release could not be resolved';
 const COMMIT_RELEASE = /^[a-f0-9]{7,64}$/i;
 const EVENT_ID = /^[a-f0-9]{32}$/i;
 
@@ -41,17 +43,26 @@ export function sanitizePreviewSmokeEvent(event) {
       ? event.release
       : undefined;
   const tags = event.tags;
-  const expectedException = event.exception?.values?.some(
-    (value) =>
-      value?.type === 'Error' && value.value === PREVIEW_FAILURE_MESSAGE
-  );
+  const failureCode = tags?.failure_code;
+  const expectedMessage =
+    failureCode === 'release_unresolved'
+      ? RELEASE_RESOLUTION_FAILURE_MESSAGE
+      : failureCode === 'unexpected_error'
+        ? PREVIEW_FAILURE_MESSAGE
+        : undefined;
+  const releaseResolved = failureCode !== 'release_unresolved';
+  const expectedException =
+    expectedMessage &&
+    event.exception?.values?.some(
+      (value) => value?.type === 'Error' && value.value === expectedMessage
+    );
   if (
     event.environment !== 'preview' ||
-    !release ||
+    (releaseResolved && !release) ||
     event.level !== 'error' ||
     tags?.runtime !== 'github-actions' ||
     tags.operation !== 'previewSmoke' ||
-    tags.failure_code !== 'unexpected_error' ||
+    !expectedMessage ||
     !expectedException
   ) {
     return null;
@@ -71,15 +82,15 @@ export function sanitizePreviewSmokeEvent(event) {
     platform: 'node',
     level: 'error',
     environment: 'preview',
-    release,
+    ...(releaseResolved && release ? { release } : {}),
     fingerprint: ['linejam-preview-smoke'],
     tags: {
       runtime: 'github-actions',
       operation: 'previewSmoke',
-      failure_code: 'unexpected_error',
+      failure_code: failureCode,
     },
     exception: {
-      values: [{ type: 'Error', value: PREVIEW_FAILURE_MESSAGE }],
+      values: [{ type: 'Error', value: expectedMessage }],
     },
   };
 }
@@ -93,6 +104,7 @@ export function planSentryReport({
   monitorSlug,
   outcome,
   consecutiveFailures = 0,
+  releaseResolved = true,
 }) {
   if (!ALLOWED_MONITOR_SLUGS.has(monitorSlug)) {
     throw new Error(`Unsupported Sentry monitor slug: ${monitorSlug}`);
@@ -110,18 +122,22 @@ export function planSentryReport({
     return {
       kind: 'event',
       operation: 'previewSmoke',
-      outcome,
+      outcome: releaseResolved ? outcome : 'failure',
     };
   }
 
   const transientProductionFailure =
-    outcome === 'failure' && consecutiveFailures < PROD_ESCALATION_THRESHOLD;
+    releaseResolved &&
+    outcome === 'failure' &&
+    consecutiveFailures < PROD_ESCALATION_THRESHOLD;
 
   return {
     kind: 'check_in',
     monitorSlug,
     status:
-      outcome === 'success' || transientProductionFailure ? 'ok' : 'error',
+      releaseResolved && (outcome === 'success' || transientProductionFailure)
+        ? 'ok'
+        : 'error',
   };
 }
 
@@ -130,6 +146,7 @@ export function planSentryReport({
  *   monitorSlug: string,
  *   outcome: string,
  *   consecutiveFailures?: number,
+ *   releaseResolved?: boolean,
  *   sdk?: SentryWorkflowSdk,
  *   runtimeOptions?: SentryRuntimeOptions
  * }} input
@@ -138,6 +155,7 @@ export async function reportSentryWorkflow({
   monitorSlug,
   outcome,
   consecutiveFailures = 0,
+  releaseResolved = true,
   sdk = Sentry,
   runtimeOptions = getSentryRuntimeOptions(),
 }) {
@@ -145,6 +163,7 @@ export async function reportSentryWorkflow({
     monitorSlug,
     outcome,
     consecutiveFailures,
+    releaseResolved,
   });
 
   if (plan.kind === 'event' && plan.outcome === 'success') {
@@ -169,23 +188,30 @@ export async function reportSentryWorkflow({
       'LINEJAM_DEPLOY_ENVIRONMENT is required for Sentry reporting'
     );
   }
-  if (!runtimeOptions.release) {
+  if (releaseResolved && !runtimeOptions.release) {
     throw new Error('NEXT_DEPLOYMENT_ID is required for Sentry reporting');
   }
 
   sdk.init({
     ...runtimeOptions,
+    release: releaseResolved ? runtimeOptions.release : undefined,
     tracesSampleRate: 0,
     beforeSend: sanitizePreviewSmokeEvent,
   });
+  const failureCode = releaseResolved
+    ? 'unexpected_error'
+    : 'release_unresolved';
+  const failureMessage = releaseResolved
+    ? PREVIEW_FAILURE_MESSAGE
+    : RELEASE_RESOLUTION_FAILURE_MESSAGE;
   const eventId =
     plan.kind === 'event'
-      ? sdk.captureException(new Error(PREVIEW_FAILURE_MESSAGE), {
+      ? sdk.captureException(new Error(failureMessage), {
           fingerprint: ['linejam-preview-smoke'],
           tags: {
             runtime: 'github-actions',
             operation: plan.operation,
-            failure_code: 'unexpected_error',
+            failure_code: failureCode,
           },
         })
       : sdk.captureCheckIn(plan, PRODUCTION_SMOKE_MONITOR_CONFIG);
@@ -210,10 +236,14 @@ export async function runFromEnv(env = process.env) {
     env.LINEJAM_MONITOR_CONSECUTIVE_FAILURES || '0',
     10
   );
+  const releaseResolutionOutcome =
+    env.LINEJAM_RELEASE_RESOLUTION_OUTCOME?.trim();
   return reportSentryWorkflow({
     monitorSlug: env.LINEJAM_MONITOR_SLUG,
     outcome: env.LINEJAM_MONITOR_OUTCOME,
     consecutiveFailures,
+    releaseResolved:
+      !releaseResolutionOutcome || releaseResolutionOutcome === 'success',
     runtimeOptions: getSentryRuntimeOptions(env),
   });
 }

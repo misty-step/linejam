@@ -31,9 +31,7 @@ export function resolveSentryEnvironment(env = process.env) {
 /** @param {SentryEnvironment} [env] */
 export function resolveSentryRelease(env = process.env) {
   const release = clean(
-    env.NEXT_PUBLIC_SENTRY_RELEASE ||
-      env.NEXT_DEPLOYMENT_ID ||
-      env.GITHUB_SHA
+    env.NEXT_PUBLIC_SENTRY_RELEASE || env.NEXT_DEPLOYMENT_ID
   );
   return release && COMMIT_RELEASE.test(release) ? release : undefined;
 }

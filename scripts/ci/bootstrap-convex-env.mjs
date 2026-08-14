@@ -210,10 +210,7 @@ function resolveHostedSentryEntries(env, deploymentEnvironment) {
   }
 
   const release =
-    env.SENTRY_RELEASE?.trim() ||
-    env.NEXT_DEPLOYMENT_ID?.trim() ||
-    env.GITHUB_SHA?.trim() ||
-    '';
+    env.SENTRY_RELEASE?.trim() || env.NEXT_DEPLOYMENT_ID?.trim() || '';
   if (!SENTRY_RELEASE_PATTERN.test(release)) {
     throw new Error(
       'NEXT_DEPLOYMENT_ID or SENTRY_RELEASE must be a 40-character commit SHA before deploying hosted Convex environments.'

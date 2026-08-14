@@ -35,7 +35,6 @@ jobs:
       NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
       NEXT_PUBLIC_SENTRY_ENABLED: '1'
       LINEJAM_DEPLOY_ENVIRONMENT: production
-      NEXT_DEPLOYMENT_ID: ${{ github.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -49,6 +48,11 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
+      - name: Resolve deployed Sentry release
+        id: release
+        continue-on-error: true
+        run: node scripts/ops/resolve-sentry-release.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -57,6 +61,7 @@ jobs:
 
       - name: Run production smoke
         id: smoke
+        if: always()
         env:
           LINEJAM_FORCE_ALERT_TEST: ${{ inputs.force_alert_test && '1' || '0' }}
         run: |
@@ -120,6 +125,7 @@ jobs:
         if: always()
         env:
           LINEJAM_MONITOR_SLUG: linejam-production-smoke
+          LINEJAM_RELEASE_RESOLUTION_OUTCOME: ${{ steps.release.outcome }}
           LINEJAM_MONITOR_OUTCOME: ${{ steps.smoke.outcome }}
           LINEJAM_MONITOR_CONSECUTIVE_FAILURES: ${{ steps.streak.outputs.count }}
         run: node scripts/ops/report-sentry-check-in.mjs
@@ -141,3 +147,8 @@ jobs:
               echo "- Not yet escalated: below the 2-run threshold. Recorded as transient workflow evidence without opening an incident."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Enforce deployed release attribution
+        if: always() && steps.release.outcome != 'success'
+        run: |
+          echo "::error::Production smoke could not resolve the commit served by /api/health."
+          exit 1

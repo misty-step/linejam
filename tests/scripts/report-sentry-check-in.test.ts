@@ -169,6 +169,91 @@ describe('Sentry workflow reporting', () => {
     expect(JSON.stringify(filtered)).not.toContain('PROHIBITED');
   });
 
+  it('reports an unresolved preview release without inventing attribution', async () => {
+    const sdk = sentrySdk();
+
+    await reportSentryWorkflow({
+      monitorSlug: SENTRY_MONITOR_SLUGS.previewSmoke,
+      outcome: 'success',
+      releaseResolved: false,
+      sdk,
+      runtimeOptions: { ...RUNTIME_OPTIONS, release: undefined },
+    });
+
+    expect(sdk.init).toHaveBeenCalledWith(
+      expect.objectContaining({ release: undefined })
+    );
+    expect(sdk.captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Linejam deployed release could not be resolved',
+      }),
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          failure_code: 'release_unresolved',
+        }),
+      })
+    );
+    expect(
+      sanitizePreviewSmokeEvent({
+        level: 'error',
+        environment: 'preview',
+        release: 'f'.repeat(40),
+        tags: {
+          runtime: 'github-actions',
+          operation: 'previewSmoke',
+          failure_code: 'release_unresolved',
+        },
+        exception: {
+          values: [
+            {
+              type: 'Error',
+              value: 'Linejam deployed release could not be resolved',
+            },
+          ],
+        },
+      })
+    ).toEqual({
+      platform: 'node',
+      level: 'error',
+      environment: 'preview',
+      fingerprint: ['linejam-preview-smoke'],
+      tags: {
+        runtime: 'github-actions',
+        operation: 'previewSmoke',
+        failure_code: 'release_unresolved',
+      },
+      exception: {
+        values: [
+          {
+            type: 'Error',
+            value: 'Linejam deployed release could not be resolved',
+          },
+        ],
+      },
+    });
+  });
+
+  it('marks production monitoring unhealthy when release resolution fails', async () => {
+    const sdk = sentrySdk();
+
+    await reportSentryWorkflow({
+      monitorSlug: SENTRY_MONITOR_SLUGS.productionSmoke,
+      outcome: 'success',
+      releaseResolved: false,
+      sdk,
+      runtimeOptions: {
+        ...RUNTIME_OPTIONS,
+        environment: 'production',
+        release: undefined,
+      },
+    });
+
+    expect(sdk.captureCheckIn).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'error' }),
+      expect.any(Object)
+    );
+  });
+
   it('rejects an unconfigured workflow slug', () => {
     expect(() =>
       planSentryReport({ monitorSlug: 'invented', outcome: 'failure' })
