@@ -2,9 +2,7 @@
 /**
  * linejam-mcp — stdio JSON-RPC 2.0 MCP server, the agent-facing face over
  * the same core scripts/lib/linejamClient.ts the CLI wraps. One
- * request-per-line on stdin, one response-per-line on stdout (the fleet's
- * stdio MCP convention — see glass/canary/powder-mcp for the Rust
- * equivalent of this same shape).
+ * request-per-line on stdin, one response-per-line on stdout.
  *
  * Handles: initialize, tools/list, tools/call. Every tool call is a thin
  * translation into a linejamClient method; no game logic lives here.

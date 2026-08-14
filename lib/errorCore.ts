@@ -1,31 +1,40 @@
+import type { SentryReporterContext } from '@/lib/sentryPrivacy';
+
 type ErrorReporter = {
-  captureCanaryException: (
+  captureException: (
     error: unknown,
+    context?: SentryReporterContext
+  ) => unknown;
+  isEnabled: () => boolean;
+  sanitizeContext: (
     context?: Record<string, unknown>
-  ) => Promise<void>;
-  isCanaryEnabled: () => boolean;
-  scrubCanaryContext: (
-    context?: Record<string, unknown>
-  ) => Record<string, unknown> | undefined;
+  ) => SentryReporterContext | undefined;
 };
+
+export function isSentryEnabled() {
+  return (
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1' &&
+    Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN?.trim())
+  );
+}
 
 export function captureReportedError(
   reporter: ErrorReporter,
   error: unknown,
   context?: Record<string, unknown>
 ) {
-  const scrubbedContext = reporter.scrubCanaryContext(context);
+  const scrubbedContext = reporter.sanitizeContext(context);
 
-  if (!reporter.isCanaryEnabled()) {
+  if (!reporter.isEnabled()) {
     logCapturedError(
-      'Error captured (Canary disabled):',
+      'Error captured (Sentry disabled):',
       error,
       scrubbedContext
     );
     return;
   }
 
-  void reporter.captureCanaryException(error, scrubbedContext);
+  reporter.captureException(error, scrubbedContext);
 
   if (process.env.NODE_ENV === 'development') {
     logCapturedError('Captured error:', error, scrubbedContext);
@@ -35,7 +44,7 @@ export function captureReportedError(
 function logCapturedError(
   message: string,
   error: unknown,
-  context?: Record<string, unknown>
+  context?: SentryReporterContext
 ) {
   if (context) {
     console.error(message, error, context);

@@ -2,11 +2,7 @@ import { expect, test } from '@playwright/test';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { isolateGuestSessionIp } from './support/guestFlow';
 
-type CanaryErrorPayload = {
-  error_class?: string;
-  message?: string;
-  context?: { operation?: string };
-};
+const sentryEnvelopes: string[] = [];
 
 test.describe('Clerk frontend outage', () => {
   test('guest Host and Join fail open and report the bounded fallback', async ({
@@ -14,7 +10,7 @@ test.describe('Clerk frontend outage', () => {
   }) => {
     const context = await browser.newContext();
     await isolateGuestSessionIp(context);
-    const alerts: CanaryErrorPayload[] = [];
+    sentryEnvelopes.length = 0;
     const abortedClerkScriptRequests: string[] = [];
 
     // Match Clerk's runtime script path rather than a configured hostname so
@@ -24,10 +20,10 @@ test.describe('Clerk frontend outage', () => {
       abortedClerkScriptRequests.push(route.request().url());
       return route.abort('failed');
     });
-    await context.route('**/api/v1/errors', async (route) => {
+    await context.route('**/api/*/envelope/**', async (route) => {
       const body = route.request().postData();
-      if (body) alerts.push(JSON.parse(body) as CanaryErrorPayload);
-      await route.fulfill({ status: 202, body: '' });
+      if (body) sentryEnvelopes.push(body);
+      await route.fulfill({ status: 200, body: '' });
     });
 
     const page = await context.newPage();
@@ -42,12 +38,13 @@ test.describe('Clerk frontend outage', () => {
       await expect
         .poll(
           () =>
-            alerts.some(
-              (payload) =>
-                payload.error_class === 'ClerkLoadTimeoutError' &&
-                payload.message ===
-                  'Clerk did not load in time; continuing with guest play' &&
-                payload.context?.operation === 'clerkLoadTimeout'
+            sentryEnvelopes.some(
+              (envelope) =>
+                envelope.includes('ClerkLoadTimeoutError') &&
+                envelope.includes(
+                  'Clerk did not load in time; continuing with guest play'
+                ) &&
+                envelope.includes('clerkLoadTimeout')
             ),
           { timeout: 8_000 }
         )

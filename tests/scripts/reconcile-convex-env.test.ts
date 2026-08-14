@@ -22,8 +22,8 @@ const manifest = {
     },
     production: {
       required: [
-        'CANARY_API_KEY',
-        'CANARY_ENDPOINT',
+        'SENTRY_DSN',
+        'SENTRY_RELEASE',
         'CLERK_JWT_ISSUER_DOMAIN',
         'GUEST_TOKEN_SECRET',
         'OPENROUTER_API_KEY',
@@ -116,8 +116,8 @@ describe('Convex environment reconciliation', () => {
         'OPENROUTER_API_KEY',
         'GUEST_TOKEN_SECRET',
         'UNDECLARED_KEY',
-        'CANARY_ENDPOINT',
-        'CANARY_API_KEY',
+        'SENTRY_RELEASE',
+        'SENTRY_DSN',
       ])
     ).toEqual({
       missing: ['CLERK_JWT_ISSUER_DOMAIN'],
@@ -129,8 +129,8 @@ describe('Convex environment reconciliation', () => {
     const runner = vi.fn().mockReturnValue({
       status: 0,
       stdout: [
-        'CANARY_API_KEY',
-        'CANARY_ENDPOINT',
+        'SENTRY_DSN',
+        'SENTRY_RELEASE',
         'CLERK_JWT_ISSUER_DOMAIN',
         'GUEST_TOKEN_SECRET',
         'OPENROUTER_API_KEY',
@@ -158,7 +158,7 @@ describe('Convex environment reconciliation', () => {
     );
     expect(logger.log).toHaveBeenCalledWith(
       expect.stringContaining(
-        'CANARY_API_KEY,CANARY_ENDPOINT,CLERK_JWT_ISSUER_DOMAIN,GUEST_TOKEN_SECRET,OPENROUTER_API_KEY'
+        'SENTRY_DSN,SENTRY_RELEASE,CLERK_JWT_ISSUER_DOMAIN,GUEST_TOKEN_SECRET,OPENROUTER_API_KEY'
       )
     );
     expect(logger.log).not.toHaveBeenCalledWith(
@@ -170,8 +170,8 @@ describe('Convex environment reconciliation', () => {
     const runner = vi.fn().mockReturnValue({
       status: 0,
       stdout: [
-        'CANARY_API_KEY',
-        'CANARY_ENDPOINT',
+        'SENTRY_DSN',
+        'SENTRY_RELEASE',
         'CLERK_JWT_ISSUER_DOMAIN',
         'GUEST_TOKEN_SECRET',
       ].join('\n'),

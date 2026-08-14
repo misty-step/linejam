@@ -46,6 +46,7 @@ import {
 } from './lib/ai/fallbackMetrics';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { getAiBudgetConfig, isAiProviderEnabled } from './lib/ai/budget';
+import { rethrowAfterBackendReport } from './errors';
 
 const runtimeConfig = getConvexRuntimeConfig();
 const initialOpenRouterApiKey = runtimeConfig.openRouterApiKey;
@@ -254,23 +255,31 @@ async function recordAiGenerationMetric(
   } else {
     await ctx.db.insert('aiGenerationMetrics', next);
   }
-
+  const thresholdPercent = getAiFallbackAlertThresholdPercent();
+  const minimumGenerations = getAiFallbackAlertMinimumGenerations();
   const checkIn = planAiFallbackCheckIn({
     totalGenerations: next.totalGenerations,
     fallbackGenerations: next.fallbackGenerations,
     fallbackReason: fallbackReason ?? null,
-    thresholdPercent: getAiFallbackAlertThresholdPercent(),
-    minimumGenerations: getAiFallbackAlertMinimumGenerations(),
+    thresholdPercent,
+    minimumGenerations,
   });
-  await ctx.scheduler.runAfter(
-    0,
-    internal.errors.reportAiFallbackRateToCanary,
-    {
-      status: checkIn.status,
-      summary: checkIn.summary,
-      ...checkIn.context,
-    }
-  );
+  const previousCheckIn = existing
+    ? planAiFallbackCheckIn({
+        totalGenerations: existing.totalGenerations,
+        fallbackGenerations: existing.fallbackGenerations,
+        fallbackReason: null,
+        thresholdPercent,
+        minimumGenerations,
+      })
+    : null;
+  if (!previousCheckIn || previousCheckIn.status !== checkIn.status) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.errors.reportAiFallbackRate,
+      checkIn
+    );
+  }
 }
 
 /**
@@ -400,15 +409,12 @@ async function claimGenerationForCell(
       callBudget,
       estimatedCostMicros: currentCostMicros + costPerGenerationMicros,
     });
-    await ctx.scheduler.runAfter(
-      0,
-      internal.errors.reportBackendErrorToCanary,
-      {
-        errorName: 'AiGenerationBudgetThreshold',
-        errorMessage: 'AI generation claim threshold reached',
-        operation: 'aiGenerationBudgetThreshold',
-      }
-    );
+    await ctx.scheduler.runAfter(0, internal.errors.reportBackendFailure, {
+      operation: 'aiGenerationBudgetThreshold',
+      failureCode: 'budget_threshold_reached',
+      observed: nextClaims,
+      threshold: alertThreshold,
+    });
   }
 
   if (cell.source === 'ghost') {
@@ -646,19 +652,7 @@ export const scheduleAiTurn = internalMutation({
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logError('scheduleAiTurn failed', err, { roomId, gameId, round });
-      await ctx.scheduler.runAfter(
-        0,
-        internal.errors.reportBackendErrorToCanary,
-        {
-          errorName: err.name || 'Error',
-          errorMessage: err.message,
-          errorStack: err.stack,
-          operation: 'scheduleAiTurn',
-          roomId,
-          gameId,
-          round,
-        }
-      );
+      // A scheduled reporter would roll back with this rethrown mutation.
       throw error;
     }
   },
@@ -784,19 +778,7 @@ export const ensureAiLine = internalMutation({
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logError('ensureAiLine failed', err, { roomId, gameId, round });
-      await ctx.scheduler.runAfter(
-        0,
-        internal.errors.reportBackendErrorToCanary,
-        {
-          errorName: err.name || 'Error',
-          errorMessage: err.message,
-          errorStack: err.stack,
-          operation: 'ensureAiLine',
-          roomId,
-          gameId,
-          round,
-        }
-      );
+      // A scheduled reporter would roll back with this rethrown mutation.
       throw error;
     }
   },
@@ -982,18 +964,14 @@ export const generateLineForRound = internalAction({
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       logError('generateLineForRound failed', err, { roomId, gameId, round });
-      await ctx
-        .runAction(internal.errors.reportBackendErrorToCanary, {
-          errorName: err.name || 'Error',
-          errorMessage: err.message,
-          errorStack: err.stack,
+      await rethrowAfterBackendReport(
+        ctx.runAction(internal.errors.reportBackendFailure, {
           operation: 'generateLineForRound',
-          roomId,
-          gameId,
+          failureCode: 'unexpected_error',
           round,
-        })
-        .catch(() => {});
-      throw error;
+        }),
+        error
+      );
     } finally {
       if (generationLock) {
         await ctx
@@ -1354,19 +1332,14 @@ export const generateGhostLine = internalAction({
         round,
         poemId,
       });
-      await ctx
-        .runAction(internal.errors.reportBackendErrorToCanary, {
-          errorName: err.name || 'Error',
-          errorMessage: err.message,
-          errorStack: err.stack,
+      await rethrowAfterBackendReport(
+        ctx.runAction(internal.errors.reportBackendFailure, {
           operation: 'generateGhostLine',
-          roomId,
-          gameId,
-          poemId,
+          failureCode: 'unexpected_error',
           round,
-        })
-        .catch(() => {});
-      throw error;
+        }),
+        error
+      );
     }
   },
 });

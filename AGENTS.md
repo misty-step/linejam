@@ -8,10 +8,9 @@ Compact router for repository agents. Read only the depth your lane needs.
 - Read `VISION.md` and `project.md` before changing product direction.
 - Preserve user work: inspect `git status`, never overwrite unrelated changes,
   and never use destructive Git commands.
-- Powder is the only ledger. Before implementation, run
-  `source ~/.secrets`, `/usr/bin/env powder list-ready --repo linejam`, then
-  claim one shaped card as the authenticated actor. Keep its run current and
-  complete or release it; never create a repository-local ticket store.
+- GitHub Issues is the only work ledger. Before implementation, read the Issue
+  and follow the assignee claim contract in `CONTRIBUTING.md`. Never create or
+  update Linejam work in Powder.
 - Base branch: `master`. Commits and PR titles use Conventional Commits.
 
 ## Sources of truth
@@ -85,7 +84,9 @@ explicit `coverage:check` guard. A `0/0 Unknown%` result is a hard failure in
 every checkout path, including isolated harness worktrees.
 
 Before handoff, adversarially review the diff for stale claims, authority
-ambiguity, accidental scope, secret exposure, and safety regressions. Record
-exact tests, live evidence, residual risk, and commit/PR/deployment identifiers
-in Powder. Review, merge, deploy, monitor, and production verification are
-distinct acceptance surfaces; perform only the ones authorized by the lane.
+ambiguity, accidental scope, secret exposure, and safety regressions. Put
+security-sensitive evidence only in a private advisory and add a sanitized
+receipt to the public Issue or PR. Otherwise record exact tests, live evidence,
+residual risk, and commit/PR/deployment identifiers in that public record.
+Review, merge, deploy, monitor, and production verification are distinct
+acceptance surfaces; perform only the ones authorized by the lane.

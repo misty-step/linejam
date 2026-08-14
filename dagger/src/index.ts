@@ -26,10 +26,8 @@ type AppEnv = {
   clerkJwtIssuerDomain?: string;
   playwrightClerkTestEmail?: string;
   guestTokenSecret?: Secret;
-  canaryEndpoint?: string;
-  canaryApiKey?: Secret;
-  nextPublicCanaryEndpoint?: string;
-  nextPublicCanaryApiKey?: string;
+  nextPublicSentryDsn?: string;
+  nextPublicSentryEnabled?: string;
   stagehandModel?: string;
   stagehandModelApiKey?: Secret;
 };
@@ -71,9 +69,8 @@ function withAppEnv(container: Container, env: AppEnv): Container {
     ['CLERK_PUBLISHABLE_KEY', env.nextPublicClerkPublishableKey],
     ['CLERK_JWT_ISSUER_DOMAIN', env.clerkJwtIssuerDomain],
     ['PLAYWRIGHT_CLERK_TEST_EMAIL', env.playwrightClerkTestEmail],
-    ['CANARY_ENDPOINT', env.canaryEndpoint],
-    ['NEXT_PUBLIC_CANARY_ENDPOINT', env.nextPublicCanaryEndpoint],
-    ['NEXT_PUBLIC_CANARY_API_KEY', env.nextPublicCanaryApiKey],
+    ['NEXT_PUBLIC_SENTRY_DSN', env.nextPublicSentryDsn],
+    ['NEXT_PUBLIC_SENTRY_ENABLED', env.nextPublicSentryEnabled],
     ['STAGEHAND_MODEL', env.stagehandModel],
   ];
   const withPublicEnv = publicEnvEntries.reduce(
@@ -143,10 +140,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Container {
     return baseContainer(
       source,
@@ -157,10 +152,8 @@ export class Ci {
         clerkJwtIssuerDomain,
         playwrightClerkTestEmail,
         guestTokenSecret,
-        canaryEndpoint,
-        canaryApiKey,
-        nextPublicCanaryEndpoint,
-        nextPublicCanaryApiKey,
+        nextPublicSentryDsn,
+        nextPublicSentryEnabled,
       },
       NODE_IMAGE,
       'linejam-pnpm'
@@ -176,10 +169,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return this.base(
       source,
@@ -189,10 +180,8 @@ export class Ci {
       clerkJwtIssuerDomain,
       playwrightClerkTestEmail,
       guestTokenSecret,
-      canaryEndpoint,
-      canaryApiKey,
-      nextPublicCanaryEndpoint,
-      nextPublicCanaryApiKey
+      nextPublicSentryDsn,
+      nextPublicSentryEnabled
     )
       .withExec(['pnpm', 'format:check'])
       .stdout();
@@ -207,10 +196,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return this.base(
       source,
@@ -220,10 +207,8 @@ export class Ci {
       clerkJwtIssuerDomain,
       playwrightClerkTestEmail,
       guestTokenSecret,
-      canaryEndpoint,
-      canaryApiKey,
-      nextPublicCanaryEndpoint,
-      nextPublicCanaryApiKey
+      nextPublicSentryDsn,
+      nextPublicSentryEnabled
     )
       .withExec(['pnpm', 'lint'])
       .stdout();
@@ -238,10 +223,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return this.base(
       source,
@@ -251,10 +234,8 @@ export class Ci {
       clerkJwtIssuerDomain,
       playwrightClerkTestEmail,
       guestTokenSecret,
-      canaryEndpoint,
-      canaryApiKey,
-      nextPublicCanaryEndpoint,
-      nextPublicCanaryApiKey
+      nextPublicSentryDsn,
+      nextPublicSentryEnabled
     )
       .withExec(['pnpm', 'typecheck'])
       .stdout();
@@ -276,10 +257,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return this.base(
       source,
@@ -289,10 +268,8 @@ export class Ci {
       clerkJwtIssuerDomain,
       playwrightClerkTestEmail,
       guestTokenSecret,
-      canaryEndpoint,
-      canaryApiKey,
-      nextPublicCanaryEndpoint,
-      nextPublicCanaryApiKey
+      nextPublicSentryDsn,
+      nextPublicSentryEnabled
     )
       .withExec(['pnpm', 'test:ci'])
       .stdout();
@@ -307,10 +284,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return this.base(
       source,
@@ -320,10 +295,8 @@ export class Ci {
       clerkJwtIssuerDomain,
       playwrightClerkTestEmail,
       requireSecret('GUEST_TOKEN_SECRET', guestTokenSecret, 'build-check'),
-      canaryEndpoint,
-      canaryApiKey,
-      nextPublicCanaryEndpoint,
-      nextPublicCanaryApiKey
+      nextPublicSentryDsn,
+      nextPublicSentryEnabled
     )
       .withExec(['pnpm', 'build:check'])
       .stdout();
@@ -383,10 +356,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     const container = withOptionalEnv(
       withOptionalEnv(
@@ -403,10 +374,8 @@ export class Ci {
               guestTokenSecret,
               'e2e'
             ),
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey,
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled,
           },
           NODE_IMAGE,
           'linejam-pnpm-playwright'
@@ -456,10 +425,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return withOptionalEnv(
       withOptionalEnv(
@@ -472,10 +439,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey,
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled,
           },
           PLAYWRIGHT_IMAGE,
           'linejam-pnpm-playwright'
@@ -501,10 +466,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string,
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string,
     stagehandModel?: string,
     stagehandModelApiKey?: Secret
   ): Promise<string> {
@@ -517,10 +480,8 @@ export class Ci {
         clerkJwtIssuerDomain,
         playwrightClerkTestEmail,
         guestTokenSecret,
-        canaryEndpoint,
-        canaryApiKey,
-        nextPublicCanaryEndpoint,
-        nextPublicCanaryApiKey,
+        nextPublicSentryDsn,
+        nextPublicSentryEnabled,
         stagehandModel,
         stagehandModelApiKey,
       },
@@ -547,10 +508,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return runChecks([
       [
@@ -564,10 +523,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled
           ),
       ],
       [
@@ -581,10 +538,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled
           ),
       ],
       [
@@ -598,10 +553,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled
           ),
       ],
       ['provider-retirement', () => this.providerRetirement(source)],
@@ -618,10 +571,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled
           ),
       ],
       [
@@ -635,10 +586,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled
           ),
       ],
     ]);
@@ -655,10 +604,8 @@ export class Ci {
     clerkJwtIssuerDomain?: string,
     playwrightClerkTestEmail?: string,
     guestTokenSecret?: Secret,
-    canaryEndpoint?: string,
-    canaryApiKey?: Secret,
-    nextPublicCanaryEndpoint?: string,
-    nextPublicCanaryApiKey?: string
+    nextPublicSentryDsn?: string,
+    nextPublicSentryEnabled?: string
   ): Promise<string> {
     return runChecks([
       [
@@ -672,10 +619,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled
           ),
       ],
       [
@@ -691,10 +636,8 @@ export class Ci {
             clerkJwtIssuerDomain,
             playwrightClerkTestEmail,
             guestTokenSecret,
-            canaryEndpoint,
-            canaryApiKey,
-            nextPublicCanaryEndpoint,
-            nextPublicCanaryApiKey
+            nextPublicSentryDsn,
+            nextPublicSentryEnabled
           ),
       ],
     ]);

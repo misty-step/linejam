@@ -1,19 +1,23 @@
+import { captureCheckIn, flush } from '@sentry/nextjs';
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import type { ConvexEnvHealthReport } from '@/convex/lib/env';
 import { resolveDeploymentId } from '@/lib/deploymentId';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
-import {
-  captureCanaryException,
-  isCanaryEnabled,
-  reportCanaryCheckIn,
-} from '@/lib/canaryServer';
+import { captureServerError } from '@/lib/errorServer';
 import { log, logError, logRequest } from '@/lib/logger';
 
 const CONVEX_HEALTH_TIMEOUT_MS = 3_000;
 const ROUTE = '/api/health';
 const GUEST_PARITY_KEY = 'guestSession:deployment-readiness';
+const SENTRY_HEALTH_MONITOR_SLUG = 'linejam-production-health';
+const SENTRY_HEALTH_MONITOR_CONFIG = {
+  schedule: { type: 'crontab' as const, value: '*/5 * * * *' },
+  checkinMargin: 2,
+  maxRuntime: 1,
+  timezone: 'UTC',
+};
 
 export async function GET() {
   const startedAt = Date.now();
@@ -33,7 +37,8 @@ export async function GET() {
       envChecks.convexUrl &&
       convexStatus === 'connected' &&
       convexEnv?.ok === true;
-    const canaryReady = envChecks.canaryIngestKey;
+    const sentryReady = envChecks.sentryEnabled;
+    const observabilityReady = sentryReady;
     const deployment = deploymentReadiness();
     const status = serviceHealthy && deployment.ready ? 200 : 503;
     const body = {
@@ -50,8 +55,8 @@ export async function GET() {
         ...envChecks,
       },
       observability: {
-        status: canaryReady ? 'ready' : 'degraded',
-        canaryIngestKey: canaryReady,
+        status: observabilityReady ? 'ready' : 'degraded',
+        sentryEnabled: sentryReady,
       },
       timestamp: new Date().toISOString(),
     };
@@ -62,7 +67,7 @@ export async function GET() {
       status,
       durationMs: elapsedMs(startedAt),
       convex: convexStatus,
-      observabilityStatus: canaryReady ? 'ready' : 'degraded',
+      observabilityStatus: observabilityReady ? 'ready' : 'degraded',
     });
 
     await reportHealthCheckIn({
@@ -118,7 +123,9 @@ function checkEnvVars(
     convexDeploymentMatch,
     convexUrl: !!process.env.NEXT_PUBLIC_CONVEX_URL,
     clerkPublishableKey: !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    canaryIngestKey: isCanaryEnabled(),
+    sentryEnabled:
+      process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1' &&
+      !!process.env.NEXT_PUBLIC_SENTRY_DSN,
   };
 }
 
@@ -253,7 +260,8 @@ async function logFailure(error: unknown, startedAt: number) {
 
   logError('Healthcheck failed', error, context);
 
-  void captureCanaryException(error, context);
+  captureServerError(error, context);
+  reportSentryHealthCheckIn('error', startedAt);
 }
 
 async function reportHealthCheckIn(input: {
@@ -262,16 +270,56 @@ async function reportHealthCheckIn(input: {
   routeStatus: number;
   startedAt: number;
 }) {
-  await reportCanaryCheckIn({
-    status: input.status,
-    summary: input.summary,
-    ttlMs: 300_000,
-    context: {
-      source: 'api.health',
-      route: ROUTE,
-      status: input.routeStatus,
-      durationMs: elapsedMs(input.startedAt),
-    },
+  reportSentryHealthCheckIn(
+    input.status === 'error' ? 'error' : 'ok',
+    input.startedAt
+  );
+}
+
+function reportSentryHealthCheckIn(status: 'ok' | 'error', startedAt: number) {
+  if (
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
+    !process.env.NEXT_PUBLIC_SENTRY_DSN
+  ) {
+    return;
+  }
+
+  try {
+    captureCheckIn(
+      {
+        monitorSlug: SENTRY_HEALTH_MONITOR_SLUG,
+        status,
+        duration: elapsedMs(startedAt) / 1_000,
+      },
+      SENTRY_HEALTH_MONITOR_CONFIG
+    );
+    void flush(2_000)
+      .then((flushed) => {
+        if (!flushed) {
+          logSentryHealthReportingFailure('FlushTimeout');
+        }
+      })
+      .catch((reportingError: unknown) => {
+        logSentryHealthReportingFailure(
+          reportingError instanceof Error
+            ? reportingError.name
+            : 'UnknownReportingError'
+        );
+      });
+  } catch (reportingError) {
+    logSentryHealthReportingFailure(
+      reportingError instanceof Error
+        ? reportingError.name
+        : 'UnknownReportingError'
+    );
+  }
+}
+
+function logSentryHealthReportingFailure(errorName: string) {
+  log.error('Sentry health check-in failed', {
+    operation: 'healthCheckIn',
+    failureCode: 'reportingFailure',
+    errorName,
   });
 }
 
