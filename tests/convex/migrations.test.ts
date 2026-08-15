@@ -446,6 +446,10 @@ describe('cleanupMachineAuthorship', () => {
   it('revokes publication and protection when reclassifying legacy abandonment', async () => {
     const t = setupConvexTest();
     const seeded = await t.run(async (ctx) => {
+      const formerHostUserId = await ctx.db.insert('users', {
+        displayName: 'Former host',
+        createdAt: 0,
+      });
       const hostUserId = await ctx.db.insert('users', {
         displayName: 'Host',
         createdAt: 0,
@@ -457,6 +461,12 @@ describe('cleanupMachineAuthorship', () => {
         completedAt: 200,
         retentionState: 'protected',
         createdAt: 0,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: formerHostUserId,
+        displayName: 'Former host',
+        joinedAt: 0,
       });
       await ctx.db.insert('roomPlayers', {
         roomId,
@@ -488,7 +498,7 @@ describe('cleanupMachineAuthorship', () => {
         retentionState: 'protected',
         createdAt: 0,
       });
-      return { gameId, poemId, roomId };
+      return { gameId, hostUserId, poemId, roomId };
     });
 
     await runMachineCleanupPhase(t, 'games');
@@ -508,6 +518,7 @@ describe('cleanupMachineAuthorship', () => {
       expect(room).not.toHaveProperty('currentGameId');
       expect(room).not.toHaveProperty('completedAt');
       expect(room).toMatchObject({
+        hostUserId: seeded.hostUserId,
         status: 'LOBBY',
         retentionState: 'active',
       });
@@ -522,7 +533,7 @@ describe('cleanupMachineAuthorship', () => {
 
   it('keeps a legacy-abandoned room closed when only AI memberships remain', async () => {
     const t = setupConvexTest();
-    const roomId = await t.run(async (ctx) => {
+    const seeded = await t.run(async (ctx) => {
       const aiUserId = await ctx.db.insert('users', {
         displayName: 'Legacy AI host',
         kind: 'AI',
@@ -552,26 +563,105 @@ describe('cleanupMachineAuthorship', () => {
         createdAt: 0,
       });
       await ctx.db.patch(id, { currentGameId: gameId });
-      return id;
+      return { aiUserId, roomId: id };
     });
 
     await runMachineCleanupPhase(t, 'games');
     await runMachineCleanupPhase(t, 'roomPlayers');
+    const aiUserReceipts = await runMachineCleanupPhase(t, 'aiUsers');
 
-    const room = await t.run((ctx) => ctx.db.get(roomId));
+    const room = await t.run((ctx) => ctx.db.get(seeded.roomId));
     expect(room).not.toHaveProperty('currentGameId');
     expect(room).toMatchObject({
+      hostUserId: seeded.aiUserId,
       status: 'COMPLETED',
       retentionState: 'pending',
     });
     expect(
+      aiUserReceipts.reduce((sum, receipt) => sum + receipt.blocked, 0)
+    ).toBe(1);
+    expect(await t.run((ctx) => ctx.db.get(seeded.aiUserId))).not.toBeNull();
+    expect(
+      await t.run(async (ctx) => {
+        const retainedRoom = await ctx.db.get(seeded.roomId);
+        return retainedRoom === null
+          ? null
+          : await ctx.db.get(retainedRoom.hostUserId);
+      })
+    ).not.toBeNull();
+    expect(
       await t.run((ctx) =>
         ctx.db
           .query('roomPlayers')
-          .withIndex('by_room', (q) => q.eq('roomId', roomId))
+          .withIndex('by_room', (q) => q.eq('roomId', seeded.roomId))
           .collect()
       )
     ).toEqual([]);
+  });
+
+  it('promotes a surviving human before deleting a legacy AI host', async () => {
+    const t = setupConvexTest();
+    const seeded = await t.run(async (ctx) => {
+      const aiUserId = await ctx.db.insert('users', {
+        displayName: 'Legacy AI host',
+        kind: 'AI',
+        createdAt: 0,
+      });
+      const humanUserId = await ctx.db.insert('users', {
+        displayName: 'Surviving human',
+        createdAt: 1,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'AIHM',
+        hostUserId: aiUserId,
+        status: 'COMPLETED',
+        completedAt: 200,
+        createdAt: 0,
+      });
+      await Promise.all([
+        ctx.db.insert('roomPlayers', {
+          roomId,
+          userId: aiUserId,
+          displayName: 'Legacy AI host',
+          joinedAt: 0,
+        }),
+        ctx.db.insert('roomPlayers', {
+          roomId,
+          userId: humanUserId,
+          displayName: 'Surviving human',
+          joinedAt: 1,
+        }),
+      ]);
+      const gameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        completionKind: 'abandoned',
+        cycle: 1,
+        currentRound: 4,
+        assignmentMatrix: [],
+        completedAt: 200,
+        createdAt: 0,
+      });
+      await ctx.db.patch(roomId, { currentGameId: gameId });
+      return { aiUserId, humanUserId, roomId };
+    });
+
+    await runMachineCleanupPhase(t, 'games');
+    await runMachineCleanupPhase(t, 'roomPlayers');
+    const aiUserReceipts = await runMachineCleanupPhase(t, 'aiUsers');
+
+    expect(await t.run((ctx) => ctx.db.get(seeded.roomId))).toMatchObject({
+      hostUserId: seeded.humanUserId,
+      status: 'LOBBY',
+      retentionState: 'active',
+    });
+    expect(await t.run((ctx) => ctx.db.get(seeded.aiUserId))).toBeNull();
+    expect(
+      aiUserReceipts.reduce((sum, receipt) => sum + receipt.changed, 0)
+    ).toBe(1);
+    expect(
+      aiUserReceipts.reduce((sum, receipt) => sum + receipt.blocked, 0)
+    ).toBe(0);
   });
 
   it('abandons active games whose immutable matrix contains an AI user', async () => {
