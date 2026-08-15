@@ -27,7 +27,6 @@ type CompletionPatchPlan = {
   gamePatch: {
     status: 'COMPLETED';
     completedAt: number;
-    completionKind: 'normal';
     retentionState: 'pending';
     retentionEligibleAt: number;
   };
@@ -116,7 +115,6 @@ function buildCompletionPatchPlan(args: {
     gamePatch: {
       status: 'COMPLETED',
       completedAt: args.completionTime,
-      completionKind: 'normal',
       retentionState: 'pending',
       retentionEligibleAt: retentionDeadline,
     },
@@ -156,7 +154,6 @@ export async function abandonGame(
     ctx.db.patch(args.game._id, {
       status: 'ABANDONED',
       completedAt: abandonedAt,
-      completionKind: 'abandoned',
       retentionState: 'pending',
       retentionEligibleAt: retentionDeadline,
     }),

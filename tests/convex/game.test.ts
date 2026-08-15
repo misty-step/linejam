@@ -587,6 +587,35 @@ describe('endGame', () => {
     expect(restartedRoom?.status).toBe('IN_PROGRESS');
     expect(restartedRoom?.currentGameId).not.toBe(activeGameId);
   });
+
+  it('keeps a participant whose first heartbeat has not arrived', async () => {
+    const t = setupConvexTest();
+    const { code, roomId, guestId } = await seedLobby(t, 'END2');
+    await asUser(t, 'hostEND2').mutation(api.game.startGame, { code });
+    await t.run(async (ctx) => {
+      const guest = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', guestId)
+        )
+        .unique();
+      await ctx.db.patch(guest!._id, { lastSeenAt: undefined });
+    });
+
+    await asUser(t, 'hostEND2').mutation(api.game.endGame, {
+      roomCode: code,
+    });
+
+    const guestMembership = await t.run((ctx) =>
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', guestId)
+        )
+        .unique()
+    );
+    expect(guestMembership).not.toBeNull();
+  });
 });
 
 // ─── getCurrentAssignment ─────────────────────────────────────────────────────

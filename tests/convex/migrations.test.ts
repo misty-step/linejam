@@ -387,6 +387,73 @@ describe('cleanupMachineAuthorship', () => {
     ).toBe(0);
   });
 
+  it('revokes publication and protection when reclassifying legacy abandonment', async () => {
+    const t = setupConvexTest();
+    const seeded = await t.run(async (ctx) => {
+      const hostUserId = await ctx.db.insert('users', {
+        displayName: 'Host',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'AIPR',
+        hostUserId,
+        status: 'COMPLETED',
+        completedAt: 200,
+        retentionState: 'protected',
+        createdAt: 0,
+      });
+      const gameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        completionKind: 'abandoned',
+        cycle: 1,
+        currentRound: 4,
+        assignmentMatrix: [],
+        completedAt: 200,
+        publicRecapEnabled: true,
+        publicRecapEnabledAt: 200,
+        retentionState: 'protected',
+        createdAt: 0,
+      });
+      await ctx.db.patch(roomId, { currentGameId: gameId });
+      const poemId = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        publicShareEnabled: true,
+        publicShareEnabledAt: 200,
+        publicShareAttempt: 'legacy-attempt',
+        retentionState: 'protected',
+        createdAt: 0,
+      });
+      return { gameId, poemId, roomId };
+    });
+
+    await runMachineCleanupPhase(t, 'games');
+
+    await t.run(async (ctx) => {
+      const game = await ctx.db.get(seeded.gameId);
+      const room = await ctx.db.get(seeded.roomId);
+      const poem = await ctx.db.get(seeded.poemId);
+      expect(game).toMatchObject({
+        status: 'ABANDONED',
+        retentionState: 'pending',
+      });
+      expect(game).not.toHaveProperty('completionKind');
+      expect(game).not.toHaveProperty('publicRecapEnabled');
+      expect(game).not.toHaveProperty('publicRecapEnabledAt');
+      expect(game?.retentionEligibleAt).toBeGreaterThan(200);
+      expect(room).not.toHaveProperty('currentGameId');
+      expect(room).toMatchObject({ retentionState: 'pending' });
+      expect(room?.retentionEligibleAt).toBe(game?.retentionEligibleAt);
+      expect(poem).not.toHaveProperty('publicShareEnabled');
+      expect(poem).not.toHaveProperty('publicShareEnabledAt');
+      expect(poem).not.toHaveProperty('publicShareAttempt');
+      expect(poem).toMatchObject({ retentionState: 'pending' });
+      expect(poem?.retentionEligibleAt).toBe(game?.retentionEligibleAt);
+    });
+  });
+
   it('abandons active games whose immutable matrix contains an AI user', async () => {
     const t = setupConvexTest();
     const seeded = await t.run(async (ctx) => {

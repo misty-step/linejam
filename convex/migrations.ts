@@ -3,6 +3,7 @@ import { internalMutation, mutation } from './_generated/server';
 import { verifyGuestToken } from './lib/guestToken';
 import { ensureUserHelper } from './users';
 import { abandonGame } from './lib/sessionLifecycle';
+import { retentionEligibleAt } from './lib/retentionPolicy';
 
 const hasOwn = (value: object, key: string) =>
   Object.prototype.hasOwnProperty.call(value, key);
@@ -192,19 +193,61 @@ export const cleanupMachineAuthorship = internalMutation({
               participants.some((participant) => participant?.kind === 'AI')
             ) {
               await abandonGame(ctx, { game, closeRoom: false });
-              await ctx.db.patch(game._id, { completionKind: undefined });
               changed++;
               continue;
             }
           }
 
           if (game.completionKind === undefined) continue;
-          await ctx.db.patch(game._id, {
-            ...(game.completionKind === 'abandoned'
-              ? { status: 'ABANDONED' as const }
-              : {}),
-            completionKind: undefined,
-          });
+          if (game.completionKind === 'abandoned') {
+            const abandonedAt = Math.min(
+              game.completedAt ?? game.createdAt,
+              Date.now()
+            );
+            const retentionDeadline = retentionEligibleAt(
+              abandonedAt,
+              'abandoned'
+            );
+            const [room, poems] = await Promise.all([
+              ctx.db.get(game.roomId),
+              ctx.db
+                .query('poems')
+                .withIndex('by_game', (q) => q.eq('gameId', game._id))
+                .collect(),
+            ]);
+            await Promise.all([
+              ctx.db.patch(game._id, {
+                status: 'ABANDONED',
+                publicRecapEnabled: undefined,
+                publicRecapEnabledAt: undefined,
+                publicRecapDisabledAt: abandonedAt,
+                completionKind: undefined,
+                retentionState: 'pending',
+                retentionEligibleAt: retentionDeadline,
+              }),
+              ...(room?.currentGameId === game._id
+                ? [
+                    ctx.db.patch(room._id, {
+                      currentGameId: undefined,
+                      retentionState: 'pending',
+                      retentionEligibleAt: retentionDeadline,
+                    }),
+                  ]
+                : []),
+              ...poems.map((poem) =>
+                ctx.db.patch(poem._id, {
+                  publicShareEnabled: undefined,
+                  publicShareEnabledAt: undefined,
+                  publicShareDisabledAt: abandonedAt,
+                  publicShareAttempt: undefined,
+                  retentionState: 'pending',
+                  retentionEligibleAt: retentionDeadline,
+                })
+              ),
+            ]);
+          } else {
+            await ctx.db.patch(game._id, { completionKind: undefined });
+          }
           changed++;
         }
         break;

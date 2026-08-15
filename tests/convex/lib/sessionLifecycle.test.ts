@@ -228,7 +228,7 @@ describe('applyLineLifecycleTransition', () => {
       await Promise.all(seeded.poems.map((poemId) => ctx.db.get(poemId))),
     ]);
     expect(after?.status).toBe('COMPLETED');
-    expect(after?.completionKind).toBe('normal');
+    expect(after).not.toHaveProperty('completionKind');
     expect(after?.retentionEligibleAt).toBe(
       after!.completedAt! + RETENTION_DURATIONS_MS.privateCompleted
     );

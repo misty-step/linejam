@@ -208,6 +208,7 @@ export const endGame = mutation({
     const staleNonHosts = players.filter(
       (player) =>
         player.userId !== room.hostUserId &&
+        player.lastSeenAt !== undefined &&
         isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS)
     );
 

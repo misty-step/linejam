@@ -115,7 +115,7 @@ describe('abandonment', () => {
     }));
 
     expect(state.game?.status).toBe('ABANDONED');
-    expect(state.game?.completionKind).toBe('abandoned');
+    expect(state.game).not.toHaveProperty('completionKind');
     expect(state.game?.retentionEligibleAt).toBe(
       state.game!.completedAt! + RETENTION_DURATIONS_MS.abandoned
     );
