@@ -81,6 +81,21 @@ describe('PoemCard component', () => {
       expect(screen.getByText(/with Bob/i)).toBeInTheDocument();
     });
 
+    it('renders a captured legacy machine co-author byline', () => {
+      render(
+        <PoemCard
+          poem={{
+            ...mockPoem,
+            coAuthors: ['Bashō (legacy machine)'],
+          }}
+          guestToken="token123"
+        />
+      );
+      expect(
+        screen.getByText(/with Bashō \(legacy machine\)/i)
+      ).toBeInTheDocument();
+    });
+
     it('renders formatted date', () => {
       const now = new Date();
       const poem = {

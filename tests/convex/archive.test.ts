@@ -633,16 +633,16 @@ describe('archive', () => {
       expect(result.poems[0].lineCount).toBe(2);
     });
 
-    it('coAuthors shows Unknown for a collaborator whose user row is missing', async () => {
+    it('uses a captured byline for a collaborator whose user row is missing', async () => {
       const t = setupConvexTest();
       const userId = await seedUser(t, {
         displayName: 'Known',
         clerkUserId: 'clerk_known',
         guestId: 'guest_known',
       });
-      const ghostId = await seedUser(t, {
-        displayName: 'Ghost',
-        guestId: 'guest_ghost2',
+      const legacyMachineId = await seedUser(t, {
+        displayName: 'Bashō',
+        guestId: 'guest_legacy_machine',
       });
       const { poemId } = await seedCompletedRoom(t, userId);
       await seedLine(t, {
@@ -654,17 +654,18 @@ describe('archive', () => {
       });
       await seedLine(t, {
         poemId,
-        authorUserId: ghostId,
+        authorUserId: legacyMachineId,
         text: 'B',
         wordCount: 1,
         indexInPoem: 1,
+        authorDisplayName: 'Bashō (legacy machine)',
       });
-      // Delete the collaborator's user row
-      await t.run((ctx) => ctx.db.delete(ghostId));
+      await t.run((ctx) => ctx.db.delete(legacyMachineId));
 
       const result = await queryArchive(t, 'clerk_known');
 
-      expect(result.poems[0].coAuthors).toContain('Unknown');
+      expect(result.poems[0].coAuthors).toContain('Bashō (legacy machine)');
+      expect(result.poems[0].coAuthors).not.toContain('Unknown');
     });
 
     it('uses a poem-local author key instead of clerkUserId', async () => {

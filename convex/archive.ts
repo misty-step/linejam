@@ -173,11 +173,17 @@ export const getArchiveData = query({
     );
     const poems = candidatePoems;
 
-    // Step 4: Collect all unique author IDs across all poems
+    // Step 4: Collect author IDs and captured bylines. A deleted legacy author
+    // must remain honestly named after its user row is removed.
     const allAuthorIds = new Set<Id<'users'>>();
+    const capturedAuthorNames = new Map<Id<'users'>, string>();
     for (const lines of allPoemLines) {
       for (const line of lines) {
         allAuthorIds.add(line.authorUserId);
+        const capturedName = line.authorDisplayName?.trim();
+        if (capturedName && !capturedAuthorNames.has(line.authorUserId)) {
+          capturedAuthorNames.set(line.authorUserId, capturedName);
+        }
       }
     }
 
@@ -188,7 +194,8 @@ export const getArchiveData = query({
       authorIds.map((id, i) => [
         id,
         {
-          name: authors[i]?.displayName || 'Unknown',
+          name:
+            authors[i]?.displayName || capturedAuthorNames.get(id) || 'Unknown',
         },
       ])
     );
