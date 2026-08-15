@@ -17,6 +17,56 @@ function changedLines(diff, marker) {
     .map((line) => line.slice(1).trim());
 }
 
+function literalUnionValues(lines, field) {
+  const fieldPrefix = `${field}:`;
+  const start = lines.findIndex((line) => line.startsWith(fieldPrefix));
+  if (start === -1) return null;
+
+  const expressionLines = [];
+  let depth = 0;
+  let opened = false;
+  for (const line of lines.slice(start)) {
+    const expression =
+      expressionLines.length === 0 ? line.slice(fieldPrefix.length) : line;
+    expressionLines.push(expression);
+    for (const character of expression) {
+      if (character === '(') {
+        depth++;
+        opened = true;
+      } else if (character === ')') {
+        depth--;
+      }
+    }
+    if (opened && depth === 0) break;
+  }
+
+  const expression = expressionLines.join('').replaceAll(/\s/g, '');
+  const literalPattern = /v\.literal\((['"])([^'"]+)\1\)/g;
+  const values = Array.from(
+    expression.matchAll(literalPattern),
+    ([, , value]) => value
+  );
+  const skeleton = expression.replace(literalPattern, 'L');
+  if (
+    values.length === 0 ||
+    !/^v\.union\((?:L,?)+\),?$/.test(skeleton)
+  ) {
+    return null;
+  }
+  return new Set(values);
+}
+
+function isLiteralUnionExpansion(schemaDiff, field) {
+  const before = literalUnionValues(changedLines(schemaDiff, '-'), field);
+  const after = literalUnionValues(changedLines(schemaDiff, '+'), field);
+  return (
+    before !== null &&
+    after !== null &&
+    after.size > before.size &&
+    [...before].every((value) => after.has(value))
+  );
+}
+
 function addedMigrationExports(diff) {
   return Array.from(
     diff.matchAll(MIGRATION_EXPORT),
@@ -35,7 +85,10 @@ export function detectSchemaContractionWithMigration({
 }) {
   const removedFields = changedLines(schemaDiff, '-')
     .map((line) => SCHEMA_PROPERTY.exec(line)?.[1])
-    .filter((field) => field !== undefined);
+    .filter(
+      (field) =>
+        field !== undefined && !isLiteralUnionExpansion(schemaDiff, field)
+    );
   const addedMigrations = addedMigrationExports(migrationsDiff);
 
   return {

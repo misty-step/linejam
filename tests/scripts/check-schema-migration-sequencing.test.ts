@@ -84,6 +84,61 @@ describe('detectSchemaContractionWithMigration', () => {
     ).toBe(false);
   });
 
+  it('allows a field validator to expand beside a migration', () => {
+    const expandedStatusDiff = `@@ -1,3 +1,3 @@
+-    status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
++    status: v.union(
++      v.literal('IN_PROGRESS'),
++      v.literal('COMPLETED'),
++      v.literal('ABANDONED')
++    ),`;
+
+    expect(
+      detectSchemaContractionWithMigration({
+        schemaDiff: expandedStatusDiff,
+        migrationsDiff: incidentMigrationDiff,
+      })
+    ).toEqual({
+      violation: false,
+      removedFields: [],
+      addedMigrations: [
+        'export const dropLegacyModeColumns = internalMutation(',
+      ],
+    });
+  });
+
+  it('blocks an optional field narrowed to required beside a migration', () => {
+    const narrowedFieldDiff = `@@ -1,3 +1,3 @@
+-    legacyMode: v.optional(v.string()),
++    legacyMode: v.string(),`;
+
+    expect(
+      detectSchemaContractionWithMigration({
+        schemaDiff: narrowedFieldDiff,
+        migrationsDiff: incidentMigrationDiff,
+      })
+    ).toMatchObject({
+      violation: true,
+      removedFields: ['legacyMode'],
+    });
+  });
+
+  it('blocks a literal-union contraction beside a migration', () => {
+    const narrowedUnionDiff = `@@ -1,3 +1,3 @@
+-    status: v.union(v.literal('OPEN'), v.literal('CLOSED')),
++    status: v.union(v.literal('OPEN')),`;
+
+    expect(
+      detectSchemaContractionWithMigration({
+        schemaDiff: narrowedUnionDiff,
+        migrationsDiff: incidentMigrationDiff,
+      })
+    ).toMatchObject({
+      violation: true,
+      removedFields: ['status'],
+    });
+  });
+
   it('allows a contraction after its migration has already shipped', () => {
     expect(
       detectSchemaContractionWithMigration({
