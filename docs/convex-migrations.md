@@ -91,9 +91,12 @@ its base and blocks changes that both:
 - add an exported Convex function to `convex/migrations.ts`.
 
 This is intentionally a conservative text-diff guard for the known outage
-class, not a TypeScript schema parser. A false positive should be resolved by
-separating the migration and contraction, which is the safer release shape.
-The check fails closed if it cannot resolve or diff the base revision.
+class, not a TypeScript schema parser. It permits only one proved-safe same-field
+rewrite: a `v.union` whose `v.literal` values are a strict superset of the base
+validator. Optional-to-required changes, literal-union narrowing, and all other
+same-field rewrites remain blocked. Resolve any other false positive by
+separating the migration and schema change. The check fails closed if it cannot
+resolve or diff the base revision.
 
 If migrations move to multiple modules, update the guard and its regression
 tests in the same change.
