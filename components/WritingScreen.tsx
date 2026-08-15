@@ -40,7 +40,6 @@ interface WritingAssignment {
   poemId: Id<'poems'>;
   roomId: string;
   cycle: number;
-  playerKind: 'human' | 'AI';
   lineIndex: number;
   targetWordCount: number;
   totalRounds?: number;
@@ -265,7 +264,6 @@ function WritingComposer({
             roomIdHash: hashRoomId(assignment.roomId),
             cycle: assignment.cycle,
             round: assignment.lineIndex,
-            playerKind: assignment.playerKind,
           });
         }
       } catch {

@@ -416,7 +416,7 @@ describe('useSharePoem', () => {
 
   it('emits a canonical share action only after a successful share', async () => {
     const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine, 'room-id', 2, 'human')
+      useSharePoem(testPoemId, undefined, openingLine, 'room-id', 2)
     );
     await act(async () => {
       await result.current.handleShare();
@@ -425,7 +425,6 @@ describe('useSharePoem', () => {
       roomIdHash: 'test-room-hash',
       cycle: 2,
       round: 8,
-      playerKind: 'human',
       action: 'share',
     });
   });

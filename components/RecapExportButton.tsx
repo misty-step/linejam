@@ -27,7 +27,6 @@ export function RecapExportButton({
         roomIdHash,
         cycle,
         round: 8,
-        playerKind: 'human',
         action: 'save',
       });
     }

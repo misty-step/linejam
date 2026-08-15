@@ -287,8 +287,8 @@ describe('Sentry transport privacy boundary', () => {
   it('reduces reporter context to closed tags and bounded numeric/correlation fields', () => {
     expect(
       sanitizeSentryReporterContext({
-        operation: 'summonGhostwriter',
-        failureCode: 'provider_error',
+        operation: 'finishAbandonedGame',
+        failureCode: 'unexpected_error',
         durationMs: Number.POSITIVE_INFINITY,
         attempt: 3,
         correlationId: 'correlation_12345678',
@@ -298,8 +298,8 @@ describe('Sentry transport privacy boundary', () => {
       })
     ).toEqual({
       tags: {
-        operation: 'summonGhostwriter',
-        failure_code: 'provider_error',
+        operation: 'finishAbandonedGame',
+        failure_code: 'unexpected_error',
       },
       contexts: {
         linejam: {

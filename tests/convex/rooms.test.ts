@@ -703,7 +703,6 @@ describe('getRoomState', () => {
     expect(p?.displayName).toBe('SHost');
     // stableId should be clerkUserId (set during seedUser)
     expect(p?.stableId).toBe('clerk_shost');
-    expect(p?.isBot).toBe(false);
     // lastSeenAt must NOT appear on the wire
     expect(p).not.toHaveProperty('lastSeenAt');
     // isAway: no heartbeat → stale

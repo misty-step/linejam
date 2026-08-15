@@ -23,6 +23,46 @@ The migration and the schema contraction must not share a PR. Expansion and a
 backfill may share a PR when the deployed application remains compatible with
 both shapes.
 
+## Machine-authorship cleanup receipts (Release A)
+
+Release A deliberately keeps `users.kind`, `users.aiPersonaId`,
+`games.completionKind`, and the four legacy AI tables in the schema. Do not
+remove them until a later contraction PR has production evidence from
+`internal.migrations.cleanupMachineAuthorship`.
+
+Run one phase at a time, passing each returned non-null `cursor` into the next
+invocation of that phase until `remaining` is false. Record every receipt's
+`phase`, `scanned`, `changed`, `blocked`, `remaining`, and `cursor`. Run phases
+in this order:
+
+1. `games`
+2. `lineAttribution`
+3. `roomPlayers`
+4. `readers`
+5. `humanUserFields`
+6. `aiTurns`
+7. `aiRoundLocks`
+8. `aiUsage`
+9. `aiGenerationMetrics`
+10. `aiUsers`
+
+Before `aiUsers`, restart phases 1–9 from a null cursor and run each to
+`remaining=false`. The required pre-deletion postcondition is a complete
+second pass with aggregate `changed=0` and `blocked=0`, plus an immediate empty
+receipt (`scanned=0`, `changed=0`, `remaining=false`) for each of `aiTurns`,
+`aiRoundLocks`, `aiUsage`, and `aiGenerationMetrics`. This ordering is
+essential: `lineAttribution` can identify an AI-authored line only while its
+legacy AI user still exists.
+
+`aiUsers` must be last. It refuses to delete an AI identity while a room
+membership or reader assignment still references it. Any non-zero `blocked`
+count invalidates the run; finish the dependent phases and restart `aiUsers`
+from a null cursor. After it completes without blocked rows, restart `aiUsers`
+from a null cursor and record its aggregate `changed=0`, `blocked=0` pass.
+
+Preserve all receipts with the production deployment record; only then may a
+separate PR remove the legacy validators and tables.
+
 ## 2026-07-04 incident
 
 PR #298 introduced `dropLegacyModeColumns` while its schema diff removed

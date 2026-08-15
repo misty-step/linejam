@@ -19,22 +19,11 @@ export const BRIDGE_RUNTIMES = ['convex', 'github-actions'] as const;
 export const BRIDGE_OPERATIONS = [
   'sweepAbandonedGames',
   'finishAbandonedGame',
-  'aiGenerationBudgetThreshold',
-  'generateLineForRound',
-  'generateGhostLine',
-  'aiFallbackRate',
   'previewSmoke',
   'productionSmoke',
 ] as const;
 
-export const BRIDGE_FAILURE_CODES = [
-  'unexpected_error',
-  'budget_threshold_reached',
-  'budget_exhaustion',
-  'provider_error',
-  'invalid_output',
-  'missing_configuration',
-] as const;
+export const BRIDGE_FAILURE_CODES = ['unexpected_error'] as const;
 
 const blockedCodeValidator = v.union(
   v.literal('configuration_invalid'),
@@ -651,9 +640,7 @@ export const saveValidatedTags = internalMutation({
       release: v.string(),
       level: v.literal('error'),
       operation: v.union(...BRIDGE_OPERATIONS.map((value) => v.literal(value))),
-      failureCode: v.union(
-        ...BRIDGE_FAILURE_CODES.map((value) => v.literal(value))
-      ),
+      failureCode: v.literal('unexpected_error'),
     }),
     now: v.number(),
   },

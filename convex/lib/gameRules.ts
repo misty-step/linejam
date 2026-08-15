@@ -34,7 +34,10 @@ export const LATE_JOIN_POLICY = {
 } as const;
 
 export function isLateJoinAllowed(
-  game: { readonly status: 'IN_PROGRESS' | 'COMPLETED' } | null | undefined
+  game:
+    | { readonly status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED' }
+    | null
+    | undefined
 ): boolean {
   return game?.status === LATE_JOIN_POLICY.allowedStatus;
 }
@@ -53,33 +56,18 @@ export function getFinalRoundIndex(assignmentMatrix: {
 /** Soft pacing target for a round. The clock pressures; it never blocks. */
 export const ROUND_CLOCK_MS = 90_000;
 
-/** Overtime before the host may pass a stalled turn to the ghostwriter. */
-export const GHOSTWRITER_OVERTIME_MS = 90_000;
-
 /**
- * Per-turn auto ghost-fill delay. Fires after overtime elapses without a
- * manual ghostwriter summon, so a disconnected human never strands the room.
- * Kept equal to overtime so the auto path lands right when the manual path
- * becomes available — the host keeps agency, the auto-fill is the floor.
- */
-export const AUTO_GHOST_FILL_MS = GHOSTWRITER_OVERTIME_MS;
-
-/**
- * Abandonment threshold: if every human in an IN_PROGRESS game has been
- * silent (no heartbeat) for this long, the cron ghost-fills and completes
- * the game. Tuned to the longest reasonable party pause (10 minutes).
+ * Abandonment threshold: if every participant in an IN_PROGRESS game has been
+ * silent (no heartbeat) for this long, the cron terminates the game without
+ * revealing its partial poems.
  */
 export const ABANDONMENT_THRESHOLD_MS = 10 * 60_000;
 
 /**
- * Absolute liveness backstop. Presence evidence completes an abandoned game
- * promptly (every human heartbeat, then all went silent past
- * ABANDONMENT_THRESHOLD_MS). But a game with no usable presence data — every
- * human on a pre-presence bundle, or a game already IN_PROGRESS when presence
- * shipped — can never satisfy that path, and must still complete rather than
- * strand forever. Once a round has been idle this long, the sweep finishes it
- * regardless of presence cohort. Long enough that a merely slow party never
- * trips it; short enough that no room lingers for a human-noticeable age.
+ * Absolute liveness backstop. Presence evidence abandons a silent game
+ * promptly. A game with no usable presence data must also terminate rather
+ * than strand forever, but only after this longer deadline. A fresh heartbeat
+ * always prevents abandonment.
  */
 export const ABANDONMENT_HARD_DEADLINE_MS = 30 * 60_000;
 
@@ -91,10 +79,9 @@ export const PRESENCE_AWAY_MS = 45_000;
 
 /**
  * How long the host may be silent before a present participant is promoted to
- * host (backlog 017). Longer than the "away" indicator so a brief host blip
- * doesn't hand off ownership, far shorter than ABANDONMENT_THRESHOLD_MS so host
- * agency (summon ghostwriter, close room) is never stranded behind a vanished
- * host while the room is still live.
+ * host. Longer than the away indicator so a brief host blip does not hand off
+ * ownership, and shorter than the abandonment threshold so host-only actions
+ * are not stranded behind a vanished host.
  */
 export const HOST_MIGRATION_STALE_MS = 60_000;
 

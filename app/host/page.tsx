@@ -41,7 +41,6 @@ export default function HostPage() {
       trackGameCreated({
         roomIdHash: hashRoomId(roomId),
         cycle: 1,
-        playerKind: 'human',
       });
       router.push(`/room/${code}`);
     } catch (err) {

@@ -21,7 +21,7 @@ export const runtime = 'edge';
 
 type CardPoem = {
   poem: { indexInRoom: number };
-  lines: Array<{ text: string; authorName: string; isBot: boolean }>;
+  lines: Array<{ text: string; authorName: string }>;
 };
 
 type CardRouteContext = { params: Promise<{ id: string }> };
@@ -100,7 +100,6 @@ async function renderCard(request: NextRequest, poem: CardPoem | null) {
   const lines: AttributedLine[] = poem.lines.map((line) => ({
     text: line.text,
     authorName: line.authorName,
-    isBot: line.isBot,
   }));
 
   const cardSize = computeFullCardSize(lines.length);

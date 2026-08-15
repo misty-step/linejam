@@ -29,8 +29,7 @@ export function useSavePoemImage(
   poemId: Id<'poems'>,
   guestToken?: string,
   roomId?: string,
-  cycle = 1,
-  playerKind: 'human' | 'AI' = 'human'
+  cycle = 1
 ) {
   const [status, setStatus] = useState<SaveImageStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +70,6 @@ export function useSavePoemImage(
               roomIdHash: hashRoomId(roomId),
               cycle,
               round: 8,
-              playerKind,
               action: 'save',
             });
           return;
@@ -103,7 +101,6 @@ export function useSavePoemImage(
           roomIdHash: hashRoomId(roomId),
           cycle,
           round: 8,
-          playerKind,
           action: 'save',
         });
     } catch (err) {
@@ -111,7 +108,7 @@ export function useSavePoemImage(
       setError('Failed to save image. Please try again.');
       captureError(err, { operation: 'savePoemImage', poemId });
     }
-  }, [poemId, guestToken, roomId, cycle, playerKind]);
+  }, [poemId, guestToken, roomId, cycle]);
 
   return {
     handleSaveImage,

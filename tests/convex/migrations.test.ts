@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { api } from '../../convex/_generated/api';
+import { api, internal } from '../../convex/_generated/api';
 import { setupConvexTest } from '../helpers/convexTest';
 import { signGuestToken } from '../../lib/guestToken';
 import { type T, asUser, seedUser } from '../helpers/convexSeed';
@@ -295,5 +295,371 @@ describe('migrateGuestToUser', () => {
         .first();
       expect(migration).not.toBeNull();
     });
+  });
+});
+
+type MachineCleanupPhase =
+  | 'games'
+  | 'lineAttribution'
+  | 'roomPlayers'
+  | 'readers'
+  | 'humanUserFields'
+  | 'aiUsers'
+  | 'aiTurns'
+  | 'aiRoundLocks'
+  | 'aiUsage'
+  | 'aiGenerationMetrics';
+
+async function runMachineCleanupPhase(t: T, phase: MachineCleanupPhase) {
+  const receipts = [];
+  let cursor: string | undefined;
+  for (let invocation = 0; invocation < 100; invocation++) {
+    const receipt = await t.mutation(
+      internal.migrations.cleanupMachineAuthorship,
+      {
+        phase,
+        ...(cursor === undefined ? {} : { cursor }),
+      }
+    );
+    receipts.push(receipt);
+    if (!receipt.remaining) return receipts;
+    cursor = receipt.cursor ?? undefined;
+  }
+  throw new Error(`Machine cleanup phase ${phase} did not terminate`);
+}
+
+describe('cleanupMachineAuthorship', () => {
+  it('converts terminal state in bounded batches and is idempotent', async () => {
+    const t = setupConvexTest();
+    await t.run(async (ctx) => {
+      const hostUserId = await ctx.db.insert('users', {
+        displayName: 'Host',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'MCLN',
+        hostUserId,
+        status: 'COMPLETED',
+        createdAt: 0,
+      });
+      for (let index = 0; index < 65; index++) {
+        await ctx.db.insert('games', {
+          roomId,
+          status: 'COMPLETED',
+          completionKind: index === 0 ? 'abandoned' : 'normal',
+          cycle: index + 1,
+          currentRound: 8,
+          assignmentMatrix: [],
+          createdAt: index,
+        });
+      }
+    });
+
+    const receipts = await runMachineCleanupPhase(t, 'games');
+    expect(receipts).toHaveLength(2);
+    expect(receipts[0]).toMatchObject({
+      phase: 'games',
+      scanned: 64,
+      changed: 64,
+      remaining: true,
+    });
+    expect(receipts[1]).toMatchObject({
+      scanned: 1,
+      changed: 1,
+      remaining: false,
+      cursor: null,
+    });
+
+    const games = await t.run((ctx) => ctx.db.query('games').collect());
+    expect(games.find((game) => game.createdAt === 0)?.status).toBe(
+      'ABANDONED'
+    );
+    expect(games.every((game) => game.completionKind === undefined)).toBe(true);
+    expect(
+      games
+        .filter((game) => game.createdAt > 0)
+        .every((game) => game.status === 'COMPLETED')
+    ).toBe(true);
+
+    const postcondition = await runMachineCleanupPhase(t, 'games');
+    expect(
+      postcondition.reduce((sum, receipt) => sum + receipt.changed, 0)
+    ).toBe(0);
+  });
+
+  it('abandons active games whose immutable matrix contains an AI user', async () => {
+    const t = setupConvexTest();
+    const seeded = await t.run(async (ctx) => {
+      const humanUserId = await ctx.db.insert('users', {
+        displayName: 'Human',
+        kind: 'human',
+        createdAt: 0,
+      });
+      const aiUserId = await ctx.db.insert('users', {
+        displayName: 'Legacy AI',
+        kind: 'AI',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'AIGM',
+        hostUserId: humanUserId,
+        status: 'IN_PROGRESS',
+        createdAt: 0,
+      });
+      const gameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'IN_PROGRESS',
+        cycle: 1,
+        currentRound: 0,
+        assignmentMatrix: [[humanUserId, aiUserId]],
+        createdAt: 0,
+      });
+      await ctx.db.patch(roomId, { currentGameId: gameId });
+      const poemId = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+      });
+      return { gameId, poemId, roomId };
+    });
+
+    await runMachineCleanupPhase(t, 'games');
+
+    await t.run(async (ctx) => {
+      expect(await ctx.db.get(seeded.gameId)).toMatchObject({
+        status: 'ABANDONED',
+        retentionState: 'pending',
+      });
+      expect(await ctx.db.get(seeded.gameId)).not.toHaveProperty(
+        'completionKind'
+      );
+      expect(await ctx.db.get(seeded.roomId)).toMatchObject({
+        status: 'LOBBY',
+      });
+      expect(await ctx.db.get(seeded.roomId)).not.toHaveProperty(
+        'currentGameId'
+      );
+      expect(await ctx.db.get(seeded.poemId)).toMatchObject({
+        retentionState: 'pending',
+      });
+    });
+  });
+
+  it('captures honest AI attribution before deleting AI identities', async () => {
+    const t = setupConvexTest();
+    const seeded = await t.run(async (ctx) => {
+      const humanUserId = await ctx.db.insert('users', {
+        displayName: 'Human',
+        kind: 'human',
+        aiPersonaId: 'stale-persona',
+        createdAt: 0,
+      });
+      const aiUserId = await ctx.db.insert('users', {
+        displayName: 'Bashō',
+        kind: 'AI',
+        aiPersonaId: 'bashō',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'ATTR',
+        hostUserId: humanUserId,
+        status: 'COMPLETED',
+        createdAt: 0,
+      });
+      const gameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        cycle: 1,
+        currentRound: 8,
+        assignmentMatrix: [],
+        createdAt: 0,
+      });
+      const poemId = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        assignedReaderId: aiUserId,
+        createdAt: 0,
+      });
+      const missingAttributionLineId = await ctx.db.insert('lines', {
+        poemId,
+        indexInPoem: 0,
+        text: 'old machine line',
+        wordCount: 3,
+        authorUserId: aiUserId,
+        createdAt: 0,
+      });
+      const capturedAttributionLineId = await ctx.db.insert('lines', {
+        poemId,
+        indexInPoem: 1,
+        text: 'captured old machine line',
+        wordCount: 4,
+        authorUserId: aiUserId,
+        authorDisplayName: 'Original bot byline',
+        createdAt: 1,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: aiUserId,
+        displayName: 'Bashō',
+        joinedAt: 0,
+      });
+      return {
+        humanUserId,
+        aiUserId,
+        poemId,
+        missingAttributionLineId,
+        capturedAttributionLineId,
+      };
+    });
+
+    const prematureDelete = await runMachineCleanupPhase(t, 'aiUsers');
+    expect(
+      prematureDelete.reduce((sum, receipt) => sum + receipt.blocked, 0)
+    ).toBe(1);
+    expect(await t.run((ctx) => ctx.db.get(seeded.aiUserId))).not.toBeNull();
+
+    await runMachineCleanupPhase(t, 'lineAttribution');
+    const attributionPostcondition = await runMachineCleanupPhase(
+      t,
+      'lineAttribution'
+    );
+    expect(
+      attributionPostcondition.reduce(
+        (sum, receipt) => sum + receipt.changed,
+        0
+      )
+    ).toBe(0);
+    await runMachineCleanupPhase(t, 'roomPlayers');
+    await runMachineCleanupPhase(t, 'readers');
+    await runMachineCleanupPhase(t, 'humanUserFields');
+    await runMachineCleanupPhase(t, 'aiUsers');
+
+    await t.run(async (ctx) => {
+      expect(await ctx.db.get(seeded.aiUserId)).toBeNull();
+      const humanUser = await ctx.db.get(seeded.humanUserId);
+      expect(humanUser).toMatchObject({ displayName: 'Human' });
+      expect(humanUser).not.toHaveProperty('kind');
+      expect(humanUser).not.toHaveProperty('aiPersonaId');
+      const poem = await ctx.db.get(seeded.poemId);
+      expect(poem).not.toHaveProperty('assignedReaderId');
+      expect(await ctx.db.get(seeded.missingAttributionLineId)).toMatchObject({
+        authorUserId: seeded.aiUserId,
+        authorDisplayName: 'Bashō (legacy machine)',
+      });
+      expect(await ctx.db.get(seeded.capturedAttributionLineId)).toMatchObject({
+        authorDisplayName: 'Original bot byline (legacy machine)',
+      });
+      expect(await ctx.db.query('roomPlayers').collect()).toHaveLength(0);
+    });
+
+    for (const phase of [
+      'roomPlayers',
+      'readers',
+      'humanUserFields',
+      'aiUsers',
+    ] as const) {
+      const receipts = await runMachineCleanupPhase(t, phase);
+      expect(receipts.reduce((sum, receipt) => sum + receipt.changed, 0)).toBe(
+        0
+      );
+      expect(receipts.reduce((sum, receipt) => sum + receipt.blocked, 0)).toBe(
+        0
+      );
+    }
+  });
+
+  it('empties every legacy AI table and returns zero postconditions', async () => {
+    const t = setupConvexTest();
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', {
+        displayName: 'Legacy AI',
+        kind: 'AI',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'AIZR',
+        hostUserId: userId,
+        status: 'COMPLETED',
+        createdAt: 0,
+      });
+      const gameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        cycle: 1,
+        currentRound: 8,
+        assignmentMatrix: [],
+        createdAt: 0,
+      });
+      const poemId = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+      });
+      await Promise.all([
+        ctx.db.insert('aiTurns', {
+          roomId,
+          gameId,
+          poemId,
+          round: 0,
+          aiUserId: userId,
+          day: '2026-01-01',
+          status: 'authorized',
+          claimedAt: 0,
+          updatedAt: 0,
+        }),
+        ctx.db.insert('aiRoundLocks', {
+          roomId,
+          gameId,
+          round: 0,
+          owner: 'legacy',
+          status: 'finished',
+          claimedAt: 0,
+          updatedAt: 0,
+        }),
+        ctx.db.insert('aiUsage', {
+          day: '2026-01-01',
+          generationClaims: 1,
+          httpAttempts: 1,
+          fallbacks: 0,
+          updatedAt: 0,
+        }),
+        ctx.db.insert('aiGenerationMetrics', {
+          bucketStart: 0,
+          totalGenerations: 1,
+          fallbackGenerations: 0,
+          budgetExhaustion: 0,
+          providerError: 0,
+          invalidOutput: 0,
+          missingConfiguration: 0,
+          updatedAt: 0,
+        }),
+      ]);
+    });
+
+    for (const phase of [
+      'aiTurns',
+      'aiRoundLocks',
+      'aiUsage',
+      'aiGenerationMetrics',
+    ] as const) {
+      const receipts = await runMachineCleanupPhase(t, phase);
+      expect(receipts.reduce((sum, receipt) => sum + receipt.changed, 0)).toBe(
+        1
+      );
+      const zeroReceipt = await runMachineCleanupPhase(t, phase);
+      expect(zeroReceipt).toEqual([
+        {
+          phase,
+          scanned: 0,
+          changed: 0,
+          blocked: 0,
+          remaining: false,
+          cursor: null,
+        },
+      ]);
+    }
   });
 });

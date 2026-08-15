@@ -13,8 +13,6 @@ vi.mock('next/navigation', () => ({
 // Hoisted mocks - created before module loading
 const mockMutations = {
   startGame: vi.fn(),
-  addAi: vi.fn(),
-  removeAi: vi.fn(),
   leaveLobby: vi.fn().mockResolvedValue(undefined),
   closeRoom: vi.fn().mockResolvedValue(undefined),
 };
@@ -24,8 +22,6 @@ const mockMutations = {
 let callIndex = 0;
 const MUTATION_ORDER = [
   mockMutations.startGame, // api.game.startGame
-  mockMutations.addAi, // api.ai.addAiPlayer
-  mockMutations.removeAi, // api.ai.removeAiPlayer
   mockMutations.leaveLobby, // api.rooms.leaveLobby
   mockMutations.closeRoom, // api.rooms.closeRoom
 ];
@@ -98,8 +94,6 @@ describe('Lobby component', () => {
     callIndex = 0; // Reset mutation call order tracking
     mockPush.mockClear();
     mockMutations.startGame.mockClear();
-    mockMutations.addAi.mockClear();
-    mockMutations.removeAi.mockClear();
     mockMutations.leaveLobby.mockClear();
     mockMutations.leaveLobby.mockResolvedValue(undefined);
     mockMutations.closeRoom.mockClear();
@@ -167,9 +161,6 @@ describe('Lobby component', () => {
 
     expect(tools?.parentElement).toHaveAttribute('open');
     expect(
-      screen.getByRole('button', { name: /Add a bot/i })
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole('button', { name: /Present room/i })
     ).toBeInTheDocument();
     expect(screen.getByTestId('lobby-join-qr')).toBeInTheDocument();
@@ -192,14 +183,6 @@ describe('Lobby component', () => {
       'min-w-0',
       'px-[16px]',
       'py-[12px]'
-    );
-    expect(screen.getByRole('button', { name: /Add a bot/i })).toHaveClass(
-      'h-auto',
-      'min-h-[44px]',
-      'min-w-0',
-      'max-w-full',
-      'px-[16px]',
-      'py-[10px]'
     );
     expect(actionZone).not.toHaveClass('flex-none');
     expect(actionZone).not.toHaveClass('fixed', 'sticky');
@@ -271,12 +254,10 @@ describe('Lobby component', () => {
       expect(mockTrackLobbyReady).toHaveBeenCalledWith({
         roomIdHash: '0123456789abcdef',
         cycle: 4,
-        playerKind: 'human',
       });
       expect(mockTrackGameStarted).toHaveBeenCalledWith({
         roomIdHash: '0123456789abcdef',
         cycle: 4,
-        playerKind: 'human',
       });
     });
   });
@@ -438,86 +419,6 @@ describe('Lobby component', () => {
     expect(hostPlayerItem).toBeInTheDocument();
     // Check that host badge exists in the document (it renders for host player)
     // We don't assert on specific badge content as that's HostBadge's responsibility
-  });
-
-  it('calls addAiPlayer mutation when Add AI button clicked', async () => {
-    // Arrange
-    mockMutations.addAi.mockResolvedValue({ aiUserId: 'ai_123' });
-    const user = userEvent.setup();
-
-    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    // Find Add AI button (has Bot icon)
-    const addAiButtons = screen.getAllByRole('button', { name: /Add a bot/i });
-
-    // Act
-    await user.click(addAiButtons[0]);
-
-    // Assert
-    await waitFor(() => {
-      expect(mockMutations.addAi).toHaveBeenCalledWith({
-        code: 'ABCD',
-        guestToken: 'mock-token',
-      });
-    });
-  });
-
-  it('displays error when addAiPlayer fails', async () => {
-    // Arrange
-    mockMutations.addAi.mockRejectedValue(new Error('AI add failed'));
-    const user = userEvent.setup();
-
-    render(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const addAiButtons = screen.getAllByRole('button', { name: /Add a bot/i });
-
-    // Act
-    await user.click(addAiButtons[0]);
-
-    // Assert
-    await waitFor(() => {
-      const alerts = screen.getAllByText(/unexpected error/i);
-      expect(alerts.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('calls removeAiPlayer mutation when Remove AI button clicked', async () => {
-    // Arrange - include an AI player
-    const playersWithAi = [
-      ...mockPlayers,
-      {
-        _id: 'player_ai' as Id<'roomPlayers'>,
-        _creationTime: Date.now(),
-        roomId: 'room_123' as Id<'rooms'>,
-        userId: 'user_ai' as Id<'users'>,
-        displayName: 'Bashō',
-        joinedAt: Date.now(),
-        stableId: 'stable_ai_789',
-        isBot: true,
-      },
-    ];
-    mockMutations.removeAi.mockResolvedValue({ removed: true });
-    const user = userEvent.setup();
-
-    render(<Lobby room={mockRoom} players={playersWithAi} isHost={true} />);
-
-    // Find Remove AI button (appears when AI is present)
-    const removeAiButtons = screen.getAllByRole('button', {
-      name: /Remove AI/i,
-    });
-    expect(removeAiButtons[0]).toHaveClass('h-11', 'w-11');
-
-    // Act
-    await user.click(removeAiButtons[0]);
-
-    // Assert
-    await waitFor(() => {
-      expect(mockMutations.removeAi).toHaveBeenCalledWith({
-        code: 'ABCD',
-        guestToken: 'mock-token',
-        aiUserId: 'user_ai',
-      });
-    });
   });
 
   it('wraps roster chips before the action zone on narrow layouts', () => {

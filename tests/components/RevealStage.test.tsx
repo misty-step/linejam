@@ -70,16 +70,14 @@ describe('RevealStage', () => {
     expect(within(stage).queryByText('Latest')).not.toBeInTheDocument();
   });
 
-  it('shows AI reader context, error feedback, and disabled reveal state', () => {
+  it('shows error feedback and disabled reveal state', () => {
     const assignedPoem = {
-      _id: 'poem_ai' as Id<'poems'>,
+      _id: 'poem_assigned' as Id<'poems'>,
       indexInRoom: 0,
       readerName: 'Human Reader',
       readerStableId: 'stable_human',
-      preview: 'Machine poem opens',
+      preview: 'A human poem opens',
       isRevealed: false,
-      isForAi: true,
-      aiPersonaName: 'Gemini',
       lines: [{ text: 'One', authorName: 'Human Reader' }],
     };
 
@@ -96,7 +94,6 @@ describe('RevealStage', () => {
       />
     );
 
-    expect(screen.getByText('Read for Gemini')).toBeInTheDocument();
     expect(screen.getByText('Reveal failed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Unsealing/i })).toBeDisabled();
   });

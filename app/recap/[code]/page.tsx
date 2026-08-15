@@ -48,9 +48,7 @@ export default async function RecapPage({
 
         <section className="grid gap-8">
           {recap.poems.map((poem) => {
-            // Unique, order-preserving attribution — every exported/public
-            // artifact must name its authors and mark AI ones (linejam-943
-            // criterion 3; the recap page previously showed only a count).
+            // Unique, order-preserving attribution names every contributor.
             const attribution = formatAttribution(poem.lines);
 
             return (

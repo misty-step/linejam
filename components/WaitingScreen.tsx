@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { GHOSTWRITER_OVERTIME_MS, WORD_COUNTS } from '../convex/lib/gameRules';
+import { WORD_COUNTS } from '../convex/lib/gameRules';
 import { useRoomQueryArgs } from '../hooks/useRoomQueryArgs';
 import { captureError } from '../lib/error';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
@@ -12,7 +12,6 @@ import { Button } from './ui/Button';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { RoundClock } from './ui/RoundClock';
 import { Avatar } from './ui/Avatar';
-import { BotBadge } from './ui/BotBadge';
 
 interface WaitingScreenProps {
   roomCode: string;
@@ -28,15 +27,11 @@ interface WaitingScreenProps {
       userId: string;
       stableId: string;
       displayName: string;
-      isBot?: boolean;
       isAway?: boolean;
       isSpectator?: boolean;
     }>;
   } | null;
 }
-
-/** Re-render cadence for the overtime check; coarse on purpose. */
-const OVERTIME_TICK_MS = 5_000;
 
 export function WaitingScreen({
   roomCode,
@@ -55,19 +50,11 @@ export function WaitingScreen({
   const progress =
     progressOverride === undefined ? queriedProgress : progressOverride;
 
-  const summonGhostwriter = useMutation(api.game.summonGhostwriter);
-  const [ghostState, setGhostState] = useState<'idle' | 'summoning' | 'sent'>(
+  const endGame = useMutation(api.game.endGame);
+  const [endState, setEndState] = useState<'idle' | 'confirming' | 'ending'>(
     'idle'
   );
-  const [ghostError, setGhostError] = useState<string | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-
-  const roundStartedAt = progress?.roundStartedAt;
-  useEffect(() => {
-    if (!roundStartedAt) return;
-    const interval = setInterval(() => setNow(Date.now()), OVERTIME_TICK_MS);
-    return () => clearInterval(interval);
-  }, [roundStartedAt]);
+  const [endError, setEndError] = useState<string | null>(null);
 
   // Loading state (query in flight or skipped)
   if (progress === undefined) {
@@ -109,25 +96,18 @@ export function WaitingScreen({
     .filter((p) => !p.submitted)
     .map((p) => (p.isAway ? `${p.displayName} (away)` : p.displayName));
 
-  const isOvertime =
-    typeof progress.roundStartedAt === 'number' &&
-    now - progress.roundStartedAt >= GHOSTWRITER_OVERTIME_MS;
-  const showGhostwriter =
-    !allSubmitted && isOvertime && progress.isHost === true;
-
-  const handleSummonGhostwriter = async () => {
-    setGhostError(null);
-    setGhostState('summoning');
+  const handleEndGame = async () => {
+    setEndError(null);
+    setEndState('ending');
     try {
-      await summonGhostwriter({
+      await endGame({
         roomCode,
         guestToken: guestToken || undefined,
       });
-      setGhostState('sent');
     } catch (err) {
-      captureError(err, { roomCode, operation: 'summonGhostwriter' });
-      setGhostError(errorToFeedback(err).message);
-      setGhostState('idle');
+      captureError(err, { roomCode, operation: 'endGame' });
+      setEndError(errorToFeedback(err).message);
+      setEndState('confirming');
     }
   };
 
@@ -160,11 +140,7 @@ export function WaitingScreen({
         {/* Center: Headline */}
         <div className="mb-12 w-full min-w-0 max-w-full flex-none space-y-6 text-center md:mb-20">
           <h2 className="max-w-full break-words text-4xl md:text-6xl font-[var(--font-display)] leading-tight">
-            {allSubmitted
-              ? 'Ready'
-              : isOvertime
-                ? 'Still writing…'
-                : "It's around the table now."}
+            {allSubmitted ? 'Ready' : "It's around the table now."}
           </h2>
 
           {/* Round progress — nine segments, the current round lit */}
@@ -207,9 +183,7 @@ export function WaitingScreen({
                 className="max-w-full break-words text-base text-[var(--color-text-muted)]"
                 aria-live="polite"
               >
-                {isOvertime
-                  ? `Taking their time: ${waitingNames.join(', ')}`
-                  : `Waiting on ${waitingNames.join(', ')}`}
+                {`Waiting on ${waitingNames.join(', ')}`}
               </p>
               {typeof progress.roundStartedAt === 'number' && (
                 <div className="mx-auto max-w-xs pt-2">
@@ -274,38 +248,59 @@ export function WaitingScreen({
                       </span>
                     )}
                   </span>
-                  {player.isBot && <BotBadge showLabel={false} />}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Host rescue: pass a stalled turn to the ghostwriter */}
-        {showGhostwriter && (
-          <div className="flex-none w-full max-w-sm space-y-3 text-center animate-fade-in-up">
-            {ghostError && <Alert variant="error">{ghostError}</Alert>}
-            {ghostState === 'sent' ? (
-              <p className="text-sm text-[var(--color-text-muted)]">
-                The ghostwriter is writing…
-              </p>
+        {/* Hosts may abandon an incomplete game; partial poems stay private. */}
+        {!allSubmitted && progress.isHost === true && (
+          <div className="flex-none w-full max-w-sm space-y-3 text-center">
+            {endError && <Alert variant="error">{endError}</Alert>}
+            {endState === 'confirming' || endState === 'ending' ? (
+              <div className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                <div className="space-y-2">
+                  <h3 className="font-[var(--font-display)] text-xl">
+                    End this game?
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    Everyone will return to the lobby. Partial poems are not
+                    revealed.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    onClick={() => setEndState('idle')}
+                    disabled={endState === 'ending'}
+                    variant="outline"
+                    size="md"
+                    className="w-full"
+                  >
+                    Keep playing
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => void handleEndGame()}
+                    disabled={endState === 'ending'}
+                    size="md"
+                    className="w-full"
+                  >
+                    {endState === 'ending' ? 'Ending game…' : 'End game'}
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <>
-                <Button
-                  onClick={handleSummonGhostwriter}
-                  disabled={ghostState === 'summoning'}
-                  variant="outline"
-                  size="md"
-                  className="min-h-11 w-full"
-                >
-                  {ghostState === 'summoning'
-                    ? 'Summoning…'
-                    : 'Summon the ghostwriter'}
-                </Button>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Covers the missing line so the room keeps moving.
-                </p>
-              </>
+              <Button
+                type="button"
+                onClick={() => setEndState('confirming')}
+                variant="ghost"
+                size="md"
+                className="w-full"
+              >
+                End game
+              </Button>
             )}
           </div>
         )}

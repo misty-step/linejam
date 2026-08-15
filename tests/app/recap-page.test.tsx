@@ -38,8 +38,8 @@ const baseRecap = {
       starterName: 'Emily',
       poetCount: 4,
       lines: [
-        { text: 'Rain', authorName: 'Emily', isBot: false },
-        { text: 'on rooftops', authorName: 'Wendell', isBot: true },
+        { text: 'Rain', authorName: 'Emily' },
+        { text: 'on rooftops', authorName: 'Wendell' },
       ],
     },
   ],
@@ -50,7 +50,7 @@ describe('/recap/[code] page', () => {
     vi.clearAllMocks();
   });
 
-  it('attributes every author and marks the AI author, per line', async () => {
+  it('attributes every human author once', async () => {
     mockFetchQuery.mockResolvedValue(baseRecap);
 
     const element = await RecapPage({
@@ -62,8 +62,8 @@ describe('/recap/[code] page', () => {
     expect(screen.getByText('Rain')).toBeInTheDocument();
     expect(screen.getByText('on rooftops')).toBeInTheDocument();
 
-    // Aggregate attribution names both authors and tags the AI one.
-    expect(screen.getByText('Emily, Wendell (AI)')).toBeInTheDocument();
+    // Aggregate attribution names both authors.
+    expect(screen.getByText('Emily, Wendell')).toBeInTheDocument();
   });
 
   it('offers a print-hidden export action and print-hidden nav CTAs', async () => {

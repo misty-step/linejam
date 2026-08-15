@@ -8,14 +8,12 @@
 import posthog from 'posthog-js';
 import { posthogIsReady } from '@/lib/posthog/posthogReady';
 
-export type PlayerKind = 'human' | 'AI';
 export type ArtifactAction = 'share' | 'save';
 
 export type RoomCycleEventProps = {
   /** Stable one-way room key. Never pass a room code directly. */
   roomIdHash: string;
   cycle: number;
-  playerKind: PlayerKind;
   round?: number;
 };
 
@@ -39,7 +37,6 @@ function capture(
     properties.roomIdHash,
     properties.cycle,
     properties.round ?? '',
-    properties.playerKind,
     'action' in properties ? properties.action : '',
   ].join(':');
   if (capturedEvents.has(key)) return;
@@ -82,13 +79,8 @@ export function resetCapturedAnalyticsForTests() {
   capturedEvents.clear();
 }
 
-// Existing non-funnel product signals remain available to their focused UI
-// tests and consumers. The room-cycle report only consumes canonical events.
-export function trackAiPlayerAdded(props: { playerCount: number }) {
-  if (!posthogIsReady()) return;
-  posthog.capture('ai_player_added', props);
-}
-
+// Existing non-funnel product signals remain available to focused UI tests
+// and consumers. The room-cycle report only consumes canonical events.
 export function trackPoemShared(props: {
   method: 'clipboard' | 'native-share';
 }) {

@@ -1,18 +1,16 @@
-import { internal } from '../_generated/api';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { getMatrixRound } from './assignmentMatrix';
 import { assignPoemReaders } from './assignPoemReaders';
-import { AUTO_GHOST_FILL_MS, getFinalRoundIndex } from './gameRules';
+import { getFinalRoundIndex } from './gameRules';
 import { retentionEligibleAt } from './retentionPolicy';
 
-type LifecycleCtx = Pick<MutationCtx, 'db' | 'scheduler'>;
+type LifecycleCtx = Pick<MutationCtx, 'db'>;
 type LifecycleGame = Pick<
   Doc<'games'>,
   '_id' | 'assignmentMatrix' | 'currentRound' | 'status'
 >;
 type LifecyclePoem = Pick<Doc<'poems'>, '_id' | 'indexInRoom'>;
-type LifecyclePlayer = Pick<Doc<'users'>, '_id' | 'kind'>;
 
 export type SubmissionWindowResult =
   | { ok: true }
@@ -29,7 +27,7 @@ type CompletionPatchPlan = {
   gamePatch: {
     status: 'COMPLETED';
     completedAt: number;
-    completionKind: 'normal' | 'abandoned';
+    completionKind: 'normal';
     retentionState: 'pending';
     retentionEligibleAt: number;
   };
@@ -102,33 +100,23 @@ export function getCycleResetDecision(args: {
 function buildCompletionPatchPlan(args: {
   game: Pick<Doc<'games'>, 'assignmentMatrix'>;
   poems: LifecyclePoem[];
-  playerUsers: LifecyclePlayer[];
   completionTime: number;
-  completionKind: 'normal' | 'abandoned';
 }): CompletionPatchPlan {
   const readerAssignments = assignPoemReaders(
-    args.poems.map((poem) => ({
-      _id: poem._id,
-      authorUserId: getMatrixRound(args.game.assignmentMatrix, 0)[
-        poem.indexInRoom
-      ],
-    })),
-    args.playerUsers.map((user) => ({
-      userId: user._id,
-      kind: user.kind === 'AI' ? 'AI' : 'human',
-    }))
+    args.poems,
+    getMatrixRound(args.game.assignmentMatrix, 0)
   );
 
   const retentionDeadline = retentionEligibleAt(
     args.completionTime,
-    args.completionKind === 'abandoned' ? 'abandoned' : 'privateCompleted'
+    'privateCompleted'
   );
 
   return {
     gamePatch: {
       status: 'COMPLETED',
       completedAt: args.completionTime,
-      completionKind: args.completionKind,
+      completionKind: 'normal',
       retentionState: 'pending',
       retentionEligibleAt: retentionDeadline,
     },
@@ -148,6 +136,56 @@ function buildCompletionPatchPlan(args: {
       },
     })),
   };
+}
+
+export async function abandonGame(
+  ctx: LifecycleCtx,
+  args: {
+    game: Pick<Doc<'games'>, '_id' | 'roomId' | 'status'>;
+    closeRoom: boolean;
+    abandonedAt?: number;
+  }
+): Promise<boolean> {
+  if (args.game.status !== 'IN_PROGRESS') return false;
+
+  const abandonedAt = args.abandonedAt ?? Date.now();
+  const retentionDeadline = retentionEligibleAt(abandonedAt, 'abandoned');
+  const poems = await getGamePoems(ctx, args.game._id);
+
+  await Promise.all([
+    ctx.db.patch(args.game._id, {
+      status: 'ABANDONED',
+      completedAt: abandonedAt,
+      completionKind: 'abandoned',
+      retentionState: 'pending',
+      retentionEligibleAt: retentionDeadline,
+    }),
+    ctx.db.patch(
+      args.game.roomId,
+      args.closeRoom
+        ? {
+            status: 'COMPLETED',
+            currentGameId: undefined,
+            completedAt: abandonedAt,
+            retentionState: 'pending',
+            retentionEligibleAt: retentionDeadline,
+          }
+        : {
+            status: 'LOBBY',
+            currentGameId: undefined,
+            completedAt: undefined,
+            retentionState: 'active',
+            retentionEligibleAt: undefined,
+          }
+    ),
+    ...poems.map((poem) =>
+      ctx.db.patch(poem._id, {
+        retentionState: 'pending',
+        retentionEligibleAt: retentionDeadline,
+      })
+    ),
+  ]);
+  return true;
 }
 
 async function getGamePoems(
@@ -179,55 +217,18 @@ async function getMissingRoundPoems(
   return poems.filter((_, index) => lineChecks[index] === null);
 }
 
-/**
- * Self-healing AI: if the round is blocked only by poems whose turn belongs
- * to an AI player, re-nudge the (idempotent) AI scheduler so a dead action
- * cannot strand the room. Runs on every human submission.
- */
-async function renudgeAiIfBlocking(
-  ctx: LifecycleCtx,
-  args: {
-    game: LifecycleGame;
-    roomId: Id<'rooms'>;
-    lineIndex: number;
-    missingPoems: LifecyclePoem[];
-  }
-): Promise<void> {
-  const roundAssignments = getMatrixRound(
-    args.game.assignmentMatrix,
-    args.lineIndex
-  );
-  const assignees = await Promise.all(
-    args.missingPoems.map((poem) =>
-      ctx.db.get(roundAssignments[poem.indexInRoom])
-    )
-  );
-
-  if (assignees.some((user) => user?.kind === 'AI')) {
-    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
-      roomId: args.roomId,
-      gameId: args.game._id,
-      round: args.lineIndex,
-    });
-  }
-}
-
 export async function applyLineLifecycleTransition(
   ctx: LifecycleCtx,
   args: {
     game: LifecycleGame;
     roomId: Id<'rooms'>;
     lineIndex: number;
-    completionKind?: 'normal' | 'abandoned';
   }
 ): Promise<void> {
   const poems = await getGamePoems(ctx, args.game._id);
   const missingPoems = await getMissingRoundPoems(ctx, poems, args.lineIndex);
 
-  if (missingPoems.length > 0) {
-    await renudgeAiIfBlocking(ctx, { ...args, missingPoems });
-    return;
-  }
+  if (missingPoems.length > 0) return;
 
   const freshGame = await ctx.db.get(args.game._id);
   if (
@@ -244,39 +245,15 @@ export async function applyLineLifecycleTransition(
       currentRound: nextRound,
       roundStartedAt: Date.now(),
     });
-    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
-      roomId: args.roomId,
-      gameId: args.game._id,
-      round: nextRound,
-    });
-    // Auto ghost-fill floor: if a human never writes this round, the
-    // room still advances. Co-located with scheduleAiTurn so they can't drift.
-    await ctx.scheduler.runAfter(
-      AUTO_GHOST_FILL_MS,
-      internal.game.fillStaleHumanTurns,
-      { roomId: args.roomId, gameId: args.game._id, round: nextRound }
-    );
 
     return;
   }
-
-  const players = await ctx.db
-    .query('roomPlayers')
-    .withIndex('by_room', (q) => q.eq('roomId', args.roomId))
-    .collect();
-  const playerUsers = await Promise.all(
-    players.map((player) => ctx.db.get(player.userId))
-  );
 
   const completionTime = Date.now();
   const completionPlan = buildCompletionPatchPlan({
     game: args.game,
     poems,
-    playerUsers: playerUsers.filter(
-      (user): user is NonNullable<typeof user> => user !== null
-    ),
     completionTime,
-    completionKind: args.completionKind ?? 'normal',
   });
 
   await Promise.all([

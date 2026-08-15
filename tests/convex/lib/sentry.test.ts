@@ -9,10 +9,7 @@ import {
   vi,
 } from 'vitest';
 import type { Mock } from 'vitest';
-import {
-  rethrowAfterBackendReport,
-  returnAfterBackendReportScheduled,
-} from '../../../convex/errors';
+import { returnAfterBackendReportScheduled } from '../../../convex/errors';
 
 const ORIGINAL_ENV = { ...process.env };
 const RELEASE = '0123456789abcdef0123456789abcdef01234567';
@@ -167,20 +164,6 @@ describe('closed Convex Sentry transport', () => {
     ).rejects.toThrow('SCHEDULING_FAILURE_SENTINEL');
   });
 
-  it('rethrows the original action failure after reporting succeeds or fails', async () => {
-    const originalFailure = new Error('ORIGINAL_FAILURE_SENTINEL');
-
-    await expect(
-      rethrowAfterBackendReport(Promise.resolve(), originalFailure)
-    ).rejects.toBe(originalFailure);
-    await expect(
-      rethrowAfterBackendReport(
-        Promise.reject(new Error('REPORTING_FAILURE_SENTINEL')),
-        originalFailure
-      )
-    ).rejects.toBe(originalFailure);
-  });
-
   it('builds a static event with exact closed tags and clamped numeric context', async () => {
     const mod = await sentryModule();
     const body = mod.buildBackendSentryEnvelope(
@@ -188,7 +171,6 @@ describe('closed Convex Sentry transport', () => {
         ...backendReport,
         scheduled: -4,
         scanned: Number.POSITIVE_INFINITY,
-        filled: 2_000_000,
       },
       { environment: 'preview', release: RELEASE },
       EVENT_ID
@@ -220,7 +202,7 @@ describe('closed Convex Sentry transport', () => {
           level: 'error',
         },
         contexts: {
-          linejam: { scheduled: 0, scanned: 0, filled: 1_000_000 },
+          linejam: { scheduled: 0, scanned: 0 },
         },
       },
     });
@@ -267,85 +249,6 @@ describe('closed Convex Sentry transport', () => {
     expect(
       mod.buildBackendSentryEnvelope(
         { ...backendReport, operation: 'arbitraryOperation' } as never,
-        { environment: 'preview', release: RELEASE },
-        EVENT_ID
-      )
-    ).toBeNull();
-  });
-
-  it('builds one aggregate fallback monitor check-in from the threshold status', async () => {
-    const mod = await sentryModule();
-    const body = mod.buildAiFallbackSentryEnvelope(
-      {
-        operation: 'aiFallbackRate',
-        status: 'error',
-        failureCode: 'provider_error',
-        totalGenerations: 50,
-        fallbackGenerations: 20,
-        fallbackRatePercent: 40,
-        thresholdPercent: 20,
-      },
-      { environment: 'preview', release: RELEASE },
-      EVENT_ID
-    )!;
-    const built = envelopePayload(body);
-    expect(built.item).toEqual({ type: 'check_in' });
-    expect(built.payload).toMatchObject({
-      check_in_id: EVENT_ID,
-      monitor_slug: 'linejam-ai-fallback-rate',
-      status: 'error',
-      environment: 'preview',
-      release: RELEASE,
-    });
-    expect(JSON.stringify(built.payload)).not.toContain('totalGenerations');
-  });
-
-  it('builds one closed tagged issue event only for a fallback threshold breach', async () => {
-    const mod = await sentryModule();
-    const report = {
-      operation: 'aiFallbackRate',
-      status: 'error',
-      failureCode: 'provider_error',
-      totalGenerations: 50,
-      fallbackGenerations: 20,
-      fallbackRatePercent: 40.9,
-      thresholdPercent: 20,
-    } as const;
-    const body = mod.buildAiFallbackFailureSentryEnvelope(
-      report,
-      { environment: 'preview', release: RELEASE },
-      EVENT_ID
-    )!;
-    const built = envelopePayload(body);
-
-    expect(built.item).toEqual({ type: 'event' });
-    expect(built.payload).toEqual({
-      event_id: EVENT_ID,
-      platform: 'javascript',
-      level: 'error',
-      environment: 'preview',
-      release: RELEASE,
-      message: 'Convex backend operation failed',
-      fingerprint: [
-        'linejam-convex-backend-failure',
-        'aiFallbackRate',
-        'provider_error',
-      ],
-      tags: {
-        runtime: 'convex',
-        environment: 'preview',
-        release: RELEASE,
-        operation: 'aiFallbackRate',
-        failure_code: 'provider_error',
-        level: 'error',
-      },
-      contexts: {
-        linejam: { observed: 40, threshold: 20 },
-      },
-    });
-    expect(
-      mod.buildAiFallbackFailureSentryEnvelope(
-        { ...report, status: 'ok' },
         { environment: 'preview', release: RELEASE },
         EVENT_ID
       )

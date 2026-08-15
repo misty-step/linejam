@@ -177,40 +177,7 @@ describe('getPoemsForRoom', () => {
     expect(result).toEqual([]);
   });
 
-  it('returns poems with first-line preview for a participant', async () => {
-    const t = setupConvexTest();
-    const aliceId = await seedClerkUser(t, 'alice');
-    const { poemIds } = await seedRoom(t, {
-      userId: aliceId,
-      poemCount: 2,
-      gameStatus: 'IN_PROGRESS',
-      roomStatus: 'IN_PROGRESS',
-    });
-
-    await seedLine(t, {
-      poemId: poemIds[0],
-      authorUserId: aliceId,
-      text: 'First line of poem one',
-    });
-    await seedLine(t, {
-      poemId: poemIds[1],
-      authorUserId: aliceId,
-      text: 'First line of poem two',
-    });
-
-    const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
-      roomCode: 'ABCD',
-    });
-
-    expect(result).toHaveLength(2);
-    const previews = result.map((r: { preview: string }) => r.preview).sort();
-    expect(previews).toEqual([
-      'First line of poem one',
-      'First line of poem two',
-    ]);
-  });
-
-  it('uses "..." fallback preview when a poem has no first line yet', async () => {
+  it('never returns previews from a partial in-progress game', async () => {
     const t = setupConvexTest();
     const aliceId = await seedClerkUser(t, 'alice');
     const { poemIds } = await seedRoom(t, {
@@ -219,18 +186,16 @@ describe('getPoemsForRoom', () => {
       gameStatus: 'IN_PROGRESS',
       roomStatus: 'IN_PROGRESS',
     });
-    // Insert a line at index 1 only — no first line (index 0).
     await seedLine(t, {
       poemId: poemIds[0],
       authorUserId: aliceId,
-      indexInPoem: 1,
-      text: 'Second line',
+      text: 'Private partial line',
     });
 
     const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
       roomCode: 'ABCD',
     });
-    expect(result[0].preview).toBe('...');
+    expect(result).toEqual([]);
   });
 
   it('works for a completed game (reveal phase)', async () => {
@@ -420,29 +385,6 @@ describe('getPoemDetail', () => {
     expect(result?.lines[0].authorName).toBe('Unknown');
   });
 
-  it('marks AI-authored lines with isBot: true', async () => {
-    const t = setupConvexTest();
-    const aliceId = await seedClerkUser(t, 'alice');
-    const aiId = await t.run((ctx) =>
-      ctx.db.insert('users', {
-        displayName: 'Gemini',
-        kind: 'AI',
-        createdAt: 0,
-      })
-    );
-    const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, {
-      poemId: poemIds[0],
-      authorUserId: aiId,
-      text: 'An AI line',
-    });
-
-    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
-      poemId: poemIds[0],
-    });
-    expect(result?.lines[0].isBot).toBe(true);
-  });
-
   it('returns poem document alongside lines', async () => {
     const t = setupConvexTest();
     const aliceId = await seedClerkUser(t, 'alice');
@@ -603,6 +545,47 @@ describe('getMyPoems', () => {
       poemIds[3],
       poemIds[2],
     ]);
+  });
+
+  it('fills the limit with completed poems after skipping newer abandoned work', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alicePrivatePartial');
+    const completed = await seedRoom(t, {
+      userId: aliceId,
+      roomCode: 'CMP1',
+    });
+    const abandoned = await seedRoom(t, {
+      userId: aliceId,
+      roomCode: 'ABN1',
+      gameStatus: 'IN_PROGRESS',
+      roomStatus: 'IN_PROGRESS',
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(abandoned.gameId, { status: 'ABANDONED' });
+      await ctx.db.insert('lines', {
+        poemId: completed.poemIds[0],
+        indexInPoem: 0,
+        text: 'Completed',
+        wordCount: 1,
+        authorUserId: aliceId,
+        createdAt: 100,
+      });
+      await ctx.db.insert('lines', {
+        poemId: abandoned.poemIds[0],
+        indexInPoem: 0,
+        text: 'Private',
+        wordCount: 1,
+        authorUserId: aliceId,
+        createdAt: 200,
+      });
+    });
+
+    const result = await asUser(t, 'alicePrivatePartial').query(
+      api.poems.getMyPoems,
+      { limit: 1 }
+    );
+
+    expect(result.map((poem) => poem._id)).toEqual([completed.poemIds[0]]);
   });
 
   it('includes roomDate from the room record', async () => {
@@ -1023,7 +1006,6 @@ describe('getPublicPoemFull', () => {
       'authorName',
       'createdAt',
       'indexInPoem',
-      'isBot',
       'poemId',
       'text',
       'wordCount',
@@ -1080,32 +1062,6 @@ describe('getPublicPoemFull', () => {
       poemId: poemIds[0],
     });
     expect(result?.lines[0].authorName).toBe('Alice Pen');
-  });
-
-  it('marks AI-authored lines with isBot: true', async () => {
-    const t = setupConvexTest();
-    const aliceId = await seedClerkUser(t, 'alice');
-    const aiId = await t.run((ctx) =>
-      ctx.db.insert('users', {
-        displayName: 'Muse',
-        kind: 'AI',
-        createdAt: 0,
-      })
-    );
-    const { poemIds } = await seedRoom(t, {
-      userId: aliceId,
-      publicShareEnabled: true,
-    });
-    await seedLine(t, {
-      poemId: poemIds[0],
-      authorUserId: aiId,
-      text: 'AI generated',
-    });
-
-    const result = await t.query(api.poems.getPublicPoemFull, {
-      poemId: poemIds[0],
-    });
-    expect(result?.lines[0].isBot).toBe(true);
   });
 });
 
@@ -1363,67 +1319,6 @@ describe('getPublicSessionRecap', () => {
       readerName: 'Reader',
       starterName: 'Starter',
     });
-  });
-
-  it('marks AI authors with isBot: true and falls back to Unknown for deleted users', async () => {
-    const t = setupConvexTest();
-    const aliceId = await seedClerkUser(t, 'alice');
-    const aiId = await t.run((ctx) =>
-      ctx.db.insert('users', {
-        displayName: 'Muse',
-        kind: 'AI',
-        createdAt: 0,
-      })
-    );
-    const ghostId = await t.run((ctx) =>
-      ctx.db.insert('users', {
-        displayName: 'Ghost',
-        kind: 'human',
-        createdAt: 0,
-      })
-    );
-
-    const { gameId, roomId } = await seedRoom(t, {
-      userId: aliceId,
-      gameStatus: 'COMPLETED',
-      roomStatus: 'COMPLETED',
-      publicRecapEnabled: true,
-      poemCount: 0,
-    });
-    const poemId = await t.run((ctx) =>
-      ctx.db.insert('poems', {
-        roomId,
-        gameId,
-        indexInRoom: 0,
-        createdAt: 0,
-        revealedAt: 9000,
-        assignedReaderId: aliceId,
-      })
-    );
-
-    await seedLine(t, {
-      poemId,
-      authorUserId: ghostId,
-      indexInPoem: 0,
-      text: 'Mystery line',
-    });
-    await seedLine(t, {
-      poemId,
-      authorUserId: aiId,
-      indexInPoem: 1,
-      text: 'AI line',
-    });
-    // Delete the ghost user so its author lookup returns null.
-    await t.run((ctx) => ctx.db.delete(ghostId));
-
-    const result = await t.query(api.poems.getPublicSessionRecap, {
-      roomCode: 'ABCD',
-    });
-
-    expect(result?.poems[0].lines).toEqual([
-      { text: 'Mystery line', authorName: 'Unknown', isBot: false },
-      { text: 'AI line', authorName: 'Muse', isBot: true },
-    ]);
   });
 
   it('falls back cleanly when recap names and lines are missing', async () => {

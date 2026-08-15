@@ -47,11 +47,6 @@ const HEALTHY_REPORT = {
       available: true,
       required: false,
     },
-    aiLineGeneration: {
-      status: 'ready',
-      available: true,
-      required: false,
-    },
   },
   configuration: { missingRequired: [] },
 };
@@ -231,10 +226,7 @@ describe('/api/health', () => {
       );
     });
 
-    it('returns 503 when Convex is reachable but a required capability is unconfigured', async () => {
-      // Regression: 2026-07-09 incident. Prod Convex was missing
-      // OPENROUTER_API_KEY for days while this route stayed green because it
-      // only proved connectivity. The capabilities report must gate health.
+    it('returns 503 when Convex is reachable but required configuration is missing', async () => {
       mockQuery.mockResolvedValue({
         ok: false,
         status: 500,
@@ -249,11 +241,9 @@ describe('/api/health', () => {
             available: true,
             required: true,
           },
-          aiLineGeneration: {
-            status: 'missing_required',
-            available: false,
-            required: true,
-          },
+        },
+        configuration: {
+          missingRequired: ['GITHUB_ISSUES_TOKEN'],
         },
       });
       const consoleLogSpy = vi
@@ -267,9 +257,14 @@ describe('/api/health', () => {
       expect(response.status).toBe(503);
       expect(data.status).toBe('unhealthy');
       expect(data.convex).toBe('connected');
-      expect(data.convexEnv).toMatchObject({
-        aiLineGeneration: { status: 'missing_required' },
+      expect(data.convexEnv).toEqual({
+        guestTokenVerification: {
+          status: 'ready',
+          available: true,
+          required: true,
+        },
       });
+      expect(data.convexEnv).not.toHaveProperty('aiLineGeneration');
     });
 
     it('returns unhealthy when Convex ping fails', async () => {

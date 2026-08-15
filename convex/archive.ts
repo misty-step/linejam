@@ -24,7 +24,6 @@ export interface ArchivePoem {
     wordCount: number;
     authorKey: string;
     authorName: string;
-    isBot: boolean;
   }>;
   poetCount: number;
   lineCount: number;
@@ -51,6 +50,7 @@ const MAX_ARCHIVE_LIMIT = 48;
 const DEFAULT_RECENT_PUBLIC_LIMIT = 5;
 const MAX_RECENT_PUBLIC_LIMIT = 10;
 const MAX_LINES_PER_POEM = 9;
+const ARCHIVE_CANDIDATE_FACTOR = 4;
 const PUBLIC_POEMS_PER_ROOM = 2;
 const RECENT_PUBLIC_CANDIDATE_FACTOR = 4;
 const MAX_RECENT_PUBLIC_CANDIDATE_WINDOW = 40;
@@ -94,7 +94,10 @@ export const getArchiveData = query({
       DEFAULT_ARCHIVE_LIMIT,
       MAX_ARCHIVE_LIMIT
     );
-    const authorLineWindow = poemLimit * MAX_LINES_PER_POEM;
+    // Scan beyond the output limit so recent abandoned sessions cannot hide
+    // older completed poems. The factor caps query cost under pathological use.
+    const authorLineWindow =
+      poemLimit * MAX_LINES_PER_POEM * ARCHIVE_CANDIDATE_FACTOR;
 
     // Step 1: Find a bounded window of latest lines written by user.
     const userLines = await ctx.db
@@ -116,14 +119,16 @@ export const getArchiveData = query({
       };
     }
 
-    // Step 2: Get unique poem IDs from the bounded line window.
+    // Step 2: Gather a bounded superset; eligibility is checked before the
+    // requested output limit is applied.
     const poemIds: Id<'poems'>[] = [];
     const seenPoemIds = new Set<Id<'poems'>>();
+    const candidateLimit = poemLimit * ARCHIVE_CANDIDATE_FACTOR;
     for (const line of userLines) {
       if (seenPoemIds.has(line.poemId)) continue;
       seenPoemIds.add(line.poemId);
       poemIds.push(line.poemId);
-      if (poemIds.length >= poemLimit) break;
+      if (poemIds.length >= candidateLimit) break;
     }
 
     const [poemsRaw, favoriteRows] = await Promise.all([
@@ -139,21 +144,26 @@ export const getArchiveData = query({
         )
       ),
     ]);
-
-    // Filter out null poems and create lookup
-    const poems = poemsRaw.filter(
-      (p): p is NonNullable<typeof p> => p !== null
+    const poemGames = await Promise.all(
+      poemsRaw.map((poem) => (poem ? ctx.db.get(poem.gameId) : null))
     );
-    poems.sort((a, b) => b.createdAt - a.createdAt);
+
+    // Partial and abandoned games never enter the archive or consume its limit.
+    const candidatePoems = poemsRaw
+      .filter(
+        (poem, index): poem is NonNullable<typeof poem> =>
+          poem !== null && poemGames[index]?.status === 'COMPLETED'
+      )
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, poemLimit);
     const favoriteMap = new Map(
       favoriteRows
         .filter((f): f is NonNullable<typeof f> => f !== null)
         .map((f) => [f.poemId, f.createdAt])
     );
 
-    // Step 3: Fetch bounded poem lines in parallel. Classic poems have 9 lines.
     const allPoemLines = await Promise.all(
-      poems.map((poem) =>
+      candidatePoems.map((poem) =>
         ctx.db
           .query('lines')
           .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
@@ -161,6 +171,7 @@ export const getArchiveData = query({
           .take(MAX_LINES_PER_POEM)
       )
     );
+    const poems = candidatePoems;
 
     // Step 4: Collect all unique author IDs across all poems
     const allAuthorIds = new Set<Id<'users'>>();
@@ -178,7 +189,6 @@ export const getArchiveData = query({
         id,
         {
           name: authors[i]?.displayName || 'Unknown',
-          isBot: authors[i]?.kind === 'AI',
         },
       ])
     );
@@ -213,7 +223,6 @@ export const getArchiveData = query({
             wordCount: line.wordCount,
             authorKey: authorKeys.get(line.authorUserId)!,
             authorName: line.authorDisplayName || author?.name || 'Unknown',
-            isBot: author?.isBot || false,
           };
         }),
         poetCount: uniqueAuthors.size,
@@ -285,19 +294,31 @@ export const getRecentPublicPoems = query({
     }
 
     const roomIds = [...new Set(publicCandidates.map((poem) => poem.roomId))];
-    const rooms = await Promise.all(
-      roomIds.map((roomId) => ctx.db.get(roomId))
-    );
+    const gameIds = [...new Set(publicCandidates.map((poem) => poem.gameId))];
+    const [rooms, games] = await Promise.all([
+      Promise.all(roomIds.map((roomId) => ctx.db.get(roomId))),
+      Promise.all(gameIds.map((gameId) => ctx.db.get(gameId))),
+    ]);
     const completedRoomIds = new Set(
       rooms
         .filter((room) => room?.status === 'COMPLETED')
         .map((room) => room!._id)
     );
+    const completedGameIds = new Set(
+      games
+        .filter((game) => game?.status === 'COMPLETED')
+        .map((game) => game!._id)
+    );
 
     const poems: typeof publicCandidates = [];
     const poemsPerRoom = new Map<Id<'rooms'>, number>();
     for (const poem of publicCandidates) {
-      if (!completedRoomIds.has(poem.roomId)) continue;
+      if (
+        !completedRoomIds.has(poem.roomId) ||
+        !completedGameIds.has(poem.gameId)
+      ) {
+        continue;
+      }
       const roomCount = poemsPerRoom.get(poem.roomId) ?? 0;
       if (roomCount >= PUBLIC_POEMS_PER_ROOM) continue;
       poems.push(poem);
@@ -318,27 +339,16 @@ export const getRecentPublicPoems = query({
       )
     );
 
-    // Build poemsWithLines without additional database calls
-    const poemsWithLines = poems.map((poem, index) => {
-      const lines = linesByPoem[index];
-      const uniqueAuthors = new Set(lines.map((l) => l.authorUserId));
-
-      return {
+    const completePoems = poems
+      .map((poem, index) => ({ poem, lines: linesByPoem[index] }))
+      .filter(({ lines }) => lines.length >= 3)
+      .map(({ poem, lines }) => ({
         _id: poem._id,
-        lines: lines.slice(0, 5).map((l) => l.text), // First 5 lines for preview
-        poetCount: uniqueAuthors.size,
+        lines: lines.slice(0, 5).map((line) => line.text),
+        poetCount: new Set(lines.map((line) => line.authorUserId)).size,
         createdAt: poem.createdAt,
-      };
-    });
+      }));
 
-    // Keep only poems with at least 3 lines (looks better in showcase).
-    const qualityPoems = [];
-    for (const poem of poemsWithLines) {
-      if (poem.lines.length < 3) continue;
-      qualityPoems.push(poem);
-      if (qualityPoems.length >= poemLimit) break;
-    }
-
-    return qualityPoems;
+    return completePoems.slice(0, poemLimit);
   },
 });

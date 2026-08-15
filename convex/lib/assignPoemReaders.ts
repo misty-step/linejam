@@ -1,102 +1,41 @@
-/**
- * Poem Reader Assignment Module
- *
- * Deep module with simple interface: assign readers to poems.
- * Hides complexity: shuffling, derangement, AI handling, fairness.
- *
- * Design principle (Ousterhout):
- * - Shallow interface: One function, clear semantics
- * - Deep implementation: Complex logic hidden from callers
- * - No leaky abstractions: Callers don't know about AI players
- */
-
 import { ConvexError } from 'convex/values';
-import { Id } from '../_generated/dataModel';
+import type { Id } from '../_generated/dataModel';
 
 interface Poem {
   _id: Id<'poems'>;
-  authorUserId: Id<'users'>;
-}
-
-interface Player {
-  userId: Id<'users'>;
-  kind?: 'AI' | 'human';
+  indexInRoom: number;
 }
 
 /**
- * Assign poem readers ensuring fairness and coverage.
- *
- * Rules:
- * - All poems must be assigned a reader
- * - No player reads their own started poem (derangement)
- * - Distribution is as fair as possible
- * - If N poems, N-1 human players: one player reads 2 distinct poems
- * - AI players are excluded from reading
- *
- * @param poems - All completed poems with author info
- * @param allPlayers - All players (human + AI)
- * @param shuffler - Optional shuffle function (default: crypto-secure).
- *                   Tests can inject an identity or deterministic shuffler.
- * @returns Map of poemId → readerId
- *
- * @throws Error if no human players (can't assign readers)
+ * Assign each completed poem to the player one seat after its round-zero
+ * author. The immutable round-zero assignment row is the seat order for this
+ * game, so this is deterministic, balanced, and never assigns a player their
+ * own poem when there are at least two players.
  */
 export function assignPoemReaders(
-  poems: Poem[],
-  allPlayers: Player[],
-  shuffler: <T>(arr: T[]) => T[] = shuffle
+  poems: readonly Poem[],
+  roundZeroAssignments: readonly Id<'users'>[]
 ): Map<Id<'poems'>, Id<'users'>> {
-  // Filter human players (AI can't read aloud)
-  const humanPlayers = allPlayers.filter((p) => p.kind !== 'AI');
-
-  if (humanPlayers.length === 0) {
-    throw new ConvexError('Cannot assign readers: no human players');
+  if (roundZeroAssignments.length < 2) {
+    throw new ConvexError('Cannot assign readers with fewer than two players');
   }
 
-  // Shuffle poems for randomness (avoid predictable patterns)
-  const shuffledPoems = shuffler([...poems]);
-
-  // Round-robin assignment with derangement constraint
   const assignments = new Map<Id<'poems'>, Id<'users'>>();
-  let readerIndex = 0;
 
-  for (const poem of shuffledPoems) {
-    // Find next reader that didn't author this poem
-    let attempts = 0;
-    const maxAttempts = humanPlayers.length;
-
-    while (
-      humanPlayers[readerIndex].userId === poem.authorUserId &&
-      attempts < maxAttempts
+  for (const poem of poems) {
+    if (
+      !Number.isInteger(poem.indexInRoom) ||
+      poem.indexInRoom < 0 ||
+      poem.indexInRoom >= roundZeroAssignments.length
     ) {
-      readerIndex = (readerIndex + 1) % humanPlayers.length;
-      attempts++;
+      throw new ConvexError('Cannot assign reader for poem outside game seats');
     }
-
-    // Edge case: single player authored all poems (can't avoid self-read)
-    // Still assign them - better than no reader
-    assignments.set(poem._id, humanPlayers[readerIndex].userId);
-
-    // Move to next reader for fairness
-    readerIndex = (readerIndex + 1) % humanPlayers.length;
+    const readerIndex = (poem.indexInRoom + 1) % roundZeroAssignments.length;
+    const readerId = roundZeroAssignments[readerIndex];
+    if (!readerId) {
+      throw new ConvexError('Cannot assign reader for poem outside game seats');
+    }
+    assignments.set(poem._id, readerId);
   }
-
   return assignments;
-}
-
-/**
- * Fisher-Yates shuffle (unbiased randomization).
- * Hidden implementation detail - callers don't need to know we shuffle.
- */
-function shuffle<T>(array: T[]): T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    // Convex-safe random using crypto.getRandomValues
-    const randomBytes = new Uint32Array(1);
-    crypto.getRandomValues(randomBytes);
-    const j = randomBytes[0] % (i + 1);
-
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
 }

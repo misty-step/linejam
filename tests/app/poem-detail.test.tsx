@@ -169,13 +169,11 @@ describe('PoemDetail', () => {
           text: 'first line',
           authorName: 'Ada',
           authorKey: 'user-ada',
-          isBot: false,
         },
         {
           text: 'second line',
-          authorName: 'Bot',
-          authorKey: null,
-          isBot: true,
+          authorName: 'Lin',
+          authorKey: 'user-lin',
         },
       ],
     };
@@ -190,19 +188,17 @@ describe('PoemDetail', () => {
         poemId: 'poem1',
         guestToken: 'guest-token',
         alreadyRevealed: true,
-        allStableIds: ['user-ada'],
+        allStableIds: ['user-ada', 'user-lin'],
         lines: [
           {
             text: 'first line',
             authorName: 'Ada',
             authorStableId: 'user-ada',
-            isBot: false,
           },
           {
             text: 'second line',
-            authorName: 'Bot',
-            authorStableId: null,
-            isBot: true,
+            authorName: 'Lin',
+            authorStableId: 'user-lin',
           },
         ],
         metadata: expect.objectContaining({
@@ -234,7 +230,6 @@ describe('PoemDetail', () => {
           text: 'public first line',
           authorName: 'Ada',
           authorKey: 'public-ada',
-          isBot: false,
         },
       ],
     };

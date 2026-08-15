@@ -3,6 +3,25 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { withEnv } from '../helpers/envHelper';
 
 const ORIGINAL_ENV = { ...process.env };
+const COMPLETE_PRODUCTION_ENV = {
+  CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
+  LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+  CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.test',
+  GUEST_TOKEN_SECRET: 'test-secret',
+  GITHUB_ISSUES_TOKEN: 'test-github-token',
+  GITHUB_REPOSITORY_NAME: 'linejam',
+  GITHUB_REPOSITORY_OWNER: 'misty-step',
+  LINEJAM_SENTRY_ENABLED: 'true',
+  SENTRY_DSN: ['https://public', 'sentry.example.test/1'].join('@'),
+  SENTRY_ENVIRONMENT: 'production',
+  SENTRY_RELEASE: 'a'.repeat(40),
+  SENTRY_EVENT_WRITE_TOKEN: 'test-event-token',
+  SENTRY_EXPECTED_APP_ID: '160944',
+  SENTRY_EXPECTED_INSTALLATION_UUID: '268a6e8e-c341-414e-bee6-20125b9987ef',
+  SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
+  SENTRY_GITHUB_INTEGRATION_ID: '338522',
+  SENTRY_WEBHOOK_SECRET: 'test-webhook-secret',
+};
 
 describe('Convex env validation', () => {
   afterAll(() => {
@@ -77,70 +96,13 @@ describe('Convex env validation', () => {
     );
   });
 
-  it('logs a structured error at module load when OPENROUTER_API_KEY is missing in production-like Convex env', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-
+  it('reports production env as unhealthy when required Convex configuration is missing', async () => {
     await withEnv(
       {
-        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
-        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        GUEST_TOKEN_SECRET: 'test-secret',
-        OPENROUTER_API_KEY: undefined,
-      },
-      async () => {
-        await import('../../convex/lib/env');
-      }
-    );
-
-    const logCall = consoleErrorSpy.mock.calls.find(([entry]) =>
-      String(entry).includes('OPENROUTER_API_KEY not configured at module load')
-    );
-
-    expect(logCall).toBeDefined();
-    expect(JSON.parse(String(logCall?.[0]))).toMatchObject({
-      level: 'error',
-      message: 'OPENROUTER_API_KEY not configured at module load',
-      service: 'convex',
-      source: 'convex/env',
-    });
-  });
-
-  it('does not log module-load error when OPENROUTER_API_KEY is present', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-
-    await withEnv(
-      {
-        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
-        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        GUEST_TOKEN_SECRET: 'test-secret',
-        OPENROUTER_API_KEY: 'test-openrouter-key',
-      },
-      async () => {
-        await import('../../convex/lib/env');
-      }
-    );
-
-    expect(
-      consoleErrorSpy.mock.calls.find(([entry]) =>
-        String(entry).includes(
-          'OPENROUTER_API_KEY not configured at module load'
-        )
-      )
-    ).toBeUndefined();
-  });
-
-  it('reports production env as unhealthy when required Convex capabilities are missing', async () => {
-    await withEnv(
-      {
-        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
-        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        ...COMPLETE_PRODUCTION_ENV,
         CLERK_JWT_ISSUER_DOMAIN: undefined,
         GUEST_TOKEN_SECRET: undefined,
-        OPENROUTER_API_KEY: undefined,
+        GITHUB_ISSUES_TOKEN: undefined,
       },
       async () => {
         const { getConvexEnvHealthReport } =
@@ -152,58 +114,17 @@ describe('Convex env validation', () => {
           environment: 'production',
           capabilities: {
             guestTokenVerification: {
-              status: 'missing_required',
-              available: false,
-              required: true,
-            },
-            aiLineGeneration: {
               status: 'missing_required',
               available: false,
               required: true,
             },
           },
           configuration: {
-            missingRequired: expect.arrayContaining([
-              'GITHUB_ISSUES_TOKEN',
-              'SENTRY_EVENT_WRITE_TOKEN',
-              'SENTRY_WEBHOOK_SECRET',
+            missingRequired: [
               'CLERK_JWT_ISSUER_DOMAIN',
+              'GITHUB_ISSUES_TOKEN',
               'GUEST_TOKEN_SECRET',
-              'OPENROUTER_API_KEY',
-            ]),
-          },
-        });
-      }
-    );
-  });
-
-  it('reports production env as unhealthy when only guest token secret is missing', async () => {
-    await withEnv(
-      {
-        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
-        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        GUEST_TOKEN_SECRET: undefined,
-        OPENROUTER_API_KEY: 'test-openrouter-key',
-      },
-      async () => {
-        const { getConvexEnvHealthReport } =
-          await import('../../convex/lib/env');
-
-        expect(getConvexEnvHealthReport()).toMatchObject({
-          ok: false,
-          status: 500,
-          environment: 'production',
-          capabilities: {
-            guestTokenVerification: {
-              status: 'missing_required',
-              available: false,
-              required: true,
-            },
-            aiLineGeneration: {
-              status: 'ready',
-              available: true,
-              required: true,
-            },
+            ],
           },
         });
       }
@@ -213,25 +134,8 @@ describe('Convex env validation', () => {
   it('uses the manifest to fail health when a non-capability production name is missing', async () => {
     await withEnv(
       {
-        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
-        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        GITHUB_ISSUES_TOKEN: 'test-github-token',
-        GITHUB_REPOSITORY_NAME: 'linejam',
-        GITHUB_REPOSITORY_OWNER: 'misty-step',
+        ...COMPLETE_PRODUCTION_ENV,
         CLERK_JWT_ISSUER_DOMAIN: undefined,
-        GUEST_TOKEN_SECRET: 'test-secret',
-        OPENROUTER_API_KEY: 'test-openrouter-key',
-        LINEJAM_SENTRY_ENABLED: 'true',
-        SENTRY_DSN: ['https://public', 'sentry.example.test/1'].join('@'),
-        SENTRY_ENVIRONMENT: 'production',
-        SENTRY_RELEASE: 'a'.repeat(40),
-        SENTRY_EVENT_WRITE_TOKEN: 'test-event-token',
-        SENTRY_EXPECTED_APP_ID: '160944',
-        SENTRY_EXPECTED_INSTALLATION_UUID:
-          '268a6e8e-c341-414e-bee6-20125b9987ef',
-        SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
-        SENTRY_GITHUB_INTEGRATION_ID: '338522',
-        SENTRY_WEBHOOK_SECRET: 'test-webhook-secret',
       },
       async () => {
         const { getConvexEnvHealthReport } =
@@ -242,7 +146,6 @@ describe('Convex env validation', () => {
           status: 500,
           capabilities: {
             guestTokenVerification: { status: 'ready' },
-            aiLineGeneration: { status: 'ready' },
           },
           configuration: {
             missingRequired: ['CLERK_JWT_ISSUER_DOMAIN'],
@@ -252,12 +155,39 @@ describe('Convex env validation', () => {
     );
   });
 
-  it('reports development env as healthy with optional capabilities disabled', async () => {
+  it('does not require or expose retired machine-authorship configuration', async () => {
+    await withEnv(
+      {
+        ...COMPLETE_PRODUCTION_ENV,
+        OPENROUTER_API_KEY: undefined,
+        AI_PROVIDER_ENABLED: undefined,
+        AI_MODEL: undefined,
+      },
+      async () => {
+        const { getConvexRuntimeConfig, getConvexEnvHealthReport } =
+          await import('../../convex/lib/env');
+        const config = getConvexRuntimeConfig();
+        const health = getConvexEnvHealthReport();
+
+        expect(health).toMatchObject({
+          ok: true,
+          status: 200,
+          capabilities: {
+            guestTokenVerification: { status: 'ready' },
+          },
+          configuration: { missingRequired: [] },
+        });
+        expect(config).not.toHaveProperty('openRouterApiKey');
+        expect(health.capabilities).not.toHaveProperty('aiLineGeneration');
+      }
+    );
+  });
+
+  it('reports development env as healthy with optional guest verification disabled', async () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: undefined,
         GUEST_TOKEN_SECRET: undefined,
-        OPENROUTER_API_KEY: undefined,
       },
       async () => {
         const { getConvexEnvHealthReport } =
@@ -269,11 +199,6 @@ describe('Convex env validation', () => {
           environment: 'development',
           capabilities: {
             guestTokenVerification: {
-              status: 'disabled',
-              available: false,
-              required: false,
-            },
-            aiLineGeneration: {
               status: 'disabled',
               available: false,
               required: false,
@@ -292,7 +217,6 @@ describe('Convex env validation', () => {
           CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
           LINEJAM_DEPLOY_ENVIRONMENT: marker,
           GUEST_TOKEN_SECRET: 'test-secret',
-          OPENROUTER_API_KEY: 'test-openrouter-key',
         },
         async () => {
           const { getConvexEnvHealthReport } =
@@ -315,35 +239,26 @@ describe('Convex env validation', () => {
   it('keeps runtime config and health report stable after module load', async () => {
     await withEnv(
       {
-        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
-        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        ...COMPLETE_PRODUCTION_ENV,
         GUEST_TOKEN_SECRET: 'first-secret',
-        OPENROUTER_API_KEY: undefined,
       },
       async () => {
         const { getConvexRuntimeConfig, getConvexEnvHealthReport } =
           await import('../../convex/lib/env');
 
         process.env.GUEST_TOKEN_SECRET = 'second-secret';
-        process.env.OPENROUTER_API_KEY = 'late-openrouter-key';
 
         expect(getConvexRuntimeConfig()).toMatchObject({
           environment: 'production',
           guestTokenSecret: 'first-secret',
-          openRouterApiKey: undefined,
         });
         expect(getConvexEnvHealthReport()).toMatchObject({
-          ok: false,
-          status: 500,
+          ok: true,
+          status: 200,
           capabilities: {
             guestTokenVerification: {
               status: 'ready',
               available: true,
-              required: true,
-            },
-            aiLineGeneration: {
-              status: 'missing_required',
-              available: false,
               required: true,
             },
           },

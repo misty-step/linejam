@@ -572,23 +572,32 @@ export const backfillRetentionPolicy = internalMutation({
         ...games.map((game) =>
           ctx.db.patch(
             game._id,
-            game.status !== 'COMPLETED'
+            game.status === 'IN_PROGRESS'
               ? {
                   retentionState: 'active' as const,
                   retentionEligibleAt: undefined,
                 }
-              : game.publicRecapEnabled === true
+              : game.status === 'ABANDONED' ||
+                  game.completionKind === 'abandoned'
                 ? {
-                    retentionState: 'protected' as const,
-                    retentionEligibleAt: undefined,
-                  }
-                : {
                     retentionState: 'pending' as const,
                     retentionEligibleAt: retentionEligibleAt(
                       Math.min(game.completedAt ?? game.createdAt, now),
-                      'privateCompleted'
+                      'abandoned'
                     ),
                   }
+                : game.publicRecapEnabled === true
+                  ? {
+                      retentionState: 'protected' as const,
+                      retentionEligibleAt: undefined,
+                    }
+                  : {
+                      retentionState: 'pending' as const,
+                      retentionEligibleAt: retentionEligibleAt(
+                        Math.min(game.completedAt ?? game.createdAt, now),
+                        'privateCompleted'
+                      ),
+                    }
           )
         ),
       ]);

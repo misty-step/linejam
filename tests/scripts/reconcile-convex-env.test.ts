@@ -14,10 +14,10 @@ const manifest = {
   environments: {
     development: {
       required: ['CLERK_JWT_ISSUER_DOMAIN', 'GUEST_TOKEN_SECRET'],
-      optional: ['OPENROUTER_API_KEY'],
+      optional: ['RETENTION_GC_ENABLED'],
     },
     preview: {
-      required: ['GUEST_TOKEN_SECRET', 'OPENROUTER_API_KEY'],
+      required: ['GUEST_TOKEN_SECRET', 'LINEJAM_DEPLOY_ENVIRONMENT'],
       optional: [],
     },
     production: {
@@ -26,9 +26,9 @@ const manifest = {
         'SENTRY_RELEASE',
         'CLERK_JWT_ISSUER_DOMAIN',
         'GUEST_TOKEN_SECRET',
-        'OPENROUTER_API_KEY',
+        'LINEJAM_DEPLOY_ENVIRONMENT',
       ],
-      optional: ['AI_MODEL'],
+      optional: ['RETENTION_GC_ENABLED'],
     },
   },
 };
@@ -94,8 +94,8 @@ describe('Convex environment reconciliation', () => {
 
   it('parses only names and refuses value-bearing CLI output without echoing it', () => {
     expect(
-      parseConvexEnvNames('GUEST_TOKEN_SECRET\nOPENROUTER_API_KEY\n')
-    ).toEqual(['GUEST_TOKEN_SECRET', 'OPENROUTER_API_KEY']);
+      parseConvexEnvNames('GUEST_TOKEN_SECRET\nLINEJAM_DEPLOY_ENVIRONMENT\n')
+    ).toEqual(['GUEST_TOKEN_SECRET', 'LINEJAM_DEPLOY_ENVIRONMENT']);
 
     const secretOutput = 'GUEST_TOKEN_SECRET=do-not-disclose';
     let error: unknown;
@@ -113,7 +113,7 @@ describe('Convex environment reconciliation', () => {
   it('reports missing and unexpected names deterministically', () => {
     expect(
       diffConvexEnvNames(manifest.environments.production, [
-        'OPENROUTER_API_KEY',
+        'LINEJAM_DEPLOY_ENVIRONMENT',
         'GUEST_TOKEN_SECRET',
         'UNDECLARED_KEY',
         'SENTRY_RELEASE',
@@ -133,7 +133,7 @@ describe('Convex environment reconciliation', () => {
         'SENTRY_RELEASE',
         'CLERK_JWT_ISSUER_DOMAIN',
         'GUEST_TOKEN_SECRET',
-        'OPENROUTER_API_KEY',
+        'LINEJAM_DEPLOY_ENVIRONMENT',
       ].join('\n'),
       stderr: 'provider warning that must not be echoed',
     });
@@ -158,7 +158,7 @@ describe('Convex environment reconciliation', () => {
     );
     expect(logger.log).toHaveBeenCalledWith(
       expect.stringContaining(
-        'SENTRY_DSN,SENTRY_RELEASE,CLERK_JWT_ISSUER_DOMAIN,GUEST_TOKEN_SECRET,OPENROUTER_API_KEY'
+        'SENTRY_DSN,SENTRY_RELEASE,CLERK_JWT_ISSUER_DOMAIN,GUEST_TOKEN_SECRET,LINEJAM_DEPLOY_ENVIRONMENT'
       )
     );
     expect(logger.log).not.toHaveBeenCalledWith(
@@ -186,7 +186,7 @@ describe('Convex environment reconciliation', () => {
         logger: { log: vi.fn() },
       })
     ).toThrow(
-      'Convex production environment drift: missing=OPENROUTER_API_KEY; unexpected=none'
+      'Convex production environment drift: missing=LINEJAM_DEPLOY_ENVIRONMENT; unexpected=none'
     );
   });
 

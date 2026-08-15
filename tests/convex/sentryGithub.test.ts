@@ -44,8 +44,8 @@ const TAGS = {
   environment: 'preview' as const,
   release: RELEASE,
   level: 'error' as const,
-  operation: 'generateGhostLine' as const,
-  failureCode: 'provider_error' as const,
+  operation: 'finishAbandonedGame' as const,
+  failureCode: 'unexpected_error' as const,
 };
 
 const PREVIEW_TAGS = {
@@ -152,7 +152,7 @@ describe('durable Sentry to GitHub bridge', () => {
       TAGS
     );
     expect(content.title).toBe(
-      '[Convex/preview] generateGhostLine: provider_error'
+      '[Convex/preview] finishAbandonedGame: unexpected_error'
     );
     expect(content.labels).toEqual(['p1', 'source/sentry', 'domain/infra']);
     expect(content.body).toContain(githubDedupMarker(DEDUP_KEY));

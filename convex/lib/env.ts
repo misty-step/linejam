@@ -1,4 +1,3 @@
-import { log } from './errors';
 import convexEnvManifest from '../../config/convex-env-manifest.json';
 
 type ConvexEnvironment = 'production' | 'preview' | 'development';
@@ -15,7 +14,6 @@ export type ConvexRuntimeConfig = {
   deploymentMarkerValid: boolean;
   deploymentUrl?: string;
   guestTokenSecret?: string;
-  openRouterApiKey?: string;
   requiredEnvironmentVariables: Readonly<Record<string, boolean>>;
 };
 
@@ -29,7 +27,6 @@ export type ConvexEnvHealthReport = {
   };
   capabilities: {
     guestTokenVerification: ConvexCapabilityHealth;
-    aiLineGeneration: ConvexCapabilityHealth;
   };
   configuration: {
     missingRequired: string[];
@@ -79,7 +76,6 @@ function loadConvexRuntimeConfig(): ConvexRuntimeConfig {
     deploymentMarkerValid,
     deploymentUrl: readEnv('CONVEX_CLOUD_URL'),
     guestTokenSecret: readEnv('GUEST_TOKEN_SECRET'),
-    openRouterApiKey: readEnv('OPENROUTER_API_KEY'),
     requiredEnvironmentVariables: Object.freeze(requiredEnvironmentVariables),
   };
 }
@@ -100,15 +96,6 @@ function evaluateCapability(
 }
 
 const convexRuntimeConfig = Object.freeze(loadConvexRuntimeConfig());
-
-if (
-  convexRuntimeConfig.environment !== 'development' &&
-  !convexRuntimeConfig.openRouterApiKey
-) {
-  log.error('OPENROUTER_API_KEY not configured at module load', {
-    source: 'convex/env',
-  });
-}
 
 export function getConvexRuntimeConfig(): ConvexRuntimeConfig {
   return convexRuntimeConfig;
@@ -138,10 +125,6 @@ export function getConvexEnvHealthReport(): ConvexEnvHealthReport {
     Boolean(convexRuntimeConfig.guestTokenSecret),
     required
   );
-  const aiLineGeneration = evaluateCapability(
-    Boolean(convexRuntimeConfig.openRouterApiKey),
-    required
-  );
   const missingRequired = Object.entries(
     convexRuntimeConfig.requiredEnvironmentVariables
   )
@@ -151,8 +134,7 @@ export function getConvexEnvHealthReport(): ConvexEnvHealthReport {
   const ok =
     convexRuntimeConfig.deploymentMarkerValid &&
     missingRequired.length === 0 &&
-    guestTokenVerification.status !== 'missing_required' &&
-    aiLineGeneration.status !== 'missing_required';
+    guestTokenVerification.status !== 'missing_required';
 
   return {
     ok,
@@ -164,7 +146,6 @@ export function getConvexEnvHealthReport(): ConvexEnvHealthReport {
     },
     capabilities: {
       guestTokenVerification,
-      aiLineGeneration,
     },
     configuration: {
       missingRequired,

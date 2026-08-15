@@ -109,17 +109,16 @@ describe('RevealPhase component', () => {
     readerStableId: 'stable_alice_123',
     isRevealed: false,
     isOwnPoem: true,
-    isForAi: false,
     lines: [
-      { text: 'One', authorName: 'Alice', isBot: false },
-      { text: 'Two words', authorName: 'Bob', isBot: false },
-      { text: 'Three simple words', authorName: 'Alice', isBot: false },
-      { text: 'Four words in line', authorName: 'Bob', isBot: false },
-      { text: 'Five words make this line', authorName: 'Alice', isBot: false },
-      { text: 'Four words in poem', authorName: 'Bob', isBot: false },
-      { text: 'Three words here', authorName: 'Alice', isBot: false },
-      { text: 'Two words', authorName: 'Bob', isBot: false },
-      { text: 'End', authorName: 'Alice', isBot: false },
+      { text: 'One', authorName: 'Alice' },
+      { text: 'Two words', authorName: 'Bob' },
+      { text: 'Three simple words', authorName: 'Alice' },
+      { text: 'Four words in line', authorName: 'Bob' },
+      { text: 'Five words make this line', authorName: 'Alice' },
+      { text: 'Four words in poem', authorName: 'Bob' },
+      { text: 'Three words here', authorName: 'Alice' },
+      { text: 'Two words', authorName: 'Bob' },
+      { text: 'End', authorName: 'Alice' },
     ],
   };
 
@@ -139,8 +138,8 @@ describe('RevealPhase component', () => {
     isRevealed: true,
     revealedAt: 3000,
     lines: [
-      { text: 'Lanterns', authorName: 'Bob', isBot: false },
-      { text: 'toward dawn', authorName: 'Alice', isBot: false },
+      { text: 'Lanterns', authorName: 'Bob' },
+      { text: 'toward dawn', authorName: 'Alice' },
     ],
   };
 
@@ -170,13 +169,11 @@ describe('RevealPhase component', () => {
       userId: 'user_alice',
       displayName: 'Alice',
       stableId: 'stable_alice_123',
-      isBot: false,
     },
     {
       userId: 'user_bob',
       displayName: 'Bob',
       stableId: 'stable_bob_456',
-      isBot: false,
     },
   ];
 
@@ -718,63 +715,5 @@ describe('RevealPhase component', () => {
     await waitFor(() => {
       expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
     });
-  });
-
-  it('displays AI attribution only for AI-started poems, not all poems', () => {
-    // Arrange - User has 2 poems: their own + AI's
-    const mockAiPoem = {
-      _id: 'poem_ai_789' as Id<'poems'>,
-      preview: 'Mountains stand silent',
-      isRevealed: false,
-      isOwnPoem: false,
-      isForAi: true,
-      aiPersonaName: 'Bashō',
-      lines: [
-        { text: 'Mountains', authorName: 'Bashō', isBot: true },
-        { text: 'Stand silent', authorName: 'Alice', isBot: false },
-        { text: 'In the moonlight', authorName: 'Bashō', isBot: true },
-        { text: 'Reflected in the pond', authorName: 'Alice', isBot: false },
-        { text: 'Frogs jump from lily pads', authorName: 'Bashō', isBot: true },
-        {
-          text: 'Ripples spread wide outward',
-          authorName: 'Alice',
-          isBot: false,
-        },
-        { text: 'Still waters', authorName: 'Bashō', isBot: true },
-        { text: 'Now calm', authorName: 'Alice', isBot: false },
-        { text: 'Peace', authorName: 'Bashō', isBot: true },
-      ],
-    };
-
-    const mockStateWithBothPoems = {
-      ...mockStateNotRevealed,
-      myPoems: [mockMyPoem, mockAiPoem],
-      poems: [
-        ...mockPoems,
-        {
-          _id: 'poem_ai_789' as Id<'poems'>,
-          indexInRoom: 2,
-          readerName: 'Alice',
-          readerStableId: 'stable_alice_123',
-          isRevealed: false,
-        },
-      ],
-    };
-
-    mockUseQuery.mockReturnValue(mockStateWithBothPoems);
-
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
-
-    // Assert
-    // User's own poem shows standard label
-    expect(screen.getByText('Your Assignment')).toBeInTheDocument();
-
-    // AI's poem shows AI attribution
-    expect(screen.getByText(/Read for Bashō/i)).toBeInTheDocument();
-
-    // Only ONE poem should have AI attribution (not both)
-    const aiLabels = screen.getAllByText(/Read for/i);
-    expect(aiLabels).toHaveLength(1);
   });
 });

@@ -13,7 +13,6 @@ import { Button } from './ui/Button';
 import { PoemDisplay } from './PoemDisplay';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
-import { BotBadge } from './ui/BotBadge';
 import { Id } from '../convex/_generated/dataModel';
 import { hashRoomId, trackGameCompleted } from '../lib/analytics';
 import { RoomChrome } from './RoomChrome';
@@ -78,16 +77,15 @@ export function RevealPhase({
   const hasTrackedCompletion = useRef(false);
   useEffect(() => {
     if (!state) return;
-    const { allRevealed, poems, players } = state;
+    const { allRevealed, poems } = state;
 
     if (allRevealed && !hasTrackedCompletion.current) {
       hasTrackedCompletion.current = true;
-      if (state.roomId && state.cycle && state.currentPlayerKind) {
+      if (state.roomId && state.cycle) {
         trackGameCompleted({
           roomIdHash: hashRoomId(state.roomId),
           cycle: state.cycle,
           round: poems.length > 0 ? 8 : 0,
-          playerKind: state.currentPlayerKind,
         });
       }
     }
@@ -195,14 +193,12 @@ export function RevealPhase({
             text: l.text,
             authorName: l.authorName,
             authorStableId: l.authorStableId,
-            isBot: l.isBot,
           }))}
           onDone={() => setShowingPoemId(null)}
           alreadyRevealed={displayingPoem.isRevealed}
           allStableIds={allStableIds}
           roomId={state.roomId}
           cycle={state.cycle}
-          playerKind={state.currentPlayerKind}
           metadata={{
             createdAt: displayingPoem.createdAt,
             firstLine: displayingPoem.preview,
@@ -252,11 +248,8 @@ export function RevealPhase({
                         <p className="text-xs font-mono uppercase tracking-widest text-primary">
                           {poem.isFallbackReader
                             ? `Step in for ${poem.readerName}`
-                            : poem.isForAi
-                              ? `Read for ${poem.aiPersonaName}`
-                              : 'Your Assignment'}
+                            : 'Your Assignment'}
                         </p>
-                        {poem.isForAi && <BotBadge />}
                       </div>
                       <p className="text-xl md:text-2xl font-[var(--font-display)] italic leading-relaxed">
                         &ldquo;{poem.preview}...&rdquo;
@@ -291,14 +284,7 @@ export function RevealPhase({
                     className="w-full text-lg h-16 border-2"
                   >
                     <span className="flex items-center gap-3">
-                      {poem.isForAi ? (
-                        <>
-                          Re-Read {poem.aiPersonaName}&apos;s Poem
-                          <BotBadge showLabel={false} />
-                        </>
-                      ) : (
-                        'Re-Read My Poem'
-                      )}
+                      Re-Read My Poem
                     </span>
                   </Button>
                 ))}
@@ -420,7 +406,6 @@ export function RevealPhase({
               roomCode={roomCode}
               roomId={state.roomId}
               cycle={state.cycle}
-              playerKind={state.currentPlayerKind}
               guestToken={guestToken || undefined}
               poems={poems}
               playerCount={state.players.length}

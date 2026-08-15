@@ -4,6 +4,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import {
   RETENTION_BATCH_LIMITS,
+  RETENTION_DURATIONS_MS,
   RETENTION_PARENT_RETRY_MS,
 } from '../../convex/lib/retentionPolicy';
 
@@ -502,6 +503,58 @@ describe('bounded data retention', () => {
       now,
     });
     expect(rerun).toMatchObject({ scanned: 0, patched: 0, hasMore: false });
+  });
+
+  it('classifies legacy and migrated abandoned games with the short lifetime', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const completedAt = now - 24 * 60 * 60 * 1000;
+    const t = setupConvexTest();
+    const ids = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', {
+        clerkUserId: 'abandoned-host',
+        displayName: 'Host',
+        createdAt: completedAt,
+        retentionState: 'protected',
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'ABRT',
+        hostUserId: userId,
+        status: 'LOBBY',
+        createdAt: completedAt,
+        retentionState: 'active',
+      });
+      const legacyGameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        completionKind: 'abandoned',
+        cycle: 1,
+        currentRound: 2,
+        assignmentMatrix: [],
+        createdAt: completedAt,
+        completedAt,
+      });
+      const migratedGameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'ABANDONED',
+        cycle: 2,
+        currentRound: 3,
+        assignmentMatrix: [],
+        createdAt: completedAt,
+        completedAt,
+      });
+      return { legacyGameId, migratedGameId };
+    });
+
+    await t.mutation(backfillRetentionPolicy, { dryRun: false, now });
+    const expectedEligibleAt = completedAt + RETENTION_DURATIONS_MS.abandoned;
+    await t.run(async (ctx) => {
+      for (const gameId of [ids.legacyGameId, ids.migratedGameId]) {
+        expect(await ctx.db.get(gameId)).toMatchObject({
+          retentionState: 'pending',
+          retentionEligibleAt: expectedEligibleAt,
+        });
+      }
+    });
   });
 
   it('marks regular Clerk users as protected without patching during a dry run', async () => {

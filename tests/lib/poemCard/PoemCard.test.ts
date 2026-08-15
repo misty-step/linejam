@@ -10,32 +10,12 @@ import {
 describe('formatAttribution', () => {
   it('names every unique author, in order of first appearance', () => {
     const lines: AttributedLine[] = [
-      { text: 'Rain', authorName: 'Emily', isBot: false },
-      { text: 'on rooftops', authorName: 'Marcus', isBot: false },
-      { text: 'counts the hours', authorName: 'Emily', isBot: false },
+      { text: 'Rain', authorName: 'Emily' },
+      { text: 'on rooftops', authorName: 'Marcus' },
+      { text: 'counts the hours', authorName: 'Emily' },
     ];
 
     expect(formatAttribution(lines)).toBe('Emily, Marcus');
-  });
-
-  it('marks AI authors with an (AI) suffix', () => {
-    const lines: AttributedLine[] = [
-      { text: 'Rain', authorName: 'Emily', isBot: false },
-      { text: 'on rooftops', authorName: 'Wendell', isBot: true },
-    ];
-
-    expect(formatAttribution(lines)).toBe('Emily, Wendell (AI)');
-  });
-
-  it('deduplicates a human and an AI author who happen to share a name', () => {
-    const lines: AttributedLine[] = [
-      { text: 'a', authorName: 'Alex', isBot: false },
-      { text: 'b', authorName: 'Alex', isBot: true },
-    ];
-
-    // Same display name but different kind is not the same "author" for
-    // attribution purposes — both entries must survive, distinctly tagged.
-    expect(formatAttribution(lines)).toBe('Alex, Alex (AI)');
   });
 
   it('returns an empty string for an unattributed poem', () => {

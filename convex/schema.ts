@@ -28,7 +28,7 @@ export default defineSchema({
     guestId: v.optional(v.string()),
     displayName: v.string(),
     createdAt: v.number(),
-    // AI player fields
+    // Legacy AI fields retained only through the Release A production cleanup.
     kind: v.optional(v.union(v.literal('human'), v.literal('AI'))),
     aiPersonaId: v.optional(v.string()),
     retentionState: v.optional(retentionState),
@@ -83,12 +83,16 @@ export default defineSchema({
 
   games: defineTable({
     roomId: v.id('rooms'),
-    status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
+    status: v.union(
+      v.literal('IN_PROGRESS'),
+      v.literal('COMPLETED'),
+      v.literal('ABANDONED')
+    ),
     /** Game session count for this room. First game = 1. */
     cycle: v.number(),
     /** Round index within current game. Shape comes from convex/lib/gameRules.ts. */
     currentRound: v.number(),
-    /** When the current round opened. Drives the soft clock and ghostwriter overtime gate. */
+    /** When the current round opened. Drives the soft clock and idle sweep. */
     roundStartedAt: v.optional(v.number()),
     assignmentMatrix: v.array(v.array(v.id('users'))),
     createdAt: v.number(),
@@ -157,6 +161,7 @@ export default defineSchema({
     .index('by_author', ['authorUserId'])
     .index('by_author_created', ['authorUserId', 'createdAt']),
 
+  // Legacy AI tables remain schema-valid until Release A receipts prove empty.
   aiTurns: defineTable({
     roomId: v.id('rooms'),
     gameId: v.id('games'),
@@ -179,8 +184,7 @@ export default defineSchema({
 
   aiUsage: defineTable({
     day: v.string(),
-    // Total bot + ghostwriter generation claims for the day. This is the
-    // production-readable spend counter and the source for the threshold alert.
+    // Legacy generation counters retained for bounded cleanup and retention.
     generationClaims: v.number(),
     httpAttempts: v.number(),
     fallbacks: v.number(),
@@ -190,9 +194,8 @@ export default defineSchema({
     .index('by_day', ['day'])
     .index('by_updated', ['updatedAt']),
 
-  // One aggregate row per UTC hour. This keeps fallback-rate observability
-  // bounded regardless of room or generation volume and stores no content or
-  // player identifiers.
+  // Legacy hourly generation aggregates retained for bounded cleanup and
+  // retention. They contain no content or player identifiers.
   aiGenerationMetrics: defineTable({
     bucketStart: v.number(),
     totalGenerations: v.number(),

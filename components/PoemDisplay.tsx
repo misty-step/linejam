@@ -31,7 +31,6 @@ export interface PoemLine {
   text: string;
   authorName?: string;
   authorStableId?: string;
-  isBot?: boolean;
 }
 
 export interface PoemMetadata {
@@ -61,7 +60,6 @@ interface PoemDisplayProps {
   metadata?: PoemMetadata;
   roomId?: string;
   cycle?: number;
-  playerKind?: 'human' | 'AI';
 }
 
 function formatDate(timestamp: number): string {
@@ -79,7 +77,6 @@ export function PoemDisplay({
   metadata,
   roomId,
   cycle = 1,
-  playerKind = 'human',
 }: PoemDisplayProps) {
   const isArchive = variant === 'archive';
 
@@ -108,15 +105,13 @@ export function PoemDisplay({
     guestToken,
     firstLineText,
     roomId,
-    cycle,
-    playerKind
+    cycle
   );
   const { handleSaveImage, saving, saved, saveError } = useSavePoemImage(
     poemId,
     guestToken,
     roomId,
-    cycle,
-    playerKind
+    cycle
   );
 
   // Get unique authors for legend (preserves order of first appearance)
@@ -131,7 +126,6 @@ export function PoemDisplay({
       .map((line) => ({
         name: line.authorName ?? 'Unknown',
         stableId: line.authorStableId!,
-        isBot: line.isBot ?? false,
       }));
   }, [normalizedLines]);
 
@@ -287,21 +281,15 @@ export function PoemDisplay({
               &rdquo;
             </p>
 
-            {/* Poets legend - archive exposes all authors; reveal only names AI
-                is intentionally announcing at the moment they appear. */}
-            {(isArchive
-              ? uniqueAuthors
-              : uniqueAuthors.filter(({ isBot }) => isBot)
-            ).length > 0 && (
+            {/* Contributor legend is shown on archive pages. During reveal,
+                author names appear when their line marker is selected. */}
+            {isArchive && uniqueAuthors.length > 0 && (
               <div
                 role="list"
                 aria-label="Poem contributors"
                 className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mb-6"
               >
-                {(isArchive
-                  ? uniqueAuthors
-                  : uniqueAuthors.filter(({ isBot }) => isBot)
-                ).map(({ name, stableId, isBot }) => (
+                {uniqueAuthors.map(({ name, stableId }) => (
                   <div
                     key={stableId}
                     role="listitem"
@@ -315,10 +303,7 @@ export function PoemDisplay({
                           : getUserColor(stableId),
                       }}
                     />
-                    <span className="text-text-secondary">
-                      {name}
-                      {isBot && ' (AI)'}
-                    </span>
+                    <span className="text-text-secondary">{name}</span>
                   </div>
                 ))}
               </div>
@@ -385,22 +370,17 @@ export function PoemDisplay({
                       {line.text}
                     </p>
 
-                    {/* Author byline.
-                        AI bylines stay visible as part of the whole-poem first
-                        paint. Human authors stay hidden until tapped. */}
+                    {/* Author names stay hidden until their line marker is selected. */}
                     {line.authorName && (
                       <span
                         className={cn(
-                          'absolute top-full left-0 text-sm italic',
+                          'absolute top-full left-0 text-sm italic text-text-muted',
                           'transition-opacity duration-500',
-                          line.isBot ? 'text-primary' : 'text-text-muted',
-                          isSelected || line.isBot ? 'opacity-100' : 'opacity-0'
+                          isSelected ? 'opacity-100' : 'opacity-0'
                         )}
-                        aria-hidden={!isSelected && !line.isBot}
+                        aria-hidden={!isSelected}
                       >
-                        {line.isBot ? '✦ ' : '— '}
-                        {line.authorName}
-                        {line.isBot && ' writes'}
+                        — {line.authorName}
                       </span>
                     )}
                   </div>

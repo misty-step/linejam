@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import { internalMutation, mutation } from './_generated/server';
 import { verifyGuestToken } from './lib/guestToken';
 import { ensureUserHelper } from './users';
+import { abandonGame } from './lib/sessionLifecycle';
 
 const hasOwn = (value: object, key: string) =>
   Object.prototype.hasOwnProperty.call(value, key);
@@ -130,6 +131,237 @@ export const migrateGuestToUser = mutation({
       linesTransferred: lines.length,
       favoritesTransferred: favorites.length,
       roomsTransferred: roomPlayers.length,
+    };
+  },
+});
+
+const MACHINE_AUTHORSHIP_BATCH_SIZE = 64;
+const LEGACY_MACHINE_AUTHOR_SUFFIX = ' (legacy machine)';
+
+const machineAuthorshipCleanupPhase = v.union(
+  v.literal('games'),
+  v.literal('lineAttribution'),
+  v.literal('roomPlayers'),
+  v.literal('readers'),
+  v.literal('humanUserFields'),
+  v.literal('aiUsers'),
+  v.literal('aiTurns'),
+  v.literal('aiRoundLocks'),
+  v.literal('aiUsage'),
+  v.literal('aiGenerationMetrics')
+);
+
+/**
+ * Release A's bounded, resumable machine-authorship cleanup.
+ *
+ * Each invocation scans at most MACHINE_AUTHORSHIP_BATCH_SIZE documents and
+ * returns the next cursor. Operators complete phases through
+ * aiGenerationMetrics, repeat those phases from a null cursor for zero-change
+ * postconditions, and only then run aiUsers. The legacy schema remains
+ * declared until those receipts permit a later contraction deployment.
+ */
+export const cleanupMachineAuthorship = internalMutation({
+  args: {
+    phase: machineAuthorshipCleanupPhase,
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, { phase, cursor }) => {
+    const paginationOpts = {
+      cursor: cursor ?? null,
+      numItems: MACHINE_AUTHORSHIP_BATCH_SIZE,
+    };
+    let scanned = 0;
+    let changed = 0;
+    let blocked = 0;
+    let isDone = false;
+    let continueCursor = '';
+
+    switch (phase) {
+      case 'games': {
+        const page = await ctx.db.query('games').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const game of page.page) {
+          if (game.status === 'IN_PROGRESS') {
+            const participantIds = [...new Set(game.assignmentMatrix.flat())];
+            const participants = await Promise.all(
+              participantIds.map((userId) => ctx.db.get(userId))
+            );
+            if (
+              participants.some((participant) => participant?.kind === 'AI')
+            ) {
+              await abandonGame(ctx, { game, closeRoom: false });
+              await ctx.db.patch(game._id, { completionKind: undefined });
+              changed++;
+              continue;
+            }
+          }
+
+          if (game.completionKind === undefined) continue;
+          await ctx.db.patch(game._id, {
+            ...(game.completionKind === 'abandoned'
+              ? { status: 'ABANDONED' as const }
+              : {}),
+            completionKind: undefined,
+          });
+          changed++;
+        }
+        break;
+      }
+
+      case 'lineAttribution': {
+        const page = await ctx.db.query('lines').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const line of page.page) {
+          const author = await ctx.db.get(line.authorUserId);
+          if (author?.kind !== 'AI') continue;
+
+          const capturedName =
+            line.authorDisplayName?.trim() ||
+            author.displayName.trim() ||
+            'Unknown machine author';
+          if (capturedName.endsWith(LEGACY_MACHINE_AUTHOR_SUFFIX)) continue;
+
+          await ctx.db.patch(line._id, {
+            authorDisplayName: `${capturedName}${LEGACY_MACHINE_AUTHOR_SUFFIX}`,
+          });
+          changed++;
+        }
+        break;
+      }
+
+      case 'roomPlayers': {
+        const page = await ctx.db.query('roomPlayers').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const roomPlayer of page.page) {
+          const user = await ctx.db.get(roomPlayer.userId);
+          if (user?.kind !== 'AI') continue;
+          await ctx.db.delete(roomPlayer._id);
+          changed++;
+        }
+        break;
+      }
+
+      case 'readers': {
+        const page = await ctx.db.query('poems').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const poem of page.page) {
+          if (poem.assignedReaderId === undefined) continue;
+          const reader = await ctx.db.get(poem.assignedReaderId);
+          if (reader?.kind !== 'AI') continue;
+          await ctx.db.patch(poem._id, { assignedReaderId: undefined });
+          changed++;
+        }
+        break;
+      }
+
+      case 'humanUserFields': {
+        const page = await ctx.db.query('users').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const user of page.page) {
+          if (
+            user.kind === 'AI' ||
+            (user.kind === undefined && user.aiPersonaId === undefined)
+          ) {
+            continue;
+          }
+          await ctx.db.patch(user._id, {
+            kind: undefined,
+            aiPersonaId: undefined,
+          });
+          changed++;
+        }
+        break;
+      }
+
+      case 'aiUsers': {
+        const page = await ctx.db.query('users').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const user of page.page) {
+          if (user.kind !== 'AI') continue;
+          const [membership, readerAssignment] = await Promise.all([
+            ctx.db
+              .query('roomPlayers')
+              .withIndex('by_user', (q) => q.eq('userId', user._id))
+              .first(),
+            ctx.db
+              .query('poems')
+              .withIndex('by_reader', (q) => q.eq('assignedReaderId', user._id))
+              .first(),
+          ]);
+          if (membership !== null || readerAssignment !== null) {
+            blocked++;
+            continue;
+          }
+          await ctx.db.delete(user._id);
+          changed++;
+        }
+        break;
+      }
+
+      case 'aiTurns': {
+        const page = await ctx.db.query('aiTurns').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const row of page.page) await ctx.db.delete(row._id);
+        changed = page.page.length;
+        break;
+      }
+
+      case 'aiRoundLocks': {
+        const page = await ctx.db
+          .query('aiRoundLocks')
+          .paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const row of page.page) await ctx.db.delete(row._id);
+        changed = page.page.length;
+        break;
+      }
+
+      case 'aiUsage': {
+        const page = await ctx.db.query('aiUsage').paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const row of page.page) await ctx.db.delete(row._id);
+        changed = page.page.length;
+        break;
+      }
+
+      case 'aiGenerationMetrics': {
+        const page = await ctx.db
+          .query('aiGenerationMetrics')
+          .paginate(paginationOpts);
+        scanned = page.page.length;
+        isDone = page.isDone;
+        continueCursor = page.continueCursor;
+        for (const row of page.page) await ctx.db.delete(row._id);
+        changed = page.page.length;
+        break;
+      }
+    }
+
+    return {
+      phase,
+      scanned,
+      changed,
+      blocked,
+      remaining: !isDone,
+      cursor: isDone ? null : continueCursor,
     };
   },
 });

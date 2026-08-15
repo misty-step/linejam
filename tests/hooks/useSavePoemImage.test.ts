@@ -216,7 +216,7 @@ describe('useSavePoemImage', () => {
 
   it('emits a canonical save action for a downloaded card', async () => {
     const { result } = renderHook(() =>
-      useSavePoemImage(testPoemId, undefined, 'room-id', 2, 'human')
+      useSavePoemImage(testPoemId, undefined, 'room-id', 2)
     );
     await act(async () => {
       await result.current.handleSaveImage();
@@ -225,7 +225,6 @@ describe('useSavePoemImage', () => {
       roomIdHash: 'test-room-hash',
       cycle: 2,
       round: 8,
-      playerKind: 'human',
       action: 'save',
     });
   });

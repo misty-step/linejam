@@ -12,7 +12,6 @@ const SAFE_TAG_VALUES: Record<string, Readonly<Record<string, true>>> = {
     test: true,
   },
   operation: {
-    aiFallbackRate: true,
     clearGuestSession: true,
     clerkLoadTimeout: true,
     convexAuthUnavailable: true,
@@ -24,15 +23,10 @@ const SAFE_TAG_VALUES: Record<string, Readonly<Record<string, true>>> = {
     renderRoomPage: true,
     renderRoomPanel: true,
     sentryPreviewDrill: true,
-    summonGhostwriter: true,
     sweepAbandonedGames: true,
     toggleFavorite: true,
   },
   failureCode: {
-    budget_exhaustion: true,
-    invalid_output: true,
-    missing_configuration: true,
-    provider_error: true,
     reportingFailure: true,
     unexpected_error: true,
   },
@@ -41,15 +35,10 @@ const SAFE_TAG_VALUES: Record<string, Readonly<Record<string, true>>> = {
 const SAFE_NUMERIC_CONTEXT: Readonly<Record<string, true>> = {
   attempt: true,
   durationMs: true,
-  fallbackGenerations: true,
-  fallbackRatePercent: true,
-  filled: true,
   maxAttempts: true,
   scanned: true,
   scheduled: true,
   statusCode: true,
-  thresholdPercent: true,
-  totalGenerations: true,
 };
 const SAFE_CORRELATION_CONTEXT: Readonly<Record<string, true>> = {
   correlationId: true,

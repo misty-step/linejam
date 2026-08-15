@@ -58,7 +58,6 @@ function JoinForm() {
       trackGameJoined({
         roomIdHash: hashRoomId(room._id),
         cycle: room.currentCycle ?? 1,
-        playerKind: 'human',
       });
       router.push(`/room/${normalizedCode}`);
     } catch (err) {

@@ -4,14 +4,6 @@
     "development": {
       "required": [],
       "optional": [
-        "AI_DAILY_CALL_ALERT_THRESHOLD",
-        "AI_DAILY_CALL_BUDGET",
-        "AI_DAILY_COST_BUDGET_USD",
-        "AI_ESTIMATED_COST_PER_GENERATION_USD",
-        "AI_FALLBACK_ALERT_MIN_GENERATIONS",
-        "AI_FALLBACK_ALERT_THRESHOLD_PERCENT",
-        "AI_MODEL",
-        "AI_PROVIDER_ENABLED",
         "CLERK_JWT_ISSUER_DOMAIN",
         "GUEST_TOKEN_SECRET",
         "GITHUB_ISSUES_TOKEN",
@@ -19,8 +11,6 @@
         "GITHUB_REPOSITORY_OWNER",
         "LINEJAM_DEPLOY_ENVIRONMENT",
         "LINEJAM_SENTRY_ENABLED",
-        "MAX_AI_PLAYERS",
-        "OPENROUTER_API_KEY",
         "RETENTION_GC_ENABLED",
         "SENTRY_DSN",
         "SENTRY_ENVIRONMENT",
@@ -42,7 +32,6 @@
         "GUEST_TOKEN_SECRET",
         "LINEJAM_DEPLOY_ENVIRONMENT",
         "LINEJAM_SENTRY_ENABLED",
-        "OPENROUTER_API_KEY",
         "SENTRY_DSN",
         "SENTRY_ENVIRONMENT",
         "SENTRY_RELEASE",
@@ -53,18 +42,7 @@
         "SENTRY_GITHUB_INTEGRATION_ID",
         "SENTRY_WEBHOOK_SECRET"
       ],
-      "optional": [
-        "AI_DAILY_CALL_ALERT_THRESHOLD",
-        "AI_DAILY_CALL_BUDGET",
-        "AI_DAILY_COST_BUDGET_USD",
-        "AI_ESTIMATED_COST_PER_GENERATION_USD",
-        "AI_FALLBACK_ALERT_MIN_GENERATIONS",
-        "AI_FALLBACK_ALERT_THRESHOLD_PERCENT",
-        "AI_MODEL",
-        "AI_PROVIDER_ENABLED",
-        "MAX_AI_PLAYERS",
-        "RETENTION_GC_ENABLED"
-      ]
+      "optional": ["RETENTION_GC_ENABLED"]
     },
     "production": {
       "required": [
@@ -75,7 +53,6 @@
         "GUEST_TOKEN_SECRET",
         "LINEJAM_DEPLOY_ENVIRONMENT",
         "LINEJAM_SENTRY_ENABLED",
-        "OPENROUTER_API_KEY",
         "SENTRY_DSN",
         "SENTRY_EVENT_WRITE_TOKEN",
         "SENTRY_EXPECTED_APP_ID",
@@ -86,18 +63,7 @@
         "SENTRY_RELEASE",
         "SENTRY_WEBHOOK_SECRET"
       ],
-      "optional": [
-        "AI_DAILY_CALL_ALERT_THRESHOLD",
-        "AI_DAILY_CALL_BUDGET",
-        "AI_DAILY_COST_BUDGET_USD",
-        "AI_ESTIMATED_COST_PER_GENERATION_USD",
-        "AI_FALLBACK_ALERT_MIN_GENERATIONS",
-        "AI_FALLBACK_ALERT_THRESHOLD_PERCENT",
-        "AI_MODEL",
-        "AI_PROVIDER_ENABLED",
-        "MAX_AI_PLAYERS",
-        "RETENTION_GC_ENABLED"
-      ]
+      "optional": ["RETENTION_GC_ENABLED"]
     }
   }
 }

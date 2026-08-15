@@ -28,7 +28,6 @@ interface PoemCardProps {
       wordCount: number;
       authorKey: string;
       authorName: string;
-      isBot: boolean;
     }>;
     poetCount: number;
     lineCount: number;

@@ -138,11 +138,10 @@ type ConvexHealth = {
 };
 
 /**
- * One query proves Convex is reachable AND returns the deployment's env
- * capability report (convex/health.ts `capabilities`), so a prod deployment
- * missing a required env var (the 2026-07-09 incident: OPENROUTER_API_KEY
- * absent for days while every monitor stayed green) fails this route instead
- * of degrading silently. Network errors are "unreachable", never a 500 crash.
+ * One query proves Convex is reachable and returns the deployment's retained
+ * capability report. The report's `ok` verdict includes the required-name
+ * manifest, so configuration drift fails this route instead of degrading
+ * silently. Network errors are "unreachable", never a 500 crash.
  */
 async function checkConvex(): Promise<ConvexHealth> {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;

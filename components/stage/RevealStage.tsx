@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { Alert } from '@/components/ui/Alert';
 import { Avatar } from '@/components/ui/Avatar';
-import { BotBadge } from '@/components/ui/BotBadge';
 import { Button } from '@/components/ui/Button';
 import { StageShell } from './StageShell';
 
@@ -22,7 +21,6 @@ interface RevealStageLine {
   text: string;
   authorName: string;
   authorStableId?: string;
-  isBot?: boolean;
 }
 
 interface RevealStageReadablePoem extends RevealStagePoemSummary {
@@ -32,8 +30,6 @@ interface RevealStageReadablePoem extends RevealStagePoemSummary {
 }
 
 interface RevealStageAssignedPoem extends RevealStageReadablePoem {
-  isForAi?: boolean;
-  aiPersonaName?: string;
   isFallbackReader?: boolean;
 }
 
@@ -184,14 +180,6 @@ export function RevealStage({
                   <p className="font-[var(--font-display)] text-[clamp(2.25rem,5vw,5.5rem)] italic leading-[1.1] text-text-secondary">
                     &ldquo;{readablePoem.preview}...&rdquo;
                   </p>
-                  {readableAssignedPoem?.isForAi && (
-                    <div className="flex items-center gap-3 text-primary">
-                      <BotBadge />
-                      <span className="text-lg">
-                        Read for {readableAssignedPoem.aiPersonaName}
-                      </span>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <p className="max-w-3xl text-4xl text-text-secondary">

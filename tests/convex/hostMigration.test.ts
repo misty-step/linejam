@@ -5,17 +5,13 @@ import { setupConvexTest } from '../helpers/convexTest';
 import { type T, seedClerkUser, asUser } from '../helpers/convexSeed';
 import { selectNextHostId } from '../../convex/lib/room';
 import {
-  GHOSTWRITER_OVERTIME_MS,
   HOST_MIGRATION_STALE_MS,
   WORD_COUNTS,
 } from '../../convex/lib/gameRules';
 
 /**
- * Host migration (backlog 017): when the host goes presence-stale but the game
- * continues, a present participant's heartbeat promotes the lowest-seat present
- * human to host, so host-only actions (summonGhostwriter, closeRoom, mode
- * select) are never stranded. Drives the REAL heartbeat mutation on the
- * convex-test engine; asserts observable host reassignment + restored agency.
+ * A present participant's heartbeat promotes them when the current host is
+ * stale, preserving access to host-only lifecycle actions.
  */
 
 /** A lastSeenAt comfortably past the host-migration staleness threshold. */
@@ -23,16 +19,11 @@ const staleStamp = () => Date.now() - HOST_MIGRATION_STALE_MS - 5_000;
 
 type SeatPlayer = {
   name: string;
-  kind?: 'human' | 'AI';
   seatIndex: number;
   lastSeenAt?: number;
 };
 
-/**
- * Seed an IN_PROGRESS classic game whose round opened long enough ago that the
- * ghostwriter is summonable (past overtime), with explicit seats and presence
- * per player. Player 0 is the initial host.
- */
+/** Seed an IN_PROGRESS classic game with explicit seats and presence. */
 async function seedGame(
   t: T,
   players: SeatPlayer[]
@@ -42,18 +33,8 @@ async function seedGame(
   userIds: Id<'users'>[];
 }> {
   const userIds: Id<'users'>[] = [];
-  for (const p of players) {
-    userIds.push(
-      p.kind === 'AI'
-        ? await t.run((ctx) =>
-            ctx.db.insert('users', {
-              displayName: p.name,
-              kind: 'AI',
-              createdAt: 0,
-            })
-          )
-        : await seedClerkUser(t, p.name)
-    );
+  for (const player of players) {
+    userIds.push(await seedClerkUser(t, player.name));
   }
 
   const roomId = await t.run((ctx) =>
@@ -88,8 +69,7 @@ async function seedGame(
     );
   }
 
-  // roundStartedAt well past overtime so summonGhostwriter is allowed.
-  const roundStartedAt = Date.now() - GHOSTWRITER_OVERTIME_MS - 5_000;
+  const roundStartedAt = Date.now();
   const gameId = await t.run((ctx) =>
     ctx.db.insert('games', {
       roomId,
@@ -210,32 +190,24 @@ describe('host migration via heartbeat (real engine)', () => {
 
   it('promotes a present participant when the host is stale, restoring agency', async () => {
     const t = setupConvexTest();
-    const { roomId, userIds } = await seedGame(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() }, // gone
-      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() }, // present
+    const { roomId, gameId, userIds } = await seedGame(t, [
+      { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() },
+      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() },
     ]);
 
-    // The present guest heartbeats — this triggers the migration.
     await asUser(t, 'guest').mutation(api.presence.heartbeat, {
       roomCode: 'ABCD',
     });
-
-    // Host reassigned to the guest.
     expect(await hostOf(t, roomId)).toBe(userIds[1]);
 
-    // The new host can summon the ghostwriter…
-    const summon = await asUser(t, 'guest').mutation(
-      api.game.summonGhostwriter,
-      { roomCode: 'ABCD' }
-    );
-    expect(summon.summoned).toBeGreaterThan(0);
-
-    // …and the departed old host has no special power if they return.
     await expect(
-      asUser(t, 'host').mutation(api.game.summonGhostwriter, {
-        roomCode: 'ABCD',
-      })
-    ).rejects.toThrow('Only host can summon the ghostwriter');
+      asUser(t, 'host').mutation(api.game.endGame, { roomCode: 'ABCD' })
+    ).rejects.toThrow('Only host can end game');
+    await asUser(t, 'guest').mutation(api.game.endGame, {
+      roomCode: 'ABCD',
+    });
+    const game = await t.run((ctx) => ctx.db.get(gameId));
+    expect(game?.status).toBe('ABANDONED');
   });
 
   it('does not migrate a host who has never heartbeat (fresh room, not yet stale)', async () => {
@@ -316,22 +288,6 @@ describe('host migration via heartbeat (real engine)', () => {
     });
 
     expect(await hostOf(t, roomId)).toBe(userIds[0]); // unchanged
-  });
-
-  it('never promotes an AI player', async () => {
-    const t = setupConvexTest();
-    const { roomId, userIds } = await seedGame(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() }, // gone
-      { name: 'Gemini', kind: 'AI', seatIndex: 1, lastSeenAt: Date.now() },
-      { name: 'guest', seatIndex: 2, lastSeenAt: Date.now() }, // the only present human
-    ]);
-
-    await asUser(t, 'guest').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
-    });
-
-    // The human guest is promoted, not the (lower-seat) AI.
-    expect(await hostOf(t, roomId)).toBe(userIds[2]);
   });
 
   it('is idempotent and does not thrash when the old host returns', async () => {

@@ -158,6 +158,48 @@ describe('archive', () => {
       expect(result.stats?.totalLinesWritten).toBe(2);
     });
 
+    it('fills the limit with completed poems after skipping newer abandoned work', async () => {
+      const t = setupConvexTest();
+      const userId = await seedUser(t, {
+        displayName: 'Private Partial Author',
+        clerkUserId: 'clerk_private_partial',
+      });
+      const completed = await seedCompletedRoom(t, userId, {
+        createdAt: 100,
+        poemCreatedAt: 100,
+      });
+      const abandoned = await seedCompletedRoom(t, userId, {
+        createdAt: 200,
+        poemCreatedAt: 200,
+      });
+      await t.run(async (ctx) => {
+        await ctx.db.patch(abandoned.gameId, { status: 'ABANDONED' });
+        await ctx.db.insert('lines', {
+          poemId: completed.poemId,
+          indexInPoem: 0,
+          text: 'Completed',
+          wordCount: 1,
+          authorUserId: userId,
+          createdAt: 100,
+        });
+        await ctx.db.insert('lines', {
+          poemId: abandoned.poemId,
+          indexInPoem: 0,
+          text: 'Private',
+          wordCount: 1,
+          authorUserId: userId,
+          createdAt: 200,
+        });
+      });
+
+      const result = await queryArchive(t, 'clerk_private_partial', {
+        limit: 1,
+      });
+
+      expect(result.poems.map((poem) => poem._id)).toEqual([completed.poemId]);
+      expect(result.stats?.totalPoems).toBe(1);
+    });
+
     it('returns enriched poem with all metadata for user with one line', async () => {
       const t = setupConvexTest();
       const userId = await seedUser(t, {
@@ -189,7 +231,6 @@ describe('archive', () => {
       expect(result.poems[0].lines[0]).toMatchObject({
         text: 'Hello',
         wordCount: 1,
-        isBot: false,
       });
       expect(result.stats).toMatchObject({
         totalPoems: 1,
@@ -220,42 +261,6 @@ describe('archive', () => {
       expect(result.poems[0].isFavorited).toBe(true);
       expect(typeof result.poems[0].favoritedAt).toBe('number');
       expect(result.stats?.totalFavorites).toBe(1);
-    });
-
-    it('handles AI authors correctly — isBot is true', async () => {
-      const t = setupConvexTest();
-      const humanId = await seedUser(t, {
-        displayName: 'Human',
-        clerkUserId: 'clerk_human',
-        guestId: 'guest_human',
-      });
-      const aiId = await seedUser(t, {
-        displayName: 'Bot',
-        kind: 'AI',
-        guestId: 'ai-guest',
-      });
-      const { poemId } = await seedCompletedRoom(t, humanId);
-      await seedLine(t, {
-        poemId,
-        authorUserId: humanId,
-        text: 'Intro',
-        wordCount: 1,
-        indexInPoem: 0,
-      });
-      await seedLine(t, {
-        poemId,
-        authorUserId: aiId,
-        text: 'Generated',
-        wordCount: 1,
-        indexInPoem: 1,
-      });
-
-      const result = await queryArchive(t, 'clerk_human');
-
-      const aiLine = result.poems[0].lines.find(
-        (l: { text: string }) => l.text === 'Generated'
-      );
-      expect(aiLine?.isBot).toBe(true);
     });
 
     it('calculates unique collaborators excluding self', async () => {
@@ -539,7 +544,6 @@ describe('archive', () => {
       );
       // Deleted authors still get a poem-local grouping key.
       expect(mysteryLine?.authorName).toBe('Unknown');
-      expect(mysteryLine?.isBot).toBe(false);
       expect(typeof mysteryLine?.authorKey).toBe('string');
       expect(JSON.stringify(result)).not.toContain(ghostId);
     });

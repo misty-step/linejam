@@ -167,7 +167,6 @@ value makes the CLI prompt for it instead of recording it in shell history:
 
 ```bash
 pnpm exec convex env set --prod GUEST_TOKEN_SECRET
-pnpm exec convex env set --prod OPENROUTER_API_KEY
 pnpm exec convex env list --prod --names-only
 ```
 

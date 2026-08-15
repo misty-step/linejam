@@ -124,7 +124,6 @@ export function PoemDetail({
     text: line.text,
     authorName: line.authorName,
     authorStableId: line.authorKey,
-    isBot: line.isBot,
   }));
 
   // Collect all stable IDs for consistent color assignment
