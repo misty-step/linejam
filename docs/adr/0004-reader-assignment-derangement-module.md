@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Superseded by [#419](https://github.com/misty-step/linejam/issues/419). Reader
+assignment is now a deterministic one-seat rotation of round-zero writing
+assignments for two or more attending humans. The former decision remains below
+as historical context.
 
 ## Context
 

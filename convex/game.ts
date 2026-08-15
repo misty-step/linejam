@@ -1,6 +1,5 @@
 import { ConvexError, v } from 'convex/values';
-import { mutation, query, internalMutation } from './_generated/server';
-import { internal } from './_generated/api';
+import { mutation, query } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import {
   generateAssignmentMatrix,
@@ -8,8 +7,6 @@ import {
   secureShuffle,
 } from './lib/assignmentMatrix';
 import {
-  AUTO_GHOST_FILL_MS,
-  GHOSTWRITER_OVERTIME_MS,
   PRESENCE_AWAY_MS,
   WORD_COUNTS,
   getFinalRoundIndex,
@@ -25,6 +22,7 @@ import {
   getCompletedGame,
 } from './lib/room';
 import {
+  abandonGame,
   applyLineLifecycleTransition,
   getCycleResetDecision,
   getSubmissionWindow,
@@ -69,10 +67,22 @@ export const startGame = mutation({
     const activeGame = await getActiveGame(ctx, room._id);
     if (activeGame) throw new ConvexError('Game already in progress');
 
-    const players = await ctx.db
+    const roomPlayers = await ctx.db
       .query('roomPlayers')
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
+    const playerRecords = await Promise.all(
+      roomPlayers.map((player) => ctx.db.get(player.userId))
+    );
+    const legacyMachineMemberships = roomPlayers.filter(
+      (_, index) => playerRecords[index]?.kind === 'AI'
+    );
+    await Promise.all(
+      legacyMachineMemberships.map((player) => ctx.db.delete(player._id))
+    );
+    const players = roomPlayers.filter(
+      (_, index) => playerRecords[index]?.kind !== 'AI'
+    );
 
     if (players.length < 2) throw new ConvexError('Need at least 2 players');
 
@@ -126,20 +136,6 @@ export const startGame = mutation({
       retentionState: 'active',
       retentionEligibleAt: undefined,
     });
-
-    // Schedule AI turn if AI player present
-    await ctx.scheduler.runAfter(0, internal.ai.scheduleAiTurn, {
-      roomId: room._id,
-      gameId,
-      round: 0,
-    });
-    // Auto ghost-fill floor: if a human never writes round 0, the room
-    // still advances. Co-located with scheduleAiTurn so they don't drift.
-    await ctx.scheduler.runAfter(
-      AUTO_GHOST_FILL_MS,
-      internal.game.fillStaleHumanTurns,
-      { roomId: room._id, gameId, round: 0 }
-    );
   },
 });
 
@@ -184,6 +180,42 @@ export const startNewCycle = mutation({
       status: 'LOBBY',
       currentGameId: undefined,
     });
+  },
+});
+
+export const endGame = mutation({
+  args: {
+    roomCode: v.string(),
+    guestToken: v.optional(v.string()),
+  },
+  handler: async (ctx, { roomCode, guestToken }) => {
+    const user = await getUser(ctx, guestToken);
+    if (!user) throw new ConvexError('User not found');
+
+    const room = await requireRoomByCode(ctx, roomCode);
+    if (room.hostUserId !== user._id) {
+      throw new ConvexError('Only host can end game');
+    }
+
+    const game = await getActiveGame(ctx, room._id);
+    if (!game) throw new ConvexError('No game in progress');
+
+    const now = Date.now();
+    const players = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', room._id))
+      .collect();
+    const staleNonHosts = players.filter(
+      (player) =>
+        player.userId !== room.hostUserId &&
+        player.lastSeenAt !== undefined &&
+        isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS)
+    );
+
+    await Promise.all(staleNonHosts.map((player) => ctx.db.delete(player._id)));
+    await abandonGame(ctx, { game, closeRoom: false, abandonedAt: now });
+
+    return { abandoned: true };
   },
 });
 
@@ -243,7 +275,6 @@ export const getCurrentAssignment = query({
       poemId: poem._id,
       roomId: room._id,
       cycle: game.cycle,
-      playerKind: user.kind === 'AI' ? ('AI' as const) : ('human' as const),
       lineIndex: currentRound,
       targetWordCount: WORD_COUNTS[currentRound],
       totalRounds: game.assignmentMatrix.length,
@@ -284,19 +315,6 @@ export const submitLine = mutation({
     const room = await ctx.db.get(poem.roomId);
     if (!room) throw new ConvexError('Room not found');
 
-    // Check if already submitted (idempotent - silently succeed if already done)
-    const existing = await ctx.db
-      .query('lines')
-      .withIndex('by_poem_index', (q) =>
-        q.eq('poemId', poemId).eq('indexInPoem', lineIndex)
-      )
-      .first();
-    if (existing) {
-      // A reconnect retry may discover that the first request committed. Return
-      // the stored text so the client never labels an unsaved draft as settled.
-      return { status: 'already_submitted' as const, text: existing.text };
-    }
-
     // Validate game state with grace for race conditions:
     // - Allow submissions for current round OR past rounds (late arrivals)
     // - For final round (8), also accept if game just became COMPLETED
@@ -318,6 +336,18 @@ export const submitLine = mutation({
       poem.indexInRoom
     ];
     if (assignedUserId !== user._id) throw new ConvexError('Not your turn');
+    // Check if already submitted (idempotent - silently succeed if already done)
+    const existing = await ctx.db
+      .query('lines')
+      .withIndex('by_poem_index', (q) =>
+        q.eq('poemId', poemId).eq('indexInPoem', lineIndex)
+      )
+      .first();
+    if (existing) {
+      // A reconnect retry may discover that the first request committed. Return
+      // the stored text so the client never labels an unsaved draft as settled.
+      return { status: 'already_submitted' as const, text: existing.text };
+    }
 
     // Validate line length (prevent storage abuse) before normalization.
     if (text.length > MAX_LINE_LENGTH) {
@@ -358,118 +388,6 @@ export const submitLine = mutation({
   },
 });
 
-export const summonGhostwriter = mutation({
-  args: {
-    roomCode: v.string(),
-    guestToken: v.optional(v.string()),
-  },
-  handler: async (ctx, { roomCode, guestToken }) => {
-    const user = await getUser(ctx, guestToken);
-    if (!user) throw new ConvexError('User not found');
-
-    const room = await requireRoomByCode(ctx, roomCode);
-    if (room.hostUserId !== user._id) {
-      throw new ConvexError('Only host can summon the ghostwriter');
-    }
-
-    const game = await getActiveGame(ctx, room._id);
-    if (!game) throw new ConvexError('No game in progress');
-
-    // The ghost only answers after real overtime — no skipping slow friends.
-    const roundStartedAt = game.roundStartedAt ?? game.createdAt;
-    if (Date.now() - roundStartedAt < GHOSTWRITER_OVERTIME_MS) {
-      throw new ConvexError('The ghostwriter only answers after overtime');
-    }
-
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', game._id))
-      .collect();
-
-    const roundAssignments = getMatrixRound(
-      game.assignmentMatrix,
-      game.currentRound
-    );
-    const [lineChecks, assignedUsers, assignedPlayers, claimedTurns] =
-      await Promise.all([
-        Promise.all(
-          poems.map((poem) =>
-            ctx.db
-              .query('lines')
-              .withIndex('by_poem_index', (q) =>
-                q.eq('poemId', poem._id).eq('indexInPoem', game.currentRound)
-              )
-              .first()
-          )
-        ),
-        Promise.all(
-          poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
-        ),
-        Promise.all(
-          poems.map((poem) =>
-            ctx.db
-              .query('roomPlayers')
-              .withIndex('by_room_user', (q) =>
-                q
-                  .eq('roomId', room._id)
-                  .eq('userId', roundAssignments[poem.indexInRoom])
-              )
-              .first()
-          )
-        ),
-        ctx.db
-          .query('aiTurns')
-          .withIndex('by_game_round', (q) =>
-            q.eq('gameId', game._id).eq('round', game.currentRound)
-          )
-          .collect(),
-      ]);
-    // The ghostwriter covers stalled humans only. AI-assigned cells already
-    // have their own generation action and claim; scheduling a ghost for one
-    // would create two consumers for the same authorized cell.
-    const claimedPoemIds = new Set(claimedTurns.map((turn) => turn.poemId));
-    const now = Date.now();
-    const missingPoems = poems.filter(
-      (poem, i) =>
-        lineChecks[i] === null &&
-        assignedUsers[i]?.kind !== 'AI' &&
-        isPresenceStale(
-          assignedPlayers[i]?.lastSeenAt,
-          now,
-          PRESENCE_AWAY_MS
-        ) &&
-        !claimedPoemIds.has(poem._id)
-    );
-    if (missingPoems.length === 0) {
-      return { summoned: 0 };
-    }
-
-    // Charge only a valid, productive host summon. A non-host must not be able
-    // to grief the room quota, and retries after every cell is already claimed
-    // should remain a harmless no-op.
-    await checkMutationAbuseRateLimit(ctx, {
-      operation: 'summonGhostwriter',
-      userId: user._id,
-      guestToken: user.guestId ? guestToken : undefined,
-      roomId: room._id,
-    });
-
-    await Promise.all(
-      missingPoems.map((poem) =>
-        ctx.scheduler.runAfter(0, internal.ai.generateGhostLine, {
-          roomId: room._id,
-          gameId: game._id,
-          round: game.currentRound,
-          poemId: poem._id,
-          forUserId: roundAssignments[poem.indexInRoom],
-        })
-      )
-    );
-
-    return { summoned: missingPoems.length };
-  },
-});
-
 export const getRevealPhaseState = query({
   args: {
     roomCode: v.string(),
@@ -507,10 +425,7 @@ export const getRevealPhaseState = query({
       players.map((p, i) => [p.userId, playerUserRecords[i]])
     );
     const now = Date.now();
-    const revealParticipants = buildRevealParticipants(
-      players,
-      playerUserRecords
-    );
+    const revealParticipants = buildRevealParticipants(players);
 
     // Get first line of each poem for preview
     const poemsWithPreview = await Promise.all(
@@ -594,8 +509,6 @@ export const getRevealPhaseState = query({
             // Prefer captured pen name, fall back to current user name for legacy data
             authorName:
               line.authorDisplayName || author?.displayName || 'Unknown',
-            isBot: author?.kind === 'AI',
-            aiPersonaId: author?.aiPersonaId,
           };
         });
     };
@@ -605,25 +518,10 @@ export const getRevealPhaseState = query({
       myPoemsRaw.map(async (poem) => {
         const poemLines = await getPoemLines(poem._id);
 
-        // Determine poem's origin: which player started this poem?
-        const poemStarterPlayer = players.find(
-          (p) => p.seatIndex === poem.indexInRoom
-        );
-        const poemStarterUserRecord = poemStarterPlayer
-          ? userRecordById.get(poemStarterPlayer.userId)
-          : null;
-
-        const isOwnPoem = poem.indexInRoom === currentUserSeat;
-        const isForAi = poemStarterUserRecord?.kind === 'AI';
-
         return {
           ...poem,
           lines: poemLines,
-          isOwnPoem,
-          isForAi,
-          aiPersonaName: isForAi
-            ? poemStarterUserRecord?.displayName
-            : undefined,
+          isOwnPoem: poem.indexInRoom === currentUserSeat,
         };
       })
     );
@@ -645,11 +543,6 @@ export const getRevealPhaseState = query({
     return {
       roomId: room._id,
       cycle: game.cycle,
-      currentPlayerKind:
-        playerUserRecords.find((record) => record?._id === user._id)?.kind ===
-        'AI'
-          ? ('AI' as const)
-          : ('human' as const),
       poems: poemsWithPreview,
       myPoem,
       myPoems,
@@ -662,8 +555,6 @@ export const getRevealPhaseState = query({
           userId: p.userId,
           displayName: p.displayName,
           stableId: userRecord?.clerkUserId || userRecord?.guestId || p.userId,
-          isBot: userRecord?.kind === 'AI',
-          aiPersonaId: userRecord?.aiPersonaId,
         };
       }),
     };
@@ -702,11 +593,8 @@ export const revealPoem = mutation({
       return { revealed: false };
     }
 
-    const playerUsers = await Promise.all(
-      players.map((player) => ctx.db.get(player.userId))
-    );
     const revealAuthority = selectRevealAuthority(
-      buildRevealParticipants(players, playerUsers),
+      buildRevealParticipants(players),
       poem.assignedReaderId,
       room.hostUserId,
       Date.now()
@@ -807,8 +695,6 @@ export const getRoundProgress = query({
         userId: player.userId,
         stableId:
           userRecord?.clerkUserId || userRecord?.guestId || player.userId,
-        isBot: userRecord?.kind === 'AI',
-        aiPersonaId: userRecord?.aiPersonaId,
         isAway: isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS),
       };
     });
@@ -823,86 +709,5 @@ export const getRoundProgress = query({
           ?.poemIndex === -1,
       players: progress,
     };
-  },
-});
-
-/**
- * Auto ghost-fill: finds poems missing a line for the current round where the
- * assigned author is a human, and schedules a ghost line for each. Idempotent —
- * if all lines are already committed, it's a no-op. Scheduled via `runAfter`
- * on round start so a disconnected human never strands the room.
- */
-export const fillStaleHumanTurns = internalMutation({
-  args: {
-    roomId: v.id('rooms'),
-    gameId: v.id('games'),
-    round: v.number(),
-  },
-  handler: async (ctx, { roomId, gameId, round }) => {
-    const game = await ctx.db.get(gameId);
-    if (!game || game.status !== 'IN_PROGRESS') return;
-    if (game.currentRound !== round) return;
-
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', gameId))
-      .collect();
-
-    const roundAssignments = getMatrixRound(game.assignmentMatrix, round);
-
-    // Parallelize line checks for all poems
-    const lineChecks = await Promise.all(
-      poems.map((poem) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', poem._id).eq('indexInPoem', round)
-          )
-          .first()
-      )
-    );
-
-    // Fetch user records and presence rows together. A fresh heartbeat means
-    // the writer is still in the room; only stale human turns are ghost-filled.
-    const [playerUsers, playerRows] = await Promise.all([
-      Promise.all(
-        poems.map((poem) => ctx.db.get(roundAssignments[poem.indexInRoom]))
-      ),
-      Promise.all(
-        poems.map((poem) =>
-          ctx.db
-            .query('roomPlayers')
-            .withIndex('by_room_user', (q) =>
-              q
-                .eq('roomId', roomId)
-                .eq('userId', roundAssignments[poem.indexInRoom])
-            )
-            .first()
-        )
-      ),
-    ]);
-
-    const now = Date.now();
-    const staleHumanPoems = poems.filter(
-      (poem, i) =>
-        lineChecks[i] === null &&
-        playerUsers[i]?.kind !== 'AI' &&
-        isPresenceStale(playerRows[i]?.lastSeenAt, now, PRESENCE_AWAY_MS)
-    );
-    if (staleHumanPoems.length === 0) return;
-
-    await Promise.all(
-      staleHumanPoems.map((poem) =>
-        ctx.scheduler.runAfter(0, internal.ai.generateGhostLine, {
-          roomId,
-          gameId,
-          round,
-          poemId: poem._id,
-          forUserId: roundAssignments[poem.indexInRoom],
-        })
-      )
-    );
-
-    return { filled: staleHumanPoems.length };
   },
 });

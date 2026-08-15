@@ -13,7 +13,6 @@ export type FunnelEvent = {
   occurredAt: number;
   roomIdHash: string;
   cycle: number;
-  playerKind: 'human' | 'AI';
   round?: number;
   action?: 'share' | 'save';
 };
@@ -24,7 +23,6 @@ export type RoomCycleSnapshot = {
   createdAt: number;
   joins: Array<{
     joinedAt: number;
-    playerKind: 'human' | 'AI';
     /** Stable server projection key; do not use a timestamp as identity. */
     participantKey?: string;
   }>;
@@ -158,12 +156,11 @@ function mergeRooms(rooms: RoomCycleSnapshot[]) {
   });
 }
 
-function uniqueHumanParticipants(room: RoomCycleSnapshot) {
+function uniqueParticipants(room: RoomCycleSnapshot) {
   return new Set(
     room.joins
       .filter(
         (join) =>
-          join.playerKind === 'human' &&
           typeof join.participantKey === 'string' &&
           join.participantKey.length > 0
       )
@@ -179,7 +176,6 @@ function validArtifactEvent(
 ) {
   if (
     event.event !== 'artifact_action' ||
-    event.playerKind !== 'human' ||
     (event.action !== 'share' && event.action !== 'save') ||
     !inWindow(event.occurredAt, from, to) ||
     !Number.isInteger(event.cycle) ||
@@ -220,7 +216,7 @@ export function buildRoomCycleFunnelReport(
     inWindow(room.createdAt, input.from, input.to)
   );
   const humanRooms = cohort.filter(
-    (room) => uniqueHumanParticipants(room).size >= 2
+    (room) => uniqueParticipants(room).size >= 2
   );
   const firstCycles = humanRooms.map((room) => room.cycles[0]);
 
@@ -261,7 +257,6 @@ export function buildRoomCycleFunnelReport(
       event.roomIdHash,
       event.cycle,
       event.round ?? '',
-      event.playerKind,
       event.action,
     ].join(':');
     if (seenEvents.has(key)) continue;

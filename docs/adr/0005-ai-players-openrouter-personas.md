@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Superseded by [#419](https://github.com/misty-step/linejam/issues/419) (Release A,
+human-only authorship). The decision below is retained as historical context;
+none of its runtime paths or configuration remain active.
 
 ## Context
 

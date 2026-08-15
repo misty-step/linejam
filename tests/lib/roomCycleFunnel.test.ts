@@ -4,7 +4,7 @@ import { buildRoomCycleFunnelReport } from '@/lib/analytics/roomCycleFunnel';
 const window = { from: 1_000, to: 10_000 };
 
 describe('buildRoomCycleFunnelReport', () => {
-  it('counts one human room across retries, rematches, AI seats, and abandonment', () => {
+  it('counts one human room across retries, rematches, and abandonment', () => {
     const report = buildRoomCycleFunnelReport({
       ...window,
       rooms: [
@@ -12,10 +12,8 @@ describe('buildRoomCycleFunnelReport', () => {
           roomIdHash: 'private-room-key',
           createdAt: 2_000,
           joins: [
-            { joinedAt: 2_001, playerKind: 'human', participantKey: 'human-a' },
-            { joinedAt: 2_002, playerKind: 'human', participantKey: 'human-b' },
-            { joinedAt: 2_003, playerKind: 'AI' },
-            { joinedAt: 2_004, playerKind: 'AI' },
+            { joinedAt: 2_001, participantKey: 'human-a' },
+            { joinedAt: 2_002, participantKey: 'human-b' },
           ],
           cycles: [
             {
@@ -34,10 +32,8 @@ describe('buildRoomCycleFunnelReport', () => {
           joins: [
             {
               joinedAt: 2_501,
-              playerKind: 'human',
               participantKey: 'one-human',
             },
-            { joinedAt: 2_502, playerKind: 'AI' },
           ],
           cycles: [{ cycle: 1, startedAt: 3_500 }],
         },
@@ -48,7 +44,6 @@ describe('buildRoomCycleFunnelReport', () => {
           occurredAt: 8_600,
           roomIdHash: 'private-room-key',
           cycle: 1,
-          playerKind: 'human',
           action: 'save',
         },
         {
@@ -56,7 +51,6 @@ describe('buildRoomCycleFunnelReport', () => {
           occurredAt: 8_600,
           roomIdHash: 'private-room-key',
           cycle: 1,
-          playerKind: 'human',
           action: 'save',
         },
       ],
@@ -95,8 +89,8 @@ describe('buildRoomCycleFunnelReport', () => {
           roomIdHash: 'room-secret',
           createdAt: 2_000,
           joins: [
-            { joinedAt: 2_001, playerKind: 'human', participantKey: 'human-a' },
-            { joinedAt: 2_002, playerKind: 'human', participantKey: 'human-b' },
+            { joinedAt: 2_001, participantKey: 'human-a' },
+            { joinedAt: 2_002, participantKey: 'human-b' },
           ],
           cycles: [{ cycle: 1 }],
         },
@@ -135,10 +129,9 @@ describe('buildRoomCycleFunnelReport', () => {
       roomIdHash: '0123456789abcdef',
       createdAt: 2_000,
       joins: [
-        { joinedAt: 2_001, playerKind: 'human' as const, participantKey: 'a' },
-        { joinedAt: 2_002, playerKind: 'human' as const, participantKey: 'b' },
-        { joinedAt: 2_003, playerKind: 'human' as const, participantKey: 'a' },
-        { joinedAt: 2_004, playerKind: 'AI' as const, participantKey: 'bot' },
+        { joinedAt: 2_001, participantKey: 'a' },
+        { joinedAt: 2_002, participantKey: 'b' },
+        { joinedAt: 2_003, participantKey: 'a' },
       ],
       cycles: [{ cycle: 1, startedAt: 3_000 }],
     };
@@ -162,8 +155,8 @@ describe('buildRoomCycleFunnelReport', () => {
           roomIdHash: 'fedcba9876543210',
           createdAt: 2_000,
           joins: [
-            { joinedAt: 2_001, playerKind: 'human', participantKey: 'a' },
-            { joinedAt: 2_002, playerKind: 'human', participantKey: 'b' },
+            { joinedAt: 2_001, participantKey: 'a' },
+            { joinedAt: 2_002, participantKey: 'b' },
           ],
           cycles: [
             { cycle: 1, startedAt: 3_000, completionKind: 'abandoned' },
@@ -185,7 +178,7 @@ describe('buildRoomCycleFunnelReport', () => {
     expect(report.metrics.encore.count).toBe(1);
   });
 
-  it('ignores malformed, AI, unknown-cycle, and out-of-window artifact events', () => {
+  it('ignores malformed, unknown-cycle, and out-of-window artifact events', () => {
     const report = buildRoomCycleFunnelReport({
       ...window,
       rooms: [
@@ -193,8 +186,8 @@ describe('buildRoomCycleFunnelReport', () => {
           roomIdHash: '0011223344556677',
           createdAt: 2_000,
           joins: [
-            { joinedAt: 2_001, playerKind: 'human', participantKey: 'a' },
-            { joinedAt: 2_002, playerKind: 'human', participantKey: 'b' },
+            { joinedAt: 2_001, participantKey: 'a' },
+            { joinedAt: 2_002, participantKey: 'b' },
           ],
           cycles: [{ cycle: 1, startedAt: 3_000 }],
         },
@@ -202,18 +195,9 @@ describe('buildRoomCycleFunnelReport', () => {
       events: [
         {
           event: 'artifact_action',
-          occurredAt: 2_500,
-          roomIdHash: '0011223344556677',
-          cycle: 1,
-          playerKind: 'AI',
-          action: 'save',
-        },
-        {
-          event: 'artifact_action',
           occurredAt: 2_501,
           roomIdHash: '0011223344556677',
           cycle: 99,
-          playerKind: 'human',
           action: 'save',
         },
         {
@@ -221,7 +205,6 @@ describe('buildRoomCycleFunnelReport', () => {
           occurredAt: 2_502,
           roomIdHash: '0011223344556677',
           cycle: 1,
-          playerKind: 'human',
           action: 'delete' as 'save',
         },
         {
@@ -229,7 +212,6 @@ describe('buildRoomCycleFunnelReport', () => {
           occurredAt: 10_000,
           roomIdHash: '0011223344556677',
           cycle: 1,
-          playerKind: 'human',
           action: 'save',
         },
       ],

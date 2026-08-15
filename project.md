@@ -20,7 +20,6 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 | Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                    |
 | Reveal            | End-of-game state where complete poems are shown to all players     |
 | Guest             | Anonymous player identified by UUID in localStorage                 |
-| AI Player         | Bot player using an OpenRouter-configured model to generate lines   |
 | Pen Name          | Author display name captured at write-time                          |
 | WordSlot          | Genkoyoshi-inspired word count indicator UI component               |
 | Theme             | Visual skin registered in `lib/themes/registry.ts`                  |
@@ -34,7 +33,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 ## Quality Bar
 
-- [ ] Guest mode works without friction on mobile and survives Clerk/OpenRouter failure
+- [ ] Guest mode works without friction on mobile and survives Clerk failure
 - [ ] Every retained theme renders correctly without hardcoded overrides
 - [ ] Core game loop completes reliably with 2-6 players (no silent failures)
 - [x] Security headers and rate limits are in place
@@ -58,8 +57,8 @@ Read the owning source for implementation detail:
 ## Stretch Goal
 
 Print-on-demand poetry booklets via Lulu API: users curate favorite poems,
-AI-generated art + boutique design treatment, physical artifact shipped to
-them, small revenue cut per book.
+boutique design treatment, physical artifact shipped to them, small revenue cut
+per book.
 
 ## Anti-Goals
 
@@ -78,6 +77,5 @@ them, small revenue cut per book.
 
 ---
 
-_Last updated: 2026-08-13_
-_Updated during: GitHub Issues authority cutover and preview-only Sentry_
-_migration [#393](https://github.com/misty-step/linejam/issues/393)._
+_Last updated: 2026-08-15_
+_Updated during: human-only authorship cutover [#419](https://github.com/misty-step/linejam/issues/419)._

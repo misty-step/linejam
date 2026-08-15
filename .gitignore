@@ -50,6 +50,7 @@ next-env.d.ts
 .qa/
 .evidence/
 .worktrees
+.claude/
 
 thinktank.log
 thinktank_*/

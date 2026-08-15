@@ -1,30 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { Id } from '../../../convex/_generated/dataModel';
-import { PRESENCE_AWAY_MS } from '../../../convex/lib/gameRules';
 import { selectRevealAuthority } from '../../../convex/lib/revealAuthorization';
 
 const userId = (value: string) => value as Id<'users'>;
-const now = 1_000_000;
-const fresh = now;
-const stale = now - PRESENCE_AWAY_MS - 1;
+const now = 100_000;
+const fresh = now - 1;
+const stale = 1;
 
 describe('selectRevealAuthority', () => {
   it('keeps a fresh assigned reader in control', () => {
     expect(
       selectRevealAuthority(
         [
-          {
-            userId: userId('host'),
-            seatIndex: 0,
-            lastSeenAt: fresh,
-            isHuman: true,
-          },
-          {
-            userId: userId('reader'),
-            seatIndex: 1,
-            lastSeenAt: fresh,
-            isHuman: true,
-          },
+          { userId: userId('host'), seatIndex: 0, lastSeenAt: fresh },
+          { userId: userId('reader'), seatIndex: 1, lastSeenAt: fresh },
         ],
         userId('reader'),
         userId('host'),
@@ -37,24 +26,8 @@ describe('selectRevealAuthority', () => {
     expect(
       selectRevealAuthority(
         [
-          {
-            userId: userId('host'),
-            seatIndex: 2,
-            lastSeenAt: fresh,
-            isHuman: true,
-          },
-          {
-            userId: userId('reader'),
-            seatIndex: 0,
-            lastSeenAt: stale,
-            isHuman: true,
-          },
-          {
-            userId: userId('other'),
-            seatIndex: 1,
-            lastSeenAt: fresh,
-            isHuman: true,
-          },
+          { userId: userId('host'), seatIndex: 2, lastSeenAt: fresh },
+          { userId: userId('reader'), seatIndex: 0, lastSeenAt: stale },
         ],
         userId('reader'),
         userId('host'),
@@ -63,40 +36,14 @@ describe('selectRevealAuthority', () => {
     ).toEqual({ userId: userId('host'), reason: 'host-fallback' });
   });
 
-  it('chooses the lowest-seat fresh human when reader and host are stale', () => {
+  it('chooses the lowest-seat fresh participant when reader and host are stale', () => {
     expect(
       selectRevealAuthority(
         [
-          {
-            userId: userId('host'),
-            seatIndex: 0,
-            lastSeenAt: stale,
-            isHuman: true,
-          },
-          {
-            userId: userId('reader'),
-            seatIndex: 1,
-            lastSeenAt: stale,
-            isHuman: true,
-          },
-          {
-            userId: userId('later'),
-            seatIndex: 3,
-            lastSeenAt: fresh,
-            isHuman: true,
-          },
-          {
-            userId: userId('winner'),
-            seatIndex: 2,
-            lastSeenAt: fresh,
-            isHuman: true,
-          },
-          {
-            userId: userId('bot'),
-            seatIndex: -1,
-            lastSeenAt: fresh,
-            isHuman: false,
-          },
+          { userId: userId('host'), seatIndex: 0, lastSeenAt: stale },
+          { userId: userId('reader'), seatIndex: 1, lastSeenAt: stale },
+          { userId: userId('later'), seatIndex: 3, lastSeenAt: fresh },
+          { userId: userId('winner'), seatIndex: 2, lastSeenAt: fresh },
         ],
         userId('reader'),
         userId('host'),
@@ -108,22 +55,12 @@ describe('selectRevealAuthority', () => {
     });
   });
 
-  it('waits when every human is stale', () => {
+  it('waits when every participant is stale', () => {
     expect(
       selectRevealAuthority(
         [
-          {
-            userId: userId('host'),
-            seatIndex: 0,
-            lastSeenAt: stale,
-            isHuman: true,
-          },
-          {
-            userId: userId('reader'),
-            seatIndex: 1,
-            lastSeenAt: stale,
-            isHuman: true,
-          },
+          { userId: userId('host'), seatIndex: 0, lastSeenAt: stale },
+          { userId: userId('reader'), seatIndex: 1, lastSeenAt: stale },
         ],
         userId('reader'),
         userId('host'),

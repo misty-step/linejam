@@ -2,6 +2,7 @@ import { ConvexError } from 'convex/values';
 import { QueryCtx, MutationCtx } from '../_generated/server';
 import { Doc, Id } from '../_generated/dataModel';
 import { isPresenceStale } from './gameRules';
+import { isRevealReady } from './sessionLifecycle';
 
 type RoomStatus = Doc<'rooms'>['status'];
 type RoomActivityInput = Pick<Doc<'rooms'>, '_id' | 'status'>;
@@ -51,13 +52,14 @@ export async function getCompletedGame(
   ctx: QueryCtx | MutationCtx,
   roomId: Id<'rooms'>
 ): Promise<Doc<'games'> | null> {
-  return await ctx.db
+  const game = await ctx.db
     .query('games')
     .withIndex('by_room_status', (q) =>
       q.eq('roomId', roomId).eq('status', 'COMPLETED')
     )
     .order('desc')
     .first();
+  return isRevealReady(game) ? game : null;
 }
 
 function deriveIdleRoomStatus(room: Pick<Doc<'rooms'>, 'status'>): RoomStatus {
@@ -103,19 +105,16 @@ export async function requireRoomByCode(
 }
 
 /**
- * Deterministic next-host rule (backlog 017): the present (non-stale) human
- * with the lowest `seatIndex`. Undefined seats sort last; ties break by userId
- * for stability. Returns null when no human is present — the room is fully away
- * and the abandonment path (never-let-the-room-die) owns completion instead.
- *
- * Callers pass already-human-filtered rows; AI players must never be hosts.
+ * Deterministic next-host rule: the present (non-stale) participant with the
+ * lowest `seatIndex`. Undefined seats sort last; ties break by userId for
+ * stability. Returns null when the room is fully away.
  */
 export function selectNextHostId(
-  humanPlayers: HostCandidate[],
+  players: HostCandidate[],
   now: number,
   staleMs: number
 ): Id<'users'> | null {
-  const present = humanPlayers.filter(
+  const present = players.filter(
     (p) => !isPresenceStale(p.lastSeenAt, now, staleMs)
   );
   if (present.length === 0) return null;
@@ -132,15 +131,7 @@ export function selectNextHostId(
 /**
  * If the room's host has gone presence-stale, promote the deterministic next
  * host (`selectNextHostId`) so host-only actions are never stranded. Idempotent
- * and safe to call on every heartbeat: it no-ops when the host is still present
- * (so it never demotes an active host) and when no present human can take over.
- * Returns the new host id when a migration happened, else null.
- *
- * Scoped to rooms with an active game ("while the game continues" — the ticket's
- * trigger). A gathering lobby has no agency to strand, and migrating there would
- * let a guest seize a room from a host who merely stepped away before kickoff;
- * once a game is running, every player is seated (startGame), so the next-host
- * rule is well-defined.
+ * and scoped to rooms with an active game.
  */
 export async function migrateHostIfStale(
   ctx: MutationCtx,
@@ -173,10 +164,8 @@ export async function migrateHostIfStale(
     .query('roomPlayers')
     .withIndex('by_room', (q) => q.eq('roomId', room._id))
     .collect();
-  const users = await Promise.all(players.map((p) => ctx.db.get(p.userId)));
-  const humanPlayers = players.filter((_, i) => users[i]?.kind !== 'AI');
 
-  const nextHostId = selectNextHostId(humanPlayers, now, staleMs);
+  const nextHostId = selectNextHostId(players, now, staleMs);
   if (!nextHostId || nextHostId === room.hostUserId) return null;
 
   await ctx.db.patch(room._id, { hostUserId: nextHostId });

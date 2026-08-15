@@ -147,22 +147,19 @@ export function poemFallbackCardElement({
 export interface AttributedLine {
   text: string;
   authorName: string;
-  isBot: boolean;
 }
 
 /**
- * Unique, order-preserving attribution string: "Emily, Marcus, Wendell (AI)".
- * Every exported/public artifact must carry this (linejam-943 criterion 3) —
- * the pre-existing card only showed a poet *count*.
+ * Unique, order-preserving human attribution string.
+ * Every exported/public artifact carries the contributing authors.
  */
 export function formatAttribution(lines: AttributedLine[]): string {
   const seen = new Set<string>();
   const parts: string[] = [];
   for (const line of lines) {
-    const key = `${line.authorName}\u0000${line.isBot ? 1 : 0}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    parts.push(line.isBot ? `${line.authorName} (AI)` : line.authorName);
+    if (seen.has(line.authorName)) continue;
+    seen.add(line.authorName);
+    parts.push(line.authorName);
   }
   return parts.join(', ');
 }

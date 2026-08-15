@@ -48,6 +48,7 @@ export const RETENTION_BATCH_LIMITS = Object.freeze({
   retentionRuns: 16,
   roomPlayersPerRoom: 12,
   linesPerPoem: 9,
+  favoritesPerPoem: 16,
 });
 
 const maxCandidateRows =
@@ -72,11 +73,17 @@ export const RETENTION_INVOCATION_LIMITS = Object.freeze({
       (4 + RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1) +
     RETENTION_BATCH_LIMITS.games +
     RETENTION_BATCH_LIMITS.poems *
-      (2 + RETENTION_BATCH_LIMITS.linesPerPoem + 1) +
+      (2 +
+        RETENTION_BATCH_LIMITS.favoritesPerPoem +
+        1 +
+        RETENTION_BATCH_LIMITS.linesPerPoem +
+        1) +
     RETENTION_BATCH_LIMITS.users * 6,
   maxDocumentWrites:
     maxCandidateRows +
     RETENTION_BATCH_LIMITS.rooms * RETENTION_BATCH_LIMITS.roomPlayersPerRoom +
-    RETENTION_BATCH_LIMITS.poems * RETENTION_BATCH_LIMITS.linesPerPoem +
+    RETENTION_BATCH_LIMITS.poems *
+      (RETENTION_BATCH_LIMITS.favoritesPerPoem +
+        RETENTION_BATCH_LIMITS.linesPerPoem) +
     1,
 });

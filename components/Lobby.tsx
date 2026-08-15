@@ -12,11 +12,10 @@ import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { HostBadge } from './ui/HostBadge';
-import { BotBadge } from './ui/BotBadge';
 import { LobbyJoinQr, LobbyStage } from './stage/LobbyStage';
 import { StampAnimation } from './ui/StampAnimation';
 import { Doc } from '../convex/_generated/dataModel';
-import { Bot, Presentation, UserMinus } from 'lucide-react';
+import { Presentation } from 'lucide-react';
 import {
   hashRoomId,
   trackGameStarted,
@@ -30,8 +29,6 @@ import {
 
 interface LobbyPlayer extends Doc<'roomPlayers'> {
   stableId: string;
-  isBot?: boolean;
-  aiPersonaId?: string;
   isAway?: boolean;
 }
 
@@ -45,12 +42,9 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const router = useRouter();
   const { guestToken } = useUser();
   const startGameMutation = useMutation(api.game.startGame);
-  const addAiMutation = useMutation(api.ai.addAiPlayer);
-  const removeAiMutation = useMutation(api.ai.removeAiPlayer);
   const leaveLobbyMutation = useMutation(api.rooms.leaveLobby);
   const closeRoomMutation = useMutation(api.rooms.closeRoom);
   const [error, setError] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   const [isPresenting, setIsPresenting] = useState(false);
 
   // For unique avatar colors
@@ -71,7 +65,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
       const analyticsProps = {
         roomIdHash: hashRoomId(room._id),
         cycle,
-        playerKind: 'human' as const,
       };
       trackLobbyReady(analyticsProps);
       trackGameStarted(analyticsProps);
@@ -84,50 +77,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
   const minPlayers = 2;
   const needsMore = minPlayers - players.length;
   const canStart = players.length >= minPlayers;
-
-  // Bots: a host can add up to MAX_BOTS so a single player can fill a room and
-  // play solo (backlog 028). Mirrors the MAX_AI_PLAYERS backend default; the
-  // server is the source of truth and rejects past the cap.
-  const MAX_BOTS = 3;
-  const botCount = players.filter((p) => p.isBot).length;
-  const canAddAi = isHost && botCount < MAX_BOTS && players.length < 8;
-
-  const handleAddAi = async () => {
-    if (!room || aiLoading) return;
-    setError(null);
-    setAiLoading(true);
-    try {
-      await addAiMutation({
-        code: room.code,
-        guestToken: guestToken || undefined,
-      });
-      // AI seats are represented by playerKind on the canonical room event;
-      // no separate conversion event is emitted.
-    } catch (err) {
-      const feedback = errorToFeedback(err);
-      setError(feedback.message);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleRemoveAi = async (aiUserId: LobbyPlayer['userId']) => {
-    if (!room || aiLoading) return;
-    setError(null);
-    setAiLoading(true);
-    try {
-      await removeAiMutation({
-        code: room.code,
-        guestToken: guestToken || undefined,
-        aiUserId,
-      });
-    } catch (err) {
-      const feedback = errorToFeedback(err);
-      setError(feedback.message);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const handleLeaveLobby = async () => {
     setError(null);
@@ -289,21 +238,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                           )}
                         </div>
                         <div className="flex min-w-0 max-w-full flex-wrap items-center justify-self-start gap-1.5 sm:justify-self-end">
-                          {player.isBot && (
-                            <>
-                              <BotBadge />
-                              {isHost && (
-                                <button
-                                  onClick={() => handleRemoveAi(player.userId)}
-                                  disabled={aiLoading}
-                                  className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:text-primary disabled:opacity-50"
-                                  aria-label="Remove AI player"
-                                >
-                                  <UserMinus className="h-4 w-4" />
-                                </button>
-                              )}
-                            </>
-                          )}
                           {player.userId === room.hostUserId && <HostBadge />}
                         </div>
                       </li>
@@ -328,21 +262,6 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
                   <LobbyJoinQr room={room} />
                 </div>
                 <div className="flex min-w-0 flex-col gap-3">
-                  {canAddAi && (
-                    <Button
-                      onClick={handleAddAi}
-                      disabled={aiLoading}
-                      variant="secondary"
-                      size="md"
-                      className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
-                    >
-                      <Bot className="mr-[8px] h-4 w-4" />
-                      {aiLoading
-                        ? 'Adding...'
-                        : `Add a bot (${botCount}/${MAX_BOTS})`}
-                    </Button>
-                  )}
-
                   {isHost && (
                     <Button
                       type="button"

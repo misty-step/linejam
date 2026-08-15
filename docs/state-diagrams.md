@@ -4,24 +4,26 @@ Mermaid diagrams documenting complex stateful flows in Linejam. Focus on flows w
 
 ## Room/Game State Machine
 
-The core game lifecycle. Room status drives which component renders via `app/room/[code]/page.tsx`.
+The room and active game lifecycle drives which component renders via `app/room/[code]/page.tsx`.
 
 ```mermaid
 stateDiagram-v2
     [*] --> LOBBY : createRoom()
 
-    LOBBY --> IN_PROGRESS : startGame() [host + >=2 players]
-    LOBBY --> COMPLETED : closeRoom() [host only]
+    LOBBY --> IN_PROGRESS : startGame() [host + >=2 humans]
 
     IN_PROGRESS --> IN_PROGRESS : submitLine() [round < 8]
-    IN_PROGRESS --> COMPLETED : submitLine() [round 8, all submitted]
+    IN_PROGRESS --> COMPLETED : submitLine() [round 8, all humans submitted]
+    IN_PROGRESS --> ABANDONED : endGame() [host] / abandonment worker
 
+    ABANDONED --> LOBBY : attended room
+    ABANDONED --> [*] : fully-away room
     COMPLETED --> LOBBY : startNewCycle() [room participant]
     COMPLETED --> [*] : exit room
 
     note right of LOBBY
-        Players join/leave freely
-        Host can add/remove AI
+        Humans join/leave freely
+        Host starts with at least two attendees
         Displays: Lobby component
     end note
 
@@ -32,8 +34,8 @@ stateDiagram-v2
     end note
 
     note right of COMPLETED
-        Reveal phase - poems read aloud
-        Host can start an immediate next round; any room participant can return to the lobby
+        Only reveal-ready game state
+        Exactly nine human-authored lines per poem
         Displays: RevealPhase component
     end note
 ```
@@ -96,64 +98,6 @@ stateDiagram-v2
 - Convex `submitLine` is idempotent (checks existing line first)
 
 **Key File:** `components/WritingScreen.tsx`
-
----
-
-## AI Turn Generation Flow
-
-The AI player turn lifecycle involves scheduling, external API calls, and graceful fallbacks.
-
-```mermaid
-stateDiagram-v2
-    [*] --> scheduled : scheduleAiTurn()
-
-    scheduled --> waiting : runAfter(2-4s delay)
-
-    waiting --> generating : generateLineForRound() action
-
-    generating --> validating : LLM response received
-    generating --> fallback : API error / timeout
-    generating --> skipped : already submitted (idempotent)
-
-    validating --> committed : wordCount matches
-    validating --> fallback : wordCount mismatch
-
-    fallback --> committed : getFallbackLine()
-
-    committed --> roundCheck : line inserted
-
-    roundCheck --> [*] : round incomplete
-    roundCheck --> advanceRound : all players submitted + round < 8
-    roundCheck --> gameComplete : all players submitted + round == 8
-
-    advanceRound --> scheduled : scheduleAiTurn(round + 1)
-
-    skipped --> [*]
-
-    note right of scheduled
-        internalMutation
-        Verifies game IN_PROGRESS
-        Finds AI's assigned poem
-    end note
-
-    note right of generating
-        internalAction (can call external API)
-        OpenRouter configured model via generateLine()
-        10s timeout, 3 retries
-    end note
-
-    note right of fallback
-        Uses persona-appropriate fallback
-        e.g., "ethereal whispers" for mystic
-        Ensures game continues
-    end note
-```
-
-**Key Files:**
-
-- Scheduler: `convex/ai.ts` (scheduleAiTurn, generateLineForRound, commitAiLine)
-- LLM: `convex/lib/ai/llm.ts` (generateLine, getFallbackLine)
-- Personas: `convex/lib/ai/personas.ts`
 
 ---
 
@@ -242,8 +186,8 @@ stateDiagram-v2
 
     note right of revealList
         Shows poem status list
-        User sees their assigned poem(s)
-        AI poems reassigned to host
+        Reader is a deterministic one-seat
+        rotation of round-zero assignments
     end note
 
     note right of myPoemView
@@ -259,11 +203,10 @@ stateDiagram-v2
     end note
 ```
 
-**Reader Assignment Logic (convex/lib/assignPoemReaders.ts):**
+**Reader Assignment Logic (`convex/lib/assignPoemReaders.ts`):**
 
-- Derangement: No one reads their own poem (author = first line writer)
-- AI handling: AI poems reassigned to host
-- Fair distribution when host has multiple
+- Deterministic one-seat rotation of round-zero assignments
+- Every attending human receives the next seat's poem when N >= 2
 
 **Key Files:**
 
@@ -281,28 +224,27 @@ How a round advances across the system.
 sequenceDiagram
     participant P1 as Player 1
     participant P2 as Player 2
+    participant P3 as Player 3
     participant C as Convex
-    participant AI as AI Player
 
     Note over C: Round 0, game.currentRound = 0
 
     P1->>C: submitLine(poem_a, round 0)
-    C->>C: Insert line, check completion
+    C->>C: Insert line, check human assignments
     C-->>P1: Success (round incomplete)
 
-    AI->>C: commitAiLine(poem_b, round 0)
-    C->>C: Insert line, check completion
-    C-->>AI: Success (round incomplete)
+    P2->>C: submitLine(poem_b, round 0)
+    C->>C: Insert line, check human assignments
+    C-->>P2: Success (round incomplete)
 
-    P2->>C: submitLine(poem_c, round 0)
-    C->>C: Insert line, check completion
-    C->>C: All submitted! Patch game.currentRound = 1
-    C->>C: scheduleAiTurn(round 1)
-    C-->>P2: Success
+    P3->>C: submitLine(poem_c, round 0)
+    C->>C: Insert line, check human assignments
+    C->>C: All humans submitted; patch currentRound = 1
+    C-->>P3: Success
 
-    Note over P1,P2: useQuery auto-refreshes
-    Note over P1,P2: getCurrentAssignment returns round 1
-    Note over P1,P2: WritingScreen resets for new round
+    Note over P1,P3: useQuery auto-refreshes
+    Note over P1,P3: getCurrentAssignment returns round 1
+    Note over P1,P3: WritingScreen resets for new round
 ```
 
 **Key Invariant:** The `assignmentMatrix` is immutable once created. Round advancement only updates `game.currentRound`. This prevents race conditions in concurrent submissions.
@@ -350,7 +292,7 @@ stateDiagram-v2
 
 - `app/host/page.tsx` - createRoom
 - `app/join/page.tsx` - joinRoom
-- `components/Lobby.tsx` - startGame, addAi, removeAi, leaveLobby, closeRoom
+- `components/Lobby.tsx` - startGame, leaveLobby, closeRoom
 
 ---
 

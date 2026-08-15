@@ -5,35 +5,16 @@ const RELEASE_PATTERN = /^[0-9a-f]{40}$/;
 const PROJECT_ID_PATTERN = /^\d+$/;
 const PUBLIC_KEY_PATTERN = /^[A-Za-z0-9]+$/;
 
-export const AI_FALLBACK_MONITOR_SLUG = 'linejam-ai-fallback-rate';
-
 export const BACKEND_FAILURE_OPERATIONS = [
   'sweepAbandonedGames',
   'finishAbandonedGame',
-  'aiGenerationBudgetThreshold',
-  'generateLineForRound',
-  'generateGhostLine',
 ] as const;
 
-export const BACKEND_FAILURE_CODES = [
-  'unexpected_error',
-  'budget_threshold_reached',
-] as const;
-
-export const AI_FALLBACK_OPERATIONS = ['aiFallbackRate'] as const;
-
-export const AI_FALLBACK_FAILURE_CODES = [
-  'budget_exhaustion',
-  'provider_error',
-  'invalid_output',
-  'missing_configuration',
-] as const;
+export const BACKEND_FAILURE_CODES = ['unexpected_error'] as const;
 
 export type BackendFailureOperation =
   (typeof BACKEND_FAILURE_OPERATIONS)[number];
 export type BackendFailureCode = (typeof BACKEND_FAILURE_CODES)[number];
-export type AiFallbackOperation = (typeof AI_FALLBACK_OPERATIONS)[number];
-export type AiFallbackFailureCode = (typeof AI_FALLBACK_FAILURE_CODES)[number];
 export type SentryEnvironment = 'preview' | 'production';
 
 export interface BackendFailureReport {
@@ -41,20 +22,6 @@ export interface BackendFailureReport {
   failureCode: BackendFailureCode;
   scheduled?: number;
   scanned?: number;
-  filled?: number;
-  observed?: number;
-  threshold?: number;
-  round?: number;
-}
-
-export interface AiFallbackCheckInReport {
-  operation: AiFallbackOperation;
-  status: 'alive' | 'ok' | 'error';
-  failureCode?: AiFallbackFailureCode;
-  totalGenerations: number;
-  fallbackGenerations: number;
-  fallbackRatePercent: number;
-  thresholdPercent: number;
 }
 
 export interface ParsedSentryDsn {
@@ -162,12 +129,6 @@ export function readSentryConfig(
   };
 }
 
-export function isBackendSentryEnabled(): boolean {
-  const result = readSentryConfig();
-  if (!result.enabled) emitDiagnostic(result);
-  return result.enabled;
-}
-
 function boundedCount(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(MAX_REPORT_COUNT, Math.max(0, Math.trunc(value)));
@@ -180,30 +141,6 @@ function isBackendFailureReport(report: BackendFailureReport): boolean {
   );
 }
 
-function isAiFallbackCheckIn(checkIn: AiFallbackCheckInReport): boolean {
-  return (
-    AI_FALLBACK_OPERATIONS.includes(checkIn.operation) &&
-    (checkIn.failureCode === undefined ||
-      AI_FALLBACK_FAILURE_CODES.includes(checkIn.failureCode)) &&
-    (checkIn.status === 'alive' ||
-      checkIn.status === 'ok' ||
-      checkIn.status === 'error')
-  );
-}
-
-function isAiFallbackFailureReport(
-  checkIn: AiFallbackCheckInReport
-): checkIn is AiFallbackCheckInReport & {
-  status: 'error';
-  failureCode: AiFallbackFailureCode;
-} {
-  return (
-    isAiFallbackCheckIn(checkIn) &&
-    checkIn.status === 'error' &&
-    checkIn.failureCode !== undefined
-  );
-}
-
 function numericContext(report: BackendFailureReport) {
   return {
     ...(report.scheduled === undefined
@@ -212,27 +149,11 @@ function numericContext(report: BackendFailureReport) {
     ...(report.scanned === undefined
       ? {}
       : { scanned: boundedCount(report.scanned) }),
-    ...(report.filled === undefined
-      ? {}
-      : { filled: boundedCount(report.filled) }),
-    ...(report.observed === undefined
-      ? {}
-      : { observed: boundedCount(report.observed) }),
-    ...(report.threshold === undefined
-      ? {}
-      : { threshold: boundedCount(report.threshold) }),
-    ...(report.round === undefined
-      ? {}
-      : { round: boundedCount(report.round) }),
   };
 }
 
-function envelope(
-  eventId: string,
-  itemType: 'event' | 'check_in',
-  payload: object
-) {
-  return `${JSON.stringify({ event_id: eventId })}\n${JSON.stringify({ type: itemType })}\n${JSON.stringify(payload)}`;
+function envelope(eventId: string, payload: object) {
+  return `${JSON.stringify({ event_id: eventId })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(payload)}`;
 }
 
 export function buildBackendSentryEnvelope(
@@ -242,7 +163,7 @@ export function buildBackendSentryEnvelope(
 ): string | null {
   if (!isBackendFailureReport(report)) return null;
 
-  return envelope(eventId, 'event', {
+  return envelope(eventId, {
     event_id: eventId,
     platform: 'javascript',
     level: 'error',
@@ -264,66 +185,6 @@ export function buildBackendSentryEnvelope(
     },
     contexts: {
       linejam: numericContext(report),
-    },
-  });
-}
-
-export function buildAiFallbackFailureSentryEnvelope(
-  checkIn: AiFallbackCheckInReport,
-  config: Pick<SentryConfig, 'environment' | 'release'>,
-  eventId: string
-): string | null {
-  if (!isAiFallbackFailureReport(checkIn)) return null;
-
-  return envelope(eventId, 'event', {
-    event_id: eventId,
-    platform: 'javascript',
-    level: 'error',
-    environment: config.environment,
-    release: config.release,
-    message: 'Convex backend operation failed',
-    fingerprint: [
-      'linejam-convex-backend-failure',
-      checkIn.operation,
-      checkIn.failureCode,
-    ],
-    tags: {
-      runtime: 'convex',
-      environment: config.environment,
-      release: config.release,
-      operation: checkIn.operation,
-      failure_code: checkIn.failureCode,
-      level: 'error',
-    },
-    contexts: {
-      linejam: {
-        observed: boundedCount(checkIn.fallbackRatePercent),
-        threshold: boundedCount(checkIn.thresholdPercent),
-      },
-    },
-  });
-}
-
-export function buildAiFallbackSentryEnvelope(
-  checkIn: AiFallbackCheckInReport,
-  config: Pick<SentryConfig, 'environment' | 'release'>,
-  eventId: string
-): string | null {
-  if (!isAiFallbackCheckIn(checkIn)) return null;
-
-  return envelope(eventId, 'check_in', {
-    check_in_id: eventId,
-    monitor_slug: AI_FALLBACK_MONITOR_SLUG,
-    status: checkIn.status === 'error' ? 'error' : 'ok',
-    environment: config.environment,
-    release: config.release,
-    monitor_config: {
-      schedule: { type: 'interval', value: 1, unit: 'hour' },
-      checkin_margin: 5,
-      max_runtime: 5,
-      timezone: 'UTC',
-      failure_issue_threshold: 1,
-      recovery_threshold: 1,
     },
   });
 }
@@ -368,44 +229,6 @@ export async function sendBackendSentryEvent(
   const body = buildBackendSentryEnvelope(report, result.config, id);
   if (!body) {
     console.error('Sentry transport rejected a report');
-    return;
-  }
-  await sendEnvelope(result.config, body);
-}
-
-/**
- * Emit one tagged issue event only when the aggregate fallback monitor enters
- * its error state. The check-in remains the monitor-health signal; this event
- * supplies the closed tags required by the Sentry-to-GitHub bridge.
- */
-export async function sendAiFallbackSentryFailureEvent(
-  checkIn: AiFallbackCheckInReport
-): Promise<void> {
-  if (!isAiFallbackFailureReport(checkIn)) return;
-  const result = readSentryConfig();
-  if (!result.enabled) {
-    emitDiagnostic(result);
-    return;
-  }
-  const id = eventId();
-  const body = buildAiFallbackFailureSentryEnvelope(checkIn, result.config, id);
-  if (!body) return;
-  await sendEnvelope(result.config, body);
-}
-
-/** Send one aggregate threshold check-in, never one check-in per generated line. */
-export async function sendAiFallbackSentryCheckIn(
-  checkIn: AiFallbackCheckInReport
-): Promise<void> {
-  const result = readSentryConfig();
-  if (!result.enabled) {
-    emitDiagnostic(result);
-    return;
-  }
-  const id = eventId();
-  const body = buildAiFallbackSentryEnvelope(checkIn, result.config, id);
-  if (!body) {
-    console.error('Sentry transport rejected a check-in');
     return;
   }
   await sendEnvelope(result.config, body);

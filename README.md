@@ -29,7 +29,7 @@ Players take turns adding lines to poems they can't fully see. Each round, you s
 
 The constraint is the game. You see only the line before yours. The result is collaborative absurdity—poems that no single person could have written.
 
-**Features**: AI players (fill empty seats), curated visual themes, poem sharing, in-game help
+**Features**: human-authored collaborative poems, curated visual themes, poem sharing, and in-game help
 
 ## Tech Stack
 
@@ -148,11 +148,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 
 Sentry is Linejam's sole error, monitor, release, and incident-evidence
 platform. Browser, Node, Edge, and Convex failures use release- and
-environment-tagged events; production smoke and AI fallback transitions use
-Sentry monitors. Actionable Sentry issues create one durable GitHub Issue
-through the signed Convex webhook bridge. `pnpm ci:fast` is the fast host loop
-(typecheck, lint, tests); GitHub Actions' `merge-gate` remains the authoritative
-full contract, with `pnpm ci:dagger:all` for local parity. See
+environment-tagged events; production health and smoke use Sentry monitors.
+Actionable Sentry issues create one durable GitHub Issue through the signed
+Convex webhook bridge. `pnpm ci:fast` is the fast host loop (typecheck, lint,
+tests); GitHub Actions' `merge-gate` remains the authoritative full contract,
+with `pnpm ci:dagger:all` for local parity. See
 [docs/ops/observability-ci.md](docs/ops/observability-ci.md).
 
 ## Design

@@ -331,30 +331,6 @@ describe('PoemDisplay component', () => {
         expect(dot).toHaveClass('opacity-100');
       });
     });
-
-    it('announces the AI persona as a reveal moment (no tap needed)', () => {
-      const linesWithBot: PoemLine[] = [
-        {
-          text: 'One',
-          authorName: 'Bashō',
-          authorStableId: 'stable_basho',
-          isBot: true,
-        },
-      ];
-
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={linesWithBot}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      // The persona announces itself the moment the line is revealed —
-      // no dot click required (it's part of the comedy).
-      expect(screen.getByText(/✦ Bashō writes/i)).toBeInTheDocument();
-    });
   });
 
   describe('author color logic', () => {

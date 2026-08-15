@@ -4,6 +4,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import {
   RETENTION_BATCH_LIMITS,
+  RETENTION_DURATIONS_MS,
   RETENTION_PARENT_RETRY_MS,
 } from '../../convex/lib/retentionPolicy';
 
@@ -53,6 +54,7 @@ async function seedCompletedArtifact(
     recent?: boolean;
     publicShare?: boolean;
     favorite?: boolean;
+    legacyAbandoned?: boolean;
   }
 ) {
   return t.run(async (ctx) => {
@@ -85,6 +87,7 @@ async function seedCompletedArtifact(
     const gameId = await ctx.db.insert('games', {
       roomId,
       status: 'COMPLETED',
+      ...(args.legacyAbandoned ? { completionKind: 'abandoned' as const } : {}),
       cycle: 1,
       currentRound: 8,
       assignmentMatrix: Array.from({ length: 9 }, () => [userId]),
@@ -117,10 +120,18 @@ async function seedCompletedArtifact(
         })
       )
     );
-    if (args.favorite) {
-      await ctx.db.insert('favorites', { userId, poemId, createdAt });
-    }
-    return { roomId, gameId, poemId, lineIds, userId, createdAt };
+    const favoriteId = args.favorite
+      ? await ctx.db.insert('favorites', { userId, poemId, createdAt })
+      : undefined;
+    return {
+      roomId,
+      gameId,
+      poemId,
+      lineIds,
+      favoriteId,
+      userId,
+      createdAt,
+    };
   });
 }
 
@@ -259,6 +270,77 @@ describe('bounded data retention', () => {
     expect(Object.keys(metrics ?? {})).not.toEqual(
       expect.arrayContaining(['text', 'poemText', 'guestId', 'roomCode'])
     );
+  });
+
+  it('expires a favorited legacy-abandoned poem and its favorite', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const t = setupConvexTest();
+    const abandoned = await seedCompletedArtifact(t, {
+      code: 'ABF1',
+      now,
+      favorite: true,
+      legacyAbandoned: true,
+    });
+
+    const receipt = await t.mutation(runRetentionSweep, {
+      dryRun: false,
+      now,
+    });
+
+    expect(receipt.errors).toBe(0);
+    expect(await t.run((ctx) => ctx.db.get(abandoned.poemId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(abandoned.favoriteId!))).toBeNull();
+    for (const lineId of abandoned.lineIds) {
+      expect(await t.run((ctx) => ctx.db.get(lineId))).toBeNull();
+    }
+  });
+
+  it('drains excess abandoned favorites in bounded sweeps before deleting the poem', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const t = setupConvexTest();
+    const abandoned = await seedCompletedArtifact(t, {
+      code: 'ABFB',
+      now,
+      favorite: true,
+      legacyAbandoned: true,
+    });
+    await t.run(async (ctx) => {
+      await Promise.all(
+        Array.from({ length: RETENTION_BATCH_LIMITS.favoritesPerPoem }, () =>
+          ctx.db.insert('favorites', {
+            userId: abandoned.userId,
+            poemId: abandoned.poemId,
+            createdAt: abandoned.createdAt,
+          })
+        )
+      );
+    });
+
+    const first = await t.mutation(runRetentionSweep, {
+      dryRun: false,
+      now,
+    });
+    expect(first.errors).toBe(0);
+    expect(await t.run((ctx) => ctx.db.get(abandoned.poemId))).not.toBeNull();
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('favorites')
+          .withIndex('by_poem', (q) => q.eq('poemId', abandoned.poemId))
+          .collect()
+      )
+    ).toHaveLength(1);
+
+    await t.mutation(runRetentionSweep, { dryRun: false, now });
+    expect(await t.run((ctx) => ctx.db.get(abandoned.poemId))).toBeNull();
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('favorites')
+          .withIndex('by_poem', (q) => q.eq('poemId', abandoned.poemId))
+          .collect()
+      )
+    ).toEqual([]);
   });
 
   it('deletes at most the declared batch from one table per invocation', async () => {
@@ -502,6 +584,58 @@ describe('bounded data retention', () => {
       now,
     });
     expect(rerun).toMatchObject({ scanned: 0, patched: 0, hasMore: false });
+  });
+
+  it('classifies legacy and migrated abandoned games with the short lifetime', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const completedAt = now - 24 * 60 * 60 * 1000;
+    const t = setupConvexTest();
+    const ids = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', {
+        clerkUserId: 'abandoned-host',
+        displayName: 'Host',
+        createdAt: completedAt,
+        retentionState: 'protected',
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'ABRT',
+        hostUserId: userId,
+        status: 'LOBBY',
+        createdAt: completedAt,
+        retentionState: 'active',
+      });
+      const legacyGameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        completionKind: 'abandoned',
+        cycle: 1,
+        currentRound: 2,
+        assignmentMatrix: [],
+        createdAt: completedAt,
+        completedAt,
+      });
+      const migratedGameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'ABANDONED',
+        cycle: 2,
+        currentRound: 3,
+        assignmentMatrix: [],
+        createdAt: completedAt,
+        completedAt,
+      });
+      return { legacyGameId, migratedGameId };
+    });
+
+    await t.mutation(backfillRetentionPolicy, { dryRun: false, now });
+    const expectedEligibleAt = completedAt + RETENTION_DURATIONS_MS.abandoned;
+    await t.run(async (ctx) => {
+      for (const gameId of [ids.legacyGameId, ids.migratedGameId]) {
+        expect(await ctx.db.get(gameId)).toMatchObject({
+          retentionState: 'pending',
+          retentionEligibleAt: expectedEligibleAt,
+        });
+      }
+    });
   });
 
   it('marks regular Clerk users as protected without patching during a dry run', async () => {

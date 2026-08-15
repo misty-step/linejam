@@ -64,13 +64,7 @@ interface RoomPageProps {
 
 interface RoomPageState {
   room: Doc<'rooms'> & { status: Doc<'rooms'>['status'] };
-  players: Array<
-    Doc<'roomPlayers'> & {
-      stableId: string;
-      isBot?: boolean;
-      aiPersonaId?: string;
-    }
-  >;
+  players: Array<Doc<'roomPlayers'> & { stableId: string }>;
   isHost: boolean;
 }
 

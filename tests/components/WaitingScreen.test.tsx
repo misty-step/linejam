@@ -4,11 +4,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 
 // Mock Convex hooks (external)
 const mockUseQuery = vi.fn();
-const mockSummonGhostwriter = vi.fn().mockResolvedValue({ summoned: 0 });
+const mockEndGame = vi.fn().mockResolvedValue({ ended: true });
 
 vi.mock('convex/react', () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
-  useMutation: () => mockSummonGhostwriter,
+  useMutation: () => mockEndGame,
   useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
 }));
 
@@ -110,14 +110,12 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: false,
-          isBot: false,
         },
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Bob',
           submitted: false,
-          isBot: false,
         },
       ],
     });
@@ -136,7 +134,6 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: true,
-          isBot: false,
         },
       ],
     });
@@ -157,14 +154,12 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: true,
-          isBot: false,
         },
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Bob',
           submitted: false,
-          isBot: false,
         },
       ],
     });
@@ -192,14 +187,12 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: true,
-          isBot: false,
         },
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Bob',
           submitted: true,
-          isBot: false,
         },
       ],
     });
@@ -223,14 +216,12 @@ describe('WaitingScreen component', () => {
               stableId: 'stable_1',
               displayName: 'Alice',
               submitted: true,
-              isBot: false,
             },
             {
               userId: 'user_2',
               stableId: 'stable_2',
               displayName: 'Bob',
               submitted: false,
-              isBot: false,
             },
           ],
         }}
@@ -251,21 +242,18 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: false,
-          isBot: false,
         },
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Bob',
           submitted: true,
-          isBot: false,
         },
         {
           userId: 'user_3',
           stableId: 'stable_3',
           displayName: 'Charlie',
           submitted: false,
-          isBot: true,
         },
       ],
     });
@@ -278,35 +266,6 @@ describe('WaitingScreen component', () => {
     expect(screen.getByText('Charlie')).toBeInTheDocument();
   });
 
-  it('shows bot badge for AI players', () => {
-    mockUseQuery.mockReturnValue({
-      round: 0,
-      players: [
-        {
-          userId: 'user_1',
-          stableId: 'stable_1',
-          displayName: 'Human',
-          submitted: false,
-          isBot: false,
-        },
-        {
-          userId: 'bot_1',
-          stableId: 'stable_bot',
-          displayName: 'Poetry Bot',
-          submitted: false,
-          isBot: true,
-        },
-      ],
-    });
-
-    render(<WaitingScreen roomCode="ABCD" />);
-
-    // Bot badge should be present (it renders an SVG icon)
-    // The BotBadge component with showLabel={false} renders just the icon
-    const botBadges = screen.getAllByRole('img', { hidden: true });
-    expect(botBadges.length).toBeGreaterThan(0);
-  });
-
   it('applies different styling for submitted vs not-submitted players', () => {
     mockUseQuery.mockReturnValue({
       round: 0,
@@ -316,14 +275,12 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Submitted',
           submitted: true,
-          isBot: false,
         },
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Writing',
           submitted: false,
-          isBot: false,
         },
       ],
     });
@@ -349,7 +306,6 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Done',
           submitted: true,
-          isBot: false,
         },
       ],
     });
@@ -369,14 +325,12 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: true,
-          isBot: false,
         },
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Bob',
           submitted: false,
-          isBot: false,
         },
       ],
     });
@@ -395,14 +349,12 @@ describe('WaitingScreen component', () => {
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: true,
-          isBot: false,
         },
         {
           userId: 'user_late',
           stableId: 'stable_late',
           displayName: 'Late Poet',
           submitted: false,
-          isBot: false,
           isSpectator: true,
         },
       ],
@@ -418,25 +370,22 @@ describe('WaitingScreen component', () => {
     expect(screen.getByText('watching')).toBeInTheDocument();
   });
 
-  it('offers the host a ghostwriter rescue after overtime', async () => {
+  it('lets the host confirm ending the game without revealing partial poems', async () => {
     mockUseQuery.mockReturnValue({
       round: 1,
       isHost: true,
-      roundStartedAt: 1, // far in the past → deep overtime
       players: [
         {
           userId: 'user_1',
           stableId: 'stable_1',
           displayName: 'Alice',
           submitted: true,
-          isBot: false,
         },
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Bob',
           submitted: false,
-          isBot: false,
         },
       ],
     });
@@ -445,33 +394,32 @@ describe('WaitingScreen component', () => {
     const user = userEvent.setup();
     render(<WaitingScreen roomCode="ABCD" guestToken="mock-token" />);
 
-    const ghostButton = screen.getByRole('button', {
-      name: /Summon the ghostwriter/i,
-    });
-    expect(ghostButton).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'End game' }));
+    expect(screen.getByText('End this game?')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Partial poems are not revealed/i)
+    ).toBeInTheDocument();
 
-    await user.click(ghostButton);
+    await user.click(screen.getByRole('button', { name: 'End game' }));
 
     await waitFor(() => {
-      expect(mockSummonGhostwriter).toHaveBeenCalledWith({
+      expect(mockEndGame).toHaveBeenCalledWith({
         roomCode: 'ABCD',
         guestToken: 'mock-token',
       });
     });
   });
 
-  it('hides the ghostwriter rescue from non-hosts', () => {
+  it('hides the end-game action from non-hosts', () => {
     mockUseQuery.mockReturnValue({
       round: 1,
       isHost: false,
-      roundStartedAt: 1,
       players: [
         {
           userId: 'user_2',
           stableId: 'stable_2',
           displayName: 'Bob',
           submitted: false,
-          isBot: false,
         },
       ],
     });
@@ -479,7 +427,7 @@ describe('WaitingScreen component', () => {
     render(<WaitingScreen roomCode="ABCD" />);
 
     expect(
-      screen.queryByRole('button', { name: /Summon the ghostwriter/i })
+      screen.queryByRole('button', { name: /End game/i })
     ).not.toBeInTheDocument();
   });
 });

@@ -28,13 +28,13 @@ artifact. It does not come from more modes.
 
 - Guest mode and mobile play are launch-bar requirements, not polish.
 - Anonymous play is the runtime; accounts are optional persistence. Guest host,
-  join, play, and reveal must survive identity-provider and AI-provider failure.
+  join, play, and reveal must survive identity-provider failure.
 - One core mode is the product. The deleted expansion arc is evidence, not a
   backlog invitation.
 - The assignment matrix, word-count contract, reveal phase, room code, and
   guest token behavior are product-critical mechanics.
-- AI players are support for empty seats and solo testing. Their behavior must
-  be evidence-backed and should not replace human authorship as the point.
+- Every poem line is authored by an attending human. A player can never be
+  replaced by generated, ghostwritten, fallback, or prewritten content.
 - Sharing matters because poems are the memory of the game. Recap and artifact
   surfaces should preserve the moment without becoming a social network.
 - Saving remains private. Publication is a separate, explicit, reversible act;
@@ -67,7 +67,7 @@ artifact. It does not come from more modes.
    performance, and resilience bar; freeze new modes and themes.
 4. Collapse duplicate identity, analytics, deployment, and publication paths
    toward one explicit owner each.
-5. Keep AI players as a reliability and access aid, not a product pivot.
+5. Keep human collaboration—not automated authorship—as the product boundary.
 6. Treat print-on-demand booklets as the only revenue stretch worth revisiting
    after the core loop earns repeat play.
 

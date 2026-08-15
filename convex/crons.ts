@@ -4,13 +4,12 @@ import { internal } from './_generated/api';
 const crons = cronJobs();
 
 /**
- * Never let the room die: finish any IN_PROGRESS game whose human players have
- * all gone silent past the abandonment threshold. The sweep is cheap (one
- * indexed query when nothing is active) and schedules the heavy per-game
- * completion out to `finishAbandonedGame`. See convex/abandonment.ts.
+ * Close IN_PROGRESS games after every participant has gone silent. The indexed
+ * sweep is cheap when nothing is stranded and schedules bounded per-game
+ * abandonment mutations.
  */
 crons.interval(
-  'finish abandoned games',
+  'close abandoned games',
   { minutes: 1 },
   internal.abandonment.sweepAbandonedGames,
   {}

@@ -1,25 +1,16 @@
 /**
- * game.test.ts — migrated to convex-test (backlog 018).
+ * Convex gameplay behavior against the real in-memory engine.
  *
- * Exercises game.ts mutations and queries against the real convex-test
- * in-memory engine (real read-your-writes + real scheduler) instead of the
- * mock DB. The only mocked boundary is the OpenRouter `fetch`, stubbed offline
- * so every AI path falls through to deterministic fallbacks.
- *
- * Covers: startGame, startNewCycle, getCurrentAssignment, submitLine,
- *         getRevealPhaseState, revealPoem, getRoundProgress, summonGhostwriter.
+ * Covers the human-only start, assignment, submission, abandonment, reveal,
+ * and round-progress contracts.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser, seedUser } from '../helpers/convexSeed';
-import {
-  WORD_COUNTS,
-  GHOSTWRITER_OVERTIME_MS,
-  PRESENCE_AWAY_MS,
-} from '../../convex/lib/gameRules';
+import { WORD_COUNTS, PRESENCE_AWAY_MS } from '../../convex/lib/gameRules';
 import { signGuestToken } from '../../lib/guestToken';
 import {
   ABUSE_RATE_LIMITS,
@@ -226,7 +217,6 @@ async function seedInProgressGame(
     players: Array<{
       name: string;
       clerkUserId?: string;
-      kind?: 'human' | 'AI';
     }>;
     code?: string;
     currentRound?: number;
@@ -255,7 +245,7 @@ async function seedInProgressGame(
       userIds.push(
         await ctx.db.insert('users', {
           displayName: p.name,
-          kind: p.kind ?? 'human',
+          kind: 'human',
           ...(p.clerkUserId ? { clerkUserId: p.clerkUserId } : {}),
           createdAt: now,
         })
@@ -328,19 +318,6 @@ async function seedExhaustedGuestBucket(
     })
   );
 }
-
-beforeEach(() => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(() => Promise.reject(new Error('network disabled in test')))
-  );
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-});
 
 // ─── startNewCycle ────────────────────────────────────────────────────────────
 
@@ -451,6 +428,47 @@ describe('startGame', () => {
     expect(poems).toHaveLength(2);
   });
 
+  it('removes legacy AI memberships before assigning a new game', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedLobby(t, 'SGAI');
+    const aiUserId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', {
+        displayName: 'Legacy Bot',
+        kind: 'AI',
+        createdAt: 0,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId,
+        displayName: 'Legacy Bot',
+        joinedAt: 0,
+      });
+      return userId;
+    });
+
+    await asUser(t, 'hostSGAI').mutation(api.game.startGame, { code });
+
+    const { game, memberships, poems } = await t.run(async (ctx) => {
+      const room = await ctx.db.get(roomId);
+      return {
+        game: await ctx.db.get(room!.currentGameId!),
+        memberships: await ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room', (q) => q.eq('roomId', roomId))
+          .collect(),
+        poems: await ctx.db
+          .query('poems')
+          .withIndex('by_game', (q) => q.eq('gameId', room!.currentGameId!))
+          .collect(),
+      };
+    });
+    expect(game?.assignmentMatrix.flat()).not.toContain(aiUserId);
+    expect(memberships.map((membership) => membership.userId)).not.toContain(
+      aiUserId
+    );
+    expect(poems).toHaveLength(2);
+  });
+
   it('rate-limits guest starts by signed network bucket before room lookup', async () => {
     const t = setupConvexTest();
     const bucket = 'guestSession:testStartBucket1234567890';
@@ -517,340 +535,86 @@ describe('startGame', () => {
   });
 });
 
-// ─── summonGhostwriter ────────────────────────────────────────────────────────
-
-describe('summonGhostwriter', () => {
-  it('rejects non-hosts', async () => {
+describe('endGame', () => {
+  it('is host-only, abandons the active game, prunes stale guests, and allows restart', async () => {
     const t = setupConvexTest();
-    const { code, gameId } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghosthostA' },
-        { name: 'Guest', clerkUserId: 'clerk_ghostguestA' },
-      ],
-      code: 'GWA1',
-      currentRound: 0,
-    });
-    // Patch past overtime so the overtime check doesn't fire first
-    await t.run((ctx) =>
-      ctx.db.patch(gameId, {
-        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 10_000,
-      })
-    );
+    const { code, roomId, guestId } = await seedLobby(t, 'END1');
+    await asUser(t, 'hostEND1').mutation(api.game.startGame, { code });
 
     await expect(
-      asUser(t, 'ghostguestA').mutation(api.game.summonGhostwriter, {
-        roomCode: code,
-      })
-    ).rejects.toThrow('Only host can summon the ghostwriter');
-  });
+      asUser(t, 'guestEND1').mutation(api.game.endGame, { roomCode: code })
+    ).rejects.toThrow('Only host can end game');
 
-  it('does not let a non-host consume the room summon quota', async () => {
-    const t = setupConvexTest();
-    const { code, roomId } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghostquotaHost' },
-        { name: 'Guest', clerkUserId: 'clerk_ghostquotaGuest' },
-      ],
-      code: 'GWQ1',
-      currentRound: 0,
-      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
-    });
-    const key = `mutation:summonGhostwriter:room:${roomId}`;
-    await t.run((ctx) =>
-      ctx.db.insert('rateLimits', {
-        key,
-        hits: ABUSE_RATE_LIMITS.summonGhostwriter.roomMax - 1,
-        resetTime: Date.now() + ABUSE_RATE_LIMITS.summonGhostwriter.windowMs,
-      })
-    );
-
-    await expect(
-      asUser(t, 'ghostquotaGuest').mutation(api.game.summonGhostwriter, {
-        roomCode: code,
-      })
-    ).rejects.toThrow('Only host can summon the ghostwriter');
-
-    const limit = await t.run((ctx) =>
-      ctx.db
-        .query('rateLimits')
-        .withIndex('by_key', (q) => q.eq('key', key))
-        .first()
-    );
-    expect(limit?.hits).toBe(ABUSE_RATE_LIMITS.summonGhostwriter.roomMax - 1);
-  });
-
-  it('rejects before overtime', async () => {
-    const t = setupConvexTest();
-    const { code } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghosthostB' },
-        { name: 'Guest', clerkUserId: 'clerk_ghostguestB' },
-      ],
-      code: 'GWB1',
-      roundStartedAt: Date.now() - 5_000, // round just opened
-    });
-
-    await expect(
-      asUser(t, 'ghosthostB').mutation(api.game.summonGhostwriter, {
-        roomCode: code,
-      })
-    ).rejects.toThrow('The ghostwriter only answers after overtime');
-  });
-
-  it('rate-limits summon attempts per actor', async () => {
-    const t = setupConvexTest();
-    const { code, userIds, gameId } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghostlimitactor' },
-        { name: 'Guest', clerkUserId: 'clerk_ghostlimitactorguest' },
-      ],
-      code: 'GWL1',
-      currentRound: 0,
-      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
-    });
-    await t.run((ctx) =>
-      ctx.db.insert('rateLimits', {
-        key: `mutation:summonGhostwriter:user:${userIds[0]}`,
-        hits: ABUSE_RATE_LIMITS.summonGhostwriter.userMax,
-        resetTime: Date.now() + ABUSE_RATE_LIMITS.summonGhostwriter.windowMs,
-      })
-    );
-
-    await expect(
-      asUser(t, 'ghostlimitactor').mutation(api.game.summonGhostwriter, {
-        roomCode: code,
-      })
-    ).rejects.toThrow('Rate limit exceeded');
-
-    expect(
-      await t.run((ctx) =>
-        ctx.db
-          .query('aiTurns')
-          .withIndex('by_game_round', (q) =>
-            q.eq('gameId', gameId).eq('round', 0)
-          )
-          .collect()
-      )
-    ).toHaveLength(0);
-  });
-
-  it('rate-limits summon attempts per room', async () => {
-    const t = setupConvexTest();
-    const { code, roomId } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghostlimitroom' },
-        { name: 'Guest', clerkUserId: 'clerk_ghostlimitroomguest' },
-      ],
-      code: 'GWL2',
-      currentRound: 0,
-      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
-    });
-    await t.run((ctx) =>
-      ctx.db.insert('rateLimits', {
-        key: `mutation:summonGhostwriter:room:${roomId}`,
-        hits: ABUSE_RATE_LIMITS.summonGhostwriter.roomMax,
-        resetTime: Date.now() + ABUSE_RATE_LIMITS.summonGhostwriter.windowMs,
-      })
-    );
-
-    await expect(
-      asUser(t, 'ghostlimitroom').mutation(api.game.summonGhostwriter, {
-        roomCode: code,
-      })
-    ).rejects.toThrow('Rate limit exceeded');
-  });
-
-  it('schedules ghost lines for every missing poem after overtime', async () => {
-    const t = setupConvexTest();
-    const { code, poemIds, userIds, gameId } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghosthostC' },
-        { name: 'Guest', clerkUserId: 'clerk_ghostguestC' },
-      ],
-      code: 'GWC1',
-      currentRound: 0,
-    });
-
-    // Patch past overtime
-    await t.run((ctx) =>
-      ctx.db.patch(gameId, {
-        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 10_000,
-      })
-    );
-
-    // poem[0] has a line, poem[1] is missing
-    // matrix[0][0] = userIds[0] (Host) → poem 0
-    await t.run((ctx) =>
-      ctx.db.insert('lines', {
-        poemId: poemIds[0],
-        indexInPoem: 0,
-        text: 'hello',
-        wordCount: 1,
-        authorUserId: userIds[0],
-        createdAt: Date.now(),
-      })
-    );
-
-    const result = await asUser(t, 'ghosthostC').mutation(
-      api.game.summonGhostwriter,
-      { roomCode: code }
-    );
-
-    expect(result).toEqual({ summoned: 1 });
-
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
-
-    const line = await t.run((ctx) =>
-      ctx.db
-        .query('lines')
-        .withIndex('by_poem_index', (q) =>
-          q.eq('poemId', poemIds[1]).eq('indexInPoem', 0)
+    await t.run(async (ctx) => {
+      const guest = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', guestId)
         )
-        .first()
-    );
-    expect(line).not.toBeNull();
-  });
-
-  it('does not summon a ghostwriter for an AI-assigned cell', async () => {
-    const t = setupConvexTest();
-    const { code, roomId, poemIds, userIds } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghosthumanhost' },
-        { name: 'Bot', kind: 'AI' },
-      ],
-      code: 'GWAI',
-      currentRound: 0,
-      roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
+        .unique();
+      await ctx.db.patch(guest!._id, {
+        lastSeenAt: Date.now() - PRESENCE_AWAY_MS - 1,
+      });
     });
 
-    // Round zero assigns the host to poem 0 and the bot to poem 1. Leave only
-    // the bot cell open: its generation action, not the ghostwriter, owns it.
-    await t.run((ctx) =>
-      ctx.db.insert('lines', {
-        poemId: poemIds[0],
-        indexInPoem: 0,
-        text: 'done',
-        wordCount: 1,
-        authorUserId: userIds[0],
-        createdAt: Date.now(),
-      })
-    );
+    const activeGameId = (await t.run((ctx) => ctx.db.get(roomId)))!
+      .currentGameId!;
+    await asUser(t, 'hostEND1').mutation(api.game.endGame, {
+      roomCode: code,
+    });
 
-    const result = await asUser(t, 'ghosthumanhost').mutation(
-      api.game.summonGhostwriter,
-      { roomCode: code }
-    );
+    const [room, endedGame, lines, players] = await t.run(async (ctx) => [
+      await ctx.db.get(roomId),
+      await ctx.db.get(activeGameId),
+      await ctx.db.query('lines').collect(),
+      await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect(),
+    ]);
+    expect(room?.status).toBe('LOBBY');
+    expect(room?.currentGameId).toBeUndefined();
+    expect(endedGame?.status).toBe('ABANDONED');
+    expect(lines).toHaveLength(0);
+    expect(players.map((player) => player.userId)).not.toContain(guestId);
 
-    expect(result).toEqual({ summoned: 0 });
-    expect(
-      await t.run((ctx) =>
-        ctx.db
-          .query('rateLimits')
-          .withIndex('by_key', (q) =>
-            q.eq('key', `mutation:summonGhostwriter:room:${roomId}`)
-          )
-          .first()
-      )
-    ).toBeNull();
+    await asUser(t, 'guestEND1').mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'GuestEND1',
+    });
+    await asUser(t, 'hostEND1').mutation(api.game.startGame, { code });
+    const restartedRoom = await t.run((ctx) => ctx.db.get(roomId));
+    expect(restartedRoom?.status).toBe('IN_PROGRESS');
+    expect(restartedRoom?.currentGameId).not.toBe(activeGameId);
   });
 
-  it('does not debit summon quotas for an already-claimed cell', async () => {
+  it('keeps a participant whose first heartbeat has not arrived', async () => {
     const t = setupConvexTest();
-    const { code, roomId, gameId, poemIds, userIds } = await seedInProgressGame(
-      t,
-      {
-        players: [
-          { name: 'Host', clerkUserId: 'clerk_ghostclaimedhost' },
-          { name: 'Guest' },
-        ],
-        code: 'GWCL',
-        currentRound: 0,
-        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 1_000,
-      }
-    );
-
+    const { code, roomId, guestId } = await seedLobby(t, 'END2');
+    await asUser(t, 'hostEND2').mutation(api.game.startGame, { code });
     await t.run(async (ctx) => {
-      await ctx.db.insert('lines', {
-        poemId: poemIds[1],
-        indexInPoem: 0,
-        text: 'done',
-        wordCount: 1,
-        authorUserId: userIds[1],
-        createdAt: Date.now(),
-      });
-      await ctx.db.insert('aiTurns', {
-        roomId,
-        gameId,
-        poemId: poemIds[0],
-        round: 0,
-        aiUserId: userIds[0],
-        day: new Date().toISOString().slice(0, 10),
-        status: 'authorized',
-        claimedAt: Date.now(),
-        updatedAt: Date.now(),
-      });
+      const guest = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', guestId)
+        )
+        .unique();
+      await ctx.db.patch(guest!._id, { lastSeenAt: undefined });
     });
 
-    const result = await asUser(t, 'ghostclaimedhost').mutation(
-      api.game.summonGhostwriter,
-      { roomCode: code }
-    );
-
-    expect(result).toEqual({ summoned: 0 });
-    expect(
-      await t.run((ctx) =>
-        ctx.db
-          .query('rateLimits')
-          .withIndex('by_key', (q) =>
-            q.eq('key', `mutation:summonGhostwriter:room:${roomId}`)
-          )
-          .first()
-      )
-    ).toBeNull();
-  });
-
-  it('is a no-op when every poem already has its line', async () => {
-    const t = setupConvexTest();
-    const { code, poemIds, userIds, gameId } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Host', clerkUserId: 'clerk_ghosthostD' },
-        { name: 'Guest', clerkUserId: 'clerk_ghostguestD' },
-      ],
-      code: 'GWD1',
-      currentRound: 0,
+    await asUser(t, 'hostEND2').mutation(api.game.endGame, {
+      roomCode: code,
     });
 
-    await t.run((ctx) =>
-      ctx.db.patch(gameId, {
-        roundStartedAt: Date.now() - GHOSTWRITER_OVERTIME_MS - 10_000,
-      })
+    const guestMembership = await t.run((ctx) =>
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', guestId)
+        )
+        .unique()
     );
-
-    await t.run(async (ctx) => {
-      await ctx.db.insert('lines', {
-        poemId: poemIds[0],
-        indexInPoem: 0,
-        text: 'hello',
-        wordCount: 1,
-        authorUserId: userIds[0],
-        createdAt: Date.now(),
-      });
-      await ctx.db.insert('lines', {
-        poemId: poemIds[1],
-        indexInPoem: 0,
-        text: 'world',
-        wordCount: 1,
-        authorUserId: userIds[1],
-        createdAt: Date.now(),
-      });
-    });
-
-    const result = await asUser(t, 'ghosthostD').mutation(
-      api.game.summonGhostwriter,
-      { roomCode: code }
-    );
-
-    expect(result).toEqual({ summoned: 0 });
+    expect(guestMembership).not.toBeNull();
   });
 });
 
@@ -1328,6 +1092,35 @@ describe('submitLine', () => {
         .collect()
     );
     expect(lines).toHaveLength(1);
+  });
+
+  it('does not expose an abandoned line through an idempotent retry', async () => {
+    const t = setupConvexTest();
+    const { code, poemIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSLAB' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSLAB' },
+      ],
+      code: 'SLAB',
+      currentRound: 0,
+    });
+
+    await asUser(t, 'aliceSLAB').mutation(api.game.submitLine, {
+      poemId: poemIds[0],
+      lineIndex: 0,
+      text: 'secret',
+    });
+    await asUser(t, 'aliceSLAB').mutation(api.game.endGame, {
+      roomCode: code,
+    });
+
+    await expect(
+      asUser(t, 'aliceSLAB').mutation(api.game.submitLine, {
+        poemId: poemIds[0],
+        lineIndex: 0,
+        text: 'retry',
+      })
+    ).rejects.toThrow('Game not in progress');
   });
 
   it('throws if user not assigned to this poem', async () => {

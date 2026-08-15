@@ -8,13 +8,82 @@ const SCHEMA_PROPERTY = /^([A-Za-z_$][\w$]*)\s*:/;
 const MIGRATION_EXPORT =
   /^\+\s*export const ([A-Za-z_$][\w$]*)\s*=\s*(?:(?:\r?\n)\+\s*)?(internalMutation|mutation|internalAction|action)\s*\(/gm;
 
-function changedLines(diff, marker) {
-  const header = marker.repeat(3);
+function schemaChangeBlocks(diff) {
+  const blocks = [];
+  let current = null;
 
-  return diff
-    .split('\n')
-    .filter((line) => line.startsWith(marker) && !line.startsWith(header))
-    .map((line) => line.slice(1).trim());
+  for (const line of diff.split('\n')) {
+    const marker = line[0];
+    const isChange =
+      (marker === '+' || marker === '-') &&
+      !line.startsWith(marker.repeat(3));
+    if (!isChange) {
+      current = null;
+      continue;
+    }
+    if (current === null) {
+      current = { before: [], after: [] };
+      blocks.push(current);
+    }
+    current[marker === '-' ? 'before' : 'after'].push(
+      line.slice(1).trim()
+    );
+  }
+
+  return blocks;
+}
+
+function literalUnionValues(lines, field, occurrence) {
+  const fieldPrefix = `${field}:`;
+  let seen = 0;
+  const start = lines.findIndex((line) => {
+    if (!line.startsWith(fieldPrefix)) return false;
+    if (seen === occurrence) return true;
+    seen++;
+    return false;
+  });
+  if (start === -1) return null;
+
+  const expressionLines = [];
+  let depth = 0;
+  let opened = false;
+  for (const line of lines.slice(start)) {
+    const expression =
+      expressionLines.length === 0 ? line.slice(fieldPrefix.length) : line;
+    expressionLines.push(expression);
+    for (const character of expression) {
+      if (character === '(') {
+        depth++;
+        opened = true;
+      } else if (character === ')') {
+        depth--;
+      }
+    }
+    if (opened && depth === 0) break;
+  }
+
+  const expression = expressionLines.join('').replaceAll(/\s/g, '');
+  const literalPattern = /v\.literal\((['"])([^'"]+)\1\)/g;
+  const values = Array.from(
+    expression.matchAll(literalPattern),
+    ([, , value]) => value
+  );
+  const skeleton = expression.replace(literalPattern, 'L');
+  if (values.length === 0 || !/^v\.union\((?:L,?)+\),?$/.test(skeleton)) {
+    return null;
+  }
+  return new Set(values);
+}
+
+function isLiteralUnionExpansion(block, field, occurrence) {
+  const before = literalUnionValues(block.before, field, occurrence);
+  const after = literalUnionValues(block.after, field, occurrence);
+  return (
+    before !== null &&
+    after !== null &&
+    after.size > before.size &&
+    [...before].every((value) => after.has(value))
+  );
 }
 
 function addedMigrationExports(diff) {
@@ -33,9 +102,19 @@ export function detectSchemaContractionWithMigration({
   schemaDiff,
   migrationsDiff,
 }) {
-  const removedFields = changedLines(schemaDiff, '-')
-    .map((line) => SCHEMA_PROPERTY.exec(line)?.[1])
-    .filter((field) => field !== undefined);
+  const removedFields = [];
+  for (const block of schemaChangeBlocks(schemaDiff)) {
+    const fieldOccurrences = new Map();
+    for (const line of block.before) {
+      const field = SCHEMA_PROPERTY.exec(line)?.[1];
+      if (field === undefined) continue;
+      const occurrence = fieldOccurrences.get(field) ?? 0;
+      fieldOccurrences.set(field, occurrence + 1);
+      if (!isLiteralUnionExpansion(block, field, occurrence)) {
+        removedFields.push(field);
+      }
+    }
+  }
   const addedMigrations = addedMigrationExports(migrationsDiff);
 
   return {

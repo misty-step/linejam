@@ -60,8 +60,8 @@ describe('GET /poem/[id]/card', () => {
   const attributedPoem = {
     poem: { indexInRoom: 2 },
     lines: [
-      { text: 'Rain', authorName: 'Emily', isBot: false },
-      { text: 'on rooftops', authorName: 'Wendell', isBot: true },
+      { text: 'Rain', authorName: 'Emily' },
+      { text: 'on rooftops', authorName: 'Wendell' },
     ],
   };
 
@@ -92,17 +92,16 @@ describe('GET /poem/[id]/card', () => {
     });
   });
 
-  it('passes every line with its author and AI marker to the renderer', async () => {
+  it('passes every line with its human author to the renderer', async () => {
     mockFetchQuery.mockResolvedValue(attributedPoem);
 
     await GET(makeRequest(), { params: Promise.resolve({ id: 'poem123' }) });
 
-    // The mocked ImageResponse captured the JSX built by
-    // lib/poemCard/PoemCard.tsx's poemFullCardElement — walk its children to
-    // confirm both lines and the AI tag reached the renderer (criterion 3).
+    // The mocked ImageResponse captures the JSX from the shared full-card
+    // renderer so attribution and line content can be checked together.
     const serialized = JSON.stringify(lastImageResponseCall?.element);
     expect(serialized).toContain('Emily');
-    expect(serialized).toContain('Wendell (AI)');
+    expect(serialized).toContain('Wendell');
     expect(serialized).toContain('Rain');
     expect(serialized).toContain('on rooftops');
   });

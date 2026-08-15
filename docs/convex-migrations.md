@@ -23,6 +23,48 @@ The migration and the schema contraction must not share a PR. Expansion and a
 backfill may share a PR when the deployed application remains compatible with
 both shapes.
 
+## Machine-authorship cleanup receipts (Release A)
+
+Release A deliberately keeps `users.kind`, `users.aiPersonaId`,
+`games.completionKind`, and the four legacy AI tables in the schema. Do not
+remove them until a later contraction PR has production evidence from
+`internal.migrations.cleanupMachineAuthorship`.
+
+Run one phase at a time, passing each returned non-null `cursor` into the next
+invocation of that phase until `remaining` is false. Record every receipt's
+`phase`, `scanned`, `changed`, `blocked`, `remaining`, and `cursor`. Run phases
+in this order:
+
+1. `games`
+2. `lineAttribution`
+3. `roomPlayers`
+4. `readers`
+5. `humanUserFields`
+6. `aiTurns`
+7. `aiRoundLocks`
+8. `aiUsage`
+9. `aiGenerationMetrics`
+10. `aiUsers`
+
+Before `aiUsers`, restart phases 1–9 from a null cursor and run each to
+`remaining=false`. The required pre-deletion postcondition is a complete
+second pass with aggregate `changed=0` and `blocked=0`, plus an immediate empty
+receipt (`scanned=0`, `changed=0`, `remaining=false`) for each of `aiTurns`,
+`aiRoundLocks`, `aiUsage`, and `aiGenerationMetrics`. Pass
+`verifiedZeroChangePrerequisites: true` to every `aiUsers` invocation only
+after recording those receipts; the mutation rejects `aiUsers` without this
+explicit attestation. This ordering is essential: `lineAttribution` can
+identify an AI-authored line only while its legacy AI user still exists.
+
+`aiUsers` must be last. It refuses to delete an AI identity while a room
+membership or reader assignment still references it. Any non-zero `blocked`
+count invalidates the run; finish the dependent phases and restart `aiUsers`
+from a null cursor. After it completes without blocked rows, restart `aiUsers`
+from a null cursor and record its aggregate `changed=0`, `blocked=0` pass.
+
+Preserve all receipts with the production deployment record; only then may a
+separate PR remove the legacy validators and tables.
+
 ## 2026-07-04 incident
 
 PR #298 introduced `dropLegacyModeColumns` while its schema diff removed
@@ -51,9 +93,12 @@ its base and blocks changes that both:
 - add an exported Convex function to `convex/migrations.ts`.
 
 This is intentionally a conservative text-diff guard for the known outage
-class, not a TypeScript schema parser. A false positive should be resolved by
-separating the migration and contraction, which is the safer release shape.
-The check fails closed if it cannot resolve or diff the base revision.
+class, not a TypeScript schema parser. It permits only one proved-safe same-field
+rewrite: a `v.union` whose `v.literal` values are a strict superset of the base
+validator. Optional-to-required changes, literal-union narrowing, and all other
+same-field rewrites remain blocked. Resolve any other false positive by
+separating the migration and schema change. The check fails closed if it cannot
+resolve or diff the base revision.
 
 If migrations move to multiple modules, update the guard and its regression
 tests in the same change.

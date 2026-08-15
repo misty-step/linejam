@@ -107,11 +107,13 @@ incident-evidence platform:
 
 - Browser, Node, Edge, and Convex transports use exact release and environment
   attribution. Browser source maps are uploaded during the production build.
-- `linejam-production-health`, `linejam-production-smoke`, and
-  `linejam-ai-fallback-rate` are the canonical monitors. The first failed
-  production smoke remains non-paging; the second consecutive failure opens the
-  monitor and emits one closed-tag `productionSmoke` issue for the GitHub
-  bridge. A passing run recovers the monitor.
+- `linejam-production-health` and `linejam-production-smoke` are the canonical
+  monitors. The first failed production smoke remains non-paging; the second
+  consecutive failure opens the monitor and emits one closed-tag
+  `productionSmoke` issue for the GitHub bridge. A passing run recovers the
+  monitor.
+- Retained Convex backend failure events cover abandonment sweeps and finishers
+  using a closed operation and failure-code vocabulary.
 - Event-driven preview smoke failures are Sentry issues tagged
   `github-actions`, `preview`, and `previewSmoke`; successful preview runs stay
   in GitHub Actions. They are not Cron Monitor check-ins because no schedule
@@ -128,10 +130,10 @@ incident-evidence platform:
   state, not a backlog; do not create a duplicate task in Powder or Habitat. The
   one claim and `forest:ready` contract is in `CONTRIBUTING.md`.
 
-Critical route logs and Sentry payloads must omit poem or prompt content,
-provider bodies, room/game/poem IDs, guest or Clerk identifiers, email, IP
-addresses, request/response bodies, cookies, auth headers, query strings,
-arbitrary extras or breadcrumbs, frame-local values, and secrets.
+Critical route logs and Sentry payloads must omit poem or line content,
+room/game/poem IDs, guest or Clerk identifiers, email, IP addresses,
+request/response bodies, cookies, auth headers, query strings, arbitrary extras
+or breadcrumbs, frame-local values, and secrets.
 For symbolication, the transport retains only origin-free
 `app:///_next/static/**/*.js` bundle locations, line/column coordinates, and
 validated source-map debug IDs. It drops source origins, query strings,

@@ -22,21 +22,18 @@ describe('PoemCard component', () => {
         wordCount: 1,
         authorKey: 'author1',
         authorName: 'Alice',
-        isBot: false,
       },
       {
         text: 'wind whispers',
         wordCount: 2,
         authorKey: 'author2',
         authorName: 'Bob',
-        isBot: false,
       },
       {
         text: 'softly through trees',
         wordCount: 3,
         authorKey: 'author1',
         authorName: 'Alice',
-        isBot: false,
       },
     ],
     poetCount: 2,
@@ -82,6 +79,21 @@ describe('PoemCard component', () => {
     it('renders co-authors text', () => {
       render(<PoemCard poem={mockPoem} guestToken="token123" />);
       expect(screen.getByText(/with Bob/i)).toBeInTheDocument();
+    });
+
+    it('renders a captured legacy machine co-author byline', () => {
+      render(
+        <PoemCard
+          poem={{
+            ...mockPoem,
+            coAuthors: ['Bashō (legacy machine)'],
+          }}
+          guestToken="token123"
+        />
+      );
+      expect(
+        screen.getByText(/with Bashō \(legacy machine\)/i)
+      ).toBeInTheDocument();
     });
 
     it('renders formatted date', () => {

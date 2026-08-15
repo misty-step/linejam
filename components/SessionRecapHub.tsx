@@ -29,7 +29,6 @@ interface SessionRecapHubProps {
   roomCode: string;
   roomId?: string;
   cycle?: number;
-  playerKind?: 'human' | 'AI';
   guestToken?: string;
   poems: SessionRecapPoem[];
   playerCount: number;
@@ -48,7 +47,6 @@ export function SessionRecapHub({
   roomCode,
   roomId,
   cycle,
-  playerKind,
   guestToken,
   poems,
   playerCount,
@@ -92,7 +90,6 @@ export function SessionRecapHub({
         roomIdHash: hashRoomId(roomId ?? roomCode),
         cycle: cycle ?? 1,
         round: poems.length > 0 ? 8 : 0,
-        playerKind: playerKind ?? 'human',
         action: 'share',
       });
     },

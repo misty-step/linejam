@@ -6,7 +6,6 @@ import {
   CANONICAL_GUEST_FLOW_LINES,
   GuestFlowSession,
 } from './support/guestFlow';
-import { GHOSTWRITER_OVERTIME_MS } from '@/convex/lib/gameRules';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -493,14 +492,9 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       .locator('summary')
       .filter({ hasText: 'Room tools' });
     await roomTools.click();
-    await Promise.all([
-      expectContentFits(
-        session.hostPage.getByRole('button', { name: /Add a bot/i })
-      ),
-      expectContentFits(
-        session.hostPage.getByTestId(E2E_TEST_IDS.lobbyPresentationButton)
-      ),
-    ]);
+    await expectContentFits(
+      session.hostPage.getByTestId(E2E_TEST_IDS.lobbyPresentationButton)
+    );
     await session.hostPage.evaluate(() => {
       document.documentElement.style.removeProperty('font-size');
     });
@@ -726,9 +720,6 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
         );
         try {
           await installSyntheticVisualViewport(directWaitingPage);
-          await directWaitingPage.clock.setFixedTime(
-            Date.now() + GHOSTWRITER_OVERTIME_MS + 5_000
-          );
           await directWaitingPage.setViewportSize({
             width: 375,
             height: 667,
@@ -751,17 +742,29 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
           );
           await expectNoHorizontalScroll(directWaitingPage);
           await expectNoHorizontalOverflow(directWaitingPhase);
+          const endGameButton = directWaitingPage.getByRole('button', {
+            name: 'End game',
+          });
           await expectReachableInsideVisualViewport(
             directWaitingPage,
-            directWaitingPage.getByRole('button', {
-              name: 'Summon the ghostwriter',
-            })
+            endGameButton
+          );
+          await endGameButton.click();
+          await expect(
+            directWaitingPage.getByText('Partial poems are not revealed.')
+          ).toBeVisible();
+          await expectReachableInsideVisualViewport(
+            directWaitingPage,
+            directWaitingPage.getByRole('button', { name: 'Keep playing' })
           );
           await directWaitingPage.screenshot({
             path: testInfo.outputPath(
-              'waiting-reload-overtime-375x667-200-percent.png'
+              'waiting-reload-end-game-confirmation-375x667-200-percent.png'
             ),
           });
+          await directWaitingPage
+            .getByRole('button', { name: 'Keep playing' })
+            .click();
         } finally {
           await directWaitingPage.close();
         }

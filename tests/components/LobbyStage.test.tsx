@@ -85,7 +85,7 @@ describe('LobbyStage', () => {
     expect(screen.queryByText(/Just joined/i)).not.toBeInTheDocument();
   });
 
-  it('renders away and AI player states on the stage roster', () => {
+  it('renders away player state on the stage roster', () => {
     render(
       <LobbyStage
         room={room}
@@ -94,7 +94,6 @@ describe('LobbyStage', () => {
           {
             ...latePlayer,
             isAway: true,
-            isBot: true,
           },
         ]}
         onExit={vi.fn()}
@@ -102,6 +101,5 @@ describe('LobbyStage', () => {
     );
 
     expect(screen.getByText(/Away/i)).toBeInTheDocument();
-    expect(screen.getByLabelText('AI player')).toBeInTheDocument();
   });
 });

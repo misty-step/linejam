@@ -24,7 +24,6 @@ import {
 const props = {
   roomIdHash: hashRoomId('room-internal-id'),
   cycle: 1,
-  playerKind: 'human' as const,
 };
 
 describe('analytics', () => {
@@ -59,9 +58,12 @@ describe('analytics', () => {
       ['game_completed', { ...props, round: 8 }],
       ['artifact_action', { ...props, round: 8, action: 'save' }],
     ]);
+    for (const [, properties] of mockCapture.mock.calls) {
+      expect(properties).not.toHaveProperty('playerKind');
+    }
   });
 
-  it('deduplicates retries by room, cycle, round, player kind, and action', () => {
+  it('deduplicates retries by room, cycle, round, and action', () => {
     trackLineSubmitted({ ...props, round: 3 });
     trackLineSubmitted({ ...props, round: 3 });
     trackArtifactAction({ ...props, round: 8, action: 'save' });

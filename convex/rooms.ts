@@ -212,7 +212,7 @@ export const getRoomState = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    // Fetch user records to get stable IDs for avatar colors and bot status
+    // Fetch user records to get stable IDs for avatar colors
     const now = Date.now();
     const players = await Promise.all(
       roomPlayers.map(async (rp) => {
@@ -223,8 +223,6 @@ export const getRoomState = query({
         return {
           ...rest,
           stableId: userRecord?.clerkUserId || userRecord?.guestId || rp.userId,
-          isBot: userRecord?.kind === 'AI',
-          aiPersonaId: userRecord?.aiPersonaId,
           isAway: isPresenceStale(lastSeenAt, now, PRESENCE_AWAY_MS),
         };
       })

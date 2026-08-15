@@ -26,8 +26,7 @@ export function useSharePoem(
   guestToken?: string,
   openingLine?: string,
   roomId?: string,
-  cycle = 1,
-  playerKind: 'human' | 'AI' = 'human'
+  cycle = 1
 ) {
   const preparePublicPoemShare = useMutation(api.shares.preparePublicPoemShare);
   const activatePublicPoemShare = useMutation(
@@ -92,7 +91,6 @@ export function useSharePoem(
           roomIdHash: hashRoomId(roomId),
           cycle,
           round: 8,
-          playerKind,
           action: 'share',
         });
       }

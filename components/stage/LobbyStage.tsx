@@ -8,12 +8,10 @@ import { formatRoomCode } from '@/lib/roomCode';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
 import { HostBadge } from '@/components/ui/HostBadge';
-import { BotBadge } from '@/components/ui/BotBadge';
 import { StageShell } from './StageShell';
 
 interface LobbyStagePlayer extends Doc<'roomPlayers'> {
   stableId: string;
-  isBot?: boolean;
   isAway?: boolean;
 }
 
@@ -172,7 +170,6 @@ export function LobbyStage({ room, players, onExit }: LobbyStageProps) {
                         Away
                       </span>
                     )}
-                    {player.isBot && <BotBadge />}
                     {player.userId === room.hostUserId && <HostBadge />}
                   </div>
                 </li>

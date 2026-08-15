@@ -6,17 +6,11 @@
       "joins": [
         {
           "joinedAt": 1770000000100,
-          "playerKind": "human",
           "participantKey": "sample-human-a"
         },
         {
           "joinedAt": 1770000000200,
-          "playerKind": "human",
           "participantKey": "sample-human-b"
-        },
-        {
-          "joinedAt": 1770000000300,
-          "playerKind": "AI"
         }
       ],
       "cycles": [
@@ -41,7 +35,6 @@
       "occurredAt": 1770000036000,
       "roomIdHash": "0123456789abcdef",
       "cycle": 1,
-      "playerKind": "human",
       "action": "save"
     },
     {
@@ -49,7 +42,6 @@
       "occurredAt": 1770000036000,
       "roomIdHash": "0123456789abcdef",
       "cycle": 1,
-      "playerKind": "human",
       "action": "save"
     }
   ]

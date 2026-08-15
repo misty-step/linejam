@@ -32,13 +32,12 @@ describe('convex/http health route', () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it('registers GET /api/health and returns 500 when required capabilities are missing', async () => {
+  it('registers GET /api/health and returns 500 when guest verification is missing', async () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
         LINEJAM_DEPLOY_ENVIRONMENT: 'production',
         GUEST_TOKEN_SECRET: undefined,
-        OPENROUTER_API_KEY: undefined,
       },
       async () => {
         const t = setupConvexTest();
@@ -56,18 +55,13 @@ describe('convex/http health route', () => {
               available: false,
               required: true,
             },
-            aiLineGeneration: {
-              status: 'missing_required',
-              available: false,
-              required: true,
-            },
           },
         });
       }
     );
   });
 
-  it('returns 200 when production env is complete', async () => {
+  it('returns 200 when retained production configuration is complete', async () => {
     await withEnv(
       {
         CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
@@ -77,7 +71,6 @@ describe('convex/http health route', () => {
         GITHUB_REPOSITORY_OWNER: 'misty-step',
         CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.test',
         GUEST_TOKEN_SECRET: 'test-secret',
-        OPENROUTER_API_KEY: 'test-openrouter-key',
         LINEJAM_SENTRY_ENABLED: 'true',
         SENTRY_DSN: ['https://public', 'sentry.example.test/1'].join('@'),
         SENTRY_ENVIRONMENT: 'production',
@@ -104,45 +97,6 @@ describe('convex/http health route', () => {
             guestTokenVerification: {
               status: 'ready',
               available: true,
-              required: true,
-            },
-            aiLineGeneration: {
-              status: 'ready',
-              available: true,
-              required: true,
-            },
-          },
-        });
-      }
-    );
-  });
-
-  it('returns 500 when only one required capability is missing', async () => {
-    await withEnv(
-      {
-        CONVEX_CLOUD_URL: 'https://linejam.convex.cloud',
-        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
-        GUEST_TOKEN_SECRET: 'test-secret',
-        OPENROUTER_API_KEY: undefined,
-      },
-      async () => {
-        const t = setupConvexTest();
-        const response = await t.fetch('/api/health');
-
-        expect(response.status).toBe(500);
-        await expect(response.json()).resolves.toMatchObject({
-          ok: false,
-          status: 500,
-          environment: 'production',
-          capabilities: {
-            guestTokenVerification: {
-              status: 'ready',
-              available: true,
-              required: true,
-            },
-            aiLineGeneration: {
-              status: 'missing_required',
-              available: false,
               required: true,
             },
           },

@@ -29,10 +29,10 @@ describe('captureError', () => {
   });
 
   it('forwards only closed Sentry context', () => {
-    const error = new Error('provider response containing a private poem');
+    const error = new Error('backend response containing a private poem');
 
     captureError(error, {
-      operation: 'summonGhostwriter',
+      operation: 'finishAbandonedGame',
       attempt: 2,
       roomCode: 'ABCD',
       poemId: 'poem_123',
@@ -41,7 +41,7 @@ describe('captureError', () => {
     });
 
     expect(captureExceptionMock).toHaveBeenCalledWith(error, {
-      tags: { operation: 'summonGhostwriter' },
+      tags: { operation: 'finishAbandonedGame' },
       contexts: { linejam: { attempt: 2 } },
     });
     expect(JSON.stringify(captureExceptionMock.mock.calls)).not.toContain(
@@ -58,7 +58,7 @@ describe('captureError', () => {
     );
     error.message = '[Request ID: prod123] Server Error';
 
-    captureError(error, { operation: 'summonGhostwriter' });
+    captureError(error, { operation: 'finishAbandonedGame' });
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
@@ -67,7 +67,7 @@ describe('captureError', () => {
     const error = new ConvexError('Unexpected storage failure');
     error.message = '[Request ID: prod456] Server Error';
 
-    captureError(error, { operation: 'summonGhostwriter' });
+    captureError(error, { operation: 'finishAbandonedGame' });
 
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
@@ -77,7 +77,7 @@ describe('captureError', () => {
     const error = new Error('private disabled error');
 
     captureError(error, {
-      operation: 'summonGhostwriter',
+      operation: 'finishAbandonedGame',
       roomCode: 'ABCD',
     });
 
@@ -85,7 +85,7 @@ describe('captureError', () => {
     expect(console.error).toHaveBeenCalledWith(
       'Error captured (Sentry disabled):',
       error,
-      { tags: { operation: 'summonGhostwriter' } }
+      { tags: { operation: 'finishAbandonedGame' } }
     );
   });
 
@@ -93,7 +93,7 @@ describe('captureError', () => {
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '0');
 
     captureError(new Error('disabled despite DSN'), {
-      operation: 'summonGhostwriter',
+      operation: 'finishAbandonedGame',
     });
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
