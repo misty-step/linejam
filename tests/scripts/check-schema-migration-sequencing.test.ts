@@ -129,6 +129,27 @@ describe('detectSchemaContractionWithMigration', () => {
     });
   });
 
+  it('does not pair same-named fields across tables or diff blocks', () => {
+    const unrelatedStatusDiff = `@@ -1,4 +1,4 @@
+-    status: v.union(v.literal('OPEN'), v.literal('CLOSED')),
+     firstTableField: v.string(),
++    status: v.union(
++      v.literal('OPEN'),
++      v.literal('CLOSED'),
++      v.literal('ARCHIVED')
++    ),`;
+
+    expect(
+      detectSchemaContractionWithMigration({
+        schemaDiff: unrelatedStatusDiff,
+        migrationsDiff: incidentMigrationDiff,
+      })
+    ).toMatchObject({
+      violation: true,
+      removedFields: ['status'],
+    });
+  });
+
   it('blocks an optional field narrowed to required beside a migration', () => {
     const narrowedFieldDiff = `@@ -1,3 +1,3 @@
 -    legacyMode: v.optional(v.string()),
