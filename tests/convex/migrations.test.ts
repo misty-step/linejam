@@ -520,6 +520,60 @@ describe('cleanupMachineAuthorship', () => {
     });
   });
 
+  it('keeps a legacy-abandoned room closed when only AI memberships remain', async () => {
+    const t = setupConvexTest();
+    const roomId = await t.run(async (ctx) => {
+      const aiUserId = await ctx.db.insert('users', {
+        displayName: 'Legacy AI host',
+        kind: 'AI',
+        createdAt: 0,
+      });
+      const id = await ctx.db.insert('rooms', {
+        code: 'AION',
+        hostUserId: aiUserId,
+        status: 'COMPLETED',
+        completedAt: 200,
+        createdAt: 0,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId: id,
+        userId: aiUserId,
+        displayName: 'Legacy AI host',
+        joinedAt: 0,
+      });
+      const gameId = await ctx.db.insert('games', {
+        roomId: id,
+        status: 'COMPLETED',
+        completionKind: 'abandoned',
+        cycle: 1,
+        currentRound: 4,
+        assignmentMatrix: [],
+        completedAt: 200,
+        createdAt: 0,
+      });
+      await ctx.db.patch(id, { currentGameId: gameId });
+      return id;
+    });
+
+    await runMachineCleanupPhase(t, 'games');
+    await runMachineCleanupPhase(t, 'roomPlayers');
+
+    const room = await t.run((ctx) => ctx.db.get(roomId));
+    expect(room).not.toHaveProperty('currentGameId');
+    expect(room).toMatchObject({
+      status: 'COMPLETED',
+      retentionState: 'pending',
+    });
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room', (q) => q.eq('roomId', roomId))
+          .collect()
+      )
+    ).toEqual([]);
+  });
+
   it('abandons active games whose immutable matrix contains an AI user', async () => {
     const t = setupConvexTest();
     const seeded = await t.run(async (ctx) => {

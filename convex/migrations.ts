@@ -189,90 +189,103 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const game of page.page) {
-          if (game.status === 'IN_PROGRESS') {
-            const participantIds = [...new Set(game.assignmentMatrix.flat())];
-            const participants = await Promise.all(
-              participantIds.map((userId) => ctx.db.get(userId))
-            );
-            if (
-              participants.some((participant) => participant?.kind === 'AI')
-            ) {
-              await abandonGame(ctx, { game, closeRoom: false });
-              changed++;
-              continue;
-            }
-          }
+        changed = (
+          await Promise.all(
+            page.page.map(async (game) => {
+              if (game.status === 'IN_PROGRESS') {
+                const participantIds = [
+                  ...new Set(game.assignmentMatrix.flat()),
+                ];
+                const participants = await Promise.all(
+                  participantIds.map((userId) => ctx.db.get(userId))
+                );
+                if (
+                  participants.some((participant) => participant?.kind === 'AI')
+                ) {
+                  await abandonGame(ctx, { game, closeRoom: false });
+                  return 1;
+                }
+              }
 
-          if (game.completionKind === undefined) continue;
-          if (game.completionKind === 'abandoned') {
-            const abandonedAt = Math.min(
-              game.completedAt ?? game.createdAt,
-              Date.now()
-            );
-            const retentionDeadline = retentionEligibleAt(
-              abandonedAt,
-              'abandoned'
-            );
-            const [room, poems, roomPlayer] = await Promise.all([
-              ctx.db.get(game.roomId),
-              ctx.db
-                .query('poems')
-                .withIndex('by_game', (q) => q.eq('gameId', game._id))
-                .collect(),
-              ctx.db
-                .query('roomPlayers')
-                .withIndex('by_room', (q) => q.eq('roomId', game.roomId))
-                .first(),
-            ]);
-            await Promise.all([
-              ctx.db.patch(game._id, {
-                status: 'ABANDONED',
-                publicRecapEnabled: undefined,
-                publicRecapEnabledAt: undefined,
-                publicRecapDisabledAt: abandonedAt,
-                completionKind: undefined,
-                retentionState: 'pending',
-                retentionEligibleAt: retentionDeadline,
-              }),
-              ...(room?.currentGameId === game._id
-                ? [
-                    ctx.db.patch(
-                      room._id,
-                      roomPlayer
-                        ? {
-                            status: 'LOBBY' as const,
-                            currentGameId: undefined,
-                            completedAt: undefined,
-                            retentionState: 'active' as const,
-                            retentionEligibleAt: undefined,
-                          }
-                        : {
-                            status: 'COMPLETED' as const,
-                            currentGameId: undefined,
-                            completedAt: abandonedAt,
-                            retentionState: 'pending' as const,
-                            retentionEligibleAt: retentionDeadline,
-                          }
-                    ),
-                  ]
-                : []),
-              ...poems.map((poem) =>
-                ctx.db.patch(poem._id, {
-                  publicShareEnabled: undefined,
-                  publicShareEnabledAt: undefined,
-                  publicShareDisabledAt: abandonedAt,
-                  publicShareAttempt: undefined,
-                  retentionState: 'pending',
-                  retentionEligibleAt: retentionDeadline,
-                })
-              ),
-            ]);
-          } else {
-            await ctx.db.patch(game._id, { completionKind: undefined });
-          }
-          changed++;
-        }
+              if (game.completionKind === undefined) return 0;
+              if (game.completionKind === 'abandoned') {
+                const abandonedAt = Math.min(
+                  game.completedAt ?? game.createdAt,
+                  Date.now()
+                );
+                const retentionDeadline = retentionEligibleAt(
+                  abandonedAt,
+                  'abandoned'
+                );
+                const [room, poems, roomPlayers] = await Promise.all([
+                  ctx.db.get(game.roomId),
+                  ctx.db
+                    .query('poems')
+                    .withIndex('by_game', (q) => q.eq('gameId', game._id))
+                    .collect(),
+                  ctx.db
+                    .query('roomPlayers')
+                    .withIndex('by_room', (q) => q.eq('roomId', game.roomId))
+                    .collect(),
+                ]);
+                const playerUsers = await Promise.all(
+                  roomPlayers.map((player) => ctx.db.get(player.userId))
+                );
+                const hasHumanPlayer = playerUsers.some(
+                  (player) => player !== null && player.kind !== 'AI'
+                );
+                await Promise.all([
+                  ctx.db.patch(game._id, {
+                    status: 'ABANDONED',
+                    publicRecapEnabled: undefined,
+                    publicRecapEnabledAt: undefined,
+                    publicRecapDisabledAt: abandonedAt,
+                    completionKind: undefined,
+                    retentionState: 'pending',
+                    retentionEligibleAt: retentionDeadline,
+                  }),
+                  ...(room?.currentGameId === game._id
+                    ? [
+                        ctx.db.patch(
+                          room._id,
+                          hasHumanPlayer
+                            ? {
+                                status: 'LOBBY' as const,
+                                currentGameId: undefined,
+                                completedAt: undefined,
+                                retentionState: 'active' as const,
+                                retentionEligibleAt: undefined,
+                              }
+                            : {
+                                status: 'COMPLETED' as const,
+                                currentGameId: undefined,
+                                completedAt: abandonedAt,
+                                retentionState: 'pending' as const,
+                                retentionEligibleAt: retentionDeadline,
+                              }
+                        ),
+                      ]
+                    : []),
+                  ...poems.map((poem) =>
+                    ctx.db.patch(poem._id, {
+                      publicShareEnabled: undefined,
+                      publicShareEnabledAt: undefined,
+                      publicShareDisabledAt: abandonedAt,
+                      publicShareAttempt: undefined,
+                      retentionState: 'pending',
+                      retentionEligibleAt: retentionDeadline,
+                    })
+                  ),
+                ]);
+              } else {
+                await ctx.db.patch(game._id, {
+                  completionKind: undefined,
+                });
+              }
+              return 1;
+            })
+          )
+        ).reduce<number>((sum, rowChanged) => sum + rowChanged, 0);
         break;
       }
 
@@ -281,21 +294,27 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const line of page.page) {
-          const author = await ctx.db.get(line.authorUserId);
-          if (author?.kind !== 'AI') continue;
+        changed = (
+          await Promise.all(
+            page.page.map(async (line) => {
+              const author = await ctx.db.get(line.authorUserId);
+              if (author?.kind !== 'AI') return 0;
 
-          const capturedName =
-            line.authorDisplayName?.trim() ||
-            author.displayName.trim() ||
-            'Unknown machine author';
-          if (capturedName.endsWith(LEGACY_MACHINE_AUTHOR_SUFFIX)) continue;
+              const capturedName =
+                line.authorDisplayName?.trim() ||
+                author.displayName.trim() ||
+                'Unknown machine author';
+              if (capturedName.endsWith(LEGACY_MACHINE_AUTHOR_SUFFIX)) {
+                return 0;
+              }
 
-          await ctx.db.patch(line._id, {
-            authorDisplayName: `${capturedName}${LEGACY_MACHINE_AUTHOR_SUFFIX}`,
-          });
-          changed++;
-        }
+              await ctx.db.patch(line._id, {
+                authorDisplayName: `${capturedName}${LEGACY_MACHINE_AUTHOR_SUFFIX}`,
+              });
+              return 1;
+            })
+          )
+        ).reduce<number>((sum, rowChanged) => sum + rowChanged, 0);
         break;
       }
 
@@ -304,12 +323,16 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const roomPlayer of page.page) {
-          const user = await ctx.db.get(roomPlayer.userId);
-          if (user?.kind !== 'AI') continue;
-          await ctx.db.delete(roomPlayer._id);
-          changed++;
-        }
+        changed = (
+          await Promise.all(
+            page.page.map(async (roomPlayer) => {
+              const user = await ctx.db.get(roomPlayer.userId);
+              if (user?.kind !== 'AI') return 0;
+              await ctx.db.delete(roomPlayer._id);
+              return 1;
+            })
+          )
+        ).reduce<number>((sum, rowChanged) => sum + rowChanged, 0);
         break;
       }
 
@@ -318,13 +341,19 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const poem of page.page) {
-          if (poem.assignedReaderId === undefined) continue;
-          const reader = await ctx.db.get(poem.assignedReaderId);
-          if (reader?.kind !== 'AI') continue;
-          await ctx.db.patch(poem._id, { assignedReaderId: undefined });
-          changed++;
-        }
+        changed = (
+          await Promise.all(
+            page.page.map(async (poem) => {
+              if (poem.assignedReaderId === undefined) return 0;
+              const reader = await ctx.db.get(poem.assignedReaderId);
+              if (reader?.kind !== 'AI') return 0;
+              await ctx.db.patch(poem._id, {
+                assignedReaderId: undefined,
+              });
+              return 1;
+            })
+          )
+        ).reduce<number>((sum, rowChanged) => sum + rowChanged, 0);
         break;
       }
 
@@ -333,19 +362,23 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const user of page.page) {
-          if (
-            user.kind === 'AI' ||
-            (user.kind === undefined && user.aiPersonaId === undefined)
-          ) {
-            continue;
-          }
-          await ctx.db.patch(user._id, {
-            kind: undefined,
-            aiPersonaId: undefined,
-          });
-          changed++;
-        }
+        changed = (
+          await Promise.all(
+            page.page.map(async (user) => {
+              if (
+                user.kind === 'AI' ||
+                (user.kind === undefined && user.aiPersonaId === undefined)
+              ) {
+                return 0;
+              }
+              await ctx.db.patch(user._id, {
+                kind: undefined,
+                aiPersonaId: undefined,
+              });
+              return 1;
+            })
+          )
+        ).reduce<number>((sum, rowChanged) => sum + rowChanged, 0);
         break;
       }
 
@@ -354,25 +387,30 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const user of page.page) {
-          if (user.kind !== 'AI') continue;
-          const [membership, readerAssignment] = await Promise.all([
-            ctx.db
-              .query('roomPlayers')
-              .withIndex('by_user', (q) => q.eq('userId', user._id))
-              .first(),
-            ctx.db
-              .query('poems')
-              .withIndex('by_reader', (q) => q.eq('assignedReaderId', user._id))
-              .first(),
-          ]);
-          if (membership !== null || readerAssignment !== null) {
-            blocked++;
-            continue;
-          }
-          await ctx.db.delete(user._id);
-          changed++;
-        }
+        const results = await Promise.all(
+          page.page.map(async (user) => {
+            if (user.kind !== 'AI') return { changed: 0, blocked: 0 };
+            const [membership, readerAssignment] = await Promise.all([
+              ctx.db
+                .query('roomPlayers')
+                .withIndex('by_user', (q) => q.eq('userId', user._id))
+                .first(),
+              ctx.db
+                .query('poems')
+                .withIndex('by_reader', (q) =>
+                  q.eq('assignedReaderId', user._id)
+                )
+                .first(),
+            ]);
+            if (membership !== null || readerAssignment !== null) {
+              return { changed: 0, blocked: 1 };
+            }
+            await ctx.db.delete(user._id);
+            return { changed: 1, blocked: 0 };
+          })
+        );
+        changed = results.reduce((sum, result) => sum + result.changed, 0);
+        blocked = results.reduce((sum, result) => sum + result.blocked, 0);
         break;
       }
 
@@ -381,7 +419,7 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const row of page.page) await ctx.db.delete(row._id);
+        await Promise.all(page.page.map((row) => ctx.db.delete(row._id)));
         changed = page.page.length;
         break;
       }
@@ -393,7 +431,7 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const row of page.page) await ctx.db.delete(row._id);
+        await Promise.all(page.page.map((row) => ctx.db.delete(row._id)));
         changed = page.page.length;
         break;
       }
@@ -403,7 +441,7 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const row of page.page) await ctx.db.delete(row._id);
+        await Promise.all(page.page.map((row) => ctx.db.delete(row._id)));
         changed = page.page.length;
         break;
       }
@@ -415,7 +453,7 @@ export const cleanupMachineAuthorship = internalMutation({
         scanned = page.page.length;
         isDone = page.isDone;
         continueCursor = page.continueCursor;
-        for (const row of page.page) await ctx.db.delete(row._id);
+        await Promise.all(page.page.map((row) => ctx.db.delete(row._id)));
         changed = page.page.length;
         break;
       }
