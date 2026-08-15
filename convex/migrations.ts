@@ -231,9 +231,19 @@ export const cleanupMachineAuthorship = internalMutation({
                 const playerUsers = await Promise.all(
                   roomPlayers.map((player) => ctx.db.get(player.userId))
                 );
-                const hasHumanPlayer = playerUsers.some(
-                  (player) => player !== null && player.kind !== 'AI'
+                const currentHumanHost = roomPlayers.find(
+                  (player, index) =>
+                    player.userId === room?.hostUserId &&
+                    playerUsers[index] !== null &&
+                    playerUsers[index]?.kind !== 'AI'
                 );
+                const survivingHumanPlayer =
+                  currentHumanHost ??
+                  roomPlayers.find(
+                    (_, index) =>
+                      playerUsers[index] !== null &&
+                      playerUsers[index]?.kind !== 'AI'
+                  );
                 await Promise.all([
                   ctx.db.patch(game._id, {
                     status: 'ABANDONED',
@@ -248,8 +258,9 @@ export const cleanupMachineAuthorship = internalMutation({
                     ? [
                         ctx.db.patch(
                           room._id,
-                          hasHumanPlayer
+                          survivingHumanPlayer
                             ? {
+                                hostUserId: survivingHumanPlayer.userId,
                                 status: 'LOBBY' as const,
                                 currentGameId: undefined,
                                 completedAt: undefined,
@@ -390,19 +401,28 @@ export const cleanupMachineAuthorship = internalMutation({
         const results = await Promise.all(
           page.page.map(async (user) => {
             if (user.kind !== 'AI') return { changed: 0, blocked: 0 };
-            const [membership, readerAssignment] = await Promise.all([
-              ctx.db
-                .query('roomPlayers')
-                .withIndex('by_user', (q) => q.eq('userId', user._id))
-                .first(),
-              ctx.db
-                .query('poems')
-                .withIndex('by_reader', (q) =>
-                  q.eq('assignedReaderId', user._id)
-                )
-                .first(),
-            ]);
-            if (membership !== null || readerAssignment !== null) {
+            const [membership, readerAssignment, hostedRoom] =
+              await Promise.all([
+                ctx.db
+                  .query('roomPlayers')
+                  .withIndex('by_user', (q) => q.eq('userId', user._id))
+                  .first(),
+                ctx.db
+                  .query('poems')
+                  .withIndex('by_reader', (q) =>
+                    q.eq('assignedReaderId', user._id)
+                  )
+                  .first(),
+                ctx.db
+                  .query('rooms')
+                  .withIndex('by_host', (q) => q.eq('hostUserId', user._id))
+                  .first(),
+              ]);
+            if (
+              membership !== null ||
+              readerAssignment !== null ||
+              hostedRoom !== null
+            ) {
               return { changed: 0, blocked: 1 };
             }
             await ctx.db.delete(user._id);
