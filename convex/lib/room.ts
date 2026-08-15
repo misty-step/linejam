@@ -2,6 +2,7 @@ import { ConvexError } from 'convex/values';
 import { QueryCtx, MutationCtx } from '../_generated/server';
 import { Doc, Id } from '../_generated/dataModel';
 import { isPresenceStale } from './gameRules';
+import { isRevealReady } from './sessionLifecycle';
 
 type RoomStatus = Doc<'rooms'>['status'];
 type RoomActivityInput = Pick<Doc<'rooms'>, '_id' | 'status'>;
@@ -51,13 +52,14 @@ export async function getCompletedGame(
   ctx: QueryCtx | MutationCtx,
   roomId: Id<'rooms'>
 ): Promise<Doc<'games'> | null> {
-  return await ctx.db
+  const game = await ctx.db
     .query('games')
     .withIndex('by_room_status', (q) =>
       q.eq('roomId', roomId).eq('status', 'COMPLETED')
     )
     .order('desc')
     .first();
+  return isRevealReady(game) ? game : null;
 }
 
 function deriveIdleRoomStatus(room: Pick<Doc<'rooms'>, 'status'>): RoomStatus {

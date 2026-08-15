@@ -294,17 +294,20 @@ export const runRetentionSweep = internalMutation({
 
     const poemResults = await Promise.all(
       poems.map(async (poem): Promise<CandidateResult> => {
-        const [favorite, game] = await Promise.all([
+        const [favorites, game] = await Promise.all([
           ctx.db
             .query('favorites')
             .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
-            .first(),
+            .take(RETENTION_BATCH_LIMITS.favoritesPerPoem + 1),
           ctx.db.get(poem.gameId),
         ]);
+        const abandoned =
+          game?.status === 'ABANDONED' || game?.completionKind === 'abandoned';
         if (
-          poem.publicShareEnabled === true ||
-          favorite !== null ||
-          game?.publicRecapEnabled === true
+          !abandoned &&
+          (poem.publicShareEnabled === true ||
+            favorites.length > 0 ||
+            game?.publicRecapEnabled === true)
         ) {
           if (!args.dryRun) {
             await ctx.db.patch(poem._id, {
@@ -313,6 +316,16 @@ export const runRetentionSweep = internalMutation({
             });
           }
           return { eligible: 0, deleted: 0, errors: 0 };
+        }
+        if (favorites.length > RETENTION_BATCH_LIMITS.favoritesPerPoem) {
+          if (!args.dryRun) {
+            await Promise.all(
+              favorites
+                .slice(0, RETENTION_BATCH_LIMITS.favoritesPerPoem)
+                .map((favorite) => ctx.db.delete(favorite._id))
+            );
+          }
+          return { eligible: 1, deleted: 0, errors: 0 };
         }
         const lines = await ctx.db
           .query('lines')
@@ -324,6 +337,7 @@ export const runRetentionSweep = internalMutation({
         if (!args.dryRun) {
           await Promise.all([
             ...lines.map((line) => ctx.db.delete(line._id)),
+            ...favorites.map((favorite) => ctx.db.delete(favorite._id)),
             ctx.db.delete(poem._id),
           ]);
         }
@@ -611,10 +625,14 @@ export const backfillRetentionPolicy = internalMutation({
               .first(),
             ctx.db.get(poem.gameId),
           ]);
+          const abandoned =
+            game?.status === 'ABANDONED' ||
+            game?.completionKind === 'abandoned';
           const protectedArtifact =
-            poem.publicShareEnabled === true ||
-            favorite !== null ||
-            game?.publicRecapEnabled === true;
+            !abandoned &&
+            (poem.publicShareEnabled === true ||
+              favorite !== null ||
+              game?.publicRecapEnabled === true);
           await ctx.db.patch(
             poem._id,
             protectedArtifact
@@ -622,12 +640,19 @@ export const backfillRetentionPolicy = internalMutation({
                   retentionState: 'protected',
                   retentionEligibleAt: undefined,
                 }
-              : poem.completedAt !== undefined
+              : poem.completedAt !== undefined || abandoned
                 ? {
                     retentionState: 'pending',
                     retentionEligibleAt: retentionEligibleAt(
-                      Math.min(poem.completedAt, now),
-                      'privateCompleted'
+                      Math.min(
+                        abandoned
+                          ? (game?.completedAt ??
+                              poem.completedAt ??
+                              poem.createdAt)
+                          : poem.completedAt!,
+                        now
+                      ),
+                      abandoned ? 'abandoned' : 'privateCompleted'
                     ),
                   }
                 : {

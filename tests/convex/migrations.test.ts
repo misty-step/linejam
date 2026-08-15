@@ -319,6 +319,9 @@ async function runMachineCleanupPhase(t: T, phase: MachineCleanupPhase) {
       {
         phase,
         ...(cursor === undefined ? {} : { cursor }),
+        ...(phase === 'aiUsers'
+          ? { verifiedZeroChangePrerequisites: true as const }
+          : {}),
       }
     );
     receipts.push(receipt);
@@ -329,6 +332,59 @@ async function runMachineCleanupPhase(t: T, phase: MachineCleanupPhase) {
 }
 
 describe('cleanupMachineAuthorship', () => {
+  it('rejects AI deletion without explicit zero-change prerequisite receipts', async () => {
+    const t = setupConvexTest();
+    const aiUserId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', {
+        displayName: 'Archived machine author',
+        kind: 'AI',
+        createdAt: 0,
+      });
+      const humanUserId = await ctx.db.insert('users', {
+        displayName: 'Human',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'AIGD',
+        hostUserId: humanUserId,
+        status: 'COMPLETED',
+        createdAt: 0,
+      });
+      const gameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        cycle: 1,
+        currentRound: 8,
+        assignmentMatrix: [],
+        createdAt: 0,
+      });
+      const poemId = await ctx.db.insert('poems', {
+        roomId,
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+      });
+      await ctx.db.insert('lines', {
+        poemId,
+        indexInPoem: 0,
+        text: 'uncaptured machine line',
+        wordCount: 3,
+        authorUserId: userId,
+        createdAt: 0,
+      });
+      return userId;
+    });
+
+    await expect(
+      t.mutation(internal.migrations.cleanupMachineAuthorship, {
+        phase: 'aiUsers',
+      })
+    ).rejects.toThrow(
+      'AI user cleanup requires verified zero-change prerequisite receipts'
+    );
+    expect(await t.run((ctx) => ctx.db.get(aiUserId))).not.toBeNull();
+  });
+
   it('converts terminal state in bounded batches and is idempotent', async () => {
     const t = setupConvexTest();
     await t.run(async (ctx) => {

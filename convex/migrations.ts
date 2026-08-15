@@ -165,8 +165,14 @@ export const cleanupMachineAuthorship = internalMutation({
   args: {
     phase: machineAuthorshipCleanupPhase,
     cursor: v.optional(v.union(v.string(), v.null())),
+    verifiedZeroChangePrerequisites: v.optional(v.literal(true)),
   },
-  handler: async (ctx, { phase, cursor }) => {
+  handler: async (ctx, { phase, cursor, verifiedZeroChangePrerequisites }) => {
+    if (phase === 'aiUsers' && verifiedZeroChangePrerequisites !== true) {
+      throw new ConvexError(
+        'AI user cleanup requires verified zero-change prerequisite receipts'
+      );
+    }
     const paginationOpts = {
       cursor: cursor ?? null,
       numItems: MACHINE_AUTHORSHIP_BATCH_SIZE,

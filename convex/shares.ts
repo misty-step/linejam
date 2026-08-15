@@ -5,6 +5,7 @@ import type { Id } from './_generated/dataModel';
 import { checkParticipation, getUser } from './lib/auth';
 import { getCompletedGame, getRoomByCode } from './lib/room';
 import { retentionEligibleAt } from './lib/retentionPolicy';
+import { isRevealReady } from './lib/sessionLifecycle';
 
 async function requirePoemParticipant(
   ctx: MutationCtx,
@@ -27,12 +28,23 @@ async function requirePoemParticipant(
   return poem;
 }
 
+async function requireCompletedGame(
+  ctx: MutationCtx,
+  gameId: Id<'games'>
+): Promise<void> {
+  const game = await ctx.db.get(gameId);
+  if (!isRevealReady(game)) {
+    throw new ConvexError('Poem is not ready to share');
+  }
+}
+
 const SHARE_SLUG_TTL_MS = 30_000;
 
 export const preparePublicPoemShare = mutation({
   args: { poemId: v.id('poems'), guestToken: v.optional(v.string()) },
   handler: async (ctx, { poemId, guestToken }) => {
     const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    await requireCompletedGame(ctx, poem.gameId);
     if (poem.revealedAt === undefined || poem.revealedAt === null) {
       throw new ConvexError('Poem is not ready to share');
     }
@@ -64,6 +76,7 @@ export const activatePublicPoemShare = mutation({
   },
   handler: async (ctx, { poemId, slug, nonce, guestToken }) => {
     const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    await requireCompletedGame(ctx, poem.gameId);
     const share = await ctx.db
       .query('shares')
       .withIndex('by_slug', (q) => q.eq('slug', slug))

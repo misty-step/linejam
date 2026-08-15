@@ -3,6 +3,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
+import { RETENTION_DURATIONS_MS } from '../../convex/lib/retentionPolicy';
 
 /**
  * favorites queries/mutations on the real convex-test engine (backlog 018):
@@ -16,6 +17,7 @@ async function seedRoomGamePoems(
     hostUserId: Id<'users'>;
     poemCount?: number;
     status?: 'COMPLETED' | 'IN_PROGRESS';
+    gameStatus?: 'COMPLETED' | 'IN_PROGRESS' | 'ABANDONED';
     publicShareEnabled?: boolean;
   }
 ): Promise<{
@@ -27,6 +29,7 @@ async function seedRoomGamePoems(
     hostUserId,
     poemCount = 2,
     status = 'COMPLETED',
+    gameStatus = status,
     publicShareEnabled,
   } = opts;
   return t.run(async (ctx) => {
@@ -44,7 +47,7 @@ async function seedRoomGamePoems(
     });
     const gameId = await ctx.db.insert('games', {
       roomId,
-      status,
+      status: gameStatus,
       cycle: 1,
       currentRound: 0,
       assignmentMatrix: [],
@@ -143,6 +146,42 @@ describe('favorites', () => {
       await expect(
         t.mutation(api.favorites.toggleFavorite, { poemId: poemIds[0] })
       ).rejects.toThrow('User not found');
+    });
+
+    it('blocks additions to abandoned games but still permits removal', async () => {
+      const t = setupConvexTest();
+      const userId = await seedClerkUser(t, 'abandoned-owner');
+      const { poemIds } = await seedRoomGamePoems(t, {
+        hostUserId: userId,
+        poemCount: 1,
+        gameStatus: 'ABANDONED',
+      });
+      const owner = asUser(t, 'abandoned-owner');
+
+      await expect(
+        owner.mutation(api.favorites.toggleFavorite, {
+          poemId: poemIds[0],
+        })
+      ).rejects.toThrow('Poem is not available to favorite');
+      await t.run((ctx) =>
+        ctx.db.insert('favorites', {
+          userId,
+          poemId: poemIds[0],
+          createdAt: 0,
+        })
+      );
+      expect(await owner.query(api.favorites.getMyFavorites, {})).toEqual([]);
+      expect(
+        await owner.query(api.favorites.isFavorited, {
+          poemId: poemIds[0],
+        })
+      ).toBe(false);
+      await owner.mutation(api.favorites.toggleFavorite, {
+        poemId: poemIds[0],
+      });
+      expect(await userFavorites(t, userId)).toEqual([]);
+      const poem = await t.run((ctx) => ctx.db.get(poemIds[0]));
+      expect(poem?.retentionEligibleAt).toBe(RETENTION_DURATIONS_MS.abandoned);
     });
   });
 

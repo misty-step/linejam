@@ -60,8 +60,14 @@ describe('session lifecycle decisions', () => {
     ).toEqual({ ok: false, reason: 'INVALID_ROUND' });
   });
 
-  it('treats COMPLETED alone as reveal-ready and restartable', () => {
+  it('requires a genuinely completed game for reveal and restart', () => {
     expect(isRevealReady({ status: 'COMPLETED' })).toBe(true);
+    expect(
+      isRevealReady({
+        status: 'COMPLETED',
+        completionKind: 'abandoned',
+      })
+    ).toBe(false);
     expect(isRevealReady({ status: 'ABANDONED' })).toBe(false);
     expect(
       getCycleResetDecision({

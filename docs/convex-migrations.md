@@ -50,9 +50,11 @@ Before `aiUsers`, restart phases 1–9 from a null cursor and run each to
 `remaining=false`. The required pre-deletion postcondition is a complete
 second pass with aggregate `changed=0` and `blocked=0`, plus an immediate empty
 receipt (`scanned=0`, `changed=0`, `remaining=false`) for each of `aiTurns`,
-`aiRoundLocks`, `aiUsage`, and `aiGenerationMetrics`. This ordering is
-essential: `lineAttribution` can identify an AI-authored line only while its
-legacy AI user still exists.
+`aiRoundLocks`, `aiUsage`, and `aiGenerationMetrics`. Pass
+`verifiedZeroChangePrerequisites: true` to every `aiUsers` invocation only
+after recording those receipts; the mutation rejects `aiUsers` without this
+explicit attestation. This ordering is essential: `lineAttribution` can
+identify an AI-authored line only while its legacy AI user still exists.
 
 `aiUsers` must be last. It refuses to delete an AI identity while a room
 membership or reader assignment still references it. Any non-zero `blocked`

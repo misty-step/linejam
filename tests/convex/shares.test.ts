@@ -20,9 +20,15 @@ async function seedRoom(
     revealed?: boolean;
     publicShareEnabled?: boolean;
     publicRecapEnabled?: boolean;
+    gameStatus?: 'COMPLETED' | 'ABANDONED';
   } = {}
 ) {
-  const { revealed = true, publicShareEnabled, publicRecapEnabled } = opts;
+  const {
+    revealed = true,
+    publicShareEnabled,
+    publicRecapEnabled,
+    gameStatus = 'COMPLETED',
+  } = opts;
   return t.run(async (ctx) => {
     const userId = await ctx.db.insert('users', {
       displayName: 'Owner',
@@ -44,7 +50,7 @@ async function seedRoom(
     });
     const gameId = await ctx.db.insert('games', {
       roomId,
-      status: 'COMPLETED',
+      status: gameStatus,
       cycle: 1,
       currentRound: 0,
       assignmentMatrix: [[userId]],
@@ -227,6 +233,46 @@ describe('shares', () => {
   });
 
   describe('inert native-share publication', () => {
+    it('rejects preparing a share for an abandoned game', async () => {
+      const t = setupConvexTest();
+      const { poemId } = await seedRoom(t, { gameStatus: 'ABANDONED' });
+
+      await expect(
+        asUser(t, 'owner').mutation(api.shares.preparePublicPoemShare, {
+          poemId,
+        })
+      ).rejects.toThrow('Poem is not ready to share');
+      expect(
+        await t.run((ctx) =>
+          ctx.db
+            .query('shares')
+            .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+            .collect()
+        )
+      ).toEqual([]);
+    });
+
+    it('rejects activation when a prepared poem becomes abandoned', async () => {
+      const t = setupConvexTest();
+      const { poemId, gameId } = await seedRoom(t);
+      const pending = await asUser(t, 'owner').mutation(
+        api.shares.preparePublicPoemShare,
+        { poemId }
+      );
+      await t.run((ctx) => ctx.db.patch(gameId, { status: 'ABANDONED' }));
+
+      await expect(
+        asUser(t, 'owner').mutation(api.shares.activatePublicPoemShare, {
+          poemId,
+          slug: pending.slug,
+          nonce: pending.nonce,
+        })
+      ).rejects.toThrow('Poem is not ready to share');
+      expect(
+        (await t.run((ctx) => ctx.db.get(poemId)))?.publicShareEnabled
+      ).not.toBe(true);
+    });
+
     it('keeps a prepared slug private until activation', async () => {
       const t = setupConvexTest();
       const { poemId } = await seedRoom(t);

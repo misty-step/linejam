@@ -11,6 +11,7 @@ import { query } from './_generated/server';
 import { getUser } from './lib/auth';
 import { Id } from './_generated/dataModel';
 import { buildPoemAuthorKeys } from './lib/poemAuthorKey';
+import { isRevealReady } from './lib/sessionLifecycle';
 
 /**
  * Enriched poem data for archive display.
@@ -152,7 +153,7 @@ export const getArchiveData = query({
     const candidatePoems = poemsRaw
       .filter(
         (poem, index): poem is NonNullable<typeof poem> =>
-          poem !== null && poemGames[index]?.status === 'COMPLETED'
+          poem !== null && isRevealReady(poemGames[index])
       )
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, poemLimit);
@@ -312,9 +313,7 @@ export const getRecentPublicPoems = query({
         .map((room) => room!._id)
     );
     const completedGameIds = new Set(
-      games
-        .filter((game) => game?.status === 'COMPLETED')
-        .map((game) => game!._id)
+      games.filter(isRevealReady).map((game) => game!._id)
     );
 
     const poems: typeof publicCandidates = [];

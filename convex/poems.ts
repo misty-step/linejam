@@ -10,6 +10,7 @@ import {
 } from './lib/sharing';
 import { buildPoemAuthorKeys } from './lib/poemAuthorKey';
 import { hashRoomId } from '../lib/roomIdHash';
+import { isRevealReady } from './lib/sessionLifecycle';
 
 const DEFAULT_MY_POEMS_LIMIT = 24;
 const MAX_MY_POEMS_LIMIT = 48;
@@ -52,7 +53,7 @@ async function getCompletePoemLines(
   poem: Pick<Doc<'poems'>, '_id' | 'gameId'>
 ): Promise<Doc<'lines'>[] | null> {
   const game = await ctx.db.get(poem.gameId);
-  if (game?.status !== 'COMPLETED') return null;
+  if (!isRevealReady(game)) return null;
   return ctx.db
     .query('lines')
     .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))

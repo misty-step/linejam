@@ -76,14 +76,14 @@ export function getSubmissionWindow(
 }
 
 export function isRevealReady(
-  game: Pick<Doc<'games'>, 'status'> | null | undefined
+  game: Pick<Doc<'games'>, 'status' | 'completionKind'> | null | undefined
 ): boolean {
-  return game?.status === 'COMPLETED';
+  return game?.status === 'COMPLETED' && game.completionKind !== 'abandoned';
 }
 
 export function getCycleResetDecision(args: {
   activeGame: Pick<Doc<'games'>, 'status'> | null;
-  completedGame: Pick<Doc<'games'>, 'status'> | null;
+  completedGame: Pick<Doc<'games'>, 'status' | 'completionKind'> | null;
 }): CycleResetDecision {
   if (args.activeGame?.status === 'IN_PROGRESS') {
     return { ok: false, reason: 'GAME_STILL_IN_PROGRESS' };
