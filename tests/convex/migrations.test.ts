@@ -458,6 +458,12 @@ describe('cleanupMachineAuthorship', () => {
         retentionState: 'protected',
         createdAt: 0,
       });
+      await ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: hostUserId,
+        displayName: 'Host',
+        joinedAt: 0,
+      });
       const gameId = await ctx.db.insert('games', {
         roomId,
         status: 'COMPLETED',
@@ -500,8 +506,12 @@ describe('cleanupMachineAuthorship', () => {
       expect(game).not.toHaveProperty('publicRecapEnabledAt');
       expect(game?.retentionEligibleAt).toBeGreaterThan(200);
       expect(room).not.toHaveProperty('currentGameId');
-      expect(room).toMatchObject({ retentionState: 'pending' });
-      expect(room?.retentionEligibleAt).toBe(game?.retentionEligibleAt);
+      expect(room).not.toHaveProperty('completedAt');
+      expect(room).toMatchObject({
+        status: 'LOBBY',
+        retentionState: 'active',
+      });
+      expect(room).not.toHaveProperty('retentionEligibleAt');
       expect(poem).not.toHaveProperty('publicShareEnabled');
       expect(poem).not.toHaveProperty('publicShareEnabledAt');
       expect(poem).not.toHaveProperty('publicShareAttempt');

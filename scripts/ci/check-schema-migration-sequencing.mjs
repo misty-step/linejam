@@ -17,9 +17,15 @@ function changedLines(diff, marker) {
     .map((line) => line.slice(1).trim());
 }
 
-function literalUnionValues(lines, field) {
+function literalUnionValues(lines, field, occurrence) {
   const fieldPrefix = `${field}:`;
-  const start = lines.findIndex((line) => line.startsWith(fieldPrefix));
+  let seen = 0;
+  const start = lines.findIndex((line) => {
+    if (!line.startsWith(fieldPrefix)) return false;
+    if (seen === occurrence) return true;
+    seen++;
+    return false;
+  });
   if (start === -1) return null;
 
   const expressionLines = [];
@@ -47,18 +53,23 @@ function literalUnionValues(lines, field) {
     ([, , value]) => value
   );
   const skeleton = expression.replace(literalPattern, 'L');
-  if (
-    values.length === 0 ||
-    !/^v\.union\((?:L,?)+\),?$/.test(skeleton)
-  ) {
+  if (values.length === 0 || !/^v\.union\((?:L,?)+\),?$/.test(skeleton)) {
     return null;
   }
   return new Set(values);
 }
 
-function isLiteralUnionExpansion(schemaDiff, field) {
-  const before = literalUnionValues(changedLines(schemaDiff, '-'), field);
-  const after = literalUnionValues(changedLines(schemaDiff, '+'), field);
+function isLiteralUnionExpansion(schemaDiff, field, occurrence) {
+  const before = literalUnionValues(
+    changedLines(schemaDiff, '-'),
+    field,
+    occurrence
+  );
+  const after = literalUnionValues(
+    changedLines(schemaDiff, '+'),
+    field,
+    occurrence
+  );
   return (
     before !== null &&
     after !== null &&
@@ -83,12 +94,15 @@ export function detectSchemaContractionWithMigration({
   schemaDiff,
   migrationsDiff,
 }) {
+  const fieldOccurrences = new Map();
   const removedFields = changedLines(schemaDiff, '-')
     .map((line) => SCHEMA_PROPERTY.exec(line)?.[1])
-    .filter(
-      (field) =>
-        field !== undefined && !isLiteralUnionExpansion(schemaDiff, field)
-    );
+    .filter((field) => {
+      if (field === undefined) return false;
+      const occurrence = fieldOccurrences.get(field) ?? 0;
+      fieldOccurrences.set(field, occurrence + 1);
+      return !isLiteralUnionExpansion(schemaDiff, field, occurrence);
+    });
   const addedMigrations = addedMigrationExports(migrationsDiff);
 
   return {

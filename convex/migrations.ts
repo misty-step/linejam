@@ -214,12 +214,16 @@ export const cleanupMachineAuthorship = internalMutation({
               abandonedAt,
               'abandoned'
             );
-            const [room, poems] = await Promise.all([
+            const [room, poems, roomPlayer] = await Promise.all([
               ctx.db.get(game.roomId),
               ctx.db
                 .query('poems')
                 .withIndex('by_game', (q) => q.eq('gameId', game._id))
                 .collect(),
+              ctx.db
+                .query('roomPlayers')
+                .withIndex('by_room', (q) => q.eq('roomId', game.roomId))
+                .first(),
             ]);
             await Promise.all([
               ctx.db.patch(game._id, {
@@ -233,11 +237,24 @@ export const cleanupMachineAuthorship = internalMutation({
               }),
               ...(room?.currentGameId === game._id
                 ? [
-                    ctx.db.patch(room._id, {
-                      currentGameId: undefined,
-                      retentionState: 'pending',
-                      retentionEligibleAt: retentionDeadline,
-                    }),
+                    ctx.db.patch(
+                      room._id,
+                      roomPlayer
+                        ? {
+                            status: 'LOBBY' as const,
+                            currentGameId: undefined,
+                            completedAt: undefined,
+                            retentionState: 'active' as const,
+                            retentionEligibleAt: undefined,
+                          }
+                        : {
+                            status: 'COMPLETED' as const,
+                            currentGameId: undefined,
+                            completedAt: abandonedAt,
+                            retentionState: 'pending' as const,
+                            retentionEligibleAt: retentionDeadline,
+                          }
+                    ),
                   ]
                 : []),
               ...poems.map((poem) =>

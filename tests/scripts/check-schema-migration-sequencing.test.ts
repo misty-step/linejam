@@ -107,6 +107,28 @@ describe('detectSchemaContractionWithMigration', () => {
     });
   });
 
+  it('matches duplicate field names by occurrence and blocks a later narrowing', () => {
+    const mixedStatusDiff = `@@ -1,6 +1,9 @@
+-    status: v.union(v.literal('IN_PROGRESS'), v.literal('COMPLETED')),
++    status: v.union(
++      v.literal('IN_PROGRESS'),
++      v.literal('COMPLETED'),
++      v.literal('ABANDONED')
++    ),
+-    status: v.union(v.literal('DRAFT'), v.literal('PUBLISHED')),
++    status: v.union(v.literal('DRAFT')),`;
+
+    expect(
+      detectSchemaContractionWithMigration({
+        schemaDiff: mixedStatusDiff,
+        migrationsDiff: incidentMigrationDiff,
+      })
+    ).toMatchObject({
+      violation: true,
+      removedFields: ['status'],
+    });
+  });
+
   it('blocks an optional field narrowed to required beside a migration', () => {
     const narrowedFieldDiff = `@@ -1,3 +1,3 @@
 -    legacyMode: v.optional(v.string()),
