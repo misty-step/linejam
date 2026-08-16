@@ -154,7 +154,9 @@ user-flow and UI acceptance testing uses the repo-local `play-linejam` skill:
 
 - **Skill**: `.agents/skills/play-linejam/SKILL.md` (`skill://play-linejam/SKILL.md`)
 - **Driver**: Pinned `agent-browser` (version `0.34.0`)
-- **Target**: `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL` (default: `http://localhost:3333`)
+- **Target**: `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL` (default:
+  `http://localhost:3333`). Every remote target requires explicit operation
+  authority because browser play writes real game data.
 - **Isolation**: Each participant (Host, Guests, Verifier) runs in an isolated
   session (`agent-browser --session <name>`).
 - **Scope**: Exercises the real rendered human UI—lobby creation/joining, 9-round

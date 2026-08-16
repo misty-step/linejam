@@ -11,7 +11,10 @@ evidence, and ensuring unconditional browser teardown.
    - Determine `baseUrl` from `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL`
      (default: `http://localhost:3333`).
    - **CRITICAL**: NEVER treat `NEXT_PUBLIC_CONVEX_URL` as a web target.
-   - Require explicit live production authority if `baseUrl` targets production.
+   - Treat only a loopback/local target as authorized by default. Before using
+     shared development, preview, staging, production, or any other remote
+     target, require explicit operation authority naming that target. A
+     configured URL does not grant mutation authority.
 2. **Generate Run ID & Directory**:
    - Format: `<timestamp>-<target>-play` (matches `^[a-zA-Z0-9._-]+$`).
    - Create evidence folder: `.qa/runs/<run-id>/`.

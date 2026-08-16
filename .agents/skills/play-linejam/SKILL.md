@@ -49,9 +49,11 @@ The web target is set by `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL`
 
 - **CRITICAL**: NEVER treat `NEXT_PUBLIC_CONVEX_URL` as a web target. That is the
   backend database/function endpoint, not the web application.
-- **Authority Boundary**: Never run browser QA against production
-  (`https://www.linejam.app`) without explicit live production authority from the
-  operator. Local and preview targets are the default.
+- **Authority Boundary**: Only a loopback/local target is authorized by default.
+  Any remote target—including shared development, preview, staging, and
+  production—writes real rooms, players, and lines and requires explicit
+  operation authority naming that target. Configuration or an environment flag
+  selects a target; it does not grant mutation authority.
 - **Evidence Sanitization**: Structured receipts and manifests must never
   contain room codes, guest tokens, or poem text. Screenshots and video may
   contain synthetic game text; keep them private, inspect them for credentials
