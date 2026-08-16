@@ -87,10 +87,13 @@ function eventPayload(tags: Record<string, string> = TAGS) {
   return {
     eventID: SENTRY_EVENT_ID,
     groupID: '123456',
-    tags: Object.entries(tags).map(([field, value]) => ({
-      key: field === 'failureCode' ? 'failure_code' : field,
-      value,
-    })),
+    tags: [
+      { key: 'ignored', value: 'not-persisted' },
+      ...Object.entries(tags).map(([field, value]) => ({
+        key: field === 'failureCode' ? 'failure_code' : field,
+        value,
+      })),
+    ],
   };
 }
 
@@ -146,8 +149,13 @@ describe('durable Sentry to GitHub bridge', () => {
       runtime: 'github-actions',
       operation: 'productionSmoke',
     });
+    expect(
+      validateBridgeTags({ ...TAGS, environment: 'production' })
+    ).toMatchObject({ environment: 'production' });
     expect(validateBridgeTags({ ...TAGS, runtime: 'node' })).toBeNull();
+    expect(validateBridgeTags({ ...TAGS, environment: 'stage' })).toBeNull();
     expect(validateBridgeTags({ ...TAGS, release: 'A'.repeat(40) })).toBeNull();
+    expect(validateBridgeTags({ ...TAGS, level: 'warning' })).toBeNull();
     expect(validateBridgeTags({ ...TAGS, operation: 'arbitrary' })).toBeNull();
     expect(
       validateBridgeTags({ ...TAGS, failureCode: 'raw provider body' })
@@ -172,6 +180,17 @@ describe('durable Sentry to GitHub bridge', () => {
     expect(content.body).not.toMatch(
       /title|message|culprit|stack|request|user/i
     );
+    expect(
+      githubIssueContent(
+        {
+          dedupKey: DEDUP_KEY,
+          projectId: '42',
+          sentryIssueId: '123456',
+          sentryEventId: SENTRY_EVENT_ID,
+        },
+        PREVIEW_TAGS
+      ).title
+    ).toBe('[GitHub Actions/preview] previewSmoke: unexpected_error');
   });
 
   it('uses bounded exponential backoff with jitter', () => {
@@ -289,6 +308,40 @@ describe('durable Sentry to GitHub bridge', () => {
     expect(receipt?.nextAttemptAt).toBeGreaterThanOrEqual(before + 28_000);
     expect(receipt?.nextAttemptAt).toBeLessThanOrEqual(before + 31_000);
   });
+  it.each([
+    ['absent', null],
+    ['malformed', 'not-a-date'],
+  ] as const)(
+    'falls back to bounded retry timing when Retry-After is %s',
+    async (_case, retryAfter) => {
+      const { t, receiptId } = await insertReceipt();
+      const headers = new Headers();
+      if (retryAfter !== null) headers.set('Retry-After', retryAfter);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(null, { status: 429, headers })
+      );
+
+      await t.action(processReceipt, { receiptId });
+
+      const receipt = await t.query(getReceipt, { dedupKey: DEDUP_KEY });
+      expect(receipt).toMatchObject({ state: 'pending', attempts: 1 });
+      expect(receipt?.nextAttemptAt).toEqual(expect.any(Number));
+    }
+  );
+
+  it('maps a Sentry transport failure to a bounded retry without persisting it', async () => {
+    const { t, receiptId } = await insertReceipt();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new TypeError('PROHIBITED_PROVIDER_BODY')
+    );
+
+    await t.action(processReceipt, { receiptId });
+
+    const receipt = await t.query(getReceipt, { dedupKey: DEDUP_KEY });
+    expect(receipt).toMatchObject({ state: 'pending', attempts: 1 });
+    expect(receipt?.nextAttemptAt).toEqual(expect.any(Number));
+    expect(JSON.stringify(receipt)).not.toContain('PROHIBITED_PROVIDER_BODY');
+  });
 
   it('blocks a conflicting native Sentry link without custom sync', async () => {
     const { t, receiptId } = await insertReceipt();
@@ -314,9 +367,50 @@ describe('durable Sentry to GitHub bridge', () => {
       githubIssueNumber: 77,
     });
   });
+  it.each(['misty-step/linejam#77', '#77', '77'])(
+    'accepts an existing native Sentry link key %s',
+    async (key) => {
+      const { t, receiptId } = await insertReceipt();
+      const marker = githubDedupMarker(DEDUP_KEY);
+      const fetchMock = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async (input, init) => {
+          const url = String(input);
+          const tag = tagResponse(url);
+          if (tag) return tag;
+          if (url.includes('/search/issues')) {
+            return Response.json({ items: [{ number: 77, body: marker }] });
+          }
+          if (url.includes('/integrations/338522/') && !init?.method) {
+            return Response.json({
+              ...linkedConfig(),
+              linkedIssues: [{ key }],
+            });
+          }
+          throw new Error('unexpected endpoint');
+        });
+
+      await t.action(processReceipt, { receiptId });
+
+      expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+        state: 'linked',
+        githubIssueNumber: 77,
+      });
+      expect(
+        fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')
+      ).toBe(false);
+    }
+  );
 
   it.each([
     ['string choice', ['misty-step/linejam'], undefined],
+    ['later string choice', ['other/repository', 'misty-step/linejam'], []],
+    ['tuple choice', [['Linejam', 'misty-step/linejam']], []],
+    [
+      'later object choice',
+      [{ value: 'other/repository' }, { value: 'misty-step/linejam' }],
+      [],
+    ],
     ['object choice', [{ value: 'misty-step/linejam' }], []],
   ] as const)(
     'accepts a Sentry repository %s',
@@ -605,9 +699,79 @@ describe('durable Sentry to GitHub bridge', () => {
   );
 
   it.each([
-    ['null entry', [null]],
-    ['array entry', [[]]],
-    ['non-string value', [{ value: 42 }]],
+    ['missing event ID', { ...eventPayload(), eventID: null }],
+    ['missing issue ID', { ...eventPayload(), groupID: null }],
+    ['non-array tags', { ...eventPayload(), tags: null }],
+    ['null tag', { ...eventPayload(), tags: [null] }],
+    [
+      'non-string tag key',
+      { ...eventPayload(), tags: [{ key: 42, value: 'convex' }] },
+    ],
+    [
+      'non-string tag value',
+      { ...eventPayload(), tags: [{ key: 'runtime', value: 42 }] },
+    ],
+    [
+      'missing runtime',
+      eventPayload({
+        environment: TAGS.environment,
+        release: TAGS.release,
+        level: TAGS.level,
+        operation: TAGS.operation,
+        failureCode: TAGS.failureCode,
+      }),
+    ],
+    [
+      'missing environment',
+      eventPayload({
+        runtime: TAGS.runtime,
+        release: TAGS.release,
+        level: TAGS.level,
+        operation: TAGS.operation,
+        failureCode: TAGS.failureCode,
+      }),
+    ],
+    [
+      'missing release',
+      eventPayload({
+        runtime: TAGS.runtime,
+        environment: TAGS.environment,
+        level: TAGS.level,
+        operation: TAGS.operation,
+        failureCode: TAGS.failureCode,
+      }),
+    ],
+    [
+      'missing level',
+      eventPayload({
+        runtime: TAGS.runtime,
+        environment: TAGS.environment,
+        release: TAGS.release,
+        operation: TAGS.operation,
+        failureCode: TAGS.failureCode,
+      }),
+    ],
+    [
+      'missing operation',
+      eventPayload({
+        runtime: TAGS.runtime,
+        environment: TAGS.environment,
+        release: TAGS.release,
+        level: TAGS.level,
+        failureCode: TAGS.failureCode,
+      }),
+    ],
+    [
+      'missing failure code',
+      eventPayload({
+        runtime: TAGS.runtime,
+        environment: TAGS.environment,
+        release: TAGS.release,
+        level: TAGS.level,
+        operation: TAGS.operation,
+      }),
+    ],
+    ['unknown runtime', eventPayload({ ...TAGS, runtime: 'node' })],
   ] as const)(
     'blocks a malformed Sentry tag payload with a %s',
     async (_case, body) => {
@@ -668,7 +832,12 @@ describe('durable Sentry to GitHub bridge', () => {
           return Response.json([{ value: RELEASE }, { value: 'b'.repeat(40) }]);
         }
         if (url.includes('/search/issues')) {
-          return Response.json({ items: [{ number: 77, body: marker }] });
+          return Response.json({
+            items: [
+              { number: 76, body: 'unrelated issue' },
+              { number: 77, body: marker },
+            ],
+          });
         }
         if (url.includes('/integrations/338522/') && !init?.method) {
           return Response.json(linkedConfig());
