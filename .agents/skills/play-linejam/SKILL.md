@@ -90,13 +90,19 @@ A complete autonomous run covers:
    Rounds 1–9 matching target word counts `[1, 2, 3, 4, 5, 4, 3, 2, 1]`.
 5. **Reveal Phase**: Players take turns revealing and reading their assigned
    poems in reading circle order until all poems are revealed.
-6. **Room Closure**: Host clicks **Back to Lobby** on the recap hub, then clicks
-   **Close room** in the lobby.
-7. **Join Rejection Verification**: A fresh session (`<run-id>-verifier`)
+6. **Success Evidence**: Before leaving the recap hub, Host saves the completed
+   surface as `.qa/runs/<run-id>/artifact-0001.png`.
+7. **Room Closure**: Host clicks **Back to Lobby** on the recap hub, then clicks
+   **Close room** in the lobby. On any earlier failure, the Coordinator first
+   drives the tracked host session through game abandonment and room closure in
+   its `finally` path.
+8. **Join Rejection Verification**: A fresh session (`<run-id>-verifier`)
    attempts to join the closed room code at `/join` and confirms the join is
-   rejected (e.g., error alert displayed, no room entry).
-8. **Unconditional Cleanup**: Every dynamically allocated `agent-browser --session`
-   is closed.
+   rejected (e.g., error alert displayed, no room entry). Failed gameplay still
+   attempts this check after confirmed closure.
+9. **Unconditional Cleanup**: Every dynamically allocated
+   `agent-browser --session` is closed only after closure and rejection
+   attempts.
 
 See `skill://play-linejam/coordinator.md` for orchestration details and
 `skill://play-linejam/player.md` for UI interaction steps and selectors.

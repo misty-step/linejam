@@ -129,6 +129,43 @@ function validate() {
     }
   }
 
+  const playerFile = resolve(SKILL_DIR, 'player.md');
+  if (existsSync(playerFile)) {
+    const playerContract = readFileSync(playerFile, 'utf8');
+    if (
+      !playerContract.includes(`wait '[data-testid="session-complete"]'`) ||
+      !playerContract.includes(
+        'screenshot --full ".qa/runs/<run-id>/artifact-0001.png"'
+      )
+    ) {
+      errors.push(
+        'player.md must capture the completed-game surface to the run-local success artifact'
+      );
+    }
+    if (
+      !playerContract.includes('On `CLEANUP_ROOM`') ||
+      !playerContract.includes('click **End game**')
+    ) {
+      errors.push(
+        'player.md must define the host failure path back to room closure'
+      );
+    }
+  }
+
+  const coordinatorFile = resolve(SKILL_DIR, 'coordinator.md');
+  if (existsSync(coordinatorFile)) {
+    const coordinatorContract = readFileSync(coordinatorFile, 'utf8');
+    if (
+      !coordinatorContract.includes('ordered `finally` path after every run') ||
+      !coordinatorContract.includes('After confirmed closure') ||
+      !coordinatorContract.includes('Only after those attempts')
+    ) {
+      errors.push(
+        'coordinator.md must attempt room closure and rejection before session teardown'
+      );
+    }
+  }
+
   if (!existsSync(RESULT_WRITER)) {
     errors.push(
       'Missing result writer: scripts/qa/write-play-linejam-result.mjs'

@@ -53,6 +53,7 @@ Guests -> Coordinator:     "READY"
 Coordinator -> Host:       "ALL_READY"
 Host -> Coordinator:       "GAME_COMPLETED"
 Coordinator -> Host:       "CLOSE_ROOM"
+Coordinator -> Host:       "CLEANUP_ROOM" (failure-only finally path)
 Host -> Coordinator:       "ROOM_CLOSED"
 Coordinator -> Verifier:   "VERIFY_CLOSED: <roomCode>"
 Verifier -> Coordinator:   "JOIN_REJECTED"
@@ -77,8 +78,12 @@ Any -> Coordinator:        "BLOCKER: <sanitized description>" (only on fatal err
 
 1. All players autonomously play Rounds 1 through 9 matching target word counts `[1, 2, 3, 4, 5, 4, 3, 2, 1]`.
 2. Players wait semantically for UI state transitions (writing screen mounting, word slots, round advance).
-3. Upon Round 9 completion, the game enters Reveal Phase. Players read their assigned poems in reading circle order until all poems are revealed.
-4. When the reveal phase is complete and the recap hub renders, Host sends `GAME_COMPLETED` to Coordinator.
+3. Upon Round 9 completion, the game enters Reveal Phase. Players read their
+   assigned poems in reading circle order until all poems are revealed.
+4. When the recap hub renders, Host saves a full-page screenshot directly to
+   `.qa/runs/<run-id>/artifact-0001.png`, confirms the file exists, then sends
+   `GAME_COMPLETED` to Coordinator. Capture failure fails the run; a passed run
+   must not synthesize or omit this artifact.
 
 ### Phase 3: Room Closure & Rejection Verification
 
@@ -100,29 +105,45 @@ Any -> Coordinator:        "BLOCKER: <sanitized description>" (only on fatal err
   Fail only on an observable functional blocker such as failed navigation,
   uncaught page failure, rejected valid interaction, or expired semantic wait.
 
-## 5. Unconditional Session Teardown
+## 5. Unconditional Room and Session Cleanup
 
-The Coordinator **MUST** close each tracked session in a `finally` path, even
-after failure or interruption. Invoke this command once for every allocated
-session; do not rely on `close --all`, which could terminate another run:
+The Coordinator **MUST** run this ordered `finally` path after every run,
+including a blocker, timeout, or interrupted gameplay:
 
-```bash
-pnpm exec agent-browser --session <session-name> close
-```
+1. If `ROOM_CREATED` was received but `ROOM_CLOSED` was not, send
+   `CLEANUP_ROOM` and use the tracked host session to return the active game to
+   the lobby and close the room. If the Host agent cannot respond, the
+   Coordinator drives that same session directly. Follow the failure cleanup
+   path in `player.md`; bound the attempt and never invent a closure receipt.
+2. After confirmed closure, allocate a fresh `<run-id>-verifier` session if
+   needed and perform `VERIFY_CLOSED`. A failed gameplay run still attempts this
+   join-rejection check.
+3. Record `room_closure_failed` when closure cannot be confirmed, or
+   `join_rejection_failed` when a closed room accepts the verifier or the check
+   cannot complete. Such a run cannot pass.
+4. Only after those attempts, close every tracked browser session. Invoke this
+   command once per allocated session; do not use `close --all`, which could
+   terminate another run:
 
-Then inspect `pnpm exec agent-browser session list`. Set
-`verification.allSessionsCleanedUp: true` only when no run-owned session
-remains. Set `verification.roomClosed: true` only after the host confirms
-closure, and set `verification.closedRoomJoinRejected: true` only after the
-fresh verifier observes rejection.
+   ```bash
+   pnpm exec agent-browser --session <session-name> close
+   ```
+
+5. Inspect `pnpm exec agent-browser session list`.
+
+Set `verification.allSessionsCleanedUp: true` only when no run-owned session
+remains. Set `verification.roomClosed: true` only after the host session
+confirms closure, and set `verification.closedRoomJoinRejected: true` only
+after the fresh verifier observes rejection.
 
 ## 6. Result Aggregation & Evidence
 
-1. Inspect every retained screenshot, video, trace, and log for credentials,
-   room codes, and unrelated user data. Close the room before retaining an
-   artifact that exposes its code.
-   Rename retained files to opaque, sequential names such as
-   `artifact-0001.webp`; never retain a UI-derived filename.
+1. After room closure, inspect
+   `.qa/runs/<run-id>/artifact-0001.png` and every other retained screenshot,
+   video, trace, or log for credentials, room codes, and unrelated user data.
+   Delete unsafe artifacts; a missing safe screenshot means the run cannot pass.
+   Use opaque, sequential names such as `artifact-0001.png` for every retained
+   file; never retain a UI-derived filename.
 2. Create a candidate matching `skill://play-linejam/result.schema.json` in a
    temporary file outside `.qa/`. Use only the schema's fixed error codes;
    never copy UI or console text into structured evidence.

@@ -143,7 +143,16 @@ pnpm exec agent-browser --session <session-name> find testid poem-done-button cl
 ```
 
 Continue until the recap hub reports that every poem was read. Do not send
-per-poem progress messages.
+per-poem progress messages. When the recap hub renders, the Host captures the
+successful completed-game surface before leaving it:
+
+```bash
+pnpm exec agent-browser --session <run-id>-host wait '[data-testid="session-complete"]'
+pnpm exec agent-browser --session <run-id>-host screenshot --full ".qa/runs/<run-id>/artifact-0001.png"
+```
+
+The Host confirms that `.qa/runs/<run-id>/artifact-0001.png` exists, then sends
+`GAME_COMPLETED`. Guests do not create a second success artifact.
 
 ## 6. Room Closure Path (Host)
 
@@ -157,6 +166,25 @@ per-poem progress messages.
    pnpm exec agent-browser --session <run-id>-host find text "Close room" click
    ```
 3. Confirm the room UI exits before sending `ROOM_CLOSED` to the Coordinator.
+
+### Failure cleanup
+
+On `CLEANUP_ROOM`, the Host performs a bounded best-effort return to the lobby:
+
+1. Inspect the current surface. If it is a writing turn, submit a valid line
+   for that displayed word count and wait for `waiting-phase`.
+2. On `waiting-phase`, click **End game**, click the confirmation **End game**,
+   and wait for the lobby. This abandons the incomplete game without revealing
+   partial poems.
+3. If reveal is already active, finish the bounded reading-circle actions until
+   `session-complete`, then click **Back to Lobby**.
+4. In the lobby, click **Close room** and confirm the room UI exits before
+   sending `ROOM_CLOSED`.
+
+If no known surface can be reached, a valid submission cannot reach the waiting
+screen, game abandonment fails, or room closure cannot be observed, report a
+sanitized `BLOCKER` instead of `ROOM_CLOSED`. The Coordinator records
+`room_closure_failed` and still closes every run-owned browser session.
 
 ## 7. Verifier Execution Flow
 
