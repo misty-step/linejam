@@ -178,7 +178,7 @@
       "properties": {
         "runDir": {
           "type": "string",
-          "pattern": "^\\.qa/runs/[a-zA-Z0-9._-]+$"
+          "pattern": "^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play$"
         },
         "artifacts": {
           "type": "array",
@@ -191,7 +191,7 @@
               },
               "path": {
                 "type": "string",
-                "pattern": "^\\.qa/runs/[a-zA-Z0-9._-]+/[a-zA-Z0-9._/-]+$"
+                "pattern": "^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play/artifact-[0-9]{4}\\.(?:log|png|webm|webp|zip)$"
               },
               "sanitized": {
                 "const": true

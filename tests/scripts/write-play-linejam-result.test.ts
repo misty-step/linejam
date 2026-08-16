@@ -1,5 +1,5 @@
 /** @vitest-environment node */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -66,7 +66,7 @@ function validResult() {
       artifacts: [
         {
           kind: 'screenshot',
-          path: `.qa/runs/${runId}/host.webp`,
+          path: `.qa/runs/${runId}/artifact-0001.webp`,
           sanitized: true,
           inspected: true,
         },
@@ -143,9 +143,9 @@ describe('play-linejam result validation', () => {
 
     const foreignArtifact = validResult();
     foreignArtifact.evidence.artifacts[0].path =
-      '.qa/runs/a-different-run/host.webp';
+      '.qa/runs/20260816T120001Z-http-localhost-3333-play/artifact-0001.webp';
     expect(() => validatePlayLinejamResult(foreignArtifact, schema)).toThrow(
-      `artifact path must be a file below .qa/runs/${runId}`
+      'artifact path must use an opaque run-local name'
     );
   });
 
@@ -169,6 +169,18 @@ describe('play-linejam result validation', () => {
     };
     expect(() => validatePlayLinejamResult(missingVerifier, schema)).toThrow(
       'play-linejam result rejected'
+    );
+  });
+
+  it('rejects a room code in an artifact name before persistence', async () => {
+    const result = validResult();
+    result.evidence.artifacts[0].path = `.qa/runs/${runId}/ABCD.webp`;
+
+    await expect(
+      writePlayLinejamResult(JSON.stringify(result))
+    ).rejects.toThrow('play-linejam result rejected');
+    expect(existsSync(path.resolve(`.qa/runs/${runId}/result.json`))).toBe(
+      false
     );
   });
 

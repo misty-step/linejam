@@ -115,6 +115,8 @@ fresh verifier observes rejection.
 1. Inspect every retained screenshot, video, trace, and log for credentials,
    room codes, and unrelated user data. Close the room before retaining an
    artifact that exposes its code.
+   Rename retained files to opaque, sequential names such as
+   `artifact-0001.webp`; never retain a UI-derived filename.
 2. Create a candidate matching `skill://play-linejam/result.schema.json` in a
    temporary file outside `.qa/`. Use only the schema's fixed error codes;
    never copy UI or console text into structured evidence.

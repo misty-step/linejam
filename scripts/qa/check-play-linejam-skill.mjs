@@ -159,6 +159,15 @@ function validate() {
         errors.push('result.schema.json runId must use the path-safe format');
       }
       if (
+        schema.properties?.evidence?.properties?.artifacts?.items?.properties
+          ?.path?.pattern !==
+        '^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play/artifact-[0-9]{4}\\.(?:log|png|webm|webp|zip)$'
+      ) {
+        errors.push(
+          'result.schema.json artifact paths must use opaque run-local names'
+        );
+      }
+      if (
         schema.properties?.playerCount?.minimum !== 2 ||
         schema.properties?.playerCount?.maximum !== 6 ||
         schema.properties?.players?.minItems !== 2 ||

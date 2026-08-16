@@ -11,6 +11,12 @@ const SCHEMA_PATH = resolve(
   REPO_ROOT,
   '.agents/skills/play-linejam/result.schema.json'
 );
+const ARTIFACT_EXTENSIONS = Object.freeze({
+  screenshot: new Set(['png', 'webp']),
+  video: new Set(['webm']),
+  trace: new Set(['zip']),
+  log: new Set(['log']),
+});
 
 function fail(message) {
   throw new Error(`play-linejam result rejected: ${message}`);
@@ -52,16 +58,23 @@ function validateArtifactPaths(result) {
     fail(`evidence.runDir must equal ${expectedRunDir}`);
   }
 
+  const paths = [];
   for (const artifact of result.evidence.artifacts) {
     const expectedPrefix = `${expectedRunDir}/`;
+    const relativePath = artifact.path.slice(expectedPrefix.length);
+    const match = /^artifact-[0-9]{4}\.([a-z]+)$/.exec(relativePath);
     if (
       !artifact.path.startsWith(expectedPrefix) ||
-      artifact.path.includes('..') ||
-      artifact.path.endsWith('/')
+      match === null ||
+      !ARTIFACT_EXTENSIONS[artifact.kind]?.has(match[1])
     ) {
-      fail(`artifact path must be a file below ${expectedRunDir}`);
+      fail(
+        `artifact path must use an opaque run-local name and match kind ${artifact.kind}`
+      );
     }
+    paths.push(artifact.path);
   }
+  requireUnique(paths, 'evidence.artifacts[].path');
 }
 
 function validateSessions(result) {
