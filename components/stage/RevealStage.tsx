@@ -41,7 +41,7 @@ interface RevealStageProps {
   error: string | null;
   isRevealingId: Id<'poems'> | null;
   onExit: () => void;
-  onRevealPoem: (poemId: Id<'poems'>) => Promise<void>;
+  onRevealPoem: (poemId: Id<'poems'>) => Promise<boolean>;
 }
 
 function poemNumber(poem: { indexInRoom: number }) {
@@ -111,7 +111,8 @@ export function RevealStage({
     if (!readablePoem) return;
 
     if (readableAssignedPoem) {
-      await onRevealPoem(readablePoem._id);
+      const revealed = await onRevealPoem(readablePoem._id);
+      if (!revealed) return;
     }
 
     setActivePoemId(readablePoem._id);

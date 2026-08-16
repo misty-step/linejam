@@ -101,8 +101,44 @@ describe('RevealStage', () => {
     expect(screen.getByRole('button', { name: /Unsealing/i })).toBeDisabled();
   });
 
+  it('keeps a rejected reveal out of the reading view', async () => {
+    const user = userEvent.setup();
+    const assignedPoem = {
+      // SAFETY: Synthetic Convex poem ID for RevealStage test fixture.
+      _id: 'poem_rejected' as Id<'poems'>,
+      indexInRoom: 0,
+      readerName: 'Assigned Reader',
+      readerStableId: 'stable_assigned',
+      preview: 'Only the preview is available',
+      isRevealed: false,
+      lines: [{ text: 'The private full line', authorName: 'Assigned Reader' }],
+    };
+    const onRevealPoem = vi.fn().mockResolvedValue(false);
+
+    render(
+      <RevealStage
+        poems={[assignedPoem]}
+        myPoems={[assignedPoem]}
+        revealedPoems={[]}
+        allStableIds={['stable_assigned']}
+        error={null}
+        isRevealingId={null}
+        onExit={vi.fn()}
+        onRevealPoem={onRevealPoem}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Reveal on stage/i }));
+
+    expect(onRevealPoem).toHaveBeenCalledWith(assignedPoem._id);
+    expect(
+      screen.getByText(/Only the preview is available/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText('The private full line')).not.toBeInTheDocument();
+  });
+
   it('labels a fallback reveal without pretending the poem was reassigned', () => {
-    const onRevealPoem = vi.fn().mockResolvedValue(undefined);
+    const onRevealPoem = vi.fn().mockResolvedValue(true);
     const fallbackPoem = {
       // SAFETY: Synthetic Convex poem ID for RevealStage test fixture.
       _id: 'poem_fallback' as Id<'poems'>,

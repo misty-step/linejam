@@ -169,7 +169,7 @@ export function RevealPhase({
   const revealPoem = async (
     poemId: Id<'poems'>,
     { showPoem }: { showPoem: boolean }
-  ) => {
+  ): Promise<boolean> => {
     setIsRevealingId(poemId);
     setError(null);
 
@@ -181,11 +181,13 @@ export function RevealPhase({
       if (showPoem) {
         setShowingPoemId(poemId);
       }
+      return true;
     } catch (cause) {
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);
       setError(feedback.message);
       captureError(error, { roomCode });
+      return false;
     } finally {
       setIsRevealingId(null);
     }
@@ -195,8 +197,8 @@ export function RevealPhase({
     await revealPoem(poemId, { showPoem: true });
   };
 
-  const handleStageReveal = async (poemId: Id<'poems'>) => {
-    await revealPoem(poemId, { showPoem: false });
+  const handleStageReveal = (poemId: Id<'poems'>) => {
+    return revealPoem(poemId, { showPoem: false });
   };
 
   const handleStartNewCycle = async () => {
