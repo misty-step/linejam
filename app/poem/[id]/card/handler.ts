@@ -88,12 +88,15 @@ export function createCardRouteHandlers(
     // SAFETY: Route parameter `id` is a nominal Convex document ID validated by the query runtime.
     const poemId = id as Id<'poems'>;
     const body: unknown = await request.json().catch(() => ({}));
-    const guestToken =
-      body instanceof Object &&
-      'guestToken' in body &&
-      String(body.guestToken) === body.guestToken
-        ? body.guestToken
-        : undefined;
+    let guestToken: string | undefined;
+    if (body instanceof Object && 'guestToken' in body) {
+      try {
+        const parsedToken = String.prototype.valueOf.call(body.guestToken);
+        if (parsedToken === body.guestToken) guestToken = parsedToken;
+      } catch {
+        // Malformed JSON values are not guest credentials; continue to Clerk auth.
+      }
+    }
     let clerkToken: string | null = null;
     if (!guestToken) {
       try {

@@ -176,6 +176,27 @@ describe('GET /poem/[id]/card', () => {
     expect(mockFetchQuery).not.toHaveBeenCalled();
   });
 
+  it('falls back to Clerk auth for a malformed guest token object', async () => {
+    mockGetToken.mockResolvedValue('convex-jwt');
+    mockFetchQuery.mockResolvedValue(attributedPoem);
+    const request = new NextRequest('https://linejam.app/poem/poem123/card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guestToken: { toString: null } }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ id: 'poem123' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockGetToken).toHaveBeenCalledWith({ template: 'convex' });
+    expect(mockFetchQuery).toHaveBeenCalledWith(
+      { poemId: 'poem123', guestToken: undefined },
+      { token: 'convex-jwt' }
+    );
+  });
+
   it('forwards Clerk Convex auth for a signed-in participant card', async () => {
     mockGetToken.mockResolvedValue('convex-jwt');
     mockFetchQuery.mockResolvedValue(attributedPoem);
