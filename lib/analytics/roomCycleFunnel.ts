@@ -71,6 +71,15 @@ function isFiniteTimestamp(value: number | undefined | null): value is number {
   return value !== null && value !== undefined && Number.isFinite(value);
 }
 
+function isPrimitiveNonEmptyString(value: string | undefined): value is string {
+  if (value === undefined) return false;
+  try {
+    return String.prototype.valueOf.call(value) === value && value.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function inWindow(
   timestamp: number | undefined | null,
   from: number,
@@ -109,7 +118,7 @@ function earliestDefined(a?: number, b?: number) {
 function mergeRooms(rooms: RoomCycleSnapshot[]) {
   const byRoom = new Map<string, RoomCycleSnapshot>();
   for (const room of rooms) {
-    if (!room || !room.roomIdHash || room.roomIdHash.length === 0) continue;
+    if (!room || !isPrimitiveNonEmptyString(room.roomIdHash)) continue;
     const previous = byRoom.get(room.roomIdHash);
     if (!previous) {
       byRoom.set(room.roomIdHash, {
@@ -159,12 +168,7 @@ function uniqueParticipants(room: RoomCycleSnapshot) {
   const keys = new Set<string>();
   for (const join of room.joins) {
     const participantKey = join.participantKey;
-    if (
-      participantKey !== undefined &&
-      Object(participantKey) !== participantKey &&
-      Object.prototype.toString.call(participantKey) === '[object String]' &&
-      participantKey.length > 0
-    ) {
+    if (isPrimitiveNonEmptyString(participantKey)) {
       keys.add(participantKey);
     }
   }
@@ -221,18 +225,23 @@ export function buildRoomCycleFunnelReport(
   const humanRooms = cohort.filter(
     (room) => uniqueParticipants(room).size >= 2
   );
-  const firstCycles = humanRooms.map((room) => room.cycles[0]);
+  const firstCycles = humanRooms.map((room) => ({
+    room,
+    cycle: room.cycles[0],
+  }));
 
-  const started = firstCycles.filter((cycle) =>
-    inWindow(cycle?.startedAt, input.from, input.to)
+  const started = firstCycles.filter(
+    ({ cycle }) =>
+      cycle?.completionKind !== 'abandoned' &&
+      inWindow(cycle?.startedAt, input.from, input.to)
   );
   const writingCompleted = firstCycles.filter(
-    (cycle) =>
+    ({ cycle }) =>
       cycle?.completionKind !== 'abandoned' &&
       inWindow(cycle?.writingCompletedAt, input.from, input.to)
   );
   const allRevealed = firstCycles.filter(
-    (cycle) =>
+    ({ cycle }) =>
       cycle?.completionKind !== 'abandoned' &&
       inWindow(cycle?.allRevealedAt, input.from, input.to)
   );
@@ -242,10 +251,10 @@ export function buildRoomCycleFunnelReport(
       .some((cycle) => inWindow(cycle.startedAt, input.from, input.to))
   );
   const startDurations = started
-    .map((cycle, index) => {
+    .map(({ room, cycle }) => {
       const startedAt = cycle?.startedAt;
       if (startedAt === undefined) return null;
-      return (startedAt - humanRooms[index].createdAt) / 1000;
+      return (startedAt - room.createdAt) / 1000;
     })
     .filter(
       (seconds): seconds is number =>

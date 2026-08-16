@@ -81,6 +81,40 @@ describe('buildRoomCycleFunnelReport', () => {
     });
   });
 
+  it('keeps each start duration paired with its owning room', () => {
+    const report = buildRoomCycleFunnelReport({
+      ...window,
+      rooms: [
+        {
+          roomIdHash: 'room-without-start',
+          createdAt: 2_000,
+          joins: [
+            { joinedAt: 2_001, participantKey: 'human-a' },
+            { joinedAt: 2_002, participantKey: 'human-b' },
+          ],
+          cycles: [{ cycle: 1 }],
+        },
+        {
+          roomIdHash: 'room-with-start',
+          createdAt: 5_000,
+          joins: [
+            { joinedAt: 5_001, participantKey: 'human-c' },
+            { joinedAt: 5_002, participantKey: 'human-d' },
+          ],
+          cycles: [{ cycle: 1, startedAt: 6_000 }],
+        },
+      ],
+      events: [],
+    });
+
+    expect(report.metrics.gameStarted.count).toBe(1);
+    expect(report.timeToStartSeconds).toMatchObject({
+      count: 1,
+      median: 1,
+      p90: 1,
+    });
+  });
+
   it('returns only aggregate counts and never leaks room or content fields', () => {
     const report = buildRoomCycleFunnelReport({
       ...window,
@@ -184,7 +218,39 @@ describe('buildRoomCycleFunnelReport', () => {
     expect(report.metrics.gameStarted.count).toBe(0);
   });
 
-  it('keeps abandoned first cycles out of completion while counting a started encore', () => {
+  it('rejects object room keys before retry deduplication', () => {
+    const report = buildRoomCycleFunnelReport({
+      ...window,
+      rooms: [
+        {
+          // SAFETY: Injects a malformed projection key to verify arrays cannot become Map identities.
+          roomIdHash: ['same'] as never,
+          createdAt: 2_000,
+          joins: [
+            { joinedAt: 2_001, participantKey: 'human-a' },
+            { joinedAt: 2_002, participantKey: 'human-b' },
+          ],
+          cycles: [{ cycle: 1, startedAt: 3_000 }],
+        },
+        {
+          // SAFETY: Injects the same malformed retry key as a distinct array identity.
+          roomIdHash: ['same'] as never,
+          createdAt: 2_000,
+          joins: [
+            { joinedAt: 2_001, participantKey: 'human-a' },
+            { joinedAt: 2_002, participantKey: 'human-b' },
+          ],
+          cycles: [{ cycle: 1, startedAt: 3_000 }],
+        },
+      ],
+      events: [],
+    });
+
+    expect(report.cohort.uniqueHumanRooms).toBe(0);
+    expect(report.metrics.gameStarted.count).toBe(0);
+  });
+
+  it('keeps an abandoned first cycle out of conversion while counting an encore', () => {
     const report = buildRoomCycleFunnelReport({
       ...window,
       rooms: [
@@ -209,10 +275,11 @@ describe('buildRoomCycleFunnelReport', () => {
       ],
       events: [],
     });
-    expect(report.metrics.gameStarted.count).toBe(1);
+    expect(report.metrics.gameStarted.count).toBe(0);
     expect(report.metrics.writingCompleted.count).toBe(0);
     expect(report.metrics.allRevealed.count).toBe(0);
     expect(report.metrics.encore.count).toBe(1);
+    expect(report.timeToStartSeconds.count).toBe(0);
   });
 
   it('ignores malformed, unknown-cycle, and out-of-window artifact events', () => {
