@@ -162,8 +162,16 @@ describe('buildRoomCycleFunnelReport', () => {
             },
             {
               joinedAt: 2_002,
-              // SAFETY: Injects a second malformed projection field to verify arrays cannot form a human-room cohort.
-              participantKey: ['b'] as never,
+              // SAFETY: Injects a boxed string to verify object identities cannot form a human-room cohort.
+              participantKey: Object('b') as never,
+            },
+            {
+              joinedAt: 2_003,
+              // SAFETY: Injects a spoofed string tag to verify objects cannot pass primitive decoding.
+              participantKey: {
+                length: 1,
+                [Symbol.toStringTag]: 'String',
+              } as never,
             },
           ],
           cycles: [{ cycle: 1, startedAt: 3_000 }],

@@ -160,8 +160,9 @@ function uniqueParticipants(room: RoomCycleSnapshot) {
   for (const join of room.joins) {
     const participantKey = join.participantKey;
     if (
-      Object.prototype.toString.call(participantKey) === '[object String]' &&
       participantKey !== undefined &&
+      Object(participantKey) !== participantKey &&
+      Object.prototype.toString.call(participantKey) === '[object String]' &&
       participantKey.length > 0
     ) {
       keys.add(participantKey);
