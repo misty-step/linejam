@@ -1,86 +1,73 @@
 // @vitest-environment happy-dom
+import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
-
-const mockApiRefs = vi.hoisted(() => ({
-  getPoemDetail: {},
-  getPublicPoemFull: {},
-  getPublicPoemShareStatus: {},
-  isFavorited: {},
-  toggleFavorite: {},
-}));
-const mockPoemDisplay = vi.hoisted(() => vi.fn());
-
-vi.mock('@/convex/_generated/api', () => ({
-  api: {
-    poems: {
-      getPoemDetail: mockApiRefs.getPoemDetail,
-      getPublicPoemFull: mockApiRefs.getPublicPoemFull,
-      getPublicPoemShareStatus: mockApiRefs.getPublicPoemShareStatus,
-    },
-    shares: { disablePublicPoemShare: {} },
-    favorites: {
-      isFavorited: mockApiRefs.isFavorited,
-      toggleFavorite: mockApiRefs.toggleFavorite,
-    },
-  },
-}));
-
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-  }: {
-    children: React.ReactNode;
-    href: string;
-  }) => <a href={href}>{children}</a>,
-}));
-
-vi.mock('@/components/PoemDisplay', () => ({
-  PoemDisplay: (
-    props: Record<string, unknown> & { metadata: { backLabel: string } }
-  ) => {
-    mockPoemDisplay(props);
-    return (
-      <section data-testid="poem-display">{props.metadata.backLabel}</section>
-    );
-  },
-}));
-
-const mockQueryResults = {
-  poemDetail: undefined as unknown,
-  publicPoem: undefined as unknown,
-  isFavorited: undefined as unknown,
-  shareStatus: undefined as unknown,
-};
-const mockToggleFavorite = vi.fn();
-let mockGuestToken: string | null = null;
-
-vi.mock('convex/react', () => ({
-  useMutation: () => mockToggleFavorite,
-  useQuery: (queryRef: unknown) => {
-    if (queryRef === mockApiRefs.getPoemDetail) {
-      return mockQueryResults.poemDetail;
-    }
-    if (queryRef === mockApiRefs.getPublicPoemFull) {
-      return mockQueryResults.publicPoem;
-    }
-    if (queryRef === mockApiRefs.getPublicPoemShareStatus) {
-      return mockQueryResults.shareStatus;
-    }
-    if (queryRef === mockApiRefs.isFavorited) {
-      return mockQueryResults.isFavorited;
-    }
-    throw new Error('Unexpected query reference');
-  },
-}));
-
-vi.mock('@/lib/auth', () => ({
-  useUser: () => ({ guestToken: mockGuestToken }),
-}));
-
-import { PoemDetail } from '@/app/poem/[id]/PoemDetail';
+import {
+  PoemDetail,
+  type DisablePublicShare,
+  type MutateFavorite,
+  type PoemDetailData,
+  type PoemDetailDependencies,
+  type PoemShareStatus,
+} from '@/app/poem/[id]/PoemDetail';
+import type { PoemDisplayProps } from '@/components/PoemDisplay';
 import type { Id } from '@/convex/_generated/dataModel';
+interface MockQueryResults {
+  poemDetail: PoemDetailData | null | undefined;
+  publicPoem: PoemDetailData | null | undefined;
+  isFavorited: boolean | undefined;
+  shareStatus: PoemShareStatus | null | undefined;
+}
+
+const mockQueryResults: MockQueryResults = {
+  poemDetail: undefined,
+  publicPoem: undefined,
+  isFavorited: undefined,
+  shareStatus: undefined,
+};
+
+const mockToggleFavorite = vi.fn<MutateFavorite>();
+const mockDisablePublicShare = vi.fn<DisablePublicShare>();
+const mockPoemDisplay = vi.fn<(props: PoemDisplayProps) => void>();
+let guestToken: string | undefined;
+
+function TestPoemDisplay(props: PoemDisplayProps) {
+  mockPoemDisplay(props);
+  return (
+    <section data-testid="poem-display">{props.metadata?.backLabel}</section>
+  );
+}
+
+const dependencies: PoemDetailDependencies = {
+  useGuestToken: () => guestToken,
+  usePoemDetail: () => mockQueryResults.poemDetail,
+  usePublicPoem: () => mockQueryResults.publicPoem,
+  useShareStatus: () => mockQueryResults.shareStatus,
+  useIsFavorited: () => mockQueryResults.isFavorited,
+  useToggleFavorite: () => mockToggleFavorite,
+  useDisablePublicShare: () => mockDisablePublicShare,
+  PoemDisplayComponent: TestPoemDisplay,
+};
+
+function TestPoemDetail({
+  poemId,
+  shareSlug,
+}: {
+  poemId: Id<'poems'>;
+  shareSlug?: string;
+}) {
+  return (
+    <PoemDetail
+      poemId={poemId}
+      shareSlug={shareSlug}
+      dependencies={dependencies}
+    />
+  );
+}
+
+function renderPoemDetail(ui: ReactElement) {
+  return render(ui);
+}
 
 describe('PoemDetail', () => {
   beforeEach(() => {
@@ -89,7 +76,9 @@ describe('PoemDetail', () => {
     mockQueryResults.publicPoem = undefined;
     mockQueryResults.isFavorited = undefined;
     mockQueryResults.shareStatus = undefined;
-    mockGuestToken = null;
+    mockToggleFavorite.mockResolvedValue(undefined);
+    mockDisablePublicShare.mockResolvedValue(undefined);
+    guestToken = undefined;
   });
 
   afterEach(() => {
@@ -97,20 +86,23 @@ describe('PoemDetail', () => {
   });
 
   it('shows loading while poem queries are unresolved', () => {
-    render(<PoemDetail poemId={'poem1' as Id<'poems'>} />);
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    renderPoemDetail(<TestPoemDetail poemId={'poem1' as Id<'poems'>} />);
 
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows a bounded pending state for an inactive share slug', () => {
-    mockPoemDisplay.mockClear();
     mockQueryResults.poemDetail = null;
     mockQueryResults.publicPoem = null;
     mockQueryResults.shareStatus = {
       state: 'pending',
       expiresAt: Date.now() + 1000,
     };
-    render(<PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />);
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    renderPoemDetail(
+      <TestPoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />
+    );
     expect(screen.getByRole('status')).toHaveTextContent(
       'Preparing this shared poem'
     );
@@ -123,8 +115,9 @@ describe('PoemDetail', () => {
     mockQueryResults.publicPoem = null;
     mockQueryResults.shareStatus = { state: 'pending', expiresAt: 1000 };
 
-    const view = render(
-      <PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />
+    const view = renderPoemDetail(
+      // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+      <TestPoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-1" />
     );
     expect(screen.getByRole('status')).toHaveTextContent(
       'Preparing this shared poem'
@@ -137,9 +130,9 @@ describe('PoemDetail', () => {
     expect(screen.getByText('Poem not found')).toBeInTheDocument();
 
     mockQueryResults.shareStatus = { state: 'pending', expiresAt: 2000 };
-    view.rerender(
-      <PoemDetail poemId={'poem1' as Id<'poems'>} shareSlug="slug-2" />
-    );
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    const pendingPoemId = 'poem1' as Id<'poems'>;
+    view.rerender(<TestPoemDetail poemId={pendingPoemId} shareSlug="slug-2" />);
     expect(screen.getByRole('status')).toHaveTextContent(
       'Preparing this shared poem'
     );
@@ -149,7 +142,8 @@ describe('PoemDetail', () => {
     mockQueryResults.poemDetail = null;
     mockQueryResults.publicPoem = null;
 
-    render(<PoemDetail poemId={'poem1' as Id<'poems'>} />);
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    renderPoemDetail(<TestPoemDetail poemId={'poem1' as Id<'poems'>} />);
 
     expect(screen.getByText('Poem not found')).toBeInTheDocument();
     expect(
@@ -161,7 +155,7 @@ describe('PoemDetail', () => {
   });
 
   it('renders participant poem details with archive metadata', async () => {
-    mockGuestToken = 'guest-token';
+    guestToken = 'guest-token';
     mockQueryResults.poemDetail = {
       poem: { createdAt: 1234 },
       lines: [
@@ -180,7 +174,8 @@ describe('PoemDetail', () => {
     mockQueryResults.publicPoem = null;
     mockQueryResults.isFavorited = true;
 
-    render(<PoemDetail poemId={'poem1' as Id<'poems'>} />);
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    renderPoemDetail(<TestPoemDetail poemId={'poem1' as Id<'poems'>} />);
 
     expect(screen.getByTestId('poem-display')).toHaveTextContent('Archive');
     expect(mockPoemDisplay).toHaveBeenCalledWith(
@@ -213,7 +208,7 @@ describe('PoemDetail', () => {
       })
     );
 
-    await mockPoemDisplay.mock.calls[0][0].metadata.onToggleFavorite();
+    await mockPoemDisplay.mock.calls[0][0].metadata?.onToggleFavorite?.();
 
     expect(mockToggleFavorite).toHaveBeenCalledWith({
       poemId: 'poem1',
@@ -234,7 +229,8 @@ describe('PoemDetail', () => {
       ],
     };
 
-    render(<PoemDetail poemId={'poem2' as Id<'poems'>} />);
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    renderPoemDetail(<TestPoemDetail poemId={'poem2' as Id<'poems'>} />);
 
     expect(screen.getByTestId('poem-display')).toHaveTextContent('Linejam');
     expect(mockPoemDisplay).toHaveBeenCalledWith(
@@ -261,7 +257,8 @@ describe('PoemDetail', () => {
     };
     mockQueryResults.publicPoem = null;
 
-    render(<PoemDetail poemId={'poem3' as Id<'poems'>} />);
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    renderPoemDetail(<TestPoemDetail poemId={'poem3' as Id<'poems'>} />);
 
     expect(mockPoemDisplay).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -276,7 +273,7 @@ describe('PoemDetail', () => {
       })
     );
 
-    await mockPoemDisplay.mock.calls[0][0].metadata.onToggleFavorite();
+    await mockPoemDisplay.mock.calls[0][0].metadata?.onToggleFavorite?.();
 
     expect(mockToggleFavorite).toHaveBeenCalledWith({
       poemId: 'poem3',

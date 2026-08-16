@@ -67,8 +67,10 @@ export function getTheme(id: string): ThemePreset | undefined {
 }
 
 /** Type guard for valid theme IDs */
-export function isValidThemeId(value: unknown): value is string {
-  return typeof value === 'string' && themeIds.includes(value);
+export function isValidThemeId(
+  value: string | null | undefined
+): value is string {
+  return Boolean(value && themeIds.includes(value));
 }
 
 // Re-export individual themes for direct import

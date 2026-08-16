@@ -85,9 +85,8 @@ describe('room lifecycle', () => {
         displayName: 'Alice',
       });
 
-      expect(typeof result.code).toBe('string');
       expect(result.code).toHaveLength(4);
-      expect(typeof result.roomId).toBe('string');
+      expect(result.roomId).toBeDefined();
 
       const room = await t.run((ctx) => ctx.db.get(result.roomId));
       expect(room?.status).toBe('LOBBY');

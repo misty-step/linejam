@@ -28,10 +28,13 @@ const DEFAULT_MANIFEST_URL = new URL(
  * @returns {ConvexEnvManifest}
  */
 export function validateConvexEnvManifest(candidate) {
-  if (!candidate || typeof candidate !== 'object') {
+  if (
+    !candidate ||
+    Array.isArray(candidate) ||
+    Object.prototype.toString.call(candidate) !== '[object Object]'
+  ) {
     throw new Error('Convex env manifest must be an object.');
   }
-
   const manifest = /** @type {Record<string, unknown>} */ (candidate);
   assertExactKeys('Convex env manifest', manifest, [
     'schemaVersion',
@@ -41,7 +44,11 @@ export function validateConvexEnvManifest(candidate) {
     throw new Error('Convex env manifest schemaVersion must be 1.');
   }
 
-  if (!manifest.environments || typeof manifest.environments !== 'object') {
+  if (
+    !manifest.environments ||
+    Array.isArray(manifest.environments) ||
+    Object.prototype.toString.call(manifest.environments) !== '[object Object]'
+  ) {
     throw new Error('Convex env manifest must declare environments.');
   }
 
@@ -65,10 +72,13 @@ export function validateConvexEnvManifest(candidate) {
  * @param {unknown} candidate
  */
 function validateManifestEntry(environment, candidate) {
-  if (!candidate || typeof candidate !== 'object') {
+  if (
+    !candidate ||
+    Array.isArray(candidate) ||
+    Object.prototype.toString.call(candidate) !== '[object Object]'
+  ) {
     throw new Error(`Convex env manifest must declare ${environment}.`);
   }
-
   const entry = /** @type {Record<string, unknown>} */ (candidate);
   assertExactKeys(`Convex env manifest ${environment}`, entry, [
     'required',
@@ -83,7 +93,9 @@ function validateManifestEntry(environment, candidate) {
     }
     if (
       !names.every(
-        (name) => typeof name === 'string' && ENV_NAME_PATTERN.test(name)
+        (name) =>
+          Object.prototype.toString.call(name) === '[object String]' &&
+          ENV_NAME_PATTERN.test(name)
       )
     ) {
       throw new Error(

@@ -57,7 +57,7 @@ describe('presence', () => {
       const after = Date.now();
 
       const player = await t.run((ctx) => ctx.db.get(roomPlayerId));
-      expect(typeof player?.lastSeenAt).toBe('number');
+      expect(player?.lastSeenAt).toBeDefined();
       expect(player!.lastSeenAt!).toBeGreaterThanOrEqual(before);
       expect(player!.lastSeenAt!).toBeLessThanOrEqual(after);
     });

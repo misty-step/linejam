@@ -1,59 +1,61 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  AuthCallbackPage,
+  type AuthCallbackPageDependencies,
+  type MigrateGuestToUser,
+} from '@/app/(auth)/callback/AuthCallbackPage';
 
 const mockReplace = vi.fn();
-const mockUseClerkUser = vi.fn();
-const mockUseConvexAuth = vi.fn();
-const mockUseMutation = vi.fn();
-const mockMigrateGuestToUser = vi.fn();
-const mockGetExistingGuestSession = vi.fn();
-const mockClearGuestSession = vi.fn();
-const mockCaptureError = vi.fn();
+const mockMigrateGuestToUser = vi.fn<MigrateGuestToUser>();
+const mockGetExistingGuestSession =
+  vi.fn<AuthCallbackPageDependencies['getExistingGuestSession']>();
+const mockClearGuestSession =
+  vi.fn<AuthCallbackPageDependencies['clearGuestSession']>();
+const mockCaptureError = vi.fn<AuthCallbackPageDependencies['captureError']>();
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    replace: mockReplace,
-  }),
-}));
+const mockRouter = { replace: mockReplace };
+let clerkAuthState = {
+  isLoaded: true,
+  isSignedIn: true,
+};
+let convexAuthState = {
+  isLoading: false,
+  isAuthenticated: true,
+};
 
-vi.mock('convex/react', () => ({
-  useConvexAuth: () => mockUseConvexAuth(),
-  useMutation: (...args: unknown[]) => mockUseMutation(...args),
-}));
+const dependencies: AuthCallbackPageDependencies = {
+  useRouter: () => mockRouter,
+  useClerkUser: () => clerkAuthState,
+  useConvexAuth: () => convexAuthState,
+  useMigrateGuestToUser: () => mockMigrateGuestToUser,
+  getExistingGuestSession: mockGetExistingGuestSession,
+  clearGuestSession: mockClearGuestSession,
+  captureError: mockCaptureError,
+};
 
-vi.mock('@clerk/nextjs', () => ({
-  useUser: () => mockUseClerkUser(),
-}));
-
-vi.mock('@/lib/guestSession', () => ({
-  clearGuestSession: () => mockClearGuestSession(),
-  getExistingGuestSession: () => mockGetExistingGuestSession(),
-}));
-
-vi.mock('@/lib/error', () => ({
-  captureError: (...args: unknown[]) => mockCaptureError(...args),
-}));
-
-import AuthCallbackPage from '@/app/(auth)/callback/page';
+function renderAuthCallbackPage() {
+  return render(<AuthCallbackPage dependencies={dependencies} />);
+}
 
 describe('AuthCallbackPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseMutation.mockReturnValue(mockMigrateGuestToUser);
-    mockUseClerkUser.mockReturnValue({
-      isLoaded: true,
-      isSignedIn: true,
-    });
-    mockUseConvexAuth.mockReturnValue({
-      isLoading: false,
-      isAuthenticated: true,
-    });
+    mockMigrateGuestToUser.mockResolvedValue(undefined);
     mockGetExistingGuestSession.mockResolvedValue({
       guestId: 'guest-id',
       token: 'guest-token',
     });
     mockClearGuestSession.mockResolvedValue(undefined);
+    clerkAuthState = {
+      isLoaded: true,
+      isSignedIn: true,
+    };
+    convexAuthState = {
+      isLoading: false,
+      isAuthenticated: true,
+    };
   });
 
   it('redirects home immediately when no guest token exists', async () => {
@@ -62,7 +64,7 @@ describe('AuthCallbackPage', () => {
       token: null,
     });
 
-    render(<AuthCallbackPage />);
+    renderAuthCallbackPage();
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/');
@@ -71,33 +73,34 @@ describe('AuthCallbackPage', () => {
   });
 
   it('marks the initial migration state as busy', () => {
-    mockMigrateGuestToUser.mockReturnValue(new Promise(() => {}));
+    const { promise } = Promise.withResolvers<void>();
+    mockMigrateGuestToUser.mockReturnValue(promise);
 
-    render(<AuthCallbackPage />);
+    renderAuthCallbackPage();
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('status')).toHaveTextContent(/completing sign in/i);
   });
 
   it('waits for Convex auth before attempting migration', () => {
-    mockUseConvexAuth.mockReturnValue({
+    convexAuthState = {
       isLoading: true,
       isAuthenticated: false,
-    });
+    };
 
-    render(<AuthCallbackPage />);
+    renderAuthCallbackPage();
 
     expect(mockMigrateGuestToUser).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
   });
 
   it('shows recovery state when Clerk is ready but Convex auth is unavailable', async () => {
-    mockUseConvexAuth.mockReturnValue({
+    convexAuthState = {
       isLoading: false,
       isAuthenticated: false,
-    });
+    };
 
-    render(<AuthCallbackPage />);
+    renderAuthCallbackPage();
 
     await waitFor(() => {
       expect(mockCaptureError).toHaveBeenCalledWith(
@@ -121,7 +124,7 @@ describe('AuthCallbackPage', () => {
   it('shows a recovery state instead of silently redirecting when migration fails', async () => {
     mockMigrateGuestToUser.mockRejectedValueOnce(new Error('migration failed'));
 
-    render(<AuthCallbackPage />);
+    renderAuthCallbackPage();
 
     await waitFor(() => {
       expect(mockCaptureError).toHaveBeenCalledWith(
@@ -148,7 +151,7 @@ describe('AuthCallbackPage', () => {
       .mockResolvedValueOnce({ guestId: 'guest-id', token: 'guest-token' })
       .mockResolvedValueOnce({ guestId: 'guest-id', token: 'guest-token' });
 
-    render(<AuthCallbackPage />);
+    renderAuthCallbackPage();
 
     await screen.findByRole('button', { name: /retry migration/i });
 

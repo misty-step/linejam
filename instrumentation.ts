@@ -14,8 +14,13 @@ export async function register() {
   }
 }
 
+export type RequestErrorCapturer = typeof Sentry.captureRequestError;
+
 export function onRequestError(
-  ...args: Parameters<typeof Sentry.captureRequestError>
+  error: Parameters<typeof Sentry.captureRequestError>[0],
+  request: Parameters<typeof Sentry.captureRequestError>[1],
+  context: Parameters<typeof Sentry.captureRequestError>[2],
+  capturer: RequestErrorCapturer = Sentry.captureRequestError
 ) {
   if (
     process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
@@ -24,5 +29,5 @@ export function onRequestError(
     return;
   }
 
-  Sentry.captureRequestError(...args);
+  capturer(error, request, context);
 }

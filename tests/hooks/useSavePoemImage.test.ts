@@ -1,34 +1,14 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import type { MockInstance } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
 import { useSavePoemImage } from '../../hooks/useSavePoemImage';
 import type { Id } from '../../convex/_generated/dataModel';
-
-const mockEnablePublicPoemShare = vi.fn().mockResolvedValue(undefined);
-vi.mock('convex/react', () => ({
-  useMutation: () => mockEnablePublicPoemShare,
-}));
-
-const mockCaptureError = vi.fn();
-vi.mock('@/lib/error', () => ({
-  captureError: (err: unknown, context: unknown) =>
-    mockCaptureError(err, context),
-}));
-
-const mockTrackPoemImageSaved = vi.fn();
-const mockTrackArtifactAction = vi.fn();
-vi.mock('@/lib/analytics', () => ({
-  hashRoomId: () => 'test-room-hash',
-  trackArtifactAction: (props: unknown) => mockTrackArtifactAction(props),
-  trackPoemImageSaved: (props: unknown) => mockTrackPoemImageSaved(props),
-}));
-
-const mockGetAppliedTheme = vi.fn();
-vi.mock('@/lib/themes', () => ({
-  getAppliedTheme: () => mockGetAppliedTheme(),
-}));
+import * as errorModule from '@/lib/error';
+import * as analyticsModule from '@/lib/analytics';
 
 describe('useSavePoemImage', () => {
+  // SAFETY: Synthetic Convex document id fixture for poem image save hook tests.
   const testPoemId = 'poem123' as Id<'poems'>;
   const pngBlob = () => new Blob(['fake-png'], { type: 'image/png' });
 
@@ -37,11 +17,24 @@ describe('useSavePoemImage', () => {
   let originalFetch: typeof global.fetch;
   let originalCreateObjectURL: typeof URL.createObjectURL;
   let originalRevokeObjectURL: typeof URL.revokeObjectURL;
+  let captureErrorSpy: MockInstance;
+  let trackPoemImageSavedSpy: MockInstance;
+  let trackArtifactActionSpy: MockInstance;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockEnablePublicPoemShare.mockResolvedValue(undefined);
-    mockGetAppliedTheme.mockReturnValue({ themeId: 'hyper', mode: 'dark' });
+    document.documentElement.setAttribute('data-theme', 'hyper');
+    document.documentElement.classList.add('dark');
+
+    captureErrorSpy = vi
+      .spyOn(errorModule, 'captureError')
+      .mockImplementation(() => {});
+    trackPoemImageSavedSpy = vi
+      .spyOn(analyticsModule, 'trackPoemImageSaved')
+      .mockImplementation(() => {});
+    trackArtifactActionSpy = vi
+      .spyOn(analyticsModule, 'trackArtifactAction')
+      .mockImplementation(() => {});
 
     originalShare = navigator.share;
     originalCanShare = navigator.canShare;
@@ -69,6 +62,9 @@ describe('useSavePoemImage', () => {
   });
 
   afterEach(() => {
+    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.classList.remove('dark');
+
     Object.defineProperty(navigator, 'share', {
       value: originalShare,
       configurable: true,
@@ -80,6 +76,9 @@ describe('useSavePoemImage', () => {
     global.fetch = originalFetch;
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
+    captureErrorSpy.mockRestore();
+    trackPoemImageSavedSpy.mockRestore();
+    trackArtifactActionSpy.mockRestore();
   });
 
   it('starts idle', () => {
@@ -98,7 +97,6 @@ describe('useSavePoemImage', () => {
       await result.current.handleSaveImage();
     });
 
-    expect(mockEnablePublicPoemShare).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledWith(
       '/poem/poem123/card?theme=hyper&mode=dark',
       {
@@ -110,7 +108,8 @@ describe('useSavePoemImage', () => {
   });
 
   it('falls back to the un-themed card route when no theme is applied yet', async () => {
-    mockGetAppliedTheme.mockReturnValue(null);
+    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.classList.remove('dark');
     const { result } = renderHook(() => useSavePoemImage(testPoemId));
 
     await act(async () => {
@@ -133,7 +132,7 @@ describe('useSavePoemImage', () => {
 
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(result.current.saved).toBe(true);
-    expect(mockTrackPoemImageSaved).toHaveBeenCalledWith({
+    expect(trackPoemImageSavedSpy).toHaveBeenCalledWith({
       method: 'download',
     });
   });
@@ -162,7 +161,7 @@ describe('useSavePoemImage', () => {
     );
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(result.current.saved).toBe(true);
-    expect(mockTrackPoemImageSaved).toHaveBeenCalledWith({
+    expect(trackPoemImageSavedSpy).toHaveBeenCalledWith({
       method: 'native-share',
     });
   });
@@ -188,8 +187,7 @@ describe('useSavePoemImage', () => {
 
     expect(result.current.saveError).toBeNull();
     expect(result.current.saved).toBe(false);
-    expect(mockEnablePublicPoemShare).not.toHaveBeenCalled();
-    expect(mockCaptureError).not.toHaveBeenCalled();
+    expect(captureErrorSpy).not.toHaveBeenCalled();
   });
 
   it('surfaces an error and captures it when the card route fails', async () => {
@@ -205,7 +203,7 @@ describe('useSavePoemImage', () => {
     expect(result.current.saveError).toBe(
       'Failed to save image. Please try again.'
     );
-    expect(mockCaptureError).toHaveBeenCalledWith(
+    expect(captureErrorSpy).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
         operation: 'savePoemImage',
@@ -221,8 +219,8 @@ describe('useSavePoemImage', () => {
     await act(async () => {
       await result.current.handleSaveImage();
     });
-    expect(mockTrackArtifactAction).toHaveBeenCalledWith({
-      roomIdHash: 'test-room-hash',
+    expect(trackArtifactActionSpy).toHaveBeenCalledWith({
+      roomIdHash: analyticsModule.hashRoomId('room-id'),
       cycle: 2,
       round: 8,
       action: 'save',

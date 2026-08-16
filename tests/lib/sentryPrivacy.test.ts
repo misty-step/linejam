@@ -255,6 +255,7 @@ describe('Sentry transport privacy boundary', () => {
     expect(sanitized).not.toHaveProperty('exception.values.0.value');
     expect(sanitized).not.toHaveProperty('exception.values.0.mechanism');
 
+    // SAFETY: Test fixture reuses base event envelope with TransactionEvent fields to test beforeSendTransaction boundary.
     const transaction = beforeSendTransaction({
       ...(event as TransactionEvent),
       type: 'transaction',

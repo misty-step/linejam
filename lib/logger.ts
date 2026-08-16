@@ -1,3 +1,5 @@
+import type { ErrorReportable } from '@/lib/errorCore';
+
 /**
  * Next.js Structured Logging
  *
@@ -10,7 +12,28 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-function timestampFields(): Record<string, unknown> {
+export type LogScalar = string | number | boolean | null | undefined;
+
+export interface SerializedError {
+  name: string;
+  message: string;
+  stack?: string;
+}
+
+export type LogValue =
+  LogScalar | Error | SerializedError | readonly LogScalar[];
+
+export type LogContext = Record<string, LogValue>;
+
+export type TimestampFields =
+  | { timestamp: string }
+  | {
+      timestamp: string;
+      timestampErrorName: string;
+      timestampErrorMessage: string;
+    };
+
+function timestampFields(): TimestampFields {
   try {
     return { timestamp: new Date().toISOString() };
   } catch (error) {
@@ -23,7 +46,7 @@ function timestampFields(): Record<string, unknown> {
   }
 }
 
-function serializeError(error: Error): Record<string, unknown> {
+function serializeError(error: Error): SerializedError {
   return {
     name: error.name,
     message: error.message,
@@ -31,32 +54,32 @@ function serializeError(error: Error): Record<string, unknown> {
   };
 }
 
-function sanitize(data?: Record<string, unknown>): Record<string, unknown> {
+function sanitize(data?: LogContext) {
   if (!data) return {};
 
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(data)) {
+  const entries = Object.entries(data).map(([key, value]) => {
     if (value instanceof Error) {
-      result[key] = serializeError(value);
-    } else if (typeof value === 'object' && value !== null) {
+      return [key, serializeError(value)];
+    }
+    if (
+      value !== null &&
+      value !== undefined &&
+      Object(value) === value &&
+      !Array.isArray(value)
+    ) {
       try {
         JSON.stringify(value);
-        result[key] = value;
+        return [key, value];
       } catch {
-        result[key] = '[Non-serializable]';
+        return [key, '[Non-serializable]'];
       }
-    } else {
-      result[key] = value;
     }
-  }
-  return result;
+    return [key, value];
+  });
+  return Object.fromEntries(entries);
 }
 
-function write(
-  level: LogLevel,
-  message: string,
-  data?: Record<string, unknown>
-): void {
+function write(level: LogLevel, message: string, data?: LogContext): void {
   const entry = {
     level,
     message,
@@ -73,10 +96,10 @@ function write(
  */
 export function logError(
   message: string,
-  error: unknown,
-  context?: Record<string, unknown>
+  error: ErrorReportable,
+  context?: LogContext
 ): void {
-  const errorData =
+  const errorData: LogContext =
     error instanceof Error
       ? {
           errorName: error.name,
@@ -89,24 +112,20 @@ export function logError(
 }
 
 export const log = {
-  debug: (msg: string, data?: Record<string, unknown>) =>
-    write('debug', msg, data),
-  info: (msg: string, data?: Record<string, unknown>) =>
-    write('info', msg, data),
-  warn: (msg: string, data?: Record<string, unknown>) =>
-    write('warn', msg, data),
-  error: (msg: string, data?: Record<string, unknown>) =>
-    write('error', msg, data),
+  debug: (msg: string, data?: LogContext) => write('debug', msg, data),
+  info: (msg: string, data?: LogContext) => write('info', msg, data),
+  warn: (msg: string, data?: LogContext) => write('warn', msg, data),
+  error: (msg: string, data?: LogContext) => write('error', msg, data),
 };
 
-export function logRequest(
-  data: {
-    method: string;
-    route: string;
-    status: number;
-    durationMs: number;
-  } & Record<string, unknown>
-): void {
+export interface LogRequestData extends LogContext {
+  method: string;
+  route: string;
+  status: number;
+  durationMs: number;
+}
+
+export function logRequest(data: LogRequestData): void {
   write('info', 'Request completed', data);
 }
 

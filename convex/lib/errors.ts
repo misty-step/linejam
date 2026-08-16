@@ -10,40 +10,45 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-function serializeError(error: Error): Record<string, unknown> {
-  return {
+export interface SerializedError {
+  name: string;
+  message: string;
+  stack?: string;
+}
+
+export type LogPrimitive = string | number | boolean | null;
+
+export type LogValue =
+  | LogPrimitive
+  | Error
+  | SerializedError
+  | readonly LogPrimitive[]
+  | Readonly<Record<string, LogPrimitive>>;
+
+export type LogContext = Record<string, LogValue>;
+
+function serializeError(error: Error): SerializedError {
+  const serialized: SerializedError = {
     name: error.name,
     message: error.message,
-    stack: error.stack?.split('\n').slice(0, 5).join('\n'),
   };
+  if (error.stack) {
+    serialized.stack = error.stack.split('\n').slice(0, 5).join('\n');
+  }
+  return serialized;
 }
 
-function sanitize(data?: Record<string, unknown>): Record<string, unknown> {
+function sanitize(data?: LogContext) {
   if (!data) return {};
 
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (value instanceof Error) {
-      result[key] = serializeError(value);
-    } else if (typeof value === 'object' && value !== null) {
-      try {
-        JSON.stringify(value);
-        result[key] = value;
-      } catch {
-        result[key] = '[Non-serializable]';
-      }
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
+  const entries = Object.entries(data).map(([key, value]) => [
+    key,
+    value instanceof Error ? serializeError(value) : value,
+  ]);
+  return Object.fromEntries(entries);
 }
 
-function write(
-  level: LogLevel,
-  message: string,
-  context?: Record<string, unknown>
-): void {
+function write(level: LogLevel, message: string, context?: LogContext): void {
   const entry = {
     level,
     message,
@@ -61,26 +66,35 @@ function write(
  */
 export function logError(
   message: string,
-  error: unknown,
-  context?: Record<string, unknown>
+  error?: Error | string | null,
+  context?: LogContext
 ): void {
-  const errorData =
-    error instanceof Error
-      ? {
-          errorName: error.name,
-          errorMessage: error.message,
-          errorStack: error.stack?.split('\n').slice(0, 5).join('\n'),
-        }
-      : { errorValue: String(error) };
-
-  write('error', message, { ...errorData, ...context });
+  if (error instanceof Error) {
+    const errorContext = {
+      ...context,
+      errorName: error.name,
+      errorMessage: error.message,
+    };
+    if (error.stack) {
+      write('error', message, {
+        ...errorContext,
+        errorStack: error.stack.split('\n').slice(0, 5).join('\n'),
+      });
+      return;
+    }
+    write('error', message, errorContext);
+    return;
+  }
+  if (error !== null && error !== undefined) {
+    write('error', message, { ...context, errorValue: String(error) });
+    return;
+  }
+  write('error', message, context);
 }
 
 export const log = {
-  debug: (msg: string, ctx?: Record<string, unknown>) =>
-    write('debug', msg, ctx),
-  info: (msg: string, ctx?: Record<string, unknown>) => write('info', msg, ctx),
-  warn: (msg: string, ctx?: Record<string, unknown>) => write('warn', msg, ctx),
-  error: (msg: string, ctx?: Record<string, unknown>) =>
-    write('error', msg, ctx),
+  debug: (msg: string, ctx?: LogContext) => write('debug', msg, ctx),
+  info: (msg: string, ctx?: LogContext) => write('info', msg, ctx),
+  warn: (msg: string, ctx?: LogContext) => write('warn', msg, ctx),
+  error: (msg: string, ctx?: LogContext) => write('error', msg, ctx),
 };

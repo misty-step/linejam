@@ -23,8 +23,10 @@ const REQUIRED_PRODUCTION_SKEW_ENV = [
 const DEV_GUEST_TOKEN_SECRET = 'dev-only-insecure-secret-change-in-production';
 const COMMIT_SHA = /^[a-f0-9]{40}$/;
 
-export function isValidSentryDsn(value: unknown): value is string {
-  if (typeof value !== 'string' || value !== value.trim()) return false;
+export function isValidSentryDsn(
+  value: string | null | undefined
+): value is string {
+  if (!value || value !== value.trim()) return false;
 
   try {
     const dsn = new URL(value);
@@ -37,7 +39,7 @@ export function isValidSentryDsn(value: unknown): value is string {
       Boolean(dsn.hostname) &&
       !dsn.search &&
       !dsn.hash &&
-      typeof projectId === 'string' &&
+      projectId !== undefined &&
       /^[1-9]\d*$/.test(projectId)
     );
   } catch {

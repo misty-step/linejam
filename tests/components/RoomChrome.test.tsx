@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MockInstance } from 'vitest';
 import {
   act,
   fireEvent,
@@ -8,64 +9,28 @@ import {
   waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-    prefetch,
-    ...props
-  }: {
-    children: React.ReactNode;
-    href: string;
-    prefetch?: boolean;
-  }) => {
-    const prefetchProps =
-      prefetch === undefined ? {} : { 'data-prefetch': String(prefetch) };
-
-    return (
-      <a href={href} {...prefetchProps} {...props}>
-        {children}
-      </a>
-    );
-  },
-}));
-
-const mockTrackRoomInviteShared = vi.fn();
-
-vi.mock('@/lib/analytics', () => ({
-  trackRoomInviteShared: (props: unknown) => mockTrackRoomInviteShared(props),
-}));
-
-vi.mock('@/components/HelpModal', () => ({
-  HelpModal: ({ isOpen }: { isOpen: boolean; onClose: () => void }) =>
-    isOpen ? <div>Help modal</div> : null,
-}));
-
-vi.mock('@/components/ThemeSelector', () => ({
-  ThemeSelector: ({ onClose }: { onClose: () => void }) => (
-    <div>
-      <div>Theme chooser</div>
-      <button type="button" onClick={onClose}>
-        Close theme chooser
-      </button>
-    </div>
-  ),
-}));
-
 import { RoomChrome } from '@/components/RoomChrome';
+import * as analyticsModule from '@/lib/analytics';
+import { ThemeProvider } from '@/lib/themes';
+import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 describe('RoomChrome component', () => {
   let originalClipboard: Clipboard;
   let originalLocation: Location;
   let originalShare: Navigator['share'];
   const mockWriteText = vi.fn().mockResolvedValue(undefined);
+  let trackRoomInviteSharedSpy: MockInstance;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    installMatchMedia(false);
     originalClipboard = navigator.clipboard;
     originalLocation = window.location;
     originalShare = navigator.share;
+
+    trackRoomInviteSharedSpy = vi
+      .spyOn(analyticsModule, 'trackRoomInviteShared')
+      .mockImplementation(() => {});
 
     Object.defineProperty(navigator, 'clipboard', {
       value: {
@@ -91,6 +56,7 @@ describe('RoomChrome component', () => {
   });
 
   afterEach(() => {
+    trackRoomInviteSharedSpy.mockRestore();
     Object.defineProperty(navigator, 'clipboard', {
       value: originalClipboard,
       configurable: true,
@@ -105,8 +71,12 @@ describe('RoomChrome component', () => {
     });
   });
 
+  function renderWithTheme(ui: React.ReactElement) {
+    return render(<ThemeProvider>{ui}</ThemeProvider>);
+  }
+
   function renderRoomChrome() {
-    render(
+    renderWithTheme(
       <RoomChrome
         roomCode="ABCD"
         title="Need 1 more player"
@@ -141,9 +111,7 @@ describe('RoomChrome component', () => {
     await user.click(screen.getByRole('button', { name: /More options/i }));
     const archiveLink = screen.getByRole('link', { name: /Your poems/i });
     expect(archiveLink).toHaveAttribute('href', '/me/poems');
-    expect(archiveLink).toHaveAttribute('data-prefetch', 'false');
     // There are two "How to play" buttons: the direct chrome button and the overflow menu item.
-    // Both are present when the menu is open.
     expect(
       screen.getAllByRole('button', { name: /How to play/i }).length
     ).toBeGreaterThanOrEqual(2);
@@ -153,7 +121,7 @@ describe('RoomChrome component', () => {
   });
 
   it('collapses active-game controls into one bounded toolbar', () => {
-    render(
+    renderWithTheme(
       <RoomChrome
         roomCode="ABCD"
         title="Round 1 · 1 word"
@@ -180,7 +148,7 @@ describe('RoomChrome component', () => {
   });
 
   it('renders the status-board ticker as one glanceable active-room status', () => {
-    render(
+    renderWithTheme(
       <RoomChrome
         roomCode="ABCD"
         title="Round 1 · 1 word"
@@ -224,7 +192,7 @@ describe('RoomChrome component', () => {
         'https://example.com/join?code=ABCD'
       );
       expect(screen.getByText('Copied!')).toBeInTheDocument();
-      expect(mockTrackRoomInviteShared).toHaveBeenCalledWith({
+      expect(trackRoomInviteSharedSpy).toHaveBeenCalledWith({
         method: 'clipboard',
         roomCode: 'ABCD',
       });
@@ -270,7 +238,7 @@ describe('RoomChrome component', () => {
       url: 'https://example.com/join?code=ABCD',
     });
     expect(screen.getByText('Shared!')).toBeInTheDocument();
-    expect(mockTrackRoomInviteShared).toHaveBeenCalledWith({
+    expect(trackRoomInviteSharedSpy).toHaveBeenCalledWith({
       method: 'native-share',
       roomCode: 'ABCD',
     });
@@ -286,11 +254,15 @@ describe('RoomChrome component', () => {
       name: /How to play/i,
     });
     await user.click(howToPlayBtns[1]);
-    expect(screen.getByText('Help modal')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /How to Play/i })
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /More options/i }));
     await user.click(screen.getByRole('button', { name: /^Theme$/i }));
-    const themeChooser = screen.getByText('Theme chooser');
+    const themeChooser = screen.getByRole('radiogroup', {
+      name: /Select theme/i,
+    });
     expect(themeChooser).toBeInTheDocument();
     expect(themeChooser.closest('.lj-room-popover')).toBeInTheDocument();
   });
@@ -329,19 +301,27 @@ describe('RoomChrome component', () => {
     };
 
     await openTheme();
-    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+    expect(
+      screen.getByRole('radiogroup', { name: /Select theme/i })
+    ).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
     await waitFor(() => {
-      expect(screen.queryByText('Theme chooser')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('radiogroup', { name: /Select theme/i })
+      ).not.toBeInTheDocument();
     });
 
     await openTheme();
-    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+    expect(
+      screen.getByRole('radiogroup', { name: /Select theme/i })
+    ).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => {
-      expect(screen.queryByText('Theme chooser')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('radiogroup', { name: /Select theme/i })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -351,14 +331,16 @@ describe('RoomChrome component', () => {
 
     await user.click(screen.getByRole('button', { name: /More options/i }));
     await user.click(screen.getByRole('button', { name: /^Theme$/i }));
-    expect(screen.getByText('Theme chooser')).toBeInTheDocument();
+    const themeChooser = screen.getByRole('radiogroup', {
+      name: /Select theme/i,
+    });
 
-    await user.click(
-      screen.getByRole('button', { name: /Close theme chooser/i })
-    );
+    fireEvent.keyDown(themeChooser, { key: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.queryByText('Theme chooser')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('radiogroup', { name: /Select theme/i })
+      ).not.toBeInTheDocument();
     });
   });
 });

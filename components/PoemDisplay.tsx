@@ -9,7 +9,10 @@ import { HeartButton } from './ui/HeartButton';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { cn } from '@/lib/utils';
 import { Id } from '@/convex/_generated/dataModel';
-import { useSharePoem } from '@/hooks/useSharePoem';
+import {
+  useSharePoem,
+  type UseSharePoemDependencies,
+} from '@/hooks/useSharePoem';
 import { useSavePoemImage } from '@/hooks/useSavePoemImage';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
@@ -49,7 +52,7 @@ export interface PoemMetadata {
   poemNumber?: number;
 }
 
-interface PoemDisplayProps {
+export interface PoemDisplayProps {
   poemId: Id<'poems'>;
   guestToken?: string;
   lines: string[] | PoemLine[];
@@ -60,6 +63,7 @@ interface PoemDisplayProps {
   metadata?: PoemMetadata;
   roomId?: string;
   cycle?: number;
+  shareDependencies?: UseSharePoemDependencies;
 }
 
 function formatDate(timestamp: number): string {
@@ -77,11 +81,12 @@ export function PoemDisplay({
   metadata,
   roomId,
   cycle = 1,
+  shareDependencies,
 }: PoemDisplayProps) {
   const isArchive = variant === 'archive';
 
   const normalizedLines: PoemLine[] = lines.map((line) =>
-    typeof line === 'string' ? { text: line } : line
+    line instanceof Object ? line : { text: line }
   );
   const firstLineText = normalizedLines[0]?.text ?? metadata?.firstLine ?? '';
   // Law 3: line number gutter is one fixed width for every line (ch units,
@@ -105,7 +110,8 @@ export function PoemDisplay({
     guestToken,
     firstLineText,
     roomId,
-    cycle
+    cycle,
+    shareDependencies
   );
   const { handleSaveImage, saving, saved, saveError } = useSavePoemImage(
     poemId,

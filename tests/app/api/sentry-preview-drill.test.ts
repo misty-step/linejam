@@ -1,17 +1,9 @@
 /** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { captureExceptionMock, flushMock } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-  flushMock: vi.fn(),
-}));
-
-vi.mock('@sentry/nextjs', () => ({
-  captureException: captureExceptionMock,
-  flush: flushMock,
-}));
-
-import { POST } from '@/app/api/internal/sentry-preview-drill/route';
+import {
+  createSentryPreviewDrillRoute,
+  type SentryPreviewDrillRouteDependencies,
+} from '@/app/api/internal/sentry-preview-drill/handler';
 
 const url = 'https://preview.linejam.app/api/internal/sentry-preview-drill';
 
@@ -22,9 +14,20 @@ function request(token = 'drill-secret') {
   });
 }
 
+const captureExceptionMock = vi.fn<
+  SentryPreviewDrillRouteDependencies['captureException']
+>(() => 'drill-event-id');
+const flushMock = vi.fn(async () => true);
+const POST = createSentryPreviewDrillRoute({
+  captureException: captureExceptionMock,
+  flush: flushMock,
+});
+
 describe('preview Sentry privacy drill', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    captureExceptionMock.mockClear();
+    flushMock.mockClear();
+
     vi.stubEnv('LINEJAM_DEPLOY_ENVIRONMENT', 'preview');
     vi.stubEnv(
       'NEXT_PUBLIC_SENTRY_DSN',
@@ -32,10 +35,11 @@ describe('preview Sentry privacy drill', () => {
     );
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
     vi.stubEnv('SENTRY_PREVIEW_DRILL_TOKEN', 'drill-secret');
-    flushMock.mockResolvedValue(true);
   });
 
   afterEach(() => {
+    captureExceptionMock.mockClear();
+    flushMock.mockClear();
     vi.unstubAllEnvs();
   });
 

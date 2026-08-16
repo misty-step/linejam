@@ -19,7 +19,9 @@ describe('RoundClock', () => {
 
   it('shows a near-full muted bar at the start of the round', () => {
     const { container } = render(<RoundClock roundStartedAt={Date.now()} />);
-    const bar = container.querySelector('.h-full') as HTMLElement;
+    const bar = container.querySelector('.h-full');
+    if (!(bar instanceof HTMLElement))
+      throw new Error('Expected HTMLElement bar');
     expect(bar).toBeTruthy();
     // Early in the round the bar is wide and uses the muted (not warning) color
     expect(bar.style.width).toMatch(/9\d(\.\d+)?%|100%/);
@@ -30,14 +32,18 @@ describe('RoundClock', () => {
     // 80% elapsed → 20% remaining (≤25% triggers warming)
     const start = Date.now() - ROUND_CLOCK_MS * 0.8;
     const { container } = render(<RoundClock roundStartedAt={start} />);
-    const bar = container.querySelector('.h-full') as HTMLElement;
+    const bar = container.querySelector('.h-full');
+    if (!(bar instanceof HTMLElement))
+      throw new Error('Expected HTMLElement bar');
     expect(bar.className).toContain('bg-[var(--color-primary)]');
   });
 
   it('settles at full width and dimmed once overtime arrives', () => {
     const start = Date.now() - ROUND_CLOCK_MS * 2;
     const { container } = render(<RoundClock roundStartedAt={start} />);
-    const bar = container.querySelector('.h-full') as HTMLElement;
+    const bar = container.querySelector('.h-full');
+    if (!(bar instanceof HTMLElement))
+      throw new Error('Expected HTMLElement bar');
     expect(bar.style.width).toBe('100%');
     expect(bar.style.opacity).toBe('0.35');
   });

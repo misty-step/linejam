@@ -1,8 +1,10 @@
 /** @vitest-environment node */
 import { describe, expect, it, vi } from 'vitest';
 import { parseFlags, run } from '@/scripts/cli/linejam-cli';
+import type { LinejamClient } from '@/scripts/lib/linejamClient';
 
-function fakeClient(overrides: Record<string, unknown> = {}) {
+function fakeClient(overrides: Partial<LinejamClient> = {}): LinejamClient {
+  // SAFETY: Test fixture stubs all LinejamClient methods with Vitest mocks for CLI dispatch tests.
   return {
     createRoom: vi.fn().mockResolvedValue({ code: 'ABCD', roomId: 'room1' }),
     joinRoom: vi.fn().mockResolvedValue({ code: 'ABCD' }),
@@ -19,8 +21,7 @@ function fakeClient(overrides: Record<string, unknown> = {}) {
     toggleFavorite: vi.fn().mockResolvedValue(null),
     getMyFavorites: vi.fn().mockResolvedValue([]),
     ...overrides,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  } as LinejamClient;
 }
 
 describe('parseFlags', () => {

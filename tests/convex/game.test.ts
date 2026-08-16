@@ -17,6 +17,12 @@ import {
   type AbuseRateLimitOperation,
   guestBucketRateLimitKey,
 } from '../../convex/lib/abuseRateLimit';
+interface GameUserSeedDocument {
+  displayName: string;
+  kind: 'human';
+  createdAt: number;
+  clerkUserId?: string;
+}
 
 /**
  * Seed a fully-wired LOBBY with two human players.
@@ -242,14 +248,15 @@ async function seedInProgressGame(
   return t.run(async (ctx) => {
     const userIds: Id<'users'>[] = [];
     for (const p of opts.players) {
-      userIds.push(
-        await ctx.db.insert('users', {
-          displayName: p.name,
-          kind: 'human',
-          ...(p.clerkUserId ? { clerkUserId: p.clerkUserId } : {}),
-          createdAt: now,
-        })
-      );
+      const userDoc: GameUserSeedDocument = {
+        displayName: p.name,
+        kind: 'human',
+        createdAt: now,
+      };
+      if (p.clerkUserId) {
+        userDoc.clerkUserId = p.clerkUserId;
+      }
+      userIds.push(await ctx.db.insert('users', userDoc));
     }
 
     const roomId = await ctx.db.insert('rooms', {
@@ -267,6 +274,7 @@ async function seedInProgressGame(
           displayName: p.name,
           seatIndex: i,
           joinedAt: now,
+          lastSeenAt: now,
         })
       )
     );
@@ -1594,7 +1602,7 @@ describe('revealPoem', () => {
 
     const poem = await t.run((ctx) => ctx.db.get(poemId));
     expect(poem?.revealedAt).toBeDefined();
-    expect(typeof poem?.revealedAt).toBe('number');
+    expect(poem?.revealedAt).toBeGreaterThan(0);
   });
 
   it('throws if user not found (no identity)', async () => {
@@ -1836,9 +1844,9 @@ describe('getRoundProgress', () => {
     expect(bob?.submitted).toBe(false);
 
     // isAway must be present; raw lastSeenAt must NOT appear in the shape
-    expect(typeof alice?.isAway).toBe('boolean');
-    expect(typeof bob?.isAway).toBe('boolean');
-    expect((alice as Record<string, unknown>)['lastSeenAt']).toBeUndefined();
+    expect(alice?.isAway).toBe(false);
+    expect(bob?.isAway).toBe(false);
+    expect(alice).not.toHaveProperty('lastSeenAt');
   });
 
   it('marks a late arrival as a spectator outside the active matrix', async () => {

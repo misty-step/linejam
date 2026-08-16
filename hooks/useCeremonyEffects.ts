@@ -7,20 +7,20 @@ type CeremonyEffect = 'line' | 'final-line' | 'crown';
 const CEREMONY_MUTED_KEY = 'linejam:ceremony-muted';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-const HAPTIC_PATTERNS: Record<CeremonyEffect, VibratePattern> = {
+const HAPTIC_PATTERNS = {
   line: 8,
   'final-line': [14, 30, 18],
   crown: [16, 40, 22],
-};
+} as const satisfies Record<CeremonyEffect, VibratePattern>;
 
-const TONE_FREQUENCIES: Record<CeremonyEffect, number> = {
+const TONE_FREQUENCIES = {
   line: 440,
   'final-line': 660,
   crown: 740,
-};
+} as const satisfies Record<CeremonyEffect, number>;
 
 function readMutedPreference() {
-  if (typeof window === 'undefined') return false;
+  if (globalThis.window === undefined) return false;
 
   try {
     return window.localStorage.getItem(CEREMONY_MUTED_KEY) === '1';
@@ -30,8 +30,7 @@ function readMutedPreference() {
 }
 
 function writeMutedPreference(isMuted: boolean) {
-  if (typeof window === 'undefined') return;
-
+  if (globalThis.window === undefined) return;
   try {
     if (isMuted) {
       window.localStorage.setItem(CEREMONY_MUTED_KEY, '1');
@@ -44,21 +43,21 @@ function writeMutedPreference(isMuted: boolean) {
 }
 
 function readReducedMotionPreference() {
-  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  if (globalThis.window === undefined || !window.matchMedia) return false;
   return window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
 
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 function playTone(effect: CeremonyEffect) {
-  if (typeof window === 'undefined') return;
+  if (globalThis.window === undefined) return;
 
-  type AudioWindow = Window &
-    typeof globalThis & {
-      webkitAudioContext?: typeof AudioContext;
-    };
-  const AudioContextCtor =
-    window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
+  const AudioContextCtor = window.AudioContext ?? window.webkitAudioContext;
   if (!AudioContextCtor) return;
-
   try {
     const context = new AudioContextCtor();
     const oscillator = context.createOscillator();
@@ -91,7 +90,7 @@ export function useCeremonyEffects() {
   );
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
+    if (globalThis.window === undefined || !window.matchMedia) return;
 
     const media = window.matchMedia(REDUCED_MOTION_QUERY);
     const handleChange = (event: MediaQueryListEvent) => {
@@ -119,8 +118,8 @@ export function useCeremonyEffects() {
     (effect: CeremonyEffect) => {
       if (isMuted || prefersReducedMotion) return;
 
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(HAPTIC_PATTERNS[effect]);
+      if (globalThis.navigator !== undefined) {
+        globalThis.navigator.vibrate?.(HAPTIC_PATTERNS[effect]);
       }
       playTone(effect);
     },

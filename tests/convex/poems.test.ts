@@ -18,6 +18,24 @@ import { type T, asUser, seedClerkUser, seedLine } from '../helpers/convexSeed';
  * getPublicSessionRecap) need no auth; they gate on publicShareEnabled /
  * publicRecapEnabled flags and poem.revealedAt instead.
  */
+interface PoemQueryGameSeedDocument {
+  roomId: Id<'rooms'>;
+  status: 'IN_PROGRESS' | 'COMPLETED';
+  cycle: number;
+  currentRound: number;
+  assignmentMatrix: Id<'users'>[][];
+  createdAt: number;
+  publicRecapEnabled?: boolean;
+}
+
+interface PoemQueryPoemSeedDocument {
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  indexInRoom: number;
+  createdAt: number;
+  revealedAt?: number;
+  publicShareEnabled?: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Seed helpers
@@ -74,28 +92,34 @@ async function seedRoom(
       });
     }
 
-    const gameId = await ctx.db.insert('games', {
+    const gameDoc: PoemQueryGameSeedDocument = {
       roomId,
       status: gameStatus,
       cycle: 1,
       currentRound: 0,
       assignmentMatrix: [[userId]],
       createdAt: 0,
-      ...(publicRecapEnabled !== undefined ? { publicRecapEnabled } : {}),
-    });
+    };
+    if (publicRecapEnabled !== undefined) {
+      gameDoc.publicRecapEnabled = publicRecapEnabled;
+    }
+    const gameId = await ctx.db.insert('games', gameDoc);
 
     const poemIds: Id<'poems'>[] = [];
     for (let i = 0; i < poemCount; i++) {
-      poemIds.push(
-        await ctx.db.insert('poems', {
-          roomId,
-          gameId,
-          indexInRoom: i,
-          createdAt: i * 1000 + 1000,
-          ...(revealPoems ? { revealedAt: 9000 + i } : {}),
-          ...(publicShareEnabled !== undefined ? { publicShareEnabled } : {}),
-        })
-      );
+      const poemDoc: PoemQueryPoemSeedDocument = {
+        roomId,
+        gameId,
+        indexInRoom: i,
+        createdAt: i * 1000 + 1000,
+      };
+      if (revealPoems) {
+        poemDoc.revealedAt = 9000 + i;
+      }
+      if (publicShareEnabled !== undefined) {
+        poemDoc.publicShareEnabled = publicShareEnabled;
+      }
+      poemIds.push(await ctx.db.insert('poems', poemDoc));
     }
 
     return { roomId, gameId, poemIds };
@@ -997,7 +1021,7 @@ describe('getPublicPoemFull', () => {
       authorName: 'alice',
     });
 
-    const publicLines = result!.lines as Array<Record<string, unknown>>;
+    const publicLines = result!.lines;
     expect(publicLines[0].authorKey).toBe(publicLines[2].authorKey);
     expect(publicLines[0].authorKey).not.toBe(publicLines[1].authorKey);
     expect(Object.keys(publicLines[0]).sort()).toEqual([

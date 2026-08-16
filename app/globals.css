@@ -418,8 +418,8 @@ h6 {
   }
 }
 
-/* Shape Bar Reveal - For poem shape visualization */
-@keyframes shape-bar-reveal {
+/* Silhouette Bar Reveal - For poem silhouette visualization */
+@keyframes silhouette-bar-reveal {
   from {
     opacity: 0;
     transform: scaleX(0);

@@ -5,41 +5,48 @@ import {
   kenyaTheme,
   validateTheme,
   type ThemePreset,
+  type ThemeTokens,
+  type ThemeValidationInput,
 } from '@/lib/themes';
 import { withEnv } from '@/tests/helpers/envHelper';
 
-function cloneTheme(): ThemePreset {
-  return structuredClone(kenyaTheme) as ThemePreset;
-}
-
 function makeInvalidTheme(missingLightTokens: number): ThemePreset {
-  const preset = cloneTheme();
+  const lightTokens = { ...kenyaTheme.tokens.light };
 
   for (const token of REQUIRED_TOKENS.slice(0, missingLightTokens)) {
-    delete (
-      preset.tokens.light as unknown as Record<string, string | undefined>
-    )[token];
+    delete lightTokens[token];
   }
 
-  return preset;
+  // SAFETY: Intentionally creates incomplete ThemePreset to verify theme validator rejects missing tokens.
+  return {
+    ...kenyaTheme,
+    tokens: {
+      light: lightTokens as ThemeTokens,
+      dark: { ...kenyaTheme.tokens.dark },
+    },
+  };
 }
-
 describe('theme schema', () => {
   it('reports missing required tokens across both modes', () => {
-    const preset = cloneTheme();
+    const lightTokens = {
+      ...kenyaTheme.tokens.light,
+      'color-primary': undefined,
+    };
+    const darkTokens = {
+      ...kenyaTheme.tokens.dark,
+      'color-primary': null,
+      'color-background': '',
+    };
 
-    (preset.tokens.light as unknown as Record<string, string | undefined>)[
-      'color-primary'
-    ] = undefined;
-    (preset.tokens.dark as unknown as Record<string, string | null>)[
-      'color-primary'
-    ] = null;
-    (preset.tokens.dark as unknown as Record<string, string>)[
-      'color-background'
-    ] = '';
+    const preset: ThemeValidationInput = {
+      ...kenyaTheme,
+      tokens: {
+        light: lightTokens,
+        dark: darkTokens,
+      },
+    };
 
     const result = validateTheme(preset);
-
     expect(result.valid).toBe(false);
     expect(result.errors).toEqual(
       expect.arrayContaining([

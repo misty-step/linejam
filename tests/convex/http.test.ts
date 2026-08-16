@@ -81,6 +81,7 @@ describe('convex/http health route', () => {
           '268a6e8e-c341-414e-bee6-20125b9987ef',
         SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
         SENTRY_GITHUB_INTEGRATION_ID: '338522',
+        SENTRY_ORG: 'misty-step',
         SENTRY_WEBHOOK_SECRET: 'test-webhook-secret',
       },
       async () => {
@@ -110,7 +111,22 @@ const WEBHOOK_SECRET = 'test-sentry-webhook-secret';
 const INSTALLATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const REQUEST_ID = '11111111222243338444555555555555';
 
-function webhookPayload(overrides: Record<string, unknown> = {}) {
+interface SentryWebhookOverrides {
+  action?: string;
+  installation?: { uuid?: string };
+  data?: {
+    event?: {
+      project?: number | string;
+      issue_id?: string;
+      event_id?: string;
+      title?: string;
+      message?: string;
+      stacktrace?: string;
+    };
+  };
+}
+
+function webhookPayload(overrides: SentryWebhookOverrides = {}) {
   return {
     action: 'triggered',
     installation: { uuid: INSTALLATION_UUID },

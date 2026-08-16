@@ -10,7 +10,11 @@ const DEFAULT_SUMMARY_URL = new URL(
 const METRICS = ['lines', 'statements', 'functions', 'branches'];
 
 function assertObject(value, label) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (
+    !value ||
+    Array.isArray(value) ||
+    Object.prototype.toString.call(value) !== '[object Object]'
+  ) {
     throw new Error(`${label} must be an object.`);
   }
 }
@@ -51,7 +55,6 @@ export function assertCoverageSummary(candidate) {
       continue;
     }
     if (
-      typeof pct !== 'number' ||
       !Number.isFinite(pct) ||
       pct < 0 ||
       pct > 100

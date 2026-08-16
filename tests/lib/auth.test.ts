@@ -2,29 +2,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-// Mock Clerk
-const mockUseClerkUser = vi.fn();
-vi.mock('@clerk/nextjs', () => ({
-  useUser: () => mockUseClerkUser(),
-}));
+import {
+  useUser,
+  type ClerkAuthState,
+  type ConvexAuthState,
+  type UseUserAuthDependencies,
+} from '@/lib/auth';
+import type { GuestSessionFetcher } from '@/lib/guestSession';
 
-const mockUseConvexAuth = vi.fn();
-vi.mock('convex/react', () => ({
-  useConvexAuth: () => mockUseConvexAuth(),
-}));
-
-// Mock captureError
+const mockUseClerkUser = vi.fn<() => ClerkAuthState>();
+const mockUseConvexAuth = vi.fn<() => ConvexAuthState>();
 const mockCaptureError = vi.fn();
-vi.mock('@/lib/error', () => ({
-  captureError: (...args: unknown[]) => mockCaptureError(...args),
-}));
 
-// Import after mocking
-import { useUser } from '@/lib/auth';
+const authDeps: UseUserAuthDependencies = {
+  useClerk: () => mockUseClerkUser(),
+  useConvex: () => mockUseConvexAuth(),
+  onError: (error, context) => mockCaptureError(error, context),
+};
+
+const renderAuthHook = (fetcher?: GuestSessionFetcher) =>
+  renderHook(() => useUser(fetcher, authDeps));
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
-  let reject!: (error: unknown) => void;
+  let reject!: (cause: unknown) => void;
   const promise = new Promise<T>((res, rej) => {
     resolve = res;
     reject = rej;
@@ -56,6 +57,7 @@ describe('useUser hook', () => {
       ok: true,
       json: async () => ({ guestId: 'default-guest', token: 'default-token' }),
     });
+    // SAFETY: Test fixture mocks global.fetch for happy-dom hook execution.
     global.fetch = mockFetch as typeof fetch;
   });
 
@@ -74,7 +76,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     // Assert
     expect(result.current.isLoading).toBe(true);
@@ -96,7 +98,7 @@ describe('useUser hook', () => {
       }),
     };
 
-    const { result } = renderHook(() => useUser(fetcher));
+    const { result } = renderAuthHook(fetcher);
 
     expect(result.current.isLoading).toBe(true);
     expect(fetcher.fetch).not.toHaveBeenCalled();
@@ -139,7 +141,7 @@ describe('useUser hook', () => {
         token: 'token-before-clerk',
       }),
     };
-    const { result, rerender } = renderHook(() => useUser(fetcher));
+    const { result, rerender } = renderAuthHook(fetcher);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
@@ -183,7 +185,7 @@ describe('useUser hook', () => {
         token: 'token-stable',
       }),
     };
-    const { result, rerender } = renderHook(() => useUser(fetcher));
+    const { result, rerender } = renderAuthHook(fetcher);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
@@ -221,7 +223,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     // Wait for effect to complete
     await waitFor(() => {
@@ -255,7 +257,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     // Wait for fetch to complete
     await waitFor(() => {
@@ -283,7 +285,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -304,7 +306,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     // Wait for error handling
     await waitFor(() => {
@@ -330,7 +332,7 @@ describe('useUser hook', () => {
   it('shows expected guest throttling without reporting it to Sentry', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 429 });
 
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -348,7 +350,7 @@ describe('useUser hook', () => {
     localStorage.setItem('linejam_guest_token', 'stale-token');
     mockFetch.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -375,7 +377,7 @@ describe('useUser hook', () => {
     });
 
     // Act - initial render fails
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.authError).toBe(
@@ -414,7 +416,7 @@ describe('useUser hook', () => {
         .mockImplementationOnce(() => second.promise),
     };
 
-    const { result } = renderHook(() => useUser(fetcher));
+    const { result } = renderAuthHook(fetcher);
 
     await waitFor(() => {
       expect(fetcher.fetch).toHaveBeenCalledTimes(1);
@@ -466,7 +468,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -493,7 +495,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -516,7 +518,7 @@ describe('useUser hook', () => {
     });
 
     // Act
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -541,7 +543,7 @@ describe('useUser hook', () => {
       isAuthenticated: false,
     });
 
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.authError).toBeNull();
@@ -563,7 +565,7 @@ describe('useUser hook', () => {
       isAuthenticated: false,
     });
 
-    const { result } = renderHook(() => useUser());
+    const { result } = renderAuthHook();
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

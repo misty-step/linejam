@@ -28,21 +28,21 @@ export class GuestSessionHttpError extends Error {
 }
 
 export function isGuestSessionRateLimitError(
-  error: unknown
-): error is GuestSessionHttpError {
-  return error instanceof GuestSessionHttpError && error.status === 429;
+  cause: unknown
+): cause is GuestSessionHttpError {
+  return cause instanceof GuestSessionHttpError && cause.status === 429;
 }
 
 const LEGACY_STORAGE_KEY = 'linejam_guest_token';
 
 const clearLegacyGuestTokenMirror = () => {
-  if (typeof window === 'undefined') return;
+  if (globalThis.window === undefined) return;
 
   localStorage.removeItem(LEGACY_STORAGE_KEY);
 };
 
 export async function clearGuestSession() {
-  if (typeof window === 'undefined') return;
+  if (globalThis.window === undefined) return;
 
   clearLegacyGuestTokenMirror();
   const res = await fetch('/api/guest/session', { method: 'DELETE' });
@@ -55,6 +55,23 @@ export async function getExistingGuestSession(): Promise<GuestSessionData> {
   return fetchGuestSession('/api/guest/session?existing=1');
 }
 
+type GuestSessionWireValue =
+  | string
+  | number
+  | boolean
+  | null
+  | GuestSessionWireValue[]
+  | GuestSessionWireObject;
+
+interface GuestSessionWireObject {
+  [key: string]: GuestSessionWireValue;
+}
+
+interface GuestSessionApiResponse {
+  guestId?: GuestSessionWireValue;
+  token?: GuestSessionWireValue;
+}
+
 async function fetchGuestSession(url: string): Promise<GuestSessionData> {
   clearLegacyGuestTokenMirror();
 
@@ -62,11 +79,27 @@ async function fetchGuestSession(url: string): Promise<GuestSessionData> {
   if (!res.ok) {
     throw new GuestSessionHttpError(res.status);
   }
-  const data = await res.json();
-  const guestId = typeof data.guestId === 'string' ? data.guestId : null;
-  const token = typeof data.token === 'string' ? data.token : null;
+  const data: GuestSessionApiResponse = await res.json();
+  const guestId =
+    data instanceof Object && 'guestId' in data
+      ? parseGuestSessionString(data.guestId)
+      : null;
+  const token =
+    data instanceof Object && 'token' in data
+      ? parseGuestSessionString(data.token)
+      : null;
 
   return { guestId, token };
+}
+
+function parseGuestSessionString(
+  value: GuestSessionWireValue | undefined
+): string | null {
+  try {
+    return String.prototype.valueOf.call(value);
+  } catch {
+    return null;
+  }
 }
 
 /**

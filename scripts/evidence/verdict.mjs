@@ -8,7 +8,10 @@ const VALID_ARTIFACTS = new Set([
 ]);
 
 function parseExpiryDate(expiresOn) {
-  if (typeof expiresOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expiresOn)) {
+  if (
+    Object.prototype.toString.call(expiresOn) !== '[object String]' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(expiresOn)
+  ) {
     return null;
   }
 
@@ -17,10 +20,13 @@ function parseExpiryDate(expiresOn) {
 }
 
 function normalizeRuntimeWaiver(waiver, index, now) {
-  if (!waiver || typeof waiver !== 'object') {
+  if (
+    !waiver ||
+    Array.isArray(waiver) ||
+    Object.prototype.toString.call(waiver) !== '[object Object]'
+  ) {
     throw new Error(`runtimeErrors[${index}] waiver must be an object.`);
   }
-
   const pattern = String(waiver.pattern || '').trim();
   const reason = String(waiver.reason || '').trim();
   const expiresOn = String(waiver.expiresOn || '').trim();
@@ -48,10 +54,13 @@ function normalizeRuntimeWaiver(waiver, index, now) {
 }
 
 function normalizeArtifactWaiver(waiver, index, now) {
-  if (!waiver || typeof waiver !== 'object') {
+  if (
+    !waiver ||
+    Array.isArray(waiver) ||
+    Object.prototype.toString.call(waiver) !== '[object Object]'
+  ) {
     throw new Error(`artifactErrors[${index}] waiver must be an object.`);
   }
-
   const artifact = String(waiver.artifact || '').trim();
   const reason = String(waiver.reason || '').trim();
   const expiresOn = String(waiver.expiresOn || '').trim();
@@ -75,11 +84,15 @@ export function artifactIssue(artifact, message) {
 }
 
 export function issueArtifact(issue) {
-  return typeof issue === 'string' ? 'artifact' : issue.artifact;
+  return Object.prototype.toString.call(issue) === '[object String]'
+    ? 'artifact'
+    : issue.artifact;
 }
 
 export function issueMessage(issue) {
-  return typeof issue === 'string' ? issue : issue.message;
+  return Object.prototype.toString.call(issue) === '[object String]'
+    ? issue
+    : issue.message;
 }
 
 function errorMessage(error) {
@@ -91,10 +104,12 @@ export function parseEvidenceWaivers(payload, { now = new Date() } = {}) {
     return { runtimeErrors: [], artifactErrors: [] };
   }
 
-  if (typeof payload !== 'object' || Array.isArray(payload)) {
+  if (
+    Array.isArray(payload) ||
+    Object.prototype.toString.call(payload) !== '[object Object]'
+  ) {
     throw new Error('Evidence waiver file must contain a JSON object.');
   }
-
   const runtimeErrors = Array.isArray(payload.runtimeErrors)
     ? payload.runtimeErrors.map((waiver, index) =>
         normalizeRuntimeWaiver(waiver, index, now)

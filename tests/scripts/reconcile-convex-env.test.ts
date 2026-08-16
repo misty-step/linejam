@@ -35,7 +35,7 @@ const manifest = {
 
 describe('Convex environment reconciliation', () => {
   it('supports explicit values-free operator targets without a deploy key', () => {
-    const emptyEnv = {} as NodeJS.ProcessEnv;
+    const emptyEnv: NodeJS.ProcessEnv = { NODE_ENV: 'test' };
     expect(
       resolveReconciliationTarget(['--target', 'development'], emptyEnv)
     ).toEqual({ status: 'default', args: [], explicit: true });

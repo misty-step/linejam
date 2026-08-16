@@ -33,11 +33,11 @@ describe('EmptyArchive component', () => {
       expect(joinLink).toHaveAttribute('href', '/join');
     });
 
-    it('renders decorative poem shape', () => {
+    it('renders decorative poem silhouette', () => {
       render(<EmptyArchive />);
-      // PoemShape has role="img" with aria-label
+      // PoemSilhouette has role="img" with its accessible name.
       expect(
-        screen.getByRole('img', { name: /poem shape/i })
+        screen.getByRole('img', { name: /poem silhouette/i })
       ).toBeInTheDocument();
     });
 

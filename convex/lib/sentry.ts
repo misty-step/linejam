@@ -141,18 +141,44 @@ function isBackendFailureReport(report: BackendFailureReport): boolean {
   );
 }
 
-function numericContext(report: BackendFailureReport) {
-  return {
-    ...(report.scheduled === undefined
-      ? {}
-      : { scheduled: boundedCount(report.scheduled) }),
-    ...(report.scanned === undefined
-      ? {}
-      : { scanned: boundedCount(report.scanned) }),
+interface SentryLinejamContext {
+  scheduled?: number;
+  scanned?: number;
+}
+
+interface SentryEventPayload {
+  event_id: string;
+  platform: string;
+  level: string;
+  environment: SentryEnvironment;
+  release: string;
+  message: string;
+  fingerprint: string[];
+  tags: {
+    runtime: string;
+    environment: SentryEnvironment;
+    release: string;
+    operation: BackendFailureOperation;
+    failure_code: BackendFailureCode;
+    level: string;
+  };
+  contexts: {
+    linejam: SentryLinejamContext;
   };
 }
 
-function envelope(eventId: string, payload: object) {
+function numericContext(report: BackendFailureReport): SentryLinejamContext {
+  const context: SentryLinejamContext = {};
+  if (report.scheduled !== undefined) {
+    context.scheduled = boundedCount(report.scheduled);
+  }
+  if (report.scanned !== undefined) {
+    context.scanned = boundedCount(report.scanned);
+  }
+  return context;
+}
+
+function envelope(eventId: string, payload: SentryEventPayload) {
   return `${JSON.stringify({ event_id: eventId })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(payload)}`;
 }
 

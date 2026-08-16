@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Show, UserButton } from '@clerk/nextjs';
@@ -8,9 +14,50 @@ import { Palette, Archive, LogIn, MoreHorizontal } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { isFocusedPlayRoute } from '@/lib/routes';
 
-type HeaderProps = {
-  className?: string;
+interface HeaderAuthBoundaryProps {
+  children: ReactNode;
+}
+
+function DefaultSignedOut({ children }: HeaderAuthBoundaryProps) {
+  return <Show when="signed-out">{children}</Show>;
+}
+
+function DefaultSignedIn({ children }: HeaderAuthBoundaryProps) {
+  return <Show when="signed-in">{children}</Show>;
+}
+
+function DefaultAccountButton() {
+  return (
+    <UserButton
+      appearance={{
+        elements: {
+          rootBox: 'w-11 h-11 shrink-0',
+          userButtonTrigger: 'w-11 h-11',
+          avatarBox: 'w-10 h-10 border border-[var(--color-border)]',
+        },
+      }}
+    />
+  );
+}
+
+export interface HeaderDependencies {
+  usePathname(): string;
+  SignedOut: ComponentType<HeaderAuthBoundaryProps>;
+  SignedIn: ComponentType<HeaderAuthBoundaryProps>;
+  AccountButton: ComponentType;
+}
+
+const defaultHeaderDependencies: HeaderDependencies = {
+  usePathname,
+  SignedOut: DefaultSignedOut,
+  SignedIn: DefaultSignedIn,
+  AccountButton: DefaultAccountButton,
 };
+
+interface HeaderProps {
+  className?: string;
+  dependencies?: HeaderDependencies;
+}
 
 const headerIconClasses =
   'w-11 h-11 shrink-0 rounded-full border border-[var(--color-border)] items-center justify-center hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all duration-[var(--duration-normal)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2';
@@ -18,8 +65,12 @@ const headerIconClasses =
 const mobileMenuItemClasses =
   'flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-background)] focus-visible:outline-none focus-visible:bg-[var(--color-background)]';
 
-export function Header({ className = '' }: HeaderProps) {
-  const pathname = usePathname();
+export function Header({
+  className = '',
+  dependencies = defaultHeaderDependencies,
+}: HeaderProps) {
+  const pathname = dependencies.usePathname();
+  const { SignedOut, SignedIn, AccountButton } = dependencies;
   const isHomepage = pathname === '/';
   const isFocusedPlay = isFocusedPlayRoute(pathname);
   const isAuthPage = /^\/(sign-in|sign-up|callback)(?:\/|$)/.test(pathname);
@@ -32,7 +83,10 @@ export function Header({ className = '' }: HeaderProps) {
     if (!showMenu) return;
 
     const handlePointer = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
+      if (
+        event.target instanceof Node &&
+        !menuRef.current?.contains(event.target)
+      ) {
         setShowMenu(false);
       }
     };
@@ -74,7 +128,7 @@ export function Header({ className = '' }: HeaderProps) {
 
         {/* Right: Auth + Theme */}
         <div className="flex shrink-0 items-center gap-1 min-[360px]:gap-2 sm:gap-4 ml-auto">
-          <Show when="signed-out">
+          <SignedOut>
             <Link
               href="/sign-in"
               className={`${headerIconClasses} flex`}
@@ -82,19 +136,11 @@ export function Header({ className = '' }: HeaderProps) {
             >
               <LogIn className="w-5 h-5" />
             </Link>
-          </Show>
+          </SignedOut>
 
-          <Show when="signed-in">
-            <UserButton
-              appearance={{
-                elements: {
-                  rootBox: 'w-11 h-11 shrink-0',
-                  userButtonTrigger: 'w-11 h-11',
-                  avatarBox: 'w-10 h-10 border border-[var(--color-border)]',
-                },
-              }}
-            />
-          </Show>
+          <SignedIn>
+            <AccountButton />
+          </SignedIn>
 
           {/* Archive link */}
           <Link

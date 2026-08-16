@@ -126,6 +126,10 @@ incident-evidence platform:
   The listener projects only the closed action, installation, project, issue,
   and event identifiers needed for durable one-to-one GitHub Issue
   synchronization.
+- The bridge reads classification tags from the exact Sentry issue event named
+  by the receipt. It rejects a response whose event or issue ID differs and
+  rejects missing or duplicate required tags; issue-history tag aggregation is
+  never an attribution source.
 - GitHub Issues remains the sole work ledger. Sentry holds incident evidence and
   state, not a backlog; do not create a duplicate task in Powder or Habitat. The
   one claim and `forest:ready` contract is in `CONTRIBUTING.md`.

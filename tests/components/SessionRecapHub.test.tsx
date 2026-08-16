@@ -2,52 +2,35 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Id } from '@/convex/_generated/dataModel';
 
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-    prefetch,
-    ...props
-  }: {
-    children: React.ReactNode;
-    href: string;
-    prefetch?: boolean;
-  }) => {
-    const prefetchProps =
-      prefetch === undefined ? {} : { 'data-prefetch': String(prefetch) };
+import type { Id } from '@/convex/_generated/dataModel';
+import {
+  SessionRecapHub,
+  type SessionRecapHubDependencies,
+} from '@/components/SessionRecapHub';
+import type { ShareLinkClient } from '@/hooks/useShareLink';
 
-    return (
-      <a href={href} {...prefetchProps} {...props}>
-        {children}
-      </a>
-    );
-  },
-}));
-
+const mockEnablePublicSessionRecapShare = vi.fn().mockResolvedValue(null);
+const mockSessionFavorites = vi.fn();
 const mockTrackRoomInviteShared = vi.fn();
 const mockTrackArtifactAction = vi.fn();
-
-vi.mock('@/lib/analytics', () => ({
+const mockWriteText = vi.fn().mockResolvedValue(undefined);
+const shareClient: ShareLinkClient = {};
+const shareDependencies: SessionRecapHubDependencies = {
+  useEnablePublicShare: () => mockEnablePublicSessionRecapShare,
+  useSessionFavorites: () => mockSessionFavorites(),
+  shareClient,
+  trackRoomInviteShared: mockTrackRoomInviteShared,
+  trackArtifactAction: mockTrackArtifactAction,
   hashRoomId: () => 'test-room-hash',
-  trackArtifactAction: (props: unknown) => mockTrackArtifactAction(props),
-  trackRoomInviteShared: (props: unknown) => mockTrackRoomInviteShared(props),
-}));
+  getRecapUrl: (roomCode) => `https://example.com/recap/${roomCode}`,
+};
 
-const mockEnablePublicSessionRecapShare = vi.fn().mockResolvedValue(undefined);
-const mockSessionFavorites = vi.fn();
-vi.mock('convex/react', () => ({
-  useMutation: () => mockEnablePublicSessionRecapShare,
-  useQuery: () => mockSessionFavorites(),
-}));
-
-import { SessionRecapHub } from '@/components/SessionRecapHub';
+function renderSessionRecapHub(ui: React.ReactElement) {
+  return render(ui);
+}
 
 describe('SessionRecapHub', () => {
-  let originalClipboard: Clipboard;
-  let originalLocation: Location;
-  let originalShare: Navigator['share'];
   const defaultProps = {
     roomCode: 'ABCD',
     playerCount: 2,
@@ -55,75 +38,46 @@ describe('SessionRecapHub', () => {
     onBackToLobby: vi.fn(),
     poems: [
       {
+        // SAFETY: Synthetic Convex document id fixture for SessionRecapHub tests.
         _id: 'poem_2' as Id<'poems'>,
         indexInRoom: 1,
         preview: '',
         readerName: 'Bob',
       },
       {
+        // SAFETY: Synthetic Convex document id fixture for SessionRecapHub tests.
         _id: 'poem_1' as Id<'poems'>,
         indexInRoom: 0,
         preview: 'The moon hums',
         readerName: 'Alice',
       },
     ],
+    dependencies: shareDependencies,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    mockEnablePublicSessionRecapShare.mockResolvedValue(undefined);
+    mockEnablePublicSessionRecapShare.mockResolvedValue(null);
     // Default: no hearts given → no room-favorite crown
     mockSessionFavorites.mockReturnValue(null);
-    originalClipboard = navigator.clipboard;
-    originalLocation = window.location;
-    originalShare = navigator.share;
+    mockWriteText.mockResolvedValue(undefined);
+    shareClient.writeClipboardText = mockWriteText;
+    delete shareClient.nativeShare;
 
-    Object.defineProperty(navigator, 'clipboard', {
-      value: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    Object.defineProperty(navigator, 'share', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
     Object.defineProperty(navigator, 'vibrate', {
       value: vi.fn(),
       configurable: true,
-    });
-
-    Object.defineProperty(window, 'location', {
-      value: {
-        origin: 'https://example.com',
-      },
       writable: true,
-      configurable: true,
     });
   });
 
   afterEach(() => {
-    Object.defineProperty(navigator, 'clipboard', {
-      value: originalClipboard,
-      configurable: true,
-    });
-    Object.defineProperty(window, 'location', {
-      value: originalLocation,
-      configurable: true,
-    });
-    Object.defineProperty(navigator, 'share', {
-      value: originalShare,
-      configurable: true,
-    });
     localStorage.clear();
   });
 
   it('offsets the headline scroll target below the sticky room chrome (linejam-946)', () => {
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     const heading = screen.getByRole('heading', { name: 'Session complete' });
     expect(heading).toHaveClass('scroll-mt-28');
@@ -131,7 +85,7 @@ describe('SessionRecapHub', () => {
 
   it('renders sorted poem replay links and host controls', async () => {
     const user = userEvent.setup();
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     expect(screen.getByText('2 poems')).toBeInTheDocument();
     expect(screen.getByText('2 poets')).toBeInTheDocument();
@@ -155,7 +109,7 @@ describe('SessionRecapHub', () => {
   });
 
   it('discloses recap publication before the share control', () => {
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     const disclosure = screen.getByText(
       'Sharing makes the full session recap public to anyone with the link.'
@@ -171,7 +125,9 @@ describe('SessionRecapHub', () => {
 
   it('copies the session recap link when native share is unavailable', async () => {
     const user = userEvent.setup();
-    render(<SessionRecapHub {...defaultProps} playerCount={1} />);
+    renderSessionRecapHub(
+      <SessionRecapHub {...defaultProps} playerCount={1} />
+    );
 
     await user.click(
       screen.getByRole('button', { name: /Share the whole set/i })
@@ -180,6 +136,9 @@ describe('SessionRecapHub', () => {
     await waitFor(() => {
       expect(screen.getByText('Copied!')).toBeInTheDocument();
       expect(screen.getByText('1 poet')).toBeInTheDocument();
+      expect(mockWriteText).toHaveBeenCalledWith(
+        'https://example.com/recap/ABCD'
+      );
       expect(mockEnablePublicSessionRecapShare).toHaveBeenCalledWith({
         roomCode: 'ABCD',
         guestToken: undefined,
@@ -188,19 +147,21 @@ describe('SessionRecapHub', () => {
         method: 'clipboard',
         roomCode: 'ABCD',
       });
+      expect(mockTrackArtifactAction).toHaveBeenCalledWith({
+        roomIdHash: 'test-room-hash',
+        cycle: 1,
+        round: 8,
+        action: 'share',
+      });
     });
   });
 
   it('uses native share when the browser supports it', async () => {
     const nativeShare = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'share', {
-      value: nativeShare,
-      writable: true,
-      configurable: true,
-    });
+    shareClient.nativeShare = nativeShare;
     const user = userEvent.setup();
 
-    render(
+    renderSessionRecapHub(
       <SessionRecapHub
         {...defaultProps}
         isStartingNextRound
@@ -227,6 +188,7 @@ describe('SessionRecapHub', () => {
         roomCode: 'ABCD',
         guestToken: undefined,
       });
+      expect(mockWriteText).not.toHaveBeenCalled();
       expect(screen.getByText('Shared!')).toBeInTheDocument();
       expect(mockTrackRoomInviteShared).toHaveBeenCalledWith({
         method: 'native-share',
@@ -246,7 +208,7 @@ describe('SessionRecapHub', () => {
       leaderCount: 3,
     });
 
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     const crown = screen.getByText(/Room favorite/i).closest('.border-primary');
     expect(crown).toBeInTheDocument();
@@ -254,7 +216,6 @@ describe('SessionRecapHub', () => {
       'animate-crown-settle'
     );
     expect(screen.getByText(/3 hearts/i)).toBeInTheDocument();
-    // The crowned poem's preview appears inside the crown card
     expect(crown).toHaveTextContent(/The moon hums/i);
   });
 
@@ -266,7 +227,7 @@ describe('SessionRecapHub', () => {
       leaderCount: 0,
     });
 
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     expect(screen.queryByText(/Room favorite/i)).not.toBeInTheDocument();
   });
@@ -279,11 +240,11 @@ describe('SessionRecapHub', () => {
       leaderCount: 3,
     });
 
-    const { rerender } = render(<SessionRecapHub {...defaultProps} />);
+    const { rerender } = renderSessionRecapHub(
+      <SessionRecapHub {...defaultProps} />
+    );
     expect(navigator.vibrate).toHaveBeenCalledTimes(1);
 
-    // Same crowned poem, same leader count — a later re-render (e.g. from an
-    // unrelated prop change) must not replay the crown ceremony.
     rerender(<SessionRecapHub {...defaultProps} playerCount={3} />);
     expect(navigator.vibrate).toHaveBeenCalledTimes(1);
   });
@@ -296,7 +257,7 @@ describe('SessionRecapHub', () => {
       leaderCount: 1,
     });
 
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     expect(screen.getByText(/1 heart\b/i)).toBeInTheDocument();
     expect(screen.queryByText(/1 hearts/i)).not.toBeInTheDocument();
@@ -310,7 +271,7 @@ describe('SessionRecapHub', () => {
       leaderCount: 2,
     });
 
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     const crown = screen.getByText(/Room favorite/i).closest('.border-primary');
     expect(crown).toHaveTextContent(/Untitled poem/i);
@@ -321,7 +282,7 @@ describe('SessionRecapHub', () => {
       new Error('Network down')
     );
     const user = userEvent.setup();
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     await user.click(
       screen.getByRole('button', { name: /Share the whole set/i })
@@ -331,12 +292,19 @@ describe('SessionRecapHub', () => {
       expect(
         screen.getByText('Failed to share recap. Please try again.')
       ).toBeInTheDocument();
+      expect(mockWriteText).toHaveBeenCalledWith(
+        'https://example.com/recap/ABCD'
+      );
+      expect(mockTrackRoomInviteShared).not.toHaveBeenCalled();
+      expect(mockTrackArtifactAction).not.toHaveBeenCalled();
     });
   });
 
   it('toggles ceremony sound and persists the preference across mount', async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<SessionRecapHub {...defaultProps} />);
+    const { unmount } = renderSessionRecapHub(
+      <SessionRecapHub {...defaultProps} />
+    );
 
     const muteButton = screen.getByRole('button', {
       name: 'Mute ceremony sound',
@@ -354,7 +322,7 @@ describe('SessionRecapHub', () => {
     unmount();
 
     // A remount should read the persisted preference back as muted.
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
     expect(
       screen.getByRole('button', { name: 'Turn ceremony sound on' })
     ).toBeInTheDocument();
@@ -371,10 +339,8 @@ describe('SessionRecapHub', () => {
   });
 
   it('lets anyone in the room continue (no host gating)', async () => {
-    // A vanished host must never strand the recap: every participant gets
-    // the continuation controls.
     const user = userEvent.setup();
-    render(<SessionRecapHub {...defaultProps} />);
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     const startButton = screen.getByRole('button', {
       name: 'Start Next Round',
@@ -383,7 +349,6 @@ describe('SessionRecapHub', () => {
     expect(startButton).toBeInTheDocument();
     expect(lobbyButton).toBeInTheDocument();
 
-    // No "wait for the host" guidance remains
     expect(
       screen.queryByText(/while the host starts the next round/i)
     ).not.toBeInTheDocument();

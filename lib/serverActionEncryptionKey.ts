@@ -1,5 +1,7 @@
-export function isValidServerActionEncryptionKey(value: unknown): boolean {
-  if (typeof value !== 'string') return false;
+export function isValidServerActionEncryptionKey(
+  value: string | null | undefined
+): boolean {
+  if (value === null || value === undefined) return false;
 
   const normalized = value.trim();
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) return false;

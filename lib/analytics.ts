@@ -23,6 +23,19 @@ export type ArtifactActionProps = RoomCycleEventProps & {
 
 const capturedEvents = new Set<string>();
 
+export type PostHogCaptureClient = {
+  capture: (
+    event: string,
+    properties?: RoomCycleEventProps | ArtifactActionProps
+  ) => void;
+};
+
+let customPostHogClient: PostHogCaptureClient | null = null;
+
+export function setPostHogClientForTests(client: PostHogCaptureClient | null) {
+  customPostHogClient = client;
+}
+
 function capture(
   event: string,
   properties: RoomCycleEventProps | ArtifactActionProps
@@ -41,7 +54,8 @@ function capture(
   ].join(':');
   if (capturedEvents.has(key)) return;
   capturedEvents.add(key);
-  posthog.capture(event, properties);
+  const client = customPostHogClient ?? posthog;
+  client.capture(event, properties);
 }
 
 export { hashRoomId } from '@/lib/roomIdHash';
@@ -77,6 +91,7 @@ export function trackArtifactAction(props: ArtifactActionProps) {
 /** Test seam: reset only in tests; no production caller should need this. */
 export function resetCapturedAnalyticsForTests() {
   capturedEvents.clear();
+  customPostHogClient = null;
 }
 
 // Existing non-funnel product signals remain available to focused UI tests

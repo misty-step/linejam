@@ -102,7 +102,8 @@ export async function runStagehandExploration({
       observations: Array.isArray(observations)
         ? observations.map((observation) => ({
             description:
-              typeof observation?.description === 'string'
+              Object.prototype.toString.call(observation?.description) ===
+              '[object String]'
                 ? observation.description
                 : String(observation),
             method: observation?.method,

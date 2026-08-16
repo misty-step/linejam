@@ -4,6 +4,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+/**
+ * @typedef {{ toString(): string }} PromptfooProcessOutputChunk
+ * @typedef {{ on(event: 'data', listener: (chunk: PromptfooProcessOutputChunk) => void): void }} PromptfooProcessOutput
+ * @typedef {{
+ *   stdout: PromptfooProcessOutput,
+ *   stderr: PromptfooProcessOutput,
+ *   on(event: 'error', listener: (error: Error) => void): void,
+ *   on(event: 'close', listener: (code: number | null) => void): void,
+ * }} PromptfooChildProcess
+ * @typedef {(command: string, args: string[], options: {
+ *   cwd: string,
+ *   env: NodeJS.ProcessEnv,
+ *   stdio: ['ignore', 'pipe', 'pipe'],
+ * }) => PromptfooChildProcess} PromptfooSpawnProcess
+ */
+
 
 function pnpmCommand() {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -72,7 +88,7 @@ function spawnPromptfoo({ env, manifest, outputPath, spawnProcess }) {
  *   env?: NodeJS.ProcessEnv,
  *   manifest: unknown,
  *   runDir: string,
- *   spawnProcess?: typeof spawn,
+ *   spawnProcess?: PromptfooSpawnProcess,
  * }} options
  */
 export async function runPromptfooCritic({

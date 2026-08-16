@@ -2,19 +2,29 @@
 
 import { useUser } from '../lib/auth';
 
-type RoomQueryArgs =
+export type RoomQueryArgs =
   | 'skip'
   | {
       roomCode: string;
       guestToken?: string;
     };
 
-export function useRoomQueryArgs(roomCode: string, propToken?: string | null) {
+export interface RoomQueryArgsDependencies {
+  useUser: typeof useUser;
+}
+
+const defaultDependencies: RoomQueryArgsDependencies = { useUser };
+
+export function useRoomQueryArgs(
+  roomCode: string,
+  propToken?: string | null,
+  dependencies: RoomQueryArgsDependencies = defaultDependencies
+) {
   const {
     guestToken: hookToken,
     isLoading: isAuthLoading,
     authError,
-  } = useUser();
+  } = dependencies.useUser();
   const guestToken = propToken ?? hookToken;
   const shouldSkip = !guestToken && (Boolean(authError) || isAuthLoading);
   const queryArgs: RoomQueryArgs = shouldSkip

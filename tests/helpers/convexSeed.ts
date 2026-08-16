@@ -14,6 +14,21 @@ import { setupConvexTest } from './convexTest';
 
 /** The convex-test tester handle returned by `setupConvexTest()`. */
 export type T = ReturnType<typeof setupConvexTest>;
+type UserSeedDocument = Pick<
+  Doc<'users'>,
+  'displayName' | 'kind' | 'createdAt' | 'clerkUserId' | 'guestId'
+>;
+
+type LineSeedDocument = Pick<
+  Doc<'lines'>,
+  | 'poemId'
+  | 'indexInPoem'
+  | 'text'
+  | 'wordCount'
+  | 'authorUserId'
+  | 'createdAt'
+  | 'authorDisplayName'
+>;
 
 /**
  * Scope subsequent calls to a Clerk-authenticated identity. The seeded user
@@ -39,15 +54,20 @@ export function seedUser(
     createdAt?: number;
   }
 ): Promise<Id<'users'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('users', {
+  return t.run((ctx) => {
+    const userDoc: UserSeedDocument = {
       displayName: opts.displayName,
       kind: opts.kind ?? 'human',
-      ...(opts.clerkUserId ? { clerkUserId: opts.clerkUserId } : {}),
-      ...(opts.guestId ? { guestId: opts.guestId } : {}),
       createdAt: opts.createdAt ?? 0,
-    })
-  );
+    };
+    if (opts.clerkUserId !== undefined) {
+      userDoc.clerkUserId = opts.clerkUserId;
+    }
+    if (opts.guestId !== undefined) {
+      userDoc.guestId = opts.guestId;
+    }
+    return ctx.db.insert('users', userDoc);
+  });
 }
 
 /**
@@ -78,19 +98,20 @@ export function seedLine(
     authorDisplayName?: string;
   }
 ): Promise<Id<'lines'>> {
-  return t.run((ctx) =>
-    ctx.db.insert('lines', {
+  return t.run((ctx) => {
+    const lineDoc: LineSeedDocument = {
       poemId: opts.poemId,
       indexInPoem: opts.indexInPoem ?? 0,
       text: opts.text ?? 'sample text',
       wordCount: opts.wordCount ?? 1,
       authorUserId: opts.authorUserId,
-      ...(opts.authorDisplayName !== undefined
-        ? { authorDisplayName: opts.authorDisplayName }
-        : {}),
       createdAt: 0,
-    })
-  );
+    };
+    if (opts.authorDisplayName !== undefined) {
+      lineDoc.authorDisplayName = opts.authorDisplayName;
+    }
+    return ctx.db.insert('lines', lineDoc);
+  });
 }
 
 /** All `lines` for a game's poems, flattened (order not guaranteed). */

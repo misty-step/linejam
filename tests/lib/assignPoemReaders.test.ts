@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Id } from '../../convex/_generated/dataModel';
 import { assignPoemReaders } from '../../convex/lib/assignPoemReaders';
 
+// SAFETY: Test fixture helper constructing opaque Convex Id<'poems'> from string tokens.
 const poemId = (value: string) => value as Id<'poems'>;
+// SAFETY: Test fixture helper constructing opaque Convex Id<'users'> from string tokens.
 const userId = (value: string) => value as Id<'users'>;
 
 describe('assignPoemReaders', () => {

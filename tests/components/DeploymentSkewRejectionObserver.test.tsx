@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { DeploymentSkewRejectionObserver } from '@/components/DeploymentSkewRejectionObserver';
 
-function rejectionEvent(reason: unknown) {
+function rejectionEvent(
+  reason: Error | string | null | undefined
+): PromiseRejectionEvent {
+  // SAFETY: happy-dom Event constructor does not expose PromiseRejectionEvent, so we construct an Event and attach the tested reason payload.
   const event = new Event('unhandledrejection', {
     cancelable: true,
   }) as PromiseRejectionEvent;

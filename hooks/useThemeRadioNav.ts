@@ -33,8 +33,10 @@ export function useThemeRadioNav(options?: { onEscape?: () => void }) {
     : visibleThemeIds[0];
 
   const focusRadio = useCallback((index: number) => {
-    const radios = listRef.current?.querySelectorAll('[role="radio"]');
-    (radios?.[index] as HTMLElement)?.focus();
+    const radio = listRef.current?.querySelectorAll('[role="radio"]')[index];
+    if (radio instanceof HTMLElement) {
+      radio.focus();
+    }
   }, []);
 
   const handleKeyDown = useCallback(

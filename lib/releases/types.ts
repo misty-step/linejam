@@ -50,7 +50,7 @@ export interface ReleaseManifest {
 }
 
 /** Mapping from Keep a Changelog section headers to change types */
-export const SECTION_TO_TYPE: Record<string, ChangeType> = {
+export const SECTION_TO_TYPE = {
   Added: 'feat',
   Features: 'feat',
   Changed: 'refactor',
@@ -60,10 +60,10 @@ export const SECTION_TO_TYPE: Record<string, ChangeType> = {
   'Bug Fixes': 'fix',
   Security: 'fix',
   Performance: 'perf',
-};
+} satisfies Record<string, ChangeType>;
 
 /** Reverse mapping for display */
-export const TYPE_LABELS: Record<ChangeType, string> = {
+export const TYPE_LABELS = {
   feat: 'New Features',
   fix: 'Bug Fixes',
   perf: 'Performance',
@@ -74,4 +74,4 @@ export const TYPE_LABELS: Record<ChangeType, string> = {
   test: 'Testing',
   build: 'Build',
   ci: 'CI/CD',
-};
+} satisfies Record<ChangeType, string>;

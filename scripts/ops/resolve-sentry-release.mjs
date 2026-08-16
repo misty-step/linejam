@@ -74,7 +74,7 @@ export async function resolveSentryRelease({
   fetchImpl = globalThis.fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }) {
-  if (typeof fetchImpl !== 'function') {
+  if (!fetchImpl || !(fetchImpl instanceof Function)) {
     throw new Error('fetch is not available in this Node runtime');
   }
 
@@ -103,7 +103,10 @@ export async function resolveSentryRelease({
   }
 
   const release = body?.deployment?.id;
-  if (typeof release !== 'string' || !COMMIT_SHA.test(release)) {
+  if (
+    Object.prototype.toString.call(release) !== '[object String]' ||
+    !COMMIT_SHA.test(release)
+  ) {
     throw new Error(
       `Release receipt has no 40-character deployment commit: ${healthUrl}`
     );

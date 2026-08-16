@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import { loadAllReleases } from '@/lib/releases/loader';
-import type { ReleaseWithNotes, ChangelogEntry } from '@/lib/releases/types';
+import type {
+  ReleaseWithNotes,
+  ChangelogEntry,
+  ChangeType,
+} from '@/lib/releases/types';
 import { TYPE_LABELS } from '@/lib/releases/types';
 
 export const dynamic = 'force-static';
@@ -13,18 +17,27 @@ function formatDate(dateString: string): string {
   });
 }
 
-function groupChangesByType(
-  changes: ChangelogEntry[]
-): Record<string, ChangelogEntry[]> {
-  return changes.reduce(
-    (acc, change) => {
-      const type = change.type;
-      if (!acc[type]) acc[type] = [];
-      acc[type].push(change);
-      return acc;
-    },
-    {} as Record<string, ChangelogEntry[]>
-  );
+type GroupedChanges = {
+  type: ChangeType;
+  label: string;
+  items: ChangelogEntry[];
+};
+
+function groupChangesByType(changes: ChangelogEntry[]): GroupedChanges[] {
+  const map = new Map<ChangeType, ChangelogEntry[]>();
+  for (const change of changes) {
+    const existing = map.get(change.type);
+    if (existing) {
+      existing.push(change);
+    } else {
+      map.set(change.type, [change]);
+    }
+  }
+  return Array.from(map.entries()).map(([type, items]) => ({
+    type,
+    label: TYPE_LABELS[type],
+    items,
+  }));
 }
 
 function TechnicalDetails({ changes }: { changes: ChangelogEntry[] }) {
@@ -37,10 +50,10 @@ function TechnicalDetails({ changes }: { changes: ChangelogEntry[] }) {
       </summary>
 
       <div className="mt-8 space-y-8">
-        {Object.entries(grouped).map(([type, items]) => (
+        {grouped.map(({ type, label, items }) => (
           <div key={type}>
             <h4 className="mb-4 text-xs font-medium uppercase tracking-widest text-[var(--color-text-muted)]">
-              {TYPE_LABELS[type as keyof typeof TYPE_LABELS] || type}
+              {label}
             </h4>
             <ul className="space-y-3 border-l-2 border-[var(--color-border)] pl-6">
               {items.map((change, i) => (

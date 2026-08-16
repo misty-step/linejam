@@ -60,8 +60,8 @@ function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function toError(error: unknown) {
-  return error instanceof Error ? error : new Error(String(error));
+function toError(cause: unknown) {
+  return cause instanceof Error ? cause : new Error(String(cause));
 }
 
 async function closeContexts(
@@ -73,9 +73,12 @@ async function closeContexts(
       .map((context) => context.close())
   );
 
-  return results.flatMap((result) =>
-    result.status === 'rejected' ? [toError(result.reason)] : []
-  );
+  return results.flatMap((result) => {
+    if (result.status !== 'rejected') {
+      return [];
+    }
+    return [toError(result.reason)];
+  });
 }
 
 async function ensureVisible(locator: Locator, label: string) {
@@ -104,8 +107,52 @@ function visibleTestId(page: Page, testId: string) {
   return page.getByTestId(testId).filter({ visible: true });
 }
 
+export interface GuestFlowRuntimeConsoleMessage {
+  type(): string;
+  text(): string;
+}
+
+export interface GuestFlowRuntimeRequestFailure {
+  errorText: string;
+}
+
+export interface GuestFlowRuntimeResponseRequest {
+  method(): string;
+}
+
+export interface GuestFlowRuntimeRequest {
+  method(): string;
+  url(): string;
+  failure(): GuestFlowRuntimeRequestFailure | null;
+}
+
+export interface GuestFlowRuntimeResponse {
+  status(): number;
+  url(): string;
+  request(): GuestFlowRuntimeResponseRequest;
+}
+
+export interface GuestFlowRuntimeErrorSource {
+  on(
+    event: 'pageerror',
+    listener: (error: Error) => void
+  ): GuestFlowRuntimeErrorSource;
+  on(
+    event: 'console',
+    listener: (message: GuestFlowRuntimeConsoleMessage) => void
+  ): GuestFlowRuntimeErrorSource;
+  on(
+    event: 'requestfailed',
+    listener: (request: GuestFlowRuntimeRequest) => void
+  ): GuestFlowRuntimeErrorSource;
+  on(
+    event: 'response',
+    listener: (response: GuestFlowRuntimeResponse) => void
+  ): GuestFlowRuntimeErrorSource;
+}
+
 export function attachGuestFlowRuntimeErrorLogging(
-  page: Page,
+  page: GuestFlowRuntimeErrorSource,
   label: string,
   runtimeErrors: string[]
 ) {
@@ -183,6 +230,24 @@ function isSentryEnvelopeUrl(requestUrl: string) {
   }
 }
 
+export type GuestFlowHeaders = Record<string, string>;
+
+export interface GuestSessionRouteRequest {
+  headers(): GuestFlowHeaders;
+}
+
+export interface GuestSessionRoute {
+  continue(options: { headers: GuestFlowHeaders }): Promise<void>;
+  request(): GuestSessionRouteRequest;
+}
+
+export interface GuestSessionRouteContext {
+  route(
+    pattern: string,
+    handler: (route: GuestSessionRoute) => Promise<void>
+  ): Promise<void>;
+}
+
 /**
  * Give a browser context its own client IP for guest-session issuance so the
  * per-IP rate-limit buckets (the guest-session throttle, and the
@@ -197,7 +262,7 @@ function isSentryEnvelopeUrl(requestUrl: string) {
  * extraHTTPHeaders value would also hit Clerk/Convex third-party hosts, which
  * choke on forwarding headers and strand the page in its loading state.
  */
-export async function isolateGuestSessionIp(context: BrowserContext) {
+export async function isolateGuestSessionIp(context: GuestSessionRouteContext) {
   const octet = () => 1 + Math.floor(Math.random() * 254);
   const ip = `10.${octet()}.${octet()}.${octet()}`;
   await context.route('**/api/guest/session*', async (route) => {
@@ -256,17 +321,16 @@ export class GuestFlowSession {
     let guestContext: BrowserContext | null = null;
 
     try {
-      hostContext = await browser.newContext({
+      const hostContextOptions: Parameters<Browser['newContext']>[0] = {
         viewport,
-        ...(options.recordHostVideoDir
-          ? {
-              recordVideo: {
-                dir: options.recordHostVideoDir,
-                size: viewport,
-              },
-            }
-          : {}),
-      });
+      };
+      if (options.recordHostVideoDir) {
+        hostContextOptions.recordVideo = {
+          dir: options.recordHostVideoDir,
+          size: viewport,
+        };
+      }
+      hostContext = await browser.newContext(hostContextOptions);
       guestContext = await browser.newContext({ viewport });
 
       await Promise.all([

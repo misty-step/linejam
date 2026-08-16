@@ -77,6 +77,7 @@ type ClaimedReceipt = Pick<
 
 type BridgeConfig = {
   sentryToken: string;
+  sentryOrganization: string;
   githubToken: string;
   integrationId: string;
   owner: string;
@@ -163,10 +164,12 @@ function requiredEnv(name: string): string {
 }
 
 function getConfig(): BridgeConfig {
+  const sentryOrganization = requiredEnv('SENTRY_ORG');
   const integrationId = requiredEnv('SENTRY_GITHUB_INTEGRATION_ID');
   const owner = requiredEnv('GITHUB_REPOSITORY_OWNER');
   const repo = requiredEnv('GITHUB_REPOSITORY_NAME');
   if (
+    sentryOrganization !== 'misty-step' ||
     integrationId !== '338522' ||
     owner !== 'misty-step' ||
     repo !== 'linejam'
@@ -175,6 +178,7 @@ function getConfig(): BridgeConfig {
   }
   return {
     sentryToken: requiredEnv('SENTRY_EVENT_WRITE_TOKEN'),
+    sentryOrganization,
     githubToken: requiredEnv('GITHUB_ISSUES_TOKEN'),
     integrationId,
     owner,
@@ -252,26 +256,182 @@ async function safeFetch(
     throw new BridgeFailure('attempts_exhausted', true);
   }
 }
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonObject | readonly JsonValue[];
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+interface JsonObject {
+  readonly [key: string]: JsonValue | undefined;
 }
 
-function singleTagValue(value: unknown): string | null {
-  if (!Array.isArray(value)) return null;
-  const values = new Set<string>();
-  for (const item of value) {
-    if (isRecord(item) && typeof item.value === 'string')
-      values.add(item.value);
+interface SentryEventTag {
+  key: string;
+  value: string;
+}
+
+interface SentryEventResponse {
+  eventId: string;
+  issueId: string;
+  tags: readonly SentryEventTag[];
+}
+
+export interface GithubIssueContent {
+  title: string;
+  body: string;
+  labels: readonly string[];
+}
+
+interface GithubSearchIssueItem {
+  number: number;
+  body: string;
+}
+
+interface GithubSearchResponse {
+  items: readonly GithubSearchIssueItem[];
+}
+
+interface GithubIssueResponse {
+  number: number;
+}
+
+interface SentryChoiceItem {
+  value: string;
+}
+
+type SentryChoice = string | readonly string[] | SentryChoiceItem;
+
+interface SentryLinkIssueField {
+  name: string;
+  choices?: readonly SentryChoice[];
+}
+
+interface SentryLinkedIssue {
+  key: string;
+}
+
+interface SentryIntegrationLinkConfig {
+  linkIssueConfig: readonly SentryLinkIssueField[];
+  linkedIssues?: readonly SentryLinkedIssue[];
+}
+
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return value !== null && !Array.isArray(value) && Object(value) === value;
+}
+
+function isJsonString(value: JsonValue | undefined): value is string {
+  return Object.prototype.toString.call(value) === '[object String]';
+}
+
+function isPositiveInteger(value: JsonValue | undefined): value is number {
+  return Number.isSafeInteger(value) && Number(value) > 0;
+}
+
+function parseSentryEvent(value: JsonValue): SentryEventResponse | null {
+  if (
+    !isJsonObject(value) ||
+    !isJsonString(value.eventID) ||
+    !isJsonString(value.groupID) ||
+    !Array.isArray(value.tags)
+  ) {
+    return null;
   }
-  return values.size === 1 ? [...values][0] : null;
+  const tags: SentryEventTag[] = [];
+  for (const candidate of value.tags) {
+    if (
+      !isJsonObject(candidate) ||
+      !isJsonString(candidate.key) ||
+      !isJsonString(candidate.value)
+    ) {
+      return null;
+    }
+    tags.push({ key: candidate.key, value: candidate.value });
+  }
+  return { eventId: value.eventID, issueId: value.groupID, tags };
+}
+
+function parseGithubSearchResponse(
+  value: JsonValue
+): GithubSearchResponse | null {
+  if (!isJsonObject(value) || !Array.isArray(value.items)) return null;
+  const items: GithubSearchIssueItem[] = [];
+  for (const candidate of value.items) {
+    if (
+      !isJsonObject(candidate) ||
+      !isPositiveInteger(candidate.number) ||
+      !isJsonString(candidate.body)
+    ) {
+      return null;
+    }
+    items.push({ number: candidate.number, body: candidate.body });
+  }
+  return { items };
+}
+
+function parseGithubIssueResponse(
+  value: JsonValue
+): GithubIssueResponse | null {
+  if (!isJsonObject(value) || !isPositiveInteger(value.number)) return null;
+  return { number: value.number };
+}
+
+function parseSentryChoice(value: JsonValue): SentryChoice | null {
+  if (isJsonString(value)) return value;
+  if (Array.isArray(value)) {
+    const parts: string[] = [];
+    for (const part of value) {
+      if (!isJsonString(part)) return null;
+      parts.push(part);
+    }
+    return parts;
+  }
+  if (!isJsonObject(value) || !isJsonString(value.value)) return null;
+  return { value: value.value };
+}
+
+function parseSentryIntegrationLinkConfig(
+  value: JsonValue
+): SentryIntegrationLinkConfig | null {
+  if (!isJsonObject(value) || !Array.isArray(value.linkIssueConfig)) {
+    return null;
+  }
+  const linkIssueConfig: SentryLinkIssueField[] = [];
+  for (const candidate of value.linkIssueConfig) {
+    if (!isJsonObject(candidate) || !isJsonString(candidate.name)) {
+      return null;
+    }
+    const field: SentryLinkIssueField = { name: candidate.name };
+    if (candidate.choices !== undefined) {
+      if (!Array.isArray(candidate.choices)) return null;
+      const choices: SentryChoice[] = [];
+      for (const choiceValue of candidate.choices) {
+        const choice = parseSentryChoice(choiceValue);
+        if (choice === null) return null;
+        choices.push(choice);
+      }
+      field.choices = choices;
+    }
+    linkIssueConfig.push(field);
+  }
+
+  const config: SentryIntegrationLinkConfig = { linkIssueConfig };
+  if (value.linkedIssues !== undefined) {
+    if (!Array.isArray(value.linkedIssues)) return null;
+    const linkedIssues: SentryLinkedIssue[] = [];
+    for (const candidate of value.linkedIssues) {
+      if (!isJsonObject(candidate) || !isJsonString(candidate.key)) {
+        return null;
+      }
+      linkedIssues.push({ key: candidate.key });
+    }
+    config.linkedIssues = linkedIssues;
+  }
+  return config;
 }
 
 function includesClosed<T extends string>(
   values: readonly T[],
   value: string
 ): value is T {
-  return (values as readonly string[]).includes(value);
+  return values.some((v) => v === value);
 }
 
 export function validateBridgeTags(
@@ -301,41 +461,61 @@ async function fetchTags(
   receipt: ClaimedReceipt,
   config: BridgeConfig
 ): Promise<ValidatedTags> {
-  const keys = {
-    runtime: 'runtime',
-    environment: 'environment',
-    release: 'release',
-    level: 'level',
-    operation: 'operation',
-    failureCode: 'failure_code',
-  } as const;
-  const entries: Array<[keyof ValidatedTags, string | null]> = [];
-  for (const [field, tagKey] of Object.entries(keys) as Array<
-    [keyof ValidatedTags, string]
-  >) {
-    const response = await safeFetch(
-      `${SENTRY_BASE_URL}/issues/${encodeURIComponent(receipt.sentryIssueId)}/tags/${encodeURIComponent(tagKey)}/values/?sort=-lastSeen&per_page=1`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.sentryToken}`,
-          Accept: 'application/json',
-        },
+  const response = await safeFetch(
+    `${SENTRY_BASE_URL}/organizations/${encodeURIComponent(config.sentryOrganization)}/issues/${encodeURIComponent(receipt.sentryIssueId)}/events/${encodeURIComponent(receipt.sentryEventId)}/`,
+    {
+      headers: {
+        Authorization: `Bearer ${config.sentryToken}`,
+        Accept: 'application/json',
       },
-      'sentry'
-    );
-    const value: unknown = await response.json();
-    entries.push([field, singleTagValue(value)]);
-  }
-  const values = Object.fromEntries(entries) as Record<
-    keyof ValidatedTags,
-    string | null
-  >;
-  if (Object.values(values).some((value) => value === null)) {
+    },
+    'sentry'
+  );
+  const raw: JsonValue = await response.json();
+  const event = parseSentryEvent(raw);
+  if (
+    event === null ||
+    event.eventId !== receipt.sentryEventId ||
+    event.issueId !== receipt.sentryIssueId
+  ) {
     throw new BridgeFailure('invalid_tags', false);
   }
-  const tags = validateBridgeTags(
-    values as Record<keyof ValidatedTags, string>
-  );
+  const tagFields: ReadonlyArray<readonly [keyof ValidatedTags, string]> = [
+    ['runtime', 'runtime'],
+    ['environment', 'environment'],
+    ['release', 'release'],
+    ['level', 'level'],
+    ['operation', 'operation'],
+    ['failureCode', 'failure_code'],
+  ];
+  const tagValues: Partial<Record<keyof ValidatedTags, string>> = {};
+  for (const tag of event.tags) {
+    const entry = tagFields.find(([, providerKey]) => providerKey === tag.key);
+    if (entry === undefined) continue;
+    const [field] = entry;
+    if (tagValues[field] !== undefined) {
+      throw new BridgeFailure('invalid_tags', false);
+    }
+    tagValues[field] = tag.value;
+  }
+  if (
+    !tagValues.runtime ||
+    !tagValues.environment ||
+    !tagValues.release ||
+    !tagValues.level ||
+    !tagValues.operation ||
+    !tagValues.failureCode
+  ) {
+    throw new BridgeFailure('invalid_tags', false);
+  }
+  const tags = validateBridgeTags({
+    runtime: tagValues.runtime,
+    environment: tagValues.environment,
+    release: tagValues.release,
+    level: tagValues.level,
+    operation: tagValues.operation,
+    failureCode: tagValues.failureCode,
+  });
   if (!tags) throw new BridgeFailure('invalid_tags', false);
   return tags;
 }
@@ -350,7 +530,7 @@ export function githubIssueContent(
     'dedupKey' | 'sentryIssueId' | 'sentryEventId' | 'projectId'
   >,
   tags: ValidatedTags
-): { title: string; body: string; labels: readonly string[] } {
+): GithubIssueContent {
   return {
     title: `[${tags.runtime === 'convex' ? 'Convex' : 'GitHub Actions'}/${tags.environment}] ${tags.operation}: ${tags.failureCode}`,
     body: [
@@ -389,19 +569,15 @@ async function recoverGithubIssue(
     },
     'github'
   );
-  const value: unknown = await response.json();
-  if (!isRecord(value) || !Array.isArray(value.items)) {
+  const raw: JsonValue = await response.json();
+  const data = parseGithubSearchResponse(raw);
+  if (data === null) {
     throw new BridgeFailure('github_invalid', false);
   }
   const matches: number[] = [];
-  for (const item of value.items) {
-    if (
-      isRecord(item) &&
-      Number.isSafeInteger(item.number) &&
-      typeof item.body === 'string' &&
-      item.body.includes(marker)
-    ) {
-      matches.push(item.number as number);
+  for (const item of data.items) {
+    if (item.body.includes(marker)) {
+      matches.push(item.number);
     }
   }
   if (matches.length > 1) throw new BridgeFailure('marker_conflict', false);
@@ -448,37 +624,41 @@ async function createGithubIssue(
     },
     'github'
   );
-  const value: unknown = await response.json();
-  if (
-    !isRecord(value) ||
-    !Number.isSafeInteger(value.number) ||
-    (value.number as number) <= 0
-  ) {
+  const raw: JsonValue = await response.json();
+  const data = parseGithubIssueResponse(raw);
+  if (data === null) {
     throw new BridgeFailure('github_invalid', false);
   }
-  return value.number as number;
+  return data.number;
 }
 
-function choiceContainsRepository(value: unknown, repository: string): boolean {
-  if (!Array.isArray(value)) return false;
-  return value.some((choice) => {
-    if (Array.isArray(choice))
+function choiceContainsRepository(
+  choices: readonly SentryChoice[] | undefined,
+  repository: string
+): boolean {
+  if (!Array.isArray(choices)) return false;
+  return choices.some((choice) => {
+    if (!choice) return false;
+    if (isJsonString(choice)) return choice === repository;
+    if (Array.isArray(choice)) {
       return choice.some((part) => part === repository);
-    return isRecord(choice) && choice.value === repository;
+    }
+    return choice.value === repository;
   });
 }
 
 function inspectLinkConfig(
-  value: unknown,
+  config: SentryIntegrationLinkConfig | null | undefined,
   repository: string,
   issueNumber: number
 ): 'ready' | 'linked' | 'conflict' | 'invalid' {
-  if (!isRecord(value) || !Array.isArray(value.linkIssueConfig))
+  if (!config || !Array.isArray(config.linkIssueConfig)) {
     return 'invalid';
+  }
   let hasRepository = false;
   let hasExternalIssue = false;
-  for (const field of value.linkIssueConfig) {
-    if (!isRecord(field) || typeof field.name !== 'string') continue;
+  for (const field of config.linkIssueConfig) {
+    if (!field || !field.name) continue;
     if (field.name === 'repo') {
       hasRepository = choiceContainsRepository(field.choices, repository);
     } else if (field.name === 'externalIssue') {
@@ -486,12 +666,12 @@ function inspectLinkConfig(
     }
   }
   if (!hasRepository || !hasExternalIssue) return 'invalid';
-  if (value.linkedIssues === undefined) return 'ready';
-  if (!Array.isArray(value.linkedIssues)) return 'invalid';
-  if (value.linkedIssues.length === 0) return 'ready';
+  if (config.linkedIssues === undefined) return 'ready';
+  if (!Array.isArray(config.linkedIssues)) return 'invalid';
+  if (config.linkedIssues.length === 0) return 'ready';
   const expected = `${repository}#${issueNumber}`;
-  for (const link of value.linkedIssues) {
-    if (!isRecord(link)) continue;
+  for (const link of config.linkedIssues) {
+    if (!link || !link.key) continue;
     if (
       link.key === expected ||
       link.key === `#${issueNumber}` ||
@@ -518,7 +698,8 @@ async function linkGithubIssue(
     { headers },
     'link'
   );
-  const liveConfig: unknown = await configResponse.json();
+  const raw: JsonValue = await configResponse.json();
+  const liveConfig = parseSentryIntegrationLinkConfig(raw);
   const repository = `${config.owner}/${config.repo}`;
   const state = inspectLinkConfig(liveConfig, repository, githubIssueNumber);
   if (state === 'linked') return;

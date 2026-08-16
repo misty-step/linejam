@@ -450,7 +450,9 @@ describe('joinRoom', () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(ConvexError);
-    expect((caught as ConvexError<string>).data).toContain('Room not found');
+    if (caught instanceof ConvexError) {
+      expect(caught.data).toContain('Room not found');
+    }
   });
 
   it('throws ConvexError with data for in-progress and full rooms', async () => {
@@ -488,7 +490,9 @@ describe('joinRoom', () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(ConvexError);
-    expect((caught as ConvexError<string>).data).toContain('Room is full');
+    if (caught instanceof ConvexError) {
+      expect(caught.data).toContain('Room is full');
+    }
   });
 
   it('rejects joining a closed room (COMPLETED with no players) with ConvexError', async () => {
@@ -511,7 +515,9 @@ describe('joinRoom', () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(ConvexError);
-    expect((caught as ConvexError<string>).data).toContain('Room is closed');
+    if (caught instanceof ConvexError) {
+      expect(caught.data).toContain('Room is closed');
+    }
   });
 
   it('still allows joining a COMPLETED room that has players (between games)', async () => {
@@ -616,7 +622,7 @@ describe('getRoom', () => {
     // Only code + status, not the full room doc
     expect(result).toEqual({ code: code, status: 'LOBBY' });
     // Confirm the full _id is NOT on the wire
-    expect((result as Record<string, unknown>)?._id).toBeUndefined();
+    expect(result).not.toHaveProperty('_id');
   });
 
   it('returns null for non-participant when a game is in progress', async () => {

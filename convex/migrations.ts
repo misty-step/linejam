@@ -5,12 +5,10 @@ import { ensureUserHelper } from './users';
 import { abandonGame } from './lib/sessionLifecycle';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 
-const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
-
+// SAFETY: Legacy 'mode' column was removed from schema; Convex db.patch requires undefined to delete the field at runtime.
 const removeGameModePatch = { mode: undefined } as never;
+// SAFETY: Legacy 'selectedMode' column was removed from schema; Convex db.patch requires undefined to delete the field at runtime.
 const removeSelectedModePatch = { selectedMode: undefined } as never;
-
 export const dropLegacyModeColumns = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -19,9 +17,9 @@ export const dropLegacyModeColumns = internalMutation({
       ctx.db.query('rooms').collect(),
     ]);
 
-    const gamesWithMode = games.filter((game) => hasOwn(game, 'mode'));
+    const gamesWithMode = games.filter((game) => Object.hasOwn(game, 'mode'));
     const roomsWithSelectedMode = rooms.filter((room) =>
-      hasOwn(room, 'selectedMode')
+      Object.hasOwn(room, 'selectedMode')
     );
 
     await Promise.all([

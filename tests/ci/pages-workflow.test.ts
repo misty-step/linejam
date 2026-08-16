@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const workflow = readFileSync('.github/workflows/pages.yml', 'utf8');
+// SAFETY: package.json is statically checked at repo root to declare scripts and devDependencies objects.
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts: Record<string, string>;
   devDependencies: Record<string, string>;

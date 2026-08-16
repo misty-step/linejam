@@ -1,4 +1,8 @@
-import { defineConfig, devices } from '@playwright/test';
+import {
+  defineConfig,
+  devices,
+  type PlaywrightTestConfig,
+} from '@playwright/test';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -11,7 +15,7 @@ const PORT = process.env.PORT_E2E || '3333';
 const EXTERNAL_BASE_URL = process.env.E2E_BASE_URL;
 const BASE_URL = EXTERNAL_BASE_URL || `http://localhost:${PORT}`;
 
-export default defineConfig({
+const config: PlaywrightTestConfig = {
   testDir: './tests/e2e',
   testIgnore: /prod-smoke\.spec\.ts/,
   globalSetup: './playwright.global.setup.ts',
@@ -53,22 +57,17 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
+};
 
-  /* Run your local dev server before starting the tests */
+if (!EXTERNAL_BASE_URL) {
+  config.webServer = {
+    command: process.env.CI
+      ? `PORT=${PORT} pnpm start:next`
+      : `PORT=${PORT} pnpm dev`,
+    url: BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  };
+}
 
-  ...(EXTERNAL_BASE_URL
-    ? {}
-    : {
-        webServer: {
-          command: process.env.CI
-            ? `PORT=${PORT} pnpm start:next`
-            : `PORT=${PORT} pnpm dev`,
-
-          url: BASE_URL,
-
-          reuseExistingServer: !process.env.CI,
-
-          timeout: 120000,
-        },
-      }),
-});
+export default defineConfig(config);

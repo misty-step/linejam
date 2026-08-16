@@ -33,8 +33,19 @@ function passthroughMiddleware(req: NextRequest) {
 // disagree about whether authentication middleware is available.
 type UpstreamMiddleware = NextMiddleware;
 
+export type ClerkMiddlewareLoader = () => Promise<{
+  clerkMiddleware: () => NextMiddleware;
+}>;
+
+let customClerkLoader: ClerkMiddlewareLoader | null = null;
 let upstreamMiddleware: UpstreamMiddleware | undefined;
 let upstreamConfigured: boolean | undefined;
+
+export function setClerkMiddlewareLoader(loader: ClerkMiddlewareLoader | null) {
+  customClerkLoader = loader;
+  upstreamMiddleware = undefined;
+  upstreamConfigured = undefined;
+}
 
 async function resolveUpstreamMiddleware(): Promise<UpstreamMiddleware> {
   const isClerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
@@ -49,18 +60,12 @@ async function resolveUpstreamMiddleware(): Promise<UpstreamMiddleware> {
   }
 
   try {
-    // Only import Clerk when configured to avoid initialization errors.
-    // A dynamic import (not require()) keeps this Edge-runtime compatible
-    // and lets Vitest's module mocks intercept the call in tests.
-    const { clerkMiddleware } = await import('@clerk/nextjs/server');
+    const { clerkMiddleware } = customClerkLoader
+      ? await customClerkLoader()
+      : await import('@clerk/nextjs/server');
 
-    // clerkMiddleware still wraps every request so Clerk can attach the
-    // session state (cookies/JWT) that useAuth()/ConvexProviderWithClerk
-    // read client-side. It intentionally takes no handler — nothing calls
-    // auth.protect() because no route is Clerk-only.
     upstreamMiddleware = clerkMiddleware();
   } catch {
-    // If Clerk initialization fails, fall back to guest-only mode.
     console.warn('Clerk initialization failed, running in guest-only mode');
     upstreamMiddleware = passthroughMiddleware;
   }

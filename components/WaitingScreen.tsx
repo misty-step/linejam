@@ -1,17 +1,48 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
+import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
 import { WORD_COUNTS } from '../convex/lib/gameRules';
-import { useRoomQueryArgs } from '../hooks/useRoomQueryArgs';
+import {
+  useRoomQueryArgs,
+  type RoomQueryArgs,
+} from '../hooks/useRoomQueryArgs';
 import { captureError } from '../lib/error';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
+import { toErrorReportable } from '../lib/errorCore';
 import { cn } from '../lib/utils';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { RoundClock } from './ui/RoundClock';
 import { Avatar } from './ui/Avatar';
+
+type RoundProgressResult =
+  FunctionReturnType<typeof api.game.getRoundProgress> | undefined;
+type EndGame = (
+  args: FunctionArgs<typeof api.game.endGame>
+) => Promise<FunctionReturnType<typeof api.game.endGame>>;
+
+function useDefaultRoundProgress(args: RoomQueryArgs): RoundProgressResult {
+  return useQuery(api.game.getRoundProgress, args);
+}
+
+function useDefaultEndGame(): EndGame {
+  return useMutation(api.game.endGame);
+}
+
+export interface WaitingScreenDependencies {
+  useRoomQueryArgs: typeof useRoomQueryArgs;
+  useRoundProgress: typeof useDefaultRoundProgress;
+  useEndGame: () => EndGame;
+}
+
+const defaultDependencies: WaitingScreenDependencies = {
+  useRoomQueryArgs,
+  useRoundProgress: useDefaultRoundProgress,
+  useEndGame: useDefaultEndGame,
+};
 
 interface WaitingScreenProps {
   roomCode: string;
@@ -20,6 +51,7 @@ interface WaitingScreenProps {
   isLateJoiner?: boolean;
   progressOverride?: {
     round: number;
+    totalRounds?: number;
     roundStartedAt?: number;
     isHost?: boolean;
     players: Array<{
@@ -31,6 +63,7 @@ interface WaitingScreenProps {
       isSpectator?: boolean;
     }>;
   } | null;
+  dependencies?: WaitingScreenDependencies;
 }
 
 export function WaitingScreen({
@@ -39,18 +72,21 @@ export function WaitingScreen({
   embedded = false,
   isLateJoiner = false,
   progressOverride,
+  dependencies = defaultDependencies,
 }: WaitingScreenProps) {
   // Use prop token if provided (from parent component), otherwise use hook token
   // This allows immediate query execution when transitioning from WritingScreen
-  const { queryArgs, guestToken } = useRoomQueryArgs(roomCode, propToken);
-  const queriedProgress = useQuery(
-    api.game.getRoundProgress,
+  const { queryArgs, guestToken } = dependencies.useRoomQueryArgs(
+    roomCode,
+    propToken
+  );
+  const queriedProgress = dependencies.useRoundProgress(
     progressOverride === undefined ? queryArgs : 'skip'
   );
   const progress =
     progressOverride === undefined ? queriedProgress : progressOverride;
 
-  const endGame = useMutation(api.game.endGame);
+  const endGame = dependencies.useEndGame();
   const [endState, setEndState] = useState<'idle' | 'confirming' | 'ending'>(
     'idle'
   );
@@ -104,9 +140,10 @@ export function WaitingScreen({
         roomCode,
         guestToken: guestToken || undefined,
       });
-    } catch (err) {
-      captureError(err, { roomCode, operation: 'endGame' });
-      setEndError(errorToFeedback(err).message);
+    } catch (cause) {
+      const error = toErrorReportable(cause);
+      captureError(error, { roomCode, operation: 'endGame' });
+      setEndError(errorToFeedback(error).message);
       setEndState('confirming');
     }
   };
@@ -125,189 +162,198 @@ export function WaitingScreen({
     >
       {/* Floating vertical composition - massive breathing space */}
       <div className="flex min-w-0 w-full max-w-2xl flex-1 flex-col items-center py-4 md:justify-center md:py-8">
-        {/* Late-joiner explanation */}
-        {isLateJoiner && (
-          <div className="mb-8 w-full min-w-0 max-w-full flex-none text-center">
-            <p className="text-sm font-mono uppercase tracking-wider text-[var(--color-primary)]">
-              Game in progress
-            </p>
-            <p className="mt-2 text-base text-[var(--color-text-secondary)]">
-              You&apos;re watching this game. You can play in the next one.
-            </p>
-          </div>
-        )}
-
-        {/* Center: Headline */}
-        <div className="mb-12 w-full min-w-0 max-w-full flex-none space-y-6 text-center md:mb-20">
-          <h2 className="max-w-full break-words text-4xl md:text-6xl font-[var(--font-display)] leading-tight">
-            {allSubmitted ? 'Ready' : "It's around the table now."}
-          </h2>
-
-          {/* Round progress — nine segments, the current round lit */}
-          <div
-            className="mx-auto flex w-full max-w-xs justify-center gap-1.5"
-            role="presentation"
-            aria-hidden="true"
-          >
-            {WORD_COUNTS.map((_, segmentIndex) => (
-              <div
-                key={segmentIndex}
-                className={cn(
-                  'h-1 flex-1 rounded-full transition-colors motion-reduce:transition-none duration-[var(--duration-normal)]',
-                  segmentIndex === round
-                    ? 'bg-[var(--color-primary)]'
-                    : segmentIndex < round
-                      ? 'bg-[var(--color-text-muted)]/40'
-                      : 'bg-[var(--color-border-subtle)]'
-                )}
-              />
-            ))}
-          </div>
-
-          {spectatorNames.length > 0 && (
-            <p
-              className="mb-6 max-w-full break-words text-center text-sm text-[var(--color-text-muted)]"
-              aria-live="polite"
-            >
-              Watching this round: {spectatorNames.join(', ')}
-            </p>
+        <div
+          data-testid="waiting-screen"
+          className="h-full w-full overflow-y-auto"
+        >
+          {/* Late-joiner explanation */}
+          {isLateJoiner && (
+            <div className="mb-8 w-full min-w-0 max-w-full flex-none text-center">
+              <p className="text-sm font-mono uppercase tracking-wider text-[var(--color-primary)]">
+                Game in progress
+              </p>
+              <p className="mt-2 text-base text-[var(--color-text-secondary)]">
+                You&apos;re watching this game. You can play in the next one.
+              </p>
+            </div>
           )}
 
-          {!allSubmitted && (
-            <div className="w-full min-w-0 max-w-full space-y-3">
-              <p className="max-w-full break-words text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
-                Round {round + 1} · {submittedCount} of {activePlayers.length}{' '}
-                ready
-              </p>
+          {/* Center: Headline */}
+          <div className="mb-12 min-h-full w-full min-w-0 max-w-full flex-none space-y-6 text-center md:mb-20">
+            <h2 className="max-w-full break-words text-4xl md:text-6xl font-[var(--font-display)] leading-tight">
+              {allSubmitted ? 'Ready' : "It's around the table now."}
+            </h2>
+
+            {/* Round progress — nine segments, the current round lit */}
+            <div
+              className="mx-auto flex w-full max-w-xs justify-center gap-1.5"
+              role="presentation"
+              aria-hidden="true"
+            >
+              {WORD_COUNTS.map((_, segmentIndex) => (
+                <div
+                  key={segmentIndex}
+                  className={cn(
+                    'h-1 flex-1 rounded-full transition-colors motion-reduce:transition-none duration-[var(--duration-normal)]',
+                    segmentIndex === round
+                      ? 'bg-[var(--color-primary)]'
+                      : segmentIndex < round
+                        ? 'bg-[var(--color-text-muted)]/40'
+                        : 'bg-[var(--color-border-subtle)]'
+                  )}
+                />
+              ))}
+            </div>
+
+            {spectatorNames.length > 0 && (
               <p
-                className="max-w-full break-words text-base text-[var(--color-text-muted)]"
+                className="mb-6 max-w-full break-words text-center text-sm text-[var(--color-text-muted)]"
                 aria-live="polite"
               >
-                {`Waiting on ${waitingNames.join(', ')}`}
+                Watching this round: {spectatorNames.join(', ')}
               </p>
-              {typeof progress.roundStartedAt === 'number' && (
-                <div className="mx-auto max-w-xs pt-2">
-                  <RoundClock roundStartedAt={progress.roundStartedAt} />
+            )}
+
+            {!allSubmitted && (
+              <div className="w-full min-w-0 max-w-full space-y-3">
+                <p className="max-w-full break-words text-[var(--text-lg)] font-mono text-[var(--color-text-secondary)]">
+                  Round {round + 1} · {submittedCount} of {activePlayers.length}{' '}
+                  ready
+                </p>
+                <p
+                  className="max-w-full break-words text-base text-[var(--color-text-muted)]"
+                  aria-live="polite"
+                >
+                  {`Waiting on ${waitingNames.join(', ')}`}
+                </p>
+                {Number.isFinite(progress.roundStartedAt) &&
+                  progress.roundStartedAt !== undefined && (
+                    <div className="mx-auto max-w-xs pt-2">
+                      <RoundClock roundStartedAt={progress.roundStartedAt} />
+                    </div>
+                  )}
+              </div>
+            )}
+          </div>
+
+          {/* Center-bottom: Poet presence indicators */}
+          <div className="flex-1 flex items-start justify-center w-full mb-12">
+            <ul className="flex w-full min-w-0 max-w-xl flex-wrap justify-center gap-4 md:gap-5">
+              {players.map((player, index) => (
+                <li
+                  key={player.stableId}
+                  className={cn(
+                    'relative',
+                    player.submitted && !player.isSpectator && 'opacity-60'
+                  )}
+                  style={{
+                    animationDelay: `${index * 100}ms`,
+                  }}
+                >
+                  <div
+                    className={`flex flex-col items-center gap-1.5 ${player.isSpectator ? 'opacity-60' : ''}`}
+                  >
+                    {player.submitted && !player.isSpectator ? (
+                      <div className="opacity-50 transition-opacity duration-[var(--duration-normal)]">
+                        <Avatar
+                          stableId={player.stableId}
+                          displayName={player.displayName}
+                          allStableIds={allStableIds}
+                          size="sm"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className={`relative ${player.isAway || player.isSpectator ? 'opacity-40' : ''}`}
+                      >
+                        <Avatar
+                          stableId={player.stableId}
+                          displayName={player.displayName}
+                          allStableIds={allStableIds}
+                          size="sm"
+                        />
+                        {!player.isAway && !player.isSpectator && (
+                          <div
+                            className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
+                            style={{
+                              animation: 'avatar-pulse 2s ease-out infinite',
+                              color: 'var(--color-primary)',
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                    <span
+                      className={`max-w-[72px] break-words text-center text-[0.6875rem] font-medium leading-tight [overflow-wrap:anywhere] ${player.isSpectator ? 'text-[var(--color-text-muted)]' : player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
+                    >
+                      {player.displayName}
+                      {player.isSpectator && (
+                        <span className="block text-[0.5625rem] uppercase tracking-wider">
+                          watching
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Hosts may abandon an incomplete game; partial poems stay private. */}
+          {!allSubmitted && progress.isHost === true && (
+            <div className="flex-none w-full max-w-sm space-y-3 text-center">
+              {endError && <Alert variant="error">{endError}</Alert>}
+              {endState === 'confirming' || endState === 'ending' ? (
+                <div className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                  <div className="space-y-2">
+                    <h3 className="font-[var(--font-display)] text-xl">
+                      End this game?
+                    </h3>
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      Everyone will return to the lobby. Partial poems are not
+                      revealed.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      onClick={() => setEndState('idle')}
+                      disabled={endState === 'ending'}
+                      variant="outline"
+                      size="md"
+                      className="w-full"
+                    >
+                      Keep playing
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => void handleEndGame()}
+                      disabled={endState === 'ending'}
+                      size="md"
+                      className="w-full"
+                    >
+                      {endState === 'ending' ? 'Ending game…' : 'End game'}
+                    </Button>
+                  </div>
                 </div>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => setEndState('confirming')}
+                  variant="ghost"
+                  size="md"
+                  className="w-full"
+                >
+                  End game
+                </Button>
               )}
             </div>
           )}
         </div>
-
-        {/* Center-bottom: Poet presence indicators */}
-        <div className="flex-1 flex items-start justify-center w-full mb-12">
-          <div className="flex w-full min-w-0 max-w-xl flex-wrap justify-center gap-4 md:gap-5">
-            {players.map((player, index) => (
-              <div
-                key={player.userId}
-                className="relative"
-                style={{
-                  animationDelay: `${index * 100}ms`,
-                }}
-              >
-                <div
-                  className={`flex flex-col items-center gap-1.5 ${player.isSpectator ? 'opacity-60' : ''}`}
-                >
-                  {player.submitted && !player.isSpectator ? (
-                    <div className="opacity-50 transition-opacity duration-[var(--duration-normal)]">
-                      <Avatar
-                        stableId={player.stableId}
-                        displayName={player.displayName}
-                        allStableIds={allStableIds}
-                        size="sm"
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className={`relative ${player.isAway || player.isSpectator ? 'opacity-40' : ''}`}
-                    >
-                      <Avatar
-                        stableId={player.stableId}
-                        displayName={player.displayName}
-                        allStableIds={allStableIds}
-                        size="sm"
-                      />
-                      {!player.isAway && !player.isSpectator && (
-                        <div
-                          className="absolute inset-0 -m-0.5 rounded-full border border-current opacity-0"
-                          style={{
-                            animation: 'avatar-pulse 2s ease-out infinite',
-                            color: 'var(--color-primary)',
-                          }}
-                        />
-                      )}
-                    </div>
-                  )}
-                  <span
-                    className={`max-w-[72px] break-words text-center text-[0.6875rem] font-medium leading-tight [overflow-wrap:anywhere] ${player.isSpectator ? 'text-[var(--color-text-muted)]' : player.submitted ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}
-                  >
-                    {player.displayName}
-                    {player.isSpectator && (
-                      <span className="block text-[0.5625rem] uppercase tracking-wider">
-                        watching
-                      </span>
-                    )}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Hosts may abandon an incomplete game; partial poems stay private. */}
-        {!allSubmitted && progress.isHost === true && (
-          <div className="flex-none w-full max-w-sm space-y-3 text-center">
-            {endError && <Alert variant="error">{endError}</Alert>}
-            {endState === 'confirming' || endState === 'ending' ? (
-              <div className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                <div className="space-y-2">
-                  <h3 className="font-[var(--font-display)] text-xl">
-                    End this game?
-                  </h3>
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    Everyone will return to the lobby. Partial poems are not
-                    revealed.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    type="button"
-                    onClick={() => setEndState('idle')}
-                    disabled={endState === 'ending'}
-                    variant="outline"
-                    size="md"
-                    className="w-full"
-                  >
-                    Keep playing
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => void handleEndGame()}
-                    disabled={endState === 'ending'}
-                    size="md"
-                    className="w-full"
-                  >
-                    {endState === 'ending' ? 'Ending game…' : 'End game'}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                onClick={() => setEndState('confirming')}
-                variant="ghost"
-                size="md"
-                className="w-full"
-              >
-                End game
-              </Button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* CSS for avatar pulse animation */}
-      <style jsx>{`
+      <style>{`
         @keyframes avatar-pulse {
           0% {
             transform: scale(1);

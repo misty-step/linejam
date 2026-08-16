@@ -17,7 +17,9 @@ const REQUIRED_ENV = [
 /** @typedef {Record<string, string | undefined>} Env */
 
 function value(env, name) {
-  return typeof env[name] === 'string' ? env[name].trim() : '';
+  return Object.prototype.toString.call(env[name]) === '[object String]'
+    ? env[name].trim()
+    : '';
 }
 
 function configuredUrl(raw, name, acceptedHost) {
@@ -153,7 +155,7 @@ export function checkSentryConfig(env = process.env) {
 }
 
 function timeoutSignal(timeoutMs) {
-  return typeof AbortSignal.timeout === 'function'
+  return 'timeout' in AbortSignal
     ? AbortSignal.timeout(timeoutMs)
     : undefined;
 }

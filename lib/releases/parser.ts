@@ -8,7 +8,15 @@
  */
 
 import type { ChangelogEntry, ChangeType, Release } from './types';
-import { SECTION_TO_TYPE } from './types';
+import { SECTION_TO_TYPE, TYPE_LABELS } from './types';
+
+function isChangeType(value: string): value is ChangeType {
+  return Object.hasOwn(TYPE_LABELS, value);
+}
+
+function isKnownSection(value: string): value is keyof typeof SECTION_TO_TYPE {
+  return Object.hasOwn(SECTION_TO_TYPE, value);
+}
 
 /** Parse version headers:
  * ## [1.0.0] - 2024-01-15
@@ -67,7 +75,9 @@ export function parseChangelog(content: string): Release[] {
     const sectionMatch = trimmed.match(SECTION_REGEX);
     if (sectionMatch && currentRelease) {
       const sectionName = sectionMatch[1].trim();
-      currentSection = SECTION_TO_TYPE[sectionName] || 'chore';
+      currentSection = isKnownSection(sectionName)
+        ? SECTION_TO_TYPE[sectionName]
+        : 'chore';
       continue;
     }
 
@@ -130,7 +140,10 @@ function parseBullet(
   // Try conventional commit format
   const conventionalMatch = description.match(CONVENTIONAL_REGEX);
   if (conventionalMatch) {
-    type = (conventionalMatch[1] as ChangeType) || type;
+    const candidateType = conventionalMatch[1];
+    if (candidateType && isChangeType(candidateType)) {
+      type = candidateType;
+    }
     scope = conventionalMatch[2];
     breaking = !!conventionalMatch[3];
     description = conventionalMatch[4];

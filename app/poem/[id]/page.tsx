@@ -11,5 +11,6 @@ export default async function Page({
 }) {
   const { id } = await params;
   const { share } = (await searchParams) ?? {};
+  // SAFETY: Route parameter `id` is a nominal Convex document ID validated by the query runtime.
   return <PoemDetail poemId={id as Id<'poems'>} shareSlug={share} />;
 }

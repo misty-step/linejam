@@ -7,10 +7,31 @@ import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 type ConnectionNotice = 'offline' | 'reconnecting' | null;
 
 const RESTORED_MESSAGE = 'Connection restored.';
-export function ConnectionStatus() {
-  const connection = useConvexConnectionState();
-  const [browserOnline, setBrowserOnline] = useState(() =>
-    typeof navigator === 'undefined' ? true : navigator.onLine
+
+interface ConnectionState {
+  isWebSocketConnected: boolean;
+  hasEverConnected: boolean;
+  connectionRetries: number;
+}
+
+export interface ConnectionStatusDependencies {
+  useConnectionState(): ConnectionState;
+}
+
+const defaultConnectionStatusDependencies: ConnectionStatusDependencies = {
+  useConnectionState: useConvexConnectionState,
+};
+
+interface ConnectionStatusProps {
+  dependencies?: ConnectionStatusDependencies;
+}
+
+export function ConnectionStatus({
+  dependencies = defaultConnectionStatusDependencies,
+}: ConnectionStatusProps = {}) {
+  const connection = dependencies.useConnectionState();
+  const [browserOnline, setBrowserOnline] = useState(
+    () => globalThis.navigator?.onLine ?? true
   );
 
   useEffect(() => {

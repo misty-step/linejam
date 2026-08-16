@@ -31,6 +31,7 @@ export function loadManifest(): ReleaseManifest {
   }
 
   const content = fs.readFileSync(manifestPath, 'utf-8');
+  // SAFETY: manifest.json is generated at build time by the releases pipeline and conforms to ReleaseManifest.
   return JSON.parse(content) as ReleaseManifest;
 }
 
@@ -48,6 +49,7 @@ export function loadRelease(version: string): ReleaseWithNotes | null {
   }
 
   const changelogContent = fs.readFileSync(changelogPath, 'utf-8');
+  // SAFETY: changelog.json is generated at build time by the releases pipeline and conforms to Release.
   const release = JSON.parse(changelogContent) as Release;
 
   let productNotes = '';

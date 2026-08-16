@@ -47,25 +47,31 @@ export async function exists(targetPath) {
     return false;
   }
 }
+function isString(value) {
+  return Object.prototype.toString.call(value) === '[object String]';
+}
 
 export function normalizeEvidenceResult(baseUrl, result, testError) {
+  const resultBaseUrl =
+    isString(result?.baseUrl) && result.baseUrl ? result.baseUrl : baseUrl;
+  const resultFlowError = isString(result?.flowError)
+    ? result.flowError
+    : testError
+      ? errorMessage(testError)
+      : null;
+  const resultRawVideoPath = isString(result?.rawVideoPath)
+    ? result.rawVideoPath
+    : null;
+  const resultRoomCode = isString(result?.roomCode) ? result.roomCode : '';
+
   return {
-    baseUrl:
-      typeof result?.baseUrl === 'string' && result.baseUrl
-        ? result.baseUrl
-        : baseUrl,
+    baseUrl: resultBaseUrl,
     checks: Array.isArray(result?.checks)
       ? result.checks.map((check) => String(check))
       : [],
-    flowError:
-      typeof result?.flowError === 'string'
-        ? result.flowError
-        : testError
-          ? errorMessage(testError)
-          : null,
-    rawVideoPath:
-      typeof result?.rawVideoPath === 'string' ? result.rawVideoPath : null,
-    roomCode: typeof result?.roomCode === 'string' ? result.roomCode : '',
+    flowError: resultFlowError,
+    rawVideoPath: resultRawVideoPath,
+    roomCode: resultRoomCode,
     runtimeErrors: Array.isArray(result?.runtimeErrors)
       ? result.runtimeErrors.map((runtimeError) => String(runtimeError))
       : [],

@@ -45,6 +45,7 @@ export interface ArchiveStats {
   uniqueCollaborators: number;
   totalLinesWritten: number;
 }
+const NO_POEMS: ArchivePoem[] = [];
 
 const DEFAULT_ARCHIVE_LIMIT = 24;
 const MAX_ARCHIVE_LIMIT = 48;
@@ -87,7 +88,7 @@ export const getArchiveData = query({
   handler: async (ctx, { guestToken, limit }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) {
-      return { poems: [] as ArchivePoem[], stats: null };
+      return { poems: NO_POEMS, stats: null };
     }
 
     const poemLimit = boundedLimit(
@@ -110,7 +111,7 @@ export const getArchiveData = query({
     // No poems yet
     if (userLines.length === 0) {
       return {
-        poems: [] as ArchivePoem[],
+        poems: NO_POEMS,
         stats: {
           totalPoems: 0,
           totalFavorites: 0,

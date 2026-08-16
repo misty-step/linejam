@@ -16,22 +16,19 @@ import {
   retentionEligibleAt,
 } from './lib/retentionPolicy';
 
-const TABLES = [
-  'rooms',
-  'games',
-  'poems',
-  'users',
-  'migrations',
-  'aiTurns',
-  'aiRoundLocks',
-  'aiUsage',
-  'aiGenerationMetrics',
-  'shares',
-  'rateLimits',
-  'retentionRuns',
-] as const;
-
-type RetentionTable = (typeof TABLES)[number];
+type RetentionTable =
+  | 'rooms'
+  | 'games'
+  | 'poems'
+  | 'users'
+  | 'migrations'
+  | 'aiTurns'
+  | 'aiRoundLocks'
+  | 'aiUsage'
+  | 'aiGenerationMetrics'
+  | 'shares'
+  | 'rateLimits'
+  | 'retentionRuns';
 type TableCounts = Record<RetentionTable, number>;
 type CandidateResult = {
   eligible: number;
@@ -53,8 +50,21 @@ const retentionSweepRef = makeFunctionReference<
   }
 >('retention:runRetentionSweep');
 
-function emptyCounts(): TableCounts {
-  return Object.fromEntries(TABLES.map((table) => [table, 0])) as TableCounts;
+function emptyCounts() {
+  return {
+    rooms: 0,
+    games: 0,
+    poems: 0,
+    users: 0,
+    migrations: 0,
+    aiTurns: 0,
+    aiRoundLocks: 0,
+    aiUsage: 0,
+    aiGenerationMetrics: 0,
+    shares: 0,
+    rateLimits: 0,
+    retentionRuns: 0,
+  } satisfies TableCounts;
 }
 
 function recordCandidateResults(
@@ -420,28 +430,24 @@ export const runRetentionSweep = internalMutation({
       deletedByTable
     );
 
-    const directBatches = {
-      aiTurns,
-      migrations,
-      aiRoundLocks,
-      aiUsage,
-      aiGenerationMetrics,
-      shares,
-      rateLimits,
-      retentionRuns,
-    } as const;
-    const directTables = Object.keys(directBatches) as Array<
-      keyof typeof directBatches
-    >;
-    for (const table of directTables) {
-      const rows = directBatches[table];
+    const directBatches = [
+      ['aiTurns', aiTurns],
+      ['migrations', migrations],
+      ['aiRoundLocks', aiRoundLocks],
+      ['aiUsage', aiUsage],
+      ['aiGenerationMetrics', aiGenerationMetrics],
+      ['shares', shares],
+      ['rateLimits', rateLimits],
+      ['retentionRuns', retentionRuns],
+    ] as const;
+    for (const [table, rows] of directBatches) {
       eligibleByTable[table] += rows.length;
       if (!args.dryRun) deletedByTable[table] += rows.length;
     }
     if (!args.dryRun) {
       await Promise.all(
-        directTables.flatMap((table) =>
-          directBatches[table].map((row) => ctx.db.delete(row._id))
+        directBatches.flatMap(([, rows]) =>
+          rows.map((row) => ctx.db.delete(row._id))
         )
       );
     }

@@ -16,7 +16,7 @@ import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
-import { PoemShape } from './PoemShape';
+import { PoemSilhouette } from './PoemSilhouette';
 import { AuthorDots } from './AuthorDots';
 
 interface PoemCardProps {
@@ -137,7 +137,7 @@ export function PoemCard({
       >
         {/* Top Row: Shape + Favorite */}
         <div className="flex items-start justify-between mb-4">
-          <PoemShape
+          <PoemSilhouette
             wordCounts={wordCounts}
             size={isFeatured ? 'md' : 'sm'}
             animate={isHovered}
@@ -227,10 +227,15 @@ export function PoemCard({
 
         {/* Bottom Row: Authors + Date */}
         <div className="flex items-center justify-between pt-4 border-t border-[var(--color-border-subtle)]">
-          <AuthorDots
-            authorStableIds={uniqueAuthorIds}
-            size={isFeatured ? 'md' : 'sm'}
-          />
+          <div className="flex items-center gap-2">
+            <AuthorDots
+              authorStableIds={uniqueAuthorIds}
+              size={isFeatured ? 'md' : 'sm'}
+            />
+            <span className="text-xs font-mono text-[var(--color-text-muted)]">
+              {poem.poetCount} {poem.poetCount === 1 ? 'poet' : 'poets'}
+            </span>
+          </div>
 
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono text-[var(--color-text-muted)]">

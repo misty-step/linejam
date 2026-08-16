@@ -17,6 +17,22 @@ import { runStagehandExploration } from '../../qa/agentic/stagehand.mjs';
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const DEFAULT_LOCAL_BASE_URL = 'http://localhost:3333';
 const RUN_ID_PATTERN = /[^a-zA-Z0-9._-]/g;
+/**
+ * @typedef {{ toString(): string }} AgenticProcessOutputChunk
+ * @typedef {{ on(event: 'data', listener: (chunk: AgenticProcessOutputChunk) => void): void }} AgenticProcessOutput
+ * @typedef {{
+ *   stdout: AgenticProcessOutput,
+ *   stderr: AgenticProcessOutput,
+ *   on(event: 'error', listener: (error: Error) => void): void,
+ *   on(event: 'close', listener: (code: number | null) => void): void,
+ * }} AgenticChildProcess
+ * @typedef {(command: string, args: string[], options: {
+ *   cwd: string,
+ *   env: NodeJS.ProcessEnv,
+ *   stdio: ['ignore', 'pipe', 'pipe'],
+ * }) => AgenticChildProcess} AgenticSpawnProcess
+ */
+
 
 function timestamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
@@ -178,10 +194,13 @@ async function writeManifestAndCritic({ manifest, runDir }) {
 }
 
 function relativizeStagehandArtifacts(stagehand, runDir) {
-  if (!stagehand || typeof stagehand !== 'object') {
+  if (
+    !stagehand ||
+    Array.isArray(stagehand) ||
+    Object.prototype.toString.call(stagehand) !== '[object Object]'
+  ) {
     return stagehand;
   }
-
   return {
     ...stagehand,
     artifacts: Array.isArray(stagehand.artifacts)
@@ -226,6 +245,18 @@ async function collectFailureArtifacts({ outputDir, runDir }) {
   return artifacts;
 }
 
+/**
+ * @param {{
+ *   argv?: string[],
+ *   env?: NodeJS.ProcessEnv,
+ *   spawnProcess?: AgenticSpawnProcess,
+ *   promptfooRunner?: typeof runPromptfooCritic,
+ *   stagehandRunner?: typeof runStagehandExploration,
+ *   writeOut?: (value: string) => void,
+ *   writeErr?: (...value: string[]) => void,
+ *   exit?: (code?: number) => never,
+ * }} options
+ */
 export async function runAgenticQa({
   argv = process.argv.slice(2),
   env = process.env,

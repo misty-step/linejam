@@ -131,6 +131,7 @@ describe('selectNextHostId (deterministic next-host rule)', () => {
   const now = 10_000_000;
   const fresh = now - 1_000;
   const stale = now - HOST_MIGRATION_STALE_MS - 1_000;
+  // SAFETY: Branded ID fixture for pure unit test of in-memory host migration logic.
   const uid = (n: number) => `user_${n}` as Id<'users'>;
 
   it('picks the present human with the lowest seatIndex', () => {

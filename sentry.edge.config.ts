@@ -4,6 +4,21 @@ import { getSentryRuntimeOptions } from './sentry.runtime.mjs';
 
 const runtimeOptions = getSentryRuntimeOptions();
 
+type SentryEdgeTags = {
+  runtime: 'edge';
+  environment: string;
+  release?: string;
+};
+
+const edgeTags: SentryEdgeTags = {
+  runtime: 'edge',
+  environment: runtimeOptions.environment,
+};
+
+if (runtimeOptions.release) {
+  edgeTags.release = runtimeOptions.release;
+}
+
 if (!Sentry.getClient()) {
   Sentry.init({
     ...runtimeOptions,
@@ -11,11 +26,7 @@ if (!Sentry.getClient()) {
     beforeSend,
     beforeSendTransaction,
     initialScope: {
-      tags: {
-        runtime: 'edge',
-        environment: runtimeOptions.environment,
-        ...(runtimeOptions.release ? { release: runtimeOptions.release } : {}),
-      },
+      tags: edgeTags,
     },
   });
 }

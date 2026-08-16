@@ -30,10 +30,32 @@ function fixedError(status: 400 | 503): Response {
   });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+export interface DecodedHexSignature {
+  bytes: Uint8Array;
+  valid: boolean;
 }
 
+export interface SentryWebhookEventData {
+  project?: string | number;
+  issue_id?: string | number;
+  event_id?: string;
+}
+
+export interface SentryWebhookData {
+  event?: SentryWebhookEventData;
+}
+
+export interface SentryWebhookInstallation {
+  uuid?: string;
+}
+
+export interface SentryWebhookPayload {
+  action?: string;
+  installation?: SentryWebhookInstallation;
+  data?: SentryWebhookData;
+}
+
+type RawIdentifier = string | number | null | undefined;
 async function readBoundedBody(
   request: Request,
   maximumBytes = SENTRY_WEBHOOK_MAX_BODY_BYTES
@@ -68,10 +90,7 @@ async function readBoundedBody(
   return body;
 }
 
-function decodeHexSignature(value: string): {
-  bytes: Uint8Array;
-  valid: boolean;
-} {
+function decodeHexSignature(value: string): DecodedHexSignature {
   const valid = /^[0-9a-fA-F]{64}$/.test(value);
   const bytes = new Uint8Array(32);
   if (!valid) return { bytes, valid: false };
@@ -106,35 +125,45 @@ export async function verifySentrySignature(
   return difference === 0;
 }
 
+function isRawIdentifierNumber(value: string | number): value is number {
+  return Number.isSafeInteger(value);
+}
+
 function boundedId(
-  value: unknown,
+  value: RawIdentifier,
   pattern: RegExp,
   maximumLength: number
 ): string | null {
-  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
-    value = String(value);
+  if (value === null || value === undefined) return null;
+  let str: string | null = null;
+  if (isRawIdentifierNumber(value)) {
+    if (value >= 0) {
+      str = String(value);
+    }
+  } else {
+    str = value;
   }
   if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > maximumLength ||
-    !pattern.test(value)
+    str === null ||
+    str.length === 0 ||
+    str.length > maximumLength ||
+    !pattern.test(str)
   ) {
     return null;
   }
-  return value;
+  return str;
 }
 
 export function projectSentryWebhook(
-  value: unknown,
+  value: SentryWebhookPayload | null | undefined,
   requestIdValue: string | null,
   expectedInstallationUuid: string,
   expectedProjectId: string
 ): WebhookProjection | null {
-  if (!isRecord(value) || value.action !== 'triggered') return null;
-  if (!isRecord(value.installation) || !isRecord(value.data)) return null;
+  if (!value || value.action !== 'triggered') return null;
+  if (!value.installation || !value.data) return null;
   const event = value.data.event;
-  if (!isRecord(event)) return null;
+  if (!event) return null;
 
   const installationUuid = boundedId(
     value.installation.uuid,
@@ -214,7 +243,8 @@ http.route({
         (await verifySentrySignature(body, signature, secret))
       ) {
         const decoded = new TextDecoder('utf-8', { fatal: true }).decode(body);
-        const parsed: unknown = JSON.parse(decoded);
+        // SAFETY: JSON.parse output from cryptographically verified webhook payload is decoded and field-checked in projectSentryWebhook.
+        const parsed = JSON.parse(decoded) as SentryWebhookPayload;
         projection = projectSentryWebhook(
           parsed,
           request.headers.get('Request-ID'),

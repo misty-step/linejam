@@ -10,7 +10,10 @@ const SENTRY_ENVIRONMENTS = {
 const COMMIT_RELEASE = /^[a-f0-9]{40}$/;
 
 function clean(value) {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  return Object.prototype.toString.call(value) === '[object String]' &&
+    value.trim()
+    ? value.trim()
+    : undefined;
 }
 
 /** @param {SentryEnvironment} [env] */

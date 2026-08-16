@@ -1,8 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { makeFunctionReference } from 'convex/server';
 import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser } from '../helpers/convexSeed';
+interface ShareGameSeedDocument {
+  roomId: Id<'rooms'>;
+  status: 'COMPLETED' | 'ABANDONED';
+  cycle: number;
+  currentRound: number;
+  assignmentMatrix: Id<'users'>[][];
+  createdAt: number;
+  publicRecapEnabled?: boolean;
+}
+
+interface SharePoemSeedDocument {
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  indexInRoom: number;
+  createdAt: number;
+  revealedAt?: number;
+  publicShareEnabled?: boolean;
+}
 
 /**
  * shares mutations on the real convex-test engine (backlog 018): real
@@ -48,23 +67,31 @@ async function seedRoom(
       displayName: 'Owner',
       joinedAt: 0,
     });
-    const gameId = await ctx.db.insert('games', {
+    const gameDoc: ShareGameSeedDocument = {
       roomId,
       status: gameStatus,
       cycle: 1,
       currentRound: 0,
       assignmentMatrix: [[userId]],
       createdAt: 0,
-      ...(publicRecapEnabled !== undefined ? { publicRecapEnabled } : {}),
-    });
-    const poemId = await ctx.db.insert('poems', {
+    };
+    if (publicRecapEnabled !== undefined) {
+      gameDoc.publicRecapEnabled = publicRecapEnabled;
+    }
+    const gameId = await ctx.db.insert('games', gameDoc);
+    const poemDoc: SharePoemSeedDocument = {
       roomId,
       gameId,
       indexInRoom: 0,
       createdAt: 0,
-      ...(revealed ? { revealedAt: 1000 } : {}),
-      ...(publicShareEnabled !== undefined ? { publicShareEnabled } : {}),
-    });
+    };
+    if (revealed) {
+      poemDoc.revealedAt = 1000;
+    }
+    if (publicShareEnabled !== undefined) {
+      poemDoc.publicShareEnabled = publicShareEnabled;
+    }
+    const poemId = await ctx.db.insert('poems', poemDoc);
     return { userId, roomId, gameId, poemId };
   });
 }
@@ -84,7 +111,7 @@ describe('shares', () => {
       const poem = await t.run((ctx) => ctx.db.get(poemId));
       const room = await t.run((ctx) => ctx.db.get(roomId));
       expect(poem?.publicShareEnabled).toBe(false);
-      expect(typeof poem?.publicShareDisabledAt).toBe('number');
+      expect(poem?.publicShareDisabledAt).toBeGreaterThan(0);
       expect(poem?.retentionState).toBe('pending');
       expect(poem?.retentionEligibleAt).toBeGreaterThan(
         poem?.publicShareDisabledAt ?? 0
@@ -176,7 +203,7 @@ describe('shares', () => {
       const room = await t.run((ctx) => ctx.db.get(roomId));
       const poem = await t.run((ctx) => ctx.db.get(poemId));
       expect(game?.publicRecapEnabled).toBe(true);
-      expect(typeof game?.publicRecapEnabledAt).toBe('number');
+      expect(game?.publicRecapEnabledAt).toBeGreaterThan(0);
       expect(game?.retentionState).toBe('protected');
       expect(room?.retentionState).toBe('protected');
       expect(poem?.retentionState).toBe('protected');
@@ -225,7 +252,7 @@ describe('shares', () => {
       const room = await t.run((ctx) => ctx.db.get(roomId));
       const poem = await t.run((ctx) => ctx.db.get(poemId));
       expect(game?.publicRecapEnabled).toBe(false);
-      expect(typeof game?.publicRecapDisabledAt).toBe('number');
+      expect(game?.publicRecapDisabledAt).toBeGreaterThan(0);
       expect(game?.retentionState).toBe('pending');
       expect(room?.retentionState).toBe('pending');
       expect(poem?.retentionState).toBe('pending');

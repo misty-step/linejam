@@ -12,7 +12,7 @@ export function applyTheme(
   mode: ThemeMode,
   options: { transition?: boolean } = { transition: true }
 ): void {
-  if (typeof document === 'undefined') return;
+  if (globalThis.document === undefined) return;
 
   const theme = getTheme(themeId);
   if (!theme) {
@@ -57,7 +57,7 @@ export function getAppliedTheme(): {
   themeId: string;
   mode: ThemeMode;
 } | null {
-  if (typeof document === 'undefined') return null;
+  if (globalThis.document === undefined) return null;
 
   const root = document.documentElement;
   const themeId = root.getAttribute('data-theme');

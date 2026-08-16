@@ -1,14 +1,16 @@
 import { convexTest } from 'convex-test';
 import type { GenericSchema, SchemaDefinition } from 'convex/server';
+import type { ImportGlobFunction } from 'vite';
 import schema from '../../convex/schema';
 
 // `import.meta.glob` is a Vite transform — present at runtime under Vitest but
 // not typed by the app tsconfig (which omits vite/client types). Declare just
 // the method here rather than widen the whole app typecheck. The call below
 // must stay a literal `import.meta.glob('...')` so Vite can statically rewrite it.
+
 declare global {
   interface ImportMeta {
-    glob: (pattern: string) => Record<string, () => Promise<unknown>>;
+    glob: ImportGlobFunction;
   }
 }
 

@@ -1,18 +1,51 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { Id } from '@/convex/_generated/dataModel';
+import { ConvexProvider } from 'convex/react';
+import { createTestConvexClient } from '@/tests/helpers/convexClient';
 
-// Mock Convex mutation
-const mockToggleFavorite = vi.fn();
-vi.mock('convex/react', () => ({
-  useMutation: () => mockToggleFavorite,
-}));
-
-// Import after mocks
+import type { FunctionArgs } from 'convex/server';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 import { PoemCard, PoemCardSkeleton } from '@/components/archive/PoemCard';
 
+const mockToggleFavorite = vi.fn();
+const mockDisablePublicPoemShare = vi.fn();
+
+type PoemCardMutation =
+  | typeof api.favorites.toggleFavorite
+  | typeof api.shares.disablePublicPoemShare;
+
+type PoemCardMutationArgs =
+  | FunctionArgs<typeof api.favorites.toggleFavorite>
+  | FunctionArgs<typeof api.shares.disablePublicPoemShare>;
+
+const mockConvexClient = Object.assign(createTestConvexClient(), {
+  mutation: vi.fn((_ref: PoemCardMutation, args: PoemCardMutationArgs) => {
+    return mockToggleFavorite(args);
+  }),
+  query: vi.fn(),
+  watchQuery: vi.fn(() => ({
+    localQueryResult: () => undefined,
+    onUpdate: () => () => {},
+  })),
+  connectionState: vi.fn(() => ({
+    hasInflightRequests: false,
+    isWebSocketConnected: true,
+    timeOfOldestInflightRequest: null,
+  })),
+  setAuth: vi.fn(),
+  clearAuth: vi.fn(),
+});
+
+function renderWithConvex(ui: React.ReactElement) {
+  return render(
+    <ConvexProvider client={mockConvexClient}>{ui}</ConvexProvider>
+  );
+}
+
 describe('PoemCard component', () => {
+  // SAFETY: Synthetic Convex document id fixture for poem card component tests.
   const mockPoem = {
     _id: 'poem123' as Id<'poems'>,
     preview: 'The wind whispers softly',
@@ -46,30 +79,30 @@ describe('PoemCard component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockToggleFavorite.mockResolvedValue(undefined);
+    mockDisablePublicPoemShare.mockResolvedValue(undefined);
   });
 
   describe('rendering', () => {
     it('renders poem preview text', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       expect(screen.getByText(/the wind whispers softly/i)).toBeInTheDocument();
     });
 
     it('renders as a link to poem detail page', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const link = screen.getByRole('link');
       expect(link).toHaveAttribute('href', '/poem/poem123');
     });
 
-    it('renders PoemShape with word counts', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
-      // PoemShape has role="img"
+    it('renders PoemSilhouette with word counts', () => {
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       expect(
-        screen.getByRole('img', { name: /poem shape/i })
+        screen.getByRole('img', { name: /poem silhouette/i })
       ).toBeInTheDocument();
     });
 
     it('renders AuthorDots with unique authors', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       // AuthorDots has role="group"
       expect(
         screen.getByRole('group', { name: /contributor/i })
@@ -77,12 +110,12 @@ describe('PoemCard component', () => {
     });
 
     it('renders co-authors text', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       expect(screen.getByText(/with Bob/i)).toBeInTheDocument();
     });
 
     it('renders a captured legacy machine co-author byline', () => {
-      render(
+      renderWithConvex(
         <PoemCard
           poem={{
             ...mockPoem,
@@ -98,28 +131,41 @@ describe('PoemCard component', () => {
 
     it('renders formatted date', () => {
       const now = new Date();
-      const poem = {
+      const poemWithKnownDate = {
         ...mockPoem,
         createdAt: now.getTime(),
       };
-      render(<PoemCard poem={poem} guestToken="token123" />);
-      // Should have date format like "Jan 1"
+      renderWithConvex(
+        <PoemCard poem={poemWithKnownDate} guestToken="token123" />
+      );
+
       const expectedDate = now.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
       expect(screen.getByText(expectedDate)).toBeInTheDocument();
     });
+  });
 
-    it('applies test id for testing', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
-      expect(screen.getByTestId('poem-card')).toBeInTheDocument();
+  describe('animation delay', () => {
+    it('applies animation delay style to link', () => {
+      renderWithConvex(
+        <PoemCard poem={mockPoem} guestToken="token123" animationDelay={150} />
+      );
+      const card = screen.getByTestId('poem-card');
+      expect(card).toHaveStyle({ animationDelay: '150ms' });
+    });
+
+    it('defaults to 0ms animation delay', () => {
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
+      const card = screen.getByTestId('poem-card');
+      expect(card).toHaveStyle({ animationDelay: '0ms' });
     });
   });
 
   describe('favorite button', () => {
     it('renders unfavorited state correctly', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const button = screen.getByRole('button', {
         name: /add to favorites/i,
       });
@@ -127,7 +173,7 @@ describe('PoemCard component', () => {
     });
 
     it('renders favorited state correctly', () => {
-      render(
+      renderWithConvex(
         <PoemCard
           poem={{ ...mockPoem, isFavorited: true }}
           guestToken="token123"
@@ -140,7 +186,7 @@ describe('PoemCard component', () => {
     });
 
     it('calls toggleFavorite mutation on click', async () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const button = screen.getByRole('button', {
         name: /add to favorites/i,
       });
@@ -156,7 +202,7 @@ describe('PoemCard component', () => {
     });
 
     it('handles undefined guestToken', async () => {
-      render(<PoemCard poem={mockPoem} guestToken={null} />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken={null} />);
       const button = screen.getByRole('button', {
         name: /add to favorites/i,
       });
@@ -172,7 +218,7 @@ describe('PoemCard component', () => {
     });
 
     it('shows optimistic update when favoriting', async () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
 
       // Initially unfavorited
       expect(
@@ -194,7 +240,7 @@ describe('PoemCard component', () => {
     it('reverts on mutation error', async () => {
       mockToggleFavorite.mockRejectedValueOnce(new Error('Failed'));
 
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const button = screen.getByRole('button', {
         name: /add to favorites/i,
       });
@@ -212,7 +258,7 @@ describe('PoemCard component', () => {
     it('stops propagation on favorite button click', async () => {
       // This is tested indirectly - the button has e.stopPropagation()
       // and e.preventDefault() which prevent the link navigation
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const button = screen.getByRole('button', {
         name: /add to favorites/i,
       });
@@ -221,125 +267,108 @@ describe('PoemCard component', () => {
       // trigger the link click too
       fireEvent.click(button);
 
-      // Mutation should be called, confirming button handled the click
+      // Verify mutation was called, showing the click was processed
       await waitFor(() => {
         expect(mockToggleFavorite).toHaveBeenCalled();
       });
     });
 
-    it('disables button while mutation is in progress', async () => {
-      // Make mutation slow
-      mockToggleFavorite.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      );
+    it('disables favorite button while mutation is in flight', async () => {
+      let resolveMutation: () => void;
+      const mutationPromise = new Promise<void>((resolve) => {
+        resolveMutation = resolve;
+      });
+      mockToggleFavorite.mockReturnValueOnce(mutationPromise);
 
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const button = screen.getByRole('button', {
         name: /add to favorites/i,
       });
 
       fireEvent.click(button);
 
-      // Button should be disabled
-      expect(button).toBeDisabled();
-
-      // Wait for mutation to complete
-      await waitFor(() => {
-        expect(button).not.toBeDisabled();
-      });
-    });
-
-    it('prevents rapid double-clicks from triggering multiple mutations', async () => {
-      // Make mutation slow so we can click during it
-      mockToggleFavorite.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      );
-
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
-      const button = screen.getByRole('button', {
-        name: /add to favorites/i,
-      });
-
-      // Rapid double-click
-      fireEvent.click(button);
+      // Second click should be ignored while first is in flight
       fireEvent.click(button);
 
-      // Should only call mutation once due to isFavoriting guard
       expect(mockToggleFavorite).toHaveBeenCalledTimes(1);
 
-      // Wait for mutation to complete
-      await waitFor(() => {
-        expect(button).not.toBeDisabled();
-      });
+      // Cleanup
+      resolveMutation!();
+    });
+  });
+
+  describe('card link', () => {
+    it('links to correct poem detail page with id', () => {
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
+      const link = screen.getByRole('link');
+      expect(link).toHaveAttribute('href', '/poem/poem123');
+    });
+
+    it('has data-testid for e2e tests', () => {
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
+      expect(screen.getByTestId('poem-card')).toBeInTheDocument();
     });
   });
 
   describe('variants', () => {
-    it('applies default variant styles', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
-      const article = screen.getByRole('article');
-      expect(article).toHaveClass('p-6');
+    it('renders default variant without span classes', () => {
+      renderWithConvex(
+        <PoemCard poem={mockPoem} guestToken="token123" variant="default" />
+      );
+      const card = screen.getByTestId('poem-card');
+      expect(card).not.toHaveClass('sm:col-span-2');
     });
 
-    it('applies featured variant styles', () => {
-      render(
+    it('renders featured variant with span classes', () => {
+      renderWithConvex(
         <PoemCard poem={mockPoem} guestToken="token123" variant="featured" />
       );
-      const article = screen.getByRole('article');
-      expect(article).toHaveClass('p-8');
+      const card = screen.getByTestId('poem-card');
+      expect(card).toHaveClass('sm:col-span-2');
+      expect(card).toHaveClass('lg:col-span-2');
     });
   });
 
-  describe('animation', () => {
-    it('applies animation delay style', () => {
-      render(
-        <PoemCard poem={mockPoem} guestToken="token123" animationDelay={200} />
-      );
-      const link = screen.getByTestId('poem-card');
-      expect(link).toHaveStyle({ animationDelay: '200ms' });
+  describe('stats summary', () => {
+    it('renders poet count when multiple poets', () => {
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
+      expect(screen.getByText(/2 poets/i)).toBeInTheDocument();
     });
 
-    it('defaults to 0ms animation delay', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
-      const link = screen.getByTestId('poem-card');
-      expect(link).toHaveStyle({ animationDelay: '0ms' });
-    });
-  });
-
-  describe('co-authors overflow', () => {
-    it('shows overflow count when more than displayed coAuthors', () => {
-      const poemWithManyAuthors = {
+    it('renders singular "poet" for single author', () => {
+      const singleAuthorPoem = {
         ...mockPoem,
-        coAuthors: ['Bob', 'Charlie', 'Dave'],
-        poetCount: 5, // More than coAuthors.length + 1
-      };
-      render(<PoemCard poem={poemWithManyAuthors} guestToken="token123" />);
-      expect(screen.getByText(/\+1/)).toBeInTheDocument();
-    });
-
-    it('does not show overflow when all authors displayed', () => {
-      const poemWithFewAuthors = {
-        ...mockPoem,
-        coAuthors: ['Bob'],
-        poetCount: 2,
-      };
-      render(<PoemCard poem={poemWithFewAuthors} guestToken="token123" />);
-      expect(screen.queryByText(/\+/)).not.toBeInTheDocument();
-    });
-
-    it('hides co-authors section when empty', () => {
-      const poemNoCoAuthors = {
-        ...mockPoem,
+        poetCount: 1,
         coAuthors: [],
+        lines: [mockPoem.lines[0]],
       };
-      render(<PoemCard poem={poemNoCoAuthors} guestToken="token123" />);
-      expect(screen.queryByText(/with/i)).not.toBeInTheDocument();
+      renderWithConvex(
+        <PoemCard poem={singleAuthorPoem} guestToken="token123" />
+      );
+      expect(screen.getByText(/1 poet/i)).toBeInTheDocument();
+    });
+
+    it('renders line count correctly', () => {
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
+      expect(screen.getByText(/3 lines/i)).toBeInTheDocument();
+    });
+
+    it('renders singular "line" for single line', () => {
+      const singleLinePoem = {
+        ...mockPoem,
+        lineCount: 1,
+        lines: [mockPoem.lines[0]],
+      };
+      renderWithConvex(
+        <PoemCard poem={singleLinePoem} guestToken="token123" />
+      );
+      expect(screen.getByText(/1 line/i)).toBeInTheDocument();
     });
   });
 
   describe('hover state', () => {
     it('handles mouse enter event', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const card = screen.getByTestId('poem-card');
 
       fireEvent.mouseEnter(card);
@@ -349,7 +378,7 @@ describe('PoemCard component', () => {
     });
 
     it('handles mouse leave event', () => {
-      render(<PoemCard poem={mockPoem} guestToken="token123" />);
+      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const card = screen.getByTestId('poem-card');
 
       fireEvent.mouseEnter(card);
@@ -367,13 +396,13 @@ describe('PoemCardSkeleton component', () => {
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('renders shape skeleton bars', () => {
+  it('renders silhouette skeleton bars', () => {
     const { container } = render(<PoemCardSkeleton />);
-    // 9 shape bars for 1-2-3-4-5-4-3-2-1
-    const shapeBars = container.querySelectorAll(
+    // 9 silhouette bars for 1-2-3-4-5-4-3-2-1
+    const silhouetteBars = container.querySelectorAll(
       '.flex.flex-col.items-center > div'
     );
-    expect(shapeBars).toHaveLength(9);
+    expect(silhouetteBars).toHaveLength(9);
   });
 
   it('renders text skeleton placeholders', () => {

@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { cn } from '../lib/utils';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { captureError } from '../lib/error';
 import { errorToFeedback } from '../lib/errorFeedback';
+import { toErrorReportable } from '../lib/errorCore';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { PoemDisplay } from './PoemDisplay';
@@ -17,31 +19,84 @@ import { Id } from '../convex/_generated/dataModel';
 import { hashRoomId, trackGameCompleted } from '../lib/analytics';
 import { RoomChrome } from './RoomChrome';
 import { buildRevealChromeCopy } from '../lib/roomChromeCopy';
-import { SessionRecapHub } from './SessionRecapHub';
+import {
+  SessionRecapHub,
+  type SessionRecapHubDependencies,
+} from './SessionRecapHub';
 import { RevealStage } from './stage/RevealStage';
 import { Presentation, Check } from 'lucide-react';
 
 type ReadingCircleStatus = 'read' | 'reading-now' | 'up-next' | null;
 
-const READING_CIRCLE_STATUS_LABEL: Record<
-  Exclude<ReadingCircleStatus, null>,
-  string
-> = {
+const READING_CIRCLE_STATUS_LABEL = {
   read: 'Read',
   'reading-now': 'Reading now',
   'up-next': 'Up next',
+} as const satisfies Record<Exclude<ReadingCircleStatus, null>, string>;
+
+type RevealState =
+  FunctionReturnType<typeof api.game.getRevealPhaseState> | undefined;
+type RevealPoem = (
+  args: FunctionArgs<typeof api.game.revealPoem>
+) => Promise<FunctionReturnType<typeof api.game.revealPoem>>;
+type StartNewCycle = (
+  args: FunctionArgs<typeof api.game.startNewCycle>
+) => Promise<FunctionReturnType<typeof api.game.startNewCycle>>;
+type StartGame = (
+  args: FunctionArgs<typeof api.game.startGame>
+) => Promise<FunctionReturnType<typeof api.game.startGame>>;
+
+function useDefaultRevealState(args: {
+  roomCode: string;
+  guestToken?: string;
+}): RevealState {
+  return useQuery(api.game.getRevealPhaseState, args);
+}
+
+function useDefaultRevealPoem(): RevealPoem {
+  return useMutation(api.game.revealPoem);
+}
+
+function useDefaultStartNewCycle(): StartNewCycle {
+  return useMutation(api.game.startNewCycle);
+}
+
+function useDefaultStartGame(): StartGame {
+  return useMutation(api.game.startGame);
+}
+export interface RevealPhaseDependencies {
+  useUser: typeof useUser;
+  useRevealState: typeof useDefaultRevealState;
+  useRevealPoem: () => RevealPoem;
+  useStartNewCycle: () => StartNewCycle;
+  useStartGame: () => StartGame;
+  hashRoomId: typeof hashRoomId;
+  trackGameCompleted: typeof trackGameCompleted;
+  sessionRecapDependencies?: SessionRecapHubDependencies;
+}
+
+const defaultDependencies: RevealPhaseDependencies = {
+  useUser,
+  useRevealState: useDefaultRevealState,
+  useRevealPoem: useDefaultRevealPoem,
+  useStartNewCycle: useDefaultStartNewCycle,
+  useStartGame: useDefaultStartGame,
+  hashRoomId,
+  trackGameCompleted,
 };
 
 interface RevealPhaseProps {
   roomCode: string;
   showChrome?: boolean;
+  dependencies?: RevealPhaseDependencies;
 }
 
 export function RevealPhase({
   roomCode,
   showChrome = false,
+  dependencies = defaultDependencies,
 }: RevealPhaseProps) {
-  const { guestToken } = useUser();
+  const { guestToken } = dependencies.useUser();
   const [showingPoemId, setShowingPoemId] = useState<Id<'poems'> | null>(null);
   const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,20 +105,21 @@ export function RevealPhase({
   const readingNowRef = useRef<HTMLDivElement>(null);
   const previousReadingNowId = useRef<Id<'poems'> | null>(null);
 
-  const state = useQuery(api.game.getRevealPhaseState, {
+  const state = dependencies.useRevealState({
     roomCode,
     guestToken: guestToken || undefined,
   });
 
-  const revealPoemMutation = useMutation(api.game.revealPoem);
-  const startNewCycleMutation = useMutation(api.game.startNewCycle);
-  const startGameMutation = useMutation(api.game.startGame);
+  const revealPoemMutation = dependencies.useRevealPoem();
+  const startNewCycleMutation = dependencies.useStartNewCycle();
+  const startGameMutation = dependencies.useStartGame();
   const sortedPoems = useMemo(
     () =>
       [...(state?.poems ?? [])].sort((a, b) => a.indexInRoom - b.indexInRoom),
     [state?.poems]
   );
   const readingNowPoem = sortedPoems.find((poem) => !poem.isRevealed) ?? null;
+  const { hashRoomId: hashCompletedRoomId, trackGameCompleted } = dependencies;
   const readingNowId = readingNowPoem?._id ?? null;
 
   useEffect(() => {
@@ -83,13 +139,13 @@ export function RevealPhase({
       hasTrackedCompletion.current = true;
       if (state.roomId && state.cycle) {
         trackGameCompleted({
-          roomIdHash: hashRoomId(state.roomId),
+          roomIdHash: hashCompletedRoomId(state.roomId),
           cycle: state.cycle,
           round: poems.length > 0 ? 8 : 0,
         });
       }
     }
-  }, [state]);
+  }, [state, hashCompletedRoomId, trackGameCompleted]);
 
   const handleStartNow = async () => {
     setError(null);
@@ -100,10 +156,11 @@ export function RevealPhase({
         code: roomCode,
         guestToken: guestToken || undefined,
       });
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+    } catch (cause) {
+      const error = toErrorReportable(cause);
+      const feedback = errorToFeedback(error);
       setError(feedback.message);
-      captureError(err, { roomCode });
+      captureError(error, { roomCode });
     } finally {
       setIsStartingNow(false);
     }
@@ -112,7 +169,7 @@ export function RevealPhase({
   const revealPoem = async (
     poemId: Id<'poems'>,
     { showPoem }: { showPoem: boolean }
-  ) => {
+  ): Promise<boolean> => {
     setIsRevealingId(poemId);
     setError(null);
 
@@ -124,10 +181,13 @@ export function RevealPhase({
       if (showPoem) {
         setShowingPoemId(poemId);
       }
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+      return true;
+    } catch (cause) {
+      const error = toErrorReportable(cause);
+      const feedback = errorToFeedback(error);
       setError(feedback.message);
-      captureError(err, { roomCode });
+      captureError(error, { roomCode });
+      return false;
     } finally {
       setIsRevealingId(null);
     }
@@ -137,8 +197,8 @@ export function RevealPhase({
     await revealPoem(poemId, { showPoem: true });
   };
 
-  const handleStageReveal = async (poemId: Id<'poems'>) => {
-    await revealPoem(poemId, { showPoem: false });
+  const handleStageReveal = (poemId: Id<'poems'>) => {
+    return revealPoem(poemId, { showPoem: false });
   };
 
   const handleStartNewCycle = async () => {
@@ -149,10 +209,11 @@ export function RevealPhase({
         roomCode,
         guestToken: guestToken || undefined,
       });
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+    } catch (cause) {
+      const error = toErrorReportable(cause);
+      const feedback = errorToFeedback(error);
       setError(feedback.message);
-      captureError(err, { roomCode });
+      captureError(error, { roomCode });
     }
   };
 
@@ -413,6 +474,7 @@ export function RevealPhase({
               isStartingNextRound={isStartingNow}
               onStartNextRound={handleStartNow}
               onBackToLobby={handleStartNewCycle}
+              dependencies={dependencies.sessionRecapDependencies}
             />
           )}
         </main>

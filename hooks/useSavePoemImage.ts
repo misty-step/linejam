@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { Id } from '@/convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
+import { toErrorReportable } from '@/lib/errorCore';
 import {
   hashRoomId,
   trackArtifactAction,
@@ -11,6 +12,10 @@ import {
 import { getAppliedTheme } from '@/lib/themes';
 
 export type SaveImageStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+interface PoemCardRequestBody {
+  guestToken?: string;
+}
 
 /**
  * "Save as image" for a poem's themed artifact card
@@ -43,12 +48,14 @@ export function useSavePoemImage(
       const url = applied
         ? `/poem/${poemId}/card?theme=${encodeURIComponent(applied.themeId)}&mode=${applied.mode}`
         : `/poem/${poemId}/card`;
+      const requestBody: PoemCardRequestBody = {};
+      if (guestToken) {
+        requestBody.guestToken = guestToken;
+      }
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...(guestToken ? { guestToken } : {}),
-        }),
+        body: JSON.stringify(requestBody),
       });
       if (!response.ok) {
         throw new Error(`Card render failed (${response.status})`);
@@ -57,8 +64,8 @@ export function useSavePoemImage(
       const file = new File([blob], `linejam-poem.png`, { type: 'image/png' });
 
       if (
-        typeof navigator.share === 'function' &&
-        typeof navigator.canShare === 'function' &&
+        navigator.share instanceof Function &&
+        navigator.canShare instanceof Function &&
         navigator.canShare({ files: [file] })
       ) {
         try {
@@ -103,10 +110,11 @@ export function useSavePoemImage(
           round: 8,
           action: 'save',
         });
-    } catch (err) {
+    } catch (cause) {
+      const error = toErrorReportable(cause);
       setStatus('error');
       setError('Failed to save image. Please try again.');
-      captureError(err, { operation: 'savePoemImage', poemId });
+      captureError(error, { operation: 'savePoemImage', poemId });
     }
   }, [poemId, guestToken, roomId, cycle]);
 

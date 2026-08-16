@@ -231,11 +231,21 @@ export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
+type ThemeValidationTokens = {
+  [Token in keyof ThemeTokens]?: ThemeTokens[Token] | null;
+};
+
+export interface ThemeValidationInput {
+  tokens: {
+    light: ThemeValidationTokens;
+    dark: ThemeValidationTokens;
+  };
+}
 
 /**
  * Validate that a theme has all required tokens for both modes.
  */
-export function validateTheme(theme: ThemePreset): ValidationResult {
+export function validateTheme(theme: ThemeValidationInput): ValidationResult {
   const errors: string[] = [];
 
   for (const mode of ['light', 'dark'] as const) {

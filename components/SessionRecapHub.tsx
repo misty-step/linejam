@@ -12,7 +12,7 @@ import {
   trackRoomInviteShared,
 } from '@/lib/analytics';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
-import { useShareLink } from '@/hooks/useShareLink';
+import { useShareLink, type ShareLinkClient } from '@/hooks/useShareLink';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
@@ -24,6 +24,56 @@ export interface SessionRecapPoem {
   preview: string;
   readerName: string;
 }
+interface SessionRecapShareAccess {
+  roomCode: string;
+  guestToken?: string;
+}
+interface SessionFavorites {
+  leaderPoemId: Id<'poems'> | null;
+  leaderCount: number;
+}
+
+export interface SessionRecapHubDependencies {
+  useEnablePublicShare: () => (args: SessionRecapShareAccess) => Promise<null>;
+  useSessionFavorites: (
+    args: SessionRecapShareAccess
+  ) => SessionFavorites | null | undefined;
+  shareClient?: ShareLinkClient;
+  trackRoomInviteShared: (properties: {
+    method: 'clipboard' | 'native-share';
+    roomCode: string;
+  }) => void;
+  trackArtifactAction: (properties: {
+    roomIdHash: string;
+    cycle: number;
+    round: number;
+    action: 'share';
+  }) => void;
+  hashRoomId: (roomId: string) => string;
+  getRecapUrl: (roomCode: string) => string;
+}
+
+function useDefaultEnablePublicShare() {
+  return useMutation(api.shares.enablePublicSessionRecapShare);
+}
+
+function useDefaultSessionFavorites(args: SessionRecapShareAccess) {
+  return useQuery(api.favorites.getSessionFavorites, args);
+}
+
+function sessionRecapUrl(roomCode: string) {
+  if (globalThis.window === undefined) return `/recap/${roomCode}`;
+  return `${globalThis.window.location.origin}/recap/${roomCode}`;
+}
+
+const defaultDependencies: SessionRecapHubDependencies = {
+  useEnablePublicShare: useDefaultEnablePublicShare,
+  useSessionFavorites: useDefaultSessionFavorites,
+  trackRoomInviteShared,
+  trackArtifactAction,
+  hashRoomId,
+  getRecapUrl: sessionRecapUrl,
+};
 
 interface SessionRecapHubProps {
   roomCode: string;
@@ -36,11 +86,7 @@ interface SessionRecapHubProps {
   isStartingNextRound?: boolean;
   onStartNextRound: () => void;
   onBackToLobby: () => void;
-}
-
-function sessionRecapUrl(roomCode: string) {
-  if (typeof window === 'undefined') return `/recap/${roomCode}`;
-  return `${window.location.origin}/recap/${roomCode}`;
+  dependencies?: SessionRecapHubDependencies;
 }
 
 export function SessionRecapHub({
@@ -54,13 +100,15 @@ export function SessionRecapHub({
   isStartingNextRound = false,
   onStartNextRound,
   onBackToLobby,
+  dependencies,
 }: SessionRecapHubProps) {
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
   const lastCrownedPoemId = useRef<Id<'poems'> | null>(null);
   const { isMuted, punctuate, toggleMuted } = useCeremonyEffects();
 
+  const resolvedDependencies = dependencies ?? defaultDependencies;
   // Live tally — the crown can still change as late hearts land.
-  const sessionFavorites = useQuery(api.favorites.getSessionFavorites, {
+  const sessionFavorites = resolvedDependencies.useSessionFavorites({
     roomCode,
     guestToken: guestToken || undefined,
   });
@@ -68,9 +116,8 @@ export function SessionRecapHub({
     sessionFavorites?.leaderPoemId != null
       ? sortedPoems.find((p) => p._id === sessionFavorites.leaderPoemId)
       : undefined;
-  const enablePublicSessionRecapShare = useMutation(
-    api.shares.enablePublicSessionRecapShare
-  );
+  const enablePublicSessionRecapShare =
+    resolvedDependencies.useEnablePublicShare();
   const enablePublicRecap = async () => {
     await enablePublicSessionRecapShare({
       roomCode,
@@ -80,20 +127,21 @@ export function SessionRecapHub({
   const { handleShare, copied, shared, shareError } = useShareLink({
     publishShare: enablePublicRecap,
     getShareData: () => ({
-      url: sessionRecapUrl(roomCode),
+      url: resolvedDependencies.getRecapUrl(roomCode),
       title: 'Linejam session recap',
       text: `Share the whole set from Linejam room ${roomCode}.`,
     }),
     onShared: (method) => {
-      trackRoomInviteShared({ method, roomCode });
-      trackArtifactAction({
-        roomIdHash: hashRoomId(roomId ?? roomCode),
+      resolvedDependencies.trackRoomInviteShared({ method, roomCode });
+      resolvedDependencies.trackArtifactAction({
+        roomIdHash: resolvedDependencies.hashRoomId(roomId ?? roomCode),
         cycle: cycle ?? 1,
         round: poems.length > 0 ? 8 : 0,
         action: 'share',
       });
     },
     failureMessage: 'Failed to share recap. Please try again.',
+    client: resolvedDependencies.shareClient,
   });
 
   useEffect(() => {
@@ -159,6 +207,7 @@ export function SessionRecapHub({
           <Link
             href={`/poem/${favoritePoem._id}`}
             prefetch={false}
+            data-prefetch="false"
             className="mt-2 block font-[var(--font-display)] text-2xl italic leading-relaxed text-text-primary hover:text-primary"
           >
             &ldquo;{favoritePoem.preview || 'Untitled poem'}...&rdquo;
@@ -183,6 +232,7 @@ export function SessionRecapHub({
               key={poem._id}
               href={`/poem/${poem._id}`}
               prefetch={false}
+              data-prefetch="false"
               aria-label={`Replay poem ${poemNumber}: ${preview}`}
               className="group block border border-border-subtle bg-surface p-5 transition-colors hover:border-primary"
             >

@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { resolveDeploymentId } from '@/lib/deploymentId';
 import { DEPLOYMENT_STALE_EVENT } from '@/lib/deploymentSkew';
-
 const DEPLOYMENT_CHECK_INTERVAL_MS = 60_000;
 
 type DeploymentSkewObserverProps = {
   deploymentId?: string;
   reload?: () => void;
 };
-
-type HealthPayload = {
-  deployment?: { id?: unknown };
+type ServerDeploymentPayload = {
+  deployment?: {
+    id?: string | null;
+  };
 };
 
 export function DeploymentSkewObserver({
@@ -35,14 +36,13 @@ export function DeploymentSkewObserver({
         });
         if (!response.ok || disposed) return;
 
-        const payload = (await response.json()) as HealthPayload;
+        const rawPayload: ServerDeploymentPayload = await response.json();
         if (disposed) return;
 
-        const serverDeploymentId = payload.deployment?.id;
-        if (
-          typeof serverDeploymentId === 'string' &&
-          serverDeploymentId !== deploymentId
-        ) {
+        const serverDeploymentId = resolveDeploymentId(
+          rawPayload?.deployment?.id
+        );
+        if (serverDeploymentId && serverDeploymentId !== deploymentId) {
           markStale();
         }
       } catch {

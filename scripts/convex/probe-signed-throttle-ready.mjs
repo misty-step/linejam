@@ -40,7 +40,12 @@ export async function probeSignedThrottleReady(convexUrl, secret, mutate) {
 
 export function parseFunctionSpecDeploymentUrl(functionSpecJson) {
   const parsed = JSON.parse(functionSpecJson);
-  if (!parsed || typeof parsed.url !== 'string') {
+  if (
+    !parsed ||
+    Array.isArray(parsed) ||
+    Object.prototype.toString.call(parsed) !== '[object Object]' ||
+    Object.prototype.toString.call(parsed.url) !== '[object String]'
+  ) {
     throw new Error('Convex function-spec omitted its deployment URL.');
   }
   return new URL(parsed.url).origin;
@@ -80,7 +85,13 @@ export function assertSelectedDeploymentMatches(
 }
 
 function extractErrorMessage(error) {
-  if (error && typeof error === 'object' && typeof error.data === 'string') {
+  if (
+    error &&
+    (Object.prototype.toString.call(error) === '[object Object]' ||
+      error instanceof Error) &&
+    'data' in error &&
+    Object.prototype.toString.call(error.data) === '[object String]'
+  ) {
     return error.data;
   }
   if (error instanceof Error) return error.message;

@@ -75,12 +75,13 @@ export const linejamClerkAppearance = {
 // lib/themes/presets/kenya.ts); this cast just tells TypeScript what's
 // already true so callers below don't need dead `?? 'literal'` fallbacks
 // for fields that can never actually be missing on this preset.
+// SAFETY: kenyaTheme.tokens.light explicitly defines every semantic token in its preset declaration.
 const FALLBACK_TOKENS = kenyaTheme.tokens.light as Required<
   typeof kenyaTheme.tokens.light
 >;
 
 function readCssVar(token: string, fallback: string): string {
-  if (typeof document === 'undefined') return fallback;
+  if (globalThis.document === undefined) return fallback;
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue(`--${token}`)
     .trim();

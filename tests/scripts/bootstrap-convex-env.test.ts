@@ -23,8 +23,10 @@ import {
 } from '@/scripts/ci/bootstrap-convex-env.mjs';
 
 describe('bootstrap-convex-env', () => {
-  const env = (entries: Record<string, string>): NodeJS.ProcessEnv =>
-    entries as NodeJS.ProcessEnv;
+  const env = (entries: Record<string, string>): NodeJS.ProcessEnv => ({
+    NODE_ENV: 'test',
+    ...entries,
+  });
   const clerkPublishableKey = (kind: 'test' | 'live', issuerDomain: string) =>
     ['pk', kind, Buffer.from(issuerDomain).toString('base64url')].join('_');
   const sentryEnv = {
@@ -117,10 +119,11 @@ describe('bootstrap-convex-env', () => {
       })
     );
 
-    expect(plan.entries.slice(-9)).toEqual([
+    expect(plan.entries.slice(-10)).toEqual([
       ['SENTRY_WEBHOOK_SECRET', 'webhook-secret'],
       ['SENTRY_EVENT_WRITE_TOKEN', 'event-write-token'],
       ['GITHUB_ISSUES_TOKEN', 'github-issues-token'],
+      ['SENTRY_ORG', 'misty-step'],
       ['SENTRY_EXPECTED_APP_ID', '160944'],
       [
         'SENTRY_EXPECTED_INSTALLATION_UUID',
@@ -366,6 +369,7 @@ describe('bootstrap-convex-env', () => {
       'SENTRY_WEBHOOK_SECRET',
       'SENTRY_EVENT_WRITE_TOKEN',
       'GITHUB_ISSUES_TOKEN',
+      'SENTRY_ORG',
       'SENTRY_EXPECTED_APP_ID',
       'SENTRY_EXPECTED_INSTALLATION_UUID',
       'SENTRY_EXPECTED_PROJECT_ID',
@@ -694,6 +698,7 @@ exit 0
         'exec convex env --prod set SENTRY_WEBHOOK_SECRET',
         'exec convex env --prod set SENTRY_EVENT_WRITE_TOKEN',
         'exec convex env --prod set GITHUB_ISSUES_TOKEN',
+        'exec convex env --prod set SENTRY_ORG',
         'exec convex env --prod set SENTRY_EXPECTED_APP_ID',
         'exec convex env --prod set SENTRY_EXPECTED_INSTALLATION_UUID',
         'exec convex env --prod set SENTRY_EXPECTED_PROJECT_ID',

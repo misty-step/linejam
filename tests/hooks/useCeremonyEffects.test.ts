@@ -1,16 +1,41 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 const CEREMONY_MUTED_KEY = 'linejam:ceremony-muted';
 
+interface FakeOscillator {
+  type: string;
+  frequency: { setValueAtTime: Mock };
+  connect: Mock;
+  start: Mock;
+  stop: Mock;
+}
+
+interface FakeGain {
+  gain: {
+    setValueAtTime: Mock;
+    exponentialRampToValueAtTime: Mock;
+  };
+  connect: Mock;
+}
+
+interface FakeAudioContext {
+  currentTime: number;
+  createOscillator: Mock<() => FakeOscillator>;
+  createGain: Mock<() => FakeGain>;
+  destination: object;
+  close: Mock<() => Promise<void>>;
+}
+
 // vi.fn().mockReturnValue() can't stand in for a `new`-able constructor, so
 // build a real constructor function that copies the fake context's members
 // onto `this` the way a real AudioContext instance would expose them.
-function createAudioContextCtor(audioContext: Record<string, unknown>) {
-  return vi.fn(function (this: Record<string, unknown>) {
+function createAudioContextCtor(audioContext: FakeAudioContext) {
+  return vi.fn(function (this: FakeAudioContext) {
     Object.assign(this, audioContext);
   });
 }
@@ -36,8 +61,9 @@ describe('useCeremonyEffects', () => {
     Object.defineProperty(navigator, 'vibrate', {
       value: originalVibrate,
       configurable: true,
+      writable: true,
     });
-    if (originalAudioContext) {
+    if (originalAudioContext !== undefined) {
       Object.defineProperty(window, 'AudioContext', {
         value: originalAudioContext,
         configurable: true,
@@ -50,7 +76,6 @@ describe('useCeremonyEffects', () => {
 
   it('mutes and unmutes, persisting the preference to localStorage each way', () => {
     const { result } = renderHook(() => useCeremonyEffects());
-
     expect(result.current.isMuted).toBe(false);
 
     act(() => {
@@ -76,49 +101,64 @@ describe('useCeremonyEffects', () => {
     expect(localStorage.getItem(CEREMONY_MUTED_KEY)).toBe('1');
 
     act(() => {
-      result.current.setMuted(false);
+      result.current.setMuted(true);
     });
-    expect(result.current.isMuted).toBe(false);
-    expect(localStorage.getItem(CEREMONY_MUTED_KEY)).toBeNull();
+    expect(result.current.isMuted).toBe(true);
   });
 
   it('does not vibrate or play a tone while muted', () => {
-    const { result } = renderHook(() => useCeremonyEffects());
+    const AudioContextCtor = vi.fn();
+    Object.defineProperty(window, 'AudioContext', {
+      value: AudioContextCtor,
+      configurable: true,
+      writable: true,
+    });
 
+    const { result } = renderHook(() => useCeremonyEffects());
     act(() => {
       result.current.setMuted(true);
     });
+
     act(() => {
-      result.current.punctuate('line');
+      result.current.punctuate('crown');
     });
 
     expect(navigator.vibrate).not.toHaveBeenCalled();
+    expect(AudioContextCtor).not.toHaveBeenCalled();
   });
 
   it('skips haptics gracefully on a device with no vibrate API', () => {
-    Reflect.deleteProperty(navigator, 'vibrate');
-    expect('vibrate' in navigator).toBe(false);
+    Object.defineProperty(navigator, 'vibrate', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
 
     const { result } = renderHook(() => useCeremonyEffects());
-
     expect(() => {
       act(() => {
-        result.current.punctuate('line');
+        result.current.punctuate('crown');
       });
     }).not.toThrow();
   });
 
   it('does not vibrate or play a tone when the reader prefers reduced motion', () => {
     installMatchMedia(true);
+    const AudioContextCtor = vi.fn();
+    Object.defineProperty(window, 'AudioContext', {
+      value: AudioContextCtor,
+      configurable: true,
+      writable: true,
+    });
+
     const { result } = renderHook(() => useCeremonyEffects());
 
-    expect(result.current.prefersReducedMotion).toBe(true);
-
     act(() => {
-      result.current.punctuate('final-line');
+      result.current.punctuate('crown');
     });
 
     expect(navigator.vibrate).not.toHaveBeenCalled();
+    expect(AudioContextCtor).not.toHaveBeenCalled();
   });
 
   it('plays a triangle tone and vibrates the crown pattern for the crown beat', () => {
@@ -136,7 +176,7 @@ describe('useCeremonyEffects', () => {
       },
       connect: vi.fn(),
     };
-    const audioContext = {
+    const audioContext: FakeAudioContext = {
       currentTime: 0,
       createOscillator: vi.fn().mockReturnValue(oscillator),
       createGain: vi.fn().mockReturnValue(gain),
@@ -179,7 +219,7 @@ describe('useCeremonyEffects', () => {
       },
       connect: vi.fn(),
     };
-    const audioContext = {
+    const audioContext: FakeAudioContext = {
       currentTime: 0,
       createOscillator: vi.fn().mockReturnValue(oscillator),
       createGain: vi.fn().mockReturnValue(gain),

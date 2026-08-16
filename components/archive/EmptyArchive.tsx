@@ -9,7 +9,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { PoemShape } from './PoemShape';
+import { PoemSilhouette } from './PoemSilhouette';
 
 interface EmptyArchiveProps {
   /** Optional variant for different contexts */
@@ -20,7 +20,7 @@ interface EmptyArchiveProps {
  * EmptyArchive component
  *
  * Features:
- * - Ghosted poem shape (shows what's to come)
+ * - Ghosted poem silhouette (shows what's to come)
  * - Warm, inviting copy
  * - Clear CTA to start playing
  */
@@ -40,9 +40,9 @@ export function EmptyArchive({ variant = 'default' }: EmptyArchiveProps) {
 
   return (
     <div className="py-16 md:py-24 flex flex-col items-center text-center">
-      {/* Ghosted poem shape - preview of what's to come */}
+      {/* Ghosted poem silhouette - preview of what's to come */}
       <div className="mb-8 opacity-20">
-        <PoemShape wordCounts={[1, 2, 3, 4, 5, 4, 3, 2, 1]} size="lg" />
+        <PoemSilhouette wordCounts={[1, 2, 3, 4, 5, 4, 3, 2, 1]} size="lg" />
       </div>
 
       {/* Inviting headline */}

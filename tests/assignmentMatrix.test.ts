@@ -6,8 +6,13 @@ import {
 import { Id } from '../convex/_generated/dataModel';
 
 // Helper to create mock user IDs
+const createMockUserId = (id: string): Id<'users'> => {
+  // SAFETY: Mock user IDs are synthetic string identifiers satisfying the Convex Id<'users'> brand for unit tests.
+  return id as Id<'users'>;
+};
+
 const createMockUserIds = (count: number): Id<'users'>[] => {
-  return Array.from({ length: count }, (_, i) => `user_${i}` as Id<'users'>);
+  return Array.from({ length: count }, (_, i) => createMockUserId(`user_${i}`));
 };
 
 const expectNoConsecutiveAssignments = (
@@ -112,10 +117,10 @@ describe('generateAssignmentMatrix', () => {
 });
 
 describe('getMatrixRound', () => {
-  const matrix = [
-    ['u0', 'u1'],
-    ['u1', 'u0'],
-  ] as Id<'users'>[][];
+  const matrix: Id<'users'>[][] = [
+    [createMockUserId('u0'), createMockUserId('u1')],
+    [createMockUserId('u1'), createMockUserId('u0')],
+  ];
 
   test('returns the correct round row for valid index', () => {
     expect(getMatrixRound(matrix, 0)).toEqual(['u0', 'u1']);

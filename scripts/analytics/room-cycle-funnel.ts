@@ -4,12 +4,26 @@ import {
   buildRoomCycleFunnelReport,
   type RoomCycleFunnelInput,
 } from '../../lib/analytics/roomCycleFunnel';
+type FunnelProjectionPayload = Omit<RoomCycleFunnelInput, 'from' | 'to'>;
+
+function parseFunnelProjection(raw: string): FunnelProjectionPayload {
+  const parsed = JSON.parse(raw);
+  if (
+    !parsed ||
+    Array.isArray(parsed) ||
+    Object.prototype.toString.call(parsed) !== '[object Object]'
+  ) {
+    throw new Error('Funnel projection must be a JSON object');
+  }
+  const rooms = Array.isArray(parsed.rooms) ? parsed.rooms : [];
+  const events = Array.isArray(parsed.events) ? parsed.events : [];
+  return { rooms, events };
+}
 
 function readFlag(name: string): string | undefined {
   const index = process.argv.indexOf(name);
   return index === -1 ? undefined : process.argv[index + 1];
 }
-
 async function main() {
   const inputPath = readFlag('--input');
   const from = readFlag('--from');
@@ -34,10 +48,7 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  const input = JSON.parse(await readFile(inputPath, 'utf8')) as Omit<
-    RoomCycleFunnelInput,
-    'from' | 'to'
-  >;
+  const input = parseFunnelProjection(await readFile(inputPath, 'utf8'));
   const report = buildRoomCycleFunnelReport({
     ...input,
     from: fromTimestamp,

@@ -79,9 +79,13 @@ export async function signGuestToken(
   const payload: GuestTokenPayload = {
     guestId,
     issuedAt: Date.now(),
-    ...(options.sessionId ? { sessionId: options.sessionId } : {}),
-    ...(options.rateLimitKey ? { rateLimitKey: options.rateLimitKey } : {}),
   };
+  if (options.sessionId) {
+    payload.sessionId = options.sessionId;
+  }
+  if (options.rateLimitKey) {
+    payload.rateLimitKey = options.rateLimitKey;
+  }
 
   const payloadJson = JSON.stringify(payload);
   const payloadBytes = new TextEncoder().encode(payloadJson);

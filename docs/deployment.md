@@ -96,10 +96,10 @@ must receive the identical value. A mismatch breaks guest-token verification.
 | `NEXT_PUBLIC_SENTRY_ENABLED`         | exact `1`; enables browser and hosted Convex Sentry        |
 | `NEXT_PUBLIC_SENTRY_DSN`             | public write-only browser and Convex Sentry destination    |
 | `SENTRY_AUTH_TOKEN`                  | build-only source-map upload credential                    |
-| `SENTRY_ORG`                         | `misty-step`                                               |
+| `SENTRY_ORG`                         | `misty-step`; source uploads and issue-event API paths     |
 | `SENTRY_PROJECT`                     | `linejam`                                                  |
 | `SENTRY_WEBHOOK_SECRET`              | signed Sentry webhook verification secret                  |
-| `SENTRY_EVENT_WRITE_TOKEN`           | Sentry event update token for GitHub linkage               |
+| `SENTRY_EVENT_WRITE_TOKEN`           | `event:write` token for event reads and GitHub linkage     |
 | `GITHUB_ISSUES_TOKEN`                | GitHub Issue creation token used by the Convex worker      |
 | `SENTRY_EXPECTED_APP_ID`             | allowlisted Sentry integration application ID              |
 | `SENTRY_EXPECTED_INSTALLATION_UUID`  | allowlisted Sentry installation UUID                       |

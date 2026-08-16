@@ -1,9 +1,40 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { log, logError, logRequest } from '@/lib/logger';
 
-function parseJsonCall(spy: ReturnType<typeof vi.spyOn>) {
-  const calls = spy.mock.calls as Array<[unknown, ...unknown[]]>;
-  return JSON.parse(String(calls[0]?.[0])) as Record<string, unknown>;
+type ParsedLogPayload = {
+  level?: string;
+  message?: string;
+  timestamp?: string;
+  timestampErrorName?: string;
+  timestampErrorMessage?: string;
+  errorName?: string;
+  errorMessage?: string;
+  errorValue?: string;
+  circular?: string;
+  cause?: {
+    name?: string;
+    message?: string;
+    stack?: unknown;
+  };
+  durationMs?: number;
+  method?: string;
+  route?: string;
+  status?: number;
+};
+
+class SelfReferentialLogValue {
+  readonly name = 'SelfReferential';
+  readonly message = 'circular log fixture';
+  readonly self = this;
+}
+
+function parseJsonCall(spy: {
+  mock: { calls: unknown[][] };
+}): ParsedLogPayload {
+  const firstCall = spy.mock.calls[0];
+  const firstArg = firstCall !== undefined ? firstCall[0] : '';
+  // SAFETY: JSON.parse parses structured JSON emitted by logger methods under test.
+  return JSON.parse(String(firstArg)) as ParsedLogPayload;
 }
 
 describe('logger', () => {
@@ -85,8 +116,7 @@ describe('logger', () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
-    const circular: Record<string, unknown> = {};
-    circular.self = circular;
+    const circular = new SelfReferentialLogValue();
 
     logError('request failed', new Error('boom'), { circular });
 

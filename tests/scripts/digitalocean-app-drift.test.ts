@@ -86,6 +86,29 @@ type ExpectedApp = {
     environment: Array<{ name: string; scope: string; secret: boolean }>;
   }>;
 };
+interface LiveEnvironmentEntry {
+  key: string;
+  scope: string;
+  value: string;
+  type?: 'SECRET';
+}
+
+interface LiveServiceEntry {
+  name: string;
+  github: {
+    repo: string;
+    branch: string;
+    deploy_on_push: boolean;
+  };
+  http_port: number;
+  instance_count: number;
+  instance_size_slug: string;
+  health_check: { http_path: string };
+  envs: LiveEnvironmentEntry[];
+  dockerfile_path?: string;
+  build_command?: string;
+  run_command?: string;
+}
 
 function manifestCopy(): typeof manifest {
   return structuredClone(manifest);
@@ -157,31 +180,43 @@ function liveAppFromExpected(expected: ExpectedApp) {
           component: { name: rule.component },
         })),
       },
-      services: expected.services.map((service) => ({
-        name: service.name,
-        github: {
-          repo: service.source.repository,
-          branch: service.source.branch,
-          deploy_on_push: service.source.deployOnPush,
-        },
-        ...(service.dockerfilePath
-          ? { dockerfile_path: service.dockerfilePath }
-          : {}),
-        ...(service.buildCommand
-          ? { build_command: service.buildCommand }
-          : {}),
-        ...(service.runCommand ? { run_command: service.runCommand } : {}),
-        http_port: service.httpPort,
-        instance_count: service.instanceCount,
-        instance_size_slug: service.instanceSize,
-        health_check: { http_path: service.healthCheckPath },
-        envs: service.environment.map((entry) => ({
-          key: entry.name,
-          scope: entry.scope,
-          ...(entry.secret ? { type: 'SECRET' } : {}),
-          value: entry.secret ? 'EV[1:redacted]' : 'redacted',
-        })),
-      })),
+      services: expected.services.map((service) => {
+        const envs = service.environment.map((entry) => {
+          const envEntry: LiveEnvironmentEntry = {
+            key: entry.name,
+            scope: entry.scope,
+            value: entry.secret ? 'EV[1:redacted]' : 'redacted',
+          };
+          if (entry.secret) {
+            envEntry.type = 'SECRET';
+          }
+          return envEntry;
+        });
+
+        const serviceEntry: LiveServiceEntry = {
+          name: service.name,
+          github: {
+            repo: service.source.repository,
+            branch: service.source.branch,
+            deploy_on_push: service.source.deployOnPush,
+          },
+          http_port: service.httpPort,
+          instance_count: service.instanceCount,
+          instance_size_slug: service.instanceSize,
+          health_check: { http_path: service.healthCheckPath },
+          envs,
+        };
+        if (service.dockerfilePath) {
+          serviceEntry.dockerfile_path = service.dockerfilePath;
+        }
+        if (service.buildCommand) {
+          serviceEntry.build_command = service.buildCommand;
+        }
+        if (service.runCommand) {
+          serviceEntry.run_command = service.runCommand;
+        }
+        return serviceEntry;
+      }),
     },
   };
 }
@@ -623,6 +658,7 @@ describe('DigitalOcean app drift', () => {
   });
 
   it('checks the sole production app from the committed manifest', () => {
+    // SAFETY: Manifest loader returns validated apps manifest conforming to { apps: ExpectedApp[] }.
     const production = loadDigitalOceanAppManifest() as {
       apps: ExpectedApp[];
     };

@@ -15,6 +15,13 @@ import { runStagehandExploration } from '@/qa/agentic/stagehand.mjs';
 import { parseArgs, runAgenticQa } from '@/scripts/qa/agentic.mjs';
 
 let tempDirs: string[] = [];
+interface StagehandExplorationFixture<StagehandConstructor> {
+  baseUrl: string;
+  env: NodeJS.ProcessEnv;
+  mission: 'guest-host-signed-in-join' | 'signed-in-host-guest-join';
+  runDir: string;
+  StagehandClass: StagehandConstructor;
+}
 
 afterEach(async () => {
   await Promise.all(
@@ -62,20 +69,16 @@ function healthyManifest(runDir: string) {
   });
 }
 
+class MockChildProcess extends EventEmitter {
+  stdout = new EventEmitter();
+  stderr = new EventEmitter();
+}
+
 function createMockChild(exitCode: number) {
-  const child = new EventEmitter() as EventEmitter & {
-    stdout: EventEmitter;
-    stderr: EventEmitter;
-  };
-  child.stdout = new EventEmitter();
-  child.stderr = new EventEmitter();
+  const child = new MockChildProcess();
   queueMicrotask(() => child.emit('close', exitCode));
   return child;
 }
-
-const runStagehand = runStagehandExploration as (
-  options: Record<string, unknown>
-) => Promise<Record<string, unknown>>;
 
 describe('agentic QA missions', () => {
   it('defines both oracle missions as auth-required browser missions', () => {
@@ -221,7 +224,7 @@ describe('agentic QA manifest', () => {
 describe('agentic QA CLI', () => {
   it('prints usage for --help without requiring a mission', async () => {
     const writeOut = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
+    const exit = vi.fn<(code?: number) => never>();
 
     await runAgenticQa({
       argv: ['--help'],
@@ -238,7 +241,7 @@ describe('agentic QA CLI', () => {
 
   it('returns a parse error when mission is missing', async () => {
     const writeErr = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
+    const exit = vi.fn<(code?: number) => never>();
 
     await runAgenticQa({
       argv: ['--target', 'local'],
@@ -269,12 +272,7 @@ describe('agentic QA CLI', () => {
     tempDirs.push(tempDir);
     const spawnProcess = vi.fn((_command, _args, options) => {
       const manifest = healthyManifest(options.env.LINEJAM_AGENTIC_RUN_DIR);
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter;
-        stderr: EventEmitter;
-      };
-      child.stdout = new EventEmitter();
-      child.stderr = new EventEmitter();
+      const child = new MockChildProcess();
       queueMicrotask(async () => {
         await writeFile(
           options.env.LINEJAM_AGENTIC_RESULT_FILE,
@@ -285,7 +283,7 @@ describe('agentic QA CLI', () => {
       return child;
     });
     const writeOut = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
+    const exit = vi.fn<(code?: number) => never>();
     const stagehandRunner = vi.fn().mockResolvedValue({
       ok: true,
       skipped: false,
@@ -309,7 +307,7 @@ describe('agentic QA CLI', () => {
         '--out-dir',
         tempDir,
       ],
-      spawnProcess: spawnProcess as never,
+      spawnProcess,
       promptfooRunner: vi.fn().mockResolvedValue({
         ok: true,
         skipped: true,
@@ -338,7 +336,7 @@ describe('agentic QA CLI', () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'linejam-agentic-'));
     tempDirs.push(tempDir);
     const writeOut = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
+    const exit = vi.fn<(code?: number) => never>();
     const stagehandRunner = vi.fn().mockResolvedValue({
       ok: true,
       skipped: false,
@@ -356,12 +354,7 @@ describe('agentic QA CLI', () => {
         artifacts: null,
         transcript: null,
       };
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter;
-        stderr: EventEmitter;
-      };
-      child.stdout = new EventEmitter();
-      child.stderr = new EventEmitter();
+      const child = new MockChildProcess();
       queueMicrotask(async () => {
         await writeFile(
           options.env.LINEJAM_AGENTIC_RESULT_FILE,
@@ -381,7 +374,7 @@ describe('agentic QA CLI', () => {
         '--out-dir',
         tempDir,
       ],
-      spawnProcess: spawnProcess as never,
+      spawnProcess,
       promptfooRunner: vi.fn().mockResolvedValue({
         ok: true,
         skipped: true,
@@ -409,7 +402,7 @@ describe('agentic QA CLI', () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'linejam-agentic-'));
     tempDirs.push(tempDir);
     const writeOut = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
+    const exit = vi.fn<(code?: number) => never>();
     const stagehandRunner = vi.fn().mockResolvedValue({
       ok: false,
       skipped: true,
@@ -429,7 +422,7 @@ describe('agentic QA CLI', () => {
         '--out-dir',
         tempDir,
       ],
-      spawnProcess: vi.fn(() => createMockChild(1)) as never,
+      spawnProcess: vi.fn(() => createMockChild(1)),
       promptfooRunner: vi.fn().mockResolvedValue({
         ok: true,
         skipped: true,
@@ -455,7 +448,7 @@ describe('agentic QA CLI', () => {
     tempDirs.push(tempDir);
     const outputDir = path.join(tempDir, 'playwright-output', 'nested');
     const writeOut = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
+    const exit = vi.fn<(code?: number) => never>();
 
     await runAgenticQa({
       argv: [
@@ -467,19 +460,14 @@ describe('agentic QA CLI', () => {
         tempDir,
       ],
       spawnProcess: vi.fn(() => {
-        const child = new EventEmitter() as EventEmitter & {
-          stdout: EventEmitter;
-          stderr: EventEmitter;
-        };
-        child.stdout = new EventEmitter();
-        child.stderr = new EventEmitter();
+        const child = new MockChildProcess();
         queueMicrotask(async () => {
           await mkdir(outputDir, { recursive: true });
           await writeFile(path.join(outputDir, 'failure.png'), 'png');
           child.emit('error', new Error('playwright spawn failed'));
         });
         return child;
-      }) as never,
+      }),
       promptfooRunner: vi.fn().mockResolvedValue({
         ok: true,
         skipped: true,
@@ -518,7 +506,7 @@ describe('agentic QA Promptfoo adapter', () => {
       env: { ...process.env, LINEJAM_PROMPTFOO_CRITIC: '' },
       manifest: healthyManifest(tempDir),
       runDir: tempDir,
-      spawnProcess: vi.fn() as never,
+      spawnProcess: vi.fn(),
     });
 
     expect(result).toMatchObject({
@@ -538,7 +526,7 @@ describe('agentic QA Promptfoo adapter', () => {
       env: { ...process.env, LINEJAM_PROMPTFOO_CRITIC: '1' },
       manifest: healthyManifest(tempDir),
       runDir: tempDir,
-      spawnProcess: spawnProcess as never,
+      spawnProcess,
     });
 
     expect(spawnProcess).toHaveBeenCalledWith(
@@ -572,12 +560,7 @@ describe('agentic QA Promptfoo adapter', () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'linejam-agentic-'));
     tempDirs.push(tempDir);
     const spawnProcess = vi.fn(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter;
-        stderr: EventEmitter;
-      };
-      child.stdout = new EventEmitter();
-      child.stderr = new EventEmitter();
+      const child = new MockChildProcess();
       queueMicrotask(() => {
         child.stdout.emit('data', Buffer.from('partial stdout'));
         child.stderr.emit('data', Buffer.from('partial stderr'));
@@ -590,7 +573,7 @@ describe('agentic QA Promptfoo adapter', () => {
       env: { ...process.env, LINEJAM_PROMPTFOO_CRITIC: 'yes' },
       manifest: healthyManifest(tempDir),
       runDir: tempDir,
-      spawnProcess: spawnProcess as never,
+      spawnProcess,
     });
 
     expect(result).toMatchObject({
@@ -621,13 +604,15 @@ describe('agentic QA Stagehand adapter', () => {
     tempDirs.push(tempDir);
     const StagehandClass = vi.fn();
 
-    const result = await runStagehand({
+    const options: StagehandExplorationFixture<typeof StagehandClass> = {
       baseUrl: 'http://localhost:3333',
       env: { NODE_ENV: process.env.NODE_ENV || 'test' },
       mission: 'guest-host-signed-in-join',
       runDir: tempDir,
       StagehandClass,
-    });
+    };
+
+    const result = await runStagehandExploration(options);
 
     expect(StagehandClass).not.toHaveBeenCalled();
     expect(result).toMatchObject({
@@ -667,12 +652,16 @@ describe('agentic QA Stagehand adapter', () => {
         ]);
       close = close;
 
-      constructor(options: unknown) {
+      constructor(options?: {
+        env?: string;
+        model?: { modelName?: string; apiKey?: string };
+        verbose?: number;
+      }) {
         constructorSpy(options);
       }
     }
 
-    const result = await runStagehand({
+    const options: StagehandExplorationFixture<typeof FakeStagehand> = {
       baseUrl: 'http://localhost:3333',
       env: {
         ...process.env,
@@ -682,7 +671,9 @@ describe('agentic QA Stagehand adapter', () => {
       mission: 'guest-host-signed-in-join',
       runDir: tempDir,
       StagehandClass: FakeStagehand,
-    });
+    };
+
+    const result = await runStagehandExploration(options);
 
     expect(constructorSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -737,13 +728,15 @@ describe('agentic QA Stagehand adapter', () => {
       close = close;
     }
 
-    const result = await runStagehand({
+    const options: StagehandExplorationFixture<typeof FakeStagehand> = {
       baseUrl: 'http://localhost:3333',
       env: { ...process.env, OPENAI_API_KEY: 'model-key' },
       mission: 'signed-in-host-guest-join',
       runDir: tempDir,
       StagehandClass: FakeStagehand,
-    });
+    };
+
+    const result = await runStagehandExploration(options);
 
     expect(result).toMatchObject({
       ok: false,
@@ -782,13 +775,15 @@ describe('agentic QA Stagehand adapter', () => {
       close = close;
     }
 
-    const result = await runStagehand({
+    const options: StagehandExplorationFixture<typeof FakeStagehand> = {
       baseUrl: 'http://localhost:3333',
       env: { ...process.env, ANTHROPIC_API_KEY: 'model-key' },
       mission: 'guest-host-signed-in-join',
       runDir: tempDir,
       StagehandClass: FakeStagehand,
-    });
+    };
+
+    const result = await runStagehandExploration(options);
 
     expect(newPage).not.toHaveBeenCalled();
     expect(page.goto).toHaveBeenCalled();
