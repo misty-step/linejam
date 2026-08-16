@@ -618,10 +618,11 @@ function choiceContainsRepository(
   if (!Array.isArray(choices)) return false;
   return choices.some((choice) => {
     if (!choice) return false;
+    if (isJsonString(choice)) return choice === repository;
     if (Array.isArray(choice)) {
       return choice.some((part) => part === repository);
     }
-    return Object(choice).value === repository;
+    return choice.value === repository;
   });
 }
 

@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import { readDeploymentId } from './deployment-skew-receipt.mjs';
 
 const BASE_URL = new URL(
   process.env.PLAYWRIGHT_BASE_URL || 'https://www.linejam.app'
@@ -24,19 +25,6 @@ const TEST_ID = {
 function positiveInteger(value, fallback) {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-export async function readDeploymentId(page) {
-  const response = await page.request.get(`${BASE_URL}/api/deployment`, {
-    failOnStatusCode: true,
-    headers: { Accept: 'application/json' },
-  });
-  const payload = await response.json();
-  const id = payload?.deployment?.id;
-  if (Object.prototype.toString.call(id) !== '[object String]' || !id.trim()) {
-    throw new Error('Production returned no deployment receipt');
-  }
-  return id;
 }
 
 async function establishHeldRoom(browser) {
@@ -89,7 +77,7 @@ async function waitForNextDeployment(page, initialId) {
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    const currentId = await readDeploymentId(page);
+    const currentId = await readDeploymentId(page, BASE_URL);
     if (currentId !== initialId) return currentId;
   }
   throw new Error(`No new deployment became active within ${TIMEOUT_MS}ms`);
@@ -120,10 +108,10 @@ async function main() {
   try {
     const receiptContext = await browser.newContext();
     const receiptPage = await receiptContext.newPage();
-    const initialId = await readDeploymentId(receiptPage);
+    const initialId = await readDeploymentId(receiptPage, BASE_URL);
     await receiptContext.close();
     session = await establishHeldRoom(browser);
-    const stagedId = await readDeploymentId(session.hostPage);
+    const stagedId = await readDeploymentId(session.hostPage, BASE_URL);
     if (stagedId !== initialId) {
       throw new Error('Deployment changed while the held room was staged');
     }

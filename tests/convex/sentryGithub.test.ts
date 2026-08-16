@@ -302,6 +302,161 @@ describe('durable Sentry to GitHub bridge', () => {
     });
   });
 
+  it.each([
+    ['string choice', ['misty-step/linejam'], undefined],
+    ['object choice', [{ value: 'misty-step/linejam' }], []],
+  ] as const)(
+    'accepts a Sentry repository %s',
+    async (_case, choices, linkedIssues) => {
+      const { t, receiptId } = await insertReceipt();
+      const marker = githubDedupMarker(DEDUP_KEY);
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const url = String(input);
+        const tag = tagResponse(url);
+        if (tag) return tag;
+        if (url.includes('/search/issues')) {
+          return Response.json({ items: [{ number: 77, body: marker }] });
+        }
+        if (url.includes('/integrations/338522/') && !init?.method) {
+          return Response.json({
+            linkIssueConfig: [
+              { name: 'repo', choices },
+              { name: 'externalIssue' },
+            ],
+            linkedIssues,
+          });
+        }
+        if (url.includes('/integrations/338522/') && init?.method === 'PUT') {
+          return new Response(null, { status: 201 });
+        }
+        throw new Error('unexpected endpoint');
+      });
+
+      await t.action(processReceipt, { receiptId });
+
+      expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+        state: 'linked',
+        githubIssueNumber: 77,
+      });
+    }
+  );
+
+  it.each([
+    ['missing linkIssueConfig', {}],
+    ['null linkIssueConfig', { linkIssueConfig: null }],
+    ['null field', { linkIssueConfig: [null] }],
+    ['array field', { linkIssueConfig: [[]] }],
+    ['non-string field name', { linkIssueConfig: [{ name: 42 }] }],
+    [
+      'non-array choices',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: null },
+          { name: 'externalIssue' },
+        ],
+      },
+    ],
+    [
+      'numeric choice',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: [42] },
+          { name: 'externalIssue' },
+        ],
+      },
+    ],
+    [
+      'non-string choice tuple',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: [[42]] },
+          { name: 'externalIssue' },
+        ],
+      },
+    ],
+    [
+      'choice object without value',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: [{}] },
+          { name: 'externalIssue' },
+        ],
+      },
+    ],
+    [
+      'non-string choice object value',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: [{ value: 42 }] },
+          { name: 'externalIssue' },
+        ],
+      },
+    ],
+    [
+      'non-array linkedIssues',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: ['misty-step/linejam'] },
+          { name: 'externalIssue' },
+        ],
+        linkedIssues: null,
+      },
+    ],
+    [
+      'null linked issue',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: ['misty-step/linejam'] },
+          { name: 'externalIssue' },
+        ],
+        linkedIssues: [null],
+      },
+    ],
+    [
+      'array linked issue',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: ['misty-step/linejam'] },
+          { name: 'externalIssue' },
+        ],
+        linkedIssues: [[]],
+      },
+    ],
+    [
+      'non-string linked issue key',
+      {
+        linkIssueConfig: [
+          { name: 'repo', choices: ['misty-step/linejam'] },
+          { name: 'externalIssue' },
+        ],
+        linkedIssues: [{ key: 42 }],
+      },
+    ],
+  ] as const)('blocks a Sentry link config with a %s', async (_case, body) => {
+    const { t, receiptId } = await insertReceipt();
+    const marker = githubDedupMarker(DEDUP_KEY);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      const tag = tagResponse(url);
+      if (tag) return tag;
+      if (url.includes('/search/issues')) {
+        return Response.json({ items: [{ number: 77, body: marker }] });
+      }
+      if (url.includes('/integrations/338522/')) {
+        return Response.json(body);
+      }
+      throw new Error('unexpected endpoint');
+    });
+
+    await t.action(processReceipt, { receiptId });
+
+    expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+      state: 'blocked',
+      blockedCode: 'configuration_invalid',
+      githubIssueNumber: 77,
+    });
+  });
+
   it('creates and links one GitHub issue, then ignores duplicate workers', async () => {
     const { t, receiptId } = await insertReceipt();
     let activeTagFetches = 0;

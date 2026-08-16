@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConvexError } from 'convex/values';
 import { captureError, setErrorReporterForTests } from '@/lib/error';
-import { captureReportedError, isSentryEnabled } from '@/lib/errorCore';
+import {
+  captureReportedError,
+  isSentryEnabled,
+  toErrorReportable,
+} from '@/lib/errorCore';
 import { sanitizeSentryReporterContext } from '@/lib/sentryPrivacy';
 
 const captureExceptionMock = vi.fn();
@@ -99,6 +103,45 @@ describe('captureError', () => {
   });
 });
 
+describe('toErrorReportable', () => {
+  it('preserves native errors and empty causes', () => {
+    const error = new Error('native failure');
+
+    expect(toErrorReportable(error)).toBe(error);
+    expect(toErrorReportable(null)).toBeNull();
+    expect(toErrorReportable(undefined)).toBeUndefined();
+  });
+
+  it('copies supported fields from error-like objects', () => {
+    expect(
+      toErrorReportable({
+        name: 'ProviderError',
+        message: 'provider failed',
+        stack: 42,
+        data: false,
+      })
+    ).toEqual({
+      name: 'ProviderError',
+      message: 'provider failed',
+      stack: '42',
+      data: 'false',
+    });
+  });
+
+  it('stringifies objects without error fields and primitive causes', () => {
+    expect(
+      toErrorReportable({
+        name: null,
+        message: null,
+        stack: null,
+        data: null,
+      })
+    ).toBe('[object Object]');
+    expect(toErrorReportable({})).toBe('[object Object]');
+    expect(toErrorReportable(42)).toBe('42');
+  });
+});
+
 describe('captureReportedError', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -106,6 +149,7 @@ describe('captureReportedError', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
@@ -124,5 +168,23 @@ describe('captureReportedError', () => {
     );
 
     expect(captureException).toHaveBeenCalledWith(expect.any(Error), context);
+  });
+
+  it('logs reported errors during local development', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const captureException = vi.fn();
+    const error = new Error('render failed');
+
+    captureReportedError(
+      {
+        captureException,
+        isEnabled: () => true,
+        sanitizeContext: () => undefined,
+      },
+      error
+    );
+
+    expect(captureException).toHaveBeenCalledWith(error, undefined);
+    expect(console.error).toHaveBeenCalledWith('Captured error:', error);
   });
 });
