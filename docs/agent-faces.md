@@ -164,8 +164,9 @@ user-flow and UI acceptance testing uses the repo-local `play-linejam` skill:
   ceremonies, recap hub navigation, `Back to Lobby` -> `Close room` teardown, and
   fresh-session join rejection verification.
 - **Result gate**: `pnpm qa:play-linejam:result` validates a candidate from
-  stdin against the checked-in schema and semantic pass invariants, then writes
-  the sanitized run receipt exactly once.
+  stdin against the checked-in schema and semantic pass invariants, verifies
+  each retained artifact is a non-empty regular run-local file, then writes the
+  sanitized run receipt exactly once.
 
 Reach for `linejam-cli` / `agent:mcp` when you need fast, deterministic backend state
 setup or inspection. Reach for `play-linejam` when verifying human UI behavior,

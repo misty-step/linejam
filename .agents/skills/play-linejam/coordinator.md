@@ -126,8 +126,9 @@ fresh verifier observes rejection.
    pnpm qa:play-linejam:result < /tmp/<run-id>-candidate.json
    ```
 
-   The writer rejects invalid pass claims, non-origin targets, foreign session
-   or artifact paths, uninspected artifacts, and free-form errors. It writes
-   `.qa/runs/<run-id>/result.json` exactly once.
+   The writer rejects invalid pass claims, pass receipts without screenshot or
+   video evidence, non-origin targets, foreign session or artifact paths,
+   missing or non-regular artifact files, uninspected artifacts, and free-form
+   errors. It writes `.qa/runs/<run-id>/result.json` exactly once.
 
 4. Delete the temporary candidate after the writer exits.

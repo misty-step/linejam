@@ -60,7 +60,8 @@ The web target is set by `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL`
   and unrelated user data, and close the room before retaining any artifact
   that exposes its code.
   Persist the aggregate receipt only through `pnpm qa:play-linejam:result`;
-  free-form UI and console errors are not valid receipt fields.
+  every listed artifact must already exist as a non-empty regular run-local
+  file, and free-form UI or console errors are not valid receipt fields.
 
 ## Session Isolation & Scale
 

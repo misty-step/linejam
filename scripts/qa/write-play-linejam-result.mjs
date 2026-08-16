@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
@@ -75,6 +75,58 @@ function validateArtifactPaths(result) {
     paths.push(artifact.path);
   }
   requireUnique(paths, 'evidence.artifacts[].path');
+}
+
+async function validateArtifactFiles(result) {
+  if (result.evidence.artifacts.length === 0) return;
+
+  const runsPath = resolve(REPO_ROOT, '.qa', 'runs');
+  const runPath = resolve(REPO_ROOT, result.evidence.runDir);
+  let runsStat;
+  let runStat;
+  try {
+    [runsStat, runStat] = await Promise.all([lstat(runsPath), lstat(runPath)]);
+  } catch {
+    fail('artifact run directory is missing');
+  }
+  if (!runsStat.isDirectory() || !runStat.isDirectory()) {
+    fail('artifact run directory must be a regular directory');
+  }
+
+  const [canonicalRepo, canonicalRuns, canonicalRun] = await Promise.all([
+    realpath(REPO_ROOT),
+    realpath(runsPath),
+    realpath(runPath),
+  ]);
+  if (
+    canonicalRuns !== resolve(canonicalRepo, '.qa', 'runs') ||
+    dirname(canonicalRun) !== canonicalRuns
+  ) {
+    fail('artifact run directory must be inside the repository QA runs root');
+  }
+
+  for (const artifact of result.evidence.artifacts) {
+    const artifactPath = resolve(REPO_ROOT, artifact.path);
+    let artifactStat;
+    let canonicalArtifact;
+    try {
+      [artifactStat, canonicalArtifact] = await Promise.all([
+        lstat(artifactPath),
+        realpath(artifactPath),
+      ]);
+    } catch {
+      fail(`artifact file is missing: ${artifact.path}`);
+    }
+    if (
+      !artifactStat.isFile() ||
+      artifactStat.size === 0 ||
+      dirname(canonicalArtifact) !== canonicalRun
+    ) {
+      fail(
+        `artifact must be a non-empty regular run-local file: ${artifact.path}`
+      );
+    }
+  }
 }
 
 function validateSessions(result) {
@@ -187,6 +239,7 @@ export async function writePlayLinejamResult(rawInput) {
     fail('candidate is not valid JSON');
   }
   validatePlayLinejamResult(result, schema);
+  await validateArtifactFiles(result);
 
   const outputPath = resolve(
     REPO_ROOT,

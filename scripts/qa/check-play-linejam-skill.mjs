@@ -268,6 +268,8 @@ function validate() {
       const passedRule = schema.allOf?.find(
         (rule) => rule.if?.properties?.status?.const === 'passed'
       )?.then;
+      const passedArtifacts =
+        passedRule?.properties?.evidence?.properties?.artifacts;
       if (
         passedRule?.properties?.roundsCompleted?.const !== 9 ||
         passedRule?.properties?.verification?.properties?.roomClosed?.const !==
@@ -277,10 +279,14 @@ function validate() {
         passedRule?.properties?.verification?.properties?.allSessionsCleanedUp
           ?.const !== true ||
         passedRule?.properties?.verification?.properties?.verifierSessionName
-          ?.type !== 'string'
+          ?.type !== 'string' ||
+        passedArtifacts?.minItems !== 1 ||
+        passedArtifacts?.minContains !== 1 ||
+        JSON.stringify(passedArtifacts?.contains?.properties?.kind?.enum) !==
+          JSON.stringify(['screenshot', 'video'])
       ) {
         errors.push(
-          'result.schema.json passed runs must require completion, closure, rejection, and cleanup'
+          'result.schema.json passed runs must require completion, closure, rejection, cleanup, and visual evidence'
         );
       }
 

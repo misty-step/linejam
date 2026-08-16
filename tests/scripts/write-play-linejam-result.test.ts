@@ -1,5 +1,6 @@
 /** @vitest-environment node */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -16,9 +17,9 @@ const schema = JSON.parse(
 
 const runId = '20260816T120000Z-http-localhost-3333-play';
 
-function validResult() {
+function validResult(candidateRunId = runId) {
   return {
-    runId,
+    runId: candidateRunId,
     target: 'http://localhost:3333',
     status: 'passed',
     startedAt: '2026-08-16T12:00:00.000Z',
@@ -32,7 +33,7 @@ function validResult() {
         seat: 0,
         role: 'host',
         displayName: 'Host Agent',
-        sessionName: `${runId}-host`,
+        sessionName: `${candidateRunId}-host`,
         roundsSubmitted: 9,
         revealedPoem: true,
         status: 'passed',
@@ -42,7 +43,7 @@ function validResult() {
         seat: 1,
         role: 'guest',
         displayName: 'Guest Player 1',
-        sessionName: `${runId}-player-1`,
+        sessionName: `${candidateRunId}-player-1`,
         roundsSubmitted: 9,
         revealedPoem: true,
         status: 'passed',
@@ -54,19 +55,19 @@ function validResult() {
       closedRoomJoinRejected: true,
       allSessionsCleanedUp: true,
       sessionsCleanedUp: [
-        `${runId}-host`,
-        `${runId}-player-1`,
-        `${runId}-verifier`,
+        `${candidateRunId}-host`,
+        `${candidateRunId}-player-1`,
+        `${candidateRunId}-verifier`,
       ],
-      verifierSessionName: `${runId}-verifier`,
+      verifierSessionName: `${candidateRunId}-verifier`,
       error: null,
     },
     evidence: {
-      runDir: `.qa/runs/${runId}`,
+      runDir: `.qa/runs/${candidateRunId}`,
       artifacts: [
         {
           kind: 'screenshot',
-          path: `.qa/runs/${runId}/artifact-0001.webp`,
+          path: `.qa/runs/${candidateRunId}/artifact-0001.webp`,
           sanitized: true,
           inspected: true,
         },
@@ -88,6 +89,22 @@ describe('play-linejam result validation', () => {
     result.roundsCompleted = 8;
     result.players[1].roundsSubmitted = 8;
     result.verification.roomClosed = false;
+
+    expect(() => validatePlayLinejamResult(result, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+  });
+
+  it('rejects a passed run without visual evidence', () => {
+    const result = validResult();
+    result.evidence.artifacts = [
+      {
+        kind: 'log',
+        path: `.qa/runs/${result.runId}/artifact-0001.log`,
+        sanitized: true,
+        inspected: true,
+      },
+    ];
 
     expect(() => validatePlayLinejamResult(result, schema)).toThrow(
       'play-linejam result rejected'
@@ -173,15 +190,34 @@ describe('play-linejam result validation', () => {
   });
 
   it('rejects a room code in an artifact name before persistence', async () => {
-    const result = validResult();
-    result.evidence.artifacts[0].path = `.qa/runs/${runId}/ABCD.webp`;
+    const candidateRunId = `20260816T120000Z-test-${randomUUID()}-play`;
+    const result = validResult(candidateRunId);
+    result.evidence.artifacts[0].path = `.qa/runs/${candidateRunId}/ABCD.webp`;
 
     await expect(
       writePlayLinejamResult(JSON.stringify(result))
     ).rejects.toThrow('play-linejam result rejected');
-    expect(existsSync(path.resolve(`.qa/runs/${runId}/result.json`))).toBe(
-      false
-    );
+    expect(
+      existsSync(path.resolve(`.qa/runs/${candidateRunId}/result.json`))
+    ).toBe(false);
+  });
+
+  it('rejects a missing artifact before persistence', async () => {
+    const candidateRunId = `20260816T120000Z-test-${randomUUID()}-play`;
+    const result = validResult(candidateRunId);
+    const runsDir = path.resolve('.qa/runs');
+    const runDir = path.resolve(result.evidence.runDir);
+    mkdirSync(runsDir, { recursive: true });
+    mkdirSync(runDir);
+
+    try {
+      await expect(
+        writePlayLinejamResult(JSON.stringify(result))
+      ).rejects.toThrow('artifact file is missing');
+      expect(existsSync(path.resolve(runDir, 'result.json'))).toBe(false);
+    } finally {
+      rmSync(runDir, { recursive: true, force: true });
+    }
   });
 
   it('allows failed runs only with fixed error codes', () => {
