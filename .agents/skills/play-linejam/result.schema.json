@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://linejam.app/schemas/play-linejam-result.schema.json",
+  "title": "LinejamPlayResult",
+  "description": "Aggregate run results and per-player results from autonomous Linejam browser-play QA runs. Excludes room codes and poem text.",
+  "type": "object",
+  "properties": {
+    "runId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9._-]+$"
+    },
+    "target": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["passed", "failed", "aborted"]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "totalRounds": {
+      "const": 9
+    },
+    "roundsCompleted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9
+    },
+    "playerCount": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 6
+    },
+    "players": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "role": {
+            "type": "string",
+            "enum": ["host", "guest"]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "sessionName": {
+            "type": "string"
+          },
+          "roundsSubmitted": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9
+          },
+          "revealedPoem": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["passed", "failed"]
+          },
+          "error": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "seat",
+          "role",
+          "displayName",
+          "sessionName",
+          "roundsSubmitted",
+          "revealedPoem",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 6
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "roomClosed": {
+          "type": "boolean"
+        },
+        "closedRoomJoinRejected": {
+          "type": "boolean"
+        },
+        "allSessionsCleanedUp": {
+          "type": "boolean"
+        },
+        "sessionsCleanedUp": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verifierSessionName": {
+          "type": ["string", "null"]
+        },
+        "error": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": [
+        "roomClosed",
+        "closedRoomJoinRejected",
+        "allSessionsCleanedUp"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "runDir": {
+          "type": "string"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "sanitized": {
+                "type": "boolean"
+              },
+              "inspected": {
+                "type": "boolean"
+              }
+            },
+            "required": ["kind", "path", "sanitized", "inspected"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["runDir", "artifacts"],
+      "additionalProperties": false
+    },
+    "runtimeErrors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "error": {
+      "type": ["string", "null"]
+    }
+  },
+  "required": [
+    "runId",
+    "target",
+    "status",
+    "startedAt",
+    "finishedAt",
+    "durationMs",
+    "totalRounds",
+    "roundsCompleted",
+    "playerCount",
+    "players",
+    "verification",
+    "evidence"
+  ],
+  "additionalProperties": false
+}

@@ -1,21 +1,23 @@
 # Agent Faces
 
-Linejam exposes agent-facing entry points over the same Convex backend used by
-the web app. They are for scripted playtesting, fleet QA, and MCP clients that
-need to join or inspect a live game without driving a browser.
+Linejam exposes thin backend faces for scripted agents and a browser-play
+contract for autonomous QA agents that exercise the same rendered interface as
+human players.
 
 The shipped faces are thin adapters:
 
-| Face  | Command                                     | Consumer                               | Owns                                       |
-| ----- | ------------------------------------------- | -------------------------------------- | ------------------------------------------ |
-| CLI   | `pnpm agent:cli -- <group> <action> [args]` | Terminal agents, scripts, smoke checks | Argument parsing and JSON output           |
-| MCP   | `pnpm agent:mcp`                            | MCP-capable harnesses                  | stdio JSON-RPC, `tools/list`, `tools/call` |
-| Skill | `.agents/skills/linejam-cli/SKILL.md`       | Codex and other repo-aware agents      | When to use CLI/MCP vs. browser automation |
+| Face       | Command                                     | Consumer                               | Owns                                       |
+| ---------- | ------------------------------------------- | -------------------------------------- | ------------------------------------------ |
+| CLI        | `pnpm agent:cli -- <group> <action> [args]` | Terminal agents, scripts, smoke checks | Argument parsing and JSON output           |
+| MCP        | `pnpm agent:mcp`                            | MCP-capable harnesses                  | stdio JSON-RPC, `tools/list`, `tools/call` |
+| CLI Skill  | `.agents/skills/linejam-cli/SKILL.md`       | Codex and other repo-aware agents      | When to use CLI/MCP vs. browser automation |
+| Browser QA | `.agents/skills/play-linejam/SKILL.md`      | Autonomous QA coordinators & players   | End-to-end browser gameplay via human UI   |
 
-All three route through `scripts/lib/linejamClient.ts`, which calls Convex
-functions from `convex/_generated/api`. Game rules, assignment logic, presence,
-host migration, poems, and favorites stay in Convex. Do not duplicate that
-logic in an agent face.
+The CLI, MCP, and CLI skill route through `scripts/lib/linejamClient.ts`, which
+calls Convex functions from `convex/_generated/api`. Browser QA instead drives
+the deployed web UI and its normal guest-session path. Game rules, assignment,
+presence, host migration, poems, and favorites stay in Convex; no agent face
+duplicates them.
 
 ## Identity Model
 
@@ -144,6 +146,25 @@ Use the same command shape in JSON-based MCP clients:
 `docs/evidence/linejam-920-mcp-registration.md` records the proof run for this
 page: Codex registered the server, the registered command returned a successful
 `tools/list`, and `linejam_mint_guest` returned a guest identity.
+
+## Browser QA Face (`play-linejam` Skill)
+
+While the CLI and MCP faces perform direct backend mutations via Convex, autonomous
+user-flow and UI acceptance testing uses the repo-local `play-linejam` skill:
+
+- **Skill**: `.agents/skills/play-linejam/SKILL.md` (`skill://play-linejam/SKILL.md`)
+- **Driver**: Pinned `agent-browser` (version `0.34.0`)
+- **Target**: `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL` (default: `http://localhost:3333`)
+- **Isolation**: Each participant (Host, Guests, Verifier) runs in an isolated
+  session (`agent-browser --session <name>`).
+- **Scope**: Exercises the real rendered human UI—lobby creation/joining, 9-round
+  writing inputs and word-slot validations, waiting screens, reading-circle reveal
+  ceremonies, recap hub navigation, `Back to Lobby` -> `Close room` teardown, and
+  fresh-session join rejection verification.
+
+Reach for `linejam-cli` / `agent:mcp` when you need fast, deterministic backend state
+setup or inspection. Reach for `play-linejam` when verifying human UI behavior,
+visual state progression, responsive interactions, or end-to-end game lifecycles.
 
 ## API-Face Disposition
 
