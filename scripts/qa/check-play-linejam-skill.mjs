@@ -174,14 +174,24 @@ function validate() {
       }
       if (
         schema.properties?.runId?.pattern !==
-        '^[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play$'
+        '^[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{32}-play$'
       ) {
-        errors.push('result.schema.json runId must use the path-safe format');
+        errors.push(
+          'result.schema.json runId must use the path-safe entropy format'
+        );
+      }
+      if (
+        schema.properties?.evidence?.properties?.runDir?.pattern !==
+        '^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{32}-play$'
+      ) {
+        errors.push(
+          'result.schema.json runDir must use the path-safe entropy format'
+        );
       }
       if (
         schema.properties?.evidence?.properties?.artifacts?.items?.properties
           ?.path?.pattern !==
-        '^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play/artifact-[0-9]{4}\\.(?:log|png|webm|webp|zip)$'
+        '^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{32}-play/artifact-[0-9]{4}\\.(?:log|png|webm|webp|zip)$'
       ) {
         errors.push(
           'result.schema.json artifact paths must use opaque run-local names'

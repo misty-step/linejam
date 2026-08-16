@@ -21,8 +21,14 @@ evidence, and ensuring unconditional browser teardown.
    - Format the UTC timestamp as `YYYYMMDDTHHmmssZ`.
    - Convert the origin to lowercase, replace each non-alphanumeric run with
      `-`, and trim leading or trailing `-` to form `<target-slug>`.
-   - Set the run ID to `<timestamp>-<target-slug>-play`; it must match
-     `^[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play$`.
+   - Generate 128 random bits independently for this run and encode them as
+     exactly 32 lowercase hexadecimal characters in `<run-entropy>`. Do not
+     derive this value from the timestamp, process ID, target, or player names.
+   - Set the run ID to
+     `<timestamp>-<target-slug>-<run-entropy>-play`; it must match
+     `^[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{32}-play$`.
+     The entropy component keeps evidence directories and browser session names
+     isolated when multiple coordinators start during the same second.
    - Create evidence folder: `.qa/runs/<run-id>/`.
 3. **Preflight Check**:
    - Verify `pnpm exec agent-browser --version` outputs `0.27.0`.

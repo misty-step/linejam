@@ -15,7 +15,12 @@ const schema = JSON.parse(
   )
 );
 
-const runId = '20260816T120000Z-http-localhost-3333-play';
+const runId =
+  '20260816T120000Z-http-localhost-3333-00112233445566778899aabbccddeeff-play';
+
+function uniqueRunId() {
+  return `20260816T120000Z-test-${randomUUID().replaceAll('-', '')}-play`;
+}
 
 function validResult(candidateRunId = runId) {
   return {
@@ -160,18 +165,25 @@ describe('play-linejam result validation', () => {
 
     const foreignArtifact = validResult();
     foreignArtifact.evidence.artifacts[0].path =
-      '.qa/runs/20260816T120001Z-http-localhost-3333-play/artifact-0001.webp';
+      '.qa/runs/20260816T120001Z-http-localhost-3333-00112233445566778899aabbccddeeff-play/artifact-0001.webp';
     expect(() => validatePlayLinejamResult(foreignArtifact, schema)).toThrow(
       'artifact path must use an opaque run-local name'
     );
   });
 
-  it('rejects path-like run IDs and passed runs without a verifier', () => {
+  it('rejects path-like or entropy-free run IDs and missing verifiers', () => {
     const unsafeRunId = {
       ...validResult(),
       runId: '..',
     };
     expect(() => validatePlayLinejamResult(unsafeRunId, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+    const entropyFreeRunId = {
+      ...validResult(),
+      runId: '20260816T120000Z-http-localhost-3333-play',
+    };
+    expect(() => validatePlayLinejamResult(entropyFreeRunId, schema)).toThrow(
       'play-linejam result rejected'
     );
 
@@ -190,7 +202,7 @@ describe('play-linejam result validation', () => {
   });
 
   it('rejects a room code in an artifact name before persistence', async () => {
-    const candidateRunId = `20260816T120000Z-test-${randomUUID()}-play`;
+    const candidateRunId = uniqueRunId();
     const result = validResult(candidateRunId);
     result.evidence.artifacts[0].path = `.qa/runs/${candidateRunId}/ABCD.webp`;
 
@@ -203,7 +215,7 @@ describe('play-linejam result validation', () => {
   });
 
   it('rejects a missing artifact before persistence', async () => {
-    const candidateRunId = `20260816T120000Z-test-${randomUUID()}-play`;
+    const candidateRunId = uniqueRunId();
     const result = validResult(candidateRunId);
     const runsDir = path.resolve('.qa/runs');
     const runDir = path.resolve(result.evidence.runDir);
