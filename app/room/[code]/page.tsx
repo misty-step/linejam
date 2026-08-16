@@ -19,22 +19,71 @@ import { buildLobbyChromeCopy } from '@/lib/roomChromeCopy';
 import { usePresence } from '@/hooks/usePresence';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 
+interface RoomPageRouter {
+  push(href: string): void;
+}
+
+interface RoomPageUserState {
+  isLoading: boolean;
+  guestToken: string | null;
+  authError: string | null;
+  retryAuth(): void;
+}
+
+function useDefaultRoomUser(): RoomPageUserState {
+  const { isLoading, guestToken, authError, retryAuth } = useUser();
+  return { isLoading, guestToken, authError, retryAuth };
+}
+
+function useDefaultRoomState(code: string, guestToken: string | null) {
+  return useQuery(api.rooms.getRoomState, {
+    code,
+    guestToken: guestToken || undefined,
+  });
+}
+
+export interface RoomPageDependencies {
+  useRouter(): RoomPageRouter;
+  useUser(): RoomPageUserState;
+  useRoomState: typeof useDefaultRoomState;
+  usePresence: typeof usePresence;
+  captureError: typeof captureError;
+  LobbyComponent: typeof Lobby;
+  WritingScreenComponent: typeof WritingScreen;
+  RevealPhaseComponent: typeof RevealPhase;
+  ConnectionStatusComponent: typeof ConnectionStatus;
+}
+
+const defaultRoomPageDependencies: RoomPageDependencies = {
+  useRouter,
+  useUser: useDefaultRoomUser,
+  useRoomState: useDefaultRoomState,
+  usePresence,
+  captureError,
+  LobbyComponent: Lobby,
+  WritingScreenComponent: WritingScreen,
+  RevealPhaseComponent: RevealPhase,
+  ConnectionStatusComponent: ConnectionStatus,
+};
+
 function UnexpectedRoomState({
   code,
   status,
+  dependencies,
 }: {
   code: string;
   status: string;
+  dependencies: RoomPageDependencies;
 }) {
-  const router = useRouter();
+  const router = dependencies.useRouter();
 
   useEffect(() => {
-    captureError(new Error('Unexpected room status'), {
+    dependencies.captureError(new Error('Unexpected room status'), {
       operation: 'renderRoomPage',
       roomCode: code,
       status,
     });
-  }, [code, status]);
+  }, [code, dependencies, status]);
 
   return (
     <div className="lj-game-viewport flex flex-col items-center justify-center gap-4 bg-[var(--color-background)] p-6 text-center">
@@ -58,8 +107,13 @@ function UnexpectedRoomState({
   );
 }
 
-interface RoomPageProps {
+interface RoomPageRouteProps {
   params: Promise<{ code: string }>;
+}
+
+interface RoomPageProps {
+  code: string;
+  dependencies?: RoomPageDependencies;
 }
 
 interface RoomPageState {
@@ -71,10 +125,14 @@ interface RoomPageState {
 function ResolvedRoomPage({
   code,
   roomState,
+  dependencies,
 }: {
   code: string;
   roomState: RoomPageState;
+  dependencies: RoomPageDependencies;
 }) {
+  const { LobbyComponent, WritingScreenComponent, RevealPhaseComponent } =
+    dependencies;
   const { room, players, isHost } = roomState;
 
   if (room.status === 'LOBBY') {
@@ -93,7 +151,7 @@ function ResolvedRoomPage({
               playerCount: players.length,
             })}
           />
-          <Lobby room={room} players={players} isHost={isHost} />
+          <LobbyComponent room={room} players={players} isHost={isHost} />
         </div>
       </RoomPanelErrorBoundary>
     );
@@ -106,7 +164,7 @@ function ResolvedRoomPage({
         roomCode={code}
         panel="writing"
       >
-        <WritingScreen roomCode={code} showChrome />
+        <WritingScreenComponent roomCode={code} showChrome />
       </RoomPanelErrorBoundary>
     );
   }
@@ -118,25 +176,34 @@ function ResolvedRoomPage({
         roomCode={code}
         panel="reveal"
       >
-        <RevealPhase roomCode={code} showChrome />
+        <RevealPhaseComponent roomCode={code} showChrome />
       </RoomPanelErrorBoundary>
     );
   }
 
-  return <UnexpectedRoomState code={code} status={String(room.status)} />;
+  return (
+    <UnexpectedRoomState
+      code={code}
+      status={String(room.status)}
+      dependencies={dependencies}
+    />
+  );
 }
 
-function RoomPageContent({ code }: { code: string }) {
-  const router = useRouter();
-  const { isLoading, guestToken, authError, retryAuth } = useUser();
-  const roomState = useQuery(api.rooms.getRoomState, {
-    code,
-    guestToken: guestToken || undefined,
-  });
+function RoomPageContent({
+  code,
+  dependencies,
+}: {
+  code: string;
+  dependencies: RoomPageDependencies;
+}) {
+  const router = dependencies.useRouter();
+  const { isLoading, guestToken, authError, retryAuth } =
+    dependencies.useUser();
+  const roomState = dependencies.useRoomState(code, guestToken);
 
   // Heartbeat presence while the room page is mounted (lobby, writing, reveal).
-  usePresence(code, guestToken);
-
+  dependencies.usePresence(code, guestToken);
   if (authError) {
     return <AuthErrorState message={authError} onRetry={retryAuth} />;
   }
@@ -169,20 +236,31 @@ function RoomPageContent({ code }: { code: string }) {
     );
   }
 
+  const ConnectionStatusComponent = dependencies.ConnectionStatusComponent;
   return (
     <>
-      <ConnectionStatus />
-      <ResolvedRoomPage code={code} roomState={roomState} />
+      <ConnectionStatusComponent />
+      <ResolvedRoomPage
+        code={code}
+        roomState={roomState}
+        dependencies={dependencies}
+      />
     </>
   );
 }
 
-export default function RoomPage({ params }: RoomPageProps) {
-  const { code } = use(params);
-
+export function RoomPage({
+  code,
+  dependencies = defaultRoomPageDependencies,
+}: RoomPageProps) {
   return (
     <RoomPanelErrorBoundary roomCode={code} panel="room">
-      <RoomPageContent code={code} />
+      <RoomPageContent code={code} dependencies={dependencies} />
     </RoomPanelErrorBoundary>
   );
+}
+
+export default function RoomRoutePage({ params }: RoomPageRouteProps) {
+  const { code } = use(params);
+  return <RoomPage code={code} />;
 }

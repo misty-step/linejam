@@ -3,6 +3,11 @@ import { useConvexAuth } from 'convex/react';
 import { useCallback, useEffect, useState } from 'react';
 import { captureError } from '@/lib/error';
 import {
+  toErrorReportable,
+  type ErrorReportable,
+  type ErrorReportContext,
+} from '@/lib/errorCore';
+import {
   GUEST_SESSION_RATE_LIMIT_MESSAGE,
   GuestSessionFetcher,
   defaultGuestSessionFetcher,
@@ -12,6 +17,30 @@ import {
 const CLERK_GUEST_FALLBACK_MS = 5_000;
 const CLERK_LOAD_TIMEOUT_MESSAGE =
   'Clerk did not load in time; continuing with guest play';
+
+export type ClerkUserSummary = {
+  id: string;
+  fullName?: string | null;
+  firstName?: string | null;
+  imageUrl?: string | null;
+  primaryEmailAddress?: { emailAddress?: string } | null;
+};
+
+export type ClerkAuthState = {
+  user: ClerkUserSummary | null;
+  isLoaded: boolean;
+};
+
+export type ConvexAuthState = {
+  isLoading: boolean;
+  isAuthenticated: boolean;
+};
+
+export type UseUserAuthDependencies = {
+  useClerk?: () => ClerkAuthState;
+  useConvex?: () => ConvexAuthState;
+  onError?: (error: ErrorReportable, context?: ErrorReportContext) => void;
+};
 
 /**
  * Hook for managing user identity (Clerk or guest).
@@ -23,15 +52,21 @@ const CLERK_LOAD_TIMEOUT_MESSAGE =
  *
  * @param fetcher - Injectable fetcher for guest session (default: API fetch).
  *                  Tests can inject a mock to avoid network calls.
+ * @param deps - Injectable auth providers and error reporting seam.
  */
 export function useUser(
-  fetcher: GuestSessionFetcher = defaultGuestSessionFetcher
+  fetcher: GuestSessionFetcher = defaultGuestSessionFetcher,
+  deps?: UseUserAuthDependencies
 ) {
-  const { user: clerkUser, isLoaded: isClerkLoaded } = useClerkUser();
-  const {
-    isLoading: isConvexAuthLoading,
-    isAuthenticated: isConvexAuthenticated,
-  } = useConvexAuth();
+  const useClerk = deps?.useClerk ?? useClerkUser;
+  const useConvex = deps?.useConvex ?? useConvexAuth;
+  const clerkAuth = useClerk();
+  const clerkUser = clerkAuth.user;
+  const isClerkLoaded = clerkAuth.isLoaded;
+  const convexAuth = useConvex();
+  const isConvexAuthLoading = convexAuth.isLoading;
+  const isConvexAuthenticated = convexAuth.isAuthenticated;
+  const reportError = deps?.onError ?? captureError;
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -40,20 +75,23 @@ export function useUser(
   const [clerkLoadTimedOut, setClerkLoadTimedOut] = useState(false);
 
   useEffect(() => {
-    if (isClerkLoaded || typeof window === 'undefined') return;
+    if (isClerkLoaded || globalThis.window === undefined) return;
 
     const timeout = window.setTimeout(() => {
       const error = new Error(CLERK_LOAD_TIMEOUT_MESSAGE);
       error.name = 'ClerkLoadTimeoutError';
-      captureError(error, { operation: 'clerkLoadTimeout' });
       setClerkLoadTimedOut(true);
+      reportError(error, { operation: 'clerkLoadTimeout' });
     }, CLERK_GUEST_FALLBACK_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [isClerkLoaded]);
+  }, [isClerkLoaded, reportError]);
 
   useEffect(() => {
-    if ((!isClerkLoaded && !clerkLoadTimedOut) || typeof window === 'undefined')
+    if (
+      (!isClerkLoaded && !clerkLoadTimedOut) ||
+      globalThis.window === undefined
+    )
       return;
     if (isLoaded && !clerkUser) return;
     let isStale = false;
@@ -77,12 +115,9 @@ export function useUser(
         setGuestToken(null);
 
         if (!isConvexAuthenticated) {
-          captureError(
-            new Error('Signed-in user missing Convex auth session'),
-            {
-              operation: 'convexAuthUnavailable',
-            }
-          );
+          reportError(new Error('Signed-in user missing Convex auth session'), {
+            operation: 'convexAuthUnavailable',
+          });
           setAuthError(
             'Your account signed in, but the game server could not verify it. Please refresh and try again.'
           );
@@ -107,14 +142,15 @@ export function useUser(
         setAuthError(null);
         setIsLoaded(true);
       })
-      .catch((error) => {
+      .catch((cause) => {
         if (isStale) return;
+        const error = toErrorReportable(cause);
         setGuestId(null);
         setGuestToken(null);
         if (isGuestSessionRateLimitError(error)) {
           setAuthError(GUEST_SESSION_RATE_LIMIT_MESSAGE);
         } else {
-          captureError(error, { operation: 'fetchGuestSession' });
+          reportError(error, { operation: 'fetchGuestSession' });
           setAuthError('Unable to connect. Please check your connection.');
         }
         setIsLoaded(true);
@@ -131,6 +167,7 @@ export function useUser(
     retryCount,
     isConvexAuthLoading,
     isConvexAuthenticated,
+    reportError,
   ]);
 
   const retryAuth = useCallback(() => {

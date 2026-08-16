@@ -4,6 +4,13 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 import { RETENTION_DURATIONS_MS } from '../../convex/lib/retentionPolicy';
+interface FavoritePoemSeedDocument {
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  indexInRoom: number;
+  createdAt: number;
+  publicShareEnabled?: boolean;
+}
 
 /**
  * favorites queries/mutations on the real convex-test engine (backlog 018):
@@ -55,15 +62,16 @@ async function seedRoomGamePoems(
     });
     const poemIds: Id<'poems'>[] = [];
     for (let i = 0; i < poemCount; i++) {
-      poemIds.push(
-        await ctx.db.insert('poems', {
-          roomId,
-          gameId,
-          indexInRoom: i,
-          createdAt: 0,
-          ...(publicShareEnabled !== undefined ? { publicShareEnabled } : {}),
-        })
-      );
+      const poemDoc: FavoritePoemSeedDocument = {
+        roomId,
+        gameId,
+        indexInRoom: i,
+        createdAt: 0,
+      };
+      if (publicShareEnabled !== undefined) {
+        poemDoc.publicShareEnabled = publicShareEnabled;
+      }
+      poemIds.push(await ctx.db.insert('poems', poemDoc));
     }
     return { roomId, gameId, poemIds };
   });

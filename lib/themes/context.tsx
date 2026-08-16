@@ -38,7 +38,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
  * Read initial theme from localStorage with fallbacks.
  */
 function getInitialTheme(): string {
-  if (typeof window === 'undefined') return defaultThemeId;
+  if (globalThis.window === undefined) return defaultThemeId;
   try {
     const stored = localStorage.getItem(STORAGE_KEY_THEME);
     return isValidThemeId(stored) ? stored : defaultThemeId;
@@ -52,7 +52,7 @@ function getInitialTheme(): string {
  * Defaults to 'system' for new users.
  */
 function getInitialModePreference(): ThemeModePreference {
-  if (typeof window === 'undefined') return 'system';
+  if (globalThis.window === undefined) return 'system';
   try {
     const stored = localStorage.getItem(STORAGE_KEY_MODE);
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
@@ -69,7 +69,7 @@ function getInitialModePreference(): ThemeModePreference {
  * Get current system color scheme preference.
  */
 function getSystemPreference(): ThemeMode {
-  if (typeof window === 'undefined') return 'light';
+  if (globalThis.window === undefined) return 'light';
   return window.matchMedia('(prefers-color-scheme: dark)').matches
     ? 'dark'
     : 'light';

@@ -1,65 +1,51 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useSharePoem } from '../../hooks/useSharePoem';
+import {
+  useSharePoem,
+  type UseSharePoemDependencies,
+} from '../../hooks/useSharePoem';
+import type { ShareLinkClient } from '@/hooks/useShareLink';
 import type { Id } from '../../convex/_generated/dataModel';
 
-// Mock Convex mutations independently so prepare/activate/cancel ordering is observable.
-const mockApiRefs = vi.hoisted(() => ({
-  prepare: {},
-  activate: {},
-  cancel: {},
-  disable: {},
-}));
 const mockPreparePublicPoemShare = vi
   .fn()
   .mockResolvedValue({ slug: 'slug-1', nonce: 'nonce-1' });
 const mockActivatePublicPoemShare = vi
   .fn()
   .mockResolvedValue({ publicShareEnabled: true, changed: true });
-const mockCancelPublicPoemShare = vi.fn().mockResolvedValue(undefined);
-const mockDisablePublicPoemShare = vi.fn().mockResolvedValue(undefined);
-vi.mock('@/convex/_generated/api', () => ({
-  api: {
-    shares: {
-      preparePublicPoemShare: mockApiRefs.prepare,
-      activatePublicPoemShare: mockApiRefs.activate,
-      cancelPublicPoemShare: mockApiRefs.cancel,
-      disablePublicPoemShare: mockApiRefs.disable,
-    },
-  },
-}));
-vi.mock('convex/react', () => ({
-  useMutation: (ref: unknown) => {
-    if (ref === mockApiRefs.prepare) return mockPreparePublicPoemShare;
-    if (ref === mockApiRefs.activate) return mockActivatePublicPoemShare;
-    if (ref === mockApiRefs.cancel) return mockCancelPublicPoemShare;
-    if (ref === mockApiRefs.disable) return mockDisablePublicPoemShare;
-    throw new Error('Unexpected mutation reference');
-  },
-}));
+const mockCancelPublicPoemShare = vi
+  .fn()
+  .mockResolvedValue({ cancelled: true, publicShareEnabled: false });
+const mockDisablePublicPoemShare = vi.fn().mockResolvedValue({
+  publicShareEnabled: false,
+  changed: true,
+  publicShareDisabledAt: 1,
+});
 
-// Mock lib/error's captureError
-const mockCaptureError = vi.fn();
-vi.mock('@/lib/error', () => ({
-  captureError: (err: unknown, context: unknown) =>
-    mockCaptureError(err, context),
-}));
+const captureErrorSpy = vi.fn();
+const trackPoemSharedSpy = vi.fn();
+const trackArtifactActionSpy = vi.fn();
+let mockWriteText = vi.fn().mockResolvedValue(undefined);
+let shareClient: ShareLinkClient;
+let dependencies: UseSharePoemDependencies;
 
-const mockTrackPoemShared = vi.fn();
-const mockTrackArtifactAction = vi.fn();
-vi.mock('@/lib/analytics', () => ({
-  hashRoomId: () => 'test-room-hash',
-  trackArtifactAction: (props: unknown) => mockTrackArtifactAction(props),
-  trackPoemShared: (props: unknown) => mockTrackPoemShared(props),
-}));
+function renderSharePoemHook(
+  poemId: Id<'poems'>,
+  guestToken?: string,
+  openingLine?: string,
+  roomId?: string,
+  cycle?: number
+) {
+  return renderHook(() =>
+    useSharePoem(poemId, guestToken, openingLine, roomId, cycle, dependencies)
+  );
+}
 
 describe('useSharePoem', () => {
+  // SAFETY: Synthetic Convex document id fixture for poem sharing hook tests.
   const testPoemId = 'poem123' as Id<'poems'>;
   const openingLine = 'The moon hums';
-  let originalClipboard: Clipboard;
-  let originalLocation: Location;
-  let originalShare: Navigator['share'];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,79 +57,73 @@ describe('useSharePoem', () => {
       publicShareEnabled: true,
       changed: true,
     });
-    mockCancelPublicPoemShare.mockResolvedValue(undefined);
+    mockCancelPublicPoemShare.mockResolvedValue({
+      cancelled: true,
+      publicShareEnabled: false,
+    });
+    mockDisablePublicPoemShare.mockResolvedValue({
+      publicShareEnabled: false,
+      changed: true,
+      publicShareDisabledAt: 1,
+    });
+    mockWriteText = vi.fn().mockResolvedValue(undefined);
+    shareClient = { writeClipboardText: mockWriteText };
+    dependencies = {
+      useMutations: () => ({
+        prepare: mockPreparePublicPoemShare,
+        activate: mockActivatePublicPoemShare,
+        cancel: mockCancelPublicPoemShare,
+        disable: mockDisablePublicPoemShare,
+      }),
+      shareClient,
+      getOrigin: () => 'https://example.com',
+      captureError: captureErrorSpy,
+      trackPoemShared: trackPoemSharedSpy,
+      trackArtifactAction: trackArtifactActionSpy,
+      hashRoomId: () => 'test-room-hash',
+    };
     vi.useFakeTimers();
-
-    // Store originals
-    originalClipboard = navigator.clipboard;
-    originalLocation = window.location;
-    originalShare = navigator.share;
-
-    // Mock clipboard
-    Object.defineProperty(navigator, 'clipboard', {
-      value: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    Object.defineProperty(navigator, 'share', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
-
-    // Mock window.location
-    Object.defineProperty(window, 'location', {
-      value: {
-        origin: 'https://example.com',
-      },
-      writable: true,
-      configurable: true,
-    });
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    // Restore originals
-    Object.defineProperty(navigator, 'clipboard', {
-      value: originalClipboard,
-      configurable: true,
-    });
-    Object.defineProperty(window, 'location', {
-      value: originalLocation,
-      configurable: true,
-    });
-    Object.defineProperty(navigator, 'share', {
-      value: originalShare,
-      configurable: true,
-    });
   });
 
   it('returns initial state with copied=false', () => {
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     expect(result.current.copied).toBe(false);
-    expect(typeof result.current.handleShare).toBe('function');
+    expect(result.current.handleShare).toBeInstanceOf(Function);
   });
 
   it('copies URL to clipboard when handleShare is called', async () => {
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
     });
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+    expect(mockWriteText).toHaveBeenCalledWith(
       'https://example.com/poem/poem123?share=slug-1'
     );
     expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
     expect(mockActivatePublicPoemShare).toHaveBeenCalledOnce();
+  });
+
+  it('coalesces concurrent share attempts into one publication', async () => {
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
+
+    await act(async () => {
+      await Promise.all([
+        result.current.handleShare(),
+        result.current.handleShare(),
+      ]);
+    });
+
+    expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
+    expect(mockWriteText).toHaveBeenCalledOnce();
+    expect(mockActivatePublicPoemShare).toHaveBeenCalledOnce();
+    expect(trackPoemSharedSpy).toHaveBeenCalledOnce();
   });
 
   it('does not report success when activation loses the publication race', async () => {
@@ -151,15 +131,13 @@ describe('useSharePoem', () => {
       publicShareEnabled: false,
       changed: false,
     });
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
     });
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+    expect(mockWriteText).toHaveBeenCalledWith(
       'https://example.com/poem/poem123?share=slug-1'
     );
     expect(mockCancelPublicPoemShare).toHaveBeenCalledWith({
@@ -173,8 +151,8 @@ describe('useSharePoem', () => {
     expect(result.current.shareError).toBe(
       'Failed to share poem. Please try again.'
     );
-    expect(mockTrackPoemShared).not.toHaveBeenCalled();
-    expect(mockCaptureError).toHaveBeenCalledWith(
+    expect(trackPoemSharedSpy).not.toHaveBeenCalled();
+    expect(captureErrorSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'Share activation expired or was superseded',
       }),
@@ -183,9 +161,7 @@ describe('useSharePoem', () => {
   });
 
   it('revokes the public share through the disable mutation', async () => {
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.revokeShare();
@@ -198,9 +174,7 @@ describe('useSharePoem', () => {
   });
 
   it('sets copied=true after successful copy', async () => {
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
@@ -210,9 +184,7 @@ describe('useSharePoem', () => {
   });
 
   it('resets copied to false after 2000ms timeout', async () => {
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
@@ -229,31 +201,27 @@ describe('useSharePoem', () => {
   });
 
   it('records a successful share through provider-portable analytics', async () => {
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
     });
 
-    expect(mockTrackPoemShared).toHaveBeenCalledWith({ method: 'clipboard' });
+    expect(trackPoemSharedSpy).toHaveBeenCalledWith({ method: 'clipboard' });
   });
 
   it('reports an error when the copied private link cannot be published', async () => {
     mockActivatePublicPoemShare.mockRejectedValueOnce(new Error('Forbidden'));
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
     });
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+    expect(mockWriteText).toHaveBeenCalledWith(
       'https://example.com/poem/poem123?share=slug-1'
     );
-    expect(mockTrackPoemShared).not.toHaveBeenCalled();
+    expect(trackPoemSharedSpy).not.toHaveBeenCalled();
     expect(mockCancelPublicPoemShare).toHaveBeenCalledOnce();
     expect(result.current.shareError).toBe(
       'Failed to share poem. Please try again.'
@@ -262,18 +230,14 @@ describe('useSharePoem', () => {
 
   it('captures error when clipboard copy fails', async () => {
     const clipboardError = new Error('Clipboard write failed');
-    (
-      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
-    ).mockRejectedValueOnce(clipboardError);
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    mockWriteText.mockRejectedValueOnce(clipboardError);
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
     });
 
-    expect(mockCaptureError).toHaveBeenCalledWith(clipboardError, {
+    expect(captureErrorSpy).toHaveBeenCalledWith(clipboardError, {
       operation: 'sharePoem',
       poemId: testPoemId,
     });
@@ -286,30 +250,20 @@ describe('useSharePoem', () => {
   });
 
   it('does not record a share when clipboard fails', async () => {
-    (
-      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
-    ).mockRejectedValueOnce(new Error('Clipboard denied'));
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    mockWriteText.mockRejectedValueOnce(new Error('Clipboard denied'));
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
     });
 
-    expect(mockTrackPoemShared).not.toHaveBeenCalled();
+    expect(trackPoemSharedSpy).not.toHaveBeenCalled();
   });
 
   it('uses native share when available', async () => {
     const nativeShare = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'share', {
-      value: nativeShare,
-      writable: true,
-      configurable: true,
-    });
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    shareClient.nativeShare = nativeShare;
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
@@ -322,26 +276,22 @@ describe('useSharePoem', () => {
     });
     expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
     expect(mockActivatePublicPoemShare).toHaveBeenCalledOnce();
-    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(mockWriteText).not.toHaveBeenCalled();
     expect(result.current.shared).toBe(true);
-    expect(mockTrackPoemShared).toHaveBeenCalledWith({
+    expect(trackPoemSharedSpy).toHaveBeenCalledWith({
       method: 'native-share',
     });
   });
 
   it('keeps a failed native share private', async () => {
-    Object.defineProperty(navigator, 'share', {
-      value: vi.fn().mockRejectedValue(new Error('Share sheet unavailable')),
-      writable: true,
-      configurable: true,
-    });
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    shareClient.nativeShare = vi
+      .fn()
+      .mockRejectedValue(new Error('Share sheet unavailable'));
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
     await act(async () => {
       await result.current.handleShare();
     });
-    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(mockWriteText).not.toHaveBeenCalled();
     expect(result.current.shareError).toBe(
       'Failed to share poem. Please try again.'
     );
@@ -349,38 +299,51 @@ describe('useSharePoem', () => {
 
   it('does not surface an error when native share is cancelled', async () => {
     const abortError = new DOMException('Cancelled', 'AbortError');
-    Object.defineProperty(navigator, 'share', {
-      value: vi.fn().mockRejectedValue(abortError),
-      writable: true,
-      configurable: true,
-    });
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine)
-    );
+    shareClient.nativeShare = vi.fn().mockRejectedValue(abortError);
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
 
     await act(async () => {
       await result.current.handleShare();
     });
 
     expect(result.current.shareError).toBeNull();
-    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(mockWriteText).not.toHaveBeenCalled();
     expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
     expect(mockCancelPublicPoemShare).toHaveBeenCalledOnce();
-    expect(mockTrackPoemShared).not.toHaveBeenCalled();
-    expect(mockCaptureError).not.toHaveBeenCalled();
+    expect(trackPoemSharedSpy).not.toHaveBeenCalled();
+    expect(captureErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it('rolls back and reports an error when native share times out', async () => {
+    shareClient.nativeShare = vi.fn(() => new Promise<void>(() => undefined));
+    const { result } = renderSharePoemHook(testPoemId, undefined, openingLine);
+
+    await act(async () => {
+      const share = result.current.handleShare();
+      await vi.advanceTimersByTimeAsync(30_000);
+      await share;
+    });
+
+    expect(mockCancelPublicPoemShare).toHaveBeenCalledOnce();
+    expect(mockActivatePublicPoemShare).not.toHaveBeenCalled();
+    expect(result.current.shareError).toBe(
+      'Failed to share poem. Please try again.'
+    );
+    expect(captureErrorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Native share timed out' }),
+      { operation: 'sharePoem', poemId: testPoemId }
+    );
   });
 
   it('truncates a long opening line in the share text preview', async () => {
     const nativeShare = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'share', {
-      value: nativeShare,
-      writable: true,
-      configurable: true,
-    });
+    shareClient.nativeShare = nativeShare;
     const longOpeningLine =
       'The moon hums a long forgotten tune while the tide pulls back from the shore, again and again, patient as ever';
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, longOpeningLine)
+    const { result } = renderSharePoemHook(
+      testPoemId,
+      undefined,
+      longOpeningLine
     );
 
     await act(async () => {
@@ -396,12 +359,8 @@ describe('useSharePoem', () => {
 
   it('uses a generic fallback only when the opening line is unavailable', async () => {
     const nativeShare = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'share', {
-      value: nativeShare,
-      writable: true,
-      configurable: true,
-    });
-    const { result } = renderHook(() => useSharePoem(testPoemId));
+    shareClient.nativeShare = nativeShare;
+    const { result } = renderSharePoemHook(testPoemId);
 
     await act(async () => {
       await result.current.handleShare();
@@ -415,13 +374,17 @@ describe('useSharePoem', () => {
   });
 
   it('emits a canonical share action only after a successful share', async () => {
-    const { result } = renderHook(() =>
-      useSharePoem(testPoemId, undefined, openingLine, 'room-id', 2)
+    const { result } = renderSharePoemHook(
+      testPoemId,
+      undefined,
+      openingLine,
+      'room-id',
+      2
     );
     await act(async () => {
       await result.current.handleShare();
     });
-    expect(mockTrackArtifactAction).toHaveBeenCalledWith({
+    expect(trackArtifactActionSpy).toHaveBeenCalledWith({
       roomIdHash: 'test-room-hash',
       cycle: 2,
       round: 8,

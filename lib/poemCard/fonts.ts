@@ -25,7 +25,7 @@ function fontsourceUrl(
   return `https://cdn.jsdelivr.net/npm/@fontsource/${pkg}/files/${pkg}-latin-${weight}-${style}.woff`;
 }
 
-const CARD_FONT_PAIRINGS: Record<string, CardFontPairing> = {
+const CARD_FONT_PAIRINGS = {
   kenya: {
     displayFamily: 'Libre Baskerville',
     sansFamily: 'IBM Plex Sans',
@@ -99,14 +99,20 @@ const CARD_FONT_PAIRINGS: Record<string, CardFontPairing> = {
     displayUrl: fontsourceUrl('anton', 400, 'normal'),
     sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
   },
-};
+} satisfies Record<string, CardFontPairing>;
 
 export const DEFAULT_CARD_THEME_ID = 'kenya';
 
+function isCardThemeId(
+  themeId: string
+): themeId is keyof typeof CARD_FONT_PAIRINGS {
+  return Object.hasOwn(CARD_FONT_PAIRINGS, themeId);
+}
+
 export function getCardFontPairing(themeId: string): CardFontPairing {
-  return (
-    CARD_FONT_PAIRINGS[themeId] ?? CARD_FONT_PAIRINGS[DEFAULT_CARD_THEME_ID]
-  );
+  return isCardThemeId(themeId)
+    ? CARD_FONT_PAIRINGS[themeId]
+    : CARD_FONT_PAIRINGS[DEFAULT_CARD_THEME_ID];
 }
 
 export interface LoadedCardFonts {

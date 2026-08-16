@@ -117,3 +117,6 @@ export function createLinejamClient(convexUrl = resolveConvexUrl()) {
 }
 
 export type LinejamClient = ReturnType<typeof createLinejamClient>;
+
+export type LinejamClientResult =
+  GuestIdentity | Awaited<ReturnType<LinejamClient[keyof LinejamClient]>>;

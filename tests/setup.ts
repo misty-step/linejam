@@ -1,16 +1,27 @@
 import '@testing-library/jest-dom';
 
-const hasStorageApi = (storage: unknown): storage is Storage =>
-  Boolean(
-    storage &&
-    typeof storage === 'object' &&
-    typeof (storage as Storage).getItem === 'function' &&
-    typeof (storage as Storage).setItem === 'function' &&
-    typeof (storage as Storage).removeItem === 'function' &&
-    typeof (storage as Storage).clear === 'function'
-  );
+const hasStorageApi = (
+  storage: Partial<Storage> | null | undefined
+): storage is Storage => {
+  if (!storage) {
+    return false;
+  }
 
-const getDefinedStorageValue = (name: 'localStorage' | 'sessionStorage') => {
+  try {
+    return (
+      storage.getItem instanceof Function &&
+      storage.setItem instanceof Function &&
+      storage.removeItem instanceof Function &&
+      storage.clear instanceof Function
+    );
+  } catch {
+    return false;
+  }
+};
+
+const getDefinedStorageValue = (
+  name: 'localStorage' | 'sessionStorage'
+): Partial<Storage> | null | undefined => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
 
   if (!descriptor || !('value' in descriptor)) {
@@ -46,7 +57,16 @@ const createMemoryStorage = (): Storage => {
 };
 
 const installStorageShim = (name: 'localStorage' | 'sessionStorage') => {
-  if (hasStorageApi(getDefinedStorageValue(name))) {
+  const definedStorage = getDefinedStorageValue(name);
+  if (hasStorageApi(definedStorage)) {
+    if ('window' in globalThis && globalThis.window !== undefined) {
+      Object.defineProperty(globalThis.window, name, {
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: definedStorage,
+      });
+    }
     return;
   }
 
@@ -59,8 +79,8 @@ const installStorageShim = (name: 'localStorage' | 'sessionStorage') => {
     value: storage,
   });
 
-  if (typeof window !== 'undefined') {
-    Object.defineProperty(window, name, {
+  if ('window' in globalThis && globalThis.window !== undefined) {
+    Object.defineProperty(globalThis.window, name, {
       configurable: true,
       enumerable: true,
       writable: true,

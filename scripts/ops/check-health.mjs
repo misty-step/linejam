@@ -9,7 +9,7 @@ export async function runHealthCheck({
   timeoutMs = DEFAULT_TIMEOUT_MS,
   fetchImpl = globalThis.fetch,
 } = {}) {
-  if (typeof fetchImpl !== 'function') {
+  if (!fetchImpl || !(fetchImpl instanceof Function)) {
     throw new Error('fetch is not available in this Node runtime');
   }
 

@@ -29,8 +29,7 @@
   const themeSet = new Set(themes);
   const storageKey = root.dataset.aeThemeKey || 'ae-theme';
 
-  const clean = (value) =>
-    typeof value === 'string' && themeSet.has(value) ? value : null;
+  const clean = (value) => (themeSet.has(value) ? value : null);
 
   const current = () => clean(root.dataset.aeTheme) || 'ultramarine';
 

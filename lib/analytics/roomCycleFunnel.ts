@@ -67,11 +67,15 @@ export type RoomCycleFunnelReport = {
   };
 };
 
-function isFiniteTimestamp(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
+function isFiniteTimestamp(value: number | undefined | null): value is number {
+  return value !== null && value !== undefined && Number.isFinite(value);
 }
 
-function inWindow(timestamp: unknown, from: number, to: number) {
+function inWindow(
+  timestamp: number | undefined | null,
+  from: number,
+  to: number
+) {
   return isFiniteTimestamp(timestamp) && timestamp >= from && timestamp < to;
 }
 
@@ -105,12 +109,7 @@ function earliestDefined(a?: number, b?: number) {
 function mergeRooms(rooms: RoomCycleSnapshot[]) {
   const byRoom = new Map<string, RoomCycleSnapshot>();
   for (const room of rooms) {
-    if (
-      !room ||
-      typeof room.roomIdHash !== 'string' ||
-      room.roomIdHash.length === 0
-    )
-      continue;
+    if (!room || !room.roomIdHash || room.roomIdHash.length === 0) continue;
     const previous = byRoom.get(room.roomIdHash);
     if (!previous) {
       byRoom.set(room.roomIdHash, {
@@ -157,15 +156,13 @@ function mergeRooms(rooms: RoomCycleSnapshot[]) {
 }
 
 function uniqueParticipants(room: RoomCycleSnapshot) {
-  return new Set(
-    room.joins
-      .filter(
-        (join) =>
-          typeof join.participantKey === 'string' &&
-          join.participantKey.length > 0
-      )
-      .map((join) => join.participantKey as string)
-  );
+  const keys = new Set<string>();
+  for (const join of room.joins) {
+    if (join.participantKey && join.participantKey.length > 0) {
+      keys.add(join.participantKey);
+    }
+  }
+  return keys;
 }
 
 function validArtifactEvent(
@@ -239,12 +236,15 @@ export function buildRoomCycleFunnelReport(
       .some((cycle) => inWindow(cycle.startedAt, input.from, input.to))
   );
   const startDurations = started
-    .map(
-      (cycle, index) =>
-        ((cycle!.startedAt as number) - humanRooms[index].createdAt) / 1000
-    )
-    .filter((seconds) => seconds >= 0 && Number.isFinite(seconds));
-
+    .map((cycle, index) => {
+      const startedAt = cycle?.startedAt;
+      if (startedAt === undefined) return null;
+      return (startedAt - humanRooms[index].createdAt) / 1000;
+    })
+    .filter(
+      (seconds): seconds is number =>
+        seconds !== null && seconds >= 0 && Number.isFinite(seconds)
+    );
   const seenEvents = new Set<string>();
   const artifactRooms = new Set<string>();
   const roomsByKey = new Map(humanRooms.map((room) => [room.roomIdHash, room]));

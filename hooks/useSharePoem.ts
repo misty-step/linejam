@@ -5,12 +5,83 @@ import { useRef } from 'react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { captureError } from '@/lib/error';
+import type { ErrorReportable } from '@/lib/errorCore';
 import {
   hashRoomId,
   trackArtifactAction,
   trackPoemShared,
 } from '@/lib/analytics';
-import { useShareLink } from '@/hooks/useShareLink';
+import { useShareLink, type ShareLinkClient } from '@/hooks/useShareLink';
+
+interface PoemShareAccess {
+  poemId: Id<'poems'>;
+  guestToken?: string;
+}
+
+interface PreparedPoemShare {
+  slug: string;
+  nonce: string;
+}
+
+interface CancelledPoemShare {
+  cancelled: boolean;
+  publicShareEnabled: boolean;
+}
+
+interface DisabledPoemShare {
+  publicShareEnabled: boolean;
+  changed: boolean;
+  publicShareDisabledAt?: number;
+}
+
+export interface PoemShareMutations {
+  prepare(args: PoemShareAccess): Promise<PreparedPoemShare>;
+  activate(
+    args: PoemShareAccess & PreparedPoemShare
+  ): Promise<{ changed: boolean }>;
+  cancel(
+    args: PoemShareAccess & PreparedPoemShare
+  ): Promise<CancelledPoemShare>;
+  disable(args: PoemShareAccess): Promise<DisabledPoemShare>;
+}
+
+export interface UseSharePoemDependencies {
+  useMutations: () => PoemShareMutations;
+  shareClient?: ShareLinkClient;
+  getOrigin: () => string;
+  captureError: (
+    error: ErrorReportable,
+    context: { operation: 'sharePoem'; poemId: Id<'poems'> }
+  ) => void;
+  trackPoemShared: (properties: {
+    method: 'clipboard' | 'native-share';
+  }) => void;
+  trackArtifactAction: (properties: {
+    roomIdHash: string;
+    cycle: number;
+    round: number;
+    action: 'share';
+  }) => void;
+  hashRoomId: (roomId: string) => string;
+}
+
+function useDefaultPoemShareMutations(): PoemShareMutations {
+  return {
+    prepare: useMutation(api.shares.preparePublicPoemShare),
+    activate: useMutation(api.shares.activatePublicPoemShare),
+    cancel: useMutation(api.shares.cancelPublicPoemShare),
+    disable: useMutation(api.shares.disablePublicPoemShare),
+  };
+}
+
+const defaultDependencies: UseSharePoemDependencies = {
+  useMutations: useDefaultPoemShareMutations,
+  getOrigin: () => window.location.origin,
+  captureError,
+  trackPoemShared,
+  trackArtifactAction,
+  hashRoomId,
+};
 
 function buildPoemShareText(openingLine?: string) {
   const trimmed = openingLine?.trim();
@@ -26,21 +97,15 @@ export function useSharePoem(
   guestToken?: string,
   openingLine?: string,
   roomId?: string,
-  cycle = 1
+  cycle = 1,
+  dependencies: UseSharePoemDependencies = defaultDependencies
 ) {
-  const preparePublicPoemShare = useMutation(api.shares.preparePublicPoemShare);
-  const activatePublicPoemShare = useMutation(
-    api.shares.activatePublicPoemShare
-  );
-  const cancelPublicPoemShare = useMutation(api.shares.cancelPublicPoemShare);
-  const disablePublicPoemShare = useMutation(api.shares.disablePublicPoemShare);
-  const pendingShareRef = useRef(
-    null as { slug: string; nonce: string } | null
-  );
+  const mutations = dependencies.useMutations();
+  const pendingShareRef = useRef<PreparedPoemShare | null>(null);
 
   const share = useShareLink({
     prepareShare: async () => {
-      pendingShareRef.current = await preparePublicPoemShare({
+      pendingShareRef.current = await mutations.prepare({
         poemId,
         guestToken: guestToken || undefined,
       });
@@ -48,7 +113,7 @@ export function useSharePoem(
     commitShare: async () => {
       const pending = pendingShareRef.current;
       if (!pending) throw new Error('Share preparation missing');
-      const activation = await activatePublicPoemShare({
+      const activation = await mutations.activate({
         poemId,
         slug: pending.slug,
         nonce: pending.nonce,
@@ -63,7 +128,7 @@ export function useSharePoem(
       const pending = pendingShareRef.current;
       if (!pending) return;
       try {
-        await cancelPublicPoemShare({
+        await mutations.cancel({
           poemId,
           slug: pending.slug,
           nonce: pending.nonce,
@@ -75,7 +140,7 @@ export function useSharePoem(
     },
     getShareData: () => ({
       url:
-        window.location.origin +
+        dependencies.getOrigin() +
         '/poem/' +
         poemId +
         (pendingShareRef.current
@@ -85,10 +150,10 @@ export function useSharePoem(
       text: buildPoemShareText(openingLine),
     }),
     onShared: (method) => {
-      trackPoemShared({ method });
+      dependencies.trackPoemShared({ method });
       if (roomId) {
-        trackArtifactAction({
-          roomIdHash: hashRoomId(roomId),
+        dependencies.trackArtifactAction({
+          roomIdHash: dependencies.hashRoomId(roomId),
           cycle,
           round: 8,
           action: 'share',
@@ -96,15 +161,16 @@ export function useSharePoem(
       }
     },
     onError: (err) => {
-      captureError(err, { operation: 'sharePoem', poemId });
+      dependencies.captureError(err, { operation: 'sharePoem', poemId });
     },
     failureMessage: 'Failed to share poem. Please try again.',
+    client: dependencies.shareClient,
   });
 
   return {
     ...share,
     revokeShare: async () => {
-      await disablePublicPoemShare({
+      await mutations.disable({
         poemId,
         guestToken: guestToken || undefined,
       });

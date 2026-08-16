@@ -103,7 +103,11 @@ export function RoomChrome({
       setShowQr(false);
     };
     const handlePointer = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (
+        event.target instanceof Node &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target)
+      ) {
         closeAll();
       }
     };

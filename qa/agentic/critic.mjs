@@ -9,7 +9,9 @@ function asArray(value) {
 
 function artifactNames(manifest) {
   return asArray(manifest?.artifacts).map((artifact) =>
-    typeof artifact?.path === 'string' ? artifact.path : ''
+    Object.prototype.toString.call(artifact?.path) === '[object String]'
+      ? artifact.path
+      : ''
   );
 }
 
@@ -25,7 +27,11 @@ export function gradeAgenticManifest(manifest) {
   const runtimeErrors = asArray(manifest?.runtimeErrors);
   const transcript = asArray(manifest?.transcript);
 
-  if (!manifest || typeof manifest !== 'object') {
+  if (
+    !manifest ||
+    Array.isArray(manifest) ||
+    Object.prototype.toString.call(manifest) !== '[object Object]'
+  ) {
     return {
       verdict: 'fail',
       score: 0,

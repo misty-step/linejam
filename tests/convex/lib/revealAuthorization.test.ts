@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { selectRevealAuthority } from '../../../convex/lib/revealAuthorization';
 
+// SAFETY: Branded ID fixture for pure unit test of in-memory reveal authority resolution.
 const userId = (value: string) => value as Id<'users'>;
 const now = 100_000;
 const fresh = now - 1;

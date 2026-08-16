@@ -10,14 +10,65 @@ import { captureError } from '@/lib/error';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 
-export default function AuthCallbackPage() {
-  const router = useRouter();
-  const { isLoaded, isSignedIn } = useClerkUser();
+interface AuthCallbackRouter {
+  replace(href: string): void;
+}
+
+interface AuthCallbackClerkState {
+  isLoaded: boolean;
+  isSignedIn: boolean | undefined;
+}
+
+interface AuthCallbackConvexState {
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
+
+export type MigrateGuestToUser = (args: {
+  guestToken: string;
+}) => Promise<void>;
+
+export interface AuthCallbackPageDependencies {
+  useRouter(): AuthCallbackRouter;
+  useClerkUser(): AuthCallbackClerkState;
+  useConvexAuth(): AuthCallbackConvexState;
+  useMigrateGuestToUser(): MigrateGuestToUser;
+  getExistingGuestSession: typeof getExistingGuestSession;
+  clearGuestSession: typeof clearGuestSession;
+  captureError: typeof captureError;
+}
+
+function useDefaultMigrateGuestToUser(): MigrateGuestToUser {
+  const migrateGuestToUser = useMutation(api.migrations.migrateGuestToUser);
+  return async (args) => {
+    await migrateGuestToUser(args);
+  };
+}
+
+const defaultAuthCallbackPageDependencies: AuthCallbackPageDependencies = {
+  useRouter,
+  useClerkUser,
+  useConvexAuth,
+  useMigrateGuestToUser: useDefaultMigrateGuestToUser,
+  getExistingGuestSession,
+  clearGuestSession,
+  captureError,
+};
+
+interface AuthCallbackPageProps {
+  dependencies?: AuthCallbackPageDependencies;
+}
+
+export function AuthCallbackPage({
+  dependencies = defaultAuthCallbackPageDependencies,
+}: AuthCallbackPageProps = {}) {
+  const router = dependencies.useRouter();
+  const { isLoaded, isSignedIn } = dependencies.useClerkUser();
   const {
     isLoading: isConvexAuthLoading,
     isAuthenticated: isConvexAuthenticated,
-  } = useConvexAuth();
-  const migrateGuestToUser = useMutation(api.migrations.migrateGuestToUser);
+  } = dependencies.useConvexAuth();
+  const migrateGuestToUser = dependencies.useMigrateGuestToUser();
   const hasRun = useRef(false);
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
   const [retryCount, setRetryCount] = useState(0);
@@ -25,12 +76,12 @@ export default function AuthCallbackPage() {
   const migrateGuestSession = useCallback(
     async (guestToken: string) => {
       await migrateGuestToUser({ guestToken });
-      await clearGuestSession().catch((error) => {
-        captureError(error, { operation: 'clearGuestSession' });
+      await dependencies.clearGuestSession().catch((error) => {
+        dependencies.captureError(error, { operation: 'clearGuestSession' });
       });
       router.replace('/');
     },
-    [migrateGuestToUser, router]
+    [dependencies, migrateGuestToUser, router]
   );
 
   useEffect(() => {
@@ -43,7 +94,7 @@ export default function AuthCallbackPage() {
 
     if (!isConvexAuthenticated) {
       hasRun.current = true;
-      captureError(
+      dependencies.captureError(
         new Error(
           'Signed-in user missing Convex auth session during migration'
         ),
@@ -59,7 +110,8 @@ export default function AuthCallbackPage() {
     }
 
     hasRun.current = true;
-    void getExistingGuestSession()
+    void dependencies
+      .getExistingGuestSession()
       .then((session) => {
         if (!session.token) {
           router.replace('/');
@@ -68,7 +120,7 @@ export default function AuthCallbackPage() {
         return migrateGuestSession(session.token);
       })
       .catch((error) => {
-        captureError(error, { operation: 'migrateGuestToUser' });
+        dependencies.captureError(error, { operation: 'migrateGuestToUser' });
         setStatus('error');
       });
   }, [
@@ -77,6 +129,7 @@ export default function AuthCallbackPage() {
     isConvexAuthLoading,
     isConvexAuthenticated,
     migrateGuestSession,
+    dependencies,
     router,
     retryCount,
   ]);
@@ -143,4 +196,8 @@ export default function AuthCallbackPage() {
       </div>
     </div>
   );
+}
+
+export default function AuthCallbackRoutePage() {
+  return <AuthCallbackPage />;
 }

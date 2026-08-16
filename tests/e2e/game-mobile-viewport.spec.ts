@@ -117,12 +117,25 @@ async function expectContentFits(locator: Locator) {
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
   expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.clientHeight + 1);
 }
+interface SyntheticViewportState {
+  height: number | null;
+  offsetTop: number;
+}
+
+declare global {
+  interface Window {
+    __linejamSetVisualViewport?: (
+      height: number | null,
+      offsetTop: number
+    ) => void;
+  }
+}
 
 async function installSyntheticVisualViewport(page: Page) {
   await page.addInitScript(() => {
     const nativeViewport = window.visualViewport;
     const events = new EventTarget();
-    const state: { height: number | null; offsetTop: number } = {
+    const state: SyntheticViewportState = {
       height: null,
       offsetTop: 0,
     };
@@ -176,13 +189,7 @@ async function setSyntheticVisualViewport(
 ) {
   await page.evaluate(
     ({ nextHeight, nextOffsetTop }) => {
-      const testWindow = window as typeof window & {
-        __linejamSetVisualViewport: (
-          height: number | null,
-          offsetTop: number
-        ) => void;
-      };
-      testWindow.__linejamSetVisualViewport(nextHeight, nextOffsetTop);
+      window.__linejamSetVisualViewport?.(nextHeight, nextOffsetTop);
     },
     { nextHeight: height, nextOffsetTop: offsetTop }
   );

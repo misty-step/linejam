@@ -30,7 +30,9 @@ export async function getUser(
         .withIndex('by_guest', (q) => q.eq('guestId', guestId))
         .first();
     } catch (e) {
-      logError('Invalid guest token', e, { hasToken: !!guestToken });
+      logError('Invalid guest token', e instanceof Error ? e : String(e), {
+        hasToken: !!guestToken,
+      });
       return null;
     }
   }

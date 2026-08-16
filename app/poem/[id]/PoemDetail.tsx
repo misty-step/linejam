@@ -5,32 +5,126 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUser } from '../../../lib/auth';
-import { Id } from '../../../convex/_generated/dataModel';
-import { PoemDisplay, PoemLine } from '../../../components/PoemDisplay';
+import type { Id } from '../../../convex/_generated/dataModel';
+import { PoemDisplay, type PoemLine } from '../../../components/PoemDisplay';
+
+export interface PoemDetailData {
+  poem: {
+    createdAt: number;
+    publicShareEnabled?: boolean;
+  };
+  lines: Array<{
+    text: string;
+    authorName: string;
+    authorKey: string;
+  }>;
+}
+
+export interface PoemShareStatus {
+  state: string;
+  expiresAt?: number;
+}
+
+interface FavoritePoemArgs {
+  poemId: Id<'poems'>;
+  guestToken?: string;
+}
+export type MutateFavorite = (args: FavoritePoemArgs) => Promise<void>;
+export type DisablePublicShare = (args: FavoritePoemArgs) => Promise<void>;
+
+function useDefaultGuestToken(): string | undefined {
+  return useUser().guestToken || undefined;
+}
+
+function useDefaultPoemDetail(
+  poemId: Id<'poems'>,
+  guestToken?: string
+): PoemDetailData | null | undefined {
+  return useQuery(api.poems.getPoemDetail, { poemId, guestToken });
+}
+
+function useDefaultPublicPoem(
+  poemId: Id<'poems'>,
+  shareSlug?: string
+): PoemDetailData | null | undefined {
+  return useQuery(api.poems.getPublicPoemFull, { poemId, shareSlug });
+}
+
+function useDefaultShareStatus(
+  shareSlug?: string
+): PoemShareStatus | null | undefined {
+  return useQuery(
+    api.poems.getPublicPoemShareStatus,
+    shareSlug ? { shareSlug } : 'skip'
+  );
+}
+
+function useDefaultIsFavorited(
+  poemId: Id<'poems'>,
+  guestToken: string | undefined,
+  isParticipant: boolean
+): boolean | undefined {
+  return useQuery(
+    api.favorites.isFavorited,
+    isParticipant ? { poemId, guestToken } : 'skip'
+  );
+}
+
+function useDefaultToggleFavorite(): MutateFavorite {
+  const toggleFavorite = useMutation(api.favorites.toggleFavorite);
+  return async (args) => {
+    await toggleFavorite(args);
+  };
+}
+
+function useDefaultDisablePublicShare(): DisablePublicShare {
+  const disablePublicShare = useMutation(api.shares.disablePublicPoemShare);
+  return async (args) => {
+    await disablePublicShare(args);
+  };
+}
+
+export interface PoemDetailDependencies {
+  useGuestToken: typeof useDefaultGuestToken;
+  usePoemDetail: typeof useDefaultPoemDetail;
+  usePublicPoem: typeof useDefaultPublicPoem;
+  useShareStatus: typeof useDefaultShareStatus;
+  useIsFavorited: typeof useDefaultIsFavorited;
+  useToggleFavorite: typeof useDefaultToggleFavorite;
+  useDisablePublicShare: typeof useDefaultDisablePublicShare;
+  PoemDisplayComponent: typeof PoemDisplay;
+}
+
+const defaultPoemDetailDependencies: PoemDetailDependencies = {
+  useGuestToken: useDefaultGuestToken,
+  usePoemDetail: useDefaultPoemDetail,
+  usePublicPoem: useDefaultPublicPoem,
+  useShareStatus: useDefaultShareStatus,
+  useIsFavorited: useDefaultIsFavorited,
+  PoemDisplayComponent: PoemDisplay,
+  useToggleFavorite: useDefaultToggleFavorite,
+  useDisablePublicShare: useDefaultDisablePublicShare,
+};
+
+interface PoemDetailProps {
+  poemId: Id<'poems'>;
+  shareSlug?: string;
+  dependencies?: PoemDetailDependencies;
+}
 
 export function PoemDetail({
   poemId,
   shareSlug,
-}: {
-  poemId: Id<'poems'>;
-  shareSlug?: string;
-}) {
-  const { guestToken } = useUser();
+  dependencies = defaultPoemDetailDependencies,
+}: PoemDetailProps) {
+  const guestToken = dependencies.useGuestToken();
+  const PoemDisplayComponent = dependencies.PoemDisplayComponent;
 
   // Try authenticated query first (includes favorite capability)
-  const poemDetail = useQuery(api.poems.getPoemDetail, {
-    poemId,
-    guestToken: guestToken || undefined,
-  });
+  const poemDetail = dependencies.usePoemDetail(poemId, guestToken);
   // Fallback to public query for outsiders
-  const publicPoem = useQuery(api.poems.getPublicPoemFull, {
-    poemId,
-    shareSlug,
-  });
-  const shareStatus = useQuery(
-    api.poems.getPublicPoemShareStatus,
-    shareSlug ? { shareSlug } : 'skip'
-  );
+  const publicPoem = dependencies.usePublicPoem(poemId, shareSlug);
+  const shareStatus = dependencies.useShareStatus(shareSlug);
   const pendingShareExpiresAt =
     shareStatus?.state === 'pending' ? shareStatus.expiresAt : undefined;
   const pendingShareKey =
@@ -56,12 +150,13 @@ export function PoemDetail({
   const isLoading =
     !data && (poemDetail === undefined || publicPoem === undefined);
 
-  const isFavorited = useQuery(
-    api.favorites.isFavorited,
-    isParticipant ? { poemId, guestToken: guestToken || undefined } : 'skip'
+  const isFavorited = dependencies.useIsFavorited(
+    poemId,
+    guestToken,
+    isParticipant
   );
-  const toggleFavorite = useMutation(api.favorites.toggleFavorite);
-  const disablePublicPoemShare = useMutation(api.shares.disablePublicPoemShare);
+  const toggleFavorite = dependencies.useToggleFavorite();
+  const disablePublicPoemShare = dependencies.useDisablePublicShare();
 
   if (
     !data &&
@@ -116,7 +211,7 @@ export function PoemDetail({
   const { poem, lines } = data;
 
   const handleToggleFavorite = async () => {
-    await toggleFavorite({ poemId, guestToken: guestToken || undefined });
+    await toggleFavorite({ poemId, guestToken });
   };
 
   // Transform lines to PoemLine format with author info
@@ -135,9 +230,9 @@ export function PoemDetail({
   const uniquePoets = new Set(lines.map((l) => l.authorName)).size;
 
   return (
-    <PoemDisplay
+    <PoemDisplayComponent
       poemId={poemId}
-      guestToken={guestToken || undefined}
+      guestToken={guestToken}
       lines={poemLines}
       variant="archive"
       alreadyRevealed
@@ -152,7 +247,7 @@ export function PoemDetail({
         onRevokeShare: async () => {
           await disablePublicPoemShare({
             poemId,
-            guestToken: guestToken || undefined,
+            guestToken,
           });
         },
         backHref: isParticipant ? '/me/poems' : '/',

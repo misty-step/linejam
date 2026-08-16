@@ -2,24 +2,15 @@
 import {
   afterAll,
   afterEach,
-  beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
   vi,
 } from 'vitest';
-
-vi.mock('server-only', () => ({}));
-const sentryMocks = vi.hoisted(() => ({
-  captureCheckIn: vi.fn(),
-  captureException: vi.fn(),
-  flush: vi.fn(),
-}));
-const captureCheckInMock = sentryMocks.captureCheckIn;
-const captureExceptionMock = sentryMocks.captureException;
-const flushSentryMock = sentryMocks.flush;
-flushSentryMock.mockResolvedValue(true);
-vi.mock('@sentry/nextjs', () => sentryMocks);
+import type { MockInstance } from 'vitest';
+import { ConvexHttpClient } from 'convex/browser';
+import { createHealthRoute } from '@/app/api/health/route';
 
 const originalEnv = { ...process.env };
 
@@ -51,31 +42,68 @@ const HEALTHY_REPORT = {
   configuration: { missingRequired: [] },
 };
 
-const mockQuery = vi.fn();
-const mockMutation = vi.fn();
-
-function parseJsonLogCalls(spy: ReturnType<typeof vi.spyOn>) {
-  const calls = spy.mock.calls as Array<[unknown, ...unknown[]]>;
-  return calls.map((call) => JSON.parse(String(call[0]))) as Array<
-    Record<string, unknown>
-  >;
+interface ParsedHealthLogEntry {
+  level: string;
+  message: string;
+  route?: string;
+  status?: number;
+  durationMs?: number;
+  healthStatus?: string;
+  operation?: string;
+  errorName?: string;
+  errorMessage?: string;
+  convex?: string;
+  observabilityStatus?: string;
 }
 
-class MockConvexHttpClient {
-  query = mockQuery;
-  mutation = mockMutation;
+function parseJsonLogCalls(spy: MockInstance): ParsedHealthLogEntry[] {
+  // SAFETY: JSON-serialized structured log payload from logger output in test spy.
+  return spy.mock.calls.map(
+    (call) => JSON.parse(String(call[0])) as ParsedHealthLogEntry
+  );
 }
+
+const captureCheckInMock = vi.fn(() => 'check-in-id');
+const captureServerErrorMock = vi.fn();
+const flushSentryMock = vi.fn(async () => true);
+const GET = createHealthRoute({
+  captureCheckIn: captureCheckInMock,
+  captureServerError: captureServerErrorMock,
+  flush: flushSentryMock,
+});
 
 describe('/api/health', () => {
+  let querySpy: MockInstance;
+  let mutationSpy: MockInstance;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    querySpy = vi
+      .spyOn(ConvexHttpClient.prototype, 'query')
+      .mockResolvedValue(HEALTHY_REPORT);
+    mutationSpy = vi
+      .spyOn(ConvexHttpClient.prototype, 'mutation')
+      .mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    querySpy.mockRestore();
+    mutationSpy.mockRestore();
+    captureCheckInMock.mockReset();
+    captureServerErrorMock.mockReset();
+    flushSentryMock.mockReset();
+    flushSentryMock.mockResolvedValue(true);
+    vi.useRealTimers();
+    process.env = { ...originalEnv };
+  });
+
   afterAll(() => {
     process.env = originalEnv;
   });
 
   describe('with healthy env', () => {
-    let GET: typeof import('@/app/api/health/route').GET;
-
-    beforeAll(async () => {
-      vi.resetModules();
+    beforeEach(() => {
       process.env = { ...originalEnv };
       process.env.GUEST_TOKEN_SECRET = HEALTHY_ENV.GUEST_TOKEN_SECRET;
       process.env.LINEJAM_DEPLOY_ENVIRONMENT =
@@ -87,26 +115,6 @@ describe('/api/health', () => {
       process.env.NEXT_DEPLOYMENT_ID = HEALTHY_ENV.NEXT_DEPLOYMENT_ID;
       process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY =
         HEALTHY_ENV.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY;
-
-      vi.doMock('convex/browser', () => ({
-        ConvexHttpClient: MockConvexHttpClient,
-      }));
-      mockQuery.mockResolvedValue(HEALTHY_REPORT);
-      mockMutation.mockResolvedValue({ ok: true });
-
-      const mod = await import('@/app/api/health/route');
-      GET = mod.GET;
-    });
-
-    afterEach(() => {
-      mockQuery.mockReset();
-      mockQuery.mockResolvedValue(HEALTHY_REPORT);
-      mockMutation.mockReset();
-      mockMutation.mockResolvedValue({ ok: true });
-      captureCheckInMock.mockReset();
-      flushSentryMock.mockReset();
-      flushSentryMock.mockResolvedValue(true);
-      vi.useRealTimers();
     });
 
     it('returns healthy data and schedules missed-equivalent Sentry detection', async () => {
@@ -193,15 +201,15 @@ describe('/api/health', () => {
     });
 
     it('returns connected when Convex ping succeeds', async () => {
-      mockQuery.mockResolvedValue(HEALTHY_REPORT);
+      querySpy.mockResolvedValue(HEALTHY_REPORT);
 
       const response = await GET();
       const data = await response.json();
 
       expect(response.status).toBe(200);
       expect(data.convex).toBe('connected');
-      expect(mockQuery).toHaveBeenCalled();
-      expect(mockMutation).toHaveBeenCalledWith(expect.anything(), {
+      expect(querySpy).toHaveBeenCalled();
+      expect(mutationSpy).toHaveBeenCalledWith(expect.anything(), {
         key: 'guestSession:deployment-readiness',
         proof: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
         dryRun: true,
@@ -209,7 +217,7 @@ describe('/api/health', () => {
     });
 
     it('returns 503 without exposing values when web and Convex guest secrets differ', async () => {
-      mockMutation.mockRejectedValue(
+      mutationSpy.mockRejectedValue(
         new Error('Invalid guest session throttle proof')
       );
 
@@ -227,7 +235,7 @@ describe('/api/health', () => {
     });
 
     it('returns 503 when Convex is reachable but required configuration is missing', async () => {
-      mockQuery.mockResolvedValue({
+      querySpy.mockResolvedValue({
         ok: false,
         status: 500,
         environment: 'production',
@@ -268,7 +276,7 @@ describe('/api/health', () => {
     });
 
     it('returns unhealthy when Convex ping fails', async () => {
-      mockQuery.mockRejectedValue(new Error('Connection refused'));
+      querySpy.mockRejectedValue(new Error('Connection refused'));
       const consoleLogSpy = vi
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -312,7 +320,7 @@ describe('/api/health', () => {
     });
 
     it('logs non-Error Convex ping failures without throwing', async () => {
-      mockQuery.mockRejectedValue('connection refused');
+      querySpy.mockRejectedValue('connection refused');
       const consoleLogSpy = vi
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -334,7 +342,7 @@ describe('/api/health', () => {
     });
 
     it('returns unhealthy when Convex never answers before the deadline', async () => {
-      mockQuery.mockImplementation(() => new Promise(() => undefined));
+      querySpy.mockImplementation(() => Promise.withResolvers<never>().promise);
       vi.spyOn(console, 'log').mockImplementation(() => {});
       vi.useFakeTimers();
 
@@ -449,7 +457,7 @@ describe('/api/health', () => {
       const previous = process.env.LINEJAM_DEPLOY_ENVIRONMENT;
       try {
         process.env.LINEJAM_DEPLOY_ENVIRONMENT = 'production';
-        mockQuery.mockResolvedValue({
+        querySpy.mockResolvedValue({
           ...HEALTHY_REPORT,
           environment: 'development',
           deployment: {
@@ -499,22 +507,12 @@ describe('/api/health', () => {
   });
 
   describe('with missing env', () => {
-    let GET: typeof import('@/app/api/health/route').GET;
-
-    beforeAll(async () => {
-      vi.resetModules();
+    beforeEach(() => {
       process.env = { ...originalEnv };
       delete process.env.GUEST_TOKEN_SECRET;
       delete process.env.NEXT_PUBLIC_CONVEX_URL;
       delete process.env.NEXT_PUBLIC_SENTRY_DSN;
       delete process.env.NEXT_PUBLIC_SENTRY_ENABLED;
-
-      vi.doMock('convex/browser', () => ({
-        ConvexHttpClient: MockConvexHttpClient,
-      }));
-
-      const mod = await import('@/app/api/health/route');
-      GET = mod.GET;
     });
 
     it('returns 503 unhealthy when critical env vars are missing', async () => {
@@ -539,36 +537,22 @@ describe('/api/health', () => {
   });
 
   describe('with internal failure', () => {
-    let GET: typeof import('@/app/api/health/route').GET;
-    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeAll(async () => {
-      vi.resetModules();
+    it('returns 500 on internal error and reports to Sentry', async () => {
       process.env = { ...originalEnv };
       process.env.NEXT_PUBLIC_SENTRY_DSN = HEALTHY_ENV.NEXT_PUBLIC_SENTRY_DSN;
       process.env.NEXT_PUBLIC_SENTRY_ENABLED =
         HEALTHY_ENV.NEXT_PUBLIC_SENTRY_ENABLED;
 
-      vi.spyOn(Date.prototype, 'toISOString').mockImplementation(() => {
-        throw new Error('Date serialization failed');
-      });
+      const dateSpy = vi
+        .spyOn(Date.prototype, 'toISOString')
+        .mockImplementation(() => {
+          throw new Error('Date serialization failed');
+        });
 
-      vi.doMock('convex/browser', () => ({
-        ConvexHttpClient: MockConvexHttpClient,
-      }));
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
-      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const mod = await import('@/app/api/health/route');
-      GET = mod.GET;
-    });
-
-    afterAll(() => {
-      vi.unstubAllGlobals();
-      vi.restoreAllMocks();
-    });
-
-    it('returns 500 on internal error and reports to Sentry', async () => {
       const response = await GET();
       const data = await response.json();
 
@@ -578,18 +562,21 @@ describe('/api/health', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('"message":"Healthcheck failed"')
       );
-      expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect(captureServerErrorMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Date serialization failed',
         }),
-        {
-          contexts: {
-            linejam: {
-              durationMs: expect.any(Number),
-            },
-          },
-        }
+        expect.objectContaining({
+          source: 'api.health',
+          method: 'GET',
+          route: '/api/health',
+          status: 500,
+          durationMs: expect.any(Number),
+        })
       );
+
+      dateSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 });

@@ -16,31 +16,37 @@ import {
 import {
   attachGuestFlowRuntimeErrorLogging,
   isolateGuestSessionIp,
+  type GuestFlowRuntimeConsoleMessage,
+  type GuestFlowRuntimeRequest,
+  type GuestFlowRuntimeResponse,
+  type GuestFlowHeaders,
+  type GuestSessionRoute,
+  type GuestSessionRouteContext,
 } from '@/tests/e2e/support/guestFlow';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+interface GuestFlowRuntimeEvents {
+  pageerror: [Error];
+  console: [GuestFlowRuntimeConsoleMessage];
+  requestfailed: [GuestFlowRuntimeRequest];
+  response: [GuestFlowRuntimeResponse];
+}
+
 describe('guest-flow evidence verdicts', () => {
   it('isolates local production browsers through the trusted ingress header', async () => {
     let routePattern = '';
-    let routeHandler:
-      | ((route: {
-          continue(options: { headers: Record<string, string> }): Promise<void>;
-          request(): { headers(): Record<string, string> };
-        }) => Promise<void>)
-      | undefined;
-    let continuedHeaders: Record<string, string> | undefined;
-    const context = {
-      async route(pattern: string, handler: NonNullable<typeof routeHandler>) {
+    let routeHandler: ((route: GuestSessionRoute) => Promise<void>) | undefined;
+    let continuedHeaders: GuestFlowHeaders | undefined;
+    const context: GuestSessionRouteContext = {
+      async route(pattern, handler) {
         routePattern = pattern;
         routeHandler = handler;
       },
     };
 
-    const ip = await isolateGuestSessionIp(
-      context as unknown as Parameters<typeof isolateGuestSessionIp>[0]
-    );
+    const ip = await isolateGuestSessionIp(context);
     await routeHandler?.({
       async continue({ headers }) {
         continuedHeaders = headers;
@@ -336,7 +342,7 @@ describe('guest-flow evidence verdicts', () => {
     });
 
     expect(
-      parseArgs([], {} as NodeJS.ProcessEnv, new Date('2026-06-11T00:00:00Z'))
+      parseArgs([], { NODE_ENV: 'test' }, new Date('2026-06-11T00:00:00Z'))
     ).toMatchObject({
       allowlistPath: '',
       baseUrl: 'https://www.linejam.app',
@@ -491,26 +497,18 @@ describe('guest-flow evidence verdicts', () => {
   });
 
   it('collects browser page, console, request, and response errors as runtime errors', () => {
-    const page = new EventEmitter();
+    const page = new EventEmitter<GuestFlowRuntimeEvents>();
     const runtimeErrors: string[] = [];
-    attachGuestFlowRuntimeErrorLogging(
-      page as unknown as Parameters<
-        typeof attachGuestFlowRuntimeErrorLogging
-      >[0],
-      'host',
-      runtimeErrors
-    );
+    attachGuestFlowRuntimeErrorLogging(page, 'host', runtimeErrors);
 
     page.emit('pageerror', new Error('render exploded'));
     page.emit('console', {
       type: () => 'error',
       text: () => 'Convex mutation failed',
-      location: () => ({ url: '' }),
     });
     page.emit('console', {
       type: () => 'warning',
       text: () => 'non-blocking warning',
-      location: () => ({ url: '' }),
     });
     page.emit('requestfailed', {
       method: () => 'POST',
@@ -542,15 +540,9 @@ describe('guest-flow evidence verdicts', () => {
   });
 
   it('ignores only aborted RSC requests from local evidence runs', () => {
-    const page = new EventEmitter();
+    const page = new EventEmitter<GuestFlowRuntimeEvents>();
     const runtimeErrors: string[] = [];
-    attachGuestFlowRuntimeErrorLogging(
-      page as unknown as Parameters<
-        typeof attachGuestFlowRuntimeErrorLogging
-      >[0],
-      'host',
-      runtimeErrors
-    );
+    attachGuestFlowRuntimeErrorLogging(page, 'host', runtimeErrors);
 
     page.emit('requestfailed', {
       method: () => 'GET',

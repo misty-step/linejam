@@ -8,85 +8,89 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { getFunctionName } from 'convex/server';
+import { cloneElement } from 'react';
+import {
+  WritingScreen,
+  type WritingScreenDependencies,
+} from '@/components/WritingScreen';
+import type { WaitingScreenDependencies } from '@/components/WaitingScreen';
+import type { Id } from '@/convex/_generated/dataModel';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 
-// Mock Next.js router (external)
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
-}));
-
-// Mock Convex hooks (external) - use a mock function we can configure per-test
 const mockSubmitLineMutation = vi.fn();
+const mockEndGameMutation = vi.fn();
 const mockUseQuery = vi.fn();
 
-vi.mock('convex/react', () => ({
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
-  useMutation: () => mockSubmitLineMutation,
-}));
-
-// Mock Clerk (external)
-vi.mock('@clerk/nextjs', () => ({
-  useUser: () => ({ user: null, isLoaded: true }),
-}));
-
-// Mock useUser hook to return pre-loaded state with guestToken. A plain
-// mutable object (rather than a fixed literal) lets individual tests flip
-// guestToken to a falsy value without re-mocking the module.
-const mockUseUserReturn: {
-  clerkUser: null;
-  guestId: string;
-  guestToken: string | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  displayName: string;
-} = {
-  clerkUser: null,
-  guestId: 'guest_123',
-  guestToken: 'mock-token',
-  isLoading: false,
-  isAuthenticated: false,
-  displayName: 'Guest',
+const mockUseRoomQueryArgs: WritingScreenDependencies['useRoomQueryArgs'] = (
+  roomCode,
+  propToken
+) => {
+  const guestToken = propToken ?? 'mock-token';
+  return {
+    guestToken,
+    shouldSkip: false,
+    queryArgs: { roomCode, guestToken },
+  };
 };
-vi.mock('@/lib/auth', () => ({
-  useUser: () => mockUseUserReturn,
-}));
 
-// Mock fetch for guest session API (external boundary)
-const mockFetch = vi.fn();
-const originalFetch = global.fetch;
+const waitingScreenDependencies: WaitingScreenDependencies = {
+  useRoomQueryArgs: mockUseRoomQueryArgs,
+  useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
+  useEndGame: () => mockEndGameMutation,
+};
 
-// Import after mocking
-import { WritingScreen } from '@/components/WritingScreen';
-import { Id } from '@/convex/_generated/dataModel';
-import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
+const writingScreenDependencies: WritingScreenDependencies = {
+  useRoomQueryArgs: mockUseRoomQueryArgs,
+  useCurrentAssignment: (args) =>
+    mockUseQuery('game:getCurrentAssignment', args),
+  useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
+  useSubmitLine: () => mockSubmitLineMutation,
+  waitingScreenDependencies,
+};
+
+function renderWritingScreen(
+  ui: React.ReactElement<React.ComponentProps<typeof WritingScreen>>
+) {
+  return render(
+    cloneElement(ui, {
+      dependencies: writingScreenDependencies,
+    })
+  );
+}
 
 describe('WritingScreen component', () => {
   const setupUser = () => userEvent.setup();
   const flushTimers = async (ms: number) => {
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, ms));
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, ms);
+      await promise;
     });
   };
   const flushDebounce = () => flushTimers(600);
   const flushSubmitTransition = () => flushTimers(1600);
 
-  // Mock assignment data matching the getCurrentAssignment return type
+  // SAFETY: Synthetic assignment fixture for WritingScreen tests.
   const mockAssignment = {
+    // SAFETY: Synthetic Convex poem ID for WritingScreen test fixture.
     poemId: 'poem_123' as Id<'poems'>,
     roomId: 'room_123',
     cycle: 1,
     lineIndex: 0, // First round, requires 1 word
     targetWordCount: 1,
     previousLineText: null,
+    hasSubmitted: false,
   };
 
   const mockAssignmentRound5 = {
+    // SAFETY: Synthetic Convex poem ID for WritingScreen test fixture.
     poemId: 'poem_456' as Id<'poems'>,
     roomId: 'room_456',
     cycle: 1,
     lineIndex: 4, // Fifth round, requires 5 words (peak of diamond)
     targetWordCount: 5,
     previousLineText: 'The moon rises silently tonight',
+    hasSubmitted: false,
   };
   const mockRoundProgress = {
     round: 0,
@@ -99,45 +103,35 @@ describe('WritingScreen component', () => {
     sessionStorage.clear();
     mockUseQuery.mockReset();
     mockSubmitLineMutation.mockReset();
-    mockUseUserReturn.guestToken = 'mock-token';
+    mockSubmitLineMutation.mockResolvedValue({
+      status: 'committed',
+      text: 'Word',
+    });
+    mockEndGameMutation.mockReset();
+    mockEndGameMutation.mockResolvedValue({ abandoned: true });
 
-    // Default: return assignment for all queries
-    // WritingScreen calls useQuery twice but only uses first result for rendering
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-      if (functionName === 'game:getRoundProgress') {
+    mockUseQuery.mockImplementation((query: string) => {
+      if (query === 'game:getRoundProgress') {
         return mockRoundProgress;
       }
       return mockAssignment;
     });
-
-    // Mock fetch at boundary - useUser calls /api/guest/session
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
-    });
-    global.fetch = mockFetch;
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
     localStorage.clear();
     sessionStorage.clear();
   });
 
   it('keeps the word counter visible in the composer flow', () => {
-    // Arrange & Act
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
     const wordSlots = document.getElementById('word-slots');
     expect(wordSlots).toBeInTheDocument();
   });
 
   it('declares the one-line 500-character mobile input contract', () => {
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
     const textarea = screen.getByTestId(E2E_TEST_IDS.writingLineInput);
     expect(textarea).toHaveAttribute('maxlength', '500');
@@ -153,8 +147,202 @@ describe('WritingScreen component', () => {
     expect(screen.getByText('7/500 characters')).toBeInTheDocument();
   });
 
+  it('shows textarea with correct aria label for word count', () => {
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    expect(screen.getByRole('textbox')).toHaveAttribute(
+      'aria-label',
+      'Write your line for round 1. Target: 1 word.'
+    );
+  });
+
+  it('calls submitLine mutation with correct args on submit', async () => {
+    mockSubmitLineMutation.mockResolvedValue(undefined);
+    const user = setupUser();
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Poetry');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+
+    await waitFor(() => {
+      expect(mockSubmitLineMutation).toHaveBeenCalledWith({
+        poemId: 'poem_123',
+        lineIndex: 0,
+        text: 'Poetry',
+        guestToken: 'mock-token',
+      });
+    });
+    await flushSubmitTransition();
+  });
+
+  it('shows error message when submission fails', async () => {
+    mockSubmitLineMutation.mockRejectedValue(new Error('Network error'));
+    const user = setupUser();
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Verse');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Unable to connect/i)).toBeInTheDocument();
+    });
+    await flushDebounce();
+  });
+
+  it('shows "Submitting…" during submission', async () => {
+    mockSubmitLineMutation.mockImplementation(() => {
+      const { promise, resolve } = Promise.withResolvers<undefined>();
+      setTimeout(resolve, 1000);
+      return promise;
+    });
+    const user = setupUser();
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Word');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Submitting/i })
+      ).toBeInTheDocument();
+    });
+    await flushSubmitTransition();
+  });
+
+  it('shows word count validation via WordSlots', () => {
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    expect(screen.getByText('words')).toBeInTheDocument();
+    const wordSlots = document.getElementById('word-slots');
+    expect(wordSlots).toHaveAttribute('aria-label', '0 of 1 words');
+  });
+
+  it('shows the first-run writing coachmark inline without opening help', () => {
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.getByText(/you only see one carried line/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/match the word slots/i)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('does not repeat the writing coachmark after this device has seen it', () => {
+    localStorage.setItem('linejam:writing-coachmark-seen', '1');
+
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.queryByText(/you only see one carried line/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('resets scroll when the active assignment changes', () => {
+    const scrollToSpy = vi
+      .spyOn(window, 'scrollTo')
+      .mockImplementation(() => undefined);
+    let activeAssignment: typeof mockAssignment | typeof mockAssignmentRound5 =
+      mockAssignment;
+
+    mockUseQuery.mockImplementation((query: string) => {
+      if (query === 'game:getRoundProgress') {
+        return mockRoundProgress;
+      }
+      return activeAssignment;
+    });
+
+    const { rerender } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: 0,
+      left: 0,
+      behavior: 'auto',
+    });
+
+    scrollToSpy.mockClear();
+    activeAssignment = mockAssignmentRound5;
+    rerender(
+      <WritingScreen roomCode="ABCD" dependencies={writingScreenDependencies} />
+    );
+
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: 0,
+      left: 0,
+      behavior: 'auto',
+    });
+    scrollToSpy.mockRestore();
+  });
+
+  it('enforces correct round constraint (diamond pattern: 1,2,3,4,5,4,3,2,1)', async () => {
+    mockUseQuery.mockReturnValue(mockAssignmentRound5);
+    const user = setupUser();
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const textarea = screen.getByRole('textbox');
+
+    await user.type(textarea, 'One two three');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Submit$/i })).toBeDisabled();
+    });
+
+    await user.type(textarea, ' four five');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /^Submit$/i })
+      ).not.toBeDisabled();
+    });
+    await flushDebounce();
+  });
+
+  it('renders the loading state while the assignment query is unresolved', () => {
+    mockUseQuery.mockReturnValue(undefined);
+
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.getByText(/Preparing your writing desk/i)
+    ).toBeInTheDocument();
+  });
+
+  it('displays previous line when available', () => {
+    mockUseQuery.mockImplementation((query: string) => {
+      if (query === 'game:getRoundProgress') {
+        return mockRoundProgress;
+      }
+      return mockAssignmentRound5;
+    });
+
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    expect(
+      screen.getByText('The moon rises silently tonight')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Received line')).toBeInTheDocument();
+  });
+
+  it('names the final-round reveal handoff after the last submission', async () => {
+    mockUseQuery.mockImplementation((query: string) => {
+      if (query === 'game:getRoundProgress') return { round: 8, players: [] };
+      return {
+        ...mockAssignment,
+        lineIndex: 8,
+        targetWordCount: 1,
+        isFinalRound: true,
+        totalRounds: 9,
+      };
+    });
+    mockSubmitLineMutation.mockResolvedValue(undefined);
+    const user = setupUser();
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+    await user.type(screen.getByRole('textbox'), 'Final');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+
+    expect(await screen.findByText(/Last line sealed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reveal is next/i)).toBeInTheDocument();
+    await flushSubmitTransition();
+  });
+
   it('owns the dynamic game viewport and reserves a non-overlapping action zone', () => {
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
     const phase = screen.getByTestId(E2E_TEST_IDS.writingPhase);
     const submit = screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton);
@@ -196,126 +384,33 @@ describe('WritingScreen component', () => {
       'min-w-[240px]',
       'py-[12px]'
     );
-
-    const textarea = screen.getByRole('textbox');
-    expect(textarea).toHaveClass('min-w-0', 'max-w-full', 'overflow-x-hidden');
-  });
-
-  it('shows the first-run writing coachmark inline without opening help', () => {
-    render(<WritingScreen roomCode="ABCD" />);
-
-    expect(
-      screen.getByText(/you only see one carried line/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/match the word slots/i)).toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('does not repeat the writing coachmark after this device has seen it', () => {
-    localStorage.setItem('linejam:writing-coachmark-seen', '1');
-
-    render(<WritingScreen roomCode="ABCD" />);
-
-    expect(
-      screen.queryByText(/you only see one carried line/i)
-    ).not.toBeInTheDocument();
-  });
-
-  it('resets scroll when the active assignment changes', () => {
-    const scrollToSpy = vi
-      .spyOn(window, 'scrollTo')
-      .mockImplementation(() => undefined);
-    let activeAssignment: typeof mockAssignment | typeof mockAssignmentRound5 =
-      mockAssignment;
-
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-      if (functionName === 'game:getRoundProgress') {
-        return mockRoundProgress;
-      }
-      return activeAssignment;
-    });
-
-    const { rerender } = render(<WritingScreen roomCode="ABCD" />);
-    expect(scrollToSpy).toHaveBeenCalledWith({
-      top: 0,
-      left: 0,
-      behavior: 'auto',
-    });
-
-    scrollToSpy.mockClear();
-    activeAssignment = mockAssignmentRound5;
-    rerender(<WritingScreen roomCode="ABCD" />);
-
-    expect(scrollToSpy).toHaveBeenCalledWith({
-      top: 0,
-      left: 0,
-      behavior: 'auto',
-    });
-
-    scrollToSpy.mockRestore();
-  });
-
-  it('shows textarea with correct aria label for word count', () => {
-    // Arrange & Act
-    render(<WritingScreen roomCode="ABCD" />);
-
-    // Assert - Textarea should have proper accessibility
-    const textarea = screen.getByRole('textbox');
-    expect(textarea).toHaveAttribute(
-      'aria-label',
-      'Write your line for round 1. Target: 1 word.'
+    expect(screen.getByRole('textbox')).toHaveClass(
+      'min-w-0',
+      'max-w-full',
+      'overflow-x-hidden'
     );
   });
 
-  it('shows word count validation via WordSlots', () => {
-    // Arrange & Act
-    render(<WritingScreen roomCode="ABCD" />);
-
-    // Assert - WordSlots shows "words" label and has correct aria-label
-    expect(screen.getByText('words')).toBeInTheDocument();
-    // Use testId since there are multiple role="status" elements (live region + WordSlots)
-    const wordSlots = document.getElementById('word-slots');
-    expect(wordSlots).toHaveAttribute('aria-label', '0 of 1 words');
-  });
-
   it('updates word count as user types', async () => {
-    // Arrange
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
-    // Act - Type one word
-    await user.type(textarea, 'Hello');
-
-    // Assert - Word count should update (WordSlots aria-label reflects count)
+    await user.type(screen.getByRole('textbox'), 'Hello');
     await waitFor(() => {
-      const wordSlots = document.getElementById('word-slots');
-      expect(wordSlots).toHaveAttribute('aria-label', '1 of 1 words');
+      expect(document.getElementById('word-slots')).toHaveAttribute(
+        'aria-label',
+        '1 of 1 words'
+      );
     });
     await flushDebounce();
   });
 
-  it('keeps an in-progress line in session storage for reload recovery', async () => {
-    const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-
-    await user.type(screen.getByRole('textbox'), 'Hello');
-
-    expect(
-      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
-    ).toBe('Hello');
-  });
-
   it('preserves the draft when the browser goes offline', async () => {
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
     const textarea = screen.getByRole('textbox');
-    await user.type(textarea, 'Still here');
 
+    await user.type(textarea, 'Still here');
     act(() => window.dispatchEvent(new Event('offline')));
 
     expect(textarea).toHaveValue('Still here');
@@ -324,79 +419,39 @@ describe('WritingScreen component', () => {
     ).toBe('Still here');
   });
 
-  it('restores the current assignment draft after a reload', () => {
-    sessionStorage.setItem(
-      'linejam:writing-draft:ABCD:poem_123:0',
-      'Recovered'
-    );
-
-    render(<WritingScreen roomCode="ABCD" />);
-
-    expect(screen.getByRole('textbox')).toHaveValue('Recovered');
-    expect(screen.getByText('Draft restored')).toBeInTheDocument();
-  });
-
   it('normalizes a legacy multiline draft before rendering', () => {
     sessionStorage.setItem(
       'linejam:writing-draft:ABCD:poem_123:0',
       '  Recovered\nline  '
     );
 
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
     expect(screen.getByRole('textbox')).toHaveValue('Recovered line');
   });
 
-  it('clears the saved draft once Convex confirms the line', async () => {
-    mockSubmitLineMutation.mockResolvedValue(undefined);
-    sessionStorage.setItem(
-      'linejam:writing-draft:ABCD:poem_123:0',
-      'Recovered'
-    );
-    const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-
-    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
-
-    await waitFor(() => expect(mockSubmitLineMutation).toHaveBeenCalled());
-    expect(
-      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
-    ).toBeNull();
-  });
-
   it('submit button disabled when word count is wrong', () => {
-    // Arrange - Assignment requires 1 word, text is empty
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
-    // Assert - Button should be disabled
-    const submitButton = screen.getByRole('button', {
-      name: /^Submit$/i,
-    });
-    expect(submitButton).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Submit$/i })).toBeDisabled();
   });
 
   it('submit button enabled when word count is correct', async () => {
-    // Arrange
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
-    // Act - Type exactly 1 word
-    await user.type(textarea, 'Word');
-
-    // Assert - Button should be enabled
+    await user.type(screen.getByRole('textbox'), 'Word');
     await waitFor(() => {
-      const submitButton = screen.getByRole('button', {
-        name: /^Submit$/i,
-      });
-      expect(submitButton).not.toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /^Submit$/i })
+      ).not.toBeDisabled();
     });
     await flushDebounce();
   });
 
   it('shows a visible ready signal when the target word count is reached', async () => {
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
     await user.type(screen.getByRole('textbox'), 'Word');
 
@@ -409,115 +464,22 @@ describe('WritingScreen component', () => {
     await flushDebounce();
   });
 
-  it('displays previous line when available', () => {
-    // Arrange - Use assignment with previous line
-    mockUseQuery.mockReturnValue(mockAssignmentRound5);
-
-    // Act
-    render(<WritingScreen roomCode="ABCD" />);
-
-    // Assert - Previous line should be visible
-    expect(
-      screen.getByText('The moon rises silently tonight')
-    ).toBeInTheDocument();
-    expect(screen.getByText('Received line')).toBeInTheDocument();
-  });
-
-  it('names the final-round reveal handoff after the last submission', async () => {
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-      if (functionName === 'game:getRoundProgress') {
-        return { round: 8, players: [] };
-      }
-      return {
-        ...mockAssignment,
-        lineIndex: 8,
-        targetWordCount: 1,
-        isFinalRound: true,
-        totalRounds: 9,
-      };
-    });
-    mockSubmitLineMutation.mockResolvedValue(undefined);
-    const user = setupUser();
-
-    render(<WritingScreen roomCode="ABCD" />);
-
-    await user.type(screen.getByRole('textbox'), 'Final');
-    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
-
-    expect(await screen.findByText(/Last line sealed/i)).toBeInTheDocument();
-    expect(screen.getByText(/Reveal is next/i)).toBeInTheDocument();
-    await flushSubmitTransition();
-  });
-
-  it('enforces correct round constraint (diamond pattern: 1,2,3,4,5,4,3,2,1)', async () => {
-    // Arrange - Round 5 requires 5 words
-    mockUseQuery.mockReturnValue(mockAssignmentRound5);
-
-    const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
-
-    // Act - Type only 3 words (not enough)
-    await user.type(textarea, 'One two three');
-
-    // Assert - Button should still be disabled (need 5 words)
-    await waitFor(() => {
-      const submitButton = screen.getByRole('button', {
-        name: /^Submit$/i,
-      });
-      expect(submitButton).toBeDisabled();
-    });
-
-    // Act - Add 2 more words
-    await user.type(textarea, ' four five');
-
-    // Assert - Now button should be enabled
-    await waitFor(() => {
-      const submitButton = screen.getByRole('button', {
-        name: /^Submit$/i,
-      });
-      expect(submitButton).not.toBeDisabled();
-    });
-    await flushDebounce();
-  });
-
-  it('calls submitLine mutation with correct args on submit', async () => {
-    // Arrange
-    mockSubmitLineMutation.mockResolvedValue(undefined);
-    const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
-
-    // Act - Type valid word and submit
-    await user.type(textarea, 'Poetry');
-    const submitButton = screen.getByRole('button', {
-      name: /^Submit$/i,
-    });
-    await user.click(submitButton);
-
-    // Assert
-    await waitFor(() => {
-      expect(mockSubmitLineMutation).toHaveBeenCalledWith({
-        poemId: 'poem_123',
-        lineIndex: 0,
-        text: 'Poetry',
-        guestToken: 'mock-token',
-      });
-    });
-    await flushSubmitTransition();
-  });
-
   it('submits guestToken as undefined when no guest session is established yet', async () => {
-    mockUseUserReturn.guestToken = null;
+    const dependenciesWithoutGuest: WritingScreenDependencies = {
+      ...writingScreenDependencies,
+      useRoomQueryArgs: (roomCode) => ({
+        guestToken: null,
+        shouldSkip: false,
+        queryArgs: { roomCode, guestToken: undefined },
+      }),
+    };
     mockSubmitLineMutation.mockResolvedValue(undefined);
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
+    render(
+      <WritingScreen roomCode="ABCD" dependencies={dependenciesWithoutGuest} />
+    );
 
-    await user.type(textarea, 'Poetry');
+    await user.type(screen.getByRole('textbox'), 'Poetry');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
 
     await waitFor(() => {
@@ -531,49 +493,16 @@ describe('WritingScreen component', () => {
     await flushSubmitTransition();
   });
 
-  it('shows "Submitting…" during submission', async () => {
-    // Arrange - Make mutation take time
-    mockSubmitLineMutation.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
-    );
-    const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
-
-    // Act - Type and submit
-    await user.type(textarea, 'Word');
-    const submitButton = screen.getByRole('button', {
-      name: /^Submit$/i,
-    });
-    await user.click(submitButton);
-
-    // Assert - Button should show submitting state
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /Submitting/i })
-      ).toBeInTheDocument();
-    });
-    await flushSubmitTransition();
-  });
-
   it('shows confirmation message after successful submit', async () => {
-    // Arrange
     mockSubmitLineMutation.mockResolvedValue(undefined);
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
-    // Act
-    await user.type(textarea, 'Beautiful');
-    const submitButton = screen.getByRole('button', {
-      name: /^Submit$/i,
-    });
-    await user.click(submitButton);
+    await user.type(screen.getByRole('textbox'), 'Beautiful');
+    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
 
-    // Assert - Should show confirmation (uses curly quotes in component)
     await waitFor(() => {
       expect(screen.getByText(/Your Line Submitted/i)).toBeInTheDocument();
-      // Confirmation text is rendered inside a paragraph with curly quotes
       expect(screen.getByText(/\u201cBeautiful\u201d/)).toBeInTheDocument();
     });
     await flushSubmitTransition();
@@ -587,7 +516,7 @@ describe('WritingScreen component', () => {
         text: 'Stored line',
       });
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
     await user.type(screen.getByRole('textbox'), 'Draft');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
@@ -604,269 +533,198 @@ describe('WritingScreen component', () => {
     await flushSubmitTransition();
   });
 
-  it('shows error message when submission fails', async () => {
-    // Arrange
-    mockSubmitLineMutation.mockRejectedValue(new Error('Network error'));
-    const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
-
-    // Act
-    await user.type(textarea, 'Verse');
-    const submitButton = screen.getByRole('button', {
-      name: /^Submit$/i,
-    });
-    await user.click(submitButton);
-
-    // Assert - Error should appear
-    await waitFor(() => {
-      expect(screen.getByText(/Unable to connect/i)).toBeInTheDocument();
-    });
-    await flushDebounce();
-  });
-
   it('renders WaitingScreen when no assignment', () => {
-    // Arrange - No assignment available, return progress for WaitingScreen
-    mockUseQuery
-      .mockReturnValueOnce(null) // getCurrentAssignment returns null
-      .mockReturnValue({ round: 0, players: [] }); // getRoundProgress for WaitingScreen
+    mockUseQuery.mockImplementation((query: string) => {
+      if (query === 'game:getRoundProgress') return mockRoundProgress;
+      return null;
+    });
 
-    // Act
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
-    // Assert - Should show waiting screen content
-    // WaitingScreen shows "Ready" or "Others are writing..."
     expect(screen.getByText(/Ready|Others are writing/i)).toBeInTheDocument();
   });
 
-  it('renders the loading state while the assignment query is unresolved', () => {
-    mockUseQuery.mockReturnValue(undefined);
-
-    render(<WritingScreen roomCode="ABCD" />);
-
-    expect(
-      screen.getByText(/Preparing your writing desk/i)
-    ).toBeInTheDocument();
-  });
-
   it('textarea has aria-invalid when word count is wrong', () => {
-    // Arrange & Act - Empty textarea with target of 1 word
-    render(<WritingScreen roomCode="ABCD" />);
-    const textarea = screen.getByRole('textbox');
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
-    // Assert
-    expect(textarea).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('textarea has aria-invalid=false when word count is correct', async () => {
-    // Arrange
     const user = setupUser();
-    render(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
     const textarea = screen.getByRole('textbox');
 
-    // Act - Type exactly 1 word
     await user.type(textarea, 'Perfect');
-
-    // Assert
     await waitFor(() => {
       expect(textarea).toHaveAttribute('aria-invalid', 'false');
     });
     await flushDebounce();
   });
 
-  describe('placeholder text', () => {
-    it('shows "write one word…" for round 1 (singular)', () => {
-      // Arrange - Round 1 requires 1 word
-      mockUseQuery.mockReturnValue({
-        ...mockAssignment,
-        lineIndex: 0,
-        targetWordCount: 1,
+  describe('round-aware placeholders', () => {
+    const renderRound = (lineIndex: number, targetWordCount: number) => {
+      mockUseQuery.mockImplementation((query: string) => {
+        if (query === 'game:getRoundProgress') return mockRoundProgress;
+        return { ...mockAssignment, lineIndex, targetWordCount };
       });
+      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    };
 
-      // Act
-      render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Assert
-      expect(textarea).toHaveAttribute('placeholder', 'write one word…');
+    it('shows "write one word…" for round 1 (singular)', () => {
+      renderRound(0, 1);
+      expect(screen.getByRole('textbox')).toHaveAttribute(
+        'placeholder',
+        'write one word…'
+      );
     });
 
     it('shows "write two words…" for round 2 (plural)', () => {
-      // Arrange - Round 2 requires 2 words
-      mockUseQuery.mockReturnValue({
-        ...mockAssignment,
-        lineIndex: 1,
-        targetWordCount: 2,
-      });
-
-      // Act
-      render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Assert
-      expect(textarea).toHaveAttribute('placeholder', 'write two words…');
+      renderRound(1, 2);
+      expect(screen.getByRole('textbox')).toHaveAttribute(
+        'placeholder',
+        'write two words…'
+      );
     });
 
     it('shows "write five words…" for round 5 (peak of diamond)', () => {
-      // Arrange - Round 5 requires 5 words
-      mockUseQuery.mockReturnValue(mockAssignmentRound5);
-
-      // Act
-      render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Assert
-      expect(textarea).toHaveAttribute('placeholder', 'write five words…');
+      renderRound(4, 5);
+      expect(screen.getByRole('textbox')).toHaveAttribute(
+        'placeholder',
+        'write five words…'
+      );
     });
 
     it('shows "write three words…" for round 3', () => {
-      // Arrange - Round 3 requires 3 words
-      mockUseQuery.mockReturnValue({
-        ...mockAssignment,
-        lineIndex: 2,
-        targetWordCount: 3,
-      });
-
-      // Act
-      render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Assert
-      expect(textarea).toHaveAttribute('placeholder', 'write three words…');
+      renderRound(2, 3);
+      expect(screen.getByRole('textbox')).toHaveAttribute(
+        'placeholder',
+        'write three words…'
+      );
     });
 
     it('shows "write four words…" for round 4', () => {
-      // Arrange - Round 4 requires 4 words
-      mockUseQuery.mockReturnValue({
-        ...mockAssignment,
-        lineIndex: 3,
-        targetWordCount: 4,
-      });
-
-      // Act
-      render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Assert
-      expect(textarea).toHaveAttribute('placeholder', 'write four words…');
+      renderRound(3, 4);
+      expect(screen.getByRole('textbox')).toHaveAttribute(
+        'placeholder',
+        'write four words…'
+      );
     });
 
     it('falls back to the numeral when target word count exceeds the known number words', () => {
-      // numberToWord only spells out zero through five; anything beyond that
-      // is a defensive fallback that should still render a sane placeholder.
-      mockUseQuery.mockReturnValue({
-        ...mockAssignment,
-        lineIndex: 5,
-        targetWordCount: 6,
-      });
-
-      render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      expect(textarea).toHaveAttribute('placeholder', 'write 6 words…');
+      renderRound(5, 6);
+      expect(screen.getByRole('textbox')).toHaveAttribute(
+        'placeholder',
+        'write 6 words…'
+      );
     });
   });
 
   describe('live region announcements', () => {
-    // Helper to find the screen reader live region (not WordSlots)
-    const getLiveRegion = (container: HTMLElement) => {
-      return container.querySelector('[aria-live="polite"][class*="sr-only"]');
+    const getLiveRegion = (container: HTMLElement) =>
+      container.querySelector('[aria-live="polite"][class*="sr-only"]');
+
+    const renderTarget = (targetWordCount: number) => {
+      mockUseQuery.mockImplementation((query: string) => {
+        if (query === 'game:getRoundProgress') return mockRoundProgress;
+        return { ...mockAssignment, targetWordCount };
+      });
+      return renderWritingScreen(<WritingScreen roomCode="ABCD" />);
     };
 
     it('announces "Remove 1 word" when exactly 1 word over target', async () => {
-      // Arrange - Round 1 requires 1 word (default mock)
       const user = setupUser();
-      const { container } = render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Act - Type 2 words (1 over the target of 1)
-      await user.type(textarea, 'Hello world');
+      const { container } = renderTarget(1);
+      await user.type(screen.getByRole('textbox'), 'Hello world');
       await flushDebounce();
-
-      // Assert - Wait for debounced live region to update
-      const liveRegion = getLiveRegion(container);
-      expect(liveRegion).toHaveTextContent('Remove 1 word');
+      expect(getLiveRegion(container)).toHaveTextContent('Remove 1 word');
     });
 
     it('announces "Remove X words" when multiple words over target', async () => {
-      // Arrange - Round 1 requires 1 word (default mock)
       const user = setupUser();
-      const { container } = render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Act - Type 3 words (2 over the target of 1)
-      await user.type(textarea, 'One two three');
+      const { container } = renderTarget(1);
+      await user.type(screen.getByRole('textbox'), 'One two three');
       await flushDebounce();
-
-      // Assert - Wait for debounced live region to update
-      const liveRegion = getLiveRegion(container);
-      expect(liveRegion).toHaveTextContent('Remove 2 words');
+      expect(getLiveRegion(container)).toHaveTextContent('Remove 2 words');
     });
 
     it('announces "Ready to submit" when word count is valid', async () => {
-      // Arrange - Round 1 requires 1 word (default mock)
       const user = setupUser();
-      const { container } = render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Act - Type exactly 1 word (matches target)
-      await user.type(textarea, 'Poetry');
+      const { container } = renderTarget(1);
+      await user.type(screen.getByRole('textbox'), 'Poetry');
       await flushDebounce();
-
-      // Assert - Wait for debounced live region to update
-      const liveRegion = getLiveRegion(container);
-      expect(liveRegion).toHaveTextContent('Ready to submit');
+      expect(getLiveRegion(container)).toHaveTextContent('Ready to submit');
     });
 
     it('announces "Add X words" when under target', async () => {
-      // Arrange - Round 5 requires 5 words
-      mockUseQuery.mockReturnValue(mockAssignmentRound5);
       const user = setupUser();
-      const { container } = render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Act - Type only 2 words (3 under the target of 5)
-      await user.type(textarea, 'Two words');
+      const { container } = renderTarget(5);
+      await user.type(screen.getByRole('textbox'), 'Two words');
       await flushDebounce();
-
-      // Assert - Wait for debounced live region to update
-      const liveRegion = getLiveRegion(container);
-      expect(liveRegion).toHaveTextContent('Add 3 words');
+      expect(getLiveRegion(container)).toHaveTextContent('Add 3 words');
     });
 
     it('announces "Add 1 word" (singular) when exactly one word under target', async () => {
-      // Arrange - Round 5 requires 5 words
-      mockUseQuery.mockReturnValue(mockAssignmentRound5);
       const user = setupUser();
-      const { container } = render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox');
-
-      // Act - Type 4 words (1 under the target of 5)
-      await user.type(textarea, 'One two three four');
+      const { container } = renderTarget(5);
+      await user.type(screen.getByRole('textbox'), 'One two three four');
       await flushDebounce();
-
-      // Assert - singular "word", not "words"
-      const liveRegion = getLiveRegion(container);
-      expect(liveRegion).toHaveTextContent(/^Add 1 word$/);
+      expect(getLiveRegion(container)).toHaveTextContent(/^Add 1 word$/);
     });
 
     it('keeps the live region silent before the player starts typing', async () => {
-      const { container } = render(<WritingScreen roomCode="ABCD" />);
-
+      const { container } = renderTarget(1);
       await flushDebounce();
+      expect(getLiveRegion(container)).toHaveTextContent('');
+    });
+  });
 
-      const liveRegion = getLiveRegion(container);
-      expect(liveRegion).toHaveTextContent('');
+  describe('draft autosaving', () => {
+    it('restores the current assignment draft after a reload', () => {
+      sessionStorage.setItem(
+        'linejam:writing-draft:ABCD:poem_123:0',
+        'Recovered'
+      );
+
+      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+      expect(screen.getByRole('textbox')).toHaveValue('Recovered');
+      expect(screen.getByText('Draft restored')).toBeInTheDocument();
+    });
+
+    it('keeps an in-progress line in session storage for reload recovery', async () => {
+      const user = setupUser();
+      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+      await user.type(screen.getByRole('textbox'), 'Hello');
+
+      expect(
+        sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+      ).toBe('Hello');
+    });
+
+    it('clears the saved draft once Convex confirms the line', async () => {
+      mockSubmitLineMutation.mockResolvedValue(undefined);
+      sessionStorage.setItem(
+        'linejam:writing-draft:ABCD:poem_123:0',
+        'Recovered'
+      );
+      const user = setupUser();
+      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+
+      await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+
+      await waitFor(() => expect(mockSubmitLineMutation).toHaveBeenCalled());
+      expect(
+        sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+      ).toBeNull();
     });
   });
 
   describe('round transitions', () => {
     it('opens the waiting state when a submitted assignment reloads', () => {
-      mockUseQuery.mockImplementation((query) => {
-        const functionName = getFunctionName(
-          query as Parameters<typeof getFunctionName>[0]
-        );
-        if (functionName === 'game:getRoundProgress') {
+      mockUseQuery.mockImplementation((query: string) => {
+        if (query === 'game:getRoundProgress') {
           return {
             round: 0,
             players: [
@@ -888,7 +746,7 @@ describe('WritingScreen component', () => {
         return { ...mockAssignment, hasSubmitted: true };
       });
 
-      render(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
 
       expect(screen.getByTestId(E2E_TEST_IDS.waitingPhase)).toBeInTheDocument();
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -896,17 +754,19 @@ describe('WritingScreen component', () => {
 
     it('resets the draft when the assignment advances to the next round', async () => {
       const user = setupUser();
-      const { rerender } = render(<WritingScreen roomCode="ABCD" />);
-      const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      const { rerender } = renderWritingScreen(
+        <WritingScreen roomCode="ABCD" />
+      );
+      const textarea = screen.getByRole('textbox');
+      if (!(textarea instanceof HTMLTextAreaElement)) {
+        throw new Error('Expected HTMLTextAreaElement');
+      }
 
       await user.type(textarea, 'Word');
       expect(textarea.value).toBe('Word');
 
-      mockUseQuery.mockImplementation((query) => {
-        const functionName = getFunctionName(
-          query as Parameters<typeof getFunctionName>[0]
-        );
-        if (functionName === 'game:getRoundProgress') {
+      mockUseQuery.mockImplementation((query: string) => {
+        if (query === 'game:getRoundProgress') {
           return { round: 1, players: [] };
         }
         return {
@@ -916,43 +776,44 @@ describe('WritingScreen component', () => {
         };
       });
 
-      rerender(<WritingScreen roomCode="ABCD" />);
+      rerender(
+        <WritingScreen
+          roomCode="ABCD"
+          dependencies={writingScreenDependencies}
+        />
+      );
 
       await waitFor(() => {
         expect(screen.getByRole('textbox')).toHaveAttribute(
           'aria-label',
           'Write your line for round 2. Target: 2 words.'
         );
-        expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
-          ''
-        );
+        const nextTextarea = screen.getByRole('textbox');
+        if (!(nextTextarea instanceof HTMLTextAreaElement)) {
+          throw new Error('Expected HTMLTextAreaElement');
+        }
+        expect(nextTextarea.value).toBe('');
       });
     });
   });
 
   describe('room chrome', () => {
     it('shows the round chrome header above the composer when showChrome is set', () => {
-      mockUseQuery.mockImplementation((query) => {
-        const functionName = getFunctionName(
-          query as Parameters<typeof getFunctionName>[0]
-        );
-        if (functionName === 'game:getRoundProgress') {
+      mockUseQuery.mockImplementation((query: string) => {
+        if (query === 'game:getRoundProgress') {
           return mockRoundProgress;
         }
         return mockAssignment;
       });
 
-      render(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
 
       expect(screen.getByText('Round 1 · 1 word')).toBeInTheDocument();
     });
 
     it('names the final round in the chrome when showChrome is set', () => {
-      mockUseQuery.mockImplementation((query) => {
-        const functionName = getFunctionName(
-          query as Parameters<typeof getFunctionName>[0]
-        );
-        if (functionName === 'game:getRoundProgress') {
+      mockUseQuery.mockImplementation((query: string) => {
+        if (query === 'game:getRoundProgress') {
           return mockRoundProgress;
         }
         return {
@@ -964,17 +825,14 @@ describe('WritingScreen component', () => {
         };
       });
 
-      render(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
 
       expect(screen.getByText('Last line · 1 word')).toBeInTheDocument();
     });
 
     it('shows the round chrome above the late-joiner waiting screen when showChrome is set', () => {
-      mockUseQuery.mockImplementation((query) => {
-        const functionName = getFunctionName(
-          query as Parameters<typeof getFunctionName>[0]
-        );
-        if (functionName === 'game:getRoundProgress') {
+      mockUseQuery.mockImplementation((query: string) => {
+        if (query === 'game:getRoundProgress') {
           return {
             round: 2,
             isCurrentUserSpectator: true,
@@ -984,10 +842,10 @@ describe('WritingScreen component', () => {
             ],
           };
         }
-        return null; // no assignment yet — late joiner waiting for the round
+        return null;
       });
 
-      render(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
 
       expect(screen.getByText('Round 3 of 9')).toBeInTheDocument();
       expect(screen.getByText('1 of 2 ready.')).toBeInTheDocument();

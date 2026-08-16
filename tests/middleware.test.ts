@@ -1,16 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
-import type { NextFetchEvent } from 'next/server';
+import { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event';
+import middleware, { setClerkMiddlewareLoader } from '../middleware';
 
-vi.mock('@clerk/nextjs/server', () => ({
-  clerkMiddleware: () => (req: NextRequest) =>
-    NextResponse.next({ request: { headers: req.headers } }),
-}));
-
-// Middleware's event parameter is only forwarded to upstream handlers; the
-// mocked Clerk handler and passthrough ignore it, so a bare stub suffices.
-const fetchEvent = {} as NextFetchEvent;
-
+// Use the concrete event implementation that Next's adapter passes to
+// middleware. `next/server` only exposes `NextFetchEvent` as a type in Node.
+const fetchEvent = new NextFetchEvent({
+  request: new NextRequest('http://localhost:3000'),
+  page: '',
+  context: undefined,
+});
 /**
  * Regression coverage for linejam-942: a guest hitting /me/* must never be
  * redirected away. The pages under /me/* already resolve identity
@@ -36,6 +35,7 @@ afterEach(() => {
   } else {
     process.env.CLERK_SECRET_KEY = ORIGINAL_CLERK_SECRET_KEY;
   }
+  setClerkMiddlewareLoader(null);
   vi.resetModules();
   vi.restoreAllMocks();
 });
@@ -156,13 +156,15 @@ describe('middleware — document CSP containment', () => {
 describe('middleware — Clerk configured', () => {
   it('takes the clerkMiddleware() success path, not the init-failure fallback', async () => {
     // Not a real credential — just needs to be a non-empty string so
-    // the request-time resolver takes the Clerk branch. The mocked handler
+    // the request-time resolver takes the Clerk branch. The injected loader
     // keeps this test local while exercising the lazy initialization path.
     process.env.CLERK_SECRET_KEY = 'test-value-not-a-real-clerk-secret';
-    vi.resetModules();
+    setClerkMiddlewareLoader(async () => ({
+      clerkMiddleware: () => (req: NextRequest) =>
+        NextResponse.next({ request: { headers: req.headers } }),
+    }));
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const { default: middleware } = await import('../middleware');
     const response = (await middleware(
       new NextRequest('http://localhost:3000/api/health'),
       fetchEvent

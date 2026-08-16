@@ -9,6 +9,7 @@ import { captureError } from '../../lib/error';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { hashRoomId, trackGameJoined } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
+import { toErrorReportable } from '../../lib/errorCore';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -25,11 +26,66 @@ function normalizeRoomCode(value: string): string {
     .slice(0, 4);
 }
 
-function JoinForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+interface JoinPageRouter {
+  push(href: string): void;
+}
+
+interface JoinPageSearchParams {
+  get(name: string): string | null;
+}
+
+interface JoinPageUserState {
+  guestToken: string | null;
+  isLoading: boolean;
+  authError: string | null;
+  retryAuth(): void;
+}
+
+export interface JoinRoomResult {
+  _id: string;
+  currentCycle?: number;
+}
+
+export type JoinRoom = (args: {
+  code: string;
+  displayName: string;
+  guestToken?: string;
+}) => Promise<JoinRoomResult>;
+
+function useDefaultJoinRoom(): JoinRoom {
+  const joinRoom = useMutation(api.rooms.joinRoom);
+  return async (args) => joinRoom(args);
+}
+
+function useDefaultJoinUser(): JoinPageUserState {
   const { guestToken, isLoading, authError, retryAuth } = useUser();
-  const joinRoomMutation = useMutation(api.rooms.joinRoom);
+  return { guestToken, isLoading, authError, retryAuth };
+}
+
+export interface JoinPageDependencies {
+  useRouter(): JoinPageRouter;
+  useSearchParams(): JoinPageSearchParams;
+  useUser(): JoinPageUserState;
+  useJoinRoom(): JoinRoom;
+}
+
+const defaultJoinPageDependencies: JoinPageDependencies = {
+  useRouter,
+  useSearchParams,
+  useUser: useDefaultJoinUser,
+  useJoinRoom: useDefaultJoinRoom,
+};
+
+interface JoinPageProps {
+  dependencies?: JoinPageDependencies;
+}
+
+function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
+  const router = dependencies.useRouter();
+  const searchParams = dependencies.useSearchParams();
+  const { guestToken, isLoading, authError, retryAuth } =
+    dependencies.useUser();
+  const joinRoomMutation = dependencies.useJoinRoom();
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [code, setCode] = useState(() =>
@@ -60,10 +116,11 @@ function JoinForm() {
         cycle: room.currentCycle ?? 1,
       });
       router.push(`/room/${normalizedCode}`);
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+    } catch (cause) {
+      const error = toErrorReportable(cause);
+      const feedback = errorToFeedback(error);
       setError(feedback.message);
-      captureError(err, { roomCode: normalizedCode });
+      captureError(error, { roomCode: normalizedCode });
       setIsSubmitting(false);
     }
   };
@@ -184,12 +241,18 @@ function JoinForm() {
   );
 }
 
-export default function JoinPage() {
+export function JoinPage({
+  dependencies = defaultJoinPageDependencies,
+}: JoinPageProps = {}) {
   return (
     <div className="min-h-screen w-full bg-[var(--color-background)] px-4 py-6 sm:p-6 md:p-12 lg:p-20 flex flex-col">
       <Suspense fallback={<div>Loading...</div>}>
-        <JoinForm />
+        <JoinForm dependencies={dependencies} />
       </Suspense>
     </div>
   );
+}
+
+export default function JoinRoutePage() {
+  return <JoinPage />;
 }

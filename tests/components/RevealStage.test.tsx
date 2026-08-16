@@ -8,6 +8,7 @@ import { Id } from '@/convex/_generated/dataModel';
 
 const poems = [
   {
+    // SAFETY: Synthetic Convex poem ID for RevealStage test fixture.
     _id: 'poem_old' as Id<'poems'>,
     indexInRoom: 0,
     readerName: 'Older Reader',
@@ -15,6 +16,7 @@ const poems = [
     isRevealed: true,
   },
   {
+    // SAFETY: Synthetic Convex poem ID for RevealStage test fixture.
     _id: 'poem_latest' as Id<'poems'>,
     indexInRoom: 1,
     readerName: 'Latest Reader',
@@ -72,6 +74,7 @@ describe('RevealStage', () => {
 
   it('shows error feedback and disabled reveal state', () => {
     const assignedPoem = {
+      // SAFETY: Synthetic Convex poem ID for RevealStage test fixture.
       _id: 'poem_assigned' as Id<'poems'>,
       indexInRoom: 0,
       readerName: 'Human Reader',
@@ -101,6 +104,7 @@ describe('RevealStage', () => {
   it('labels a fallback reveal without pretending the poem was reassigned', () => {
     const onRevealPoem = vi.fn().mockResolvedValue(undefined);
     const fallbackPoem = {
+      // SAFETY: Synthetic Convex poem ID for RevealStage test fixture.
       _id: 'poem_fallback' as Id<'poems'>,
       indexInRoom: 0,
       readerName: 'Reader Away',

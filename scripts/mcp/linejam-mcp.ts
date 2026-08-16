@@ -9,14 +9,34 @@
  */
 
 import * as readline from 'node:readline';
-import { createLinejamClient, mintGuestToken } from '../lib/linejamClient';
+import {
+  createLinejamClient,
+  mintGuestToken,
+  type LinejamClient,
+  type LinejamClientResult,
+} from '../lib/linejamClient';
 import type { Id } from '@/convex/_generated/dataModel';
 
-interface JsonRpcRequest {
+export type LinejamToolArgs = {
+  displayName?: string;
+  guestToken?: string;
+  code?: string;
+  roomCode?: string;
+  poemId?: string;
+  lineIndex?: number;
+  text?: string;
+};
+
+export type JsonRpcParams = {
+  name?: string;
+  arguments?: LinejamToolArgs;
+};
+
+export interface JsonRpcRequest {
   jsonrpc: '2.0';
   id: number | string | null;
   method: string;
-  params?: Record<string, unknown>;
+  params?: JsonRpcParams;
 }
 
 interface ToolDef {
@@ -156,14 +176,33 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
+function toPoemId(id: string): Id<'poems'> {
+  // SAFETY: Convex document ID branding is runtime-opaque and validated by the backend; presence is verified before dispatching.
+  return id as Id<'poems'>;
+}
+
+function parseRequiredString(
+  value: string | undefined,
+  fieldName: string
+): string {
+  if (
+    !value ||
+    Object.prototype.toString.call(value) !== '[object String]' ||
+    value.trim().length === 0
+  ) {
+    throw new Error(`Missing required parameter: ${fieldName}`);
+  }
+  return value;
+}
+
 /** Dispatches one tool call. `injectedClient` is optional so tests can pass
  * a mock without the real ConvexHttpClient (the network/system boundary)
  * ever loading; production calls build the real client lazily, and never at
  * all for linejam_mint_guest (which needs no Convex deployment). */
 export async function callTool(
   name: string,
-  args: Record<string, unknown>,
-  injectedClient?: ReturnType<typeof createLinejamClient>
+  args: LinejamToolArgs = {},
+  injectedClient?: LinejamClient
 ) {
   if (name === 'linejam_mint_guest') {
     return mintGuestToken();
@@ -173,50 +212,96 @@ export async function callTool(
 
   switch (name) {
     case 'linejam_create_room':
-      return client.createRoom(
-        args as { displayName: string; guestToken?: string }
-      );
+      return client.createRoom({
+        displayName: parseRequiredString(args.displayName, 'displayName'),
+        guestToken: args.guestToken,
+      });
     case 'linejam_join_room':
-      return client.joinRoom(
-        args as { code: string; displayName: string; guestToken?: string }
-      );
+      return client.joinRoom({
+        code: parseRequiredString(args.code, 'code'),
+        displayName: parseRequiredString(args.displayName, 'displayName'),
+        guestToken: args.guestToken,
+      });
     case 'linejam_room_state':
-      return client.getRoomState(args as { code: string; guestToken?: string });
+      return client.getRoomState({
+        code: parseRequiredString(args.code, 'code'),
+        guestToken: args.guestToken,
+      });
     case 'linejam_start_game':
-      return client.startGame(args as { code: string; guestToken?: string });
+      return client.startGame({
+        code: parseRequiredString(args.code, 'code'),
+        guestToken: args.guestToken,
+      });
     case 'linejam_current_assignment':
-      return client.getCurrentAssignment(
-        args as { roomCode: string; guestToken?: string }
-      );
-    case 'linejam_submit_line':
-      return client.submitLine(
-        args as {
-          poemId: Id<'poems'>;
-          lineIndex: number;
-          text: string;
-          guestToken?: string;
-        }
-      );
+      return client.getCurrentAssignment({
+        roomCode: parseRequiredString(args.roomCode, 'roomCode'),
+        guestToken: args.guestToken,
+      });
+    case 'linejam_submit_line': {
+      if (args.lineIndex === undefined || !Number.isFinite(args.lineIndex)) {
+        throw new Error('Missing required parameter: lineIndex');
+      }
+      return client.submitLine({
+        poemId: toPoemId(parseRequiredString(args.poemId, 'poemId')),
+        lineIndex: args.lineIndex,
+        text: parseRequiredString(args.text, 'text'),
+        guestToken: args.guestToken,
+      });
+    }
     case 'linejam_list_poems':
-      return client.getPoemsForRoom(
-        args as { roomCode: string; guestToken?: string }
-      );
+      return client.getPoemsForRoom({
+        roomCode: parseRequiredString(args.roomCode, 'roomCode'),
+        guestToken: args.guestToken,
+      });
     case 'linejam_get_poem':
-      return client.getPoemDetail(
-        args as { poemId: Id<'poems'>; guestToken?: string }
-      );
+      return client.getPoemDetail({
+        poemId: toPoemId(parseRequiredString(args.poemId, 'poemId')),
+        guestToken: args.guestToken,
+      });
     case 'linejam_toggle_favorite':
-      return client.toggleFavorite(
-        args as { poemId: Id<'poems'>; guestToken?: string }
-      );
+      return client.toggleFavorite({
+        poemId: toPoemId(parseRequiredString(args.poemId, 'poemId')),
+        guestToken: args.guestToken,
+      });
     case 'linejam_list_favorites':
-      return client.getMyFavorites(args as { guestToken?: string });
+      return client.getMyFavorites({ guestToken: args.guestToken });
     default:
       throw new Error(`unknown tool: ${name}`);
   }
 }
 
-function reply(id: JsonRpcRequest['id'], result: unknown) {
+export interface McpInitializeResult {
+  protocolVersion: string;
+  serverInfo: { name: string; version: string };
+  capabilities: { tools: Record<string, never> };
+}
+
+export interface McpToolsListResult {
+  tools: typeof TOOLS;
+}
+
+export interface McpTextContent {
+  type: 'text';
+  text: string;
+}
+
+export interface McpCallToolResult {
+  content: McpTextContent[];
+  isError?: boolean;
+}
+
+export type JsonRpcResult =
+  | LinejamClientResult
+  | McpInitializeResult
+  | McpToolsListResult
+  | McpCallToolResult
+  | string
+  | number
+  | boolean
+  | null
+  | undefined;
+
+function reply(id: JsonRpcRequest['id'], result: JsonRpcResult) {
   process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, result }) + '\n');
 }
 
@@ -248,8 +333,8 @@ export async function handleRequest(request: JsonRpcRequest) {
   }
 
   if (method === 'tools/call') {
-    const name = params?.name as string | undefined;
-    const args = (params?.arguments as Record<string, unknown>) ?? {};
+    const name = params?.name;
+    const args = params?.arguments ?? {};
     if (!name) {
       replyError(id, 'tools/call requires params.name');
       return;

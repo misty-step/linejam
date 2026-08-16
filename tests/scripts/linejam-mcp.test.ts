@@ -1,8 +1,10 @@
 /** @vitest-environment node */
 import { describe, expect, it, vi } from 'vitest';
 import { callTool, handleRequest, TOOLS } from '@/scripts/mcp/linejam-mcp';
+import type { LinejamClient } from '@/scripts/lib/linejamClient';
 
-function fakeClient(overrides: Record<string, unknown> = {}) {
+function fakeClient(overrides: Partial<LinejamClient> = {}): LinejamClient {
+  // SAFETY: Test fixture stubs all LinejamClient methods with Vitest mocks for MCP tool tests.
   return {
     createRoom: vi.fn().mockResolvedValue({ code: 'ABCD', roomId: 'room1' }),
     joinRoom: vi.fn().mockResolvedValue({ code: 'ABCD' }),
@@ -19,8 +21,7 @@ function fakeClient(overrides: Record<string, unknown> = {}) {
     toggleFavorite: vi.fn().mockResolvedValue(null),
     getMyFavorites: vi.fn().mockResolvedValue([]),
     ...overrides,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  } as LinejamClient;
 }
 
 describe('TOOLS', () => {
@@ -53,12 +54,13 @@ describe('TOOLS', () => {
 
 describe('callTool', () => {
   it('mints a guest identity without needing a client at all', async () => {
+    // SAFETY: linejam_mint_guest resolves a GuestIdentity object containing guestId and guestToken.
     const result = (await callTool('linejam_mint_guest', {})) as {
       guestId: string;
       guestToken: string;
     };
     expect(result.guestId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(typeof result.guestToken).toBe('string');
+    expect(result.guestToken.length).toBeGreaterThan(0);
   });
 
   it('routes linejam_create_room to client.createRoom', async () => {
@@ -108,7 +110,7 @@ describe('handleRequest', () => {
     const chunks: string[] = [];
     const spy = vi
       .spyOn(process.stdout, 'write')
-      .mockImplementation((chunk: unknown) => {
+      .mockImplementation((chunk: string | Uint8Array) => {
         chunks.push(String(chunk));
         return true;
       });

@@ -8,7 +8,9 @@ import { getServerGuestTokenSecret } from '@/lib/env';
 import { createHmac, randomUUID } from 'crypto';
 import { ConvexHttpClient } from 'convex/browser';
 import { makeFunctionReference } from 'convex/server';
+import { ConvexError, type Value } from 'convex/values';
 import { captureServerError } from '@/lib/errorServer';
+import { toErrorReportable, type ErrorReportable } from '@/lib/errorCore';
 import { log, logError, logRequest } from '@/lib/logger';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 
@@ -22,8 +24,41 @@ const checkSignedGuestSessionThrottle = makeFunctionReference<
 >('guestSessions:checkSignedGuestSessionThrottle');
 
 let convexClient: ConvexHttpClient | null = null;
+export interface GuestSessionThrottleInput {
+  convexUrl: string;
+  key: string;
+  proof: string;
+}
 
-export async function GET(request: NextRequest) {
+export interface GuestSessionRouteDependencies {
+  checkThrottle(input: GuestSessionThrottleInput): Promise<void>;
+}
+
+export interface GuestSessionRoute {
+  (request: NextRequest): Promise<NextResponse>;
+}
+
+const defaultGuestSessionRouteDependencies: GuestSessionRouteDependencies = {
+  async checkThrottle({ convexUrl, key, proof }) {
+    await getConvexClient(convexUrl).mutation(checkSignedGuestSessionThrottle, {
+      key,
+      proof,
+    });
+  },
+};
+
+export function createGuestSessionRoute(
+  dependencies: GuestSessionRouteDependencies = defaultGuestSessionRouteDependencies
+): GuestSessionRoute {
+  return (request) => getGuestSession(request, dependencies);
+}
+
+export const GET = createGuestSessionRoute();
+
+async function getGuestSession(
+  request: NextRequest,
+  dependencies: GuestSessionRouteDependencies
+) {
   const startedAt = Date.now();
   const baseContext = {
     method: request.method,
@@ -99,7 +134,7 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    const throttle = await enforceGuestSessionThrottle(request);
+    const throttle = await enforceGuestSessionThrottle(request, dependencies);
     if (!throttle.allowed) {
       logRequest({
         ...baseContext,
@@ -140,7 +175,8 @@ export async function GET(request: NextRequest) {
     });
 
     return response;
-  } catch (error) {
+  } catch (cause) {
+    const error = toErrorReportable(cause);
     const context = {
       ...baseContext,
       status: 500,
@@ -195,7 +231,8 @@ function clearGuestCookie(response: NextResponse) {
 }
 
 async function enforceGuestSessionThrottle(
-  request: NextRequest
+  request: NextRequest,
+  dependencies: GuestSessionRouteDependencies
 ): Promise<{ allowed: true; rateLimitKey: string } | { allowed: false }> {
   const rateLimitKey = deriveGuestSessionRateLimitKey(request);
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
@@ -214,12 +251,14 @@ async function enforceGuestSessionThrottle(
       rateLimitKey,
       getServerGuestTokenSecret()
     );
-    await getConvexClient(convexUrl).mutation(checkSignedGuestSessionThrottle, {
+    await dependencies.checkThrottle({
+      convexUrl,
       key: rateLimitKey,
       proof,
     });
     return { allowed: true, rateLimitKey };
-  } catch (error) {
+  } catch (cause) {
+    const error = toErrorReportable(cause);
     if (isRateLimitError(error)) {
       return { allowed: false };
     }
@@ -235,7 +274,7 @@ async function enforceGuestSessionThrottle(
       });
       return { allowed: true, rateLimitKey };
     }
-    throw error;
+    throw cause;
   }
 }
 
@@ -275,31 +314,39 @@ function getClientIp(request: NextRequest): string {
   return 'unknown';
 }
 
-function isRateLimitError(error: unknown) {
+function isRateLimitError(error: ErrorReportable) {
   return /rate limit exceeded/i.test(extractErrorMessage(error));
 }
 
-function isMissingThrottleFunctionError(error: unknown) {
+function isMissingThrottleFunctionError(error: ErrorReportable) {
   return /Could not find public function for 'guestSessions:checkSignedGuestSessionThrottle'/i.test(
     extractErrorMessage(error)
   );
 }
 
-function extractErrorMessage(error: unknown) {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'name' in error &&
-    (error as { name: unknown }).name === 'ConvexError' &&
-    'data' in error &&
-    typeof (error as { data: unknown }).data === 'string'
-  ) {
-    return (error as { data: string }).data;
+function extractErrorMessage(error: ErrorReportable): string {
+  if (error instanceof ConvexError) {
+    const data = parseErrorString(error.data);
+    if (data !== null) return data;
   }
-
+  if (
+    !(error instanceof Error) &&
+    error instanceof Object &&
+    error.name === 'ConvexError'
+  ) {
+    const data = parseErrorString(error.data);
+    if (data !== null) return data;
+  }
   if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  return String(error);
+  return parseErrorString(error) ?? (error != null ? String(error) : '');
+}
+
+function parseErrorString(value: ErrorReportable | Value): string | null {
+  try {
+    return String.prototype.valueOf.call(value);
+  } catch {
+    return null;
+  }
 }
 
 function allowUnsyncedConvexThrottle() {

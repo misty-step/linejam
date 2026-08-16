@@ -193,7 +193,7 @@ test('captures canonical guest-flow evidence @evidence', async ({
     }
 
     const result: GuestFlowEvidenceResult = {
-      baseUrl: (testInfo.project.use.baseURL as string | undefined) ?? '',
+      baseUrl: testInfo.project.use.baseURL ?? '',
       checks,
       flowError: flowError?.message ?? null,
       rawVideoPath,

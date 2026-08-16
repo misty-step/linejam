@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "playwright-report/**",
     "test-results/**",
+    // Vendored local lint plugin
+    "tools/oxlint/anti-slop/**",
   ]),
   // Catch stray console.* calls — use structured logger instead.
   // Allowed in logger.ts (implements the logger), error.ts (dev fallback),

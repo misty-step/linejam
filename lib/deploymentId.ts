@@ -1,5 +1,5 @@
-export function resolveDeploymentId(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
+export function resolveDeploymentId(value?: string | null): string | undefined {
+  if (value === null || value === undefined) return undefined;
 
   return value.trim() || undefined;
 }

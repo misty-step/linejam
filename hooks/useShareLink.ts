@@ -1,14 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { toErrorReportable, type ErrorReportable } from '@/lib/errorCore';
 
 export type ShareMethod = 'clipboard' | 'native-share';
 type ShareStatus = 'idle' | 'copied' | 'shared' | 'error';
 
-interface ShareData {
+export interface ShareData {
   url: string;
   title?: string;
   text?: string;
+}
+
+export interface ShareLinkClient {
+  nativeShare?: (data: ShareData) => Promise<void>;
+  writeClipboardText?: (text: string) => Promise<void>;
 }
 interface UseShareLinkOptions {
   getShareData: () => ShareData;
@@ -20,8 +26,9 @@ interface UseShareLinkOptions {
   /** Cancel an inert URL after native delivery fails or is cancelled. */
   rollbackShare?: () => Promise<void>;
   onShared?: (method: ShareMethod) => void | Promise<void>;
-  onError?: (error: unknown) => void;
+  onError?: (error: ErrorReportable) => void;
   failureMessage?: string;
+  client?: ShareLinkClient;
   successDurationMs?: number;
 }
 
@@ -35,6 +42,7 @@ export function useShareLink({
   rollbackShare,
   onShared,
   onError,
+  client,
   failureMessage = 'Failed to share link. Please try again.',
   successDurationMs = 2000,
 }: UseShareLinkOptions) {
@@ -95,14 +103,17 @@ export function useShareLink({
     };
 
     try {
-      if (typeof navigator.share === 'function') {
+      const nativeShare = client
+        ? client.nativeShare
+        : navigator.share?.bind(navigator);
+      if (nativeShare) {
         let nativeSucceeded = false;
         try {
           await stage();
           let timeout: ReturnType<typeof setTimeout> | undefined;
           try {
             await Promise.race([
-              navigator.share(data),
+              nativeShare(data),
               new Promise<never>((_, reject) => {
                 timeout = setTimeout(
                   () => reject(new Error('Native share timed out')),
@@ -128,14 +139,18 @@ export function useShareLink({
         }
       }
 
-      if (navigator.clipboard?.writeText) {
+      const writeClipboardText = client
+        ? client.writeClipboardText
+        : navigator.clipboard?.writeText.bind(navigator.clipboard);
+      if (writeClipboardText) {
         await stage();
-        await navigator.clipboard.writeText(data.url);
+        await writeClipboardText(data.url);
         await completeShare('clipboard', staged);
         return;
       }
       throw new Error('Clipboard is unavailable');
-    } catch (error) {
+    } catch (cause) {
+      const error = toErrorReportable(cause);
       await rollback();
       setStatus('error');
       setShareError(failureMessage);

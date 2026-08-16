@@ -1,105 +1,63 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { cloneElement } from 'react';
+import {
+  RevealPhase,
+  type RevealPhaseDependencies,
+} from '@/components/RevealPhase';
+import type { SessionRecapHubDependencies } from '@/components/SessionRecapHub';
+import type { Id } from '@/convex/_generated/dataModel';
 
-// Mock Next.js Link (external)
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-    prefetch,
-    ...props
-  }: {
-    children: React.ReactNode;
-    href: string;
-    prefetch?: boolean;
-  }) => {
-    const prefetchProps =
-      prefetch === undefined ? {} : { 'data-prefetch': String(prefetch) };
-
-    return (
-      <a href={href} {...prefetchProps} {...props}>
-        {children}
-      </a>
-    );
-  },
-}));
-
-// Mock Convex hooks (external)
+// Mock mutation handlers
 const mockRevealPoemMutation = vi.fn();
 const mockStartNewCycleMutation = vi.fn();
 const mockStartGameMutation = vi.fn();
 const mockEnablePublicSessionRecapShare = vi.fn();
-const mockToggleFavorite = vi.fn();
 const mockUseQuery = vi.fn();
 
-const mockApiRefs = vi.hoisted(() => ({
-  getRevealPhaseState: {},
-  revealPoem: {},
-  startNewCycle: {},
-  startGame: {},
-  enablePublicSessionRecapShare: {},
-  getSessionFavorites: {},
-  isFavorited: {},
-  toggleFavorite: {},
-}));
+const sessionRecapDependencies: SessionRecapHubDependencies = {
+  useEnablePublicShare: () => mockEnablePublicSessionRecapShare,
+  useSessionFavorites: () => null,
+  trackRoomInviteShared: vi.fn(),
+  trackArtifactAction: vi.fn(),
+  hashRoomId: () => '0123456789abcdef',
+  getRecapUrl: (roomCode) => `/recap/${roomCode}`,
+};
 
-vi.mock('@/convex/_generated/api', () => ({
-  api: {
-    game: {
-      getRevealPhaseState: mockApiRefs.getRevealPhaseState,
-      revealPoem: mockApiRefs.revealPoem,
-      startNewCycle: mockApiRefs.startNewCycle,
-      startGame: mockApiRefs.startGame,
-    },
-    shares: {
-      enablePublicSessionRecapShare: mockApiRefs.enablePublicSessionRecapShare,
-    },
-    favorites: {
-      getSessionFavorites: mockApiRefs.getSessionFavorites,
-      isFavorited: mockApiRefs.isFavorited,
-      toggleFavorite: mockApiRefs.toggleFavorite,
-    },
-  },
-}));
+const revealPhaseDependencies: RevealPhaseDependencies = {
+  useUser: () => ({
+    clerkUser: null,
+    guestId: 'guest_123',
+    guestToken: 'mock-token',
+    isLoading: false,
+    isAuthenticated: false,
+    displayName: 'Guest',
+    authError: null,
+    retryAuth: vi.fn(),
+  }),
+  useRevealState: (args) => mockUseQuery('game:getRevealPhaseState', args),
+  useRevealPoem: () => mockRevealPoemMutation,
+  useStartNewCycle: () => mockStartNewCycleMutation,
+  useStartGame: () => mockStartGameMutation,
+  hashRoomId: () => '0123456789abcdef',
+  trackGameCompleted: vi.fn(),
+  sessionRecapDependencies,
+};
 
-vi.mock('convex/react', () => ({
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
-  useMutation: (mutationRef: unknown) => {
-    if (mutationRef === mockApiRefs.revealPoem) return mockRevealPoemMutation;
-    if (mutationRef === mockApiRefs.startNewCycle) {
-      return mockStartNewCycleMutation;
-    }
-    if (mutationRef === mockApiRefs.startGame) return mockStartGameMutation;
-    if (mutationRef === mockApiRefs.enablePublicSessionRecapShare) {
-      return mockEnablePublicSessionRecapShare;
-    }
-    if (mutationRef === mockApiRefs.toggleFavorite) return mockToggleFavorite;
-    throw new Error('Unexpected mutation reference');
-  },
-  useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
-}));
-
-// Mock Clerk (external) - let useUser hook use real implementation
-vi.mock('@clerk/nextjs', () => ({
-  useUser: () => ({ user: null, isLoaded: true }),
-}));
-
-// Mock fetch for guest session API (external boundary)
-const mockFetch = vi.fn();
-const originalFetch = global.fetch;
-
-// Internal modules use real implementations:
-// - @/lib/error
-// - @/lib/errorFeedback (pure function)
-
-// Import after mocking
-import { RevealPhase } from '@/components/RevealPhase';
-import { Id } from '@/convex/_generated/dataModel';
+function renderRevealPhase(
+  ui: React.ReactElement<React.ComponentProps<typeof RevealPhase>>
+) {
+  return render(
+    cloneElement(ui, {
+      dependencies: revealPhaseDependencies,
+    })
+  );
+}
 
 describe('RevealPhase component', () => {
-  // Mock poem data
+  // SAFETY: Synthetic Convex document id fixture for poem tests.
   const mockMyPoem = {
     _id: 'poem_123' as Id<'poems'>,
     indexInRoom: 0,
@@ -129,6 +87,7 @@ describe('RevealPhase component', () => {
   };
 
   const mockStageRevealedPoem = {
+    // SAFETY: Synthetic Convex document id fixture for poem tests.
     _id: 'poem_456' as Id<'poems'>,
     indexInRoom: 1,
     createdAt: 1000,
@@ -145,6 +104,7 @@ describe('RevealPhase component', () => {
 
   const mockPoems = [
     {
+      // SAFETY: Synthetic Convex document id fixture for poem tests.
       _id: 'poem_123' as Id<'poems'>,
       indexInRoom: 0,
       createdAt: 1000,
@@ -154,6 +114,7 @@ describe('RevealPhase component', () => {
       isRevealed: false,
     },
     {
+      // SAFETY: Synthetic Convex document id fixture for poem tests.
       _id: 'poem_456' as Id<'poems'>,
       indexInRoom: 1,
       createdAt: 1000,
@@ -168,33 +129,40 @@ describe('RevealPhase component', () => {
     {
       userId: 'user_alice',
       displayName: 'Alice',
-      stableId: 'stable_alice_123',
+      avatarColor: 'indigo',
     },
     {
       userId: 'user_bob',
       displayName: 'Bob',
-      stableId: 'stable_bob_456',
+      avatarColor: 'teal',
     },
   ];
 
   const mockStateNotRevealed = {
+    status: 'REVEAL' as const,
+    isHost: true,
     myPoem: mockMyPoem,
     myPoems: [mockMyPoem],
-    revealedPoems: [mockStageRevealedPoem],
-    allRevealed: false,
-    isHost: true,
     poems: mockPoems,
+    revealedPoems: [mockStageRevealedPoem],
+    revealedCount: 1,
+    totalCount: 2,
+    allRevealed: false,
     players: mockPlayers,
+    roomCode: 'ABCD',
   };
 
   const mockStateAllRevealed = {
+    ...mockStateNotRevealed,
     myPoem: mockRevealedPoem,
     myPoems: [mockRevealedPoem],
-    revealedPoems: [mockRevealedPoem, mockStageRevealedPoem],
+    revealedCount: 2,
     allRevealed: true,
-    isHost: true,
-    poems: mockPoems.map((p) => ({ ...p, isRevealed: true })),
-    players: mockPlayers,
+    revealedPoems: [mockRevealedPoem, mockStageRevealedPoem],
+    poems: [
+      { ...mockPoems[0], isRevealed: true },
+      { ...mockPoems[1], isRevealed: true },
+    ],
   };
 
   const mockStateAllRevealedNotHost = {
@@ -204,69 +172,44 @@ describe('RevealPhase component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRevealPoemMutation.mockClear();
-    mockStartNewCycleMutation.mockClear();
-    mockStartGameMutation.mockClear();
-    mockEnablePublicSessionRecapShare.mockClear();
-
-    // Default state
+    mockRevealPoemMutation.mockResolvedValue({ revealed: true });
+    mockStartNewCycleMutation.mockResolvedValue(undefined);
+    mockStartGameMutation.mockResolvedValue(undefined);
+    mockEnablePublicSessionRecapShare.mockResolvedValue(null);
     mockUseQuery.mockReturnValue(mockStateNotRevealed);
-
-    // Mock fetch at boundary - useUser calls /api/guest/session
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
-    });
-    global.fetch = mockFetch;
-  });
-
-  afterEach(() => {
-    global.fetch = originalFetch;
-  });
-
-  it('displays loading state while fetching', () => {
-    // Arrange
-    mockUseQuery.mockReturnValue(null);
-
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
-
-    // Assert
-    expect(screen.getByText(/Unsealing the poems/i)).toBeInTheDocument();
   });
 
   it('displays poem status list with reader names', () => {
-    // Arrange & Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
 
-  it('shows a Read chip for revealed poems in the reading circle', () => {
-    // Arrange & Act
-    render(<RevealPhase roomCode="ABCD" />);
+  it('displays loading state while fetching', () => {
+    mockUseQuery.mockReturnValue(null);
 
-    // Assert - Bob's poem is revealed, should carry the Read chip. The row
-    // is the nearest ancestor carrying the shared row border, since the
-    // name sits inside a nested name/poem-label wrapper.
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
+
+    expect(screen.getByText(/Unsealing the poems/i)).toBeInTheDocument();
+  });
+
+  it('shows a Read chip for revealed poems in the reading circle', () => {
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
+
     const bobRow = screen.getByText('Bob').closest('.border-b');
     expect(bobRow?.textContent).toContain('Read');
   });
 
   it('shows a Reading now chip for the sole unrevealed poem in the reading circle', () => {
-    // Arrange & Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert - Alice's poem is the only unrevealed poem, so it is up now
     const aliceRow = screen.getByText('Alice').closest('.border-b');
     expect(aliceRow?.textContent).toContain('Reading now');
   });
 
   it('shows the reading-circle heading and explainer', () => {
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(
       screen.getByRole('heading', { name: /The reading circle/i })
@@ -277,11 +220,9 @@ describe('RevealPhase component', () => {
   });
 
   it('drives all four reading-circle chip states off reveal order', () => {
-    // Arrange: 4 poems — one read, one reading now, one up next, one quiet.
-    // Names deliberately avoid the substring "Read" so the chip assertions
-    // below can't accidentally match the reader's own name.
     const fourPoems = [
       {
+        // SAFETY: Synthetic Convex document id fixture for poem tests.
         _id: 'poem_read' as Id<'poems'>,
         indexInRoom: 0,
         createdAt: 1000,
@@ -291,6 +232,7 @@ describe('RevealPhase component', () => {
         isRevealed: true,
       },
       {
+        // SAFETY: Synthetic Convex document id fixture for poem tests.
         _id: 'poem_now' as Id<'poems'>,
         indexInRoom: 1,
         createdAt: 1000,
@@ -300,6 +242,7 @@ describe('RevealPhase component', () => {
         isRevealed: false,
       },
       {
+        // SAFETY: Synthetic Convex document id fixture for poem tests.
         _id: 'poem_next' as Id<'poems'>,
         indexInRoom: 2,
         createdAt: 1000,
@@ -309,6 +252,7 @@ describe('RevealPhase component', () => {
         isRevealed: false,
       },
       {
+        // SAFETY: Synthetic Convex document id fixture for poem tests.
         _id: 'poem_quiet' as Id<'poems'>,
         indexInRoom: 3,
         createdAt: 1000,
@@ -325,10 +269,8 @@ describe('RevealPhase component', () => {
       poems: fourPoems,
     });
 
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     const annRow = screen.getByText('Ann').closest('.border-b');
     const benRow = screen.getByText('Ben').closest('.border-b');
     const caraRow = screen.getByText('Cara').closest('.border-b');
@@ -337,17 +279,14 @@ describe('RevealPhase component', () => {
     expect(annRow?.textContent).toContain('Read');
     expect(benRow?.textContent).toContain('Reading now');
     expect(caraRow?.textContent).toContain('Up next');
-    // The quiet row carries no status chip at all.
     expect(deeRow?.textContent).not.toContain('Read');
     expect(deeRow?.textContent).not.toContain('Reading now');
     expect(deeRow?.textContent).not.toContain('Up next');
   });
 
   it('displays my poem preview when not revealed', () => {
-    // Arrange & Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     expect(screen.getByText(/Your Assignment/i)).toBeInTheDocument();
     expect(
       screen.getByText(/The stars align above/i, { exact: false })
@@ -355,20 +294,18 @@ describe('RevealPhase component', () => {
   });
 
   it('shows Reveal & Read button for unrevealed poem', () => {
-    // Arrange & Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     expect(
       screen.getByRole('button', { name: /Reveal & Read/i })
     ).toBeInTheDocument();
   });
 
   it('lets the host open a reveal stage and read the whole assigned poem at once', async () => {
-    mockRevealPoemMutation.mockResolvedValue(undefined);
+    mockRevealPoemMutation.mockResolvedValue({ revealed: true });
     const user = userEvent.setup();
 
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     await user.click(screen.getByRole('button', { name: /Present reveal/i }));
 
@@ -408,7 +345,7 @@ describe('RevealPhase component', () => {
       isHost: false,
     });
 
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(
       screen.queryByRole('button', { name: /Present reveal/i })
@@ -424,7 +361,7 @@ describe('RevealPhase component', () => {
     });
     const user = userEvent.setup();
 
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     await user.click(screen.getByRole('button', { name: /Present reveal/i }));
 
@@ -443,16 +380,13 @@ describe('RevealPhase component', () => {
   });
 
   it('calls revealPoem mutation when Reveal button clicked', async () => {
-    // Arrange
-    mockRevealPoemMutation.mockResolvedValue(undefined);
+    mockRevealPoemMutation.mockResolvedValue({ revealed: true });
     const user = userEvent.setup();
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Act
     const revealButton = screen.getByRole('button', { name: /Reveal & Read/i });
     await user.click(revealButton);
 
-    // Assert
     await waitFor(() => {
       expect(mockRevealPoemMutation).toHaveBeenCalledWith({
         poemId: 'poem_123',
@@ -462,7 +396,7 @@ describe('RevealPhase component', () => {
   });
 
   it('makes an absent reader fallback explicit before revealing', async () => {
-    mockRevealPoemMutation.mockResolvedValue(undefined);
+    mockRevealPoemMutation.mockResolvedValue({ revealed: true });
     mockUseQuery.mockReturnValue({
       ...mockStateNotRevealed,
       myPoem: {
@@ -480,7 +414,7 @@ describe('RevealPhase component', () => {
     });
     const user = userEvent.setup();
 
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(screen.getByText('Step in for Reader Away')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Step In & Read' }));
@@ -494,18 +428,17 @@ describe('RevealPhase component', () => {
   });
 
   it('shows Unsealing... during reveal mutation', async () => {
-    // Arrange - Make mutation take time
-    mockRevealPoemMutation.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
-    );
     const user = userEvent.setup();
-    render(<RevealPhase roomCode="ABCD" />);
+    mockRevealPoemMutation.mockImplementation(() => {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, 1000);
+      return promise;
+    });
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Act
     const revealButton = screen.getByRole('button', { name: /Reveal & Read/i });
     await user.click(revealButton);
 
-    // Assert
     await waitFor(() => {
       expect(
         screen.getByRole('button', { name: /Unsealing/i })
@@ -514,13 +447,10 @@ describe('RevealPhase component', () => {
   });
 
   it('shows a session-complete recap hub when all poems are revealed', () => {
-    // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     expect(
       screen.getByRole('heading', { name: /Session complete/i })
     ).toBeInTheDocument();
@@ -548,26 +478,20 @@ describe('RevealPhase component', () => {
   });
 
   it('shows Back to Lobby button for host when all revealed', () => {
-    // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     expect(
       screen.getByRole('button', { name: /Back to Lobby/i })
     ).toBeInTheDocument();
   });
 
   it('shows continuation controls to non-hosts too (no stranding)', () => {
-    // Arrange: a vanished host must never strand the recap
     mockUseQuery.mockReturnValue(mockStateAllRevealedNotHost);
 
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert: everyone gets Back to Lobby + Start Next Round
     expect(
       screen.getByRole('button', { name: /Back to Lobby/i })
     ).toBeInTheDocument();
@@ -577,19 +501,16 @@ describe('RevealPhase component', () => {
   });
 
   it('calls startNewCycle mutation when Back to Lobby clicked', async () => {
-    // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
     mockStartNewCycleMutation.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Act
     const newRoundButton = screen.getByRole('button', {
       name: /Back to Lobby/i,
     });
     await user.click(newRoundButton);
 
-    // Assert
     await waitFor(() => {
       expect(mockStartNewCycleMutation).toHaveBeenCalledWith({
         roomCode: 'ABCD',
@@ -601,7 +522,7 @@ describe('RevealPhase component', () => {
   it('collapses the old second recap link on the session-complete screen', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(
       screen.queryByRole('link', { name: /Open Shared Recap/i })
@@ -614,7 +535,7 @@ describe('RevealPhase component', () => {
   it('gives non-hosts replay and share actions after completion', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealedNotHost);
 
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(
       screen.getByRole('button', { name: /Share the whole set/i })
@@ -625,7 +546,6 @@ describe('RevealPhase component', () => {
     expect(
       screen.getByRole('link', { name: /Replay poem 1/i })
     ).toHaveAttribute('href', '/poem/poem_123');
-    // Continuation is open to all participants now, not host-gated
     expect(
       screen.getByRole('button', { name: /Start Next Round/i })
     ).toBeInTheDocument();
@@ -634,7 +554,7 @@ describe('RevealPhase component', () => {
   it('disables poem replay prefetch on the session-complete screen', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(
       screen.getByRole('link', { name: /Replay poem 1/i })
@@ -642,76 +562,61 @@ describe('RevealPhase component', () => {
   });
 
   it('does not show the old archive-only link when all revealed', () => {
-    // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     expect(screen.queryByRole('link', { name: /^Archive$/i })).toBeNull();
   });
 
   it('shows Exit Room link when all revealed', () => {
-    // Arrange
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     const exitLink = screen.getByRole('link', { name: /Exit Room/i });
     expect(exitLink).toBeInTheDocument();
     expect(exitLink).toHaveAttribute('href', '/');
   });
 
   it('shows Re-Read My Poem button when poem already revealed', () => {
-    // Arrange - Poem is revealed but not all poems are
     mockUseQuery.mockReturnValue({
       ...mockStateNotRevealed,
       myPoem: mockRevealedPoem,
       myPoems: [mockRevealedPoem],
     });
 
-    // Act
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Assert
     expect(
       screen.getByRole('button', { name: /Re-Read My Poem/i })
     ).toBeInTheDocument();
   });
 
   it('displays error when reveal mutation fails', async () => {
-    // Arrange - "Network error" is transformed by errorToFeedback
     mockRevealPoemMutation.mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Act
     const revealButton = screen.getByRole('button', { name: /Reveal & Read/i });
     await user.click(revealButton);
 
-    // Assert - Check for user-facing message from real errorToFeedback
     await waitFor(() => {
       expect(screen.getByText(/Unable to connect/i)).toBeInTheDocument();
     });
   });
 
   it('displays error when startNewCycle mutation fails', async () => {
-    // Arrange - Generic error gets user-friendly message from errorToFeedback
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
     mockStartNewCycleMutation.mockRejectedValue(new Error('Server error'));
     const user = userEvent.setup();
-    render(<RevealPhase roomCode="ABCD" />);
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    // Act
     const newRoundButton = screen.getByRole('button', {
       name: /Back to Lobby/i,
     });
     await user.click(newRoundButton);
 
-    // Assert - Check for user-facing message from real errorToFeedback
     await waitFor(() => {
       expect(screen.getByText(/unexpected error/i)).toBeInTheDocument();
     });

@@ -233,7 +233,7 @@ describe('migrateGuestToUser', () => {
         .first();
       expect(migration).not.toBeNull();
       expect(migration?.guestUserId).toBe(guestUserId);
-      expect(typeof migration?.migratedAt).toBe('number');
+      expect(migration?.migratedAt).toBeGreaterThan(0);
     });
   });
 
@@ -309,20 +309,28 @@ type MachineCleanupPhase =
   | 'aiRoundLocks'
   | 'aiUsage'
   | 'aiGenerationMetrics';
+interface MachineCleanupArgs {
+  phase: MachineCleanupPhase;
+  cursor?: string;
+  verifiedZeroChangePrerequisites?: true;
+}
 
 async function runMachineCleanupPhase(t: T, phase: MachineCleanupPhase) {
   const receipts = [];
   let cursor: string | undefined;
   for (let invocation = 0; invocation < 100; invocation++) {
+    const mutationArgs: MachineCleanupArgs = {
+      phase,
+    };
+    if (cursor !== undefined) {
+      mutationArgs.cursor = cursor;
+    }
+    if (phase === 'aiUsers') {
+      mutationArgs.verifiedZeroChangePrerequisites = true;
+    }
     const receipt = await t.mutation(
       internal.migrations.cleanupMachineAuthorship,
-      {
-        phase,
-        ...(cursor === undefined ? {} : { cursor }),
-        ...(phase === 'aiUsers'
-          ? { verifiedZeroChangePrerequisites: true as const }
-          : {}),
-      }
+      mutationArgs
     );
     receipts.push(receipt);
     if (!receipt.remaining) return receipts;

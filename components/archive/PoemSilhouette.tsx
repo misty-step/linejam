@@ -1,5 +1,5 @@
 /**
- * PoemShape: Visual representation of a poem's structure
+ * PoemSilhouette: Visual representation of a poem's structure
  *
  * Renders the 1-2-3-4-5-4-3-2-1 word count pattern as proportional bars,
  * creating a distinctive "diamond" silhouette unique to Linejam poems.
@@ -7,9 +7,10 @@
  * Design: Stripe-inspired minimal visualization with purposeful animation.
  */
 
+import { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 
-interface PoemShapeProps {
+export interface PoemSilhouetteProps {
   /** Word counts for each line (e.g., [1, 2, 3, 4, 5, 4, 3, 2, 1]) */
   wordCounts: number[];
   /** Optional className for container */
@@ -27,17 +28,17 @@ const SIZE_CONFIG = {
 } as const;
 
 /**
- * PoemShape component
+ * PoemSilhouette component
  *
  * Deep module: Handles all complexity of visualization internally.
  * Simple interface: just pass wordCounts array.
  */
-export function PoemShape({
+export function PoemSilhouette({
   wordCounts,
   className,
   animate = false,
   size = 'sm',
-}: PoemShapeProps) {
+}: PoemSilhouetteProps) {
   const config = SIZE_CONFIG[size];
   const maxCount = Math.max(...wordCounts, 5); // Normalize to at least 5
 
@@ -45,11 +46,20 @@ export function PoemShape({
     <div
       className={cn('flex flex-col items-center', className)}
       style={{ gap: `${config.gap}px` }}
-      aria-label={`Poem shape: ${wordCounts.join('-')} words per line`}
+      aria-label={`Poem silhouette: ${wordCounts.join('-')} words per line`}
       role="img"
     >
       {wordCounts.map((count, index) => {
         const widthPercent = (count / maxCount) * 100;
+        const barStyle: CSSProperties = {
+          height: `${config.height}px`,
+          width: `${(widthPercent / 100) * config.maxWidth}px`,
+          minWidth: '2px',
+        };
+        if (animate) {
+          barStyle.animation = 'silhouette-bar-reveal 400ms ease-out forwards';
+          barStyle.animationDelay = `${index * 50}ms`;
+        }
 
         return (
           <div
@@ -58,16 +68,7 @@ export function PoemShape({
               'bg-[var(--color-text-muted)] rounded-full transition-all',
               animate && 'opacity-0'
             )}
-            style={{
-              height: `${config.height}px`,
-              width: `${(widthPercent / 100) * config.maxWidth}px`,
-              minWidth: '2px',
-              // Staggered animation
-              ...(animate && {
-                animation: `shape-bar-reveal 400ms ease-out forwards`,
-                animationDelay: `${index * 50}ms`,
-              }),
-            }}
+            style={barStyle}
           />
         );
       })}
@@ -76,18 +77,18 @@ export function PoemShape({
 }
 
 /**
- * PoemShapeCompact: Horizontal inline variant for tight spaces
+ * PoemSilhouetteCompact: Horizontal inline variant for tight spaces
  */
-export function PoemShapeCompact({
+export function PoemSilhouetteCompact({
   wordCounts,
   className,
-}: Pick<PoemShapeProps, 'wordCounts' | 'className'>) {
+}: Pick<PoemSilhouetteProps, 'wordCounts' | 'className'>) {
   const maxCount = Math.max(...wordCounts, 5);
 
   return (
     <div
       className={cn('flex items-end gap-px', className)}
-      aria-label={`Poem shape`}
+      aria-label={`Poem silhouette`}
       role="img"
     >
       {wordCounts.map((count, index) => {

@@ -51,7 +51,11 @@ const DEFAULT_MANIFEST_URL = new URL(
 /** @typedef {(command: string, args: string[], options: import('node:child_process').SpawnSyncOptionsWithStringEncoding) => { status: number | null, stdout?: string, stderr?: string, error?: NodeJS.ErrnoException }} Runner */
 
 function assertObject(value, label) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (
+    !value ||
+    Array.isArray(value) ||
+    Object.prototype.toString.call(value) !== '[object Object]'
+  ) {
     throw new Error(`${label} must be an object.`);
   }
 }
@@ -69,20 +73,23 @@ function assertExactKeys(value, allowed, label) {
 }
 
 function assertString(value, label) {
-  if (typeof value !== 'string' || value.trim() === '') {
+  if (
+    Object.prototype.toString.call(value) !== '[object String]' ||
+    value.trim() === ''
+  ) {
     throw new Error(`${label} must be a non-empty string.`);
   }
 }
 
 function assertValuesFree(value, path = 'manifest') {
-  if (!value || typeof value !== 'object') return;
+  if (!value) return;
   if (Array.isArray(value)) {
     value.forEach((entry, index) =>
       assertValuesFree(entry, `${path}[${index}]`)
     );
     return;
   }
-
+  if (Object.prototype.toString.call(value) !== '[object Object]') return;
   if (Object.hasOwn(value, 'value')) {
     throw new Error(`${path} must remain values-free.`);
   }
@@ -108,7 +115,8 @@ function validateSource(source, label) {
   assertString(source.branch, `${label}.branch`);
   if (
     source.deployOnPush !== undefined &&
-    typeof source.deployOnPush !== 'boolean'
+    source.deployOnPush !== true &&
+    source.deployOnPush !== false
   ) {
     throw new Error(`${label}.deployOnPush must be boolean.`);
   }
@@ -170,7 +178,7 @@ function validateService(service, label) {
       throw new Error(`${envLabel}.name must be an environment variable name.`);
     }
     assertString(entry.scope, `${envLabel}.scope`);
-    if (typeof entry.secret !== 'boolean') {
+    if (entry.secret !== true && entry.secret !== false) {
       throw new Error(`${envLabel}.secret must be boolean.`);
     }
   });
@@ -350,7 +358,12 @@ export function loadDigitalOceanAppManifest(path = DEFAULT_MANIFEST_URL) {
 }
 
 function optional(target, key, value) {
-  if (typeof value === 'string' && value.trim() !== '') target[key] = value;
+  if (
+    Object.prototype.toString.call(value) === '[object String]' &&
+    value.trim() !== ''
+  ) {
+    target[key] = value;
+  }
 }
 
 /** Strip provider-generated fields and every environment value. */
@@ -493,8 +506,10 @@ function collectDrift(expected, actual, path, output) {
   if (
     expected &&
     actual &&
-    typeof expected === 'object' &&
-    typeof actual === 'object'
+    !Array.isArray(expected) &&
+    !Array.isArray(actual) &&
+    Object.prototype.toString.call(expected) === '[object Object]' &&
+    Object.prototype.toString.call(actual) === '[object Object]'
   ) {
     const keys = [
       ...new Set([...Object.keys(expected), ...Object.keys(actual)]),

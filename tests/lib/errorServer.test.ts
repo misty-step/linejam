@@ -1,16 +1,14 @@
 /** @vitest-environment node */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { captureExceptionMock } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-}));
+import {
+  captureServerError,
+  setServerReporterForTests,
+} from '@/lib/errorServer';
+import { isSentryEnabled } from '@/lib/errorCore';
+import { sanitizeSentryReporterContext } from '@/lib/sentryPrivacy';
 
-vi.mock('server-only', () => ({}));
-vi.mock('@sentry/nextjs', () => ({
-  captureException: captureExceptionMock,
-}));
-
-import { captureServerError } from '@/lib/errorServer';
+const captureExceptionMock = vi.fn();
 
 describe('captureServerError', () => {
   beforeEach(() => {
@@ -21,9 +19,15 @@ describe('captureServerError', () => {
     );
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    setServerReporterForTests({
+      captureException: captureExceptionMock,
+      isEnabled: isSentryEnabled,
+      sanitizeContext: sanitizeSentryReporterContext,
+    });
   });
 
   afterEach(() => {
+    setServerReporterForTests(null);
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });

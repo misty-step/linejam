@@ -110,7 +110,22 @@ const WEBHOOK_SECRET = 'test-sentry-webhook-secret';
 const INSTALLATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const REQUEST_ID = '11111111222243338444555555555555';
 
-function webhookPayload(overrides: Record<string, unknown> = {}) {
+interface SentryWebhookOverrides {
+  action?: string;
+  installation?: { uuid?: string };
+  data?: {
+    event?: {
+      project?: number | string;
+      issue_id?: string;
+      event_id?: string;
+      title?: string;
+      message?: string;
+      stacktrace?: string;
+    };
+  };
+}
+
+function webhookPayload(overrides: SentryWebhookOverrides = {}) {
   return {
     action: 'triggered',
     installation: { uuid: INSTALLATION_UUID },

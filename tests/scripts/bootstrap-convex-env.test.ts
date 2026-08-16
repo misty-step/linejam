@@ -23,8 +23,10 @@ import {
 } from '@/scripts/ci/bootstrap-convex-env.mjs';
 
 describe('bootstrap-convex-env', () => {
-  const env = (entries: Record<string, string>): NodeJS.ProcessEnv =>
-    entries as NodeJS.ProcessEnv;
+  const env = (entries: Record<string, string>): NodeJS.ProcessEnv => ({
+    NODE_ENV: 'test',
+    ...entries,
+  });
   const clerkPublishableKey = (kind: 'test' | 'live', issuerDomain: string) =>
     ['pk', kind, Buffer.from(issuerDomain).toString('base64url')].join('_');
   const sentryEnv = {

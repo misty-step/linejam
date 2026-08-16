@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { AuthShowcase } from '@/components/auth/AuthShowcase';
+import type { ComponentType, ReactNode } from 'react';
 
 /**
  * Auth Layout: Artistic Split Design
@@ -12,11 +13,24 @@ import { AuthShowcase } from '@/components/auth/AuthShowcase';
  * Uses theme tokens throughout for multi-theme support.
  * Works with all 4 themes: kenya, mono, vintage-paper, hyper.
  */
-export default function AuthLayout({
+export interface AuthLayoutDependencies {
+  ShowcaseComponent: ComponentType;
+}
+
+const defaultAuthLayoutDependencies: AuthLayoutDependencies = {
+  ShowcaseComponent: AuthShowcase,
+};
+
+interface AuthLayoutProps {
+  children: ReactNode;
+  dependencies?: AuthLayoutDependencies;
+}
+
+export function AuthLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+  dependencies = defaultAuthLayoutDependencies,
+}: AuthLayoutProps) {
+  const ShowcaseComponent = dependencies.ShowcaseComponent;
   return (
     <div className="min-h-screen bg-[var(--color-background)] flex flex-col lg:flex-row">
       {/* Left: Auth Form */}
@@ -46,8 +60,12 @@ export default function AuthLayout({
 
       {/* Right: Poem Showcase */}
       <div className="hidden lg:block flex-1 bg-[var(--color-surface)] border-l border-[var(--color-border)] min-h-0">
-        <AuthShowcase />
+        <ShowcaseComponent />
       </div>
     </div>
   );
+}
+
+export default function AuthRouteLayout({ children }: { children: ReactNode }) {
+  return <AuthLayout>{children}</AuthLayout>;
 }

@@ -1,129 +1,134 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { getFunctionName } from 'convex/server';
-
-const mockReactUse = vi.fn();
-const mockUseClerkUser = vi.fn();
-const mockUseQuery = vi.fn();
-const mockConnectionState = vi.fn();
-const mockPush = vi.fn();
-const mockPhaseFailure = vi.hoisted(() => ({
-  writing: false,
-  reveal: false,
-}));
-const mockWritingView = vi.hoisted(() => ({
-  value: 'writing' as 'writing' | 'waiting',
-}));
-
-vi.mock('react', async () => {
-  const actual = await vi.importActual<typeof import('react')>('react');
-  return {
-    ...actual,
-    use: (value: unknown) => mockReactUse(value),
-  };
-});
-
-vi.mock('next/navigation', async () => {
-  const actual =
-    await vi.importActual<typeof import('next/navigation')>('next/navigation');
-  return {
-    ...actual,
-    useRouter: () => ({ push: mockPush }),
-  };
-});
-
-vi.mock('convex/react', () => ({
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
-  useMutation: () => vi.fn().mockResolvedValue(undefined),
-  useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
-  useConvexConnectionState: () => mockConnectionState(),
-}));
-
-vi.mock('@clerk/nextjs', () => ({
-  useUser: () => mockUseClerkUser(),
-}));
-
-vi.mock('@/components/Lobby', () => ({
-  Lobby: () => <div>Lobby view</div>,
-}));
-
-vi.mock('@/components/WritingScreen', () => ({
-  WritingScreen: ({
-    roomCode,
-    showChrome,
-  }: {
-    roomCode: string;
-    showChrome?: boolean;
-  }) => {
-    if (mockPhaseFailure.writing) {
-      throw new Error('assignment query failed');
-    }
-
-    return (
-      <div>
-        {mockWritingView.value === 'waiting' ? 'Waiting view' : 'Writing view'}{' '}
-        {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
-      </div>
-    );
-  },
-}));
-
-vi.mock('@/components/RevealPhase', () => ({
-  RevealPhase: ({
-    roomCode,
-    showChrome,
-  }: {
-    roomCode: string;
-    showChrome?: boolean;
-  }) => {
-    if (mockPhaseFailure.reveal) {
-      throw new Error('reveal query failed');
-    }
-
-    return (
-      <div>
-        Reveal view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
-      </div>
-    );
-  },
-}));
-
-import RoomPage from '@/app/room/[code]/page';
+import { RoomPage, type RoomPageDependencies } from '@/app/room/[code]/page';
 import { ThemeProvider } from '@/lib/themes';
+import {
+  ConnectionStatus,
+  type ConnectionStatusDependencies,
+} from '@/components/ConnectionStatus';
+
+const mockPush = vi.fn();
+const mockUseRoomState = vi.fn();
+const mockRetryAuth = vi.fn();
+const mockUsePresence = vi.fn<RoomPageDependencies['usePresence']>();
+const mockCaptureError = vi.fn<RoomPageDependencies['captureError']>();
+const mockRouter = { push: mockPush };
+let authError: string | null = null;
+let writingPhaseFails = false;
+let writingView: 'writing' | 'waiting' = 'writing';
+let connectionState = {
+  isWebSocketConnected: true,
+  hasEverConnected: true,
+  connectionRetries: 0,
+};
+
+const connectionDependencies: ConnectionStatusDependencies = {
+  useConnectionState: () => connectionState,
+};
+
+function TestLobby() {
+  return <div>Lobby view</div>;
+}
+
+function TestWritingScreen({
+  roomCode,
+  showChrome,
+}: {
+  roomCode: string;
+  showChrome?: boolean;
+}) {
+  if (writingPhaseFails) {
+    throw new Error('assignment query failed');
+  }
+
+  return (
+    <>
+      <span>1 word</span>
+      <span>Write the first line.</span>
+      <span>
+        {writingView === 'waiting' ? 'Waiting view' : 'Writing view'} {roomCode}{' '}
+        {showChrome ? 'chrome on' : 'chrome off'}
+      </span>
+    </>
+  );
+}
+
+function TestRevealPhase({
+  roomCode,
+  showChrome,
+}: {
+  roomCode: string;
+  showChrome?: boolean;
+}) {
+  return (
+    <>
+      <h1>The reading circle</h1>
+      <span>
+        Reveal view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
+      </span>
+    </>
+  );
+}
+
+function TestConnectionStatus() {
+  return <ConnectionStatus dependencies={connectionDependencies} />;
+}
+
+function createRoomState(status: 'LOBBY' | 'IN_PROGRESS' | 'COMPLETED') {
+  return {
+    room: {
+      _id: 'room_1',
+      _creationTime: Date.now(),
+      code: 'ABCD',
+      hostUserId: 'user_1',
+      createdAt: Date.now(),
+      status,
+    },
+    players: [],
+    isHost: true,
+  };
+}
+
+const dependencies: RoomPageDependencies = {
+  useRouter: () => mockRouter,
+  useUser: () => ({
+    isLoading: false,
+    guestToken: 'guest-token',
+    authError,
+    retryAuth: mockRetryAuth,
+  }),
+  useRoomState: () => mockUseRoomState(),
+  usePresence: mockUsePresence,
+  captureError: mockCaptureError,
+  LobbyComponent: TestLobby,
+  WritingScreenComponent: TestWritingScreen,
+  RevealPhaseComponent: TestRevealPhase,
+  ConnectionStatusComponent: TestConnectionStatus,
+};
+
+function renderRoomPage() {
+  return render(
+    <ThemeProvider>
+      <RoomPage code="ABCD" dependencies={dependencies} />
+    </ThemeProvider>
+  );
+}
 
 describe('RoomPage', () => {
-  const originalFetch = global.fetch;
   const originalMatchMedia = window.matchMedia;
-  let mockFetch: ReturnType<typeof vi.fn>;
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    mockPhaseFailure.writing = false;
-    mockPhaseFailure.reveal = false;
-    mockWritingView.value = 'writing';
-    mockConnectionState.mockReturnValue({
-      hasInflightRequests: false,
+    authError = null;
+    writingPhaseFails = false;
+    writingView = 'writing';
+    connectionState = {
       isWebSocketConnected: true,
-      timeOfOldestInflightRequest: null,
       hasEverConnected: true,
-      connectionCount: 1,
       connectionRetries: 0,
-      inflightMutations: 0,
-      inflightActions: 0,
-    });
-    mockReactUse.mockReturnValue({ code: 'ABCD' });
-    mockUseClerkUser.mockReturnValue({
-      user: null,
-      isLoaded: true,
-    });
-    mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ guestId: 'guest-123', token: 'guest-token' }),
-    });
-    global.fetch = mockFetch as typeof fetch;
+    };
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockReturnValue({
@@ -132,34 +137,18 @@ describe('RoomPage', () => {
         removeEventListener: vi.fn(),
       }),
     });
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: originalMatchMedia,
     });
-    consoleErrorSpy.mockRestore();
     localStorage.clear();
   });
 
-  function renderRoomPage() {
-    return render(
-      <ThemeProvider>
-        <RoomPage params={Promise.resolve({ code: 'ABCD' })} />
-      </ThemeProvider>
-    );
-  }
-
   it('keeps the missing-room state centered inside safe mobile spacing', async () => {
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-      return functionName === 'rooms:getRoomState' ? null : undefined;
-    });
+    mockUseRoomState.mockReturnValue(null);
 
     renderRoomPage();
 
@@ -174,23 +163,13 @@ describe('RoomPage', () => {
   });
 
   it('renders an explicit recovery state when room status is unknown', async () => {
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-
-      if (functionName === 'rooms:getRoomState') {
-        return {
-          room: {
-            code: 'ABCD',
-            status: 'BROKEN_STATE',
-          },
-          players: [],
-          isHost: false,
-        };
-      }
-
-      return null;
+    mockUseRoomState.mockReturnValue({
+      room: {
+        code: 'ABCD',
+        status: 'BROKEN_STATE',
+      },
+      players: [],
+      isHost: false,
     });
 
     renderRoomPage();
@@ -207,16 +186,8 @@ describe('RoomPage', () => {
   });
 
   it('renders the shared auth recovery state when guest bootstrap fails', async () => {
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-      if (functionName === 'rooms:getRoomState') {
-        return undefined;
-      }
-      return null;
-    });
-    mockFetch.mockRejectedValue(new Error('Network error'));
+    mockUseRoomState.mockReturnValue(undefined);
+    authError = 'Unable to connect. Please check your connection.';
 
     renderRoomPage();
 
@@ -233,36 +204,27 @@ describe('RoomPage', () => {
   });
 
   it('renders the room chrome copy for the lobby state', async () => {
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-
-      if (functionName === 'rooms:getRoomState') {
-        return {
-          room: {
-            _id: 'room_1',
-            _creationTime: Date.now(),
-            code: 'ABCD',
-            hostUserId: 'user_1',
-            createdAt: Date.now(),
-            status: 'LOBBY',
-          },
-          players: [
-            {
-              _id: 'player_1',
-              _creationTime: Date.now(),
-              roomId: 'room_1',
-              userId: 'user_1',
-              joinedAt: Date.now(),
-              stableId: 'stable-1',
-            },
-          ],
-          isHost: true,
-        };
-      }
-
-      return null;
+    mockUseRoomState.mockReturnValue({
+      room: {
+        _id: 'room_1',
+        _creationTime: Date.now(),
+        code: 'ABCD',
+        hostUserId: 'user_1',
+        createdAt: Date.now(),
+        status: 'LOBBY',
+      },
+      players: [
+        {
+          _id: 'player_1',
+          _creationTime: Date.now(),
+          roomId: 'room_1',
+          userId: 'user_1',
+          joinedAt: Date.now(),
+          stableId: 'stable-1',
+          displayName: 'Player 1',
+        },
+      ],
+      isHost: true,
     });
 
     renderRoomPage();
@@ -275,60 +237,28 @@ describe('RoomPage', () => {
   });
 
   it('routes in-progress rooms through the writing phase with shared chrome enabled', async () => {
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-
-      if (functionName === 'rooms:getRoomState') {
-        return {
-          room: {
-            _id: 'room_1',
-            _creationTime: Date.now(),
-            code: 'ABCD',
-            hostUserId: 'user_1',
-            createdAt: Date.now(),
-            status: 'IN_PROGRESS',
-          },
-          players: [],
-          isHost: true,
-        };
-      }
-
-      return null;
+    mockUseRoomState.mockReturnValue({
+      room: {
+        _id: 'room_1',
+        _creationTime: Date.now(),
+        code: 'ABCD',
+        hostUserId: 'user_1',
+        createdAt: Date.now(),
+        status: 'IN_PROGRESS',
+      },
+      players: [],
+      isHost: true,
     });
 
     renderRoomPage();
 
-    expect(
-      await screen.findByText(/Writing view ABCD chrome on/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText('1 word')).toBeInTheDocument();
+    expect(screen.getByText('Write the first line.')).toBeInTheDocument();
   });
 
   it('keeps a writing query failure inside the room panel fallback', async () => {
-    mockPhaseFailure.writing = true;
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-
-      if (functionName === 'rooms:getRoomState') {
-        return {
-          room: {
-            _id: 'room_1',
-            _creationTime: Date.now(),
-            code: 'ABCD',
-            hostUserId: 'user_1',
-            createdAt: Date.now(),
-            status: 'IN_PROGRESS',
-          },
-          players: [],
-          isHost: true,
-        };
-      }
-
-      return null;
-    });
+    writingPhaseFails = true;
+    mockUseRoomState.mockReturnValue(createRoomState('IN_PROGRESS'));
 
     renderRoomPage();
 
@@ -345,39 +275,18 @@ describe('RoomPage', () => {
 
   it('recovers from a failed writing panel when the room moves to reveal', async () => {
     let status: 'IN_PROGRESS' | 'COMPLETED' = 'IN_PROGRESS';
-    mockPhaseFailure.writing = true;
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
+    writingPhaseFails = true;
+    mockUseRoomState.mockImplementation(() => createRoomState(status));
 
-      if (functionName === 'rooms:getRoomState') {
-        return {
-          room: {
-            _id: 'room_1',
-            _creationTime: Date.now(),
-            code: 'ABCD',
-            hostUserId: 'user_1',
-            createdAt: Date.now(),
-            status,
-          },
-          players: [],
-          isHost: true,
-        };
-      }
-
-      return null;
-    });
-
-    const { rerender } = renderRoomPage();
+    const view = renderRoomPage();
     expect(
       await screen.findByText(/this room panel needs a refresh/i)
     ).toBeInTheDocument();
 
     status = 'COMPLETED';
-    rerender(
+    view.rerender(
       <ThemeProvider>
-        <RoomPage params={Promise.resolve({ code: 'ABCD' })} />
+        <RoomPage code="ABCD" dependencies={dependencies} />
       </ThemeProvider>
     );
 
@@ -390,35 +299,26 @@ describe('RoomPage', () => {
   });
 
   it('routes completed rooms through the reveal phase with shared chrome enabled', async () => {
-    mockUseQuery.mockImplementation((query) => {
-      const functionName = getFunctionName(
-        query as Parameters<typeof getFunctionName>[0]
-      );
-
-      if (functionName === 'rooms:getRoomState') {
-        return {
-          room: {
-            _id: 'room_1',
-            _creationTime: Date.now(),
-            code: 'ABCD',
-            hostUserId: 'user_1',
-            createdAt: Date.now(),
-            status: 'COMPLETED',
-          },
-          players: [],
-          isHost: true,
-        };
-      }
-
-      return null;
+    mockUseRoomState.mockReturnValue({
+      room: {
+        _id: 'room_1',
+        _creationTime: Date.now(),
+        code: 'ABCD',
+        hostUserId: 'user_1',
+        createdAt: Date.now(),
+        status: 'COMPLETED',
+      },
+      players: [],
+      isHost: true,
     });
 
     renderRoomPage();
 
     expect(
-      await screen.findByText(/Reveal view ABCD chrome on/i)
+      await screen.findByRole('heading', { name: /The reading circle/i })
     ).toBeInTheDocument();
   });
+
   it('keeps every room phase mounted across a transient disconnect', async () => {
     const phaseCases = [
       ['lobby', 'LOBBY', /Lobby view/i],
@@ -426,62 +326,36 @@ describe('RoomPage', () => {
       ['waiting', 'IN_PROGRESS', /Waiting view ABCD chrome on/i],
       ['reveal', 'COMPLETED', /Reveal view ABCD chrome on/i],
     ] as const;
+
     for (const [name, status, phaseCopy] of phaseCases) {
-      mockWritingView.value = name === 'waiting' ? 'waiting' : 'writing';
-      mockUseQuery.mockImplementation((query) => {
-        const functionName = getFunctionName(
-          query as Parameters<typeof getFunctionName>[0]
-        );
-        if (functionName === 'rooms:getRoomState') {
-          return {
-            room: {
-              _id: 'room_1',
-              _creationTime: Date.now(),
-              code: 'ABCD',
-              hostUserId: 'user_1',
-              createdAt: Date.now(),
-              status,
-            },
-            players: [],
-            isHost: true,
-          };
-        }
-        return null;
-      });
+      writingView = name === 'waiting' ? 'waiting' : 'writing';
+      mockUseRoomState.mockReturnValue(createRoomState(status));
       const view = renderRoomPage();
       expect(await screen.findByText(phaseCopy)).toBeInTheDocument();
-      mockConnectionState.mockReturnValue({
-        hasInflightRequests: true,
+
+      connectionState = {
         isWebSocketConnected: false,
-        timeOfOldestInflightRequest: Date.now(),
         hasEverConnected: true,
-        connectionCount: 1,
         connectionRetries: 1,
-        inflightMutations: 0,
-        inflightActions: 0,
-      });
+      };
       act(() => window.dispatchEvent(new Event('offline')));
       view.rerender(
         <ThemeProvider>
-          <RoomPage params={Promise.resolve({ code: 'ABCD' })} />
+          <RoomPage code="ABCD" dependencies={dependencies} />
         </ThemeProvider>
       );
       expect(screen.getByText(phaseCopy)).toBeInTheDocument();
       expect(screen.getByText(/you are offline/i)).toBeInTheDocument();
-      mockConnectionState.mockReturnValue({
-        hasInflightRequests: false,
+
+      connectionState = {
         isWebSocketConnected: true,
-        timeOfOldestInflightRequest: null,
         hasEverConnected: true,
-        connectionCount: 2,
         connectionRetries: 0,
-        inflightMutations: 0,
-        inflightActions: 0,
-      });
+      };
       act(() => window.dispatchEvent(new Event('online')));
       view.rerender(
         <ThemeProvider>
-          <RoomPage params={Promise.resolve({ code: 'ABCD' })} />
+          <RoomPage code="ABCD" dependencies={dependencies} />
         </ThemeProvider>
       );
       expect(screen.getByText(phaseCopy)).toBeInTheDocument();

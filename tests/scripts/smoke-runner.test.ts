@@ -8,12 +8,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 function createMockChild(exitCode: number) {
-  const child = new EventEmitter() as EventEmitter & {
+  type MockChild = EventEmitter & {
     stdout: EventEmitter;
     stderr: EventEmitter;
     kill: (signal: string) => void;
     exitCode: number;
   };
+  // SAFETY: Test fixture constructs EventEmitter child process double with required stream and lifecycle members.
+  const child = new EventEmitter() as MockChild;
   child.stdout = new EventEmitter();
   child.stderr = new EventEmitter();
   child.kill = vi.fn();
@@ -47,7 +49,7 @@ describe('runSmoke', () => {
   ] as const;
   const originalEnv = Object.fromEntries(
     trackedEnvKeys.map((key) => [key, process.env[key]])
-  ) as Record<(typeof trackedEnvKeys)[number], string | undefined>;
+  );
 
   afterEach(() => {
     for (const key of trackedEnvKeys) {
@@ -587,6 +589,7 @@ describe('runSmoke', () => {
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_live_example';
     process.env.CLERK_SECRET_KEY = 'sk_live_example';
 
+    // SAFETY: Minimal duck-typed Response fixture resolving JSON payload for Clerk JWT template check.
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       text: async () => JSON.stringify({ data: [] }),
@@ -615,10 +618,10 @@ describe('trigger-smoke CLI entrypoint', () => {
     const stdoutSpy = vi
       .spyOn(process.stdout, 'write')
       .mockImplementation(() => true);
+    // SAFETY: Test spy intercepts process.exit to prevent test runner termination.
     const exitSpy = vi
       .spyOn(process, 'exit')
       .mockImplementation(() => undefined as never);
-
     const result = await runCli({
       args: ['error.new_class', 'evt-cli-defaults-ok'],
       run: vi.fn().mockResolvedValue({
@@ -636,10 +639,10 @@ describe('trigger-smoke CLI entrypoint', () => {
   it('uses default stderr/exit callbacks in failure path', async () => {
     const { runCli } = await import('@/scripts/ops/run-smoke.mjs');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // SAFETY: Test spy intercepts process.exit to prevent test runner termination.
     const exitSpy = vi
       .spyOn(process, 'exit')
       .mockImplementation(() => undefined as never);
-
     const result = await runCli({
       args: ['error.new_class', 'evt-cli-defaults-fail'],
       run: vi.fn().mockRejectedValue(new Error('default failure')),
@@ -657,9 +660,7 @@ describe('trigger-smoke CLI entrypoint', () => {
     const { runCli } = await import('@/scripts/ops/run-smoke.mjs');
     const writeOut = vi.fn();
     const writeErr = vi.fn();
-    const exitMock = vi.fn();
-    const exit = exitMock as unknown as (code: number) => never;
-
+    const exit = vi.fn<(code: number) => never>();
     const result = await runCli({
       args: ['error.new_class', 'evt-cli-ok'],
       run: vi.fn().mockResolvedValue({
@@ -677,16 +678,14 @@ describe('trigger-smoke CLI entrypoint', () => {
       expect.stringContaining('"ok": true')
     );
     expect(writeErr).not.toHaveBeenCalled();
-    expect(exitMock).toHaveBeenCalledWith(0);
+    expect(exit).toHaveBeenCalledWith(0);
   });
 
   it('writes error output and exits with failure when smoke runner throws', async () => {
     const { runCli } = await import('@/scripts/ops/run-smoke.mjs');
     const writeOut = vi.fn();
     const writeErr = vi.fn();
-    const exitMock = vi.fn();
-    const exit = exitMock as unknown as (code: number) => never;
-
+    const exit = vi.fn<(code: number) => never>();
     const result = await runCli({
       args: ['error.new_class', 'evt-cli-fail'],
       run: vi.fn().mockRejectedValue(new Error('cli failure')),
@@ -701,7 +700,7 @@ describe('trigger-smoke CLI entrypoint', () => {
       'Smoke trigger failed',
       expect.any(Error)
     );
-    expect(exitMock).toHaveBeenCalledWith(1);
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
   it('exits successfully when invoked without PLAYWRIGHT_BASE_URL', async () => {

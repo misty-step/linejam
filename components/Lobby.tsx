@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
+import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
 import { useUser } from '../lib/auth';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
+import { toErrorReportable } from '../lib/errorCore';
 import { formatRoomCode } from '../lib/roomCode';
 import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
@@ -32,18 +34,68 @@ interface LobbyPlayer extends Doc<'roomPlayers'> {
   isAway?: boolean;
 }
 
+type StartGame = (
+  args: FunctionArgs<typeof api.game.startGame>
+) => Promise<FunctionReturnType<typeof api.game.startGame>>;
+type LeaveLobby = (
+  args: FunctionArgs<typeof api.rooms.leaveLobby>
+) => Promise<FunctionReturnType<typeof api.rooms.leaveLobby>>;
+type CloseRoom = (
+  args: FunctionArgs<typeof api.rooms.closeRoom>
+) => Promise<FunctionReturnType<typeof api.rooms.closeRoom>>;
+
+function useDefaultStartGame(): StartGame {
+  return useMutation(api.game.startGame);
+}
+
+function useDefaultLeaveLobby(): LeaveLobby {
+  return useMutation(api.rooms.leaveLobby);
+}
+
+function useDefaultCloseRoom(): CloseRoom {
+  return useMutation(api.rooms.closeRoom);
+}
+
+export interface LobbyDependencies {
+  useRouter: typeof useRouter;
+  useUser: typeof useUser;
+  useStartGame: () => StartGame;
+  useLeaveLobby: () => LeaveLobby;
+  useCloseRoom: () => CloseRoom;
+  hashRoomId: typeof hashRoomId;
+  trackGameStarted: typeof trackGameStarted;
+  trackLobbyReady: typeof trackLobbyReady;
+}
+
+const defaultDependencies: LobbyDependencies = {
+  useRouter,
+  useUser,
+  useStartGame: useDefaultStartGame,
+  useLeaveLobby: useDefaultLeaveLobby,
+  useCloseRoom: useDefaultCloseRoom,
+  hashRoomId,
+  trackGameStarted,
+  trackLobbyReady,
+};
+
 interface LobbyProps {
   room: Doc<'rooms'>;
   players: LobbyPlayer[];
   isHost: boolean;
+  dependencies?: LobbyDependencies;
 }
 
-export function Lobby({ room, players, isHost }: LobbyProps) {
-  const router = useRouter();
-  const { guestToken } = useUser();
-  const startGameMutation = useMutation(api.game.startGame);
-  const leaveLobbyMutation = useMutation(api.rooms.leaveLobby);
-  const closeRoomMutation = useMutation(api.rooms.closeRoom);
+export function Lobby({
+  room,
+  players,
+  isHost,
+  dependencies = defaultDependencies,
+}: LobbyProps) {
+  const router = dependencies.useRouter();
+  const { guestToken } = dependencies.useUser();
+  const startGameMutation = dependencies.useStartGame();
+  const leaveLobbyMutation = dependencies.useLeaveLobby();
+  const closeRoomMutation = dependencies.useCloseRoom();
   const [error, setError] = useState<string | null>(null);
   const [isPresenting, setIsPresenting] = useState(false);
 
@@ -63,13 +115,13 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
       // cannot report a lobby as ready or use the previous cycle number.
       const cycle = (room.currentCycle ?? 0) + 1;
       const analyticsProps = {
-        roomIdHash: hashRoomId(room._id),
+        roomIdHash: dependencies.hashRoomId(room._id),
         cycle,
       };
-      trackLobbyReady(analyticsProps);
-      trackGameStarted(analyticsProps);
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+      dependencies.trackLobbyReady(analyticsProps);
+      dependencies.trackGameStarted(analyticsProps);
+    } catch (cause) {
+      const feedback = errorToFeedback(toErrorReportable(cause));
       setError(feedback.message);
     }
   };
@@ -86,8 +138,8 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         guestToken: guestToken || undefined,
       });
       router.push('/');
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+    } catch (cause) {
+      const feedback = errorToFeedback(toErrorReportable(cause));
       setError(feedback.message);
     }
   };
@@ -100,8 +152,8 @@ export function Lobby({ room, players, isHost }: LobbyProps) {
         guestToken: guestToken || undefined,
       });
       router.push('/');
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+    } catch (cause) {
+      const feedback = errorToFeedback(toErrorReportable(cause));
       setError(feedback.message);
     }
   };

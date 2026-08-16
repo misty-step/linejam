@@ -6,6 +6,7 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
 import { captureError } from '@/lib/error';
+import { toErrorReportable } from '@/lib/errorCore';
 
 interface HeartButtonProps {
   poemId: Id<'poems'>;
@@ -33,8 +34,11 @@ export function HeartButton({
   const handleToggle = async () => {
     try {
       await toggleFavorite({ poemId, guestToken: guestToken || undefined });
-    } catch (err) {
-      captureError(err, { poemId, operation: 'toggleFavorite' });
+    } catch (cause) {
+      captureError(toErrorReportable(cause), {
+        poemId,
+        operation: 'toggleFavorite',
+      });
     }
   };
 

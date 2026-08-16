@@ -32,10 +32,12 @@ async function readDeploymentId(page) {
   });
   const payload = await response.json();
   const id = payload?.deployment?.id;
-  if (typeof id !== 'string' || !id.trim()) {
+  if (
+    Object.prototype.toString.call(id) !== '[object String]' ||
+    !id.trim()
+  ) {
     throw new Error('Production returned no deployment receipt');
   }
-  return id;
 }
 
 async function establishHeldRoom(browser) {

@@ -102,15 +102,18 @@ const insertUser = async (
 ): Promise<UserDoc> => {
   const createdAt = Date.now();
   const isGuest = 'guestId' in values;
-  const userId = await db.insert('users', {
+  const insertPayload: UserInsert = {
     ...values,
     createdAt,
     retentionState: isGuest ? 'pending' : 'protected',
-    ...(isGuest
-      ? { retentionEligibleAt: retentionEligibleAt(createdAt, 'guestIdentity') }
-      : {}),
-  });
-
+  };
+  if (isGuest) {
+    insertPayload.retentionEligibleAt = retentionEligibleAt(
+      createdAt,
+      'guestIdentity'
+    );
+  }
+  const userId = await db.insert('users', insertPayload);
   const createdUser = await db.get(userId);
   if (!createdUser) {
     throw new ConvexError('Failed to load user');

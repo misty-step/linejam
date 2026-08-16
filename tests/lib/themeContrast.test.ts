@@ -85,8 +85,9 @@ describe('theme collection accessibility floor', () => {
               background,
               `Missing background token ${requirement.background} for ${requirement.label}`
             ).toBeDefined();
+            if (!background) continue;
             expect(
-              contrastRatio(foreground, background as string),
+              contrastRatio(foreground, background),
               `${id} ${mode}: ${requirement.label} (${requirement.foreground} on ${requirement.background})`
             ).toBeGreaterThanOrEqual(requirement.minimum);
           }

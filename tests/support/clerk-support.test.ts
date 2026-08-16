@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ensureClerkSmokeUser,
+  resetClerkSmokeUserCache,
+} from '@/tests/e2e/support/clerk';
 
 const getUserList = vi.fn();
 const createUser = vi.fn();
@@ -8,17 +12,6 @@ const createClerkClient = vi.fn(() => ({
     createUser,
   },
 }));
-
-vi.mock('@clerk/backend', () => ({
-  createClerkClient,
-}));
-
-vi.mock('@clerk/testing/playwright', () => ({
-  clerk: {
-    signIn: vi.fn(),
-  },
-}));
-
 describe('ensureClerkSmokeUser', () => {
   const originalSecretKey = process.env.CLERK_SECRET_KEY;
   const originalPublishableKey = process.env.CLERK_PUBLISHABLE_KEY;
@@ -26,6 +19,7 @@ describe('ensureClerkSmokeUser', () => {
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
   beforeEach(() => {
+    resetClerkSmokeUserCache();
     vi.resetModules();
     getUserList.mockReset();
     createUser.mockReset();
@@ -57,10 +51,12 @@ describe('ensureClerkSmokeUser', () => {
     getUserList.mockResolvedValueOnce({ data: [] });
     createUser.mockResolvedValueOnce({ id: 'user_123' });
 
-    const { ensureClerkSmokeUser } = await import('@/tests/e2e/support/clerk');
-
     await expect(
-      ensureClerkSmokeUser('sk_test_example', 'smoke@example.com')
+      ensureClerkSmokeUser(
+        'sk_test_example',
+        'smoke@example.com',
+        createClerkClient
+      )
     ).resolves.toBeUndefined();
 
     expect(createClerkClient).toHaveBeenCalledWith({
@@ -76,10 +72,12 @@ describe('ensureClerkSmokeUser', () => {
   it('refuses to auto-provision a missing live smoke user', async () => {
     getUserList.mockResolvedValueOnce({ data: [] });
 
-    const { ensureClerkSmokeUser } = await import('@/tests/e2e/support/clerk');
-
     await expect(
-      ensureClerkSmokeUser('sk_live_example', 'smoke@example.com')
+      ensureClerkSmokeUser(
+        'sk_live_example',
+        'smoke@example.com',
+        createClerkClient
+      )
     ).rejects.toThrow(/Refusing to auto-provision Clerk smoke user/);
 
     expect(createUser).not.toHaveBeenCalled();
@@ -88,10 +86,12 @@ describe('ensureClerkSmokeUser', () => {
   it('allows an existing live smoke user without provisioning', async () => {
     getUserList.mockResolvedValueOnce({ data: [{ id: 'user_live' }] });
 
-    const { ensureClerkSmokeUser } = await import('@/tests/e2e/support/clerk');
-
     await expect(
-      ensureClerkSmokeUser('sk_live_example', 'smoke@example.com')
+      ensureClerkSmokeUser(
+        'sk_live_example',
+        'smoke@example.com',
+        createClerkClient
+      )
     ).resolves.toBeUndefined();
 
     expect(createUser).not.toHaveBeenCalled();
@@ -102,14 +102,20 @@ describe('ensureClerkSmokeUser', () => {
       .mockRejectedValueOnce(new Error('temporary clerk failure'))
       .mockResolvedValueOnce({ data: [{ id: 'user_retry' }] });
 
-    const { ensureClerkSmokeUser } = await import('@/tests/e2e/support/clerk');
-
     await expect(
-      ensureClerkSmokeUser('sk_test_example', 'smoke@example.com')
+      ensureClerkSmokeUser(
+        'sk_test_example',
+        'smoke@example.com',
+        createClerkClient
+      )
     ).rejects.toThrow(/temporary clerk failure/);
 
     await expect(
-      ensureClerkSmokeUser('sk_test_example', 'smoke@example.com')
+      ensureClerkSmokeUser(
+        'sk_test_example',
+        'smoke@example.com',
+        createClerkClient
+      )
     ).resolves.toBeUndefined();
 
     expect(getUserList).toHaveBeenCalledTimes(2);

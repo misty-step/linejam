@@ -1,10 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { mockCapture } = vi.hoisted(() => ({ mockCapture: vi.fn() }));
-vi.mock('posthog-js', () => ({
-  default: { capture: (...args: unknown[]) => mockCapture(...args) },
-}));
-
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   markPostHogReady,
   resetPostHogReady,
@@ -12,6 +6,7 @@ import {
 import {
   hashRoomId,
   resetCapturedAnalyticsForTests,
+  setPostHogClientForTests,
   trackArtifactAction,
   trackGameCompleted,
   trackGameCreated,
@@ -19,21 +14,33 @@ import {
   trackGameStarted,
   trackLineSubmitted,
   trackLobbyReady,
+  type ArtifactActionProps,
+  type RoomCycleEventProps,
 } from '@/lib/analytics';
-
 const props = {
   roomIdHash: hashRoomId('room-internal-id'),
   cycle: 1,
 };
 
 describe('analytics', () => {
+  const capturedCalls: Array<
+    [string, RoomCycleEventProps | ArtifactActionProps | undefined]
+  > = [];
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    capturedCalls.length = 0;
     resetCapturedAnalyticsForTests();
+    setPostHogClientForTests({
+      capture: (event, properties) => {
+        capturedCalls.push([event, properties]);
+      },
+    });
     markPostHogReady();
   });
-  afterEach(() => resetPostHogReady());
-
+  afterEach(() => {
+    resetPostHogReady();
+    resetCapturedAnalyticsForTests();
+  });
   it('hashes room ids without returning the raw value', () => {
     expect(hashRoomId('room-internal-id')).toMatch(/^[0-9a-f]{16}$/);
     expect(hashRoomId('room-internal-id')).toBe(hashRoomId('room-internal-id'));
@@ -49,7 +56,7 @@ describe('analytics', () => {
     trackGameCompleted({ ...props, round: 8 });
     trackArtifactAction({ ...props, action: 'save', round: 8 });
 
-    expect(mockCapture.mock.calls).toEqual([
+    expect(capturedCalls).toEqual([
       ['game_created', props],
       ['game_joined', props],
       ['lobby_ready', props],
@@ -58,7 +65,7 @@ describe('analytics', () => {
       ['game_completed', { ...props, round: 8 }],
       ['artifact_action', { ...props, round: 8, action: 'save' }],
     ]);
-    for (const [, properties] of mockCapture.mock.calls) {
+    for (const [, properties] of capturedCalls) {
       expect(properties).not.toHaveProperty('playerKind');
     }
   });
@@ -69,6 +76,6 @@ describe('analytics', () => {
     trackArtifactAction({ ...props, round: 8, action: 'save' });
     trackArtifactAction({ ...props, round: 8, action: 'save' });
     trackArtifactAction({ ...props, round: 8, action: 'share' });
-    expect(mockCapture).toHaveBeenCalledTimes(3);
+    expect(capturedCalls).toHaveLength(3);
   });
 });

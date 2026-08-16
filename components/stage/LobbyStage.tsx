@@ -16,9 +16,9 @@ interface LobbyStagePlayer extends Doc<'roomPlayers'> {
 }
 
 function buildJoinUrl(roomCode: string): string {
-  return typeof window === 'undefined'
+  return globalThis.window === undefined
     ? `/join?code=${roomCode}`
-    : `${window.location.origin}/join?code=${roomCode}`;
+    : `${globalThis.window.location.origin}/join?code=${roomCode}`;
 }
 
 interface LobbyStageProps {

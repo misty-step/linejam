@@ -7,6 +7,7 @@ import { isValidSentryDsn } from '@/lib/env';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
 import { captureServerError } from '@/lib/errorServer';
+import { toErrorReportable } from '@/lib/errorCore';
 import { log, logError, logRequest } from '@/lib/logger';
 
 const CONVEX_HEALTH_TIMEOUT_MS = 3_000;
@@ -20,79 +21,104 @@ const SENTRY_HEALTH_MONITOR_CONFIG = {
   timezone: 'UTC',
 };
 
-export async function GET() {
-  const startedAt = Date.now();
-
-  try {
-    const {
-      status: convexStatus,
-      report: convexEnv,
-      guestTokenParity,
-      deploymentMatch,
-    } = await checkConvex();
-    const envChecks = checkEnvVars(guestTokenParity, deploymentMatch);
-    const serviceHealthy =
-      envChecks.guestTokenSecret &&
-      envChecks.guestTokenParity &&
-      envChecks.convexDeploymentMatch &&
-      envChecks.convexUrl &&
-      convexStatus === 'connected' &&
-      convexEnv?.ok === true;
-    const sentryReady = envChecks.sentryEnabled;
-    const observabilityReady = sentryReady;
-    const deployment = deploymentReadiness();
-    const status = serviceHealthy && deployment.ready ? 200 : 503;
-    const body = {
-      status: status === 200 ? 'ok' : 'unhealthy',
-      deployment: {
-        id: deployment.id,
-        skewProtection: deployment.skewProtection,
-        stableServerActions: deployment.stableServerActions,
-      },
-      convex: convexStatus,
-      convexEnv: convexEnv?.capabilities ?? null,
-      env: {
-        nodeEnv: process.env.NODE_ENV ?? 'development',
-        ...envChecks,
-      },
-      observability: {
-        status: observabilityReady ? 'ready' : 'degraded',
-        sentryEnabled: sentryReady,
-      },
-      timestamp: new Date().toISOString(),
-    };
-
-    logRequest({
-      method: 'GET',
-      route: ROUTE,
-      status,
-      durationMs: elapsedMs(startedAt),
-      convex: convexStatus,
-      observabilityStatus: observabilityReady ? 'ready' : 'degraded',
-    });
-
-    await reportHealthCheckIn({
-      status: status === 200 ? 'alive' : 'error',
-      summary:
-        status === 200
-          ? 'linejam health route ok'
-          : 'linejam health route degraded',
-      routeStatus: status,
-      startedAt,
-    });
-
-    return Response.json(body, {
-      status,
-      headers: { 'Cache-Control': 'no-store' },
-    });
-  } catch (error) {
-    await logFailure(error, startedAt);
-    return Response.json(
-      { status: 'error' },
-      { status: 500, headers: { 'Cache-Control': 'no-store' } }
-    );
-  }
+export interface HealthRouteDependencies {
+  captureCheckIn: typeof captureCheckIn;
+  captureServerError: typeof captureServerError;
+  flush: typeof flush;
 }
+
+export interface HealthRoute {
+  (): Promise<Response>;
+}
+
+const defaultHealthRouteDependencies: HealthRouteDependencies = {
+  captureCheckIn,
+  captureServerError,
+  flush,
+};
+
+export function createHealthRoute(
+  dependencies: HealthRouteDependencies = defaultHealthRouteDependencies
+): HealthRoute {
+  return async function healthRoute() {
+    const startedAt = Date.now();
+
+    try {
+      const {
+        status: convexStatus,
+        report: convexEnv,
+        guestTokenParity,
+        deploymentMatch,
+      } = await checkConvex();
+      const envChecks = checkEnvVars(guestTokenParity, deploymentMatch);
+      const serviceHealthy =
+        envChecks.guestTokenSecret &&
+        envChecks.guestTokenParity &&
+        envChecks.convexDeploymentMatch &&
+        envChecks.convexUrl &&
+        convexStatus === 'connected' &&
+        convexEnv?.ok === true;
+      const sentryReady = envChecks.sentryEnabled;
+      const observabilityReady = sentryReady;
+      const deployment = deploymentReadiness();
+      const status = serviceHealthy && deployment.ready ? 200 : 503;
+      const body = {
+        status: status === 200 ? 'ok' : 'unhealthy',
+        deployment: {
+          id: deployment.id,
+          skewProtection: deployment.skewProtection,
+          stableServerActions: deployment.stableServerActions,
+        },
+        convex: convexStatus,
+        convexEnv: convexEnv?.capabilities ?? null,
+        env: {
+          nodeEnv: process.env.NODE_ENV ?? 'development',
+          ...envChecks,
+        },
+        observability: {
+          status: observabilityReady ? 'ready' : 'degraded',
+          sentryEnabled: sentryReady,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      logRequest({
+        method: 'GET',
+        route: ROUTE,
+        status,
+        durationMs: elapsedMs(startedAt),
+        convex: convexStatus,
+        observabilityStatus: observabilityReady ? 'ready' : 'degraded',
+      });
+
+      await reportHealthCheckIn(
+        {
+          status: status === 200 ? 'alive' : 'error',
+          summary:
+            status === 200
+              ? 'linejam health route ok'
+              : 'linejam health route degraded',
+          routeStatus: status,
+          startedAt,
+        },
+        dependencies
+      );
+
+      return Response.json(body, {
+        status,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      await logFailure(error, startedAt, dependencies);
+      return Response.json(
+        { status: 'error' },
+        { status: 500, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+  };
+}
+
+export const GET = createHealthRoute();
 
 function deploymentReadiness() {
   const id = resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID) ?? null;
@@ -158,6 +184,7 @@ async function checkConvex(): Promise<ConvexHealth> {
 
   try {
     const client = new ConvexHttpClient(convexUrl);
+    // SAFETY: Promise.all resolves tuple of ConvexEnvHealthReport and boolean from checkGuestTokenParity.
     const [report, guestTokenParity] = (await Promise.race([
       Promise.all([
         client.query(api.health.capabilities),
@@ -249,7 +276,12 @@ async function checkGuestTokenParity(client: ConvexHttpClient) {
 /**
  * Best-effort logging that tolerates missing or slow observability transport.
  */
-async function logFailure(error: unknown, startedAt: number) {
+async function logFailure(
+  cause: unknown,
+  startedAt: number,
+  dependencies: HealthRouteDependencies
+) {
+  const error = toErrorReportable(cause);
   const context = {
     source: 'api.health',
     method: 'GET',
@@ -260,23 +292,31 @@ async function logFailure(error: unknown, startedAt: number) {
 
   logError('Healthcheck failed', error, context);
 
-  captureServerError(error, context);
-  reportSentryHealthCheckIn('error', startedAt);
+  dependencies.captureServerError(error, context);
+  reportSentryHealthCheckIn('error', startedAt, dependencies);
 }
 
-async function reportHealthCheckIn(input: {
-  status: 'alive' | 'error';
-  summary: string;
-  routeStatus: number;
-  startedAt: number;
-}) {
+async function reportHealthCheckIn(
+  input: {
+    status: 'alive' | 'error';
+    summary: string;
+    routeStatus: number;
+    startedAt: number;
+  },
+  dependencies: HealthRouteDependencies
+) {
   reportSentryHealthCheckIn(
     input.status === 'error' ? 'error' : 'ok',
-    input.startedAt
+    input.startedAt,
+    dependencies
   );
 }
 
-function reportSentryHealthCheckIn(status: 'ok' | 'error', startedAt: number) {
+function reportSentryHealthCheckIn(
+  status: 'ok' | 'error',
+  startedAt: number,
+  dependencies: HealthRouteDependencies
+) {
   if (
     process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
     !isValidSentryDsn(process.env.NEXT_PUBLIC_SENTRY_DSN)
@@ -285,7 +325,7 @@ function reportSentryHealthCheckIn(status: 'ok' | 'error', startedAt: number) {
   }
 
   try {
-    captureCheckIn(
+    dependencies.captureCheckIn(
       {
         monitorSlug: SENTRY_HEALTH_MONITOR_SLUG,
         status,
@@ -293,24 +333,23 @@ function reportSentryHealthCheckIn(status: 'ok' | 'error', startedAt: number) {
       },
       SENTRY_HEALTH_MONITOR_CONFIG
     );
-    void flush(2_000)
+    void dependencies
+      .flush(2_000)
       .then((flushed) => {
         if (!flushed) {
           logSentryHealthReportingFailure('FlushTimeout');
         }
       })
-      .catch((reportingError: unknown) => {
+      .catch((cause: unknown) => {
+        const err = toErrorReportable(cause);
         logSentryHealthReportingFailure(
-          reportingError instanceof Error
-            ? reportingError.name
-            : 'UnknownReportingError'
+          err instanceof Error ? err.name : 'UnknownReportingError'
         );
       });
   } catch (reportingError) {
+    const err = toErrorReportable(reportingError);
     logSentryHealthReportingFailure(
-      reportingError instanceof Error
-        ? reportingError.name
-        : 'UnknownReportingError'
+      err instanceof Error ? err.name : 'UnknownReportingError'
     );
   }
 }

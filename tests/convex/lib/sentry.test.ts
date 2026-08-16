@@ -10,6 +10,7 @@ import {
 } from 'vitest';
 import type { Mock } from 'vitest';
 import { returnAfterBackendReportScheduled } from '../../../convex/errors';
+import type { BackendFailureOperation } from '../../../convex/lib/sentry';
 
 const ORIGINAL_ENV = { ...process.env };
 const RELEASE = '0123456789abcdef0123456789abcdef01234567';
@@ -246,9 +247,14 @@ describe('closed Convex Sentry transport', () => {
     ]) {
       expect(body).not.toContain(sentinel);
     }
+    // SAFETY: Invalid runtime operation to verify runtime rejection of values outside the closed enum.
+    const invalidReport = {
+      ...backendReport,
+      operation: 'arbitraryOperation' as BackendFailureOperation,
+    };
     expect(
       mod.buildBackendSentryEnvelope(
-        { ...backendReport, operation: 'arbitraryOperation' } as never,
+        invalidReport,
         { environment: 'preview', release: RELEASE },
         EVENT_ID
       )

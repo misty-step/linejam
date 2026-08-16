@@ -14,6 +14,7 @@ export {
   REQUIRED_TOKENS,
   THEME_CONTRAST_REQUIREMENTS,
 } from './schema';
+export type { ThemeValidationInput } from './schema';
 
 // Registry
 export {

@@ -1,12 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { captureRequestErrorMock } = vi.hoisted(() => ({
-  captureRequestErrorMock: vi.fn(),
-}));
-
-vi.mock('@sentry/nextjs', () => ({
-  captureRequestError: captureRequestErrorMock,
-}));
+const captureRequestErrorMock = vi.fn();
 
 describe('instrumentation', () => {
   beforeEach(() => {
@@ -46,7 +40,7 @@ describe('instrumentation', () => {
       renderSource: 'react-server-components' as const,
     };
 
-    onRequestError(error, request, context);
+    onRequestError(error, request, context, captureRequestErrorMock);
 
     expect(captureRequestErrorMock).toHaveBeenCalledWith(
       error,

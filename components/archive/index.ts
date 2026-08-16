@@ -4,7 +4,7 @@
  * Barrel export for archive-related components.
  */
 
-export { PoemShape, PoemShapeCompact } from './PoemShape';
+export { PoemSilhouette, PoemSilhouetteCompact } from './PoemSilhouette';
 export { AuthorDots, AuthorDotsInline } from './AuthorDots';
 export { PoemCard, PoemCardSkeleton } from './PoemCard';
 export { ArchiveStats, ArchiveStatsSkeleton } from './ArchiveStats';

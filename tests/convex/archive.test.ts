@@ -261,7 +261,7 @@ describe('archive', () => {
       const result = await queryArchive(t, 'clerk_fave');
 
       expect(result.poems[0].isFavorited).toBe(true);
-      expect(typeof result.poems[0].favoritedAt).toBe('number');
+      expect(result.poems[0].favoritedAt).toBeGreaterThan(0);
       expect(result.stats?.totalFavorites).toBe(1);
     });
 
@@ -546,7 +546,7 @@ describe('archive', () => {
       );
       // Deleted authors still get a poem-local grouping key.
       expect(mysteryLine?.authorName).toBe('Unknown');
-      expect(typeof mysteryLine?.authorKey).toBe('string');
+      expect(mysteryLine?.authorKey).toEqual(expect.any(String));
       expect(JSON.stringify(result)).not.toContain(ghostId);
     });
 

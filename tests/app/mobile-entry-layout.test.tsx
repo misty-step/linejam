@@ -1,71 +1,78 @@
 // @vitest-environment happy-dom
 import type { ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-
-const mockUseSearchParams = vi.fn();
-const mockUsePathname = vi.fn();
-const mockClerkState = vi.hoisted(() => ({ isSignedIn: false }));
-
-vi.mock('next/navigation', () => ({
-  usePathname: () => mockUsePathname(),
-  useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => mockUseSearchParams(),
-}));
-
-vi.mock('convex/react', () => ({
-  useConvexAuth: () => ({ isLoading: false, isAuthenticated: false }),
-  useMutation: () => vi.fn().mockResolvedValue(undefined),
-  useQuery: () => undefined,
-}));
-
-vi.mock('@clerk/nextjs', () => ({
-  Show: ({ when, children }: { when: string; children: ReactNode }) => {
-    const shouldShow =
-      when === 'signed-in'
-        ? mockClerkState.isSignedIn
-        : !mockClerkState.isSignedIn;
-    return shouldShow ? children : null;
-  },
-  UserButton: () => <button type="button">Account</button>,
-  useUser: () => ({ user: null, isLoaded: true }),
-  SignIn: () => (
-    <div>
-      <p>Don&apos;t have an account? Sign up</p>
-    </div>
-  ),
-  SignUp: () => (
-    <div>
-      <p>Already have an account? Sign in</p>
-    </div>
-  ),
-}));
-
-import AuthLayout from '@/app/(auth)/layout';
-import JoinPage from '@/app/join/page';
+import { AuthLayout, type AuthLayoutDependencies } from '@/app/(auth)/layout';
+import {
+  JoinPage,
+  type JoinPageDependencies,
+  type JoinRoom,
+} from '@/app/join/page';
 import { Header } from '@/components/Header';
+import type { HeaderDependencies } from '@/components/Header';
+import {
+  SignInPage,
+  type SignInPageDependencies,
+} from '@/app/(auth)/sign-in/[[...sign-in]]/page';
+import {
+  SignUpPage,
+  type SignUpPageDependencies,
+} from '@/app/(auth)/sign-up/[[...sign-up]]/page';
+
+let currentPathname = '/join';
+let currentSearchParams = new URLSearchParams('code=ABCD');
+let currentIsSignedIn = false;
+
+const mockRouter = { push: vi.fn() };
+const mockJoinRoom = vi.fn<JoinRoom>();
+const authLayoutDependencies: AuthLayoutDependencies = {
+  ShowcaseComponent: () => <div>Recent Creation</div>,
+};
+
+const joinDependencies: JoinPageDependencies = {
+  useRouter: () => mockRouter,
+  useSearchParams: () => currentSearchParams,
+  useUser: () => ({
+    guestToken: 'guest-token',
+    isLoading: false,
+    authError: null,
+    retryAuth: vi.fn(),
+  }),
+  useJoinRoom: () => mockJoinRoom,
+};
+
+const headerDependencies: HeaderDependencies = {
+  usePathname: () => currentPathname,
+  SignedOut: ({ children }) => (currentIsSignedIn ? null : <>{children}</>),
+  SignedIn: ({ children }) => (currentIsSignedIn ? <>{children}</> : null),
+  AccountButton: () => <button type="button">Account</button>,
+};
+
+const signInDependencies: SignInPageDependencies = {
+  isClerkConfigured: true,
+  SignInComponent: () => <div>Don&apos;t have an account</div>,
+};
+
+const signUpDependencies: SignUpPageDependencies = {
+  isClerkConfigured: true,
+  SignUpComponent: () => <div>Already have an account</div>,
+};
+
+function renderEntry(ui: ReactNode) {
+  return render(ui);
+}
 
 describe('mobile entry layout', () => {
-  const originalFetch = global.fetch;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockClerkState.isSignedIn = false;
-    mockUsePathname.mockReturnValue('/join');
-    mockUseSearchParams.mockReturnValue(new URLSearchParams('code=ABCD'));
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ guestId: 'guest-123', token: 'guest-token' }),
-    }) as typeof fetch;
-  });
-
-  afterEach(() => {
-    global.fetch = originalFetch;
-    vi.unstubAllEnvs();
+    currentIsSignedIn = false;
+    mockJoinRoom.mockResolvedValue({ _id: 'room-1' });
+    currentPathname = '/join';
+    currentSearchParams = new URLSearchParams('code=ABCD');
   });
 
   it('keeps the join action inline with the required fields on narrow phones', async () => {
-    render(<JoinPage />);
+    renderEntry(<JoinPage dependencies={joinDependencies} />);
 
     const heading = await screen.findByRole('heading', {
       level: 1,
@@ -87,8 +94,8 @@ describe('mobile entry layout', () => {
   });
 
   it('puts the account task before decorative poem content on phones', () => {
-    render(
-      <AuthLayout>
+    renderEntry(
+      <AuthLayout dependencies={authLayoutDependencies}>
         <div>Account access</div>
       </AuthLayout>
     );
@@ -108,7 +115,7 @@ describe('mobile entry layout', () => {
   });
 
   it('uses compact header spacing without shrinking visible touch targets', () => {
-    render(<Header />);
+    renderEntry(<Header dependencies={headerDependencies} />);
 
     const header = screen.getByRole('banner');
     expect(header).toHaveClass('px-3', 'gap-2', 'sm:px-6');
@@ -138,9 +145,9 @@ describe('mobile entry layout', () => {
   });
 
   it('renders the signed-in account control through Show', () => {
-    mockClerkState.isSignedIn = true;
+    currentIsSignedIn = true;
 
-    render(<Header />);
+    renderEntry(<Header dependencies={headerDependencies} />);
 
     expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument();
     expect(
@@ -149,7 +156,7 @@ describe('mobile entry layout', () => {
   });
 
   it('closes the mobile header menu outside or with Escape and restores focus', () => {
-    render(<Header />);
+    renderEntry(<Header dependencies={headerDependencies} />);
 
     const menu = screen.getByRole('button', { name: 'More options' });
     fireEvent.click(menu);
@@ -166,33 +173,25 @@ describe('mobile entry layout', () => {
   });
 
   it('defers to focused account and gameplay chrome', () => {
-    mockUsePathname.mockReturnValue('/sign-in');
-    const { rerender } = render(<Header />);
+    currentPathname = '/sign-in';
+    const { rerender } = renderEntry(
+      <Header dependencies={headerDependencies} />
+    );
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
 
-    mockUsePathname.mockReturnValue('/room/ABCD');
-    rerender(<Header />);
+    currentPathname = '/room/ABCD';
+    rerender(<Header dependencies={headerDependencies} />);
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
   });
 
-  it('renders exactly one account-switch prompt on sign-in', async () => {
-    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_mobile_entry');
-    vi.resetModules();
-    const { default: SignInPage } =
-      await import('@/app/(auth)/sign-in/[[...sign-in]]/page');
-
-    render(<SignInPage />);
+  it('renders exactly one account-switch prompt on sign-in', () => {
+    renderEntry(<SignInPage dependencies={signInDependencies} />);
 
     expect(screen.getAllByText(/don(?:'|’)t have an account/i)).toHaveLength(1);
   });
 
-  it('renders exactly one account-switch prompt on sign-up', async () => {
-    vi.stubEnv('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'pk_test_mobile_entry');
-    vi.resetModules();
-    const { default: SignUpPage } =
-      await import('@/app/(auth)/sign-up/[[...sign-up]]/page');
-
-    render(<SignUpPage />);
+  it('renders exactly one account-switch prompt on sign-up', () => {
+    renderEntry(<SignUpPage dependencies={signUpDependencies} />);
 
     expect(screen.getAllByText(/already have an account/i)).toHaveLength(1);
   });

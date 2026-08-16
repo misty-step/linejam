@@ -1,17 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConvexError } from 'convex/values';
+import { captureError, setErrorReporterForTests } from '@/lib/error';
+import { captureReportedError, isSentryEnabled } from '@/lib/errorCore';
+import { sanitizeSentryReporterContext } from '@/lib/sentryPrivacy';
 
-const { captureExceptionMock } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-}));
-
-vi.mock('@sentry/nextjs', () => ({
-  captureException: captureExceptionMock,
-}));
-
-import { captureError } from '@/lib/error';
-import { captureReportedError } from '@/lib/errorCore';
-
+const captureExceptionMock = vi.fn();
 describe('captureError', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -21,9 +14,15 @@ describe('captureError', () => {
     );
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    setErrorReporterForTests({
+      captureException: captureExceptionMock,
+      isEnabled: isSentryEnabled,
+      sanitizeContext: sanitizeSentryReporterContext,
+    });
   });
 
   afterEach(() => {
+    setErrorReporterForTests(null);
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
@@ -37,7 +36,7 @@ describe('captureError', () => {
       roomCode: 'ABCD',
       poemId: 'poem_123',
       userId: 'user_123',
-      requestBody: { line: 'private poem draft' },
+      requestBody: 'private poem draft',
     });
 
     expect(captureExceptionMock).toHaveBeenCalledWith(error, {

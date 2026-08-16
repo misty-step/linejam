@@ -205,6 +205,7 @@ describe('buildRoomCycleFunnelReport', () => {
           occurredAt: 2_502,
           roomIdHash: '0011223344556677',
           cycle: 1,
+          // SAFETY: Injects malformed event property to verify funnel drops unrecognized artifact actions.
           action: 'delete' as 'save',
         },
         {

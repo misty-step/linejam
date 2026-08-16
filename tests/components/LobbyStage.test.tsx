@@ -6,19 +6,25 @@ import { LobbyJoinQr, LobbyStage } from '@/components/stage/LobbyStage';
 import { Doc, Id } from '@/convex/_generated/dataModel';
 
 describe('LobbyStage', () => {
+  // SAFETY: Synthetic room document fixture for LobbyStage tests.
   const room: Doc<'rooms'> = {
+    // SAFETY: Synthetic Convex room ID for test fixture.
     _id: 'room_123' as Id<'rooms'>,
     _creationTime: Date.now(),
     createdAt: Date.now(),
     code: 'ABCD',
+    // SAFETY: Synthetic Convex user ID for test fixture.
     hostUserId: 'user_host' as Id<'users'>,
     status: 'LOBBY',
   };
 
   const hostPlayer = {
+    // SAFETY: Synthetic Convex roomPlayer ID for test fixture.
     _id: 'player_1' as Id<'roomPlayers'>,
     _creationTime: Date.now(),
+    // SAFETY: Synthetic Convex room ID for test fixture.
     roomId: 'room_123' as Id<'rooms'>,
+    // SAFETY: Synthetic Convex user ID for test fixture.
     userId: 'user_host' as Id<'users'>,
     displayName: 'Host Player',
     joinedAt: Date.now(),
@@ -26,15 +32,17 @@ describe('LobbyStage', () => {
   };
 
   const latePlayer = {
+    // SAFETY: Synthetic Convex roomPlayer ID for test fixture.
     _id: 'player_2' as Id<'roomPlayers'>,
     _creationTime: Date.now(),
+    // SAFETY: Synthetic Convex room ID for test fixture.
     roomId: 'room_123' as Id<'rooms'>,
+    // SAFETY: Synthetic Convex user ID for test fixture.
     userId: 'user_late' as Id<'users'>,
     displayName: 'Late Poet',
     joinedAt: Date.now(),
     stableId: 'stable_late_456',
   };
-
   afterEach(() => {
     vi.useRealTimers();
   });

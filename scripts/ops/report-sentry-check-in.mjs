@@ -38,7 +38,8 @@ const EVENT_ID = /^[a-f0-9]{32}$/i;
  */
 export function sanitizeWorkflowEvent(event) {
   const release =
-    typeof event.release === 'string' && COMMIT_RELEASE.test(event.release)
+    Object.prototype.toString.call(event.release) === '[object String]' &&
+    COMMIT_RELEASE.test(event.release)
       ? event.release
       : undefined;
   const tags = event.tags;
@@ -66,16 +67,16 @@ export function sanitizeWorkflowEvent(event) {
   }
 
   const eventId =
-    typeof event.event_id === 'string' && EVENT_ID.test(event.event_id)
+    Object.prototype.toString.call(event.event_id) === '[object String]' &&
+    EVENT_ID.test(event.event_id)
       ? event.event_id
       : undefined;
   const timestamp =
-    typeof event.timestamp === 'number' && Number.isFinite(event.timestamp)
+    Number.isFinite(event.timestamp)
       ? event.timestamp
       : undefined;
-  return {
-    ...(eventId ? { event_id: eventId } : {}),
-    ...(timestamp !== undefined ? { timestamp } : {}),
+
+  const sanitized = {
     platform: 'node',
     level: 'error',
     environment: event.environment,
@@ -92,6 +93,13 @@ export function sanitizeWorkflowEvent(event) {
       values: [{ type: 'Error', value: expectedMessage }],
     },
   };
+  if (eventId) {
+    sanitized.event_id = eventId;
+  }
+  if (timestamp !== undefined) {
+    sanitized.timestamp = timestamp;
+  }
+  return sanitized;
 }
 
 /**

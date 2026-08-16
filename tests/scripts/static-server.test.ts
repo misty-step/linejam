@@ -1,30 +1,29 @@
 /** @vitest-environment node */
 import { describe, expect, it } from 'vitest';
 import { buildStaticEvidenceEnv } from '@/scripts/evidence/static-server.mjs';
+const testEnv: NodeJS.ProcessEnv = { NODE_ENV: 'test' };
 
 describe('static evidence server env', () => {
   it('bypasses the Convex guest-session throttle check', () => {
-    const env = buildStaticEvidenceEnv({} as unknown as NodeJS.ProcessEnv);
+    const env = buildStaticEvidenceEnv(testEnv);
 
     expect(env.LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE).toBe('1');
   });
 
   it('defaults PORT to 3340 without clobbering an explicit PORT', () => {
-    expect(
-      buildStaticEvidenceEnv({} as unknown as NodeJS.ProcessEnv).PORT
-    ).toBe('3340');
-    expect(
-      buildStaticEvidenceEnv({ PORT: '4001' } as unknown as NodeJS.ProcessEnv)
-        .PORT
-    ).toBe('4001');
+    expect(buildStaticEvidenceEnv(testEnv).PORT).toBe('3340');
+    expect(buildStaticEvidenceEnv({ ...testEnv, PORT: '4001' }).PORT).toBe(
+      '4001'
+    );
   });
 
   it('strips ambient Sentry credentials so no ingest call can fire', () => {
     const env = buildStaticEvidenceEnv({
+      ...testEnv,
       LINEJAM_SENTRY_ENABLED: 'true',
       NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'example.test/42'].join('@'),
       NEXT_PUBLIC_SENTRY_ENABLED: '1',
-    } as unknown as NodeJS.ProcessEnv);
+    });
 
     expect(env.LINEJAM_SENTRY_ENABLED).toBeUndefined();
     expect(env.NEXT_PUBLIC_SENTRY_DSN).toBeUndefined();
@@ -35,7 +34,7 @@ describe('static evidence server env', () => {
     const env = buildStaticEvidenceEnv({
       NODE_ENV: 'production',
       PATH: '/usr/bin',
-    } as unknown as NodeJS.ProcessEnv);
+    });
 
     expect(env.NODE_ENV).toBe('production');
     expect(env.PATH).toBe('/usr/bin');

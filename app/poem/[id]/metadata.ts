@@ -12,6 +12,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const { share } = (await searchParams) ?? {};
+  // SAFETY: Route parameter `id` is a nominal Convex document ID validated by the query runtime.
   const preview = await fetchQuery(api.poems.getPublicPoemPreview, {
     poemId: id as Id<'poems'>,
     shareSlug: share,

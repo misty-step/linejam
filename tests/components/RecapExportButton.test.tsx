@@ -1,27 +1,29 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MockInstance } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-
-const { mockCapture } = vi.hoisted(() => ({ mockCapture: vi.fn() }));
-vi.mock('posthog-js', () => ({
-  default: {
-    capture: (...args: unknown[]) => mockCapture(...args),
-  },
-}));
-
 import {
   markPostHogReady,
   resetPostHogReady,
 } from '@/lib/posthog/posthogReady';
 import { RecapExportButton } from '@/components/RecapExportButton';
+import * as analyticsModule from '@/lib/analytics';
 
 describe('RecapExportButton', () => {
+  let trackRecapExportedSpy: MockInstance;
+
   beforeEach(() => {
     vi.clearAllMocks();
     markPostHogReady();
+    trackRecapExportedSpy = vi
+      .spyOn(analyticsModule, 'trackRecapExported')
+      .mockImplementation(() => {});
   });
 
-  afterEach(() => resetPostHogReady());
+  afterEach(() => {
+    resetPostHogReady();
+    trackRecapExportedSpy.mockRestore();
+  });
 
   it('tracks the export and invokes the browser print dialog', () => {
     const printSpy = vi.fn();
@@ -35,7 +37,7 @@ describe('RecapExportButton', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Export as PDF/i }));
 
-    expect(mockCapture).toHaveBeenCalledWith('recap_exported', {
+    expect(trackRecapExportedSpy).toHaveBeenCalledWith({
       method: 'print',
       poemCount: 6,
     });

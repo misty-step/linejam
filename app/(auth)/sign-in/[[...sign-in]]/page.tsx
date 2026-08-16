@@ -2,6 +2,7 @@
 
 import { SignIn } from '@clerk/nextjs';
 import Link from 'next/link';
+import type { ComponentType } from 'react';
 
 /**
  * Sign-In Page
@@ -20,9 +21,43 @@ import Link from 'next/link';
 // Check if Clerk is configured (publishable key available on client)
 const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-export default function SignInPage() {
+function DefaultSignIn() {
+  return (
+    <SignIn
+      appearance={{
+        elements: {
+          headerTitle: 'hidden',
+          headerSubtitle: 'hidden',
+        },
+      }}
+      routing="path"
+      path="/sign-in"
+      signUpUrl="/sign-up"
+      fallbackRedirectUrl="/callback"
+    />
+  );
+}
+
+export interface SignInPageDependencies {
+  isClerkConfigured: boolean;
+  SignInComponent: ComponentType;
+}
+
+const defaultSignInPageDependencies: SignInPageDependencies = {
+  isClerkConfigured,
+  SignInComponent: DefaultSignIn,
+};
+
+interface SignInPageProps {
+  dependencies?: SignInPageDependencies;
+}
+
+export function SignInPage({
+  dependencies = defaultSignInPageDependencies,
+}: SignInPageProps = {}) {
+  const { SignInComponent } = dependencies;
   // Show fallback when Clerk is not configured
-  if (!isClerkConfigured) {
+  if (!dependencies.isClerkConfigured) {
     return (
       <div className="space-y-8">
         <div className="space-y-2">
@@ -63,18 +98,11 @@ export default function SignInPage() {
       {/* Clerk SignIn Component — shared appearance from ClerkProvider;
           only the redundant Clerk-native header is hidden here since this
           page renders its own above. */}
-      <SignIn
-        appearance={{
-          elements: {
-            headerTitle: 'hidden',
-            headerSubtitle: 'hidden',
-          },
-        }}
-        routing="path"
-        path="/sign-in"
-        signUpUrl="/sign-up"
-        fallbackRedirectUrl="/callback"
-      />
+      <SignInComponent />
     </div>
   );
+}
+
+export default function SignInRoutePage() {
+  return <SignInPage />;
 }

@@ -4,6 +4,21 @@ import { getSentryRuntimeOptions } from './sentry.runtime.mjs';
 
 const runtimeOptions = getSentryRuntimeOptions();
 
+type SentryServerTags = {
+  runtime: 'node';
+  environment: string;
+  release?: string;
+};
+
+const serverTags: SentryServerTags = {
+  runtime: 'node',
+  environment: runtimeOptions.environment,
+};
+
+if (runtimeOptions.release) {
+  serverTags.release = runtimeOptions.release;
+}
+
 if (!Sentry.getClient()) {
   Sentry.init({
     ...runtimeOptions,
@@ -11,11 +26,7 @@ if (!Sentry.getClient()) {
     beforeSend,
     beforeSendTransaction,
     initialScope: {
-      tags: {
-        runtime: 'node',
-        environment: runtimeOptions.environment,
-        ...(runtimeOptions.release ? { release: runtimeOptions.release } : {}),
-      },
+      tags: serverTags,
     },
   });
 }

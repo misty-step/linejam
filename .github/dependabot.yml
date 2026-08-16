@@ -44,6 +44,14 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+      oxlint:
+        patterns:
+          - 'oxlint'
+          - '@oxlint/plugins'
+        update-types:
+          - 'minor'
+          - 'major'
+          - 'patch'
       # Dev-deps group more aggressively — include majors so type defs,
       # test runner plumbing, and linter deltas don't spam per-package PRs.
       dev-minor-and-patch:

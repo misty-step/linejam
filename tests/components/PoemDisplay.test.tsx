@@ -1,48 +1,43 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import {
+  render as rtlRender,
+  screen,
+  act,
+  fireEvent,
+} from '@testing-library/react';
+import { ConvexProvider } from 'convex/react';
+import { createTestConvexClient } from '@/tests/helpers/convexClient';
 
-// Mock external dependencies only
-const mockApiRefs = vi.hoisted(() => ({
-  preparePublicPoemShare: {},
-  activatePublicPoemShare: {},
-  cancelPublicPoemShare: {},
-  disablePublicPoemShare: {},
-  isFavorited: {},
-  toggleFavorite: {},
-}));
+import type { UseSharePoemDependencies } from '@/hooks/useSharePoem';
 
-vi.mock('@/convex/_generated/api', () => ({
-  api: {
-    shares: {
-      preparePublicPoemShare: mockApiRefs.preparePublicPoemShare,
-      activatePublicPoemShare: mockApiRefs.activatePublicPoemShare,
-      cancelPublicPoemShare: mockApiRefs.cancelPublicPoemShare,
-      disablePublicPoemShare: mockApiRefs.disablePublicPoemShare,
-    },
-    favorites: {
-      isFavorited: mockApiRefs.isFavorited,
-      toggleFavorite: mockApiRefs.toggleFavorite,
-    },
-  },
-}));
+const mockConvexClient = Object.assign(createTestConvexClient(), {
+  mutation: vi.fn().mockResolvedValue(undefined),
+  query: vi.fn(),
+  watchQuery: vi.fn(() => ({
+    localQueryResult: () => false,
+    onUpdate: () => () => {},
+  })),
+  connectionState: vi.fn(() => ({
+    hasInflightRequests: false,
+    isWebSocketConnected: true,
+    timeOfOldestInflightRequest: null,
+  })),
+  setAuth: vi.fn(),
+  clearAuth: vi.fn(),
+});
 
-vi.mock('convex/react', () => ({
-  useMutation: (mutationRef: unknown) => {
-    if (mutationRef === mockApiRefs.preparePublicPoemShare) {
-      return vi
-        .fn()
-        .mockResolvedValue({ slug: 'test-share-slug', nonce: 'test-nonce' });
-    }
-    if (mutationRef === mockApiRefs.activatePublicPoemShare) {
-      return vi
-        .fn()
-        .mockResolvedValue({ publicShareEnabled: true, changed: true });
-    }
-    return vi.fn().mockResolvedValue(undefined);
-  },
-  useQuery: () => false, // isFavorited → not favorited
-}));
+function render(
+  ui: React.ReactElement,
+  options?: Parameters<typeof rtlRender>[1]
+) {
+  return rtlRender(ui, {
+    wrapper: ({ children }) => (
+      <ConvexProvider client={mockConvexClient}>{children}</ConvexProvider>
+    ),
+    ...options,
+  });
+}
 
 // Mock browser clipboard API (external boundary)
 const mockClipboard = {
@@ -53,13 +48,43 @@ Object.defineProperty(navigator, 'clipboard', {
   configurable: true,
 });
 
+const mockPreparePublicPoemShare = vi
+  .fn()
+  .mockResolvedValue({ slug: 'test-share-slug', nonce: 'test-nonce' });
+const mockActivatePublicPoemShare = vi
+  .fn()
+  .mockResolvedValue({ changed: true });
+const mockCancelPublicPoemShare = vi
+  .fn()
+  .mockResolvedValue({ cancelled: true, publicShareEnabled: false });
+const mockDisablePublicPoemShare = vi.fn().mockResolvedValue({
+  publicShareEnabled: false,
+  changed: true,
+  publicShareDisabledAt: 1,
+});
+const poemShareDependencies: UseSharePoemDependencies = {
+  useMutations: () => ({
+    prepare: mockPreparePublicPoemShare,
+    activate: mockActivatePublicPoemShare,
+    cancel: mockCancelPublicPoemShare,
+    disable: mockDisablePublicPoemShare,
+  }),
+  shareClient: { writeClipboardText: mockClipboard.writeText },
+  getOrigin: () => 'https://example.com',
+  captureError: vi.fn(),
+  trackPoemShared: vi.fn(),
+  trackArtifactAction: vi.fn(),
+  hashRoomId: () => 'test-room-hash',
+};
+
 // Import after mocking - these use REAL implementations
 import { PoemDisplay, type PoemLine } from '@/components/PoemDisplay';
-import { Id } from '@/convex/_generated/dataModel';
+import type { Id } from '@/convex/_generated/dataModel';
 import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
 import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 describe('PoemDisplay component', () => {
+  // SAFETY: Synthetic Convex document id fixture for poem display tests.
   const mockPoemId = 'poem_test_123' as Id<'poems'>;
   const mockOnDone = vi.fn();
 
@@ -411,6 +436,7 @@ describe('PoemDisplay component', () => {
           lines={mockLines}
           onDone={mockOnDone}
           alreadyRevealed={true}
+          shareDependencies={poemShareDependencies}
         />
       );
 
@@ -423,6 +449,8 @@ describe('PoemDisplay component', () => {
       expect(mockClipboard.writeText).toHaveBeenCalledWith(
         expect.stringContaining('/poem/poem_test_123')
       );
+      expect(mockPreparePublicPoemShare).toHaveBeenCalledOnce();
+      expect(mockActivatePublicPoemShare).toHaveBeenCalledOnce();
       expect(screen.getByText('Poem link copied.')).toBeInTheDocument();
     });
 
@@ -457,9 +485,14 @@ describe('PoemDisplay component', () => {
       // Each line's number+dot+text row shares one grid template — the
       // gutter width can never differ line to line, so text can never shift.
       const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-      const rows = lineDots.map((dot) => dot.parentElement as HTMLElement);
+      const rows = lineDots.map((dot) => {
+        const parent = dot.parentElement;
+        if (!(parent instanceof HTMLElement)) {
+          throw new Error('Expected HTMLElement parent');
+        }
+        return parent;
+      });
       const templates = rows.map((row) => row.style.gridTemplateColumns);
-
       expect(templates).toHaveLength(mockLines.length);
       expect(new Set(templates).size).toBe(1);
       expect(templates[0]).toMatch(/^\d+ch /);

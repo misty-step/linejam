@@ -58,11 +58,22 @@ const hasSentryUploadCredentials = Boolean(
   sentryRelease
 );
 
+interface NextClientEnv {
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: string;
+  NEXT_PUBLIC_SENTRY_RELEASE?: string;
+  [key: string]: string | undefined;
+}
+
+const clientEnv: NextClientEnv = {
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: sentryEnvironment,
+};
+
+if (sentryRelease) {
+  clientEnv.NEXT_PUBLIC_SENTRY_RELEASE = sentryRelease;
+}
+
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_SENTRY_ENVIRONMENT: sentryEnvironment,
-    ...(sentryRelease ? { NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease } : {}),
-  },
+  env: clientEnv,
   deploymentId: resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID),
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
   images: {

@@ -72,7 +72,7 @@ describe('computeVisualViewportMetrics', () => {
     const listeners = new Map<string, EventListener>();
     const addEventListener = vi.fn(
       (type: string, listener: EventListenerOrEventListenerObject) => {
-        if (typeof listener === 'function') listeners.set(type, listener);
+        if (!('handleEvent' in listener)) listeners.set(type, listener);
       }
     );
     const removeEventListener = vi.fn();

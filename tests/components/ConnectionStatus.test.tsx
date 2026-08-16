@@ -1,12 +1,8 @@
 // @vitest-environment happy-dom
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockConnectionState = vi.fn();
-
-vi.mock('convex/react', () => ({
-  useConvexConnectionState: () => mockConnectionState(),
-}));
+import { ConvexProvider } from 'convex/react';
+import { createTestConvexClient } from '@/tests/helpers/convexClient';
 
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 
@@ -17,7 +13,18 @@ function setOnline(value: boolean) {
   });
 }
 
-function connectedState() {
+interface ConnectionState {
+  hasInflightRequests: boolean;
+  isWebSocketConnected: boolean;
+  timeOfOldestInflightRequest: number | null;
+  hasEverConnected: boolean;
+  connectionCount: number;
+  connectionRetries: number;
+  inflightMutations: number;
+  inflightActions: number;
+}
+
+function connectedState(): ConnectionState {
   return {
     hasInflightRequests: false,
     isWebSocketConnected: true,
@@ -30,44 +37,79 @@ function connectedState() {
   };
 }
 
+let currentConnectionState: ConnectionState = connectedState();
+const connectionListeners = new Set<() => void>();
+
+function updateConnectionState(newState: Partial<ConnectionState>) {
+  currentConnectionState = { ...currentConnectionState, ...newState };
+  for (const listener of connectionListeners) {
+    listener();
+  }
+}
+
+const mockConvexClient = Object.assign(createTestConvexClient(), {
+  connectionState: () => currentConnectionState,
+  subscribeToConnectionState: (cb: () => void) => {
+    connectionListeners.add(cb);
+    return () => {
+      connectionListeners.delete(cb);
+    };
+  },
+  mutation: vi.fn(),
+  query: vi.fn(),
+  watchQuery: vi.fn(() => ({
+    localQueryResult: () => undefined,
+    onUpdate: () => () => {},
+  })),
+  setAuth: vi.fn(),
+  clearAuth: vi.fn(),
+});
+
+function renderConnectionStatus() {
+  return render(
+    <ConvexProvider client={mockConvexClient}>
+      <ConnectionStatus />
+    </ConvexProvider>
+  );
+}
+
 describe('ConnectionStatus', () => {
   beforeEach(() => {
     setOnline(true);
-    mockConnectionState.mockReturnValue(connectedState());
+    currentConnectionState = connectedState();
+    connectionListeners.clear();
   });
 
   it('stays quiet while connected and announces one reconnect transition', async () => {
-    const { rerender } = render(<ConnectionStatus />);
+    renderConnectionStatus();
     expect(screen.queryByTestId('connection-status')).not.toBeInTheDocument();
 
-    mockConnectionState.mockReturnValue({
-      ...connectedState(),
-      isWebSocketConnected: false,
+    act(() => {
+      updateConnectionState({ isWebSocketConnected: false });
     });
-    rerender(<ConnectionStatus />);
     expect(screen.getByTestId('connection-status')).toHaveTextContent(
       'Connection interrupted. Reconnecting…'
     );
 
-    mockConnectionState.mockReturnValue({
-      ...connectedState(),
-      isWebSocketConnected: false,
-      connectionRetries: 2,
+    act(() => {
+      updateConnectionState({
+        isWebSocketConnected: false,
+        connectionRetries: 2,
+      });
     });
-    rerender(<ConnectionStatus />);
     expect(screen.getAllByTestId('connection-status')).toHaveLength(1);
     expect(screen.getByTestId('connection-status')).toHaveTextContent(
       'Connection interrupted. Reconnecting…'
     );
 
-    mockConnectionState.mockReturnValue(connectedState());
-    rerender(<ConnectionStatus />);
+    act(() => {
+      updateConnectionState(connectedState());
+    });
     await waitFor(() =>
       expect(screen.getByTestId('connection-status')).toHaveTextContent(
         'Connection restored.'
       )
     );
-    rerender(<ConnectionStatus />);
     expect(screen.getAllByTestId('connection-status')).toHaveLength(1);
     expect(screen.getByTestId('connection-status')).toHaveTextContent(
       'Connection restored.'
@@ -75,31 +117,31 @@ describe('ConnectionStatus', () => {
   });
 
   it('shows the offline state immediately and announces restoration once', async () => {
-    const { rerender } = render(<ConnectionStatus />);
+    renderConnectionStatus();
 
     act(() => window.dispatchEvent(new Event('offline')));
     expect(screen.getByTestId('connection-status')).toHaveTextContent(
       'You are offline. Your draft is safe'
     );
 
-    mockConnectionState.mockReturnValue(connectedState());
-    act(() => window.dispatchEvent(new Event('online')));
-    rerender(<ConnectionStatus />);
+    act(() => {
+      updateConnectionState(connectedState());
+      window.dispatchEvent(new Event('online'));
+    });
     await waitFor(() =>
       expect(screen.getByTestId('connection-status')).toHaveTextContent(
         'Connection restored.'
       )
     );
-    rerender(<ConnectionStatus />);
     expect(screen.getAllByTestId('connection-status')).toHaveLength(1);
   });
+
   it('clears the restored announcement after its brief status window', () => {
     vi.useFakeTimers();
     try {
-      const { rerender } = render(<ConnectionStatus />);
+      renderConnectionStatus();
       act(() => window.dispatchEvent(new Event('offline')));
       act(() => window.dispatchEvent(new Event('online')));
-      rerender(<ConnectionStatus />);
       act(() => vi.advanceTimersByTime(0));
       expect(screen.getByText('Connection restored.')).toBeInTheDocument();
       act(() => vi.advanceTimersByTime(3000));

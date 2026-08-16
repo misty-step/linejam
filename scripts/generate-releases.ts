@@ -18,6 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 import type {
+  ChangeType,
   Release,
   ReleaseManifest,
   ChangelogEntry,
@@ -137,21 +138,26 @@ function formatFallbackChange(change: ChangelogEntry): string {
   return `${scope}${sentence}`;
 }
 
+function isKnownChangeType(type: string): type is keyof typeof TYPE_LABELS {
+  return Object.hasOwn(TYPE_LABELS, type);
+}
+
+export type GroupedChanges = {
+  [K in ChangeType]?: ChangelogEntry[];
+};
+
 /**
  * Group changes by type.
  */
-function groupByType(
-  changes: ChangelogEntry[]
-): Partial<Record<string, ChangelogEntry[]>> {
-  return changes.reduce(
-    (acc, change) => {
-      const type = change.type;
-      if (!acc[type]) acc[type] = [];
-      acc[type]!.push(change);
-      return acc;
-    },
-    {} as Partial<Record<string, ChangelogEntry[]>>
-  );
+function groupByType(changes: ChangelogEntry[]): GroupedChanges {
+  const acc: GroupedChanges = {};
+  for (const change of changes) {
+    const type = change.type;
+    const group = acc[type] ?? [];
+    group.push(change);
+    acc[type] = group;
+  }
+  return acc;
 }
 
 /**
@@ -294,10 +300,10 @@ async function main(): Promise<void> {
       console.log(`\n${release.version} (${release.date}):`);
       const grouped = groupByType(release.changes);
       for (const [type, changes] of Object.entries(grouped)) {
-        console.log(
-          `  ${TYPE_LABELS[type as keyof typeof TYPE_LABELS] || type}:`
-        );
-        for (const change of changes!) {
+        if (!changes) continue;
+        const label = isKnownChangeType(type) ? TYPE_LABELS[type] : type;
+        console.log(`  ${label}:`);
+        for (const change of changes) {
           const scope = change.scope ? `(${change.scope}) ` : '';
           console.log(`    - ${scope}${change.description}`);
         }

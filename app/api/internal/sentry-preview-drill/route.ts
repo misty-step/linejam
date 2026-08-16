@@ -1,10 +1,25 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import * as Sentry from '@sentry/nextjs';
+import { captureException, flush } from '@sentry/nextjs';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
 const FORBIDDEN_SENTINEL = 'LINEJAM_SENTRY_FORBIDDEN_SENTINEL';
+
+export interface SentryPreviewDrillRouteDependencies {
+  captureException: typeof captureException;
+  flush: typeof flush;
+}
+
+export interface SentryPreviewDrillRoute {
+  (request: Request): Promise<NextResponse>;
+}
+
+const defaultSentryPreviewDrillRouteDependencies: SentryPreviewDrillRouteDependencies =
+  {
+    captureException,
+    flush,
+  };
 
 class SentryPreviewDrillError extends Error {
   constructor() {
@@ -24,34 +39,40 @@ function isAuthorized(request: Request) {
   return timingSafeEqual(expectedDigest, suppliedDigest);
 }
 
-export async function POST(request: Request) {
-  if (
-    process.env.LINEJAM_DEPLOY_ENVIRONMENT !== 'preview' ||
-    process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
-    !process.env.NEXT_PUBLIC_SENTRY_DSN?.trim() ||
-    !isAuthorized(request)
-  ) {
-    return new NextResponse(null, { status: 404 });
-  }
+export function createSentryPreviewDrillRoute(
+  dependencies: SentryPreviewDrillRouteDependencies = defaultSentryPreviewDrillRouteDependencies
+): SentryPreviewDrillRoute {
+  return async function sentryPreviewDrillRoute(request: Request) {
+    if (
+      process.env.LINEJAM_DEPLOY_ENVIRONMENT !== 'preview' ||
+      process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
+      !process.env.NEXT_PUBLIC_SENTRY_DSN?.trim() ||
+      !isAuthorized(request)
+    ) {
+      return new NextResponse(null, { status: 404 });
+    }
 
-  Sentry.captureException(new SentryPreviewDrillError(), {
-    tags: {
-      operation: 'sentryPreviewDrill',
-      forbidden: FORBIDDEN_SENTINEL,
-    },
-    extra: {
-      prompt: FORBIDDEN_SENTINEL,
-    },
-    contexts: {
-      rejected: {
-        poem: FORBIDDEN_SENTINEL,
+    dependencies.captureException(new SentryPreviewDrillError(), {
+      tags: {
+        operation: 'sentryPreviewDrill',
+        forbidden: FORBIDDEN_SENTINEL,
       },
-    },
-  });
+      extra: {
+        prompt: FORBIDDEN_SENTINEL,
+      },
+      contexts: {
+        rejected: {
+          poem: FORBIDDEN_SENTINEL,
+        },
+      },
+    });
 
-  const flushed = await Sentry.flush(2_000);
-  return NextResponse.json(
-    { captured: flushed },
-    { status: flushed ? 202 : 503 }
-  );
+    const flushed = await dependencies.flush(2_000);
+    return NextResponse.json(
+      { captured: flushed },
+      { status: flushed ? 202 : 503 }
+    );
+  };
 }
+
+export const POST = createSentryPreviewDrillRoute();

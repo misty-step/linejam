@@ -30,7 +30,7 @@ export function ThemePreview({
   const tokens = theme.tokens[currentMode];
 
   // Inline CSS vars for complete preview isolation
-  const rowStyle = {
+  const rowStyle: React.CSSProperties & Record<`--${string}`, string> = {
     '--preview-bg': tokens['color-surface'],
     '--preview-border': tokens['color-border'],
     '--preview-text': tokens['color-text-primary'],
@@ -38,7 +38,7 @@ export function ThemePreview({
     '--preview-radius': tokens['radius-md'],
     '--preview-primary': tokens['color-primary'],
     '--preview-shadow': tokens['shadow-sm'],
-  } as React.CSSProperties;
+  };
 
   return (
     <button

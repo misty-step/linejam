@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { useRoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { useRoomQueryArgs, type RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
+import { toErrorReportable } from '@/lib/errorCore';
 import { cn } from '@/lib/utils';
 import { hashRoomId, trackLineSubmitted } from '@/lib/analytics';
 import { countWords } from '@/lib/wordCount';
@@ -18,7 +20,10 @@ import { Button } from '@/components/ui/Button';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { WordSlots } from '@/components/ui/WordSlots';
 import { RoundClock } from '@/components/ui/RoundClock';
-import { WaitingScreen } from '@/components/WaitingScreen';
+import {
+  WaitingScreen,
+  type WaitingScreenDependencies,
+} from '@/components/WaitingScreen';
 import { buildInProgressChromeCopy } from '@/lib/roomChromeCopy';
 import {
   clearWritingDraft,
@@ -30,13 +35,49 @@ import {
 interface WritingScreenProps {
   roomCode: string;
   showChrome?: boolean;
+  dependencies?: WritingScreenDependencies;
 }
 
-type RoomQueryArgs = ReturnType<typeof useRoomQueryArgs>['queryArgs'];
+type CurrentAssignmentResult =
+  FunctionReturnType<typeof api.game.getCurrentAssignment> | undefined;
+type RoundProgressResult =
+  FunctionReturnType<typeof api.game.getRoundProgress> | undefined;
+type SubmitLine = (
+  args: FunctionArgs<typeof api.game.submitLine>
+) => Promise<FunctionReturnType<typeof api.game.submitLine> | undefined>;
+
+function useDefaultCurrentAssignment(
+  args: RoomQueryArgs
+): CurrentAssignmentResult {
+  return useQuery(api.game.getCurrentAssignment, args);
+}
+
+function useDefaultRoundProgress(args: RoomQueryArgs): RoundProgressResult {
+  return useQuery(api.game.getRoundProgress, args);
+}
+
+function useDefaultSubmitLine(): SubmitLine {
+  return useMutation(api.game.submitLine);
+}
+
+export interface WritingScreenDependencies {
+  useRoomQueryArgs: typeof useRoomQueryArgs;
+  useCurrentAssignment: typeof useDefaultCurrentAssignment;
+  useRoundProgress: typeof useDefaultRoundProgress;
+  useSubmitLine: () => SubmitLine;
+  waitingScreenDependencies?: WaitingScreenDependencies;
+}
+
+const defaultDependencies: WritingScreenDependencies = {
+  useRoomQueryArgs,
+  useCurrentAssignment: useDefaultCurrentAssignment,
+  useRoundProgress: useDefaultRoundProgress,
+  useSubmitLine: useDefaultSubmitLine,
+};
 
 const WRITING_COACHMARK_STORAGE_KEY = 'linejam:writing-coachmark-seen';
 
-interface WritingAssignment {
+export interface WritingAssignment {
   poemId: Id<'poems'>;
   roomId: string;
   cycle: number;
@@ -54,6 +95,10 @@ interface WritingComposerProps {
   guestToken?: string | null;
   queryArgs: RoomQueryArgs;
   roomCode: string;
+  dependencies: Pick<
+    WritingScreenDependencies,
+    'useRoundProgress' | 'useSubmitLine' | 'waitingScreenDependencies'
+  >;
 }
 
 function numberToWord(n: number): string {
@@ -62,7 +107,7 @@ function numberToWord(n: number): string {
 }
 
 function shouldShowWritingCoachmark() {
-  if (typeof window === 'undefined') return false;
+  if (globalThis.window === undefined) return false;
 
   try {
     return window.localStorage.getItem(WRITING_COACHMARK_STORAGE_KEY) !== '1';
@@ -72,7 +117,7 @@ function shouldShowWritingCoachmark() {
 }
 
 function markWritingCoachmarkSeen() {
-  if (typeof window === 'undefined') return;
+  if (globalThis.window === undefined) return;
 
   try {
     window.localStorage.setItem(WRITING_COACHMARK_STORAGE_KEY, '1');
@@ -86,8 +131,9 @@ function WritingComposer({
   guestToken,
   queryArgs,
   roomCode,
+  dependencies,
 }: WritingComposerProps) {
-  const submitLine = useMutation(api.game.submitLine);
+  const submitLine = dependencies.useSubmitLine();
   const draftKey = writingDraftKey(
     roomCode,
     assignment.poemId,
@@ -105,8 +151,8 @@ function WritingComposer({
   const [confirmedMessage, setConfirmedMessage] = useState(
     'Your Line Submitted'
   );
-  const [browserOnline, setBrowserOnline] = useState(() =>
-    typeof navigator === 'undefined' ? true : navigator.onLine
+  const [browserOnline, setBrowserOnline] = useState(
+    () => globalThis.navigator?.onLine ?? true
   );
   const [showWaitingScreen, setShowWaitingScreen] = useState(
     assignment.hasSubmitted
@@ -116,8 +162,7 @@ function WritingComposer({
   // When submissionState becomes 'confirmed', Convex starts fetching getRoundProgress
   // By the time we transition to WaitingScreen, data is already cached → no loading flash
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const prefetchWaitingData = useQuery(
-    api.game.getRoundProgress,
+  const prefetchWaitingData = dependencies.useRoundProgress(
     submissionState === 'confirmed' ? queryArgs : 'skip'
   );
   const [error, setError] = useState<string | null>(null);
@@ -220,7 +265,12 @@ function WritingComposer({
 
   if (showWaitingScreen || assignment.hasSubmitted) {
     return (
-      <WaitingScreen roomCode={roomCode} guestToken={guestToken} embedded />
+      <WaitingScreen
+        roomCode={roomCode}
+        guestToken={guestToken}
+        embedded
+        dependencies={dependencies.waitingScreenDependencies}
+      />
     );
   }
 
@@ -236,18 +286,8 @@ function WritingComposer({
         text: normalizeLineText(text),
         guestToken: guestToken || undefined,
       });
-      const storedText =
-        typeof result === 'object' &&
-        result !== null &&
-        'text' in result &&
-        typeof result.text === 'string'
-          ? result.text
-          : text.trim();
-      const wasAlreadySubmitted =
-        typeof result === 'object' &&
-        result !== null &&
-        'status' in result &&
-        result.status === 'already_submitted';
+      const storedText = result?.text ?? text.trim();
+      const wasAlreadySubmitted = result?.status === 'already_submitted';
       setConfirmedText(storedText);
       setConfirmedMessage(
         wasAlreadySubmitted
@@ -279,7 +319,8 @@ function WritingComposer({
         setShowWaitingScreen(true);
         submitTimeoutRef.current = null;
       }, 1500);
-    } catch (error) {
+    } catch (cause) {
+      const error = toErrorReportable(cause);
       captureError(error, { roomCode, poemId: assignment.poemId });
       if (!isRetry) {
         setSubmissionState('retryable');
@@ -379,7 +420,6 @@ function WritingComposer({
                 Draft restored
               </p>
             )}
-
             {/* The Memory - No container */}
             {assignment.previousLineText && (
               <div
@@ -520,11 +560,12 @@ function WritingComposer({
 export function WritingScreen({
   roomCode,
   showChrome = false,
+  dependencies = defaultDependencies,
 }: WritingScreenProps) {
-  const { guestToken, shouldSkip, queryArgs } = useRoomQueryArgs(roomCode);
-  const assignment = useQuery(api.game.getCurrentAssignment, queryArgs);
-  const roundProgress = useQuery(
-    api.game.getRoundProgress,
+  const { guestToken, shouldSkip, queryArgs } =
+    dependencies.useRoomQueryArgs(roomCode);
+  const assignment = dependencies.useCurrentAssignment(queryArgs);
+  const roundProgress = dependencies.useRoundProgress(
     showChrome && assignment === null ? queryArgs : 'skip'
   );
 
@@ -552,6 +593,7 @@ export function WritingScreen({
           progressOverride={roundProgress}
           isLateJoiner={roundProgress?.isCurrentUserSpectator ?? false}
           embedded
+          dependencies={dependencies.waitingScreenDependencies}
         />
       </div>
     );
@@ -576,6 +618,7 @@ export function WritingScreen({
         guestToken={guestToken}
         queryArgs={queryArgs}
         roomCode={roomCode}
+        dependencies={dependencies}
       />
     </div>
   );

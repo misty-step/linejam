@@ -11,11 +11,17 @@ import { useEffect, useState } from 'react';
  * survives refreshes and reconnects: a player who joins late sees the same
  * remaining time everyone else does.
  */
+export interface RoundClockState {
+  fractionRemaining: number;
+  msRemaining: number;
+  isOvertime: boolean;
+}
+
 export function useRoundClock(
   roundStartedAt: number | undefined,
   durationMs: number,
   tickMs = 1000
-): { fractionRemaining: number; msRemaining: number; isOvertime: boolean } {
+): RoundClockState {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {

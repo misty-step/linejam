@@ -54,8 +54,8 @@ export async function verifyGuestTokenPayload(
   const isValid = await crypto.subtle.verify(
     'HMAC',
     key,
-    signatureBuffer as BufferSource,
-    payloadBuffer as BufferSource
+    signatureBuffer,
+    payloadBuffer
   );
 
   if (!isValid) {
@@ -73,7 +73,7 @@ export async function verifyGuestTokenPayload(
   return payload;
 }
 
-function base64UrlToArrayBuffer(base64Url: string): Uint8Array {
+function base64UrlToArrayBuffer(base64Url: string): Uint8Array<ArrayBuffer> {
   const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
   try {
     const binString = atob(base64);

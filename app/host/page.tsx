@@ -8,6 +8,7 @@ import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
 import { hashRoomId, trackGameCreated } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
+import { toErrorReportable } from '../../lib/errorCore';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -43,10 +44,14 @@ export default function HostPage() {
         cycle: 1,
       });
       router.push(`/room/${code}`);
-    } catch (err) {
-      const feedback = errorToFeedback(err);
+    } catch (cause) {
+      const error = toErrorReportable(cause);
+      const feedback = errorToFeedback(error);
       setError(feedback.message);
-      captureError(err as Error, { displayName: name, guestToken });
+      captureError(error, {
+        displayName: name,
+        guestToken,
+      });
       setIsSubmitting(false);
     }
   };

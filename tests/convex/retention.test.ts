@@ -9,6 +9,30 @@ import {
 } from '../../convex/lib/retentionPolicy';
 
 type T = ReturnType<typeof setupConvexTest>;
+interface RetentionGameSeedDocument {
+  roomId: Id<'rooms'>;
+  status: 'COMPLETED';
+  cycle: number;
+  currentRound: number;
+  assignmentMatrix: Id<'users'>[][];
+  createdAt: number;
+  completedAt: number;
+  retentionState: 'pending';
+  retentionEligibleAt: number;
+  completionKind?: 'abandoned';
+}
+
+interface RetentionPoemSeedDocument {
+  roomId: Id<'rooms'>;
+  gameId: Id<'games'>;
+  indexInRoom: number;
+  createdAt: number;
+  completedAt: number;
+  revealedAt: number;
+  retentionState: 'pending';
+  retentionEligibleAt: number;
+  publicShareEnabled?: boolean;
+}
 
 const runRetentionSweep = makeFunctionReference<
   'mutation',
@@ -84,10 +108,9 @@ async function seedCompletedArtifact(
       displayName: `Poet ${args.code}`,
       joinedAt: createdAt,
     });
-    const gameId = await ctx.db.insert('games', {
+    const gameDoc: RetentionGameSeedDocument = {
       roomId,
       status: 'COMPLETED',
-      ...(args.legacyAbandoned ? { completionKind: 'abandoned' as const } : {}),
       cycle: 1,
       currentRound: 8,
       assignmentMatrix: Array.from({ length: 9 }, () => [userId]),
@@ -95,18 +118,25 @@ async function seedCompletedArtifact(
       completedAt: createdAt,
       retentionState: 'pending',
       retentionEligibleAt,
-    });
-    const poemId = await ctx.db.insert('poems', {
+    };
+    if (args.legacyAbandoned) {
+      gameDoc.completionKind = 'abandoned';
+    }
+    const gameId = await ctx.db.insert('games', gameDoc);
+    const poemDoc: RetentionPoemSeedDocument = {
       roomId,
       gameId,
       indexInRoom: 0,
       createdAt,
       completedAt: createdAt,
       revealedAt: createdAt,
-      ...(args.publicShare ? { publicShareEnabled: true } : {}),
       retentionState: 'pending',
       retentionEligibleAt,
-    });
+    };
+    if (args.publicShare) {
+      poemDoc.publicShareEnabled = true;
+    }
+    const poemId = await ctx.db.insert('poems', poemDoc);
     const lineIds: Id<'lines'>[] = await Promise.all(
       Array.from({ length: 9 }, (_, indexInPoem) =>
         ctx.db.insert('lines', {

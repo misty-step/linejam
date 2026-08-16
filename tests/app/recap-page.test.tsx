@@ -1,33 +1,20 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import {
+  createRecapPage,
+  type RecapPageDependencies,
+  type RecapPageHandler,
+} from '@/app/recap/[code]/RecapPage';
 
 const mockFetchQuery = vi.fn();
-vi.mock('convex/nextjs', () => ({
-  fetchQuery: (...args: unknown[]) => mockFetchQuery(...args),
-}));
-
-vi.mock('@/convex/_generated/api', () => ({
-  api: { poems: { getPublicSessionRecap: {} } },
-}));
-
-vi.mock('next/navigation', () => ({
-  notFound: () => {
-    throw new Error('NEXT_NOT_FOUND');
-  },
-}));
-
-vi.mock('@/app/recap/[code]/metadata', () => ({
-  generateMetadata: vi.fn(),
-}));
-
-import RecapPage from '@/app/recap/[code]/page';
 
 const baseRecap = {
   roomCode: 'WFLM',
   cycle: 1,
   poemCount: 1,
   playerCount: 4,
+  roomIdHash: 'room-hash',
   poems: [
     {
       _id: 'poem_1',
@@ -46,8 +33,14 @@ const baseRecap = {
 };
 
 describe('/recap/[code] page', () => {
+  let RecapPage: RecapPageHandler;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockFetchQuery.mockReset();
+    const dependencies: RecapPageDependencies = {
+      fetchSessionRecap: (roomCode) => mockFetchQuery(roomCode),
+    };
+    RecapPage = createRecapPage(dependencies);
   });
 
   it('attributes every human author once', async () => {

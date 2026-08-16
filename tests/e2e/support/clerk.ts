@@ -108,13 +108,42 @@ async function assertClerkConvexToken(page: Page) {
   }
 }
 
+export type ClerkSmokeUser = {
+  id?: string;
+};
+
+export type ClerkSmokeClient = {
+  users: {
+    getUserList: (params: {
+      emailAddress: string[];
+    }) => Promise<{ data: Array<ClerkSmokeUser> }>;
+    createUser: (params: {
+      emailAddress: string[];
+      firstName: string;
+      lastName: string;
+      skipLegalChecks: boolean;
+      skipPasswordChecks: boolean;
+      skipPasswordRequirement: boolean;
+    }) => Promise<ClerkSmokeUser>;
+  };
+};
+
+export type ClerkClientFactory = (options: {
+  secretKey: string;
+}) => ClerkSmokeClient;
+
+export function resetClerkSmokeUserCache() {
+  ensureUserPromise = null;
+}
+
 export async function ensureClerkSmokeUser(
   secretKey: string,
-  emailAddress: string
+  emailAddress: string,
+  clientFactory: ClerkClientFactory = createClerkClient
 ) {
   if (!ensureUserPromise) {
     ensureUserPromise = (async () => {
-      const client = createClerkClient({ secretKey });
+      const client = clientFactory({ secretKey });
       const existing = await client.users.getUserList({
         emailAddress: [emailAddress],
       });

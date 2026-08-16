@@ -40,10 +40,12 @@ function readEnv(name: string): string | undefined {
   return value ? value : undefined;
 }
 
-function readEnvironment(): {
+type EnvironmentInfo = {
   environment: ConvexEnvironment;
   markerValid: boolean;
-} {
+};
+
+function readEnvironment(): EnvironmentInfo {
   const declared = readEnv('LINEJAM_DEPLOY_ENVIRONMENT');
   if (!declared) {
     return {

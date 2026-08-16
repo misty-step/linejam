@@ -7,7 +7,7 @@ import {
 const RELEASE = 'a'.repeat(40);
 const PREVIEW_HOST_PATTERN = '^linejam(?:-[a-z0-9-]+)+\\.ondigitalocean\\.app$';
 
-function response(deploymentId: unknown, status = 200) {
+function response(deploymentId: string | null | undefined, status = 200) {
   return new Response(
     JSON.stringify({ status: 'ok', deployment: { id: deploymentId } }),
     { status }

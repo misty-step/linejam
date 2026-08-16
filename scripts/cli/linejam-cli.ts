@@ -22,13 +22,20 @@
  *   linejam-cli favorites list --guest-token TOKEN
  */
 
-import { createLinejamClient, mintGuestToken } from '../lib/linejamClient';
+import {
+  createLinejamClient,
+  mintGuestToken,
+  type LinejamClient,
+  type LinejamClientResult,
+} from '../lib/linejamClient';
 import type { Id } from '@/convex/_generated/dataModel';
 
-export function parseFlags(argv: string[]): {
+export type CliFlags = {
   positionals: string[];
   guestToken?: string;
-} {
+};
+
+export function parseFlags(argv: string[]): CliFlags {
   const positionals: string[] = [];
   let guestToken = process.env.LINEJAM_GUEST_TOKEN;
   for (let i = 0; i < argv.length; i++) {
@@ -51,7 +58,25 @@ async function resolveGuestToken(guestToken: string | undefined) {
   return identity.guestToken;
 }
 
-function printJson(value: unknown) {
+function toPoemId(poemId: string): Id<'poems'> {
+  // SAFETY: Convex document ID branding is runtime-opaque and validated by the backend; the CLI ensures the positional argument is present.
+  return poemId as Id<'poems'>;
+}
+
+export interface CliSuccessResult {
+  ok: boolean;
+}
+
+export type CliOutput =
+  | LinejamClientResult
+  | CliSuccessResult
+  | string
+  | number
+  | boolean
+  | null
+  | undefined;
+
+function printJson(value: CliOutput) {
   process.stdout.write(JSON.stringify(value, null, 2) + '\n');
 }
 
@@ -73,14 +98,7 @@ function printHelp() {
   );
 }
 
-/** Dispatches one CLI invocation. `injectedClient` is optional so tests can
- * pass a mock without the real ConvexHttpClient (the network/system
- * boundary) ever loading; production calls build the real client lazily,
- * and never at all for --help. */
-export async function run(
-  argv: string[],
-  injectedClient?: ReturnType<typeof createLinejamClient>
-) {
+export async function run(argv: string[], injectedClient?: LinejamClient) {
   const [group, action, ...rest] = argv;
   if (!group || group === '--help' || group === '-h') {
     printHelp();
@@ -141,7 +159,7 @@ export async function run(
     if (!rawToken) throw new Error('game submit-line requires --guest-token');
     printJson(
       await client.submitLine({
-        poemId: poemId as Id<'poems'>,
+        poemId: toPoemId(poemId),
         lineIndex: Number(lineIndexRaw),
         text,
         guestToken: rawToken,
@@ -164,7 +182,7 @@ export async function run(
     if (!rawToken) throw new Error('poems get requires --guest-token');
     printJson(
       await client.getPoemDetail({
-        poemId: poemId as Id<'poems'>,
+        poemId: toPoemId(poemId),
         guestToken: rawToken,
       })
     );
@@ -176,7 +194,7 @@ export async function run(
     if (!poemId) throw new Error('usage: favorites toggle <poemId>');
     if (!rawToken) throw new Error('favorites toggle requires --guest-token');
     await client.toggleFavorite({
-      poemId: poemId as Id<'poems'>,
+      poemId: toPoemId(poemId),
       guestToken: rawToken,
     });
     printJson({ ok: true });

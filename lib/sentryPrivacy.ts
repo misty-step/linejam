@@ -2,8 +2,13 @@ import type { ErrorEvent, Event, EventHint } from '@sentry/nextjs';
 import { isUnrecognizedServerActionError } from '@/lib/deploymentSkew';
 
 type TransactionEvent = Event & { type: 'transaction' };
+type SentryFrame = NonNullable<
+  NonNullable<
+    NonNullable<NonNullable<Event['exception']>['values']>[number]['stacktrace']
+  >['frames']
+>[number];
 
-const SAFE_TAG_VALUES: Record<string, Readonly<Record<string, true>>> = {
+const SAFE_TAG_VALUES = {
   runtime: { browser: true, node: true, edge: true },
   environment: {
     development: true,
@@ -30,36 +35,41 @@ const SAFE_TAG_VALUES: Record<string, Readonly<Record<string, true>>> = {
     reportingFailure: true,
     unexpected_error: true,
   },
-};
+} satisfies Record<string, Readonly<Record<string, true>>>;
 
-const SAFE_NUMERIC_CONTEXT: Readonly<Record<string, true>> = {
+const SAFE_NUMERIC_CONTEXT = {
   attempt: true,
   durationMs: true,
   maxAttempts: true,
   scanned: true,
   scheduled: true,
   statusCode: true,
-};
-const SAFE_CORRELATION_CONTEXT: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_CORRELATION_CONTEXT = {
   correlationId: true,
   requestId: true,
-};
-const SAFE_EXCEPTION_MESSAGES: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_EXCEPTION_MESSAGES = {
   'Clerk did not load in time; continuing with guest play': true,
   'Linejam preview privacy drill': true,
-};
-const SAFE_LEVELS: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_LEVELS = {
   debug: true,
   info: true,
   warning: true,
   error: true,
   fatal: true,
-};
-const SAFE_PLATFORMS: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_PLATFORMS = {
   javascript: true,
   node: true,
-};
-const SAFE_TRACE_STATUS: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_TRACE_STATUS = {
   aborted: true,
   already_exists: true,
   cancelled: true,
@@ -77,8 +87,9 @@ const SAFE_TRACE_STATUS: Readonly<Record<string, true>> = {
   unavailable: true,
   unimplemented: true,
   unknown_error: true,
-};
-const SAFE_ROUTES: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_ROUTES = {
   '/': true,
   '/auth/callback': true,
   '/host': true,
@@ -87,8 +98,9 @@ const SAFE_ROUTES: Readonly<Record<string, true>> = {
   '/api/health': true,
   '/api/internal/sentry-preview-drill': true,
   '/room/[code]': true,
-};
-const SAFE_TRACE_OPERATIONS: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_TRACE_OPERATIONS = {
   browser: true,
   'function.nextjs': true,
   'http.client': true,
@@ -100,15 +112,17 @@ const SAFE_TRACE_OPERATIONS: Readonly<Record<string, true>> = {
   'routehandler.nextjs': true,
   'servercomponent.nextjs': true,
   'ui.action.click': true,
-};
-const SAFE_MECHANISMS: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_MECHANISMS = {
   generic: true,
   'auto.browser.browserapierrors': true,
   'auto.browser.global_handlers.onerror': true,
   'auto.browser.global_handlers.onunhandledrejection': true,
   'auto.http.nextjs.on_request_error': true,
-};
-const SAFE_ERROR_CLASSES: Readonly<Record<string, true>> = {
+} satisfies Readonly<Record<string, true>>;
+
+const SAFE_ERROR_CLASSES = {
   AggregateError: true,
   ClerkLoadTimeoutError: true,
   ConvexError: true,
@@ -121,7 +135,8 @@ const SAFE_ERROR_CLASSES: Readonly<Record<string, true>> = {
   TypeError: true,
   URIError: true,
   UnrecognizedActionError: true,
-};
+} satisfies Readonly<Record<string, true>>;
+
 const COMMIT_RELEASE = /^[a-f0-9]{40}$/;
 const EVENT_ID = /^[a-f0-9]{32}$/i;
 const TRACE_ID = /^[a-f0-9]{32}$/i;
@@ -129,7 +144,7 @@ const SPAN_ID = /^[a-f0-9]{16}$/i;
 const SAFE_CORRELATION_ID = /^[A-Za-z0-9_-]{8,128}$/;
 const DEBUG_ID =
   /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-const STATIC_BUNDLE_SEGMENT = /^[A-Za-z0-9._~!$&'()+,;=@\[\]-]+$/;
+const STATIC_BUNDLE_SEGMENT = /^[A-Za-z0-9._~!$&'()+,;=@[\]-]+$/;
 const STATIC_BUNDLE_EXTENSION = /\.(?:js|mjs)$/i;
 
 export type SentryReporterContext = {
@@ -137,43 +152,55 @@ export type SentryReporterContext = {
   contexts?: { linejam: Record<string, string | number> };
 };
 
-function safeTag(key: keyof typeof SAFE_TAG_VALUES, value: unknown) {
-  return typeof value === 'string' && Object.hasOwn(SAFE_TAG_VALUES[key], value)
-    ? value
-    : undefined;
+export type PrivacyScalar = string | number | boolean | null | undefined;
+export type PrivacyContext = Record<string, PrivacyScalar>;
+type SentryTagScalar = NonNullable<Event['tags']>[string];
+
+function safeTag(
+  key: keyof typeof SAFE_TAG_VALUES,
+  value: SentryTagScalar
+): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  const str = String(value);
+  return Object.hasOwn(SAFE_TAG_VALUES[key], str) ? str : undefined;
 }
 
-function safeRelease(value: unknown) {
-  return typeof value === 'string' && COMMIT_RELEASE.test(value)
-    ? value
-    : undefined;
+function safeRelease(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  return COMMIT_RELEASE.test(value) ? value : undefined;
 }
 
-function safeNumber(value: unknown) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+function safeNumber(value: number | null | undefined): number | undefined {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return undefined;
+  }
   return Math.max(0, Math.min(1_000_000_000, value));
 }
 
-function safeTimestamp(value: unknown) {
-  return typeof value === 'number' &&
+function safeTimestamp(value: number | null | undefined): number | undefined {
+  if (
+    value !== null &&
+    value !== undefined &&
     Number.isFinite(value) &&
     value >= 0 &&
     value <= 10_000_000_000
-    ? value
-    : undefined;
+  ) {
+    return value;
+  }
+  return undefined;
 }
 
-function safeCorrelationId(value: unknown) {
-  return typeof value === 'string' && SAFE_CORRELATION_ID.test(value)
-    ? value
-    : undefined;
+function safeCorrelationId(
+  value: string | null | undefined
+): string | undefined {
+  if (!value) return undefined;
+  return SAFE_CORRELATION_ID.test(value) ? value : undefined;
 }
-function safeSourceLocation(value: unknown) {
-  if (
-    typeof value !== 'string' ||
-    value.length > 1_024 ||
-    value.includes('\\')
-  ) {
+
+function safeSourceLocation(
+  value: string | null | undefined
+): string | undefined {
+  if (!value || value.length > 1_024 || value.includes('\\')) {
     return undefined;
   }
 
@@ -224,7 +251,7 @@ function sanitizeDebugMeta(
     ?.map((image) => {
       const codeFile = safeSourceLocation(image.code_file);
       const debugId =
-        typeof image.debug_id === 'string' && DEBUG_ID.test(image.debug_id)
+        image.debug_id && DEBUG_ID.test(image.debug_id)
           ? image.debug_id
           : undefined;
       if (image.type !== 'sourcemap' || !codeFile || !debugId) {
@@ -241,13 +268,19 @@ function sanitizeDebugMeta(
   return images?.length ? { images } : undefined;
 }
 
-function sanitizeTags(tags: Record<string, unknown> | undefined) {
+function sanitizeTags(
+  tags: Event['tags'] | Record<string, PrivacyScalar> | undefined
+): Record<string, string> | undefined {
   if (!tags) return undefined;
 
   const safe = {
     runtime: safeTag('runtime', tags.runtime),
     environment: safeTag('environment', tags.environment),
-    release: safeRelease(tags.release),
+    release: safeRelease(
+      tags.release !== null && tags.release !== undefined
+        ? String(tags.release)
+        : undefined
+    ),
     operation: safeTag('operation', tags.operation),
     failure_code: safeTag('failureCode', tags.failure_code ?? tags.failureCode),
   };
@@ -259,88 +292,135 @@ function sanitizeTags(tags: Record<string, unknown> | undefined) {
   return Object.keys(compact).length ? compact : undefined;
 }
 
-function sanitizeLinejamContext(value: unknown) {
-  if (!value || typeof value !== 'object') return undefined;
+function sanitizeLinejamContext(
+  value: PrivacyContext | undefined
+): Record<string, string | number> | undefined {
+  if (!value) return undefined;
 
-  const source = value as Record<string, unknown>;
   const safe: Record<string, string | number> = {};
   for (const key of Object.keys(SAFE_NUMERIC_CONTEXT)) {
-    const numeric = safeNumber(source[key]);
+    const rawVal = value[key];
+    const numeric =
+      rawVal !== null && rawVal !== undefined
+        ? safeNumber(Number(rawVal))
+        : undefined;
     if (numeric !== undefined) safe[key] = numeric;
   }
   for (const key of Object.keys(SAFE_CORRELATION_CONTEXT)) {
-    const correlationId = safeCorrelationId(source[key]);
+    const rawVal = value[key];
+    const correlationId =
+      rawVal !== null && rawVal !== undefined
+        ? safeCorrelationId(String(rawVal))
+        : undefined;
     if (correlationId) safe[key] = correlationId;
   }
   return Object.keys(safe).length ? safe : undefined;
 }
 
 function sanitizeTraceContext(
-  value: unknown
+  value: NonNullable<Event['contexts']>['trace'] | undefined
 ): NonNullable<ErrorEvent['contexts']>['trace'] {
-  if (!value || typeof value !== 'object') return undefined;
+  if (!value) return undefined;
 
-  const trace = value as Record<string, unknown>;
   const traceId =
-    typeof trace.trace_id === 'string' && TRACE_ID.test(trace.trace_id)
-      ? trace.trace_id
+    value.trace_id && TRACE_ID.test(value.trace_id)
+      ? value.trace_id
       : undefined;
   const spanId =
-    typeof trace.span_id === 'string' && SPAN_ID.test(trace.span_id)
-      ? trace.span_id
-      : undefined;
+    value.span_id && SPAN_ID.test(value.span_id) ? value.span_id : undefined;
   if (!traceId || !spanId) return undefined;
 
   const parentSpanId =
-    typeof trace.parent_span_id === 'string' &&
-    SPAN_ID.test(trace.parent_span_id)
-      ? trace.parent_span_id
+    value.parent_span_id && SPAN_ID.test(value.parent_span_id)
+      ? value.parent_span_id
       : undefined;
   const operation =
-    typeof trace.op === 'string' &&
-    Object.hasOwn(SAFE_TRACE_OPERATIONS, trace.op)
-      ? trace.op
+    value.op && Object.hasOwn(SAFE_TRACE_OPERATIONS, value.op)
+      ? value.op
       : undefined;
   const status =
-    typeof trace.status === 'string' &&
-    Object.hasOwn(SAFE_TRACE_STATUS, trace.status)
-      ? trace.status
+    value.status && Object.hasOwn(SAFE_TRACE_STATUS, value.status)
+      ? value.status
       : undefined;
-  return {
+
+  const result: NonNullable<ErrorEvent['contexts']>['trace'] = {
     trace_id: traceId,
     span_id: spanId,
-    ...(parentSpanId ? { parent_span_id: parentSpanId } : {}),
-    ...(operation ? { op: operation } : {}),
-    ...(status ? { status } : {}),
   };
+  if (parentSpanId) {
+    result.parent_span_id = parentSpanId;
+  }
+  if (operation) {
+    result.op = operation;
+  }
+  if (status) {
+    result.status = status;
+  }
+  return result;
 }
 
 function sanitizeContexts(contexts: Event['contexts']): ErrorEvent['contexts'] {
   if (!contexts) return undefined;
 
   const trace = sanitizeTraceContext(contexts.trace);
-  const linejam = sanitizeLinejamContext(contexts.linejam);
-  return trace || linejam
-    ? {
-        ...(trace ? { trace } : {}),
-        ...(linejam ? { linejam } : {}),
-      }
-    : undefined;
+  // SAFETY: contexts.linejam contains custom Linejam reporting context conforming to PrivacyContext.
+  const linejam = sanitizeLinejamContext(
+    contexts.linejam as PrivacyContext | undefined
+  );
+  if (!trace && !linejam) return undefined;
+
+  const result: NonNullable<ErrorEvent['contexts']> = {};
+  if (trace) {
+    result.trace = trace;
+  }
+  if (linejam) {
+    result.linejam = linejam;
+  }
+  return result;
 }
 
-function sanitizeFrame(frame: Record<string, unknown>) {
+type StackFrame = {
+  filename?: string;
+  abs_path?: string;
+  lineno?: number;
+  colno?: number;
+  in_app?: boolean;
+};
+
+type SanitizedMechanism = {
+  type: string;
+  handled?: boolean;
+};
+
+type SanitizedExceptionValue = {
+  type: string;
+  value?: string;
+  stacktrace?: {
+    frames: StackFrame[];
+  };
+  mechanism?: SanitizedMechanism;
+};
+
+function sanitizeFrame(frame: SentryFrame | StackFrame): StackFrame {
   const lineNumber = safeNumber(frame.lineno);
   const columnNumber = safeNumber(frame.colno);
   const sourceLocation = safeSourceLocation(frame.filename ?? frame.abs_path);
 
-  return {
-    ...(sourceLocation
-      ? { filename: sourceLocation, abs_path: sourceLocation }
-      : {}),
-    ...(lineNumber !== undefined ? { lineno: lineNumber } : {}),
-    ...(columnNumber !== undefined ? { colno: columnNumber } : {}),
-    ...(typeof frame.in_app === 'boolean' ? { in_app: frame.in_app } : {}),
-  };
+  const result: StackFrame = {};
+  if (sourceLocation) {
+    result.filename = sourceLocation;
+    result.abs_path = sourceLocation;
+  }
+  if (lineNumber !== undefined) {
+    result.lineno = lineNumber;
+  }
+  if (columnNumber !== undefined) {
+    result.colno = columnNumber;
+  }
+  if (frame.in_app === true || frame.in_app === false) {
+    result.in_app = frame.in_app;
+  }
+  return result;
 }
 
 function sanitizeException(
@@ -349,36 +429,48 @@ function sanitizeException(
   const values = exception?.values
     ?.map((value) => {
       const type =
-        typeof value.type === 'string' &&
-        Object.hasOwn(SAFE_ERROR_CLASSES, value.type)
+        value.type && Object.hasOwn(SAFE_ERROR_CLASSES, value.type)
           ? value.type
           : 'Error';
       const message = Object.hasOwn(SAFE_EXCEPTION_MESSAGES, value.value || '')
         ? value.value
         : undefined;
       const frames = value.stacktrace?.frames?.map((frame) =>
-        sanitizeFrame(frame as unknown as Record<string, unknown>)
+        sanitizeFrame(frame)
       );
       const mechanismType =
-        typeof value.mechanism?.type === 'string' &&
+        value.mechanism?.type &&
         Object.hasOwn(SAFE_MECHANISMS, value.mechanism.type)
           ? value.mechanism.type
           : undefined;
-      const mechanism = mechanismType
-        ? {
-            type: mechanismType,
-            ...(typeof value.mechanism?.handled === 'boolean'
-              ? { handled: value.mechanism.handled }
-              : {}),
-          }
-        : undefined;
 
-      return {
+      let mechanism: SanitizedMechanism | undefined;
+      if (mechanismType) {
+        mechanism = {
+          type: mechanismType,
+        };
+        if (
+          value.mechanism?.handled === true ||
+          value.mechanism?.handled === false
+        ) {
+          mechanism.handled = value.mechanism.handled;
+        }
+      }
+
+      const val: SanitizedExceptionValue = {
         type,
-        ...(message ? { value: message } : {}),
-        ...(frames?.length ? { stacktrace: { frames } } : {}),
-        ...(mechanism ? { mechanism } : {}),
       };
+      if (message) {
+        val.value = message;
+      }
+      if (frames && frames.length > 0) {
+        val.stacktrace = { frames };
+      }
+      if (mechanism) {
+        val.mechanism = mechanism;
+      }
+
+      return val;
     })
     .filter(Boolean);
 
@@ -387,17 +479,16 @@ function sanitizeException(
 
 function sanitizeBaseEvent(event: Event): ErrorEvent {
   const eventId =
-    typeof event.event_id === 'string' && EVENT_ID.test(event.event_id)
+    event.event_id && EVENT_ID.test(event.event_id)
       ? event.event_id
       : undefined;
   const timestamp = safeTimestamp(event.timestamp);
   const level =
-    typeof event.level === 'string' && Object.hasOwn(SAFE_LEVELS, event.level)
+    event.level && Object.hasOwn(SAFE_LEVELS, event.level)
       ? event.level
       : undefined;
   const platform =
-    typeof event.platform === 'string' &&
-    Object.hasOwn(SAFE_PLATFORMS, event.platform)
+    event.platform && Object.hasOwn(SAFE_PLATFORMS, event.platform)
       ? event.platform
       : undefined;
   const environment = safeTag('environment', event.environment);
@@ -407,23 +498,44 @@ function sanitizeBaseEvent(event: Event): ErrorEvent {
   const exception = sanitizeException(event.exception);
   const debugMeta = sanitizeDebugMeta(event.debug_meta);
 
-  return {
+  const result: ErrorEvent = {
     type: undefined,
-    ...(eventId ? { event_id: eventId } : {}),
-    ...(timestamp !== undefined ? { timestamp } : {}),
-    ...(level ? { level } : {}),
-    ...(platform ? { platform } : {}),
-    ...(environment ? { environment } : {}),
-    ...(release ? { release } : {}),
-    ...(tags ? { tags } : {}),
-    ...(contexts ? { contexts } : {}),
-    ...(exception ? { exception } : {}),
-    ...(debugMeta ? { debug_meta: debugMeta } : {}),
   };
+  if (eventId) {
+    result.event_id = eventId;
+  }
+  if (timestamp !== undefined) {
+    result.timestamp = timestamp;
+  }
+  if (level) {
+    result.level = level;
+  }
+  if (platform) {
+    result.platform = platform;
+  }
+  if (environment) {
+    result.environment = environment;
+  }
+  if (release) {
+    result.release = release;
+  }
+  if (tags) {
+    result.tags = tags;
+  }
+  if (contexts) {
+    result.contexts = contexts;
+  }
+  if (exception) {
+    result.exception = exception;
+  }
+  if (debugMeta) {
+    result.debug_meta = debugMeta;
+  }
+  return result;
 }
 
-function safeTransactionName(value: unknown) {
-  if (typeof value !== 'string') return 'unknown-route';
+function safeTransactionName(value: string | null | undefined): string {
+  if (!value) return 'unknown-route';
 
   const match = value.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (.+)$/);
   const method = match?.[1];
@@ -458,15 +570,19 @@ function sanitizeSpans(
       const sanitized: NonNullable<TransactionEvent['spans']>[number] = {
         trace_id: span.trace_id,
         span_id: span.span_id,
-        ...(span.parent_span_id && SPAN_ID.test(span.parent_span_id)
-          ? { parent_span_id: span.parent_span_id }
-          : {}),
         start_timestamp: startTimestamp,
         timestamp,
         data: {},
-        ...(operation ? { op: operation } : {}),
-        ...(status ? { status } : {}),
       };
+      if (span.parent_span_id && SPAN_ID.test(span.parent_span_id)) {
+        sanitized.parent_span_id = span.parent_span_id;
+      }
+      if (operation) {
+        sanitized.op = operation;
+      }
+      if (status) {
+        sanitized.status = status;
+      }
       return sanitized;
     })
     .filter((span): span is NonNullable<typeof span> => Boolean(span));
@@ -477,7 +593,14 @@ export function beforeSend(
   event: ErrorEvent,
   hint: EventHint
 ): ErrorEvent | null {
-  if (isUnrecognizedServerActionError(hint.originalException)) return null;
+  // SAFETY: hint.originalException is the unhandled exception or rejection reason delivered to Sentry.
+  if (
+    isUnrecognizedServerActionError(
+      hint.originalException as Error | null | undefined
+    )
+  ) {
+    return null;
+  }
 
   const safe = sanitizeBaseEvent(event);
   return safe.exception ? safe : null;
@@ -492,18 +615,21 @@ export function beforeSendTransaction(
 
   const safe = sanitizeBaseEvent(event);
   const spans = sanitizeSpans(event.spans);
-  return {
+  const result: TransactionEvent = {
     ...safe,
     type: 'transaction',
     transaction: safeTransactionName(event.transaction),
     start_timestamp: startTimestamp,
-    ...(spans?.length ? { spans } : {}),
   };
+  if (spans && spans.length > 0) {
+    result.spans = spans;
+  }
+  return result;
 }
 
 /** Convert the shared reporter's legacy context into closed Sentry fields. */
 export function sanitizeSentryReporterContext(
-  context?: Record<string, unknown>
+  context?: PrivacyContext
 ): SentryReporterContext | undefined {
   if (!context) return undefined;
 
@@ -512,10 +638,14 @@ export function sanitizeSentryReporterContext(
     failureCode: context.failureCode,
   });
   const linejam = sanitizeLinejamContext(context);
-  return tags || linejam
-    ? {
-        ...(tags ? { tags } : {}),
-        ...(linejam ? { contexts: { linejam } } : {}),
-      }
-    : undefined;
+  if (!tags && !linejam) return undefined;
+
+  const result: SentryReporterContext = {};
+  if (tags) {
+    result.tags = tags;
+  }
+  if (linejam) {
+    result.contexts = { linejam };
+  }
+  return result;
 }

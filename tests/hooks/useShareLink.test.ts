@@ -6,21 +6,22 @@ import { useShareLink } from '@/hooks/useShareLink';
 describe('useShareLink', () => {
   let originalClipboard: Clipboard;
   let originalShare: Navigator['share'];
+  let mockWriteText = vi.fn().mockResolvedValue(undefined);
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     originalClipboard = navigator.clipboard;
     originalShare = navigator.share;
+    mockWriteText = vi.fn().mockResolvedValue(undefined);
 
     Object.defineProperty(navigator, 'clipboard', {
       value: {
-        writeText: vi.fn().mockResolvedValue(undefined),
+        writeText: mockWriteText,
       },
       writable: true,
       configurable: true,
     });
-
     Object.defineProperty(navigator, 'share', {
       value: undefined,
       writable: true,
@@ -114,9 +115,7 @@ describe('useShareLink', () => {
       await result.current.handleShare();
     });
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledBefore(
-      publishShare as ReturnType<typeof vi.fn>
-    );
+    expect(mockWriteText).toHaveBeenCalledBefore(publishShare);
   });
 
   it('reports an error when publication fails after copying the private URL', async () => {
@@ -334,9 +333,7 @@ describe('useShareLink', () => {
       .fn()
       .mockRejectedValue(new Error('Rollback failed'));
     const onError = vi.fn();
-    (
-      navigator.clipboard.writeText as ReturnType<typeof vi.fn>
-    ).mockRejectedValueOnce(clipboardError);
+    mockWriteText.mockRejectedValueOnce(clipboardError);
 
     const { result } = renderHook(() =>
       useShareLink({

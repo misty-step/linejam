@@ -68,7 +68,7 @@ describe('convex/lib/auth', () => {
 
       expect(result).toBeNull();
       expect(consoleSpy).toHaveBeenCalled();
-      const logEntry = JSON.parse(consoleSpy.mock.calls[0][0] as string);
+      const logEntry = JSON.parse(String(consoleSpy.mock.calls[0][0]));
       expect(logEntry).toMatchObject({
         level: 'error',
         message: 'Invalid guest token',
@@ -91,7 +91,7 @@ describe('convex/lib/auth', () => {
 
       expect(result).toBeNull();
       expect(consoleSpy).toHaveBeenCalled();
-      const logEntry = JSON.parse(consoleSpy.mock.calls[0][0] as string);
+      const logEntry = JSON.parse(String(consoleSpy.mock.calls[0][0]));
       expect(logEntry).toMatchObject({
         level: 'error',
         message: 'Invalid guest token',

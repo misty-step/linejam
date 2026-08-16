@@ -1,4 +1,5 @@
 import { ConvexError } from 'convex/values';
+import type { ErrorReportable } from '@/lib/errorCore';
 import { RATE_LIMIT_EXCEEDED_MESSAGE } from '@/lib/rateLimit';
 
 /**
@@ -21,6 +22,7 @@ export interface ErrorFeedback {
   /** Visual variant for Alert component */
   variant: 'error' | 'warning' | 'info';
 }
+export type FeedbackError = ErrorReportable;
 
 /**
  * Return true only for an expected Convex rate-limit rejection.
@@ -30,7 +32,9 @@ export interface ErrorFeedback {
  * exact canonical payload prevents generic failures that merely mention rate
  * limits from being hidden from observability.
  */
-export function isExpectedConvexRateLimitError(error: unknown): boolean {
+export function isExpectedConvexRateLimitError(
+  error: ErrorReportable
+): boolean {
   return (
     error instanceof ConvexError && error.data === RATE_LIMIT_EXCEEDED_MESSAGE
   );
@@ -45,23 +49,23 @@ export function isExpectedConvexRateLimitError(error: unknown): boolean {
  * - Rate limiting
  * - Generic fallback (helpful message even for unknown errors)
  *
- * @param error - Error from try/catch block (Error | unknown)
+ * @param error - Parsed error from a caught value
  * @returns Structured feedback ready for UI display
  *
  * @example
  * ```typescript
  * try {
  *   await createRoomMutation();
- * } catch (error) {
+ * } catch (cause) {
+ *   const error = toErrorReportable(cause);
  *   const feedback = errorToFeedback(error);
  *   setError(feedback.message);
  * }
  * ```
  */
-export function errorToFeedback(error: unknown): ErrorFeedback {
+export function errorToFeedback(error: FeedbackError): ErrorFeedback {
   // Extract error message from various error shapes
   const message = extractErrorMessage(error);
-
   // Pattern match common error types
   if (isNetworkError(message)) {
     return {
@@ -133,32 +137,26 @@ export function errorToFeedback(error: unknown): ErrorFeedback {
  * Extract error message from various error shapes.
  * Handles: Error objects, strings, unknown objects
  */
-function extractErrorMessage(error: unknown): string {
-  // ConvexError carries its payload in `data` — the ONLY field that survives
-  // Convex's production redaction (plain `Error.message` becomes "Server
-  // Error" in prod, which is why every player-path Convex function must throw
-  // ConvexError; see the eslint no-restricted-syntax gate in eslint.config.mjs).
-  // Duck-typed rather than instanceof so it works across bundler copies of
-  // the convex package.
-  if (
-    error &&
-    typeof error === 'object' &&
-    'data' in error &&
-    typeof (error as { data: unknown }).data === 'string'
-  ) {
-    return (error as { data: string }).data;
+function extractErrorMessage(error: FeedbackError): string {
+  if (error === null || error === undefined) {
+    return 'Unknown error';
+  }
+
+  if (error instanceof Object && 'data' in error && error.data != null) {
+    return String(error.data);
   }
 
   if (error instanceof Error) {
     return error.message;
   }
 
-  if (typeof error === 'string') {
-    return error;
+  if (error instanceof Object && 'message' in error && error.message != null) {
+    return String(error.message);
   }
 
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String(error.message);
+  const stringified = String(error);
+  if (stringified !== '[object Object]') {
+    return stringified;
   }
 
   return 'Unknown error';

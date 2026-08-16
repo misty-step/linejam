@@ -24,9 +24,10 @@ pnpm ci:dagger:all-no-e2e                  # full contract without browser E2E
 pnpm ci:dagger:all                         # local hosted-gate mirror
 ```
 
-`pnpm ci:prepush` runs provider-retirement, TypeScript, ESLint, and Vitest. The
-hosted merge gate remains authoritative for merge. Convex preparation and live
-authority are defined in `docs/ops/observability-ci.md`.
+`pnpm ci:prepush` runs provider-retirement checks, TypeScript, the anti-slop
+Oxlint plugin, ESLint, and Vitest. The hosted merge gate remains authoritative
+for merge. Convex preparation and live authority are defined in
+`docs/ops/observability-ci.md`.
 
 `pnpm test:ci` must emit nonzero totals for lines, statements, functions, and
 branches before it can pass. Coverage paths are checkout-location independent:
@@ -52,16 +53,16 @@ deployment identity, or production health.
 
 ## Test seams
 
-- Mock network calls, browser APIs, third-party adapters, clocks, randomness,
-  and other system boundaries.
-- Do not mock the behavior under test. Prefer dependency injection at the
-  external boundary over replacing internal modules.
+- Replace external network calls, browser APIs, third-party adapters, clocks,
+  randomness, and other nondeterminism through an injected owner interface or
+  faithful implementation.
+- Do not replace modules through Vitest or Jest module mocking. Keep domain
+  utilities and component-owned decision logic real, and pass external systems
+  through their production boundary.
 - Test Convex functions with `setupConvexTest()` from
   `tests/helpers/convexTest.ts`; seed with `tests/helpers/convexSeed.ts` where
   applicable. This exercises indexes, transactions, scheduled functions, and
   generated handlers instead of a hand-built database mock.
-- Component tests may mock `convex/react`, Clerk, clipboard, or fetch. Keep
-  domain utilities and component-owned decision logic real.
 - Every regression starts red on the defect, turns green on the fix, then gets
   refactored without changing the oracle.
 

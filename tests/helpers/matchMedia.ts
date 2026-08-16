@@ -16,6 +16,7 @@ export function installMatchMedia(initialMatches = false) {
     }),
     dispatch(matches: boolean) {
       mediaQuery.matches = matches;
+      // SAFETY: Synthetic MediaQueryListEvent payload satisfies the listener contract for unit tests.
       changeListener?.({ matches } as MediaQueryListEvent);
     },
   };

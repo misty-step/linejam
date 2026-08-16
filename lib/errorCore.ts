@@ -1,13 +1,55 @@
 import type { SentryReporterContext } from '@/lib/sentryPrivacy';
 
-type ErrorReporter = {
+export type ErrorReportContext = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
+export type ErrorReportable =
+  | Error
+  | { name?: string; message?: string; stack?: string; data?: string }
+  | string
+  | null
+  | undefined;
+
+export function toErrorReportable(cause: unknown): ErrorReportable {
+  if (cause instanceof Error) {
+    return cause;
+  }
+  if (cause === null || cause === undefined) {
+    return cause;
+  }
+  if (cause instanceof Object) {
+    const message =
+      'message' in cause && cause.message != null
+        ? String(cause.message)
+        : undefined;
+    const name =
+      'name' in cause && cause.name != null ? String(cause.name) : undefined;
+    const stack =
+      'stack' in cause && cause.stack != null ? String(cause.stack) : undefined;
+    const data =
+      'data' in cause && cause.data != null ? String(cause.data) : undefined;
+    if (
+      message !== undefined ||
+      name !== undefined ||
+      stack !== undefined ||
+      data !== undefined
+    ) {
+      return { name, message, stack, data };
+    }
+  }
+  return String(cause);
+}
+
+export type ErrorReporter = {
   captureException: (
-    error: unknown,
+    error: ErrorReportable,
     context?: SentryReporterContext
-  ) => unknown;
+  ) => void | string;
   isEnabled: () => boolean;
   sanitizeContext: (
-    context?: Record<string, unknown>
+    context?: ErrorReportContext
   ) => SentryReporterContext | undefined;
 };
 
@@ -20,9 +62,9 @@ export function isSentryEnabled() {
 
 export function captureReportedError(
   reporter: ErrorReporter,
-  error: unknown,
-  context?: Record<string, unknown>
-) {
+  error: ErrorReportable,
+  context?: ErrorReportContext
+): void {
   const scrubbedContext = reporter.sanitizeContext(context);
 
   if (!reporter.isEnabled()) {
@@ -43,9 +85,9 @@ export function captureReportedError(
 
 function logCapturedError(
   message: string,
-  error: unknown,
+  error: ErrorReportable,
   context?: SentryReporterContext
-) {
+): void {
   if (context) {
     console.error(message, error, context);
     return;

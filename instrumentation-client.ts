@@ -10,6 +10,21 @@ const runtimeOptions = getSentryRuntimeOptions({
   NODE_ENV: process.env.NODE_ENV,
 });
 
+type SentryClientTags = {
+  runtime: 'browser';
+  environment: string;
+  release?: string;
+};
+
+const clientTags: SentryClientTags = {
+  runtime: 'browser',
+  environment: runtimeOptions.environment,
+};
+
+if (runtimeOptions.release) {
+  clientTags.release = runtimeOptions.release;
+}
+
 if (!Sentry.getClient()) {
   Sentry.init({
     ...runtimeOptions,
@@ -17,11 +32,7 @@ if (!Sentry.getClient()) {
     beforeSend,
     beforeSendTransaction,
     initialScope: {
-      tags: {
-        runtime: 'browser',
-        environment: runtimeOptions.environment,
-        ...(runtimeOptions.release ? { release: runtimeOptions.release } : {}),
-      },
+      tags: clientTags,
     },
   });
 }
