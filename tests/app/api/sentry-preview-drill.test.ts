@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createSentryPreviewDrillRoute,
   type SentryPreviewDrillRouteDependencies,
-} from '@/app/api/internal/sentry-preview-drill/route';
+} from '@/app/api/internal/sentry-preview-drill/handler';
 
 const url = 'https://preview.linejam.app/api/internal/sentry-preview-drill';
 

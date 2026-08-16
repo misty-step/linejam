@@ -2,22 +2,25 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { AuthLayout, type AuthLayoutDependencies } from '@/app/(auth)/layout';
+import {
+  AuthLayout,
+  type AuthLayoutDependencies,
+} from '@/app/(auth)/AuthLayout';
 import {
   JoinPage,
   type JoinPageDependencies,
   type JoinRoom,
-} from '@/app/join/page';
+} from '@/app/join/JoinPage';
 import { Header } from '@/components/Header';
 import type { HeaderDependencies } from '@/components/Header';
 import {
   SignInPage,
   type SignInPageDependencies,
-} from '@/app/(auth)/sign-in/[[...sign-in]]/page';
+} from '@/app/(auth)/sign-in/[[...sign-in]]/SignInPage';
 import {
   SignUpPage,
   type SignUpPageDependencies,
-} from '@/app/(auth)/sign-up/[[...sign-up]]/page';
+} from '@/app/(auth)/sign-up/[[...sign-up]]/SignUpPage';
 
 let currentPathname = '/join';
 let currentSearchParams = new URLSearchParams('code=ABCD');

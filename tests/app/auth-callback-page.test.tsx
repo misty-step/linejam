@@ -5,7 +5,7 @@ import {
   AuthCallbackPage,
   type AuthCallbackPageDependencies,
   type MigrateGuestToUser,
-} from '@/app/(auth)/callback/page';
+} from '@/app/(auth)/callback/AuthCallbackPage';
 
 const mockReplace = vi.fn();
 const mockMigrateGuestToUser = vi.fn<MigrateGuestToUser>();

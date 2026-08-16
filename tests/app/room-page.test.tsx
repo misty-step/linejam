@@ -1,7 +1,10 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { RoomPage, type RoomPageDependencies } from '@/app/room/[code]/page';
+import {
+  RoomPage,
+  type RoomPageDependencies,
+} from '@/app/room/[code]/RoomPage';
 import { ThemeProvider } from '@/lib/themes';
 import {
   ConnectionStatus,

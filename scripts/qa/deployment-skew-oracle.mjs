@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const BASE_URL = new URL(
@@ -25,19 +26,17 @@ function positiveInteger(value, fallback) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-async function readDeploymentId(page) {
+export async function readDeploymentId(page) {
   const response = await page.request.get(`${BASE_URL}/api/deployment`, {
     failOnStatusCode: true,
     headers: { Accept: 'application/json' },
   });
   const payload = await response.json();
   const id = payload?.deployment?.id;
-  if (
-    Object.prototype.toString.call(id) !== '[object String]' ||
-    !id.trim()
-  ) {
+  if (Object.prototype.toString.call(id) !== '[object String]' || !id.trim()) {
     throw new Error('Production returned no deployment receipt');
   }
+  return id;
 }
 
 async function establishHeldRoom(browser) {
@@ -144,4 +143,6 @@ async function main() {
   }
 }
 
-await main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  await main();
+}

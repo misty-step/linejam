@@ -10,7 +10,7 @@ import {
 } from 'vitest';
 import type { MockInstance } from 'vitest';
 import { ConvexHttpClient } from 'convex/browser';
-import { createHealthRoute } from '@/app/api/health/route';
+import { createHealthRoute } from '@/app/api/health/handler';
 
 const originalEnv = { ...process.env };
 

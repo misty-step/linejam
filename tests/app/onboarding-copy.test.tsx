@@ -6,7 +6,7 @@ import {
   JoinPage,
   type JoinPageDependencies,
   type JoinRoom,
-} from '@/app/join/page';
+} from '@/app/join/JoinPage';
 
 const searchParams = new URLSearchParams('code=ABCD');
 const mockJoinRoom = vi.fn<JoinRoom>().mockResolvedValue({ _id: 'room-1' });

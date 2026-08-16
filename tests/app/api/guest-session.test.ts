@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 import { NextRequest } from 'next/server';
 import { ConvexError } from 'convex/values';
-import { createGuestSessionRoute, DELETE } from '@/app/api/guest/session/route';
+import {
+  createGuestSessionRoute,
+  DELETE,
+} from '@/app/api/guest/session/handler';
 import type {
   GuestSessionRoute,
   GuestSessionThrottleInput,
-} from '@/app/api/guest/session/route';
+} from '@/app/api/guest/session/handler';
 import * as guestToken from '@/lib/guestToken';
 import * as errorServer from '@/lib/errorServer';
 

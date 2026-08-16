@@ -97,6 +97,7 @@ describe('nextConfig deployment skew protection', () => {
   it('leaves local builds unversioned when the provider supplies no commit', () => {
     expect(resolveDeploymentId(undefined)).toBeUndefined();
     expect(resolveDeploymentId(null)).toBeUndefined();
+    expect(resolveDeploymentId(false)).toBeUndefined();
     expect(resolveDeploymentId('   ')).toBeUndefined();
   });
 });

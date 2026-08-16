@@ -1,0 +1,199 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useConvexAuth, useMutation } from 'convex/react';
+import { useUser as useClerkUser } from '@clerk/nextjs';
+import { api } from '@/convex/_generated/api';
+import { clearGuestSession, getExistingGuestSession } from '@/lib/guestSession';
+import { captureError } from '@/lib/error';
+import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+
+interface AuthCallbackRouter {
+  replace(href: string): void;
+}
+
+interface AuthCallbackClerkState {
+  isLoaded: boolean;
+  isSignedIn: boolean | undefined;
+}
+
+interface AuthCallbackConvexState {
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
+
+export type MigrateGuestToUser = (args: {
+  guestToken: string;
+}) => Promise<void>;
+
+export interface AuthCallbackPageDependencies {
+  useRouter(): AuthCallbackRouter;
+  useClerkUser(): AuthCallbackClerkState;
+  useConvexAuth(): AuthCallbackConvexState;
+  useMigrateGuestToUser(): MigrateGuestToUser;
+  getExistingGuestSession: typeof getExistingGuestSession;
+  clearGuestSession: typeof clearGuestSession;
+  captureError: typeof captureError;
+}
+
+function useDefaultMigrateGuestToUser(): MigrateGuestToUser {
+  const migrateGuestToUser = useMutation(api.migrations.migrateGuestToUser);
+  return async (args) => {
+    await migrateGuestToUser(args);
+  };
+}
+
+const defaultAuthCallbackPageDependencies: AuthCallbackPageDependencies = {
+  useRouter,
+  useClerkUser,
+  useConvexAuth,
+  useMigrateGuestToUser: useDefaultMigrateGuestToUser,
+  getExistingGuestSession,
+  clearGuestSession,
+  captureError,
+};
+
+interface AuthCallbackPageProps {
+  dependencies?: AuthCallbackPageDependencies;
+}
+
+export function AuthCallbackPage({
+  dependencies = defaultAuthCallbackPageDependencies,
+}: AuthCallbackPageProps = {}) {
+  const router = dependencies.useRouter();
+  const { isLoaded, isSignedIn } = dependencies.useClerkUser();
+  const {
+    isLoading: isConvexAuthLoading,
+    isAuthenticated: isConvexAuthenticated,
+  } = dependencies.useConvexAuth();
+  const migrateGuestToUser = dependencies.useMigrateGuestToUser();
+  const hasRun = useRef(false);
+  const [status, setStatus] = useState<'loading' | 'error'>('loading');
+  const [retryCount, setRetryCount] = useState(0);
+
+  const migrateGuestSession = useCallback(
+    async (guestToken: string) => {
+      await migrateGuestToUser({ guestToken });
+      await dependencies.clearGuestSession().catch((error) => {
+        dependencies.captureError(error, { operation: 'clearGuestSession' });
+      });
+      router.replace('/');
+    },
+    [dependencies, migrateGuestToUser, router]
+  );
+
+  useEffect(() => {
+    if (!isLoaded || isConvexAuthLoading || hasRun.current) return;
+    if (!isSignedIn) {
+      hasRun.current = true;
+      router.replace('/');
+      return;
+    }
+
+    if (!isConvexAuthenticated) {
+      hasRun.current = true;
+      dependencies.captureError(
+        new Error(
+          'Signed-in user missing Convex auth session during migration'
+        ),
+        {
+          operation: 'migrateGuestToUser',
+          phase: 'convexAuthUnavailable',
+        }
+      );
+      queueMicrotask(() => {
+        setStatus('error');
+      });
+      return;
+    }
+
+    hasRun.current = true;
+    void dependencies
+      .getExistingGuestSession()
+      .then((session) => {
+        if (!session.token) {
+          router.replace('/');
+          return;
+        }
+        return migrateGuestSession(session.token);
+      })
+      .catch((error) => {
+        dependencies.captureError(error, { operation: 'migrateGuestToUser' });
+        setStatus('error');
+      });
+  }, [
+    isLoaded,
+    isSignedIn,
+    isConvexAuthLoading,
+    isConvexAuthenticated,
+    migrateGuestSession,
+    dependencies,
+    router,
+    retryCount,
+  ]);
+
+  const handleRetry = useCallback(() => {
+    if (!isSignedIn) {
+      router.replace('/');
+      return;
+    }
+
+    setStatus('loading');
+    hasRun.current = false;
+    setRetryCount((count) => count + 1);
+  }, [isSignedIn, router]);
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-6">
+        <div className="max-w-xl w-full space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-[var(--font-display)] text-[var(--color-text-primary)]">
+              Could not finish sign in
+            </h1>
+            <p className="text-[var(--color-text-secondary)] leading-relaxed">
+              Your account is ready, but your guest progress could not be moved
+              right now.
+            </p>
+          </div>
+          <Alert variant="error">
+            Retry the migration or head home and keep playing from a fresh
+            session.
+          </Alert>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={handleRetry}>Retry migration</Button>
+            <Button
+              variant="secondary"
+              className="sm:flex-1"
+              onClick={() => router.replace('/')}
+            >
+              Go home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-6"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="flex items-center gap-3 text-[var(--color-text-primary)]">
+        <span
+          className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]"
+          aria-hidden="true"
+        />
+        <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)]">
+          Completing sign in...
+        </p>
+        <span className="sr-only">Completing sign in</span>
+      </div>
+    </div>
+  );
+}

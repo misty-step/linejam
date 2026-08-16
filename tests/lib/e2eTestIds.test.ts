@@ -44,7 +44,7 @@ const EXPECTED_TEST_IDS = {
 
 const SOURCE_FILES = [
   'app/host/page.tsx',
-  'app/join/page.tsx',
+  'app/join/JoinPage.tsx',
   'components/Lobby.tsx',
   'components/stage/LobbyStage.tsx',
   'components/stage/RevealStage.tsx',
