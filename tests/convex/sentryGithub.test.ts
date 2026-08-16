@@ -175,7 +175,12 @@ describe('durable Sentry to GitHub bridge', () => {
     expect(content.title).toBe(
       '[Convex/preview] finishAbandonedGame: unexpected_error'
     );
-    expect(content.labels).toEqual(['p1', 'source/sentry', 'domain/infra']);
+    expect(content.labels).toEqual([
+      'p1',
+      'source/sentry',
+      'domain/infra',
+      'source/agent',
+    ]);
     expect(content.body).toContain(githubDedupMarker(DEDUP_KEY));
     expect(content.body).not.toMatch(
       /title|message|culprit|stack|request|user/i

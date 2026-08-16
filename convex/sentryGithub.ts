@@ -13,7 +13,15 @@ const MAX_ATTEMPTS = 10;
 const LEASE_MS = 2 * 60 * 1000;
 const BRIDGE_FETCH_TIMEOUT_MS = 5_000;
 const MAX_RETRY_MS = 60 * 60 * 1000;
-const FIXED_LABELS = ['p1', 'source/sentry', 'domain/infra'] as const;
+const AGENT_MAX_ATTEMPTS = 3;
+const AGENT_LEASE_MS = 90 * 60 * 1000;
+const AGENT_RETRY_MS = 15 * 60 * 1000;
+const FIXED_LABELS = [
+  'p1',
+  'source/sentry',
+  'domain/infra',
+  'source/agent',
+] as const;
 export const BRIDGE_RUNTIMES = ['convex', 'github-actions'] as const;
 
 export const BRIDGE_OPERATIONS = [
@@ -74,6 +82,21 @@ type ClaimedReceipt = Pick<
   | 'attempts'
   | 'githubIssueNumber'
 >;
+
+export type AgentReceiptClaim = Pick<
+  Doc<'sentryGithubReceipts'>,
+  '_id' | 'dedupKey' | 'projectId' | 'sentryIssueId' | 'sentryEventId'
+> & {
+  githubIssueNumber: number;
+  environment: Environment;
+  release: string;
+  operation: Operation;
+  level: 'error';
+  failureCode: FailureCode;
+  leaseId: string;
+  agentAttempts: number;
+  agentLeaseExpiresAt: number;
+};
 
 type BridgeConfig = {
   sentryToken: string;
@@ -886,6 +909,13 @@ export const finishReceipt = internalMutation({
       leaseId: undefined,
       leaseExpiresAt: undefined,
       nextAttemptAt: args.now,
+      agentState: 'pending',
+      agentAttempts: 0,
+      agentNextAttemptAt: args.now,
+      agentLeaseId: undefined,
+      agentLeaseExpiresAt: undefined,
+      agentCompletedAt: undefined,
+      agentBlockedCode: undefined,
       blockedCode: undefined,
       linkedAt: args.now,
       updatedAt: args.now,
@@ -1061,6 +1091,200 @@ export const recoverExpiredLeases = internalMutation({
       await ctx.scheduler.runAfter(0, workerRef, { receiptId: receipt._id });
     }
     return { recovered: expired.length };
+  },
+});
+
+export const claimAgentReceipt = internalMutation({
+  args: {
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args): Promise<AgentReceiptClaim | null> => {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        args.leaseId
+      )
+    ) {
+      throw new ConvexError('invalid_agent_lease');
+    }
+
+    let receipt = await ctx.db
+      .query('sentryGithubReceipts')
+      .withIndex('by_agentState_agentLeaseExpiresAt', (q) =>
+        q.eq('agentState', 'leased').lt('agentLeaseExpiresAt', args.now)
+      )
+      .first();
+    if (!receipt) {
+      receipt = await ctx.db
+        .query('sentryGithubReceipts')
+        .withIndex('by_agentState_agentNextAttemptAt', (q) =>
+          q.eq('agentState', 'pending').lte('agentNextAttemptAt', args.now)
+        )
+        .first();
+    }
+    if (!receipt) return null;
+
+    const attempts = receipt.agentAttempts ?? 0;
+    if (
+      receipt.state !== 'linked' ||
+      receipt.githubIssueNumber === undefined ||
+      receipt.environment === undefined ||
+      receipt.release === undefined ||
+      receipt.operation === undefined ||
+      !includesClosed(BRIDGE_OPERATIONS, receipt.operation) ||
+      receipt.level !== 'error' ||
+      receipt.failureCode === undefined ||
+      !includesClosed(BRIDGE_FAILURE_CODES, receipt.failureCode)
+    ) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'issue_invalid',
+        updatedAt: args.now,
+      });
+      return null;
+    }
+    if (attempts >= AGENT_MAX_ATTEMPTS) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'attempts_exhausted',
+        updatedAt: args.now,
+      });
+      return null;
+    }
+
+    const agentLeaseExpiresAt = args.now + AGENT_LEASE_MS;
+    await ctx.db.patch(receipt._id, {
+      agentState: 'leased',
+      agentAttempts: attempts + 1,
+      agentLeaseId: args.leaseId,
+      agentLeaseExpiresAt,
+      agentBlockedCode: undefined,
+      updatedAt: args.now,
+    });
+    return {
+      _id: receipt._id,
+      dedupKey: receipt.dedupKey,
+      projectId: receipt.projectId,
+      sentryIssueId: receipt.sentryIssueId,
+      sentryEventId: receipt.sentryEventId,
+      githubIssueNumber: receipt.githubIssueNumber,
+      environment: receipt.environment,
+      release: receipt.release,
+      operation: receipt.operation,
+      level: receipt.level,
+      failureCode: receipt.failureCode,
+      leaseId: args.leaseId,
+      agentAttempts: attempts + 1,
+      agentLeaseExpiresAt,
+    };
+  },
+});
+
+export const completeAgentReceipt = internalMutation({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    outcome: v.union(
+      v.literal('completed'),
+      v.literal('retry'),
+      v.literal('issue_closed'),
+      v.literal('issue_invalid')
+    ),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.agentState !== 'leased' ||
+      receipt.agentLeaseId !== args.leaseId
+    ) {
+      return false;
+    }
+
+    if (args.outcome === 'completed') {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'completed',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentCompletedAt: args.now,
+        agentBlockedCode: undefined,
+        updatedAt: args.now,
+      });
+      return true;
+    }
+    if (args.outcome === 'issue_closed' || args.outcome === 'issue_invalid') {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: args.outcome,
+        updatedAt: args.now,
+      });
+      return true;
+    }
+
+    if ((receipt.agentAttempts ?? 0) >= AGENT_MAX_ATTEMPTS) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'attempts_exhausted',
+        updatedAt: args.now,
+      });
+      return true;
+    }
+    await ctx.db.patch(receipt._id, {
+      agentState: 'pending',
+      agentNextAttemptAt: args.now + AGENT_RETRY_MS,
+      agentLeaseId: undefined,
+      agentLeaseExpiresAt: undefined,
+      agentBlockedCode: 'agent_failed',
+      updatedAt: args.now,
+    });
+    return true;
+  },
+});
+
+export const enqueueLinkedAgentReceipts = internalMutation({
+  args: {
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+    now: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = args.now ?? Date.now();
+    const page = await ctx.db
+      .query('sentryGithubReceipts')
+      .withIndex('by_state_nextAttemptAt', (q) => q.eq('state', 'linked'))
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: Math.max(1, Math.min(100, Math.floor(args.limit ?? 50))),
+      });
+    let enqueued = 0;
+    for (const receipt of page.page) {
+      if (
+        receipt.agentState === undefined &&
+        receipt.githubIssueNumber !== undefined
+      ) {
+        await ctx.db.patch(receipt._id, {
+          agentState: 'pending',
+          agentAttempts: 0,
+          agentNextAttemptAt: now,
+          updatedAt: now,
+        });
+        enqueued += 1;
+      }
+    }
+    return {
+      enqueued,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
   },
 });
 

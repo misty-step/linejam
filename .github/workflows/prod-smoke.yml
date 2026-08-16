@@ -130,6 +130,15 @@ jobs:
           LINEJAM_MONITOR_CONSECUTIVE_FAILURES: ${{ steps.streak.outputs.count }}
         run: node scripts/ops/report-sentry-check-in.mjs
 
+      - name: Record Sentry production deploy
+        if: always() && steps.release.outcome == 'success'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_RELEASE_TOKEN }}
+          SENTRY_ORG: misty-step
+          SENTRY_PROJECT: linejam
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/ops/record-sentry-deploy.mjs
+
       - name: Annotate failure in the step summary
         if: steps.smoke.outcome == 'failure'
         env:

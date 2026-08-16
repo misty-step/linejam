@@ -1,5 +1,6 @@
 /** @vitest-environment node */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LinejamConvexTest } from '../helpers/convexTest';
 import { withEnv } from '../helpers/envHelper';
 import { setupConvexTest } from '../helpers/convexTest';
 
@@ -82,6 +83,8 @@ describe('convex/http health route', () => {
         SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
         SENTRY_GITHUB_INTEGRATION_ID: '338522',
         SENTRY_ORG: 'misty-step',
+        SENTRY_AGENT_LOOP_SECRET:
+          'agent-loop-test-secret-at-least-32-characters',
         SENTRY_WEBHOOK_SECRET: 'test-webhook-secret',
       },
       async () => {
@@ -310,6 +313,199 @@ describe('convex/http Sentry webhook route', () => {
       expect(
         await t.run((ctx) => ctx.db.query('sentryGithubReceipts').collect())
       ).toHaveLength(1);
+    });
+  });
+});
+
+const AGENT_SECRET = 'agent-loop-test-secret-at-least-32-characters';
+const AGENT_LEASE_ONE = '11111111-1111-4111-8111-111111111111';
+const AGENT_LEASE_TWO = '22222222-2222-4222-8222-222222222222';
+
+async function agentHeaders(body: string, timestamp = String(Date.now())) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(AGENT_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const digest = new Uint8Array(
+    await crypto.subtle.sign(
+      'HMAC',
+      key,
+      new TextEncoder().encode(`${timestamp}\n${body}`)
+    )
+  );
+  const signature = [...digest]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+  return {
+    'Content-Type': 'application/json',
+    'Linejam-Agent-Timestamp': timestamp,
+    'Linejam-Agent-Signature': signature,
+  };
+}
+
+async function insertAgentReceipt(t: LinejamConvexTest) {
+  return t.run((ctx) =>
+    ctx.db.insert('sentryGithubReceipts', {
+      dedupKey: `v1:${INSTALLATION_UUID}:42:123456`,
+      installationUuid: INSTALLATION_UUID,
+      projectId: '42',
+      sentryIssueId: '123456',
+      sentryEventId: '0123456789abcdef0123456789abcdef',
+      state: 'linked',
+      attempts: 1,
+      createdAt: 100,
+      updatedAt: 100,
+      nextAttemptAt: 100,
+      runtime: 'convex',
+      environment: 'production',
+      release: 'a'.repeat(40),
+      level: 'error',
+      operation: 'finishAbandonedGame',
+      failureCode: 'unexpected_error',
+      githubIssueNumber: 426,
+      linkedAt: 100,
+      agentState: 'pending',
+      agentAttempts: 0,
+      agentNextAttemptAt: 100,
+    })
+  );
+}
+
+describe('convex/http Sentry agent lease route', () => {
+  const env = {
+    LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+    SENTRY_AGENT_LOOP_SECRET: AGENT_SECRET,
+  };
+
+  beforeEach(() => {
+    vi.resetModules();
+    process.env = { ...ORIGINAL_ENV };
+  });
+
+  it('atomically grants one signed claim', async () => {
+    await withEnv(env, async () => {
+      const t = setupConvexTest();
+      await insertAgentReceipt(t);
+      const firstBody = JSON.stringify({
+        action: 'claim',
+        leaseId: AGENT_LEASE_ONE,
+      });
+      const first = await t.fetch('/api/agents/sentry', {
+        method: 'POST',
+        headers: await agentHeaders(firstBody),
+        body: firstBody,
+      });
+      expect(first.status).toBe(200);
+      await expect(first.json()).resolves.toMatchObject({
+        githubIssueNumber: 426,
+        sentryEventId: '0123456789abcdef0123456789abcdef',
+        leaseId: AGENT_LEASE_ONE,
+        agentAttempts: 1,
+      });
+
+      const secondBody = JSON.stringify({
+        action: 'claim',
+        leaseId: AGENT_LEASE_TWO,
+      });
+      const second = await t.fetch('/api/agents/sentry', {
+        method: 'POST',
+        headers: await agentHeaders(secondBody),
+        body: secondBody,
+      });
+      expect(second.status).toBe(204);
+    });
+  });
+
+  it('completes only the matching signed lease', async () => {
+    await withEnv(env, async () => {
+      const t = setupConvexTest();
+      const receiptId = await insertAgentReceipt(t);
+      const claimBody = JSON.stringify({
+        action: 'claim',
+        leaseId: AGENT_LEASE_ONE,
+      });
+      await t.fetch('/api/agents/sentry', {
+        method: 'POST',
+        headers: await agentHeaders(claimBody),
+        body: claimBody,
+      });
+      const completeBody = JSON.stringify({
+        action: 'complete',
+        receiptId,
+        leaseId: AGENT_LEASE_ONE,
+        outcome: 'completed',
+      });
+      const response = await t.fetch('/api/agents/sentry', {
+        method: 'POST',
+        headers: await agentHeaders(completeBody),
+        body: completeBody,
+      });
+      expect(response.status).toBe(202);
+      expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
+        agentState: 'completed',
+      });
+    });
+  });
+
+  it('rejects stale or invalid signatures without leasing work', async () => {
+    await withEnv(env, async () => {
+      const t = setupConvexTest();
+      const receiptId = await insertAgentReceipt(t);
+      const body = JSON.stringify({
+        action: 'claim',
+        leaseId: AGENT_LEASE_ONE,
+      });
+      const headers = await agentHeaders(
+        body,
+        String(Date.now() - 10 * 60 * 1000)
+      );
+      const response = await t.fetch('/api/agents/sentry', {
+        method: 'POST',
+        headers,
+        body,
+      });
+      expect(response.status).toBe(400);
+      expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
+        agentState: 'pending',
+      });
+    });
+  });
+
+  it('rejects malformed signed claim and completion projections', async () => {
+    await withEnv(env, async () => {
+      const t = setupConvexTest();
+      const invalidPayloads = [
+        { action: 'claim', leaseId: [AGENT_LEASE_ONE] },
+        { action: 'claim', leaseId: -1 },
+        { action: 'claim', leaseId: 1.5 },
+        { action: 'claim', leaseId: 'bad' },
+        { action: 'unknown', leaseId: AGENT_LEASE_ONE },
+        {
+          action: 'complete',
+          leaseId: AGENT_LEASE_ONE,
+          receiptId: ['receipt'],
+          outcome: 'completed',
+        },
+        {
+          action: 'complete',
+          leaseId: AGENT_LEASE_ONE,
+          receiptId: 'receipt',
+          outcome: 'wrong',
+        },
+      ];
+
+      for (const payload of invalidPayloads) {
+        const body = JSON.stringify(payload);
+        const response = await t.fetch('/api/agents/sentry', {
+          method: 'POST',
+          headers: await agentHeaders(body),
+          body,
+        });
+        expect(response.status).toBe(400);
+      }
     });
   });
 });

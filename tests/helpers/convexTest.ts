@@ -1,4 +1,5 @@
 import { convexTest } from 'convex-test';
+import type { TestConvex } from 'convex-test';
 import type { GenericSchema, SchemaDefinition } from 'convex/server';
 import type { ImportGlobFunction } from 'vite';
 import schema from '../../convex/schema';
@@ -25,6 +26,8 @@ declare global {
  * convex-test can locate the modules root.
  */
 const modules = import.meta.glob('../../convex/**/*.*s');
+
+export type LinejamConvexTest = TestConvex<typeof schema>;
 
 export function setupConvexTest() {
   return convexTest(schema, modules);

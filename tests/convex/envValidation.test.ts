@@ -22,6 +22,7 @@ const COMPLETE_PRODUCTION_ENV = {
   SENTRY_GITHUB_INTEGRATION_ID: '338522',
   SENTRY_ORG: 'misty-step',
   SENTRY_WEBHOOK_SECRET: 'test-webhook-secret',
+  SENTRY_AGENT_LOOP_SECRET: 'test-agent-loop-secret-at-least-32-characters',
 };
 
 describe('Convex env validation', () => {

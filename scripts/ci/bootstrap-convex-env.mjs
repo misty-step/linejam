@@ -280,6 +280,17 @@ function resolveHostedBridgeEntries(env, deploymentEnvironment) {
   ];
 }
 
+function resolveAgentLoopEntries(env, deploymentEnvironment) {
+  if (deploymentEnvironment !== 'production') return [];
+  const secret = env.SENTRY_AGENT_LOOP_SECRET?.trim();
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      'SENTRY_AGENT_LOOP_SECRET must contain at least 32 characters for production.'
+    );
+  }
+  return [['SENTRY_AGENT_LOOP_SECRET', secret]];
+}
+
 /**
  * @param {EnvShape} [env]
  */
@@ -314,6 +325,7 @@ export function buildConvexEnvBootstrapPlan(env = process.env) {
         : 'development';
   const sentryEntries = resolveHostedSentryEntries(env, deploymentEnvironment);
   const bridgeEntries = resolveHostedBridgeEntries(env, deploymentEnvironment);
+  const agentLoopEntries = resolveAgentLoopEntries(env, deploymentEnvironment);
 
   return {
     target,
@@ -323,6 +335,7 @@ export function buildConvexEnvBootstrapPlan(env = process.env) {
       ['LINEJAM_DEPLOY_ENVIRONMENT', deploymentEnvironment],
       ...sentryEntries,
       ...bridgeEntries,
+      ...agentLoopEntries,
     ],
   };
 }

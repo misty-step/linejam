@@ -38,6 +38,7 @@ describe('bootstrap-convex-env', () => {
     SENTRY_WEBHOOK_SECRET: 'webhook-secret',
     SENTRY_EVENT_WRITE_TOKEN: 'event-write-token',
     GITHUB_ISSUES_TOKEN: 'github-issues-token',
+    SENTRY_AGENT_LOOP_SECRET: 'agent-loop-secret-at-least-32-characters',
   };
 
   it('derives a Clerk issuer domain from the publishable key when needed', () => {
@@ -151,6 +152,30 @@ describe('bootstrap-convex-env', () => {
       )
     ).toThrow(
       'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
+    );
+  });
+
+  it('requires a distinct production agent-loop secret', () => {
+    const bridgeWithoutAgent = {
+      SENTRY_WEBHOOK_SECRET: bridgeSecrets.SENTRY_WEBHOOK_SECRET,
+      SENTRY_EVENT_WRITE_TOKEN: bridgeSecrets.SENTRY_EVENT_WRITE_TOKEN,
+      GITHUB_ISSUES_TOKEN: bridgeSecrets.GITHUB_ISSUES_TOKEN,
+    };
+    expect(() =>
+      buildConvexEnvBootstrapPlan(
+        env({
+          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
+          GUEST_TOKEN_SECRET: 'guest-secret',
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
+            'live',
+            'clerk.linejam.app'
+          ),
+          ...sentryEnv,
+          ...bridgeWithoutAgent,
+        })
+      )
+    ).toThrow(
+      'SENTRY_AGENT_LOOP_SECRET must contain at least 32 characters for production.'
     );
   });
 
@@ -376,6 +401,7 @@ describe('bootstrap-convex-env', () => {
       'SENTRY_GITHUB_INTEGRATION_ID',
       'GITHUB_REPOSITORY_OWNER',
       'GITHUB_REPOSITORY_NAME',
+      'SENTRY_AGENT_LOOP_SECRET',
     ]);
     expect(calls.slice(-3)).toEqual([
       {
@@ -705,6 +731,7 @@ exit 0
         'exec convex env --prod set SENTRY_GITHUB_INTEGRATION_ID',
         'exec convex env --prod set GITHUB_REPOSITORY_OWNER',
         'exec convex env --prod set GITHUB_REPOSITORY_NAME',
+        'exec convex env --prod set SENTRY_AGENT_LOOP_SECRET',
         'exec convex deploy --cmd pnpm run build:check',
         'node scripts/ci/reconcile-convex-env.mjs',
         'node scripts/convex/probe-signed-throttle-ready.mjs --assert-prod-target',

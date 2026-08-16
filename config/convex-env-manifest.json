@@ -15,6 +15,7 @@
         "SENTRY_DSN",
         "SENTRY_ENVIRONMENT",
         "SENTRY_RELEASE",
+        "SENTRY_AGENT_LOOP_SECRET",
         "SENTRY_EVENT_WRITE_TOKEN",
         "SENTRY_EXPECTED_APP_ID",
         "SENTRY_EXPECTED_INSTALLATION_UUID",
@@ -44,7 +45,7 @@
         "SENTRY_ORG",
         "SENTRY_WEBHOOK_SECRET"
       ],
-      "optional": ["RETENTION_GC_ENABLED"]
+      "optional": ["RETENTION_GC_ENABLED", "SENTRY_AGENT_LOOP_SECRET"]
     },
     "production": {
       "required": [
@@ -56,6 +57,7 @@
         "LINEJAM_DEPLOY_ENVIRONMENT",
         "LINEJAM_SENTRY_ENABLED",
         "SENTRY_DSN",
+        "SENTRY_AGENT_LOOP_SECRET",
         "SENTRY_EVENT_WRITE_TOKEN",
         "SENTRY_EXPECTED_APP_ID",
         "SENTRY_EXPECTED_INSTALLATION_UUID",

@@ -281,6 +281,27 @@ export default defineSchema({
     nextAttemptAt: v.number(),
     leaseId: v.optional(v.string()),
     leaseExpiresAt: v.optional(v.number()),
+    agentState: v.optional(
+      v.union(
+        v.literal('pending'),
+        v.literal('leased'),
+        v.literal('completed'),
+        v.literal('blocked')
+      )
+    ),
+    agentAttempts: v.optional(v.number()),
+    agentNextAttemptAt: v.optional(v.number()),
+    agentLeaseId: v.optional(v.string()),
+    agentLeaseExpiresAt: v.optional(v.number()),
+    agentCompletedAt: v.optional(v.number()),
+    agentBlockedCode: v.optional(
+      v.union(
+        v.literal('issue_closed'),
+        v.literal('issue_invalid'),
+        v.literal('agent_failed'),
+        v.literal('attempts_exhausted')
+      )
+    ),
     runtime: v.optional(
       v.union(v.literal('convex'), v.literal('github-actions'))
     ),
@@ -330,5 +351,13 @@ export default defineSchema({
   })
     .index('by_dedupKey', ['dedupKey'])
     .index('by_state_nextAttemptAt', ['state', 'nextAttemptAt'])
-    .index('by_state_leaseExpiresAt', ['state', 'leaseExpiresAt']),
+    .index('by_state_leaseExpiresAt', ['state', 'leaseExpiresAt'])
+    .index('by_agentState_agentNextAttemptAt', [
+      'agentState',
+      'agentNextAttemptAt',
+    ])
+    .index('by_agentState_agentLeaseExpiresAt', [
+      'agentState',
+      'agentLeaseExpiresAt',
+    ]),
 });

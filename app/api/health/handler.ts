@@ -1,4 +1,3 @@
-import { captureCheckIn, flush } from '@sentry/nextjs';
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import type { ConvexEnvHealthReport } from '@/convex/lib/env';
@@ -13,18 +12,9 @@ import { log, logError, logRequest } from '@/lib/logger';
 const CONVEX_HEALTH_TIMEOUT_MS = 3_000;
 const ROUTE = '/api/health';
 const GUEST_PARITY_KEY = 'guestSession:deployment-readiness';
-const SENTRY_HEALTH_MONITOR_SLUG = 'linejam-production-health';
-const SENTRY_HEALTH_MONITOR_CONFIG = {
-  schedule: { type: 'crontab' as const, value: '*/5 * * * *' },
-  checkinMargin: 2,
-  maxRuntime: 1,
-  timezone: 'UTC',
-};
 
 export interface HealthRouteDependencies {
-  captureCheckIn: typeof captureCheckIn;
   captureServerError: typeof captureServerError;
-  flush: typeof flush;
 }
 
 export interface HealthRoute {
@@ -32,9 +22,7 @@ export interface HealthRoute {
 }
 
 const defaultHealthRouteDependencies: HealthRouteDependencies = {
-  captureCheckIn,
   captureServerError,
-  flush,
 };
 
 export function createHealthRoute(
@@ -91,25 +79,12 @@ export function createHealthRoute(
         observabilityStatus: observabilityReady ? 'ready' : 'degraded',
       });
 
-      await reportHealthCheckIn(
-        {
-          status: status === 200 ? 'alive' : 'error',
-          summary:
-            status === 200
-              ? 'linejam health route ok'
-              : 'linejam health route degraded',
-          routeStatus: status,
-          startedAt,
-        },
-        dependencies
-      );
-
       return Response.json(body, {
         status,
         headers: { 'Cache-Control': 'no-store' },
       });
     } catch (error) {
-      await logFailure(error, startedAt, dependencies);
+      logFailure(error, startedAt, dependencies);
       return Response.json(
         { status: 'error' },
         { status: 500, headers: { 'Cache-Control': 'no-store' } }
@@ -276,7 +251,7 @@ async function checkGuestTokenParity(client: ConvexHttpClient) {
 /**
  * Best-effort logging that tolerates missing or slow observability transport.
  */
-async function logFailure(
+function logFailure(
   cause: unknown,
   startedAt: number,
   dependencies: HealthRouteDependencies
@@ -293,73 +268,6 @@ async function logFailure(
   logError('Healthcheck failed', error, context);
 
   dependencies.captureServerError(error, context);
-  reportSentryHealthCheckIn('error', startedAt, dependencies);
-}
-
-async function reportHealthCheckIn(
-  input: {
-    status: 'alive' | 'error';
-    summary: string;
-    routeStatus: number;
-    startedAt: number;
-  },
-  dependencies: HealthRouteDependencies
-) {
-  reportSentryHealthCheckIn(
-    input.status === 'error' ? 'error' : 'ok',
-    input.startedAt,
-    dependencies
-  );
-}
-
-function reportSentryHealthCheckIn(
-  status: 'ok' | 'error',
-  startedAt: number,
-  dependencies: HealthRouteDependencies
-) {
-  if (
-    process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
-    !isValidSentryDsn(process.env.NEXT_PUBLIC_SENTRY_DSN)
-  ) {
-    return;
-  }
-
-  try {
-    dependencies.captureCheckIn(
-      {
-        monitorSlug: SENTRY_HEALTH_MONITOR_SLUG,
-        status,
-        duration: elapsedMs(startedAt) / 1_000,
-      },
-      SENTRY_HEALTH_MONITOR_CONFIG
-    );
-    void dependencies
-      .flush(2_000)
-      .then((flushed) => {
-        if (!flushed) {
-          logSentryHealthReportingFailure('FlushTimeout');
-        }
-      })
-      .catch((cause: unknown) => {
-        const err = toErrorReportable(cause);
-        logSentryHealthReportingFailure(
-          err instanceof Error ? err.name : 'UnknownReportingError'
-        );
-      });
-  } catch (reportingError) {
-    const err = toErrorReportable(reportingError);
-    logSentryHealthReportingFailure(
-      err instanceof Error ? err.name : 'UnknownReportingError'
-    );
-  }
-}
-
-function logSentryHealthReportingFailure(errorName: string) {
-  log.error('Sentry health check-in failed', {
-    operation: 'healthCheckIn',
-    failureCode: 'reportingFailure',
-    errorName,
-  });
 }
 
 function elapsedMs(startedAt: number) {

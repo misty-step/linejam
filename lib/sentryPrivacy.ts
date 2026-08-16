@@ -23,7 +23,6 @@ const SAFE_TAG_VALUES = {
     createGuestSession: true,
     fetchGuestSession: true,
     finishAbandonedGame: true,
-    healthCheckIn: true,
     migrateGuestToUser: true,
     renderRoomPage: true,
     renderRoomPanel: true,
@@ -32,7 +31,6 @@ const SAFE_TAG_VALUES = {
     toggleFavorite: true,
   },
   failureCode: {
-    reportingFailure: true,
     unexpected_error: true,
   },
 } satisfies Record<string, Readonly<Record<string, true>>>;
