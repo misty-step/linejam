@@ -251,11 +251,11 @@ describe('play-linejam result validation', () => {
   it('rejects malformed candidates without echoing their contents', async () => {
     const secret = 'do-not-echo-this-value';
     await expect(
-      writePlayLinejamResult(`{\"error\":\"${secret}\"`)
+      writePlayLinejamResult(`{"error":"${secret}"`)
     ).rejects.toThrow('candidate is not valid JSON');
 
     try {
-      await writePlayLinejamResult(`{\"error\":\"${secret}\"`);
+      await writePlayLinejamResult(`{"error":"${secret}"`);
     } catch (error) {
       expect(String(error)).not.toContain(secret);
     }

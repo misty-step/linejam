@@ -31,20 +31,40 @@ const DISALLOWED_SCHEMA_PROPERTIES = new Set([
 ]);
 
 function collectDisallowedProperties(schemaNode, found = new Set()) {
-  if (!schemaNode || typeof schemaNode !== 'object') return [...found];
+  if (schemaNode === null || schemaNode === undefined) return [...found];
   if (Array.isArray(schemaNode)) {
     for (const item of schemaNode) collectDisallowedProperties(item, found);
     return [...found];
   }
 
-  if (schemaNode.properties && typeof schemaNode.properties === 'object') {
-    for (const key of Object.keys(schemaNode.properties)) {
+  const properties = schemaNode.properties;
+  if (properties) {
+    for (const key of Object.keys(properties)) {
       if (DISALLOWED_SCHEMA_PROPERTIES.has(key)) found.add(key);
+    }
+    for (const propertySchema of Object.values(properties)) {
+      collectDisallowedProperties(propertySchema, found);
     }
   }
 
-  for (const value of Object.values(schemaNode)) {
-    collectDisallowedProperties(value, found);
+  if (schemaNode.$defs) {
+    for (const definition of Object.values(schemaNode.$defs)) {
+      collectDisallowedProperties(definition, found);
+    }
+  }
+  for (const keyword of [
+    'items',
+    'contains',
+    'if',
+    'then',
+    'else',
+    'not',
+    'additionalProperties',
+  ]) {
+    collectDisallowedProperties(schemaNode[keyword], found);
+  }
+  for (const keyword of ['allOf', 'anyOf', 'oneOf', 'prefixItems']) {
+    collectDisallowedProperties(schemaNode[keyword], found);
   }
   return [...found];
 }
