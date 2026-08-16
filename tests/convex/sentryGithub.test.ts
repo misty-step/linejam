@@ -12,6 +12,7 @@ import { setupConvexTest } from '../helpers/convexTest';
 const ORIGINAL_ENV = { ...process.env };
 const INSTALLATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const DEDUP_KEY = `v1:${INSTALLATION_UUID}:42:123456`;
+const SENTRY_EVENT_ID = '0123456789abcdef0123456789abcdef';
 const RELEASE = 'a'.repeat(40);
 
 const acceptWebhook = makeFunctionReference<
@@ -61,6 +62,7 @@ function bridgeEnv() {
   process.env = {
     ...ORIGINAL_ENV,
     SENTRY_EVENT_WRITE_TOKEN: 'test-sentry-token',
+    SENTRY_ORG: 'misty-step',
     GITHUB_ISSUES_TOKEN: 'test-github-token',
     SENTRY_GITHUB_INTEGRATION_ID: '338522',
     GITHUB_REPOSITORY_OWNER: 'misty-step',
@@ -75,25 +77,36 @@ async function insertReceipt() {
     installationUuid: INSTALLATION_UUID,
     projectId: '42',
     sentryIssueId: '123456',
-    sentryEventId: '0123456789abcdef0123456789abcdef',
+    sentryEventId: SENTRY_EVENT_ID,
     now: 1_000,
   });
   return { t, receiptId: accepted.receiptId };
+}
+
+function eventPayload(tags: Record<string, string> = TAGS) {
+  return {
+    eventID: SENTRY_EVENT_ID,
+    groupID: '123456',
+    tags: Object.entries(tags).map(([field, value]) => ({
+      key: field === 'failureCode' ? 'failure_code' : field,
+      value,
+    })),
+  };
 }
 
 function tagResponse(
   url: string,
   tags: Record<string, string> = TAGS
 ): Response | null {
-  for (const [field, value] of Object.entries(tags)) {
-    const tagKey = field === 'failureCode' ? 'failure_code' : field;
-    if (url.includes(`/tags/${tagKey}/values/`)) {
-      return Response.json([{ value }]);
-    }
+  if (
+    !url.endsWith(
+      `/organizations/misty-step/issues/123456/events/${SENTRY_EVENT_ID}/`
+    )
+  ) {
+    return null;
   }
-  return null;
+  return Response.json(eventPayload(tags));
 }
-
 function linkedConfig(issueNumber?: number) {
   return {
     linkIssueConfig: [
@@ -459,23 +472,12 @@ describe('durable Sentry to GitHub bridge', () => {
 
   it('creates and links one GitHub issue, then ignores duplicate workers', async () => {
     const { t, receiptId } = await insertReceipt();
-    let activeTagFetches = 0;
-    let maximumConcurrentTagFetches = 0;
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementation(async (input, init) => {
         const url = String(input);
         const tag = tagResponse(url);
-        if (tag) {
-          activeTagFetches += 1;
-          maximumConcurrentTagFetches = Math.max(
-            maximumConcurrentTagFetches,
-            activeTagFetches
-          );
-          await Promise.resolve();
-          activeTagFetches -= 1;
-          return tag;
-        }
+        if (tag) return tag;
         if (url.includes('/search/issues')) {
           return Response.json({ items: [] });
         }
@@ -529,22 +531,18 @@ describe('durable Sentry to GitHub bridge', () => {
       repo: 'misty-step/linejam',
       externalIssue: '88',
     });
-    expect(maximumConcurrentTagFetches).toBe(1);
     expect(
       fetchMock.mock.calls.every(
         ([, init]) => init?.signal instanceof AbortSignal
       )
     ).toBe(true);
-    const sentryTagUrls = fetchMock.mock.calls
-      .map(([input]) => String(input))
-      .filter((url) => url.includes('/tags/'));
-    expect(sentryTagUrls).toHaveLength(6);
-    expect(sentryTagUrls.some((url) => url.includes('/failure_code/'))).toBe(
-      true
-    );
-    expect(sentryTagUrls.some((url) => url.includes('/failureCode/'))).toBe(
-      false
-    );
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).endsWith(
+          `/organizations/misty-step/issues/123456/events/${SENTRY_EVENT_ID}/`
+        )
+      )
+    ).toHaveLength(1);
   });
 
   it('blocks when a fixed GitHub label prerequisite is absent', async () => {
@@ -625,6 +623,80 @@ describe('durable Sentry to GitHub bridge', () => {
       });
     }
   );
+  it.each([
+    [
+      'another event ID',
+      { ...eventPayload(), eventID: 'fedcba9876543210fedcba9876543210' },
+    ],
+    ['another issue ID', { ...eventPayload(), groupID: '654321' }],
+    [
+      'a duplicate required tag',
+      {
+        ...eventPayload(),
+        tags: [
+          ...eventPayload().tags,
+          { key: 'runtime', value: 'github-actions' },
+        ],
+      },
+    ],
+  ] as const)(
+    'blocks a Sentry event payload bound to %s',
+    async (_case, body) => {
+      const { t, receiptId } = await insertReceipt();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(body));
+
+      await t.action(processReceipt, { receiptId });
+
+      expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+        state: 'blocked',
+        blockedCode: 'invalid_tags',
+        attempts: 1,
+      });
+    }
+  );
+
+  it('reads tags from the triggering event instead of aggregated issue history', async () => {
+    const { t, receiptId } = await insertReceipt();
+    const marker = githubDedupMarker(DEDUP_KEY);
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+        const event = tagResponse(url);
+        if (event) return event;
+        if (url.includes('/issues/123456/tags/')) {
+          return Response.json([{ value: RELEASE }, { value: 'b'.repeat(40) }]);
+        }
+        if (url.includes('/search/issues')) {
+          return Response.json({ items: [{ number: 77, body: marker }] });
+        }
+        if (url.includes('/integrations/338522/') && !init?.method) {
+          return Response.json(linkedConfig());
+        }
+        if (url.includes('/integrations/338522/') && init?.method === 'PUT') {
+          return new Response(null, { status: 201 });
+        }
+        throw new Error('unexpected endpoint');
+      });
+
+    await t.action(processReceipt, { receiptId });
+
+    expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+      state: 'linked',
+      release: RELEASE,
+      githubIssueNumber: 77,
+    });
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes(`/events/${SENTRY_EVENT_ID}/`)
+      )
+    ).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes('/issues/123456/tags/')
+      )
+    ).toBe(false);
+  });
 
   it.each([
     [401, 'blocked', 'github_auth'],
@@ -691,6 +763,7 @@ describe('durable Sentry to GitHub bridge', () => {
   it.each([
     ['SENTRY_GITHUB_INTEGRATION_ID', undefined],
     ['GITHUB_REPOSITORY_OWNER', 'another-owner'],
+    ['SENTRY_ORG', 'another-organization'],
   ] as const)(
     'blocks invalid bridge configuration for %s',
     async (name, value) => {

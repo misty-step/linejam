@@ -77,6 +77,7 @@ type ClaimedReceipt = Pick<
 
 type BridgeConfig = {
   sentryToken: string;
+  sentryOrganization: string;
   githubToken: string;
   integrationId: string;
   owner: string;
@@ -163,10 +164,12 @@ function requiredEnv(name: string): string {
 }
 
 function getConfig(): BridgeConfig {
+  const sentryOrganization = requiredEnv('SENTRY_ORG');
   const integrationId = requiredEnv('SENTRY_GITHUB_INTEGRATION_ID');
   const owner = requiredEnv('GITHUB_REPOSITORY_OWNER');
   const repo = requiredEnv('GITHUB_REPOSITORY_NAME');
   if (
+    sentryOrganization !== 'misty-step' ||
     integrationId !== '338522' ||
     owner !== 'misty-step' ||
     repo !== 'linejam'
@@ -175,6 +178,7 @@ function getConfig(): BridgeConfig {
   }
   return {
     sentryToken: requiredEnv('SENTRY_EVENT_WRITE_TOKEN'),
+    sentryOrganization,
     githubToken: requiredEnv('GITHUB_ISSUES_TOKEN'),
     integrationId,
     owner,
@@ -259,8 +263,15 @@ interface JsonObject {
   readonly [key: string]: JsonValue | undefined;
 }
 
-interface SentryTagValueItem {
+interface SentryEventTag {
+  key: string;
   value: string;
+}
+
+interface SentryEventResponse {
+  eventId: string;
+  issueId: string;
+  tags: readonly SentryEventTag[];
 }
 
 export interface GithubIssueContent {
@@ -314,26 +325,27 @@ function isPositiveInteger(value: JsonValue | undefined): value is number {
   return Number.isSafeInteger(value) && Number(value) > 0;
 }
 
-function parseSentryTagValues(
-  value: JsonValue
-): readonly SentryTagValueItem[] | null {
-  if (!Array.isArray(value)) return null;
-  const items: SentryTagValueItem[] = [];
-  for (const candidate of value) {
-    if (!isJsonObject(candidate) || !isJsonString(candidate.value)) {
+function parseSentryEvent(value: JsonValue): SentryEventResponse | null {
+  if (
+    !isJsonObject(value) ||
+    !isJsonString(value.eventID) ||
+    !isJsonString(value.groupID) ||
+    !Array.isArray(value.tags)
+  ) {
+    return null;
+  }
+  const tags: SentryEventTag[] = [];
+  for (const candidate of value.tags) {
+    if (
+      !isJsonObject(candidate) ||
+      !isJsonString(candidate.key) ||
+      !isJsonString(candidate.value)
+    ) {
       return null;
     }
-    items.push({ value: candidate.value });
+    tags.push({ key: candidate.key, value: candidate.value });
   }
-  return items;
-}
-
-function singleTagValue(items: readonly SentryTagValueItem[]): string | null {
-  const values = new Set<string>();
-  for (const item of items) {
-    values.add(item.value);
-  }
-  return values.size === 1 ? [...values][0] : null;
+  return { eventId: value.eventID, issueId: value.groupID, tags };
 }
 
 function parseGithubSearchResponse(
@@ -449,6 +461,25 @@ async function fetchTags(
   receipt: ClaimedReceipt,
   config: BridgeConfig
 ): Promise<ValidatedTags> {
+  const response = await safeFetch(
+    `${SENTRY_BASE_URL}/organizations/${encodeURIComponent(config.sentryOrganization)}/issues/${encodeURIComponent(receipt.sentryIssueId)}/events/${encodeURIComponent(receipt.sentryEventId)}/`,
+    {
+      headers: {
+        Authorization: `Bearer ${config.sentryToken}`,
+        Accept: 'application/json',
+      },
+    },
+    'sentry'
+  );
+  const raw: JsonValue = await response.json();
+  const event = parseSentryEvent(raw);
+  if (
+    event === null ||
+    event.eventId !== receipt.sentryEventId ||
+    event.issueId !== receipt.sentryIssueId
+  ) {
+    throw new BridgeFailure('invalid_tags', false);
+  }
   const tagFields: ReadonlyArray<readonly [keyof ValidatedTags, string]> = [
     ['runtime', 'runtime'],
     ['environment', 'environment'],
@@ -458,24 +489,14 @@ async function fetchTags(
     ['failureCode', 'failure_code'],
   ];
   const tagValues: Partial<Record<keyof ValidatedTags, string>> = {};
-  for (const [field, tagKey] of tagFields) {
-    const response = await safeFetch(
-      `${SENTRY_BASE_URL}/issues/${encodeURIComponent(receipt.sentryIssueId)}/tags/${encodeURIComponent(tagKey)}/values/?sort=-lastSeen&per_page=1`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.sentryToken}`,
-          Accept: 'application/json',
-        },
-      },
-      'sentry'
-    );
-    const raw: JsonValue = await response.json();
-    const items = parseSentryTagValues(raw);
-    const value = items === null ? null : singleTagValue(items);
-    if (value === null) {
+  for (const tag of event.tags) {
+    const entry = tagFields.find(([, providerKey]) => providerKey === tag.key);
+    if (entry === undefined) continue;
+    const [field] = entry;
+    if (tagValues[field] !== undefined) {
       throw new BridgeFailure('invalid_tags', false);
     }
-    tagValues[field] = value;
+    tagValues[field] = tag.value;
   }
   if (
     !tagValues.runtime ||

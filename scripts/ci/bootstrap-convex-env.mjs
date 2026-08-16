@@ -226,6 +226,7 @@ function resolveHostedSentryEntries(env, deploymentEnvironment) {
 }
 
 const BRIDGE_ENVIRONMENT = Object.freeze({
+  SENTRY_ORG: 'misty-step',
   SENTRY_EXPECTED_APP_ID: '160944',
   SENTRY_EXPECTED_INSTALLATION_UUID: '268a6e8e-c341-414e-bee6-20125b9987ef',
   SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
