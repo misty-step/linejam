@@ -158,8 +158,13 @@ function mergeRooms(rooms: RoomCycleSnapshot[]) {
 function uniqueParticipants(room: RoomCycleSnapshot) {
   const keys = new Set<string>();
   for (const join of room.joins) {
-    if (join.participantKey && join.participantKey.length > 0) {
-      keys.add(join.participantKey);
+    const participantKey = join.participantKey;
+    if (
+      Object.prototype.toString.call(participantKey) === '[object String]' &&
+      participantKey !== undefined &&
+      participantKey.length > 0
+    ) {
+      keys.add(participantKey);
     }
   }
   return keys;

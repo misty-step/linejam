@@ -147,6 +147,35 @@ describe('buildRoomCycleFunnelReport', () => {
     expect(report.metrics.gameStarted.count).toBe(1);
   });
 
+  it('ignores non-string participant keys from malformed projections', () => {
+    const report = buildRoomCycleFunnelReport({
+      ...window,
+      rooms: [
+        {
+          roomIdHash: '0123456789abcdef',
+          createdAt: 2_000,
+          joins: [
+            {
+              joinedAt: 2_001,
+              // SAFETY: Injects a malformed projection field to verify it cannot count as a participant.
+              participantKey: ['a'] as never,
+            },
+            {
+              joinedAt: 2_002,
+              // SAFETY: Injects a second malformed projection field to verify arrays cannot form a human-room cohort.
+              participantKey: ['b'] as never,
+            },
+          ],
+          cycles: [{ cycle: 1, startedAt: 3_000 }],
+        },
+      ],
+      events: [],
+    });
+
+    expect(report.cohort.uniqueHumanRooms).toBe(0);
+    expect(report.metrics.gameStarted.count).toBe(0);
+  });
+
   it('keeps abandoned first cycles out of completion while counting a started encore', () => {
     const report = buildRoomCycleFunnelReport({
       ...window,
