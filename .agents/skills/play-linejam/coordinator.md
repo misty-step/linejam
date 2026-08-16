@@ -16,10 +16,16 @@ evidence, and ensuring unconditional browser teardown.
      target, require explicit operation authority naming that target. A
      configured URL does not grant mutation authority.
 2. **Generate Run ID & Directory**:
-   - Format: `<timestamp>-<target>-play` (matches `^[a-zA-Z0-9._-]+$`).
+   - Canonicalize `baseUrl` to its URL origin. Reject credentials, paths,
+     queries, and fragments.
+   - Format the UTC timestamp as `YYYYMMDDTHHmmssZ`.
+   - Convert the origin to lowercase, replace each non-alphanumeric run with
+     `-`, and trim leading or trailing `-` to form `<target-slug>`.
+   - Set the run ID to `<timestamp>-<target-slug>-play`; it must match
+     `^[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play$`.
    - Create evidence folder: `.qa/runs/<run-id>/`.
 3. **Preflight Check**:
-   - Verify `pnpm exec agent-browser --version` outputs `0.34.0`.
+   - Verify `pnpm exec agent-browser --version` outputs `0.27.0`.
    - Run `pnpm exec agent-browser skills get core`.
 4. **Player Scale & Session Naming**:
    - Support 2 to 6 players; default to 4 players (1 host and 3 guests).
@@ -34,7 +40,7 @@ evidence, and ensuring unconditional browser teardown.
 Coordinator coordinates player subagents with sparse, lifecycle-only messages.
 There is **no** per-round or per-poem messaging chatter.
 
-```
+```text
 Host -> Coordinator:       "ROOM_CREATED: <roomCode>"
 Coordinator -> Guests:     "JOIN_ROOM: <roomCode>"
 Guests -> Coordinator:     "READY"
@@ -106,10 +112,20 @@ fresh verifier observes rejection.
 
 ## 6. Result Aggregation & Evidence
 
-1. Format aggregate output according to
-   `skill://play-linejam/result.schema.json`.
-2. Save it to `.qa/runs/<run-id>/result.json`.
-3. Never put room codes, guest tokens, or poem text in structured evidence.
-4. Keep screenshots and video private. Inspect each retained artifact for
-   credentials and unrelated user data. An artifact that exposes the room code
-   is not safe to retain until the host closes that room.
+1. Inspect every retained screenshot, video, trace, and log for credentials,
+   room codes, and unrelated user data. Close the room before retaining an
+   artifact that exposes its code.
+2. Create a candidate matching `skill://play-linejam/result.schema.json` in a
+   temporary file outside `.qa/`. Use only the schema's fixed error codes;
+   never copy UI or console text into structured evidence.
+3. Validate and persist it through the repository-owned writer:
+
+   ```bash
+   pnpm qa:play-linejam:result < /tmp/<run-id>-candidate.json
+   ```
+
+   The writer rejects invalid pass claims, non-origin targets, foreign session
+   or artifact paths, uninspected artifacts, and free-form errors. It writes
+   `.qa/runs/<run-id>/result.json` exactly once.
+
+4. Delete the temporary candidate after the writer exits.

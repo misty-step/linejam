@@ -15,7 +15,7 @@ pnpm exec agent-browser --version
 pnpm exec agent-browser skills get core
 ```
 
-Confirm the CLI version is `0.34.0`.
+Confirm the CLI version is `0.27.0`.
 
 After each session's initial `open`, set the product-priority mobile viewport
 before taking its first snapshot:
@@ -188,9 +188,8 @@ Session name: `<run-id>-verifier` (fresh browser session, never previously conne
 
 After reaching the terminal state, return one sanitized player record for the
 Coordinator's `skill://play-linejam/result.schema.json` aggregate. Include only
-`seat`, `role`, `displayName`, `sessionName`, `roundsSubmitted`,
-`revealedPoem`, `status`, and an optional sanitized `error`. Do not write a
-second manifest and do not include the room code or poem text.
+the documented fields and fixed error codes. Do not write a second manifest,
+copy UI or console text, or include a room code, guest token, or poem text.
 
 ## 9. Session Cleanup
 

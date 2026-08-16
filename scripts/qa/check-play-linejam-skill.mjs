@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SKILL_DIR = resolve(REPO_ROOT, '.agents/skills/play-linejam');
+const RESULT_WRITER = resolve(
+  REPO_ROOT,
+  'scripts/qa/write-play-linejam-result.mjs'
+);
 
 const REQUIRED_FILES = [
   'SKILL.md',
@@ -26,20 +30,23 @@ const DISALLOWED_SCHEMA_PROPERTIES = new Set([
   'rawPoem',
 ]);
 
-function collectDisallowedProperties(schemaNode, found = []) {
-  if (!schemaNode || typeof schemaNode !== 'object') return found;
+function collectDisallowedProperties(schemaNode, found = new Set()) {
+  if (!schemaNode || typeof schemaNode !== 'object') return [...found];
+  if (Array.isArray(schemaNode)) {
+    for (const item of schemaNode) collectDisallowedProperties(item, found);
+    return [...found];
+  }
+
   if (schemaNode.properties && typeof schemaNode.properties === 'object') {
     for (const key of Object.keys(schemaNode.properties)) {
-      if (DISALLOWED_SCHEMA_PROPERTIES.has(key)) {
-        found.push(key);
-      }
-      collectDisallowedProperties(schemaNode.properties[key], found);
+      if (DISALLOWED_SCHEMA_PROPERTIES.has(key)) found.add(key);
     }
   }
-  if (schemaNode.items) {
-    collectDisallowedProperties(schemaNode.items, found);
+
+  for (const value of Object.values(schemaNode)) {
+    collectDisallowedProperties(value, found);
   }
-  return found;
+  return [...found];
 }
 
 function parseFrontmatter(content) {
@@ -65,15 +72,27 @@ function validate() {
     const pkg = JSON.parse(
       readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf8')
     );
-    if (pkg.devDependencies?.['agent-browser'] !== '0.34.0') {
+    if (pkg.devDependencies?.['agent-browser'] !== '0.27.0') {
       errors.push(
-        `package.json devDependencies.agent-browser must be exact "0.34.0", got: ${pkg.devDependencies?.['agent-browser']}`
+        `package.json devDependencies.agent-browser must be exact "0.27.0", got: ${pkg.devDependencies?.['agent-browser']}`
       );
+    }
+    if (
+      pkg.devDependencies?.ajv !== '8.17.1' ||
+      pkg.devDependencies?.['ajv-formats'] !== '3.0.1'
+    ) {
+      errors.push('package.json must pin the result validator dependencies');
     }
     const checkScript = pkg.scripts?.['qa:play-linejam:check'];
     if (checkScript !== 'node ./scripts/qa/check-play-linejam-skill.mjs') {
       errors.push(
         `package.json scripts["qa:play-linejam:check"] must invoke check-play-linejam-skill.mjs, got: ${checkScript}`
+      );
+    }
+    const resultScript = pkg.scripts?.['qa:play-linejam:result'];
+    if (resultScript !== 'node ./scripts/qa/write-play-linejam-result.mjs') {
+      errors.push(
+        `package.json scripts["qa:play-linejam:result"] must invoke write-play-linejam-result.mjs, got: ${resultScript}`
       );
     }
   } catch (err) {
@@ -88,6 +107,12 @@ function validate() {
     } else if (readFileSync(filePath, 'utf8').trim().length === 0) {
       errors.push(`Skill file is empty: ${file}`);
     }
+  }
+
+  if (!existsSync(RESULT_WRITER)) {
+    errors.push(
+      'Missing result writer: scripts/qa/write-play-linejam-result.mjs'
+    );
   }
 
   // 3. SKILL.md frontmatter
@@ -128,6 +153,12 @@ function validate() {
         errors.push('result.schema.json totalRounds must be const 9');
       }
       if (
+        schema.properties?.runId?.pattern !==
+        '^[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-play$'
+      ) {
+        errors.push('result.schema.json runId must use the path-safe format');
+      }
+      if (
         schema.properties?.playerCount?.minimum !== 2 ||
         schema.properties?.playerCount?.maximum !== 6 ||
         schema.properties?.players?.minItems !== 2 ||
@@ -149,6 +180,8 @@ function validate() {
         'players',
         'verification',
         'evidence',
+        'runtimeErrors',
+        'error',
       ];
       for (const field of topRequired) {
         if (!schema.required?.includes(field) || !schema.properties?.[field]) {
@@ -162,6 +195,8 @@ function validate() {
         'roomClosed',
         'closedRoomJoinRejected',
         'allSessionsCleanedUp',
+        'sessionsCleanedUp',
+        'verifierSessionName',
       ];
       for (const field of verifRequired) {
         if (!schema.properties?.verification?.required?.includes(field)) {
@@ -199,6 +234,45 @@ function validate() {
             `result.schema.json evidence artifact missing required field: ${field}`
           );
         }
+      }
+      const artifactSchema =
+        schema.properties?.evidence?.properties?.artifacts?.items?.properties;
+      if (
+        artifactSchema?.sanitized?.const !== true ||
+        artifactSchema?.inspected?.const !== true
+      ) {
+        errors.push(
+          'result.schema.json retained artifacts must be sanitized and inspected'
+        );
+      }
+
+      if (
+        schema.properties?.error?.$ref !== '#/$defs/errorCode' ||
+        schema.properties?.runtimeErrors?.items?.$ref !==
+          '#/$defs/runtimeErrorCode'
+      ) {
+        errors.push(
+          'result.schema.json errors must use the fixed error-code definitions'
+        );
+      }
+
+      const passedRule = schema.allOf?.find(
+        (rule) => rule.if?.properties?.status?.const === 'passed'
+      )?.then;
+      if (
+        passedRule?.properties?.roundsCompleted?.const !== 9 ||
+        passedRule?.properties?.verification?.properties?.roomClosed?.const !==
+          true ||
+        passedRule?.properties?.verification?.properties?.closedRoomJoinRejected
+          ?.const !== true ||
+        passedRule?.properties?.verification?.properties?.allSessionsCleanedUp
+          ?.const !== true ||
+        passedRule?.properties?.verification?.properties?.verifierSessionName
+          ?.type !== 'string'
+      ) {
+        errors.push(
+          'result.schema.json passed runs must require completion, closure, rejection, and cleanup'
+        );
       }
 
       const disallowed = collectDisallowedProperties(schema);

@@ -38,7 +38,7 @@ Skills have no package dependency metadata. Before any browser session:
 
 1. The coordinator runs `pnpm qa:play-linejam:check`.
 2. The coordinator verifies `pnpm exec agent-browser --version` outputs
-   `0.34.0`.
+   `0.27.0`.
 3. Each browser player runs `pnpm exec agent-browser skills get core` before
    using the CLI so its command guidance matches the pinned binary.
 
@@ -59,6 +59,8 @@ The web target is set by `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL`
   contain synthetic game text; keep them private, inspect them for credentials
   and unrelated user data, and close the room before retaining any artifact
   that exposes its code.
+  Persist the aggregate receipt only through `pnpm qa:play-linejam:result`;
+  free-form UI and console errors are not valid receipt fields.
 
 ## Session Isolation & Scale
 

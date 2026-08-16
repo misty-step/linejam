@@ -153,7 +153,7 @@ While the CLI and MCP faces perform direct backend mutations via Convex, autonom
 user-flow and UI acceptance testing uses the repo-local `play-linejam` skill:
 
 - **Skill**: `.agents/skills/play-linejam/SKILL.md` (`skill://play-linejam/SKILL.md`)
-- **Driver**: Pinned `agent-browser` (version `0.34.0`)
+- **Driver**: Pinned `agent-browser` (version `0.27.0`)
 - **Target**: `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL` (default:
   `http://localhost:3333`). Every remote target requires explicit operation
   authority because browser play writes real game data.
@@ -163,6 +163,9 @@ user-flow and UI acceptance testing uses the repo-local `play-linejam` skill:
   writing inputs and word-slot validations, waiting screens, reading-circle reveal
   ceremonies, recap hub navigation, `Back to Lobby` -> `Close room` teardown, and
   fresh-session join rejection verification.
+- **Result gate**: `pnpm qa:play-linejam:result` validates a candidate from
+  stdin against the checked-in schema and semantic pass invariants, then writes
+  the sanitized run receipt exactly once.
 
 Reach for `linejam-cli` / `agent:mcp` when you need fast, deterministic backend state
 setup or inspection. Reach for `play-linejam` when verifying human UI behavior,

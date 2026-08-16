@@ -1,0 +1,215 @@
+/** @vitest-environment node */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import {
+  validatePlayLinejamResult,
+  writePlayLinejamResult,
+} from '@/scripts/qa/write-play-linejam-result.mjs';
+
+const schema = JSON.parse(
+  readFileSync(
+    path.resolve('.agents/skills/play-linejam/result.schema.json'),
+    'utf8'
+  )
+);
+
+const runId = '20260816T120000Z-http-localhost-3333-play';
+
+function validResult() {
+  return {
+    runId,
+    target: 'http://localhost:3333',
+    status: 'passed',
+    startedAt: '2026-08-16T12:00:00.000Z',
+    finishedAt: '2026-08-16T12:10:00.000Z',
+    durationMs: 600_000,
+    totalRounds: 9,
+    roundsCompleted: 9,
+    playerCount: 2,
+    players: [
+      {
+        seat: 0,
+        role: 'host',
+        displayName: 'Host Agent',
+        sessionName: `${runId}-host`,
+        roundsSubmitted: 9,
+        revealedPoem: true,
+        status: 'passed',
+        error: null,
+      },
+      {
+        seat: 1,
+        role: 'guest',
+        displayName: 'Guest Player 1',
+        sessionName: `${runId}-player-1`,
+        roundsSubmitted: 9,
+        revealedPoem: true,
+        status: 'passed',
+        error: null,
+      },
+    ],
+    verification: {
+      roomClosed: true,
+      closedRoomJoinRejected: true,
+      allSessionsCleanedUp: true,
+      sessionsCleanedUp: [
+        `${runId}-host`,
+        `${runId}-player-1`,
+        `${runId}-verifier`,
+      ],
+      verifierSessionName: `${runId}-verifier`,
+      error: null,
+    },
+    evidence: {
+      runDir: `.qa/runs/${runId}`,
+      artifacts: [
+        {
+          kind: 'screenshot',
+          path: `.qa/runs/${runId}/host.webp`,
+          sanitized: true,
+          inspected: true,
+        },
+      ],
+    },
+    runtimeErrors: [],
+    error: null,
+  };
+}
+
+describe('play-linejam result validation', () => {
+  it('accepts a complete passed run', () => {
+    const result = validResult();
+    expect(validatePlayLinejamResult(result, schema)).toBe(result);
+  });
+
+  it('rejects incomplete passed runs', () => {
+    const result = validResult();
+    result.roundsCompleted = 8;
+    result.players[1].roundsSubmitted = 8;
+    result.verification.roomClosed = false;
+
+    expect(() => validatePlayLinejamResult(result, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+  });
+
+  it('rejects mismatched players, duplicate seats, and multiple hosts', () => {
+    const mismatch = validResult();
+    mismatch.playerCount = 3;
+    expect(() => validatePlayLinejamResult(mismatch, schema)).toThrow(
+      'playerCount must equal players.length'
+    );
+
+    const duplicateSeat = validResult();
+    duplicateSeat.players[1].seat = 0;
+    expect(() => validatePlayLinejamResult(duplicateSeat, schema)).toThrow(
+      'players[].seat must be unique'
+    );
+
+    const multipleHosts = validResult();
+    multipleHosts.players[1].role = 'host';
+    multipleHosts.players[1].displayName = 'Host Agent';
+    expect(() => validatePlayLinejamResult(multipleHosts, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+  });
+
+  it('rejects free-form errors and sensitive extra fields', () => {
+    const rawError = {
+      ...validResult(),
+      status: 'failed',
+      error: 'Room ABCD failed while showing a poem',
+    };
+    expect(() => validatePlayLinejamResult(rawError, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+
+    const sensitive = {
+      ...validResult(),
+      roomCode: 'ABCD',
+    };
+    expect(() => validatePlayLinejamResult(sensitive, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+  });
+
+  it('rejects non-origin targets and foreign evidence paths', () => {
+    const targetWithPath = validResult();
+    targetWithPath.target = 'https://linejam.app/join?code=ABCD';
+    expect(() => validatePlayLinejamResult(targetWithPath, schema)).toThrow(
+      'target must be an origin without credentials, path, query, or hash'
+    );
+
+    const foreignArtifact = validResult();
+    foreignArtifact.evidence.artifacts[0].path =
+      '.qa/runs/a-different-run/host.webp';
+    expect(() => validatePlayLinejamResult(foreignArtifact, schema)).toThrow(
+      `artifact path must be a file below .qa/runs/${runId}`
+    );
+  });
+
+  it('rejects path-like run IDs and passed runs without a verifier', () => {
+    const unsafeRunId = {
+      ...validResult(),
+      runId: '..',
+    };
+    expect(() => validatePlayLinejamResult(unsafeRunId, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+
+    const base = validResult();
+    const missingVerifier = {
+      ...base,
+      verification: {
+        ...base.verification,
+        verifierSessionName: null,
+        sessionsCleanedUp: base.verification.sessionsCleanedUp.slice(0, 2),
+      },
+    };
+    expect(() => validatePlayLinejamResult(missingVerifier, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+  });
+
+  it('allows failed runs only with fixed error codes', () => {
+    const base = validResult();
+    const result = {
+      ...base,
+      status: 'failed',
+      roundsCompleted: 4,
+      players: [
+        {
+          ...base.players[0],
+          roundsSubmitted: 4,
+          revealedPoem: false,
+          status: 'failed',
+          error: 'semantic_wait_expired',
+        },
+        base.players[1],
+      ],
+      verification: {
+        ...base.verification,
+        roomClosed: false,
+        closedRoomJoinRejected: false,
+        error: 'room_closure_failed',
+      },
+      runtimeErrors: ['semantic_wait_expired'],
+      error: 'room_closure_failed',
+    };
+
+    expect(validatePlayLinejamResult(result, schema)).toBe(result);
+  });
+  it('rejects malformed candidates without echoing their contents', async () => {
+    const secret = 'do-not-echo-this-value';
+    await expect(
+      writePlayLinejamResult(`{\"error\":\"${secret}\"`)
+    ).rejects.toThrow('candidate is not valid JSON');
+
+    try {
+      await writePlayLinejamResult(`{\"error\":\"${secret}\"`);
+    } catch (error) {
+      expect(String(error)).not.toContain(secret);
+    }
+  });
+});
