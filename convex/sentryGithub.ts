@@ -5,6 +5,7 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  mutation,
 } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
 import { verifySentryAutomationProvenance } from '../sentry.provenance.mjs';
@@ -85,6 +86,7 @@ type ClaimedReceipt = Pick<
   | '_id'
   | 'dedupKey'
   | 'canonicalKey'
+  | 'installationUuid'
   | 'projectId'
   | 'sentryIssueId'
   | 'sentryEventId'
@@ -732,6 +734,17 @@ async function fetchTags(
 export function githubDedupMarker(dedupKey: string): string {
   return `<!-- linejam-sentry-dedup:${dedupKey} -->`;
 }
+function receiptCanonicalKey(
+  receipt: Pick<
+    Doc<'sentryGithubReceipts'>,
+    'canonicalKey' | 'projectId' | 'sentryIssueId'
+  > &
+    Partial<Pick<Doc<'sentryGithubReceipts'>, 'installationUuid'>>
+): string {
+  if (receipt.canonicalKey) return receipt.canonicalKey;
+  if (!receipt.installationUuid) throw new ConvexError('invalid_receipt');
+  return `v1:${receipt.installationUuid}:${receipt.projectId}:${receipt.sentryIssueId}`;
+}
 
 export function githubIssueContent(
   receipt: Pick<
@@ -755,7 +768,7 @@ export function githubIssueContent(
       `- Sentry issue ID: ${receipt.sentryIssueId}`,
       `- Sentry event ID: ${receipt.sentryEventId}`,
       '',
-      githubDedupMarker(receipt.canonicalKey),
+      githubDedupMarker(receiptCanonicalKey(receipt)),
     ].join('\n'),
     labels: FIXED_LABELS,
   };
@@ -783,7 +796,7 @@ async function recoverGithubIssue(
     throw new BridgeFailure('github_invalid', false);
   }
 
-  const marker = githubDedupMarker(receipt.canonicalKey);
+  const marker = githubDedupMarker(receiptCanonicalKey(receipt));
   const content = githubIssueContent(receipt, tags);
   const query =
     `repo:${config.owner}/${config.repo} author:${actor.login} ` +
@@ -1038,6 +1051,79 @@ export const admitWebhook = internalAction({
   },
 });
 
+export const backfillReceiptCanonicalKeys = mutation({
+  args: { secret: v.string() },
+  returns: v.object({
+    receiptsUpdated: v.number(),
+    canonicalIssuesCreated: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const expectedSecret = process.env.SENTRY_AGENT_LOOP_SECRET?.trim();
+    if (!expectedSecret || args.secret !== expectedSecret) {
+      throw new ConvexError('unauthorized');
+    }
+
+    const receipts = await ctx.db.query('sentryGithubReceipts').take(100);
+    if (receipts.length === 100) {
+      throw new ConvexError('migration_batch_exceeded');
+    }
+
+    const legacyReceipts = receipts.filter(
+      (receipt) => receipt.canonicalKey === undefined
+    );
+    const now = Date.now();
+    const canonicalIssueNumbers = new Map<string, number | undefined>();
+    for (const receipt of legacyReceipts) {
+      const canonicalKey = `v1:${receipt.installationUuid}:${receipt.projectId}:${receipt.sentryIssueId}`;
+      if (
+        !canonicalIssueNumbers.has(canonicalKey) ||
+        canonicalIssueNumbers.get(canonicalKey) === undefined
+      ) {
+        canonicalIssueNumbers.set(canonicalKey, receipt.githubIssueNumber);
+      }
+    }
+
+    await Promise.all(
+      legacyReceipts.map((receipt) =>
+        ctx.db.patch(receipt._id, {
+          canonicalKey: `v1:${receipt.installationUuid}:${receipt.projectId}:${receipt.sentryIssueId}`,
+          updatedAt: now,
+        })
+      )
+    );
+
+    const canonicalKeys = [...canonicalIssueNumbers.keys()];
+    const existingCanonicalIssues = await Promise.all(
+      canonicalKeys.map((canonicalKey) =>
+        ctx.db
+          .query('sentryGithubCanonicalIssues')
+          .withIndex('by_canonicalKey', (query) =>
+            query.eq('canonicalKey', canonicalKey)
+          )
+          .unique()
+      )
+    );
+    const missingCanonicalKeys = canonicalKeys.filter(
+      (_canonicalKey, index) => existingCanonicalIssues[index] === null
+    );
+    await Promise.all(
+      missingCanonicalKeys.map((canonicalKey) =>
+        ctx.db.insert('sentryGithubCanonicalIssues', {
+          canonicalKey,
+          githubIssueNumber: canonicalIssueNumbers.get(canonicalKey),
+          createdAt: now,
+          updatedAt: now,
+        })
+      )
+    );
+
+    return {
+      receiptsUpdated: legacyReceipts.length,
+      canonicalIssuesCreated: missingCanonicalKeys.length,
+    };
+  },
+});
+
 export const acceptWebhook = internalMutation({
   args: {
     dedupKey: v.string(),
@@ -1144,7 +1230,7 @@ export const claimReceipt = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (
@@ -1180,7 +1266,7 @@ export const claimReceipt = internalMutation({
       });
     } else {
       await ctx.db.insert('sentryGithubCanonicalIssues', {
-        canonicalKey: receipt.canonicalKey,
+        canonicalKey: receiptCanonicalKey(receipt),
         githubIssueNumber,
         leaseId: args.leaseId,
         leaseExpiresAt: args.now + LEASE_MS,
@@ -1200,7 +1286,8 @@ export const claimReceipt = internalMutation({
     return {
       _id: receipt._id,
       dedupKey: receipt.dedupKey,
-      canonicalKey: receipt.canonicalKey,
+      canonicalKey: receiptCanonicalKey(receipt),
+      installationUuid: receipt.installationUuid,
       projectId: receipt.projectId,
       sentryIssueId: receipt.sentryIssueId,
       sentryEventId: receipt.sentryEventId,
@@ -1230,7 +1317,7 @@ export const renewReceiptLease = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (
@@ -1303,7 +1390,7 @@ export const beginGithubIssueCreate = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (
@@ -1342,7 +1429,7 @@ export const clearGithubIssueCreateAttempt = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (
@@ -1382,7 +1469,7 @@ export const saveGithubIssue = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
@@ -1424,7 +1511,7 @@ export const finishReceipt = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
@@ -1491,7 +1578,7 @@ export const retryReceipt = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
@@ -1539,7 +1626,7 @@ export const blockReceipt = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
@@ -1738,7 +1825,7 @@ export const claimAgentReceipt = internalMutation({
       const canonicalIssue = await ctx.db
         .query('sentryGithubCanonicalIssues')
         .withIndex('by_canonicalKey', (q) =>
-          q.eq('canonicalKey', priorReceipt.canonicalKey)
+          q.eq('canonicalKey', receiptCanonicalKey(priorReceipt))
         )
         .unique();
       return canonicalIssue?.agentReceiptId === priorReceipt._id
@@ -1796,7 +1883,7 @@ export const claimAgentReceipt = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (
@@ -1816,7 +1903,7 @@ export const claimAgentReceipt = internalMutation({
     const canonicalIssueId = canonicalIssue
       ? canonicalIssue._id
       : await ctx.db.insert('sentryGithubCanonicalIssues', {
-          canonicalKey: receipt.canonicalKey,
+          canonicalKey: receiptCanonicalKey(receipt),
           githubIssueNumber: receipt.githubIssueNumber,
           agentReceiptId: receipt._id,
           createdAt: args.now,
@@ -1897,7 +1984,7 @@ export const authorizeAgentReceipt = internalQuery({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     return canonicalIssue?.agentReceiptId === receipt._id;
@@ -1930,7 +2017,7 @@ export const completeAgentReceipt = internalMutation({
     const canonicalIssue = await ctx.db
       .query('sentryGithubCanonicalIssues')
       .withIndex('by_canonicalKey', (q) =>
-        q.eq('canonicalKey', receipt.canonicalKey)
+        q.eq('canonicalKey', receiptCanonicalKey(receipt))
       )
       .unique();
     if (canonicalIssue?.agentReceiptId !== receipt._id) {
