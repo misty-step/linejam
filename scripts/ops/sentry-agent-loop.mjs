@@ -1152,10 +1152,12 @@ function projectInferenceRequest(payload) {
       'store',
       'tools',
       'max_completion_tokens',
+      'reasoning_effort',
     ]) ||
     payload.model !== INFERENCE_MODEL_ID ||
     payload.stream !== true ||
     payload.store !== false ||
+    payload.reasoning_effort !== 'medium' ||
     !hasExactKeys(payload.stream_options, ['include_usage']) ||
     payload.stream_options.include_usage !== true ||
     !Number.isInteger(payload.max_completion_tokens) ||
@@ -1182,6 +1184,7 @@ function projectInferenceRequest(payload) {
       stream: true,
       stream_options: { include_usage: true },
       store: false,
+      reasoning_effort: 'medium',
       tools,
       max_completion_tokens: requestedTokens,
     },

@@ -54,6 +54,7 @@ function inferencePayload(content: string) {
     stream: true,
     stream_options: { include_usage: true },
     store: false,
+    reasoning_effort: 'medium',
     tools: INFERENCE_TOOL_NAMES.map((name) => ({
       type: 'function',
       function: {
@@ -2449,10 +2450,15 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
       const baseTools = basePayload.tools;
       const duplicateTools = structuredClone(baseTools);
       duplicateTools[1].function.name = duplicateTools[0].function.name;
+      const missingReasoningEffort: Partial<typeof basePayload> =
+        structuredClone(basePayload);
+      delete missingReasoningEffort.reasoning_effort;
       const invalidPayloads = [
         { ...basePayload, stream: false },
         { ...basePayload, store: true },
         { ...basePayload, stream_options: {} },
+        missingReasoningEffort,
+        { ...basePayload, reasoning_effort: 'high' },
         { ...basePayload, max_completion_tokens: 0 },
         { ...basePayload, max_completion_tokens: 1.5 },
         { ...basePayload, messages: 'not-an-array' },
