@@ -92,6 +92,7 @@ jobs:
       - name: Report preview smoke failure to Sentry
         if: always()
         env:
+          SENTRY_AUTOMATION_PROVENANCE_SECRET: ${{ secrets.SENTRY_AUTOMATION_PROVENANCE_SECRET }}
           LINEJAM_MONITOR_SLUG: linejam-preview-smoke
           LINEJAM_RELEASE_RESOLUTION_OUTCOME: ${{ steps.release.outcome }}
           LINEJAM_MONITOR_OUTCOME: ${{ steps.smoke.outcome }}

@@ -63,13 +63,9 @@ function parseJsonLogCalls(spy: MockInstance): ParsedHealthLogEntry[] {
   );
 }
 
-const captureCheckInMock = vi.fn(() => 'check-in-id');
 const captureServerErrorMock = vi.fn();
-const flushSentryMock = vi.fn(async () => true);
 const GET = createHealthRoute({
-  captureCheckIn: captureCheckInMock,
   captureServerError: captureServerErrorMock,
-  flush: flushSentryMock,
 });
 
 describe('/api/health', () => {
@@ -90,10 +86,7 @@ describe('/api/health', () => {
   afterEach(() => {
     querySpy.mockRestore();
     mutationSpy.mockRestore();
-    captureCheckInMock.mockReset();
     captureServerErrorMock.mockReset();
-    flushSentryMock.mockReset();
-    flushSentryMock.mockResolvedValue(true);
     vi.useRealTimers();
     process.env = { ...originalEnv };
   });
@@ -117,7 +110,7 @@ describe('/api/health', () => {
         HEALTHY_ENV.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY;
     });
 
-    it('returns healthy data and schedules missed-equivalent Sentry detection', async () => {
+    it('returns healthy data with deployment readiness', async () => {
       const consoleLogSpy = vi
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -160,20 +153,6 @@ describe('/api/health', () => {
           convex: 'connected',
           observabilityStatus: 'ready',
         })
-      );
-
-      expect(captureCheckInMock).toHaveBeenCalledWith(
-        {
-          monitorSlug: 'linejam-production-health',
-          status: 'ok',
-          duration: expect.any(Number),
-        },
-        {
-          schedule: { type: 'crontab', value: '*/5 * * * *' },
-          checkinMargin: 2,
-          maxRuntime: 1,
-          timezone: 'UTC',
-        }
       );
     });
 
@@ -308,15 +287,6 @@ describe('/api/health', () => {
           }),
         ])
       );
-      expect(captureCheckInMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          monitorSlug: 'linejam-production-health',
-          status: 'error',
-        }),
-        expect.objectContaining({
-          schedule: { type: 'crontab', value: '*/5 * * * *' },
-        })
-      );
     });
 
     it('logs non-Error Convex ping failures without throwing', async () => {
@@ -401,57 +371,10 @@ describe('/api/health', () => {
             sentryEnabled: false,
           },
         });
-        expect(captureCheckInMock).not.toHaveBeenCalled();
       } finally {
         process.env.NEXT_PUBLIC_SENTRY_DSN = previous;
       }
     });
-
-    it('preserves a healthy response when Sentry check-in capture fails', async () => {
-      captureCheckInMock.mockImplementationOnce(() => {
-        throw new Error('transport unavailable');
-      });
-      const consoleErrorSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-
-      const response = await GET();
-
-      expect(response.status).toBe(200);
-      expect(parseJsonLogCalls(consoleErrorSpy)).toContainEqual(
-        expect.objectContaining({
-          level: 'error',
-          message: 'Sentry health check-in failed',
-          operation: 'healthCheckIn',
-          failureCode: 'reportingFailure',
-          errorName: 'Error',
-        })
-      );
-    });
-
-    it.each([undefined, '0', 'false'])(
-      'does not send a Sentry check-in when the enable flag is %s',
-      async (flag) => {
-        const previous = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
-        try {
-          if (flag === undefined) {
-            delete process.env.NEXT_PUBLIC_SENTRY_ENABLED;
-          } else {
-            process.env.NEXT_PUBLIC_SENTRY_ENABLED = flag;
-          }
-
-          const response = await GET();
-          const data = await response.json();
-
-          expect(response.status).toBe(200);
-          expect(data.observability.sentryEnabled).toBe(false);
-          expect(captureCheckInMock).not.toHaveBeenCalled();
-          expect(flushSentryMock).not.toHaveBeenCalled();
-        } finally {
-          process.env.NEXT_PUBLIC_SENTRY_ENABLED = previous;
-        }
-      }
-    );
 
     it('fails health when a remote deployment loses its environment marker', async () => {
       const previous = process.env.LINEJAM_DEPLOY_ENVIRONMENT;

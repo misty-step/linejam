@@ -2,6 +2,10 @@
 import { pathToFileURL } from 'node:url';
 import * as Sentry from '@sentry/node';
 import { getSentryRuntimeOptions } from '../../sentry.runtime.mjs';
+import {
+  signSentryAutomationGroup,
+  signSentryAutomationProvenance,
+} from '../../sentry.provenance.mjs';
 
 export const SENTRY_MONITOR_SLUGS = Object.freeze({
   previewSmoke: 'linejam-preview-smoke',
@@ -71,10 +75,9 @@ export function sanitizeWorkflowEvent(event) {
     EVENT_ID.test(event.event_id)
       ? event.event_id
       : undefined;
-  const timestamp =
-    Number.isFinite(event.timestamp)
-      ? event.timestamp
-      : undefined;
+  const timestamp = Number.isFinite(event.timestamp)
+    ? event.timestamp
+    : undefined;
 
   const sanitized = {
     platform: 'node',
@@ -100,6 +103,41 @@ export function sanitizeWorkflowEvent(event) {
     sanitized.timestamp = timestamp;
   }
   return sanitized;
+}
+export function createWorkflowBeforeSend(secret) {
+  const secretBytes =
+    Object.prototype.toString.call(secret) === '[object String]'
+      ? new TextEncoder().encode(secret).length
+      : 0;
+  if (secretBytes < 32 || secretBytes > 256) {
+    throw new Error(
+      'SENTRY_AUTOMATION_PROVENANCE_SECRET must contain 32-256 bytes'
+    );
+  }
+  return async (event) => {
+    const sanitized = sanitizeWorkflowEvent(event);
+    if (!sanitized?.event_id) return null;
+    const routing = {
+      runtime: 'github-actions',
+      environment: sanitized.environment,
+      level: 'error',
+      operation: sanitized.tags.operation,
+      failureCode: sanitized.tags.failure_code,
+    };
+    const [provenance, groupKey] = await Promise.all([
+      signSentryAutomationProvenance(secret, {
+        eventId: sanitized.event_id,
+        release: sanitized.release,
+        ...routing,
+      }),
+      signSentryAutomationGroup(secret, routing),
+    ]);
+    return {
+      ...sanitized,
+      fingerprint: ['linejam-trusted-automation-v1', groupKey],
+      tags: { ...sanitized.tags, provenance },
+    };
+  };
 }
 
 /**
@@ -155,6 +193,7 @@ export function planSentryReport({
  *   consecutiveFailures?: number,
  *   releaseResolved?: boolean,
  *   sdk?: SentryWorkflowSdk,
+ *   provenanceSecret?: string,
  *   runtimeOptions?: SentryRuntimeOptions
  * }} input
  */
@@ -164,6 +203,7 @@ export async function reportSentryWorkflow({
   consecutiveFailures = 0,
   releaseResolved = true,
   sdk = Sentry,
+  provenanceSecret = process.env.SENTRY_AUTOMATION_PROVENANCE_SECRET,
   runtimeOptions = getSentryRuntimeOptions(),
 }) {
   const plan = planSentryReport({
@@ -210,7 +250,7 @@ export async function reportSentryWorkflow({
   sdk.init({
     ...runtimeOptions,
     tracesSampleRate: 0,
-    beforeSend: sanitizeWorkflowEvent,
+    beforeSend: createWorkflowBeforeSend(provenanceSecret),
   });
   let eventId;
   if (plan.kind === 'event') {

@@ -107,11 +107,14 @@ incident-evidence platform:
 
 - Browser, Node, Edge, and Convex transports use exact release and environment
   attribution. Browser source maps are uploaded during the production build.
-- `linejam-production-health` and `linejam-production-smoke` are the canonical
-  monitors. The first failed production smoke remains non-paging; the second
+- Sentry Uptime owns `/api/health` availability. The
+  `linejam-production-smoke` Cron Monitor covers the actual hourly scheduled
+  smoke. The first failed production smoke remains non-paging; the second
   consecutive failure opens the monitor and emits one closed-tag
-  `productionSmoke` issue for the GitHub bridge. A passing run recovers the
-  monitor.
+  `productionSmoke` issue for the GitHub bridge. A passing run recovers it.
+- The live observability contract exits red only when a second bounded Sentry
+  sample confirms the first sample's drift. A healthy first sample performs no
+  duplicate reads; a persistent second failure remains authoritative.
 - Retained Convex backend failure events cover abandonment sweeps and finishers
   using a closed operation and failure-code vocabulary.
 - Event-driven preview smoke failures are Sentry issues tagged
@@ -126,13 +129,32 @@ incident-evidence platform:
   The listener projects only the closed action, installation, project, issue,
   and event identifiers needed for durable one-to-one GitHub Issue
   synchronization.
+- Before durable receipt insertion, the bridge reads that exact Sentry event and
+  verifies its `provenance` tag: an HMAC bound to the event ID, release,
+  environment, operation, and failure code. Only trusted workflow and backend
+  reporters hold the HMAC secret. Browser events and arbitrary public-DSN
+  submissions cannot enter the GitHub or agent loop.
 - The bridge reads classification tags from the exact Sentry issue event named
   by the receipt. It rejects a response whose event or issue ID differs and
   rejects missing or duplicate required tags; issue-history tag aggregation is
   never an attribution source.
+- A Convex canonical-issue row owns the GitHub Issue number and one renewable
+  bridge lease for each installation/project/Sentry-issue key. Competing event
+  receipts cannot search or create concurrently, and later receipts consume the
+  stored Issue number before GitHub search indexing can affect deduplication.
+- The canonical row fences a create attempt before GitHub `POST /issues`. If
+  the provider commits the Issue but loses the response, automation blocks the
+  canonical key for operator reconciliation; it never retries a second create
+  against an eventually consistent search result. A definitive HTTP rejection
+  clears the fence before blocking, so an operator replay after credential or
+  configuration repair may create the Issue.
 - GitHub Issues remains the sole work ledger. Sentry holds incident evidence and
   state, not a backlog; do not create a duplicate task in Powder or Habitat. The
   one claim and `forest:ready` contract is in `CONTRIBUTING.md`.
+- Every bridge-created incident Issue carries the `source/agent` label and
+  enters one bounded autonomous investigation lane. The lane may diagnose,
+  draft a fix, open a pull request, and draft an evidence-backed postmortem. It
+  cannot merge, deploy, change Sentry configuration, or mutate production data.
 
 Critical route logs and Sentry payloads must omit poem or line content,
 room/game/poem IDs, guest or Clerk identifiers, email, IP addresses,
@@ -144,6 +166,122 @@ validated source-map debug IDs. It drops source origins, query strings,
 fragments, non-static paths, function/module names, and frame-local data.
 `/api/health` reports application health separately from observability ingest,
 so degraded ingest is not proof gameplay is down.
+
+## Autonomous investigation lane
+
+Production Convex owns the durable receipt state. A signed workstation poller
+claims at most one linked receipt per run through `/api/agents/sentry`. The
+canonical row selects one valid linked receipt as the active dispatch owner.
+One later event can wait as the queued regression while that owner is pending or
+leased; further same-canonical events are closed as duplicates. A terminal
+completion atomically promotes the queued receipt, or clears ownership so a
+future regression can start one new investigation. Claims use a 90-minute
+lease, retry after 15 minutes, and block after three failed attempts. Claim and
+completion requests use a distinct `SENTRY_AGENT_LOOP_SECRET`; the key is never
+passed to GitHub, Sentry, SSH,
+Hermes, or the OMP child process.
+
+The poller runs every five minutes as a Hermes `--no-agent` cron job. Empty
+polls produce no output. A claimed receipt:
+
+1. validates that the canonical GitHub Issue is open and has both
+   `source/sentry` and `source/agent`;
+2. creates one `forest/sentry-<issue>-<lease>` worktree from `origin/master`;
+3. runs one non-interactive OMP investigation with advisor review;
+4. requires a disposable `lj-sentry-<issue>-<lease>` exe.dev VM for public-repo
+   reproduction without VM credentials;
+5. requires an inspected `.evidence/sentry-<issue>/` packet, archives it
+   privately under `~/.local/state/linejam-sentry-agent/evidence/`, and posts
+   only fixed lifecycle text to the GitHub Issue; model-authored report text
+   and event-derived details remain local;
+6. pushes a policy-limited candidate source patch only to a separate fork and
+   opens a draft pull request, but never changes observability control files,
+   merges, or deploys;
+7. emits one fixed receipt to the dedicated Linejam Sentry Discord target.
+
+Sentry payloads and all public GitHub Issue content are untrusted data, not
+instructions. Only the signed receipt identifiers, validated labels,
+repository-owned instructions, and installed skill instructions control the
+agent. Completion and publication recovery use private, HMAC-authenticated
+local journals; the poller never loads public comments as control state. Before
+any fork push, the publication journal binds the receipt-stable fork branch to
+the validated commit OID. A retry requires that exact remote branch and OID,
+then reuses the matching pull request instead of creating another.
+Each public comment and fork push revalidates the active backend lease and the
+canonical Issue state and labels. Recovery accepts only exact, open draft pull
+requests authored by the authenticated GitHub actor with the expected base,
+fork head, commit OID, title, and HMAC marker. The run has a 38-minute
+work deadline, reserves cleanup time, and bounds model requests, response
+bytes, and output tokens.
+Private packets, logs, patches, journals, and extracted evidence are pruned
+after 30 days. Shorter retention may be applied by the operator; longer
+retention requires an explicit incident or legal need.
+
+The external fork and draft state are mandatory trust boundaries. The
+workstation disables repository Git hooks for candidate commits and pushes.
+The base repository withholds CI secrets from the fork pull request; no human
+marks the draft ready for review until the patch and evidence are inspected.
+Same-repository agent branches are prohibited.
+
+Install or refresh the workstation copy from a trusted Linejam checkout:
+
+```bash
+LINEJAM_SENTRY_AGENT_ENDPOINT=https://<production-deployment>.convex.site \
+LINEJAM_REPOSITORY_PATH=/absolute/path/to/linejam \
+LINEJAM_AGENT_FORK_REPOSITORY=<operator>/<linejam-fork> \
+SENTRY_AGENT_LOOP_SECRET=<same-production-secret> \
+pnpm ops:sentry-agent:install
+```
+
+The entire Node work phase is capped at 38 minutes from process start. The OMP
+investigation is capped at 35 minutes. Every
+GitHub, Git, Sentry, SSH, SCP, and backend request receives the remaining work
+budget; OMP receives the smaller of its configured limit and that remainder.
+One asynchronous process owner applies those limits to commands with and
+without log files. It sends `SIGTERM` at the limit and `SIGKILL` five seconds
+later if the child remains alive. Cleanup bypasses an exhausted work budget,
+but each cleanup or absence-check command is capped at two minutes. Six
+sequential worst-case cleanup and verification commands, including kill grace,
+consume at most 12 minutes 30 seconds. Against Hermes' one-hour script timeout,
+the 38-minute work phase therefore reserves more than eight minutes for
+launcher overhead and process termination. The installer rejects a larger OMP
+limit, and both boundaries remain below the 90-minute claim lease.
+Worktree, branch, and VM cleanup begins when acquisition is attempted, not only
+after a success response; a failed cleanup is tolerated only after a bounded
+inventory or ref check proves that the deterministic resource is absent.
+
+Create the Hermes job with the installed
+`linejam-sentry-agent-loop.sh` script, `--no-agent`, a five-minute cron
+schedule, and the dedicated Discord target. Keep the job paused until the
+matching Convex route and secret are deployed. Pause it immediately if
+prohibited data appears, canonical deduplication fails, a lease cannot recover,
+or an agent crosses the no-merge/no-deploy boundary.
+
+### Agent versus Seer evaluation
+
+Use canonical incident Issues as the shared evaluation corpus. Score the
+homegrown lane and Seer on the same privacy-safe receipt; do not expose event
+payloads to create a benchmark. Record:
+
+- correct investigate, no-fix, or retire decision;
+- supported root cause rather than a symptom suppression;
+- focused checks that reproduce and close the failure;
+- reviewer acceptance of the patch;
+- duplicate Issues or pull requests;
+- privacy or authority violations;
+- claim-to-reviewed-PR elapsed time.
+
+The initial negative-control corpus is:
+
+| Issue | Receipt                                                    | Expected decision                       | Homegrown result                        | Seer                |
+| ----- | ---------------------------------------------------------- | --------------------------------------- | --------------------------------------- | ------------------- |
+| #417  | `aiGenerationBudgetThreshold` / `budget_threshold_reached` | Retire non-incident telemetry; no patch | Passed: signal removed and Issue closed | No fixability score |
+| #418  | `aiFallbackRate` / `budget_exhaustion`                     | Retire non-incident telemetry; no patch | Passed: signal removed and Issue closed | No fixability score |
+
+Both Sentry Issues reported `seerFixabilityScore: null` on 2026-08-16. Add each
+future eligible incident before reviewing either result. Optimize prompts,
+model routing, or evidence requirements only when repeated scored failures
+identify a specific weakness; never optimize against unpublished payload text.
 
 ## Reusable Misty Step adoption contract
 
@@ -162,9 +300,10 @@ details:
 4. Route each actionable Sentry issue to exactly one canonical GitHub Issue.
    Deduplicate durably by Sentry installation, project, and issue IDs; retries
    must be leased and bounded. Sentry and GitHub link to each other.
-5. Keep diagnosis and fixes operator-controlled. Required checks, resolved
-   review conversations, explicit live merge/deployment authority, and the
-   normal deployment workflow retain merge and release authority.
+5. Keep merge, deployment, production mutation, and incident acceptance
+   operator-controlled. An autonomous lane may investigate and draft a pull
+   request, but required checks, resolved review conversations, and explicit
+   live merge/deployment authority remain unchanged.
 6. Before cutover, exercise browser, server, worker, and scheduled paths in
    preview; prove privacy, symbolication, release/runtime attribution, monitor
    transitions, alert delivery, and GitHub deduplication. Compare the old and
@@ -173,6 +312,10 @@ details:
 7. Stop or roll back if prohibited data arrives, an expected failure is missed,
    one Sentry issue creates multiple work items, source attribution is
    ambiguous, or observability changes player-facing availability.
+   The local OMP authentication gateway is loopback-bound but intentionally has no
+   gateway bearer token. Any local process could use it while a claim is active.
+   Run this lane only on the dedicated single-operator workstation. A shared host
+   requires an authenticated per-run gateway design and is a stop condition.
 
 ## Serious incidents
 
@@ -246,6 +389,7 @@ auto-merged or auto-deployed.
 history, resolved review conversations, and pull-request-only changes. It
 deliberately requires zero approving reviews: this single-maintainer repository
 must not create an impossible self-approval gate. Administrators remain subject
-to the same required checks. Sentry Autofix automation remains off; generated
-diagnosis may draft a PR only after a human explicitly starts it, and that PR
-receives no independent merge or deployment authority.
+to the same required checks. Sentry Autofix automation remains off. The local
+bounded OMP lane may automatically investigate and draft a pull request after
+the canonical bridge Issue is committed, but that output is untrusted until
+reviewed and receives no independent merge or deployment authority.

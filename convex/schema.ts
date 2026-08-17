@@ -263,8 +263,21 @@ export default defineSchema({
     deletedByTable: retentionTableCounts,
   }).index('by_completed', ['completedAt']),
 
+  sentryGithubCanonicalIssues: defineTable({
+    canonicalKey: v.string(),
+    githubIssueNumber: v.optional(v.number()),
+    githubCreateAttemptedAt: v.optional(v.number()),
+    agentReceiptId: v.optional(v.id('sentryGithubReceipts')),
+    queuedAgentReceiptId: v.optional(v.id('sentryGithubReceipts')),
+    leaseId: v.optional(v.string()),
+    leaseExpiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_canonicalKey', ['canonicalKey']),
+
   sentryGithubReceipts: defineTable({
     dedupKey: v.string(),
+    canonicalKey: v.string(),
     installationUuid: v.string(),
     projectId: v.string(),
     sentryIssueId: v.string(),
@@ -281,6 +294,29 @@ export default defineSchema({
     nextAttemptAt: v.number(),
     leaseId: v.optional(v.string()),
     leaseExpiresAt: v.optional(v.number()),
+    agentState: v.optional(
+      v.union(
+        v.literal('pending'),
+        v.literal('queued'),
+        v.literal('leased'),
+        v.literal('completed'),
+        v.literal('blocked')
+      )
+    ),
+    agentAttempts: v.optional(v.number()),
+    agentNextAttemptAt: v.optional(v.number()),
+    agentLeaseId: v.optional(v.string()),
+    agentLeaseExpiresAt: v.optional(v.number()),
+    agentCompletedAt: v.optional(v.number()),
+    agentBlockedCode: v.optional(
+      v.union(
+        v.literal('issue_closed'),
+        v.literal('issue_invalid'),
+        v.literal('agent_failed'),
+        v.literal('attempts_exhausted'),
+        v.literal('duplicate_canonical')
+      )
+    ),
     runtime: v.optional(
       v.union(v.literal('convex'), v.literal('github-actions'))
     ),
@@ -312,6 +348,7 @@ export default defineSchema({
       )
     ),
     githubIssueNumber: v.optional(v.number()),
+    reusedGithubIssue: v.optional(v.boolean()),
     blockedCode: v.optional(
       v.union(
         v.literal('configuration_invalid'),
@@ -323,12 +360,32 @@ export default defineSchema({
         v.literal('github_invalid'),
         v.literal('marker_conflict'),
         v.literal('link_conflict'),
+        v.literal('github_create_ambiguous'),
+        v.literal('internal_error'),
         v.literal('attempts_exhausted')
       )
     ),
     linkedAt: v.optional(v.number()),
   })
     .index('by_dedupKey', ['dedupKey'])
+    .index('by_canonicalKey_createdAt', ['canonicalKey', 'createdAt'])
     .index('by_state_nextAttemptAt', ['state', 'nextAttemptAt'])
-    .index('by_state_leaseExpiresAt', ['state', 'leaseExpiresAt']),
+    .index('by_state_leaseExpiresAt', ['state', 'leaseExpiresAt'])
+    .index('by_agentState_agentNextAttemptAt', [
+      'agentState',
+      'agentNextAttemptAt',
+    ])
+    .index('by_agentState_agentLeaseExpiresAt', [
+      'agentState',
+      'agentLeaseExpiresAt',
+    ]),
+
+  sentryAgentClaimNonces: defineTable({
+    leaseId: v.string(),
+    receiptId: v.optional(v.id('sentryGithubReceipts')),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index('by_leaseId', ['leaseId'])
+    .index('by_expiresAt', ['expiresAt']),
 });

@@ -6,6 +6,8 @@ import {
   internalMutation,
   internalQuery,
 } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
+import { verifySentryAutomationProvenance } from '../sentry.provenance.mjs';
 
 const SENTRY_BASE_URL = 'https://sentry.io/api/0';
 const GITHUB_BASE_URL = 'https://api.github.com';
@@ -13,7 +15,16 @@ const MAX_ATTEMPTS = 10;
 const LEASE_MS = 2 * 60 * 1000;
 const BRIDGE_FETCH_TIMEOUT_MS = 5_000;
 const MAX_RETRY_MS = 60 * 60 * 1000;
-const FIXED_LABELS = ['p1', 'source/sentry', 'domain/infra'] as const;
+const AGENT_MAX_ATTEMPTS = 3;
+const AGENT_LEASE_MS = 90 * 60 * 1000;
+const AGENT_RETRY_MS = 15 * 60 * 1000;
+const AGENT_CLAIM_NONCE_MS = 2 * 60 * 1000;
+const FIXED_LABELS = [
+  'p1',
+  'source/sentry',
+  'domain/infra',
+  'source/agent',
+] as const;
 export const BRIDGE_RUNTIMES = ['convex', 'github-actions'] as const;
 
 export const BRIDGE_OPERATIONS = [
@@ -35,6 +46,8 @@ const blockedCodeValidator = v.union(
   v.literal('github_invalid'),
   v.literal('marker_conflict'),
   v.literal('link_conflict'),
+  v.literal('github_create_ambiguous'),
+  v.literal('internal_error'),
   v.literal('attempts_exhausted')
 );
 
@@ -48,6 +61,8 @@ type BlockedCode =
   | 'github_invalid'
   | 'marker_conflict'
   | 'link_conflict'
+  | 'github_create_ambiguous'
+  | 'internal_error'
   | 'attempts_exhausted';
 
 type Operation = (typeof BRIDGE_OPERATIONS)[number];
@@ -63,20 +78,39 @@ type ValidatedTags = {
   operation: Operation;
   failureCode: FailureCode;
 };
+type FetchedTagValues = ValidatedTags & { provenance: string };
 
 type ClaimedReceipt = Pick<
   Doc<'sentryGithubReceipts'>,
   | '_id'
   | 'dedupKey'
+  | 'canonicalKey'
   | 'projectId'
   | 'sentryIssueId'
   | 'sentryEventId'
   | 'attempts'
   | 'githubIssueNumber'
+  | 'reusedGithubIssue'
 >;
+
+export type AgentReceiptClaim = Pick<
+  Doc<'sentryGithubReceipts'>,
+  '_id' | 'dedupKey' | 'projectId' | 'sentryIssueId' | 'sentryEventId'
+> & {
+  githubIssueNumber: number;
+  environment: Environment;
+  release: string;
+  operation: Operation;
+  level: 'error';
+  failureCode: FailureCode;
+  leaseId: string;
+  agentAttempts: number;
+  agentLeaseExpiresAt: number;
+};
 
 type BridgeConfig = {
   sentryToken: string;
+  provenanceSecret: string;
   sentryOrganization: string;
   githubToken: string;
   integrationId: string;
@@ -95,6 +129,24 @@ const claimRef = makeFunctionReference<
   { receiptId: Id<'sentryGithubReceipts'>; leaseId: string; now: number },
   ClaimedReceipt | null
 >('sentryGithub:claimReceipt');
+const renewLeaseRef = makeFunctionReference<
+  'mutation',
+  { receiptId: Id<'sentryGithubReceipts'>; leaseId: string; now: number },
+  boolean
+>('sentryGithub:renewReceiptLease');
+
+const acceptWebhookMutationRef = makeFunctionReference<
+  'mutation',
+  {
+    dedupKey: string;
+    canonicalKey: string;
+    installationUuid: string;
+    projectId: string;
+    sentryIssueId: string;
+    sentryEventId: string;
+  },
+  { receiptId: Id<'sentryGithubReceipts'>; inserted: boolean }
+>('sentryGithub:acceptWebhook');
 
 const saveTagsRef = makeFunctionReference<
   'mutation',
@@ -106,6 +158,25 @@ const saveTagsRef = makeFunctionReference<
   },
   boolean
 >('sentryGithub:saveValidatedTags');
+
+const beginGithubIssueCreateRef = makeFunctionReference<
+  'mutation',
+  {
+    receiptId: Id<'sentryGithubReceipts'>;
+    leaseId: string;
+    now: number;
+  },
+  boolean
+>('sentryGithub:beginGithubIssueCreate');
+const clearGithubIssueCreateRef = makeFunctionReference<
+  'mutation',
+  {
+    receiptId: Id<'sentryGithubReceipts'>;
+    leaseId: string;
+    now: number;
+  },
+  boolean
+>('sentryGithub:clearGithubIssueCreateAttempt');
 
 const saveGithubIssueRef = makeFunctionReference<
   'mutation',
@@ -150,7 +221,8 @@ class BridgeFailure extends Error {
   constructor(
     readonly code: BlockedCode,
     readonly retryable: boolean,
-    readonly retryAfterMs?: number
+    readonly retryAfterMs?: number,
+    readonly clearCreateAttempt = false
   ) {
     super(code);
     this.name = 'BridgeFailure';
@@ -168,15 +240,22 @@ function getConfig(): BridgeConfig {
   const integrationId = requiredEnv('SENTRY_GITHUB_INTEGRATION_ID');
   const owner = requiredEnv('GITHUB_REPOSITORY_OWNER');
   const repo = requiredEnv('GITHUB_REPOSITORY_NAME');
+  const provenanceSecret = requiredEnv('SENTRY_AUTOMATION_PROVENANCE_SECRET');
+  const provenanceSecretBytes = new TextEncoder().encode(
+    provenanceSecret
+  ).length;
   if (
     sentryOrganization !== 'misty-step' ||
     integrationId !== '338522' ||
     owner !== 'misty-step' ||
-    repo !== 'linejam'
+    repo !== 'linejam' ||
+    provenanceSecretBytes < 32 ||
+    provenanceSecretBytes > 256
   ) {
     throw new BridgeFailure('configuration_invalid', false);
   }
   return {
+    provenanceSecret,
     sentryToken: requiredEnv('SENTRY_EVENT_WRITE_TOKEN'),
     sentryOrganization,
     githubToken: requiredEnv('GITHUB_ISSUES_TOKEN'),
@@ -282,7 +361,13 @@ export interface GithubIssueContent {
 
 interface GithubSearchIssueItem {
   number: number;
+  title: string;
   body: string;
+  state: string;
+  labels: readonly string[];
+  author: string;
+  repositoryUrl: string;
+  isPullRequest: boolean;
 }
 
 interface GithubSearchResponse {
@@ -291,6 +376,10 @@ interface GithubSearchResponse {
 
 interface GithubIssueResponse {
   number: number;
+}
+
+interface GithubActorResponse {
+  login: string;
 }
 
 interface SentryChoiceItem {
@@ -313,7 +402,7 @@ interface SentryIntegrationLinkConfig {
   linkedIssues?: readonly SentryLinkedIssue[];
 }
 
-function isJsonObject(value: JsonValue): value is JsonObject {
+function isJsonObject(value: JsonValue | undefined): value is JsonObject {
   return value !== null && !Array.isArray(value) && Object(value) === value;
 }
 
@@ -357,11 +446,31 @@ function parseGithubSearchResponse(
     if (
       !isJsonObject(candidate) ||
       !isPositiveInteger(candidate.number) ||
-      !isJsonString(candidate.body)
+      !isJsonString(candidate.title) ||
+      !isJsonString(candidate.body) ||
+      !isJsonString(candidate.state) ||
+      !isJsonString(candidate.repository_url) ||
+      !isJsonObject(candidate.user) ||
+      !isJsonString(candidate.user.login) ||
+      !Array.isArray(candidate.labels)
     ) {
       return null;
     }
-    items.push({ number: candidate.number, body: candidate.body });
+    const labels: string[] = [];
+    for (const label of candidate.labels) {
+      if (!isJsonObject(label) || !isJsonString(label.name)) return null;
+      labels.push(label.name);
+    }
+    items.push({
+      number: candidate.number,
+      title: candidate.title,
+      body: candidate.body,
+      state: candidate.state,
+      labels,
+      author: candidate.user.login,
+      repositoryUrl: candidate.repository_url,
+      isPullRequest: candidate.pull_request !== undefined,
+    });
   }
   return { items };
 }
@@ -385,6 +494,13 @@ function parseSentryChoice(value: JsonValue): SentryChoice | null {
   }
   if (!isJsonObject(value) || !isJsonString(value.value)) return null;
   return { value: value.value };
+}
+
+function parseGithubActorResponse(
+  value: JsonValue
+): GithubActorResponse | null {
+  if (!isJsonObject(value) || !isJsonString(value.login)) return null;
+  return { login: value.login };
 }
 
 function parseSentryIntegrationLinkConfig(
@@ -434,6 +550,83 @@ function includesClosed<T extends string>(
   return values.some((v) => v === value);
 }
 
+function projectAgentClaim(
+  receipt: Doc<'sentryGithubReceipts'>,
+  leaseId: string
+): AgentReceiptClaim | null {
+  if (
+    receipt.state !== 'linked' ||
+    receipt.agentState !== 'leased' ||
+    receipt.agentLeaseId !== leaseId ||
+    receipt.githubIssueNumber === undefined ||
+    receipt.environment === undefined ||
+    receipt.release === undefined ||
+    receipt.operation === undefined ||
+    !includesClosed(BRIDGE_OPERATIONS, receipt.operation) ||
+    receipt.level !== 'error' ||
+    receipt.failureCode === undefined ||
+    !includesClosed(BRIDGE_FAILURE_CODES, receipt.failureCode) ||
+    receipt.agentAttempts === undefined ||
+    receipt.agentLeaseExpiresAt === undefined
+  ) {
+    return null;
+  }
+  return {
+    _id: receipt._id,
+    dedupKey: receipt.dedupKey,
+    projectId: receipt.projectId,
+    sentryIssueId: receipt.sentryIssueId,
+    sentryEventId: receipt.sentryEventId,
+    githubIssueNumber: receipt.githubIssueNumber,
+    environment: receipt.environment,
+    release: receipt.release,
+    operation: receipt.operation,
+    level: receipt.level,
+    failureCode: receipt.failureCode,
+    leaseId,
+    agentAttempts: receipt.agentAttempts,
+    agentLeaseExpiresAt: receipt.agentLeaseExpiresAt,
+  };
+}
+
+async function advanceAgentDispatch(
+  ctx: MutationCtx,
+  canonicalIssue: Doc<'sentryGithubCanonicalIssues'>,
+  now: number
+): Promise<void> {
+  const queuedReceipt = canonicalIssue.queuedAgentReceiptId
+    ? await ctx.db.get(canonicalIssue.queuedAgentReceiptId)
+    : null;
+  if (
+    queuedReceipt &&
+    queuedReceipt.canonicalKey === canonicalIssue.canonicalKey &&
+    queuedReceipt.state === 'linked' &&
+    queuedReceipt.agentState === 'queued'
+  ) {
+    await ctx.db.patch(queuedReceipt._id, {
+      agentState: 'pending',
+      agentAttempts: 0,
+      agentNextAttemptAt: now,
+      agentLeaseId: undefined,
+      agentLeaseExpiresAt: undefined,
+      agentCompletedAt: undefined,
+      agentBlockedCode: undefined,
+      updatedAt: now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      agentReceiptId: queuedReceipt._id,
+      queuedAgentReceiptId: undefined,
+      updatedAt: now,
+    });
+    return;
+  }
+  await ctx.db.patch(canonicalIssue._id, {
+    agentReceiptId: undefined,
+    queuedAgentReceiptId: undefined,
+    updatedAt: now,
+  });
+}
+
 export function validateBridgeTags(
   values: Record<keyof ValidatedTags, string>
 ): ValidatedTags | null {
@@ -458,7 +651,7 @@ export function validateBridgeTags(
 }
 
 async function fetchTags(
-  receipt: ClaimedReceipt,
+  receipt: Pick<ClaimedReceipt, 'sentryIssueId' | 'sentryEventId'>,
   config: BridgeConfig
 ): Promise<ValidatedTags> {
   const response = await safeFetch(
@@ -480,15 +673,16 @@ async function fetchTags(
   ) {
     throw new BridgeFailure('invalid_tags', false);
   }
-  const tagFields: ReadonlyArray<readonly [keyof ValidatedTags, string]> = [
+  const tagFields: ReadonlyArray<readonly [keyof FetchedTagValues, string]> = [
     ['runtime', 'runtime'],
     ['environment', 'environment'],
     ['release', 'release'],
     ['level', 'level'],
     ['operation', 'operation'],
     ['failureCode', 'failure_code'],
+    ['provenance', 'provenance'],
   ];
-  const tagValues: Partial<Record<keyof ValidatedTags, string>> = {};
+  const tagValues: Partial<Record<keyof FetchedTagValues, string>> = {};
   for (const tag of event.tags) {
     const entry = tagFields.find(([, providerKey]) => providerKey === tag.key);
     if (entry === undefined) continue;
@@ -504,7 +698,8 @@ async function fetchTags(
     !tagValues.release ||
     !tagValues.level ||
     !tagValues.operation ||
-    !tagValues.failureCode
+    !tagValues.failureCode ||
+    !tagValues.provenance
   ) {
     throw new BridgeFailure('invalid_tags', false);
   }
@@ -517,6 +712,20 @@ async function fetchTags(
     failureCode: tagValues.failureCode,
   });
   if (!tags) throw new BridgeFailure('invalid_tags', false);
+  const verified = await verifySentryAutomationProvenance(
+    config.provenanceSecret,
+    {
+      eventId: event.eventId,
+      runtime: tags.runtime,
+      environment: tags.environment,
+      release: tags.release,
+      level: tags.level,
+      operation: tags.operation,
+      failureCode: tags.failureCode,
+    },
+    tagValues.provenance
+  );
+  if (!verified) throw new BridgeFailure('invalid_tags', false);
   return tags;
 }
 
@@ -527,7 +736,7 @@ export function githubDedupMarker(dedupKey: string): string {
 export function githubIssueContent(
   receipt: Pick<
     ClaimedReceipt,
-    'dedupKey' | 'sentryIssueId' | 'sentryEventId' | 'projectId'
+    'canonicalKey' | 'sentryIssueId' | 'sentryEventId' | 'projectId'
   >,
   tags: ValidatedTags
 ): GithubIssueContent {
@@ -546,18 +755,39 @@ export function githubIssueContent(
       `- Sentry issue ID: ${receipt.sentryIssueId}`,
       `- Sentry event ID: ${receipt.sentryEventId}`,
       '',
-      githubDedupMarker(receipt.dedupKey),
+      githubDedupMarker(receipt.canonicalKey),
     ].join('\n'),
     labels: FIXED_LABELS,
   };
 }
 
 async function recoverGithubIssue(
-  dedupKey: string,
-  config: BridgeConfig
+  receipt: ClaimedReceipt,
+  tags: ValidatedTags,
+  config: BridgeConfig,
+  beforeWrite: () => Promise<void>
 ): Promise<number | null> {
-  const marker = githubDedupMarker(dedupKey);
-  const query = `repo:${config.owner}/${config.repo} is:issue in:body "${marker}"`;
+  const actorResponse = await safeFetch(
+    `${GITHUB_BASE_URL}/user`,
+    {
+      headers: {
+        Authorization: `Bearer ${config.githubToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    },
+    'github'
+  );
+  const actor = parseGithubActorResponse(await actorResponse.json());
+  if (actor === null || !/^[A-Za-z0-9-]{1,39}$/.test(actor.login)) {
+    throw new BridgeFailure('github_invalid', false);
+  }
+
+  const marker = githubDedupMarker(receipt.canonicalKey);
+  const content = githubIssueContent(receipt, tags);
+  const query =
+    `repo:${config.owner}/${config.repo} author:${actor.login} ` +
+    `is:issue in:body "${marker}"`;
   const response = await safeFetch(
     `${GITHUB_BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=10`,
     {
@@ -569,19 +799,31 @@ async function recoverGithubIssue(
     },
     'github'
   );
-  const raw: JsonValue = await response.json();
-  const data = parseGithubSearchResponse(raw);
-  if (data === null) {
-    throw new BridgeFailure('github_invalid', false);
-  }
-  const matches: number[] = [];
-  for (const item of data.items) {
-    if (item.body.includes(marker)) {
-      matches.push(item.number);
-    }
-  }
+  const data = parseGithubSearchResponse(await response.json());
+  if (data === null) throw new BridgeFailure('github_invalid', false);
+
+  const expectedRepositoryUrl =
+    `${GITHUB_BASE_URL}/repos/${config.owner}/${config.repo}`.toLowerCase();
+  const matches = data.items.filter(
+    (item) =>
+      item.body.includes(marker) &&
+      !item.isPullRequest &&
+      item.author.toLowerCase() === actor.login.toLowerCase() &&
+      item.repositoryUrl.toLowerCase() === expectedRepositoryUrl
+  );
   if (matches.length > 1) throw new BridgeFailure('marker_conflict', false);
-  return matches[0] ?? null;
+  const match = matches[0];
+  if (!match) return null;
+  const contentMatches =
+    match.state === 'open' &&
+    match.title === content.title &&
+    match.body === content.body &&
+    JSON.stringify([...match.labels].sort()) ===
+      JSON.stringify([...content.labels].sort());
+  if (!contentMatches) {
+    await reopenGithubIssue(receipt, match.number, tags, config, beforeWrite);
+  }
+  return match.number;
 }
 
 async function verifyGithubLabelPrerequisites(
@@ -610,26 +852,65 @@ async function createGithubIssue(
   config: BridgeConfig
 ): Promise<number> {
   const content = githubIssueContent(receipt, tags);
+  try {
+    const response = await safeFetch(
+      `${GITHUB_BASE_URL}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.githubToken}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        body: JSON.stringify(content),
+      },
+      'github'
+    );
+    const raw: JsonValue = await response.json();
+    const data = parseGithubIssueResponse(raw);
+    if (data === null) {
+      throw new BridgeFailure('github_create_ambiguous', false);
+    }
+    return data.number;
+  } catch (error) {
+    if (error instanceof BridgeFailure && !error.retryable) {
+      if (error.code === 'github_create_ambiguous') throw error;
+      throw new BridgeFailure(error.code, false, undefined, true);
+    }
+    throw new BridgeFailure('github_create_ambiguous', false);
+  }
+}
+async function reopenGithubIssue(
+  receipt: ClaimedReceipt,
+  githubIssueNumber: number,
+  tags: ValidatedTags,
+  config: BridgeConfig,
+  beforeWrite: () => Promise<void>
+): Promise<void> {
+  await beforeWrite();
   const response = await safeFetch(
-    `${GITHUB_BASE_URL}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues`,
+    `${GITHUB_BASE_URL}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues/${githubIssueNumber}`,
     {
-      method: 'POST',
+      method: 'PATCH',
       headers: {
         Authorization: `Bearer ${config.githubToken}`,
         Accept: 'application/vnd.github+json',
         'Content-Type': 'application/json',
         'X-GitHub-Api-Version': '2022-11-28',
       },
-      body: JSON.stringify(content),
+      body: JSON.stringify({
+        ...githubIssueContent(receipt, tags),
+        state: 'open',
+        state_reason: 'reopened',
+      }),
     },
     'github'
   );
-  const raw: JsonValue = await response.json();
-  const data = parseGithubIssueResponse(raw);
-  if (data === null) {
+  const reopened = parseGithubIssueResponse(await response.json());
+  if (reopened?.number !== githubIssueNumber) {
     throw new BridgeFailure('github_invalid', false);
   }
-  return data.number;
 }
 
 function choiceContainsRepository(
@@ -686,7 +967,8 @@ function inspectLinkConfig(
 async function linkGithubIssue(
   receipt: ClaimedReceipt,
   githubIssueNumber: number,
-  config: BridgeConfig
+  config: BridgeConfig,
+  beforeWrite: () => Promise<void>
 ): Promise<void> {
   const endpoint = `${SENTRY_BASE_URL}/issues/${encodeURIComponent(receipt.sentryIssueId)}/integrations/${encodeURIComponent(config.integrationId)}/`;
   const headers = {
@@ -707,6 +989,7 @@ async function linkGithubIssue(
   if (state === 'invalid') {
     throw new BridgeFailure('configuration_invalid', false);
   }
+  await beforeWrite();
 
   await safeFetch(
     endpoint,
@@ -731,9 +1014,34 @@ export function retryDelayMs(attempt: number, random = Math.random()): number {
   return Math.floor(base / 2 + (base / 2) * boundedRandom);
 }
 
+export const admitWebhook = internalAction({
+  args: {
+    dedupKey: v.string(),
+    canonicalKey: v.string(),
+    installationUuid: v.string(),
+    projectId: v.string(),
+    sentryIssueId: v.string(),
+    sentryEventId: v.string(),
+  },
+  handler: async (ctx, args): Promise<'accepted' | 'rejected'> => {
+    const config = getConfig();
+    try {
+      await fetchTags(args, config);
+    } catch (error) {
+      if (error instanceof BridgeFailure && error.code === 'invalid_tags') {
+        return 'rejected';
+      }
+      throw error;
+    }
+    await ctx.runMutation(acceptWebhookMutationRef, args);
+    return 'accepted';
+  },
+});
+
 export const acceptWebhook = internalMutation({
   args: {
     dedupKey: v.string(),
+    canonicalKey: v.string(),
     installationUuid: v.string(),
     projectId: v.string(),
     sentryIssueId: v.string(),
@@ -741,6 +1049,8 @@ export const acceptWebhook = internalMutation({
     now: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const expectedCanonicalKey = `v1:${args.installationUuid}:${args.projectId}:${args.sentryIssueId}`;
+    const expectedDedupKey = `v2:${args.installationUuid}:${args.projectId}:${args.sentryIssueId}:${args.sentryEventId}`;
     if (
       !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
         args.installationUuid
@@ -748,8 +1058,8 @@ export const acceptWebhook = internalMutation({
       !/^\d{1,32}$/.test(args.projectId) ||
       !/^\d{1,32}$/.test(args.sentryIssueId) ||
       !/^[0-9a-f]{32}$/.test(args.sentryEventId) ||
-      args.dedupKey !==
-        `v1:${args.installationUuid}:${args.projectId}:${args.sentryIssueId}`
+      args.canonicalKey !== expectedCanonicalKey ||
+      args.dedupKey !== expectedDedupKey
     ) {
       throw new ConvexError('invalid_receipt');
     }
@@ -759,13 +1069,52 @@ export const acceptWebhook = internalMutation({
       .unique();
     if (existing) return { receiptId: existing._id, inserted: false };
 
+    const priorReceipts = await ctx.db
+      .query('sentryGithubReceipts')
+      .withIndex('by_canonicalKey_createdAt', (q) =>
+        q.eq('canonicalKey', args.canonicalKey)
+      )
+      .order('desc')
+      .take(20);
+    const priorGithubIssueNumber = priorReceipts.find(
+      (receipt) => receipt.githubIssueNumber !== undefined
+    )?.githubIssueNumber;
     const now = args.now ?? Date.now();
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', args.canonicalKey)
+      )
+      .unique();
+    const githubIssueNumber =
+      canonicalIssue?.githubIssueNumber ?? priorGithubIssueNumber;
+    if (canonicalIssue) {
+      if (
+        canonicalIssue.githubIssueNumber === undefined &&
+        githubIssueNumber !== undefined
+      ) {
+        await ctx.db.patch(canonicalIssue._id, {
+          githubIssueNumber,
+          updatedAt: now,
+        });
+      }
+    } else {
+      await ctx.db.insert('sentryGithubCanonicalIssues', {
+        canonicalKey: args.canonicalKey,
+        githubIssueNumber,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
     const receiptId = await ctx.db.insert('sentryGithubReceipts', {
       dedupKey: args.dedupKey,
+      canonicalKey: args.canonicalKey,
       installationUuid: args.installationUuid,
       projectId: args.projectId,
       sentryIssueId: args.sentryIssueId,
       sentryEventId: args.sentryEventId,
+      githubIssueNumber,
+      reusedGithubIssue: githubIssueNumber !== undefined,
       state: 'pending',
       attempts: 0,
       createdAt: now,
@@ -792,22 +1141,116 @@ export const claimReceipt = internalMutation({
     ) {
       return null;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      canonicalIssue?.leaseId !== undefined &&
+      canonicalIssue.leaseExpiresAt !== undefined &&
+      canonicalIssue.leaseExpiresAt > args.now
+    ) {
+      const delayMs = Math.max(
+        1,
+        Math.min(MAX_RETRY_MS, canonicalIssue.leaseExpiresAt - args.now + 1)
+      );
+      await ctx.db.patch(receipt._id, {
+        nextAttemptAt: args.now + delayMs,
+        updatedAt: args.now,
+      });
+      await ctx.scheduler.runAfter(delayMs, workerRef, {
+        receiptId: receipt._id,
+      });
+      return null;
+    }
+    const githubIssueNumber =
+      canonicalIssue?.githubIssueNumber ?? receipt.githubIssueNumber;
+    const reusedGithubIssue =
+      receipt.reusedGithubIssue === true ||
+      (receipt.githubIssueNumber === undefined &&
+        githubIssueNumber !== undefined);
+    if (canonicalIssue) {
+      await ctx.db.patch(canonicalIssue._id, {
+        githubIssueNumber,
+        leaseId: args.leaseId,
+        leaseExpiresAt: args.now + LEASE_MS,
+        updatedAt: args.now,
+      });
+    } else {
+      await ctx.db.insert('sentryGithubCanonicalIssues', {
+        canonicalKey: receipt.canonicalKey,
+        githubIssueNumber,
+        leaseId: args.leaseId,
+        leaseExpiresAt: args.now + LEASE_MS,
+        createdAt: args.now,
+        updatedAt: args.now,
+      });
+    }
     await ctx.db.patch(receipt._id, {
       state: 'leased',
       leaseId: args.leaseId,
       leaseExpiresAt: args.now + LEASE_MS,
       attempts: receipt.attempts + 1,
+      githubIssueNumber,
+      reusedGithubIssue,
       updatedAt: args.now,
     });
     return {
       _id: receipt._id,
       dedupKey: receipt.dedupKey,
+      canonicalKey: receipt.canonicalKey,
       projectId: receipt.projectId,
       sentryIssueId: receipt.sentryIssueId,
       sentryEventId: receipt.sentryEventId,
       attempts: receipt.attempts + 1,
-      githubIssueNumber: receipt.githubIssueNumber,
+      reusedGithubIssue,
+      githubIssueNumber,
     };
+  },
+});
+export const renewReceiptLease = internalMutation({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.state !== 'leased' ||
+      receipt.leaseId !== args.leaseId ||
+      receipt.leaseExpiresAt === undefined ||
+      receipt.leaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      !canonicalIssue ||
+      canonicalIssue.leaseId !== args.leaseId ||
+      canonicalIssue.leaseExpiresAt === undefined ||
+      canonicalIssue.leaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const leaseExpiresAt = args.now + LEASE_MS;
+    await ctx.db.patch(canonicalIssue._id, {
+      leaseExpiresAt,
+      updatedAt: args.now,
+    });
+    await ctx.db.patch(receipt._id, {
+      leaseExpiresAt,
+      updatedAt: args.now,
+    });
+    return true;
   },
 });
 
@@ -840,6 +1283,84 @@ export const saveValidatedTags = internalMutation({
   },
 });
 
+export const beginGithubIssueCreate = internalMutation({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.state !== 'leased' ||
+      receipt.leaseId !== args.leaseId ||
+      receipt.leaseExpiresAt === undefined ||
+      receipt.leaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      !canonicalIssue ||
+      canonicalIssue.leaseId !== args.leaseId ||
+      canonicalIssue.leaseExpiresAt === undefined ||
+      canonicalIssue.leaseExpiresAt <= args.now ||
+      canonicalIssue.githubIssueNumber !== undefined ||
+      canonicalIssue.githubCreateAttemptedAt !== undefined
+    ) {
+      return false;
+    }
+    await ctx.db.patch(canonicalIssue._id, {
+      githubCreateAttemptedAt: args.now,
+      updatedAt: args.now,
+    });
+    return true;
+  },
+});
+
+export const clearGithubIssueCreateAttempt = internalMutation({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.state !== 'leased' ||
+      receipt.leaseId !== args.leaseId
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      !canonicalIssue ||
+      canonicalIssue.leaseId !== args.leaseId ||
+      canonicalIssue.githubIssueNumber !== undefined ||
+      canonicalIssue.githubCreateAttemptedAt === undefined
+    ) {
+      return false;
+    }
+    await ctx.db.patch(canonicalIssue._id, {
+      githubCreateAttemptedAt: undefined,
+      updatedAt: args.now,
+    });
+    return true;
+  },
+});
+
 export const saveGithubIssue = internalMutation({
   args: {
     receiptId: v.id('sentryGithubReceipts'),
@@ -858,6 +1379,25 @@ export const saveGithubIssue = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
+    if (
+      canonicalIssue.githubIssueNumber !== undefined &&
+      canonicalIssue.githubIssueNumber !== args.githubIssueNumber
+    ) {
+      throw new ConvexError('canonical_issue_conflict');
+    }
+    await ctx.db.patch(canonicalIssue._id, {
+      githubIssueNumber: args.githubIssueNumber,
+      updatedAt: args.now,
+    });
     await ctx.db.patch(receipt._id, {
       githubIssueNumber: args.githubIssueNumber,
       updatedAt: args.now,
@@ -881,13 +1421,51 @@ export const finishReceipt = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
+    const ownsAgentDispatch =
+      canonicalIssue.agentReceiptId === undefined ||
+      canonicalIssue.agentReceiptId === receipt._id;
+    const queuesAgentDispatch =
+      !ownsAgentDispatch && canonicalIssue.queuedAgentReceiptId === undefined;
     await ctx.db.patch(receipt._id, {
       state: 'linked',
       leaseId: undefined,
       leaseExpiresAt: undefined,
       nextAttemptAt: args.now,
+      agentState: ownsAgentDispatch
+        ? 'pending'
+        : queuesAgentDispatch
+          ? 'queued'
+          : 'blocked',
+      agentAttempts: ownsAgentDispatch ? 0 : undefined,
+      agentNextAttemptAt: ownsAgentDispatch ? args.now : undefined,
+      agentLeaseId: undefined,
+      agentLeaseExpiresAt: undefined,
+      agentCompletedAt: undefined,
+      agentBlockedCode:
+        ownsAgentDispatch || queuesAgentDispatch
+          ? undefined
+          : 'duplicate_canonical',
       blockedCode: undefined,
       linkedAt: args.now,
+      reusedGithubIssue: false,
+      updatedAt: args.now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      agentReceiptId: canonicalIssue.agentReceiptId ?? receipt._id,
+      queuedAgentReceiptId: queuesAgentDispatch
+        ? receipt._id
+        : canonicalIssue.queuedAgentReceiptId,
+      leaseId: undefined,
+      leaseExpiresAt: undefined,
       updatedAt: args.now,
     });
     return true;
@@ -910,6 +1488,15 @@ export const retryReceipt = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
     const delayMs = Math.max(
       0,
       Math.min(MAX_RETRY_MS, Math.floor(args.delayMs))
@@ -919,6 +1506,11 @@ export const retryReceipt = internalMutation({
       leaseId: undefined,
       leaseExpiresAt: undefined,
       nextAttemptAt: args.now + delayMs,
+      updatedAt: args.now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      leaseId: undefined,
+      leaseExpiresAt: undefined,
       updatedAt: args.now,
     });
     await ctx.scheduler.runAfter(delayMs, workerRef, {
@@ -944,12 +1536,26 @@ export const blockReceipt = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
     await ctx.db.patch(receipt._id, {
       state: 'blocked',
       blockedCode: args.blockedCode,
       leaseId: undefined,
       leaseExpiresAt: undefined,
       nextAttemptAt: args.now,
+      updatedAt: args.now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      leaseId: undefined,
+      leaseExpiresAt: undefined,
       updatedAt: args.now,
     });
     return true;
@@ -966,6 +1572,14 @@ export const processReceipt = internalAction({
       now: Date.now(),
     });
     if (!receipt) return null;
+    const beforeWrite = async () => {
+      const renewed = await ctx.runMutation(renewLeaseRef, {
+        receiptId: receipt._id,
+        leaseId,
+        now: Date.now(),
+      });
+      if (!renewed) throw new BridgeFailure('internal_error', true);
+    };
 
     try {
       const config = getConfig();
@@ -984,13 +1598,34 @@ export const processReceipt = internalAction({
       let githubIssueNumber: number;
       if (receipt.githubIssueNumber !== undefined) {
         githubIssueNumber = receipt.githubIssueNumber;
+        if (receipt.reusedGithubIssue) {
+          await reopenGithubIssue(
+            receipt,
+            githubIssueNumber,
+            tags,
+            config,
+            beforeWrite
+          );
+        }
       } else {
         const recoveredIssueNumber = await recoverGithubIssue(
-          receipt.dedupKey,
-          config
+          receipt,
+          tags,
+          config,
+          beforeWrite
         );
         if (recoveredIssueNumber === null) {
           await verifyGithubLabelPrerequisites(config);
+          await beforeWrite();
+          if (
+            !(await ctx.runMutation(beginGithubIssueCreateRef, {
+              receiptId: receipt._id,
+              leaseId,
+              now: Date.now(),
+            }))
+          ) {
+            throw new BridgeFailure('github_create_ambiguous', false);
+          }
           githubIssueNumber = await createGithubIssue(receipt, tags, config);
         } else {
           githubIssueNumber = recoveredIssueNumber;
@@ -1007,17 +1642,27 @@ export const processReceipt = internalAction({
         }
       }
 
-      await linkGithubIssue(receipt, githubIssueNumber, config);
+      await linkGithubIssue(receipt, githubIssueNumber, config, beforeWrite);
       await ctx.runMutation(finishRef, {
         receiptId: receipt._id,
         leaseId,
         now: Date.now(),
       });
     } catch (error) {
-      const failure =
+      let failure =
         error instanceof BridgeFailure
           ? error
-          : new BridgeFailure('attempts_exhausted', true);
+          : new BridgeFailure('internal_error', true);
+      if (failure.clearCreateAttempt) {
+        const cleared = await ctx.runMutation(clearGithubIssueCreateRef, {
+          receiptId: receipt._id,
+          leaseId,
+          now: Date.now(),
+        });
+        if (!cleared) {
+          failure = new BridgeFailure('github_create_ambiguous', false);
+        }
+      }
       if (failure.retryable && receipt.attempts < MAX_ATTEMPTS) {
         const delayMs = failure.retryAfterMs ?? retryDelayMs(receipt.attempts);
         await ctx.runMutation(retryRef, {
@@ -1030,7 +1675,7 @@ export const processReceipt = internalAction({
         await ctx.runMutation(blockRef, {
           receiptId: receipt._id,
           leaseId,
-          blockedCode: failure.retryable ? 'attempts_exhausted' : failure.code,
+          blockedCode: failure.code,
           now: Date.now(),
         });
       }
@@ -1061,6 +1706,283 @@ export const recoverExpiredLeases = internalMutation({
       await ctx.scheduler.runAfter(0, workerRef, { receiptId: receipt._id });
     }
     return { recovered: expired.length };
+  },
+});
+
+export const claimAgentReceipt = internalMutation({
+  args: {
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args): Promise<AgentReceiptClaim | null> => {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        args.leaseId
+      )
+    ) {
+      throw new ConvexError('invalid_agent_lease');
+    }
+    const expiredNonces = await ctx.db
+      .query('sentryAgentClaimNonces')
+      .withIndex('by_expiresAt', (q) => q.lt('expiresAt', args.now))
+      .take(20);
+    await Promise.all(expiredNonces.map((nonce) => ctx.db.delete(nonce._id)));
+    const priorClaim = await ctx.db
+      .query('sentryAgentClaimNonces')
+      .withIndex('by_leaseId', (q) => q.eq('leaseId', args.leaseId))
+      .unique();
+    if (priorClaim) {
+      if (!priorClaim.receiptId) return null;
+      const priorReceipt = await ctx.db.get(priorClaim.receiptId);
+      if (!priorReceipt) return null;
+      const canonicalIssue = await ctx.db
+        .query('sentryGithubCanonicalIssues')
+        .withIndex('by_canonicalKey', (q) =>
+          q.eq('canonicalKey', priorReceipt.canonicalKey)
+        )
+        .unique();
+      return canonicalIssue?.agentReceiptId === priorReceipt._id
+        ? projectAgentClaim(priorReceipt, args.leaseId)
+        : null;
+    }
+    const rememberClaim = (receiptId?: Id<'sentryGithubReceipts'>) =>
+      ctx.db.insert('sentryAgentClaimNonces', {
+        leaseId: args.leaseId,
+        receiptId,
+        createdAt: args.now,
+        expiresAt: args.now + AGENT_CLAIM_NONCE_MS,
+      });
+
+    let receipt = await ctx.db
+      .query('sentryGithubReceipts')
+      .withIndex('by_agentState_agentLeaseExpiresAt', (q) =>
+        q.eq('agentState', 'leased').lt('agentLeaseExpiresAt', args.now)
+      )
+      .first();
+    if (!receipt) {
+      receipt = await ctx.db
+        .query('sentryGithubReceipts')
+        .withIndex('by_agentState_agentNextAttemptAt', (q) =>
+          q.eq('agentState', 'pending').lte('agentNextAttemptAt', args.now)
+        )
+        .first();
+    }
+    if (!receipt) {
+      await rememberClaim();
+      return null;
+    }
+
+    if (
+      receipt.state !== 'linked' ||
+      receipt.githubIssueNumber === undefined ||
+      receipt.environment === undefined ||
+      receipt.release === undefined ||
+      receipt.operation === undefined ||
+      !includesClosed(BRIDGE_OPERATIONS, receipt.operation) ||
+      receipt.level !== 'error' ||
+      receipt.failureCode === undefined ||
+      !includesClosed(BRIDGE_FAILURE_CODES, receipt.failureCode)
+    ) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'issue_invalid',
+        updatedAt: args.now,
+      });
+      await rememberClaim();
+      return null;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      canonicalIssue?.agentReceiptId !== undefined &&
+      canonicalIssue.agentReceiptId !== receipt._id
+    ) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'duplicate_canonical',
+        updatedAt: args.now,
+      });
+      await rememberClaim();
+      return null;
+    }
+    const canonicalIssueId = canonicalIssue
+      ? canonicalIssue._id
+      : await ctx.db.insert('sentryGithubCanonicalIssues', {
+          canonicalKey: receipt.canonicalKey,
+          githubIssueNumber: receipt.githubIssueNumber,
+          agentReceiptId: receipt._id,
+          createdAt: args.now,
+          updatedAt: args.now,
+        });
+    if (canonicalIssue && canonicalIssue.agentReceiptId === undefined) {
+      await ctx.db.patch(canonicalIssue._id, {
+        agentReceiptId: receipt._id,
+        updatedAt: args.now,
+      });
+    }
+    const attempts = receipt.agentAttempts ?? 0;
+    if (attempts >= AGENT_MAX_ATTEMPTS) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'attempts_exhausted',
+        updatedAt: args.now,
+      });
+      if (canonicalIssue) {
+        await advanceAgentDispatch(ctx, canonicalIssue, args.now);
+      } else {
+        await ctx.db.patch(canonicalIssueId, {
+          agentReceiptId: undefined,
+          updatedAt: args.now,
+        });
+      }
+      await rememberClaim();
+      return null;
+    }
+
+    const agentLeaseExpiresAt = args.now + AGENT_LEASE_MS;
+    await rememberClaim(receipt._id);
+    await ctx.db.patch(receipt._id, {
+      agentState: 'leased',
+      agentAttempts: attempts + 1,
+      agentLeaseId: args.leaseId,
+      agentLeaseExpiresAt,
+      agentBlockedCode: undefined,
+      updatedAt: args.now,
+    });
+    return {
+      _id: receipt._id,
+      dedupKey: receipt.dedupKey,
+      projectId: receipt.projectId,
+      sentryIssueId: receipt.sentryIssueId,
+      sentryEventId: receipt.sentryEventId,
+      githubIssueNumber: receipt.githubIssueNumber,
+      environment: receipt.environment,
+      release: receipt.release,
+      operation: receipt.operation,
+      level: receipt.level,
+      failureCode: receipt.failureCode,
+      leaseId: args.leaseId,
+      agentAttempts: attempts + 1,
+      agentLeaseExpiresAt,
+    };
+  },
+});
+export const authorizeAgentReceipt = internalQuery({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.agentState !== 'leased' ||
+      receipt.agentLeaseId !== args.leaseId ||
+      receipt.agentLeaseExpiresAt === undefined ||
+      receipt.agentLeaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    return canonicalIssue?.agentReceiptId === receipt._id;
+  },
+});
+
+export const completeAgentReceipt = internalMutation({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    outcome: v.union(
+      v.literal('completed'),
+      v.literal('retry'),
+      v.literal('issue_closed'),
+      v.literal('issue_invalid')
+    ),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.agentState !== 'leased' ||
+      receipt.agentLeaseId !== args.leaseId ||
+      receipt.agentLeaseExpiresAt === undefined ||
+      receipt.agentLeaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (canonicalIssue?.agentReceiptId !== receipt._id) {
+      return false;
+    }
+    const releaseDispatch = () =>
+      advanceAgentDispatch(ctx, canonicalIssue, args.now);
+
+    if (args.outcome === 'completed') {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'completed',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentCompletedAt: args.now,
+        agentBlockedCode: undefined,
+        updatedAt: args.now,
+      });
+      await releaseDispatch();
+      return true;
+    }
+    if (args.outcome === 'issue_closed' || args.outcome === 'issue_invalid') {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: args.outcome,
+        updatedAt: args.now,
+      });
+      await releaseDispatch();
+      return true;
+    }
+
+    if ((receipt.agentAttempts ?? 0) >= AGENT_MAX_ATTEMPTS) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'attempts_exhausted',
+        updatedAt: args.now,
+      });
+      await releaseDispatch();
+      return true;
+    }
+    await ctx.db.patch(receipt._id, {
+      agentState: 'pending',
+      agentNextAttemptAt: args.now + AGENT_RETRY_MS,
+      agentLeaseId: undefined,
+      agentLeaseExpiresAt: undefined,
+      agentBlockedCode: 'agent_failed',
+      updatedAt: args.now,
+    });
+    return true;
   },
 });
 

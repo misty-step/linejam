@@ -349,8 +349,8 @@ describe('Sentry transport privacy boundary', () => {
         runtime: 'node',
         environment: 'production',
         release: 'd'.repeat(40),
-        operation: 'healthCheckIn',
-        failure_code: 'reportingFailure',
+        operation: 'sentryPreviewDrill',
+        failure_code: 'unexpected_error',
       },
       contexts: {
         trace: {
@@ -394,8 +394,8 @@ describe('Sentry transport privacy boundary', () => {
         runtime: 'node',
         environment: 'production',
         release: 'd'.repeat(40),
-        operation: 'healthCheckIn',
-        failure_code: 'reportingFailure',
+        operation: 'sentryPreviewDrill',
+        failure_code: 'unexpected_error',
       },
       contexts: {
         trace: {

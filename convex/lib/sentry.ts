@@ -1,3 +1,8 @@
+import {
+  signSentryAutomationGroup,
+  signSentryAutomationProvenance,
+} from '../../sentry.provenance.mjs';
+
 const REQUEST_TIMEOUT_MS = 2_000;
 const MAX_SEND_ATTEMPTS = 2;
 const MAX_REPORT_COUNT = 1_000_000;
@@ -33,6 +38,7 @@ export interface ParsedSentryDsn {
 interface SentryConfig extends ParsedSentryDsn {
   environment: SentryEnvironment;
   release: string;
+  provenanceSecret: string;
 }
 
 type SentryConfigResult =
@@ -97,6 +103,11 @@ export function parseSentryDsn(
   }
 }
 
+function isBoundedProvenanceSecret(value: string): boolean {
+  const length = new TextEncoder().encode(value).length;
+  return length >= 32 && length <= 256;
+}
+
 export function readSentryConfig(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): SentryConfigResult {
@@ -114,18 +125,21 @@ export function readSentryConfig(
   const dsn = parseSentryDsn(env.SENTRY_DSN);
   const environment = env.SENTRY_ENVIRONMENT;
   const release = env.SENTRY_RELEASE;
+  const provenanceSecret = env.SENTRY_AUTOMATION_PROVENANCE_SECRET;
   if (
     !dsn ||
     (environment !== 'preview' && environment !== 'production') ||
     !release ||
-    !RELEASE_PATTERN.test(release)
+    !RELEASE_PATTERN.test(release) ||
+    !provenanceSecret ||
+    !isBoundedProvenanceSecret(provenanceSecret)
   ) {
     return { enabled: false, diagnostic: 'invalid_configuration' };
   }
 
   return {
     enabled: true,
-    config: { ...dsn, environment, release },
+    config: { ...dsn, environment, release, provenanceSecret },
   };
 }
 
@@ -161,6 +175,7 @@ interface SentryEventPayload {
     operation: BackendFailureOperation;
     failure_code: BackendFailureCode;
     level: string;
+    provenance: string;
   };
   contexts: {
     linejam: SentryLinejamContext;
@@ -185,9 +200,17 @@ function envelope(eventId: string, payload: SentryEventPayload) {
 export function buildBackendSentryEnvelope(
   report: BackendFailureReport,
   config: Pick<SentryConfig, 'environment' | 'release'>,
-  eventId: string
+  eventId: string,
+  provenance: string,
+  groupKey: string
 ): string | null {
-  if (!isBackendFailureReport(report)) return null;
+  if (
+    !isBackendFailureReport(report) ||
+    !/^[0-9a-f]{64}$/.test(provenance) ||
+    !/^[0-9a-f]{64}$/.test(groupKey)
+  ) {
+    return null;
+  }
 
   return envelope(eventId, {
     event_id: eventId,
@@ -196,11 +219,7 @@ export function buildBackendSentryEnvelope(
     environment: config.environment,
     release: config.release,
     message: 'Convex backend operation failed',
-    fingerprint: [
-      'linejam-convex-backend-failure',
-      report.operation,
-      report.failureCode,
-    ],
+    fingerprint: ['linejam-trusted-automation-v1', groupKey],
     tags: {
       runtime: 'convex',
       environment: config.environment,
@@ -208,6 +227,7 @@ export function buildBackendSentryEnvelope(
       operation: report.operation,
       failure_code: report.failureCode,
       level: 'error',
+      provenance,
     },
     contexts: {
       linejam: numericContext(report),
@@ -252,7 +272,28 @@ export async function sendBackendSentryEvent(
     return;
   }
   const id = eventId();
-  const body = buildBackendSentryEnvelope(report, result.config, id);
+  const routing = {
+    runtime: 'convex',
+    environment: result.config.environment,
+    level: 'error',
+    operation: report.operation,
+    failureCode: report.failureCode,
+  };
+  const [provenance, groupKey] = await Promise.all([
+    signSentryAutomationProvenance(result.config.provenanceSecret, {
+      eventId: id,
+      release: result.config.release,
+      ...routing,
+    }),
+    signSentryAutomationGroup(result.config.provenanceSecret, routing),
+  ]);
+  const body = buildBackendSentryEnvelope(
+    report,
+    result.config,
+    id,
+    provenance,
+    groupKey
+  );
   if (!body) {
     console.error('Sentry transport rejected a report');
     return;

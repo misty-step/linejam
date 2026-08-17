@@ -16,12 +16,15 @@ const COMPLETE_PRODUCTION_ENV = {
   SENTRY_ENVIRONMENT: 'production',
   SENTRY_RELEASE: 'a'.repeat(40),
   SENTRY_EVENT_WRITE_TOKEN: 'test-event-token',
+  SENTRY_AUTOMATION_PROVENANCE_SECRET:
+    'test-provenance-secret-with-at-least-32-bytes',
   SENTRY_EXPECTED_APP_ID: '160944',
   SENTRY_EXPECTED_INSTALLATION_UUID: '268a6e8e-c341-414e-bee6-20125b9987ef',
   SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
   SENTRY_GITHUB_INTEGRATION_ID: '338522',
   SENTRY_ORG: 'misty-step',
   SENTRY_WEBHOOK_SECRET: 'test-webhook-secret',
+  SENTRY_AGENT_LOOP_SECRET: 'test-agent-loop-secret-at-least-32-characters',
 };
 
 describe('Convex env validation', () => {

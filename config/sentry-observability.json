@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "organization": "misty-step",
+  "project": "linejam",
+  "projectId": "4510762050650112",
+  "issueAlerts": {
+    "required": [
+      {
+        "name": "GitHub bridge: New operational issue",
+        "enabled": true,
+        "trigger": {
+          "logic": "all",
+          "conditionTypes": ["first_seen_event"]
+        },
+        "filterLogic": "all",
+        "frequencyMinutes": 120,
+        "action": {
+          "type": "webhook",
+          "status": "active",
+          "target": "linejam-github-bridge-d1d6bd"
+        },
+        "tagFilters": {
+          "runtime": "convex,github-actions",
+          "operation": "sweepAbandonedGames,finishAbandonedGame,previewSmoke,productionSmoke"
+        }
+      },
+      {
+        "name": "GitHub bridge: Regressed operational issue",
+        "enabled": true,
+        "trigger": {
+          "logic": "all",
+          "conditionTypes": ["regression_event"]
+        },
+        "filterLogic": "all",
+        "frequencyMinutes": 120,
+        "action": {
+          "type": "webhook",
+          "status": "active",
+          "target": "linejam-github-bridge-d1d6bd"
+        },
+        "tagFilters": {
+          "runtime": "convex,github-actions",
+          "operation": "sweepAbandonedGames,finishAbandonedGame,previewSmoke,productionSmoke"
+        }
+      },
+      {
+        "name": "Regression Alert",
+        "enabled": true,
+        "action": {
+          "type": "email",
+          "status": "active"
+        }
+      },
+      {
+        "name": "New Unhandled Exception",
+        "enabled": true,
+        "action": {
+          "type": "email",
+          "status": "active"
+        }
+      },
+      {
+        "name": "High frequency error spike",
+        "enabled": true,
+        "action": {
+          "type": "email",
+          "status": "active"
+        }
+      },
+      {
+        "name": "Send a notification for high priority issues",
+        "enabled": true,
+        "action": {
+          "type": "email",
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "uptimeMonitors": {
+    "required": [
+      {
+        "id": "8094070",
+        "name": "Linejam production health",
+        "projectSlug": "linejam",
+        "status": "active",
+        "environment": "production",
+        "url": "https://www.linejam.app/api/health",
+        "method": "GET",
+        "intervalSeconds": 60,
+        "timeoutMs": 10000,
+        "recoveryThreshold": 1,
+        "downtimeThreshold": 3,
+        "traceSampling": false,
+        "responseCaptureEnabled": false
+      }
+    ]
+  },
+  "cronMonitors": {
+    "required": [
+      {
+        "slug": "linejam-production-smoke",
+        "status": "active",
+        "isMuted": false,
+        "schedule": "17 * * * *",
+        "timezone": "UTC",
+        "maxRuntimeMinutes": 15,
+        "checkinMarginMinutes": 5,
+        "recoveryThreshold": 1,
+        "failureIssueThreshold": 2
+      }
+    ],
+    "forbidden": ["linejam-production-health", "linejam-ai-fallback-rate"]
+  },
+  "release": {
+    "requiresDeployMarker": true,
+    "environment": "production"
+  },
+  "dashboard": {
+    "id": "9551300",
+    "title": "Linejam Reliability",
+    "requiredWidgets": [
+      "Unresolved Errors",
+      "Error Volume",
+      "Errors by Release",
+      "Operational Failures",
+      "Slow Transactions"
+    ]
+  }
+}
