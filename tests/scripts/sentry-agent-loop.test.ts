@@ -220,6 +220,10 @@ describe('Sentry agent loop', () => {
   });
 
   it('prunes private incident artifacts after 30 days', () => {
+    pruneAgentState(
+      join(tmpdir(), 'linejam-state-retention-definitely-missing'),
+      Date.now()
+    );
     const stateDir = mkdtempSync(join(tmpdir(), 'linejam-state-retention-'));
     const currentTime = Date.now();
     const expiredTime = currentTime - 31 * 24 * 60 * 60 * 1_000;
@@ -1552,6 +1556,18 @@ describe('Sentry agent loop', () => {
   });
 
   it('handles idle, mismatched, failed, and malformed claim responses', async () => {
+    const stopped = new AbortController();
+    stopped.abort();
+    const stoppedFetch = vi.fn();
+    await expect(
+      dispatchSentryAgent({
+        env: env(),
+        fetchImpl: stoppedFetch,
+        shutdownSignal: stopped.signal,
+      })
+    ).rejects.toThrow('agent shutdown requested');
+    expect(stoppedFetch).not.toHaveBeenCalled();
+
     await expect(
       dispatchSentryAgent({
         env: { ...env(), LINEJAM_SENTRY_AGENT_TIMEOUT_MS: '' },
@@ -2199,6 +2215,255 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
       expect(await allowed.text()).toBe('POST /v1/chat/completions');
       expect(allowed.headers.get('content-type')).toBe('application/json');
       expect(allowed.headers.get('cache-control')).toBe('no-store');
+      const inferenceRequest = (payload: unknown) =>
+        fetch('http://127.0.0.1:48766/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      for (const messages of [
+        [{ role: 'system', content: 'system boundary' }],
+        [
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'text-only content' }],
+          },
+        ],
+        [{ role: 'assistant', content: null }],
+        [
+          {
+            role: 'assistant',
+            content: 'calling tool',
+            tool_calls: [
+              {
+                id: 'call-1',
+                type: 'function',
+                function: { name: 'read', arguments: '{}' },
+              },
+            ],
+          },
+        ],
+        [{ role: 'tool', content: 'bounded result', tool_call_id: 'call-1' }],
+      ]) {
+        const accepted = await inferenceRequest({
+          ...inferencePayload('accepted message'),
+          messages,
+        });
+        expect(accepted.status).toBe(200);
+      }
+      const basePayload = inferencePayload('policy matrix');
+      const baseTools = basePayload.tools;
+      const duplicateTools = structuredClone(baseTools);
+      duplicateTools[1].function.name = duplicateTools[0].function.name;
+      const invalidPayloads = [
+        { ...basePayload, stream: false },
+        { ...basePayload, store: true },
+        { ...basePayload, stream_options: {} },
+        { ...basePayload, max_completion_tokens: 0 },
+        { ...basePayload, max_completion_tokens: 1.5 },
+        { ...basePayload, messages: 'not-an-array' },
+        { ...basePayload, messages: [null] },
+        { ...basePayload, messages: [{ role: 7, content: 'invalid role' }] },
+        {
+          ...basePayload,
+          messages: [{ role: 'system', content: 'extra key', extra: true }],
+        },
+        { ...basePayload, messages: [{ role: 'user', content: 7 }] },
+        { ...basePayload, messages: [{ role: 'user', content: [] }] },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'user',
+              content: [{ type: 'text', text: 'extra', extra: true }],
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'user',
+              content: [{ type: 'image_url', text: 'not text' }],
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'user', content: [{ type: 'text', text: 7 }] }],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'assistant', content: null, extra: true }],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'assistant', content: {} }],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'assistant', content: null, tool_calls: [] }],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'assistant', content: null, tool_calls: {} }],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'assistant',
+              content: null,
+              tool_calls: [{ id: 'call-1', type: 'function' }],
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 7,
+                  type: 'function',
+                  function: { name: 'read', arguments: '{}' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  type: 'command',
+                  function: { name: 'read', arguments: '{}' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  type: 'function',
+                  function: { name: 'unknown', arguments: '{}' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  type: 'function',
+                  function: { name: 'read', arguments: 7 },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'tool',
+              content: 'result',
+              tool_call_id: 'call-1',
+              extra: 1,
+            },
+          ],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'tool', content: 7, tool_call_id: 'call-1' }],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'tool', content: 'result', tool_call_id: 7 }],
+        },
+        {
+          ...basePayload,
+          messages: [{ role: 'owner', content: 'unsupported role' }],
+        },
+        { ...basePayload, tools: 'not-an-array' },
+        { ...basePayload, tools: [] },
+        {
+          ...basePayload,
+          tools: [{ ...baseTools[0], extra: true }, ...baseTools.slice(1)],
+        },
+        {
+          ...basePayload,
+          tools: [{ ...baseTools[0], type: 'command' }, ...baseTools.slice(1)],
+        },
+        {
+          ...basePayload,
+          tools: [
+            {
+              ...baseTools[0],
+              function: { ...baseTools[0].function, extra: true },
+            },
+            ...baseTools.slice(1),
+          ],
+        },
+        {
+          ...basePayload,
+          tools: [
+            {
+              ...baseTools[0],
+              function: { ...baseTools[0].function, name: 'unknown' },
+            },
+            ...baseTools.slice(1),
+          ],
+        },
+        { ...basePayload, tools: duplicateTools },
+        {
+          ...basePayload,
+          tools: [
+            {
+              ...baseTools[0],
+              function: { ...baseTools[0].function, description: 7 },
+            },
+            ...baseTools.slice(1),
+          ],
+        },
+        {
+          ...basePayload,
+          tools: [
+            {
+              ...baseTools[0],
+              function: { ...baseTools[0].function, parameters: [] },
+            },
+            ...baseTools.slice(1),
+          ],
+        },
+      ];
+      for (const payload of invalidPayloads) {
+        const rejected = await inferenceRequest(payload);
+        expect(rejected.status).toBe(400);
+        expect(await rejected.json()).toEqual({
+          error: 'request_policy_violation',
+        });
+      }
       const gatewayRequest = (content: string) =>
         fetch('http://127.0.0.1:48766/v1/chat/completions', {
           method: 'POST',
