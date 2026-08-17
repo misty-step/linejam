@@ -41,7 +41,6 @@ import type * as presence from "../presence.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as retention from "../retention.js";
 import type * as rooms from "../rooms.js";
-import type * as sentryGithub from "../sentryGithub.js";
 import type * as shares from "../shares.js";
 import type * as users from "../users.js";
 
@@ -85,7 +84,6 @@ declare const fullApi: ApiFromModules<{
   rateLimits: typeof rateLimits;
   retention: typeof retention;
   rooms: typeof rooms;
-  sentryGithub: typeof sentryGithub;
   shares: typeof shares;
   users: typeof users;
 }>;

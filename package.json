@@ -16,8 +16,6 @@
     "convex:env:reconcile": "node ./scripts/ci/reconcile-convex-env.mjs --target development",
     "ops:do-drift": "node ./scripts/ops/check-digitalocean-app-drift.mjs",
     "ops:sentry-audit": "node ./scripts/ops/check-sentry-observability.mjs",
-    "ops:sentry-agent": "node ./scripts/ops/sentry-agent-loop.mjs",
-    "ops:sentry-agent:install": "node ./scripts/ops/install-sentry-agent-loop.mjs",
     "build": "node ./scripts/ci/bootstrap-convex-env.mjs --deploy",
     "build:check": "next build",
     "start:next": "next start",

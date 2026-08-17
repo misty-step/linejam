@@ -34,13 +34,9 @@ describe('bootstrap-convex-env', () => {
     NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join('@'),
     NEXT_DEPLOYMENT_ID: 'a'.repeat(40),
   };
-  const bridgeSecrets = {
-    SENTRY_WEBHOOK_SECRET: 'webhook-secret',
-    SENTRY_EVENT_WRITE_TOKEN: 'event-write-token',
+  const provenanceSecrets = {
     SENTRY_AUTOMATION_PROVENANCE_SECRET:
       'automation-provenance-secret-at-least-32-characters',
-    GITHUB_ISSUES_TOKEN: 'github-issues-token',
-    SENTRY_AGENT_LOOP_SECRET: 'agent-loop-secret-at-least-32-characters',
   };
 
   it('derives a Clerk issuer domain from the publishable key when needed', () => {
@@ -105,7 +101,7 @@ describe('bootstrap-convex-env', () => {
     });
   });
 
-  it('seeds the complete preview issue bridge only when all secrets exist', () => {
+  it('seeds the provenance secret when present in preview', () => {
     const plan = buildConvexEnvBootstrapPlan(
       env({
         CONVEX_DEPLOY_KEY: 'preview:team:project|secret',
@@ -116,36 +112,17 @@ describe('bootstrap-convex-env', () => {
           'solid-beetle-24.clerk.accounts.dev'
         ),
         ...sentryEnv,
-        SENTRY_WEBHOOK_SECRET: 'webhook-secret',
-        SENTRY_EVENT_WRITE_TOKEN: 'event-write-token',
-        SENTRY_AUTOMATION_PROVENANCE_SECRET:
-          'automation-provenance-secret-at-least-32-characters',
-        GITHUB_ISSUES_TOKEN: 'github-issues-token',
+        ...provenanceSecrets,
       })
     );
 
-    expect(plan.entries.slice(-11)).toEqual([
-      ['SENTRY_WEBHOOK_SECRET', 'webhook-secret'],
-      ['SENTRY_EVENT_WRITE_TOKEN', 'event-write-token'],
-      [
-        'SENTRY_AUTOMATION_PROVENANCE_SECRET',
-        'automation-provenance-secret-at-least-32-characters',
-      ],
-      ['GITHUB_ISSUES_TOKEN', 'github-issues-token'],
-      ['SENTRY_ORG', 'misty-step'],
-      ['SENTRY_EXPECTED_APP_ID', '160944'],
-      [
-        'SENTRY_EXPECTED_INSTALLATION_UUID',
-        '268a6e8e-c341-414e-bee6-20125b9987ef',
-      ],
-      ['SENTRY_EXPECTED_PROJECT_ID', '4510762050650112'],
-      ['SENTRY_GITHUB_INTEGRATION_ID', '338522'],
-      ['GITHUB_REPOSITORY_OWNER', 'misty-step'],
-      ['GITHUB_REPOSITORY_NAME', 'linejam'],
+    expect(plan.entries.at(-1)).toEqual([
+      'SENTRY_AUTOMATION_PROVENANCE_SECRET',
+      'automation-provenance-secret-at-least-32-characters',
     ]);
   });
 
-  it('requires the complete issue bridge for production', () => {
+  it('requires the provenance secret for production', () => {
     expect(() =>
       buildConvexEnvBootstrapPlan(
         env({
@@ -159,18 +136,11 @@ describe('bootstrap-convex-env', () => {
         })
       )
     ).toThrow(
-      'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
+      'SENTRY_AUTOMATION_PROVENANCE_SECRET must contain 32-256 bytes for hosted Convex environments.'
     );
   });
 
-  it('requires a distinct production agent-loop secret', () => {
-    const bridgeWithoutAgent = {
-      SENTRY_WEBHOOK_SECRET: bridgeSecrets.SENTRY_WEBHOOK_SECRET,
-      SENTRY_EVENT_WRITE_TOKEN: bridgeSecrets.SENTRY_EVENT_WRITE_TOKEN,
-      SENTRY_AUTOMATION_PROVENANCE_SECRET:
-        bridgeSecrets.SENTRY_AUTOMATION_PROVENANCE_SECRET,
-      GITHUB_ISSUES_TOKEN: bridgeSecrets.GITHUB_ISSUES_TOKEN,
-    };
+  it('rejects a short production provenance secret', () => {
     expect(() =>
       buildConvexEnvBootstrapPlan(
         env({
@@ -181,33 +151,11 @@ describe('bootstrap-convex-env', () => {
             'clerk.linejam.app'
           ),
           ...sentryEnv,
-          ...bridgeWithoutAgent,
+          SENTRY_AUTOMATION_PROVENANCE_SECRET: 'short',
         })
       )
     ).toThrow(
-      'SENTRY_AGENT_LOOP_SECRET must contain at least 32 characters for production.'
-    );
-  });
-
-  it('rejects one shared webhook and agent-loop secret', () => {
-    const sharedSecret = 'shared-production-secret-at-least-32-characters';
-    expect(() =>
-      buildConvexEnvBootstrapPlan(
-        env({
-          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
-          GUEST_TOKEN_SECRET: 'guest-secret',
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
-            'live',
-            'clerk.linejam.app'
-          ),
-          ...sentryEnv,
-          ...bridgeSecrets,
-          SENTRY_WEBHOOK_SECRET: sharedSecret,
-          SENTRY_AGENT_LOOP_SECRET: sharedSecret,
-        })
-      )
-    ).toThrow(
-      'SENTRY_AGENT_LOOP_SECRET must differ from SENTRY_WEBHOOK_SECRET.'
+      'SENTRY_AUTOMATION_PROVENANCE_SECRET must contain 32-256 bytes for hosted Convex environments.'
     );
   });
 
@@ -399,7 +347,7 @@ describe('bootstrap-convex-env', () => {
         ),
         CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
         ...sentryEnv,
-        ...bridgeSecrets,
+        ...provenanceSecrets,
       }),
       runner,
       logger: { log: vi.fn() },
@@ -423,18 +371,7 @@ describe('bootstrap-convex-env', () => {
       'SENTRY_DSN',
       'SENTRY_ENVIRONMENT',
       'SENTRY_RELEASE',
-      'SENTRY_WEBHOOK_SECRET',
-      'SENTRY_EVENT_WRITE_TOKEN',
       'SENTRY_AUTOMATION_PROVENANCE_SECRET',
-      'GITHUB_ISSUES_TOKEN',
-      'SENTRY_ORG',
-      'SENTRY_EXPECTED_APP_ID',
-      'SENTRY_EXPECTED_INSTALLATION_UUID',
-      'SENTRY_EXPECTED_PROJECT_ID',
-      'SENTRY_GITHUB_INTEGRATION_ID',
-      'GITHUB_REPOSITORY_OWNER',
-      'GITHUB_REPOSITORY_NAME',
-      'SENTRY_AGENT_LOOP_SECRET',
     ]);
     expect(calls.slice(-3)).toEqual([
       {
@@ -481,7 +418,7 @@ describe('bootstrap-convex-env', () => {
           ),
           CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
           ...sentryEnv,
-          ...bridgeSecrets,
+          ...provenanceSecrets,
         }),
         runner,
         logger: { log: vi.fn() },
@@ -737,7 +674,7 @@ exit 0
             ),
             CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
             ...sentryEnv,
-            ...bridgeSecrets,
+            ...provenanceSecrets,
           },
           encoding: 'utf8',
         }
@@ -754,18 +691,7 @@ exit 0
         'exec convex env --prod set SENTRY_DSN',
         'exec convex env --prod set SENTRY_ENVIRONMENT',
         'exec convex env --prod set SENTRY_RELEASE',
-        'exec convex env --prod set SENTRY_WEBHOOK_SECRET',
-        'exec convex env --prod set SENTRY_EVENT_WRITE_TOKEN',
         'exec convex env --prod set SENTRY_AUTOMATION_PROVENANCE_SECRET',
-        'exec convex env --prod set GITHUB_ISSUES_TOKEN',
-        'exec convex env --prod set SENTRY_ORG',
-        'exec convex env --prod set SENTRY_EXPECTED_APP_ID',
-        'exec convex env --prod set SENTRY_EXPECTED_INSTALLATION_UUID',
-        'exec convex env --prod set SENTRY_EXPECTED_PROJECT_ID',
-        'exec convex env --prod set SENTRY_GITHUB_INTEGRATION_ID',
-        'exec convex env --prod set GITHUB_REPOSITORY_OWNER',
-        'exec convex env --prod set GITHUB_REPOSITORY_NAME',
-        'exec convex env --prod set SENTRY_AGENT_LOOP_SECRET',
         'exec convex deploy --cmd pnpm run build:check',
         'node scripts/ci/reconcile-convex-env.mjs',
         'node scripts/convex/probe-signed-throttle-ready.mjs --assert-prod-target',
