@@ -484,6 +484,28 @@ describe('Sentry agent loop', () => {
         .filter((call) => call !== isolatedCall)
         .every(([, args]) => args.includes('ClearAllForwardings=yes'))
     ).toBe(true);
+    const vmSetupCall = run.mock.calls.find(
+      ([file, args]) =>
+        file === 'ssh' &&
+        args.some((arg) =>
+          arg.includes(
+            'https://nodejs.org/dist/v22.23.1/node-v22.23.1-linux-x64.tar.xz'
+          )
+        )
+    );
+    expect(vmSetupCall).toBeDefined();
+    const vmSetupCommand = String(vmSetupCall?.[1].at(-1));
+    const protectedArchive =
+      '/var/lib/linejam-node/node-v22.23.1-linux-x64.tar.xz';
+    expect(vmSetupCommand).toContain(
+      'sudo -n install -d -o root -g root -m 0700 /var/lib/linejam-node'
+    );
+    expect(vmSetupCommand).toContain(
+      `echo '9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578  ${protectedArchive}' | sha256sum --check --strict`
+    );
+    expect(vmSetupCommand.indexOf('sha256sum --check --strict')).toBeLessThan(
+      vmSetupCommand.indexOf(`tar -xJf ${protectedArchive}`)
+    );
     const networkIsolationCall = run.mock.calls.find(
       ([file, args]) =>
         file === 'ssh' &&

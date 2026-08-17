@@ -39,6 +39,11 @@ const BROKER_PORT = 48_765;
 const ACTIVE_COMMAND_TERMINATORS = new Set();
 const GATEWAY_UPSTREAM_PORT = 48_767;
 const INFERENCE_MODEL_ID = 'openai-codex/gpt-5.6-sol';
+const VM_NODE_VERSION = '22.23.1';
+const VM_NODE_ARCHIVE = `node-v${VM_NODE_VERSION}-linux-x64.tar.xz`;
+const VM_NODE_SHA256 =
+  '9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578';
+const VM_NODE_URL = `https://nodejs.org/dist/v${VM_NODE_VERSION}/${VM_NODE_ARCHIVE}`;
 const MAX_INFERENCE_REQUEST_BYTES = 1024 * 1024;
 const MAX_INFERENCE_REQUESTS = 32;
 const MAX_INFERENCE_RESPONSE_BYTES = 8 * 1_024 * 1_024;
@@ -1717,7 +1722,7 @@ async function prepareVm({
   const setupArgs = isolatedSshArgs([
     '-n',
     host,
-    `sudo -n useradd --create-home --shell /bin/bash ${VM_AGENT_USER} && sudo -n -u ${VM_AGENT_USER} -- git clone --filter=blob:none --no-tags ${REPO_URL} ${VM_REPOSITORY} && sudo -n -u ${VM_AGENT_USER} -- sh -c 'cd ${VM_REPOSITORY} && corepack pnpm install --frozen-lockfile --ignore-scripts' && mkdir -p /tmp/linejam-agent/skills`,
+    `sudo -n install -d -o root -g root -m 0700 /var/lib/linejam-node && sudo -n curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --output /var/lib/linejam-node/${VM_NODE_ARCHIVE} ${VM_NODE_URL} && sudo -n sh -c "echo '${VM_NODE_SHA256}  /var/lib/linejam-node/${VM_NODE_ARCHIVE}' | sha256sum --check --strict && tar -xJf /var/lib/linejam-node/${VM_NODE_ARCHIVE} -C /usr/local --strip-components=1 && rm -f /var/lib/linejam-node/${VM_NODE_ARCHIVE}" && sudo -n useradd --create-home --shell /bin/bash ${VM_AGENT_USER} && sudo -n -u ${VM_AGENT_USER} -- git clone --filter=blob:none --no-tags ${REPO_URL} ${VM_REPOSITORY} && sudo -n -u ${VM_AGENT_USER} -- sh -c 'cd ${VM_REPOSITORY} && corepack pnpm install --frozen-lockfile --ignore-scripts' && mkdir -p /tmp/linejam-agent/skills`,
   ]);
   const setup = await run('ssh', setupArgs, { cwd: root, env: runtimeEnv });
   if (setup.status !== 0) throw commandFailure('ssh', setupArgs, setup);
