@@ -74,7 +74,7 @@ export function validateEnv(): void {
   }
 
   for (const key of REQUIRED_PUBLIC_ENV) {
-    if (!process.env[key]) {
+    if (!isDependabot && !process.env[key]) {
       missing.push(key);
     }
   }
