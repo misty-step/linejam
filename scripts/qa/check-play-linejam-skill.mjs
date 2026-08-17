@@ -184,6 +184,33 @@ function validate() {
     );
   }
 
+  const SCHEDULED_RUNNER = resolve(
+    REPO_ROOT,
+    'scripts/qa/run-scheduled-play.mjs'
+  );
+  const SCHEDULED_PROMPT = resolve(
+    REPO_ROOT,
+    'scripts/qa/play-scheduled.prompt.md'
+  );
+  if (!existsSync(SCHEDULED_RUNNER)) {
+    errors.push('Missing scheduled runner: scripts/qa/run-scheduled-play.mjs');
+  }
+  if (existsSync(SCHEDULED_PROMPT)) {
+    const prompt = readFileSync(SCHEDULED_PROMPT, 'utf8');
+    if (
+      !prompt.includes('qa:play-linejam:result') ||
+      !prompt.includes('.agents/skills/play-linejam/')
+    ) {
+      errors.push(
+        'play-scheduled.prompt.md must route the coordinator through the skill and the receipt writer'
+      );
+    }
+  } else {
+    errors.push(
+      'Missing scheduled prompt: scripts/qa/play-scheduled.prompt.md'
+    );
+  }
+
   // 3. SKILL.md frontmatter
   const skillFile = resolve(SKILL_DIR, 'SKILL.md');
   if (existsSync(skillFile)) {

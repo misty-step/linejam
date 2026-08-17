@@ -179,6 +179,54 @@ Operator controls: `sentry-agent-loop.mjs status` prints tracked state;
 retries it. Pause the Hermes job if prohibited data appears or an agent
 crosses the no-merge/no-deploy boundary.
 
+## Scheduled agent play
+
+`pnpm qa:play-linejam:scheduled` (`scripts/qa/run-scheduled-play.mjs`) is the
+production guest-play lane: on each invocation it dispatches one bounded OMP
+coordinator agent that drives a `play-linejam` fleet (1 host + 3 guests by
+default) through the rendered UI of the target deployment, then validates and
+persists the run receipt.
+
+Operator authority granted 2026-08-17 covers anonymous guest play against
+`https://www.linejam.app` on a schedule. Agents create one guest room per run
+with synthetic lines, never sign in, never purchase, never share or favorite
+poems, and close the room before finishing. This is QA traffic in closed
+rooms that retention cleans up; it is distinct from the machine-authored
+product surface removed in
+[#419](https://github.com/misty-step/linejam/issues/419). The runner needs no
+credentials of any kind.
+
+Environment contract:
+
+- `LINEJAM_PLAY_TARGET` — required canonical origin. Loopback targets run
+  without further gating.
+- `LINEJAM_PLAY_AUTHORITY=1` — required for any remote target; the runner
+  fails closed without it.
+- `LINEJAM_PLAY_PLAYERS` (2–6, default 4), `LINEJAM_PLAY_TIMEOUT_MS`
+  (default 20 minutes), `LINEJAM_PLAY_STATE_DIR` (default
+  `~/.local/state/linejam-play-qa`), `LINEJAM_PLAY_REPO` (default the
+  checkout containing the script).
+
+Each run executes in a detached worktree at `origin/master`, holds a state-dir
+lock against overlap, and keeps private evidence (receipt, screenshots, agent
+log) under `<stateDir>/runs/<runId>/`. A single sanitized receipt line goes to
+stdout for Hermes delivery: run id, status, closed error code, player count,
+and target host — never room codes, tokens, or poem text.
+
+Escalation: one failure is workflow evidence; the second consecutive failure
+opens (or comments on) a GitHub issue labelled `agent-play-qa` with
+closed-vocabulary detail only; a passing run comments `recovered` and closes
+it. Sentry stays out of this lane: the ledger for fleet failures is the
+issue, per the no-second-work-ledger rule.
+
+Recommended cadence: `23 */4 * * *` as a Hermes `--no-agent` cron job, e.g.
+`LINEJAM_PLAY_TARGET=https://www.linejam.app LINEJAM_PLAY_AUTHORITY=1 pnpm qa:play-linejam:scheduled`.
+
+Kill switches: pause the Hermes job, or unset `LINEJAM_PLAY_AUTHORITY` — the
+next invocation then fails closed before any browser starts. Stop conditions
+that require pausing: fleet play interfering with real players, evidence
+leaking private data, or agents crossing the no-merge/no-deploy boundary.
+
 ## Reusable Misty Step adoption contract
 
 Reuse the boundary and evidence requirements, not Linejam's implementation
