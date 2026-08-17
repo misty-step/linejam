@@ -1056,9 +1056,21 @@ function projectInferenceMessage(message) {
     return { role: message.role, content };
   }
   if (message.role === 'assistant') {
-    if (!hasExactKeys(message, ['role', 'content'], ['tool_calls']))
+    if (
+      !hasExactKeys(
+        message,
+        ['role', 'content'],
+        ['tool_calls', 'reasoning_content']
+      )
+    )
       return null;
     if (message.content !== null && typeof message.content !== 'string') {
+      return null;
+    }
+    if (
+      message.reasoning_content !== undefined &&
+      typeof message.reasoning_content !== 'string'
+    ) {
       return null;
     }
     const projected = { role: 'assistant', content: message.content };

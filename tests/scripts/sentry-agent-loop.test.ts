@@ -2409,7 +2409,7 @@ if [ "$FAIL_GATEWAY" = "1" ]; then
   exit 7
 fi
 port="\${3##*:}"
-exec ${process.execPath} -e "require('node:http').createServer((request, response) => { let body = ''; request.on('data', (chunk) => { body += chunk; }); request.once('end', () => { if (!body.includes('headerless-response')) { response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); } if (body.includes('abort-response')) { const socket = response.socket; response.flushHeaders(); response.write('partial'); setTimeout(() => socket.destroy(), 10); return; } if (body.includes('oversized-response')) { response.end('x'.repeat(9 * 1024 * 1024)); return; } response.end(request.method + ' ' + request.url); }); }).listen(Number(process.argv[1]), '127.0.0.1')" "$port"
+exec ${process.execPath} -e "require('node:http').createServer((request, response) => { let body = ''; request.on('data', (chunk) => { body += chunk; }); request.once('end', () => { if (!body.includes('headerless-response')) { response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); } if (body.includes('private-reasoning')) { response.statusCode = 500; response.end('reasoning-leaked'); return; } if (body.includes('abort-response')) { const socket = response.socket; response.flushHeaders(); response.write('partial'); setTimeout(() => socket.destroy(), 10); return; } if (body.includes('oversized-response')) { response.end('x'.repeat(9 * 1024 * 1024)); return; } response.end(request.method + ' ' + request.url); }); }).listen(Number(process.argv[1]), '127.0.0.1')" "$port"
 `
     );
     chmodSync(omp, 0o700);
@@ -2480,6 +2480,20 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
             ],
           },
         ],
+        [
+          {
+            role: 'assistant',
+            content: 'calling tool without forwarding hidden reasoning',
+            reasoning_content: 'private-reasoning',
+            tool_calls: [
+              {
+                id: 'call-2',
+                type: 'function',
+                function: { name: 'read', arguments: '{}' },
+              },
+            ],
+          },
+        ],
         [{ role: 'tool', content: 'bounded result', tool_call_id: 'call-1' }],
       ]) {
         const accepted = await inferenceRequest({
@@ -2537,6 +2551,16 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
         {
           ...basePayload,
           messages: [{ role: 'assistant', content: null, extra: true }],
+        },
+        {
+          ...basePayload,
+          messages: [
+            {
+              role: 'assistant',
+              content: null,
+              reasoning_content: 7,
+            },
+          ],
         },
         {
           ...basePayload,
