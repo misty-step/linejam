@@ -69,7 +69,8 @@
         "maxRuntimeMinutes": 15,
         "checkinMarginMinutes": 60,
         "recoveryThreshold": 1,
-        "failureIssueThreshold": 2
+        "failureIssueThreshold": 2,
+        "environments": ["production"]
       }
     ],
     "forbidden": ["linejam-production-health", "linejam-ai-fallback-rate"]

@@ -96,6 +96,7 @@ interface CronMonitorFixture {
   isMuted: boolean;
   slug: string;
   status: string;
+  environments?: { name: string }[];
 }
 
 interface UptimeMonitorFixture {
@@ -162,6 +163,7 @@ function passingSnapshot(
         recovery_threshold: monitor.recoveryThreshold,
         failure_issue_threshold: monitor.failureIssueThreshold,
       },
+      environments: (monitor.environments ?? []).map((name) => ({ name })),
     })),
     uptimeMonitors: source.uptimeMonitors.required.map((monitor) => ({
       ...monitor,
@@ -601,6 +603,23 @@ it('reports missing declared monitors and exercises the executable boundary', ()
   expect(failure.status).toBe(2);
   expect(failure.stderr).toContain(
     'Sentry observability audit failed closed: Unknown argument'
+  );
+});
+
+it('reports stale cron monitor environments', () => {
+  const snapshot = passingSnapshot();
+  snapshot.cronMonitors[0].environments = [
+    { name: 'production' },
+    { name: 'preview' },
+  ];
+  expect(auditSentryObservability(manifest, snapshot).failures).toContain(
+    'cron-monitor:linejam-production-smoke:environments-drift:expected=production:actual=preview,production'
+  );
+
+  const missing = passingSnapshot();
+  delete missing.cronMonitors[0].environments;
+  expect(auditSentryObservability(manifest, missing).failures).toContain(
+    'cron-monitor:linejam-production-smoke:environments-drift:expected=production:actual='
   );
 });
 
