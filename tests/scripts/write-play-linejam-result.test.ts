@@ -1,5 +1,12 @@
 /** @vitest-environment node */
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -212,6 +219,98 @@ describe('play-linejam result validation', () => {
     expect(
       existsSync(path.resolve(`.qa/runs/${candidateRunId}/result.json`))
     ).toBe(false);
+  });
+
+  it('persists a passed receipt backed by a physical visual artifact', async () => {
+    const candidateRunId = uniqueRunId();
+    const result = validResult(candidateRunId);
+    const runsDir = path.resolve('.qa/runs');
+    const runDir = path.resolve(result.evidence.runDir);
+    result.evidence.artifacts[0].path = `.qa/runs/${candidateRunId}/artifact-0001.png`;
+    mkdirSync(runsDir, { recursive: true });
+    mkdirSync(runDir);
+    writeFileSync(
+      path.resolve(runDir, 'artifact-0001.png'),
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=',
+        'base64'
+      )
+    );
+
+    try {
+      const outputPath = await writePlayLinejamResult(JSON.stringify(result));
+      expect(outputPath).toBe(path.resolve(runDir, 'result.json'));
+      expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
+    } finally {
+      rmSync(runDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an empty artifact before persistence', async () => {
+    const candidateRunId = uniqueRunId();
+    const result = validResult(candidateRunId);
+    const runsDir = path.resolve('.qa/runs');
+    const runDir = path.resolve(result.evidence.runDir);
+    mkdirSync(runsDir, { recursive: true });
+    mkdirSync(runDir);
+    writeFileSync(path.resolve(runDir, 'artifact-0001.webp'), '');
+
+    try {
+      await expect(
+        writePlayLinejamResult(JSON.stringify(result))
+      ).rejects.toThrow('artifact must be a non-empty regular run-local file');
+      expect(existsSync(path.resolve(runDir, 'result.json'))).toBe(false);
+    } finally {
+      rmSync(runDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a symlinked artifact before persistence', async () => {
+    const candidateRunId = uniqueRunId();
+    const result = validResult(candidateRunId);
+    const runsDir = path.resolve('.qa/runs');
+    const runDir = path.resolve(result.evidence.runDir);
+    mkdirSync(runsDir, { recursive: true });
+    mkdirSync(runDir);
+    writeFileSync(path.resolve(runDir, 'target.webp'), 'not retained');
+    symlinkSync('target.webp', path.resolve(runDir, 'artifact-0001.webp'));
+
+    try {
+      await expect(
+        writePlayLinejamResult(JSON.stringify(result))
+      ).rejects.toThrow('artifact must be a non-empty regular run-local file');
+      expect(existsSync(path.resolve(runDir, 'result.json'))).toBe(false);
+    } finally {
+      rmSync(runDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a non-directory artifact run path', async () => {
+    const candidateRunId = uniqueRunId();
+    const result = validResult(candidateRunId);
+    const runsDir = path.resolve('.qa/runs');
+    const runDir = path.resolve(result.evidence.runDir);
+    mkdirSync(runsDir, { recursive: true });
+    writeFileSync(runDir, 'not a directory');
+
+    try {
+      await expect(
+        writePlayLinejamResult(JSON.stringify(result))
+      ).rejects.toThrow('artifact run directory must be a regular directory');
+    } finally {
+      rmSync(runDir, { force: true });
+    }
+  });
+
+  it('rejects a missing artifact run directory without creating it', async () => {
+    const candidateRunId = uniqueRunId();
+    const result = validResult(candidateRunId);
+    const runDir = path.resolve(result.evidence.runDir);
+
+    await expect(
+      writePlayLinejamResult(JSON.stringify(result))
+    ).rejects.toThrow('artifact run directory is missing');
+    expect(existsSync(runDir)).toBe(false);
   });
 
   it('rejects a missing artifact before persistence', async () => {

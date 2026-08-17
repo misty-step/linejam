@@ -143,6 +143,16 @@ function validate() {
       );
     }
     if (
+      !playerContract.includes('wait --fn') ||
+      !playerContract.includes(
+        "getAttribute('data-round')) > <submitted-round>"
+      )
+    ) {
+      errors.push(
+        'player.md post-submit flow must accept waiting, direct round advance, or reveal'
+      );
+    }
+    if (
       !playerContract.includes('On `CLEANUP_ROOM`') ||
       !playerContract.includes('click **End game**')
     ) {

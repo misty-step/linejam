@@ -107,7 +107,8 @@ target word count. Do not reuse stock lines from this skill.
 
 ### Round Submission Steps:
 
-1. Wait for `WritingScreen` to mount:
+1. Wait for `WritingScreen` to mount and record its integer `data-round` as
+   `<submitted-round>`:
    ```bash
    pnpm exec agent-browser --session <session-name> wait '[data-testid="writing-phase"]'
    ```
@@ -120,12 +121,17 @@ target word count. Do not reuse stock lines from this skill.
    ```bash
    pnpm exec agent-browser --session <session-name> find testid writing-submit-line-button click
    ```
-4. Confirm transition to `WaitingScreen`:
+4. Wait for any valid post-submit state: `waiting-phase`, a `writing-phase`
+   whose numeric `data-round` is greater than `<submitted-round>`, or
+   `reveal-phase`:
    ```bash
-   pnpm exec agent-browser --session <session-name> wait '[data-testid="waiting-phase"]'
+   pnpm exec agent-browser --session <session-name> wait --fn "document.querySelector('[data-testid=\"waiting-phase\"]') !== null || Number(document.querySelector('[data-testid=\"writing-phase\"]')?.getAttribute('data-round')) > <submitted-round> || document.querySelector('[data-testid=\"reveal-phase\"]') !== null"
    ```
-5. Wait semantically for the next writing screen or the reveal phase. Repeat
-   through Round 9.
+5. Branch on the observed state. A higher `data-round` means this player was the
+   last submitter and the server advanced directly to its next writing turn;
+   submit that new round without waiting for `waiting-phase`. From
+   `waiting-phase`, wait semantically for a higher writing round or reveal.
+   Enter reveal immediately when `reveal-phase` appears. Repeat through Round 9.
 
 ## 5. Reveal Phase Flow
 
@@ -172,11 +178,13 @@ The Host confirms that `.qa/runs/<run-id>/artifact-0001.png` exists, then sends
 On `CLEANUP_ROOM`, the Host performs a bounded best-effort return to the lobby:
 
 1. Inspect the current surface. If it is a writing turn, submit a valid line
-   for that displayed word count and wait for `waiting-phase`.
-2. On `waiting-phase`, click **End game**, click the confirmation **End game**,
-   and wait for the lobby. This abandons the incomplete game without revealing
-   partial poems.
-3. If reveal is already active, finish the bounded reading-circle actions until
+   for that displayed word count, then use the same three-way post-submit branch
+   as the normal round loop.
+2. If a higher `data-round` writing phase appears, repeat the bounded valid-line
+   submission. On `waiting-phase`, click **End game**, click the confirmation
+   **End game**, and wait for the lobby. This abandons the incomplete game
+   without revealing partial poems.
+3. If `reveal-phase` appears, finish the bounded reading-circle actions until
    `session-complete`, then click **Back to Lobby**.
 4. In the lobby, click **Close room** and confirm the room UI exits before
    sending `ROOM_CLOSED`.
