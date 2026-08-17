@@ -555,6 +555,12 @@ describe('Sentry agent loop', () => {
     const sentryCall = run.mock.calls.find(([file]) => file === 'sentry');
     expect(sentryCall?.[1].join(' ')).not.toMatch(/title|culprit|event/);
     expect(writeCompletionJournal).toHaveBeenCalledOnce();
+    expect(
+      readFileSync(
+        join(dispatchStateDir, 'packets', 'receipt123.models.yml'),
+        'utf8'
+      )
+    ).toContain('maxTokens: 8192');
     expect(requests.at(-1)).toMatchObject({
       body: {
         action: 'complete',
@@ -2793,7 +2799,10 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
       );
       expect(oversized.status).toBe(413);
       expect(await oversized.json()).toEqual({ error: 'invalid_request' });
-      for (let index = 0; index < 15; index += 1) {
+      await gateway.stop();
+      gateway = undefined;
+      gateway = await startAuthGateway({ runtimeEnv });
+      for (let index = 0; index < 64; index += 1) {
         const payload = {
           ...inferencePayload(`reserved-budget-${String(index)}`),
           max_completion_tokens: 32_768,
@@ -2826,13 +2835,13 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
       gateway = undefined;
       gateway = await startAuthGateway({ runtimeEnv });
       const requestBudgetResponses = await Promise.all(
-        Array.from({ length: 33 }, (_, index) =>
+        Array.from({ length: 65 }, (_, index) =>
           inferenceRequest(inferencePayload(`request-budget-${String(index)}`))
         )
       );
       expect(
         requestBudgetResponses.filter((response) => response.status === 200)
-      ).toHaveLength(32);
+      ).toHaveLength(64);
       expect(
         requestBudgetResponses.filter((response) => response.status === 429)
       ).toHaveLength(1);
