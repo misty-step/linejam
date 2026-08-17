@@ -111,7 +111,11 @@ incident-evidence platform:
   `linejam-production-smoke` Cron Monitor covers the actual hourly scheduled
   smoke. The first failed production smoke remains non-paging; the second
   consecutive failure opens the monitor and emits one closed-tag
-  `productionSmoke` Sentry issue. A passing run recovers it.
+  `productionSmoke` Sentry issue. A passing run recovers it. The monitor's
+  60-minute check-in margin exists because GitHub Actions schedule events are
+  best-effort and run 10-53 minutes late in practice; a slot is only satisfied
+  by a check-in inside `[expected, expected + margin]`, so a smaller margin
+  marks every slot missed even when the smoke passes (LINEJAM-9).
 - The live observability contract exits red only when a second bounded Sentry
   sample confirms the first sample's drift. A healthy first sample performs no
   duplicate reads; a persistent second failure remains authoritative.
