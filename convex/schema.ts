@@ -263,6 +263,18 @@ export default defineSchema({
     deletedByTable: retentionTableCounts,
   }).index('by_completed', ['completedAt']),
 
+  sentryGithubCanonicalIssues: defineTable({
+    canonicalKey: v.string(),
+    githubIssueNumber: v.optional(v.number()),
+    githubCreateAttemptedAt: v.optional(v.number()),
+    agentReceiptId: v.optional(v.id('sentryGithubReceipts')),
+    queuedAgentReceiptId: v.optional(v.id('sentryGithubReceipts')),
+    leaseId: v.optional(v.string()),
+    leaseExpiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_canonicalKey', ['canonicalKey']),
+
   sentryGithubReceipts: defineTable({
     dedupKey: v.string(),
     canonicalKey: v.string(),
@@ -285,6 +297,7 @@ export default defineSchema({
     agentState: v.optional(
       v.union(
         v.literal('pending'),
+        v.literal('queued'),
         v.literal('leased'),
         v.literal('completed'),
         v.literal('blocked')
@@ -300,7 +313,8 @@ export default defineSchema({
         v.literal('issue_closed'),
         v.literal('issue_invalid'),
         v.literal('agent_failed'),
-        v.literal('attempts_exhausted')
+        v.literal('attempts_exhausted'),
+        v.literal('duplicate_canonical')
       )
     ),
     runtime: v.optional(
@@ -346,6 +360,7 @@ export default defineSchema({
         v.literal('github_invalid'),
         v.literal('marker_conflict'),
         v.literal('link_conflict'),
+        v.literal('github_create_ambiguous'),
         v.literal('internal_error'),
         v.literal('attempts_exhausted')
       )

@@ -48,6 +48,11 @@ const renewReceiptLease = makeFunctionReference<
   { receiptId: Id<'sentryGithubReceipts'>; leaseId: string; now: number },
   boolean
 >('sentryGithub:renewReceiptLease');
+const replayReceipt = makeFunctionReference<
+  'mutation',
+  { receiptId: Id<'sentryGithubReceipts'> },
+  boolean
+>('sentryGithub:replayReceipt');
 
 const getReceipt = makeFunctionReference<
   'query',
@@ -812,6 +817,332 @@ describe('durable Sentry to GitHub bridge', () => {
     ).toHaveLength(1);
   });
 
+  it('serializes concurrent receipts and reuses the canonical GitHub issue', async () => {
+    const secondEventId = 'b'.repeat(32);
+    const secondDedupKey = `v2:${INSTALLATION_UUID}:42:123456:${secondEventId}`;
+    const secondProvenance = await signSentryAutomationProvenance(
+      PROVENANCE_SECRET,
+      {
+        eventId: secondEventId,
+        ...TAGS,
+      }
+    );
+    const { t, receiptId } = await insertReceipt();
+    const second = await t.mutation(acceptWebhook, {
+      dedupKey: secondDedupKey,
+      canonicalKey: CANONICAL_KEY,
+      installationUuid: INSTALLATION_UUID,
+      projectId: '42',
+      sentryIssueId: '123456',
+      sentryEventId: secondEventId,
+      now: 1_000,
+    });
+    const firstClaim = await t.mutation(claimReceipt, {
+      receiptId,
+      leaseId: 'concurrent-a',
+      now: Date.now(),
+    });
+    const secondClaim = await t.mutation(claimReceipt, {
+      receiptId: second.receiptId,
+      leaseId: 'concurrent-b',
+      now: Date.now(),
+    });
+    expect(firstClaim).not.toBeNull();
+    expect(secondClaim).toBeNull();
+    await t.run(async (ctx) => {
+      const receipts = await ctx.db.query('sentryGithubReceipts').collect();
+      for (const receipt of receipts) {
+        await ctx.db.patch(receipt._id, {
+          state: 'pending',
+          leaseId: undefined,
+          leaseExpiresAt: undefined,
+          nextAttemptAt: 0,
+          updatedAt: 3_000,
+        });
+      }
+      const canonicalIssue = await ctx.db
+        .query('sentryGithubCanonicalIssues')
+        .withIndex('by_canonicalKey', (q) =>
+          q.eq('canonicalKey', CANONICAL_KEY)
+        )
+        .unique();
+      if (!canonicalIssue) throw new Error('missing canonical issue');
+      await ctx.db.patch(canonicalIssue._id, {
+        leaseId: undefined,
+        leaseExpiresAt: undefined,
+        updatedAt: 3_000,
+      });
+    });
+    let searchCalls = 0;
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+        if (url.endsWith('/user')) {
+          return Response.json({ login: 'bridge-bot' });
+        }
+        const eventId = url.match(/\/events\/([0-9a-f]{32})\/$/)?.[1];
+        if (eventId) {
+          const provenance =
+            eventId === secondEventId ? secondProvenance : PROVENANCE;
+          return Response.json({
+            eventID: eventId,
+            groupID: '123456',
+            tags: Object.entries({ ...TAGS, provenance }).map(
+              ([field, value]) => ({
+                key: field === 'failureCode' ? 'failure_code' : field,
+                value,
+              })
+            ),
+          });
+        }
+        if (url.includes('/search/issues')) {
+          searchCalls += 1;
+          return Response.json({ items: [] });
+        }
+        if (url.includes('/repos/misty-step/linejam/labels/')) {
+          return Response.json({ name: 'configured' });
+        }
+        if (
+          url.endsWith('/repos/misty-step/linejam/issues') &&
+          init?.method === 'POST'
+        ) {
+          return Response.json({ number: 88 }, { status: 201 });
+        }
+        if (
+          url.endsWith('/repos/misty-step/linejam/issues/88') &&
+          init?.method === 'PATCH'
+        ) {
+          return Response.json({ number: 88 });
+        }
+        if (url.includes('/integrations/338522/') && !init?.method) {
+          return Response.json(linkedConfig());
+        }
+        if (url.includes('/integrations/338522/') && init?.method === 'PUT') {
+          return new Response(null, { status: 201 });
+        }
+        throw new Error('unexpected endpoint');
+      });
+
+    await t.action(processReceipt, { receiptId });
+    await t.run((ctx) =>
+      ctx.db.patch(second.receiptId, {
+        nextAttemptAt: 0,
+        updatedAt: Date.now(),
+      })
+    );
+    await t.action(processReceipt, { receiptId: second.receiptId });
+
+    const receipts = await t.run((ctx) =>
+      ctx.db.query('sentryGithubReceipts').collect()
+    );
+    expect(
+      receipts.map((receipt) => ({
+        state: receipt.state,
+        githubIssueNumber: receipt.githubIssueNumber,
+        agentState: receipt.agentState,
+        agentBlockedCode: receipt.agentBlockedCode,
+      }))
+    ).toEqual([
+      {
+        state: 'linked',
+        githubIssueNumber: 88,
+        agentState: 'pending',
+        agentBlockedCode: undefined,
+      },
+      {
+        state: 'linked',
+        githubIssueNumber: 88,
+        agentState: 'queued',
+        agentBlockedCode: undefined,
+      },
+    ]);
+    expect(searchCalls).toBe(1);
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          String(input).endsWith('/repos/misty-step/linejam/issues') &&
+          init?.method === 'POST'
+      )
+    ).toHaveLength(1);
+  });
+
+  it('never repeats an ambiguous canonical GitHub issue create', async () => {
+    const secondEventId = 'c'.repeat(32);
+    const secondDedupKey = `v2:${INSTALLATION_UUID}:42:123456:${secondEventId}`;
+    const secondProvenance = await signSentryAutomationProvenance(
+      PROVENANCE_SECRET,
+      {
+        eventId: secondEventId,
+        ...TAGS,
+      }
+    );
+    const { t, receiptId } = await insertReceipt();
+    let postCalls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/user')) {
+        return Response.json({ login: 'bridge-bot' });
+      }
+      const eventId = url.match(/\/events\/([0-9a-f]{32})\/$/)?.[1];
+      if (eventId) {
+        const provenance =
+          eventId === secondEventId ? secondProvenance : PROVENANCE;
+        return Response.json({
+          eventID: eventId,
+          groupID: '123456',
+          tags: Object.entries({ ...TAGS, provenance }).map(
+            ([field, value]) => ({
+              key: field === 'failureCode' ? 'failure_code' : field,
+              value,
+            })
+          ),
+        });
+      }
+      if (url.includes('/search/issues')) {
+        return Response.json({ items: [] });
+      }
+      if (url.includes('/repos/misty-step/linejam/labels/')) {
+        return Response.json({ name: 'configured' });
+      }
+      if (
+        url.endsWith('/repos/misty-step/linejam/issues') &&
+        init?.method === 'POST'
+      ) {
+        postCalls += 1;
+        throw new TypeError('connection reset after create');
+      }
+      throw new Error('unexpected endpoint');
+    });
+
+    await t.action(processReceipt, { receiptId });
+    const second = await t.mutation(acceptWebhook, {
+      dedupKey: secondDedupKey,
+      canonicalKey: CANONICAL_KEY,
+      installationUuid: INSTALLATION_UUID,
+      projectId: '42',
+      sentryIssueId: '123456',
+      sentryEventId: secondEventId,
+      now: Date.now(),
+    });
+    await t.action(processReceipt, { receiptId: second.receiptId });
+
+    expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+      state: 'blocked',
+      blockedCode: 'github_create_ambiguous',
+    });
+    expect(
+      await t.query(getReceipt, { dedupKey: secondDedupKey })
+    ).toMatchObject({
+      state: 'blocked',
+      blockedCode: 'github_create_ambiguous',
+    });
+    expect(postCalls).toBe(1);
+  });
+
+  it('clears a definitive create failure so replay can create', async () => {
+    const { t, receiptId } = await insertReceipt();
+    let authorized = false;
+    let postCalls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const tag = tagResponse(url);
+      if (tag) return tag;
+      if (url.includes('/search/issues')) {
+        return Response.json({ items: [] });
+      }
+      if (url.includes('/repos/misty-step/linejam/labels/')) {
+        return Response.json({ name: 'configured' });
+      }
+      if (
+        url.endsWith('/repos/misty-step/linejam/issues') &&
+        init?.method === 'POST'
+      ) {
+        postCalls += 1;
+        return authorized
+          ? Response.json({ number: 88 }, { status: 201 })
+          : new Response(null, { status: 401 });
+      }
+      if (url.includes('/integrations/338522/') && !init?.method) {
+        return Response.json(linkedConfig());
+      }
+      if (url.includes('/integrations/338522/') && init?.method === 'PUT') {
+        return new Response(null, { status: 201 });
+      }
+      throw new Error('unexpected endpoint');
+    });
+
+    await t.action(processReceipt, { receiptId });
+    expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+      state: 'blocked',
+      blockedCode: 'github_auth',
+    });
+
+    authorized = true;
+    expect(await t.mutation(replayReceipt, { receiptId })).toBe(true);
+    await t.action(processReceipt, { receiptId });
+
+    expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+      state: 'linked',
+      githubIssueNumber: 88,
+    });
+    expect(postCalls).toBe(2);
+  });
+
+  it('renews before fencing create so a lease failure remains replayable', async () => {
+    const { t, receiptId } = await insertReceipt();
+    await t.run((ctx) => ctx.db.patch(receiptId, { attempts: 9 }));
+    let now = 1_000;
+    let expireOnSearch = true;
+    let postCalls = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const tag = tagResponse(url);
+      if (tag) return tag;
+      if (url.includes('/search/issues')) {
+        if (expireOnSearch) {
+          now = 122_001;
+          expireOnSearch = false;
+        }
+        return Response.json({ items: [] });
+      }
+      if (url.includes('/repos/misty-step/linejam/labels/')) {
+        return Response.json({ name: 'configured' });
+      }
+      if (
+        url.endsWith('/repos/misty-step/linejam/issues') &&
+        init?.method === 'POST'
+      ) {
+        postCalls += 1;
+        return Response.json({ number: 88 }, { status: 201 });
+      }
+      if (url.includes('/integrations/338522/') && !init?.method) {
+        return Response.json(linkedConfig());
+      }
+      if (url.includes('/integrations/338522/') && init?.method === 'PUT') {
+        return new Response(null, { status: 201 });
+      }
+      throw new Error('unexpected endpoint');
+    });
+
+    await t.action(processReceipt, { receiptId });
+    expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+      state: 'blocked',
+      blockedCode: 'internal_error',
+    });
+    expect(postCalls).toBe(0);
+
+    expect(await t.mutation(replayReceipt, { receiptId })).toBe(true);
+    await t.action(processReceipt, { receiptId });
+
+    expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
+      state: 'linked',
+      githubIssueNumber: 88,
+    });
+    expect(postCalls).toBe(1);
+  });
+
   it('blocks when a fixed GitHub label prerequisite is absent', async () => {
     const { t, receiptId } = await insertReceipt();
     const fetchMock = vi
@@ -1210,7 +1541,7 @@ describe('durable Sentry to GitHub bridge', () => {
 
       expect(await t.query(getReceipt, { dedupKey: DEDUP_KEY })).toMatchObject({
         state: 'blocked',
-        blockedCode: 'github_invalid',
+        blockedCode: 'github_create_ambiguous',
         attempts: 1,
       });
     }

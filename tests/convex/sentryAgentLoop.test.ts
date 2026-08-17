@@ -7,6 +7,7 @@ import { setupConvexTest } from '../helpers/convexTest';
 const RELEASE = 'a'.repeat(40);
 const LEASE_ONE = '11111111-1111-4111-8111-111111111111';
 const LEASE_TWO = '22222222-2222-4222-8222-222222222222';
+const LEASE_THREE = '33333333-3333-4333-8333-333333333333';
 
 const claimAgentReceipt = makeFunctionReference<
   'mutation',
@@ -85,11 +86,62 @@ describe('atomic Sentry agent dispatch state', () => {
     expect(overlapping).toBeNull();
   });
 
+  it('keeps one active dispatch and promotes one queued regression', async () => {
+    const t = setupConvexTest();
+    const firstId = await insertLinkedReceipt(t);
+    const secondId = await insertLinkedReceipt(t, {
+      dedupKey:
+        'v2:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:123456:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      sentryEventId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      agentState: 'queued',
+      agentNextAttemptAt: undefined,
+    });
+
+    const first = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_ONE,
+      now: 1_000,
+    });
+    await t.run(async (ctx) => {
+      const canonicalIssue = await ctx.db
+        .query('sentryGithubCanonicalIssues')
+        .withIndex('by_canonicalKey', (q) =>
+          q.eq(
+            'canonicalKey',
+            'v1:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:123456'
+          )
+        )
+        .unique();
+      if (!canonicalIssue) throw new Error('missing canonical issue');
+      await ctx.db.patch(canonicalIssue._id, {
+        queuedAgentReceiptId: secondId,
+      });
+    });
+    const overlapping = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_TWO,
+      now: 1_001,
+    });
+    await t.mutation(completeAgentReceipt, {
+      receiptId: firstId,
+      leaseId: LEASE_ONE,
+      outcome: 'completed',
+      now: 2_000,
+    });
+    const regression = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_THREE,
+      now: 2_001,
+    });
+
+    expect(first?._id).toBe(firstId);
+    expect(overlapping).toBeNull();
+    expect(regression?._id).toBe(secondId);
+  });
+
   it('returns one receipt for an exact replayed claim nonce', async () => {
     const t = setupConvexTest();
     const firstId = await insertLinkedReceipt(t);
     const secondId = await insertLinkedReceipt(t, {
       dedupKey: 'v1:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:654321',
+      canonicalKey: 'v1:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:654321',
       sentryIssueId: '654321',
       githubIssueNumber: 427,
     });

@@ -138,6 +138,16 @@ incident-evidence platform:
   by the receipt. It rejects a response whose event or issue ID differs and
   rejects missing or duplicate required tags; issue-history tag aggregation is
   never an attribution source.
+- A Convex canonical-issue row owns the GitHub Issue number and one renewable
+  bridge lease for each installation/project/Sentry-issue key. Competing event
+  receipts cannot search or create concurrently, and later receipts consume the
+  stored Issue number before GitHub search indexing can affect deduplication.
+- The canonical row fences a create attempt before GitHub `POST /issues`. If
+  the provider commits the Issue but loses the response, automation blocks the
+  canonical key for operator reconciliation; it never retries a second create
+  against an eventually consistent search result. A definitive HTTP rejection
+  clears the fence before blocking, so an operator replay after credential or
+  configuration repair may create the Issue.
 - GitHub Issues remains the sole work ledger. Sentry holds incident evidence and
   state, not a backlog; do not create a duplicate task in Powder or Habitat. The
   one claim and `forest:ready` contract is in `CONTRIBUTING.md`.
@@ -160,10 +170,15 @@ so degraded ingest is not proof gameplay is down.
 ## Autonomous investigation lane
 
 Production Convex owns the durable receipt state. A signed workstation poller
-claims at most one linked receipt per run through `/api/agents/sentry`.
-Claims use a 90-minute lease, retry after 15 minutes, and block after three
-failed attempts. Claim and completion requests use a distinct
-`SENTRY_AGENT_LOOP_SECRET`; the key is never passed to GitHub, Sentry, SSH,
+claims at most one linked receipt per run through `/api/agents/sentry`. The
+canonical row selects one valid linked receipt as the active dispatch owner.
+One later event can wait as the queued regression while that owner is pending or
+leased; further same-canonical events are closed as duplicates. A terminal
+completion atomically promotes the queued receipt, or clears ownership so a
+future regression can start one new investigation. Claims use a 90-minute
+lease, retry after 15 minutes, and block after three failed attempts. Claim and
+completion requests use a distinct `SENTRY_AGENT_LOOP_SECRET`; the key is never
+passed to GitHub, Sentry, SSH,
 Hermes, or the OMP child process.
 
 The poller runs every five minutes as a Hermes `--no-agent` cron job. Empty

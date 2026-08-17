@@ -6,6 +6,7 @@ import {
   internalMutation,
   internalQuery,
 } from './_generated/server';
+import type { MutationCtx } from './_generated/server';
 import { verifySentryAutomationProvenance } from '../sentry.provenance.mjs';
 
 const SENTRY_BASE_URL = 'https://sentry.io/api/0';
@@ -45,6 +46,7 @@ const blockedCodeValidator = v.union(
   v.literal('github_invalid'),
   v.literal('marker_conflict'),
   v.literal('link_conflict'),
+  v.literal('github_create_ambiguous'),
   v.literal('internal_error'),
   v.literal('attempts_exhausted')
 );
@@ -59,6 +61,7 @@ type BlockedCode =
   | 'github_invalid'
   | 'marker_conflict'
   | 'link_conflict'
+  | 'github_create_ambiguous'
   | 'internal_error'
   | 'attempts_exhausted';
 
@@ -156,6 +159,25 @@ const saveTagsRef = makeFunctionReference<
   boolean
 >('sentryGithub:saveValidatedTags');
 
+const beginGithubIssueCreateRef = makeFunctionReference<
+  'mutation',
+  {
+    receiptId: Id<'sentryGithubReceipts'>;
+    leaseId: string;
+    now: number;
+  },
+  boolean
+>('sentryGithub:beginGithubIssueCreate');
+const clearGithubIssueCreateRef = makeFunctionReference<
+  'mutation',
+  {
+    receiptId: Id<'sentryGithubReceipts'>;
+    leaseId: string;
+    now: number;
+  },
+  boolean
+>('sentryGithub:clearGithubIssueCreateAttempt');
+
 const saveGithubIssueRef = makeFunctionReference<
   'mutation',
   {
@@ -199,7 +221,8 @@ class BridgeFailure extends Error {
   constructor(
     readonly code: BlockedCode,
     readonly retryable: boolean,
-    readonly retryAfterMs?: number
+    readonly retryAfterMs?: number,
+    readonly clearCreateAttempt = false
   ) {
     super(code);
     this.name = 'BridgeFailure';
@@ -566,6 +589,44 @@ function projectAgentClaim(
   };
 }
 
+async function advanceAgentDispatch(
+  ctx: MutationCtx,
+  canonicalIssue: Doc<'sentryGithubCanonicalIssues'>,
+  now: number
+): Promise<void> {
+  const queuedReceipt = canonicalIssue.queuedAgentReceiptId
+    ? await ctx.db.get(canonicalIssue.queuedAgentReceiptId)
+    : null;
+  if (
+    queuedReceipt &&
+    queuedReceipt.canonicalKey === canonicalIssue.canonicalKey &&
+    queuedReceipt.state === 'linked' &&
+    queuedReceipt.agentState === 'queued'
+  ) {
+    await ctx.db.patch(queuedReceipt._id, {
+      agentState: 'pending',
+      agentAttempts: 0,
+      agentNextAttemptAt: now,
+      agentLeaseId: undefined,
+      agentLeaseExpiresAt: undefined,
+      agentCompletedAt: undefined,
+      agentBlockedCode: undefined,
+      updatedAt: now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      agentReceiptId: queuedReceipt._id,
+      queuedAgentReceiptId: undefined,
+      updatedAt: now,
+    });
+    return;
+  }
+  await ctx.db.patch(canonicalIssue._id, {
+    agentReceiptId: undefined,
+    queuedAgentReceiptId: undefined,
+    updatedAt: now,
+  });
+}
+
 export function validateBridgeTags(
   values: Record<keyof ValidatedTags, string>
 ): ValidatedTags | null {
@@ -788,31 +849,37 @@ async function verifyGithubLabelPrerequisites(
 async function createGithubIssue(
   receipt: ClaimedReceipt,
   tags: ValidatedTags,
-  config: BridgeConfig,
-  beforeWrite: () => Promise<void>
+  config: BridgeConfig
 ): Promise<number> {
   const content = githubIssueContent(receipt, tags);
-  await beforeWrite();
-  const response = await safeFetch(
-    `${GITHUB_BASE_URL}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${config.githubToken}`,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-        'X-GitHub-Api-Version': '2022-11-28',
+  try {
+    const response = await safeFetch(
+      `${GITHUB_BASE_URL}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/issues`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.githubToken}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        body: JSON.stringify(content),
       },
-      body: JSON.stringify(content),
-    },
-    'github'
-  );
-  const raw: JsonValue = await response.json();
-  const data = parseGithubIssueResponse(raw);
-  if (data === null) {
-    throw new BridgeFailure('github_invalid', false);
+      'github'
+    );
+    const raw: JsonValue = await response.json();
+    const data = parseGithubIssueResponse(raw);
+    if (data === null) {
+      throw new BridgeFailure('github_create_ambiguous', false);
+    }
+    return data.number;
+  } catch (error) {
+    if (error instanceof BridgeFailure && !error.retryable) {
+      if (error.code === 'github_create_ambiguous') throw error;
+      throw new BridgeFailure(error.code, false, undefined, true);
+    }
+    throw new BridgeFailure('github_create_ambiguous', false);
   }
-  return data.number;
 }
 async function reopenGithubIssue(
   receipt: ClaimedReceipt,
@@ -1013,6 +1080,32 @@ export const acceptWebhook = internalMutation({
       (receipt) => receipt.githubIssueNumber !== undefined
     )?.githubIssueNumber;
     const now = args.now ?? Date.now();
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', args.canonicalKey)
+      )
+      .unique();
+    const githubIssueNumber =
+      canonicalIssue?.githubIssueNumber ?? priorGithubIssueNumber;
+    if (canonicalIssue) {
+      if (
+        canonicalIssue.githubIssueNumber === undefined &&
+        githubIssueNumber !== undefined
+      ) {
+        await ctx.db.patch(canonicalIssue._id, {
+          githubIssueNumber,
+          updatedAt: now,
+        });
+      }
+    } else {
+      await ctx.db.insert('sentryGithubCanonicalIssues', {
+        canonicalKey: args.canonicalKey,
+        githubIssueNumber,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
     const receiptId = await ctx.db.insert('sentryGithubReceipts', {
       dedupKey: args.dedupKey,
       canonicalKey: args.canonicalKey,
@@ -1020,8 +1113,8 @@ export const acceptWebhook = internalMutation({
       projectId: args.projectId,
       sentryIssueId: args.sentryIssueId,
       sentryEventId: args.sentryEventId,
-      githubIssueNumber: priorGithubIssueNumber,
-      reusedGithubIssue: priorGithubIssueNumber !== undefined,
+      githubIssueNumber,
+      reusedGithubIssue: githubIssueNumber !== undefined,
       state: 'pending',
       attempts: 0,
       createdAt: now,
@@ -1048,11 +1141,60 @@ export const claimReceipt = internalMutation({
     ) {
       return null;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      canonicalIssue?.leaseId !== undefined &&
+      canonicalIssue.leaseExpiresAt !== undefined &&
+      canonicalIssue.leaseExpiresAt > args.now
+    ) {
+      const delayMs = Math.max(
+        1,
+        Math.min(MAX_RETRY_MS, canonicalIssue.leaseExpiresAt - args.now + 1)
+      );
+      await ctx.db.patch(receipt._id, {
+        nextAttemptAt: args.now + delayMs,
+        updatedAt: args.now,
+      });
+      await ctx.scheduler.runAfter(delayMs, workerRef, {
+        receiptId: receipt._id,
+      });
+      return null;
+    }
+    const githubIssueNumber =
+      canonicalIssue?.githubIssueNumber ?? receipt.githubIssueNumber;
+    const reusedGithubIssue =
+      receipt.reusedGithubIssue === true ||
+      (receipt.githubIssueNumber === undefined &&
+        githubIssueNumber !== undefined);
+    if (canonicalIssue) {
+      await ctx.db.patch(canonicalIssue._id, {
+        githubIssueNumber,
+        leaseId: args.leaseId,
+        leaseExpiresAt: args.now + LEASE_MS,
+        updatedAt: args.now,
+      });
+    } else {
+      await ctx.db.insert('sentryGithubCanonicalIssues', {
+        canonicalKey: receipt.canonicalKey,
+        githubIssueNumber,
+        leaseId: args.leaseId,
+        leaseExpiresAt: args.now + LEASE_MS,
+        createdAt: args.now,
+        updatedAt: args.now,
+      });
+    }
     await ctx.db.patch(receipt._id, {
       state: 'leased',
       leaseId: args.leaseId,
       leaseExpiresAt: args.now + LEASE_MS,
       attempts: receipt.attempts + 1,
+      githubIssueNumber,
+      reusedGithubIssue,
       updatedAt: args.now,
     });
     return {
@@ -1063,8 +1205,8 @@ export const claimReceipt = internalMutation({
       sentryIssueId: receipt.sentryIssueId,
       sentryEventId: receipt.sentryEventId,
       attempts: receipt.attempts + 1,
-      reusedGithubIssue: receipt.reusedGithubIssue,
-      githubIssueNumber: receipt.githubIssueNumber,
+      reusedGithubIssue,
+      githubIssueNumber,
     };
   },
 });
@@ -1085,8 +1227,27 @@ export const renewReceiptLease = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      !canonicalIssue ||
+      canonicalIssue.leaseId !== args.leaseId ||
+      canonicalIssue.leaseExpiresAt === undefined ||
+      canonicalIssue.leaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const leaseExpiresAt = args.now + LEASE_MS;
+    await ctx.db.patch(canonicalIssue._id, {
+      leaseExpiresAt,
+      updatedAt: args.now,
+    });
     await ctx.db.patch(receipt._id, {
-      leaseExpiresAt: args.now + LEASE_MS,
+      leaseExpiresAt,
       updatedAt: args.now,
     });
     return true;
@@ -1122,6 +1283,84 @@ export const saveValidatedTags = internalMutation({
   },
 });
 
+export const beginGithubIssueCreate = internalMutation({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.state !== 'leased' ||
+      receipt.leaseId !== args.leaseId ||
+      receipt.leaseExpiresAt === undefined ||
+      receipt.leaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      !canonicalIssue ||
+      canonicalIssue.leaseId !== args.leaseId ||
+      canonicalIssue.leaseExpiresAt === undefined ||
+      canonicalIssue.leaseExpiresAt <= args.now ||
+      canonicalIssue.githubIssueNumber !== undefined ||
+      canonicalIssue.githubCreateAttemptedAt !== undefined
+    ) {
+      return false;
+    }
+    await ctx.db.patch(canonicalIssue._id, {
+      githubCreateAttemptedAt: args.now,
+      updatedAt: args.now,
+    });
+    return true;
+  },
+});
+
+export const clearGithubIssueCreateAttempt = internalMutation({
+  args: {
+    receiptId: v.id('sentryGithubReceipts'),
+    leaseId: v.string(),
+    now: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.state !== 'leased' ||
+      receipt.leaseId !== args.leaseId
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      !canonicalIssue ||
+      canonicalIssue.leaseId !== args.leaseId ||
+      canonicalIssue.githubIssueNumber !== undefined ||
+      canonicalIssue.githubCreateAttemptedAt === undefined
+    ) {
+      return false;
+    }
+    await ctx.db.patch(canonicalIssue._id, {
+      githubCreateAttemptedAt: undefined,
+      updatedAt: args.now,
+    });
+    return true;
+  },
+});
+
 export const saveGithubIssue = internalMutation({
   args: {
     receiptId: v.id('sentryGithubReceipts'),
@@ -1140,6 +1379,25 @@ export const saveGithubIssue = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
+    if (
+      canonicalIssue.githubIssueNumber !== undefined &&
+      canonicalIssue.githubIssueNumber !== args.githubIssueNumber
+    ) {
+      throw new ConvexError('canonical_issue_conflict');
+    }
+    await ctx.db.patch(canonicalIssue._id, {
+      githubIssueNumber: args.githubIssueNumber,
+      updatedAt: args.now,
+    });
     await ctx.db.patch(receipt._id, {
       githubIssueNumber: args.githubIssueNumber,
       updatedAt: args.now,
@@ -1163,21 +1421,51 @@ export const finishReceipt = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
+    const ownsAgentDispatch =
+      canonicalIssue.agentReceiptId === undefined ||
+      canonicalIssue.agentReceiptId === receipt._id;
+    const queuesAgentDispatch =
+      !ownsAgentDispatch && canonicalIssue.queuedAgentReceiptId === undefined;
     await ctx.db.patch(receipt._id, {
       state: 'linked',
       leaseId: undefined,
       leaseExpiresAt: undefined,
       nextAttemptAt: args.now,
-      agentState: 'pending',
-      agentAttempts: 0,
-      agentNextAttemptAt: args.now,
+      agentState: ownsAgentDispatch
+        ? 'pending'
+        : queuesAgentDispatch
+          ? 'queued'
+          : 'blocked',
+      agentAttempts: ownsAgentDispatch ? 0 : undefined,
+      agentNextAttemptAt: ownsAgentDispatch ? args.now : undefined,
       agentLeaseId: undefined,
       agentLeaseExpiresAt: undefined,
       agentCompletedAt: undefined,
-      agentBlockedCode: undefined,
+      agentBlockedCode:
+        ownsAgentDispatch || queuesAgentDispatch
+          ? undefined
+          : 'duplicate_canonical',
       blockedCode: undefined,
       linkedAt: args.now,
       reusedGithubIssue: false,
+      updatedAt: args.now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      agentReceiptId: canonicalIssue.agentReceiptId ?? receipt._id,
+      queuedAgentReceiptId: queuesAgentDispatch
+        ? receipt._id
+        : canonicalIssue.queuedAgentReceiptId,
+      leaseId: undefined,
+      leaseExpiresAt: undefined,
       updatedAt: args.now,
     });
     return true;
@@ -1200,6 +1488,15 @@ export const retryReceipt = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
     const delayMs = Math.max(
       0,
       Math.min(MAX_RETRY_MS, Math.floor(args.delayMs))
@@ -1209,6 +1506,11 @@ export const retryReceipt = internalMutation({
       leaseId: undefined,
       leaseExpiresAt: undefined,
       nextAttemptAt: args.now + delayMs,
+      updatedAt: args.now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      leaseId: undefined,
+      leaseExpiresAt: undefined,
       updatedAt: args.now,
     });
     await ctx.scheduler.runAfter(delayMs, workerRef, {
@@ -1234,12 +1536,26 @@ export const blockReceipt = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (!canonicalIssue || canonicalIssue.leaseId !== args.leaseId) {
+      return false;
+    }
     await ctx.db.patch(receipt._id, {
       state: 'blocked',
       blockedCode: args.blockedCode,
       leaseId: undefined,
       leaseExpiresAt: undefined,
       nextAttemptAt: args.now,
+      updatedAt: args.now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      leaseId: undefined,
+      leaseExpiresAt: undefined,
       updatedAt: args.now,
     });
     return true;
@@ -1300,12 +1616,17 @@ export const processReceipt = internalAction({
         );
         if (recoveredIssueNumber === null) {
           await verifyGithubLabelPrerequisites(config);
-          githubIssueNumber = await createGithubIssue(
-            receipt,
-            tags,
-            config,
-            beforeWrite
-          );
+          await beforeWrite();
+          if (
+            !(await ctx.runMutation(beginGithubIssueCreateRef, {
+              receiptId: receipt._id,
+              leaseId,
+              now: Date.now(),
+            }))
+          ) {
+            throw new BridgeFailure('github_create_ambiguous', false);
+          }
+          githubIssueNumber = await createGithubIssue(receipt, tags, config);
         } else {
           githubIssueNumber = recoveredIssueNumber;
         }
@@ -1328,10 +1649,20 @@ export const processReceipt = internalAction({
         now: Date.now(),
       });
     } catch (error) {
-      const failure =
+      let failure =
         error instanceof BridgeFailure
           ? error
           : new BridgeFailure('internal_error', true);
+      if (failure.clearCreateAttempt) {
+        const cleared = await ctx.runMutation(clearGithubIssueCreateRef, {
+          receiptId: receipt._id,
+          leaseId,
+          now: Date.now(),
+        });
+        if (!cleared) {
+          failure = new BridgeFailure('github_create_ambiguous', false);
+        }
+      }
       if (failure.retryable && receipt.attempts < MAX_ATTEMPTS) {
         const delayMs = failure.retryAfterMs ?? retryDelayMs(receipt.attempts);
         await ctx.runMutation(retryRef, {
@@ -1403,7 +1734,14 @@ export const claimAgentReceipt = internalMutation({
     if (priorClaim) {
       if (!priorClaim.receiptId) return null;
       const priorReceipt = await ctx.db.get(priorClaim.receiptId);
-      return priorReceipt
+      if (!priorReceipt) return null;
+      const canonicalIssue = await ctx.db
+        .query('sentryGithubCanonicalIssues')
+        .withIndex('by_canonicalKey', (q) =>
+          q.eq('canonicalKey', priorReceipt.canonicalKey)
+        )
+        .unique();
+      return canonicalIssue?.agentReceiptId === priorReceipt._id
         ? projectAgentClaim(priorReceipt, args.leaseId)
         : null;
     }
@@ -1434,7 +1772,6 @@ export const claimAgentReceipt = internalMutation({
       return null;
     }
 
-    const attempts = receipt.agentAttempts ?? 0;
     if (
       receipt.state !== 'linked' ||
       receipt.githubIssueNumber === undefined ||
@@ -1456,6 +1793,42 @@ export const claimAgentReceipt = internalMutation({
       await rememberClaim();
       return null;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      canonicalIssue?.agentReceiptId !== undefined &&
+      canonicalIssue.agentReceiptId !== receipt._id
+    ) {
+      await ctx.db.patch(receipt._id, {
+        agentState: 'blocked',
+        agentLeaseId: undefined,
+        agentLeaseExpiresAt: undefined,
+        agentBlockedCode: 'duplicate_canonical',
+        updatedAt: args.now,
+      });
+      await rememberClaim();
+      return null;
+    }
+    const canonicalIssueId = canonicalIssue
+      ? canonicalIssue._id
+      : await ctx.db.insert('sentryGithubCanonicalIssues', {
+          canonicalKey: receipt.canonicalKey,
+          githubIssueNumber: receipt.githubIssueNumber,
+          agentReceiptId: receipt._id,
+          createdAt: args.now,
+          updatedAt: args.now,
+        });
+    if (canonicalIssue && canonicalIssue.agentReceiptId === undefined) {
+      await ctx.db.patch(canonicalIssue._id, {
+        agentReceiptId: receipt._id,
+        updatedAt: args.now,
+      });
+    }
+    const attempts = receipt.agentAttempts ?? 0;
     if (attempts >= AGENT_MAX_ATTEMPTS) {
       await ctx.db.patch(receipt._id, {
         agentState: 'blocked',
@@ -1464,6 +1837,14 @@ export const claimAgentReceipt = internalMutation({
         agentBlockedCode: 'attempts_exhausted',
         updatedAt: args.now,
       });
+      if (canonicalIssue) {
+        await advanceAgentDispatch(ctx, canonicalIssue, args.now);
+      } else {
+        await ctx.db.patch(canonicalIssueId, {
+          agentReceiptId: undefined,
+          updatedAt: args.now,
+        });
+      }
       await rememberClaim();
       return null;
     }
@@ -1504,13 +1885,22 @@ export const authorizeAgentReceipt = internalQuery({
   },
   handler: async (ctx, args) => {
     const receipt = await ctx.db.get(args.receiptId);
-    return Boolean(
-      receipt &&
-      receipt.agentState === 'leased' &&
-      receipt.agentLeaseId === args.leaseId &&
-      receipt.agentLeaseExpiresAt !== undefined &&
-      receipt.agentLeaseExpiresAt > args.now
-    );
+    if (
+      !receipt ||
+      receipt.agentState !== 'leased' ||
+      receipt.agentLeaseId !== args.leaseId ||
+      receipt.agentLeaseExpiresAt === undefined ||
+      receipt.agentLeaseExpiresAt <= args.now
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    return canonicalIssue?.agentReceiptId === receipt._id;
   },
 });
 
@@ -1537,6 +1927,17 @@ export const completeAgentReceipt = internalMutation({
     ) {
       return false;
     }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (canonicalIssue?.agentReceiptId !== receipt._id) {
+      return false;
+    }
+    const releaseDispatch = () =>
+      advanceAgentDispatch(ctx, canonicalIssue, args.now);
 
     if (args.outcome === 'completed') {
       await ctx.db.patch(receipt._id, {
@@ -1547,6 +1948,7 @@ export const completeAgentReceipt = internalMutation({
         agentBlockedCode: undefined,
         updatedAt: args.now,
       });
+      await releaseDispatch();
       return true;
     }
     if (args.outcome === 'issue_closed' || args.outcome === 'issue_invalid') {
@@ -1557,6 +1959,7 @@ export const completeAgentReceipt = internalMutation({
         agentBlockedCode: args.outcome,
         updatedAt: args.now,
       });
+      await releaseDispatch();
       return true;
     }
 
@@ -1568,6 +1971,7 @@ export const completeAgentReceipt = internalMutation({
         agentBlockedCode: 'attempts_exhausted',
         updatedAt: args.now,
       });
+      await releaseDispatch();
       return true;
     }
     await ctx.db.patch(receipt._id, {
