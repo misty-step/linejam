@@ -25,18 +25,29 @@ export interface ErrorFeedback {
 export type FeedbackError = ErrorReportable;
 
 /**
- * Return true only for an expected Convex rate-limit rejection.
+ * Canonical ConvexError payloads for expected, user-recoverable rejections.
  *
- * Convex production clients receive the actionable message in `data` while
- * `message` is redacted. Requiring a genuine ConvexError instance and the
- * exact canonical payload prevents generic failures that merely mention rate
- * limits from being hidden from observability.
+ * Every entry is a normal party-flow outcome (mistyped code, full or closed
+ * room, race with a just-finished game, throttle) with a specific friendly
+ * message in `errorToFeedback`, not a defect. Convex production clients
+ * receive the actionable payload in `data` while `message` is redacted.
+ * Requiring a genuine ConvexError instance and the exact canonical payload
+ * keeps generic failures that merely mention these states visible to
+ * observability.
  */
-export function isExpectedConvexRateLimitError(
-  error: ErrorReportable
-): boolean {
+const EXPECTED_CONVEX_REJECTIONS = [
+  RATE_LIMIT_EXCEEDED_MESSAGE,
+  'Room not found',
+  'Room is full',
+  'Room is closed',
+  'Cannot join this game state',
+] as const;
+
+/** Return true only for an expected Convex rejection with a canonical payload. */
+export function isExpectedConvexRejection(error: ErrorReportable): boolean {
   return (
-    error instanceof ConvexError && error.data === RATE_LIMIT_EXCEEDED_MESSAGE
+    error instanceof ConvexError &&
+    EXPECTED_CONVEX_REJECTIONS.some((payload) => error.data === payload)
   );
 }
 
