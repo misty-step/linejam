@@ -217,6 +217,81 @@ describe('Sentry transport privacy boundary', () => {
     );
   });
 
+  it('labels scrubbed messages with sanitized operation and environment', () => {
+    const event = taintedEvent();
+    Object.assign(event, {
+      environment: 'test',
+      tags: {
+        runtime: 'browser',
+        operation: 'fetchGuestSession',
+      },
+    });
+    event.exception!.values![0] = {
+      type: 'TypeError',
+      value: `${FORBIDDEN} guest session failure`,
+      mechanism: { type: 'generic', handled: true },
+    };
+
+    const sanitized = beforeSend(event, {});
+    expect(sanitized).toMatchObject({
+      exception: {
+        values: [
+          {
+            type: 'TypeError',
+            value:
+              'Error message redacted for privacy (operation: fetchGuestSession, environment: test)',
+            mechanism: { type: 'generic', handled: true },
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify(sanitized)).not.toContain(FORBIDDEN);
+  });
+
+  it('omits the value when no operation or environment survives scrubbing', () => {
+    const event = taintedEvent();
+    Object.assign(event, {
+      environment: 'staging',
+      tags: {
+        runtime: 'browser',
+        operation: 'inventedOperation',
+      },
+    });
+    event.exception!.values![0] = {
+      type: 'TypeError',
+      value: `${FORBIDDEN} guest session failure`,
+    };
+
+    const sanitized = beforeSend(event, {});
+    expect(sanitized).toMatchObject({
+      exception: {
+        values: [{ type: 'TypeError' }],
+      },
+    });
+    expect(sanitized).not.toHaveProperty('exception.values.0.value');
+    expect(JSON.stringify(sanitized)).not.toContain(FORBIDDEN);
+  });
+
+  it('never merges operation labels into retained allowlisted messages', () => {
+    const event = taintedEvent();
+    Object.assign(event, {
+      environment: 'production',
+      tags: {
+        runtime: 'browser',
+        operation: 'fetchGuestSession',
+      },
+    });
+    event.exception!.values![0] = {
+      type: 'ClerkLoadTimeoutError',
+      value: 'Clerk did not load in time; continuing with guest play',
+    };
+
+    expect(beforeSend(event, {})).toHaveProperty(
+      'exception.values.0.value',
+      'Clerk did not load in time; continuing with guest play'
+    );
+  });
+
   it('rejects inherited prototype names from every closed allowlist', () => {
     const event = taintedEvent();
     Object.assign(event, {
