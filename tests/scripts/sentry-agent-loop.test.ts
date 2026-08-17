@@ -1309,9 +1309,10 @@ describe('Sentry agent loop', () => {
         }
         if (command.includes('git -C /home/linejam-agent/linejam')) {
           expect(command).toContain(
-            'GIT_INDEX_FILE=/tmp/linejam-agent/patch.index'
+            'git -C /home/linejam-agent/linejam diff --cached'
           );
-          expect(command).toContain('add -f -A -- .');
+          expect(command).not.toContain('GIT_INDEX_FILE');
+          expect(command).not.toContain('add -f');
           expect(command).toContain("':(exclude).evidence'");
           return { status: 0, stdout: '', stderr: '' };
         }

@@ -1882,7 +1882,7 @@ export async function collectVmArtifacts({
   const patchArgs = isolatedSshArgs([
     '-n',
     host,
-    `sudo -n -u ${VM_AGENT_USER} -- rm -f /tmp/linejam-agent/patch.index && sudo -n -u ${VM_AGENT_USER} -- env GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C ${VM_REPOSITORY} read-tree HEAD && sudo -n -u ${VM_AGENT_USER} -- env GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C ${VM_REPOSITORY} add -f -A -- . && sudo -n -u ${VM_AGENT_USER} -- env GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C ${VM_REPOSITORY} diff --cached --binary --no-ext-diff HEAD -- . ':(exclude).evidence'`,
+    `sudo -n -u ${VM_AGENT_USER} -- git -C ${VM_REPOSITORY} diff --cached --binary --no-ext-diff HEAD -- . ':(exclude).evidence'`,
   ]);
   const patchResult = await run('ssh', patchArgs, {
     cwd: root,
