@@ -46,6 +46,7 @@
     "qa:deployment-skew": "node ./scripts/qa/deployment-skew-oracle.mjs",
     "qa:play-linejam:check": "node ./scripts/qa/check-play-linejam-skill.mjs",
     "qa:play-linejam:result": "node ./scripts/qa/write-play-linejam-result.mjs",
+    "qa:play-linejam:scheduled": "node ./scripts/qa/run-scheduled-play.mjs",
     "ci:fast": "pnpm ci:prepush",
     "ci:dagger:all": "./scripts/ci/dagger-call.sh all",
     "ci:dagger:all-no-e2e": "./scripts/ci/dagger-call.sh all-no-e2e",
