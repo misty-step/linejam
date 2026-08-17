@@ -2643,8 +2643,20 @@ async function processClaim({
             issueNumber: claim.githubIssueNumber,
             evidenceArchive,
           });
-        } catch {
+        } catch (error) {
           artifactCollectionFailed = true;
+          try {
+            const detail =
+              error instanceof Error
+                ? (error.stack ?? error.message)
+                : String(error);
+            writePrivateJournal(
+              join(stateDir, 'last-failure.log'),
+              `${new Date().toISOString()}\n${detail.slice(0, MAX_REPORT_BYTES)}\n`
+            );
+          } catch {
+            // The public retry comment remains non-sensitive when local logging fails.
+          }
         }
       }
     } finally {

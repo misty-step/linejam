@@ -655,6 +655,12 @@ describe('Sentry agent loop', () => {
         String(args.at(-1)).includes('evidence collection failed')
     );
     expect(retryComment).toBeDefined();
+    expect(
+      readFileSync(join(dispatchStateDir, 'last-failure.log'), 'utf8')
+    ).toContain('evidence report missing');
+    expect(String(retryComment?.[1].at(-1))).not.toContain(
+      'evidence report missing'
+    );
     expect(requests.at(-1)).toMatchObject({
       body: {
         action: 'complete',
