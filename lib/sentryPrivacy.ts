@@ -421,8 +421,23 @@ function sanitizeFrame(frame: SentryFrame | StackFrame): StackFrame {
   return result;
 }
 
+type SanitizedExceptionScope = {
+  operation?: string;
+  environment?: string;
+};
+
+function redactedMessageLabel(
+  scope: SanitizedExceptionScope
+): string | undefined {
+  const parts: string[] = [];
+  if (scope.operation) parts.push(`operation: ${scope.operation}`);
+  if (scope.environment) parts.push(`environment: ${scope.environment}`);
+  return parts.length ? parts.join(', ') : undefined;
+}
+
 function sanitizeException(
-  exception: Event['exception']
+  exception: Event['exception'],
+  scope: SanitizedExceptionScope = {}
 ): ErrorEvent['exception'] {
   const values = exception?.values
     ?.map((value) => {
@@ -433,6 +448,7 @@ function sanitizeException(
       const message = Object.hasOwn(SAFE_EXCEPTION_MESSAGES, value.value || '')
         ? value.value
         : undefined;
+      const redactionLabel = message ? undefined : redactedMessageLabel(scope);
       const frames = value.stacktrace?.frames?.map((frame) =>
         sanitizeFrame(frame)
       );
@@ -460,6 +476,8 @@ function sanitizeException(
       };
       if (message) {
         val.value = message;
+      } else if (redactionLabel) {
+        val.value = `Error message redacted for privacy (${redactionLabel})`;
       }
       if (frames && frames.length > 0) {
         val.stacktrace = { frames };
@@ -493,7 +511,10 @@ function sanitizeBaseEvent(event: Event): ErrorEvent {
   const release = safeRelease(event.release);
   const tags = sanitizeTags(event.tags);
   const contexts = sanitizeContexts(event.contexts);
-  const exception = sanitizeException(event.exception);
+  const exception = sanitizeException(event.exception, {
+    operation: tags?.operation,
+    environment: environment ?? tags?.environment,
+  });
   const debugMeta = sanitizeDebugMeta(event.debug_meta);
 
   const result: ErrorEvent = {
@@ -586,7 +607,13 @@ function sanitizeSpans(
     .filter((span): span is NonNullable<typeof span> => Boolean(span));
 }
 
-/** Hard transport allowlist for error events. Unknown messages are discarded. */
+/**
+ * Hard transport allowlist for error events. Unknown messages are discarded
+ * and replaced with a closed-vocabulary redaction label (operation and
+ * environment) so scrubbed failures stay attributable without leaking
+ * content. Events with neither a retained message nor a redaction label keep
+ * the exception value omitted.
+ */
 export function beforeSend(
   event: ErrorEvent,
   hint: EventHint
