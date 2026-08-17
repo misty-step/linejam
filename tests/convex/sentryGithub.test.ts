@@ -548,6 +548,62 @@ describe('durable Sentry to GitHub bridge', () => {
       githubIssueNumber: 77,
     });
   });
+  it.each([
+    [
+      'accepts an exact annotation',
+      'misty-step/linejam#77',
+      'https://github.com/misty-step/linejam/issues/77',
+      'linked',
+      undefined,
+    ],
+    [
+      'rejects a different annotation',
+      'misty-step/linejam#78',
+      'https://github.com/misty-step/linejam/issues/78',
+      'blocked',
+      'link_conflict',
+    ],
+  ] as const)(
+    '%s after an idempotent Sentry link conflict',
+    async (_case, displayName, url, state, blockedCode) => {
+      const { t, receiptId } = await insertReceipt();
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+        const requestUrl = String(input);
+        const tag = tagResponse(requestUrl);
+        if (tag) return tag;
+        if (requestUrl.includes('/search/issues')) {
+          return Response.json({ items: [recoveredIssue(77)] });
+        }
+        if (requestUrl.includes('/integrations/338522/') && !init?.method) {
+          return Response.json({
+            linkIssueConfig: linkedConfig().linkIssueConfig,
+          });
+        }
+        if (
+          requestUrl.includes('/integrations/338522/') &&
+          init?.method === 'PUT'
+        ) {
+          return new Response(null, { status: 409 });
+        }
+        if (requestUrl.endsWith('/issues/123456/')) {
+          return Response.json({
+            annotations: [{ displayName, url }],
+          });
+        }
+        throw new Error('unexpected endpoint');
+      });
+
+      await t.action(processReceipt, { receiptId });
+
+      const receipt = await t.query(getReceipt, { dedupKey: DEDUP_KEY });
+      expect(receipt).toMatchObject({
+        state,
+        githubIssueNumber: 77,
+      });
+      expect(receipt?.blockedCode).toBe(blockedCode);
+    }
+  );
+
   it.each(['misty-step/linejam#77', '#77', '77'])(
     'accepts an existing native Sentry link key %s',
     async (key) => {
