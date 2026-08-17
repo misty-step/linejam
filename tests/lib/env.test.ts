@@ -43,6 +43,23 @@ describe('validateEnv', () => {
     );
   });
 
+  it('skips secret-backed env requirements for dependabot builds', async () => {
+    await withEnv(
+      {
+        NODE_ENV: 'production',
+        GITHUB_ACTOR: 'dependabot[bot]',
+        GUEST_TOKEN_SECRET: undefined,
+        NEXT_PUBLIC_CONVEX_URL: undefined,
+        NEXT_PUBLIC_SENTRY_DSN: undefined,
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
+      },
+      async () => {
+        const { validateEnv } = await import('@/lib/env');
+        expect(() => validateEnv()).not.toThrow();
+      }
+    );
+  });
+
   it('throws when Sentry is not explicitly enabled', async () => {
     await withEnv(
       {
