@@ -110,11 +110,12 @@ Any -> Coordinator:        "BLOCKER: <sanitized description>" (only on fatal err
 The Coordinator **MUST** run this ordered `finally` path after every run,
 including a blocker, timeout, or interrupted gameplay:
 
-1. If `ROOM_CREATED` was received but `ROOM_CLOSED` was not, send
-   `CLEANUP_ROOM` and use the tracked host session to return the active game to
-   the lobby and close the room. If the Host agent cannot respond, the
-   Coordinator drives that same session directly. Follow the failure cleanup
-   path in `player.md`; bound the attempt and never invent a closure receipt.
+1. If a room may exist — the Coordinator tracked a room code or an allocated
+   host session — but `ROOM_CLOSED` was not received, send `CLEANUP_ROOM` and
+   use the tracked host session to return the active game to the lobby and
+   close the room. If the Host agent cannot respond, the Coordinator drives
+   that same session directly. Follow the failure cleanup path in `player.md`;
+   bound the attempt and never invent a closure receipt.
 2. After confirmed closure, allocate a fresh `<run-id>-verifier` session if
    needed and perform `VERIFY_CLOSED`. A failed gameplay run still attempts this
    join-rejection check.

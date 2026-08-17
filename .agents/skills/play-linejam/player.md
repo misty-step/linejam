@@ -122,16 +122,19 @@ target word count. Do not reuse stock lines from this skill.
    pnpm exec agent-browser --session <session-name> find testid writing-submit-line-button click
    ```
 4. Wait for any valid post-submit state: `waiting-phase`, a `writing-phase`
-   whose numeric `data-round` is greater than `<submitted-round>`, or
-   `reveal-phase`:
+   whose numeric `data-round` is exactly `<submitted-round> + 1`, or — only
+   after submitting Round 9 — `reveal-phase`:
    ```bash
-   pnpm exec agent-browser --session <session-name> wait --fn "document.querySelector('[data-testid=\"waiting-phase\"]') !== null || Number(document.querySelector('[data-testid=\"writing-phase\"]')?.getAttribute('data-round')) > <submitted-round> || document.querySelector('[data-testid=\"reveal-phase\"]') !== null"
+   pnpm exec agent-browser --session <session-name> wait --fn "document.querySelector('[data-testid=\"waiting-phase\"]') !== null || Number(document.querySelector('[data-testid=\"writing-phase\"]')?.getAttribute('data-round')) === <submitted-round> + 1 || (<submitted-round> === 9 && document.querySelector('[data-testid=\"reveal-phase\"]') !== null)"
    ```
-5. Branch on the observed state. A higher `data-round` means this player was the
-   last submitter and the server advanced directly to its next writing turn;
-   submit that new round without waiting for `waiting-phase`. From
-   `waiting-phase`, wait semantically for a higher writing round or reveal.
-   Enter reveal immediately when `reveal-phase` appears. Repeat through Round 9.
+5. Branch on the observed state. `data-round` of `<submitted-round> + 1` means
+   this player was the last submitter and the server advanced directly to its
+   next writing turn; submit that new round without waiting for
+   `waiting-phase`. A different `data-round` means the round skipped or reset;
+   treat it as a blocker instead of continuing. From `waiting-phase`, wait
+   semantically for a `writing-phase` at exactly `<submitted-round> + 1`, or —
+   only after Round 9 — `reveal-phase`. Enter reveal only after submitting
+   Round 9. Repeat through Round 9.
 
 ## 5. Reveal Phase Flow
 
@@ -177,16 +180,17 @@ The Host confirms that `.qa/runs/<run-id>/artifact-0001.png` exists, then sends
 
 On `CLEANUP_ROOM`, the Host performs a bounded best-effort return to the lobby:
 
-1. Inspect the current surface. If it is a writing turn, submit a valid line
-   for that displayed word count, then use the same three-way post-submit branch
-   as the normal round loop.
-2. If a higher `data-round` writing phase appears, repeat the bounded valid-line
+1. Inspect the current surface. If `session-complete` is already visible,
+   click **Back to Lobby** and skip to room closure.
+2. If it is a writing turn, submit a valid line for that displayed word count,
+   then use the same three-way post-submit branch as the normal round loop.
+3. If a writing phase one round higher appears, repeat the bounded valid-line
    submission. On `waiting-phase`, click **End game**, click the confirmation
    **End game**, and wait for the lobby. This abandons the incomplete game
    without revealing partial poems.
-3. If `reveal-phase` appears, finish the bounded reading-circle actions until
+4. If `reveal-phase` appears, finish the bounded reading-circle actions until
    `session-complete`, then click **Back to Lobby**.
-4. In the lobby, click **Close room** and confirm the room UI exits before
+5. In the lobby, click **Close room** and confirm the room UI exits before
    sending `ROOM_CLOSED`.
 
 If no known surface can be reached, a valid submission cannot reach the waiting

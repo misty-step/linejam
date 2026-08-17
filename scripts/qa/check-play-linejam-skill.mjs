@@ -145,16 +145,18 @@ function validate() {
     if (
       !playerContract.includes('wait --fn') ||
       !playerContract.includes(
-        "getAttribute('data-round')) > <submitted-round>"
-      )
+        "getAttribute('data-round')) === <submitted-round> + 1"
+      ) ||
+      !playerContract.includes('(<submitted-round> === 9')
     ) {
       errors.push(
-        'player.md post-submit flow must accept waiting, direct round advance, or reveal'
+        'player.md post-submit flow must accept waiting, exact round advance, or reveal after round 9'
       );
     }
     if (
       !playerContract.includes('On `CLEANUP_ROOM`') ||
-      !playerContract.includes('click **End game**')
+      !playerContract.includes('click **End game**') ||
+      !playerContract.includes('If `session-complete` is already visible')
     ) {
       errors.push(
         'player.md must define the host failure path back to room closure'
