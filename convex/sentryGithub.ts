@@ -11,6 +11,7 @@ import { verifySentryAutomationProvenance } from '../sentry.provenance.mjs';
 
 const SENTRY_BASE_URL = 'https://sentry.io/api/0';
 const GITHUB_BASE_URL = 'https://api.github.com';
+const GITHUB_WEB_BASE = 'https://github.com';
 const MAX_ATTEMPTS = 10;
 const LEASE_MS = 2 * 60 * 1000;
 const BRIDGE_FETCH_TIMEOUT_MS = 5_000;
@@ -964,6 +965,22 @@ function inspectLinkConfig(
   return 'conflict';
 }
 
+function hasExactGithubIssueAnnotation(
+  value: JsonValue,
+  repository: string,
+  issueNumber: number
+): boolean {
+  if (!isJsonObject(value) || !Array.isArray(value.annotations)) return false;
+  const expectedUrl = `${GITHUB_WEB_BASE}/${repository}/issues/${issueNumber}`;
+  const expectedName = `${repository}#${issueNumber}`;
+  return value.annotations.some(
+    (annotation) =>
+      isJsonObject(annotation) &&
+      annotation.url === expectedUrl &&
+      annotation.displayName === expectedName
+  );
+}
+
 async function linkGithubIssue(
   receipt: ClaimedReceipt,
   githubIssueNumber: number,
@@ -991,18 +1008,33 @@ async function linkGithubIssue(
   }
   await beforeWrite();
 
-  await safeFetch(
-    endpoint,
-    {
-      method: 'PUT',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        repo: repository,
-        externalIssue: String(githubIssueNumber),
-      }),
-    },
-    'link'
-  );
+  try {
+    await safeFetch(
+      endpoint,
+      {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo: repository,
+          externalIssue: String(githubIssueNumber),
+        }),
+      },
+      'link'
+    );
+  } catch (error) {
+    if (!(error instanceof BridgeFailure) || error.code !== 'link_conflict') {
+      throw error;
+    }
+    const issueResponse = await safeFetch(
+      `${SENTRY_BASE_URL}/issues/${encodeURIComponent(receipt.sentryIssueId)}/`,
+      { headers },
+      'link'
+    );
+    const issue: JsonValue = await issueResponse.json();
+    if (!hasExactGithubIssueAnnotation(issue, repository, githubIssueNumber)) {
+      throw error;
+    }
+  }
 }
 
 export function retryDelayMs(attempt: number, random = Math.random()): number {
