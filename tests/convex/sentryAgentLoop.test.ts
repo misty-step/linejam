@@ -29,6 +29,11 @@ const completeAgentReceipt = makeFunctionReference<
   },
   boolean
 >('sentryGithub:completeAgentReceipt');
+const replayAgentReceipt = makeFunctionReference<
+  'mutation',
+  { receiptId: Id<'sentryGithubReceipts'> },
+  boolean
+>('sentryGithub:replayAgentReceipt');
 
 async function insertLinkedReceipt(
   t: LinejamConvexTest,
@@ -233,7 +238,7 @@ describe('atomic Sentry agent dispatch state', () => {
     );
   });
 
-  it('blocks a receipt after three failed agent attempts', async () => {
+  it('blocks after three failures and permits one explicit operator replay', async () => {
     const t = setupConvexTest();
     const receiptId = await insertLinkedReceipt(t, { agentAttempts: 2 });
     await t.mutation(claimAgentReceipt, { leaseId: LEASE_ONE, now: 1_000 });
@@ -247,6 +252,23 @@ describe('atomic Sentry agent dispatch state', () => {
     expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
       agentState: 'blocked',
       agentBlockedCode: 'attempts_exhausted',
+    });
+    expect(await t.mutation(replayAgentReceipt, { receiptId })).toBe(true);
+    expect(await t.mutation(replayAgentReceipt, { receiptId })).toBe(false);
+    const replayedReceipt = await t.run((ctx) => ctx.db.get(receiptId));
+    expect(replayedReceipt).toMatchObject({
+      agentState: 'pending',
+      agentAttempts: 0,
+    });
+    expect(replayedReceipt?.agentBlockedCode).toBeUndefined();
+
+    const replayedClaim = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_TWO,
+      now: Date.now() + 1_000,
+    });
+    expect(replayedClaim).toMatchObject({
+      _id: receiptId,
+      agentAttempts: 1,
     });
   });
 });

@@ -2037,6 +2037,50 @@ export const replayReceipt = internalMutation({
   },
 });
 
+export const replayAgentReceipt = internalMutation({
+  args: { receiptId: v.id('sentryGithubReceipts') },
+  handler: async (ctx, args) => {
+    const receipt = await ctx.db.get(args.receiptId);
+    if (
+      !receipt ||
+      receipt.state !== 'linked' ||
+      receipt.agentState !== 'blocked' ||
+      receipt.agentBlockedCode !== 'attempts_exhausted'
+    ) {
+      return false;
+    }
+    const canonicalIssue = await ctx.db
+      .query('sentryGithubCanonicalIssues')
+      .withIndex('by_canonicalKey', (q) =>
+        q.eq('canonicalKey', receipt.canonicalKey)
+      )
+      .unique();
+    if (
+      !canonicalIssue ||
+      canonicalIssue.agentReceiptId !== undefined ||
+      canonicalIssue.queuedAgentReceiptId !== undefined
+    ) {
+      return false;
+    }
+    const now = Date.now();
+    await ctx.db.patch(receipt._id, {
+      agentState: 'pending',
+      agentAttempts: 0,
+      agentNextAttemptAt: now,
+      agentLeaseId: undefined,
+      agentLeaseExpiresAt: undefined,
+      agentCompletedAt: undefined,
+      agentBlockedCode: undefined,
+      updatedAt: now,
+    });
+    await ctx.db.patch(canonicalIssue._id, {
+      agentReceiptId: receipt._id,
+      updatedAt: now,
+    });
+    return true;
+  },
+});
+
 export const getReceiptByDedupKey = internalQuery({
   args: { dedupKey: v.string() },
   handler: (ctx, args) =>
