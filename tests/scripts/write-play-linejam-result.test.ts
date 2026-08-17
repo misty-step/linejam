@@ -21,6 +21,8 @@ const schema = JSON.parse(
     'utf8'
   )
 );
+const schemaWithoutPassedConditional = structuredClone(schema);
+delete schemaWithoutPassedConditional.allOf;
 
 const runId =
   '20260816T120000Z-http-localhost-3333-00112233445566778899aabbccddeeff-play';
@@ -107,6 +109,83 @@ describe('play-linejam result validation', () => {
     );
   });
 
+  it('enforces passed-run invariants independently of schema conditionals', () => {
+    const verifierBase = validResult();
+    const missingVerifier = {
+      ...verifierBase,
+      verification: {
+        ...verifierBase.verification,
+        verifierSessionName: null,
+      },
+    };
+    expect(() =>
+      validatePlayLinejamResult(missingVerifier, schemaWithoutPassedConditional)
+    ).toThrow('passed run requires a fresh verifier session');
+
+    const incompleteRounds = validResult();
+    incompleteRounds.roundsCompleted = 8;
+    expect(() =>
+      validatePlayLinejamResult(
+        incompleteRounds,
+        schemaWithoutPassedConditional
+      )
+    ).toThrow('passed run must complete 9 rounds');
+
+    const incompletePlayer = validResult();
+    incompletePlayer.players[0].roundsSubmitted = 8;
+    expect(() =>
+      validatePlayLinejamResult(
+        incompletePlayer,
+        schemaWithoutPassedConditional
+      )
+    ).toThrow('passed run requires 9 submissions from every player');
+
+    const unrevealedPlayer = validResult();
+    unrevealedPlayer.players[0].revealedPoem = false;
+    expect(() =>
+      validatePlayLinejamResult(
+        unrevealedPlayer,
+        schemaWithoutPassedConditional
+      )
+    ).toThrow('passed run requires every player to complete reveal');
+
+    const failedPlayer = validResult();
+    failedPlayer.players[0].status = 'failed';
+    expect(() =>
+      validatePlayLinejamResult(failedPlayer, schemaWithoutPassedConditional)
+    ).toThrow('passed run requires every player status to be passed');
+
+    const incompleteClosure = validResult();
+    incompleteClosure.verification.roomClosed = false;
+    expect(() =>
+      validatePlayLinejamResult(
+        incompleteClosure,
+        schemaWithoutPassedConditional
+      )
+    ).toThrow(
+      'passed run requires closure, join rejection, and session cleanup'
+    );
+
+    const runtimeFailure = {
+      ...validResult(),
+      runtimeErrors: ['interaction_failed'],
+    };
+    expect(() =>
+      validatePlayLinejamResult(runtimeFailure, schemaWithoutPassedConditional)
+    ).toThrow('passed run cannot contain runtime or aggregate errors');
+
+    const aggregateFailure = {
+      ...validResult(),
+      error: 'unknown_failure',
+    };
+    expect(() =>
+      validatePlayLinejamResult(
+        aggregateFailure,
+        schemaWithoutPassedConditional
+      )
+    ).toThrow('passed run cannot contain runtime or aggregate errors');
+  });
+
   it('rejects a passed run without visual evidence', () => {
     const result = validResult();
     result.evidence.artifacts = [
@@ -175,6 +254,67 @@ describe('play-linejam result validation', () => {
       '.qa/runs/20260816T120001Z-http-localhost-3333-00112233445566778899aabbccddeeff-play/artifact-0001.webp';
     expect(() => validatePlayLinejamResult(foreignArtifact, schema)).toThrow(
       'artifact path must use an opaque run-local name'
+    );
+  });
+
+  it('rejects invalid target, artifact, and session relationships', () => {
+    const nonHttpTarget = validResult();
+    nonHttpTarget.target = 'ftp://linejam.app';
+    expect(() => validatePlayLinejamResult(nonHttpTarget, schema)).toThrow(
+      'target must use http or https'
+    );
+
+    const nonCanonicalTarget = validResult();
+    nonCanonicalTarget.target = 'https://linejam.app:443';
+    expect(() => validatePlayLinejamResult(nonCanonicalTarget, schema)).toThrow(
+      'target must use its canonical origin form'
+    );
+
+    const mismatchedRunDir = validResult();
+    mismatchedRunDir.evidence.runDir =
+      '.qa/runs/20260816T120001Z-http-localhost-3333-00112233445566778899aabbccddeeff-play';
+    expect(() => validatePlayLinejamResult(mismatchedRunDir, schema)).toThrow(
+      'evidence.runDir must equal'
+    );
+
+    const mismatchedArtifactKind = validResult();
+    mismatchedArtifactKind.evidence.artifacts[0].kind = 'video';
+    expect(() =>
+      validatePlayLinejamResult(mismatchedArtifactKind, schema)
+    ).toThrow('artifact path must use an opaque run-local name');
+
+    const noncontiguousSeats = validResult();
+    noncontiguousSeats.players[1].seat = 2;
+    noncontiguousSeats.players[1].sessionName = `${noncontiguousSeats.runId}-player-2`;
+    noncontiguousSeats.verification.sessionsCleanedUp[1] = `${noncontiguousSeats.runId}-player-2`;
+    expect(() => validatePlayLinejamResult(noncontiguousSeats, schema)).toThrow(
+      'player seats must be contiguous from zero'
+    );
+
+    const mismatchedPlayerSession = validResult();
+    mismatchedPlayerSession.players[1].sessionName = `${mismatchedPlayerSession.runId}-player-2`;
+    expect(() =>
+      validatePlayLinejamResult(mismatchedPlayerSession, schema)
+    ).toThrow('player sessionName must equal');
+
+    const mismatchedVerifier = validResult();
+    mismatchedVerifier.verification.verifierSessionName = `${mismatchedVerifier.runId}-verifier-extra`;
+    mismatchedVerifier.verification.sessionsCleanedUp[2] = `${mismatchedVerifier.runId}-verifier-extra`;
+    expect(() => validatePlayLinejamResult(mismatchedVerifier, schema)).toThrow(
+      'verification.verifierSessionName must belong to the run'
+    );
+
+    const foreignCleanupSession = validResult();
+    foreignCleanupSession.verification.sessionsCleanedUp[0] =
+      'foreign-run-host';
+    expect(() =>
+      validatePlayLinejamResult(foreignCleanupSession, schema)
+    ).toThrow('every cleaned session must belong to the run');
+
+    const incompleteCleanup = validResult();
+    incompleteCleanup.verification.sessionsCleanedUp.pop();
+    expect(() => validatePlayLinejamResult(incompleteCleanup, schema)).toThrow(
+      'cleaned sessions must include'
     );
   });
 
