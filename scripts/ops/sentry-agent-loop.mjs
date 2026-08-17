@@ -1799,6 +1799,8 @@ async function runIsolatedOmp({
     '/usr/local/bin/linejam-omp',
     '--model',
     `linejam-gateway/${INFERENCE_MODEL_ID}`,
+    '--thinking',
+    'medium',
     '--advisor',
     '--auto-approve',
     '--no-session',
@@ -2587,6 +2589,7 @@ async function processClaim({
     let vmAttempted = false;
     let gateway;
     let agentResult = { status: 1, stdout: '', stderr: 'agent did not start' };
+    let artifactCollectionFailed = false;
     let artifacts;
     try {
       vmAttempted = true;
@@ -2623,14 +2626,18 @@ async function processClaim({
         logPath,
       });
       if (agentResult.status === 0) {
-        artifacts = await collectArtifacts({
-          run,
-          root,
-          runtimeEnv,
-          host,
-          issueNumber: claim.githubIssueNumber,
-          evidenceArchive,
-        });
+        try {
+          artifacts = await collectArtifacts({
+            run,
+            root,
+            runtimeEnv,
+            host,
+            issueNumber: claim.githubIssueNumber,
+            evidenceArchive,
+          });
+        } catch {
+          artifactCollectionFailed = true;
+        }
       }
     } finally {
       try {
@@ -2642,14 +2649,14 @@ async function processClaim({
       }
     }
 
-    if (agentResult.status !== 0 || !artifacts) {
+    if (agentResult.status !== 0 || artifactCollectionFailed || !artifacts) {
       await cleanupWorktree();
       const marker = phaseMarker(
         secret,
         claim._id,
         `retry-${claim.agentAttempts}`
       );
-      const retryComment = `${marker}\nThe credential-free disposable VM did not produce a completed evidence packet (agent exit ${agentResult.status}). No patch was published, merged, or deployed.`;
+      const retryComment = `${marker}\nThe credential-free disposable VM did not produce a completed evidence packet (agent exit ${agentResult.status}${artifactCollectionFailed ? '; evidence collection failed' : ''}). No patch was published, merged, or deployed.`;
       await commentIssueOnce(
         run,
         root,

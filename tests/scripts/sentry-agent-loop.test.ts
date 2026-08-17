@@ -456,6 +456,7 @@ describe('Sentry agent loop', () => {
     expect(String(isolatedCall?.[1].at(-1))).toContain(
       '/usr/local/bin/linejam-omp'
     );
+    expect(String(isolatedCall?.[1].at(-1))).toContain('--thinking medium');
     expect(isolatedCall?.[2]?.env).not.toHaveProperty(
       'SENTRY_AGENT_LOOP_SECRET'
     );
@@ -553,6 +554,91 @@ describe('Sentry agent loop', () => {
     expect(commentBodies[2]).toMatch(
       /<!-- linejam-agent-publication:v1:receipt123:completed:[0-9a-f]{64} -->/
     );
+  });
+
+  it('reports a retry when the isolated agent omits its evidence packet', async () => {
+    const requests: Array<{ url: string; body: JsonObject }> = [];
+    const fetchImpl = endpointMock(requests);
+    const run = vi.fn(async (file: string, args: string[]) => {
+      if (file === 'gh' && args[0] === 'issue' && args[1] === 'view') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            number: 426,
+            state: 'OPEN',
+            url: 'https://github.com/misty-step/linejam/issues/426',
+            labels: [{ name: 'source/sentry' }, { name: 'source/agent' }],
+          }),
+          stderr: '',
+        };
+      }
+      if (file === 'sentry') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            id: '123456',
+            shortId: 'LINEJAM-1',
+            count: '1',
+            userCount: 0,
+            firstSeen: '2026-08-16T00:00:00Z',
+            lastSeen: '2026-08-16T00:00:01Z',
+            level: 'error',
+            status: 'unresolved',
+            permalink: 'https://misty-step.sentry.io/issues/123456',
+            priority: 'high',
+            platform: 'javascript',
+            isUnhandled: false,
+            seerFixabilityScore: null,
+          }),
+          stderr: '',
+        };
+      }
+      if (isExeCommand(file, args, 'new')) {
+        const vmName = args[args.indexOf('--name') + 1];
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            vm_name: vmName,
+            ssh_dest: `${vmName}.exe.xyz`,
+          }),
+          stderr: '',
+        };
+      }
+      return { status: 0, stdout: '', stderr: '' };
+    });
+
+    const result = await dispatchSentryAgent({
+      env: env(),
+      fetchImpl,
+      run,
+      now: () => 1_000,
+      startAuthGateway: async () => ({
+        port: 48_766,
+        stop: async () => undefined,
+      }),
+      collectVmArtifacts: async () => {
+        throw new Error('evidence report missing');
+      },
+      hasCompletionJournal: () => false,
+      writeCompletionJournal: vi.fn(),
+    });
+
+    expect(result).toMatchObject({ status: 'retry', issueNumber: 426 });
+    const retryComment = run.mock.calls.find(
+      ([file, args]) =>
+        file === 'gh' &&
+        args[0] === 'issue' &&
+        args[1] === 'comment' &&
+        String(args.at(-1)).includes('evidence collection failed')
+    );
+    expect(retryComment).toBeDefined();
+    expect(requests.at(-1)).toMatchObject({
+      body: {
+        action: 'complete',
+        receiptId: 'receipt123',
+        outcome: 'retry',
+      },
+    });
   });
 
   it('cleans every resource after delayed setup and a near-budget timeout', async () => {
