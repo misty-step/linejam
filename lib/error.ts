@@ -6,7 +6,7 @@ import {
   type ErrorReportContext,
   type ErrorReporter,
 } from '@/lib/errorCore';
-import { isExpectedConvexRateLimitError } from '@/lib/errorFeedback';
+import { isExpectedConvexRejection } from '@/lib/errorFeedback';
 import { sanitizeSentryReporterContext } from '@/lib/sentryPrivacy';
 const defaultReporter: ErrorReporter = {
   captureException,
@@ -30,7 +30,7 @@ export function captureError(
   context?: ErrorReportContext,
   reporter: ErrorReporter = customReporter ?? defaultReporter
 ) {
-  if (isExpectedConvexRateLimitError(error)) return;
+  if (isExpectedConvexRejection(error)) return;
 
   captureReportedError(reporter, error, context);
 }

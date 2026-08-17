@@ -55,15 +55,34 @@ describe('captureError', () => {
     );
   });
 
-  it('does not report expected Convex rate-limit rejections', () => {
-    const error = new ConvexError(
-      'Rate limit exceeded. Please try again later.'
-    );
+  it.each([
+    'Rate limit exceeded. Please try again later.',
+    'Room not found',
+    'Room is full',
+    'Room is closed',
+    'Cannot join this game state',
+  ])('does not report the expected Convex rejection %j', (payload) => {
+    const error = new ConvexError(payload);
     error.message = '[Request ID: prod123] Server Error';
 
     captureError(error, { operation: 'finishAbandonedGame' });
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it('still reports a plain Error carrying an expected-rejection message', () => {
+    captureError(new Error('Room is full'), { roomCode: 'ABCD' });
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports a ConvexError whose payload is not canonical', () => {
+    const error = new ConvexError('Room is full (8 players max)');
+    error.message = '[Request ID: prod789] Server Error';
+
+    captureError(error, { roomCode: 'ABCD' });
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it('still reports unexpected Convex failures', () => {
