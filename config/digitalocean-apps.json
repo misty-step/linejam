@@ -17,7 +17,7 @@
   },
   "apps": [
     {
-      "id": "53289d4b-0e9e-4e96-816c-f91348f2473f",
+      "id": "1fb85c4b-18eb-441c-940d-5fda33dc5923",
       "name": "linejam",
       "region": "nyc",
       "features": ["buildpack-stack=ubuntu-22"],
@@ -71,7 +71,7 @@
             },
             {
               "name": "CONVEX_DEPLOY_KEY",
-              "scope": "RUN_AND_BUILD_TIME",
+              "scope": "BUILD_TIME",
               "secret": true
             },
             {
@@ -91,6 +91,21 @@
             },
             {
               "name": "GITHUB_REPOSITORY_OWNER",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
+              "name": "SENTRY_AGENT_LOOP_SECRET",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "SENTRY_DSN",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
+              "name": "SENTRY_ENVIRONMENT",
               "scope": "RUN_AND_BUILD_TIME",
               "secret": false
             },
@@ -135,6 +150,11 @@
               "secret": false
             },
             {
+              "name": "LINEJAM_SENTRY_ENABLED",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": false
+            },
+            {
               "name": "NEXT_DEPLOYMENT_ID",
               "scope": "RUN_AND_BUILD_TIME",
               "secret": false
@@ -161,11 +181,6 @@
             },
             {
               "name": "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-              "scope": "RUN_AND_BUILD_TIME",
-              "secret": true
-            },
-            {
-              "name": "PLAYWRIGHT_CLERK_TEST_EMAIL",
               "scope": "RUN_AND_BUILD_TIME",
               "secret": true
             },
