@@ -25,6 +25,7 @@ const mockRouter: AppRouterInstance = {
   push: mockPush,
   replace: vi.fn(),
   prefetch: vi.fn(),
+  bfcacheId: '',
 };
 
 const lobbyDependencies: LobbyDependencies = {

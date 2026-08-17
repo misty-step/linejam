@@ -69,7 +69,7 @@
     "analytics:room-cycle": "tsx scripts/analytics/room-cycle-funnel.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.5.20",
+    "@clerk/nextjs": "^7.7.5",
     "@fontsource/anton": "^5.3.0",
     "@fontsource/archivo": "^5.3.0",
     "@fontsource/archivo-black": "^5.3.0",
@@ -87,13 +87,13 @@
     "@sentry/nextjs": "^10.70.0",
     "@sentry/node": "10.70.0",
     "clsx": "^2.1.1",
-    "convex": "^1.42.1",
-    "lucide-react": "^1.24.0",
-    "next": "16.2.11",
-    "posthog-js": "^1.399.2",
+    "convex": "^1.42.3",
+    "lucide-react": "^1.31.0",
+    "next": "16.3.1",
+    "posthog-js": "^1.417.1",
     "qrcode.react": "^4.2.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0"
   },
