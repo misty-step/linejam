@@ -141,6 +141,15 @@ function validateSessions(result) {
   const playerSessions = result.players.map((player) => player.sessionName);
   requireUnique(playerSessions, 'players[].sessionName');
   for (const player of result.players) {
+    const expectedRole = player.seat === 0 ? 'host' : 'guest';
+    if (player.role !== expectedRole) {
+      fail(`player seat ${player.seat} must have role ${expectedRole}`);
+    }
+    const expectedDisplayName =
+      player.role === 'host' ? 'Host Agent' : `Guest Player ${player.seat}`;
+    if (player.displayName !== expectedDisplayName) {
+      fail(`player displayName must equal ${expectedDisplayName}`);
+    }
     const expectedSession =
       player.role === 'host'
         ? `${result.runId}-host`

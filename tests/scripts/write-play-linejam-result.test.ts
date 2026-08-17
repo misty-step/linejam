@@ -23,6 +23,8 @@ const schema = JSON.parse(
 );
 const schemaWithoutPassedConditional = structuredClone(schema);
 delete schemaWithoutPassedConditional.allOf;
+const schemaWithoutPlayerTopology = structuredClone(schema);
+delete schemaWithoutPlayerTopology.properties.players.items.allOf;
 
 const runId =
   '20260816T120000Z-http-localhost-3333-00112233445566778899aabbccddeeff-play';
@@ -211,9 +213,9 @@ describe('play-linejam result validation', () => {
 
     const duplicateSeat = validResult();
     duplicateSeat.players[1].seat = 0;
-    expect(() => validatePlayLinejamResult(duplicateSeat, schema)).toThrow(
-      'players[].seat must be unique'
-    );
+    expect(() =>
+      validatePlayLinejamResult(duplicateSeat, schemaWithoutPlayerTopology)
+    ).toThrow('players[].seat must be unique');
 
     const multipleHosts = validResult();
     multipleHosts.players[1].role = 'host';
@@ -221,6 +223,27 @@ describe('play-linejam result validation', () => {
     expect(() => validatePlayLinejamResult(multipleHosts, schema)).toThrow(
       'play-linejam result rejected'
     );
+  });
+
+  it('rejects swapped host seats and seat-inconsistent player names', () => {
+    const swappedSeats = validResult();
+    swappedSeats.players[0].seat = 1;
+    swappedSeats.players[1].seat = 0;
+    swappedSeats.players[1].sessionName = `${swappedSeats.runId}-player-0`;
+    swappedSeats.verification.sessionsCleanedUp[1] = `${swappedSeats.runId}-player-0`;
+
+    expect(() => validatePlayLinejamResult(swappedSeats, schema)).toThrow(
+      'play-linejam result rejected'
+    );
+    expect(() =>
+      validatePlayLinejamResult(swappedSeats, schemaWithoutPlayerTopology)
+    ).toThrow('player seat 1 must have role guest');
+
+    const mismatchedDisplayName = validResult();
+    mismatchedDisplayName.players[1].displayName = 'Guest Player 2';
+    expect(() =>
+      validatePlayLinejamResult(mismatchedDisplayName, schema)
+    ).toThrow('player displayName must equal Guest Player 1');
   });
 
   it('rejects free-form errors and sensitive extra fields', () => {
