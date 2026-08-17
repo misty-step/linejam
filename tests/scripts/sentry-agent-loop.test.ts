@@ -44,6 +44,8 @@ const INFERENCE_TOOL_NAMES = [
   'web_search',
   'write',
 ] as const;
+type JsonObject = { [key: string]: JsonValue };
+type JsonValue = boolean | JsonObject | JsonValue[] | null | number | string;
 
 function inferencePayload(content: string) {
   return {
@@ -130,7 +132,7 @@ function githubControlResponse(file: string, args: string[]) {
   return null;
 }
 
-function response(value: unknown, status = 200) {
+function response(value: JsonValue | undefined, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
     headers: { 'Content-Type': 'application/json' },
@@ -138,12 +140,13 @@ function response(value: unknown, status = 200) {
 }
 
 function endpointMock(
-  requests: Array<{ url: string; body: Record<string, unknown> }>,
+  requests: Array<{ url: string; body: JsonObject }>,
   claim = CLAIM
 ) {
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
-    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    // SAFETY: endpointMock only receives JSON bodies created by the dispatcher.
+    const body = JSON.parse(String(init?.body)) as JsonObject;
     requests.push({ url, body });
     if (body.action === 'claim') {
       return response({ ...claim, leaseId: body.leaseId });
@@ -165,6 +168,7 @@ afterEach(() => {
   rmSync(dispatchStateDir, { recursive: true, force: true });
 });
 
+// oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- SAFETY: This test adapter forwards the production option bag and replaces only run.
 type DispatchOptions = Record<string, unknown> & {
   run?: typeof runCommand;
 };
@@ -247,7 +251,7 @@ describe('Sentry agent loop', () => {
   });
 
   it('closes a receipt without starting a VM when the issue is closed', async () => {
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const requests: Array<{ url: string; body: JsonObject }> = [];
     const fetchImpl = endpointMock(requests);
     const run = vi.fn(async (file: string, args: string[]) => {
       if (file === 'gh') {
@@ -308,8 +312,7 @@ describe('Sentry agent loop', () => {
         labels: [],
       },
     ]) {
-      const requests: Array<{ url: string; body: Record<string, unknown> }> =
-        [];
+      const requests: Array<{ url: string; body: JsonObject }> = [];
       const run = vi.fn(async () => ({
         status: 0,
         stdout: JSON.stringify(issue),
@@ -344,7 +347,7 @@ describe('Sentry agent loop', () => {
   });
 
   it('runs OMP only in a credential-free exe.dev VM and publishes the report', async () => {
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const requests: Array<{ url: string; body: JsonObject }> = [];
     const fetchImpl = endpointMock(requests, { ...CLAIM, agentAttempts: 2 });
     const run = vi.fn(
       async (
@@ -553,7 +556,7 @@ describe('Sentry agent loop', () => {
   });
 
   it('cleans every resource after delayed setup and a near-budget timeout', async () => {
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const requests: Array<{ url: string; body: JsonObject }> = [];
     const fetchImpl = endpointMock(requests);
     let elapsedMs = 0;
     const run = vi.fn(
@@ -781,12 +784,12 @@ describe('Sentry agent loop', () => {
   });
 
   it('recovers push and pull request crash windows without duplicates', async () => {
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const requests: Array<{ url: string; body: JsonObject }> = [];
     const fetchImpl = endpointMock(requests);
     let commentAttempts = 0;
     let prCreations = 0;
     let completionWritten = false;
-    let stagedPublication: Record<string, unknown> | null = null;
+    let stagedPublication: JsonObject | null = null;
     let failUrlJournal = true;
     let apiAttempts = 0;
     let remoteBranchOid: string | null = null;
@@ -959,7 +962,7 @@ describe('Sentry agent loop', () => {
         _stateDir: string,
         _receiptId: string,
         _secret: string,
-        journal: Record<string, unknown>
+        journal: JsonObject
       ) => {
         if (journal.prUrl && failUrlJournal) {
           failUrlJournal = false;
@@ -1026,10 +1029,10 @@ describe('Sentry agent loop', () => {
   });
 
   it('rejects a saved pull request after its fork branch OID changes', async () => {
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const requests: Array<{ url: string; body: JsonObject }> = [];
     const headOid = 'a'.repeat(40);
     let completionWritten = false;
-    let stagedPublication: Record<string, unknown> | null = {
+    let stagedPublication: JsonObject | null = {
       receiptId: CLAIM._id,
       branch: 'forest/sentry-426-receipt123',
       headOid,
@@ -1584,7 +1587,7 @@ describe('Sentry agent loop', () => {
 
     const deadlineRequests: Array<{
       url: string;
-      body: Record<string, unknown>;
+      body: JsonObject;
     }> = [];
     let monotonicCalls = 0;
     const deadlineRun = vi.fn();
@@ -1682,7 +1685,7 @@ describe('Sentry agent loop', () => {
         GIT_COMMITTER_NAME: 'Phaedrus Raznikov',
         GIT_COMMITTER_EMAIL: 'private@example.com',
         EMAIL: 'private@example.com',
-      } as NodeJS.ProcessEnv)
+      })
     ).resolves.toEqual({ NODE_ENV: 'test', PATH: '/bin' });
     const stopped = new AbortController();
     stopped.abort();
@@ -1715,7 +1718,7 @@ describe('Sentry agent loop', () => {
       for (const spawnLogPath of [undefined, invalidSpawnLog]) {
         await expect(
           runCommand(process.execPath, [], {
-            cwd: 42 as unknown as string,
+            cwd: 42,
             logPath: spawnLogPath,
           })
         ).rejects.toThrow();
@@ -1992,7 +1995,7 @@ describe('Sentry agent loop', () => {
 
     const invalidRequests: Array<{
       url: string;
-      body: Record<string, unknown>;
+      body: JsonObject;
     }> = [];
     await expect(
       dispatchSentryAgent({
@@ -2006,7 +2009,7 @@ describe('Sentry agent loop', () => {
     const removePublicationJournal = vi.fn();
     const recoveredRequests: Array<{
       url: string;
-      body: Record<string, unknown>;
+      body: JsonObject;
     }> = [];
     await expect(
       dispatchSentryAgent({
@@ -2022,7 +2025,7 @@ describe('Sentry agent loop', () => {
 
     const completedRequests: Array<{
       url: string;
-      body: Record<string, unknown>;
+      body: JsonObject;
     }> = [];
     await expect(
       dispatchSentryAgent({
@@ -2298,7 +2301,7 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
       expect(await headerless.text()).toBe('POST /v1/chat/completions');
       expect(headerless.headers.get('content-type')).toBeNull();
       expect(headerless.headers.get('cache-control')).toBeNull();
-      const inferenceRequest = (payload: unknown) =>
+      const inferenceRequest = (payload: JsonValue) =>
         fetch('http://127.0.0.1:48766/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

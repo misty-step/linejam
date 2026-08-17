@@ -1,6 +1,6 @@
 import { makeFunctionReference } from 'convex/server';
 import { describe, expect, it } from 'vitest';
-import type { Id } from '../../convex/_generated/dataModel';
+import type { Doc, Id } from '../../convex/_generated/dataModel';
 import type { LinejamConvexTest } from '../helpers/convexTest';
 import { setupConvexTest } from '../helpers/convexTest';
 
@@ -32,7 +32,9 @@ const completeAgentReceipt = makeFunctionReference<
 
 async function insertLinkedReceipt(
   t: LinejamConvexTest,
-  overrides: Record<string, unknown> = {}
+  overrides: Partial<
+    Omit<Doc<'sentryGithubReceipts'>, '_creationTime' | '_id'>
+  > = {}
 ) {
   return t.run((ctx) =>
     ctx.db.insert('sentryGithubReceipts', {

@@ -102,6 +102,7 @@ const ALLOWED_PATCH_EXTENSIONS = new Set([
   '.tsx',
 ]);
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This function filters untrusted process environment values before passing them to Git. */
 export async function sanitizeGitEnvironment(
   env = process.env,
   run = runCommand
@@ -135,6 +136,7 @@ export async function sanitizeGitEnvironment(
   }
   return sanitized;
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 const EVIDENCE_ARCHIVER_PY = `import json, os, stat, struct, sys
 root, output = sys.argv[1:3]
 magic = b"LINEJAM-EVIDENCE-V1\\n"
@@ -549,6 +551,7 @@ function parseJsonOutput(result, file, args) {
   }
 }
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This parser validates every untrusted claim field before dispatch. */
 export function parseAgentClaim(value) {
   if (value === null) return null;
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -592,6 +595,7 @@ export function parseAgentClaim(value) {
   }
   return claim;
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
 export function signedAgentHeaders(secret, body, timestamp) {
   const signature = createHmac('sha256', secret)
@@ -641,6 +645,7 @@ async function postAgentEndpoint(
   }
 }
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: GitHub label values are untrusted API data and are projected to strings here. */
 function issueLabels(issue) {
   return new Set(
     (Array.isArray(issue.labels) ? issue.labels : [])
@@ -648,6 +653,7 @@ function issueLabels(issue) {
       .filter(Boolean)
   );
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
 function resultMarkerSignature(secret, receiptId, leaseId, outcome) {
   return createHmac('sha256', secret)
@@ -755,6 +761,7 @@ function publicationJournalSignature(secret, value) {
     .digest('hex');
 }
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This parser validates the signed on-disk journal before use. */
 export function readPublicationJournal(stateDir, receiptId, secret) {
   try {
     const value = JSON.parse(
@@ -797,6 +804,7 @@ export function readPublicationJournal(stateDir, receiptId, secret) {
     return null;
   }
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
 export function writePublicationJournal(
   stateDir,
@@ -1002,6 +1010,7 @@ const REQUIRED_INFERENCE_TOOLS = new Set([
   'write',
 ]);
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: These projectors parse untrusted inference JSON into the only accepted request contract. */
 function isJsonObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -1173,7 +1182,9 @@ function projectInferenceRequest(payload) {
     },
   };
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This HTTP boundary validates the untrusted Content-Type header before proxying. */
 function startInferenceProxy(port, upstreamPort) {
   let acceptedRequests = 0;
   let reservedOutputTokens = 0;
@@ -1259,14 +1270,15 @@ function startInferenceProxy(port, upstreamPort) {
           },
         },
         (response) => {
-          const headers = {
-            ...(response.headers['content-type']
-              ? { 'Content-Type': response.headers['content-type'] }
-              : {}),
-            ...(response.headers['cache-control']
-              ? { 'Cache-Control': response.headers['cache-control'] }
-              : {}),
-          };
+          const headers = {};
+          const responseContentType = response.headers['content-type'];
+          if (responseContentType) {
+            headers['Content-Type'] = responseContentType;
+          }
+          const responseCacheControl = response.headers['cache-control'];
+          if (responseCacheControl) {
+            headers['Cache-Control'] = responseCacheControl;
+          }
           outgoing.writeHead(response.statusCode, headers);
           let responseBytes = 0;
           response.on('data', (chunk) => {
@@ -1312,6 +1324,7 @@ function startInferenceProxy(port, upstreamPort) {
     });
   });
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
 function stopInferenceProxy(server) {
   if (!server) return Promise.resolve();
@@ -1437,6 +1450,7 @@ async function assertPublicationAuthority({
   }
 }
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This parser validates the untrusted GitHub actor response before use. */
 async function readGithubActor(run, root, runtimeEnv) {
   const args = ['api', 'user'];
   const actor = parseJsonOutput(
@@ -1452,7 +1466,9 @@ async function readGithubActor(run, root, runtimeEnv) {
   }
   return actor.login.toLowerCase();
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This function projects untrusted GitHub comments to canonical matching fields. */
 async function commentIssueOnce(
   run,
   root,
@@ -1500,6 +1516,7 @@ async function commentIssueOnce(
   await beforeComment();
   await commentIssue(run, root, runtimeEnv, issueNumber, body);
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
 async function commentIssue(run, root, runtimeEnv, issueNumber, body) {
   const args = [
@@ -1527,6 +1544,7 @@ async function complete(fetchImpl, endpoint, secret, claim, outcome, now) {
   if (value !== true) throw new Error('agent complete response was not true');
 }
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This function allowlists and projects untrusted Sentry API fields. */
 async function collectSafeSentrySummary(run, root, runtimeEnv, claim) {
   const fields = [
     'id',
@@ -1579,6 +1597,7 @@ async function collectSafeSentrySummary(run, root, runtimeEnv, claim) {
         : null,
   };
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
 async function createVm(run, root, runtimeEnv, vmName) {
   const args = isolatedSshArgs(['exe.dev', 'new', '--name', vmName, '--json']);
@@ -1593,6 +1612,7 @@ async function createVm(run, root, runtimeEnv, vmName) {
   return value.ssh_dest;
 }
 
+/* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: This cleanup path parses the untrusted exe.dev inventory before deciding the VM is absent. */
 async function removeVm(run, root, runtimeEnv, vmName) {
   const args = isolatedSshArgs(['exe.dev', 'rm', vmName]);
   const result = await run('ssh', args, {
@@ -1629,6 +1649,7 @@ async function removeVm(run, root, runtimeEnv, vmName) {
   }
   throw commandFailure('ssh', args, result);
 }
+/* oxlint-enable anti-slop/no-runtime-typeof */
 
 async function removeWorktreeAndBranch(
   run,
