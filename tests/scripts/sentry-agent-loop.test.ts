@@ -1567,6 +1567,40 @@ describe('Sentry agent loop', () => {
       })
     ).rejects.toThrow('agent shutdown requested');
     expect(stoppedFetch).not.toHaveBeenCalled();
+    await expect(
+      dispatchSentryAgent({
+        env: env(),
+        fetchImpl: vi.fn(async () => new Response(null, { status: 204 })),
+        now: () => 1_000,
+      })
+    ).resolves.toEqual({ status: 'idle' });
+    await expect(
+      dispatchSentryAgent({
+        env: env(),
+        fetchImpl: vi.fn(async () => new Response(null, { status: 202 })),
+        now: () => 1_000,
+      })
+    ).rejects.toThrow('agent claim returned unexpected HTTP 202');
+
+    const deadlineRequests: Array<{
+      url: string;
+      body: Record<string, unknown>;
+    }> = [];
+    let monotonicCalls = 0;
+    const deadlineRun = vi.fn();
+    await expect(
+      dispatchSentryAgent({
+        env: env(),
+        fetchImpl: endpointMock(deadlineRequests),
+        monotonicNow: () => {
+          monotonicCalls += 1;
+          return monotonicCalls <= 2 ? 0 : 1_000_000_000;
+        },
+        now: () => 1_000,
+        run: deadlineRun,
+      })
+    ).rejects.toThrow('gh command failed with exit 124');
+    expect(deadlineRun).not.toHaveBeenCalled();
 
     await expect(
       dispatchSentryAgent({
@@ -1650,10 +1684,48 @@ describe('Sentry agent loop', () => {
         EMAIL: 'private@example.com',
       } as NodeJS.ProcessEnv)
     ).resolves.toEqual({ NODE_ENV: 'test', PATH: '/bin' });
+    const stopped = new AbortController();
+    stopped.abort();
+    await expect(
+      runCommand(process.execPath, ['-e', 'process.exit(9)'], {
+        signal: stopped.signal,
+      })
+    ).resolves.toEqual({
+      status: 124,
+      signal: null,
+      stdout: '',
+      stderr: 'agent shutdown requested',
+    });
+    await expect(
+      runCommand(process.execPath, ['-e', 'process.exit(9)'], {
+        binary: true,
+        signal: stopped.signal,
+      })
+    ).resolves.toMatchObject({
+      status: 124,
+      signal: null,
+      stdout: Buffer.alloc(0),
+      stderr: 'agent shutdown requested',
+    });
 
     const workspace = mkdtempSync(join(tmpdir(), 'linejam-run-command-'));
     const logPath = join(workspace, 'logs', 'command.log');
     try {
+      const invalidSpawnLog = join(workspace, 'invalid-spawn', 'command.log');
+      for (const spawnLogPath of [undefined, invalidSpawnLog]) {
+        await expect(
+          runCommand(process.execPath, [], {
+            cwd: 42 as unknown as string,
+            logPath: spawnLogPath,
+          })
+        ).rejects.toThrow();
+      }
+      await expect(
+        runCommand(process.execPath, [
+          '-e',
+          "process.kill(process.pid, 'SIGTERM')",
+        ])
+      ).resolves.toMatchObject({ status: 1, signal: 'SIGTERM' });
       await expect(
         runCommand(process.execPath, ['-e', "process.stdout.write('logged')"], {
           logPath,
@@ -2183,7 +2255,7 @@ if [ "$FAIL_GATEWAY" = "1" ]; then
   exit 7
 fi
 port="\${3##*:}"
-exec ${process.execPath} -e "require('node:http').createServer((request, response) => { let body = ''; request.on('data', (chunk) => { body += chunk; }); request.once('end', () => { response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); if (body.includes('abort-response')) { const socket = response.socket; response.flushHeaders(); response.write('partial'); setTimeout(() => socket.destroy(), 10); return; } if (body.includes('oversized-response')) { response.end('x'.repeat(9 * 1024 * 1024)); return; } response.end(request.method + ' ' + request.url); }); }).listen(Number(process.argv[1]), '127.0.0.1')" "$port"
+exec ${process.execPath} -e "require('node:http').createServer((request, response) => { let body = ''; request.on('data', (chunk) => { body += chunk; }); request.once('end', () => { if (!body.includes('headerless-response')) { response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); } if (body.includes('abort-response')) { const socket = response.socket; response.flushHeaders(); response.write('partial'); setTimeout(() => socket.destroy(), 10); return; } if (body.includes('oversized-response')) { response.end('x'.repeat(9 * 1024 * 1024)); return; } response.end(request.method + ' ' + request.url); }); }).listen(Number(process.argv[1]), '127.0.0.1')" "$port"
 `
     );
     chmodSync(omp, 0o700);
@@ -2215,6 +2287,17 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
       expect(await allowed.text()).toBe('POST /v1/chat/completions');
       expect(allowed.headers.get('content-type')).toBe('application/json');
       expect(allowed.headers.get('cache-control')).toBe('no-store');
+      const headerless = await fetch(
+        'http://127.0.0.1:48766/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inferencePayload('headerless-response')),
+        }
+      );
+      expect(await headerless.text()).toBe('POST /v1/chat/completions');
+      expect(headerless.headers.get('content-type')).toBeNull();
+      expect(headerless.headers.get('cache-control')).toBeNull();
       const inferenceRequest = (payload: unknown) =>
         fetch('http://127.0.0.1:48766/v1/chat/completions', {
           method: 'POST',
@@ -2527,6 +2610,23 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
       );
       expect(oversized.status).toBe(413);
       expect(await oversized.json()).toEqual({ error: 'invalid_request' });
+      for (let index = 0; index < 15; index += 1) {
+        const payload = {
+          ...inferencePayload(`reserved-budget-${String(index)}`),
+          max_completion_tokens: 32_768,
+        };
+        const accepted = await inferenceRequest(payload);
+        expect(accepted.status).toBe(200);
+        await accepted.text();
+      }
+      const reservedBudgetExhausted = await inferenceRequest({
+        ...inferencePayload('reserved-budget-exhausted'),
+        max_completion_tokens: 32_768,
+      });
+      expect(reservedBudgetExhausted.status).toBe(429);
+      expect(await reservedBudgetExhausted.json()).toEqual({
+        error: 'inference_budget_exhausted',
+      });
       for (const [path, method] of [
         ['/v1/usage', 'GET'],
         ['/v1/credentials/check', 'GET'],
@@ -2539,6 +2639,23 @@ exec ${process.execPath} -e "require('node:http').createServer((request, respons
         expect(response.status).toBe(404);
         expect(await response.json()).toEqual({ error: 'not_found' });
       }
+      await gateway.stop();
+      gateway = undefined;
+      gateway = await startAuthGateway({ runtimeEnv });
+      const requestBudgetResponses = await Promise.all(
+        Array.from({ length: 33 }, (_, index) =>
+          inferenceRequest(inferencePayload(`request-budget-${String(index)}`))
+        )
+      );
+      expect(
+        requestBudgetResponses.filter((response) => response.status === 200)
+      ).toHaveLength(32);
+      expect(
+        requestBudgetResponses.filter((response) => response.status === 429)
+      ).toHaveLength(1);
+      await Promise.all(
+        requestBudgetResponses.map((response) => response.text())
+      );
       await gateway.stop();
       gateway = undefined;
 
