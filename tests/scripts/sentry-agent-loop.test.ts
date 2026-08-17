@@ -49,7 +49,7 @@ type JsonValue = boolean | JsonObject | JsonValue[] | null | number | string;
 
 function inferencePayload(content: string) {
   return {
-    model: 'openai-codex/gpt-5.6-sol',
+    model: 'anthropic/claude-opus-4-7',
     messages: [{ role: 'user', content }],
     stream: true,
     stream_options: { include_usage: true },

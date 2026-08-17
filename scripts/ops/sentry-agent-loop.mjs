@@ -38,7 +38,7 @@ const STATE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 const BROKER_PORT = 48_765;
 const ACTIVE_COMMAND_TERMINATORS = new Set();
 const GATEWAY_UPSTREAM_PORT = 48_767;
-const INFERENCE_MODEL_ID = 'openai-codex/gpt-5.6-sol';
+const INFERENCE_MODEL_ID = 'anthropic/claude-opus-4-7';
 const VM_NODE_VERSION = '22.23.1';
 const VM_NODE_ARCHIVE = `node-v${VM_NODE_VERSION}-linux-x64.tar.xz`;
 const VM_NODE_SHA256 =
@@ -2588,7 +2588,7 @@ async function processClaim({
     );
     writeFileSync(
       modelsPath,
-      `providers:\n  linejam-gateway:\n    baseUrl: http://127.0.0.1:${GATEWAY_PORT}/v1\n    api: openai-completions\n    auth: none\n    models:\n      - id: ${INFERENCE_MODEL_ID}\n        name: Isolated GPT-5.6 Sol\n        contextWindow: 400000\n        maxTokens: ${MAX_INFERENCE_OUTPUT_TOKENS}\n`,
+      `providers:\n  linejam-gateway:\n    baseUrl: http://127.0.0.1:${GATEWAY_PORT}/v1\n    api: openai-completions\n    auth: none\n    models:\n      - id: ${INFERENCE_MODEL_ID}\n        name: Isolated Claude Opus 4.7\n        contextWindow: 1000000\n        maxTokens: ${MAX_INFERENCE_OUTPUT_TOKENS}\n`,
       { mode: 0o600 }
     );
     writeFileSync(archiveScriptPath, EVIDENCE_ARCHIVER_PY, { mode: 0o600 });
