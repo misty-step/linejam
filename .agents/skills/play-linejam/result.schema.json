@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://linejam.app/schemas/play-linejam-result.schema.json",
+  "title": "LinejamPlayResult",
+  "description": "Aggregate run results and per-player results from autonomous Linejam browser-play QA runs. Excludes room codes, guest tokens, poem text, and raw UI errors.",
+  "type": "object",
+  "$defs": {
+    "errorCode": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "aborted",
+        "interaction_failed",
+        "join_rejection_failed",
+        "navigation_failed",
+        "page_failed",
+        "room_closure_failed",
+        "runner_failed",
+        "runtime_error",
+        "semantic_wait_expired",
+        "session_cleanup_failed",
+        "unknown_failure"
+      ]
+    },
+    "runtimeErrorCode": {
+      "type": "string",
+      "enum": [
+        "interaction_failed",
+        "navigation_failed",
+        "page_failed",
+        "runner_failed",
+        "runtime_error",
+        "semantic_wait_expired",
+        "unknown_failure"
+      ]
+    }
+  },
+  "properties": {
+    "runId": {
+      "type": "string",
+      "pattern": "^[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{32}-play$"
+    },
+    "target": {
+      "type": "string",
+      "format": "uri"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["passed", "failed", "aborted"]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "totalRounds": {
+      "const": 9
+    },
+    "roundsCompleted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9
+    },
+    "playerCount": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 6
+    },
+    "players": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "role": {
+            "type": "string",
+            "enum": ["host", "guest"]
+          },
+          "displayName": {
+            "type": "string",
+            "pattern": "^(Host Agent|Guest Player [1-5])$"
+          },
+          "sessionName": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]+$"
+          },
+          "roundsSubmitted": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9
+          },
+          "revealedPoem": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["passed", "failed"]
+          },
+          "error": {
+            "$ref": "#/$defs/errorCode"
+          }
+        },
+        "required": [
+          "seat",
+          "role",
+          "displayName",
+          "sessionName",
+          "roundsSubmitted",
+          "revealedPoem",
+          "status"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "role": {
+                  "const": "host"
+                }
+              },
+              "required": ["role"]
+            },
+            "then": {
+              "properties": {
+                "seat": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "displayName": {
+                  "const": "Host Agent"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "role": {
+                  "const": "guest"
+                }
+              },
+              "required": ["role"]
+            },
+            "then": {
+              "properties": {
+                "seat": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "contains": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "const": "host"
+          }
+        },
+        "required": ["role"]
+      },
+      "minContains": 1,
+      "maxContains": 1,
+      "minItems": 2,
+      "maxItems": 6
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "roomClosed": {
+          "type": "boolean"
+        },
+        "closedRoomJoinRejected": {
+          "type": "boolean"
+        },
+        "allSessionsCleanedUp": {
+          "type": "boolean"
+        },
+        "sessionsCleanedUp": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]+$"
+          },
+          "uniqueItems": true
+        },
+        "verifierSessionName": {
+          "type": ["string", "null"],
+          "pattern": "^[a-zA-Z0-9._-]+$"
+        },
+        "error": {
+          "$ref": "#/$defs/errorCode"
+        }
+      },
+      "required": [
+        "roomClosed",
+        "closedRoomJoinRejected",
+        "allSessionsCleanedUp",
+        "sessionsCleanedUp",
+        "verifierSessionName"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "runDir": {
+          "type": "string",
+          "pattern": "^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{32}-play$"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["screenshot", "video", "trace", "log"]
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^\\.qa/runs/[0-9]{8}T[0-9]{6}Z-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9a-f]{32}-play/artifact-[0-9]{4}\\.(?:log|png|webm|webp|zip)$"
+              },
+              "sanitized": {
+                "const": true
+              },
+              "inspected": {
+                "const": true
+              }
+            },
+            "required": ["kind", "path", "sanitized", "inspected"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["runDir", "artifacts"],
+      "additionalProperties": false
+    },
+    "runtimeErrors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/runtimeErrorCode"
+      },
+      "maxItems": 20
+    },
+    "error": {
+      "$ref": "#/$defs/errorCode"
+    }
+  },
+  "required": [
+    "runId",
+    "target",
+    "status",
+    "startedAt",
+    "finishedAt",
+    "durationMs",
+    "totalRounds",
+    "roundsCompleted",
+    "playerCount",
+    "players",
+    "verification",
+    "evidence",
+    "runtimeErrors",
+    "error"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "passed"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "roundsCompleted": {
+            "const": 9
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "roundsSubmitted": {
+                  "const": 9
+                },
+                "revealedPoem": {
+                  "const": true
+                },
+                "status": {
+                  "const": "passed"
+                },
+                "error": {
+                  "const": null
+                }
+              }
+            }
+          },
+          "verification": {
+            "type": "object",
+            "properties": {
+              "roomClosed": {
+                "const": true
+              },
+              "closedRoomJoinRejected": {
+                "const": true
+              },
+              "allSessionsCleanedUp": {
+                "const": true
+              },
+              "verifierSessionName": {
+                "type": "string"
+              },
+              "error": {
+                "const": null
+              }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "artifacts": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "enum": ["screenshot", "video"]
+                    }
+                  },
+                  "required": ["kind"]
+                },
+                "minContains": 1
+              }
+            }
+          },
+          "runtimeErrors": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "error": {
+            "const": null
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
