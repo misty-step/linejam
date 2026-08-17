@@ -68,7 +68,7 @@ describe('Sentry workflow reporting', () => {
       },
       {
         schedule: { type: 'crontab', value: '17 * * * *' },
-        checkinMargin: 5,
+        checkinMargin: 60,
         maxRuntime: 15,
         timezone: 'UTC',
       }
@@ -280,6 +280,23 @@ describe('Sentry workflow reporting', () => {
       expect(sdk.captureException).not.toHaveBeenCalled();
     }
   );
+
+  it('refuses a non-production check-in to the production smoke monitor', async () => {
+    const sdk = sentrySdk();
+
+    await expect(
+      reportSentryWorkflow({
+        monitorSlug: SENTRY_MONITOR_SLUGS.productionSmoke,
+        outcome: 'failure',
+        consecutiveFailures: 2,
+        sdk,
+        provenanceSecret: PROVENANCE_SECRET,
+        runtimeOptions: RUNTIME_OPTIONS,
+      })
+    ).rejects.toThrow('only accepts production check-ins');
+    expect(sdk.init).not.toHaveBeenCalled();
+    expect(sdk.captureCheckIn).not.toHaveBeenCalled();
+  });
 
   it('rejects an unconfigured workflow slug', () => {
     expect(() =>

@@ -12,9 +12,17 @@ export const SENTRY_MONITOR_SLUGS = Object.freeze({
   productionSmoke: 'linejam-production-smoke',
 });
 
+// GitHub Actions scheduled workflows are best-effort: the `17 * * * *` cron
+// fires late by 10-53 minutes in practice (observed Aug 5-17 2026), and the
+// check-in only arrives after the smoke finishes. A crontab slot is satisfied
+// solely by a check-in landing inside [expected, expected + margin], so the
+// margin must cover the scheduler delay; 5 minutes marked every slot missed
+// even when the smoke passed (LINEJAM-9). 60 minutes covers the observed
+// distribution while still paging after two consecutive genuinely missed
+// slots.
 const PRODUCTION_SMOKE_MONITOR_CONFIG = Object.freeze({
   schedule: { type: 'crontab', value: '17 * * * *' },
-  checkinMargin: 5,
+  checkinMargin: 60,
   maxRuntime: 15,
   timezone: 'UTC',
 });
@@ -245,6 +253,16 @@ export async function reportSentryWorkflow({
   }
   if (!runtimeOptions.release) {
     throw new Error('NEXT_DEPLOYMENT_ID is required for Sentry reporting');
+  }
+  if (
+    plan.kind === 'check_in' &&
+    runtimeOptions.environment !== 'production'
+  ) {
+    throw new Error(
+      `The ${monitorSlug} monitor only accepts production check-ins; ` +
+        `a ${runtimeOptions.environment} check-in would seed a permanent ` +
+        'non-production environment track'
+    );
   }
 
   sdk.init({

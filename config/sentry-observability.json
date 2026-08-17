@@ -67,7 +67,7 @@
         "schedule": "17 * * * *",
         "timezone": "UTC",
         "maxRuntimeMinutes": 15,
-        "checkinMarginMinutes": 5,
+        "checkinMarginMinutes": 60,
         "recoveryThreshold": 1,
         "failureIssueThreshold": 2
       }
