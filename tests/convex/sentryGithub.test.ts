@@ -17,7 +17,6 @@ const CANONICAL_KEY = `v1:${INSTALLATION_UUID}:42:123456`;
 const DEDUP_KEY = `v2:${INSTALLATION_UUID}:42:123456:${SENTRY_EVENT_ID}`;
 const RELEASE = 'a'.repeat(40);
 const PROVENANCE_SECRET = 'test-provenance-secret-with-at-least-32-bytes';
-const AGENT_LOOP_SECRET = 'test-agent-loop-secret-with-at-least-32-bytes';
 
 const acceptWebhook = makeFunctionReference<
   'mutation',
@@ -32,12 +31,6 @@ const acceptWebhook = makeFunctionReference<
   },
   { receiptId: Id<'sentryGithubReceipts'>; inserted: boolean }
 >('sentryGithub:acceptWebhook');
-
-const backfillReceiptCanonicalKeys = makeFunctionReference<
-  'mutation',
-  { secret: string },
-  { receiptsUpdated: number; canonicalIssuesCreated: number }
->('sentryGithub:backfillReceiptCanonicalKeys');
 
 const processReceipt = makeFunctionReference<
   'action',
@@ -101,7 +94,6 @@ function bridgeEnv() {
     ...ORIGINAL_ENV,
     SENTRY_EVENT_WRITE_TOKEN: 'test-sentry-token',
     SENTRY_AUTOMATION_PROVENANCE_SECRET: PROVENANCE_SECRET,
-    SENTRY_AGENT_LOOP_SECRET: AGENT_LOOP_SECRET,
     SENTRY_ORG: 'misty-step',
     GITHUB_ISSUES_TOKEN: 'test-github-token',
     SENTRY_GITHUB_INTEGRATION_ID: '338522',
@@ -1610,62 +1602,6 @@ describe('durable Sentry to GitHub bridge', () => {
       githubIssueNumber: 77,
       reusedGithubIssue: true,
       sentryEventId: regressionEventId,
-    });
-  });
-
-  it('backfills legacy receipt canonical ownership exactly once', async () => {
-    const t = setupConvexTest();
-    const receiptId = await t.run((ctx) =>
-      ctx.db.insert('sentryGithubReceipts', {
-        dedupKey: CANONICAL_KEY,
-        installationUuid: INSTALLATION_UUID,
-        projectId: '42',
-        sentryIssueId: '123456',
-        sentryEventId: SENTRY_EVENT_ID,
-        state: 'linked',
-        attempts: 1,
-        githubIssueNumber: 77,
-        createdAt: 1_000,
-        updatedAt: 1_000,
-        nextAttemptAt: 1_000,
-      })
-    );
-
-    await expect(
-      t.mutation(backfillReceiptCanonicalKeys, { secret: 'wrong-secret' })
-    ).rejects.toThrow('unauthorized');
-    await expect(
-      t.mutation(backfillReceiptCanonicalKeys, {
-        secret: AGENT_LOOP_SECRET,
-      })
-    ).resolves.toEqual({
-      receiptsUpdated: 1,
-      canonicalIssuesCreated: 1,
-    });
-    expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
-      canonicalKey: CANONICAL_KEY,
-      githubIssueNumber: 77,
-    });
-    expect(
-      await t.run((ctx) =>
-        ctx.db
-          .query('sentryGithubCanonicalIssues')
-          .withIndex('by_canonicalKey', (query) =>
-            query.eq('canonicalKey', CANONICAL_KEY)
-          )
-          .unique()
-      )
-    ).toMatchObject({
-      canonicalKey: CANONICAL_KEY,
-      githubIssueNumber: 77,
-    });
-    await expect(
-      t.mutation(backfillReceiptCanonicalKeys, {
-        secret: AGENT_LOOP_SECRET,
-      })
-    ).resolves.toEqual({
-      receiptsUpdated: 0,
-      canonicalIssuesCreated: 0,
     });
   });
 
