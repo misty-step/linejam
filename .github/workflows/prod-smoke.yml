@@ -29,8 +29,8 @@ jobs:
       LINEJAM_SMOKE_RUNNER: playwright
       LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1'
       LINEJAM_ALLOWED_SMOKE_ORIGINS: https://www.linejam.app
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CI_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CI_CLERK_SECRET_KEY }}
       PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
       NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
       NEXT_PUBLIC_SENTRY_ENABLED: '1'
@@ -124,6 +124,7 @@ jobs:
       - name: Report status to Sentry
         if: always()
         env:
+          SENTRY_AUTOMATION_PROVENANCE_SECRET: ${{ secrets.SENTRY_AUTOMATION_PROVENANCE_SECRET }}
           LINEJAM_MONITOR_SLUG: linejam-production-smoke
           LINEJAM_RELEASE_RESOLUTION_OUTCOME: ${{ steps.release.outcome }}
           LINEJAM_MONITOR_OUTCOME: ${{ steps.smoke.outcome }}

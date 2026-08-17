@@ -80,34 +80,35 @@ must receive the identical value. A mismatch breaks guest-token verification.
 
 ### Web application
 
-| Variable                             | Purpose                                                    |
-| ------------------------------------ | ---------------------------------------------------------- |
-| `GUEST_TOKEN_SECRET`                 | signs web guest tokens; must match Convex                  |
-| `NEXT_PUBLIC_CONVEX_URL`             | production Convex URL                                      |
-| `CONVEX_DEPLOYMENT`                  | production Convex deployment selector                      |
-| `CONVEX_DEPLOYMENT_URL`              | production Convex deployment URL                           |
-| `CONVEX_DEPLOY_KEY`                  | production deploy key used during the hosted build         |
-| `LINEJAM_DEPLOY_ENVIRONMENT`         | `production`; fail-closed hosted deploy guard              |
-| `NEXT_DEPLOYMENT_ID`                 | `${_self.COMMIT_HASH}`; release and rolling-build identity |
-| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | stable 32-byte base64 Server Action key                    |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`  | browser Clerk key                                          |
-| `CLERK_SECRET_KEY`                   | server Clerk key                                           |
-| `CLERK_JWT_ISSUER_DOMAIN`            | Clerk issuer used by Convex auth                           |
-| `NEXT_PUBLIC_SENTRY_ENABLED`         | exact `1`; enables browser and hosted Convex Sentry        |
-| `NEXT_PUBLIC_SENTRY_DSN`             | public write-only browser and Convex Sentry destination    |
-| `SENTRY_AUTH_TOKEN`                  | build-only source-map upload credential                    |
-| `SENTRY_ORG`                         | `misty-step`; source uploads and issue-event API paths     |
-| `SENTRY_PROJECT`                     | `linejam`                                                  |
-| `SENTRY_WEBHOOK_SECRET`              | signed Sentry webhook verification secret                  |
-| `SENTRY_EVENT_WRITE_TOKEN`           | `event:write` token for event reads and GitHub linkage     |
-| `GITHUB_ISSUES_TOKEN`                | GitHub Issue creation token used by the Convex worker      |
-| `SENTRY_EXPECTED_APP_ID`             | allowlisted Sentry integration application ID              |
-| `SENTRY_EXPECTED_INSTALLATION_UUID`  | allowlisted Sentry installation UUID                       |
-| `SENTRY_EXPECTED_PROJECT_ID`         | allowlisted Linejam Sentry project ID                      |
-| `SENTRY_GITHUB_INTEGRATION_ID`       | Sentry GitHub integration ID used for external issue links |
-| `GITHUB_REPOSITORY_OWNER`            | `misty-step`                                               |
-| `GITHUB_REPOSITORY_NAME`             | `linejam`                                                  |
-| `PLAYWRIGHT_CLERK_TEST_EMAIL`        | pre-created production smoke user                          |
+| Variable                              | Purpose                                                    |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `GUEST_TOKEN_SECRET`                  | signs web guest tokens; must match Convex                  |
+| `NEXT_PUBLIC_CONVEX_URL`              | production Convex URL                                      |
+| `CONVEX_DEPLOYMENT`                   | production Convex deployment selector                      |
+| `CONVEX_DEPLOYMENT_URL`               | production Convex deployment URL                           |
+| `CONVEX_DEPLOY_KEY`                   | production deploy key used during the hosted build         |
+| `LINEJAM_DEPLOY_ENVIRONMENT`          | `production`; fail-closed hosted deploy guard              |
+| `NEXT_DEPLOYMENT_ID`                  | `${_self.COMMIT_HASH}`; release and rolling-build identity |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`  | stable 32-byte base64 Server Action key                    |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`   | browser Clerk key                                          |
+| `CLERK_SECRET_KEY`                    | server Clerk key                                           |
+| `CLERK_JWT_ISSUER_DOMAIN`             | Clerk issuer used by Convex auth                           |
+| `NEXT_PUBLIC_SENTRY_ENABLED`          | exact `1`; enables browser and hosted Convex Sentry        |
+| `NEXT_PUBLIC_SENTRY_DSN`              | public write-only browser and Convex Sentry destination    |
+| `SENTRY_AUTH_TOKEN`                   | build-only source-map upload credential                    |
+| `SENTRY_ORG`                          | `misty-step`; source uploads and issue-event API paths     |
+| `SENTRY_PROJECT`                      | `linejam`                                                  |
+| `SENTRY_WEBHOOK_SECRET`               | signed Sentry webhook verification secret                  |
+| `SENTRY_EVENT_WRITE_TOKEN`            | `event:write` token for event reads and GitHub linkage     |
+| `SENTRY_AUTOMATION_PROVENANCE_SECRET` | HMAC authority for trusted automation-origin Sentry events |
+| `GITHUB_ISSUES_TOKEN`                 | GitHub Issue creation token used by the Convex worker      |
+| `SENTRY_EXPECTED_APP_ID`              | allowlisted Sentry integration application ID              |
+| `SENTRY_EXPECTED_INSTALLATION_UUID`   | allowlisted Sentry installation UUID                       |
+| `SENTRY_EXPECTED_PROJECT_ID`          | allowlisted Linejam Sentry project ID                      |
+| `SENTRY_GITHUB_INTEGRATION_ID`        | Sentry GitHub integration ID used for external issue links |
+| `GITHUB_REPOSITORY_OWNER`             | `misty-step`                                               |
+| `GITHUB_REPOSITORY_NAME`              | `linejam`                                                  |
+| `PLAYWRIGHT_CLERK_TEST_EMAIL`         | pre-created production smoke user                          |
 
 Update environment configuration in App Platform without copying values into
 the repository. For a scripted change, export the current spec into a protected
@@ -346,8 +347,12 @@ approved one-way check when direct control-plane verification is insufficient.
 Confirm the production Convex environment has all bridge variables named in
 `config/convex-env-manifest.json`, the Sentry internal integration sends
 `event_alert` payloads to `/api/webhooks/sentry`, and the signing secret matches.
-The route intentionally returns the same `400 Invalid webhook` for every
-authentication, allowlist, and schema rejection.
+The route returns `400 Invalid webhook` for authentication, allowlist, and
+payload-schema rejection. It acknowledges a correctly signed event with `202`
+when that event's trusted automation provenance is permanently invalid, without
+creating a receipt, so Sentry does not retry a hopeless event. Provider,
+configuration, and durable-admission failures return `503 Unavailable` so
+Sentry retries after the dependency or operator-owned configuration recovers.
 
 ### Smoke cannot launch Chromium
 
@@ -368,6 +373,10 @@ then redeploy and replay guest creation. Existing guest tokens become invalid.
 Rotate `SENTRY_WEBHOOK_SECRET` by updating the Sentry internal integration and
 the production Convex environment in one bounded window, then verify one signed
 delivery before ending the window.
+Rotate `SENTRY_AUTOMATION_PROVENANCE_SECRET` in the smoke workflow secret stores
+and production Convex environment in one bounded window. Events signed with the
+old value stop at bridge admission; verify one trusted event before ending the
+window.
 
 App Platform deployments are source-driven. If a source release is bad, use a
 normal `git revert` of the offending commit, pass the gates, and merge the

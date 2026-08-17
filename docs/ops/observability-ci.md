@@ -112,6 +112,9 @@ incident-evidence platform:
   smoke. The first failed production smoke remains non-paging; the second
   consecutive failure opens the monitor and emits one closed-tag
   `productionSmoke` issue for the GitHub bridge. A passing run recovers it.
+- The live observability contract exits red only when a second bounded Sentry
+  sample confirms the first sample's drift. A healthy first sample performs no
+  duplicate reads; a persistent second failure remains authoritative.
 - Retained Convex backend failure events cover abandonment sweeps and finishers
   using a closed operation and failure-code vocabulary.
 - Event-driven preview smoke failures are Sentry issues tagged
@@ -126,6 +129,11 @@ incident-evidence platform:
   The listener projects only the closed action, installation, project, issue,
   and event identifiers needed for durable one-to-one GitHub Issue
   synchronization.
+- Before durable receipt insertion, the bridge reads that exact Sentry event and
+  verifies its `provenance` tag: an HMAC bound to the event ID, release,
+  environment, operation, and failure code. Only trusted workflow and backend
+  reporters hold the HMAC secret. Browser events and arbitrary public-DSN
+  submissions cannot enter the GitHub or agent loop.
 - The bridge reads classification tags from the exact Sentry issue event named
   by the receipt. It rejects a response whose event or issue ID differs and
   rejects missing or duplicate required tags; issue-history tag aggregation is
@@ -167,11 +175,13 @@ polls produce no output. A claimed receipt:
 3. runs one non-interactive OMP investigation with advisor review;
 4. requires a disposable `lj-sentry-<issue>-<lease>` exe.dev VM for public-repo
    reproduction without VM credentials;
-5. requires an inspected `.evidence/sentry-<issue>/` packet, archives it under
-   `~/.local/state/linejam-sentry-agent/evidence/`, and writes a durable,
-   privacy-safe evidence summary to the GitHub Issue;
-6. pushes any candidate patch only to a separate fork and opens a draft pull
-   request, but never merges or deploys it;
+5. requires an inspected `.evidence/sentry-<issue>/` packet, archives it
+   privately under `~/.local/state/linejam-sentry-agent/evidence/`, and posts
+   only fixed lifecycle text to the GitHub Issue; model-authored report text
+   and event-derived details remain local;
+6. pushes a policy-limited candidate source patch only to a separate fork and
+   opens a draft pull request, but never changes observability control files,
+   merges, or deploys;
 7. emits one fixed receipt to the dedicated Linejam Sentry Discord target.
 
 Sentry payloads and all public GitHub Issue content are untrusted data, not
@@ -182,6 +192,15 @@ local journals; the poller never loads public comments as control state. Before
 any fork push, the publication journal binds the receipt-stable fork branch to
 the validated commit OID. A retry requires that exact remote branch and OID,
 then reuses the matching pull request instead of creating another.
+Each public comment and fork push revalidates the active backend lease and the
+canonical Issue state and labels. Recovery accepts only exact, open draft pull
+requests authored by the authenticated GitHub actor with the expected base,
+fork head, commit OID, title, and HMAC marker. The run has a 38-minute
+work deadline, reserves cleanup time, and bounds model requests, response
+bytes, and output tokens.
+Private packets, logs, patches, journals, and extracted evidence are pruned
+after 30 days. Shorter retention may be applied by the operator; longer
+retention requires an explicit incident or legal need.
 
 The external fork and draft state are mandatory trust boundaries. The
 workstation disables repository Git hooks for candidate commits and pushes.
@@ -199,14 +218,19 @@ SENTRY_AGENT_LOOP_SECRET=<same-production-secret> \
 pnpm ops:sentry-agent:install
 ```
 
-The entire Node work phase is capped at 45 minutes from process start. Every
+The entire Node work phase is capped at 38 minutes from process start. The OMP
+investigation is capped at 35 minutes. Every
 GitHub, Git, Sentry, SSH, SCP, and backend request receives the remaining work
 budget; OMP receives the smaller of its configured limit and that remainder.
-Cleanup bypasses an exhausted work budget, but each of its three external
-commands is capped at two minutes and gateway children stop within seconds.
-Against Hermes' one-hour script timeout this reserves more than eight minutes
-for launcher overhead and process termination. The installer rejects a larger
-OMP limit, and both boundaries remain below the 90-minute claim lease.
+One asynchronous process owner applies those limits to commands with and
+without log files. It sends `SIGTERM` at the limit and `SIGKILL` five seconds
+later if the child remains alive. Cleanup bypasses an exhausted work budget,
+but each cleanup or absence-check command is capped at two minutes. Six
+sequential worst-case cleanup and verification commands, including kill grace,
+consume at most 12 minutes 30 seconds. Against Hermes' one-hour script timeout,
+the 38-minute work phase therefore reserves more than eight minutes for
+launcher overhead and process termination. The installer rejects a larger OMP
+limit, and both boundaries remain below the 90-minute claim lease.
 Worktree, branch, and VM cleanup begins when acquisition is attempted, not only
 after a success response; a failed cleanup is tolerated only after a bounded
 inventory or ref check proves that the deterministic resource is absent.
@@ -273,6 +297,10 @@ details:
 7. Stop or roll back if prohibited data arrives, an expected failure is missed,
    one Sentry issue creates multiple work items, source attribution is
    ambiguous, or observability changes player-facing availability.
+   The local OMP authentication gateway is loopback-bound but intentionally has no
+   gateway bearer token. Any local process could use it while a claim is active.
+   Run this lane only on the dedicated single-operator workstation. A shared host
+   requires an authenticated per-run gateway design and is a stop condition.
 
 ## Serious incidents
 

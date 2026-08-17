@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 import {
+  accessSync,
   chmodSync,
+  constants,
   copyFileSync,
   mkdirSync,
   readFileSync,
   writeFileSync,
+  statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { parseAgentTimeoutMs } from './sentry-agent-loop.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parseAgentTimeoutMs, runCommand } from './sentry-agent-loop.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SOURCE = join(ROOT, 'scripts', 'ops', 'sentry-agent-loop.mjs');
@@ -22,14 +24,13 @@ function required(value, name) {
   return normalized;
 }
 
-function run(file, args, options = {}) {
-  const result = spawnSync(file, args, {
+async function runChecked(runCommandImpl, file, args, options = {}) {
+  const result = await runCommandImpl(file, args, {
     cwd: options.cwd ?? ROOT,
-    env: process.env,
-    encoding: 'utf8',
+    env: options.env,
     maxBuffer: 64 * 1_024,
+    timeoutMs: 30_000,
   });
-  if (result.error) throw result.error;
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || '').trim();
     throw new Error(
@@ -56,7 +57,12 @@ function activeHermesProfile(home) {
   return profile;
 }
 
-export function installSentryAgentLoop(env = process.env) {
+export async function installSentryAgentLoop(
+  env = process.env,
+  runCommandImpl = runCommand
+) {
+  const run = (file, args, options) =>
+    runChecked(runCommandImpl, file, args, options);
   const home = homedir();
   const endpoint = required(
     env.LINEJAM_SENTRY_AGENT_ENDPOINT,
@@ -79,6 +85,8 @@ export function installSentryAgentLoop(env = process.env) {
       'SENTRY_AGENT_LOOP_SECRET must contain at least 32 characters'
     );
   }
+  const childEnv = { ...process.env, ...env };
+  delete childEnv.SENTRY_AGENT_LOOP_SECRET;
   if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(endpoint)) {
     throw new Error('LINEJAM_SENTRY_AGENT_ENDPOINT must be an HTTPS origin');
   }
@@ -93,29 +101,58 @@ export function installSentryAgentLoop(env = process.env) {
     );
   }
 
-  run('sentry', ['auth', 'status']);
-  run('gh', ['auth', 'status']);
-  run('ssh', ['exe.dev', 'ls', '--json']);
-  run('omp', ['--version']);
-  run('hermes', ['--version']);
-  const origin = run('git', ['remote', 'get-url', 'origin'], {
+  await run('sentry', ['auth', 'status'], { env: childEnv });
+  await run('gh', ['auth', 'status'], { env: childEnv });
+  await run('ssh', ['exe.dev', 'ls', '--json'], { env: childEnv });
+  const discoveredOmp = env.LINEJAM_OMP_BINARY?.trim()
+    ? env.LINEJAM_OMP_BINARY
+    : await run('which', ['omp'], { env: childEnv });
+  const ompBinary = resolve(required(discoveredOmp, 'LINEJAM_OMP_BINARY'));
+  try {
+    accessSync(ompBinary, constants.X_OK);
+  } catch {
+    throw new Error('LINEJAM_OMP_BINARY must be an executable file');
+  }
+  const evidenceSkill = resolve(
+    env.LINEJAM_EVIDENCE_SKILL?.trim() ||
+      join(home, '.omp', 'agent', 'skills', 'evidence-packet')
+  );
+  try {
+    if (!statSync(evidenceSkill).isDirectory()) throw new Error();
+    accessSync(join(evidenceSkill, 'SKILL.md'), constants.R_OK);
+  } catch {
+    throw new Error(
+      'LINEJAM_EVIDENCE_SKILL must contain a readable evidence-packet skill'
+    );
+  }
+  await run(ompBinary, ['--version'], { env: childEnv });
+  await run('hermes', ['--version'], { env: childEnv });
+  const origin = await run('git', ['remote', 'get-url', 'origin'], {
     cwd: repositoryPath,
+    env: childEnv,
   });
   if (origin !== EXPECTED_ORIGIN) {
     throw new Error(
       `Linejam origin must be ${EXPECTED_ORIGIN}; received ${origin}`
     );
   }
-  const fork = run('gh', [
-    'repo',
-    'view',
-    forkRepository,
-    '--json',
-    'nameWithOwner,isFork,parent',
-    '--jq',
-    '[.nameWithOwner, .isFork, (.parent.owner.login + "/" + .parent.name)] | @tsv',
-  ]);
-  if (fork !== `${forkRepository}\ttrue\tmisty-step/linejam`) {
+  const fork = await run(
+    'gh',
+    [
+      'repo',
+      'view',
+      forkRepository,
+      '--json',
+      'nameWithOwner,isFork,parent',
+      '--jq',
+      '[.nameWithOwner, .isFork, (.parent.owner.login + "/" + .parent.name)] | @tsv',
+    ],
+    { env: childEnv }
+  );
+  if (
+    fork.toLowerCase() !==
+    `${forkRepository}\ttrue\tmisty-step/linejam`.toLowerCase()
+  ) {
     throw new Error(
       'LINEJAM_AGENT_FORK_REPOSITORY must be a fork of misty-step/linejam'
     );
@@ -148,6 +185,8 @@ export function installSentryAgentLoop(env = process.env) {
       `SENTRY_AGENT_LOOP_SECRET=${shellQuote(secret)}`,
       `LINEJAM_AGENT_FORK_REPOSITORY=${shellQuote(forkRepository)}`,
       `LINEJAM_SENTRY_AGENT_TIMEOUT_MS=${shellQuote(String(agentTimeoutMs))}`,
+      `LINEJAM_OMP_BINARY=${shellQuote(ompBinary)}`,
+      `LINEJAM_EVIDENCE_SKILL=${shellQuote(evidenceSkill)}`,
       '',
     ].join('\n'),
     { mode: 0o600 }
@@ -166,12 +205,23 @@ export function installSentryAgentLoop(env = process.env) {
   );
   chmodSync(launcherPath, 0o700);
 
-  return { configPath, installPath, launcherPath, profile, repositoryPath };
+  return {
+    configPath,
+    installPath,
+    launcherPath,
+    profile,
+    repositoryPath,
+    ompBinary,
+    evidenceSkill,
+  };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   try {
-    const installed = installSentryAgentLoop();
+    const installed = await installSentryAgentLoop();
     process.stdout.write(
       `Installed Linejam Sentry agent loop for Hermes profile ${installed.profile}.\nLauncher: ${installed.launcherPath}\n`
     );

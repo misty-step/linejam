@@ -237,6 +237,7 @@ const BRIDGE_ENVIRONMENT = Object.freeze({
 const BRIDGE_SECRET_NAMES = Object.freeze([
   'SENTRY_WEBHOOK_SECRET',
   'SENTRY_EVENT_WRITE_TOKEN',
+  'SENTRY_AUTOMATION_PROVENANCE_SECRET',
   'GITHUB_ISSUES_TOKEN',
 ]);
 
@@ -271,6 +272,15 @@ function resolveHostedBridgeEntries(env, deploymentEnvironment) {
       'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
     );
   }
+  const provenanceSecret = env.SENTRY_AUTOMATION_PROVENANCE_SECRET.trim();
+  const provenanceSecretBytes = new TextEncoder().encode(
+    provenanceSecret
+  ).length;
+  if (provenanceSecretBytes < 32 || provenanceSecretBytes > 256) {
+    throw new Error(
+      'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
+    );
+  }
   return [
     ...secretEntries,
     ...expectedEntries.map(([name, expected]) => [
@@ -286,6 +296,11 @@ function resolveAgentLoopEntries(env, deploymentEnvironment) {
   if (!secret || secret.length < 32) {
     throw new Error(
       'SENTRY_AGENT_LOOP_SECRET must contain at least 32 characters for production.'
+    );
+  }
+  if (secret === env.SENTRY_WEBHOOK_SECRET?.trim()) {
+    throw new Error(
+      'SENTRY_AGENT_LOOP_SECRET must differ from SENTRY_WEBHOOK_SECRET.'
     );
   }
   return [['SENTRY_AGENT_LOOP_SECRET', secret]];

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  signSentryAutomationGroup,
+  verifySentryAutomationProvenance,
+} from '@/sentry.provenance.mjs';
+import {
   planSentryReport,
   reportSentryWorkflow,
   sanitizeWorkflowEvent,
@@ -7,6 +11,7 @@ import {
 } from '@/scripts/ops/report-sentry-check-in.mjs';
 
 const RELEASE = 'a'.repeat(40);
+const PROVENANCE_SECRET = 'test-provenance-secret-with-at-least-32-bytes';
 const RUNTIME_OPTIONS = {
   enabled: true,
   dsn: ['https://public', 'sentry.example.test/1'].join('@'),
@@ -50,6 +55,7 @@ describe('Sentry workflow reporting', () => {
       monitorSlug: SENTRY_MONITOR_SLUGS.productionSmoke,
       outcome: 'failure',
       consecutiveFailures: 2,
+      provenanceSecret: PROVENANCE_SECRET,
       sdk,
       runtimeOptions: { ...RUNTIME_OPTIONS, environment: 'production' },
     });
@@ -131,12 +137,13 @@ describe('Sentry workflow reporting', () => {
       monitorSlug: SENTRY_MONITOR_SLUGS.previewSmoke,
       outcome: 'failure',
       sdk,
+      provenanceSecret: PROVENANCE_SECRET,
       runtimeOptions: RUNTIME_OPTIONS,
     });
 
     expect(result).toMatchObject({ kind: 'event', eventId: 'event-id' });
     expect(sdk.init).toHaveBeenCalledWith(
-      expect.objectContaining({ beforeSend: sanitizeWorkflowEvent })
+      expect.objectContaining({ beforeSend: expect.any(Function) })
     );
     expect(sdk.captureException).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Linejam preview smoke failed' }),
@@ -203,6 +210,47 @@ describe('Sentry workflow reporting', () => {
         values: [{ type: 'Error', value: 'Linejam preview smoke failed' }],
       },
     });
+    const beforeSend = sdk.init.mock.calls[0][0].beforeSend;
+    const signed = await beforeSend({
+      event_id: 'c'.repeat(32),
+      level: 'error',
+      environment: 'preview',
+      release: RELEASE,
+      tags: {
+        runtime: 'github-actions',
+        operation: 'previewSmoke',
+        failure_code: 'unexpected_error',
+      },
+      exception: {
+        values: [{ type: 'Error', value: 'Linejam preview smoke failed' }],
+      },
+    });
+    expect(signed.tags.provenance).toMatch(/^[0-9a-f]{64}$/);
+    await expect(
+      signSentryAutomationGroup(PROVENANCE_SECRET, {
+        runtime: 'github-actions',
+        environment: 'preview',
+        level: 'error',
+        operation: 'previewSmoke',
+        failureCode: 'unexpected_error',
+      })
+    ).resolves.toBe(signed.fingerprint[1]);
+    expect(signed.fingerprint[0]).toBe('linejam-trusted-automation-v1');
+    await expect(
+      verifySentryAutomationProvenance(
+        PROVENANCE_SECRET,
+        {
+          eventId: 'c'.repeat(32),
+          runtime: 'github-actions',
+          environment: 'preview',
+          release: RELEASE,
+          level: 'error',
+          operation: 'previewSmoke',
+          failureCode: 'unexpected_error',
+        },
+        signed.tags.provenance
+      )
+    ).resolves.toBe(true);
     expect(JSON.stringify(filtered)).not.toContain('PROHIBITED');
   });
 
@@ -248,6 +296,7 @@ describe('Sentry workflow reporting', () => {
         monitorSlug: SENTRY_MONITOR_SLUGS.previewSmoke,
         outcome: 'failure',
         sdk,
+        provenanceSecret: PROVENANCE_SECRET,
         runtimeOptions: RUNTIME_OPTIONS,
       })
     ).rejects.toThrow('Sentry workflow report flush did not complete');

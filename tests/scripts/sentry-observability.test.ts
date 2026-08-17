@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import manifest from '../../config/sentry-observability.json';
 import {
   auditSentryObservability,
+  auditLiveSentryObservability,
   collectSentryObservability,
   main,
 } from '../../scripts/ops/check-sentry-observability.mjs';
@@ -21,32 +22,55 @@ interface AlertActionFixture {
 }
 
 interface AlertFilterFixture {
-  comparison?: { key: string; value: string };
+  comparison?: { attribute?: string; key?: string; value?: string };
   config?: { key: string; value: string };
+  type?: string;
   unrelated?: boolean;
 }
 
 interface IssueAlertFixture {
+  actionMatch?: string;
   actionFilters?: Array<{
     actions?: AlertActionFixture[] | null;
     conditions?: AlertFilterFixture[];
   }>;
   actions?: AlertActionFixture[] | null;
+  conditions?: Array<{ id?: string; type?: string }>;
   enabled: boolean;
   filters?: AlertFilterFixture[] | null;
+  filterMatch?: string;
+  frequency?: number;
   name: string;
 }
 
 interface CronMonitorFixture {
   config?: {
     checkin_margin: number;
+    failure_issue_threshold: number;
     max_runtime: number;
+    recovery_threshold: number;
     schedule: string;
     timezone: string;
   };
   isMuted: boolean;
   slug: string;
   status: string;
+}
+
+interface UptimeMonitorFixture {
+  downtimeThreshold: number;
+  id: string;
+  environment: string | null;
+  intervalSeconds: number;
+  method: string;
+  name: string;
+  projectSlug: string;
+  recoveryThreshold: number;
+  responseCaptureEnabled: boolean;
+  status: string;
+  timeoutMs: number;
+  traceSampling: boolean;
+  url: string;
 }
 
 interface ObservabilitySnapshotFixture {
@@ -62,6 +86,7 @@ interface ObservabilitySnapshotFixture {
     lastDeploy: { environment: string } | null;
     version: string;
   }>;
+  uptimeMonitors: UptimeMonitorFixture[];
 }
 
 function passingSnapshot(): ObservabilitySnapshotFixture {
@@ -70,6 +95,14 @@ function passingSnapshot(): ObservabilitySnapshotFixture {
       name: rule.name,
       enabled: rule.enabled,
       actions: [rule.action],
+      conditions:
+        'trigger' in rule && rule.trigger
+          ? rule.trigger.conditionTypes.map((type) => ({ type }))
+          : undefined,
+      actionMatch:
+        'trigger' in rule && rule.trigger ? rule.trigger.logic : undefined,
+      filterMatch: 'filterLogic' in rule ? rule.filterLogic : undefined,
+      frequency: 'frequencyMinutes' in rule ? rule.frequencyMinutes : undefined,
       filters: Object.entries(rule.tagFilters ?? {}).map(([key, value]) => ({
         comparison: { key, value },
       })),
@@ -83,7 +116,12 @@ function passingSnapshot(): ObservabilitySnapshotFixture {
         timezone: monitor.timezone,
         max_runtime: monitor.maxRuntimeMinutes,
         checkin_margin: monitor.checkinMarginMinutes,
+        recovery_threshold: monitor.recoveryThreshold,
+        failure_issue_threshold: monitor.failureIssueThreshold,
       },
+    })),
+    uptimeMonitors: manifest.uptimeMonitors.required.map((monitor) => ({
+      ...monitor,
     })),
     releases: [
       {
@@ -147,6 +185,8 @@ describe('Sentry observability contract', () => {
         timezone: 'UTC',
         max_runtime: 1,
         checkin_margin: 2,
+        recovery_threshold: 1,
+        failure_issue_threshold: 2,
       },
     });
     snapshot.releases[0].deployCount = 0;
@@ -185,6 +225,50 @@ describe('Sentry observability contract', () => {
       'alert:GitHub bridge: New operational issue:expected-one:found-2'
     );
   });
+  it('fails on bridge trigger, logic, and frequency drift', () => {
+    const snapshot = passingSnapshot();
+    const bridge = snapshot.issueAlerts.find((rule) =>
+      rule.name.startsWith('GitHub bridge: New')
+    )!;
+    bridge.conditions = [{ type: 'every_event' }];
+    bridge.actionMatch = 'any';
+    bridge.filterMatch = 'any';
+    bridge.frequency = 5;
+
+    expect(auditSentryObservability(manifest, snapshot).failures).toEqual(
+      expect.arrayContaining([
+        `alert:${bridge.name}:trigger-logic-drift`,
+        `alert:${bridge.name}:trigger-conditions-drift`,
+        `alert:${bridge.name}:filter-logic-drift`,
+        `alert:${bridge.name}:frequency-drift`,
+      ])
+    );
+  });
+
+  it('rejects duplicate, undeclared, and malformed alert filters', () => {
+    const snapshot = passingSnapshot();
+    const alert = snapshot.issueAlerts[0];
+    const runtimeFilter = alert.filters!.find(
+      (filter) => filter.comparison?.key === 'runtime'
+    )!;
+    alert.filters!.push(structuredClone(runtimeFilter));
+    alert.filters!.push({
+      comparison: { key: 'environment', value: 'preview' },
+    });
+    alert.filters!.push({ type: 'tagged_event', unrelated: true });
+    alert.filters!.push({
+      type: 'event_attribute',
+      comparison: { attribute: 'error.unhandled', value: 'true' },
+    });
+
+    expect(auditSentryObservability(manifest, snapshot).failures).toEqual(
+      expect.arrayContaining([
+        `alert:${alert.name}:tag-filter-runtime-expected-one:found-2`,
+        `alert:${alert.name}:tag-filter-environment-undeclared`,
+        `alert:${alert.name}:tag-filter-malformed`,
+      ])
+    );
+  });
 
   it('rejects an undeclared Linejam cron monitor', () => {
     const snapshot = passingSnapshot();
@@ -197,11 +281,26 @@ describe('Sentry observability contract', () => {
         timezone: 'UTC',
         max_runtime: 5,
         checkin_margin: 5,
+        recovery_threshold: 1,
+        failure_issue_threshold: 2,
       },
     });
 
     expect(auditSentryObservability(manifest, snapshot).failures).toContain(
       'cron-monitor:linejam-unknown-job:undeclared'
+    );
+  });
+
+  it('rejects undeclared Linejam uptime monitors', () => {
+    const snapshot = passingSnapshot();
+    snapshot.uptimeMonitors.push({
+      ...snapshot.uptimeMonitors[0],
+      id: '9999999',
+      name: 'Linejam duplicate health',
+    });
+
+    expect(auditSentryObservability(manifest, snapshot).failures).toContain(
+      'uptime-monitor:Linejam duplicate health:undeclared'
     );
   });
 });
@@ -220,7 +319,21 @@ it('reports every declared identity and field drift', () => {
       timezone: 'Etc/GMT',
       max_runtime: 99,
       checkin_margin: 99,
+      recovery_threshold: 99,
+      failure_issue_threshold: 99,
     },
+  });
+  Object.assign(snapshot.uptimeMonitors[0], {
+    status: 'disabled',
+    environment: null,
+    url: 'https://www.linejam.app/',
+    method: 'POST',
+    intervalSeconds: 300,
+    timeoutMs: 1,
+    recoveryThreshold: 2,
+    downtimeThreshold: 4,
+    traceSampling: true,
+    responseCaptureEnabled: false,
   });
   snapshot.releases[0].lastDeploy = { environment: 'staging' };
   snapshot.dashboard.title = 'Wrong dashboard';
@@ -230,13 +343,16 @@ it('reports every declared identity and field drift', () => {
     expect.arrayContaining([
       expect.stringContaining('expected-one:found-0'),
       expect.stringContaining('action-drift'),
-      expect.stringContaining('tag-filter-runtime-drift'),
+      expect.stringContaining('tag-filter-runtime-expected-one:found-0'),
       expect.stringContaining('status-drift'),
       expect.stringContaining('isMuted-drift'),
       expect.stringContaining('schedule-drift'),
       expect.stringContaining('timezone-drift'),
       expect.stringContaining('maxRuntimeMinutes-drift'),
       expect.stringContaining('checkinMarginMinutes-drift'),
+      expect.stringContaining('uptime-monitor:Linejam production health:'),
+      expect.stringContaining('recoveryThreshold-drift'),
+      expect.stringContaining('failureIssueThreshold-drift'),
       'release:production:deploy-environment-drift',
       'dashboard:title-drift',
     ])
@@ -365,6 +481,7 @@ esac
     cronMonitors: [],
     releases: [],
     dashboard: { id: '1' },
+    uptimeMonitors: [],
   });
 
   writeFileSync(sentryBin, '#!/bin/sh\nprintf not-json\n');
@@ -377,11 +494,39 @@ esac
   );
 });
 
-it('reports a missing declared monitor and exercises the executable boundary', () => {
+it('requires a second live sample before reporting observability drift', () => {
+  const transient = passingSnapshot();
+  transient.cronMonitors = [];
+  const recover = vi
+    .fn()
+    .mockReturnValueOnce(transient)
+    .mockReturnValueOnce(passingSnapshot());
+  expect(auditLiveSentryObservability(manifest, recover).ok).toBe(true);
+  expect(recover).toHaveBeenCalledTimes(2);
+
+  const stable = vi.fn().mockReturnValue(passingSnapshot());
+  expect(auditLiveSentryObservability(manifest, stable).ok).toBe(true);
+  expect(stable).toHaveBeenCalledOnce();
+
+  const persistent = vi.fn().mockReturnValue(transient);
+  expect(auditLiveSentryObservability(manifest, persistent)).toMatchObject({
+    ok: false,
+    failures: expect.arrayContaining([
+      'cron-monitor:linejam-production-smoke:expected-one:found-0',
+    ]),
+  });
+  expect(persistent).toHaveBeenCalledTimes(2);
+});
+
+it('reports missing declared monitors and exercises the executable boundary', () => {
   const missingMonitor = passingSnapshot();
   missingMonitor.cronMonitors = [];
   expect(auditSentryObservability(manifest, missingMonitor).failures).toContain(
     'cron-monitor:linejam-production-smoke:expected-one:found-0'
+  );
+  missingMonitor.uptimeMonitors = [];
+  expect(auditSentryObservability(manifest, missingMonitor).failures).toContain(
+    'uptime-monitor:Linejam production health:expected-one:found-0'
   );
 
   const workspace = mkdtempSync(join(tmpdir(), 'linejam-sentry-audit-cli-'));

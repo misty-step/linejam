@@ -37,6 +37,8 @@ describe('bootstrap-convex-env', () => {
   const bridgeSecrets = {
     SENTRY_WEBHOOK_SECRET: 'webhook-secret',
     SENTRY_EVENT_WRITE_TOKEN: 'event-write-token',
+    SENTRY_AUTOMATION_PROVENANCE_SECRET:
+      'automation-provenance-secret-at-least-32-characters',
     GITHUB_ISSUES_TOKEN: 'github-issues-token',
     SENTRY_AGENT_LOOP_SECRET: 'agent-loop-secret-at-least-32-characters',
   };
@@ -116,13 +118,19 @@ describe('bootstrap-convex-env', () => {
         ...sentryEnv,
         SENTRY_WEBHOOK_SECRET: 'webhook-secret',
         SENTRY_EVENT_WRITE_TOKEN: 'event-write-token',
+        SENTRY_AUTOMATION_PROVENANCE_SECRET:
+          'automation-provenance-secret-at-least-32-characters',
         GITHUB_ISSUES_TOKEN: 'github-issues-token',
       })
     );
 
-    expect(plan.entries.slice(-10)).toEqual([
+    expect(plan.entries.slice(-11)).toEqual([
       ['SENTRY_WEBHOOK_SECRET', 'webhook-secret'],
       ['SENTRY_EVENT_WRITE_TOKEN', 'event-write-token'],
+      [
+        'SENTRY_AUTOMATION_PROVENANCE_SECRET',
+        'automation-provenance-secret-at-least-32-characters',
+      ],
       ['GITHUB_ISSUES_TOKEN', 'github-issues-token'],
       ['SENTRY_ORG', 'misty-step'],
       ['SENTRY_EXPECTED_APP_ID', '160944'],
@@ -159,6 +167,8 @@ describe('bootstrap-convex-env', () => {
     const bridgeWithoutAgent = {
       SENTRY_WEBHOOK_SECRET: bridgeSecrets.SENTRY_WEBHOOK_SECRET,
       SENTRY_EVENT_WRITE_TOKEN: bridgeSecrets.SENTRY_EVENT_WRITE_TOKEN,
+      SENTRY_AUTOMATION_PROVENANCE_SECRET:
+        bridgeSecrets.SENTRY_AUTOMATION_PROVENANCE_SECRET,
       GITHUB_ISSUES_TOKEN: bridgeSecrets.GITHUB_ISSUES_TOKEN,
     };
     expect(() =>
@@ -176,6 +186,28 @@ describe('bootstrap-convex-env', () => {
       )
     ).toThrow(
       'SENTRY_AGENT_LOOP_SECRET must contain at least 32 characters for production.'
+    );
+  });
+
+  it('rejects one shared webhook and agent-loop secret', () => {
+    const sharedSecret = 'shared-production-secret-at-least-32-characters';
+    expect(() =>
+      buildConvexEnvBootstrapPlan(
+        env({
+          CONVEX_DEPLOY_KEY: 'prod:team:project|secret',
+          GUEST_TOKEN_SECRET: 'guest-secret',
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
+            'live',
+            'clerk.linejam.app'
+          ),
+          ...sentryEnv,
+          ...bridgeSecrets,
+          SENTRY_WEBHOOK_SECRET: sharedSecret,
+          SENTRY_AGENT_LOOP_SECRET: sharedSecret,
+        })
+      )
+    ).toThrow(
+      'SENTRY_AGENT_LOOP_SECRET must differ from SENTRY_WEBHOOK_SECRET.'
     );
   });
 
@@ -393,6 +425,7 @@ describe('bootstrap-convex-env', () => {
       'SENTRY_RELEASE',
       'SENTRY_WEBHOOK_SECRET',
       'SENTRY_EVENT_WRITE_TOKEN',
+      'SENTRY_AUTOMATION_PROVENANCE_SECRET',
       'GITHUB_ISSUES_TOKEN',
       'SENTRY_ORG',
       'SENTRY_EXPECTED_APP_ID',
@@ -723,6 +756,7 @@ exit 0
         'exec convex env --prod set SENTRY_RELEASE',
         'exec convex env --prod set SENTRY_WEBHOOK_SECRET',
         'exec convex env --prod set SENTRY_EVENT_WRITE_TOKEN',
+        'exec convex env --prod set SENTRY_AUTOMATION_PROVENANCE_SECRET',
         'exec convex env --prod set GITHUB_ISSUES_TOKEN',
         'exec convex env --prod set SENTRY_ORG',
         'exec convex env --prod set SENTRY_EXPECTED_APP_ID',

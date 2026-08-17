@@ -100,6 +100,11 @@
               "secret": true
             },
             {
+              "name": "SENTRY_AUTOMATION_PROVENANCE_SECRET",
+              "scope": "RUN_AND_BUILD_TIME",
+              "secret": true
+            },
+            {
               "name": "SENTRY_EXPECTED_APP_ID",
               "scope": "RUN_AND_BUILD_TIME",
               "secret": false

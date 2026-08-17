@@ -15,6 +15,9 @@ import type { BackendFailureOperation } from '../../../convex/lib/sentry';
 const ORIGINAL_ENV = { ...process.env };
 const RELEASE = '0123456789abcdef0123456789abcdef01234567';
 const EVENT_ID = '0123456789abcdef0123456789abcdef';
+const PROVENANCE_SECRET = 'test-provenance-secret-with-at-least-32-bytes';
+const PROVENANCE = 'b'.repeat(64);
+const GROUP_KEY = 'c'.repeat(64);
 const backendReport = {
   operation: 'sweepAbandonedGames',
   failureCode: 'unexpected_error',
@@ -32,6 +35,7 @@ function configureSentry() {
   );
   process.env.SENTRY_ENVIRONMENT = 'preview';
   process.env.SENTRY_RELEASE = RELEASE;
+  process.env.SENTRY_AUTOMATION_PROVENANCE_SECRET = PROVENANCE_SECRET;
 }
 
 function envelopePayload(body: string) {
@@ -53,6 +57,7 @@ describe('closed Convex Sentry transport', () => {
     delete process.env.SENTRY_DSN;
     delete process.env.SENTRY_ENVIRONMENT;
     delete process.env.SENTRY_RELEASE;
+    delete process.env.SENTRY_AUTOMATION_PROVENANCE_SECRET;
   });
 
   afterEach(() => {
@@ -118,6 +123,7 @@ describe('closed Convex Sentry transport', () => {
         SENTRY_DSN: ['https://public123', 'sentry.example.test/42'].join('@'),
         SENTRY_ENVIRONMENT: 'preview',
         SENTRY_RELEASE: RELEASE,
+        SENTRY_AUTOMATION_PROVENANCE_SECRET: PROVENANCE_SECRET,
       })
     ).toMatchObject({
       enabled: true,
@@ -174,7 +180,9 @@ describe('closed Convex Sentry transport', () => {
         scanned: Number.POSITIVE_INFINITY,
       },
       { environment: 'preview', release: RELEASE },
-      EVENT_ID
+      EVENT_ID,
+      PROVENANCE,
+      GROUP_KEY
     );
     expect(body).not.toBeNull();
     const built = envelopePayload(body!);
@@ -189,11 +197,7 @@ describe('closed Convex Sentry transport', () => {
         environment: 'preview',
         release: RELEASE,
         message: 'Convex backend operation failed',
-        fingerprint: [
-          'linejam-convex-backend-failure',
-          'sweepAbandonedGames',
-          'unexpected_error',
-        ],
+        fingerprint: ['linejam-trusted-automation-v1', GROUP_KEY],
         tags: {
           runtime: 'convex',
           environment: 'preview',
@@ -201,6 +205,7 @@ describe('closed Convex Sentry transport', () => {
           operation: 'sweepAbandonedGames',
           failure_code: 'unexpected_error',
           level: 'error',
+          provenance: PROVENANCE,
         },
         contexts: {
           linejam: { scheduled: 0, scanned: 0 },
@@ -214,6 +219,7 @@ describe('closed Convex Sentry transport', () => {
       'operation',
       'failure_code',
       'level',
+      'provenance',
     ]);
   });
 
@@ -233,7 +239,9 @@ describe('closed Convex Sentry transport', () => {
     const body = mod.buildBackendSentryEnvelope(
       tainted,
       { environment: 'preview', release: RELEASE },
-      EVENT_ID
+      EVENT_ID,
+      PROVENANCE,
+      GROUP_KEY
     )!;
     for (const sentinel of [
       'MESSAGE_SENTINEL',
@@ -256,7 +264,9 @@ describe('closed Convex Sentry transport', () => {
       mod.buildBackendSentryEnvelope(
         invalidReport,
         { environment: 'preview', release: RELEASE },
-        EVENT_ID
+        EVENT_ID,
+        PROVENANCE,
+        GROUP_KEY
       )
     ).toBeNull();
   });

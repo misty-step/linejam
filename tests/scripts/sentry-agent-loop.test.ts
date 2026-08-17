@@ -7,6 +7,7 @@ import {
   readFileSync,
   rmSync,
   writeFileSync,
+  utimesSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -17,6 +18,7 @@ import {
   publishPatch,
   dispatchSentryAgent as dispatchSentryAgentImpl,
   parseAgentClaim,
+  pruneAgentState,
   parseAgentTimeoutMs,
   readPublicationJournal,
   signedAgentHeaders,
@@ -29,6 +31,61 @@ import {
 
 const SECRET = 'agent-loop-test-secret-at-least-32-characters';
 const LEASE = '11111111-1111-4111-8111-111111111111';
+const INFERENCE_TOOL_NAMES = [
+  'read',
+  'bash',
+  'edit',
+  'eval',
+  'glob',
+  'grep',
+  'task',
+  'hub',
+  'todo',
+  'web_search',
+  'write',
+] as const;
+
+function inferencePayload(content: string) {
+  return {
+    model: 'openai-codex/gpt-5.6-sol',
+    messages: [{ role: 'user', content }],
+    stream: true,
+    stream_options: { include_usage: true },
+    store: false,
+    tools: INFERENCE_TOOL_NAMES.map((name) => ({
+      type: 'function',
+      function: {
+        name,
+        description: `${name} tool`,
+        parameters: { type: 'object', additionalProperties: false },
+      },
+    })),
+    max_completion_tokens: 128,
+  };
+}
+
+function evidencePacket(
+  entries: Array<{ path: string; content: Buffer; declaredSize?: bigint }>
+) {
+  const chunks: Uint8Array[] = [Buffer.from('LINEJAM-EVIDENCE-V1\n')];
+  for (const entry of entries) {
+    const path = Buffer.from(entry.path);
+    const header = Buffer.allocUnsafe(12);
+    header.writeUInt32BE(path.length, 0);
+    header.writeBigUInt64BE(
+      entry.declaredSize ?? BigInt(entry.content.length),
+      4
+    );
+    chunks.push(header.subarray(0, 4), path, header.subarray(4), entry.content);
+  }
+  chunks.push(Buffer.alloc(4));
+  return Buffer.concat(chunks);
+}
+
+function isExeCommand(file: string, args: string[], command: string) {
+  const hostIndex = args.indexOf('exe.dev');
+  return file === 'ssh' && hostIndex >= 0 && args[hostIndex + 1] === command;
+}
 const CLAIM = {
   _id: 'receipt123',
   dedupKey: 'v1:installation:42:123456',
@@ -58,6 +115,21 @@ function env(): NodeJS.ProcessEnv {
   };
 }
 
+function githubControlResponse(file: string, args: string[]) {
+  if (file !== 'gh' || args[0] !== 'api') return null;
+  if (args[1] === 'user') {
+    return {
+      status: 0,
+      stdout: JSON.stringify({ login: 'linejam-agent-owner' }),
+      stderr: '',
+    };
+  }
+  if (args.some((arg) => arg.endsWith('/comments'))) {
+    return { status: 0, stdout: JSON.stringify([[]]), stderr: '' };
+  }
+  return null;
+}
+
 function response(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
@@ -66,14 +138,18 @@ function response(value: unknown, status = 200) {
 }
 
 function endpointMock(
-  requests: Array<{ url: string; body: Record<string, unknown> }>
+  requests: Array<{ url: string; body: Record<string, unknown> }>,
+  claim = CLAIM
 ) {
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
     requests.push({ url, body });
     if (body.action === 'claim') {
-      return response({ ...CLAIM, leaseId: body.leaseId });
+      return response({ ...claim, leaseId: body.leaseId });
+    }
+    if (body.action === 'authorize') {
+      return new Response(null, { status: 204 });
     }
     return new Response(null, { status: 202 });
   });
@@ -89,10 +165,27 @@ afterEach(() => {
   rmSync(dispatchStateDir, { recursive: true, force: true });
 });
 
-function dispatchSentryAgent(
-  options: Parameters<typeof dispatchSentryAgentImpl>[0] = {}
-) {
-  return dispatchSentryAgentImpl({ ...options, stateDir: dispatchStateDir });
+type DispatchOptions = Record<string, unknown> & {
+  run?: typeof runCommand;
+};
+
+function dispatchSentryAgent(options: DispatchOptions = {}) {
+  const suppliedRun = options.run;
+  const run =
+    suppliedRun === undefined
+      ? undefined
+      : async (
+          file: string,
+          args: string[],
+          runOptions?: Parameters<typeof runCommand>[2]
+        ) =>
+          githubControlResponse(file, args) ??
+          suppliedRun(file, args, runOptions);
+  return dispatchSentryAgentImpl({
+    ...options,
+    run,
+    stateDir: dispatchStateDir,
+  });
 }
 
 describe('Sentry agent loop', () => {
@@ -126,22 +219,53 @@ describe('Sentry agent loop', () => {
     });
   });
 
+  it('prunes private incident artifacts after 30 days', () => {
+    const stateDir = mkdtempSync(join(tmpdir(), 'linejam-state-retention-'));
+    const currentTime = Date.now();
+    const expiredTime = currentTime - 31 * 24 * 60 * 60 * 1_000;
+    const expiredEvidence = join(stateDir, 'evidence', 'expired');
+    const freshPacket = join(stateDir, 'packets', 'fresh.json');
+    const expiredLog = join(stateDir, 'expired.log');
+    mkdirSync(expiredEvidence, { recursive: true });
+    mkdirSync(join(stateDir, 'packets'), { recursive: true });
+    writeFileSync(join(expiredEvidence, 'report.md'), 'expired');
+    writeFileSync(freshPacket, 'fresh');
+    writeFileSync(expiredLog, 'expired');
+    utimesSync(expiredEvidence, expiredTime / 1_000, expiredTime / 1_000);
+    utimesSync(expiredLog, expiredTime / 1_000, expiredTime / 1_000);
+
+    pruneAgentState(stateDir, currentTime);
+
+    expect(existsSync(expiredEvidence)).toBe(false);
+    expect(existsSync(expiredLog)).toBe(false);
+    expect(existsSync(freshPacket)).toBe(true);
+    rmSync(stateDir, { recursive: true, force: true });
+  });
+
   it('closes a receipt without starting a VM when the issue is closed', async () => {
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     const fetchImpl = endpointMock(requests);
     const run = vi.fn(async (file: string, args: string[]) => {
-      expect(file).toBe('gh');
-      expect(args.slice(0, 3)).toEqual(['issue', 'view', '426']);
-      return {
-        status: 0,
-        stdout: JSON.stringify({
-          number: 426,
-          state: 'CLOSED',
-          url: 'https://github.com/misty-step/linejam/issues/426',
-          labels: [],
-        }),
-        stderr: '',
-      };
+      if (file === 'gh') {
+        expect(args.slice(0, 3)).toEqual(['issue', 'view', '426']);
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            number: 426,
+            state: 'CLOSED',
+            url: 'https://github.com/misty-step/linejam/issues/426',
+            labels: [],
+          }),
+          stderr: '',
+        };
+      }
+      if (isExeCommand(file, args, 'ls')) {
+        return { status: 0, stdout: JSON.stringify({ vms: [] }), stderr: '' };
+      }
+      if (file === 'git' && args[0] === 'worktree' && args[1] === 'list') {
+        return { status: 0, stdout: '', stderr: '' };
+      }
+      return { status: 1, stdout: '', stderr: 'not found' };
     });
 
     const result = await dispatchSentryAgent({
@@ -160,7 +284,9 @@ describe('Sentry agent loop', () => {
         outcome: 'issue_closed',
       },
     });
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(
+      run.mock.calls.some(([file, args]) => isExeCommand(file, args, 'new'))
+    ).toBe(false);
   });
 
   it('recovers signed completion before mutable issue gates', async () => {
@@ -215,7 +341,7 @@ describe('Sentry agent loop', () => {
 
   it('runs OMP only in a credential-free exe.dev VM and publishes the report', async () => {
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
-    const fetchImpl = endpointMock(requests);
+    const fetchImpl = endpointMock(requests, { ...CLAIM, agentAttempts: 2 });
     const run = vi.fn(
       async (
         file: string,
@@ -258,7 +384,7 @@ describe('Sentry agent loop', () => {
             stderr: '',
           };
         }
-        if (file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'new') {
+        if (isExeCommand(file, args, 'new')) {
           const vmName = args[args.indexOf('--name') + 1];
           return {
             status: 0,
@@ -296,6 +422,13 @@ describe('Sentry agent loop', () => {
     });
 
     expect(result).toMatchObject({ status: 'completed', prUrl: null });
+    expect(collectVmArtifacts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evidenceArchive: expect.stringMatching(
+          /\/evidence\/426-[0-9a-f]{8}-attempt-2$/
+        ),
+      })
+    );
     expect(
       existsSync(join(dispatchStateDir, 'packets', 'receipt123.json'))
     ).toBe(true);
@@ -314,17 +447,59 @@ describe('Sentry agent loop', () => {
       ])
     );
     expect(String(isolatedCall?.[1].at(-1))).toContain(
-      '/tmp/linejam-agent/omp'
+      '/usr/local/bin/linejam-omp'
     );
     expect(isolatedCall?.[2]?.env).not.toHaveProperty(
       'SENTRY_AGENT_LOOP_SECRET'
     );
+    const remoteCalls = run.mock.calls.filter(([file]) =>
+      ['ssh', 'scp'].includes(file)
+    );
+    for (const [, args] of remoteCalls) {
+      expect(args).toEqual(
+        expect.arrayContaining([
+          '-F',
+          '/dev/null',
+          '-i',
+          expect.stringMatching(/\/\.ssh\/exe_dev$/),
+          'User=exedev',
+          'IdentitiesOnly=yes',
+          'ForwardAgent=no',
+          'SendEnv=-*',
+          'PermitLocalCommand=no',
+        ])
+      );
+    }
+    expect(isolatedCall?.[1]).not.toContain('ClearAllForwardings=yes');
+    expect(
+      remoteCalls
+        .filter((call) => call !== isolatedCall)
+        .every(([, args]) => args.includes('ClearAllForwardings=yes'))
+    ).toBe(true);
+    const networkIsolationCall = run.mock.calls.find(
+      ([file, args]) =>
+        file === 'ssh' &&
+        args.some((arg) => arg.includes('iptables -P OUTPUT DROP'))
+    );
+    expect(networkIsolationCall).toBeDefined();
+    expect(networkIsolationCall?.[1].at(-1)).toContain(
+      'iptables -P INPUT DROP'
+    );
+    expect(networkIsolationCall?.[1].at(-1)).toContain(
+      '! sudo -n -u linejam-agent -- sudo -n true'
+    );
+    expect(run.mock.calls.indexOf(networkIsolationCall!)).toBeLessThan(
+      run.mock.calls.indexOf(isolatedCall!)
+    );
+    expect(String(isolatedCall?.[1].at(-1))).toContain(
+      'sudo -n -u linejam-agent -- env'
+    );
+    expect(String(isolatedCall?.[1].at(-1))).toContain(
+      '--cwd /home/linejam-agent/linejam'
+    );
     expect(stopGateway).toHaveBeenCalledOnce();
     expect(
-      run.mock.calls.some(
-        ([file, args]) =>
-          file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'rm'
-      )
+      run.mock.calls.some(([file, args]) => isExeCommand(file, args, 'rm'))
     ).toBe(true);
     const worktreeRemoveCall = run.mock.calls.find(
       ([file, args]) =>
@@ -363,9 +538,13 @@ describe('Sentry agent loop', () => {
       )
       .map(([, args]) => args.at(-1));
     expect(commentBodies).toHaveLength(3);
-    expect(commentBodies[1]).toContain('No source patch was justified');
+    expect(commentBodies[0]).not.toMatch(/\bAttempt \d+\b/);
+    expect(commentBodies[1]).toContain(
+      'No publishable source patch was justified'
+    );
+    expect(commentBodies[1]).not.toContain('## Finding');
     expect(commentBodies[2]).toMatch(
-      /<!-- linejam-agent-result:v1:receipt123:[0-9a-f-]{36}:completed:[0-9a-f]{64} -->/
+      /<!-- linejam-agent-publication:v1:receipt123:completed:[0-9a-f]{64} -->/
     );
   });
 
@@ -412,7 +591,7 @@ describe('Sentry agent loop', () => {
             stderr: '',
           };
         }
-        if (file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'new') {
+        if (isExeCommand(file, args, 'new')) {
           const vmName = args[args.indexOf('--name') + 1];
           return {
             status: 0,
@@ -428,8 +607,8 @@ describe('Sentry agent loop', () => {
           return { status: 0, stdout: '', stderr: '' };
         }
         if (file === 'ssh' && args.includes('ExitOnForwardFailure=yes')) {
-          expect(options?.timeoutMs).toBe(25 * 60 * 1_000);
-          elapsedMs = 45 * 60 * 1_000 - 1_000;
+          expect(options?.timeoutMs).toBe(18 * 60 * 1_000);
+          elapsedMs = 38 * 60 * 1_000 - 1_000;
           return { status: 124, stdout: '', stderr: 'agent timed out' };
         }
         return { status: 0, stdout: '', stderr: '' };
@@ -438,7 +617,7 @@ describe('Sentry agent loop', () => {
     const stopGateway = vi.fn(async () => undefined);
 
     const result = await dispatchSentryAgent({
-      env: { ...env(), LINEJAM_SENTRY_AGENT_TIMEOUT_MS: '2700000' },
+      env: { ...env(), LINEJAM_SENTRY_AGENT_TIMEOUT_MS: '2100000' },
       fetchImpl,
       run,
       now: () => 1_000,
@@ -450,9 +629,8 @@ describe('Sentry agent loop', () => {
 
     expect(result).toMatchObject({ status: 'retry', issueNumber: 426 });
     expect(stopGateway).toHaveBeenCalledOnce();
-    const vmRemoveCall = run.mock.calls.find(
-      ([file, args]) =>
-        file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'rm'
+    const vmRemoveCall = run.mock.calls.find(([file, args]) =>
+      isExeCommand(file, args, 'rm')
     );
     expect(vmRemoveCall?.[2]?.timeoutMs).toBe(2 * 60 * 1_000);
     const worktreeRemoveCall = run.mock.calls.find(
@@ -522,7 +700,7 @@ describe('Sentry agent loop', () => {
           branchPresent = true;
           return { status: 0, stdout: '', stderr: '' };
         }
-        if (file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'new') {
+        if (isExeCommand(file, args, 'new')) {
           if (failureAt === 'vm-created') vmPresent = true;
           return { status: 124, stdout: '', stderr: 'command timed out' };
         }
@@ -554,14 +732,14 @@ describe('Sentry agent loop', () => {
             stderr: '',
           };
         }
-        if (file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'rm') {
+        if (isExeCommand(file, args, 'rm')) {
           if (!vmPresent) {
             return { status: 1, stdout: '', stderr: 'not found' };
           }
           vmPresent = false;
           return { status: 0, stdout: '', stderr: '' };
         }
-        if (file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'ls') {
+        if (isExeCommand(file, args, 'ls')) {
           return {
             status: 0,
             stdout: JSON.stringify({
@@ -591,13 +769,10 @@ describe('Sentry agent loop', () => {
           ([file, args]) =>
             file === 'git' && args[0] === 'worktree' && args[1] === 'remove'
         )
-      ).toHaveLength(1);
+      ).toHaveLength(2);
       expect(
-        run.mock.calls.filter(
-          ([file, args]) =>
-            file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'rm'
-        )
-      ).toHaveLength(failureAt.startsWith('vm-') ? 1 : 0);
+        run.mock.calls.filter(([file, args]) => isExeCommand(file, args, 'rm'))
+      ).toHaveLength(failureAt.startsWith('vm-') ? 2 : 1);
     }
   });
 
@@ -612,6 +787,13 @@ describe('Sentry agent loop', () => {
     let apiAttempts = 0;
     let remoteBranchOid: string | null = null;
     const headOid = 'a'.repeat(40);
+    const publicationMarker = `<!-- linejam-agent-publication:v1:receipt123:pull-request:${createHmac(
+      'sha256',
+      SECRET
+    )
+      .update('publication:v1\nreceipt123\npull-request')
+      .digest('hex')} -->`;
+    const publicationBody = `${publicationMarker}\nAutomated candidate patch from a credential-free disposable exe.dev VM. This draft is untrusted until reviewed. It has no merge or deployment authority.\n`;
     const run = vi.fn(async (file: string, args: string[]) => {
       if (file === 'gh' && args[0] === 'issue' && args[1] === 'view') {
         return {
@@ -636,11 +818,11 @@ describe('Sentry agent loop', () => {
           'GET',
           'repos/misty-step/linejam/pulls',
           '-f',
-          'state=all',
+          'state=open',
           '-f',
           'head=operator:forest/sentry-426-receipt123',
           '-f',
-          'per_page=2',
+          'per_page=10',
         ]);
         apiAttempts += 1;
         if (apiAttempts === 1) {
@@ -653,10 +835,22 @@ describe('Sentry agent loop', () => {
               ? [
                   {
                     html_url: 'https://github.com/misty-step/linejam/pull/999',
+                    state: 'open',
+                    draft: true,
+                    title: 'fix(sentry): investigate incident #426',
+                    body: publicationBody,
+                    user: { login: 'linejam-agent-owner' },
+                    base: {
+                      ref: 'master',
+                      repo: { full_name: 'misty-step/linejam' },
+                    },
                     head: {
                       ref: 'forest/sentry-426-receipt123',
                       sha: headOid,
-                      repo: { owner: { login: 'operator' } },
+                      repo: {
+                        full_name: 'operator/linejam',
+                        owner: { login: 'operator' },
+                      },
                     },
                   },
                 ]
@@ -694,7 +888,7 @@ describe('Sentry agent loop', () => {
           stderr: '',
         };
       }
-      if (file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'new') {
+      if (isExeCommand(file, args, 'new')) {
         const vmName = args[args.indexOf('--name') + 1];
         return {
           status: 0,
@@ -804,6 +998,15 @@ describe('Sentry agent loop', () => {
     expect(createdHead?.[createdHead.indexOf('--head') + 1]).toBe(
       'operator:forest/sentry-426-receipt123'
     );
+    const commitArgs = run.mock.calls.find(
+      ([file, args]) => file === 'git' && args.includes('commit')
+    )?.[1];
+    expect(commitArgs).toEqual(
+      expect.arrayContaining([
+        'user.name=Linejam Sentry Agent',
+        'user.email=sentry-agent@linejam.app',
+      ])
+    );
 
     await expect(dispatchSentryAgent(options)).resolves.toMatchObject({
       status: 'recovered',
@@ -814,10 +1017,7 @@ describe('Sentry agent loop', () => {
     expect(stagedPublication).toBeNull();
     expect(commentAttempts).toBe(3);
     expect(
-      run.mock.calls.filter(
-        ([file, args]) =>
-          file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'new'
-      )
+      run.mock.calls.filter(([file, args]) => isExeCommand(file, args, 'new'))
     ).toHaveLength(1);
   });
 
@@ -939,10 +1139,11 @@ describe('Sentry agent loop', () => {
         options?: { binary?: boolean; maxBuffer?: number; timeoutMs?: number }
       ) => {
         const command = String(args.at(-1));
+        expect(command).toContain('sudo -n -u linejam-agent --');
         if (command.endsWith('/report.md')) {
           return { status: 0, stdout: 'bounded report', stderr: '' };
         }
-        if (command.includes('git -C /home/exedev/linejam')) {
+        if (command.includes('git -C /home/linejam-agent/linejam')) {
           expect(command).toContain(
             'GIT_INDEX_FILE=/tmp/linejam-agent/patch.index'
           );
@@ -951,7 +1152,7 @@ describe('Sentry agent loop', () => {
           return { status: 0, stdout: '', stderr: '' };
         }
         if (
-          command.startsWith('python3 /tmp/linejam-agent/archive-evidence.py')
+          command.includes('python3 /usr/local/bin/linejam-archive-evidence')
         ) {
           expect(options).toMatchObject({
             maxBuffer: 4 * 1024,
@@ -963,7 +1164,9 @@ describe('Sentry agent loop', () => {
             stderr: '',
           };
         }
-        expect(command).toBe('cat /tmp/linejam-agent/evidence.tar.gz');
+        expect(command).toBe(
+          'sudo -n -u linejam-agent -- cat /tmp/linejam-agent/evidence.packet'
+        );
         expect(options).toMatchObject({
           binary: true,
           maxBuffer: transferLimit,
@@ -988,6 +1191,63 @@ describe('Sentry agent loop', () => {
       })
     ).rejects.toThrow('bounded evidence transfer returned invalid bytes');
     expect(run.mock.calls.some(([file]) => file === 'scp')).toBe(false);
+  });
+
+  it('rejects an oversized declared evidence member without allocating it', async () => {
+    const workspace = mkdtempSync(join(tmpdir(), 'linejam-evidence-bomb-'));
+    const packet = join(workspace, 'bomb.packet');
+    const evidenceArchive = join(workspace, 'evidence');
+    try {
+      const packetBytes = evidencePacket([
+        {
+          path: 'proof.txt',
+          content: Buffer.alloc(0),
+          declaredSize: BigInt(10 * 1024 * 1024 + 1),
+        },
+      ]);
+      writeFileSync(packet, packetBytes);
+      const run = vi.fn(
+        async (
+          file: string,
+          args: string[],
+          options?: Parameters<typeof runCommand>[2]
+        ) => {
+          const command = String(args.at(-1));
+          if (command.endsWith('/report.md')) {
+            return { status: 0, stdout: 'bounded report', stderr: '' };
+          }
+          if (command.includes('git -C /home/linejam-agent/linejam')) {
+            return { status: 0, stdout: '', stderr: '' };
+          }
+          if (command.includes('linejam-archive-evidence')) {
+            return {
+              status: 0,
+              stdout: JSON.stringify({ files: 1, bytes: 1 }),
+              stderr: '',
+            };
+          }
+          if (command.endsWith('/evidence.packet')) {
+            return { status: 0, stdout: packetBytes, stderr: '' };
+          }
+          return runCommand(file, args, options);
+        }
+      );
+
+      await expect(
+        collectVmArtifacts({
+          run,
+          root: workspace,
+          runtimeEnv: process.env,
+          host: 'metadata-bomb.exe.xyz',
+          issueNumber: 426,
+          evidenceArchive,
+        })
+      ).rejects.toThrow('python3');
+      expect(existsSync(evidenceArchive)).toBe(false);
+      expect(existsSync(`${evidenceArchive}.packet`)).toBe(false);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+    }
   });
 
   it('disables hooks and publishes candidate patches only as fork drafts', async () => {
@@ -1067,6 +1327,7 @@ describe('Sentry agent loop', () => {
         "+export const isolatedPatch = 'untrusted';\n";
       let prCreated = false;
       let publishedOid = '';
+      const publicationMarker = '<!-- authenticated-publication-marker -->';
       const run = vi.fn(
         async (
           file: string,
@@ -1080,6 +1341,14 @@ describe('Sentry agent loop', () => {
           for (const name of gitLocalEnvNames) {
             expect(options?.env).not.toHaveProperty(name);
           }
+          if (file === 'gh' && args[0] === 'api' && args[1] === 'user') {
+            return {
+              status: 0,
+              signal: null,
+              stdout: JSON.stringify({ login: 'linejam-agent-owner' }),
+              stderr: '',
+            };
+          }
           if (file === 'gh' && args[0] === 'api') {
             return {
               status: 0,
@@ -1090,10 +1359,22 @@ describe('Sentry agent loop', () => {
                       {
                         html_url:
                           'https://github.com/misty-step/linejam/pull/999',
+                        state: 'open',
+                        draft: true,
+                        title: 'fix(sentry): investigate incident #426',
+                        body: `${publicationMarker}\nAutomated candidate patch from a credential-free disposable exe.dev VM. This draft is untrusted until reviewed. It has no merge or deployment authority.\n`,
+                        user: { login: 'linejam-agent-owner' },
+                        base: {
+                          ref: 'master',
+                          repo: { full_name: 'misty-step/linejam' },
+                        },
                         head: {
                           ref: branch,
                           sha: publishedOid,
-                          repo: { owner: { login: 'operator' } },
+                          repo: {
+                            full_name: 'operator/linejam',
+                            owner: { login: 'operator' },
+                          },
                         },
                       },
                     ]
@@ -1158,7 +1439,7 @@ describe('Sentry agent loop', () => {
           branch,
           issueNumber: 426,
           patch,
-          report: 'Hook isolation probe.',
+          marker: publicationMarker,
           stateDir: join(root, 'state'),
         })
       ).resolves.toBe('https://github.com/misty-step/linejam/pull/999');
@@ -1261,13 +1542,13 @@ describe('Sentry agent loop', () => {
       dispatchSentryAgent({
         env: {
           ...env(),
-          LINEJAM_SENTRY_AGENT_TIMEOUT_MS: '2700001',
+          LINEJAM_SENTRY_AGENT_TIMEOUT_MS: '2100001',
         },
       })
     ).rejects.toThrow(
-      'LINEJAM_SENTRY_AGENT_TIMEOUT_MS must not exceed 2700000'
+      'LINEJAM_SENTRY_AGENT_TIMEOUT_MS must not exceed 2100000'
     );
-    expect(parseAgentTimeoutMs(undefined)).toBe(2_700_000);
+    expect(parseAgentTimeoutMs(undefined)).toBe(2_100_000);
   });
 
   it('handles idle, mismatched, failed, and malformed claim responses', async () => {
@@ -1305,9 +1586,39 @@ describe('Sentry agent loop', () => {
       })
     ).rejects.toThrow('agent claim returned invalid JSON');
   });
+  it('aborts a pending backend body when shutdown starts', async () => {
+    const shutdown = new AbortController();
+    const fetchImpl = vi.fn(
+      async (_url: string, init?: { signal?: AbortSignal }) =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              init?.signal?.addEventListener(
+                'abort',
+                () => controller.error(new Error('shutdown body aborted')),
+                { once: true }
+              );
+            },
+            pull() {
+              shutdown.abort();
+            },
+          })
+        )
+    );
+
+    await expect(
+      dispatchSentryAgent({
+        env: env(),
+        fetchImpl,
+        now: () => 1_000,
+        shutdownSignal: shutdown.signal,
+      })
+    ).rejects.toThrow('agent claim returned invalid JSON');
+    expect(shutdown.signal.aborted).toBe(true);
+  });
 
   it('sanitizes repository-local Git variables and exercises command boundaries', async () => {
-    expect(
+    await expect(
       sanitizeGitEnvironment({
         NODE_ENV: 'test',
         PATH: '/bin',
@@ -1316,8 +1627,13 @@ describe('Sentry agent loop', () => {
         GIT_CONFIG_COUNT: '1',
         GIT_CONFIG_KEY_0: 'credential.helper',
         GIT_CONFIG_VALUE_0: 'secret',
+        GIT_AUTHOR_NAME: 'Phaedrus Raznikov',
+        GIT_AUTHOR_EMAIL: 'private@example.com',
+        GIT_COMMITTER_NAME: 'Phaedrus Raznikov',
+        GIT_COMMITTER_EMAIL: 'private@example.com',
+        EMAIL: 'private@example.com',
       } as NodeJS.ProcessEnv)
-    ).toEqual({ NODE_ENV: 'test', PATH: '/bin' });
+    ).resolves.toEqual({ NODE_ENV: 'test', PATH: '/bin' });
 
     const workspace = mkdtempSync(join(tmpdir(), 'linejam-run-command-'));
     const logPath = join(workspace, 'logs', 'command.log');
@@ -1343,6 +1659,36 @@ describe('Sentry agent loop', () => {
         })
       ).resolves.toMatchObject({ status: 124, stderr: 'command timed out' });
 
+      const boundedLogPath = join(workspace, 'logs', 'bounded.log');
+      await expect(
+        runCommand(
+          process.execPath,
+          ['-e', "process.stdout.write('x'.repeat(1024))"],
+          { logPath: boundedLogPath, maxBuffer: 128 }
+        )
+      ).rejects.toThrow('log exceeded the 128 byte limit');
+      expect(readFileSync(boundedLogPath).length).toBeLessThanOrEqual(128);
+
+      const treeLogPath = join(workspace, 'logs', 'tree.log');
+      const startedAt = Date.now();
+      await expect(
+        runCommand(
+          process.execPath,
+          [
+            '-e',
+            "const { spawn } = require('node:child_process'); const child = spawn(process.execPath, ['-e', \"process.on('SIGTERM', () => {}); setTimeout(() => process.exit(3), 9000)\"], { stdio: 'inherit' }); console.log(child.pid); setTimeout(() => process.exit(2), 9000)",
+          ],
+          { logPath: treeLogPath, timeoutMs: 500 }
+        )
+      ).resolves.toMatchObject({ status: 124, signal: 'SIGTERM' });
+      expect(Date.now() - startedAt).toBeLessThan(7_500);
+      const grandchildPid = Number(readFileSync(treeLogPath, 'utf8').trim());
+      expect(Number.isSafeInteger(grandchildPid)).toBe(true);
+      await vi.waitFor(
+        () => expect(() => process.kill(grandchildPid, 0)).toThrow(),
+        { timeout: 1_000 }
+      );
+
       await expect(
         runCommand(process.execPath, ['-e', "process.stdout.write('bytes')"], {
           binary: true,
@@ -1351,7 +1697,9 @@ describe('Sentry agent loop', () => {
         status: 0,
         stdout: Buffer.from('bytes'),
       });
-      expect(() => runCommand('/definitely/missing-command', [])).toThrow();
+      await expect(
+        runCommand('/definitely/missing-command', [])
+      ).rejects.toThrow();
       await expect(
         runCommand('/definitely/missing-command', [], { logPath })
       ).rejects.toThrow();
@@ -1388,7 +1736,11 @@ describe('Sentry agent loop', () => {
       '/lib/a.ts',
       'lib/../a.ts',
       'lib/.private.ts',
-      'unknown/a.ts',
+      'config/a.ts',
+      'convex/http.ts',
+      'convex/schema.ts',
+      'convex/sentryGithub.ts',
+      'scripts/ops/sentry-agent-loop.mjs',
     ]) {
       expect(() => validatePatchPolicy(allowedPatch, [path])).toThrow(
         'isolated patch path is forbidden'
@@ -1425,7 +1777,7 @@ describe('Sentry agent loop', () => {
                 stderr: '',
               };
         }
-        if (command.includes('git -C /home/exedev/linejam')) {
+        if (command.includes('git -C /home/linejam-agent/linejam')) {
           return failure === 'patch-command'
             ? { status: 1, stdout: '', stderr: 'patch failed' }
             : {
@@ -1434,7 +1786,7 @@ describe('Sentry agent loop', () => {
                 stderr: '',
               };
         }
-        if (command.includes('archive-evidence.py')) {
+        if (command.includes('linejam-archive-evidence')) {
           return {
             status: 0,
             stdout: JSON.stringify(
@@ -1445,7 +1797,7 @@ describe('Sentry agent loop', () => {
             stderr: '',
           };
         }
-        if (command.startsWith('cat /tmp/linejam-agent/evidence.tar.gz')) {
+        if (command.includes('cat /tmp/linejam-agent/evidence.packet')) {
           return failure === 'pull-command'
             ? { status: 1, stdout: Buffer.alloc(0), stderr: 'pull failed' }
             : { status: 0, stdout: Buffer.from('archive'), stderr: '' };
@@ -1532,7 +1884,7 @@ describe('Sentry agent loop', () => {
             stderr: '',
           };
         }
-        if (file === 'ssh' && args[0] === 'exe.dev' && args[1] === 'new') {
+        if (isExeCommand(file, args, 'new')) {
           const vmName = args[args.indexOf('--name') + 1];
           return {
             status: 0,
@@ -1623,16 +1975,28 @@ describe('Sentry agent loop', () => {
       branch: 'forest/sentry-426-errors',
       issueNumber: 426,
       patch,
-      report: 'Publication boundary test.',
+      marker: '<!-- authenticated-publication-marker -->',
       stateDir: workspace,
     };
     const headOid = 'a'.repeat(40);
     const publicationMatch = {
       html_url: 'https://github.com/misty-step/linejam/pull/999',
+      state: 'open',
+      draft: true,
+      title: 'fix(sentry): investigate incident #426',
+      body: `${options.marker}\nAutomated candidate patch from a credential-free disposable exe.dev VM. This draft is untrusted until reviewed. It has no merge or deployment authority.\n`,
+      user: { login: 'linejam-agent-owner' },
+      base: {
+        ref: 'master',
+        repo: { full_name: 'misty-step/linejam' },
+      },
       head: {
         ref: 'forest/sentry-426-errors',
         sha: headOid,
-        repo: { owner: { login: 'operator' } },
+        repo: {
+          full_name: 'operator/linejam',
+          owner: { login: 'operator' },
+        },
       },
     };
     const successfulRun = vi.fn(async (file: string, args: string[]) => {
@@ -1641,6 +2005,13 @@ describe('Sentry agent loop', () => {
       }
       if (file === 'git' && args[0] === 'rev-parse') {
         return { status: 0, stdout: headOid, stderr: '' };
+      }
+      if (file === 'gh' && args[0] === 'api' && args[1] === 'user') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ login: 'linejam-agent-owner' }),
+          stderr: '',
+        };
       }
       if (file === 'gh' && args[0] === 'api') {
         return {
@@ -1700,6 +2071,13 @@ describe('Sentry agent loop', () => {
         let call = 0;
         let prCreated = false;
         const run = vi.fn(async (file: string, args: string[]) => {
+          if (file === 'gh' && args[0] === 'api' && args[1] === 'user') {
+            return {
+              status: 0,
+              stdout: JSON.stringify({ login: 'linejam-agent-owner' }),
+              stderr: '',
+            };
+          }
           const current = call++;
           if (current === failAt) {
             return {
@@ -1754,6 +2132,13 @@ describe('Sentry agent loop', () => {
             if (file === 'git' && args[0] === 'rev-parse') {
               return { status: 0, stdout: headOid, stderr: '' };
             }
+            if (file === 'gh' && args[0] === 'api' && args[1] === 'user') {
+              return {
+                status: 0,
+                stdout: JSON.stringify({ login: 'linejam-agent-owner' }),
+                stderr: '',
+              };
+            }
             if (file === 'gh' && args[0] === 'api') {
               return { status: 0, stdout: '[]', stderr: '' };
             }
@@ -1782,35 +2167,101 @@ if [ "$FAIL_GATEWAY" = "1" ]; then
   exit 7
 fi
 port="\${3##*:}"
-exec ${process.execPath} -e "let served = 0; require('node:http').createServer((request, response) => { served += 1; if (served > 1) { response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); } response.end(request.method + ' ' + request.url); }).listen(Number(process.argv[1]), '127.0.0.1')" "$port"
+exec ${process.execPath} -e "require('node:http').createServer((request, response) => { let body = ''; request.on('data', (chunk) => { body += chunk; }); request.once('end', () => { response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store'); if (body.includes('abort-response')) { const socket = response.socket; response.flushHeaders(); response.write('partial'); setTimeout(() => socket.destroy(), 10); return; } if (body.includes('oversized-response')) { response.end('x'.repeat(9 * 1024 * 1024)); return; } response.end(request.method + ' ' + request.url); }); }).listen(Number(process.argv[1]), '127.0.0.1')" "$port"
 `
     );
     chmodSync(omp, 0o700);
     const runtimeEnv = {
       ...process.env,
-      PATH: `${bin}:${process.env.PATH}`,
+      LINEJAM_OMP_BINARY: omp,
+      PATH: '/usr/bin:/bin',
     };
+    let gateway: Awaited<ReturnType<typeof startAuthGateway>> | undefined;
     try {
-      const gateway = await startAuthGateway({
+      gateway = await startAuthGateway({
         runtimeEnv,
       });
       expect(gateway.port).toBe(48_766);
-      await expect(
-        fetch('http://127.0.0.1:48766/v1/chat/completions', {
-          method: 'POST',
-          headers: { Accept: '' },
-        }).then((response) => response.text())
-      ).resolves.toBe('POST /v1/chat/completions');
+      const missingJson = await fetch(
+        'http://127.0.0.1:48766/v1/chat/completions',
+        { method: 'POST' }
+      );
+      expect(missingJson.status).toBe(413);
+      expect(await missingJson.json()).toEqual({ error: 'invalid_request' });
       const allowed = await fetch(
         'http://127.0.0.1:48766/v1/chat/completions',
         {
           method: 'POST',
-          body: '{}',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inferencePayload('bounded request')),
         }
       );
       expect(await allowed.text()).toBe('POST /v1/chat/completions');
       expect(allowed.headers.get('content-type')).toBe('application/json');
       expect(allowed.headers.get('cache-control')).toBe('no-store');
+      const gatewayRequest = (content: string) =>
+        fetch('http://127.0.0.1:48766/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(inferencePayload(content)),
+        }).then((response) => response.text());
+      await expect(gatewayRequest('abort-response')).rejects.toThrow();
+      await expect(gatewayRequest('oversized-response')).rejects.toThrow();
+      await expect(gatewayRequest('still-available')).resolves.toBe(
+        'POST /v1/chat/completions'
+      );
+      for (const payload of [
+        {
+          ...inferencePayload('wrong model'),
+          model: 'attacker-controlled-model',
+        },
+        { ...inferencePayload('empty messages'), messages: [] },
+        { ...inferencePayload('provider fetch'), web_search_options: {} },
+        {
+          ...inferencePayload('provider response extension'),
+          response_format: { type: 'json_object' },
+        },
+        {
+          ...inferencePayload('multimodal provider fetch'),
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: 'https://attacker.invalid/probe' },
+                },
+              ],
+            },
+          ],
+        },
+      ]) {
+        const rejected = await fetch(
+          'http://127.0.0.1:48766/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }
+        );
+        expect(rejected.status).toBe(400);
+        expect(await rejected.json()).toEqual({
+          error: 'request_policy_violation',
+        });
+      }
+      const oversized = await fetch(
+        'http://127.0.0.1:48766/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...inferencePayload('oversized'),
+            messages: [{ role: 'user', content: 'x'.repeat(1024 * 1024) }],
+          }),
+        }
+      );
+      expect(oversized.status).toBe(413);
+      expect(await oversized.json()).toEqual({ error: 'invalid_request' });
       for (const [path, method] of [
         ['/v1/usage', 'GET'],
         ['/v1/credentials/check', 'GET'],
@@ -1824,6 +2275,16 @@ exec ${process.execPath} -e "let served = 0; require('node:http').createServer((
         expect(await response.json()).toEqual({ error: 'not_found' });
       }
       await gateway.stop();
+      gateway = undefined;
+
+      await expect(
+        startAuthGateway({
+          runtimeEnv: {
+            ...runtimeEnv,
+            LINEJAM_OMP_BINARY: join(workspace, 'missing-omp'),
+          },
+        })
+      ).rejects.toThrow('gateway process failed to start');
 
       await expect(
         startAuthGateway({
@@ -1831,7 +2292,44 @@ exec ${process.execPath} -e "let served = 0; require('node:http').createServer((
         })
       ).rejects.toThrow('gateway process exited with 7');
     } finally {
+      await gateway?.stop();
       rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+  it('keeps raw launcher failures in a private local diagnostic', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'linejam-launcher-failure-'));
+    try {
+      const result = await runCommand(
+        process.execPath,
+        [join(process.cwd(), 'scripts/ops/sentry-agent-loop.mjs')],
+        {
+          cwd: process.cwd(),
+          env: {
+            HOME: home,
+            NODE_ENV: 'test',
+            PATH: process.env.PATH,
+          },
+        }
+      );
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe(
+        'Linejam Sentry agent loop failed closed; private diagnostics recorded locally.\n'
+      );
+      expect(result.stdout).not.toContain('LINEJAM_SENTRY_AGENT_ENDPOINT');
+      expect(
+        readFileSync(
+          join(
+            home,
+            '.local',
+            'state',
+            'linejam-sentry-agent',
+            'last-failure.log'
+          ),
+          'utf8'
+        )
+      ).toContain('LINEJAM_SENTRY_AGENT_ENDPOINT is required');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
     }
   });
 });

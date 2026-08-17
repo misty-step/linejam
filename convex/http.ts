@@ -10,17 +10,18 @@ const SENTRY_AGENT_MAX_CLOCK_SKEW_MS = 60_000;
 
 type WebhookProjection = {
   dedupKey: string;
+  canonicalKey: string;
   installationUuid: string;
   projectId: string;
   sentryIssueId: string;
   sentryEventId: string;
 };
 
-const acceptWebhookRef = makeFunctionReference<
-  'mutation',
+const admitWebhookRef = makeFunctionReference<
+  'action',
   WebhookProjection,
-  { receiptId: Id<'sentryGithubReceipts'>; inserted: boolean }
->('sentryGithub:acceptWebhook');
+  'accepted' | 'rejected'
+>('sentryGithub:admitWebhook');
 
 type AgentClaim = {
   _id: Id<'sentryGithubReceipts'>;
@@ -55,6 +56,16 @@ const completeAgentReceiptRef = makeFunctionReference<
   },
   boolean
 >('sentryGithub:completeAgentReceipt');
+
+const authorizeAgentReceiptRef = makeFunctionReference<
+  'query',
+  {
+    receiptId: Id<'sentryGithubReceipts'>;
+    leaseId: string;
+    now: number;
+  },
+  boolean
+>('sentryGithub:authorizeAgentReceipt');
 
 function fixedError(status: 400 | 503): Response {
   return new Response(status === 400 ? 'Invalid webhook' : 'Unavailable', {
@@ -218,6 +229,11 @@ interface AgentRequestPayload {
 type AgentRequest =
   | { action: 'claim'; leaseId: string }
   | {
+      action: 'authorize';
+      receiptId: Id<'sentryGithubReceipts'>;
+      leaseId: string;
+    }
+  | {
       action: 'complete';
       receiptId: Id<'sentryGithubReceipts'>;
       leaseId: string;
@@ -233,15 +249,23 @@ function projectAgentRequest(value: AgentRequestPayload): AgentRequest | null {
   );
   if (!leaseId) return null;
   if (value.action === 'claim') return { action: 'claim', leaseId };
-  if (value.action !== 'complete') return null;
+  if (value.action !== 'authorize' && value.action !== 'complete') return null;
   const receiptCandidate = value.receiptId;
   const receiptId = boundedId(receiptCandidate, /^[a-zA-Z0-9_-]+$/, 64);
+  if (!receiptId) return null;
+  if (value.action === 'authorize') {
+    // SAFETY: boundedId accepted only a non-empty identifier-safe string.
+    return {
+      action: 'authorize',
+      receiptId: receiptId as Id<'sentryGithubReceipts'>,
+      leaseId,
+    };
+  }
   if (
-    !receiptId ||
-    (value.outcome !== 'completed' &&
-      value.outcome !== 'retry' &&
-      value.outcome !== 'issue_closed' &&
-      value.outcome !== 'issue_invalid')
+    value.outcome !== 'completed' &&
+    value.outcome !== 'retry' &&
+    value.outcome !== 'issue_closed' &&
+    value.outcome !== 'issue_invalid'
   ) {
     return null;
   }
@@ -312,8 +336,10 @@ export function projectSentryWebhook(
   ) {
     return null;
   }
+  const canonicalKey = `v1:${installationUuid}:${projectId}:${sentryIssueId}`;
   return {
-    dedupKey: `v1:${installationUuid}:${projectId}:${sentryIssueId}`,
+    dedupKey: `v2:${installationUuid}:${projectId}:${sentryIssueId}:${sentryEventId}`,
+    canonicalKey,
     installationUuid,
     projectId,
     sentryIssueId,
@@ -385,7 +411,10 @@ http.route({
     if (!projection) return fixedError(400);
 
     try {
-      await ctx.runMutation(acceptWebhookRef, projection);
+      const disposition = await ctx.runAction(admitWebhookRef, projection);
+      if (disposition !== 'accepted' && disposition !== 'rejected') {
+        return fixedError(503);
+      }
       return new Response(null, {
         status: 202,
         headers: { 'Cache-Control': 'no-store' },
@@ -401,10 +430,12 @@ http.route({
   method: 'POST',
   handler: httpAction(async (ctx, request) => {
     const secret = process.env.SENTRY_AGENT_LOOP_SECRET;
+    const webhookSecret = process.env.SENTRY_WEBHOOK_SECRET;
     if (
       process.env.LINEJAM_DEPLOY_ENVIRONMENT !== 'production' ||
       !secret ||
       secret.length < 32 ||
+      secret === webhookSecret ||
       request.headers.get('Content-Type')?.split(';', 1)[0].trim() !==
         'application/json'
     ) {
@@ -447,6 +478,18 @@ http.route({
         }
         return Response.json(claim, {
           status: 200,
+          headers: { 'Cache-Control': 'no-store' },
+        });
+      }
+      if (projection.action === 'authorize') {
+        const authorized = await ctx.runQuery(authorizeAgentReceiptRef, {
+          receiptId: projection.receiptId,
+          leaseId: projection.leaseId,
+          now,
+        });
+        if (!authorized) return fixedAgentError(409);
+        return new Response(null, {
+          status: 204,
           headers: { 'Cache-Control': 'no-store' },
         });
       }

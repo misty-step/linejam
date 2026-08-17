@@ -28,11 +28,6 @@ const completeAgentReceipt = makeFunctionReference<
   },
   boolean
 >('sentryGithub:completeAgentReceipt');
-const enqueueLinkedAgentReceipts = makeFunctionReference<
-  'mutation',
-  { cursor?: string; limit?: number; now?: number },
-  { enqueued: number; continueCursor: string; isDone: boolean }
->('sentryGithub:enqueueLinkedAgentReceipts');
 
 async function insertLinkedReceipt(
   t: LinejamConvexTest,
@@ -40,7 +35,9 @@ async function insertLinkedReceipt(
 ) {
   return t.run((ctx) =>
     ctx.db.insert('sentryGithubReceipts', {
-      dedupKey: 'v1:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:123456',
+      dedupKey:
+        'v2:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:123456:0123456789abcdef0123456789abcdef',
+      canonicalKey: 'v1:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:123456',
       installationUuid: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
       projectId: '42',
       sentryIssueId: '123456',
@@ -88,6 +85,33 @@ describe('atomic Sentry agent dispatch state', () => {
     expect(overlapping).toBeNull();
   });
 
+  it('returns one receipt for an exact replayed claim nonce', async () => {
+    const t = setupConvexTest();
+    const firstId = await insertLinkedReceipt(t);
+    const secondId = await insertLinkedReceipt(t, {
+      dedupKey: 'v1:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:654321',
+      sentryIssueId: '654321',
+      githubIssueNumber: 427,
+    });
+
+    const first = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_ONE,
+      now: 1_000,
+    });
+    const replay = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_ONE,
+      now: 1_001,
+    });
+    const next = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_TWO,
+      now: 1_002,
+    });
+
+    expect(first?._id).toBe(firstId);
+    expect(replay).toMatchObject({ _id: firstId, agentAttempts: 1 });
+    expect(next?._id).toBe(secondId);
+  });
+
   it('accepts completion only from the active lease', async () => {
     const t = setupConvexTest();
     const receiptId = await insertLinkedReceipt(t);
@@ -112,6 +136,28 @@ describe('atomic Sentry agent dispatch state', () => {
     expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
       agentState: 'completed',
       agentCompletedAt: 2_000,
+    });
+  });
+
+  it('rejects completion at or after lease expiry', async () => {
+    const t = setupConvexTest();
+    const receiptId = await insertLinkedReceipt(t);
+    const claim = await t.mutation(claimAgentReceipt, {
+      leaseId: LEASE_ONE,
+      now: 1_000,
+    });
+
+    await expect(
+      t.mutation(completeAgentReceipt, {
+        receiptId,
+        leaseId: LEASE_ONE,
+        outcome: 'completed',
+        now: claim!.agentLeaseExpiresAt,
+      })
+    ).resolves.toBe(false);
+    expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
+      agentState: 'leased',
+      agentLeaseId: LEASE_ONE,
     });
   });
 
@@ -147,37 +193,6 @@ describe('atomic Sentry agent dispatch state', () => {
     expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
       agentState: 'blocked',
       agentBlockedCode: 'attempts_exhausted',
-    });
-  });
-
-  it('backfills already-linked receipts without changing completed work', async () => {
-    const t = setupConvexTest();
-    const legacyId = await insertLinkedReceipt(t, {
-      agentState: undefined,
-      agentAttempts: undefined,
-      agentNextAttemptAt: undefined,
-    });
-    const completedId = await insertLinkedReceipt(t, {
-      dedupKey: 'v1:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:42:654321',
-      sentryIssueId: '654321',
-      githubIssueNumber: 427,
-      agentState: 'completed',
-      agentCompletedAt: 500,
-    });
-
-    const result = await t.mutation(enqueueLinkedAgentReceipts, {
-      now: 1_000,
-      limit: 10,
-    });
-    expect(result.enqueued).toBe(1);
-    expect(await t.run((ctx) => ctx.db.get(legacyId))).toMatchObject({
-      agentState: 'pending',
-      agentAttempts: 0,
-      agentNextAttemptAt: 1_000,
-    });
-    expect(await t.run((ctx) => ctx.db.get(completedId))).toMatchObject({
-      agentState: 'completed',
-      agentCompletedAt: 500,
     });
   });
 });

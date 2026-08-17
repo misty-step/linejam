@@ -11,21 +11,22 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  writeSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
 import { createConnection } from 'node:net';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO = 'misty-step/linejam';
 const REPO_URL = 'https://github.com/misty-step/linejam.git';
 const REQUIRED_LABELS = ['source/sentry', 'source/agent'];
 const RESULT_MARKER_PREFIX = 'linejam-agent-result:v1';
-export const MAX_AGENT_TIMEOUT_MS = 45 * 60 * 1_000;
-const MAX_WORK_DURATION_MS = 45 * 60 * 1_000;
+export const MAX_AGENT_TIMEOUT_MS = 35 * 60 * 1_000;
+const MAX_WORK_DURATION_MS = 38 * 60 * 1_000;
 const CLEANUP_COMMAND_TIMEOUT_MS = 2 * 60 * 1_000;
 const PROCESS_STARTED_AT_MS = process.uptime() * 1_000;
 const COMMAND_KILL_GRACE_MS = 5_000;
@@ -33,8 +34,45 @@ const MAX_COMMAND_BYTES = 2 * 1_024 * 1_024;
 const MAX_REPORT_BYTES = 32 * 1_024;
 const MAX_EVIDENCE_BYTES = 10 * 1_024 * 1_024;
 const MAX_EVIDENCE_FILES = 100;
+const STATE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 const BROKER_PORT = 48_765;
+const ACTIVE_COMMAND_TERMINATORS = new Set();
 const GATEWAY_UPSTREAM_PORT = 48_767;
+const INFERENCE_MODEL_ID = 'openai-codex/gpt-5.6-sol';
+const MAX_INFERENCE_REQUEST_BYTES = 1024 * 1024;
+const MAX_INFERENCE_REQUESTS = 32;
+const MAX_INFERENCE_RESPONSE_BYTES = 8 * 1_024 * 1_024;
+const MAX_INFERENCE_OUTPUT_TOKENS = 32_768;
+const MAX_INFERENCE_TOTAL_OUTPUT_TOKENS = 512 * 1024;
+const EXE_DEV_IDENTITY_PATH = join(homedir(), '.ssh', 'exe_dev');
+const VM_AGENT_USER = 'linejam-agent';
+const VM_REPOSITORY = `/home/${VM_AGENT_USER}/linejam`;
+const SSH_ISOLATION_ARGS = [
+  '-F',
+  '/dev/null',
+  '-i',
+  EXE_DEV_IDENTITY_PATH,
+  '-o',
+  'User=exedev',
+  '-o',
+  'StrictHostKeyChecking=accept-new',
+  '-o',
+  'IdentitiesOnly=yes',
+  '-o',
+  'ForwardAgent=no',
+  '-o',
+  'SendEnv=-*',
+  '-o',
+  'PermitLocalCommand=no',
+];
+
+function isolatedSshArgs(args, { remoteForward = false } = {}) {
+  return [
+    ...SSH_ISOLATION_ARGS,
+    ...(remoteForward ? [] : ['-o', 'ClearAllForwardings=yes']),
+    ...args,
+  ];
+}
 const ALLOWED_PATCH_PREFIXES = [
   'app/',
   'components/',
@@ -44,6 +82,12 @@ const ALLOWED_PATCH_PREFIXES = [
   'tests/',
   'docs/ops/postmortems/',
 ];
+const FORBIDDEN_PATCH_PREFIXES = ['scripts/ops/'];
+const FORBIDDEN_PATCH_PATHS = new Set([
+  'convex/http.ts',
+  'convex/schema.ts',
+  'convex/sentryGithub.ts',
+]);
 const ALLOWED_PATCH_EXTENSIONS = new Set([
   '.cjs',
   '.css',
@@ -58,19 +102,21 @@ const ALLOWED_PATCH_EXTENSIONS = new Set([
   '.tsx',
 ]);
 
-export function sanitizeGitEnvironment(env = process.env) {
+export async function sanitizeGitEnvironment(
+  env = process.env,
+  run = runCommand
+) {
   const probeEnv = {};
   for (const name of ['HOME', 'PATH', 'SYSTEMROOT']) {
     if (typeof env[name] === 'string') probeEnv[name] = env[name];
   }
-  const probe = spawnSync('git', ['rev-parse', '--local-env-vars'], {
-    encoding: 'utf8',
+  const args = ['rev-parse', '--local-env-vars'];
+  const probe = await run('git', args, {
     env: probeEnv,
+    timeoutMs: CLEANUP_COMMAND_TIMEOUT_MS,
   });
   if (probe.status !== 0) {
-    throw new Error(
-      `failed to enumerate Git repository-local environment variables: ${probe.stderr.trim()}`
-    );
+    throw commandFailure('git', args, probe);
   }
   const sanitized = { ...env };
   for (const name of probe.stdout.split(/\r?\n/).filter(Boolean)) {
@@ -80,18 +126,22 @@ export function sanitizeGitEnvironment(env = process.env) {
     if (
       name === 'GIT_CONFIG_COUNT' ||
       name === 'GIT_CONFIG_PARAMETERS' ||
-      /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(name)
+      /^GIT_CONFIG_(?:KEY|VALUE)_\d+$/.test(name) ||
+      /^GIT_(?:AUTHOR|COMMITTER)_/.test(name) ||
+      name === 'EMAIL'
     ) {
       delete sanitized[name];
     }
   }
   return sanitized;
 }
-const EVIDENCE_ARCHIVER_PY = `import json, os, stat, sys, tarfile
+const EVIDENCE_ARCHIVER_PY = `import json, os, stat, struct, sys
 root, output = sys.argv[1:3]
+magic = b"LINEJAM-EVIDENCE-V1\\n"
 count = 0
 total = 0
-with tarfile.open(output, "w:gz") as archive:
+with open(output, "xb") as packet:
+    packet.write(magic)
     for base, dirs, files in os.walk(root, followlinks=False):
         dirs.sort()
         files.sort()
@@ -103,32 +153,99 @@ with tarfile.open(output, "w:gz") as archive:
             info = os.lstat(path)
             if not stat.S_ISREG(info.st_mode):
                 raise SystemExit("unsupported evidence file type")
+            relative = os.path.relpath(path, root).replace(os.sep, "/")
+            encoded = relative.encode("utf-8")
             count += 1
             total += info.st_size
-            if count > 100 or total > 10485760:
+            if (
+                not encoded
+                or len(encoded) > 1024
+                or count > ${MAX_EVIDENCE_FILES}
+                or total > ${MAX_EVIDENCE_BYTES}
+            ):
                 raise SystemExit("evidence exceeds bounds")
-            archive.add(path, arcname=os.path.relpath(path, root), recursive=False)
+            packet.write(struct.pack(">I", len(encoded)))
+            packet.write(encoded)
+            packet.write(struct.pack(">Q", info.st_size))
+            remaining = info.st_size
+            with open(path, "rb") as source:
+                while remaining:
+                    chunk = source.read(min(65536, remaining))
+                    if not chunk:
+                        raise SystemExit("evidence file changed during archive")
+                    packet.write(chunk)
+                    remaining -= len(chunk)
+    packet.write(struct.pack(">I", 0))
 if count == 0:
+    os.unlink(output)
     raise SystemExit("evidence is empty")
 print(json.dumps({"files": count, "bytes": total}))
 `;
-const EVIDENCE_EXTRACTOR_PY = `import os, pathlib, sys, tarfile
-archive_path, destination = sys.argv[1:3]
-with tarfile.open(archive_path, "r:gz") as archive:
-    members = archive.getmembers()
-    files = 0
-    total = 0
-    for member in members:
-        path = pathlib.PurePosixPath(member.name)
-        if path.is_absolute() or ".." in path.parts or not (member.isfile() or member.isdir()):
-            raise SystemExit("unsafe evidence archive member")
-        if member.isfile():
-            files += 1
-            total += member.size
-    if files == 0 or files > 100 or total > 10485760:
-        raise SystemExit("evidence archive exceeds bounds")
+const EVIDENCE_EXTRACTOR_PY = `import os, pathlib, shutil, struct, sys
+packet_path, destination = sys.argv[1:3]
+magic = b"LINEJAM-EVIDENCE-V1\\n"
+files = 0
+total = 0
+paths = set()
+def read_exact(source, size):
+    chunks = bytearray()
+    while len(chunks) < size:
+        chunk = source.read(min(65536, size - len(chunks)))
+        if not chunk:
+            raise SystemExit("truncated evidence packet")
+        chunks.extend(chunk)
+    return bytes(chunks)
+try:
     os.makedirs(destination, mode=0o700, exist_ok=False)
-    archive.extractall(destination, members=members, filter="data")
+    with open(packet_path, "rb") as packet:
+        if read_exact(packet, len(magic)) != magic:
+            raise SystemExit("invalid evidence packet")
+        while True:
+            path_length = struct.unpack(">I", read_exact(packet, 4))[0]
+            if path_length == 0:
+                break
+            files += 1
+            if path_length > 1024 or files > ${MAX_EVIDENCE_FILES}:
+                raise SystemExit("evidence packet exceeds bounds")
+            raw_path = read_exact(packet, path_length)
+            try:
+                normalized = raw_path.decode("utf-8")
+            except UnicodeDecodeError:
+                raise SystemExit("invalid evidence path")
+            path = pathlib.PurePosixPath(normalized)
+            if (
+                not normalized
+                or normalized in paths
+                or path.is_absolute()
+                or ".." in path.parts
+                or str(path) != normalized
+            ):
+                raise SystemExit("unsafe evidence path")
+            paths.add(normalized)
+            size = struct.unpack(">Q", read_exact(packet, 8))[0]
+            total += size
+            if total > ${MAX_EVIDENCE_BYTES}:
+                raise SystemExit("evidence packet exceeds bounds")
+            target = pathlib.Path(destination, *path.parts)
+            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            descriptor = os.open(
+                target,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+            )
+            with os.fdopen(descriptor, "wb") as output:
+                remaining = size
+                while remaining:
+                    chunk = read_exact(packet, min(65536, remaining))
+                    output.write(chunk)
+                    remaining -= len(chunk)
+        if packet.read(1):
+            raise SystemExit("trailing evidence packet bytes")
+    if files == 0:
+        raise SystemExit("evidence packet is empty")
+except BaseException:
+    shutil.rmtree(destination, ignore_errors=True)
+    raise
 `;
 const GATEWAY_PORT = 48_766;
 const SOURCE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -165,38 +282,46 @@ export function parseAgentTimeoutMs(value) {
 function remainingWorkMs(deadlineAt, monotonicNow) {
   return Math.max(0, Math.floor(deadlineAt - monotonicNow()));
 }
-
-function deadlineRun(run, deadlineAt, monotonicNow) {
+function deadlineRun(run, deadlineAt, monotonicNow, shutdownSignal) {
   return async (file, args, options = {}) => {
     const remainingMs = remainingWorkMs(deadlineAt, monotonicNow);
-    if (remainingMs === 0) {
+    if (remainingMs === 0 || shutdownSignal?.aborted) {
       return {
         status: 124,
         signal: null,
         stdout: options.binary ? Buffer.alloc(0) : '',
-        stderr: 'agent work deadline exceeded',
+        stderr: shutdownSignal?.aborted
+          ? 'agent shutdown requested'
+          : 'agent work deadline exceeded',
       };
     }
     const requestedTimeoutMs = options.timeoutMs ?? remainingMs;
     return run(file, args, {
       ...options,
+      signal: shutdownSignal,
       timeoutMs: Math.min(requestedTimeoutMs, remainingMs),
     });
   };
 }
-
-function deadlineFetch(fetchImpl, deadlineAt, monotonicNow) {
+function deadlineFetch(fetchImpl, deadlineAt, monotonicNow, shutdownSignal) {
   return async (input, init = {}) => {
     const remainingMs = remainingWorkMs(deadlineAt, monotonicNow);
-    if (remainingMs === 0) throw new Error('agent work deadline exceeded');
+    if (remainingMs === 0 || shutdownSignal?.aborted) {
+      throw new Error(
+        shutdownSignal?.aborted
+          ? 'agent shutdown requested'
+          : 'agent work deadline exceeded'
+      );
+    }
     const controller = new AbortController();
     const timer = setTimeout(
       () => controller.abort(new Error('agent work deadline exceeded')),
       remainingMs
     );
-    const signal = init.signal
-      ? AbortSignal.any([init.signal, controller.signal])
-      : controller.signal;
+    const signals = [controller.signal, init.signal, shutdownSignal].filter(
+      Boolean
+    );
+    const signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
     try {
       return await fetchImpl(input, { ...init, signal });
     } finally {
@@ -205,87 +330,213 @@ function deadlineFetch(fetchImpl, deadlineAt, monotonicNow) {
   };
 }
 
-function commandFailure(file, args, result) {
-  const rawDetail = result.stderr || result.stdout || '';
-  const detail = (
-    Buffer.isBuffer(rawDetail) ? rawDetail.toString('utf8') : String(rawDetail)
-  ).trim();
+function commandFailure(file, _args, result) {
   return new Error(
-    `${file} ${args.join(' ')} failed with exit ${String(result.status)}${
-      detail ? `: ${detail.slice(0, 512)}` : ''
-    }`
+    `${file} command failed with exit ${String(result.status ?? 1)}`
   );
 }
 
+function signalCommandTree(child, signal) {
+  if (process.platform !== 'win32' && Number.isSafeInteger(child.pid)) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch {
+      // The group may have exited between the lifecycle check and the signal.
+    }
+  }
+  child.kill(signal);
+}
+
+function commandTreeExists(child) {
+  if (process.platform !== 'win32' && Number.isSafeInteger(child.pid)) {
+    try {
+      process.kill(-child.pid, 0);
+      return true;
+    } catch (error) {
+      return error?.code !== 'ESRCH';
+    }
+  }
+  return child.exitCode === null;
+}
+
+export function installCommandSignalHandlers() {
+  const controller = new AbortController();
+  const handle = (signal) => {
+    process.exitCode = signal === 'SIGINT' ? 130 : 143;
+    controller.abort(new Error(`agent received ${signal}`));
+    for (const terminate of ACTIVE_COMMAND_TERMINATORS) terminate();
+  };
+  process.on('SIGINT', handle);
+  process.on('SIGTERM', handle);
+  return {
+    signal: controller.signal,
+    remove() {
+      process.off('SIGINT', handle);
+      process.off('SIGTERM', handle);
+    },
+  };
+}
+
 export function runCommand(file, args, options = {}) {
-  if (options.logPath) {
-    mkdirSync(dirname(options.logPath), { recursive: true, mode: 0o700 });
-    const fd = openSync(options.logPath, 'a', 0o600);
-    return new Promise((resolvePromise, reject) => {
-      const child = spawn(file, args, {
-        cwd: options.cwd,
-        env: options.env,
-        stdio: ['ignore', fd, fd],
-      });
-      let timedOut = false;
-      let settled = false;
-      let killTimer;
-      const timer = setTimeout(() => {
-        timedOut = true;
-        child.kill('SIGTERM');
-        killTimer = setTimeout(() => {
-          if (child.exitCode === null) child.kill('SIGKILL');
-        }, COMMAND_KILL_GRACE_MS);
-      }, options.timeoutMs ?? MAX_AGENT_TIMEOUT_MS);
-      const finalize = (callback) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        closeSync(fd);
-        clearTimeout(killTimer);
-        callback();
-      };
-      child.once('error', (error) => {
-        finalize(() => reject(error));
-      });
-      child.once('close', (status, signal) => {
-        finalize(() =>
-          resolvePromise({
-            status: timedOut ? 124 : (status ?? 1),
-            signal,
-            stdout: '',
-            stderr: timedOut ? 'agent timed out' : '',
-          })
-        );
-      });
+  if (options.signal?.aborted) {
+    return Promise.resolve({
+      status: 124,
+      signal: null,
+      stdout: options.binary ? Buffer.alloc(0) : '',
+      stderr: 'agent shutdown requested',
     });
   }
-
-  const result = spawnSync(file, args, {
-    cwd: options.cwd,
-    env: options.env,
-    encoding: options.binary ? undefined : 'utf8',
-    maxBuffer: options.maxBuffer ?? MAX_COMMAND_BYTES,
-    timeout: options.timeoutMs,
-  });
-  if (result.error) {
-    if (result.error.code === 'ETIMEDOUT') {
-      return Promise.resolve({
-        status: 124,
-        signal: result.signal,
-        stdout: options.binary ? (result.stdout ?? Buffer.alloc(0)) : '',
-        stderr: 'command timed out',
-      });
-    }
-    throw result.error;
+  let fd;
+  if (options.logPath) {
+    mkdirSync(dirname(options.logPath), { recursive: true, mode: 0o700 });
+    fd = openSync(options.logPath, 'a', 0o600);
   }
-  return Promise.resolve({
-    status: result.status ?? 1,
-    signal: result.signal,
-    stdout: options.binary ? result.stdout : result.stdout || '',
-    stderr: options.binary
-      ? result.stderr?.toString('utf8') || ''
-      : result.stderr || '',
+
+  return new Promise((resolvePromise, reject) => {
+    let child;
+    try {
+      child = spawn(file, args, {
+        cwd: options.cwd,
+        env: options.env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: process.platform !== 'win32',
+      });
+    } catch (error) {
+      if (fd !== undefined) closeSync(fd);
+      reject(error);
+      return;
+    }
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    const maxBuffer = options.maxBuffer ?? MAX_COMMAND_BYTES;
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let logBytes = 0;
+    let timedOut = false;
+    let cancelled = false;
+    let outputError;
+    let settled = false;
+    let terminationStarted = false;
+    let escalationComplete = false;
+    let closeResult;
+    let killTimer;
+    const terminate = () => {
+      terminationStarted = true;
+      signalCommandTree(child, 'SIGTERM');
+      killTimer ??= setTimeout(() => {
+        signalCommandTree(child, 'SIGKILL');
+        escalationComplete = true;
+        if (closeResult) finishClose();
+      }, COMMAND_KILL_GRACE_MS);
+    };
+    const handleAbort = () => {
+      cancelled = true;
+      terminate();
+    };
+    options.signal?.addEventListener('abort', handleAbort, { once: true });
+    if (options.signal?.aborted) handleAbort();
+    ACTIVE_COMMAND_TERMINATORS.add(terminate);
+    const collect = (chunks, stream) => (chunk) => {
+      if (outputError) return;
+      const priorBytes = options.logPath
+        ? logBytes
+        : stream === 'stdout'
+          ? stdoutBytes
+          : stderrBytes;
+      const nextBytes = priorBytes + chunk.length;
+      if (nextBytes > maxBuffer) {
+        if (!outputError) {
+          outputError = new Error(
+            `${file} ${options.logPath ? 'log' : stream} exceeded the ${String(maxBuffer)} byte limit`
+          );
+          outputError.code = 'ENOBUFS';
+          terminate();
+        }
+        return;
+      }
+      if (options.logPath) {
+        try {
+          let offset = 0;
+          while (offset < chunk.length) {
+            const written = writeSync(fd, chunk.subarray(offset));
+            if (written <= 0)
+              throw new Error(`${file} log write made no progress`);
+            offset += written;
+          }
+          logBytes = nextBytes;
+        } catch (error) {
+          outputError =
+            error instanceof Error ? error : new Error(String(error));
+          terminate();
+        }
+      } else {
+        chunks.push(chunk);
+        if (stream === 'stdout') stdoutBytes = nextBytes;
+        else stderrBytes = nextBytes;
+      }
+    };
+    child.stdout?.on('data', collect(stdoutChunks, 'stdout'));
+    child.stderr?.on('data', collect(stderrChunks, 'stderr'));
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      terminate();
+    }, options.timeoutMs ?? MAX_AGENT_TIMEOUT_MS);
+    const finalize = (callback) => {
+      if (settled) return;
+      settled = true;
+      ACTIVE_COMMAND_TERMINATORS.delete(terminate);
+      options.signal?.removeEventListener('abort', handleAbort);
+      clearTimeout(timer);
+      clearTimeout(killTimer);
+      if (fd !== undefined) closeSync(fd);
+      callback();
+    };
+    const finishClose = () => {
+      const { status, signal } = closeResult;
+      finalize(() => {
+        if (outputError) {
+          reject(outputError);
+          return;
+        }
+        const stdout = Buffer.concat(stdoutChunks);
+        const stderr = Buffer.concat(stderrChunks);
+        resolvePromise({
+          status: timedOut || cancelled ? 124 : (status ?? 1),
+          signal,
+          stdout: options.logPath
+            ? ''
+            : options.binary
+              ? stdout
+              : stdout.toString('utf8'),
+          stderr:
+            timedOut || cancelled
+              ? cancelled
+                ? 'agent shutdown requested'
+                : options.logPath
+                  ? 'agent timed out'
+                  : 'command timed out'
+              : options.logPath
+                ? ''
+                : stderr.toString('utf8'),
+        });
+      });
+    };
+    child.once('error', (error) => {
+      finalize(() => reject(error));
+    });
+    child.once('close', (status, signal) => {
+      closeResult = { status, signal };
+      if (
+        !terminationStarted ||
+        escalationComplete ||
+        !commandTreeExists(child)
+      ) {
+        finishClose();
+      }
+    });
   });
 }
 
@@ -294,7 +545,7 @@ function parseJsonOutput(result, file, args) {
   try {
     return JSON.parse(result.stdout);
   } catch {
-    throw new Error(`${file} ${args.join(' ')} returned invalid JSON`);
+    throw new Error(`${file} command returned invalid JSON`);
   }
 }
 
@@ -371,6 +622,7 @@ async function postAgentEndpoint(
   });
   if (action === 'claim' && response.status === 204) return null;
   if (action === 'complete' && response.status === 202) return true;
+  if (action === 'authorize' && response.status === 204) return true;
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 512);
     throw new Error(
@@ -406,6 +658,13 @@ function resultMarkerSignature(secret, receiptId, leaseId, outcome) {
 export function resultMarker(secret, receiptId, leaseId, outcome) {
   const signature = resultMarkerSignature(secret, receiptId, leaseId, outcome);
   return `<!-- ${RESULT_MARKER_PREFIX}:${receiptId}:${leaseId}:${outcome}:${signature} -->`;
+}
+
+function phaseMarker(secret, receiptId, phase) {
+  const signature = createHmac('sha256', secret)
+    .update(`publication:v1\n${receiptId}\n${phase}`)
+    .digest('hex');
+  return `<!-- linejam-agent-publication:v1:${receiptId}:${phase}:${signature} -->`;
 }
 
 function writePrivateJournal(path, content, replaceFile = renameSync) {
@@ -560,6 +819,30 @@ export function writePublicationJournal(
 function removePublicationJournal(stateDir, receiptId) {
   rmSync(publicationJournalPath(stateDir, receiptId), { force: true });
 }
+export function pruneAgentState(stateDir, currentTime = Date.now()) {
+  if (!existsSync(stateDir)) return;
+  const cutoff = currentTime - STATE_RETENTION_MS;
+  const removeIfExpired = (path) => {
+    try {
+      const stat = lstatSync(path);
+      if (stat.mtimeMs < cutoff) {
+        rmSync(path, { recursive: stat.isDirectory(), force: true });
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  };
+  for (const entry of readdirSync(stateDir, { withFileTypes: true })) {
+    const path = join(stateDir, entry.name);
+    if (!entry.isDirectory() || entry.isSymbolicLink()) {
+      removeIfExpired(path);
+      continue;
+    }
+    for (const child of readdirSync(path)) {
+      removeIfExpired(join(path, child));
+    }
+  }
+}
 
 function validateEvidenceTree(root) {
   let files = 0;
@@ -626,40 +909,281 @@ Stop after report.md and the inspected evidence packet exist.`;
 function waitForPort(port, child, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolvePromise, reject) => {
+    const onChildError = (error) =>
+      reject(
+        new Error(
+          `gateway process failed to start: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+      );
+    child.once('error', onChildError);
     const attempt = () => {
-      if (child.exitCode !== null) {
-        reject(new Error(`gateway process exited with ${child.exitCode}`));
+      if (child.exitCode !== null || child.signalCode !== null) {
+        reject(
+          new Error(
+            `gateway process exited with ${child.exitCode ?? child.signalCode}`
+          )
+        );
         return;
       }
       const socket = createConnection({ host: '127.0.0.1', port });
       socket.once('connect', () => {
         socket.destroy();
-        resolvePromise();
+        setTimeout(() => {
+          if (child.exitCode !== null || child.signalCode !== null) {
+            reject(
+              new Error(
+                `gateway process exited with ${child.exitCode ?? child.signalCode}`
+              )
+            );
+            return;
+          }
+          child.off('error', onChildError);
+          resolvePromise();
+        }, 25);
       });
       socket.once('error', () => {
         socket.destroy();
         if (Date.now() >= deadline) {
-          reject(new Error(`timed out waiting for local port ${port}`));
-        } else {
-          setTimeout(attempt, 100);
+          reject(new Error(`gateway did not listen on 127.0.0.1:${port}`));
+          return;
         }
+        setTimeout(attempt, 100);
       });
     };
     attempt();
   });
 }
 
+function childExited(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+async function waitForChildExit(child, timeoutMs) {
+  if (childExited(child)) return;
+  await new Promise((resolvePromise) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolvePromise();
+    };
+    const timer = setTimeout(() => {
+      child.off('exit', onExit);
+      resolvePromise();
+    }, timeoutMs);
+    child.once('exit', onExit);
+    if (childExited(child)) onExit();
+  });
+}
+
 async function stopChild(child) {
-  if (!child || child.exitCode !== null) return;
+  if (!child || childExited(child)) return;
   child.kill('SIGTERM');
-  await Promise.race([
-    new Promise((resolvePromise) => child.once('exit', resolvePromise)),
-    new Promise((resolvePromise) => setTimeout(resolvePromise, 2_000)),
-  ]);
-  if (child.exitCode === null) child.kill('SIGKILL');
+  await waitForChildExit(child, 2_000);
+  if (childExited(child)) return;
+  child.kill('SIGKILL');
+  await waitForChildExit(child, 2_000);
+  if (!childExited(child)) {
+    throw new Error('gateway process did not exit after SIGKILL');
+  }
+}
+
+const REQUIRED_INFERENCE_TOOLS = new Set([
+  'read',
+  'bash',
+  'edit',
+  'eval',
+  'glob',
+  'grep',
+  'task',
+  'hub',
+  'todo',
+  'web_search',
+  'write',
+]);
+
+function isJsonObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasExactKeys(value, required, optional = []) {
+  if (!isJsonObject(value)) return false;
+  const allowed = new Set([...required, ...optional]);
+  const keys = Object.keys(value);
+  return (
+    required.every((key) => Object.hasOwn(value, key)) &&
+    keys.every((key) => allowed.has(key))
+  );
+}
+
+function projectInferenceContent(content) {
+  if (typeof content === 'string') return content;
+  if (
+    !Array.isArray(content) ||
+    content.length === 0 ||
+    !content.every(
+      (part) =>
+        hasExactKeys(part, ['type', 'text']) &&
+        part.type === 'text' &&
+        typeof part.text === 'string'
+    )
+  ) {
+    return null;
+  }
+  return content.map((part) => ({ type: 'text', text: part.text }));
+}
+
+function projectInferenceMessage(message) {
+  if (!isJsonObject(message) || typeof message.role !== 'string') return null;
+  if (message.role === 'system' || message.role === 'user') {
+    if (!hasExactKeys(message, ['role', 'content'])) return null;
+    const content = projectInferenceContent(message.content);
+    if (content === null) return null;
+    return { role: message.role, content };
+  }
+  if (message.role === 'assistant') {
+    if (!hasExactKeys(message, ['role', 'content'], ['tool_calls']))
+      return null;
+    if (message.content !== null && typeof message.content !== 'string') {
+      return null;
+    }
+    const projected = { role: 'assistant', content: message.content };
+    if (message.tool_calls !== undefined) {
+      if (
+        !Array.isArray(message.tool_calls) ||
+        message.tool_calls.length === 0
+      ) {
+        return null;
+      }
+      const toolCalls = [];
+      for (const call of message.tool_calls) {
+        if (
+          !hasExactKeys(call, ['id', 'type', 'function']) ||
+          typeof call.id !== 'string' ||
+          call.type !== 'function' ||
+          !hasExactKeys(call.function, ['name', 'arguments']) ||
+          !REQUIRED_INFERENCE_TOOLS.has(call.function.name) ||
+          typeof call.function.arguments !== 'string'
+        ) {
+          return null;
+        }
+        toolCalls.push({
+          id: call.id,
+          type: 'function',
+          function: {
+            name: call.function.name,
+            arguments: call.function.arguments,
+          },
+        });
+      }
+      projected.tool_calls = toolCalls;
+    }
+    return projected;
+  }
+  if (message.role === 'tool') {
+    if (
+      !hasExactKeys(message, ['role', 'content', 'tool_call_id']) ||
+      typeof message.content !== 'string' ||
+      typeof message.tool_call_id !== 'string'
+    ) {
+      return null;
+    }
+    return {
+      role: 'tool',
+      content: message.content,
+      tool_call_id: message.tool_call_id,
+    };
+  }
+  return null;
+}
+
+function projectInferenceTools(tools) {
+  if (!Array.isArray(tools) || tools.length !== REQUIRED_INFERENCE_TOOLS.size) {
+    return null;
+  }
+  const names = new Set();
+  const projected = [];
+  for (const tool of tools) {
+    if (
+      !hasExactKeys(tool, ['type', 'function']) ||
+      tool.type !== 'function' ||
+      !hasExactKeys(tool.function, ['name', 'description', 'parameters']) ||
+      !REQUIRED_INFERENCE_TOOLS.has(tool.function.name) ||
+      names.has(tool.function.name) ||
+      typeof tool.function.description !== 'string' ||
+      !isJsonObject(tool.function.parameters)
+    ) {
+      return null;
+    }
+    names.add(tool.function.name);
+    projected.push({
+      type: 'function',
+      function: {
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters,
+      },
+    });
+  }
+  return names.size === REQUIRED_INFERENCE_TOOLS.size ? projected : null;
+}
+
+function projectInferenceRequest(payload) {
+  if (
+    !hasExactKeys(payload, [
+      'model',
+      'messages',
+      'stream',
+      'stream_options',
+      'store',
+      'tools',
+      'max_completion_tokens',
+    ]) ||
+    payload.model !== INFERENCE_MODEL_ID ||
+    payload.stream !== true ||
+    payload.store !== false ||
+    !hasExactKeys(payload.stream_options, ['include_usage']) ||
+    payload.stream_options.include_usage !== true ||
+    !Number.isInteger(payload.max_completion_tokens) ||
+    payload.max_completion_tokens < 1 ||
+    !Array.isArray(payload.messages) ||
+    payload.messages.length === 0
+  ) {
+    return null;
+  }
+  const messages = payload.messages.map(projectInferenceMessage);
+  const tools = projectInferenceTools(payload.tools);
+  if (messages.some((message) => message === null) || tools === null) {
+    return null;
+  }
+  const requestedTokens = Math.min(
+    payload.max_completion_tokens,
+    MAX_INFERENCE_OUTPUT_TOKENS
+  );
+  return {
+    requestedTokens,
+    payload: {
+      model: INFERENCE_MODEL_ID,
+      messages,
+      stream: true,
+      stream_options: { include_usage: true },
+      store: false,
+      tools,
+      max_completion_tokens: requestedTokens,
+    },
+  };
 }
 
 function startInferenceProxy(port, upstreamPort) {
+  let acceptedRequests = 0;
+  let reservedOutputTokens = 0;
+  const rejectRequest = (outgoing, status, error) => {
+    outgoing.writeHead(status, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+    });
+    outgoing.end(`${JSON.stringify({ error })}\n`);
+  };
   const server = createServer((incoming, outgoing) => {
     const url = new URL(incoming.url, 'http://127.0.0.1');
     if (
@@ -667,48 +1191,115 @@ function startInferenceProxy(port, upstreamPort) {
       url.pathname !== '/v1/chat/completions' ||
       url.search
     ) {
-      outgoing.writeHead(404, { 'Content-Type': 'application/json' });
-      outgoing.end('{"error":"not_found"}\n');
+      rejectRequest(outgoing, 404, 'not_found');
+      return;
+    }
+    const contentType = incoming.headers['content-type'];
+    const contentLength = Number(incoming.headers['content-length']);
+    if (
+      typeof contentType !== 'string' ||
+      !contentType.toLowerCase().startsWith('application/json') ||
+      (Number.isFinite(contentLength) &&
+        contentLength > MAX_INFERENCE_REQUEST_BYTES)
+    ) {
+      rejectRequest(outgoing, 413, 'invalid_request');
+      incoming.resume();
       return;
     }
 
-    const upstream = httpRequest(
-      {
-        host: '127.0.0.1',
-        port: upstreamPort,
-        path: url.pathname,
-        method: 'POST',
-        headers: {
-          'Content-Type':
-            incoming.headers['content-type'] ?? 'application/json',
-          ...(incoming.headers.accept
-            ? { Accept: incoming.headers.accept }
-            : {}),
-        },
-      },
-      (response) => {
-        const headers = {
-          ...(response.headers['content-type']
-            ? { 'Content-Type': response.headers['content-type'] }
-            : {}),
-          ...(response.headers['cache-control']
-            ? { 'Cache-Control': response.headers['cache-control'] }
-            : {}),
-        };
-        outgoing.writeHead(response.statusCode, headers);
-        response.pipe(outgoing);
+    const chunks = [];
+    let bytes = 0;
+    let rejected = false;
+    incoming.on('data', (chunk) => {
+      if (rejected) return;
+      bytes += chunk.length;
+      if (bytes > MAX_INFERENCE_REQUEST_BYTES) {
+        rejected = true;
+        rejectRequest(outgoing, 413, 'request_too_large');
+        return;
       }
-    );
-    upstream.once('error', () => {
-      if (outgoing.headersSent) {
-        outgoing.destroy();
-      } else {
-        outgoing.writeHead(502, { 'Content-Type': 'application/json' });
-        outgoing.end('{"error":"gateway_unavailable"}\n');
-      }
+      chunks.push(chunk);
     });
-    incoming.once('aborted', () => upstream.destroy());
-    incoming.pipe(upstream);
+    incoming.once('end', () => {
+      if (rejected) return;
+      let payload;
+      try {
+        payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      } catch {
+        rejectRequest(outgoing, 400, 'invalid_json');
+        return;
+      }
+      const projected = projectInferenceRequest(payload);
+      if (projected === null) {
+        rejectRequest(outgoing, 400, 'request_policy_violation');
+        return;
+      }
+      const { requestedTokens } = projected;
+      if (
+        acceptedRequests >= MAX_INFERENCE_REQUESTS ||
+        reservedOutputTokens + requestedTokens >
+          MAX_INFERENCE_TOTAL_OUTPUT_TOKENS
+      ) {
+        rejectRequest(outgoing, 429, 'inference_budget_exhausted');
+        return;
+      }
+      acceptedRequests += 1;
+      reservedOutputTokens += requestedTokens;
+      const body = Buffer.from(JSON.stringify(projected.payload));
+      const upstream = httpRequest(
+        {
+          host: '127.0.0.1',
+          port: upstreamPort,
+          path: url.pathname,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': String(body.length),
+            Accept: 'text/event-stream',
+          },
+        },
+        (response) => {
+          const headers = {
+            ...(response.headers['content-type']
+              ? { 'Content-Type': response.headers['content-type'] }
+              : {}),
+            ...(response.headers['cache-control']
+              ? { 'Cache-Control': response.headers['cache-control'] }
+              : {}),
+          };
+          outgoing.writeHead(response.statusCode, headers);
+          let responseBytes = 0;
+          response.on('data', (chunk) => {
+            responseBytes += chunk.length;
+            if (responseBytes > MAX_INFERENCE_RESPONSE_BYTES) {
+              response.destroy();
+              outgoing.destroy();
+              return;
+            }
+            if (!outgoing.write(chunk)) {
+              response.pause();
+              outgoing.once('drain', () => response.resume());
+            }
+          });
+          response.once('error', () => outgoing.destroy());
+          response.once('end', () => outgoing.end());
+          response.once('close', () => {
+            if (!outgoing.writableEnded) outgoing.destroy();
+          });
+        }
+      );
+      upstream.once('error', () => {
+        if (outgoing.headersSent) {
+          outgoing.destroy();
+        } else {
+          rejectRequest(outgoing, 502, 'gateway_unavailable');
+        }
+      });
+      outgoing.once('close', () => {
+        if (!outgoing.writableEnded) upstream.destroy();
+      });
+      upstream.end(body);
+    });
   });
   server.on('clientError', (_error, socket) => {
     socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
@@ -731,8 +1322,12 @@ function stopInferenceProxy(server) {
 }
 
 export async function startAuthGateway({ runtimeEnv }) {
+  const ompBinary = required(
+    runtimeEnv.LINEJAM_OMP_BINARY,
+    'LINEJAM_OMP_BINARY'
+  );
   const broker = spawn(
-    'omp',
+    ompBinary,
     ['auth-broker', 'serve', `--bind=127.0.0.1:${BROKER_PORT}`],
     { env: runtimeEnv, stdio: 'ignore' }
   );
@@ -741,7 +1336,7 @@ export async function startAuthGateway({ runtimeEnv }) {
   try {
     await waitForPort(BROKER_PORT, broker);
     gateway = spawn(
-      'omp',
+      ompBinary,
       [
         'auth-gateway',
         'serve',
@@ -775,6 +1370,135 @@ export async function startAuthGateway({ runtimeEnv }) {
       await stopChild(broker);
     },
   };
+}
+
+async function readIssueAuthority(run, root, runtimeEnv, issueNumber) {
+  const args = [
+    'issue',
+    'view',
+    String(issueNumber),
+    '--repo',
+    REPO,
+    '--json',
+    'number,state,url,labels',
+  ];
+  const issue = parseJsonOutput(
+    await run('gh', args, { cwd: root, env: runtimeEnv }),
+    'gh',
+    args
+  );
+  if (
+    issue?.number !== issueNumber ||
+    issue?.url !== `https://github.com/${REPO}/issues/${issueNumber}` ||
+    !Array.isArray(issue?.labels)
+  ) {
+    throw new Error('GitHub returned an invalid canonical issue identity');
+  }
+  return issue;
+}
+
+async function assertPublicationAuthority({
+  fetchImpl,
+  endpoint,
+  secret,
+  claim,
+  now,
+  run,
+  root,
+  runtimeEnv,
+}) {
+  const checkedAt = now();
+  if (checkedAt >= claim.agentLeaseExpiresAt) {
+    throw new Error('agent claim lease expired before publication');
+  }
+  const authorized = await postAgentEndpoint(
+    fetchImpl,
+    endpoint,
+    secret,
+    'authorize',
+    { receiptId: claim._id, leaseId: claim.leaseId },
+    checkedAt
+  );
+  if (authorized !== true) {
+    throw new Error('agent publication authorization was rejected');
+  }
+  const issue = await readIssueAuthority(
+    run,
+    root,
+    runtimeEnv,
+    claim.githubIssueNumber
+  );
+  if (issue.state !== 'OPEN') {
+    throw new Error('canonical issue closed before publication');
+  }
+  const labels = issueLabels(issue);
+  if (!REQUIRED_LABELS.every((label) => labels.has(label))) {
+    throw new Error('canonical issue labels revoked before publication');
+  }
+}
+
+async function readGithubActor(run, root, runtimeEnv) {
+  const args = ['api', 'user'];
+  const actor = parseJsonOutput(
+    await run('gh', args, { cwd: root, env: runtimeEnv }),
+    'gh',
+    args
+  );
+  if (
+    typeof actor?.login !== 'string' ||
+    !/^[a-z0-9](?:[a-z0-9-]{0,38})$/i.test(actor.login)
+  ) {
+    throw new Error('GitHub returned an invalid authenticated actor');
+  }
+  return actor.login.toLowerCase();
+}
+
+async function commentIssueOnce(
+  run,
+  root,
+  runtimeEnv,
+  issueNumber,
+  marker,
+  body,
+  beforeComment
+) {
+  await beforeComment();
+  const actor = await readGithubActor(run, root, runtimeEnv);
+  const listArgs = [
+    'api',
+    '--method',
+    'GET',
+    `repos/${REPO}/issues/${issueNumber}/comments`,
+    '-f',
+    'per_page=100',
+    '--paginate',
+    '--slurp',
+  ];
+  const pages = parseJsonOutput(
+    await run('gh', listArgs, { cwd: root, env: runtimeEnv }),
+    'gh',
+    listArgs
+  );
+  if (!Array.isArray(pages) || pages.some((page) => !Array.isArray(page))) {
+    throw new Error('GitHub returned invalid issue comments');
+  }
+  const matches = pages
+    .flat()
+    .filter(
+      (comment) =>
+        typeof comment?.body === 'string' &&
+        comment.body.includes(marker) &&
+        comment?.user?.login?.toLowerCase() === actor
+    );
+  if (
+    matches.length > 1 ||
+    (matches.length === 1 && matches[0].body !== body)
+  ) {
+    throw new Error('GitHub returned conflicting publication comments');
+  }
+  if (matches.length === 1) return;
+  await beforeComment();
+  await commentIssue(run, root, runtimeEnv, issueNumber, body);
 }
 
 async function commentIssue(run, root, runtimeEnv, issueNumber, body) {
@@ -857,7 +1581,7 @@ async function collectSafeSentrySummary(run, root, runtimeEnv, claim) {
 }
 
 async function createVm(run, root, runtimeEnv, vmName) {
-  const args = ['exe.dev', 'new', '--name', vmName, '--json'];
+  const args = isolatedSshArgs(['exe.dev', 'new', '--name', vmName, '--json']);
   const value = parseJsonOutput(
     await run('ssh', args, { cwd: root, env: runtimeEnv }),
     'ssh',
@@ -870,7 +1594,7 @@ async function createVm(run, root, runtimeEnv, vmName) {
 }
 
 async function removeVm(run, root, runtimeEnv, vmName) {
-  const args = ['exe.dev', 'rm', vmName];
+  const args = isolatedSshArgs(['exe.dev', 'rm', vmName]);
   const result = await run('ssh', args, {
     cwd: root,
     env: runtimeEnv,
@@ -878,7 +1602,7 @@ async function removeVm(run, root, runtimeEnv, vmName) {
   });
   if (result.status === 0) return;
 
-  const listArgs = ['exe.dev', 'ls', '--json'];
+  const listArgs = isolatedSshArgs(['exe.dev', 'ls', '--json']);
   const inventory = parseJsonOutput(
     await run('ssh', listArgs, {
       cwd: root,
@@ -969,11 +1693,11 @@ async function prepareVm({
   modelsPath,
   archiveScriptPath,
 }) {
-  const setupArgs = [
+  const setupArgs = isolatedSshArgs([
     '-n',
     host,
-    `mkdir -p /tmp/linejam-agent/skills && git clone --filter=blob:none --no-tags ${REPO_URL} /home/exedev/linejam`,
-  ];
+    `sudo -n useradd --create-home --shell /bin/bash ${VM_AGENT_USER} && sudo -n -u ${VM_AGENT_USER} -- git clone --filter=blob:none --no-tags ${REPO_URL} ${VM_REPOSITORY} && sudo -n -u ${VM_AGENT_USER} -- sh -c 'cd ${VM_REPOSITORY} && corepack pnpm install --frozen-lockfile --ignore-scripts' && mkdir -p /tmp/linejam-agent/skills`,
+  ]);
   const setup = await run('ssh', setupArgs, { cwd: root, env: runtimeEnv });
   if (setup.status !== 0) throw commandFailure('ssh', setupArgs, setup);
 
@@ -984,21 +1708,54 @@ async function prepareVm({
     [modelsPath, `${host}:/tmp/linejam-agent/models.yml`],
     [archiveScriptPath, `${host}:/tmp/linejam-agent/archive-evidence.py`],
   ]) {
-    const args = [source, destination];
+    const args = isolatedSshArgs([source, destination]);
     const result = await run('scp', args, { cwd: root, env: runtimeEnv });
     if (result.status !== 0) throw commandFailure('scp', args, result);
   }
-  const skillArgs = [
+  const skillArgs = isolatedSshArgs([
     '-r',
     evidenceSkill,
     `${host}:/tmp/linejam-agent/skills/evidence-packet`,
-  ];
+  ]);
   const skillResult = await run('scp', skillArgs, {
     cwd: root,
     env: runtimeEnv,
   });
   if (skillResult.status !== 0) {
     throw commandFailure('scp', skillArgs, skillResult);
+  }
+}
+
+async function isolateVmNetwork(run, root, runtimeEnv, host) {
+  const command = [
+    'sudo -n install -o root -g root -m 0555 /tmp/linejam-agent/omp /usr/local/bin/linejam-omp',
+    'sudo -n install -o root -g root -m 0555 /tmp/linejam-agent/archive-evidence.py /usr/local/bin/linejam-archive-evidence',
+    `sudo -n chown -R ${VM_AGENT_USER}:${VM_AGENT_USER} /tmp/linejam-agent`,
+    'sudo -n iptables -F INPUT',
+    'sudo -n iptables -A INPUT -i lo -j ACCEPT',
+    'sudo -n iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT',
+    'sudo -n iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT',
+    'sudo -n iptables -P INPUT DROP',
+    'sudo -n iptables -F OUTPUT',
+    'sudo -n iptables -A OUTPUT -o lo -j ACCEPT',
+    'sudo -n iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT',
+    'sudo -n iptables -P OUTPUT DROP',
+    'sudo -n ip6tables -F INPUT',
+    'sudo -n ip6tables -A INPUT -i lo -j ACCEPT',
+    'sudo -n ip6tables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT',
+    'sudo -n ip6tables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT',
+    'sudo -n ip6tables -P INPUT DROP',
+    'sudo -n ip6tables -F OUTPUT',
+    'sudo -n ip6tables -A OUTPUT -o lo -j ACCEPT',
+    'sudo -n ip6tables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT',
+    'sudo -n ip6tables -P OUTPUT DROP',
+    `! sudo -n -u ${VM_AGENT_USER} -- sudo -n true`,
+    `sudo -n -u ${VM_AGENT_USER} -- sh -c 'cd ${VM_REPOSITORY} && corepack pnpm exec vitest run tests/scripts/sentry-observability.test.ts'`,
+  ].join(' && ');
+  const args = isolatedSshArgs(['-n', host, command]);
+  const result = await run('ssh', args, { cwd: root, env: runtimeEnv });
+  if (result.status !== 0) {
+    throw commandFailure('ssh', args, result);
   }
 }
 
@@ -1012,12 +1769,15 @@ async function runIsolatedOmp({
   logPath,
 }) {
   const remoteCommand = [
-    'chmod 700 /tmp/linejam-agent/omp',
-    '&&',
+    'sudo -n',
+    '-u',
+    VM_AGENT_USER,
+    '--',
+    'env',
     'PI_CODING_AGENT_DIR=/tmp/linejam-agent',
-    '/tmp/linejam-agent/omp',
+    '/usr/local/bin/linejam-omp',
     '--model',
-    'linejam-gateway/openai-codex/gpt-5.6-sol',
+    `linejam-gateway/${INFERENCE_MODEL_ID}`,
     '--advisor',
     '--auto-approve',
     '--no-session',
@@ -1025,19 +1785,22 @@ async function runIsolatedOmp({
     '--max-time',
     `${Math.floor(agentTimeoutMs / 1_000)}s`,
     '--cwd',
-    '/home/exedev/linejam',
+    VM_REPOSITORY,
     '-p',
     '@/tmp/linejam-agent/prompt.txt',
   ].join(' ');
-  const args = [
-    '-tt',
-    '-o',
-    'ExitOnForwardFailure=yes',
-    '-R',
-    `127.0.0.1:${gatewayPort}:127.0.0.1:${gatewayPort}`,
-    host,
-    remoteCommand,
-  ];
+  const args = isolatedSshArgs(
+    [
+      '-tt',
+      '-o',
+      'ExitOnForwardFailure=yes',
+      '-R',
+      `127.0.0.1:${gatewayPort}:127.0.0.1:${gatewayPort}`,
+      host,
+      remoteCommand,
+    ],
+    { remoteForward: true }
+  );
   return run('ssh', args, {
     cwd: root,
     env: runtimeEnv,
@@ -1054,8 +1817,12 @@ export async function collectVmArtifacts({
   issueNumber,
   evidenceArchive,
 }) {
-  const remoteEvidence = `/home/exedev/linejam/.evidence/sentry-${issueNumber}`;
-  const reportArgs = ['-n', host, `cat ${remoteEvidence}/report.md`];
+  const remoteEvidence = `${VM_REPOSITORY}/.evidence/sentry-${issueNumber}`;
+  const reportArgs = isolatedSshArgs([
+    '-n',
+    host,
+    `sudo -n -u ${VM_AGENT_USER} -- cat ${remoteEvidence}/report.md`,
+  ]);
   const reportResult = await run('ssh', reportArgs, {
     cwd: root,
     env: runtimeEnv,
@@ -1069,11 +1836,11 @@ export async function collectVmArtifacts({
     throw new Error('isolated investigation report is missing or too large');
   }
 
-  const patchArgs = [
+  const patchArgs = isolatedSshArgs([
     '-n',
     host,
-    "rm -f /tmp/linejam-agent/patch.index && GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C /home/exedev/linejam read-tree HEAD && GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C /home/exedev/linejam add -f -A -- . && GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C /home/exedev/linejam diff --cached --binary --no-ext-diff HEAD -- . ':(exclude).evidence'",
-  ];
+    `sudo -n -u ${VM_AGENT_USER} -- rm -f /tmp/linejam-agent/patch.index && sudo -n -u ${VM_AGENT_USER} -- env GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C ${VM_REPOSITORY} read-tree HEAD && sudo -n -u ${VM_AGENT_USER} -- env GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C ${VM_REPOSITORY} add -f -A -- . && sudo -n -u ${VM_AGENT_USER} -- env GIT_INDEX_FILE=/tmp/linejam-agent/patch.index git -C ${VM_REPOSITORY} diff --cached --binary --no-ext-diff HEAD -- . ':(exclude).evidence'`,
+  ]);
   const patchResult = await run('ssh', patchArgs, {
     cwd: root,
     env: runtimeEnv,
@@ -1083,12 +1850,12 @@ export async function collectVmArtifacts({
     throw commandFailure('ssh', patchArgs, patchResult);
   }
 
-  const remoteArchive = '/tmp/linejam-agent/evidence.tar.gz';
-  const archiveArgs = [
+  const remoteArchive = '/tmp/linejam-agent/evidence.packet';
+  const archiveArgs = isolatedSshArgs([
     '-n',
     host,
-    `python3 /tmp/linejam-agent/archive-evidence.py ${remoteEvidence} ${remoteArchive}`,
-  ];
+    `sudo -n -u ${VM_AGENT_USER} -- python3 /usr/local/bin/linejam-archive-evidence ${remoteEvidence} ${remoteArchive}`,
+  ]);
   const archiveResult = await run('ssh', archiveArgs, {
     cwd: root,
     env: runtimeEnv,
@@ -1107,7 +1874,11 @@ export async function collectVmArtifacts({
     throw new Error('remote evidence archive reported invalid bounds');
   }
 
-  const pullArgs = ['-n', host, `cat ${remoteArchive}`];
+  const pullArgs = isolatedSshArgs([
+    '-n',
+    host,
+    `sudo -n -u ${VM_AGENT_USER} -- cat ${remoteArchive}`,
+  ]);
   const pullResult = await run('ssh', pullArgs, {
     cwd: root,
     env: runtimeEnv,
@@ -1130,27 +1901,34 @@ export async function collectVmArtifacts({
     throw new Error('evidence archive destination already exists');
   }
   mkdirSync(dirname(evidenceArchive), { recursive: true, mode: 0o700 });
-  const archivePath = `${evidenceArchive}.tar.gz`;
+  const archivePath = `${evidenceArchive}.packet`;
   writeFileSync(archivePath, pullResult.stdout, { mode: 0o600 });
-  const extractArgs = [
-    '-c',
-    EVIDENCE_EXTRACTOR_PY,
-    archivePath,
-    evidenceArchive,
-  ];
-  const extractResult = await run('python3', extractArgs, {
-    cwd: root,
-    env: runtimeEnv,
-    maxBuffer: 4 * 1024,
-    timeoutMs: 60_000,
-  });
-  if (extractResult.status !== 0) {
-    throw commandFailure('python3', extractArgs, extractResult);
+  try {
+    const extractArgs = [
+      '-c',
+      EVIDENCE_EXTRACTOR_PY,
+      archivePath,
+      evidenceArchive,
+    ];
+    const extractResult = await run('python3', extractArgs, {
+      cwd: root,
+      env: runtimeEnv,
+      maxBuffer: 4 * 1024,
+      timeoutMs: 60_000,
+    });
+    if (extractResult.status !== 0) {
+      throw commandFailure('python3', extractArgs, extractResult);
+    }
+    if (!validateEvidenceTree(evidenceArchive)) {
+      throw new Error('isolated evidence packet is empty');
+    }
+    return { report, patch: patchResult.stdout };
+  } catch (error) {
+    rmSync(evidenceArchive, { recursive: true, force: true });
+    throw error;
+  } finally {
+    rmSync(archivePath, { force: true });
   }
-  if (!validateEvidenceTree(evidenceArchive)) {
-    throw new Error('isolated evidence packet is empty');
-  }
-  return { report, patch: patchResult.stdout };
 }
 
 function parseNumstatPaths(value) {
@@ -1191,6 +1969,8 @@ export function validatePatchPolicy(patch, paths) {
       path.startsWith('/') ||
       path.includes('..') ||
       path.split('/').some((segment) => segment.startsWith('.')) ||
+      FORBIDDEN_PATCH_PATHS.has(path) ||
+      FORBIDDEN_PATCH_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
       !ALLOWED_PATCH_PREFIXES.some((prefix) => path.startsWith(prefix))
     ) {
       throw new Error(`isolated patch path is forbidden: ${path}`);
@@ -1229,43 +2009,57 @@ async function resolvePublishedPullRequest({
   publicationBranch,
   expectedOid,
   issueNumber,
-  report,
+  marker,
+  beforePublicEffect,
 }) {
-  const { forkOwner } = publicationTarget(runtimeEnv);
+  const gitEnv = await sanitizeGitEnvironment(runtimeEnv, run);
+  const { forkOwner, forkRepository } = publicationTarget(runtimeEnv);
   const head = `${forkOwner}:${publicationBranch}`;
+  const title = `fix(sentry): investigate incident #${issueNumber}`;
+  const body = `${marker}\nAutomated candidate patch from a credential-free disposable exe.dev VM. This draft is untrusted until reviewed. It has no merge or deployment authority.\n`;
+  const actor = await readGithubActor(run, cwd, gitEnv);
   const listArgs = [
     'api',
     '--method',
     'GET',
     `repos/${REPO}/pulls`,
     '-f',
-    'state=all',
+    'state=open',
     '-f',
     `head=${head}`,
     '-f',
-    'per_page=2',
+    'per_page=10',
   ];
   const readMatches = async () => {
-    const matches = parseJsonOutput(
+    const candidates = parseJsonOutput(
       await run('gh', listArgs, {
         cwd,
-        env: sanitizeGitEnvironment(runtimeEnv),
+        env: gitEnv,
       }),
       'gh',
       listArgs
     );
-    if (
-      !Array.isArray(matches) ||
-      matches.length > 1 ||
-      matches.some(
-        (match) =>
-          match?.head?.ref !== publicationBranch ||
-          match?.head?.sha !== expectedOid ||
-          match?.head?.repo?.owner?.login?.toLowerCase() !==
-            forkOwner.toLowerCase()
-      )
-    ) {
+    if (!Array.isArray(candidates) || candidates.length > 10) {
       throw new Error('GitHub returned an invalid publication identity result');
+    }
+    const matches = candidates.filter(
+      (match) =>
+        match?.state === 'open' &&
+        match?.draft === true &&
+        match?.title === title &&
+        match?.body === body &&
+        match?.base?.ref === 'master' &&
+        match?.base?.repo?.full_name?.toLowerCase() === REPO &&
+        match?.head?.ref === publicationBranch &&
+        match?.head?.sha === expectedOid &&
+        match?.head?.repo?.full_name?.toLowerCase() ===
+          forkRepository.toLowerCase() &&
+        match?.head?.repo?.owner?.login?.toLowerCase() ===
+          forkOwner.toLowerCase() &&
+        match?.user?.login?.toLowerCase() === actor
+    );
+    if (matches.length > 1) {
+      throw new Error('GitHub returned conflicting publication identities');
     }
     return matches;
   };
@@ -1278,7 +2072,7 @@ async function resolvePublishedPullRequest({
     return url;
   }
 
-  const body = `${report}\n\n---\n\nGenerated in a credential-free disposable exe.dev VM. This pull request is untrusted until reviewed. It has no merge or deployment authority.\n`;
+  await beforePublicEffect();
   const prArgs = [
     'pr',
     'create',
@@ -1289,14 +2083,14 @@ async function resolvePublishedPullRequest({
     '--head',
     head,
     '--title',
-    `fix(sentry): investigate incident #${issueNumber}`,
+    title,
     '--body',
     body,
     '--draft',
   ];
   const pr = await run('gh', prArgs, {
     cwd,
-    env: sanitizeGitEnvironment(runtimeEnv),
+    env: gitEnv,
   });
   if (pr.status !== 0) throw commandFailure('gh', prArgs, pr);
   const url = pr.stdout.trim();
@@ -1317,6 +2111,7 @@ async function publicationBranchMatches({
   publicationBranch,
   expectedOid,
 }) {
+  const gitEnv = await sanitizeGitEnvironment(runtimeEnv, run);
   const { forkRepository } = publicationTarget(runtimeEnv);
   const ref = `refs/heads/${publicationBranch}`;
   const args = [
@@ -1327,7 +2122,7 @@ async function publicationBranchMatches({
   ];
   const result = await run('git', args, {
     cwd,
-    env: sanitizeGitEnvironment(runtimeEnv),
+    env: gitEnv,
   });
   if (result.status !== 0) throw commandFailure('git', args, result);
   const output = result.stdout.trim();
@@ -1353,9 +2148,10 @@ export async function publishPatch({
   publicationBranch = branch,
   issueNumber,
   patch,
-  report,
+  marker,
   stateDir,
   beforePublish = () => undefined,
+  beforePublicEffect = () => undefined,
   afterPullRequest = () => undefined,
 }) {
   if (!patch.trim()) return null;
@@ -1363,7 +2159,7 @@ export async function publishPatch({
   if (!/^forest\/sentry-\d+-[a-zA-Z0-9_-]{1,64}$/.test(publicationBranch)) {
     throw new Error('agent patch publication branch is invalid');
   }
-  const gitEnv = sanitizeGitEnvironment(runtimeEnv);
+  const gitEnv = await sanitizeGitEnvironment(runtimeEnv, run);
   if (Buffer.byteLength(patch) > MAX_COMMAND_BYTES) {
     throw new Error('isolated patch exceeds the bounded patch limit');
   }
@@ -1401,6 +2197,10 @@ export async function publishPatch({
     'core.hooksPath=/dev/null',
     '-c',
     'commit.gpgSign=false',
+    '-c',
+    'user.name=Linejam Sentry Agent',
+    '-c',
+    'user.email=sentry-agent@linejam.app',
     'commit',
     '-m',
     `fix(sentry): remediate incident #${issueNumber}`,
@@ -1428,6 +2228,7 @@ export async function publishPatch({
     `HEAD:${publicationBranch}`,
   ];
   await beforePublish(headOid);
+  await beforePublicEffect();
   const push = await run('git', pushArgs, {
     cwd: worktree,
     env: gitEnv,
@@ -1441,7 +2242,8 @@ export async function publishPatch({
     publicationBranch,
     expectedOid: headOid,
     issueNumber,
-    report,
+    marker,
+    beforePublicEffect,
   });
   await afterPullRequest(url);
   return url;
@@ -1463,30 +2265,37 @@ async function deliverPublishedResult({
   writePublicationJournalFn,
   removePublicationJournalFn,
   writeCompletionJournalFn,
+  beforePublicEffect,
 }) {
   let staged = publication;
   const persist = () =>
     writePublicationJournalFn(stateDir, claim._id, secret, staged);
   if (!staged.reportDelivered) {
-    const reportComment = `${staged.report}\n\n---\n\nIsolation: credential-free disposable exe.dev VM.\nEvidence archive: \`${staged.evidenceArchive}\`.\nPull request: ${staged.prUrl ?? 'not applicable; no source patch was justified'}.`;
-    await commentIssue(
+    const marker = phaseMarker(secret, claim._id, 'report');
+    const reportComment = `${marker}\nAutonomous investigation completed evidence collection in a credential-free disposable VM. ${staged.prUrl ? `Review draft pull request ${staged.prUrl}.` : 'No publishable source patch was justified.'} The operator-held evidence packet remains private. No merge or deployment occurred.`;
+    await commentIssueOnce(
       run,
       root,
       runtimeEnv,
       claim.githubIssueNumber,
-      reportComment
+      marker,
+      reportComment,
+      beforePublicEffect
     );
     staged = { ...staged, reportDelivered: true };
     persist();
   }
   if (!staged.completionDelivered) {
-    const marker = resultMarker(secret, claim._id, claim.leaseId, 'completed');
-    await commentIssue(
+    const marker = phaseMarker(secret, claim._id, 'completed');
+    const completionComment = `${marker}\nAutonomous investigation completed in a credential-free VM. Review the operator-held evidence${staged.prUrl ? ' and authenticated draft pull request' : ''}. No merge or deployment occurred.`;
+    await commentIssueOnce(
       run,
       root,
       runtimeEnv,
       claim.githubIssueNumber,
-      `${marker}\nAutonomous investigation completed in a credential-free VM. Review the evidence${staged.prUrl ? ' and pull request' : ''}. No merge or deployment occurred.`
+      marker,
+      completionComment,
+      beforePublicEffect
     );
     staged = { ...staged, completionDelivered: true };
     persist();
@@ -1531,20 +2340,40 @@ async function processClaim({
       issueUrl: `https://github.com/${REPO}/issues/${claim.githubIssueNumber}`,
     };
   }
-  const issueArgs = [
-    'issue',
-    'view',
-    String(claim.githubIssueNumber),
-    '--repo',
-    REPO,
-    '--json',
-    'number,state,url,labels',
-  ];
-  const issue = parseJsonOutput(
-    await run('gh', issueArgs, { cwd: root, env: runtimeEnv }),
-    'gh',
-    issueArgs
+  const issue = await readIssueAuthority(
+    run,
+    root,
+    runtimeEnv,
+    claim.githubIssueNumber
   );
+  const resourceShort = createHmac('sha256', secret)
+    .update(`resource:${claim._id}`)
+    .digest('hex')
+    .slice(0, 8);
+  const branch = `forest/sentry-${claim.githubIssueNumber}-${resourceShort}`;
+  const publicationBranch = `forest/sentry-${claim.githubIssueNumber}-${claim._id}`;
+  const worktree = join(
+    homedir(),
+    'Development',
+    '.worktrees',
+    `linejam-sentry-${claim.githubIssueNumber}-${resourceShort}`
+  );
+  const vmName = `lj-sentry-${claim.githubIssueNumber}-${resourceShort}`.slice(
+    0,
+    48
+  );
+  const logPath = join(
+    stateDir,
+    `${claim.githubIssueNumber}-${resourceShort}.log`
+  );
+  const evidenceArchive = join(
+    stateDir,
+    'evidence',
+    `${claim.githubIssueNumber}-${resourceShort}-attempt-${claim.agentAttempts}`
+  );
+  const displayEvidence = evidenceArchive.replace(homedir(), '~');
+  await removeVm(run, root, runtimeEnv, vmName);
+  await removeWorktreeAndBranch(run, root, runtimeEnv, worktree, branch);
   if (issue.state !== 'OPEN') {
     await complete(fetchImpl, endpoint, secret, claim, 'issue_closed', now());
     return {
@@ -1562,6 +2391,17 @@ async function processClaim({
       issueUrl: issue.url,
     };
   }
+  const beforePublicEffect = () =>
+    assertPublicationAuthority({
+      fetchImpl,
+      endpoint,
+      secret,
+      claim,
+      now,
+      run,
+      root,
+      runtimeEnv,
+    });
   const stagedPublication = readPublicationJournalFn(
     stateDir,
     claim._id,
@@ -1588,7 +2428,8 @@ async function processClaim({
         publicationBranch: recoveredPublication.branch,
         expectedOid: recoveredPublication.headOid,
         issueNumber: claim.githubIssueNumber,
-        report: recoveredPublication.report,
+        marker: phaseMarker(secret, claim._id, 'pull-request'),
+        beforePublicEffect,
       });
       recoveredPublication = { ...recoveredPublication, prUrl };
       writePublicationJournalFn(
@@ -1616,44 +2457,33 @@ async function processClaim({
       writePublicationJournalFn,
       removePublicationJournalFn,
       writeCompletionJournalFn,
+      beforePublicEffect,
     });
   }
 
-  const leaseShort = claim.leaseId.replaceAll('-', '').slice(0, 8);
-  const branch = `forest/sentry-${claim.githubIssueNumber}-${leaseShort}`;
-  const publicationBranch = `forest/sentry-${claim.githubIssueNumber}-${claim._id}`;
-  const worktree = join(
-    homedir(),
-    'Development',
-    '.worktrees',
-    `linejam-sentry-${claim.githubIssueNumber}-${leaseShort}`
-  );
-  const vmName = `lj-sentry-${claim.githubIssueNumber}-${leaseShort}`.slice(
-    0,
-    48
-  );
-  const logPath = join(
-    stateDir,
-    `${claim.githubIssueNumber}-${leaseShort}.log`
-  );
-  const evidenceArchive = join(
-    stateDir,
-    'evidence',
-    `${claim.githubIssueNumber}-${leaseShort}`
-  );
-  const displayLogPath = logPath.replace(homedir(), '~');
-  const displayWorktree = worktree.replace(homedir(), '~');
-  const displayEvidence = evidenceArchive.replace(homedir(), '~');
-
-  await commentIssue(
+  const startMarker = phaseMarker(secret, claim._id, 'started');
+  await commentIssueOnce(
     run,
     root,
     runtimeEnv,
     claim.githubIssueNumber,
-    `<!-- linejam-agent-start:v1:${claim._id}:${claim.leaseId} -->\nCredential-free exe.dev investigation started. Attempt ${claim.agentAttempts}; lease expires ${new Date(claim.agentLeaseExpiresAt).toISOString()}. Local log: \`${displayLogPath}\`.`
+    startMarker,
+    `${startMarker}\nCredential-free disposable VM investigation started; the signed claim remains revocable. No production authority was delegated.`,
+    beforePublicEffect
   );
 
   let worktreeAttempted = false;
+  const cleanupWorktree = async () => {
+    if (!worktreeAttempted) return;
+    worktreeAttempted = false;
+    await removeWorktreeAndBranch(
+      cleanupRun,
+      root,
+      runtimeEnv,
+      worktree,
+      branch
+    );
+  };
   try {
     const fetchArgs = ['fetch', 'origin', 'master'];
     const fetchResult = await run('git', fetchArgs, {
@@ -1721,13 +2551,13 @@ async function processClaim({
         claim,
         issueNumber: claim.githubIssueNumber,
         issueUrl: issue.url,
-        remoteRepository: '/home/exedev/linejam',
+        remoteRepository: VM_REPOSITORY,
       })}\n`,
       { mode: 0o600 }
     );
     writeFileSync(
       modelsPath,
-      `providers:\n  linejam-gateway:\n    baseUrl: http://127.0.0.1:${GATEWAY_PORT}/v1\n    api: openai-completions\n    auth: none\n    models:\n      - id: openai-codex/gpt-5.6-sol\n        name: Isolated GPT-5.6 Sol\n        contextWindow: 400000\n        maxTokens: 32768\n`,
+      `providers:\n  linejam-gateway:\n    baseUrl: http://127.0.0.1:${GATEWAY_PORT}/v1\n    api: openai-completions\n    auth: none\n    models:\n      - id: ${INFERENCE_MODEL_ID}\n        name: Isolated GPT-5.6 Sol\n        contextWindow: 400000\n        maxTokens: ${MAX_INFERENCE_OUTPUT_TOKENS}\n`,
       { mode: 0o600 }
     );
     writeFileSync(archiveScriptPath, EVIDENCE_ARCHIVER_PY, { mode: 0o600 });
@@ -1760,6 +2590,7 @@ async function processClaim({
         modelsPath,
         archiveScriptPath,
       });
+      await isolateVmNetwork(run, root, runtimeEnv, host);
       gateway = await startGateway({ runtimeEnv });
       agentResult = await runIsolatedOmp({
         run,
@@ -1791,13 +2622,21 @@ async function processClaim({
     }
 
     if (agentResult.status !== 0 || !artifacts) {
-      const marker = resultMarker(secret, claim._id, claim.leaseId, 'retry');
-      await commentIssue(
+      await cleanupWorktree();
+      const marker = phaseMarker(
+        secret,
+        claim._id,
+        `retry-${claim.agentAttempts}`
+      );
+      const retryComment = `${marker}\nThe credential-free disposable VM did not produce a completed evidence packet (agent exit ${agentResult.status}). No patch was published, merged, or deployed.`;
+      await commentIssueOnce(
         run,
         root,
         runtimeEnv,
         claim.githubIssueNumber,
-        `${marker}\nIsolated investigation did not produce a completed evidence packet (agent exit ${agentResult.status}). No patch was published, merged, or deployed. Local worktree: \`${displayWorktree}\`; log: \`${displayLogPath}\`.`
+        marker,
+        retryComment,
+        beforePublicEffect
       );
       await complete(fetchImpl, endpoint, secret, claim, 'retry', now());
       return {
@@ -1826,13 +2665,14 @@ async function processClaim({
       publicationBranch,
       issueNumber: claim.githubIssueNumber,
       patch: artifacts.patch,
-      report: artifacts.report,
+      marker: phaseMarker(secret, claim._id, 'pull-request'),
       stateDir,
       beforePublish: (headOid) => {
         publication = { ...publication, headOid };
         writePublicationJournalFn(stateDir, claim._id, secret, publication);
         publicationStaged = true;
       },
+      beforePublicEffect,
       afterPullRequest: (resolvedPrUrl) => {
         publication = { ...publication, prUrl: resolvedPrUrl };
         writePublicationJournalFn(stateDir, claim._id, secret, publication);
@@ -1842,6 +2682,7 @@ async function processClaim({
     if (!publicationStaged) {
       writePublicationJournalFn(stateDir, claim._id, secret, publication);
     }
+    await cleanupWorktree();
     const delivered = await deliverPublishedResult({
       publication,
       recovered: false,
@@ -1858,18 +2699,11 @@ async function processClaim({
       writePublicationJournalFn,
       removePublicationJournalFn,
       writeCompletionJournalFn,
+      beforePublicEffect,
     });
     return { ...delivered, logPath, evidenceArchive };
   } finally {
-    if (worktreeAttempted) {
-      await removeWorktreeAndBranch(
-        cleanupRun,
-        root,
-        runtimeEnv,
-        worktree,
-        branch
-      );
-    }
+    await cleanupWorktree();
   }
 }
 
@@ -1883,8 +2717,18 @@ export async function dispatchSentryAgent(options = {}) {
     ? monotonicNow()
     : PROCESS_STARTED_AT_MS;
   const workDeadlineAt = processStartedAtMs + MAX_WORK_DURATION_MS;
-  const fetchImpl = deadlineFetch(rawFetch, workDeadlineAt, monotonicNow);
-  const run = deadlineRun(rawRun, workDeadlineAt, monotonicNow);
+  const fetchImpl = deadlineFetch(
+    rawFetch,
+    workDeadlineAt,
+    monotonicNow,
+    options.shutdownSignal
+  );
+  const run = deadlineRun(
+    rawRun,
+    workDeadlineAt,
+    monotonicNow,
+    options.shutdownSignal
+  );
   const root = resolve(
     options.repositoryRoot ?? env.LINEJAM_REPOSITORY_PATH ?? SOURCE_ROOT
   );
@@ -1908,6 +2752,7 @@ export async function dispatchSentryAgent(options = {}) {
     options.stateDir ??
       join(homedir(), '.local', 'state', 'linejam-sentry-agent')
   );
+  pruneAgentState(stateDir, now());
   const agentTimeoutMs = parseAgentTimeoutMs(
     env.LINEJAM_SENTRY_AGENT_TIMEOUT_MS
   );
@@ -1975,18 +2820,41 @@ function render(result) {
   return `Linejam Sentry #${result.issueNumber}: ${result.status} — ${result.issueUrl}`;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  dispatchSentryAgent()
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  const lifecycle = installCommandSignalHandlers();
+  dispatchSentryAgent({ shutdownSignal: lifecycle.signal })
     .then((result) => {
       const output = render(result);
       if (output) process.stdout.write(`${output}\n`);
     })
     .catch((error) => {
+      let diagnostic = 'private diagnostics unavailable';
+      try {
+        const detail =
+          error instanceof Error
+            ? (error.stack ?? error.message)
+            : String(error);
+        writePrivateJournal(
+          join(
+            homedir(),
+            '.local',
+            'state',
+            'linejam-sentry-agent',
+            'last-failure.log'
+          ),
+          `${new Date().toISOString()}\n${detail.slice(0, MAX_REPORT_BYTES)}\n`
+        );
+        diagnostic = 'private diagnostics recorded locally';
+      } catch {
+        // The public launcher output remains non-sensitive when logging fails.
+      }
       process.stdout.write(
-        `Linejam Sentry agent loop failed closed: ${
-          error instanceof Error ? error.message : String(error)
-        }\n`
+        `Linejam Sentry agent loop failed closed; ${diagnostic}.\n`
       );
-      process.exitCode = 1;
-    });
+      process.exitCode ||= 1;
+    })
+    .finally(() => lifecycle.remove());
 }

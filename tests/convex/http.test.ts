@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LinejamConvexTest } from '../helpers/convexTest';
 import { withEnv } from '../helpers/envHelper';
 import { setupConvexTest } from '../helpers/convexTest';
+import { signSentryAutomationProvenance } from '../../sentry.provenance.mjs';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -77,6 +78,8 @@ describe('convex/http health route', () => {
         SENTRY_ENVIRONMENT: 'production',
         SENTRY_RELEASE: 'a'.repeat(40),
         SENTRY_EVENT_WRITE_TOKEN: 'test-event-token',
+        SENTRY_AUTOMATION_PROVENANCE_SECRET:
+          'test-provenance-secret-with-at-least-32-bytes',
         SENTRY_EXPECTED_APP_ID: '160944',
         SENTRY_EXPECTED_INSTALLATION_UUID:
           '268a6e8e-c341-414e-bee6-20125b9987ef',
@@ -113,6 +116,10 @@ describe('convex/http health route', () => {
 const WEBHOOK_SECRET = 'test-sentry-webhook-secret';
 const INSTALLATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const REQUEST_ID = '11111111222243338444555555555555';
+const SENTRY_EVENT_ID = '0123456789abcdef0123456789abcdef';
+const SENTRY_ISSUE_ID = '123456';
+const RELEASE = 'a'.repeat(40);
+const PROVENANCE_SECRET = 'test-provenance-secret-with-at-least-32-bytes';
 
 interface SentryWebhookOverrides {
   action?: string;
@@ -137,7 +144,7 @@ function webhookPayload(overrides: SentryWebhookOverrides = {}) {
       event: {
         project: 42,
         issue_id: '123456',
-        event_id: '0123456789abcdef0123456789abcdef',
+        event_id: SENTRY_EVENT_ID,
         title: 'PROHIBITED_TITLE_SENTINEL',
         message: 'PROHIBITED_MESSAGE_SENTINEL',
         stacktrace: 'PROHIBITED_STACK_SENTINEL',
@@ -170,9 +177,47 @@ async function webhookHeaders(body: string) {
   };
 }
 
+async function sentryEvent(
+  environment: 'preview' | 'production',
+  eventId = SENTRY_EVENT_ID
+) {
+  const values = {
+    runtime: 'github-actions',
+    environment,
+    release: RELEASE,
+    level: 'error',
+    operation: 'previewSmoke',
+    failureCode: 'unexpected_error',
+  } as const;
+  const provenance = await signSentryAutomationProvenance(PROVENANCE_SECRET, {
+    eventId,
+    runtime: values.runtime,
+    release: RELEASE,
+    environment,
+    operation: values.operation,
+    level: values.level,
+    failureCode: values.failureCode,
+  });
+  return {
+    eventID: eventId,
+    groupID: SENTRY_ISSUE_ID,
+    tags: Object.entries({ ...values, provenance }).map(([key, value]) => ({
+      key: key === 'failureCode' ? 'failure_code' : key,
+      value,
+    })),
+  };
+}
+
 const WEBHOOK_ENV = {
   LINEJAM_DEPLOY_ENVIRONMENT: 'preview',
   SENTRY_WEBHOOK_SECRET: WEBHOOK_SECRET,
+  SENTRY_EVENT_WRITE_TOKEN: 'test-event-token',
+  SENTRY_AUTOMATION_PROVENANCE_SECRET: PROVENANCE_SECRET,
+  SENTRY_ORG: 'misty-step',
+  SENTRY_GITHUB_INTEGRATION_ID: '338522',
+  GITHUB_ISSUES_TOKEN: 'test-github-token',
+  GITHUB_REPOSITORY_OWNER: 'misty-step',
+  GITHUB_REPOSITORY_NAME: 'linejam',
   SENTRY_EXPECTED_APP_ID: '160944',
   SENTRY_EXPECTED_INSTALLATION_UUID: INSTALLATION_UUID,
   SENTRY_EXPECTED_PROJECT_ID: '42',
@@ -213,8 +258,22 @@ describe('convex/http Sentry webhook route', () => {
   });
 
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.resetModules();
     process.env = { ...ORIGINAL_ENV };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const eventId =
+        String(input).match(/\/events\/([0-9a-f]{32})\/?$/)?.[1] ??
+        SENTRY_EVENT_ID;
+      return Response.json(
+        await sentryEvent(
+          process.env.LINEJAM_DEPLOY_ENVIRONMENT === 'production'
+            ? 'production'
+            : 'preview',
+          eventId
+        )
+      );
+    });
   });
 
   it.each(rejectionCases)(
@@ -257,6 +316,54 @@ describe('convex/http Sentry webhook route', () => {
     });
   });
 
+  it('acknowledges a signed event whose trusted provenance is permanently invalid', async () => {
+    await withEnv(WEBHOOK_ENV, async () => {
+      const event = await sentryEvent('preview');
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        Response.json({
+          ...event,
+          tags: event.tags.map((tag) =>
+            tag.key === 'provenance' ? { ...tag, value: '0'.repeat(64) } : tag
+          ),
+        })
+      );
+      const t = setupConvexTest();
+      const body = JSON.stringify(webhookPayload());
+      const response = await t.fetch('/api/webhooks/sentry', {
+        method: 'POST',
+        headers: await webhookHeaders(body),
+        body,
+      });
+
+      expect(response.status).toBe(202);
+      expect(await response.text()).toBe('');
+      expect(
+        await t.run((ctx) => ctx.db.query('sentryGithubReceipts').collect())
+      ).toHaveLength(0);
+    });
+  });
+
+  it('returns 503 when trusted event verification has a retryable outage', async () => {
+    await withEnv(WEBHOOK_ENV, async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        new Response(null, { status: 500 })
+      );
+      const t = setupConvexTest();
+      const body = JSON.stringify(webhookPayload());
+      const response = await t.fetch('/api/webhooks/sentry', {
+        method: 'POST',
+        headers: await webhookHeaders(body),
+        body,
+      });
+
+      expect(response.status).toBe(503);
+      expect(await response.text()).toBe('Unavailable');
+      expect(
+        await t.run((ctx) => ctx.db.query('sentryGithubReceipts').collect())
+      ).toHaveLength(0);
+    });
+  });
+
   it.each(['preview', 'production'] as const)(
     'commits the projected receipt in %s before acknowledging',
     async (deploymentEnvironment) => {
@@ -277,7 +384,8 @@ describe('convex/http Sentry webhook route', () => {
           );
           expect(receipts).toHaveLength(1);
           expect(receipts[0]).toMatchObject({
-            dedupKey: `v1:${INSTALLATION_UUID}:42:123456`,
+            dedupKey: `v2:${INSTALLATION_UUID}:42:123456:${SENTRY_EVENT_ID}`,
+            canonicalKey: `v1:${INSTALLATION_UUID}:42:123456`,
             installationUuid: INSTALLATION_UUID,
             projectId: '42',
             sentryIssueId: '123456',
@@ -294,6 +402,73 @@ describe('convex/http Sentry webhook route', () => {
       );
     }
   );
+  it('accepts a trusted preview event through the production bridge', async () => {
+    await withEnv(
+      { ...WEBHOOK_ENV, LINEJAM_DEPLOY_ENVIRONMENT: 'production' },
+      async () => {
+        vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+          Response.json(await sentryEvent('preview'))
+        );
+        const t = setupConvexTest();
+        const body = JSON.stringify(webhookPayload());
+        const response = await t.fetch('/api/webhooks/sentry', {
+          method: 'POST',
+          headers: await webhookHeaders(body),
+          body,
+        });
+
+        expect(response.status).toBe(202);
+        expect(
+          await t.run((ctx) => ctx.db.query('sentryGithubReceipts').collect())
+        ).toHaveLength(1);
+      }
+    );
+  });
+
+  it('creates a new execution receipt for a trusted regression event', async () => {
+    await withEnv(WEBHOOK_ENV, async () => {
+      const t = setupConvexTest();
+      const firstBody = JSON.stringify(webhookPayload());
+      expect(
+        (
+          await t.fetch('/api/webhooks/sentry', {
+            method: 'POST',
+            headers: await webhookHeaders(firstBody),
+            body: firstBody,
+          })
+        ).status
+      ).toBe(202);
+
+      const regressionEventId = 'd'.repeat(32);
+      const regressionBody = JSON.stringify({
+        ...webhookPayload(),
+        data: {
+          event: {
+            ...webhookPayload().data.event,
+            event_id: regressionEventId,
+          },
+        },
+      });
+      expect(
+        (
+          await t.fetch('/api/webhooks/sentry', {
+            method: 'POST',
+            headers: await webhookHeaders(regressionBody),
+            body: regressionBody,
+          })
+        ).status
+      ).toBe(202);
+
+      const receipts = await t.run((ctx) =>
+        ctx.db.query('sentryGithubReceipts').collect()
+      );
+      expect(receipts).toHaveLength(2);
+      expect(new Set(receipts.map((receipt) => receipt.dedupKey)).size).toBe(2);
+      expect(new Set(receipts.map((receipt) => receipt.canonicalKey))).toEqual(
+        new Set([`v1:${INSTALLATION_UUID}:42:123456`])
+      );
+    });
+  });
 
   it('retains one receipt under concurrent exact replay', async () => {
     await withEnv(WEBHOOK_ENV, async () => {
@@ -349,7 +524,8 @@ async function agentHeaders(body: string, timestamp = String(Date.now())) {
 async function insertAgentReceipt(t: LinejamConvexTest) {
   return t.run((ctx) =>
     ctx.db.insert('sentryGithubReceipts', {
-      dedupKey: `v1:${INSTALLATION_UUID}:42:123456`,
+      dedupKey: `v2:${INSTALLATION_UUID}:42:123456:${SENTRY_EVENT_ID}`,
+      canonicalKey: `v1:${INSTALLATION_UUID}:42:123456`,
       installationUuid: INSTALLATION_UUID,
       projectId: '42',
       sentryIssueId: '123456',
@@ -468,6 +644,26 @@ describe('convex/http Sentry agent lease route', () => {
         body,
       });
       expect(response.status).toBe(400);
+      expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
+        agentState: 'pending',
+      });
+    });
+  });
+
+  it('rejects a claimant secret shared with the webhook', async () => {
+    await withEnv({ ...env, SENTRY_WEBHOOK_SECRET: AGENT_SECRET }, async () => {
+      const t = setupConvexTest();
+      const receiptId = await insertAgentReceipt(t);
+      const body = JSON.stringify({
+        action: 'claim',
+        leaseId: AGENT_LEASE_ONE,
+      });
+      const response = await t.fetch('/api/agents/sentry', {
+        method: 'POST',
+        headers: await agentHeaders(body),
+        body,
+      });
+      expect(response.status).toBe(401);
       expect(await t.run((ctx) => ctx.db.get(receiptId))).toMatchObject({
         agentState: 'pending',
       });

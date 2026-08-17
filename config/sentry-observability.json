@@ -8,6 +8,12 @@
       {
         "name": "GitHub bridge: New operational issue",
         "enabled": true,
+        "trigger": {
+          "logic": "all",
+          "conditionTypes": ["first_seen_event"]
+        },
+        "filterLogic": "all",
+        "frequencyMinutes": 120,
         "action": {
           "type": "webhook",
           "status": "active",
@@ -21,6 +27,12 @@
       {
         "name": "GitHub bridge: Regressed operational issue",
         "enabled": true,
+        "trigger": {
+          "logic": "all",
+          "conditionTypes": ["regression_event"]
+        },
+        "filterLogic": "all",
+        "frequencyMinutes": 120,
         "action": {
           "type": "webhook",
           "status": "active",
@@ -65,6 +77,25 @@
       }
     ]
   },
+  "uptimeMonitors": {
+    "required": [
+      {
+        "id": "8094070",
+        "name": "Linejam production health",
+        "projectSlug": "linejam",
+        "status": "active",
+        "environment": "production",
+        "url": "https://www.linejam.app/api/health",
+        "method": "GET",
+        "intervalSeconds": 60,
+        "timeoutMs": 10000,
+        "recoveryThreshold": 1,
+        "downtimeThreshold": 3,
+        "traceSampling": false,
+        "responseCaptureEnabled": false
+      }
+    ]
+  },
   "cronMonitors": {
     "required": [
       {
@@ -74,7 +105,9 @@
         "schedule": "17 * * * *",
         "timezone": "UTC",
         "maxRuntimeMinutes": 15,
-        "checkinMarginMinutes": 5
+        "checkinMarginMinutes": 5,
+        "recoveryThreshold": 1,
+        "failureIssueThreshold": 2
       }
     ],
     "forbidden": ["linejam-production-health", "linejam-ai-fallback-rate"]

@@ -265,6 +265,7 @@ export default defineSchema({
 
   sentryGithubReceipts: defineTable({
     dedupKey: v.string(),
+    canonicalKey: v.string(),
     installationUuid: v.string(),
     projectId: v.string(),
     sentryIssueId: v.string(),
@@ -333,6 +334,7 @@ export default defineSchema({
       )
     ),
     githubIssueNumber: v.optional(v.number()),
+    reusedGithubIssue: v.optional(v.boolean()),
     blockedCode: v.optional(
       v.union(
         v.literal('configuration_invalid'),
@@ -344,12 +346,14 @@ export default defineSchema({
         v.literal('github_invalid'),
         v.literal('marker_conflict'),
         v.literal('link_conflict'),
+        v.literal('internal_error'),
         v.literal('attempts_exhausted')
       )
     ),
     linkedAt: v.optional(v.number()),
   })
     .index('by_dedupKey', ['dedupKey'])
+    .index('by_canonicalKey_createdAt', ['canonicalKey', 'createdAt'])
     .index('by_state_nextAttemptAt', ['state', 'nextAttemptAt'])
     .index('by_state_leaseExpiresAt', ['state', 'leaseExpiresAt'])
     .index('by_agentState_agentNextAttemptAt', [
@@ -360,4 +364,13 @@ export default defineSchema({
       'agentState',
       'agentLeaseExpiresAt',
     ]),
+
+  sentryAgentClaimNonces: defineTable({
+    leaseId: v.string(),
+    receiptId: v.optional(v.id('sentryGithubReceipts')),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index('by_leaseId', ['leaseId'])
+    .index('by_expiresAt', ['expiresAt']),
 });

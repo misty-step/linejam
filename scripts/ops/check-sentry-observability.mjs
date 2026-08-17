@@ -9,6 +9,7 @@ const ROOT = path.resolve(
   '../..'
 );
 const DEFAULT_MANIFEST = path.join(ROOT, 'config/sentry-observability.json');
+const SENTRY_COMMAND_TIMEOUT_MS = 30_000;
 
 function asArray(value, field) {
   if (!Array.isArray(value)) throw new Error(`${field} must be an array`);
@@ -26,6 +27,16 @@ function splitSet(value) {
 function sameSet(left, right) {
   return JSON.stringify(splitSet(left)) === JSON.stringify(splitSet(right));
 }
+function conditionType(condition) {
+  if (Object.prototype.toString.call(condition?.type) === '[object String]') {
+    return condition.type;
+  }
+  if (Object.prototype.toString.call(condition?.id) !== '[object String]') {
+    return null;
+  }
+  const parts = condition.id.split('.');
+  return parts.length >= 2 ? parts.at(-2) : null;
+}
 
 function normalizeRule(rule) {
   const actionFilters = Array.isArray(rule.actionFilters)
@@ -37,6 +48,45 @@ function normalizeRule(rule) {
   const rawFilters = Array.isArray(rule.filters)
     ? rule.filters
     : actionFilters.flatMap((entry) => entry.conditions ?? []);
+  const rawConditions = Array.isArray(rule.conditions)
+    ? rule.conditions
+    : Array.isArray(rule.triggers?.conditions)
+      ? rule.triggers.conditions
+      : [];
+  const conditionTypes = rawConditions
+    .map(conditionType)
+    .filter((type) => type !== null);
+  const filterLogicValues = [
+    ...(Object.prototype.toString.call(rule.filterMatch) === '[object String]'
+      ? [rule.filterMatch]
+      : []),
+    ...actionFilters
+      .map((entry) => entry.logicType)
+      .filter(
+        (logicType) =>
+          Object.prototype.toString.call(logicType) === '[object String]'
+      ),
+  ];
+  const tagFilters = rawFilters.filter((filter) => {
+    const comparison = filter.comparison ?? filter.config;
+    return (
+      filter.type === 'tagged_event' ||
+      (filter.type === undefined &&
+        (comparison?.key !== undefined || comparison?.value !== undefined))
+    );
+  });
+  const tagFilterEntries = tagFilters.flatMap((filter) => {
+    const comparison = filter.comparison ?? filter.config;
+    const key = comparison?.key;
+    const value = comparison?.value;
+    if (
+      Object.prototype.toString.call(key) !== '[object String]' ||
+      Object.prototype.toString.call(value) !== '[object String]'
+    ) {
+      return [];
+    }
+    return [{ key: String(key), value: String(value) }];
+  });
   return {
     name: rule.name,
     enabled: rule.enabled !== false,
@@ -48,20 +98,18 @@ function normalizeRule(rule) {
         action.config?.targetIdentifier ??
         action.config?.targetDisplay,
     })),
+    malformedTagFilterCount: tagFilters.length - tagFilterEntries.length,
+    tagFilterEntries,
     tagFilters: Object.fromEntries(
-      rawFilters.flatMap((filter) => {
-        const comparison = filter.comparison ?? filter.config;
-        const key = comparison?.key;
-        const value = comparison?.value;
-        if (
-          Object.prototype.toString.call(key) !== '[object String]' ||
-          Object.prototype.toString.call(value) !== '[object String]'
-        ) {
-          return [];
-        }
-        return [[String(key), String(value)]];
-      })
+      tagFilterEntries.map(({ key, value }) => [key, value])
     ),
+    triggerLogic: rule.actionMatch ?? rule.triggers?.logicType,
+    conditionTypes,
+    malformedConditionCount: rawConditions.length - conditionTypes.length,
+    filterLogic:
+      new Set(filterLogicValues).size === 1 ? filterLogicValues[0] : null,
+    malformedFilterLogic: new Set(filterLogicValues).size > 1,
+    frequencyMinutes: rule.frequency ?? rule.config?.frequency,
   };
 }
 
@@ -75,6 +123,8 @@ function normalizeMonitor(monitor) {
     timezone: config.timezone,
     maxRuntimeMinutes: config.max_runtime,
     checkinMarginMinutes: config.checkin_margin,
+    recoveryThreshold: config.recovery_threshold,
+    failureIssueThreshold: config.failure_issue_threshold,
   };
 }
 
@@ -96,6 +146,10 @@ export function auditSentryObservability(manifest, snapshot) {
     normalizeMonitor
   );
   const releases = asArray(snapshot.releases, 'snapshot.releases');
+  const uptimeMonitors = asArray(
+    snapshot.uptimeMonitors,
+    'snapshot.uptimeMonitors'
+  );
   const dashboard = snapshot.dashboard;
 
   for (const expected of asArray(
@@ -116,10 +170,55 @@ export function auditSentryObservability(manifest, snapshot) {
     if (!actionMatches(actual.actions, expected.action)) {
       failures.push(`alert:${expected.name}:action-drift`);
     }
-    for (const [key, value] of Object.entries(expected.tagFilters ?? {})) {
-      if (!sameSet(actual.tagFilters[key], value)) {
+    if (expected.trigger) {
+      if (actual.triggerLogic !== expected.trigger.logic) {
+        failures.push(`alert:${expected.name}:trigger-logic-drift`);
+      }
+      if (
+        JSON.stringify([...actual.conditionTypes].sort()) !==
+        JSON.stringify([...expected.trigger.conditionTypes].sort())
+      ) {
+        failures.push(`alert:${expected.name}:trigger-conditions-drift`);
+      }
+      if (actual.malformedConditionCount > 0) {
+        failures.push(`alert:${expected.name}:trigger-condition-malformed`);
+      }
+    }
+    if (
+      expected.filterLogic !== undefined &&
+      (actual.malformedFilterLogic ||
+        actual.filterLogic !== expected.filterLogic)
+    ) {
+      failures.push(`alert:${expected.name}:filter-logic-drift`);
+    }
+    if (
+      expected.frequencyMinutes !== undefined &&
+      actual.frequencyMinutes !== expected.frequencyMinutes
+    ) {
+      failures.push(`alert:${expected.name}:frequency-drift`);
+    }
+    const expectedFilters = expected.tagFilters ?? {};
+    for (const [key, value] of Object.entries(expectedFilters)) {
+      const entries = actual.tagFilterEntries.filter(
+        (entry) => entry.key === key
+      );
+      if (entries.length !== 1) {
+        failures.push(
+          `alert:${expected.name}:tag-filter-${key}-expected-one:found-${entries.length}`
+        );
+      } else if (!sameSet(entries[0].value, value)) {
         failures.push(`alert:${expected.name}:tag-filter-${key}-drift`);
       }
+    }
+    for (const key of new Set(
+      actual.tagFilterEntries.map((entry) => entry.key)
+    )) {
+      if (!Object.hasOwn(expectedFilters, key)) {
+        failures.push(`alert:${expected.name}:tag-filter-${key}-undeclared`);
+      }
+    }
+    if (actual.malformedTagFilterCount > 0) {
+      failures.push(`alert:${expected.name}:tag-filter-malformed`);
     }
   }
 
@@ -148,6 +247,8 @@ export function auditSentryObservability(manifest, snapshot) {
       'timezone',
       'maxRuntimeMinutes',
       'checkinMarginMinutes',
+      'recoveryThreshold',
+      'failureIssueThreshold',
     ]) {
       if (actual[field] !== expected[field]) {
         failures.push(`cron-monitor:${expected.slug}:${field}-drift`);
@@ -166,6 +267,51 @@ export function auditSentryObservability(manifest, snapshot) {
       !(manifest.cronMonitors?.forbidden ?? []).includes(monitor.slug)
     ) {
       failures.push(`cron-monitor:${monitor.slug}:undeclared`);
+    }
+  }
+  const expectedUptime = asArray(
+    manifest.uptimeMonitors?.required,
+    'manifest.uptimeMonitors.required'
+  );
+  for (const expected of expectedUptime) {
+    const matches = uptimeMonitors.filter(
+      (monitor) =>
+        monitor.name === expected.name &&
+        monitor.projectSlug === expected.projectSlug
+    );
+    if (matches.length !== 1) {
+      failures.push(
+        `uptime-monitor:${expected.name}:expected-one:found-${matches.length}`
+      );
+      continue;
+    }
+    const [actual] = matches;
+    for (const field of [
+      'status',
+      'environment',
+      'url',
+      'method',
+      'intervalSeconds',
+      'timeoutMs',
+      'recoveryThreshold',
+      'downtimeThreshold',
+      'traceSampling',
+      'responseCaptureEnabled',
+    ]) {
+      if (actual[field] !== expected[field]) {
+        failures.push(`uptime-monitor:${expected.name}:${field}-drift`);
+      }
+    }
+  }
+  const expectedUptimeIds = new Set(
+    expectedUptime.map((monitor) => String(monitor.id))
+  );
+  for (const monitor of uptimeMonitors) {
+    if (
+      monitor.projectSlug === manifest.project &&
+      !expectedUptimeIds.has(String(monitor.id))
+    ) {
+      failures.push(`uptime-monitor:${monitor.name}:undeclared`);
     }
   }
 
@@ -207,6 +353,7 @@ export function auditSentryObservability(manifest, snapshot) {
     counts: {
       issueAlerts: rules.length,
       cronMonitors: monitors.length,
+      uptimeMonitors: uptimeMonitors.length,
       releases: releases.length,
       dashboardWidgets: Array.isArray(dashboard?.widgets)
         ? dashboard.widgets.length
@@ -220,6 +367,7 @@ function runSentry(args, sentryBin = process.env.SENTRY_BIN || 'sentry') {
     cwd: ROOT,
     encoding: 'utf8',
     env: process.env,
+    timeout: SENTRY_COMMAND_TIMEOUT_MS,
   });
   if (result.error || result.status !== 0) {
     const detail =
@@ -245,6 +393,10 @@ export function collectSentryObservability(manifest) {
   return {
     issueAlerts: issueAlertResponse.data ?? issueAlertResponse,
     cronMonitors: runSentry(['monitor', 'list', target, '--fresh', '--json']),
+    uptimeMonitors: runSentry([
+      'api',
+      `organizations/${manifest.organization}/uptime/`,
+    ]),
     releases: runSentry([
       'api',
       `/api/0/organizations/${manifest.organization}/releases/?project=${manifest.projectId}&per_page=25`,
@@ -257,6 +409,14 @@ export function collectSentryObservability(manifest) {
       '--json',
     ]),
   };
+}
+export function auditLiveSentryObservability(
+  manifest,
+  collect = collectSentryObservability
+) {
+  const first = auditSentryObservability(manifest, collect(manifest));
+  if (first.ok) return first;
+  return auditSentryObservability(manifest, collect(manifest));
 }
 
 async function readJson(file) {
@@ -281,10 +441,12 @@ export async function main(argv = process.argv.slice(2)) {
   if (manifest.schemaVersion !== 1) {
     throw new Error('Unsupported Sentry observability manifest schema');
   }
-  const snapshot = options.fixture
-    ? await readJson(path.resolve(options.fixture))
-    : collectSentryObservability(manifest);
-  const result = auditSentryObservability(manifest, snapshot);
+  const result = options.fixture
+    ? auditSentryObservability(
+        manifest,
+        await readJson(path.resolve(options.fixture))
+      )
+    : auditLiveSentryObservability(manifest);
   if (options.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else if (result.ok) {
