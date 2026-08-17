@@ -125,6 +125,9 @@ function normalizeMonitor(monitor) {
     checkinMarginMinutes: config.checkin_margin,
     recoveryThreshold: config.recovery_threshold,
     failureIssueThreshold: config.failure_issue_threshold,
+    environments: (monitor.environments ?? [])
+      .map((environment) => environment.name)
+      .sort(),
   };
 }
 
@@ -252,6 +255,15 @@ export function auditSentryObservability(manifest, snapshot) {
     ]) {
       if (actual[field] !== expected[field]) {
         failures.push(`cron-monitor:${expected.slug}:${field}-drift`);
+      }
+    }
+    if (expected.environments !== undefined) {
+      const expectedEnvironments = [...expected.environments].sort();
+      const actualEnvironments = actual.environments ?? [];
+      if (actualEnvironments.join('\u0000') !== expectedEnvironments.join('\u0000')) {
+        failures.push(
+          `cron-monitor:${expected.slug}:environments-drift:expected=${expectedEnvironments.join(',')}:actual=${actualEnvironments.join(',')}`
+        );
       }
     }
   }
