@@ -277,7 +277,7 @@ export default defineSchema({
 
   sentryGithubReceipts: defineTable({
     dedupKey: v.string(),
-    canonicalKey: v.optional(v.string()),
+    canonicalKey: v.string(),
     installationUuid: v.string(),
     projectId: v.string(),
     sentryIssueId: v.string(),
