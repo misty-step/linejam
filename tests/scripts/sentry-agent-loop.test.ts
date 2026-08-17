@@ -579,10 +579,42 @@ describe('Sentry agent loop', () => {
     );
   });
 
-  it('reports a retry when the isolated agent omits its evidence packet', async () => {
+  it('reports a new retry when a replay reuses an attempt number', async () => {
     const requests: Array<{ url: string; body: JsonObject }> = [];
     const fetchImpl = endpointMock(requests);
+    const priorMarker = `<!-- linejam-agent-publication:v1:receipt123:retry-1:${createHmac(
+      'sha256',
+      SECRET
+    )
+      .update('publication:v1\nreceipt123\nretry-1')
+      .digest('hex')} -->`;
+    const priorRetryBody = `${priorMarker}\nThe credential-free disposable VM did not produce a completed evidence packet (agent exit 0; evidence collection failed). No patch was published, merged, or deployed.`;
     const run = vi.fn(async (file: string, args: string[]) => {
+      if (file === 'gh' && args[0] === 'api' && args[1] === 'user') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ login: 'linejam-agent-owner' }),
+          stderr: '',
+        };
+      }
+      if (
+        file === 'gh' &&
+        args[0] === 'api' &&
+        args.some((arg) => arg.endsWith('/comments'))
+      ) {
+        return {
+          status: 0,
+          stdout: JSON.stringify([
+            [
+              {
+                body: priorRetryBody,
+                user: { login: 'linejam-agent-owner' },
+              },
+            ],
+          ]),
+          stderr: '',
+        };
+      }
       if (file === 'gh' && args[0] === 'issue' && args[1] === 'view') {
         return {
           status: 0,
@@ -630,7 +662,7 @@ describe('Sentry agent loop', () => {
       return { status: 0, stdout: '', stderr: '' };
     });
 
-    const result = await dispatchSentryAgent({
+    const result = await dispatchSentryAgentImpl({
       env: env(),
       fetchImpl,
       run,
@@ -644,6 +676,7 @@ describe('Sentry agent loop', () => {
       },
       hasCompletionJournal: () => false,
       writeCompletionJournal: vi.fn(),
+      stateDir: dispatchStateDir,
     });
 
     expect(result).toMatchObject({ status: 'retry', issueNumber: 426 });
@@ -655,6 +688,9 @@ describe('Sentry agent loop', () => {
         String(args.at(-1)).includes('evidence collection failed')
     );
     expect(retryComment).toBeDefined();
+    expect(String(retryComment?.[1].at(-1))).toMatch(
+      /<!-- linejam-agent-publication:v1:receipt123:retry-1-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}:[0-9a-f]{64} -->/
+    );
     expect(
       readFileSync(join(dispatchStateDir, 'last-failure.log'), 'utf8')
     ).toContain('evidence report missing');
