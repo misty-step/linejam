@@ -25,8 +25,8 @@ reconcile with it before a release is accepted.
 - `doctl` authenticated to the Misty Step DigitalOcean account
 - App Platform GitHub access to `misty-step/linejam`
 - Convex CLI access to the intended Linejam deployment
-- production Clerk, Convex, Sentry, GitHub bridge, and guest-token values
-  available through the approved credential plane
+- production Clerk, Convex, Sentry, and guest-token values available through
+  the approved credential plane
 - GitHub Actions access for the hosted quality and smoke gates
 
 Never commit a raw exported App Platform spec or print secret values. Raw
@@ -98,16 +98,7 @@ must receive the identical value. A mismatch breaks guest-token verification.
 | `SENTRY_AUTH_TOKEN`                   | build-only source-map upload credential                    |
 | `SENTRY_ORG`                          | `misty-step`; source uploads and issue-event API paths     |
 | `SENTRY_PROJECT`                      | `linejam`                                                  |
-| `SENTRY_WEBHOOK_SECRET`               | signed Sentry webhook verification secret                  |
-| `SENTRY_EVENT_WRITE_TOKEN`            | `event:write` token for event reads and GitHub linkage     |
 | `SENTRY_AUTOMATION_PROVENANCE_SECRET` | HMAC authority for trusted automation-origin Sentry events |
-| `GITHUB_ISSUES_TOKEN`                 | GitHub Issue creation token used by the Convex worker      |
-| `SENTRY_EXPECTED_APP_ID`              | allowlisted Sentry integration application ID              |
-| `SENTRY_EXPECTED_INSTALLATION_UUID`   | allowlisted Sentry installation UUID                       |
-| `SENTRY_EXPECTED_PROJECT_ID`          | allowlisted Linejam Sentry project ID                      |
-| `SENTRY_GITHUB_INTEGRATION_ID`        | Sentry GitHub integration ID used for external issue links |
-| `GITHUB_REPOSITORY_OWNER`             | `misty-step`                                               |
-| `GITHUB_REPOSITORY_NAME`              | `linejam`                                                  |
 | `PLAYWRIGHT_CLERK_TEST_EMAIL`         | pre-created production smoke user                          |
 
 Update environment configuration in App Platform without copying values into
@@ -342,18 +333,6 @@ others.
 Do not print either value to compare it. Compare secret fingerprints through an
 approved one-way check when direct control-plane verification is insufficient.
 
-### Sentry webhook is rejected
-
-Confirm the production Convex environment has all bridge variables named in
-`config/convex-env-manifest.json`, the Sentry internal integration sends
-`event_alert` payloads to `/api/webhooks/sentry`, and the signing secret matches.
-The route returns `400 Invalid webhook` for authentication, allowlist, and
-payload-schema rejection. It acknowledges a correctly signed event with `202`
-when that event's trusted automation provenance is permanently invalid, without
-creating a receipt, so Sentry does not retry a hopeless event. Provider,
-configuration, and durable-admission failures return `503 Unavailable` so
-Sentry retries after the dependency or operator-owned configuration recovers.
-
 ### Smoke cannot launch Chromium
 
 Confirm the GitHub Actions Playwright installation step completed and its
@@ -370,13 +349,9 @@ Clerk instance. Guest mode should remain available when Clerk is degraded.
 
 For `GUEST_TOKEN_SECRET`, update App Platform and Convex in one bounded window,
 then redeploy and replay guest creation. Existing guest tokens become invalid.
-Rotate `SENTRY_WEBHOOK_SECRET` by updating the Sentry internal integration and
-the production Convex environment in one bounded window, then verify one signed
-delivery before ending the window.
 Rotate `SENTRY_AUTOMATION_PROVENANCE_SECRET` in the smoke workflow secret stores
-and production Convex environment in one bounded window. Events signed with the
-old value stop at bridge admission; verify one trusted event before ending the
-window.
+and production Convex environment in one bounded window; verify one trusted
+event before ending the window.
 
 App Platform deployments are source-driven. If a source release is bad, use a
 normal `git revert` of the offending commit, pass the gates, and merge the

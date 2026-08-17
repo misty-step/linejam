@@ -225,85 +225,29 @@ function resolveHostedSentryEntries(env, deploymentEnvironment) {
   ];
 }
 
-const BRIDGE_ENVIRONMENT = Object.freeze({
-  SENTRY_ORG: 'misty-step',
-  SENTRY_EXPECTED_APP_ID: '160944',
-  SENTRY_EXPECTED_INSTALLATION_UUID: '268a6e8e-c341-414e-bee6-20125b9987ef',
-  SENTRY_EXPECTED_PROJECT_ID: '4510762050650112',
-  SENTRY_GITHUB_INTEGRATION_ID: '338522',
-  GITHUB_REPOSITORY_OWNER: 'misty-step',
-  GITHUB_REPOSITORY_NAME: 'linejam',
-});
-const BRIDGE_SECRET_NAMES = Object.freeze([
-  'SENTRY_WEBHOOK_SECRET',
-  'SENTRY_EVENT_WRITE_TOKEN',
-  'SENTRY_AUTOMATION_PROVENANCE_SECRET',
-  'GITHUB_ISSUES_TOKEN',
-]);
-
-function resolveHostedBridgeEntries(env, deploymentEnvironment) {
+function resolveProvenanceEntries(env, deploymentEnvironment) {
   if (
     deploymentEnvironment !== 'preview' &&
     deploymentEnvironment !== 'production'
   ) {
     return [];
   }
-
-  const expectedEntries = Object.entries(BRIDGE_ENVIRONMENT);
-  const secretEntries = BRIDGE_SECRET_NAMES.map((name) => [
-    name,
-    env[name]?.trim() || '',
-  ]);
-  const configuredSecretCount = secretEntries.filter(([, value]) =>
-    Boolean(value)
-  ).length;
-  const mismatchedEntry = expectedEntries.find(
-    ([name, expected]) => env[name]?.trim() && env[name]?.trim() !== expected
-  );
-  if (
-    deploymentEnvironment === 'preview' &&
-    configuredSecretCount === 0 &&
-    !mismatchedEntry
-  ) {
-    return [];
-  }
-  if (configuredSecretCount !== secretEntries.length || mismatchedEntry) {
+  const provenanceSecret = env.SENTRY_AUTOMATION_PROVENANCE_SECRET?.trim();
+  if (!provenanceSecret) {
+    if (deploymentEnvironment === 'preview') return [];
     throw new Error(
-      'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
+      'SENTRY_AUTOMATION_PROVENANCE_SECRET must contain 32-256 bytes for hosted Convex environments.'
     );
   }
-  const provenanceSecret = env.SENTRY_AUTOMATION_PROVENANCE_SECRET.trim();
   const provenanceSecretBytes = new TextEncoder().encode(
     provenanceSecret
   ).length;
   if (provenanceSecretBytes < 32 || provenanceSecretBytes > 256) {
     throw new Error(
-      'Hosted Sentry-to-GitHub bridge configuration is incomplete or invalid.'
+      'SENTRY_AUTOMATION_PROVENANCE_SECRET must contain 32-256 bytes for hosted Convex environments.'
     );
   }
-  return [
-    ...secretEntries,
-    ...expectedEntries.map(([name, expected]) => [
-      name,
-      env[name]?.trim() || expected,
-    ]),
-  ];
-}
-
-function resolveAgentLoopEntries(env, deploymentEnvironment) {
-  if (deploymentEnvironment !== 'production') return [];
-  const secret = env.SENTRY_AGENT_LOOP_SECRET?.trim();
-  if (!secret || secret.length < 32) {
-    throw new Error(
-      'SENTRY_AGENT_LOOP_SECRET must contain at least 32 characters for production.'
-    );
-  }
-  if (secret === env.SENTRY_WEBHOOK_SECRET?.trim()) {
-    throw new Error(
-      'SENTRY_AGENT_LOOP_SECRET must differ from SENTRY_WEBHOOK_SECRET.'
-    );
-  }
-  return [['SENTRY_AGENT_LOOP_SECRET', secret]];
+  return [['SENTRY_AUTOMATION_PROVENANCE_SECRET', provenanceSecret]];
 }
 
 /**
@@ -339,8 +283,10 @@ export function buildConvexEnvBootstrapPlan(env = process.env) {
         ? 'preview'
         : 'development';
   const sentryEntries = resolveHostedSentryEntries(env, deploymentEnvironment);
-  const bridgeEntries = resolveHostedBridgeEntries(env, deploymentEnvironment);
-  const agentLoopEntries = resolveAgentLoopEntries(env, deploymentEnvironment);
+  const provenanceEntries = resolveProvenanceEntries(
+    env,
+    deploymentEnvironment
+  );
 
   return {
     target,
@@ -349,8 +295,7 @@ export function buildConvexEnvBootstrapPlan(env = process.env) {
       ['CLERK_JWT_ISSUER_DOMAIN', clerkIssuerDomain],
       ['LINEJAM_DEPLOY_ENVIRONMENT', deploymentEnvironment],
       ...sentryEntries,
-      ...bridgeEntries,
-      ...agentLoopEntries,
+      ...provenanceEntries,
     ],
   };
 }

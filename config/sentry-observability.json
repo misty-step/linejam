@@ -6,44 +6,6 @@
   "issueAlerts": {
     "required": [
       {
-        "name": "GitHub bridge: New operational issue",
-        "enabled": true,
-        "trigger": {
-          "logic": "all",
-          "conditionTypes": ["first_seen_event"]
-        },
-        "filterLogic": "all",
-        "frequencyMinutes": 120,
-        "action": {
-          "type": "webhook",
-          "status": "active",
-          "target": "linejam-github-bridge-d1d6bd"
-        },
-        "tagFilters": {
-          "runtime": "convex,github-actions",
-          "operation": "sweepAbandonedGames,finishAbandonedGame,previewSmoke,productionSmoke"
-        }
-      },
-      {
-        "name": "GitHub bridge: Regressed operational issue",
-        "enabled": true,
-        "trigger": {
-          "logic": "all",
-          "conditionTypes": ["regression_event"]
-        },
-        "filterLogic": "all",
-        "frequencyMinutes": 120,
-        "action": {
-          "type": "webhook",
-          "status": "active",
-          "target": "linejam-github-bridge-d1d6bd"
-        },
-        "tagFilters": {
-          "runtime": "convex,github-actions",
-          "operation": "sweepAbandonedGames,finishAbandonedGame,previewSmoke,productionSmoke"
-        }
-      },
-      {
         "name": "Regression Alert",
         "enabled": true,
         "action": {

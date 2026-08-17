@@ -10,6 +10,47 @@ import {
   collectSentryObservability,
   main,
 } from '../../scripts/ops/check-sentry-observability.mjs';
+
+interface ManifestAlertRule {
+  name: string;
+  enabled: boolean;
+  action: { type: string; status: string; target?: string };
+  trigger?: { logic: string; conditionTypes: string[] };
+  filterLogic?: string;
+  frequencyMinutes?: number;
+  tagFilters?: Record<string, string>;
+}
+
+type ManifestFixture = Omit<typeof manifest, 'issueAlerts'> & {
+  issueAlerts: { required: ManifestAlertRule[] };
+};
+// SAFETY: the JSON import satisfies every ManifestFixture field checked by the
+// audit contract; the cast widens only issueAlerts rules to optional trigger
+// fields the snapshot builder already tolerates.
+const baseManifest = manifest as ManifestFixture;
+const filteredManifest: ManifestFixture = {
+  ...baseManifest,
+  issueAlerts: {
+    required: [
+      {
+        name: 'Filtered operational alert',
+        enabled: true,
+        trigger: { logic: 'all', conditionTypes: ['first_seen_event'] },
+        filterLogic: 'all',
+        frequencyMinutes: 120,
+        action: {
+          type: 'webhook',
+          status: 'active',
+          target: 'filtered-target',
+        },
+        tagFilters: {
+          runtime: 'convex,github-actions',
+          operation: 'previewSmoke,productionSmoke',
+        },
+      },
+    ],
+  },
+};
 interface AlertActionFixture {
   config?: {
     status?: string;
@@ -89,9 +130,11 @@ interface ObservabilitySnapshotFixture {
   uptimeMonitors: UptimeMonitorFixture[];
 }
 
-function passingSnapshot(): ObservabilitySnapshotFixture {
+function passingSnapshot(
+  source: ManifestFixture = baseManifest
+): ObservabilitySnapshotFixture {
   return {
-    issueAlerts: manifest.issueAlerts.required.map((rule) => ({
+    issueAlerts: source.issueAlerts.required.map((rule) => ({
       name: rule.name,
       enabled: rule.enabled,
       actions: [rule.action],
@@ -107,7 +150,7 @@ function passingSnapshot(): ObservabilitySnapshotFixture {
         comparison: { key, value },
       })),
     })),
-    cronMonitors: manifest.cronMonitors.required.map((monitor) => ({
+    cronMonitors: source.cronMonitors.required.map((monitor) => ({
       slug: monitor.slug,
       status: monitor.status,
       isMuted: monitor.isMuted,
@@ -120,20 +163,20 @@ function passingSnapshot(): ObservabilitySnapshotFixture {
         failure_issue_threshold: monitor.failureIssueThreshold,
       },
     })),
-    uptimeMonitors: manifest.uptimeMonitors.required.map((monitor) => ({
+    uptimeMonitors: source.uptimeMonitors.required.map((monitor) => ({
       ...monitor,
     })),
     releases: [
       {
         version: 'a'.repeat(40),
         deployCount: 1,
-        lastDeploy: { environment: manifest.release.environment },
+        lastDeploy: { environment: source.release.environment },
       },
     ],
     dashboard: {
-      id: manifest.dashboard.id,
-      title: manifest.dashboard.title,
-      widgets: manifest.dashboard.requiredWidgets.map((title) => ({ title })),
+      id: source.dashboard.id,
+      title: source.dashboard.title,
+      widgets: source.dashboard.requiredWidgets.map((title) => ({ title })),
     },
   };
 }
@@ -205,12 +248,10 @@ describe('Sentry observability contract', () => {
     );
   });
 
-  it('fails on stale bridge operations and duplicate rule identities', () => {
-    const snapshot = passingSnapshot();
-    const bridge = snapshot.issueAlerts.find((rule) =>
-      rule.name.startsWith('GitHub bridge: New')
-    )!;
-    const operationFilter = bridge.filters?.find(
+  it('fails on stale tag filters and duplicate rule identities', () => {
+    const snapshot = passingSnapshot(filteredManifest);
+    const filtered = snapshot.issueAlerts[0];
+    const operationFilter = filtered.filters?.find(
       (filter) => filter.comparison?.key === 'operation'
     );
     expect(operationFilter?.comparison).toBeDefined();
@@ -218,35 +259,36 @@ describe('Sentry observability contract', () => {
       throw new Error('operation filter missing');
     }
     operationFilter.comparison.value += ',generateGhostLine';
-    snapshot.issueAlerts.push(structuredClone(bridge));
+    snapshot.issueAlerts.push(structuredClone(filtered));
 
-    const result = auditSentryObservability(manifest, snapshot);
+    const result = auditSentryObservability(filteredManifest, snapshot);
     expect(result.failures).toContain(
-      'alert:GitHub bridge: New operational issue:expected-one:found-2'
+      'alert:Filtered operational alert:expected-one:found-2'
     );
   });
-  it('fails on bridge trigger, logic, and frequency drift', () => {
-    const snapshot = passingSnapshot();
-    const bridge = snapshot.issueAlerts.find((rule) =>
-      rule.name.startsWith('GitHub bridge: New')
-    )!;
-    bridge.conditions = [{ type: 'every_event' }];
-    bridge.actionMatch = 'any';
-    bridge.filterMatch = 'any';
-    bridge.frequency = 5;
 
-    expect(auditSentryObservability(manifest, snapshot).failures).toEqual(
+  it('fails on trigger, logic, and frequency drift', () => {
+    const snapshot = passingSnapshot(filteredManifest);
+    const filtered = snapshot.issueAlerts[0];
+    filtered.conditions = [{ type: 'every_event' }];
+    filtered.actionMatch = 'any';
+    filtered.filterMatch = 'any';
+    filtered.frequency = 5;
+
+    expect(
+      auditSentryObservability(filteredManifest, snapshot).failures
+    ).toEqual(
       expect.arrayContaining([
-        `alert:${bridge.name}:trigger-logic-drift`,
-        `alert:${bridge.name}:trigger-conditions-drift`,
-        `alert:${bridge.name}:filter-logic-drift`,
-        `alert:${bridge.name}:frequency-drift`,
+        `alert:${filtered.name}:trigger-logic-drift`,
+        `alert:${filtered.name}:trigger-conditions-drift`,
+        `alert:${filtered.name}:filter-logic-drift`,
+        `alert:${filtered.name}:frequency-drift`,
       ])
     );
   });
 
   it('rejects duplicate, undeclared, and malformed alert filters', () => {
-    const snapshot = passingSnapshot();
+    const snapshot = passingSnapshot(filteredManifest);
     const alert = snapshot.issueAlerts[0];
     const runtimeFilter = alert.filters!.find(
       (filter) => filter.comparison?.key === 'runtime'
@@ -261,7 +303,9 @@ describe('Sentry observability contract', () => {
       comparison: { attribute: 'error.unhandled', value: 'true' },
     });
 
-    expect(auditSentryObservability(manifest, snapshot).failures).toEqual(
+    expect(
+      auditSentryObservability(filteredManifest, snapshot).failures
+    ).toEqual(
       expect.arrayContaining([
         `alert:${alert.name}:tag-filter-runtime-expected-one:found-2`,
         `alert:${alert.name}:tag-filter-environment-undeclared`,
@@ -343,7 +387,7 @@ it('reports every declared identity and field drift', () => {
     expect.arrayContaining([
       expect.stringContaining('expected-one:found-0'),
       expect.stringContaining('action-drift'),
-      expect.stringContaining('tag-filter-runtime-expected-one:found-0'),
+      expect.stringContaining('tag-filter-environment-undeclared'),
       expect.stringContaining('status-drift'),
       expect.stringContaining('isMuted-drift'),
       expect.stringContaining('schedule-drift'),
