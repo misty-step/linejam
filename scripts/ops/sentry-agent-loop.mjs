@@ -2674,7 +2674,7 @@ async function processClaim({
       const marker = phaseMarker(
         secret,
         claim._id,
-        `retry-${claim.agentAttempts}`
+        `retry-${claim.agentAttempts}-${claim.leaseId}`
       );
       const retryComment = `${marker}\nThe credential-free disposable VM did not produce a completed evidence packet (agent exit ${agentResult.status}${artifactCollectionFailed ? '; evidence collection failed' : ''}). No patch was published, merged, or deployed.`;
       await commentIssueOnce(
