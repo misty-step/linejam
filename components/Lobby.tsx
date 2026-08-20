@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
-import { useUser } from '../lib/auth';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { toErrorReportable } from '../lib/errorCore';
@@ -58,7 +57,6 @@ function useDefaultCloseRoom(): CloseRoom {
 
 export interface LobbyDependencies {
   useRouter: typeof useRouter;
-  useUser: typeof useUser;
   useStartGame: () => StartGame;
   useLeaveLobby: () => LeaveLobby;
   useCloseRoom: () => CloseRoom;
@@ -69,7 +67,6 @@ export interface LobbyDependencies {
 
 const defaultDependencies: LobbyDependencies = {
   useRouter,
-  useUser,
   useStartGame: useDefaultStartGame,
   useLeaveLobby: useDefaultLeaveLobby,
   useCloseRoom: useDefaultCloseRoom,
@@ -82,6 +79,7 @@ interface LobbyProps {
   room: Doc<'rooms'>;
   players: LobbyPlayer[];
   isHost: boolean;
+  guestToken: string | null;
   dependencies?: LobbyDependencies;
 }
 
@@ -89,10 +87,10 @@ export function Lobby({
   room,
   players,
   isHost,
+  guestToken,
   dependencies = defaultDependencies,
 }: LobbyProps) {
   const router = dependencies.useRouter();
-  const { guestToken } = dependencies.useUser();
   const startGameMutation = dependencies.useStartGame();
   const leaveLobbyMutation = dependencies.useLeaveLobby();
   const closeRoomMutation = dependencies.useCloseRoom();
