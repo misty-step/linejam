@@ -16,34 +16,25 @@ import {
 import type { WaitingScreenDependencies } from '@/components/WaitingScreen';
 import type { Id } from '@/convex/_generated/dataModel';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
-import { useRoomQueryArgs, type RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
-import { UserProvider } from '@/lib/auth';
+import {
+  buildRoomQueryArgs,
+  buildIdentityKey,
+  type RoomQueryArgs,
+} from '@/lib/roomQueryArgs';
+import { useUser, UserProvider } from '@/lib/auth';
 
 type MockQueryArgs = RoomQueryArgs | 'skip';
 
 const mockSubmitLineMutation = vi.fn();
 const mockUseQuery = vi.fn();
 
-const mockUseRoomQueryArgs: WritingScreenDependencies['useRoomQueryArgs'] = (
-  roomCode,
-  propToken
-) => {
-  const guestToken = propToken ?? 'mock-token';
-  return {
-    guestToken,
-    shouldSkip: false,
-    queryArgs: { roomCode, guestToken },
-    identityKey: 'guest:writing-guest',
-  };
-};
-
 const waitingScreenDependencies: WaitingScreenDependencies = {
-  useRoomQueryArgs: mockUseRoomQueryArgs,
+  buildRoomQueryArgs,
   useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
 };
 
 const writingScreenDependencies: WritingScreenDependencies = {
-  useRoomQueryArgs: mockUseRoomQueryArgs,
+  buildRoomQueryArgs,
   useCurrentAssignment: (args) =>
     mockUseQuery('game:getCurrentAssignment', args),
   useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
@@ -130,13 +121,22 @@ describe('WritingScreen component', () => {
         convex: { isLoading: false, isAuthenticated: true },
       }),
     };
-    const view = () => (
-      <UserProvider dependencies={accountDependencies}>
+    // Mirrors RoomPageContent: one useUser owner threads token and identity.
+    function OwnedWritingScreen() {
+      const { guestToken, clerkUser, guestId } = useUser();
+      return (
         <WritingScreen
           key={clerkUserId}
           roomCode="ABCD"
-          dependencies={{ ...writingScreenDependencies, useRoomQueryArgs }}
+          guestToken={guestToken}
+          identityKey={buildIdentityKey(clerkUser?.id, guestId)}
+          dependencies={writingScreenDependencies}
         />
+      );
+    }
+    const view = () => (
+      <UserProvider dependencies={accountDependencies}>
+        <OwnedWritingScreen />
       </UserProvider>
     );
     const { rerender } = render(view());
@@ -151,7 +151,13 @@ describe('WritingScreen component', () => {
 
   it('keeps pasted and typed input on a single editable line', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, { target: { value: 'one\ntwo' } });
     expect(textarea).toHaveValue('one two');
@@ -168,7 +174,13 @@ describe('WritingScreen component', () => {
       .mockImplementation(() => {});
     mockSubmitLineMutation.mockRejectedValue(new Error('Network error'));
     const user = setupUser();
-    const { unmount } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const { unmount } = renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'Verse');
@@ -223,7 +235,13 @@ describe('WritingScreen component', () => {
 
     // A fresh room query still assigns this unsubmitted line after the reload.
     unmount();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const restoredTextarea = screen.getByRole('textbox');
     expect(restoredTextarea).toHaveValue('Verse');
     await user.type(restoredTextarea, 'Again');
@@ -262,7 +280,13 @@ describe('WritingScreen component', () => {
         : undefined;
     });
     const user = setupUser();
-    const { rerender } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const { rerender } = renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     await user.type(screen.getByRole('textbox'), 'Word');
     await user.click(screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton));
     expect(
@@ -292,7 +316,12 @@ describe('WritingScreen component', () => {
 
     rosterLoaded = true;
     rerender(
-      <WritingScreen roomCode="ABCD" dependencies={writingScreenDependencies} />
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+        dependencies={writingScreenDependencies}
+      />
     );
 
     expect(
@@ -309,7 +338,13 @@ describe('WritingScreen component', () => {
         : mockRoundProgress
     );
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const textarea = screen.getByRole('textbox', {
       name: /round 5\. Target: 5 words\./i,
     });
@@ -367,7 +402,13 @@ describe('WritingScreen component', () => {
 
   it('uses a singular target label for a one-word round and enables submission at that target', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const textarea = screen.getByRole('textbox', {
       name: /round 1\. Target: 1 word\./i,
     });
@@ -383,7 +424,13 @@ describe('WritingScreen component', () => {
 
   it('warns near the character limit and stops input at 500 characters', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const textarea = screen.getByRole('textbox');
     await user.click(textarea);
     await user.paste('a'.repeat(449));
@@ -399,7 +446,13 @@ describe('WritingScreen component', () => {
 
   it('preserves the draft when the browser goes offline', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'Still here');
@@ -417,7 +470,13 @@ describe('WritingScreen component', () => {
       '  Recovered\nline  '
     );
 
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
 
     expect(screen.getByRole('textbox')).toHaveValue('Recovered line');
   });
@@ -431,7 +490,13 @@ describe('WritingScreen component', () => {
       .mockRejectedValueOnce(new Error('Network error'))
       .mockReturnValueOnce(acceptedRetry.promise);
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'Draft');
@@ -482,14 +547,6 @@ describe('WritingScreen component', () => {
   });
 
   it('submits a normalized line for the assigned round without a guest token for a signed-in player', async () => {
-    const useSignedInRoomArgs: WritingScreenDependencies['useRoomQueryArgs'] = (
-      roomCode
-    ) => ({
-      guestToken: null,
-      shouldSkip: false,
-      queryArgs: { roomCode },
-      identityKey: 'clerk:writing-account',
-    });
     const assignment = {
       ...mockAssignmentRound5,
       // SAFETY: Synthetic Convex room id fixture for WritingScreen tests.
@@ -509,14 +566,12 @@ describe('WritingScreen component', () => {
     render(
       <WritingScreen
         roomCode="ABCD"
+        guestToken={null}
+        identityKey="clerk:writing-account"
         dependencies={{
           ...writingScreenDependencies,
-          useRoomQueryArgs: useSignedInRoomArgs,
           useCurrentAssignment: () => assignment,
-          waitingScreenDependencies: {
-            ...waitingScreenDependencies,
-            useRoomQueryArgs: useSignedInRoomArgs,
-          },
+          waitingScreenDependencies,
         }}
       />
     );
@@ -538,44 +593,17 @@ describe('WritingScreen component', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
-  it('waits for room credentials before showing a composer', () => {
-    const { rerender } = render(
-      <WritingScreen
-        roomCode="ABCD"
-        dependencies={{
-          ...writingScreenDependencies,
-          useRoomQueryArgs: () => ({
-            guestToken: null,
-            shouldSkip: true,
-            queryArgs: 'skip',
-            identityKey: null,
-          }),
-        }}
-      />
-    );
-
-    expect(screen.getByRole('status', { busy: true })).toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /^Submit$/i })
-    ).not.toBeInTheDocument();
-
-    rerender(
-      <WritingScreen roomCode="ABCD" dependencies={writingScreenDependencies} />
-    );
-    expect(
-      screen.getByRole('textbox', { name: /round 1\. Target: 1 word\./i })
-    ).toHaveValue('');
-    expect(
-      screen.queryByRole('status', { busy: true })
-    ).not.toBeInTheDocument();
-  });
-
   it('keeps the composer hidden until the assignment arrives', () => {
     mockUseQuery.mockImplementation((query: string) =>
       query === 'game:getCurrentAssignment' ? undefined : mockRoundProgress
     );
-    const { rerender } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const { rerender } = renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
 
     expect(screen.getByRole('status', { busy: true })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -589,7 +617,12 @@ describe('WritingScreen component', () => {
         : mockRoundProgress
     );
     rerender(
-      <WritingScreen roomCode="ABCD" dependencies={writingScreenDependencies} />
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+        dependencies={writingScreenDependencies}
+      />
     );
     expect(
       screen.getByRole('textbox', { name: /round 5\. Target: 5 words\./i })
@@ -618,14 +651,25 @@ describe('WritingScreen component', () => {
           }
         : null;
     });
-    const { rerender } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const { rerender } = renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
     expect(screen.getByRole('status', { busy: true })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
 
     rosterLoaded = true;
     rerender(
-      <WritingScreen roomCode="ABCD" dependencies={writingScreenDependencies} />
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+        dependencies={writingScreenDependencies}
+      />
     );
 
     expect(
@@ -657,7 +701,13 @@ describe('WritingScreen component', () => {
         ],
       };
     });
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen
+        guestToken="mock-token"
+        identityKey="guest:writing-guest"
+        roomCode="ABCD"
+      />
+    );
 
     expect(
       screen.getByRole('heading', { name: /next game/i })
@@ -678,7 +728,13 @@ describe('WritingScreen component', () => {
         'Recovered'
       );
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen
+          guestToken="mock-token"
+          identityKey="guest:writing-guest"
+          roomCode="ABCD"
+        />
+      );
 
       expect(screen.getByRole('textbox')).toHaveValue('Recovered');
       expect(screen.getByText('Draft restored')).toBeInTheDocument();
@@ -686,7 +742,13 @@ describe('WritingScreen component', () => {
 
     it('keeps an in-progress line in session storage for reload recovery', async () => {
       const user = setupUser();
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen
+          guestToken="mock-token"
+          identityKey="guest:writing-guest"
+          roomCode="ABCD"
+        />
+      );
 
       await user.type(screen.getByRole('textbox'), 'Hello');
 
@@ -706,7 +768,13 @@ describe('WritingScreen component', () => {
         'Another assignment has its draft'
       );
       const user = setupUser();
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen
+          guestToken="mock-token"
+          identityKey="guest:writing-guest"
+          roomCode="ABCD"
+        />
+      );
 
       await user.click(screen.getByRole('button', { name: /^Submit$/i }));
 
@@ -751,7 +819,13 @@ describe('WritingScreen component', () => {
         return { ...mockAssignment, hasSubmitted: true };
       });
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen
+          guestToken="mock-token"
+          identityKey="guest:writing-guest"
+          roomCode="ABCD"
+        />
+      );
 
       expect(screen.getByTestId(E2E_TEST_IDS.waitingPhase)).toBeInTheDocument();
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -767,11 +841,17 @@ describe('WritingScreen component', () => {
       );
       const user = setupUser();
       const { rerender } = renderWritingScreen(
-        <WritingScreen roomCode="ABCD" />
+        <WritingScreen
+          guestToken="mock-token"
+          identityKey="guest:writing-guest"
+          roomCode="ABCD"
+        />
       );
       const refreshAssignment = () =>
         rerender(
           <WritingScreen
+            guestToken="mock-token"
+            identityKey="guest:writing-guest"
             roomCode="ABCD"
             dependencies={writingScreenDependencies}
           />

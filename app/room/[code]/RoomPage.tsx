@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { WritingScreen } from '@/components/WritingScreen';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { useUser } from '@/lib/auth';
+import { buildIdentityKey } from '@/lib/roomQueryArgs';
 import { captureError } from '@/lib/error';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { usePresence } from '@/hooks/usePresence';
@@ -27,13 +28,21 @@ interface RoomPageRouter {
 interface RoomPageUserState {
   isLoading: boolean;
   guestToken: string | null;
+  identityKey: string | null;
   authError: string | null;
   retryAuth(): void;
 }
 
 function useDefaultRoomUser(): RoomPageUserState {
-  const { isLoading, guestToken, authError, retryAuth } = useUser();
-  return { isLoading, guestToken, authError, retryAuth };
+  const { isLoading, guestToken, authError, retryAuth, clerkUser, guestId } =
+    useUser();
+  return {
+    isLoading,
+    guestToken,
+    identityKey: buildIdentityKey(clerkUser?.id, guestId),
+    authError,
+    retryAuth,
+  };
 }
 
 function useDefaultRoomState(
@@ -149,11 +158,13 @@ function ResolvedRoomPage({
   code,
   roomState,
   guestToken,
+  identityKey,
   dependencies,
 }: {
   code: string;
   roomState: RoomPageState;
   guestToken: string | null;
+  identityKey: string | null;
   dependencies: RoomPageDependencies;
 }) {
   const { LobbyComponent, WritingScreenComponent, RevealPhaseComponent } =
@@ -222,11 +233,20 @@ function ResolvedRoomPage({
           action={action}
         />
         {panel === 'lobby' ? (
-          <LobbyComponent room={room} players={players} isHost={isHost} />
+          <LobbyComponent
+            room={room}
+            players={players}
+            isHost={isHost}
+            guestToken={guestToken}
+          />
         ) : panel === 'writing' ? (
-          <WritingScreenComponent roomCode={code} />
+          <WritingScreenComponent
+            roomCode={code}
+            guestToken={guestToken}
+            identityKey={identityKey}
+          />
         ) : (
-          <RevealPhaseComponent roomCode={code} />
+          <RevealPhaseComponent roomCode={code} guestToken={guestToken} />
         )}
       </div>
     </RoomPanelErrorBoundary>
@@ -241,7 +261,7 @@ function RoomPageContent({
   dependencies: RoomPageDependencies;
 }) {
   const router = dependencies.useRouter();
-  const { isLoading, guestToken, authError, retryAuth } =
+  const { isLoading, guestToken, identityKey, authError, retryAuth } =
     dependencies.useUser();
   const identityReady = !isLoading && !authError;
   const roomState = dependencies.useRoomState(code, guestToken, identityReady);
@@ -288,6 +308,7 @@ function RoomPageContent({
         code={code}
         roomState={roomState}
         guestToken={guestToken}
+        identityKey={identityKey}
         dependencies={dependencies}
       />
     </>

@@ -5,7 +5,7 @@ import { useQuery, useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { useRoomQueryArgs, type RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { buildRoomQueryArgs, type RoomQueryArgs } from '@/lib/roomQueryArgs';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
@@ -32,6 +32,8 @@ import {
 
 interface WritingScreenProps {
   roomCode: string;
+  guestToken: string | null;
+  identityKey: string | null;
   dependencies?: WritingScreenDependencies;
 }
 
@@ -58,7 +60,7 @@ function useDefaultSubmitLine(): SubmitLine {
 }
 
 export interface WritingScreenDependencies {
-  useRoomQueryArgs: typeof useRoomQueryArgs;
+  buildRoomQueryArgs: typeof buildRoomQueryArgs;
   useCurrentAssignment: typeof useDefaultCurrentAssignment;
   useRoundProgress: typeof useDefaultRoundProgress;
   useSubmitLine: () => SubmitLine;
@@ -66,7 +68,7 @@ export interface WritingScreenDependencies {
 }
 
 const defaultDependencies: WritingScreenDependencies = {
-  useRoomQueryArgs,
+  buildRoomQueryArgs,
   useCurrentAssignment: useDefaultCurrentAssignment,
   useRoundProgress: useDefaultRoundProgress,
   useSubmitLine: useDefaultSubmitLine,
@@ -87,7 +89,7 @@ export interface WritingAssignment {
 
 interface WritingComposerProps {
   assignment: WritingAssignment;
-  guestToken?: string | null;
+  guestToken: string | null;
   roomCode: string;
   identityKey: string | null;
   dependencies: Pick<
@@ -408,16 +410,17 @@ function WritingComposer({
 
 export function WritingScreen({
   roomCode,
+  guestToken,
+  identityKey,
   dependencies = defaultDependencies,
 }: WritingScreenProps) {
-  const { guestToken, shouldSkip, queryArgs, identityKey } =
-    dependencies.useRoomQueryArgs(roomCode);
+  const queryArgs = dependencies.buildRoomQueryArgs(roomCode, guestToken);
   const assignment = dependencies.useCurrentAssignment(queryArgs);
   const roundProgress = dependencies.useRoundProgress(
     assignment === null ? queryArgs : 'skip'
   );
 
-  if (shouldSkip || assignment === undefined) {
+  if (assignment === undefined) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center bg-background p-4">
         <p

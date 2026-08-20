@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
-import { useUser } from '../lib/auth';
 import { cn } from '../lib/utils';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { captureError } from '../lib/error';
@@ -23,7 +22,7 @@ import {
   type SessionRecapHubDependencies,
 } from './SessionRecapHub';
 import { Check } from 'lucide-react';
-import type { RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { buildRoomQueryArgs, type RoomQueryArgs } from '@/lib/roomQueryArgs';
 
 type ReadingCircleStatus = 'read' | 'reading-now' | 'up-next' | null;
 
@@ -61,7 +60,6 @@ function useDefaultStartGame(): StartGame {
   return useMutation(api.game.startGame);
 }
 export interface RevealPhaseDependencies {
-  useUser: typeof useUser;
   useRevealState: typeof useDefaultRevealState;
   useRevealPoem: () => RevealPoem;
   useStartNewCycle: () => StartNewCycle;
@@ -72,7 +70,6 @@ export interface RevealPhaseDependencies {
 }
 
 const defaultDependencies: RevealPhaseDependencies = {
-  useUser,
   useRevealState: useDefaultRevealState,
   useRevealPoem: useDefaultRevealPoem,
   useStartNewCycle: useDefaultStartNewCycle,
@@ -83,14 +80,15 @@ const defaultDependencies: RevealPhaseDependencies = {
 
 interface RevealPhaseProps {
   roomCode: string;
+  guestToken: string | null;
   dependencies?: RevealPhaseDependencies;
 }
 
 export function RevealPhase({
   roomCode,
+  guestToken,
   dependencies = defaultDependencies,
 }: RevealPhaseProps) {
-  const { guestToken, isLoading, authError } = dependencies.useUser();
   const [showingPoemId, setShowingPoemId] = useState<Id<'poems'> | null>(null);
   const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,9 +98,7 @@ export function RevealPhase({
   const lastShowingPoemId = useRef<Id<'poems'> | null>(null);
 
   const state = dependencies.useRevealState(
-    isLoading || authError
-      ? 'skip'
-      : { roomCode, guestToken: guestToken || undefined }
+    buildRoomQueryArgs(roomCode, guestToken)
   );
 
   const revealPoemMutation = dependencies.useRevealPoem();

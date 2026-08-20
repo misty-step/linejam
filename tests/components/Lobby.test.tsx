@@ -15,16 +15,6 @@ const mockMutations = {
 };
 
 const lobbyDependencies: LobbyDependencies = {
-  useUser: () => ({
-    clerkUser: null,
-    guestId: 'guest_123',
-    guestToken: 'mock-token',
-    isLoading: false,
-    isAuthenticated: false,
-    displayName: 'Guest',
-    authError: null,
-    retryAuth: vi.fn(),
-  }),
   useStartGame: () => mockMutations.startGame,
   hashRoomId: () => '0123456789abcdef',
   trackLobbyReady: mockTrackLobbyReady,
@@ -83,7 +73,14 @@ describe('Lobby component', () => {
   });
 
   it('renders player list from room state', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={false}
+      />
+    );
 
     // Assert - Both players should be visible
     expect(screen.getByText('Host Player')).toBeInTheDocument();
@@ -91,7 +88,14 @@ describe('Lobby component', () => {
   });
 
   it('shows the invitation and QR without hiding the start action', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost
+      />
+    );
     expect(
       screen.getByRole('region', { name: 'Room invitation' })
     ).toBeVisible();
@@ -104,7 +108,14 @@ describe('Lobby component', () => {
   it('Start Game button disabled with <2 players', () => {
     const singlePlayer = [mockPlayers[0]];
 
-    renderLobby(<Lobby room={mockRoom} players={singlePlayer} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={singlePlayer}
+        isHost={true}
+      />
+    );
 
     const startButtons = screen.getAllByRole('button', {
       name: /Need .* player/i,
@@ -114,7 +125,14 @@ describe('Lobby component', () => {
   });
 
   it('Start Game button enabled with ≥2 players', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const startButtons = screen.getAllByRole('button', {
       name: /Start Linejam/i,
@@ -128,7 +146,12 @@ describe('Lobby component', () => {
     const user = userEvent.setup();
 
     renderLobby(
-      <Lobby room={rematchRoom} players={mockPlayers} isHost={true} />
+      <Lobby
+        guestToken="mock-token"
+        room={rematchRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
     );
     await user.click(
       screen.getAllByRole('button', { name: /Start Linejam/i })[0]
@@ -150,7 +173,14 @@ describe('Lobby component', () => {
     mockMutations.startGame.mockRejectedValue(new Error('Game start failed'));
     const user = userEvent.setup();
 
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const startButtons = screen.getAllByRole('button', {
       name: /Start Linejam/i,
@@ -167,7 +197,14 @@ describe('Lobby component', () => {
   });
 
   it('shows "Waiting for host" button when not host', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={false}
+      />
+    );
 
     const waitingButtons = screen.getAllByRole('button', {
       name: /Waiting for host/i,
@@ -189,11 +226,17 @@ describe('Lobby component', () => {
       stableId: 'stable_late_789',
     };
     const { rerender } = renderLobby(
-      <Lobby room={mockRoom} players={mockPlayers} isHost={true} />
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
     );
 
     rerender(
       <Lobby
+        guestToken="mock-token"
         room={mockRoom}
         players={[...mockPlayers, latePlayer]}
         isHost={true}
@@ -209,7 +252,14 @@ describe('Lobby component', () => {
   });
 
   it('shows host badge for host player', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const hostPlayerItem = screen.getByText('Host Player').closest('li');
     expect(

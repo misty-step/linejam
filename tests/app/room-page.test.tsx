@@ -40,7 +40,13 @@ function TestLobby() {
   return <div>Lobby view</div>;
 }
 
-function TestWritingScreen({ roomCode }: { roomCode: string }) {
+function TestWritingScreen({
+  roomCode,
+  guestToken,
+}: {
+  roomCode: string;
+  guestToken?: string | null;
+}) {
   if (writingPhaseFails) {
     throw new Error('assignment query failed');
   }
@@ -50,7 +56,8 @@ function TestWritingScreen({ roomCode }: { roomCode: string }) {
       <span>1 word</span>
       <span>Write the first line.</span>
       <span>
-        {writingView === 'waiting' ? 'Waiting view' : 'Writing view'} {roomCode}
+        {writingView === 'waiting' ? 'Waiting view' : 'Writing view'} {roomCode}{' '}
+        {guestToken ?? 'no token'}
       </span>
     </>
   );
@@ -89,6 +96,7 @@ const dependencies: RoomPageDependencies = {
   useUser: () => ({
     isLoading: false,
     guestToken: 'guest-token',
+    identityKey: 'guest:room-guest',
     authError,
     retryAuth: mockRetryAuth,
   }),
@@ -191,6 +199,39 @@ describe('RoomPage', () => {
     expect(
       screen.getByRole('button', { name: /try again/i })
     ).toBeInTheDocument();
+  });
+
+  it('hands the owned guest token to the writing phase', async () => {
+    mockUseRoomState.mockReturnValue(createRoomState('IN_PROGRESS'));
+
+    renderRoomPage();
+
+    expect(
+      await screen.findByText(/Writing view ABCD guest-token/i)
+    ).toBeInTheDocument();
+  });
+
+  it('keeps room phases hidden until the auth owner resolves identity', async () => {
+    mockUseRoomState.mockReturnValue(createRoomState('IN_PROGRESS'));
+    const loadingDependencies: RoomPageDependencies = {
+      ...dependencies,
+      useUser: () => ({
+        isLoading: true,
+        guestToken: null,
+        identityKey: null,
+        authError: null,
+        retryAuth: mockRetryAuth,
+      }),
+    };
+
+    render(
+      <ColorModeProvider>
+        <RoomPage code="ABCD" dependencies={loadingDependencies} />
+      </ColorModeProvider>
+    );
+
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.queryByText(/Writing view/i)).not.toBeInTheDocument();
   });
 
   it('keeps a writing query failure inside the room panel fallback', async () => {

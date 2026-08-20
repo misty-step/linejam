@@ -14,10 +14,11 @@ import {
   useUser,
   UserProvider,
   type UserProviderDependencies,
+  type UserState,
 } from '@/lib/auth';
 import type { GuestSessionFetcher } from '@/lib/guestSession';
 import { AccountContext, type ClerkAccountState } from '@/lib/account';
-import { useRoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { buildRoomQueryArgs } from '@/lib/roomQueryArgs';
 import { createGuestSessionRoute } from '@/app/api/guest/session/handler';
 import { GUEST_TOKEN_TTL_MS, signGuestToken } from '@/lib/guestToken';
 import {
@@ -49,6 +50,14 @@ const renderAuthHook = (fetcher?: GuestSessionFetcher) =>
         children
       ),
   });
+
+/**
+ * The room tree closes its queries while the auth owner is loading or failed.
+ * This is the gate `useRoomQueryArgs` used to expose as `shouldSkip`; the room
+ * page now applies it before phases mount, with the same observable here.
+ */
+const authGatesQueries = (user: UserState): boolean =>
+  Boolean(user.authError) || user.isLoading;
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -657,18 +666,16 @@ describe('useUser hook', () => {
         token: 'before-account-token',
       }),
     };
-    const { result, rerender } = renderHook(
-      () => useRoomQueryArgs('ABCD', 'before-account-token'),
-      {
-        wrapper: ({ children }: { children: ReactNode }) =>
-          createElement(
-            UserProvider,
-            { fetcher, dependencies: authDeps },
-            children
-          ),
-      }
-    );
-    await waitFor(() => expect(result.current.shouldSkip).toBe(false));
+    const { result, rerender } = renderHook(() => useUser(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(
+          UserProvider,
+          { fetcher, dependencies: authDeps },
+          children
+        ),
+    });
+    await waitFor(() => expect(authGatesQueries(result.current)).toBe(false));
+    expect(result.current.guestToken).toBe('before-account-token');
     mockUseClerkUser.mockReturnValue({
       user: { id: 'linked-account' },
       isLoaded: true,
@@ -678,14 +685,15 @@ describe('useUser hook', () => {
       isAuthenticated: false,
     });
     rerender();
-    expect(result.current.queryArgs).toBe('skip');
+    expect(authGatesQueries(result.current)).toBe(true);
     expect(result.current.guestToken).toBeNull();
     mockUseConvexAuth.mockReturnValue({
       isLoading: false,
       isAuthenticated: true,
     });
     rerender();
-    expect(result.current.queryArgs).toEqual({
+    expect(authGatesQueries(result.current)).toBe(false);
+    expect(buildRoomQueryArgs('ABCD', result.current.guestToken)).toEqual({
       roomCode: 'ABCD',
       guestToken: undefined,
     });
@@ -794,9 +802,9 @@ describe('useUser hook', () => {
       const queryGates: boolean[] = [];
       const { result, unmount } = renderHook(
         () => {
-          const room = useRoomQueryArgs('ABCD');
-          queryGates.push(room.shouldSkip);
-          return { user: useUser(), room };
+          const user = useUser();
+          queryGates.push(authGatesQueries(user));
+          return user;
         },
         {
           wrapper: ({ children }: { children: ReactNode }) =>
@@ -807,8 +815,8 @@ describe('useUser hook', () => {
         await act(async () => {
           await requests[0];
         });
-        expect(result.current.user.guestId).toBe('retained-guest');
-        expect(result.current.user.guestToken === retainedToken).toBe(true);
+        expect(result.current.guestId).toBe('retained-guest');
+        expect(result.current.guestToken === retainedToken).toBe(true);
         queryGates.length = 0;
 
         // An ahead wall clock used to drop query authorization and reacquire
@@ -823,30 +831,30 @@ describe('useUser hook', () => {
         }
         expect(mockFetch).toHaveBeenCalledTimes(1);
         expect(queryGates).not.toContain(true);
-        expect(result.current.room.shouldSkip).toBe(false);
+        expect(authGatesQueries(result.current)).toBe(false);
 
         await act(async () => {
           await vi.advanceTimersByTimeAsync(remainingMs - 4);
         });
-        expect(result.current.user.guestId).toBe('retained-guest');
-        expect(result.current.room.shouldSkip).toBe(false);
+        expect(result.current.guestId).toBe('retained-guest');
+        expect(authGatesQueries(result.current)).toBe(false);
 
         holdReacquisition = true;
         await act(async () => {
           await vi.advanceTimersByTimeAsync(2);
         });
-        expect(result.current.room.queryArgs === 'skip').toBe(true);
-        expect(result.current.user.guestToken === null).toBe(true);
+        expect(authGatesQueries(result.current)).toBe(true);
+        expect(result.current.guestToken === null).toBe(true);
         expect(mockFetch).toHaveBeenCalledTimes(2);
 
         await act(async () => {
           reacquisition.resolve();
           await requests.at(-1);
         });
-        expect(result.current.user.guestId === 'retained-guest').toBe(false);
-        expect(result.current.user.guestToken === cookie).toBe(true);
-        expect(result.current.user.guestToken === retainedToken).toBe(false);
-        expect(result.current.room.shouldSkip).toBe(false);
+        expect(result.current.guestId === 'retained-guest').toBe(false);
+        expect(result.current.guestToken === cookie).toBe(true);
+        expect(result.current.guestToken === retainedToken).toBe(false);
+        expect(authGatesQueries(result.current)).toBe(false);
       } finally {
         unmount();
         reacquisition.resolve();
@@ -867,9 +875,9 @@ describe('useUser hook', () => {
     const authorized: boolean[] = [];
     const { result } = renderHook(
       () => {
-        const room = useRoomQueryArgs('ABCD');
-        authorized.push(!room.shouldSkip);
-        return room;
+        const user = useUser();
+        authorized.push(!authGatesQueries(user));
+        return user;
       },
       {
         wrapper: ({ children }: { children: ReactNode }) =>
@@ -886,7 +894,7 @@ describe('useUser hook', () => {
         })
       );
     });
-    expect(result.current.queryArgs).toBe('skip');
+    expect(authGatesQueries(result.current)).toBe(true);
     expect(authorized).not.toContain(true);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
@@ -897,7 +905,7 @@ describe('useUser hook', () => {
         Response.json({ guestId: 'renewed', token: 'fresh', validForMs: 2_000 })
       );
     });
-    expect(result.current.shouldSkip).toBe(false);
+    expect(authGatesQueries(result.current)).toBe(false);
     expect(result.current.guestToken).toBe('fresh');
   });
 

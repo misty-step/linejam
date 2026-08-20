@@ -5,16 +5,12 @@ import {
   WaitingScreen,
   type WaitingScreenDependencies,
 } from '@/components/WaitingScreen';
+import { buildRoomQueryArgs } from '@/lib/roomQueryArgs';
 
 const progressQuery = vi.fn();
 const dependencies: WaitingScreenDependencies = {
-  useRoomQueryArgs: (roomCode, token) => ({
-    guestToken: token ?? 'guest-token',
-    shouldSkip: false,
-    queryArgs: { roomCode, guestToken: token ?? 'guest-token' },
-    identityKey: 'guest:waiting-guest',
-  }),
-  useRoundProgress: () => progressQuery(),
+  buildRoomQueryArgs,
+  useRoundProgress: (args) => progressQuery(args),
 };
 const players = [
   {
@@ -38,7 +34,12 @@ function renderWaiting(
   props: Partial<React.ComponentProps<typeof WaitingScreen>> = {}
 ) {
   return render(
-    <WaitingScreen roomCode="ABCD" dependencies={dependencies} {...props} />
+    <WaitingScreen
+      roomCode="ABCD"
+      guestToken="guest-token"
+      dependencies={dependencies}
+      {...props}
+    />
   );
 }
 
@@ -46,6 +47,26 @@ describe('WaitingScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     progressQuery.mockReturnValue(progress);
+  });
+
+  it('uses the parent token without starting another guest-session request', () => {
+    // Detect accidental guest-session requests from nested auth bootstraps.
+    const mockFetch = vi.fn();
+    const originalFetch = global.fetch;
+    global.fetch = mockFetch;
+    try {
+      progressQuery.mockReturnValue(progress);
+
+      renderWaiting({ guestToken: 'prop-token' });
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(progressQuery).toHaveBeenCalledWith({
+        roomCode: 'ABCD',
+        guestToken: 'prop-token',
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 
   it('distinguishes submitted, writing and away players by name without relying on color', () => {
@@ -105,6 +126,7 @@ describe('WaitingScreen', () => {
     rerender(
       <WaitingScreen
         roomCode="ABCD"
+        guestToken="guest-token"
         dependencies={dependencies}
         progressOverride={{
           ...progress,
@@ -203,7 +225,13 @@ describe('WaitingScreen', () => {
       isHost: true,
       players: players.map((player) => ({ ...player, submitted: true })),
     });
-    rerender(<WaitingScreen roomCode="ABCD" dependencies={dependencies} />);
+    rerender(
+      <WaitingScreen
+        roomCode="ABCD"
+        guestToken="guest-token"
+        dependencies={dependencies}
+      />
+    );
 
     expect(
       screen.getByRole('heading', { name: /ready to read/i })
