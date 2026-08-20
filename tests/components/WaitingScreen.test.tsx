@@ -7,54 +7,17 @@ import {
   WaitingScreen,
   type WaitingScreenDependencies,
 } from '@/components/WaitingScreen';
-import { useUser, type UseUserAuthDependencies } from '@/lib/auth';
-import { defaultGuestSessionFetcher } from '@/lib/guestSession';
-import {
-  useRoomQueryArgs,
-  type RoomQueryArgsDependencies,
-} from '@/hooks/useRoomQueryArgs';
-// Exercise the real auth bootstrap against controlled provider boundaries.
+import { buildRoomQueryArgs } from '@/lib/roomQueryArgs';
 const mockUseQuery = vi.fn();
 const mockEndGame = vi.fn().mockResolvedValue({ abandoned: true });
 
-const testUserDependencies: UseUserAuthDependencies = {
-  useClerk: () => ({ user: null, isLoaded: true }),
-  useConvex: () => ({ isLoading: false, isAuthenticated: false }),
-  onError: vi.fn(),
-};
-
-function useTestUser() {
-  return useUser(defaultGuestSessionFetcher, testUserDependencies);
-}
-
-const roomQueryArgsDependencies: RoomQueryArgsDependencies = {
-  useUser: useTestUser,
-};
-
-function useTestRoomQueryArgs(roomCode: string, propToken?: string | null) {
-  return useRoomQueryArgs(roomCode, propToken, roomQueryArgsDependencies);
-}
-function useReadyRoomQueryArgs(roomCode: string, propToken?: string | null) {
-  const guestToken = propToken ?? 'mock-token';
-  return {
-    guestToken,
-    shouldSkip: false,
-    queryArgs: { roomCode, guestToken },
-  };
-}
-
 const waitingScreenDependencies: WaitingScreenDependencies = {
-  useRoomQueryArgs: useReadyRoomQueryArgs,
-  useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
-  useEndGame: () => mockEndGame,
-};
-const authWaitingScreenDependencies: WaitingScreenDependencies = {
-  useRoomQueryArgs: useTestRoomQueryArgs,
+  buildRoomQueryArgs,
   useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
   useEndGame: () => mockEndGame,
 };
 
-// Mock fetch for guest session API (external boundary)
+// Detect accidental guest-session requests from nested auth bootstraps.
 const mockFetch = vi.fn();
 const originalFetch = global.fetch;
 
@@ -73,11 +36,6 @@ describe('WaitingScreen component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ guestId: 'guest_123', token: 'mock-token' }),
-    });
     global.fetch = mockFetch;
   });
 
@@ -88,7 +46,9 @@ describe('WaitingScreen component', () => {
   it('displays loading state when progress is undefined', () => {
     mockUseQuery.mockReturnValue(undefined);
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     // LoadingState shows "Preparing your writing desk..." for LOADING_ROOM
     expect(
@@ -96,45 +56,20 @@ describe('WaitingScreen component', () => {
     ).toBeInTheDocument();
   });
 
-  it('skips query when auth is in error and no token is available', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Unable to connect'));
+  it('uses the parent token without starting another guest-session request', () => {
     mockUseQuery.mockReturnValue(undefined);
 
     renderWaitingScreen(
-      <WaitingScreen roomCode="ABCD" />,
-      authWaitingScreenDependencies
+      <WaitingScreen guestToken="prop-token" roomCode="ABCD" />
     );
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-    });
-    expect(mockUseQuery).toHaveBeenCalledWith(expect.anything(), 'skip');
-    expect(mockUseQuery.mock.calls.every((call) => call[1] === 'skip')).toBe(
-      true
-    );
-  });
-
-  it('uses provided token even when auth is in error', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Unable to connect'));
-    mockUseQuery.mockReturnValue(undefined);
-
-    renderWaitingScreen(
-      <WaitingScreen roomCode="ABCD" guestToken="prop-token" />,
-      authWaitingScreenDependencies
-    );
-
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-    });
+    expect(mockFetch).not.toHaveBeenCalled();
     expect(mockUseQuery).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         roomCode: 'ABCD',
         guestToken: 'prop-token',
       })
-    );
-    expect(mockUseQuery.mock.calls.some((call) => call[1] === 'skip')).toBe(
-      false
     );
   });
 
@@ -144,7 +79,9 @@ describe('WaitingScreen component', () => {
     // alarming "Room not found" — show the calm loading copy instead.
     mockUseQuery.mockReturnValue(null);
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(
       screen.getByText(/Preparing your writing desk/i)
@@ -174,7 +111,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText(/Round 2 · 1 of 2 ready/i)).toBeInTheDocument();
   });
@@ -196,7 +135,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     const root = screen.getByTestId('waiting-screen');
     expect(root).toHaveClass('h-full', 'overflow-y-auto');
@@ -230,7 +171,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText("It's around the table now.")).toBeInTheDocument();
     expect(screen.getByText(/Round 3 · 2 of 3 ready/i)).toBeInTheDocument();
@@ -258,7 +201,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText('Ready')).toBeInTheDocument();
     expect(screen.queryByText(/of.*ready/i)).not.toBeInTheDocument();
@@ -301,7 +246,11 @@ describe('WaitingScreen component', () => {
     };
 
     renderWaitingScreen(
-      <WaitingScreen roomCode="ABCD" progressOverride={override} />
+      <WaitingScreen
+        guestToken="mock-token"
+        roomCode="ABCD"
+        progressOverride={override}
+      />
     );
 
     expect(screen.getByText(/Round 3 · 3 of 4 ready/i)).toBeInTheDocument();
@@ -330,7 +279,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('Bob')).toBeInTheDocument();
@@ -358,7 +309,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     const aliceItem = screen.getByText('Alice').closest('li');
     const bobItem = screen.getByText('Bob').closest('li');
@@ -389,7 +342,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     const aliceName = screen.getByText('Alice');
     const bobName = screen.getByText('Bob');
@@ -425,7 +380,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText('Waiting on Bob, Charlie')).toBeInTheDocument();
   });
@@ -460,7 +417,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText('Ready')).toBeInTheDocument();
     expect(screen.getByText('Late Spectator')).toBeInTheDocument();
@@ -491,7 +450,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     const endTrigger = screen.getByRole('button', { name: 'End game' });
     expect(endTrigger).toBeInTheDocument();
@@ -535,7 +496,9 @@ describe('WaitingScreen component', () => {
       ],
     });
 
-    renderWaitingScreen(<WaitingScreen roomCode="ABCD" />);
+    renderWaitingScreen(
+      <WaitingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(
       screen.queryByRole('button', { name: /End game/i })

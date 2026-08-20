@@ -5,7 +5,7 @@ import { useQuery, useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { useRoomQueryArgs, type RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { buildRoomQueryArgs, type RoomQueryArgs } from '@/lib/roomQueryArgs';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
@@ -34,6 +34,7 @@ import {
 
 interface WritingScreenProps {
   roomCode: string;
+  guestToken: string | null;
   showChrome?: boolean;
   dependencies?: WritingScreenDependencies;
 }
@@ -61,7 +62,7 @@ function useDefaultSubmitLine(): SubmitLine {
 }
 
 export interface WritingScreenDependencies {
-  useRoomQueryArgs: typeof useRoomQueryArgs;
+  buildRoomQueryArgs: typeof buildRoomQueryArgs;
   useCurrentAssignment: typeof useDefaultCurrentAssignment;
   useRoundProgress: typeof useDefaultRoundProgress;
   useSubmitLine: () => SubmitLine;
@@ -69,7 +70,7 @@ export interface WritingScreenDependencies {
 }
 
 const defaultDependencies: WritingScreenDependencies = {
-  useRoomQueryArgs,
+  buildRoomQueryArgs,
   useCurrentAssignment: useDefaultCurrentAssignment,
   useRoundProgress: useDefaultRoundProgress,
   useSubmitLine: useDefaultSubmitLine,
@@ -92,7 +93,7 @@ export interface WritingAssignment {
 
 interface WritingComposerProps {
   assignment: WritingAssignment;
-  guestToken?: string | null;
+  guestToken: string | null;
   queryArgs: RoomQueryArgs;
   roomCode: string;
   dependencies: Pick<
@@ -559,17 +560,17 @@ function WritingComposer({
 
 export function WritingScreen({
   roomCode,
+  guestToken,
   showChrome = false,
   dependencies = defaultDependencies,
 }: WritingScreenProps) {
-  const { guestToken, shouldSkip, queryArgs } =
-    dependencies.useRoomQueryArgs(roomCode);
+  const queryArgs = dependencies.buildRoomQueryArgs(roomCode, guestToken);
   const assignment = dependencies.useCurrentAssignment(queryArgs);
   const roundProgress = dependencies.useRoundProgress(
     showChrome && assignment === null ? queryArgs : 'skip'
   );
 
-  if (shouldSkip || assignment === undefined) {
+  if (assignment === undefined) {
     return (
       <div className="lj-game-viewport flex items-center justify-center bg-[var(--color-background)]">
         <LoadingState message={LoadingMessages.LOADING_ROOM} />
