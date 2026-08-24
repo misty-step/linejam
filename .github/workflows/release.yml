@@ -29,7 +29,7 @@ jobs:
         # Pinned to the v0 tag's commit — this action holds github.token
         # (repo write: pushes the release commit + tags), so a floating tag is
         # not acceptable here. Bump deliberately when upgrading Landmark.
-        uses: misty-step/landmark@35d002b7a2bc80efc6d0f412b5adbc3f6a96eeab # v0.28.1
+        uses: misty-step/landmark@b426c5e03d3900851eb7b3325c6b38043fe8797d # v0.28.3
         with:
           mode: full
           node-version: 22
