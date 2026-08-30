@@ -78,7 +78,7 @@ Hybrid auth pattern:
 
 `app/layout.tsx` is a server component: it reads the middleware nonce and emits the first-paint color-mode script. Interactive game surfaces are client components, and Convex hooks handle their data fetching and real-time sync.
 
-`lib/design/tokens.ts` is the source of truth for the identity's token sets. `lib/colorMode/` exposes `ColorModeProvider`, `useColorMode`, `applyColorMode`, `getAppliedColorMode`, and the `linejam-theme-mode` storage key. `ColorModeControl` offers the only appearance choice: Light, Dark, or System; System follows `prefers-color-scheme`. There is no theme registry, picker roster, theme ID, or retained-theme compatibility state.
+`lib/design/tokens.ts` is the source of truth for the identity's token sets. `lib/colorMode/` exposes `ColorModeProvider`, `useColorMode`, `applyColorMode`, `getAppliedColorMode`, and the `linejam-theme-mode` storage key. `ColorModeControl` offers the only appearance choice: Light, Dark, or System; System follows `prefers-color-scheme`. There is no theme registry, picker roster, theme ID, or retained-theme compatibility state. The static marketing site (`site/`) consumes the same token tables through generated `site/tokens.css`.
 
 #### Fixed identity palette
 

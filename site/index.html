@@ -10,14 +10,19 @@
     />
     <script>
       try {
-        var m = localStorage.getItem('ae-mode');
-        if (m === 'dark' || m === 'light') {
-          document.documentElement.classList.add(m);
-          document.documentElement.style.colorScheme = m;
-        }
+        var stored = localStorage.getItem('linejam-theme-mode');
+        var mode =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.classList.add(mode);
+        document.documentElement.style.colorScheme = mode;
       } catch (e) {}
     </script>
-    <link rel="stylesheet" href="aesthetic.css" />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="linejam.css" />
     <link rel="stylesheet" href="marketing.css" />
   </head>
   <body>
@@ -29,19 +34,14 @@
           d="M19 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0 0 4h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"
         />
       </symbol>
-      <symbol id="i-sun" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2" />
-        <path d="M12 20v2" />
-        <path d="m4.93 4.93 1.41 1.41" />
-        <path d="m17.66 17.66 1.41 1.41" />
-        <path d="M2 12h2" />
-        <path d="M20 12h2" />
-        <path d="m6.34 17.66-1.41 1.41" />
-        <path d="m19.07 4.93-1.41 1.41" />
-      </symbol>
-      <symbol id="i-moon" viewBox="0 0 24 24">
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      <symbol id="i-palette" viewBox="0 0 24 24">
+        <path
+          d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
+        />
+        <circle cx="13.5" cy="6.5" r=".5" />
+        <circle cx="17.5" cy="10.5" r=".5" />
+        <circle cx="6.5" cy="12.5" r=".5" />
+        <circle cx="8.5" cy="7.5" r=".5" />
       </symbol>
       <symbol id="i-circle-check" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" />
@@ -53,35 +53,55 @@
       </symbol>
     </svg>
 
-    <div class="ae-screen ae-wide">
-      <header class="ae-bar msk-bar">
-        <a class="ae-logo" href="./" aria-label="Linejam home">
-          <span class="ae-app-mark" aria-hidden="true">
-            <svg class="ae-icon" data-lucide="scroll-text">
+    <div class="lj-shell">
+      <header class="lj-bar msk-bar">
+        <a class="lj-wordmark" href="./" aria-label="Linejam home">
+          <span class="lj-mark" aria-hidden="true">
+            <svg class="lj-icon" data-lucide="scroll-text">
               <use href="#i-scroll-text" />
             </svg>
           </span>
-          <span class="ae-name">Linejam</span>
+          <span class="lj-wordmark-label">Linejam</span>
         </a>
         <span class="msk-actions">
-          <nav class="ae-chrome msk-nav" aria-label="Site">
+          <nav class="lj-nav" aria-label="Site">
             <a href="#features">features</a>
             <a href="#proof">proof</a>
             <a href="#screens">screens</a>
             <a href="changelog.html">release notes</a>
           </nav>
-          <button class="ae-mode" aria-label="toggle color mode">
-            <svg class="ae-icon ae-sun"><use href="#i-sun" /></svg>
-            <svg class="ae-icon ae-moon"><use href="#i-moon" /></svg>
-          </button>
+          <details class="lj-appearance">
+            <summary class="lj-icon-button" aria-label="Color mode">
+              <svg class="lj-icon" aria-hidden="true">
+                <use href="#i-palette" />
+              </svg>
+            </summary>
+            <fieldset class="lj-mode">
+              <legend>Color mode</legend>
+              <div class="lj-mode-options">
+                <label>
+                  <input type="radio" name="color-mode" value="light" />
+                  <span>Light</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="dark" />
+                  <span>Dark</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="system" />
+                  <span>System</span>
+                </label>
+              </div>
+            </fieldset>
+          </details>
         </span>
       </header>
 
-      <main class="ae-stage ae-stage-scroll" id="content">
+      <main class="lj-stage" id="content">
         <div class="msk-page">
           <section class="msk-hero" aria-labelledby="hero-title">
-            <p class="ae-chrome">PASS-THE-POEM PARTY GAME</p>
-            <h1 class="ae-h" id="hero-title">
+            <p class="lj-kicker">Pass-the-poem party game</p>
+            <h1 id="hero-title">
               Write one line. See only the line before yours. Read the chaos
               aloud together.
             </h1>
@@ -92,11 +112,11 @@
               ever seeing it coming. The constraint is the game: no single
               person could have written what you end up with.
             </p>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label"
+              <span
                 >Wedding-validated - real friends, real reveal night, real
                 laughter.</span
               >
@@ -108,56 +128,50 @@
             id="features"
             aria-labelledby="features-title"
           >
-            <h2 class="ae-h" id="features-title">Why it's fun</h2>
-            <div class="ae-list-rows">
-              <div class="ae-list-row">
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">host</span>
-                  <span class="ae-list-value">Create a room, get a code.</span>
+            <h2 id="features-title">Why it's fun</h2>
+            <div class="lj-features">
+              <div class="lj-feature-row">
+                <span class="lj-feature">
+                  <span class="lj-kicker">host</span>
+                  <span>Create a room, get a code.</span>
                 </span>
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">join</span>
-                  <span class="ae-list-value"
-                    >Code + name. No account needed.</span
-                  >
+                <span class="lj-feature">
+                  <span class="lj-kicker">join</span>
+                  <span>Code + name. No account needed.</span>
                 </span>
               </div>
-              <div class="ae-list-row">
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">rounds</span>
-                  <span class="ae-list-value">9 rounds, 1→5→1 words.</span>
+              <div class="lj-feature-row">
+                <span class="lj-feature">
+                  <span class="lj-kicker">rounds</span>
+                  <span>9 rounds, 1→5→1 words.</span>
                 </span>
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">reveal</span>
-                  <span class="ae-list-value"
-                    >Everyone reads one poem aloud.</span
-                  >
+                <span class="lj-feature">
+                  <span class="lj-kicker">reveal</span>
+                  <span>Everyone reads one poem aloud.</span>
                 </span>
               </div>
-              <div class="ae-list-row">
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">short a seat?</span>
-                  <span class="ae-list-value">AI players fill it.</span>
+              <div class="lj-feature-row">
+                <span class="lj-feature">
+                  <span class="lj-kicker">short a seat?</span>
+                  <span>AI players fill it.</span>
                 </span>
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">stuck</span>
-                  <span class="ae-list-value"
-                    >In-game help when you're stuck.</span
-                  >
+                <span class="lj-feature">
+                  <span class="lj-kicker">stuck</span>
+                  <span>In-game help when you're stuck.</span>
                 </span>
               </div>
-              <div class="ae-list-row">
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">after</span>
-                  <span class="ae-list-value"
+              <div class="lj-feature-row">
+                <span class="lj-feature">
+                  <span class="lj-kicker">after</span>
+                  <span
                     ><a href="https://www.linejam.app/recap/BFIO"
                       >Shareable recap hub.</a
                     ></span
                   >
                 </span>
-                <span class="ae-list-cell">
-                  <span class="ae-list-label">where</span>
-                  <span class="ae-list-value"
+                <span class="lj-feature">
+                  <span class="lj-kicker">where</span>
+                  <span
                     ><a href="https://www.linejam.app">linejam.app</a> - play
                     free.</span
                   >
@@ -168,18 +182,21 @@
 
           <section class="msk-section" id="proof" aria-labelledby="proof-title">
             <div class="msk-section-head">
-              <p class="ae-chrome">REAL ROOM BFIO</p>
-              <h2 class="ae-h" id="proof-title">
+              <p class="lj-kicker">Real room BFIO</p>
+              <h2 id="proof-title">
                 A finished poem from a played-through room
               </h2>
-              <p class="ae-dim">
+              <p class="lj-muted">
                 This is the product artifact: nine constrained lines, written
                 across a completed Linejam session and readable here as text.
               </p>
             </div>
 
             <div class="msk-proof-grid">
-              <article class="msk-poem-artifact" aria-label="Room BFIO poem">
+              <article
+                class="paper msk-poem-artifact"
+                aria-label="Room BFIO poem"
+              >
                 <div class="msk-proof-meta">
                   <span>Poem 01</span>
                   <span>Started by Phae / read by Phae</span>
@@ -198,7 +215,10 @@
                 <p class="msk-poem-credit">Phae, Emily (AI)</p>
               </article>
 
-              <article class="msk-reveal-asset" aria-label="Reveal in motion">
+              <article
+                class="paper msk-reveal-asset"
+                aria-label="Reveal in motion"
+              >
                 <div class="msk-proof-meta">
                   <span>Reveal in motion</span>
                   <span>CSS only / no CDN media</span>
@@ -214,7 +234,7 @@
                   <span style="--i: 8">crooked lantern</span>
                   <span style="--i: 9">answers</span>
                 </div>
-                <p>
+                <p class="lj-muted">
                   Watch the reveal build line by line, the same payoff players
                   get at the end of a room.
                 </p>
@@ -233,8 +253,8 @@
             aria-labelledby="screens-title"
           >
             <div class="msk-section-head">
-              <h2 class="ae-h" id="screens-title">Screenshots</h2>
-              <p class="ae-dim">
+              <h2 id="screens-title">Screenshots</h2>
+              <p class="lj-muted">
                 Click a frame to inspect it. Every frame below is a real
                 capture: the landing page and an actual in-progress round from a
                 live room created at <code>linejam.app</code> during this pass,
@@ -252,7 +272,7 @@
                   src="assets/screenshots/01-overview.png"
                   alt="Linejam landing page at linejam.app"
                 />
-                <span class="ae-chrome">Landing page</span>
+                <span class="lj-kicker">Landing page</span>
               </button>
               <button
                 class="msk-shot"
@@ -264,7 +284,7 @@
                   src="assets/screenshots/02-workflow.png"
                   alt="Live Linejam room mid-round: Round 1, 1 word, write your line"
                 />
-                <span class="ae-chrome">Live gameplay: Round 1</span>
+                <span class="lj-kicker">Live gameplay: Round 1</span>
               </button>
               <button
                 class="msk-shot"
@@ -276,7 +296,7 @@
                   src="assets/screenshots/03-release.png"
                   alt="Linejam's public GitHub releases page"
                 />
-                <span class="ae-chrome">Public release history</span>
+                <span class="lj-kicker">Public release history</span>
               </button>
             </div>
           </section>
@@ -285,8 +305,8 @@
             class="msk-section msk-release-slot"
             aria-labelledby="release-title"
           >
-            <h2 class="ae-h" id="release-title">Release notes</h2>
-            <p>
+            <h2 id="release-title">Release notes</h2>
+            <p class="lj-muted">
               Read the <a href="changelog.html">current release notes</a> for
               what's new. Linejam ships continuously - the changelog above is
               sourced from real commit history.
@@ -295,9 +315,9 @@
         </div>
       </main>
 
-      <footer class="ae-bar msk-footer">
-        <p class="ae-chrome">Linejam is part of the Misty Step fleet.</p>
-        <nav class="ae-foot-links ae-chrome" aria-label="Footer">
+      <footer class="lj-bar lj-footer msk-footer">
+        <p class="lj-kicker">Linejam is part of the Misty Step fleet.</p>
+        <nav class="lj-foot-links" aria-label="Footer">
           <a
             data-footer-link="github"
             href="https://github.com/misty-step/linejam"
@@ -310,16 +330,16 @@
       </footer>
     </div>
 
-    <dialog class="ae-dialog msk-zoom" aria-labelledby="zoom-title">
+    <dialog class="lj-dialog msk-zoom" aria-labelledby="zoom-title">
       <div class="msk-zoom-head">
-        <h2 class="ae-dialog-title" id="zoom-title">Screenshot</h2>
+        <h2 id="zoom-title">Screenshot</h2>
         <button
-          class="ae-button"
+          class="lj-button"
           type="button"
           data-zoom-close
           aria-label="Close screenshot"
         >
-          <svg class="ae-icon" aria-hidden="true"><use href="#i-x" /></svg>
+          <svg class="lj-icon" aria-hidden="true"><use href="#i-x" /></svg>
         </button>
       </div>
       <img class="msk-zoom-img" alt="" />

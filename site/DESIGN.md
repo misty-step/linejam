@@ -26,30 +26,33 @@ what came before, and read the chaos aloud together.`
   vermillion ribbon and dot detailing — `scroll-text` is the closest Lucide
   primitive to that existing mark (a scroll icon with text-line strokes),
   reused rather than inventing a new symbol.
-- Rule: the mark is an inline Lucide SVG inside `.ae-app-mark`. No bespoke
+- Rule: the mark is an inline Lucide SVG inside `.lj-mark`. No bespoke
   marks, logo images, emoji marks, or colored wordmarks.
 
 ## Palette Hooks
 
-The static site uses one Ink & Anticipation identity in every color mode.
-`aesthetic.css` is the single owner of the shared `--ae-*` tokens; the
-`ae-mode` control changes only the light/dark presentation while System
-continues to follow the operating system.
+The static site uses the same Ink & Anticipation identity as the app.
+`lib/design/tokens.ts` is the token owner. `site/tokens.css` is generated
+from that table (`pnpm site:tokens`). `site/linejam.css` is the static shell:
+type scale, hard persimmon shadows, paper grain, and Light/Dark/System.
+Do not add `--ae-*` tokens or a second identity.
 
 Keep action/link and keyboard-focus colors distinct:
 
 ```css
 :root {
-  --ae-surface: #faf9f7;
-  --ae-wash: #ffffff;
-  --ae-ink: #1c1917;
-  --ae-accent: #b43a12;
-  --ae-focus: #e85d2b;
-  --ae-surface-dark: #1c1917;
-  --ae-wash-dark: #292524;
-  --ae-ink-dark: #faf9f7;
-  --ae-accent-dark: #f06b3b;
-  --ae-focus-dark: #e85d2b;
+  --color-background: #faf9f7;
+  --color-surface: #ffffff;
+  --color-foreground: #1c1917;
+  --color-primary: #b43a12;
+  --color-focus-ring: #e85d2b;
+}
+:root.dark {
+  --color-background: #1c1917;
+  --color-surface: #292524;
+  --color-foreground: #faf9f7;
+  --color-primary: #f06b3b;
+  --color-focus-ring: #e85d2b;
 }
 ```
 
@@ -58,9 +61,9 @@ Do not add a second identity, selector, or token override to a static page.
 ## Typography
 
 - Display and poem text: Libre Baskerville, weights 400 and 700.
-- Interface and body text: IBM Plex Sans, weights 400, 500, and 700.
+- Interface and body text: IBM Plex Sans, weights 400 and 500.
 - Code and compact labels: JetBrains Mono, weight 400.
-- `aesthetic.css` loads pinned Fontsource assets and owns the three font tokens.
+- `site/linejam.css` loads the same Fontsource Latin files the app imports.
   Do not add page-local font stacks.
 
 ## Screenshot Inventory

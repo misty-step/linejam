@@ -65,6 +65,7 @@
     "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs",
     "evidence:static-server": "node scripts/evidence/static-server.mjs",
     "generate:releases": "tsx scripts/generate-releases.ts",
+    "site:tokens": "tsx scripts/site/emit-design-tokens.ts",
     "agent:cli": "npx tsx scripts/cli/linejam-cli.ts",
     "agent:mcp": "npx tsx scripts/mcp/linejam-mcp.ts",
     "analytics:room-cycle": "tsx scripts/analytics/room-cycle-funnel.ts"

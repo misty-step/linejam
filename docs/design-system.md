@@ -49,7 +49,7 @@ Most collaborative writing tools feel like Google Docs clones or Notion derivati
 
 **Ink & Anticipation** is Linejam's single fixed visual identity. It is not a collection of interchangeable skins: only the color mode changes. The supported preferences are **Light**, **Dark**, and **System**.
 
-`lib/design/tokens.ts` is the source of truth for the complete Light and Dark token sets. `lib/colorMode/` owns the mode-only API (`ColorModeProvider`, `useColorMode`, `setModePreference`, `applyColorMode`, and `getAppliedColorMode`) and persists the preference under `linejam-theme-mode`. `ColorModeControl` is the sole appearance control; System follows `prefers-color-scheme`.
+`lib/design/tokens.ts` is the source of truth for the complete Light and Dark token sets. `lib/colorMode/` owns the mode-only API (`ColorModeProvider`, `useColorMode`, `setModePreference`, `applyColorMode`, and `getAppliedColorMode`) and persists the preference under `linejam-theme-mode`. `ColorModeControl` is the sole appearance control; System follows `prefers-color-scheme`. The static marketing site consumes the same token tables through generated `site/tokens.css` and the Light/Dark/System radios in `site/mode.js`.
 
 ---
 

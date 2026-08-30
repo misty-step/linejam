@@ -37,6 +37,7 @@ const args = process.argv.slice(2);
 const force = args.includes('--force');
 const dryRun = args.includes('--dry-run');
 const verbose = args.includes('--verbose') || args.includes('-v');
+const siteOnly = args.includes('--site-only');
 
 /**
  * Generate product-friendly notes from technical changelog entries.
@@ -291,6 +292,11 @@ async function main(): Promise<void> {
 
   if (releases.length === 0) {
     console.log('\n⚠️  No releases found in CHANGELOG.md');
+    process.exit(0);
+  }
+
+  if (siteOnly) {
+    writeSiteChangelog(releases);
     process.exit(0);
   }
 
