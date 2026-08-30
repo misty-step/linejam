@@ -26,29 +26,45 @@ what came before, and read the chaos aloud together.`
   vermillion ribbon and dot detailing — `scroll-text` is the closest Lucide
   primitive to that existing mark (a scroll icon with text-line strokes),
   reused rather than inventing a new symbol.
-- Rule: the mark is an inline Lucide SVG inside `.ae-app-mark`. No bespoke
+- Rule: the mark is an inline Lucide SVG inside `.lj-mark`. No bespoke
   marks, logo images, emoji marks, or colored wordmarks.
 
 ## Palette Hooks
 
-The scaffold pins `data-ae-theme="ember"` as the closest built-in match to
-Linejam's real in-app palette, then overrides the accent to the exact hex
-Linejam already ships (Kenya theme, the app's default): warm white
-background, near-black ink, and a persimmon/vermillion accent — distinct from
-Powder's blue and Landmark's palette.
+The static site uses the same Ink & Anticipation identity as the app.
+`lib/design/tokens.ts` is the token owner. `site/tokens.css` is generated
+from that table (`pnpm site:tokens`). `site/linejam.css` is the static shell:
+type scale, hard persimmon shadows, paper grain, and Light/Dark/System.
+Do not add `--ae-*` tokens or a second identity.
+
+Keep action/link and keyboard-focus colors distinct:
 
 ```css
 :root {
-  --ae-accent: #e85d2b;
-  --ae-accent-dark: #f06b3b;
+  --color-background: #faf9f7;
+  --color-surface: #ffffff;
+  --color-foreground: #1c1917;
+  --color-primary: #b43a12;
+  --color-focus-ring: #e85d2b;
+}
+:root.dark {
+  --color-background: #1c1917;
+  --color-surface: #292524;
+  --color-foreground: #faf9f7;
+  --color-primary: #f06b3b;
+  --color-focus-ring: #e85d2b;
 }
 ```
 
-Source: `lib/themes/presets/kenya.ts` (`color-primary: #e85d2b` light /
-`#e85d2b` dark-accent-hover `#f06b3b`), the default theme the live app boots
-with. Linejam ships 3 additional in-app themes (`hyper`, `mono`,
-`vintage-paper`) but the marketing site pins one register rather than
-exposing a theme switcher.
+Do not add a second identity, selector, or token override to a static page.
+
+## Typography
+
+- Display and poem text: Libre Baskerville, weights 400 and 700.
+- Interface and body text: IBM Plex Sans, weights 400 and 500.
+- Code and compact labels: JetBrains Mono, weight 400.
+- `site/linejam.css` loads the same Fontsource Latin files the app imports.
+  Do not add page-local font stacks.
 
 ## Screenshot Inventory
 

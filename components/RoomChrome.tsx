@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { HelpModal } from './HelpModal';
-import { ThemeSelector } from './ThemeSelector';
+import { ColorModeControl } from './ColorModeControl';
 import { Alert } from './ui/Alert';
 import { cn } from '@/lib/utils';
 import { useShareLink } from '@/hooks/useShareLink';
@@ -57,7 +57,7 @@ export function RoomChrome({
   compact = false,
   statusBoard = false,
 }: RoomChromeProps) {
-  const [showThemes, setShowThemes] = useState(false);
+  const [showAppearance, setShowAppearance] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -93,13 +93,13 @@ export function RoomChrome({
     }
   };
 
-  // Close the overflow menu / theme panel / QR on outside click or Escape.
+  // Close the overflow menu / appearance panel / QR on outside click or Escape.
   useEffect(() => {
-    if (!showMenu && !showThemes && !showQr) return;
+    if (!showMenu && !showAppearance && !showQr) return;
 
     const closeAll = () => {
       setShowMenu(false);
-      setShowThemes(false);
+      setShowAppearance(false);
       setShowQr(false);
     };
     const handlePointer = (event: MouseEvent) => {
@@ -124,7 +124,7 @@ export function RoomChrome({
       document.removeEventListener('mousedown', handlePointer);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [showMenu, showThemes, showQr]);
+  }, [showAppearance, showMenu, showQr]);
 
   return (
     <>
@@ -190,7 +190,7 @@ export function RoomChrome({
                     type="button"
                     onClick={() => {
                       setShowQr((current) => !current);
-                      setShowThemes(false);
+                      setShowAppearance(false);
                       setShowMenu(false);
                     }}
                     className={cn(
@@ -330,7 +330,7 @@ export function RoomChrome({
                   ref={menuTriggerRef}
                   type="button"
                   onClick={() => {
-                    setShowThemes(false);
+                    setShowAppearance(false);
                     setShowQr(false);
                     setShowMenu((current) => !current);
                   }}
@@ -375,19 +375,26 @@ export function RoomChrome({
                       type="button"
                       className={menuItemClasses}
                       onClick={() => {
-                        setShowThemes(true);
+                        setShowAppearance(true);
                         setShowMenu(false);
                       }}
+                      aria-haspopup="dialog"
+                      aria-controls="room-appearance"
                     >
                       <Palette className="h-4 w-4 text-[var(--color-text-muted)]" />
-                      Theme
+                      Appearance
                     </button>
                   </div>
                 )}
 
-                {showThemes && (
-                  <div className="lj-room-popover absolute right-0 top-full z-50 mt-3 w-[320px] max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
-                    <ThemeSelector onClose={() => setShowThemes(false)} />
+                {showAppearance && (
+                  <div
+                    id="room-appearance"
+                    role="dialog"
+                    aria-label="Appearance"
+                    className="lj-room-popover absolute right-0 top-full z-50 mt-3 w-80 max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]"
+                  >
+                    <ColorModeControl />
                   </div>
                 )}
               </div>

@@ -11,7 +11,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { RoomChrome } from '@/components/RoomChrome';
 import * as analyticsModule from '@/lib/analytics';
-import { ThemeProvider } from '@/lib/themes';
+import { ColorModeProvider } from '@/lib/colorMode';
 import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 describe('RoomChrome component', () => {
@@ -23,6 +23,8 @@ describe('RoomChrome component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    document.documentElement.className = '';
     installMatchMedia(false);
     originalClipboard = navigator.clipboard;
     originalLocation = window.location;
@@ -71,12 +73,12 @@ describe('RoomChrome component', () => {
     });
   });
 
-  function renderWithTheme(ui: React.ReactElement) {
-    return render(<ThemeProvider>{ui}</ThemeProvider>);
+  function renderWithColorMode(ui: React.ReactElement) {
+    return render(<ColorModeProvider>{ui}</ColorModeProvider>);
   }
 
   function renderRoomChrome() {
-    renderWithTheme(
+    renderWithColorMode(
       <RoomChrome
         roomCode="ABCD"
         title="Need 1 more player"
@@ -107,7 +109,7 @@ describe('RoomChrome component', () => {
       'truncate'
     );
 
-    // Archive / Help / Theme are tucked into the overflow menu.
+    // Archive / Help / Appearance are tucked into the overflow menu.
     await user.click(screen.getByRole('button', { name: /More options/i }));
     const archiveLink = screen.getByRole('link', { name: /Your poems/i });
     expect(archiveLink).toHaveAttribute('href', '/me/poems');
@@ -116,12 +118,12 @@ describe('RoomChrome component', () => {
       screen.getAllByRole('button', { name: /How to play/i }).length
     ).toBeGreaterThanOrEqual(2);
     expect(
-      screen.getByRole('button', { name: /^Theme$/i })
+      screen.getByRole('button', { name: /^Appearance$/i })
     ).toBeInTheDocument();
   });
 
   it('collapses active-game controls into one bounded toolbar', () => {
-    renderWithTheme(
+    renderWithColorMode(
       <RoomChrome
         roomCode="ABCD"
         title="Round 1 · 1 word"
@@ -148,7 +150,7 @@ describe('RoomChrome component', () => {
   });
 
   it('renders the status-board ticker as one glanceable active-room status', () => {
-    renderWithTheme(
+    renderWithColorMode(
       <RoomChrome
         roomCode="ABCD"
         title="Round 1 · 1 word"
@@ -244,7 +246,7 @@ describe('RoomChrome component', () => {
     });
   });
 
-  it('opens help and theme surfaces from the overflow menu', async () => {
+  it('opens help and appearance surfaces from the overflow menu', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
@@ -257,14 +259,18 @@ describe('RoomChrome component', () => {
     expect(
       screen.getByRole('heading', { name: /How to Play/i })
     ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Got it/i }));
 
     await user.click(screen.getByRole('button', { name: /More options/i }));
-    await user.click(screen.getByRole('button', { name: /^Theme$/i }));
-    const themeChooser = screen.getByRole('radiogroup', {
-      name: /Select theme/i,
-    });
-    expect(themeChooser).toBeInTheDocument();
-    expect(themeChooser.closest('.lj-room-popover')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Appearance$/i }));
+    const appearance = screen.getByRole('dialog', { name: /Appearance/i });
+    expect(
+      screen.getByRole('group', { name: /Color mode/i })
+    ).toBeInTheDocument();
+    expect(appearance).toHaveClass('lj-room-popover');
+
+    await user.click(screen.getByRole('radio', { name: /Dark/i }));
+    expect(screen.getByRole('radio', { name: /Dark/i })).toBeChecked();
   });
 
   it('tracks aria-expanded and returns focus to the trigger on escape', async () => {
@@ -291,55 +297,56 @@ describe('RoomChrome component', () => {
     expect(trigger).toHaveFocus();
   });
 
-  it('closes the theme chooser on outside click and escape', async () => {
+  it('closes the appearance chooser on outside click and escape', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
-    const openTheme = async () => {
+    const openAppearance = async () => {
       await user.click(screen.getByRole('button', { name: /More options/i }));
-      await user.click(screen.getByRole('button', { name: /^Theme$/i }));
+      await user.click(screen.getByRole('button', { name: /^Appearance$/i }));
     };
 
-    await openTheme();
+    await openAppearance();
     expect(
-      screen.getByRole('radiogroup', { name: /Select theme/i })
+      screen.getByRole('group', { name: /Color mode/i })
     ).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
     await waitFor(() => {
       expect(
-        screen.queryByRole('radiogroup', { name: /Select theme/i })
+        screen.queryByRole('group', { name: /Color mode/i })
       ).not.toBeInTheDocument();
     });
 
-    await openTheme();
+    await openAppearance();
     expect(
-      screen.getByRole('radiogroup', { name: /Select theme/i })
+      screen.getByRole('group', { name: /Color mode/i })
     ).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => {
       expect(
-        screen.queryByRole('radiogroup', { name: /Select theme/i })
+        screen.queryByRole('group', { name: /Color mode/i })
       ).not.toBeInTheDocument();
     });
+    expect(screen.getByRole('button', { name: /More options/i })).toHaveFocus();
   });
 
-  it('closes the theme chooser when the selector requests it', async () => {
+  it('closes appearance when Escape starts inside the native radio group', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
     await user.click(screen.getByRole('button', { name: /More options/i }));
-    await user.click(screen.getByRole('button', { name: /^Theme$/i }));
-    const themeChooser = screen.getByRole('radiogroup', {
-      name: /Select theme/i,
+    await user.click(screen.getByRole('button', { name: /^Appearance$/i }));
+    const colorModes = screen.getByRole('group', {
+      name: /Color mode/i,
     });
 
-    fireEvent.keyDown(themeChooser, { key: 'Escape' });
+    fireEvent.keyDown(colorModes, { key: 'Escape' });
 
     await waitFor(() => {
       expect(
-        screen.queryByRole('radiogroup', { name: /Select theme/i })
+        screen.queryByRole('group', { name: /Color mode/i })
       ).not.toBeInTheDocument();
     });
   });

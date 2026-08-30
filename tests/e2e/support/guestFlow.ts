@@ -33,7 +33,6 @@ if (CANONICAL_GUEST_FLOW_LINES.length !== TOTAL_ROUNDS) {
 export const GUEST_FLOW_EVIDENCE_FILES = {
   hostLobby: '01-host-lobby.png',
   helpModal: '02-help-modal.png',
-  themeHyperLobby: '03-theme-hyper-lobby.png',
   twoPlayerLobby: '04-two-player-lobby.png',
   writingValid: '05-writing-valid.png',
   waiting: '06-waiting.png',
@@ -431,7 +430,7 @@ export class GuestFlowSession {
   }
 
   async openHelpModal() {
-    // Help / Theme / archive now live behind the overflow ("More options") menu.
+    // Help, Appearance, and archive live behind the overflow menu.
     await this.hostPage.getByRole('button', { name: /More options/i }).click();
     await this.hostPage
       .getByRole('button', { name: /How to play/i })
@@ -445,18 +444,6 @@ export class GuestFlowSession {
 
   async closeHelpModal() {
     await this.hostPage.getByRole('button', { name: /Got it/i }).click();
-  }
-
-  async chooseHyperTheme() {
-    await this.hostPage.getByRole('button', { name: /More options/i }).click();
-    await this.hostPage.getByRole('button', { name: /^Theme$/i }).click();
-    await this.hostPage
-      .getByRole('radio', { name: /Hyper theme: Digital chaos & brutalism/i })
-      .click();
-    await this.hostPage.waitForFunction(
-      () => document.documentElement.getAttribute('data-theme') === 'hyper'
-    );
-    await this.hostPage.keyboard.press('Escape');
   }
 
   async joinRoom() {

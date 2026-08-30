@@ -71,21 +71,51 @@ for (const viewport of PHONE_VIEWPORTS) {
     expect(actionBox).not.toBeNull();
     expect(boxesOverlap(nameBox!, actionBox!)).toBe(false);
 
-    const controls = page.locator('header a:visible, header button:visible');
-    for (let index = 0; index < (await controls.count()); index += 1) {
-      const box = await controls.nth(index).boundingBox();
+    const appearance = page.getByRole('button', { name: 'Appearance' });
+    await expect(appearance).toBeVisible();
+    const appearanceBox = await appearance.boundingBox();
+    expect(appearanceBox).not.toBeNull();
+    expect(appearanceBox!.width).toBeGreaterThanOrEqual(44);
+    expect(appearanceBox!.height).toBeGreaterThanOrEqual(44);
+
+    await appearance.click();
+    const colorModes = page.getByRole('group', { name: 'Color mode' });
+    await expect(colorModes).toBeVisible();
+    await expect(colorModes.getByRole('radio')).toHaveCount(3);
+    for (const label of await colorModes.locator('label').all()) {
+      const box = await label.boundingBox();
       expect(box).not.toBeNull();
-      expect(box!.width).toBeGreaterThanOrEqual(44);
       expect(box!.height).toBeGreaterThanOrEqual(44);
     }
-
-    await page.locator('header a[href="/"]').evaluate((wordmark) => {
-      // Emulate a 200% text-only preference without doubling touch geometry.
-      wordmark.style.fontSize = '2.5rem';
-    });
+    await appearance.click();
     await expectNoHorizontalScroll(page);
   });
 }
+test('focused host and join entries expose Appearance without marketing chrome', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 667 });
+
+  for (const route of ['/host', '/join']) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByRole('banner')).toHaveCount(0);
+    await expect(page.getByRole('contentinfo')).toHaveCount(0);
+
+    const appearance = page.getByRole('button', { name: 'Appearance' });
+    await expect(appearance).toBeVisible();
+    await appearance.click();
+    const colorModes = page.getByRole('group', { name: 'Color mode' });
+    await expect(colorModes).toBeVisible();
+    const light = colorModes.getByRole('radio', { name: 'Light' });
+    const dark = colorModes.getByRole('radio', { name: 'Dark' });
+    await light.check();
+    await light.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(dark).toBeChecked();
+    await appearance.click();
+  }
+});
 
 for (const width of [320, 390]) {
   for (const entry of [

@@ -23,7 +23,6 @@ describe('useSavePoemImage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    document.documentElement.setAttribute('data-theme', 'hyper');
     document.documentElement.classList.add('dark');
 
     captureErrorSpy = vi
@@ -62,9 +61,7 @@ describe('useSavePoemImage', () => {
   });
 
   afterEach(() => {
-    document.documentElement.removeAttribute('data-theme');
-    document.documentElement.classList.remove('dark');
-
+    document.documentElement.classList.remove('dark', 'light');
     Object.defineProperty(navigator, 'share', {
       value: originalShare,
       configurable: true,
@@ -97,19 +94,29 @@ describe('useSavePoemImage', () => {
       await result.current.handleSaveImage();
     });
 
+    expect(global.fetch).toHaveBeenCalledWith('/poem/poem123/card?mode=dark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guestToken: 'guest-token' }),
+    });
+  });
+  it('serializes the applied light mode without a theme query', async () => {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.classList.add('light');
+    const { result } = renderHook(() => useSavePoemImage(testPoemId));
+
+    await act(async () => {
+      await result.current.handleSaveImage();
+    });
+
     expect(global.fetch).toHaveBeenCalledWith(
-      '/poem/poem123/card?theme=hyper&mode=dark',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guestToken: 'guest-token' }),
-      }
+      '/poem/poem123/card?mode=light',
+      expect.objectContaining({ method: 'POST' })
     );
   });
 
-  it('falls back to the un-themed card route when no theme is applied yet', async () => {
-    document.documentElement.removeAttribute('data-theme');
-    document.documentElement.classList.remove('dark');
+  it('uses the card route default when no color mode is applied yet', async () => {
+    document.documentElement.classList.remove('dark', 'light');
     const { result } = renderHook(() => useSavePoemImage(testPoemId));
 
     await act(async () => {

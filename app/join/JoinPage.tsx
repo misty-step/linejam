@@ -18,6 +18,7 @@ import {
   LoadingState,
   LoadingMessages,
 } from '../../components/ui/LoadingState';
+import { FocusedEntryAppearance } from '../../components/FocusedEntryAppearance';
 
 function normalizeRoomCode(value: string): string {
   return value
@@ -246,6 +247,9 @@ export function JoinPage({
 }: JoinPageProps = {}) {
   return (
     <div className="min-h-screen w-full bg-[var(--color-background)] px-4 py-6 sm:p-6 md:p-12 lg:p-20 flex flex-col">
+      <div className="mb-4 flex w-full max-w-xl justify-end self-end sm:mb-6">
+        <FocusedEntryAppearance />
+      </div>
       <Suspense fallback={<div>Loading...</div>}>
         <JoinForm dependencies={dependencies} />
       </Suspense>

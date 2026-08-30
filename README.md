@@ -29,7 +29,7 @@ Players take turns adding lines to poems they can't fully see. Each round, you s
 
 The constraint is the game. You see only the line before yours. The result is collaborative absurdity—poems that no single person could have written.
 
-**Features**: human-authored collaborative poems, curated visual themes, poem sharing, and in-game help
+**Features**: human-authored collaborative poems, one fixed Ink & Anticipation visual identity with Light/Dark/System color modes, poem sharing, and in-game help
 
 ## Tech Stack
 
@@ -157,7 +157,9 @@ with `pnpm ci:dagger:all` for local parity. See
 
 ## Design
 
-Zen Garden aesthetic—Kenya Hara minimalism with warm white, near-black text, and vermillion accent. The default Kenya theme uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels; other themes define their own pairings in `lib/themes/presets/`.
+Ink & Anticipation is Linejam's single visual identity: Kenya Hara minimalism with warm white, near-black ink, and a vermillion accent. The token source of truth is `lib/design/tokens.ts`; `lib/colorMode/` owns the mode-only control and API for Light, Dark, and System preferences, persisted under `linejam-theme-mode`.
+
+Light uses action `#b43a12`, focus `#e85d2b`, background `#faf9f7`, surface `#ffffff`, and ink `#1c1917`. Dark uses action `#f06b3b`, focus `#e85d2b`, background `#1c1917`, surface `#292524`, and ink `#faf9f7`. Typography uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels.
 
 ## License
 

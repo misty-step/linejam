@@ -5,7 +5,7 @@ import {
   RoomPage,
   type RoomPageDependencies,
 } from '@/app/room/[code]/RoomPage';
-import { ThemeProvider } from '@/lib/themes';
+import { ColorModeProvider } from '@/lib/colorMode';
 import {
   ConnectionStatus,
   type ConnectionStatusDependencies,
@@ -112,9 +112,9 @@ const dependencies: RoomPageDependencies = {
 
 function renderRoomPage() {
   return render(
-    <ThemeProvider>
+    <ColorModeProvider>
       <RoomPage code="ABCD" dependencies={dependencies} />
-    </ThemeProvider>
+    </ColorModeProvider>
   );
 }
 
@@ -288,9 +288,9 @@ describe('RoomPage', () => {
 
     status = 'COMPLETED';
     view.rerender(
-      <ThemeProvider>
+      <ColorModeProvider>
         <RoomPage code="ABCD" dependencies={dependencies} />
-      </ThemeProvider>
+      </ColorModeProvider>
     );
 
     expect(
@@ -343,9 +343,9 @@ describe('RoomPage', () => {
       };
       act(() => window.dispatchEvent(new Event('offline')));
       view.rerender(
-        <ThemeProvider>
+        <ColorModeProvider>
           <RoomPage code="ABCD" dependencies={dependencies} />
-        </ThemeProvider>
+        </ColorModeProvider>
       );
       expect(screen.getByText(phaseCopy)).toBeInTheDocument();
       expect(screen.getByText(/you are offline/i)).toBeInTheDocument();
@@ -357,9 +357,9 @@ describe('RoomPage', () => {
       };
       act(() => window.dispatchEvent(new Event('online')));
       view.rerender(
-        <ThemeProvider>
+        <ColorModeProvider>
           <RoomPage code="ABCD" dependencies={dependencies} />
-        </ThemeProvider>
+        </ColorModeProvider>
       );
       expect(screen.getByText(phaseCopy)).toBeInTheDocument();
       expect(

@@ -9,7 +9,7 @@ Linejam is a real-time, human-authored collaborative poetry game. This doc expla
 │                         BROWSER                                 │
 │  ┌───────────────┐  ┌───────────────┐  ┌─────────────────────┐  │
 │  │  App Router   │  │  Components   │  │   Hooks/Context     │  │
-│  │  (pages)      │──│  (game UI)    │──│  (theme, auth, RT)  │  │
+│  │  (pages)      │──│  (game UI)    │──│ (color mode, auth, RT)│  │
 │  └───────────────┘  └───────────────┘  └─────────────────────┘  │
 │           │                                       │              │
 │           ▼                                       ▼              │
@@ -72,13 +72,22 @@ Hybrid auth pattern:
 2. Fall back to guest token (signed JWT stored in localStorage)
 3. Token secret must match in DigitalOcean App Platform + Convex environments
 
-### 4. UI Layer (`app/`, `components/`, `lib/themes/`)
+### 4. UI Layer (`app/`, `components/`, `lib/design/`, `lib/colorMode/`)
 
-**Owns**: Rendering, theme switching, user interactions.
+**Owns**: Rendering, the fixed Ink & Anticipation identity, color-mode control, and user interactions.
 
-`app/layout.tsx` is a server component: it reads the middleware nonce and emits the first-paint theme script. Interactive game surfaces are client components, and Convex hooks handle their data fetching and real-time sync.
+`app/layout.tsx` is a server component: it reads the middleware nonce and emits the first-paint color-mode script. Interactive game surfaces are client components, and Convex hooks handle their data fetching and real-time sync.
 
-The theme picker roster is derived from `visibleThemeIds` in `lib/themes/registry.ts`; retired IDs remain in `themeIds` so existing users can keep working themes. Theme context applies CSS variables globally.
+`lib/design/tokens.ts` is the source of truth for the identity's token sets. `lib/colorMode/` exposes `ColorModeProvider`, `useColorMode`, `applyColorMode`, `getAppliedColorMode`, and the `linejam-theme-mode` storage key. `ColorModeControl` offers the only appearance choice: Light, Dark, or System; System follows `prefers-color-scheme`. There is no theme registry, picker roster, theme ID, or retained-theme compatibility state. The static marketing site (`site/`) consumes the same token tables through generated `site/tokens.css`.
+
+#### Fixed identity palette
+
+| Effective mode | Action    | Focus     | Background | Surface   | Ink       |
+| -------------- | --------- | --------- | ---------- | --------- | --------- |
+| Light          | `#b43a12` | `#e85d2b` | `#faf9f7`  | `#ffffff` | `#1c1917` |
+| Dark           | `#f06b3b` | `#e85d2b` | `#1c1917`  | `#292524` | `#faf9f7` |
+
+Typography is fixed as Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels.
 
 ## Data Flow
 
@@ -137,22 +146,21 @@ roomPlayers ──── rooms ──── games
 
 ## Where to Start Reading
 
-| Goal                     | Start here                            |
-| ------------------------ | ------------------------------------- |
-| Understand game rules    | `convex/lib/gameRules.ts:WORD_COUNTS` |
-| Trace a line submission  | `convex/game.ts:submitLine`           |
-| See assignment algorithm | `convex/lib/assignmentMatrix.ts`      |
-| Understand auth flow     | `lib/auth.ts` → `convex/lib/auth.ts`  |
-| Trace abandonment        | `convex/abandonment.ts`               |
-| Add new theme            | `lib/themes/` (copy existing)         |
+| Goal                       | Start here                            |
+| -------------------------- | ------------------------------------- |
+| Understand game rules      | `convex/lib/gameRules.ts:WORD_COUNTS` |
+| Trace a line submission    | `convex/game.ts:submitLine`           |
+| See assignment algorithm   | `convex/lib/assignmentMatrix.ts`      |
+| Understand auth flow       | `lib/auth.ts` → `convex/lib/auth.ts`  |
+| Trace abandonment          | `convex/abandonment.ts`               |
+| Change identity tokens     | `lib/design/tokens.ts`                |
+| Change color-mode behavior | `lib/colorMode/`                      |
 
 ## Shallow Modules (Complexity Exposed)
 
 These areas have less encapsulation:
 
 1. **Guest token flow** - Split across `lib/guestToken.ts`, `lib/guestSession.ts`, `convex/lib/guestToken.ts`, `app/api/guest/session/route.ts`. Requires understanding all four.
-
-2. **Theme application** - CSS variables in `globals.css`, theme definitions in `lib/themes/`, context in multiple files. Works but scattered.
 
 ## Deep Modules (Simple Interface, Rich Behavior)
 
@@ -161,3 +169,4 @@ These areas have less encapsulation:
 2. **Convex `useQuery` hooks** - Simple call, automatic real-time sync across all clients.
 
 3. **`assignmentMatrix.ts`** - One function (`generateAssignmentMatrix`) encapsulates derangement logic.
+4. **Color mode application** - `lib/design/tokens.ts` owns the fixed identity's tokens; `lib/colorMode/` applies the effective Light or Dark set and persists the Light/Dark/System preference. `components/ColorModeControl.tsx` is the mode-only control.

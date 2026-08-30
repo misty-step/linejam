@@ -2,58 +2,26 @@
 @import '@fontsource/libre-baskerville/latin-700.css';
 @import '@fontsource/ibm-plex-sans/latin-400.css';
 @import '@fontsource/ibm-plex-sans/latin-500.css';
-@import '@fontsource/noto-serif/latin-400.css';
-@import '@fontsource/noto-serif/latin-700.css';
-@import '@fontsource/inter/latin-400.css';
-@import '@fontsource/inter/latin-500.css';
-@import '@fontsource/cormorant-garamond/latin-400.css';
-@import '@fontsource/cormorant-garamond/latin-600.css';
-@import '@fontsource/source-serif-4/latin-400.css';
-@import '@fontsource/source-serif-4/latin-600.css';
-@import '@fontsource/righteous/latin-400.css';
-@import '@fontsource/outfit/latin-400.css';
-@import '@fontsource/outfit/latin-700.css';
-@import '@fontsource/space-mono/latin-400.css';
-@import '@fontsource/space-mono/latin-700.css';
 @import '@fontsource/jetbrains-mono/latin-400.css';
-@import '@fontsource/fraunces/latin-400.css';
-@import '@fontsource/fraunces/latin-600.css';
-@import '@fontsource/archivo/latin-400.css';
-@import '@fontsource/archivo/latin-600.css';
-@import '@fontsource/archivo-black/latin-400.css';
-@import '@fontsource/anton/latin-400.css';
 
 @import 'tailwindcss';
 
 /* ==========================================================================
-   Linejam Design System — Theme-Driven
+   Linejam Design System — Ink & Anticipation
    ========================================================================== */
 
-/* Design Philosophy:
-   All visual tokens (colors, fonts, spacing, timing) are injected at runtime
-   by the theme system. This CSS file contains only:
-   - @theme block to register CSS variables as Tailwind utilities
-   - Base styles that reference CSS variables
-   - Theme transition utility
-   - Theme signature styles
-   - Animations and utilities
-*/
+/* Identity tokens are applied before paint by app/layout.tsx, then kept in
+   sync with the effective light or dark mode by ColorModeProvider. */
 
 :root {
   --font-libre-baskerville: 'Libre Baskerville', Georgia, serif;
   --font-ibm-plex: 'IBM Plex Sans', Arial, sans-serif;
-  --font-noto-serif: 'Noto Serif', Georgia, serif;
-  --font-inter: Inter, Arial, sans-serif;
-  --font-cormorant: 'Cormorant Garamond', Georgia, serif;
-  --font-source-serif: 'Source Serif 4', Georgia, serif;
-  --font-righteous: Righteous, Impact, sans-serif;
-  --font-outfit: Outfit, Arial, sans-serif;
-  --font-space-mono: 'Space Mono', monospace;
   --font-jetbrains-mono: 'JetBrains Mono', monospace;
-  --font-fraunces: Fraunces, Georgia, serif;
-  --font-archivo: Archivo, Arial, sans-serif;
-  --font-archivo-black: 'Archivo Black', Impact, sans-serif;
-  --font-anton: Anton, Impact, sans-serif;
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
 }
 
 /* ==========================================================================
@@ -144,7 +112,7 @@
   --duration-slow: var(--duration-slow);
 
   /* Easing - registered for tailwind-merge compatibility */
-  --ease-theme: var(--ease-theme);
+  --ease-standard: var(--ease-standard);
   --ease-in: var(--ease-in);
   --ease-out: var(--ease-out);
 }
@@ -183,12 +151,11 @@ h6 {
 }
 
 /* ==========================================================================
-   Theme Transitions
+   Color Mode Transitions
    ========================================================================== */
 
-/* Smooth crossfade for theme switching */
-.theme-transitioning,
-.theme-transitioning * {
+.mode-transitioning,
+.mode-transitioning * {
   transition:
     background-color 300ms ease,
     color 300ms ease,
@@ -280,7 +247,7 @@ h6 {
 }
 
 .animate-type {
-  animation: type-reveal var(--duration-normal) var(--ease-theme) forwards;
+  animation: type-reveal var(--duration-normal) var(--ease-standard) forwards;
 }
 
 /* Hanko Stamp Animation */
@@ -300,7 +267,7 @@ h6 {
 }
 
 .animate-stamp {
-  animation: stamp-reveal var(--duration-slow) var(--ease-theme) forwards;
+  animation: stamp-reveal var(--duration-slow) var(--ease-standard) forwards;
 }
 
 /* Breathing Animation - Subtle pulse for room code */
@@ -317,7 +284,7 @@ h6 {
 }
 
 .animate-breathe {
-  animation: breathe 6s var(--ease-theme) infinite;
+  animation: breathe 6s var(--ease-standard) infinite;
 }
 
 /* Fade-in Animation - Simple opacity reveal */
@@ -350,9 +317,9 @@ h6 {
   animation: fade-in-up var(--duration-normal) var(--ease-in) forwards;
 }
 
-/* Runtime-token button colors. These classes avoid the Tailwind v4
-   token-utility path that made primary actions render like disabled gray in
-   theme-heavy game surfaces. */
+/* Identity-token button colors. These classes avoid Tailwind v4's
+   token-utility path, which previously rendered primary actions as disabled
+   gray on game surfaces. */
 .lj-button-primary {
   background-color: var(--color-primary);
   border-color: var(--color-primary);
@@ -405,7 +372,7 @@ h6 {
 }
 
 .animate-ready-seal {
-  animation: ready-seal 1250ms var(--ease-theme) infinite;
+  animation: ready-seal 1250ms var(--ease-standard) infinite;
 }
 
 /* Wipe Reveal Animation - Document unsealing (clip-path) */
@@ -489,13 +456,12 @@ h6 {
   animation: crown-settle 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Custom Caret - Theme color for ceremonial typing */
+/* Custom caret for ceremonial typing */
 textarea:focus {
   caret-color: var(--color-primary);
 }
 
-/* Placeholder text is real content, not browser chrome: keep it on the
-   registry-driven muted-text contrast floor in every theme and mode. */
+/* Placeholder text is content, so keep it on the muted-text contrast floor. */
 ::placeholder {
   color: var(--color-text-muted);
   opacity: 1;
@@ -515,10 +481,10 @@ textarea:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .theme-transitioning,
-  .theme-transitioning *,
-  .theme-transitioning *::before,
-  .theme-transitioning *::after {
+  .mode-transitioning,
+  .mode-transitioning *,
+  .mode-transitioning *::before,
+  .mode-transitioning *::after {
     transition: none !important;
   }
 
@@ -532,170 +498,18 @@ textarea:focus {
   }
 }
 
-/* ==========================================================================
-   Theme Signatures — Unique Visual DNA per Theme
-   ========================================================================== */
-
-/* --- Kenya: Japanese Editorial --- */
-/* Vertical text option for labels */
-[data-theme='kenya'] .theme-vertical-text {
+/* Editorial vertical label used by the auth showcase on narrow screens. */
+.vertical-editorial-label {
   writing-mode: vertical-rl;
   text-orientation: mixed;
 }
 
-/* Brush stroke divider */
-[data-theme='kenya'] .theme-divider::after {
-  content: '';
-  display: block;
-  width: 60%;
-  height: 2px;
-  margin: 2rem auto;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--color-primary) 20%,
-    var(--color-primary) 80%,
-    transparent 100%
-  );
-  opacity: 0.4;
-}
-
-/* --- Mono: Swiss Modernism --- */
-/* No stamp rotation - geometric purity */
-[data-theme='mono'] .animate-stamp {
-  animation: stamp-reveal-mono var(--duration-fast) var(--ease-theme) forwards;
-}
-
-@keyframes stamp-reveal-mono {
-  0% {
-    opacity: 0;
-    transform: scale(0);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Pure geometric divider */
-[data-theme='mono'] .theme-divider::after {
-  content: '';
-  display: block;
-  width: 100%;
-  height: 1px;
-  margin: 1rem 0;
-  background: var(--color-border);
-}
-
-/* Bold borders instead of shadows */
-[data-theme='mono'] .paper {
-  box-shadow: none;
-  border-width: 2px;
-}
-
-/* --- Vintage Paper: Literary Warmth --- */
-/* Drop cap for first letter */
-[data-theme='vintage-paper'] .theme-drop-cap::first-letter {
-  float: left;
-  font-family: var(--font-display);
-  font-size: 3.5em;
-  line-height: 0.8;
-  margin-right: 0.1em;
-  margin-top: 0.1em;
-  color: var(--color-primary);
-}
-
-/* Elegant swash divider */
-[data-theme='vintage-paper'] .theme-divider::after {
-  content: '❦';
-  display: block;
-  text-align: center;
-  font-size: 1.5rem;
-  color: var(--color-text-muted);
-  margin: 2rem 0;
-}
-
-/* Vignette overlay for aged paper feel */
-[data-theme='vintage-paper'] .theme-vignette {
-  position: relative;
-}
-
-[data-theme='vintage-paper'] .theme-vignette::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 50%,
-    rgb(var(--shadow-color) / 0.08) 100%
-  );
-}
-
-/* --- Hyper: Digital Chaos --- */
-/* Glitch effect for headings */
-[data-theme='hyper'] h1:hover,
-[data-theme='hyper'] h2:hover {
-  text-shadow:
-    2px 0 var(--color-primary),
-    -2px 0 var(--color-info);
-  transition: text-shadow 75ms step-end;
-}
-
-/* Static background pattern (polka dot) */
-[data-theme='hyper'] body {
-  background-image: radial-gradient(
-    var(--color-border-subtle) 1px,
-    transparent 1px
-  );
-  background-size: 20px 20px;
-}
-
-/* Zig-zag divider */
-[data-theme='hyper'] .theme-divider::after {
-  content: '';
-  display: block;
-  height: 10px;
-  margin: 2rem 0;
-  background-image:
-    linear-gradient(45deg, var(--color-primary) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--color-primary) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--color-primary) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--color-primary) 75%);
-  background-size: 20px 20px;
-  background-position:
-    0 0,
-    0 10px,
-    10px -10px,
-    -10px 0px;
-  opacity: 0.5;
-}
-
-/* Brutalist paper: thick borders, no shadow blur */
-[data-theme='hyper'] .paper {
-  box-shadow: 8px 8px 0px var(--color-border);
-  border-width: 2px;
-}
-
-[data-theme='hyper'] .paper:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 10px 10px 0px var(--color-primary);
-  transition: all var(--duration-fast) step-end;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Print (linejam-943): /poem/[id] and /recap/[code].
-   Every screen theme forces ink-on-paper regardless of the active theme —
-   printing a neon-dark Hyper page would waste toner and read as broken, not
-   "themed". The primary accent survives (a small amount of color ink is
-   normal for a title rule) but body/background always resolve to plain
-   black-on-white. Interactive chrome (buttons, nav, mute toggles) is culled
-   with the standard Tailwind `print:hidden` utility at each call site;
-   this block only owns the things a utility class can't reach.
-   ═══════════════════════════════════════════════════════════════════════ */
+/* ==========================================================================
+   Print surfaces always use plain ink on paper. Interactive chrome is hidden
+   at its call sites; this block owns global colors and pagination only.
+   ========================================================================== */
 @media print {
-  :root,
-  [data-theme] {
+  :root {
     --color-background: #ffffff;
     --color-surface: #ffffff;
     --color-foreground: #000000;

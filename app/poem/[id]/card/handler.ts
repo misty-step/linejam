@@ -6,17 +6,13 @@ import { auth } from '@clerk/nextjs/server';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { resolveCardColors } from '@/lib/poemCard/colors';
-import {
-  getCardFontPairing,
-  loadCardFonts,
-  DEFAULT_CARD_THEME_ID,
-} from '@/lib/poemCard/fonts';
+import { getCardFontPairing, loadCardFonts } from '@/lib/poemCard/fonts';
+import type { ColorMode } from '@/lib/design';
 import {
   poemFullCardElement,
   computeFullCardSize,
   type AttributedLine,
 } from '@/lib/poemCard/PoemCard';
-import { isValidThemeId } from '@/lib/themes/registry';
 
 type CardPoem = {
   poem: { indexInRoom: number };
@@ -64,11 +60,9 @@ export const defaultCardRouteDependencies: CardRouteDependencies = {
 };
 
 /**
- * Downloadable, themed, fully-attributed poem card — the "save as image"
- * target for the reveal and archive pages (linejam-943 criterion 1). Reuses
- * the same Stamp Ledger renderer as the poem opengraph-image route
- * (lib/poemCard/PoemCard.tsx) at full length and the room's active theme,
- * rather than a second bespoke renderer.
+ * Downloadable, fully-attributed poem card — the "save as image" target for
+ * the reveal and archive pages. Reuses the same fixed-identity renderer as
+ * the poem opengraph-image route (lib/poemCard/PoemCard.tsx) at full length.
  */
 export function createCardRouteHandlers(
   dependencies: CardRouteDependencies = defaultCardRouteDependencies
@@ -123,11 +117,8 @@ async function renderCard(
   dependencies: CardRouteDependencies
 ) {
   const { searchParams } = new URL(request.url);
-  const requestedTheme = searchParams.get('theme');
-  const themeId = isValidThemeId(requestedTheme)
-    ? requestedTheme
-    : DEFAULT_CARD_THEME_ID;
-  const mode = searchParams.get('mode') === 'dark' ? 'dark' : 'light';
+  const mode: ColorMode =
+    searchParams.get('mode') === 'dark' ? 'dark' : 'light';
 
   if (!poem) {
     return new Response('Poem not found or unavailable.', {
@@ -135,9 +126,9 @@ async function renderCard(
     });
   }
 
-  const colors = resolveCardColors(themeId, mode);
-  const fonts = getCardFontPairing(themeId);
-  const { fonts: loadedFonts } = await loadCardFonts(themeId);
+  const colors = resolveCardColors(mode);
+  const fonts = getCardFontPairing();
+  const { fonts: loadedFonts } = await loadCardFonts();
 
   const lines: AttributedLine[] = poem.lines.map((line) => ({
     text: line.text,

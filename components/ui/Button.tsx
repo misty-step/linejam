@@ -64,8 +64,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           // Stamp animation (success celebration)
           stampAnimate && 'animate-stamp',
 
-          // Variants. Primary uses a named CSS class so runtime theme tokens
-          // resolve directly instead of passing through Tailwind color utilities.
+          // Primary resolves fixed identity tokens through a named CSS class,
+          // avoiding Tailwind color-utility ambiguity.
           {
             // Primary - Solid Ink Block (Hanko press: translate + shadow crush)
             'lj-button-primary shadow-sm active:translate-y-[2px] active:shadow-none':

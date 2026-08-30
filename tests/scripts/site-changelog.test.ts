@@ -52,6 +52,15 @@ describe('renderSiteChangelogHtml', () => {
     const html = renderSiteChangelogHtml(releases);
 
     expect(html).toContain('<title>Linejam release notes</title>');
+    expect(html).toContain('<html lang="en">');
+    expect(html).not.toContain('data-ae-theme');
+    expect(html).not.toContain('theme.js');
+    expect(html).not.toContain('window.aeTheme');
+    expect(html).not.toContain('aesthetic.css');
+    expect(html).toContain('href="tokens.css"');
+    expect(html).toContain('href="linejam.css"');
+    expect(html).toContain("localStorage.getItem('linejam-theme-mode')");
+    expect(html).toContain('name="color-mode"');
     expect(html).toContain('2026-07-08 - v1.2.0');
     expect(html).toContain('<h2>Version 1.2.0</h2>');
     expect(html).toContain('<li>Players can share the reveal.</li>');

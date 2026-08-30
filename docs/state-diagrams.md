@@ -296,14 +296,65 @@ stateDiagram-v2
 
 ---
 
+## Fixed Identity and Color Mode Flow
+
+Linejam has one fixed **Ink & Anticipation** identity. `lib/design/tokens.ts` is the token source of truth, and `lib/colorMode/` owns `ColorModeProvider`, `useColorMode`, `applyColorMode`, and `getAppliedColorMode`. `components/ColorModeControl.tsx` is the only appearance control: Light, Dark, or System. The preference persists under `linejam-theme-mode`; System resolves to an effective Light or Dark mode from `prefers-color-scheme`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> readingPreference : ColorModeProvider
+
+    readingPreference --> lightPreference : stored "light"
+    readingPreference --> darkPreference : stored "dark"
+    readingPreference --> systemPreference : stored "system" or missing
+
+    lightPreference --> light : mode = light
+    darkPreference --> dark : mode = dark
+    systemPreference --> checkingSystem : matchMedia(prefers-color-scheme)
+
+    checkingSystem --> light : system prefers light
+    checkingSystem --> dark : system prefers dark
+
+    light --> appliedLight : applyColorMode(light)
+    dark --> appliedDark : applyColorMode(dark)
+
+    appliedLight --> [*] : Light token set applied
+    appliedDark --> [*] : Dark token set applied
+
+    note right of readingPreference
+        Preference API accepts only
+        light, dark, or system
+    end note
+
+    note right of appliedLight
+        Identity tokens from lib/design/tokens.ts
+        action #b43a12
+        focus #e85d2b
+        background #faf9f7
+        surface #ffffff
+        ink #1c1917
+    end note
+
+    note right of appliedDark
+        Identity tokens from lib/design/tokens.ts
+        action #f06b3b
+        focus #e85d2b
+        background #1c1917
+        surface #292524
+        ink #faf9f7
+    end note
+```
+
+The fixed palette uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels in every effective mode.
+
+---
+
 ## Undocumented Complex Flows (Future Work)
 
 These flows are not yet diagrammed but may warrant attention:
 
-1. **Theme System** - `lib/themes/context.tsx` manages theme + mode + system preference + localStorage persistence. Currently simple enough (light/dark/system toggle).
+1. **Share Poem** - `hooks/useSharePoem.ts` is a simple clipboard + analytics fire-and-forget. Linear flow.
 
-2. **Share Poem** - `hooks/useSharePoem.ts` is a simple clipboard + analytics fire-and-forget. Linear flow.
+2. **Favorites** - Archive page favorites are simple toggle mutations.
 
-3. **Favorites** - Archive page favorites are simple toggle mutations.
-
-4. **Rate Limiting** - `convex/lib/rateLimit.ts` is stateless check per mutation.
+3. **Rate Limiting** - `convex/lib/rateLimit.ts` is stateless check per mutation.

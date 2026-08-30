@@ -1,21 +1,12 @@
 import { useEffect, useState } from 'react';
-import { kenyaTheme } from '@/lib/themes/presets/kenya';
+import { designTokens } from '@/lib/design';
 
 /**
- * Shared Clerk Appearance
+ * Shared Clerk appearance for every prebuilt auth and account surface.
  *
- * Single source of truth for how Clerk's prebuilt UI (SignIn, SignUp,
- * UserButton and its "Manage account" modal) is themed. Set once on
- * <ClerkProvider appearance={...}> in app/providers.tsx so every Clerk
- * surface in the app inherits it — not just the two auth pages.
- *
- * Every value is a CSS custom property already driven by the active
- * lib/themes preset (persimmon/mono/hyper/vintage-paper, light or dark),
- * so this never needs to change when a theme is added or edited.
- *
- * Individual pages/components can still pass their own `appearance` prop
- * to override or extend specific elements (Clerk merges component-level
- * appearance on top of the provider-level appearance below).
+ * Clerk needs resolved color literals because its JavaScript derives hover
+ * colors from these values. CSS variable references remain safe for fonts and
+ * radii, which Clerk does not parse as colors.
  */
 export const linejamClerkAppearance = {
   elements: {
@@ -71,14 +62,7 @@ export const linejamClerkAppearance = {
   },
 };
 
-// kenyaTheme.tokens.light hardcodes every optional semantic color (see
-// lib/themes/presets/kenya.ts); this cast just tells TypeScript what's
-// already true so callers below don't need dead `?? 'literal'` fallbacks
-// for fields that can never actually be missing on this preset.
-// SAFETY: kenyaTheme.tokens.light explicitly defines every semantic token in its preset declaration.
-const FALLBACK_TOKENS = kenyaTheme.tokens.light as Required<
-  typeof kenyaTheme.tokens.light
->;
+const FALLBACK_TOKENS = designTokens.light;
 
 function readCssVar(token: string, fallback: string): string {
   if (globalThis.document === undefined) return fallback;
@@ -89,29 +73,10 @@ function readCssVar(token: string, fallback: string): string {
 }
 
 /**
- * Resolve Clerk's `variables` theming knobs (colorPrimary, colorBackground,
- * ...) from the currently applied lib/themes tokens.
- *
- * Why not just reference `var(--color-primary)` here the way the `elements`
- * classes above do? Clerk's own internal stylesheet defines its default
- * component colors as custom properties too, and it loads after Tailwind's
- * utilities in the cascade — at equal specificity, Clerk's own default
- * wins, so `elements` classes referencing our CSS vars are silently
- * overridden (found live while QA-ing linejam-942: the "Continue" button
- * rendered Clerk's stock `#2F3037` gray, not the theme's accent, even with
- * a hand-authored `bg-[var(--color-primary)]` class). `variables` set
- * Clerk's own custom properties directly, which its internal styles read
- * with no cascade fight — but Clerk also uses these to compute derived
- * hover/active shades in JS, which needs a real parseable color, not a
- * `var()` reference. So this reads the resolved literal value lib/themes
- * already applied to the document instead of re-pointing at the variable.
- *
- * A plain function, not a hook, because ClerkProvider sits above
- * ThemeProvider in the tree and has no React context to read the active
- * theme from — {@link useClerkThemeVariables} below calls it on mount and
- * again whenever the document root changes.
+ * Resolve Clerk's color inputs from the identity tokens currently applied to
+ * the document. The fixed light palette is the server-side fallback.
  */
-export function resolveClerkThemeVariables() {
+export function resolveClerkColorVariables() {
   return {
     colorPrimary: readCssVar('color-primary', FALLBACK_TOKENS['color-primary']),
     colorPrimaryForeground: readCssVar(
@@ -144,8 +109,7 @@ export function resolveClerkThemeVariables() {
       'color-text-primary',
       FALLBACK_TOKENS['color-text-primary']
     ),
-    // Not color-derived by Clerk's JS, so these can stay live var()
-    // references and keep tracking the active theme with no extra plumbing.
+    // Clerk does not parse these as colors, so live references track mode.
     fontFamily: 'var(--font-sans)',
     fontFamilyButtons: 'var(--font-sans)',
     // iOS Safari zooms focused form controls below 16px. Clerk's default is
@@ -155,27 +119,20 @@ export function resolveClerkThemeVariables() {
   };
 }
 
-/**
- * React binding for {@link resolveClerkThemeVariables}: re-resolves whenever
- * lib/themes' `applyTheme` mutates `document.documentElement` (its
- * `style`/`data-theme`/mode class), so switching theme or light/dark while a
- * Clerk surface (UserButton popover, embedded account modal) is visible
- * re-themes it without a full page reload.
- */
-export function useClerkThemeVariables() {
-  const [variables, setVariables] = useState(resolveClerkThemeVariables);
+/** Keep Clerk surfaces synchronized with effective light or dark mode. */
+export function useClerkColorVariables() {
+  const [variables, setVariables] = useState(resolveClerkColorVariables);
 
   useEffect(() => {
     const root = document.documentElement;
-    const update = () => setVariables(resolveClerkThemeVariables());
+    const update = () => setVariables(resolveClerkColorVariables());
 
-    // Pick up whatever lib/themes already applied before this effect ran.
     update();
 
     const observer = new MutationObserver(update);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ['style', 'data-theme', 'class'],
+      attributeFilter: ['style', 'class'],
     });
     return () => observer.disconnect();
   }, []);

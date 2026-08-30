@@ -11,9 +11,8 @@ type FooterProps = {
 export function Footer({ className = '' }: FooterProps) {
   const pathname = usePathname();
 
-  // Hide chrome during the game experience (Lobby → Writing → Reveal), matching
-  // the Header. Gameplay screens are focus surfaces; marketing/legal links there
-  // add height and dilute the play action, which on mobile pushes it off-fold.
+  // Host, join, and room routes are focused play surfaces. Marketing and legal
+  // chrome would dilute the primary action and consume scarce mobile height.
   if (isFocusedPlayRoute(pathname)) {
     return null;
   }

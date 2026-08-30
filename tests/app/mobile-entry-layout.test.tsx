@@ -13,6 +13,8 @@ import {
 } from '@/app/join/JoinPage';
 import { Header } from '@/components/Header';
 import type { HeaderDependencies } from '@/components/Header';
+import { ColorModeProvider } from '@/lib/colorMode';
+import { installMatchMedia } from '@/tests/helpers/matchMedia';
 import {
   SignInPage,
   type SignInPageDependencies,
@@ -62,16 +64,19 @@ const signUpDependencies: SignUpPageDependencies = {
 };
 
 function renderEntry(ui: ReactNode) {
-  return render(ui);
+  return render(<ColorModeProvider>{ui}</ColorModeProvider>);
 }
 
 describe('mobile entry layout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    document.documentElement.className = '';
     currentIsSignedIn = false;
     mockJoinRoom.mockResolvedValue({ _id: 'room-1' });
     currentPathname = '/join';
     currentSearchParams = new URLSearchParams('code=ABCD');
+    installMatchMedia(false);
   });
 
   it('keeps the join action inline with the required fields on narrow phones', async () => {
@@ -94,6 +99,12 @@ describe('mobile entry layout', () => {
 
     fireEvent.keyDown(code, { key: 'Enter' });
     expect(name).toHaveFocus();
+    const appearance = screen.getByRole('button', { name: /Appearance/i });
+    expect(appearance).toHaveClass('min-h-11');
+    fireEvent.click(appearance);
+    expect(
+      screen.getByRole('group', { name: /Color mode/i })
+    ).toBeInTheDocument();
   });
 
   it('puts the account task before decorative poem content on phones', () => {
@@ -118,6 +129,7 @@ describe('mobile entry layout', () => {
   });
 
   it('uses compact header spacing without shrinking visible touch targets', () => {
+    currentPathname = '/me/poems';
     renderEntry(<Header dependencies={headerDependencies} />);
 
     const header = screen.getByRole('banner');
@@ -130,10 +142,12 @@ describe('mobile entry layout', () => {
       'Sign in',
       'View your poem archive',
       'How to play',
-      'Choose theme',
+      'Appearance',
     ]) {
       expect(
-        screen.getByRole(/play/.test(name) ? 'button' : 'link', { name })
+        screen.getByRole(/play|Appearance/.test(name) ? 'button' : 'link', {
+          name,
+        })
       ).toHaveClass('w-11', 'h-11');
     }
 
@@ -145,9 +159,22 @@ describe('mobile entry layout', () => {
     expect(screen.getByRole('link', { name: 'Your poems' })).toHaveClass(
       'min-h-11'
     );
+    const mobileAppearance = screen.getAllByRole('button', {
+      name: 'Appearance',
+    })[1];
+    expect(mobileAppearance).toHaveClass('min-h-11');
+    fireEvent.click(mobileAppearance);
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.getByRole('group', { name: /Color mode/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /theme/i })
+    ).not.toBeInTheDocument();
   });
 
   it('renders the signed-in account control through Show', () => {
+    currentPathname = '/me/poems';
     currentIsSignedIn = true;
 
     renderEntry(<Header dependencies={headerDependencies} />);
@@ -159,6 +186,7 @@ describe('mobile entry layout', () => {
   });
 
   it('closes the mobile header menu outside or with Escape and restores focus', () => {
+    currentPathname = '/me/poems';
     renderEntry(<Header dependencies={headerDependencies} />);
 
     const menu = screen.getByRole('button', { name: 'More options' });
@@ -182,8 +210,20 @@ describe('mobile entry layout', () => {
     );
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
 
+    currentPathname = '/join';
+    rerender(
+      <ColorModeProvider>
+        <Header dependencies={headerDependencies} />
+      </ColorModeProvider>
+    );
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+
     currentPathname = '/room/ABCD';
-    rerender(<Header dependencies={headerDependencies} />);
+    rerender(
+      <ColorModeProvider>
+        <Header dependencies={headerDependencies} />
+      </ColorModeProvider>
+    );
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
   });
 

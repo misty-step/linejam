@@ -64,7 +64,8 @@ artifact. It does not come from more modes.
 2. Prove the party payoff through a privacy-safe room-cycle funnel and repeated
    in-person playtests before adding more product surface.
 3. Polish the existing loop to an unusually high UI, UX, accessibility,
-   performance, and resilience bar; freeze new modes and themes.
+   performance, and resilience bar; freeze new game modes and keep Ink &
+   Anticipation as the single visual identity.
 4. Collapse duplicate identity, analytics, deployment, and publication paths
    toward one explicit owner each.
 5. Keep human collaboration—not automated authorship—as the product boundary.

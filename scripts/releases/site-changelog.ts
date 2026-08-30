@@ -51,16 +51,16 @@ function renderReleaseSection(release: ReleaseWithNotes): string {
     .join('\n');
 
   return `          <section class="msk-release">
-            <p class="ae-chrome">${escapeHtml(release.date)} - ${escapeHtml(versionLabel)}</p>
+            <p class="lj-kicker">${escapeHtml(release.date)} - ${escapeHtml(versionLabel)}</p>
             <h2>Version ${escapeHtml(release.version.replace(/^v/, ''))}</h2>
             <ul>
 ${bullets}
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">${escapeHtml(evidenceLabel(release.changes))}</span>
+              <span>${escapeHtml(evidenceLabel(release.changes))}</span>
             </p>
           </section>`;
 }
@@ -71,7 +71,7 @@ export function renderSiteChangelogHtml(
   const releaseSections = releases.map(renderReleaseSection).join('\n\n');
 
   return `<!doctype html>
-<html lang="en" data-ae-theme="ember">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -82,14 +82,19 @@ export function renderSiteChangelogHtml(
     />
     <script>
       try {
-        var m = localStorage.getItem('ae-mode');
-        if (m === 'dark' || m === 'light') {
-          document.documentElement.classList.add(m);
-          document.documentElement.style.colorScheme = m;
-        }
+        var stored = localStorage.getItem('linejam-theme-mode');
+        var mode =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.classList.add(mode);
+        document.documentElement.style.colorScheme = mode;
       } catch (e) {}
     </script>
-    <link rel="stylesheet" href="aesthetic.css" />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="linejam.css" />
     <link rel="stylesheet" href="marketing.css" />
   </head>
   <body>
@@ -101,19 +106,14 @@ export function renderSiteChangelogHtml(
           d="M19 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0 0 4h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"
         />
       </symbol>
-      <symbol id="i-sun" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2" />
-        <path d="M12 20v2" />
-        <path d="m4.93 4.93 1.41 1.41" />
-        <path d="m17.66 17.66 1.41 1.41" />
-        <path d="M2 12h2" />
-        <path d="M20 12h2" />
-        <path d="m6.34 17.66-1.41 1.41" />
-        <path d="m19.07 4.93-1.41 1.41" />
-      </symbol>
-      <symbol id="i-moon" viewBox="0 0 24 24">
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      <symbol id="i-palette" viewBox="0 0 24 24">
+        <path
+          d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
+        />
+        <circle cx="13.5" cy="6.5" r=".5" />
+        <circle cx="17.5" cy="10.5" r=".5" />
+        <circle cx="6.5" cy="12.5" r=".5" />
+        <circle cx="8.5" cy="7.5" r=".5" />
       </symbol>
       <symbol id="i-circle-check" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" />
@@ -121,32 +121,52 @@ export function renderSiteChangelogHtml(
       </symbol>
     </svg>
 
-    <div class="ae-screen ae-wide">
-      <header class="ae-bar msk-bar">
-        <a class="ae-logo" href="./" aria-label="Linejam home">
-          <span class="ae-app-mark" aria-hidden="true">
-            <svg class="ae-icon" data-lucide="scroll-text">
+    <div class="lj-shell">
+      <header class="lj-bar msk-bar">
+        <a class="lj-wordmark" href="./" aria-label="Linejam home">
+          <span class="lj-mark" aria-hidden="true">
+            <svg class="lj-icon" data-lucide="scroll-text">
               <use href="#i-scroll-text" />
             </svg>
           </span>
-          <span class="ae-name">Linejam</span>
+          <span class="lj-wordmark-label">Linejam</span>
         </a>
         <span class="msk-actions">
-          <nav class="ae-chrome msk-nav" aria-label="Site">
+          <nav class="lj-nav" aria-label="Site">
             <a href="./">home</a>
             <a href="changelog.html" aria-current="page">release notes</a>
           </nav>
-          <button class="ae-mode" aria-label="toggle color mode">
-            <svg class="ae-icon ae-sun"><use href="#i-sun" /></svg>
-            <svg class="ae-icon ae-moon"><use href="#i-moon" /></svg>
-          </button>
+          <details class="lj-appearance">
+            <summary class="lj-icon-button" aria-label="Color mode">
+              <svg class="lj-icon" aria-hidden="true">
+                <use href="#i-palette" />
+              </svg>
+            </summary>
+            <fieldset class="lj-mode">
+              <legend>Color mode</legend>
+              <div class="lj-mode-options">
+                <label>
+                  <input type="radio" name="color-mode" value="light" />
+                  <span>Light</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="dark" />
+                  <span>Dark</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="system" />
+                  <span>System</span>
+                </label>
+              </div>
+            </fieldset>
+          </details>
         </span>
       </header>
 
-      <main class="ae-stage ae-stage-scroll">
-        <article class="ae-doc msk-page" aria-labelledby="release-notes-title">
+      <main class="lj-stage">
+        <article class="lj-doc msk-page" aria-labelledby="release-notes-title">
           <h1 id="release-notes-title">Release notes</h1>
-          <p class="ae-lede">
+          <p class="lj-lede">
             Linejam ships continuously. These notes are generated in plain
             language from the same
             <a href="https://github.com/misty-step/linejam/blob/master/CHANGELOG.md"
@@ -159,9 +179,9 @@ ${releaseSections}
         </article>
       </main>
 
-      <footer class="ae-bar msk-footer">
-        <p class="ae-chrome">Linejam release notes are public by default.</p>
-        <nav class="ae-foot-links ae-chrome" aria-label="Footer">
+      <footer class="lj-bar lj-footer msk-footer">
+        <p class="lj-kicker">Linejam release notes are public by default.</p>
+        <nav class="lj-foot-links" aria-label="Footer">
           <a
             data-footer-link="github"
             href="https://github.com/misty-step/linejam"
@@ -175,7 +195,6 @@ ${releaseSections}
     </div>
 
     <script src="mode.js"></script>
-    <script src="theme.js"></script>
   </body>
 </html>
 `;

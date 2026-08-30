@@ -18,6 +18,7 @@ import {
   LoadingState,
   LoadingMessages,
 } from '../../components/ui/LoadingState';
+import { FocusedEntryAppearance } from '../../components/FocusedEntryAppearance';
 
 export default function HostPage() {
   const router = useRouter();
@@ -78,6 +79,9 @@ export default function HostPage() {
         className="lj-safe-frame min-h-0 flex-1 overflow-y-auto [--lj-safe-frame-space:1.5rem] md:[--lj-safe-frame-space:3rem] lg:[--lj-safe-frame-space:5rem]"
       >
         <div className="w-full max-w-xl">
+          <div className="mb-6 flex justify-end">
+            <FocusedEntryAppearance />
+          </div>
           <p className="mb-3 text-xs font-mono uppercase tracking-[0.32em] text-text-muted">
             New game
           </p>

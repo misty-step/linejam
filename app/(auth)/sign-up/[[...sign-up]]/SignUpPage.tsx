@@ -5,17 +5,11 @@ import Link from 'next/link';
 import type { ComponentType } from 'react';
 
 /**
- * Sign-Up Page
+ * Clerk sign-up surface. Shared fixed-identity colors, fonts, inputs, and
+ * buttons come from the provider; this route only hides Clerk's duplicate
+ * heading. The catch-all route receives OAuth callbacks.
  *
- * Uses Clerk's prebuilt SignUp component. Shared theming (colors, fonts,
- * inputs, buttons — all CSS-variable driven, so every lib/themes preset
- * works automatically) lives once on <ClerkProvider appearance> in
- * app/providers.tsx; this page only overrides what's page-specific (hiding
- * Clerk's own header since we render our own above it).
- * The [[...sign-up]] catch-all route handles OAuth callbacks.
- *
- * When Clerk is not configured (no CLERK_SECRET_KEY), shows a message
- * that authentication is unavailable and guests can play without an account.
+ * Without Clerk configuration, guests receive the unauthenticated play path.
  */
 
 // Check if Clerk is configured (publishable key available on client)

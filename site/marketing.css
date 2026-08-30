@@ -1,101 +1,84 @@
-/* Product brand hooks: edit these from DESIGN.md, then leave the rest alone. */
-:root {
-  --ae-accent: #e85d2b;
-  --ae-accent-dark: #f06b3b;
-}
-
 .msk-bar,
 .msk-footer {
-  width: min(var(--ae-measure-wide), 100% - 5rem);
+  width: min(72rem, calc(100% - 2 * var(--space-4)));
+  margin-inline: auto;
 }
 
 .msk-actions {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--ae-space-5);
-}
-
-.msk-nav {
-  display: inline-flex;
-  gap: var(--ae-space-5);
-}
-
-.msk-nav a[aria-current='page'] {
-  color: var(--ae-ink);
-  text-decoration-color: currentColor;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
 }
 
 .msk-page {
-  width: min(var(--ae-measure-wide), 100%);
+  width: min(44rem, calc(100% - 2 * var(--space-4)));
+  margin: 0 auto;
+  padding: var(--space-6) 0 var(--space-7);
   display: grid;
-  gap: var(--ae-space-8);
+  gap: var(--space-7);
 }
 
 .msk-hero {
   display: grid;
-  gap: var(--ae-space-4);
-  max-width: 45rem;
-  padding-top: var(--ae-space-6);
+  gap: var(--space-4);
+}
+
+.msk-hero h1 {
+  font-size: var(--text-3xl);
+  max-width: 18ch;
 }
 
 .msk-pitch {
-  font-weight: var(--ae-w-medium);
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-secondary);
 }
 
 .msk-section {
-  border-top: 1px solid var(--ae-line);
-  padding-top: var(--ae-space-6);
   display: grid;
-  gap: var(--ae-space-5);
+  gap: var(--space-4);
+}
+
+.msk-section h2 {
+  font-size: var(--text-2xl);
 }
 
 .msk-section-head {
   display: grid;
-  gap: var(--ae-space-2);
-  max-width: 42rem;
+  gap: var(--space-2);
 }
 
 .msk-proof-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
-  gap: var(--ae-space-5);
-  align-items: stretch;
+  gap: var(--space-4);
 }
 
 .msk-poem-artifact,
 .msk-reveal-asset {
-  border: 1px solid var(--ae-line);
-  background: var(--ae-surface);
-  padding: var(--ae-space-5);
-}
-
-.msk-poem-artifact {
-  display: grid;
-  gap: var(--ae-space-5);
-  box-shadow: inset 0.35rem 0 0 var(--ae-accent);
+  padding: var(--space-4);
 }
 
 .msk-proof-meta {
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--ae-space-3);
-  border-bottom: 1px solid var(--ae-line);
-  padding-bottom: var(--ae-space-3);
-  color: var(--ae-ink-muted);
-  font-size: 0.78rem;
-  font-weight: var(--ae-w-medium);
-  letter-spacing: 0.11em;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .msk-poem-lines {
-  margin: 0;
   display: grid;
-  gap: var(--ae-space-3);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.35rem, 2vw, 1.85rem);
-  line-height: 1.35;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-style: italic;
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-primary);
 }
 
 .msk-poem-lines p,
@@ -104,123 +87,113 @@
 }
 
 .msk-poem-credit {
-  border-top: 1px solid var(--ae-line);
-  padding-top: var(--ae-space-3);
-  color: var(--ae-ink-muted);
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 .msk-reveal-asset {
   display: grid;
-  gap: var(--ae-space-4);
-  align-content: start;
+  gap: var(--space-3);
 }
 
 .msk-reveal-frame {
-  min-height: 27rem;
-  border: 1px solid var(--ae-line);
-  background:
-    linear-gradient(var(--ae-surface), var(--ae-surface)) padding-box,
-    repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 2.7rem,
-        color-mix(in srgb, var(--ae-accent) 18%, transparent) 2.75rem
-      )
-      border-box;
-  padding: var(--ae-space-4);
+  min-height: 12rem;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
   display: grid;
   align-content: center;
-  gap: var(--ae-space-2);
-  overflow: hidden;
+  gap: var(--space-2);
 }
 
 .msk-reveal-frame span {
-  display: block;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.05rem, 1.4vw, 1.45rem);
-  line-height: 1.3;
-  opacity: 0.2;
-  transform: translateY(0.65rem);
-  animation: msk-line-reveal 6.6s ease-in-out infinite both;
-  animation-delay: calc((var(--i) - 1) * 360ms - 1.4s);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-style: italic;
+  line-height: var(--leading-tight);
+  color: var(--color-text-primary);
+  animation: msk-line-reveal 9s var(--ease-standard) infinite;
+  animation-delay: calc(var(--i) * 0.7s);
 }
 
 .msk-proof-link {
-  width: fit-content;
-  border: 1px solid var(--ae-ink);
-  padding: 0.85rem 1rem;
-  color: var(--ae-ink);
+  justify-self: start;
+  color: var(--color-text-inverse);
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
-  font-weight: var(--ae-w-medium);
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
 }
 
 .msk-proof-link:hover,
 .msk-proof-link:focus-visible {
-  background: var(--ae-ink);
-  color: var(--ae-surface);
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-inverse);
 }
 
 @keyframes msk-line-reveal {
   0%,
-  10% {
-    opacity: 0.2;
-    transform: translateY(0.65rem);
+  8% {
+    opacity: 0;
+    transform: translateY(0.4em);
   }
-  17%,
-  82% {
+  14%,
+  78% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
+  88%,
   100% {
-    opacity: 0.28;
-    transform: translateY(0);
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .msk-reveal-frame span {
+    animation: none;
     opacity: 1;
     transform: none;
-    animation: none;
   }
 }
 
 .msk-gallery {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--ae-space-5);
+  gap: var(--space-4);
 }
 
 .msk-shot {
-  appearance: none;
-  border: 1px solid var(--ae-line);
-  background: var(--ae-surface);
-  color: var(--ae-ink);
-  padding: var(--ae-space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-3);
   display: grid;
-  gap: var(--ae-space-3);
-  text-align: left;
+  gap: var(--space-2);
   cursor: pointer;
+  text-align: left;
+  font: inherit;
 }
 
 .msk-shot:hover,
 .msk-shot:focus-visible {
-  border-color: var(--ae-ink);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
 }
 
 .msk-shot img {
   width: 100%;
-
-  /* object-fit: contain, not cover — evidence screenshots arrive in every
-     aspect ratio (portrait docs, wide terminal captures, tall dashboards).
-     A fixed 16/10 cover crop hid most of the frame on three separate
-     shipped sites (aesthetic-911); a fixed height keeps the gallery row
-     aligned without cropping any of them. */
-  aspect-ratio: auto;
-  height: 15rem;
-  object-fit: contain;
-  border: 1px solid var(--ae-line);
-  background: var(--ae-wash);
+  height: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
 }
 
 .msk-release-slot {
@@ -228,35 +201,29 @@
 }
 
 .msk-footer {
-  align-items: baseline;
-}
-
-.msk-zoom {
-  width: min(76rem, calc(100vw - 3rem));
+  width: min(72rem, calc(100% - 2 * var(--space-4)));
 }
 
 .msk-zoom-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: baseline;
-  gap: var(--ae-space-4);
-  margin-bottom: var(--ae-space-4);
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .msk-zoom-img {
-  display: block;
   width: 100%;
-  max-height: min(72vh, 48rem);
-  object-fit: contain;
-  border: 1px solid var(--ae-line);
-  background: var(--ae-wash);
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .msk-release {
-  border-top: 1px solid var(--ae-line);
-  padding-top: var(--ae-space-5);
   display: grid;
-  gap: var(--ae-space-3);
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .msk-release:first-of-type {
@@ -264,33 +231,36 @@
   padding-top: 0;
 }
 
-@media (max-width: 780px) {
-  /* qualified with .ae-wide, not just .msk-bar/.msk-footer: aesthetic.css's
-     `.ae-wide .ae-bar` rule (two classes) otherwise outranks the plain
-     one-class selector here and this override never takes effect, leaving
-     80px of dead margin at phone widths — the actual cause of the nav
-     "crowding" bug (aesthetic-910), confirmed by measuring the live
-     bounding box at 390px. */
-  .ae-wide .msk-bar,
-  .ae-wide .msk-footer {
-    width: min(var(--ae-measure), 100% - 2rem);
+@media (min-width: 48rem) {
+  .lj-bar {
+    padding: var(--space-4) var(--space-5);
   }
 
-  .msk-actions,
-  .msk-nav {
-    flex-wrap: wrap;
-    gap: var(--ae-space-3);
-  }
-
-  .msk-gallery {
-    grid-template-columns: 1fr;
+  .msk-hero h1 {
+    font-size: var(--text-4xl);
   }
 
   .msk-proof-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1.1fr 0.9fr;
   }
 
-  .msk-reveal-frame {
-    min-height: 24rem;
+  .msk-gallery {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .msk-bar,
+  .msk-footer,
+  .msk-page {
+    width: min(72rem, calc(100% - 2 * var(--space-3)));
+  }
+
+  .msk-page {
+    padding-top: var(--space-5);
+  }
+
+  .msk-hero h1 {
+    max-width: none;
   }
 }

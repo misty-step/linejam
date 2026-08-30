@@ -1,23 +1,25 @@
 <!doctype html>
-<html lang="en" data-ae-theme="ember">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Linejam release notes</title>
-    <meta
-      name="description"
-      content="User-facing release notes for Linejam."
-    />
+    <meta name="description" content="User-facing release notes for Linejam." />
     <script>
       try {
-        var m = localStorage.getItem('ae-mode');
-        if (m === 'dark' || m === 'light') {
-          document.documentElement.classList.add(m);
-          document.documentElement.style.colorScheme = m;
-        }
+        var stored = localStorage.getItem('linejam-theme-mode');
+        var mode =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.classList.add(mode);
+        document.documentElement.style.colorScheme = mode;
       } catch (e) {}
     </script>
-    <link rel="stylesheet" href="aesthetic.css" />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="linejam.css" />
     <link rel="stylesheet" href="marketing.css" />
   </head>
   <body>
@@ -29,19 +31,14 @@
           d="M19 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0 0 4h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"
         />
       </symbol>
-      <symbol id="i-sun" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2" />
-        <path d="M12 20v2" />
-        <path d="m4.93 4.93 1.41 1.41" />
-        <path d="m17.66 17.66 1.41 1.41" />
-        <path d="M2 12h2" />
-        <path d="M20 12h2" />
-        <path d="m6.34 17.66-1.41 1.41" />
-        <path d="m19.07 4.93-1.41 1.41" />
-      </symbol>
-      <symbol id="i-moon" viewBox="0 0 24 24">
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      <symbol id="i-palette" viewBox="0 0 24 24">
+        <path
+          d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
+        />
+        <circle cx="13.5" cy="6.5" r=".5" />
+        <circle cx="17.5" cy="10.5" r=".5" />
+        <circle cx="6.5" cy="12.5" r=".5" />
+        <circle cx="8.5" cy="7.5" r=".5" />
       </symbol>
       <symbol id="i-circle-check" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" />
@@ -49,349 +46,983 @@
       </symbol>
     </svg>
 
-    <div class="ae-screen ae-wide">
-      <header class="ae-bar msk-bar">
-        <a class="ae-logo" href="./" aria-label="Linejam home">
-          <span class="ae-app-mark" aria-hidden="true">
-            <svg class="ae-icon" data-lucide="scroll-text">
+    <div class="lj-shell">
+      <header class="lj-bar msk-bar">
+        <a class="lj-wordmark" href="./" aria-label="Linejam home">
+          <span class="lj-mark" aria-hidden="true">
+            <svg class="lj-icon" data-lucide="scroll-text">
               <use href="#i-scroll-text" />
             </svg>
           </span>
-          <span class="ae-name">Linejam</span>
+          <span class="lj-wordmark-label">Linejam</span>
         </a>
         <span class="msk-actions">
-          <nav class="ae-chrome msk-nav" aria-label="Site">
+          <nav class="lj-nav" aria-label="Site">
             <a href="./">home</a>
             <a href="changelog.html" aria-current="page">release notes</a>
           </nav>
-          <button class="ae-mode" aria-label="toggle color mode">
-            <svg class="ae-icon ae-sun"><use href="#i-sun" /></svg>
-            <svg class="ae-icon ae-moon"><use href="#i-moon" /></svg>
-          </button>
+          <details class="lj-appearance">
+            <summary class="lj-icon-button" aria-label="Color mode">
+              <svg class="lj-icon" aria-hidden="true">
+                <use href="#i-palette" />
+              </svg>
+            </summary>
+            <fieldset class="lj-mode">
+              <legend>Color mode</legend>
+              <div class="lj-mode-options">
+                <label>
+                  <input type="radio" name="color-mode" value="light" />
+                  <span>Light</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="dark" />
+                  <span>Dark</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="system" />
+                  <span>System</span>
+                </label>
+              </div>
+            </fieldset>
+          </details>
         </span>
       </header>
 
-      <main class="ae-stage ae-stage-scroll">
-        <article class="ae-doc msk-page" aria-labelledby="release-notes-title">
+      <main class="lj-stage">
+        <article class="lj-doc msk-page" aria-labelledby="release-notes-title">
           <h1 id="release-notes-title">Release notes</h1>
-          <p class="ae-lede">
+          <p class="lj-lede">
             Linejam ships continuously. These notes are generated in plain
             language from the same
-            <a href="https://github.com/misty-step/linejam/blob/master/CHANGELOG.md"
+            <a
+              href="https://github.com/misty-step/linejam/blob/master/CHANGELOG.md"
               >CHANGELOG.md</a
             >
             source that feeds the app's /releases page.
           </p>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-07-04 - v1.15.1</p>
+            <p class="lj-kicker">2026-08-01 - v0.27.0</p>
+            <h2>Version 0.27.0</h2>
+            <ul>
+              <li>repo: invoke local commitlint in hook.</li>
+              <li>lobby: ship status board room frame.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: commit 45019db, commit 9f03da5.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-17 - v0.26.0</p>
+            <h2>Version 0.26.0</h2>
+            <ul>
+              <li>
+                ops: scheduled encrypted Convex backups with provable restore.
+              </li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #381.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-17 - v0.25.1</p>
+            <h2>Version 0.25.1</h2>
+            <ul>
+              <li>deps: clear dependabot alerts.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #380.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-17 - v0.25.0</p>
+            <h2>Version 0.25.0</h2>
+            <ul>
+              <li>auth: migrate Clerk from v6 to v7.</li>
+              <li>
+                themes: enforce WCAG AA contrast across every registered theme.
+              </li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #376, PR #377.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-17 - v0.24.1</p>
+            <h2>Version 0.24.1</h2>
+            <ul>
+              <li>privacy: make poem sharing reversible and race-safe.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #371.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-16 - v0.24.0</p>
+            <h2>Version 0.24.0</h2>
+            <ul>
+              <li>polish mobile game core loop.</li>
+              <li>security: contain document scripts with nonce CSP.</li>
+              <li>analytics: add privacy-safe room cycle funnel.</li>
+              <li>game: recover live rooms after reconnect.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span
+                >Evidence: PR #370, PR #367, PR #372, PR #369, PR #365, PR #366,
+                PR #368.</span
+              >
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-16 - v0.23.1</p>
+            <h2>Version 0.23.1</h2>
+            <ul>
+              <li>privacy: scrub durable author ids from poem payloads.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #363.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-16 - v0.23.0</p>
+            <h2>Version 0.23.0</h2>
+            <ul>
+              <li>ai: add provider kill switch and spend guard.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #362.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-16 - v0.22.0</p>
+            <h2>Version 0.22.0</h2>
+            <ul>
+              <li>retention: enforce bounded data lifecycle.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #359.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.21.0</p>
+            <h2>Version 0.21.0</h2>
+            <ul>
+              <li>obs: alert on AI fallback rate.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #358.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.20.0</p>
+            <h2>Version 0.20.0</h2>
+            <ul>
+              <li>ci: enforce safe schema migration sequencing.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #357.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.19.4</p>
+            <h2>Version 0.19.4</h2>
+            <ul>
+              <li>mobile: own the visual game viewport.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #356.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.19.3</p>
+            <h2>Version 0.19.3</h2>
+            <ul>
+              <li>make mobile entry flows viewport safe.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #355.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.19.2</p>
+            <h2>Version 0.19.2</h2>
+            <ul>
+              <li>recover stale clients across production deploys.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #353.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.19.1</p>
+            <h2>Version 0.19.1</h2>
+            <ul>
+              <li>ci: fail closed on empty coverage.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #352.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.19.0</p>
+            <h2>Version 0.19.0</h2>
+            <ul>
+              <li>ops: declare DigitalOcean topology.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #351.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.18.6</p>
+            <h2>Version 0.18.6</h2>
+            <ul>
+              <li>infra: reconcile Convex environment drift.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #350.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.18.5</p>
+            <h2>Version 0.18.5</h2>
+            <ul>
+              <li>reveal: recover from absent readers.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #349.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.18.4</p>
+            <h2>Version 0.18.4</h2>
+            <ul>
+              <li>gameplay: preserve rematch assignments.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #348.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.18.3</p>
+            <h2>Version 0.18.3</h2>
+            <ul>
+              <li>ai: budget ghostwriter generations.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: commit 4d6bed0.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-15 - v0.18.2</p>
+            <h2>Version 0.18.2</h2>
+            <ul>
+              <li>security: remove unsigned throttle rollout endpoint.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #346.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-14 - v0.18.1</p>
+            <h2>Version 0.18.1</h2>
+            <ul>
+              <li>privacy: require explicit successful sharing.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #344.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-11 - v0.18.0</p>
+            <h2>Version 0.18.0</h2>
+            <ul>
+              <li>
+                game-screen spine from design lab-001 (mobile-first,
+                theme-agnostic).
+              </li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #338.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-10 - v0.17.1</p>
+            <h2>Version 0.17.1</h2>
+            <ul>
+              <li>
+                themes: hydration-safe theme state in the picker hook , closes
+                [#418](https://github.com/misty-step/linejam/issues/418).
+              </li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #336.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-10 - v0.17.0</p>
+            <h2>Version 0.17.0</h2>
+            <ul>
+              <li>
+                ten-theme collection + /themes specimen picker (design lab-001
+                convergence).
+              </li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #333.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-10 - v0.16.8</p>
+            <h2>Version 0.16.8</h2>
+            <ul>
+              <li>observability: suppress expected convex throttles.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #332.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-10 - v0.16.7</p>
+            <h2>Version 0.16.7</h2>
+            <ul>
+              <li>ops: classify production Convex rate limits.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #331.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-10 - v0.16.6</p>
+            <h2>Version 0.16.6</h2>
+            <ul>
+              <li>ops: page repeated production smoke failures.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #330.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-09 - v0.16.5</p>
+            <h2>Version 0.16.5</h2>
+            <ul>
+              <li>
+                bound abandonment sweep + gate health on Convex env capabilities
+                (prod incident 2026-07-09).
+              </li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #328.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-09 - v0.16.4</p>
+            <h2>Version 0.16.4</h2>
+            <ul>
+              <li>auth: fail open to guest play.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #327.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-09 - v0.16.3</p>
+            <h2>Version 0.16.3</h2>
+            <ul>
+              <li>responder: preserve Playwright browser path.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #326.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-09 - v0.16.2</p>
+            <h2>Version 0.16.2</h2>
+            <ul>
+              <li>ci: declare the Pages release runner.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #325.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-09 - v0.16.1</p>
+            <h2>Version 0.16.1</h2>
+            <ul>
+              <li>ci: install pnpm before Pages cache lookup.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #323.</span>
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-08 - v1.16.0</p>
+            <h2>Version 1.16.0</h2>
+            <ul>
+              <li>clarify core loop submit readiness.</li>
+              <li>convex: drop legacy mode columns.</li>
+              <li>
+                csp: allow the production Clerk custom domain , closes
+                [#291](https://github.com/misty-step/linejam/issues/291).
+              </li>
+              <li>deps: remove unused production dependencies.</li>
+            </ul>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span
+                >Evidence: PR #310, PR #298, PR #299, PR #313, PR #316, PR #315,
+                PR #303, commit b90c6ae, PR #307, PR #312, PR #306, commit
+                de6597e, commit e3376af, PR #308, PR #311, commit 7678974, PR
+                #309.</span
+              >
+            </p>
+          </section>
+
+          <section class="msk-release">
+            <p class="lj-kicker">2026-07-04 - v1.15.1</p>
             <h2>Version 1.15.1</h2>
             <ul>
               <li>convex: bound launch reads and live game failures.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #294.</span>
+              <span>Evidence: PR #294.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-07-04 - v1.15.0</p>
+            <p class="lj-kicker">2026-07-04 - v1.15.0</p>
             <h2>Version 1.15.0</h2>
             <ul>
               <li>make reveal shareable and teach first writers.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #292.</span>
+              <span>Evidence: PR #292.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-07-04 - v1.14.0</p>
+            <p class="lj-kicker">2026-07-04 - v1.14.0</p>
             <h2>Version 1.14.0</h2>
             <ul>
               <li>security: harden launch exposure gates.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #291.</span>
+              <span>Evidence: PR #291.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-07-03 - v1.13.0</p>
+            <p class="lj-kicker">2026-07-03 - v1.13.0</p>
             <h2>Version 1.13.0</h2>
             <ul>
               <li>observability: report canary health check-ins.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #289.</span>
+              <span>Evidence: PR #289.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-07-03 - v1.12.0</p>
+            <p class="lj-kicker">2026-07-03 - v1.12.0</p>
             <h2>Version 1.12.0</h2>
             <ul>
-              <li>ux: tap-to-copy room code, QR scan-to-join, one-tap help, fix submit error.</li>
+              <li>
+                ux: tap-to-copy room code, QR scan-to-join, one-tap help, fix
+                submit error.
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit 7f754ff.</span>
+              <span>Evidence: commit 7f754ff.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-07-03 - v1.11.0</p>
+            <p class="lj-kicker">2026-07-03 - v1.11.0</p>
             <h2>Version 1.11.0</h2>
             <ul>
               <li>observability: wire Convex backend failures to Canary.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit 6eb32a4.</span>
+              <span>Evidence: commit 6eb32a4.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-26 - v1.10.0</p>
+            <p class="lj-kicker">2026-06-26 - v1.10.0</p>
             <h2>Version 1.10.0</h2>
             <ul>
-              <li>ai: multi-bot solo play + evidence-backed config (028 m1).</li>
+              <li>
+                ai: multi-bot solo play + evidence-backed config (028 m1).
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #280.</span>
+              <span>Evidence: PR #280.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-24 - v1.9.1</p>
+            <p class="lj-kicker">2026-06-24 - v1.9.1</p>
             <h2>Version 1.9.1</h2>
             <ul>
-              <li>ui: make the mobile writing surface playable and declutter room chrome.</li>
+              <li>
+                ui: make the mobile writing surface playable and declutter room
+                chrome.
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #278.</span>
+              <span>Evidence: PR #278.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-23 - v1.9.0</p>
+            <p class="lj-kicker">2026-06-23 - v1.9.0</p>
             <h2>Version 1.9.0</h2>
             <ul>
               <li>release: drop pnpm exec step that broke Landmark release.</li>
-              <li>game: consolidate to one core mode — delete rhyme + quick.</li>
+              <li>
+                game: consolidate to one core mode — delete rhyme + quick.
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #276, PR #275.</span>
+              <span>Evidence: PR #276, PR #275.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-22 - v1.8.0</p>
+            <p class="lj-kicker">2026-06-22 - v1.8.0</p>
             <h2>Version 1.8.0</h2>
             <ul>
-              <li>game: migrate host to a present participant when the host leaves (017).</li>
+              <li>
+                game: migrate host to a present participant when the host leaves
+                (017).
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #274.</span>
+              <span>Evidence: PR #274.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-21 - v1.7.0</p>
+            <p class="lj-kicker">2026-06-21 - v1.7.0</p>
             <h2>Version 1.7.0</h2>
             <ul>
-              <li>game: never let the room die — presence, self-heal, abandonment cron (016).</li>
+              <li>
+                game: never let the room die — presence, self-heal, abandonment
+                cron (016).
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #264.</span>
+              <span>Evidence: PR #264.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-13 - v1.6.0</p>
+            <p class="lj-kicker">2026-06-13 - v1.6.0</p>
             <h2>Version 1.6.0</h2>
             <ul>
               <li>mobile: pass the thumb test on every game surface.</li>
-              <li>security: force esbuild &gt;=0.28.1 to clear GHSA-gv7w-rqvm-qjhr.</li>
-              <li>game: make rules data and ship Rhyme Relay + Quick Jam modes.</li>
-              <li>realtime: make the room unstrandable — rescue, rematch, self-heal.</li>
+              <li>
+                security: force esbuild &gt;=0.28.1 to clear
+                GHSA-gv7w-rqvm-qjhr.
+              </li>
+              <li>
+                game: make rules data and ship Rhyme Relay + Quick Jam modes.
+              </li>
+              <li>
+                realtime: make the room unstrandable — rescue, rematch,
+                self-heal.
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit 2f6c2be, commit 23c1565, commit c5b3d36, commit a0e6eec, commit f39c155, commit 088bde4.</span>
+              <span
+                >Evidence: commit 2f6c2be, commit 23c1565, commit c5b3d36,
+                commit a0e6eec, commit f39c155, commit 088bde4.</span
+              >
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-12 - v1.5.0</p>
+            <p class="lj-kicker">2026-06-12 - v1.5.0</p>
             <h2>Version 1.5.0</h2>
             <ul>
               <li>sharing: require explicit public links.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit 0f5da62.</span>
+              <span>Evidence: commit 0f5da62.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-11 - v1.4.0</p>
+            <p class="lj-kicker">2026-06-11 - v1.4.0</p>
             <h2>Version 1.4.0</h2>
             <ul>
               <li>reveal: add shared session recap hub.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit aad40cb.</span>
+              <span>Evidence: commit aad40cb.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-11 - v1.3.0</p>
+            <p class="lj-kicker">2026-06-11 - v1.3.0</p>
             <h2>Version 1.3.0</h2>
             <ul>
               <li>observability: add scrubbed route telemetry.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit 3d31d4c.</span>
+              <span>Evidence: commit 3d31d4c.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-06-10 - v1.2.0</p>
+            <p class="lj-kicker">2026-06-10 - v1.2.0</p>
             <h2>Version 1.2.0</h2>
             <ul>
-              <li>add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133).</li>
+              <li>
+                add agentic qa harness , closes
+                [#27248473133](https://github.com/misty-step/linejam/issues/27248473133).
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit a7f3f1f.</span>
+              <span>Evidence: commit a7f3f1f.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-04-21 - v1.1.3</p>
+            <p class="lj-kicker">2026-04-21 - v1.1.3</p>
             <h2>Version 1.1.3</h2>
             <ul>
-              <li>ci: stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231).</li>
+              <li>
+                ci: stop Dependabot from double-stamping commit scopes , closes
+                [#229](https://github.com/misty-step/linejam/issues/229)
+                [#230](https://github.com/misty-step/linejam/issues/230)
+                [#231](https://github.com/misty-step/linejam/issues/231).
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #232.</span>
+              <span>Evidence: PR #232.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-04-20 - v1.1.2</p>
+            <p class="lj-kicker">2026-04-20 - v1.1.2</p>
             <h2>Version 1.1.2</h2>
             <ul>
-              <li>deps: patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline.</li>
+              <li>
+                deps: patch Clerk + protobufjs HIGH/CRITICAL advisories and
+                stabilize release pipeline.
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #218.</span>
+              <span>Evidence: PR #218.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-04-15 - v1.1.1</p>
+            <p class="lj-kicker">2026-04-15 - v1.1.1</p>
             <h2>Version 1.1.1</h2>
             <ul>
               <li>deps: patch dompurify and ajv advisories.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: commit dc8f4e2.</span>
+              <span>Evidence: commit dc8f4e2.</span>
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2026-04-15 - v1.1.0</p>
+            <p class="lj-kicker">2026-04-15 - v1.1.0</p>
             <h2>Version 1.1.0</h2>
             <ul>
-              <li>a11y: use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151).</li>
-              <li>auth: show error state with retry on guest auth failure , closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144).</li>
+              <li>
+                a11y: use theme-aware focus ring token instead of hardcoded
+                primary , closes
+                [#151](https://github.com/misty-step/linejam/issues/151).
+              </li>
+              <li>
+                auth: show error state with retry on guest auth failure , closes
+                [#144](https://github.com/misty-step/linejam/issues/144)
+                [#144](https://github.com/misty-step/linejam/issues/144).
+              </li>
               <li>ci: pin trufflehog scanner version.</li>
               <li>ci: settle trufflehog workflow.</li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: PR #159, PR #157, PR #195, PR #181, PR #160, commit ca98baa, PR #156, PR #155, commit 01a269b, PR #154, PR #164, commit 6a76039, PR #210, PR #208, PR #165, PR #213, PR #192, PR #209, PR #201, PR #206, PR #158, commit a342c85, commit c2d8c95, commit 2afd7cf, commit 9315a0b, commit bb9a264, commit d4de3e7, commit 1fda1da, PR #108, commit 60de0fe, commit b252533, PR #64, PR #72, commit 371b919, commit 85613b2, PR #114, commit f0a4cfb, commit fde3631, commit 0de1ae1, commit 6de2615, commit 9fe4ec9, PR #70, commit 2e1f8c1, commit 20452ef, PR #121, commit 7802dff, commit 9e72e46, PR #117, PR #110, commit 28a62e1, PR #71, PR #73, commit 9049e64, commit 33c051e, commit d4fb1cf, commit 9ed59b2, commit 5ae5289, PR #109, commit e3a02d6, commit 3f51907, commit 30397e8, PR #127, commit 787bc44, commit 7244c02, commit 1b42e6c, commit 230588a, commit 6a6c3ed, commit 77276d2, commit dbcc5d5, commit f34b623, PR #126, commit 14b4e9d, commit 59fd5b5, commit ad028e7, commit 81fced4, commit b39d388, commit 693f17d, commit cadc70f, PR #82, PR #69, PR #119, commit 6a9112d, commit f1850b3, commit 68b061a, commit 18463e0, commit 8ff6da7, commit d53aa73, commit 96a01d9, commit 1f64c5e, PR #8, commit 8052011, commit 8a016fa, commit cc72f34, commit 06b159a, commit 16658cf, PR #14, commit 4e5bc30, commit 46425c2, commit 3042c89, commit 72f28b7, PR #111, commit b19c92e, commit ca00aa1, commit c4ba46f, commit 34b19b0, commit 420b717, commit 06c1e4a, commit 2a6ce49, commit 4469d4e, commit 18308f0, PR #80, commit d32cd8a, PR #10, commit 198afcd, commit d555e70, commit 1593fdb, commit e3d2aae, commit ac31c21, commit bc9122a, PR #63, PR #9, PR #116.</span>
+              <span
+                >Evidence: PR #159, PR #157, PR #195, PR #181, PR #160, commit
+                ca98baa, PR #156, PR #155, commit 01a269b, PR #154, PR #164,
+                commit 6a76039, PR #210, PR #208, PR #165, PR #213, PR #192, PR
+                #209, PR #201, PR #206, PR #158, commit a342c85, commit c2d8c95,
+                commit 2afd7cf, commit 9315a0b, commit bb9a264, commit d4de3e7,
+                commit 1fda1da, PR #108, commit 60de0fe, commit b252533, PR #64,
+                PR #72, commit 371b919, commit 85613b2, PR #114, commit f0a4cfb,
+                commit fde3631, commit 0de1ae1, commit 6de2615, commit 9fe4ec9,
+                PR #70, commit 2e1f8c1, commit 20452ef, PR #121, commit 7802dff,
+                commit 9e72e46, PR #117, PR #110, commit 28a62e1, PR #71, PR
+                #73, commit 9049e64, commit 33c051e, commit d4fb1cf, commit
+                9ed59b2, commit 5ae5289, PR #109, commit e3a02d6, commit
+                3f51907, commit 30397e8, PR #127, commit 787bc44, commit
+                7244c02, commit 1b42e6c, commit 230588a, commit 6a6c3ed, commit
+                77276d2, commit dbcc5d5, commit f34b623, PR #126, commit
+                14b4e9d, commit 59fd5b5, commit ad028e7, commit 81fced4, commit
+                b39d388, commit 693f17d, commit cadc70f, PR #82, PR #69, PR
+                #119, commit 6a9112d, commit f1850b3, commit 68b061a, commit
+                18463e0, commit 8ff6da7, commit d53aa73, commit 96a01d9, commit
+                1f64c5e, PR #8, commit 8052011, commit 8a016fa, commit cc72f34,
+                commit 06b159a, commit 16658cf, PR #14, commit 4e5bc30, commit
+                46425c2, commit 3042c89, commit 72f28b7, PR #111, commit
+                b19c92e, commit ca00aa1, commit c4ba46f, commit 34b19b0, commit
+                420b717, commit 06c1e4a, commit 2a6ce49, commit 4469d4e, commit
+                18308f0, PR #80, commit d32cd8a, PR #10, commit 198afcd, commit
+                d555e70, commit 1593fdb, commit e3d2aae, commit ac31c21, commit
+                bc9122a, PR #63, PR #9, PR #116.</span
+              >
             </p>
           </section>
 
           <section class="msk-release">
-            <p class="ae-chrome">2025-01-24 - v0.1.0</p>
+            <p class="lj-kicker">2025-01-24 - v0.1.0</p>
             <h2>Version 0.1.0</h2>
             <ul>
-              <li>Get ready to unleash your inner poet! We&#39;re thrilled to announce the launch of Linejam, a brand new real-time collaborative poetry game where you and your friends can create beautiful verses together. Each game consists of 9 rounds, offering plenty of opportunities for creative expression and playful collaboration. If your muse is flying solo, don&#39;t fret! You can now play against AI opponents powered by Gemini, making Linejam a fun and engaging experience whether you&#39;re a lone wolf or part of a pack.</li>
-              <li>We&#39;ve also added some delightful visual flair to enhance your playing experience. Choose from four premium themes – Kenya, Mono, Vintage Paper, and Hyper – to set the mood and inspire your creativity. And when you&#39;ve crafted a poem you&#39;re proud of, easily share it with the world! A simple click lets you copy your masterpiece to the clipboard, ready to paste and share wherever your heart desires.</li>
-              <li>Need a little guidance? We&#39;ve included a handy floating help modal that clearly explains the game&#39;s rules. Plus, our unique word count indicator, inspired by traditional Japanese genkoyoushi paper, helps you keep track of your progress and stay within the flow.</li>
-              <li>Finally, we&#39;ve made some behind-the-scenes tweaks to ensure everything runs smoothly, including fixing an issue with word counting to handle those extra spaces. Happy jamming!</li>
+              <li>
+                Get ready to unleash your inner poet! We&#39;re thrilled to
+                announce the launch of Linejam, a brand new real-time
+                collaborative poetry game where you and your friends can create
+                beautiful verses together. Each game consists of 9 rounds,
+                offering plenty of opportunities for creative expression and
+                playful collaboration. If your muse is flying solo, don&#39;t
+                fret! You can now play against AI opponents powered by Gemini,
+                making Linejam a fun and engaging experience whether you&#39;re
+                a lone wolf or part of a pack.
+              </li>
+              <li>
+                We&#39;ve also added some delightful visual flair to enhance
+                your playing experience. Choose from four premium themes –
+                Kenya, Mono, Vintage Paper, and Hyper – to set the mood and
+                inspire your creativity. And when you&#39;ve crafted a poem
+                you&#39;re proud of, easily share it with the world! A simple
+                click lets you copy your masterpiece to the clipboard, ready to
+                paste and share wherever your heart desires.
+              </li>
+              <li>
+                Need a little guidance? We&#39;ve included a handy floating help
+                modal that clearly explains the game&#39;s rules. Plus, our
+                unique word count indicator, inspired by traditional Japanese
+                genkoyoushi paper, helps you keep track of your progress and
+                stay within the flow.
+              </li>
+              <li>
+                Finally, we&#39;ve made some behind-the-scenes tweaks to ensure
+                everything runs smoothly, including fixing an issue with word
+                counting to handle those extra spaces. Happy jamming!
+              </li>
             </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">Evidence: CHANGELOG.md.</span>
+              <span>Evidence: CHANGELOG.md.</span>
             </p>
           </section>
         </article>
       </main>
 
-      <footer class="ae-bar msk-footer">
-        <p class="ae-chrome">Linejam release notes are public by default.</p>
-        <nav class="ae-foot-links ae-chrome" aria-label="Footer">
+      <footer class="lj-bar lj-footer msk-footer">
+        <p class="lj-kicker">Linejam release notes are public by default.</p>
+        <nav class="lj-foot-links" aria-label="Footer">
           <a
             data-footer-link="github"
             href="https://github.com/misty-step/linejam"
@@ -405,6 +1036,5 @@
     </div>
 
     <script src="mode.js"></script>
-    <script src="theme.js"></script>
   </body>
 </html>

@@ -3,14 +3,14 @@
 import { ClerkProvider, useAuth } from '@clerk/nextjs';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { convex } from '../lib/convex';
-import { ThemeProvider } from '@/lib/themes';
+import { ColorModeProvider } from '@/lib/colorMode';
 import { PostHogProvider } from '@/lib/posthog/PostHogProvider';
 import { PostHogPageview } from '@/lib/posthog/PostHogPageview';
 import { DeploymentSkewRejectionObserver } from '@/components/DeploymentSkewRejectionObserver';
 import { DeploymentSkewObserver } from '@/components/DeploymentSkewObserver';
 import {
   linejamClerkAppearance,
-  useClerkThemeVariables,
+  useClerkColorVariables,
 } from '@/lib/clerk/appearance';
 import type { ReactNode } from 'react';
 import { useVisualViewport } from '@/hooks/useVisualViewport';
@@ -22,7 +22,7 @@ export function Providers({
   children: ReactNode;
   deploymentId?: string;
 }) {
-  const variables = useClerkThemeVariables();
+  const variables = useClerkColorVariables();
   useVisualViewport();
 
   return (
@@ -36,7 +36,7 @@ export function Providers({
         <DeploymentSkewRejectionObserver />
         <DeploymentSkewObserver deploymentId={deploymentId} />
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ColorModeProvider>{children}</ColorModeProvider>
         </ConvexProviderWithClerk>
       </PostHogProvider>
     </ClerkProvider>

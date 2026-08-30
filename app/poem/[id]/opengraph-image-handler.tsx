@@ -13,13 +13,10 @@ import {
 
 const size = POEM_PREVIEW_CARD_SIZE;
 
-// Link previews always render the kenya/light identity regardless of the
-// viewer's theme — social platforms cache one OG image per URL, so there is
-// no "active theme" to key off of here. The themed, attributed artifact
-// lives at /poem/[id]/card (see lib/poemCard/PoemCard.tsx's poemFullCardElement).
-const OG_THEME_ID = 'kenya';
-const colors = resolveCardColors(OG_THEME_ID, 'light');
-const fonts = getCardFontPairing(OG_THEME_ID);
+// Link previews always render the fixed light identity. Social platforms cache
+// one OG image per URL, so there is no active color mode to key off here.
+const colors = resolveCardColors('light');
+const fonts = getCardFontPairing();
 
 type PoemPreview = {
   lines: string[];
@@ -64,7 +61,7 @@ export function createPoemOpenGraphImage(
     params,
     searchParams,
   }: PoemOpenGraphImageProps) {
-    const { fonts: loadedFonts } = await loadCardFonts(OG_THEME_ID);
+    const { fonts: loadedFonts } = await loadCardFonts();
 
     const { id } = await params;
     const { share } = (await searchParams) ?? {};
