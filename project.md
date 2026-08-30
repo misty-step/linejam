@@ -11,30 +11,31 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 ## Domain Glossary
 
-| Term              | Definition                                                          |
-| ----------------- | ------------------------------------------------------------------- |
-| Room              | A game session, identified by a short room code                     |
-| Poem              | One collaborative poem being written in a room (multiple per game)  |
-| Line              | A single contribution to a poem; constrained word count per round   |
-| Assignment Matrix | 9×N array assigning which player writes which poem's line per round |
-| Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                    |
-| Reveal            | End-of-game state where complete poems are shown to all players     |
-| Guest             | Anonymous player identified by UUID in localStorage                 |
-| Pen Name          | Author display name captured at write-time                          |
-| WordSlot          | Genkoyoshi-inspired word count indicator UI component               |
-| Theme             | Visual skin registered in `lib/themes/registry.ts`                  |
+| Term              | Definition                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Room              | A game session, identified by a short room code                                                                            |
+| Poem              | One collaborative poem being written in a room (multiple per game)                                                         |
+| Line              | A single contribution to a poem; constrained word count per round                                                          |
+| Assignment Matrix | 9×N array assigning which player writes which poem's line per round                                                        |
+| Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                                                                           |
+| Reveal            | End-of-game state where complete poems are shown to all players                                                            |
+| Guest             | Anonymous player identified by UUID in localStorage                                                                        |
+| Pen Name          | Author display name captured at write-time                                                                                 |
+| WordSlot          | Genkoyoshi-inspired word count indicator UI component                                                                      |
+| Color mode        | Appearance preference for the fixed Ink & Anticipation identity: Light, Dark, or System; persisted as `linejam-theme-mode` |
+| Visual identity   | Ink & Anticipation, Linejam's single fixed visual identity                                                                 |
 
 ## Active Focus
 
 - **Milestone:** Restore public trust — anonymous play must survive identity-provider failure, private poems must stay private until explicit publication, and functional smoke failures must page.
-- **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across every retained theme → evidence-led aesthetic polish → revenue stretch.
-- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). [GitHub Issues](https://github.com/misty-step/linejam/issues) is the sole work ledger; `CONTRIBUTING.md` owns the claim and Iron Forest scheduling contract.
-- **Theme:** Restraint as the product — Kenya Hara minimalism applied to the mechanics as much as the visuals.
+- **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across Light and Dark modes (including System resolution) → evidence-led aesthetic polish → revenue stretch.
+- **Stance:** The 010–012 expansion arc (multiple game modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). [GitHub Issues](https://github.com/misty-step/linejam/issues) is the sole work ledger; `CONTRIBUTING.md` owns the claim and Iron Forest scheduling contract.
+- **Identity:** Ink & Anticipation is the only visual identity. `lib/design/tokens.ts` owns the canonical tokens, while `lib/colorMode/` owns the Light/Dark/System mode-only control and API. Light uses action `#b43a12`, focus `#e85d2b`, background `#faf9f7`, surface `#ffffff`, and ink `#1c1917`; Dark uses action `#f06b3b`, focus `#e85d2b`, background `#1c1917`, surface `#292524`, and ink `#faf9f7`. Fonts are Libre Baskerville, IBM Plex Sans, and JetBrains Mono.
 
 ## Quality Bar
 
 - [ ] Guest mode works without friction on mobile and survives Clerk failure
-- [ ] Every retained theme renders correctly without hardcoded overrides
+- [ ] Light, Dark, and System modes render the fixed identity correctly without hardcoded overrides
 - [ ] Core game loop completes reliably with 2-6 players (no silent failures)
 - [x] Security headers and rate limits are in place
 - [ ] Saving remains private; public poem/recap access requires explicit, reversible consent
@@ -51,6 +52,7 @@ Read the owning source for implementation detail:
 - Identity: `lib/auth.ts`, `lib/guestToken.ts`, and `convex/lib/auth.ts`.
 - Error capture and structured logs: `lib/error.ts`, `lib/logger.ts`, and
   `convex/lib/errors.ts`.
+- Visual identity and color modes: `lib/design/tokens.ts` and `lib/colorMode/`.
 - Verification and authority: `docs/testing.md` and
   `docs/ops/observability-ci.md`.
 
@@ -77,5 +79,5 @@ per book.
 
 ---
 
-_Last updated: 2026-08-15_
-_Updated during: human-only authorship cutover [#419](https://github.com/misty-step/linejam/issues/419)._
+_Last updated: 2026-08-30_
+_Updated during: fixed Ink & Anticipation identity and color-mode guidance [#475](https://github.com/misty-step/linejam/issues/475); prior human-only authorship cutover context remains [#419](https://github.com/misty-step/linejam/issues/419)._

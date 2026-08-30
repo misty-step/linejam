@@ -55,7 +55,7 @@
     root.style.colorScheme = dark ? 'dark' : 'light';
     try {
       localStorage.setItem('ae-mode', dark ? 'dark' : 'light');
-    } catch (e) {}
+    } catch {}
   };
 
   document.querySelectorAll('.ae-mode').forEach((btn) => {

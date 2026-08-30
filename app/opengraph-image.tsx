@@ -1,10 +1,12 @@
 import { ImageResponse } from 'next/og';
-import { tokens } from '@/lib/tokens';
+import { designTokens } from '@/lib/design';
 
 export const runtime = 'edge';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
 export const alt = 'Linejam - Write poems together, one line at a time';
+
+const identityTokens = designTokens.light;
 
 // Fonts (WOFF via jsDelivr)
 const libreBaskervilleUrl =
@@ -44,8 +46,8 @@ export default async function Image() {
         justifyContent: 'center',
         width: '100%',
         height: '100%',
-        backgroundColor: tokens.colors.background,
-        fontFamily: tokens.fonts.display,
+        backgroundColor: identityTokens['color-background'],
+        fontFamily: 'Libre Baskerville',
         position: 'relative',
       }}
     >
@@ -53,7 +55,7 @@ export default async function Image() {
       <div
         style={{
           fontSize: 120,
-          color: tokens.colors.foreground,
+          color: identityTokens['color-foreground'],
           letterSpacing: '-0.02em',
           marginBottom: 24,
         }}
@@ -65,8 +67,8 @@ export default async function Image() {
       <div
         style={{
           fontSize: 32,
-          color: tokens.colors.textMuted,
-          fontFamily: tokens.fonts.sans,
+          color: identityTokens['color-text-secondary'],
+          fontFamily: 'IBM Plex Sans',
           marginBottom: 48,
         }}
       >
@@ -88,7 +90,7 @@ export default async function Image() {
             style={{
               width: (count / 5) * maxWidth,
               height: 8,
-              backgroundColor: tokens.colors.primary,
+              backgroundColor: identityTokens['color-primary'],
               borderRadius: 4,
               opacity: 0.8,
             }}
@@ -105,7 +107,7 @@ export default async function Image() {
           width: 64,
           height: 64,
           borderRadius: '50%',
-          backgroundColor: tokens.colors.primary,
+          backgroundColor: identityTokens['color-primary'],
           opacity: 0.9,
           transform: 'rotate(-5deg)',
         }}

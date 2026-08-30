@@ -71,7 +71,7 @@ export function renderSiteChangelogHtml(
   const releaseSections = releases.map(renderReleaseSection).join('\n\n');
 
   return `<!doctype html>
-<html lang="en" data-ae-theme="ember">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -175,7 +175,6 @@ ${releaseSections}
     </div>
 
     <script src="mode.js"></script>
-    <script src="theme.js"></script>
   </body>
 </html>
 `;

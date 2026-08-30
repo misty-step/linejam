@@ -19,10 +19,8 @@ let lastImageResponseCall: {
 } | null = null;
 
 /**
- * linejam-943 refactored this route to call the shared
- * lib/poemCard/PoemCard.tsx renderer instead of inlining its own JSX. This
- * pins the pre-refactor output (metadata copy, size) so the extraction
- * stayed byte-identical for the shipped social-preview surface.
+ * The route delegates to the shared fixed-identity renderer. These
+ * regressions pin the social-preview metadata and dimensions.
  */
 describe('GET /poem/[id]/opengraph-image (post-extraction regression)', () => {
   let Image: PoemOpenGraphImageHandler;
@@ -58,6 +56,18 @@ describe('GET /poem/[id]/opengraph-image (post-extraction regression)', () => {
       width: 1200,
       height: 630,
     });
+  });
+  it('uses the fixed light identity palette', async () => {
+    mockFetchQuery.mockResolvedValue({
+      lines: ['A spark'],
+      poetCount: 1,
+    });
+
+    await Image({ params: Promise.resolve({ id: 'poem123' }) });
+
+    const serialized = JSON.stringify(lastImageResponseCall?.element);
+    expect(serialized).toContain('#faf9f7');
+    expect(serialized).toContain('#b43a12');
   });
 
   it('keeps the exact "By N poets · linejam.com" metadata copy', async () => {

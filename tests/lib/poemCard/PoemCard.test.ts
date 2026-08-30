@@ -6,6 +6,8 @@ import {
   poemFullCardElement,
   type AttributedLine,
 } from '@/lib/poemCard/PoemCard';
+import { resolveCardColors } from '@/lib/poemCard/colors';
+import { getCardFontPairing } from '@/lib/poemCard/fonts';
 
 describe('formatAttribution', () => {
   it('names every unique author, in order of first appearance', () => {
@@ -47,18 +49,8 @@ describe('poemFullCardElement', () => {
     const element = poemFullCardElement({
       lines: [],
       poemNumber: 1,
-      colors: {
-        background: '#fff',
-        foreground: '#000',
-        primary: '#f00',
-        textMuted: '#666',
-      },
-      fonts: {
-        displayFamily: 'Georgia',
-        sansFamily: 'Arial',
-        displayUrl: 'https://example.com/display.woff',
-        sansUrl: 'https://example.com/sans.woff',
-      },
+      colors: resolveCardColors('light'),
+      fonts: getCardFontPairing(),
     });
 
     const serialized = JSON.stringify(element);

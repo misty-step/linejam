@@ -12,6 +12,7 @@ import { usePathname } from 'next/navigation';
 import { Show, UserButton } from '@clerk/nextjs';
 import { Palette, Archive, LogIn, MoreHorizontal } from 'lucide-react';
 import { HelpModal } from './HelpModal';
+import { ColorModeControl } from './ColorModeControl';
 import { isFocusedPlayRoute } from '@/lib/routes';
 
 interface HeaderAuthBoundaryProps {
@@ -76,24 +77,34 @@ export function Header({
   const isAuthPage = /^\/(sign-in|sign-up|callback)(?:\/|$)/.test(pathname);
   const [showHelp, setShowHelp] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [showAppearance, setShowAppearance] = useState(false);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const appearanceTriggerRef = useRef<HTMLButtonElement>(null);
+  const appearanceReturnFocusRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    if (!showMenu) return;
+    if (!showMenu && !showAppearance) return;
 
+    const closeAll = () => {
+      setShowMenu(false);
+      setShowAppearance(false);
+    };
     const handlePointer = (event: MouseEvent) => {
       if (
         event.target instanceof Node &&
-        !menuRef.current?.contains(event.target)
+        !controlsRef.current?.contains(event.target)
       ) {
-        setShowMenu(false);
+        closeAll();
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setShowMenu(false);
-        menuTriggerRef.current?.focus();
+        const returnFocus = showAppearance
+          ? appearanceReturnFocusRef.current
+          : menuTriggerRef.current;
+        closeAll();
+        returnFocus?.focus();
       }
     };
 
@@ -103,7 +114,7 @@ export function Header({
       document.removeEventListener('mousedown', handlePointer);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [showMenu]);
+  }, [showAppearance, showMenu]);
 
   // Gameplay and account entry own their focused chrome.
   if (isFocusedPlay || isAuthPage) {
@@ -126,8 +137,11 @@ export function Header({
           </Link>
         )}
 
-        {/* Right: Auth + Theme */}
-        <div className="flex shrink-0 items-center gap-1 min-[360px]:gap-2 sm:gap-4 ml-auto">
+        {/* Right: Auth + utilities */}
+        <div
+          ref={controlsRef}
+          className="relative ml-auto flex shrink-0 items-center gap-1 min-[360px]:gap-2 sm:gap-4"
+        >
           <SignedOut>
             <Link
               href="/sign-in"
@@ -161,22 +175,32 @@ export function Header({
             <span className="text-lg font-medium">?</span>
           </button>
 
-          {/* Theme collection page */}
-          <Link
-            href="/themes"
-            prefetch={false}
+          {/* Appearance */}
+          <button
+            ref={appearanceTriggerRef}
+            type="button"
+            onClick={() => {
+              appearanceReturnFocusRef.current = appearanceTriggerRef.current;
+              setShowAppearance((current) => !current);
+              setShowMenu(false);
+            }}
             className={`${headerIconClasses} hidden sm:flex`}
-            aria-label="Choose theme"
-            aria-current={pathname === '/themes' ? 'page' : undefined}
+            aria-label="Appearance"
+            aria-haspopup="dialog"
+            aria-expanded={showAppearance}
+            aria-controls="header-appearance"
           >
-            <Palette className="w-5 h-5" />
-          </Link>
+            <Palette className="h-5 w-5" />
+          </button>
 
-          <div ref={menuRef} className="relative sm:hidden">
+          <div className="relative sm:hidden">
             <button
               ref={menuTriggerRef}
               type="button"
-              onClick={() => setShowMenu((current) => !current)}
+              onClick={() => {
+                setShowAppearance(false);
+                setShowMenu((current) => !current);
+              }}
               className={`${headerIconClasses} flex`}
               aria-label="More options"
               aria-haspopup="true"
@@ -212,19 +236,33 @@ export function Header({
                   </span>
                   How to play
                 </button>
-                <Link
-                  href="/themes"
-                  prefetch={false}
+                <button
+                  type="button"
                   className={mobileMenuItemClasses}
-                  onClick={() => setShowMenu(false)}
-                  aria-current={pathname === '/themes' ? 'page' : undefined}
+                  onClick={() => {
+                    appearanceReturnFocusRef.current = menuTriggerRef.current;
+                    setShowAppearance(true);
+                    setShowMenu(false);
+                  }}
+                  aria-haspopup="dialog"
+                  aria-controls="header-appearance"
                 >
                   <Palette className="h-4 w-4 text-[var(--color-text-muted)]" />
-                  Choose theme
-                </Link>
+                  Appearance
+                </button>
               </div>
             )}
           </div>
+          {showAppearance && (
+            <div
+              id="header-appearance"
+              role="dialog"
+              aria-label="Appearance"
+              className="lj-room-popover absolute right-0 top-full z-50 mt-3 w-80 max-w-[calc(100vw-1.5rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]"
+            >
+              <ColorModeControl />
+            </div>
+          )}
         </div>
       </header>
     </>

@@ -546,12 +546,20 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     });
     await expectInitiallyInsideVisualViewport(session.hostPage, menuPopover);
     await expectNoHorizontalOverflow(menuPopover);
-    await session.hostPage.getByRole('button', { name: 'Theme' }).click();
-    const themePopover = session.hostPage.locator('.lj-room-popover').filter({
-      visible: true,
-    });
-    await expectInitiallyInsideVisualViewport(session.hostPage, themePopover);
-    await expectNoHorizontalOverflow(themePopover);
+    await session.hostPage.getByRole('button', { name: 'Appearance' }).click();
+    const appearancePopover = session.hostPage
+      .locator('.lj-room-popover')
+      .filter({
+        visible: true,
+      });
+    await expectInitiallyInsideVisualViewport(
+      session.hostPage,
+      appearancePopover
+    );
+    await expectNoHorizontalOverflow(appearancePopover);
+    await expect(
+      appearancePopover.getByRole('group', { name: 'Color mode' })
+    ).toBeVisible();
     await session.hostPage.keyboard.press('Escape');
 
     await session.hostPage

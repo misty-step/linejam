@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Static theme evidence server.
+ * Static UI evidence server.
  *
- * `pnpm start:next` serves the production build for host/theme screenshots
+ * `pnpm start:next` serves the production build for appearance screenshots
  * that do not exercise the guest/game flow. The shared-development Convex
  * guest throttle can differ from local state and fail static rendering.
  * `LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE` is the existing, tested escape hatch
@@ -36,7 +36,7 @@ function pnpmCommand() {
 function main() {
   const env = buildStaticEvidenceEnv(process.env);
   console.log(
-    `[static-server] starting on port ${env.PORT} with Convex throttle bypass (static theme evidence mode)`
+    `[static-server] starting on port ${env.PORT} with Convex throttle bypass (static UI evidence mode)`
   );
   const child = spawn(pnpmCommand(), ['start:next'], {
     env,

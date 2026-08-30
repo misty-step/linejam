@@ -21,7 +21,7 @@ export function HostBadge({ className }: HostBadgeProps) {
         // Layout
         'inline-flex items-center gap-2 px-2 py-1',
 
-        // Background & Border - use theme utilities
+        // Background & border use semantic identity utilities.
         'bg-primary/5 border border-primary/20',
         'dark:bg-primary/10 dark:border-primary/30',
 

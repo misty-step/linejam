@@ -25,7 +25,7 @@ Linejam's aesthetic draws from Japanese editorial design traditions—the restra
    - Material metaphor extends to shadows (ink bleed) and borders (paper edges)
 
 3. **Persimmon Stamp — One Strong Accent**
-   - Single vermillion accent (#e85d2b) like a hanko seal
+   - A single vermillion accent supports the action and focus roles
    - Confident restraint: color signals action, not decoration
    - Reserved for primary interactions and host identity
 
@@ -45,6 +45,12 @@ Linejam's aesthetic draws from Japanese editorial design traditions—the restra
 
 Most collaborative writing tools feel like Google Docs clones or Notion derivatives—sterile productivity interfaces. Linejam is a _ceremonial space_ for creative collaboration. The design should feel like opening a leather-bound journal, not launching a CRUD app.
 
+### Identity and appearance modes
+
+**Ink & Anticipation** is Linejam's single fixed visual identity. It is not a collection of interchangeable skins: only the color mode changes. The supported preferences are **Light**, **Dark**, and **System**.
+
+`lib/design/tokens.ts` is the source of truth for the complete Light and Dark token sets. `lib/colorMode/` owns the mode-only API (`ColorModeProvider`, `useColorMode`, `setModePreference`, `applyColorMode`, and `getAppliedColorMode`) and persists the preference under `linejam-theme-mode`. `ColorModeControl` is the sole appearance control; System follows `prefers-color-scheme`.
+
 ---
 
 ## 2. Color System
@@ -55,32 +61,49 @@ Traditional Japanese ink painting (sumi-e) uses minimal color: black ink on whit
 
 ### Palette Structure
 
-#### Primary — Persimmon Stamp (Japanese Hanko Seal)
+#### Action and focus — Persimmon Stamp
+
+The action token (`--color-primary`) and focus token (`--color-focus-ring`) are intentionally distinct. Action color identifies a primary operation; focus color makes keyboard focus and active states visible.
 
 ```css
---color-primary: #e85d2b; /* Base: vermillion/persimmon */
---color-primary-hover: #c44521; /* Darker on interaction */
---color-primary-active: #a8391a; /* Darkest on press */
+/* Light */
+--color-primary: #b43a12; /* Action */
+--color-primary-hover: #c44521;
+--color-primary-active: #a8391a;
+--color-focus-ring: #e85d2b; /* Focus */
+
+/* Dark */
+--color-primary: #f06b3b; /* Action */
+--color-primary-hover: #f06b3b;
+--color-primary-active: #e86b3b;
+--color-focus-ring: #e85d2b; /* Focus */
 ```
 
 **Usage:**
 
-- Primary action buttons (host game, submit line)
-- Host marker stamp in lobby
-- Focus rings and active states
+- `--color-primary`: primary action buttons (host game, submit line) and the host marker stamp in the lobby
+- `--color-focus-ring`: focus rings (keyboard focus and focus-within states)
 
-**Never use for:**
+**Never use action color for:**
 
 - Body text (readability failure)
-- Multiple elements simultaneously (loses hierarchy)
-- Decorative accents (dilutes impact)
+- Focus indication (use the dedicated focus token)
+- Multiple decorative elements simultaneously (loses hierarchy)
 
 #### Base — Ink on Rice Paper
 
+The core surfaces invert by effective color mode while preserving the ink-and-paper metaphor:
+
 ```css
+/* Light */
 --color-background: #faf9f7; /* Warm off-white (washi paper) */
 --color-foreground: #1c1917; /* Deep warm black (sumi ink) */
 --color-surface: #ffffff; /* True white for cards */
+
+/* Dark */
+--color-background: #1c1917; /* Near-black paper */
+--color-foreground: #faf9f7; /* White ink */
+--color-surface: #292524; /* Warm dark card */
 ```
 
 **Why warm neutrals:**
@@ -93,10 +116,17 @@ Traditional Japanese ink painting (sumi-e) uses minimal color: black ink on whit
 #### Text Colors — Fading Ink
 
 ```css
+/* Light */
 --color-text-primary: #1c1917; /* Main content */
 --color-text-secondary: #57534e; /* Supporting content */
---color-text-muted: #a8a29e; /* Metadata, labels */
+--color-text-muted: #5f5f5f; /* Metadata, labels */
 --color-text-inverse: #faf9f7; /* Text on dark */
+
+/* Dark */
+--color-text-primary: #faf9f7; /* Main content */
+--color-text-secondary: #d6d3d1; /* Supporting content */
+--color-text-muted: #b0b0b0; /* Metadata, labels */
+--color-text-inverse: #1c1917; /* Text on light */
 ```
 
 **Hierarchy:**
@@ -108,8 +138,15 @@ Traditional Japanese ink painting (sumi-e) uses minimal color: black ink on whit
 #### State Colors
 
 ```css
+/* Light */
+--color-success: #18794e; /* Validation success */
+--color-error: #b42318; /* Errors, over-limit */
+--color-warning: #8a5a00; /* Warnings */
+--color-info: #075985; /* Informational */
+
+/* Dark */
 --color-success: #10b981; /* Validation success */
---color-error: #ef4444; /* Errors, over-limit */
+--color-error: #f87171; /* Errors, over-limit */
 --color-warning: #f59e0b; /* Warnings */
 --color-info: #0ea5e9; /* Informational */
 ```
@@ -120,9 +157,11 @@ Traditional Japanese ink painting (sumi-e) uses minimal color: black ink on whit
 - Familiarity: matches user expectations from other interfaces
 - Color-blindness: combined with text ("Add 2 words"), not color-only
 
-### Dark Mode
+### Light, Dark, and System
 
-Dark mode inverts the ink-and-paper metaphor: white ink on black paper.
+Light and Dark each apply a complete token set. System resolves to Light or Dark from `prefers-color-scheme`; it is a preference, not a third token set. `ColorModeControl` calls `useColorMode` from `lib/colorMode/`, and `setModePreference` accepts only `'light'`, `'dark'`, or `'system'`.
+
+The mode owner persists the preference under `COLOR_MODE_STORAGE_KEY` (`linejam-theme-mode`) and applies tokens through `applyColorMode`. There is no identity picker or theme registry.
 
 ---
 
@@ -175,27 +214,27 @@ Poetry deserves editorial typography. Metadata deserves technical precision. Nev
 ### Type Scale — Poster Proportions
 
 ```css
---font-size-xs: 0.75rem; /* 12px - Fine print */
---font-size-sm: 0.875rem; /* 14px - Small labels */
---font-size-base: 1rem; /* 16px - Body text */
---font-size-lg: 1.25rem; /* 20px - Large body */
---font-size-xl: 1.5rem; /* 24px - Subheadings */
---font-size-2xl: 2rem; /* 32px - Section titles */
---font-size-3xl: 3rem; /* 48px - Page titles */
---font-size-4xl: 4rem; /* 64px - Hero text */
---font-size-5xl: 6rem; /* 96px - Home title (desktop) */
---font-size-6xl: 8rem; /* 128px - Reserved */
+--text-xs: 0.75rem; /* 12px - Fine print */
+--text-sm: 0.875rem; /* 14px - Small labels */
+--text-base: 1rem; /* 16px - Body text */
+--text-md: 1.125rem; /* 18px - Large body */
+--text-lg: 1.333rem; /* 21px - Subheadings */
+--text-xl: 1.777rem; /* 28px - Section titles */
+--text-2xl: 2.369rem; /* 38px - Feature titles */
+--text-3xl: 3.157rem; /* 50px - Page titles */
+--text-4xl: 4.209rem; /* 67px - Hero text */
+--text-5xl: 5.61rem; /* 90px - Home title (desktop) */
 ```
 
 **Scale jumps are dramatic:**
 
-- Mobile: 3xl-4xl for titles (48-64px)
-- Desktop: 5xl-6xl for hero text (96-128px)
+- Mobile: `text-3xl`–`text-4xl` for titles (about 50–67px)
+- Desktop: `text-5xl` for hero text (about 90px)
 - Creates **poster-like** impact, not timid web typography
 
 **Why not use Tailwind's default scale:**
 
-- Default scale (text-xl = 20px, text-6xl = 60px) is too conservative
+- The runtime scale in `lib/design/tokens.ts` is intentionally editorial rather than conservative
 - We want **editorial drama**, not SaaS blandness
 
 ---
@@ -211,11 +250,15 @@ Traditional Japanese woodblock prints use flat colors with hard edges—no gradi
 ```css
 --shadow-color: 232 93 43; /* Persimmon RGB */
 
---shadow-sm: 2px 2px 0px rgba(var(--shadow-color) / 0.15);
---shadow-md: 4px 4px 0px rgba(var(--shadow-color) / 0.1);
---shadow-lg: 8px 8px 0px rgba(var(--shadow-color) / 0.12);
+/* Light */
+--shadow-sm: 2px 2px 0px rgba(232, 93, 43, 0.15);
+--shadow-md: 4px 4px 0px rgba(232, 93, 43, 0.1);
+--shadow-lg: 8px 8px 0px rgba(232, 93, 43, 0.12);
 
---shadow-active: 0px 0px 0px var(--color-border);
+/* Dark */
+--shadow-sm: 2px 2px 0px rgba(232, 93, 43, 0.2);
+--shadow-md: 4px 4px 0px rgba(232, 93, 43, 0.15);
+--shadow-lg: 8px 8px 0px rgba(232, 93, 43, 0.18);
 ```
 
 **Characteristics:**
@@ -241,7 +284,7 @@ Traditional Japanese woodblock prints use flat colors with hard edges—no gradi
 
 **Hover/Active Pattern:**
 
-Buttons transition from base shadow → `--shadow-md` on hover → `--shadow-active` (none) on press.
+Buttons transition from base shadow → `--shadow-md` on hover → no shadow on press. The active state has no separate design token.
 
 **Why not soft shadows:**
 
@@ -253,27 +296,30 @@ Buttons transition from base shadow → `--shadow-md` on hover → `--shadow-act
 
 ## 5. Spacing
 
-### Rationale: 8/12/16/24 Rhythm
+### Rationale: 4/8/16/24 Rhythm with Editorial Jumps
 
-Tailwind's default spacing scale (4px base) works for dense UIs. Editorial design needs more breathing room.
+Tailwind's default spacing scale (4px base) works for dense UIs. Editorial design needs more breathing room, so the runtime tokens retain a compact start and large page-level jumps.
 
 ### Rhythm System
 
-**Base unit: 8px** (Tailwind space-2)
+The runtime spacing tokens in `lib/design/tokens.ts` are:
 
-Common multipliers:
+- `space-1`: 4px
+- `space-2`: 8px (base unit)
+- `space-3`: 16px
+- `space-4`: 24px
+- `space-5`: 40px
+- `space-6`: 64px
+- `space-7`: 96px
+- `space-8`: 144px
 
-- 12px (space-3): Tight grouping
-- 16px (space-4): Related elements
-- 24px (space-6): Section breaks
-- 48px (space-12): Major breaks
-- 96px (space-24): Chapter-level separation
+Choose the larger values for page-level breaks; the key is choosing generous gaps rather than redefining the scale.
 
 **Why not custom scale:**
 
 - Tailwind's scale is flexible enough
 - Key is _choosing large values_, not redefining the system
-- `space-12` (48px) is minimum for page-level breaks
+- The runtime values are centralized in `lib/design/tokens.ts`
 
 ### Vertical Rhythm
 
@@ -318,6 +364,7 @@ Animation should feel **mechanical**, not organic. We're not simulating physics�
 --duration-instant: 75ms; /* Immediate feedback */
 --duration-fast: 150ms; /* Quick transitions */
 --duration-normal: 250ms; /* Standard */
+--duration-slow: 400ms; /* Deliberate transitions */
 ```
 
 **Usage:**
@@ -336,7 +383,9 @@ Animation should feel **mechanical**, not organic. We're not simulating physics�
 ### Easing
 
 ```css
---ease-mechanical: cubic-bezier(0.25, 1, 0.5, 1);
+--ease-standard: cubic-bezier(0.25, 1, 0.5, 1);
+--ease-in: cubic-bezier(0.25, 0.1, 0.25, 1);
+--ease-out: cubic-bezier(0.25, 1, 0.5, 1);
 ```
 
 **Why mechanical:**
@@ -413,7 +462,7 @@ Good design systems have **intentional violations**—moments where the rules br
 **Usage pattern:**
 
 ```tsx
-import { Crown, Sun, Moon } from 'lucide-react';
+import { Crown, Monitor, Moon, Sun } from 'lucide-react';
 
 <Crown className="w-4 h-4 text-[var(--color-primary)]" />;
 ```
@@ -421,7 +470,7 @@ import { Crown, Sun, Moon } from 'lucide-react';
 **Components using lucide-react:**
 
 - `HostBadge` (Crown icon)
-- `ThemeModeControl` (Sun/Moon/Monitor icons)
+- `ColorModeControl` (Sun/Moon/Monitor icons)
 
 **Do not:**
 
@@ -477,35 +526,32 @@ import { Crown, Sun, Moon } from 'lucide-react';
 
 ### Font Loading
 
-Fonts are loaded via next/font in `app/layout.tsx`:
+Fonts are loaded through `@fontsource` imports in `app/globals.css`; `lib/design/tokens.ts` maps the semantic font tokens to those families:
 
-```tsx
-import {
-  Libre_Baskerville,
-  IBM_Plex_Sans,
-  JetBrains_Mono,
-} from 'next/font/google';
+```css
+@import '@fontsource/libre-baskerville/latin-400.css';
+@import '@fontsource/libre-baskerville/latin-700.css';
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
 ```
 
-**Why Google Fonts:**
+**Why local font imports:**
 
-- Reliable CDN, good caching
-- Self-hosting adds ~500KB to bundle
-- Performance: subsetting via next/font optimizes
+- The app loads the exact Libre Baskerville, IBM Plex Sans, and JetBrains Mono families it uses
+- CSS loading keeps typography available without a runtime font API
+- The semantic `font-display`, `font-sans`, and `font-mono` tokens keep usage consistent
 
-### Dark Mode Toggle
+### Color Mode API
 
-Dark mode uses `.dark` class (not system preference only):
+`ColorModeProvider` applies the effective token set, while `ColorModeControl` exposes the only appearance preference:
 
 ```tsx
-<html className={darkMode ? 'dark' : ''}>
+const { modePreference, mode, setModePreference } = useColorMode();
+setModePreference('light'); // 'light' | 'dark' | 'system'
 ```
 
-**Why explicit class:**
-
-- Allows user control (toggle in UI)
-- Fallback to system preference via CSS media query
-- More predictable than `prefers-color-scheme` alone
+`mode` is always the effective `light` or `dark` set. `system` follows `prefers-color-scheme`, and `applyColorMode(mode)` updates the root CSS variables and effective mode class. The preference is persisted under `COLOR_MODE_STORAGE_KEY` (`linejam-theme-mode`).
 
 ---
 
@@ -513,10 +559,10 @@ Dark mode uses `.dark` class (not system preference only):
 
 ### What NOT to Add
 
-❌ **Color variants** (primary-light, primary-dark, etc.)
+❌ **Additional visual identities or skin registries**
 
-- Current system uses hover/active variants, sufficient
-- More variants dilute brand hierarchy
+- Ink & Anticipation is the only identity
+- Light, Dark, and System are the only appearance preferences; mode-specific tokens are sufficient
 
 ❌ **Animation library** (Framer Motion, etc.)
 
@@ -525,8 +571,8 @@ Dark mode uses `.dark` class (not system preference only):
 
 ❌ **Design token JSON export**
 
-- Tokens live in CSS where they're used
-- JSON export creates sync burden
+- Tokens live in TypeScript at `lib/design/tokens.ts`; CSS variables are the runtime bridge
+- A second JSON representation creates sync burden
 
 ### What MIGHT Be Needed
 
@@ -551,16 +597,17 @@ Dark mode uses `.dark` class (not system preference only):
 
 ### When Updating Design Tokens
 
-1. **Update `app/globals.css` first** (source of truth)
-2. **Update this document** (rationale for changes)
-3. **Search for hardcoded values** (grep for hex codes)
-4. **Test dark mode** (tokens must work in both modes)
+1. **Update `lib/design/tokens.ts` first** (source of truth)
+2. **Keep `app/globals.css` as the CSS variable bridge**
+3. **Update this document** (rationale for changes)
+4. **Search for hardcoded values** (grep for hex codes)
+5. **Verify Light, Dark, and System** (both effective token sets and system resolution)
 
 ### When Adding Components
 
 1. **Check existing patterns** before creating new variants
 2. **Document intentional breaks** if violating system
-3. **Use semantic tokens** (`--color-primary`, not `#e85d2b`)
+3. **Use semantic tokens** (`--color-primary` for actions, `--color-focus-ring` for focus)
 4. **Follow font hierarchy** (display vs sans vs mono)
 
 ### When Reviewing PRs
@@ -580,9 +627,11 @@ Linejam's design system is a **strategic constraint**—not a collection of comp
 
 **Remember:**
 
-- **Ma:** Emptiness is presence
+- **Identity:** Ink & Anticipation, one fixed visual language
+- **Modes:** Light, Dark, and System only
+- **Action vs focus:** `--color-primary` drives actions; `--color-focus-ring` marks focus
 - **Ink & Paper:** Warm, organic, editorial
-- **One Accent:** Persimmon stamp, used sparingly
+- **Persimmon stamp:** One accent, used sparingly
 - **Hard Shadows:** Graphic, intentional, brutalist
 - **Mechanical Motion:** Timing serves metaphor, not physics
 

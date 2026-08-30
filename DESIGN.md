@@ -2,8 +2,8 @@
 
 The repo-owned visual contract. Agents doing visual work read this first.
 Provenance: design lab-001 (`explorations/lab-001/`, three operator verdict
-rounds, 2026-07) and its `SYNTHESIS.md`. Tokens live in `lib/themes/`;
-this file owns the spine — the layout system every theme wears.
+rounds, 2026-07) and its `SYNTHESIS.md`. Identity tokens live in
+`lib/design/tokens.ts`; this file owns the shared layout spine.
 
 ## Product truth
 
@@ -23,10 +23,11 @@ finale is a reading circle where each player reads one whole poem aloud.
    sits near the button, never inside it.
 5. The read view shows the WHOLE poem at once. There is no line-by-line
    reveal and no phone handoff.
-6. Every visual value comes from theme tokens (`var(--color-*)`, fonts,
-   radius, shadow, durations). Structure is theme-agnostic; ten themes wear
-   one spine. No hardcoded colors or font families in screen components.
-7. WCAG AA floor (enforced by tests/lib/themeContrast.test.ts); honor
+6. Every visual value comes from fixed identity tokens (`var(--color-*)`,
+   fonts, radius, shadow, durations). Light and Dark are the only effective
+   token sets; System resolves to one of them. No hardcoded colors or font
+   families in screen components.
+7. WCAG AA floor (enforced by `tests/lib/design/contrast.test.ts`); honor
    prefers-reduced-motion; motion only on game moments, never ambient.
 8. `lib/e2eTestIds.ts` is a load-bearing contract: every existing testid and
    aria pattern survives any reshape (hosted E2E depends on them).

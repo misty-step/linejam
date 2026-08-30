@@ -31,24 +31,37 @@ what came before, and read the chaos aloud together.`
 
 ## Palette Hooks
 
-The scaffold pins `data-ae-theme="ember"` as the closest built-in match to
-Linejam's real in-app palette, then overrides the accent to the exact hex
-Linejam already ships (Kenya theme, the app's default): warm white
-background, near-black ink, and a persimmon/vermillion accent — distinct from
-Powder's blue and Landmark's palette.
+The static site uses one Ink & Anticipation identity in every color mode.
+`aesthetic.css` is the single owner of the shared `--ae-*` tokens; the
+`ae-mode` control changes only the light/dark presentation while System
+continues to follow the operating system.
+
+Keep action/link and keyboard-focus colors distinct:
 
 ```css
 :root {
-  --ae-accent: #e85d2b;
+  --ae-surface: #faf9f7;
+  --ae-wash: #ffffff;
+  --ae-ink: #1c1917;
+  --ae-accent: #b43a12;
+  --ae-focus: #e85d2b;
+  --ae-surface-dark: #1c1917;
+  --ae-wash-dark: #292524;
+  --ae-ink-dark: #faf9f7;
   --ae-accent-dark: #f06b3b;
+  --ae-focus-dark: #e85d2b;
 }
 ```
 
-Source: `lib/themes/presets/kenya.ts` (`color-primary: #e85d2b` light /
-`#e85d2b` dark-accent-hover `#f06b3b`), the default theme the live app boots
-with. Linejam ships 3 additional in-app themes (`hyper`, `mono`,
-`vintage-paper`) but the marketing site pins one register rather than
-exposing a theme switcher.
+Do not add a second identity, selector, or token override to a static page.
+
+## Typography
+
+- Display and poem text: Libre Baskerville, weights 400 and 700.
+- Interface and body text: IBM Plex Sans, weights 400, 500, and 700.
+- Code and compact labels: JetBrains Mono, weight 400.
+- `aesthetic.css` loads pinned Fontsource assets and owns the three font tokens.
+  Do not add page-local font stacks.
 
 ## Screenshot Inventory
 

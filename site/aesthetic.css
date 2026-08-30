@@ -5,10 +5,10 @@
    The law:
    · One size. Exactly one font size on every surface; the headline is
      heavier and blacker, never larger.
-   · Three inks by three weights (400 / 550 / 800): nine registers.
-   · The accent is yours. Define your scheme and use it with judgment;
-     identity comes from ink, hairlines, type, and motion — never from
-     a color-counting rule. Color earns its place; it is not ambient.
+   · Three inks by three weights (400 / 500 / 700): nine registers.
+   · The accent is one persimmon action ink; identity comes from ink,
+     hairlines, type, and motion — never from a color-counting rule.
+     Color earns its place; it is not ambient.
    · Status rides the glyph: danger, success, and warning color the
      Lucide icon, never the sentence, never a filled pill.
    · Every view fits the viewport. 100dvh screens, no page scrolling;
@@ -21,68 +21,127 @@
      buttons act.
    · Light and dark, defaulting to the system, with a user toggle.
 
-   Steering: every token is a CSS custom property; downstream projects
-   pin a named theme or steer the scheme — --ae-accent /
-   --ae-accent-dark, and the status triplet when their domain needs
-   different hues. Everything else is the shared identity.
+   Steering: every token is a CSS custom property. Ink & Anticipation owns
+   this palette: --ae-accent carries action and link color, while --ae-focus
+   carries keyboard focus. Mode blocks swap light values with dark
+   counterparts; everything else is the shared identity.
    ═══════════════════════════════════════════════════════════════════ */
+
+/* Static pages cannot use Next's bundled Fontsource modules. Pin the same
+   Latin assets so the public site keeps Linejam's fixed type system. */
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/libre-baskerville@5.3.0/files/libre-baskerville-latin-400-normal.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/libre-baskerville@5.3.0/files/libre-baskerville-latin-700-normal.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0/files/ibm-plex-sans-latin-400-normal.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0/files/ibm-plex-sans-latin-500-normal.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0/files/ibm-plex-sans-latin-700-normal.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.3.0/files/jetbrains-mono-latin-400-normal.woff2')
+    format('woff2');
+}
 
 /* ── tokens ───────────────────────────────────────────────────────── */
 
 :root {
-  --ae-surface: #fcfcfc;
-  --ae-wash: #f3f3f3;
-  --ae-ink: #151515;
-  --ae-ink-muted: #737373;
-  --ae-ink-faint: #a3a3a3;
-  --ae-line: #e9e9e9;
-  --ae-accent: #2643d0;
+  --ae-surface: #faf9f7;
+  --ae-wash: #ffffff;
+  --ae-ink: #1c1917;
+  --ae-ink-muted: #57534e;
+  --ae-ink-faint: #5f5f5f;
+  --ae-line: #e7e5e4;
+  --ae-accent: #b43a12;
+  --ae-focus: #e85d2b;
 
   /* status inks: hue rides the glyph, words stay ink */
-  --ae-ok: #15714b;
-  --ae-warn: #8a5f32;
-  --ae-err: #a84138;
+  --ae-ok: #18794e;
+  --ae-warn: #8a5a00;
+  --ae-err: #b42318;
 
   /* categorical inks: identity, not judgment — N agents, N series, N
      actors need N distinguishable hues with no severity meaning. Ride
      the word on .ae-chip (see below); this is the one place a hue is
      allowed to color text, because there is no glyph to carry it and
      nothing is being judged. */
-  --ae-cat-0: #8c2f1f;
-  --ae-cat-1: #2c6e62;
-  --ae-cat-2: #a67c1e;
-  --ae-cat-3: #6b4c86;
-  --ae-cat-4: #46586b;
+  --ae-cat-0: #9b2f1f;
+  --ae-cat-1: #6b5a2f;
+  --ae-cat-2: #8a5f32;
+  --ae-cat-3: #6d4c86;
+  --ae-cat-4: #5a6172;
   --ae-cat-5: #5b7444;
   --ae-cat-6: #3d5a80;
   --ae-cat-7: #a1452e;
 
   /* dark counterparts, resolved by the mode blocks below */
-  --ae-surface-dark: #121212;
-  --ae-wash-dark: #1b1b1b;
-  --ae-ink-dark: #ededed;
-  --ae-ink-muted-dark: #8f8f8f;
-  --ae-ink-faint-dark: #5c5c5c;
-  --ae-line-dark: #262626;
-  --ae-accent-dark: #8c9eff;
-  --ae-ok-dark: #6fd2a8;
-  --ae-warn-dark: #c49d72;
-  --ae-err-dark: #e58379;
-  --ae-cat-0-dark: #d06a4f;
-  --ae-cat-1-dark: #54bba4;
-  --ae-cat-2-dark: #d8b25a;
+  --ae-surface-dark: #1c1917;
+  --ae-wash-dark: #292524;
+  --ae-ink-dark: #faf9f7;
+  --ae-ink-muted-dark: #d6d3d1;
+  --ae-ink-faint-dark: #b0b0b0;
+  --ae-line-dark: #44403c;
+  --ae-accent-dark: #f06b3b;
+  --ae-focus-dark: #e85d2b;
+  --ae-ok-dark: #10b981;
+  --ae-warn-dark: #f59e0b;
+  --ae-err-dark: #f87171;
+  --ae-cat-0-dark: #f08a70;
+  --ae-cat-1-dark: #c49d72;
+  --ae-cat-2-dark: #ffb45c;
   --ae-cat-3-dark: #b98fe0;
   --ae-cat-4-dark: #93a8c2;
   --ae-cat-5-dark: #9bc47a;
   --ae-cat-6-dark: #7ea1d1;
-  --ae-cat-7-dark: #e08a6a;
+  --ae-cat-7-dark: #ff8a5c;
 
-  --ae-font: 'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --ae-font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ae-font: 'IBM Plex Sans', Arial, sans-serif;
+  --ae-font-display: 'Libre Baskerville', Georgia, serif;
+  --ae-font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --ae-w-regular: 400;
-  --ae-w-medium: 550;
-  --ae-w-black: 800;
+  --ae-w-medium: 500;
+  --ae-w-black: 700;
 
   --ae-measure: 38rem; /* rem: bars in the 13px chrome register must not shrink the measure */
   --ae-measure-wide: 68rem;
@@ -106,7 +165,7 @@
 
   /* z-index scale: named layers so consumers don't guess at magic numbers */
   --ae-z-backdrop: 40; /* modal backdrop below its decision panel */
-  --ae-z-dialog: 41; /* modal decision panel */
+  --ae-z-dialog: 41; /* dialog decision panel */
   --ae-z-pop: 50; /* portaled menus and popovers above modal decisions */
   --ae-z-tip: 60; /* portaled tooltips above popovers and dialogs */
   --ae-z-toast: 100; /* toasts, persistent notifications */
@@ -119,96 +178,6 @@
 
   color-scheme: light dark;
 }
-
-/* named themes: opt-in flavor presets over the same token contract.
-   Projects pin one on <html data-ae-theme="moss">, or include
-   recipes/theme.js to let users switch. Theme presets steer accent and
-   categorical inks; status semantics stay the house triplet unless a
-   project deliberately overrides them. */
-:root[data-ae-theme='ultramarine'] {
-  --ae-accent: #2643d0;
-  --ae-accent-dark: #8c9eff;
-  --ae-cat-0: #8c2f1f;
-  --ae-cat-1: #2c6e62;
-  --ae-cat-2: #a67c1e;
-  --ae-cat-3: #6b4c86;
-  --ae-cat-4: #46586b;
-  --ae-cat-5: #5b7444;
-  --ae-cat-6: #3d5a80;
-  --ae-cat-7: #a1452e;
-  --ae-cat-0-dark: #d06a4f;
-  --ae-cat-1-dark: #54bba4;
-  --ae-cat-2-dark: #d8b25a;
-  --ae-cat-3-dark: #b98fe0;
-  --ae-cat-4-dark: #93a8c2;
-  --ae-cat-5-dark: #9bc47a;
-  --ae-cat-6-dark: #7ea1d1;
-  --ae-cat-7-dark: #e08a6a;
-}
-
-:root[data-ae-theme='moss'] {
-  --ae-accent: #2f6b3f;
-  --ae-accent-dark: #80d98e;
-  --ae-cat-0: #6f3f1f;
-  --ae-cat-1: #2f6b3f;
-  --ae-cat-2: #8a6a1f;
-  --ae-cat-3: #5d5686;
-  --ae-cat-4: #4b6470;
-  --ae-cat-5: #55743d;
-  --ae-cat-6: #3d6472;
-  --ae-cat-7: #934b2f;
-  --ae-cat-0-dark: #d28a5f;
-  --ae-cat-1-dark: #80d98e;
-  --ae-cat-2-dark: #d6b65c;
-  --ae-cat-3-dark: #b8a8e8;
-  --ae-cat-4-dark: #9ab8c4;
-  --ae-cat-5-dark: #a8d68a;
-  --ae-cat-6-dark: #88c4d2;
-  --ae-cat-7-dark: #df8a62;
-}
-
-:root[data-ae-theme='ember'] {
-  --ae-accent: #c2410c;
-  --ae-accent-dark: #ff8a5c;
-  --ae-cat-0: #9b2f1f;
-  --ae-cat-1: #6b5a2f;
-  --ae-cat-2: #8a5f32;
-  --ae-cat-3: #6d4c86;
-  --ae-cat-4: #5a6172;
-  --ae-cat-5: #5b7444;
-  --ae-cat-6: #3d5a80;
-  --ae-cat-7: #a1452e;
-  --ae-cat-0-dark: #f08a70;
-  --ae-cat-1-dark: #c49d72;
-  --ae-cat-2-dark: #ffb45c;
-  --ae-cat-3-dark: #b98fe0;
-  --ae-cat-4-dark: #93a8c2;
-  --ae-cat-5-dark: #9bc47a;
-  --ae-cat-6-dark: #7ea1d1;
-  --ae-cat-7-dark: #ff8a5c;
-}
-
-:root[data-ae-theme='violet'] {
-  --ae-accent: #6d28d9;
-  --ae-accent-dark: #c4a3ff;
-  --ae-cat-0: #8c2f5a;
-  --ae-cat-1: #2c6e62;
-  --ae-cat-2: #8a721e;
-  --ae-cat-3: #6d28d9;
-  --ae-cat-4: #46586b;
-  --ae-cat-5: #5b7444;
-  --ae-cat-6: #3d5a80;
-  --ae-cat-7: #9945a1;
-  --ae-cat-0-dark: #e08ab8;
-  --ae-cat-1-dark: #54bba4;
-  --ae-cat-2-dark: #d8b25a;
-  --ae-cat-3-dark: #c4a3ff;
-  --ae-cat-4-dark: #93a8c2;
-  --ae-cat-5-dark: #9bc47a;
-  --ae-cat-6-dark: #7ea1d1;
-  --ae-cat-7-dark: #df8ae8;
-}
-
 /* auto dark: follows the OS unless the page pins a mode */
 @media (prefers-color-scheme: dark) {
   :root:not(.light):not([data-ae-mode='light']) {
@@ -219,6 +188,7 @@
     --ae-ink-faint: var(--ae-ink-faint-dark);
     --ae-line: var(--ae-line-dark);
     --ae-accent: var(--ae-accent-dark);
+    --ae-focus: var(--ae-focus-dark);
     --ae-ok: var(--ae-ok-dark);
     --ae-warn: var(--ae-warn-dark);
     --ae-err: var(--ae-err-dark);
@@ -251,6 +221,7 @@
   --ae-ink-faint: var(--ae-ink-faint-dark);
   --ae-line: var(--ae-line-dark);
   --ae-accent: var(--ae-accent-dark);
+  --ae-focus: var(--ae-focus-dark);
   --ae-ok: var(--ae-ok-dark);
   --ae-warn: var(--ae-warn-dark);
   --ae-err: var(--ae-err-dark);
@@ -307,6 +278,15 @@ table {
   margin: 0;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--ae-font-display);
+}
+
 code,
 kbd,
 pre,
@@ -316,12 +296,12 @@ samp {
 }
 
 ::selection {
-  background: var(--ae-wash);
-  color: var(--ae-ink);
+  background: var(--ae-accent);
+  color: var(--ae-surface);
 }
 
 :focus-visible {
-  outline: 2px solid var(--ae-ink);
+  outline: 2px solid var(--ae-focus);
   outline-offset: 3px;
 }
 
@@ -763,8 +743,8 @@ button.ae-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.2em;
-  height: 2.2em;
+  width: 2.75em;
+  height: 2.75em;
   background: transparent;
   border: 0;
   padding: 0;
@@ -1404,7 +1384,7 @@ kbd {
 .ae-input:focus-visible {
   outline: none;
   border-bottom-width: 2px;
-  border-bottom-color: var(--ae-ink);
+  border-bottom-color: var(--ae-focus);
 }
 
 textarea.ae-input {
@@ -2599,7 +2579,7 @@ details.ae-fold:last-of-type {
 }
 
 [data-ae-anticipate] .ae-input:focus-visible {
-  border-bottom-color: var(--ae-ink);
+  border-bottom-color: var(--ae-focus);
 }
 
 /* ── the mode change: quick and interruptible ─────────────────────── */

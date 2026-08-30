@@ -72,7 +72,7 @@ describe('GET /poem/[id]/card', () => {
     expect(response.status).toBe(404);
   });
 
-  it('renders a themed PNG for a public poem, defaulting to kenya/light', async () => {
+  it('renders a fixed-identity PNG for a public poem, defaulting to light mode', async () => {
     mockFetchQuery.mockResolvedValue(attributedPoem);
 
     const response = await GET(makeRequest(), {
@@ -87,6 +87,7 @@ describe('GET /poem/[id]/card', () => {
     expect(lastImageResponseCall?.options).toMatchObject({
       width: 1200,
     });
+    expect(JSON.stringify(lastImageResponseCall?.element)).toContain('#b43a12');
   });
 
   it('passes every line with its human author to the renderer', async () => {
@@ -103,28 +104,32 @@ describe('GET /poem/[id]/card', () => {
     expect(serialized).toContain('on rooftops');
   });
 
-  it('falls back to the default theme for an unrecognized ?theme value', async () => {
+  it('renders the fixed dark identity for a mode-only URL', async () => {
     mockFetchQuery.mockResolvedValue(attributedPoem);
 
-    const response = await GET(makeRequest('?theme=not-a-real-theme'), {
+    const response = await GET(makeRequest('?mode=dark'), {
       params: Promise.resolve({ id: 'poem123' }),
     });
 
     expect(response.status).toBe(200);
+    expect(JSON.stringify(lastImageResponseCall?.element)).toContain('#f06b3b');
+    expect(JSON.stringify(lastImageResponseCall?.element)).toContain('#1c1917');
   });
 
-  it('grows the card height for every registered theme and mode', async () => {
+  it('ignores a legacy theme query while preserving the requested mode', async () => {
     mockFetchQuery.mockResolvedValue(attributedPoem);
 
-    for (const theme of ['kenya', 'mono', 'vintage-paper', 'hyper']) {
-      for (const mode of ['light', 'dark']) {
-        const response = await GET(
-          makeRequest(`?theme=${theme}&mode=${mode}`),
-          { params: Promise.resolve({ id: 'poem123' }) }
-        );
-        expect(response.status, `${theme}/${mode}`).toBe(200);
-      }
-    }
+    await GET(makeRequest('?theme=hyper&mode=dark'), {
+      params: Promise.resolve({ id: 'poem123' }),
+    });
+    const withLegacyTheme = JSON.stringify(lastImageResponseCall?.element);
+
+    await GET(makeRequest('?mode=dark'), {
+      params: Promise.resolve({ id: 'poem123' }),
+    });
+    const modeOnly = JSON.stringify(lastImageResponseCall?.element);
+
+    expect(withLegacyTheme).toBe(modeOnly);
   });
 
   it('passes the poem id through to the public query', async () => {
@@ -140,7 +145,7 @@ describe('GET /poem/[id]/card', () => {
   it('renders a private card for a guest participant without publishing it', async () => {
     mockFetchQuery.mockResolvedValue(attributedPoem);
     const request = new NextRequest(
-      'https://linejam.app/poem/poem123/card?theme=hyper&mode=dark',
+      'https://linejam.app/poem/poem123/card?mode=dark',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

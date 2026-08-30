@@ -70,15 +70,6 @@ const PAGES: PageCase[] = [
     },
   },
   {
-    path: '/themes',
-    assertVisible: async (page) => {
-      await expect(page.getByTestId('themes-page')).toBeVisible();
-      await expect(
-        page.getByRole('heading', { name: /pick a look/i })
-      ).toBeVisible();
-    },
-  },
-  {
     path: '/sign-in',
     assertVisible: async (page) => {
       await expect(

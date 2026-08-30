@@ -1,11 +1,15 @@
 import { ImageResponse } from 'next/og';
 import { fetchQuery } from 'convex/nextjs';
 import { api } from '../../../convex/_generated/api';
-import { tokens } from '../../../lib/tokens';
+import { designTokens } from '../../../lib/design';
+import { getCardFontPairing, loadCardFonts } from '../../../lib/poemCard/fonts';
 
 export const runtime = 'edge';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
+
+const identityTokens = designTokens.light;
+const cardFonts = getCardFontPairing();
 
 export default async function Image({
   params,
@@ -16,6 +20,7 @@ export default async function Image({
   const recap = await fetchQuery(api.poems.getPublicSessionRecap, {
     roomCode: code,
   }).catch(() => null);
+  const { fonts: loadedFonts } = await loadCardFonts();
 
   const title = recap ? `Room ${recap.roomCode}` : 'Linejam';
   const subtitle = recap
@@ -46,17 +51,17 @@ export default async function Image({
         flexDirection: 'column',
         width: '100%',
         height: '100%',
-        backgroundColor: tokens.colors.background,
-        color: tokens.colors.foreground,
+        backgroundColor: identityTokens['color-background'],
+        color: identityTokens['color-foreground'],
         padding: '72px 84px',
-        fontFamily: 'serif',
+        fontFamily: cardFonts.displayFamily,
       }}
     >
       <div
         style={{
           fontSize: 30,
-          color: tokens.colors.primary,
-          fontFamily: 'sans-serif',
+          color: identityTokens['color-primary'],
+          fontFamily: cardFonts.sansFamily,
           letterSpacing: 0,
           textTransform: 'uppercase',
         }}
@@ -76,8 +81,8 @@ export default async function Image({
         style={{
           marginTop: 28,
           fontSize: 30,
-          color: tokens.colors.textMuted,
-          fontFamily: 'sans-serif',
+          color: identityTokens['color-text-secondary'],
+          fontFamily: cardFonts.sansFamily,
         }}
       >
         {subtitle}
@@ -117,15 +122,15 @@ export default async function Image({
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  borderLeft: `3px solid ${tokens.colors.primary}`,
+                  borderLeft: `3px solid ${identityTokens['color-primary']}`,
                   paddingLeft: 16,
                 }}
               >
                 <div
                   style={{
                     fontSize: 16,
-                    color: tokens.colors.textMuted,
-                    fontFamily: 'sans-serif',
+                    color: identityTokens['color-text-secondary'],
+                    fontFamily: cardFonts.sansFamily,
                     letterSpacing: 0,
                     textTransform: 'uppercase',
                   }}
@@ -154,12 +159,12 @@ export default async function Image({
           width: 70,
           height: 70,
           borderRadius: 999,
-          backgroundColor: tokens.colors.primary,
+          backgroundColor: identityTokens['color-primary'],
           opacity: 0.9,
           transform: 'rotate(-5deg)',
         }}
       />
     </div>,
-    size
+    { ...size, fonts: loadedFonts }
   );
 }

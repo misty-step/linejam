@@ -37,6 +37,8 @@ import { PoemCard, ArchiveStats, EmptyArchive } from '@/components/archive';
 
 ## Layout
 
-- `Header.tsx` - Nav with theme picker link
-- `Footer.tsx` - Minimal footer
-- `HelpModal.tsx` - Floating help button
+- `Header.tsx` - Navigation with Light/Dark/System appearance access
+- `Footer.tsx` - Minimal marketing footer
+- `ColorModeControl.tsx` - Native radio control for color mode
+- `FocusedEntryAppearance.tsx` - Appearance access without marketing chrome
+- `HelpModal.tsx` - In-game instructions

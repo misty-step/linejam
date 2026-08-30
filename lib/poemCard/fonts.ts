@@ -1,13 +1,9 @@
 /**
- * Theme-aware font loading for edge-rendered poem card images.
+ * Fixed Ink & Anticipation font loading for edge-rendered poem card images.
  *
  * `next/og`'s ImageResponse (Satori) needs actual font binaries, not CSS
- * `var(--font-*)` references — the theme registry's `font-display`/
- * `font-sans` tokens point at CSS custom properties set up for the DOM, not
- * something Satori can resolve. This maps each theme's real display/sans
- * pairing (matching the `next/font` imports in app/layout.tsx) to a
- * fontsource WOFF URL, mirroring the fetch-and-cache pattern the poem/recap
- * opengraph-image routes already used for Libre Baskerville + IBM Plex Sans.
+ * `var(--font-*)` references. The canonical identity uses Libre Baskerville
+ * for display text and IBM Plex Sans for metadata.
  */
 
 export interface CardFontPairing {
@@ -25,94 +21,15 @@ function fontsourceUrl(
   return `https://cdn.jsdelivr.net/npm/@fontsource/${pkg}/files/${pkg}-latin-${weight}-${style}.woff`;
 }
 
-const CARD_FONT_PAIRINGS = {
-  kenya: {
-    displayFamily: 'Libre Baskerville',
-    sansFamily: 'IBM Plex Sans',
-    displayUrl: fontsourceUrl('libre-baskerville', 400, 'normal'),
-    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
-  },
-  mono: {
-    displayFamily: 'Noto Serif',
-    sansFamily: 'Inter',
-    displayUrl: fontsourceUrl('noto-serif', 400, 'normal'),
-    sansUrl: fontsourceUrl('inter', 400, 'normal'),
-  },
-  'vintage-paper': {
-    displayFamily: 'Cormorant Garamond',
-    sansFamily: 'Source Serif 4',
-    displayUrl: fontsourceUrl('cormorant-garamond', 400, 'normal'),
-    sansUrl: fontsourceUrl('source-serif-4', 400, 'normal'),
-  },
-  hyper: {
-    displayFamily: 'Righteous',
-    sansFamily: 'Outfit',
-    displayUrl: fontsourceUrl('righteous', 400, 'normal'),
-    sansUrl: fontsourceUrl('outfit', 400, 'normal'),
-  },
-  // 2026-07 theme collection (mirrors app/layout.tsx next/font assignments)
-  fold: {
-    displayFamily: 'Fraunces',
-    sansFamily: 'Source Serif 4',
-    displayUrl: fontsourceUrl('fraunces', 400, 'normal'),
-    sansUrl: fontsourceUrl('source-serif-4', 400, 'normal'),
-  },
-  overprint: {
-    displayFamily: 'Archivo Black',
-    sansFamily: 'Archivo',
-    displayUrl: fontsourceUrl('archivo-black', 400, 'normal'),
-    sansUrl: fontsourceUrl('archivo', 400, 'normal'),
-  },
-  broadside: {
-    displayFamily: 'Anton',
-    sansFamily: 'IBM Plex Sans',
-    displayUrl: fontsourceUrl('anton', 400, 'normal'),
-    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
-  },
-  catalog: {
-    displayFamily: 'Fraunces',
-    sansFamily: 'Outfit',
-    displayUrl: fontsourceUrl('fraunces', 400, 'normal'),
-    sansUrl: fontsourceUrl('outfit', 400, 'normal'),
-  },
-  aloud: {
-    displayFamily: 'Fraunces',
-    sansFamily: 'IBM Plex Sans',
-    displayUrl: fontsourceUrl('fraunces', 400, 'normal'),
-    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
-  },
-  seats: {
-    displayFamily: 'Cormorant Garamond',
-    sansFamily: 'Outfit',
-    displayUrl: fontsourceUrl('cormorant-garamond', 400, 'normal'),
-    sansUrl: fontsourceUrl('outfit', 400, 'normal'),
-  },
-  console: {
-    displayFamily: 'JetBrains Mono',
-    sansFamily: 'IBM Plex Sans',
-    displayUrl: fontsourceUrl('jetbrains-mono', 400, 'normal'),
-    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
-  },
-  board: {
-    displayFamily: 'Anton',
-    sansFamily: 'IBM Plex Sans',
-    displayUrl: fontsourceUrl('anton', 400, 'normal'),
-    sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
-  },
-} satisfies Record<string, CardFontPairing>;
+const CARD_FONT_PAIRING: CardFontPairing = {
+  displayFamily: 'Libre Baskerville',
+  sansFamily: 'IBM Plex Sans',
+  displayUrl: fontsourceUrl('libre-baskerville', 400, 'normal'),
+  sansUrl: fontsourceUrl('ibm-plex-sans', 400, 'normal'),
+};
 
-export const DEFAULT_CARD_THEME_ID = 'kenya';
-
-function isCardThemeId(
-  themeId: string
-): themeId is keyof typeof CARD_FONT_PAIRINGS {
-  return Object.hasOwn(CARD_FONT_PAIRINGS, themeId);
-}
-
-export function getCardFontPairing(themeId: string): CardFontPairing {
-  return isCardThemeId(themeId)
-    ? CARD_FONT_PAIRINGS[themeId]
-    : CARD_FONT_PAIRINGS[DEFAULT_CARD_THEME_ID];
+export function getCardFontPairing(): CardFontPairing {
+  return CARD_FONT_PAIRING;
 }
 
 export interface LoadedCardFonts {
@@ -120,12 +37,12 @@ export interface LoadedCardFonts {
 }
 
 /**
- * Fetch both font binaries for a theme. Network failures fall back to an
+ * Fetch the fixed identity's font binaries. Network failures fall back to an
  * empty font list — ImageResponse degrades to system fonts rather than
  * throwing, matching the existing opengraph-image routes' behavior.
  */
-export async function loadCardFonts(themeId: string): Promise<LoadedCardFonts> {
-  const pairing = getCardFontPairing(themeId);
+export async function loadCardFonts(): Promise<LoadedCardFonts> {
+  const pairing = CARD_FONT_PAIRING;
 
   const [display, sans] = await Promise.all([
     fetch(pairing.displayUrl).then((res) => res.arrayBuffer()),

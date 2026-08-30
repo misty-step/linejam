@@ -1,9 +1,3 @@
-/* Product brand hooks: edit these from DESIGN.md, then leave the rest alone. */
-:root {
-  --ae-accent: #e85d2b;
-  --ae-accent-dark: #f06b3b;
-}
-
 .msk-bar,
 .msk-footer {
   width: min(var(--ae-measure-wide), 100% - 5rem);
@@ -93,7 +87,7 @@
   margin: 0;
   display: grid;
   gap: var(--ae-space-3);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--ae-font-display);
   font-size: clamp(1.35rem, 2vw, 1.85rem);
   line-height: 1.35;
 }
@@ -136,7 +130,7 @@
 
 .msk-reveal-frame span {
   display: block;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--ae-font-display);
   font-size: clamp(1.05rem, 1.4vw, 1.45rem);
   line-height: 1.3;
   opacity: 0.2;

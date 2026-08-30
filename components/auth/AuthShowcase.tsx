@@ -4,13 +4,8 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
 /**
- * AuthShowcase: Poem Preview for Auth Pages
- *
- * Displays a recent completed poem from the database as visual interest
- * on the auth screens. Falls back to a placeholder if no explicitly shared
- * public poems exist.
- *
- * Theme-aware: Uses CSS variables for all colors and typography.
+ * Poem preview for auth pages. It uses the fixed identity's live color-mode
+ * variables and falls back to sample copy when no public poem is available.
  */
 export function AuthShowcase() {
   // Query only explicitly opted-in public poems for the showcase.
@@ -22,7 +17,7 @@ export function AuthShowcase() {
   return (
     <div className="h-full flex flex-col justify-center p-6 md:p-12 lg:p-16">
       {/* Section Label */}
-      <div className="mb-8 theme-vertical-text md:hidden">
+      <div className="mb-8 vertical-editorial-label md:hidden">
         <span className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] font-[var(--font-sans)]">
           Recent Creation
         </span>

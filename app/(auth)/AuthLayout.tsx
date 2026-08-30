@@ -5,13 +5,8 @@ import { AuthShowcase } from '@/components/auth/AuthShowcase';
 import type { ComponentType, ReactNode } from 'react';
 
 /**
- * Auth Layout: Artistic Split Design
- *
- * Desktop (lg+): 50/50 split - auth form left, poem showcase right
- * Phone/tablet: Focused account task, including landscape phones
- *
- * Uses theme tokens throughout for multi-theme support.
- * Works with all 4 themes: kenya, mono, vintage-paper, hyper.
+ * Split auth layout: form first on phones and a 50/50 form/showcase composition
+ * on large screens. All surfaces consume the fixed identity's mode tokens.
  */
 export interface AuthLayoutDependencies {
   ShowcaseComponent: ComponentType;
