@@ -176,10 +176,36 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
     if (startBox && recapBox) {
       expect(startBox.y).toBeLessThan(recapBox.y);
     }
-
     await hostPage.screenshot({
       path: testInfo.outputPath('post-reveal-next-actions-mobile.png'),
     });
+
+    const scroller = visibleTestId(hostPage, E2E_TEST_IDS.revealPhase);
+    const stickyMirror = hostPage.getByRole('region', {
+      name: 'Continue this session',
+    });
+    await expect(stickyMirror).toHaveCount(0);
+
+    // A three-poem recap fits even a short viewport, so the in-flow pair
+    // never leaves it on its own. Shrink the visual viewport — the
+    // keyboard-open condition this component exists for — to force the
+    // pair out of view and prove the mirror contract: it appears when
+    // the pair is scrolled away and clears when the pair returns.
+    await hostPage.setViewportSize({ width: 390, height: 240 });
+
+    await scroller.evaluate((node) => {
+      node.scrollTo(0, node.scrollHeight);
+    });
+    await expect(stickyMirror).toBeVisible();
+    await hostPage.screenshot({
+      path: testInfo.outputPath('post-reveal-sticky-mirror-mobile.png'),
+    });
+
+    await scroller.evaluate((node) => {
+      node.scrollTo(0, 0);
+    });
+    await expect(stickyMirror).toHaveCount(0);
+    await hostPage.setViewportSize(MOBILE_VIEWPORT);
   } finally {
     await departedContext?.close();
     await Promise.allSettled(contexts.map((context) => context.close()));
