@@ -220,6 +220,7 @@ function ResolvedRoomPage({
           roomCode={code}
           isLobby={panel === 'lobby'}
           action={action}
+          inviteEmphasized={panel !== 'reveal'}
         />
         {panel === 'lobby' ? (
           <LobbyComponent room={room} players={players} isHost={isHost} />

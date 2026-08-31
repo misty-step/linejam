@@ -401,7 +401,7 @@ describe('RevealPhase component', () => {
       })
     ).toHaveAttribute('href', '/poem/poem_456');
     expect(
-      screen.getByRole('button', { name: /Play again/i })
+      screen.getByRole('button', { name: /Start Next Round/i })
     ).toBeInTheDocument();
   });
 
@@ -414,7 +414,7 @@ describe('RevealPhase component', () => {
       screen.getByRole('button', { name: /Back to Lobby/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Play again/i })
+      screen.getByRole('button', { name: /Start Next Round/i })
     ).toBeInTheDocument();
   });
 
@@ -449,7 +449,39 @@ describe('RevealPhase component', () => {
       screen.getByRole('link', { name: /Replay poem 1/i })
     ).toHaveAttribute('href', '/poem/poem_123');
     expect(
-      screen.getByRole('button', { name: /Play again/i })
+      screen.getByRole('button', { name: /Start Next Round/i })
+    ).toBeInTheDocument();
+  });
+
+  it('places next-session actions before the recap when all poems are revealed', () => {
+    mockUseQuery.mockReturnValue(mockStateAllRevealed);
+
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
+
+    const start = screen.getByRole('button', { name: /Start Next Round/i });
+    const recap = screen.getByRole('heading', { name: /Session complete/i });
+
+    expect(
+      start.compareDocumentPosition(recap) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('keeps lifecycle gating for non-members after completion', () => {
+    mockUseQuery.mockReturnValue({
+      ...mockStateAllRevealed,
+      canContinueRoom: false,
+    });
+
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
+
+    expect(
+      screen.queryByRole('button', { name: /Start Next Round/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Back to Lobby/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Start a new room from home to play again./i)
     ).toBeInTheDocument();
   });
 
