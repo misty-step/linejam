@@ -160,6 +160,26 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
         })
       )
     );
+
+    const startNext = hostPage.getByRole('button', {
+      name: 'Start Next Round',
+      exact: true,
+    });
+    const readingCircle = hostPage.getByRole('heading', {
+      name: 'The reading circle',
+    });
+    await expect(startNext).toBeVisible();
+    const startBox = await startNext.boundingBox();
+    const circleBox = await readingCircle.boundingBox();
+    expect(startBox).not.toBeNull();
+    expect(circleBox).not.toBeNull();
+    if (startBox && circleBox) {
+      expect(startBox.y).toBeLessThan(circleBox.y);
+    }
+
+    await hostPage.screenshot({
+      path: testInfo.outputPath('post-reveal-next-actions-mobile.png'),
+    });
   } finally {
     await departedContext?.close();
     await Promise.allSettled(contexts.map((context) => context.close()));
