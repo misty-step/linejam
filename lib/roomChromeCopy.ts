@@ -96,7 +96,7 @@ export function buildRevealChromeCopy({
   return {
     title: allRevealed ? 'All poems revealed' : 'Reveal poems',
     subtitle: allRevealed
-      ? 'Start again, open the archive, or leave the room.'
+      ? 'Start another round, or leave the room.'
       : 'Read one poem at a time.',
   };
 }

@@ -101,7 +101,7 @@ describe('roomChromeCopy', () => {
 
     expect(buildRevealChromeCopy({ allRevealed: true })).toEqual({
       title: 'All poems revealed',
-      subtitle: 'Start again, open the archive, or leave the room.',
+      subtitle: 'Start another round, or leave the room.',
     });
   });
 });

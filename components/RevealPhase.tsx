@@ -12,6 +12,7 @@ import { errorToFeedback } from '../lib/errorFeedback';
 import { toErrorReportable } from '../lib/errorCore';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
+import { StickyActionBar } from './ui/StickyActionBar';
 import { PoemDisplay } from './PoemDisplay';
 import { LoadingState, LoadingMessages } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
@@ -33,6 +34,37 @@ const READING_CIRCLE_STATUS_LABEL = {
   'reading-now': 'Reading now',
   'up-next': 'Up next',
 } as const satisfies Record<Exclude<ReadingCircleStatus, null>, string>;
+
+function PostRevealNextActions({
+  isStartingNextRound,
+  onStartNextRound,
+  onBackToLobby,
+}: {
+  isStartingNextRound: boolean;
+  onStartNextRound: () => void;
+  onBackToLobby: () => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <Button
+        onClick={onStartNextRound}
+        size="lg"
+        className="h-14"
+        disabled={isStartingNextRound}
+      >
+        {isStartingNextRound ? 'Starting...' : 'Start Next Round'}
+      </Button>
+      <Button
+        onClick={onBackToLobby}
+        variant="outline"
+        size="lg"
+        className="h-14"
+      >
+        Back to Lobby
+      </Button>
+    </div>
+  );
+}
 
 type RevealState =
   FunctionReturnType<typeof api.game.getRevealPhaseState> | undefined;
@@ -104,6 +136,8 @@ export function RevealPhase({
   const [isPresenting, setIsPresenting] = useState(false);
   const readingNowRef = useRef<HTMLDivElement>(null);
   const previousReadingNowId = useRef<Id<'poems'> | null>(null);
+  const scrollRootRef = useRef<HTMLDivElement>(null);
+  const nextActionsRef = useRef<HTMLDivElement>(null);
 
   const state = dependencies.useRevealState({
     roomCode,
@@ -236,6 +270,7 @@ export function RevealPhase({
     <RoomChrome
       roomCode={roomCode}
       {...buildRevealChromeCopy({ allRevealed })}
+      inviteEmphasized={!allRevealed}
     />
   ) : null;
 
@@ -289,10 +324,21 @@ export function RevealPhase({
         />
       )}
       <div
+        ref={scrollRootRef}
         data-testid={E2E_TEST_IDS.revealPhase}
         className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-background"
       >
         <main className="lj-safe-inline mx-auto w-full max-w-3xl flex-1 space-y-12 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:[--lj-safe-inline-space:3rem] md:py-12 lg:[--lj-safe-inline-space:6rem] lg:pb-24 lg:pt-16">
+          {allRevealed && (
+            <section ref={nextActionsRef} className="space-y-4">
+              {error && <Alert variant="error">{error}</Alert>}
+              <PostRevealNextActions
+                isStartingNextRound={isStartingNow}
+                onStartNextRound={handleStartNow}
+                onBackToLobby={handleStartNewCycle}
+              />
+            </section>
+          )}
           {/* 2. HERO - Your Assignment (primary action) */}
           {myPoems && myPoems.length > 0 && (
             <section className="space-y-6">
@@ -470,15 +516,23 @@ export function RevealPhase({
               guestToken={guestToken || undefined}
               poems={poems}
               playerCount={state.players.length}
-              error={error}
-              isStartingNextRound={isStartingNow}
-              onStartNextRound={handleStartNow}
-              onBackToLobby={handleStartNewCycle}
               dependencies={dependencies.sessionRecapDependencies}
             />
           )}
         </main>
       </div>
+      {allRevealed && (
+        <StickyActionBar
+          watchRef={nextActionsRef}
+          scrollRootRef={scrollRootRef}
+        >
+          <PostRevealNextActions
+            isStartingNextRound={isStartingNow}
+            onStartNextRound={handleStartNow}
+            onBackToLobby={handleStartNewCycle}
+          />
+        </StickyActionBar>
+      )}
     </div>
   );
 }
