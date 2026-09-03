@@ -1,9 +1,9 @@
 # Linejam Design Contract
 
 The repo-owned visual contract. Agents doing visual work read this first.
-Provenance: design lab-001 (`explorations/lab-001/`, three operator verdict
-rounds, 2026-07) and its `SYNTHESIS.md`. Identity tokens live in
-`lib/design/tokens.ts`; this file owns the shared layout spine.
+Provenance: visual contract established during design lab-001 operator verdict
+rounds (2026-07). Identity tokens live in `lib/design/tokens.ts`; this file
+owns the shared layout spine.
 
 ## Product truth
 

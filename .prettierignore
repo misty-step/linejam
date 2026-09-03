@@ -30,5 +30,3 @@ server/
 .evidence/
 tools/oxlint/anti-slop/
 
-# Design-lab artifacts
-explorations/

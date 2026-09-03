@@ -4,10 +4,10 @@ import { render, screen } from '@testing-library/react';
 import { ArchiveInfoStrip } from '@/components/archive/ArchiveInfoStrip';
 
 /**
- * Winning direction from explorations/guest-archive-identity-lab (Option 3:
- * Hairline Info Strip) — see DECISION.md there. Regression coverage for
- * linejam-942 acceptance: the archive entry point must always explain what
- * signing in adds for a guest, and must never depend on an auth wall.
+ * Chosen Hairline Info Strip / linejam-942 design decision. Regression
+ * coverage for linejam-942 acceptance: the archive entry point must always
+ * explain what signing in adds for a guest, and must never depend on an auth
+ * wall.
  */
 describe('ArchiveInfoStrip', () => {
   it('renders nothing for a signed-in user with no poems yet', () => {
