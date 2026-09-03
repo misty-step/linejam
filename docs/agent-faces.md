@@ -143,9 +143,9 @@ Use the same command shape in JSON-based MCP clients:
 
 ## Registration Proof
 
-`docs/evidence/linejam-920-mcp-registration.md` records the proof run for this
-page: Codex registered the server, the registered command returned a successful
-`tools/list`, and `linejam_mint_guest` returned a guest identity.
+The verified registration flow shows that Codex registered the Linejam MCP
+server, the registered command returned a successful `tools/list`, and
+`linejam_mint_guest` minted a guest identity.
 
 ## Browser QA Face (`play-linejam` Skill)
 

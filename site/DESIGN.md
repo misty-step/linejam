@@ -89,9 +89,7 @@ flow) is saved alongside as `gameplay-mobile-390.png` and
 | CSS reveal loop in `site/index.html#proof`             | Same Room BFIO poem                         | Gives the marketing site reveal-in-motion with no external CDN media dependency. |
 | Public recap link `https://www.linejam.app/recap/BFIO` | Live signed-out recap route                 | Lets a stranger inspect a completed room with two poems by two poets.            |
 
-Design lab: `docs/labs/linejam-921-proof-assets/index.html`. Locked option:
-artifact plus reveal reel, recorded in
-`docs/labs/linejam-921-proof-assets/DECISION.md`.
+The design lab locked the option to an artifact plus reveal reel.
 
 ## Footer Links
 

@@ -4,11 +4,9 @@
  * The archive page's one persistent, low-key info line. Reuses the exact
  * hairline-hint convention the page already used for signed-in users
  * ("Tap any poem to reveal the full verse") and layers in a guest-specific
- * line explaining what signing in adds — chosen over 9 other structural
- * directions in explorations/guest-archive-identity-lab (see DECISION.md
- * there) specifically because it is always visible, never a modal or
- * redirect, and matches an existing pattern instead of inventing new
- * chrome.
+ * the chosen Hairline Info Strip for linejam-942: it is always visible,
+ * never a modal or redirect, and matches an existing pattern instead of
+ * inventing new chrome.
  *
  * linejam-942: the archive entry point must never dead-end on a bare auth
  * wall — a guest sees this even with zero poems.
