@@ -61,14 +61,12 @@ pnpm run doctor
 
 Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.
 
-### Work Ledger
+### Starting work
 
-[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
-work ledger. Before starting an issue, follow the single assignee plus
-`forest/<issue>-*` branch/PR claim contract in
-[CONTRIBUTING.md](CONTRIBUTING.md#claiming-work). Do not create or update a
-duplicate task in Powder. The authority cutover and observability migration are
-tracked by [#393](https://github.com/misty-step/linejam/issues/393).
+Start from a current request and check active branches, PRs, and sessions for
+overlap. Record ownership and verification evidence in the session or PR;
+historical issues do not require a new ticket or assignment ceremony.
+See [CONTRIBUTING.md](CONTRIBUTING.md#starting-work).
 
 ## Agent Faces
 
