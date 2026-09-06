@@ -8,9 +8,9 @@ Compact router for repository agents. Read only the depth your lane needs.
 - Read `VISION.md` and `project.md` before changing product direction.
 - Preserve user work: inspect `git status`, never overwrite unrelated changes,
   and never use destructive Git commands.
-- GitHub Issues is the only work ledger. Before implementation, read the Issue
-  and follow the assignee claim contract in `CONTRIBUTING.md`. Never create or
-  update Linejam work in Powder.
+- Work from the operator's current request. Check current code and overlapping
+  work before implementation; record ownership and verification evidence in
+  the session or PR. Historical issues are context, not a required queue.
 - Base branch: `master`. Commits and PR titles use Conventional Commits.
 
 ## Sources of truth
