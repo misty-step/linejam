@@ -1,17 +1,22 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAccountState } from '@/lib/account';
 import posthog from 'posthog-js';
 import { PostHogProvider as PHProvider } from 'posthog-js/react';
 import { markPostHogReady, resetPostHogReady } from './posthogReady';
 
 export function PostHogProvider({ children }: { children: ReactNode }) {
-  const { isSignedIn, isLoaded, userId } = useAuth();
-  const { user } = useUser();
+  const account = useAccountState();
+  const enabled = account.kind === 'clerk';
+  const user = account.kind === 'clerk' ? account.user : null;
+  const isLoaded = account.kind === 'clerk' && account.isLoaded;
+  const userId = user?.id;
+  const isSignedIn = !!user;
 
   useEffect(() => {
     if (
+      enabled &&
       globalThis.window !== undefined &&
       process.env.NEXT_PUBLIC_POSTHOG_KEY
     ) {
@@ -47,10 +52,10 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
     return () => {
       resetPostHogReady();
     };
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY || !isLoaded) return;
+    if (!enabled || !process.env.NEXT_PUBLIC_POSTHOG_KEY || !isLoaded) return;
 
     try {
       if (isSignedIn && userId) {
@@ -65,7 +70,8 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
         console.error('PostHog identity sync failed', error);
       }
     }
-  }, [isSignedIn, isLoaded, userId, user]);
+  }, [enabled, isSignedIn, isLoaded, userId, user]);
 
+  if (!enabled) return children;
   return <PHProvider client={posthog}>{children}</PHProvider>;
 }

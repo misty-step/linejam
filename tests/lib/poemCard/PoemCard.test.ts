@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  computeFullCardSize,
   formatAttribution,
-  FULL_CARD_WIDTH,
   poemFullCardElement,
   type AttributedLine,
 } from '@/lib/poemCard/PoemCard';
@@ -25,36 +23,23 @@ describe('formatAttribution', () => {
   });
 });
 
-describe('computeFullCardSize', () => {
-  it('never shrinks below the fixed preview card height', () => {
-    expect(computeFullCardSize(0).height).toBeGreaterThanOrEqual(630);
-    expect(computeFullCardSize(1).height).toBeGreaterThanOrEqual(630);
-  });
-
-  it('grows with line count so a nine-line poem stays legible', () => {
-    const short = computeFullCardSize(2);
-    const long = computeFullCardSize(9);
-
-    expect(long.height).toBeGreaterThan(short.height);
-  });
-
-  it('keeps a fixed width across all line counts', () => {
-    expect(computeFullCardSize(1).width).toBe(FULL_CARD_WIDTH);
-    expect(computeFullCardSize(20).width).toBe(FULL_CARD_WIDTH);
-  });
-});
-
 describe('poemFullCardElement', () => {
-  it('renders the Linejam metadata cleanly when attribution is absent', () => {
+  it('keeps every complete line and human author in the download', () => {
+    const lines = [
+      { text: 'moon'.repeat(60), authorName: 'Ada' },
+      { text: 'still listening', authorName: 'Ben' },
+      { text: 'the last line stays', authorName: 'Cy' },
+    ];
     const element = poemFullCardElement({
-      lines: [],
+      lines,
       poemNumber: 1,
       colors: resolveCardColors('light'),
       fonts: getCardFontPairing(),
     });
-
     const serialized = JSON.stringify(element);
-    expect(serialized).toContain('linejam.app');
-    expect(serialized).not.toContain(' · linejam.app');
+    for (const line of lines) {
+      expect(serialized).toContain(line.text);
+      expect(serialized).toContain(line.authorName);
+    }
   });
 });

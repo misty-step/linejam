@@ -3,6 +3,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser, seedLine } from '../helpers/convexSeed';
+import { getDefaultAvatarId } from '../../lib/avatars';
 
 /**
  * poems queries on the real convex-test engine (backlog 018): real
@@ -1178,7 +1179,7 @@ describe('getPublicSessionRecap', () => {
     expect(result).toBeNull();
   });
 
-  it('returns session-level summary with poems sorted by indexInRoom', async () => {
+  it('returns sorted session poems with room avatars but no reader identities', async () => {
     const t = setupConvexTest();
     const aliceId = await seedClerkUser(t, 'alice');
     const bobId = await seedClerkUser(t, 'bob');
@@ -1198,6 +1199,7 @@ describe('getPublicSessionRecap', () => {
         roomId,
         userId: aliceId,
         displayName: 'Alice',
+        avatarId: 'sunny',
         joinedAt: 0,
       });
       await ctx.db.insert('roomPlayers', {
@@ -1260,9 +1262,17 @@ describe('getPublicSessionRecap', () => {
     expect(result?.poems[0]).toMatchObject({
       preview: 'Poem one opening',
       readerName: 'Alice',
+      readerAvatarId: 'sunny',
       starterName: 'Alice Pen',
       poetCount: 1,
     });
+    expect(result?.poems[1].readerAvatarId).toBe(
+      getDefaultAvatarId('clerk_bob')
+    );
+    const publicPayload = JSON.stringify(result);
+    for (const identifier of [aliceId, bobId, 'clerk_alice', 'clerk_bob']) {
+      expect(publicPayload).not.toContain(identifier);
+    }
   });
 
   it('derives starterName from the first-line authorDisplayName not mutable room seats', async () => {

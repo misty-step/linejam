@@ -20,23 +20,19 @@ const TONE_FREQUENCIES = {
 } as const satisfies Record<CeremonyEffect, number>;
 
 function readMutedPreference() {
-  if (globalThis.window === undefined) return false;
+  if (globalThis.window === undefined) return true;
 
   try {
-    return window.localStorage.getItem(CEREMONY_MUTED_KEY) === '1';
+    return window.localStorage.getItem(CEREMONY_MUTED_KEY) !== '0';
   } catch {
-    return false;
+    return true;
   }
 }
 
 function writeMutedPreference(isMuted: boolean) {
   if (globalThis.window === undefined) return;
   try {
-    if (isMuted) {
-      window.localStorage.setItem(CEREMONY_MUTED_KEY, '1');
-    } else {
-      window.localStorage.removeItem(CEREMONY_MUTED_KEY);
-    }
+    window.localStorage.setItem(CEREMONY_MUTED_KEY, isMuted ? '1' : '0');
   } catch {
     // Storage is a convenience; the in-memory toggle still works.
   }

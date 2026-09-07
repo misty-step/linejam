@@ -3,20 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Linejam - pass-the-poem party game</title>
-    <meta
-      name="description"
-      content="Linejam turns a room of friends into accidental poets - pass a line, see only what came before, and read the chaos aloud together."
-    />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <title>Linejam — A little room for words.</title>
+    <meta name="description" content="A poetry game for people who don't have to be poets. Get your friends together, write a line, and pass it on." />
     <script>
       try {
         var stored = localStorage.getItem('linejam-theme-mode');
-        var mode =
-          stored === 'dark' || stored === 'light'
-            ? stored
-            : window.matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark'
-              : 'light';
+        var mode = stored === 'dark' || stored === 'light' ? stored : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.classList.add(mode);
         document.documentElement.style.colorScheme = mode;
       } catch (e) {}
@@ -27,325 +20,69 @@
   </head>
   <body>
     <svg aria-hidden="true" width="0" height="0" style="position: absolute">
-      <symbol id="i-scroll-text" viewBox="0 0 24 24">
-        <path d="M15 12h-5" />
-        <path d="M15 8h-5" />
-        <path
-          d="M19 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0 0 4h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"
-        />
-      </symbol>
-      <symbol id="i-palette" viewBox="0 0 24 24">
-        <path
-          d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
-        />
-        <circle cx="13.5" cy="6.5" r=".5" />
-        <circle cx="17.5" cy="10.5" r=".5" />
-        <circle cx="6.5" cy="12.5" r=".5" />
-        <circle cx="8.5" cy="7.5" r=".5" />
-      </symbol>
-      <symbol id="i-circle-check" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="10" />
-        <path d="m9 12 2 2 4-4" />
-      </symbol>
-      <symbol id="i-x" viewBox="0 0 24 24">
-        <path d="M18 6 6 18" />
-        <path d="m6 6 12 12" />
+      <symbol id="i-mode" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 3v18a9 9 0 0 0 0-18" fill="currentColor" stroke="none" />
       </symbol>
     </svg>
-
     <div class="lj-shell">
       <header class="lj-bar msk-bar">
-        <a class="lj-wordmark" href="./" aria-label="Linejam home">
-          <span class="lj-mark" aria-hidden="true">
-            <svg class="lj-icon" data-lucide="scroll-text">
-              <use href="#i-scroll-text" />
-            </svg>
-          </span>
-          <span class="lj-wordmark-label">Linejam</span>
-        </a>
-        <span class="msk-actions">
+        <a class="lj-wordmark" href="./" aria-label="Linejam home">Linejam</a>
+        <div class="msk-actions">
           <nav class="lj-nav" aria-label="Site">
-            <a href="#features">features</a>
-            <a href="#proof">proof</a>
-            <a href="#screens">screens</a>
-            <a href="changelog.html">release notes</a>
+            <a href="#how-to-play">How to play</a>
+            <a href="changelog.html">Release notes</a>
           </nav>
           <details class="lj-appearance">
             <summary class="lj-icon-button" aria-label="Color mode">
-              <svg class="lj-icon" aria-hidden="true">
-                <use href="#i-palette" />
-              </svg>
+              <svg class="lj-icon" aria-hidden="true"><use href="#i-mode" /></svg>
             </summary>
             <fieldset class="lj-mode">
               <legend>Color mode</legend>
               <div class="lj-mode-options">
-                <label>
-                  <input type="radio" name="color-mode" value="light" />
-                  <span>Light</span>
-                </label>
-                <label>
-                  <input type="radio" name="color-mode" value="dark" />
-                  <span>Dark</span>
-                </label>
-                <label>
-                  <input type="radio" name="color-mode" value="system" />
-                  <span>System</span>
-                </label>
+                <label><input type="radio" name="color-mode" value="light" /><span>Light</span></label>
+                <label><input type="radio" name="color-mode" value="dark" /><span>Dark</span></label>
+                <label><input type="radio" name="color-mode" value="system" /><span>System</span></label>
               </div>
             </fieldset>
           </details>
-        </span>
+        </div>
       </header>
-
       <main class="lj-stage" id="content">
         <div class="msk-page">
           <section class="msk-hero" aria-labelledby="hero-title">
-            <p class="lj-kicker">Pass-the-poem party game</p>
-            <h1 id="hero-title">
-              Write one line. See only the line before yours. Read the chaos
-              aloud together.
-            </h1>
-            <p class="msk-pitch">
-              Linejam is a party game for friends in the same room. Nine rounds,
-              word counts 1-2-3-4-5-4-3-2-1, and a reveal ceremony where
-              everyone finally sees the whole poem they helped write without
-              ever seeing it coming. The constraint is the game: no single
-              person could have written what you end up with.
-            </p>
-            <p class="lj-status">
-              <svg class="lj-icon" data-lucide="circle-check">
-                <use href="#i-circle-check" />
-              </svg>
-              <span
-                >Wedding-validated - real friends, real reveal night, real
-                laughter.</span
-              >
-            </p>
+            <h1 id="hero-title">A little room for words.</h1>
+            <p class="msk-pitch">A poetry game for people who don't have to be poets.</p>
+            <p class="msk-invitation">Write a line. Pass it on.</p>
+            <div class="msk-play-actions">
+              <a class="lj-button lj-button-primary" href="https://www.linejam.app/host">Start a game</a>
+              <a class="lj-button" href="https://www.linejam.app/join">Join a room</a>
+            </div>
+            <p class="lj-muted">Play on your own phones, together in the same room. No account needed.</p>
           </section>
-
-          <section
-            class="msk-section"
-            id="features"
-            aria-labelledby="features-title"
-          >
-            <h2 id="features-title">Why it's fun</h2>
-            <div class="lj-features">
-              <div class="lj-feature-row">
-                <span class="lj-feature">
-                  <span class="lj-kicker">host</span>
-                  <span>Create a room, get a code.</span>
-                </span>
-                <span class="lj-feature">
-                  <span class="lj-kicker">join</span>
-                  <span>Code + name. No account needed.</span>
-                </span>
-              </div>
-              <div class="lj-feature-row">
-                <span class="lj-feature">
-                  <span class="lj-kicker">rounds</span>
-                  <span>9 rounds, 1→5→1 words.</span>
-                </span>
-                <span class="lj-feature">
-                  <span class="lj-kicker">reveal</span>
-                  <span>Everyone reads one poem aloud.</span>
-                </span>
-              </div>
-              <div class="lj-feature-row">
-                <span class="lj-feature">
-                  <span class="lj-kicker">short a seat?</span>
-                  <span>AI players fill it.</span>
-                </span>
-                <span class="lj-feature">
-                  <span class="lj-kicker">stuck</span>
-                  <span>In-game help when you're stuck.</span>
-                </span>
-              </div>
-              <div class="lj-feature-row">
-                <span class="lj-feature">
-                  <span class="lj-kicker">after</span>
-                  <span
-                    ><a href="https://www.linejam.app/recap/BFIO"
-                      >Shareable recap hub.</a
-                    ></span
-                  >
-                </span>
-                <span class="lj-feature">
-                  <span class="lj-kicker">where</span>
-                  <span
-                    ><a href="https://www.linejam.app">linejam.app</a> - play
-                    free.</span
-                  >
-                </span>
-              </div>
-            </div>
+          <section class="msk-section" id="how-to-play" aria-labelledby="how-to-play-title">
+            <h2 id="how-to-play-title">One line leads to another.</h2>
+            <ol class="msk-steps">
+              <li><h3>Get together</h3><p>One person creates a room. Everyone else joins with the code and a pen name.</p></li>
+              <li><h3>Write nine lines</h3><p>Each round, you see only the line before yours. The word count grows from one to five, then back to one.</p></li>
+              <li><h3>Read them aloud</h3><p>Each person gets a complete poem to read. Find out what you made together.</p></li>
+            </ol>
           </section>
-
-          <section class="msk-section" id="proof" aria-labelledby="proof-title">
-            <div class="msk-section-head">
-              <p class="lj-kicker">Real room BFIO</p>
-              <h2 id="proof-title">
-                A finished poem from a played-through room
-              </h2>
-              <p class="lj-muted">
-                This is the product artifact: nine constrained lines, written
-                across a completed Linejam session and readable here as text.
-              </p>
-            </div>
-
-            <div class="msk-proof-grid">
-              <article
-                class="paper msk-poem-artifact"
-                aria-label="Room BFIO poem"
-              >
-                <div class="msk-proof-meta">
-                  <span>Poem 01</span>
-                  <span>Started by Phae / read by Phae</span>
-                </div>
-                <blockquote class="msk-poem-lines">
-                  <p>Moonlight</p>
-                  <p>velvet rain</p>
-                  <p>the moss listens</p>
-                  <p>the restless harbor breathes</p>
-                  <p>gulls stitch the torn sky</p>
-                  <p>the pale hollow returns</p>
-                  <p>somewhere bells argue</p>
-                  <p>crooked lantern</p>
-                  <p>answers</p>
-                </blockquote>
-                <p class="msk-poem-credit">Phae, Emily (AI)</p>
-              </article>
-
-              <article
-                class="paper msk-reveal-asset"
-                aria-label="Reveal in motion"
-              >
-                <div class="msk-proof-meta">
-                  <span>Reveal in motion</span>
-                  <span>CSS only / no CDN media</span>
-                </div>
-                <div class="msk-reveal-frame" aria-hidden="true">
-                  <span style="--i: 1">Moonlight</span>
-                  <span style="--i: 2">velvet rain</span>
-                  <span style="--i: 3">the moss listens</span>
-                  <span style="--i: 4">the restless harbor breathes</span>
-                  <span style="--i: 5">gulls stitch the torn sky</span>
-                  <span style="--i: 6">the pale hollow returns</span>
-                  <span style="--i: 7">somewhere bells argue</span>
-                  <span style="--i: 8">crooked lantern</span>
-                  <span style="--i: 9">answers</span>
-                </div>
-                <p class="lj-muted">
-                  Watch the reveal build line by line, the same payoff players
-                  get at the end of a room.
-                </p>
-                <a
-                  class="msk-proof-link"
-                  href="https://www.linejam.app/recap/BFIO"
-                  >Open the public recap</a
-                >
-              </article>
-            </div>
-          </section>
-
-          <section
-            class="msk-section"
-            id="screens"
-            aria-labelledby="screens-title"
-          >
-            <div class="msk-section-head">
-              <h2 id="screens-title">Screenshots</h2>
-              <p class="lj-muted">
-                Click a frame to inspect it. Every frame below is a real
-                capture: the landing page and an actual in-progress round from a
-                live room created at <code>linejam.app</code> during this pass,
-                plus the project's public GitHub release page.
-              </p>
-            </div>
-            <div class="msk-gallery" aria-label="Product screenshots">
-              <button
-                class="msk-shot"
-                type="button"
-                data-full="assets/screenshots/01-overview.png"
-                data-title="Landing page"
-              >
-                <img
-                  src="assets/screenshots/01-overview.png"
-                  alt="Linejam landing page at linejam.app"
-                />
-                <span class="lj-kicker">Landing page</span>
-              </button>
-              <button
-                class="msk-shot"
-                type="button"
-                data-full="assets/screenshots/02-workflow.png"
-                data-title="Round 1, one word"
-              >
-                <img
-                  src="assets/screenshots/02-workflow.png"
-                  alt="Live Linejam room mid-round: Round 1, 1 word, write your line"
-                />
-                <span class="lj-kicker">Live gameplay: Round 1</span>
-              </button>
-              <button
-                class="msk-shot"
-                type="button"
-                data-full="assets/screenshots/03-release.png"
-                data-title="Public release history"
-              >
-                <img
-                  src="assets/screenshots/03-release.png"
-                  alt="Linejam's public GitHub releases page"
-                />
-                <span class="lj-kicker">Public release history</span>
-              </button>
-            </div>
-          </section>
-
-          <section
-            class="msk-section msk-release-slot"
-            aria-labelledby="release-title"
-          >
-            <h2 id="release-title">Release notes</h2>
-            <p class="lj-muted">
-              Read the <a href="changelog.html">current release notes</a> for
-              what's new. Linejam ships continuously - the changelog above is
-              sourced from real commit history.
-            </p>
+          <section class="msk-section" aria-labelledby="privacy-title">
+            <h2 id="privacy-title">Your poems stay yours.</h2>
+            <p class="lj-lede">Poems are private by default. You choose when to make a public link, and you can revoke it later.</p>
+            <p class="lj-muted">Play as a guest, or create an account to access your poems on other devices. Every new line comes from someone in your room.</p>
           </section>
         </div>
       </main>
-
       <footer class="lj-bar lj-footer msk-footer">
-        <p class="lj-kicker">Linejam is part of the Misty Step fleet.</p>
+        <p class="lj-muted">A game by Misty Step.</p>
         <nav class="lj-foot-links" aria-label="Footer">
-          <a
-            data-footer-link="github"
-            href="https://github.com/misty-step/linejam"
-            >GitHub</a
-          >
-          <a data-footer-link="misty-step" href="https://mistystep.io"
-            >Misty Step</a
-          >
+          <a data-footer-link="github" href="https://github.com/misty-step/linejam">GitHub</a>
+          <a data-footer-link="misty-step" href="https://mistystep.io">Misty Step</a>
         </nav>
       </footer>
     </div>
-
-    <dialog class="lj-dialog msk-zoom" aria-labelledby="zoom-title">
-      <div class="msk-zoom-head">
-        <h2 id="zoom-title">Screenshot</h2>
-        <button
-          class="lj-button"
-          type="button"
-          data-zoom-close
-          aria-label="Close screenshot"
-        >
-          <svg class="lj-icon" aria-hidden="true"><use href="#i-x" /></svg>
-        </button>
-      </div>
-      <img class="msk-zoom-img" alt="" />
-    </dialog>
-
     <script src="mode.js"></script>
-    <script src="marketing.js"></script>
   </body>
 </html>

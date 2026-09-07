@@ -60,12 +60,12 @@ describe('RevealStage', () => {
     const stage = screen.getByTestId('reveal-presentation-stage');
     expect(
       within(stage).getByRole('heading', {
-        name: /Older Reader reads Poem 01/i,
+        name: /Older Reader reads poem 1/i,
       })
     ).toBeInTheDocument();
 
     await user.click(
-      within(stage).getByRole('button', { name: /Read on stage/i })
+      within(stage).getByRole('button', { name: /Read again/i })
     );
 
     expect(within(stage).getByText('Old')).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('RevealStage', () => {
     );
 
     expect(screen.getByText('Reveal failed')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Unsealing/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Opening/i })).toBeDisabled();
   });
 
   it('keeps a rejected reveal out of the reading view', async () => {
@@ -128,7 +128,7 @@ describe('RevealStage', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /Reveal on stage/i }));
+    await user.click(screen.getByRole('button', { name: /^Read poem$/i }));
 
     expect(onRevealPoem).toHaveBeenCalledWith(assignedPoem._id);
     expect(
@@ -166,26 +166,7 @@ describe('RevealStage', () => {
 
     expect(screen.getByText('Step in for Reader Away')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Step in on stage' })
-    ).toBeInTheDocument();
-  });
-
-  it('renders an empty stage state when no poems are ready', () => {
-    render(
-      <RevealStage
-        poems={[]}
-        myPoems={[]}
-        revealedPoems={[]}
-        allStableIds={[]}
-        error={null}
-        isRevealingId={null}
-        onExit={vi.fn()}
-        onRevealPoem={vi.fn()}
-      />
-    );
-
-    expect(
-      screen.getByText('No poems are ready for reveal yet.')
+      screen.getByRole('button', { name: 'Step in and read' })
     ).toBeInTheDocument();
   });
 });

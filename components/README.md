@@ -25,7 +25,9 @@ import { Avatar } from '@/components/ui/Avatar';
 
 Notable:
 
-- `WordSlots.tsx` - Genkoyoushi-style word counter
+- `Brand.tsx` - the Linejam wordmark and mark
+- `AvatarPicker.tsx` - required avatar choice from the fixed cast (`lib/avatars.ts`)
+- `ui/RoundProgress.tsx` - the round graphic and "Round N of 9" label
 
 ## Archive (`archive/`)
 

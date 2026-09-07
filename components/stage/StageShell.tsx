@@ -1,8 +1,9 @@
 'use client';
 
 import { X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { Brand } from '@/components/Brand';
 
 interface StageShellProps {
   children: ReactNode;
@@ -21,42 +22,84 @@ export function StageShell({
   subtitle,
   className,
 }: StageShellProps) {
+  const stageRef = useRef<HTMLElement>(null);
+  const exitRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const returnFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    exitRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (returnFocus?.isConnected) returnFocus.focus();
+    };
+  }, []);
+
   return (
     <section
+      ref={stageRef}
+      role="dialog"
+      aria-modal="true"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          onExit();
+          return;
+        }
+        if (event.key !== 'Tab' || !stageRef.current) return;
+        const focusable = stageRef.current.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }}
       aria-label={title}
       data-testid={testId}
       className={cn(
-        'lj-game-frame lj-viewport-offset fixed inset-0 z-[70] overflow-y-auto overflow-x-hidden bg-background text-text-primary',
+        'lj-game-frame lj-viewport-offset fixed inset-0 z-[70] flex flex-col overflow-hidden bg-background text-text-primary',
         className
       )}
     >
-      <div className="lj-safe-frame mx-auto flex min-h-full w-full max-w-[1920px] flex-col md:[--lj-safe-frame-space:2.5rem] xl:[--lj-safe-frame-space:3.5rem]">
-        <header className="mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 md:gap-6">
+      <div className="lj-safe-frame mx-auto flex min-h-0 w-full max-w-[1920px] flex-1 flex-col md:[--lj-safe-frame-space:2rem] xl:[--lj-safe-frame-space:3rem]">
+        <header className="mb-5 grid max-h-[40%] shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 overflow-y-auto border-b border-border pb-4 md:gap-6">
           <div className="min-w-0">
-            <p className="text-xs font-mono uppercase tracking-[0.32em] text-primary">
-              Linejam stage
-            </p>
-            <h1 className="mt-2 text-3xl font-[var(--font-display)] leading-none md:text-5xl">
+            <Brand className="mb-3 text-xl md:text-2xl" />
+            <h1 className="break-words text-xl font-bold leading-tight md:text-3xl">
               {title}
             </h1>
             {subtitle && (
-              <p className="mt-3 max-w-3xl text-lg text-text-secondary md:text-2xl">
+              <p className="mt-2 max-w-3xl break-words text-base text-text-secondary md:text-xl">
                 {subtitle}
               </p>
             )}
           </div>
           <button
+            ref={exitRef}
             type="button"
             onClick={onExit}
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-base font-medium text-text-primary shadow-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 md:h-14 md:px-5"
+            className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-base font-semibold text-text-primary transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
             aria-label="Exit presentation"
           >
-            <X className="h-5 w-5" />
+            <X className="h-[20px] w-[20px] shrink-0" aria-hidden="true" />
             <span>Exit</span>
           </button>
         </header>
 
-        <div className="flex-1">{children}</div>
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+          {children}
+        </div>
       </div>
     </section>
   );

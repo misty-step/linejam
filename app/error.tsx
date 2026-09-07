@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { captureError } from '@/lib/error';
+import { Brand } from '@/components/Brand';
 
 export default function Error({
   error,
@@ -17,30 +18,18 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[var(--color-background)] px-6 text-center">
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[60vh] w-[60vh] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-surface)] opacity-60 blur-[100px]" />
-
-      <div className="relative z-10 max-w-xl space-y-6 animate-fade-in-up">
-        <div className="space-y-2">
-          <p className="font-mono text-xs uppercase tracking-wider text-[var(--color-primary)]">
-            Error boundary
-          </p>
-          <h2 className="font-[var(--font-display)] text-3xl leading-tight text-[var(--color-text-primary)] md:text-5xl">
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[var(--color-background)] px-5 py-12">
+      <div className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-8">
+        <Brand />
+        <div className="space-y-3">
+          <h1 className="font-sans font-bold text-3xl leading-tight text-[var(--color-text-primary)]">
             Something went wrong
-          </h2>
-          <p className="text-sm leading-relaxed text-[var(--color-text-secondary)] md:text-base">
-            The current round hit an unexpected error. Reload this screen and
-            try again.
+          </h1>
+          <p className="leading-relaxed text-[var(--color-text-secondary)]">
+            This screen could not load. Try again to pick up where you left off.
           </p>
         </div>
-
-        <Button
-          className="bg-[var(--color-background)]/50 backdrop-blur-sm"
-          onClick={reset}
-          size="md"
-          type="button"
-          variant="outline"
-        >
+        <Button onClick={reset} type="button" className="self-start">
           Try again
         </Button>
       </div>

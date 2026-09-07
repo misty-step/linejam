@@ -7,52 +7,46 @@ inventing a second design system.
 ## Brand Voice
 
 - Playful, warm, human — this is a party game, not operator infrastructure.
-- Lead with the fun (chaos, laughter, the reveal) then the proof (real
-  screenshots, real round structure, and a real completed poem).
+- Lead with the fun (chaos, laughter, the reveal), then the real round
+  structure and a real completed poem.
 - Avoid corporate SaaS language ("leverage", "solution", "streamline"). Talk
   like you're describing game night to a friend.
-- Still honest: no invented user counts, testimonials, or metrics — the game
-  is wedding-validated, and that's the only usage claim we make.
+- Make no usage, audience-validation or testimonial claim without current evidence.
 
 ## Pitch One-Liner
 
 `Linejam turns a room of friends into accidental poets — pass a line, see only
 what came before, and read the chaos aloud together.`
 
-## Lucide Mark
+## Mark
 
-- Icon: `scroll-text`
-- Reason: linejam's own `app/icon.png` is a stylized parchment scroll with a
-  vermillion ribbon and dot detailing — `scroll-text` is the closest Lucide
-  primitive to that existing mark (a scroll icon with text-line strokes),
-  reused rather than inventing a new symbol.
-- Rule: the mark is an inline Lucide SVG inside `.lj-mark`. No bespoke
-  marks, logo images, emoji marks, or colored wordmarks.
+- Use the DynaPuff Linejam wordmark; app icons use the original paired speech shapes
+  in `public/linejam-mark.svg`. No stock scroll icon or exploration name.
 
 ## Palette Hooks
 
-The static site uses the same Ink & Anticipation identity as the app.
-`lib/design/tokens.ts` is the token owner. `site/tokens.css` is generated
-from that table (`pnpm site:tokens`). `site/linejam.css` is the static shell:
-type scale, hard persimmon shadows, paper grain, and Light/Dark/System.
+The static site uses the same identity as the app. `lib/design/tokens.ts` is the
+token owner. `site/tokens.css` and `site/fonts/` are generated from the app by
+`pnpm site:tokens`. `site/linejam.css` is the static shell: type scale, soft
+elevation, and Light/Dark/System.
 Do not add `--ae-*` tokens or a second identity.
 
-Keep action/link and keyboard-focus colors distinct:
+Use the shared action and focus tokens:
 
 ```css
 :root {
-  --color-background: #faf9f7;
+  --color-background: #eee8ff;
   --color-surface: #ffffff;
-  --color-foreground: #1c1917;
-  --color-primary: #b43a12;
-  --color-focus-ring: #e85d2b;
+  --color-foreground: #39234e;
+  --color-primary: #672cb5;
+  --color-focus-ring: #672cb5;
 }
 :root.dark {
-  --color-background: #1c1917;
-  --color-surface: #292524;
-  --color-foreground: #faf9f7;
-  --color-primary: #f06b3b;
-  --color-focus-ring: #e85d2b;
+  --color-background: #23172f;
+  --color-surface: #33223f;
+  --color-foreground: #f7f1ff;
+  --color-primary: #d5b5ff;
+  --color-focus-ring: #d5b5ff;
 }
 ```
 
@@ -60,38 +54,21 @@ Do not add a second identity, selector, or token override to a static page.
 
 ## Typography
 
-- Display and poem text: Libre Baskerville, weights 400 and 700.
-- Interface and body text: IBM Plex Sans, weights 400 and 500.
-- Code and compact labels: JetBrains Mono, weight 400.
-- `site/linejam.css` loads the same Fontsource Latin files the app imports.
-  Do not add page-local font stacks.
+- Wordmark and arrival headings: DynaPuff, weights 500 and 600.
+- Interface text, functional headings and poems: Nunito Sans, weights 400, 600
+  and 700.
+- `site/linejam.css` loads the same local font files the app ships. Do not add
+  page-local font stacks or remote font sources.
 
-## Screenshot Inventory
+## Content inventory
 
-| File                                      | Surface                | State                                   | Caption                                                       |
-| ----------------------------------------- | ---------------------- | --------------------------------------- | ------------------------------------------------------------- |
-| `site/assets/screenshots/01-overview.png` | Landing page           | `https://www.linejam.app` home          | Real live marketing/landing screen.                           |
-| `site/assets/screenshots/02-workflow.png` | Live room, Round 1     | Anonymous host + 1 AI player, mid-round | Real gameplay: "Round 1 · 1 word", write-your-line prompt.    |
-| `site/assets/screenshots/03-release.png`  | GitHub public releases | `misty-step/linejam` releases page      | Real, public, proves the repo's visibility + release cadence. |
+The site explains the human game, the round structure and privacy boundary,
+with direct host/join links. Historical proof compositions are not current
+screenshots or evidence for the redesigned application.
 
-All three were captured live during this pass as an anonymous guest: opened
-`linejam.app`, clicked through Host Session -> Create Room -> Add a bot ->
-Start Linejam to reach the actual round-1 writing screen (no account or
-seed data needed). Supplementary evidence (mobile-width captures of the same
-flow) is saved alongside as `gameplay-mobile-390.png` and
-`linejam-app-mobile-390.png` but not used in the gallery.
-
-## Proof Asset Inventory
-
-| Surface                                                | Source                                      | Purpose                                                                          |
-| ------------------------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------- |
-| Finished poem in `site/index.html#proof`               | `https://www.linejam.app/recap/BFIO` Poem 1 | Shows the game artifact as readable HTML text, not as a screenshot.              |
-| CSS reveal loop in `site/index.html#proof`             | Same Room BFIO poem                         | Gives the marketing site reveal-in-motion with no external CDN media dependency. |
-| Public recap link `https://www.linejam.app/recap/BFIO` | Live signed-out recap route                 | Lets a stranger inspect a completed room with two poems by two poets.            |
-
-Design lab: `docs/labs/linejam-921-proof-assets/index.html`. Locked option:
-artifact plus reveal reel, recorded in
-`docs/labs/linejam-921-proof-assets/DECISION.md`.
+`docs/labs/linejam-921-proof-assets/` is the retained record of the earlier
+proof-asset decision. It describes the previous identity and is history, not the
+current site contract.
 
 ## Footer Links
 

@@ -29,7 +29,7 @@ Players take turns adding lines to poems they can't fully see. Each round, you s
 
 The constraint is the game. You see only the line before yours. The result is collaborative absurdity—poems that no single person could have written.
 
-**Features**: human-authored collaborative poems, one fixed Ink & Anticipation visual identity with Light/Dark/System color modes, poem sharing, and in-game help
+**Features**: human-authored collaborative poems, chosen player avatars, one visual identity with Light/Dark/System color modes, poem sharing, and in-game help
 
 ## Tech Stack
 
@@ -40,35 +40,54 @@ The constraint is the game. You see only the line before yours. The result is co
 
 ## Getting Started
 
+The default development loop needs Node and a local Docker daemon with Compose.
+It runs the real Next.js app and Convex backend without accounts, provider
+credentials, or a host `.env.local`:
+
 ```bash
-# Bootstrap dependencies and .env.local
-bash scripts/setup.sh
-
-# Or create .env.local without installing dependencies
-bash scripts/setup.sh --write-env --skip-install
-
-# Add your Convex, Clerk, guest-token, and Sentry values to .env.local
-
-# Verify configuration before starting services (fails on missing or invalid values)
-pnpm run doctor
-
-# Run development servers (parallel)
-pnpm dev # Next.js :3000 + Convex backend
-
-# Verify the live app and health path once the dev server is running
-pnpm run doctor
+node scripts/local/cli.mjs dev
 ```
 
-Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.
+Open **http://127.0.0.1:3333** in separate browser profiles to play as distinct
+guests. Source changes hot-reload; **Ctrl-C** stops this checkout's stack and
+preserves its data. See [local development](docs/local-development.md) for
+prerequisites, concurrent projects, reset, and exact readiness receipts.
 
-### Work Ledger
+After stopping `dev`, run the reproducible acceptance commands:
 
-[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
-work ledger. Before starting an issue, follow the single assignee plus
-`forest/<issue>-*` branch/PR claim contract in
-[CONTRIBUTING.md](CONTRIBUTING.md#claiming-work). Do not create or update a
-duplicate task in Powder. The authority cutover and observability migration are
-tracked by [#393](https://github.com/misty-step/linejam/issues/393).
+```bash
+node scripts/local/cli.mjs check --project checks
+node scripts/local/cli.mjs qa --project qa
+node scripts/local/cli.mjs down --project qa
+```
+
+The equivalent `pnpm local:*` aliases are in `package.json`. The `check` face
+runs with networking disabled. The `qa` face exercises the real guest game and
+leaves its stack running for inspection until `down`.
+
+For explicitly commissioned hosted-provider integration, `bash scripts/setup.sh`
+prepares dependencies/configuration; `pnpm run doctor` checks that target.
+Keep its web/Convex URL and guest secret aligned. Ordinary Dagger checks never
+sync shared Convex code or create Clerk configuration automatically.
+
+### Design explorations
+
+```bash
+node scripts/design/serve.mjs
+```
+
+Open **http://127.0.0.1:4400** to inspect the five retained design alternatives
+and their offline interaction sketches. The operator's selected hybrid is
+documented in [DESIGN.md](DESIGN.md); the atlas is historical decision material,
+not a competing production identity. **Ctrl-C** stops the server.
+
+### Starting work
+
+Start from a current request and check active branches, PRs, and sessions for
+overlap. Linear owns current work and prioritization; record implementation and
+verification links with the work item and PR/session. Historical issues and
+docs are context, not an automatic intake queue or a new-ticket ceremony.
+See [CONTRIBUTING.md](CONTRIBUTING.md#starting-work).
 
 ## Agent Faces
 
@@ -157,9 +176,15 @@ with `pnpm ci:dagger:all` for local parity. See
 
 ## Design
 
-Ink & Anticipation is Linejam's single visual identity: Kenya Hara minimalism with warm white, near-black ink, and a vermillion accent. The token source of truth is `lib/design/tokens.ts`; `lib/colorMode/` owns the mode-only control and API for Light, Dark, and System preferences, persisted under `linejam-theme-mode`.
+[DESIGN.md](DESIGN.md) is the design contract: identity, composition, per-surface
+decisions, and the acceptance bar. `lib/design/tokens.ts` owns the Light and Dark
+token tables, and `lib/colorMode/` owns the Light/Dark/System control persisted
+under `linejam-theme-mode`.
 
-Light uses action `#b43a12`, focus `#e85d2b`, background `#faf9f7`, surface `#ffffff`, and ink `#1c1917`. Dark uses action `#f06b3b`, focus `#e85d2b`, background `#1c1917`, surface `#292524`, and ink `#faf9f7`. Typography uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels.
+Light uses action `#672cb5` on a `#eee8ff` background with `#39234e` ink; Dark
+uses action `#d5b5ff` on `#23172f` with `#f7f1ff` ink. DynaPuff sets the Linejam
+wordmark and arrival headings; Nunito Sans carries every control, functional
+heading and complete poem. Both faces ship from `public/fonts/`.
 
 ## License
 

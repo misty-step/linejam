@@ -7,6 +7,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoomChrome } from '@/components/RoomChrome';
@@ -87,97 +88,23 @@ describe('RoomChrome component', () => {
     );
   }
 
-  it('renders room controls', async () => {
+  it('keeps the invite, help, archive and color mode reachable', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
     expect(
       screen.getByRole('button', { name: /Share room invite/i })
     ).toBeInTheDocument();
-    expect(screen.getByText('Room AB CD')).toBeInTheDocument();
-    expect(screen.getByText('Need 1 more player')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Share room invite/i })
-    ).toHaveClass('min-w-0', 'flex-1');
-    expect(screen.getByText('Share the code to start.')).toHaveClass(
-      'whitespace-normal',
-      'break-words',
-      'text-xs',
-      'md:text-sm'
-    );
-    expect(screen.getByText('Share the code to start.')).not.toHaveClass(
-      'truncate'
-    );
 
-    // Archive / Help / Appearance are tucked into the overflow menu.
     await user.click(screen.getByRole('button', { name: /More options/i }));
     const archiveLink = screen.getByRole('link', { name: /Your poems/i });
     expect(archiveLink).toHaveAttribute('href', '/me/poems');
-    // There are two "How to play" buttons: the direct chrome button and the overflow menu item.
     expect(
-      screen.getAllByRole('button', { name: /How to play/i }).length
-    ).toBeGreaterThanOrEqual(2);
-    expect(
-      screen.getByRole('button', { name: /^Appearance$/i })
+      screen.getByRole('dialog', { name: 'Room options' })
     ).toBeInTheDocument();
-  });
-
-  it('collapses active-game controls into one bounded toolbar', () => {
-    renderWithColorMode(
-      <RoomChrome
-        roomCode="ABCD"
-        title="Round 1 · 1 word"
-        subtitle=""
-        compact
-      />
-    );
-
-    expect(screen.getByTestId('room-chrome')).toHaveClass(
-      'grid-cols-[minmax(0,1fr)_auto]',
-      'items-center',
-      'gap-[8px]',
-      'px-[12px]',
-      'py-[8px]'
-    );
     expect(
-      screen.getByRole('button', { name: /Share room invite/i })
-    ).toHaveClass('h-[44px]', 'w-[44px]', 'flex-none', 'p-0');
-    expect(screen.getByText('Invite')).toHaveClass('sr-only');
-    expect(screen.getByRole('button', { name: /More options/i })).toHaveClass(
-      'h-[44px]',
-      'w-[44px]'
-    );
-  });
-
-  it('renders the status-board ticker as one glanceable active-room status', () => {
-    renderWithColorMode(
-      <RoomChrome
-        roomCode="ABCD"
-        title="Round 1 · 1 word"
-        subtitle=""
-        statusBoard
-      />
-    );
-
-    expect(screen.getByTestId('room-chrome')).toHaveAttribute(
-      'data-layout',
-      'status-board'
-    );
-    expect(screen.getByTestId('room-chrome')).toHaveClass(
-      'grid-cols-1',
-      'sm:grid-cols-[minmax(0,1fr)_auto]'
-    );
-    expect(screen.getByRole('status')).toHaveTextContent('Round 1 · 1 word');
-    for (const label of [
-      /Share room invite/i,
-      /How to play/i,
-      /More options/i,
-    ]) {
-      expect(screen.getByRole('button', { name: label })).toHaveClass(
-        'h-[44px]',
-        'w-[44px]'
-      );
-    }
+      screen.getByRole('group', { name: 'Color mode' })
+    ).toBeInTheDocument();
   });
 
   it('copies a join link when native share is unavailable', async () => {
@@ -193,7 +120,9 @@ describe('RoomChrome component', () => {
       expect(mockWriteText).toHaveBeenCalledWith(
         'https://example.com/join?code=ABCD'
       );
-      expect(screen.getByText('Copied!')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(
+        /invite link copied/i
+      );
       expect(trackRoomInviteSharedSpy).toHaveBeenCalledWith({
         method: 'clipboard',
         roomCode: 'ABCD',
@@ -206,7 +135,10 @@ describe('RoomChrome component', () => {
     renderRoomChrome();
 
     fireEvent.click(screen.getByRole('button', { name: /Room code AB CD/i }));
-    fireEvent.click(screen.getByRole('button', { name: /copy room code/i }));
+    const invite = screen.getByRole('dialog', { name: 'Invite friends' });
+    fireEvent.click(
+      within(invite).getByRole('button', { name: /copy room code/i })
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /couldn.t copy the room code/i
@@ -216,7 +148,10 @@ describe('RoomChrome component', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /retry copying room code/i })
     );
-    expect(await screen.findByText('Copied!')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockWriteText).toHaveBeenLastCalledWith('ABCD');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 
   it('uses native share when available', async () => {
@@ -239,38 +174,29 @@ describe('RoomChrome component', () => {
       text: 'Join my Linejam room with code ABCD.',
       url: 'https://example.com/join?code=ABCD',
     });
-    expect(screen.getByText('Shared!')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/invite shared/i);
     expect(trackRoomInviteSharedSpy).toHaveBeenCalledWith({
       method: 'native-share',
       roomCode: 'ABCD',
     });
   });
 
-  it('opens help and appearance surfaces from the overflow menu', async () => {
+  it('opens help from the toolbar and restores the triggering focus', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
-    await user.click(screen.getByRole('button', { name: /More options/i }));
-    // There are two "How to play" buttons — the second is in the overflow menu.
-    const howToPlayBtns = screen.getAllByRole('button', {
-      name: /How to play/i,
-    });
-    await user.click(howToPlayBtns[1]);
+    const help = screen.getByRole('button', { name: /How to play/i });
+    await user.click(help);
     expect(
-      screen.getByRole('heading', { name: /How to Play/i })
+      screen.getByRole('dialog', { name: /How to play/i })
     ).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Got it/i }));
 
-    await user.click(screen.getByRole('button', { name: /More options/i }));
-    await user.click(screen.getByRole('button', { name: /^Appearance$/i }));
-    const appearance = screen.getByRole('dialog', { name: /Appearance/i });
+    await user.keyboard('{Escape}');
+
     expect(
-      screen.getByRole('group', { name: /Color mode/i })
-    ).toBeInTheDocument();
-    expect(appearance).toHaveClass('lj-room-popover');
-
-    await user.click(screen.getByRole('radio', { name: /Dark/i }));
-    expect(screen.getByRole('radio', { name: /Dark/i })).toBeChecked();
+      screen.queryByRole('dialog', { name: /How to play/i })
+    ).not.toBeInTheDocument();
+    expect(help).toHaveFocus();
   });
 
   it('tracks aria-expanded and returns focus to the trigger on escape', async () => {
@@ -297,57 +223,75 @@ describe('RoomChrome component', () => {
     expect(trigger).toHaveFocus();
   });
 
-  it('closes the appearance chooser on outside click and escape', async () => {
+  it('closes room options on a backdrop click and restores focus', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
-    const openAppearance = async () => {
-      await user.click(screen.getByRole('button', { name: /More options/i }));
-      await user.click(screen.getByRole('button', { name: /^Appearance$/i }));
-    };
-
-    await openAppearance();
+    const trigger = screen.getByRole('button', { name: /More options/i });
+    await user.click(trigger);
     expect(
       screen.getByRole('group', { name: /Color mode/i })
     ).toBeInTheDocument();
 
-    fireEvent.mouseDown(document.body);
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('group', { name: /Color mode/i })
-      ).not.toBeInTheDocument();
-    });
+    await user.click(screen.getByRole('presentation'));
 
-    await openAppearance();
     expect(
-      screen.getByRole('group', { name: /Color mode/i })
-    ).toBeInTheDocument();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('group', { name: /Color mode/i })
-      ).not.toBeInTheDocument();
-    });
-    expect(screen.getByRole('button', { name: /More options/i })).toHaveFocus();
+      screen.queryByRole('dialog', { name: 'Room options' })
+    ).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
-  it('closes appearance when Escape starts inside the native radio group', async () => {
+  it('keeps keyboard focus inside options when using the native mode radios', async () => {
     const user = userEvent.setup();
     renderRoomChrome();
 
-    await user.click(screen.getByRole('button', { name: /More options/i }));
-    await user.click(screen.getByRole('button', { name: /^Appearance$/i }));
-    const colorModes = screen.getByRole('group', {
-      name: /Color mode/i,
-    });
+    const trigger = screen.getByRole('button', { name: /More options/i });
+    await user.click(trigger);
+    const dark = screen.getByRole('radio', { name: 'Dark' });
+    await user.click(dark);
+    expect(dark).toBeChecked();
+    expect(document.documentElement).toHaveClass('dark');
 
-    fireEvent.keyDown(colorModes, { key: 'Escape' });
+    await user.tab();
+    const close = screen.getByRole('button', { name: 'Close options' });
+    expect(close).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(dark).toHaveFocus();
+    await user.keyboard('{Escape}');
 
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('group', { name: /Color mode/i })
-      ).not.toBeInTheDocument();
-    });
+    expect(
+      screen.queryByRole('dialog', { name: 'Room options' })
+    ).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('returns from an invite opened through options to the original trigger', async () => {
+    const user = userEvent.setup();
+    renderWithColorMode(
+      <RoomChrome roomCode="ABCD" title="Writing" subtitle="" compact />
+    );
+
+    const trigger = screen.getByRole('button', { name: /More options/i });
+    await user.click(trigger);
+    const options = screen.getByRole('dialog', { name: 'Room options' });
+    await user.click(
+      within(options).getByRole('button', { name: 'Invite friends' })
+    );
+
+    const invite = screen.getByRole('dialog', { name: 'Invite friends' });
+    expect(
+      within(invite).getByRole('img', {
+        name: 'QR code for joining room AB CD',
+      })
+    ).toBeInTheDocument();
+    expect(
+      within(invite).getByRole('link', { name: 'Open join link' })
+    ).toHaveAttribute('href', 'https://example.com/join?code=ABCD');
+    await user.click(
+      within(invite).getByRole('button', { name: 'Close invite' })
+    );
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 });

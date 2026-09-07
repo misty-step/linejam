@@ -55,6 +55,8 @@ export type ErrorReporter = {
 
 export function isSentryEnabled() {
   return (
+    process.env.LINEJAM_LOCAL !== '1' &&
+    process.env.NEXT_PUBLIC_LINEJAM_LOCAL !== '1' &&
     process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1' &&
     Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN?.trim())
   );

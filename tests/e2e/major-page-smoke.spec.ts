@@ -44,7 +44,7 @@ const PAGES: PageCase[] = [
     path: '/',
     assertVisible: async (page) => {
       await expect(
-        page.getByRole('heading', { name: /^Linejam$/ })
+        page.getByRole('link', { name: /Start a game/i })
       ).toBeVisible();
     },
   },
@@ -74,7 +74,7 @@ const PAGES: PageCase[] = [
     assertVisible: async (page) => {
       await expect(
         page.getByRole('heading', {
-          name: /welcome back|authentication unavailable/i,
+          name: /welcome back|authentication unavailable|accounts are not connected/i,
         })
       ).toBeVisible();
     },
@@ -84,7 +84,7 @@ const PAGES: PageCase[] = [
     assertVisible: async (page) => {
       await expect(
         page.getByRole('heading', {
-          name: /join the jam|authentication unavailable/i,
+          name: /create an account|authentication unavailable|accounts are not connected/i,
         })
       ).toBeVisible();
     },
@@ -93,7 +93,7 @@ const PAGES: PageCase[] = [
     path: '/poem/jh7eb5qfqeth6kmny4ppbwtsc58aqqc9',
     assertVisible: async (page) => {
       await expect(
-        page.getByRole('heading', { name: /private or unavailable/i })
+        page.getByRole('link', { name: /Return to Linejam/i })
       ).toBeVisible();
     },
   },
@@ -104,9 +104,11 @@ const PAGES: PageCase[] = [
     // no other console error is permitted.
     expectedConsoleErrors: [
       /Failed to load resource: the server responded with a status of 404 \(Not Found\)/,
-      ...(process.env.CI
-        ? []
-        : [/Encountered a script tag while rendering React component/]),
+      ...(!process.env.CI ||
+      (process.env.LINEJAM_LOCAL === '1' &&
+        process.env.LINEJAM_DEPLOY_ENVIRONMENT !== 'production')
+        ? [/Encountered a script tag while rendering React component/]
+        : []),
     ],
     assertVisible: async (page) => {
       await expect(
@@ -126,7 +128,7 @@ const PAGES: PageCase[] = [
     path: '/me/profile',
     assertVisible: async (page) => {
       await expect(
-        page.getByRole('heading', { name: /^Identity$/ })
+        page.getByRole('heading', { name: /^Your profile$/ })
       ).toBeVisible();
     },
   },

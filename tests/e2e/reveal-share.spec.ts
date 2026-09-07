@@ -37,18 +37,13 @@ test('mobile reveal ceremony produces a one-tap shareable recap artifact', async
     await session.joinRoom();
     await session.startGame();
 
-    await expect(
-      session.hostPage.getByText(/You only see one carried line/i)
-    ).toBeVisible();
-    await session.capture(
-      'host',
-      `${evidenceDir}/mobile-writing-coachmark.png`
-    );
+    await session.capture('host', `${evidenceDir}/mobile-writing.png`);
 
     await session.playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
 
+    await session.hostPage.getByTestId(E2E_TEST_IDS.revealPoemButton).click();
     await session.hostPage
-      .getByRole('button', { name: /Reveal & Read/i })
+      .getByRole('button', { name: /Turn ceremony sound on/i })
       .click();
     await expect(
       session.hostPage.getByRole('button', { name: /Mute ceremony sound/i })
@@ -63,8 +58,6 @@ test('mobile reveal ceremony produces a one-tap shareable recap artifact', async
     await session.hostPage
       .getByRole('button', { name: /Favorite this poem/i })
       .click();
-    // "Close" became the plain-verb "Done" (DESIGN.md Law 4); target the
-    // stable testid so future copy changes can't strand this spec.
     await session.hostPage.getByTestId(E2E_TEST_IDS.poemDoneButton).click();
 
     await session.revealAssignedPoem('guest', CANONICAL_GUEST_FLOW_LINES);
@@ -76,19 +69,18 @@ test('mobile reveal ceremony produces a one-tap shareable recap artifact', async
       session.hostPage.getByTestId('room-favorite-crown')
     ).toBeVisible();
     await expect(
-      session.hostPage.getByRole('button', { name: /Share the whole set/i })
+      session.hostPage.getByTestId(E2E_TEST_IDS.sessionRecapShareButton)
     ).toHaveCount(1);
-    await expect(
-      session.hostPage.getByRole('link', { name: /Open Shared Recap/i })
-    ).toHaveCount(0);
     await session.capture('host', `${evidenceDir}/mobile-session-recap.png`);
 
     await session.hostPage
-      .getByRole('button', { name: /Share the whole set/i })
+      .getByTestId(E2E_TEST_IDS.sessionRecapShareButton)
       .click();
-    await expect(session.hostPage.getByText(/Copied!|Shared!/i)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(
+      session.hostPage
+        .getByRole('status')
+        .filter({ hasText: /Recap (link copied|shared)/i })
+    ).toBeVisible({ timeout: 10000 });
 
     const baseUrl = new URL(session.hostPage.url()).origin;
     const ogResponse = await request.get(

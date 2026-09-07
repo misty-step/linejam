@@ -3,6 +3,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { asUser, seedClerkUser, type T } from '../helpers/convexSeed';
+import { WORD_COUNTS } from '../../convex/lib/gameRules';
 
 /**
  * Room lifecycle on the real convex-test engine (backlog 018): real
@@ -73,6 +74,93 @@ async function seedCompletedRoom(
 }
 
 describe('room lifecycle', () => {
+  it('shares selected avatars with another participant through rejoin, reading, and rematch', async () => {
+    const t = setupConvexTest();
+    const hostId = await seedClerkUser(t, 'avatar-host');
+    const friendId = await seedClerkUser(t, 'avatar-friend');
+    const host = asUser(t, 'avatar-host');
+    const friend = asUser(t, 'avatar-friend');
+
+    const { code } = await host.mutation(api.rooms.createRoom, {
+      displayName: 'Host',
+      avatarId: 'pip',
+    });
+    await friend.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Friend',
+      avatarId: 'orbit',
+    });
+
+    const friendView = await friend.query(api.rooms.getRoomState, { code });
+    expect(
+      friendView?.players.find((player) => player.userId === hostId)?.avatarId
+    ).toBe('pip');
+
+    // An older transport or a reconnect must not replace the room selection.
+    await friend.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Friend',
+    });
+    const rejoined = await host.query(api.rooms.getRoomState, { code });
+    expect(
+      rejoined?.players.find((player) => player.userId === friendId)?.avatarId
+    ).toBe('orbit');
+
+    // A deliberate new choice does replace it, without creating a new member.
+    await friend.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Friend',
+      avatarId: 'moss',
+    });
+    await host.mutation(api.game.startGame, { code });
+    const progress = await host.query(api.game.getRoundProgress, {
+      roomCode: code,
+    });
+    expect(progress?.players).toHaveLength(2);
+    expect(
+      progress?.players.find((player) => player.userId === friendId)?.avatarId
+    ).toBe('moss');
+
+    for (let round = 0; round < WORD_COUNTS.length; round++) {
+      for (const participant of [host, friend]) {
+        const assignment = await participant.query(
+          api.game.getCurrentAssignment,
+          { roomCode: code }
+        );
+        if (!assignment) throw new Error('Expected an active assignment');
+        await participant.mutation(api.game.submitLine, {
+          poemId: assignment.poemId,
+          lineIndex: assignment.lineIndex,
+          text: Array(WORD_COUNTS[round]).fill('word').join(' '),
+        });
+      }
+    }
+
+    const reading = await host.query(api.game.getRevealPhaseState, {
+      roomCode: code,
+    });
+    expect(
+      reading?.poems.find((poem) => poem.assignedReaderId === friendId)
+        ?.readerAvatarId
+    ).toBe('moss');
+
+    await friend.mutation(api.game.startNewCycle, { roomCode: code });
+    await friend.mutation(api.game.startGame, { code });
+    const rematch = await host.query(api.game.getRoundProgress, {
+      roomCode: code,
+    });
+    expect(
+      rematch?.players.find((player) => player.userId === friendId)?.avatarId
+    ).toBe('moss');
+    const rematchFriendView = await friend.query(api.rooms.getRoomState, {
+      code,
+    });
+    expect(
+      rematchFriendView?.players.find((player) => player.userId === hostId)
+        ?.avatarId
+    ).toBe('pip');
+  });
+
   // ──────────────────────────────────────────────────────────────────────────
   // createRoom
   // ──────────────────────────────────────────────────────────────────────────

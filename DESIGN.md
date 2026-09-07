@@ -1,58 +1,113 @@
 # Linejam Design Contract
 
-The repo-owned visual contract. Agents doing visual work read this first.
-Provenance: design lab-001 (`explorations/lab-001/`, three operator verdict
-rounds, 2026-07) and its `SYNTHESIS.md`. Identity tokens live in
-`lib/design/tokens.ts`; this file owns the shared layout spine.
+The operator selected a production redesign from the renewal atlas: Jelly
+Chorus's tighter composition and signature palette, Fold Club's stronger lobby
+layout and approachable copy, and Word Carnival's brevity. This contract
+supersedes the earlier Ink & Anticipation baseline and the atlas recommendation.
+The product is **Linejam**, not the name of an exploration territory.
 
-## Product truth
+## Product truth and authority
 
-A party game played by 4-6 friends on phones in the same room, 99% mobile.
-Rounds of 1-2-3-4-5-4-3-2-1 word lines; you see only the previous line; the
-finale is a reading circle where each player reads one whole poem aloud.
+Friends play on their own phones in the same room. Nine human-authored rounds
+use `1,2,3,4,5,4,3,2,1` words. Each writer sees only the preceding line. The
+reading circle opens each whole poem at once. No phone handoff, generated
+contributions, additional modes, or changes to assignment and privacy rules.
 
-## Laws (operator-locked, non-negotiable)
+The design contract does not authorize provider changes, production deployment,
+or publication. Current requests and the operation boundaries in
+`CONTRIBUTING.md` govern that work; verification must identify its actual scope.
 
-1. Mobile-first at 390x844. Primary action lives in the thumb zone: anchored
-   to the bottom of the viewport on phones, >=44px tall.
-2. Word slots always grow with their word. Clipping a word can never happen.
-3. On reveal/read surfaces the poem line text starts at one consistent
-   horizontal position and vertical rhythm; line numbers and author bylines
-   never shift it.
-4. Button labels are plain verbs ("Done", "Submit", "Start"). Context copy
-   sits near the button, never inside it.
-5. The read view shows the WHOLE poem at once. There is no line-by-line
-   reveal and no phone handoff.
-6. Every visual value comes from fixed identity tokens (`var(--color-*)`,
-   fonts, radius, shadow, durations). Light and Dark are the only effective
-   token sets; System resolves to one of them. No hardcoded colors or font
-   families in screen components.
-7. WCAG AA floor (enforced by `tests/lib/design/contrast.test.ts`); honor
-   prefers-reduced-motion; motion only on game moments, never ambient.
-8. `lib/e2eTestIds.ts` is a load-bearing contract: every existing testid and
-   aria pattern survives any reshape (hosted E2E depends on them).
+## Identity and tokens
 
-## Spine anatomy (per screen)
+`lib/design/tokens.ts` remains the single token owner; `lib/colorMode/` owns
+Light, Dark and System. There is one identity, not a selectable palette catalog.
 
-- **Home**: brand moment + two stacked CTAs (Start a game primary, Join a
-  room secondary) in the thumb zone.
-- **Host/Join**: one field (+ code field on join), one CTA, zero ceremony.
-- **Lobby**: the party warm-up. Room code is the hero, legible across a
-  table. Players listed with presence, host, and bot marks. Host's start CTA
-  bottom-anchored; non-hosts see who they're waiting for.
-- **Write**: the received line is the only context, displayed large. The
-  word-count constraint renders as growing word chips (the typed words
-  themselves, each chip sized to its word) plus remaining empty slots.
-  Submit bottom-anchored.
-- **Wait**: "line delivered" state; who is still writing, with presence;
-  round progress. Keeps the party's energy, never feels like an error.
-- **Reveal**: the reading circle. One ordered list with per-reader status
-  (read / reading now / up next / to come); your assignment is the hero
-  when it is your turn ("Reveal & Read").
-- **Read**: the whole poem, aligned per law 3, bylines with lines, then a
-  plain "Done".
+| Role             | Light direction    |
+| ---------------- | ------------------ |
+| Background       | Lavender `#EEE8FF` |
+| Content surface  | White `#FFFFFF`    |
+| Ink              | Plum `#39234E`     |
+| Action           | Violet `#672CB5`   |
+| Character accent | Mint `#B6F1D0`     |
+| Character accent | Peach `#FFB887`    |
 
-## Voice
+Dark mode uses a deep plum background, a distinct raised surface, pale ink and
+light violet actions. Both modes must pass the existing semantic contrast
+contract. Screen components use tokens, not local palette literals.
 
-Short, warm, party-toned. No meta-copy, no em-dashes in UI strings, no
-prescriptive button labels.
+DynaPuff gives the Linejam wordmark and arrival headings their character.
+Nunito Sans carries controls, functional headings, names and complete poems.
+Poems are upright, left aligned, and never set in the display face. Fonts are
+local. Display typography gets quieter once play begins.
+
+The identifying artwork is a small cast of original, distinct geometric
+characters. No folded-paper logo, dog ears, paper grain, curved roster
+underline, ambient jelly motion, or oversized illustration on functional views.
+Every player has an avatar, with a visible selected default and a finite range
+to choose from. Avatars supplement names; they are never authentication or the
+only indication of state.
+
+## Composition
+
+An open background holds the page heading; only the form or active task needs
+a container. Do not nest decorative cards. Align practical text to the left.
+
+```text
+Entry                         Writing, keyboard open
+Linejam             mode     room code             help / more
+Heading                      round graphic       Round 4 of 9
+                             Previous line
+[Your pen name           ]   [Your line                  ]
+[selected avatar / cast  ]   0 / 4 words          [Submit]
+[Create room             ]   -----------------------------
+                             software keyboard
+```
+
+Plan critique: a pastel mascot skin would repeat the exploration's noise.
+Spend personality on the wordmark and cast, not extra labels, repeated
+instructions, ornamental containers, or a second visual metaphor.
+
+## Surface decisions
+
+- **Home:** “A little room for words.” “A poetry game for people who don't have
+  to be poets.” “Write a line. Pass it on.” Clear start/join actions and a
+  compact avatar ensemble; no account gate or large folding illustration.
+- **Host/join:** Jelly Chorus's single form container; heading on the background.
+  “Your pen name”, “Choose your avatar”, “Create room” and “Join room”.
+  Invitation codes stay prefilled. No “sketch”, optional-avatar copy, or
+  customization ceremony.
+- **Lobby:** Fold Club's straight, compact roster organization. Code and invite
+  remain prominent. Avatar, name, host mark and meaningful away state; never
+  “Here” repeated after every person. Preserve join/leave/close/start behavior.
+- **Shared lobby:** same identity with code and names legible across a room.
+  No curved baseline or unnecessary explanatory panels.
+- **Writing:** round graphic plus one word-count presentation. Previous line,
+  native textarea and Submit remain reachable with the keyboard open. No word
+  chips/dots plus duplicate target instructions, ready label, character counter
+  in ordinary use, typing animations, or always-visible coachmark.
+- **Waiting:** one brief acknowledgement and a compact named avatar group.
+  State icons distinguish accepted, writing and away without ranking people.
+  Never invent acceptance before the server confirms it.
+- **Spectator/assignment:** Word Carnival's directness. One status or assignment,
+  the relevant people and the next action. Keep real failure/recovery guidance.
+- **Reading:** Jelly Chorus/Word Carnival clarity. All nine lines at once,
+  consistent left edge, legible attribution and a plain Done action. Long poems
+  and large text scroll rather than shrink or clip.
+- **Recap/archive/account/error/export:** one coherent identity. Preserve private
+  saving, explicit reversible publication, real permissions and recovery.
+
+## Acceptance
+
+- Verify actual rendered gameplay, not only the atlas or component fixtures.
+- 390×844 and 320px widths, compact keyboard-open visible heights, 200% text,
+  both color modes, System preference and reduced motion.
+- Inputs and actions must remain reachable without horizontal scrolling;
+  controls are at least 44px, input text at least 16px.
+- Keep the existing VisualViewport owner for overlaying mobile keyboards.
+- Preserve load-bearing `lib/e2eTestIds.ts` selectors and semantic access.
+  Update assertions for the deliberately changed UI, never weaken behavior.
+- Retain server validation, drafts, uncertain-submission recovery, late joins,
+  real-time roster updates, complete reveal and rematch.
+- No decorative motion while writing or reading. Sound stays opt-in.
+- Keep evidence tied to the running source; distinguish simulated viewport
+  checks from physical-keyboard or assistive-technology verification.

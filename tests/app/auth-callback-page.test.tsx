@@ -6,6 +6,7 @@ import {
   type AuthCallbackPageDependencies,
   type MigrateGuestToUser,
 } from '@/app/(auth)/callback/AuthCallbackPage';
+import { AccountContext } from '@/lib/account';
 
 const mockReplace = vi.fn();
 const mockMigrateGuestToUser = vi.fn<MigrateGuestToUser>();
@@ -27,8 +28,12 @@ let convexAuthState = {
 
 const dependencies: AuthCallbackPageDependencies = {
   useRouter: () => mockRouter,
-  useClerkUser: () => clerkAuthState,
-  useConvexAuth: () => convexAuthState,
+  useAccountState: () => ({
+    kind: 'clerk',
+    user: clerkAuthState.isSignedIn ? { id: 'account-user' } : null,
+    isLoaded: clerkAuthState.isLoaded,
+    convex: convexAuthState,
+  }),
   useMigrateGuestToUser: () => mockMigrateGuestToUser,
   getExistingGuestSession: mockGetExistingGuestSession,
   clearGuestSession: mockClearGuestSession,
@@ -56,6 +61,18 @@ describe('AuthCallbackPage', () => {
       isLoading: false,
       isAuthenticated: true,
     };
+  });
+
+  it('offers guest continuation instead of opening local account migration', () => {
+    render(
+      <AccountContext.Provider value={{ kind: 'local' }}>
+        <AuthCallbackPage />
+      </AccountContext.Provider>
+    );
+    expect(
+      screen.getByRole('link', { name: /play as guest/i })
+    ).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('redirects home immediately when no guest token exists', async () => {
@@ -135,10 +152,7 @@ describe('AuthCallbackPage', () => {
 
     expect(screen.getByText(/could not finish sign in/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/guest progress could not be moved/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /retry migration/i })
+      screen.getByRole('button', { name: /try again/i })
     ).toBeInTheDocument();
     expect(mockReplace).not.toHaveBeenCalled();
   });
@@ -153,9 +167,9 @@ describe('AuthCallbackPage', () => {
 
     renderAuthCallbackPage();
 
-    await screen.findByRole('button', { name: /retry migration/i });
+    await screen.findByRole('button', { name: /try again/i });
 
-    fireEvent.click(screen.getByRole('button', { name: /retry migration/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     await waitFor(() => {
       expect(mockMigrateGuestToUser).toHaveBeenCalledTimes(2);

@@ -1,22 +1,23 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
 
-import {
-  useUser,
-  type ClerkAuthState,
-  type ConvexAuthState,
-  type UseUserAuthDependencies,
-} from '@/lib/auth';
+import { useUser, type UseUserAuthDependencies } from '@/lib/auth';
 import type { GuestSessionFetcher } from '@/lib/guestSession';
+import { AccountContext, type ClerkAccountState } from '@/lib/account';
 
-const mockUseClerkUser = vi.fn<() => ClerkAuthState>();
-const mockUseConvexAuth = vi.fn<() => ConvexAuthState>();
+const mockUseClerkUser =
+  vi.fn<() => Pick<ClerkAccountState, 'user' | 'isLoaded'>>();
+const mockUseConvexAuth = vi.fn<() => ClerkAccountState['convex']>();
 const mockCaptureError = vi.fn();
 
 const authDeps: UseUserAuthDependencies = {
-  useClerk: () => mockUseClerkUser(),
-  useConvex: () => mockUseConvexAuth(),
+  useAccount: () => ({
+    kind: 'clerk',
+    ...mockUseClerkUser(),
+    convex: mockUseConvexAuth(),
+  }),
   onError: (error, context) => mockCaptureError(error, context),
 };
 
@@ -66,6 +67,28 @@ describe('useUser hook', () => {
     global.fetch = originalFetch;
     localStorage.clear();
     vi.useRealTimers();
+  });
+
+  it('loads guest credentials without mounting either account auth hook locally', async () => {
+    const fetcher = {
+      fetch: vi.fn().mockResolvedValue({
+        guestId: 'local-guest',
+        token: 'local-signed-token',
+      }),
+    };
+    const { result } = renderHook(() => useUser(fetcher), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(
+          AccountContext.Provider,
+          { value: { kind: 'local' } },
+          children
+        ),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.guestId).toBe('local-guest');
+    expect(result.current.guestToken).toBe('local-signed-token');
+    expect(result.current.authError).toBeNull();
+    expect(result.current.isAuthenticated).toBe(false);
   });
 
   it('returns loading state while Clerk is loading', () => {

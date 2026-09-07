@@ -13,7 +13,7 @@ import { toErrorReportable } from '../lib/errorCore';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { PoemDisplay } from './PoemDisplay';
-import { LoadingState, LoadingMessages } from './ui/LoadingState';
+import { LoadingState } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { Id } from '../convex/_generated/dataModel';
 import { hashRoomId, trackGameCompleted } from '../lib/analytics';
@@ -104,6 +104,7 @@ export function RevealPhase({
   const [isPresenting, setIsPresenting] = useState(false);
   const readingNowRef = useRef<HTMLDivElement>(null);
   const previousReadingNowId = useRef<Id<'poems'> | null>(null);
+  const lastShowingPoemId = useRef<Id<'poems'> | null>(null);
 
   const state = dependencies.useRevealState({
     roomCode,
@@ -123,11 +124,27 @@ export function RevealPhase({
   const readingNowId = readingNowPoem?._id ?? null;
 
   useEffect(() => {
+    if (isPresenting || showingPoemId) return;
     if (readingNowId && readingNowId !== previousReadingNowId.current) {
       readingNowRef.current?.focus();
       previousReadingNowId.current = readingNowId;
     }
-  }, [readingNowId]);
+  }, [isPresenting, readingNowId, showingPoemId]);
+
+  useEffect(() => {
+    if (showingPoemId) {
+      lastShowingPoemId.current = showingPoemId;
+      return;
+    }
+    const previousPoemId = lastShowingPoemId.current;
+    if (!previousPoemId) return;
+    lastShowingPoemId.current = null;
+    const target =
+      document.getElementById(`read-poem-${previousPoemId}`) ??
+      document.getElementById('session-recap-title') ??
+      readingNowRef.current;
+    target?.focus();
+  }, [showingPoemId]);
 
   // Track game completion once when all poems are revealed
   const hasTrackedCompletion = useRef(false);
@@ -220,7 +237,7 @@ export function RevealPhase({
   if (!state)
     return (
       <div className="lj-game-viewport flex items-center justify-center bg-background">
-        <LoadingState message={LoadingMessages.UNSEALING_POEMS} />
+        <LoadingState message="Loading poems..." />
       </div>
     );
 
@@ -236,6 +253,7 @@ export function RevealPhase({
     <RoomChrome
       roomCode={roomCode}
       {...buildRevealChromeCopy({ allRevealed })}
+      compact
     />
   ) : null;
 
@@ -250,11 +268,7 @@ export function RevealPhase({
         <PoemDisplay
           poemId={displayingPoem._id}
           guestToken={guestToken || undefined}
-          lines={displayingPoem.lines.map((l) => ({
-            text: l.text,
-            authorName: l.authorName,
-            authorStableId: l.authorStableId,
-          }))}
+          lines={displayingPoem.lines}
           onDone={() => setShowingPoemId(null)}
           alreadyRevealed={displayingPoem.isRevealed}
           allStableIds={allStableIds}
@@ -265,6 +279,8 @@ export function RevealPhase({
             firstLine: displayingPoem.preview,
             uniquePoets,
             readerName: displayingPoem.readerName,
+            readerStableId: displayingPoem.readerStableId,
+            readerAvatarId: displayingPoem.readerAvatarId,
             poemNumber: displayingPoem.indexInRoom + 1,
           }}
         />
@@ -272,9 +288,8 @@ export function RevealPhase({
     );
   }
 
-  // Single-column editorial layout
   return (
-    <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background">
+    <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background font-sans">
       {chrome}
       {isPresenting && (
         <RevealStage
@@ -290,177 +305,166 @@ export function RevealPhase({
       )}
       <div
         data-testid={E2E_TEST_IDS.revealPhase}
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-background"
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
       >
-        <main className="lj-safe-inline mx-auto w-full max-w-3xl flex-1 space-y-12 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:[--lj-safe-inline-space:3rem] md:py-12 lg:[--lj-safe-inline-space:6rem] lg:pb-24 lg:pt-16">
-          {/* 2. HERO - Your Assignment (primary action) */}
-          {myPoems && myPoems.length > 0 && (
-            <section className="space-y-6">
-              {/* Unrevealed poems - actionable cards */}
-              {myPoems
-                .filter((poem) => !poem.isRevealed)
-                .map((poem) => (
-                  <div
-                    key={poem._id}
-                    className="p-6 border border-primary bg-surface shadow-lg space-y-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <p className="text-xs font-mono uppercase tracking-widest text-primary">
-                          {poem.isFallbackReader
-                            ? `Step in for ${poem.readerName}`
-                            : 'Your Assignment'}
+        <main className="lj-safe-inline mx-auto w-full max-w-2xl space-y-[20px] pt-[16px] pb-[max(24px,env(safe-area-inset-bottom))] [--lj-safe-inline-space:16px] sm:py-8">
+          {!allRevealed && (
+            <>
+              <h1 className="text-2xl font-bold leading-snug text-text-primary">
+                Reading circle
+              </h1>
+              {error && <Alert variant="error">{error}</Alert>}
+              {myPoems && myPoems.length > 0 && (
+                <section aria-label="Your poems" className="space-y-3">
+                  {myPoems
+                    .filter((poem) => !poem.isRevealed)
+                    .map((poem) => (
+                      <div
+                        key={poem._id}
+                        className="space-y-[12px] rounded-lg bg-surface p-[16px]"
+                      >
+                        <div className="flex items-center gap-[12px]">
+                          <Avatar
+                            stableId={poem.readerStableId}
+                            displayName={poem.readerName}
+                            avatarId={poem.readerAvatarId}
+                            allStableIds={allStableIds}
+                            size="md"
+                          />
+                          <h2 className="min-w-0 text-xl font-bold leading-snug text-text-primary [overflow-wrap:anywhere]">
+                            {poem.isFallbackReader
+                              ? `Step in for ${poem.readerName}`
+                              : `Poem ${poem.indexInRoom + 1}`}
+                          </h2>
+                        </div>
+                        <p className="text-lg leading-relaxed text-text-secondary [overflow-wrap:anywhere]">
+                          {poem.preview}…
                         </p>
+                        <Button
+                          id={`read-poem-${poem._id}`}
+                          onClick={() => handleReveal(poem._id)}
+                          data-testid={E2E_TEST_IDS.revealPoemButton}
+                          size="lg"
+                          className="min-h-[48px] w-full px-[16px] py-[12px] text-base"
+                          disabled={isRevealingId === poem._id}
+                        >
+                          {isRevealingId === poem._id
+                            ? 'Opening...'
+                            : poem.isFallbackReader
+                              ? 'Step in and read'
+                              : 'Read poem'}
+                        </Button>
                       </div>
-                      <p className="text-xl md:text-2xl font-[var(--font-display)] italic leading-relaxed">
-                        &ldquo;{poem.preview}...&rdquo;
-                      </p>
-                    </div>
-                    {error && <Alert variant="error">{error}</Alert>}
-                    <Button
-                      onClick={() => handleReveal(poem._id)}
-                      data-testid={E2E_TEST_IDS.revealPoemButton}
-                      size="lg"
-                      className="w-full h-12"
-                      disabled={isRevealingId === poem._id}
-                    >
-                      {isRevealingId === poem._id
-                        ? 'Unsealing...'
-                        : poem.isFallbackReader
-                          ? 'Step In & Read'
-                          : 'Reveal & Read'}
-                    </Button>
-                  </div>
-                ))}
+                    ))}
+                  {myPoems
+                    .filter((poem) => poem.isRevealed)
+                    .map((poem) => (
+                      <Button
+                        id={`read-poem-${poem._id}`}
+                        key={poem._id}
+                        onClick={() => setShowingPoemId(poem._id)}
+                        variant="outline"
+                        className="min-h-11 w-full"
+                      >
+                        Read poem {poem.indexInRoom + 1} again
+                      </Button>
+                    ))}
+                </section>
+              )}
 
-              {/* Revealed poems - re-read buttons */}
-              {myPoems
-                .filter((poem) => poem.isRevealed)
-                .map((poem) => (
-                  <Button
-                    key={poem._id}
-                    onClick={() => setShowingPoemId(poem._id)}
-                    variant="outline"
-                    size="lg"
-                    className="w-full text-lg h-16 border-2"
-                  >
-                    <span className="flex items-center gap-3">
-                      Re-Read My Poem
-                    </span>
-                  </Button>
-                ))}
-            </section>
-          )}
-
-          {state.isHost && (
-            <Button
-              type="button"
-              onClick={() => setIsPresenting(true)}
-              data-testid={E2E_TEST_IDS.revealPresentationButton}
-              variant="outline"
-              size="md"
-              className="w-full"
-            >
-              <Presentation className="mr-2 h-4 w-4" />
-              Present reveal
-            </Button>
-          )}
-
-          {/* 2b. THE READING CIRCLE - the running order, one row per reader,
-              each carrying a status chip driven by reveal state. */}
-          <section className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-2xl md:text-3xl font-[var(--font-display)] leading-tight text-text-primary">
-                The reading circle
-              </h2>
-              <p className="text-sm text-text-muted">
-                Everyone reads one poem aloud.
-              </p>
-            </div>
-            <div className="border-t border-border-subtle">
-              <>
+              <section
+                aria-labelledby="reading-order-title"
+                className="space-y-3"
+              >
+                <h2
+                  id="reading-order-title"
+                  className="text-base font-bold text-text-primary"
+                >
+                  Reading order
+                </h2>
                 <p role="status" aria-live="polite" className="sr-only">
                   {readingNowPoem
                     ? readingNowPoem.readerName + ' is reading now.'
                     : 'The reading circle is complete.'}
                 </p>
-                {(() => {
-                  const upNextId = sortedPoems.find(
-                    (poem) => !poem.isRevealed && poem._id !== readingNowId
-                  )?._id;
+                <ol>
+                  {(() => {
+                    const upNextId = sortedPoems.find(
+                      (poem) => !poem.isRevealed && poem._id !== readingNowId
+                    )?._id;
 
-                  return sortedPoems.map((poem, i) => {
-                    const status: ReadingCircleStatus = poem.isRevealed
-                      ? 'read'
-                      : poem._id === readingNowId
-                        ? 'reading-now'
-                        : poem._id === upNextId
-                          ? 'up-next'
-                          : null;
+                    return sortedPoems.map((poem) => {
+                      const status: ReadingCircleStatus = poem.isRevealed
+                        ? 'read'
+                        : poem._id === readingNowId
+                          ? 'reading-now'
+                          : poem._id === upNextId
+                            ? 'up-next'
+                            : null;
 
-                    return (
-                      <div
-                        key={poem._id}
-                        ref={
-                          status === 'reading-now' ? readingNowRef : undefined
-                        }
-                        tabIndex={status === 'reading-now' ? -1 : undefined}
-                        aria-current={
-                          status === 'reading-now' ? 'true' : undefined
-                        }
-                        className={cn(
-                          'flex items-center justify-between gap-3 py-3 px-3 -mx-3 border-b border-border-subtle transition-colors motion-reduce:transition-none',
-                          status === 'reading-now' &&
-                            'border-l-2 border-l-primary bg-primary/5'
-                        )}
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="w-6 shrink-0 font-mono text-xs text-text-muted">
-                            {(i + 1).toString().padStart(2, '0')}
-                          </span>
-                          <Avatar
-                            stableId={poem.readerStableId}
-                            displayName={poem.readerName}
-                            allStableIds={allStableIds}
-                            size="sm"
-                            outlined={!poem.isRevealed}
-                          />
-                          <div className="min-w-0">
-                            <span
-                              className={cn(
-                                'block truncate text-sm font-medium text-text-primary',
-                                poem.isRevealed && 'opacity-50'
-                              )}
-                            >
-                              {poem.readerName}
-                            </span>
-                            <span className="block text-[0.625rem] font-mono uppercase tracking-widest text-text-muted">
-                              Poem {(i + 1).toString().padStart(2, '0')}
-                            </span>
-                          </div>
-                        </div>
-                        {status && (
-                          <span
+                      return (
+                        <li key={poem._id}>
+                          <div
+                            ref={
+                              status === 'reading-now'
+                                ? readingNowRef
+                                : undefined
+                            }
+                            tabIndex={status === 'reading-now' ? -1 : undefined}
+                            aria-current={
+                              status === 'reading-now' ? 'true' : undefined
+                            }
                             className={cn(
-                              'inline-flex shrink-0 items-center gap-1 text-[0.625rem] font-mono uppercase tracking-widest',
-                              status === 'read' && 'text-text-muted opacity-50',
-                              status === 'reading-now' && 'text-primary',
-                              status === 'up-next' && 'text-text-secondary'
+                              'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border-subtle px-3 py-3 focus-visible:outline-2 focus-visible:outline-focus-ring',
+                              status === 'reading-now' &&
+                                'rounded-xl bg-surface'
                             )}
                           >
-                            {status === 'read' && (
-                              <Check className="h-3 w-3" aria-hidden="true" />
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <Avatar
+                                stableId={poem.readerStableId}
+                                displayName={poem.readerName}
+                                avatarId={poem.readerAvatarId}
+                                allStableIds={allStableIds}
+                                size="sm"
+                                outlined={!poem.isRevealed}
+                              />
+                              <div className="min-w-0">
+                                <span className="block font-semibold text-text-primary [overflow-wrap:anywhere]">
+                                  {poem.readerName}
+                                </span>
+                                <span className="block text-sm text-text-secondary">
+                                  Poem {poem.indexInRoom + 1}
+                                </span>
+                              </div>
+                            </div>
+                            {status && (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1 text-sm font-semibold',
+                                  status === 'reading-now'
+                                    ? 'text-primary'
+                                    : 'text-text-secondary'
+                                )}
+                              >
+                                {status === 'read' && (
+                                  <Check
+                                    className="h-4 w-4"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                                {READING_CIRCLE_STATUS_LABEL[status]}
+                              </span>
                             )}
-                            {READING_CIRCLE_STATUS_LABEL[status]}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  });
-                })()}
-              </>
-            </div>
-          </section>
+                          </div>
+                        </li>
+                      );
+                    });
+                  })()}
+                </ol>
+              </section>
+            </>
+          )}
 
           {allRevealed && (
             <SessionRecapHub
@@ -476,6 +480,19 @@ export function RevealPhase({
               onBackToLobby={handleStartNewCycle}
               dependencies={dependencies.sessionRecapDependencies}
             />
+          )}
+
+          {state.isHost && (
+            <Button
+              type="button"
+              onClick={() => setIsPresenting(true)}
+              data-testid={E2E_TEST_IDS.revealPresentationButton}
+              variant="outline"
+              className="min-h-11 w-full"
+            >
+              <Presentation className="mr-2 h-4 w-4" aria-hidden="true" />
+              Present reveal
+            </Button>
           )}
         </main>
       </div>

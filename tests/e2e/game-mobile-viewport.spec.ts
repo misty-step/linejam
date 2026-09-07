@@ -397,7 +397,7 @@ async function expectWritingGeometry(page: Page) {
   );
   expect(boxesOverlap(scrollBox!, actionBox!)).toBe(false);
 
-  for (const content of [input, slots]) {
+  for (const content of [input]) {
     await content.scrollIntoViewIfNeeded();
     const [contentBox, currentActionBox] = await Promise.all([
       content.boundingBox(),
@@ -409,6 +409,15 @@ async function expectWritingGeometry(page: Page) {
     expect(paintedContentBox).not.toBeNull();
     expect(boxesOverlap(paintedContentBox!, currentActionBox!)).toBe(false);
   }
+  await expectInitiallyInsideVisualViewport(page, slots);
+  await expectContentFits(slots);
+  const [counterBox, submitBox] = await Promise.all([
+    slots.boundingBox(),
+    page.getByTestId(E2E_TEST_IDS.writingSubmitLineButton).boundingBox(),
+  ]);
+  expect(counterBox).not.toBeNull();
+  expect(submitBox).not.toBeNull();
+  expect(boxesOverlap(counterBox!, submitBox!)).toBe(false);
 
   const carriedLine = page.getByTestId(E2E_TEST_IDS.writingCarriedLine);
   if (await carriedLine.count()) {
@@ -460,13 +469,13 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     await session.hostPage.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });
-    await expectSplitPaneGeometry(
-      session.hostPage,
-      session.hostPage.getByTestId(E2E_TEST_IDS.hostScrollRegion),
-      session.hostPage.getByTestId(E2E_TEST_IDS.hostActionZone),
-      createRoom,
-      [hostName]
+    await expectNoHorizontalScroll(session.hostPage);
+    await expectNoHorizontalOverflow(
+      session.hostPage.getByTestId(E2E_TEST_IDS.hostScrollRegion)
     );
+    await expectReachableInsideVisualViewport(session.hostPage, hostName);
+    await expectReachableInsideVisualViewport(session.hostPage, createRoom);
+    await expectContentFits(createRoom);
     await session.hostPage.screenshot({
       path: testInfo.outputPath('host-320x667-200-percent.png'),
     });
@@ -495,10 +504,6 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       lobbyActionZone,
       soloStart
     );
-    const roomTools = session.hostPage
-      .locator('summary')
-      .filter({ hasText: 'Room tools' });
-    await roomTools.click();
     await expectContentFits(
       session.hostPage.getByTestId(E2E_TEST_IDS.lobbyPresentationButton)
     );
@@ -529,44 +534,28 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       session.hostPage,
       lobbyScrollRegion,
       lobbyActionZone,
-      start,
-      [
-        session.hostPage.getByText(
-          'Share the code, then start when everyone is ready.'
-        ),
-      ]
+      start
     );
 
     const moreOptions = session.hostPage.getByRole('button', {
       name: /More options/i,
     });
     await moreOptions.click();
-    const menuPopover = session.hostPage.locator('.lj-room-popover').filter({
-      visible: true,
+    const menuPopover = session.hostPage.getByRole('dialog', {
+      name: 'Room options',
     });
     await expectInitiallyInsideVisualViewport(session.hostPage, menuPopover);
     await expectNoHorizontalOverflow(menuPopover);
-    await session.hostPage.getByRole('button', { name: 'Appearance' }).click();
-    const appearancePopover = session.hostPage
-      .locator('.lj-room-popover')
-      .filter({
-        visible: true,
-      });
-    await expectInitiallyInsideVisualViewport(
-      session.hostPage,
-      appearancePopover
-    );
-    await expectNoHorizontalOverflow(appearancePopover);
     await expect(
-      appearancePopover.getByRole('group', { name: 'Color mode' })
+      menuPopover.getByRole('group', { name: 'Color mode' })
     ).toBeVisible();
     await session.hostPage.keyboard.press('Escape');
 
     await session.hostPage
       .getByRole('button', { name: /Open QR and copy options for room code/i })
       .click();
-    const qrPopover = session.hostPage.locator('.lj-room-popover').filter({
-      visible: true,
+    const qrPopover = session.hostPage.getByRole('dialog', {
+      name: 'Invite friends',
     });
     await expectInitiallyInsideVisualViewport(session.hostPage, qrPopover);
     await expectNoHorizontalOverflow(qrPopover);
@@ -619,7 +608,7 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       ),
       expectInitiallyInsideVisualViewport(
         session.hostPage,
-        session.hostPage.getByRole('button', { name: /Share room invite/i })
+        session.hostPage.getByRole('button', { name: /How to play/i })
       ),
       expectInitiallyInsideVisualViewport(
         session.hostPage,
@@ -765,9 +754,6 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
             endGameButton
           );
           await endGameButton.click();
-          await expect(
-            directWaitingPage.getByText('Partial poems are not revealed.')
-          ).toBeVisible();
           await expectReachableInsideVisualViewport(
             directWaitingPage,
             directWaitingPage.getByRole('button', { name: 'Keep playing' })
@@ -851,9 +837,11 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     );
     await expectReachableInsideVisualViewport(
       session.hostPage,
-      session.hostPage.getByRole('button', {
-        name: /Reveal on stage|Step in on stage|Read on stage/,
-      })
+      session.hostPage
+        .getByTestId(E2E_TEST_IDS.revealPresentationStage)
+        .getByRole('button', {
+          name: /^(Read poem|Step in and read|Read again)$/,
+        })
     );
     await expectNoHorizontalScroll(session.hostPage);
     await session.hostPage.screenshot({

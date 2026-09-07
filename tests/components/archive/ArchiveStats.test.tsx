@@ -1,10 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import {
-  ArchiveStats,
-  ArchiveStatsSkeleton,
-} from '@/components/archive/ArchiveStats';
+import { ArchiveStats } from '@/components/archive/ArchiveStats';
 
 describe('ArchiveStats component', () => {
   const mockStats = {
@@ -97,45 +94,5 @@ describe('ArchiveStats component', () => {
       expect(screen.getByText('1,234')).toBeInTheDocument();
       expect(screen.getByText('12,345')).toBeInTheDocument();
     });
-  });
-
-  describe('styling', () => {
-    it('applies custom className', () => {
-      render(<ArchiveStats stats={mockStats} className="my-stats-class" />);
-      const region = screen.getByRole('region');
-      expect(region).toHaveClass('my-stats-class');
-    });
-
-    it('applies accent styling to poems stat', () => {
-      render(<ArchiveStats stats={mockStats} />);
-      // The poems line should have accent color
-      const poemsText = screen.getByText('42');
-      const statLine = poemsText.parentElement;
-      expect(statLine).toHaveClass('text-[var(--color-primary)]');
-    });
-
-    it('applies muted styling to other stats', () => {
-      render(<ArchiveStats stats={mockStats} />);
-      // Favorites should have muted color
-      const favoritesText = screen.getByText('7');
-      const statLine = favoritesText.parentElement;
-      expect(statLine).toHaveClass('text-[var(--color-text-muted)]');
-    });
-  });
-});
-
-describe('ArchiveStatsSkeleton component', () => {
-  it('renders skeleton placeholder lines', () => {
-    const { container } = render(<ArchiveStatsSkeleton />);
-    // Should have 4 skeleton lines
-    const skeletonLines = container.querySelectorAll(
-      '.flex.items-center.gap-2'
-    );
-    expect(skeletonLines).toHaveLength(4);
-  });
-
-  it('applies pulse animation', () => {
-    const { container } = render(<ArchiveStatsSkeleton />);
-    expect(container.firstChild).toHaveClass('animate-pulse');
   });
 });

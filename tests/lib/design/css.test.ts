@@ -9,14 +9,12 @@ describe('static design token CSS', () => {
   it('emits the typed light and dark token tables', () => {
     const css = renderDesignTokensCss();
 
-    expect(css).toContain('--color-primary: #b43a12;');
-    expect(css).toContain('--color-focus-ring: #e85d2b;');
-    expect(css).toContain('--font-display: var(--font-libre-baskerville);');
-    expect(css).toContain('--text-5xl: 5.61rem;');
-    expect(css).toContain('--shadow-md: 4px 4px 0px rgba(232, 93, 43, 0.1);');
-    expect(css).toContain(
-      `--color-primary: ${designTokens.dark['color-primary']};`
-    );
+    for (const mode of ['light', 'dark'] as const) {
+      for (const [token, value] of Object.entries(designTokens[mode])) {
+        expect(css).toContain(`--${token}: ${value};`);
+      }
+    }
+    expect(css).toContain(':root.light');
     expect(css).toContain(':root.dark');
     expect(css).toContain('@media (prefers-color-scheme: dark)');
   });

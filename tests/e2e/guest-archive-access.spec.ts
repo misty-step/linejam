@@ -43,19 +43,18 @@ test.describe('guest archive access (no account)', () => {
       expect(page.url()).not.toContain('accounts.');
       expect(page.url()).not.toContain('/sign-in');
 
-      // exact: true — the empty-archive state's "Your archive awaits" h2
-      // otherwise substring-matches the same role/name query.
       await expect(
         page.getByRole('heading', { name: 'Archive', exact: true })
       ).toBeVisible({
         timeout: 15000,
       });
 
-      // Never a dead end: the guest identity explainer is always present.
-      await expect(page.getByText(/saved to this browser only/i)).toBeVisible();
       await expect(
-        page.getByRole('link', { name: /sign up/i })
-      ).toHaveAttribute('href', '/sign-up');
+        page.getByRole('link', { name: /Start a game/i })
+      ).toHaveAttribute('href', '/host');
+      await expect(
+        page.getByRole('link', { name: /Join a room/i })
+      ).toHaveAttribute('href', '/join');
     } finally {
       await context.close();
     }
@@ -77,12 +76,12 @@ test.describe('guest archive access (no account)', () => {
       expect(page.url()).not.toContain('/sign-in');
 
       await expect(
-        page.getByRole('heading', { name: 'Identity', exact: true })
+        page.getByRole('heading', { name: 'Your profile', exact: true })
       ).toBeVisible({
         timeout: 15000,
       });
       await expect(
-        page.getByText(/authenticate to preserve your works/i)
+        page.getByRole('link', { name: 'Home', exact: true })
       ).toBeVisible();
     } finally {
       await context.close();
@@ -107,6 +106,7 @@ test.describe('guest archive access after a played game @slow', () => {
     await session.startGame();
     await session.playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
     await session.revealAssignedPoem('host', CANONICAL_GUEST_FLOW_LINES);
+    await session.revealAssignedPoem('guest', CANONICAL_GUEST_FLOW_LINES);
     await session.expectSessionComplete();
 
     // Same guest session/cookie, navigating to the archive entry point —
@@ -119,11 +119,16 @@ test.describe('guest archive access after a played game @slow', () => {
       session.hostPage.getByRole('heading', { name: 'Archive', exact: true })
     ).toBeVisible({ timeout: 15000 });
 
-    // The poem this guest just wrote is reachable without an account.
-    await expect(
-      session.hostPage.getByText(/saved to this browser only/i)
-    ).toBeVisible();
-    const emptyState = session.hostPage.getByText(/your archive awaits/i);
-    await expect(emptyState).toHaveCount(0);
+    const poemLink = session.hostPage.getByTestId('poem-card').first();
+    await expect(poemLink).toBeVisible();
+    await poemLink.click();
+    await session.hostPage.waitForURL(/\/poem\/[^/]+$/);
+    const poemLines = session.hostPage.getByRole('list', {
+      name: 'Poem lines',
+    });
+    await expect(poemLines.getByRole('listitem')).toHaveCount(9);
+    for (const line of CANONICAL_GUEST_FLOW_LINES) {
+      await expect(poemLines.getByText(line, { exact: true })).toBeVisible();
+    }
   });
 });

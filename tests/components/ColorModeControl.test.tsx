@@ -5,7 +5,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ColorModeControl } from '@/components/ColorModeControl';
@@ -27,28 +26,6 @@ describe('ColorModeControl', () => {
     installMatchMedia(false);
   });
 
-  it('renders one native, named radio set without tab roles', () => {
-    renderColorModeControl();
-
-    const group = screen.getByRole('group', { name: /color mode/i });
-    const radios = within(group).getAllByRole('radio');
-
-    expect(radios).toHaveLength(3);
-    expect(radios.map((radio) => radio.getAttribute('value'))).toEqual([
-      'light',
-      'dark',
-      'system',
-    ]);
-    expect(
-      radios.every((radio) => radio.getAttribute('name') === 'color-mode')
-    ).toBe(true);
-    for (const radio of radios) {
-      expect(radio.closest('label')).toHaveClass('min-h-11');
-    }
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.queryAllByRole('tab')).toHaveLength(0);
-  });
-
   it('applies explicit light and dark choices immediately', () => {
     renderColorModeControl();
 
@@ -66,6 +43,7 @@ describe('ColorModeControl', () => {
   it('keeps system mode synchronized with the operating-system preference', async () => {
     const mediaQuery = installMatchMedia(false);
     renderColorModeControl();
+    fireEvent.click(screen.getByRole('radio', { name: /light/i }));
 
     fireEvent.click(screen.getByRole('radio', { name: /system/i }));
 
@@ -76,21 +54,5 @@ describe('ColorModeControl', () => {
     await waitFor(() => {
       expect(document.documentElement).toHaveClass('dark');
     });
-  });
-
-  it('leaves arrow keys to the browser-native radio implementation', () => {
-    renderColorModeControl();
-
-    const dark = screen.getByRole('radio', { name: /dark/i });
-    dark.focus();
-    const arrow = new KeyboardEvent('keydown', {
-      key: 'ArrowRight',
-      bubbles: true,
-      cancelable: true,
-    });
-    dark.dispatchEvent(arrow);
-
-    expect(arrow.defaultPrevented).toBe(false);
-    expect(dark).toHaveFocus();
   });
 });

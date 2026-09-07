@@ -175,8 +175,8 @@ export function PoemDetail({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
-        <div className="animate-pulse text-[var(--color-text-muted)]">
+      <div className="min-h-dvh bg-[var(--color-background)] flex items-center justify-center p-6">
+        <div role="status" className="text-[var(--color-text-muted)]">
           Loading...
         </div>
       </div>
@@ -186,20 +186,20 @@ export function PoemDetail({
   if (!data) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center px-6">
-        <div className="max-w-md space-y-4 text-center">
-          <p className="text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+        <div className="max-w-md space-y-4 text-left">
+          <h1 className="font-sans font-bold text-3xl text-[var(--color-text-primary)]">
             Poem not found
-          </p>
-          <h1 className="font-[var(--font-display)] text-4xl text-[var(--color-text-primary)]">
-            This poem is private or unavailable.
           </h1>
+          <p className="text-[var(--color-text-secondary)]">
+            This poem is private or unavailable.
+          </p>
           <p className="text-[var(--color-text-secondary)]">
             Shared poem links only work after a participant makes the poem
             public.
           </p>
           <Link
             href="/"
-            className="inline-flex h-12 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-6 text-sm font-medium text-[var(--color-text-primary)] hover:shadow-md"
+            className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-6 py-3 font-semibold text-[var(--color-text-inverse)] hover:bg-[var(--color-primary-hover)]"
           >
             Return to Linejam
           </Link>
@@ -251,7 +251,7 @@ export function PoemDetail({
           });
         },
         backHref: isParticipant ? '/me/poems' : '/',
-        backLabel: isParticipant ? '← Archive' : '← Linejam',
+        backLabel: isParticipant ? 'Archive' : 'Linejam',
         uniquePoets,
       }}
     />

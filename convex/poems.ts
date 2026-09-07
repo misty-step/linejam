@@ -11,6 +11,7 @@ import {
 import { buildPoemAuthorKeys } from './lib/poemAuthorKey';
 import { hashRoomId } from '../lib/roomIdHash';
 import { isRevealReady } from './lib/sessionLifecycle';
+import { getDefaultAvatarId } from '../lib/avatars';
 
 const DEFAULT_MY_POEMS_LIMIT = 24;
 const MAX_MY_POEMS_LIMIT = 48;
@@ -96,10 +97,12 @@ export const getPoemsForRoom = query({
 
 export const getPoemDetail = query({
   args: {
-    poemId: v.id('poems'),
+    poemId: v.string(),
     guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId, guestToken }) => {
+  handler: async (ctx, { poemId: inputId, guestToken }) => {
+    const poemId = ctx.db.normalizeId('poems', inputId);
+    if (!poemId) return null;
     const user = await getUser(ctx, guestToken);
     if (!user) return null;
 
@@ -226,10 +229,12 @@ export const getMyPoems = query({
 
 export const getPublicPoemPreview = query({
   args: {
-    poemId: v.id('poems'),
+    poemId: v.string(),
     shareSlug: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId, shareSlug }) => {
+  handler: async (ctx, { poemId: inputId, shareSlug }) => {
+    const poemId = ctx.db.normalizeId('poems', inputId);
+    if (!poemId) return null;
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
     const shareResolved = await resolvesPublicShare(ctx, poemId, shareSlug);
@@ -252,10 +257,12 @@ export const getPublicPoemPreview = query({
 
 export const getPublicPoemFull = query({
   args: {
-    poemId: v.id('poems'),
+    poemId: v.string(),
     shareSlug: v.optional(v.string()),
   },
-  handler: async (ctx, { poemId, shareSlug }) => {
+  handler: async (ctx, { poemId: inputId, shareSlug }) => {
+    const poemId = ctx.db.normalizeId('poems', inputId);
+    if (!poemId) return null;
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
     const shareResolved = await resolvesPublicShare(ctx, poemId, shareSlug);
@@ -381,6 +388,9 @@ export const getPublicSessionRecap = query({
           const reader = players.find(
             (player) => player.userId === poem.assignedReaderId
           );
+          const readerUser = poem.assignedReaderId
+            ? authorById.get(poem.assignedReaderId)
+            : undefined;
           const firstLine = lines[0];
           const starter = firstLine
             ? authorById.get(firstLine.authorUserId)
@@ -399,6 +409,14 @@ export const getPublicSessionRecap = query({
             createdAt: poem.createdAt,
             preview: lines[0]?.text ?? '',
             readerName: reader?.displayName ?? 'Unknown',
+            readerAvatarId:
+              reader?.avatarId ??
+              getDefaultAvatarId(
+                readerUser?.clerkUserId ||
+                  readerUser?.guestId ||
+                  poem.assignedReaderId ||
+                  ''
+              ),
             starterName:
               firstLine?.authorDisplayName || starter?.displayName || 'Unknown',
             poetCount: uniqueAuthorIds.size,

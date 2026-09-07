@@ -10,8 +10,8 @@
  * a fresh one and print it — capture it for follow-up commands.
  *
  * Usage:
- *   linejam-cli room create <displayName> [--guest-token TOKEN]
- *   linejam-cli room join <code> <displayName> [--guest-token TOKEN]
+ *   linejam-cli room create <displayName> [--avatar ID] [--guest-token TOKEN]
+ *   linejam-cli room join <code> <displayName> [--avatar ID] [--guest-token TOKEN]
  *   linejam-cli room state <code> --guest-token TOKEN
  *   linejam-cli game start <code> --guest-token TOKEN
  *   linejam-cli game assignment <code> --guest-token TOKEN
@@ -29,23 +29,32 @@ import {
   type LinejamClientResult,
 } from '../lib/linejamClient';
 import type { Id } from '@/convex/_generated/dataModel';
+import { AVATAR_IDS, isAvatarId, type AvatarId } from '@/lib/avatars';
 
 export type CliFlags = {
   positionals: string[];
   guestToken?: string;
+  avatarId?: AvatarId;
 };
 
 export function parseFlags(argv: string[]): CliFlags {
   const positionals: string[] = [];
   let guestToken = process.env.LINEJAM_GUEST_TOKEN;
+  let avatarId: AvatarId | undefined;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--guest-token') {
       guestToken = argv[++i];
+    } else if (argv[i] === '--avatar') {
+      const value = argv[++i];
+      if (!isAvatarId(value)) {
+        throw new Error(`Choose an avatar: ${AVATAR_IDS.join(', ')}`);
+      }
+      avatarId = value;
     } else {
       positionals.push(argv[i]);
     }
   }
-  return { positionals, guestToken };
+  return { positionals, guestToken, avatarId };
 }
 
 async function resolveGuestToken(guestToken: string | undefined) {
@@ -83,8 +92,8 @@ function printJson(value: CliOutput) {
 function printHelp() {
   process.stdout.write(
     `linejam-cli — terminal face over the Linejam Convex core\n\n` +
-      `  room create <displayName>\n` +
-      `  room join <code> <displayName>\n` +
+      `  room create <displayName> [--avatar ID]\n` +
+      `  room join <code> <displayName> [--avatar ID]\n` +
       `  room state <code>\n` +
       `  game start <code>\n` +
       `  game assignment <code>\n` +
@@ -93,6 +102,7 @@ function printHelp() {
       `  poems get <poemId>\n` +
       `  favorites toggle <poemId>\n` +
       `  favorites list\n\n` +
+      `Avatars: ${AVATAR_IDS.join(', ')}. Omit --avatar to keep your room choice or use a stable default.\n` +
       `Identity: --guest-token TOKEN or LINEJAM_GUEST_TOKEN env var.\n` +
       `Deployment: NEXT_PUBLIC_CONVEX_URL env var (source .env.local for dev).\n`
   );
@@ -105,14 +115,14 @@ export async function run(argv: string[], injectedClient?: LinejamClient) {
     return;
   }
 
-  const { positionals, guestToken: rawToken } = parseFlags(rest);
+  const { positionals, guestToken: rawToken, avatarId } = parseFlags(rest);
   const client = injectedClient ?? createLinejamClient();
 
   if (group === 'room' && action === 'create') {
     const [displayName] = positionals;
     if (!displayName) throw new Error('usage: room create <displayName>');
     const guestToken = await resolveGuestToken(rawToken);
-    printJson(await client.createRoom({ displayName, guestToken }));
+    printJson(await client.createRoom({ displayName, avatarId, guestToken }));
     return;
   }
 
@@ -121,7 +131,9 @@ export async function run(argv: string[], injectedClient?: LinejamClient) {
     if (!code || !displayName)
       throw new Error('usage: room join <code> <displayName>');
     const guestToken = await resolveGuestToken(rawToken);
-    printJson(await client.joinRoom({ code, displayName, guestToken }));
+    printJson(
+      await client.joinRoom({ code, displayName, avatarId, guestToken })
+    );
     return;
   }
 

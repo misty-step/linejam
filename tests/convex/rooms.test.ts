@@ -5,6 +5,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 import { signGuestToken } from '../../lib/guestToken';
+import { getDefaultAvatarId, type AvatarId } from '../../lib/avatars';
 import {
   ABUSE_RATE_LIMITS,
   type AbuseRateLimitOperation,
@@ -228,6 +229,73 @@ describe('createRoom', () => {
         guestToken: blockedToken,
       })
     ).rejects.toThrow('Rate limit exceeded');
+  });
+});
+
+describe('room avatars', () => {
+  it('rejects unknown selections without replacing a valid room avatar', async () => {
+    const t = setupConvexTest();
+    const host = asUser(t, 'invalid-avatar');
+    // SAFETY: Deliberately bypass the client type to exercise runtime validation.
+    const invalidAvatar = 'unknown-avatar' as AvatarId;
+    await expect(
+      host.mutation(api.rooms.createRoom, {
+        displayName: 'Host',
+        avatarId: invalidAvatar,
+      })
+    ).rejects.toThrow();
+
+    const { code } = await host.mutation(api.rooms.createRoom, {
+      displayName: 'Host',
+      avatarId: 'sunny',
+    });
+    await expect(
+      host.mutation(api.rooms.joinRoom, {
+        code,
+        displayName: 'Host',
+        avatarId: invalidAvatar,
+      })
+    ).rejects.toThrow();
+    const state = await host.query(api.rooms.getRoomState, { code });
+    expect(state?.players[0]?.avatarId).toBe('sunny');
+  });
+
+  it('resolves legacy memberships consistently and saves the default on rejoin', async () => {
+    const t = setupConvexTest();
+    const { code, roomId } = await seedRoomWithActiveGame(
+      t,
+      'legacy-avatar-host',
+      'legacy-avatar-guest'
+    );
+    const hostStableId = 'clerk_legacy-avatar-host';
+    const expectedAvatar = getDefaultAvatarId(hostStableId);
+    const observer = asUser(t, 'legacy-avatar-guest');
+
+    const roster = await observer.query(api.rooms.getRoomState, { code });
+    const progress = await observer.query(api.game.getRoundProgress, {
+      roomCode: code,
+    });
+    expect(
+      roster?.players.find((player) => player.stableId === hostStableId)
+        ?.avatarId
+    ).toBe(expectedAvatar);
+    expect(
+      progress?.players.find((player) => player.stableId === hostStableId)
+        ?.avatarId
+    ).toBe(expectedAvatar);
+
+    await asUser(t, 'legacy-avatar-host').mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'A new pen name',
+    });
+    const membership = await t.run((ctx) =>
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .filter((q) => q.eq(q.field('displayName'), 'A new pen name'))
+        .unique()
+    );
+    expect(membership?.avatarId).toBe(expectedAvatar);
   });
 });
 

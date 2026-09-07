@@ -143,7 +143,6 @@ function ResolvedRoomPage({
             roomCode={code}
             statusBoard
             {...buildLobbyChromeCopy({
-              code,
               playerCount: players.length,
             })}
           />
