@@ -131,22 +131,35 @@ jobs:
           node-version: '22'
 
       - name: Install supported Docker Compose
-        uses: docker/setup-compose-action@4eb059ff7f16592f9c84d5ca339c53cb7c5064e2 # v2
         env:
-          DOCKER_CONFIG: ${{ runner.temp }}/linejam-compose-bootstrap
-        with:
-          version: v5.5.1
-
-      - name: Expose Compose to the isolated Docker client
-        env:
-          DOCKER_CONFIG: ${{ runner.temp }}/linejam-compose-bootstrap
-        run: sudo install -D "$DOCKER_CONFIG/cli-plugins/docker-compose" /usr/local/lib/docker/cli-plugins/docker-compose
+          COMPOSE_VERSION: v5.5.1
+        run: |
+          set -euo pipefail
+          arch="$(uname -m)"
+          case "$arch" in
+            x86_64) asset="docker-compose-linux-x86_64" ;;
+            aarch64|arm64) asset="docker-compose-linux-aarch64" ;;
+            *)
+              echo "Unsupported architecture: $arch" >&2
+              exit 1
+              ;;
+          esac
+          curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/${asset}" \
+            -o /tmp/docker-compose
+          chmod 755 /tmp/docker-compose
+          sudo install -D /tmp/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
+          installed="$(docker compose version --short)"
+          if [[ "$installed" != "${COMPOSE_VERSION#v}" ]]; then
+            echo "Expected Docker Compose ${COMPOSE_VERSION#v}, found ${installed}" >&2
+            exit 1
+          fi
 
       - name: Run isolated guest QA
+        id: qa
         run: node scripts/local/cli.mjs qa --project ci
 
       - name: Upload isolated guest QA evidence
-        if: always()
+        if: always() && steps.qa.outcome != 'skipped'
         uses: actions/upload-artifact@v7
         with:
           name: isolated-guest-qa
@@ -162,7 +175,7 @@ jobs:
           retention-days: 14
 
       - name: Stop isolated guest stack
-        if: always()
+        if: always() && steps.qa.outcome != 'skipped'
         run: node scripts/local/cli.mjs down --project ci
 
   early-smoke:
