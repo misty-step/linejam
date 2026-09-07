@@ -1,5 +1,6 @@
 import { test, expect, devices, type Page } from '@playwright/test';
 import { isolateGuestSessionIp } from './support/guestFlow';
+import { allowsLocalDevelopmentDiagnostics } from './support/devDiagnostics';
 
 /**
  * linejam-910 (application-floor): broad-and-shallow coverage of each
@@ -11,10 +12,9 @@ import { isolateGuestSessionIp } from './support/guestFlow';
  * endpoint with no stable unauthenticated page state. It stays outside this
  * broad route matrix so its redirect/migration behavior remains a separate concern.
  *
- * Local pnpm dev emits one known React hydration diagnostic because the
- * development middleware nonce is regenerated between the server document
- * and the client refresh. The filter is disabled under CI so production
- * smoke remains strict for every console error.
+ * Known Next development diagnostics are admitted only for an explicitly
+ * declared loopback development target. Remote, production, and incompletely
+ * declared targets remain strict, regardless of CI flags.
  */
 
 const missingGuestTokenSecret =
@@ -37,6 +37,7 @@ type PageCase = {
   /** Proves the route rendered its intended state, not just a non-500 page. */
   assertVisible: (page: Page) => Promise<void>;
   expectedConsoleErrors?: RegExp[];
+  developmentConsoleErrors?: RegExp[];
 };
 
 const PAGES: PageCase[] = [
@@ -104,11 +105,9 @@ const PAGES: PageCase[] = [
     // no other console error is permitted.
     expectedConsoleErrors: [
       /Failed to load resource: the server responded with a status of 404 \(Not Found\)/,
-      ...(!process.env.CI ||
-      (process.env.LINEJAM_LOCAL === '1' &&
-        process.env.LINEJAM_DEPLOY_ENVIRONMENT !== 'production')
-        ? [/Encountered a script tag while rendering React component/]
-        : []),
+    ],
+    developmentConsoleErrors: [
+      /Encountered a script tag while rendering React component/,
     ],
     assertVisible: async (page) => {
       await expect(
@@ -151,7 +150,12 @@ const expectedDevHydrationPageError = process.env.CI
 
 for (const { name, contextOptions } of VIEWPORTS) {
   test.describe('major page smoke @ ' + name, () => {
-    for (const { path, assertVisible, expectedConsoleErrors = [] } of PAGES) {
+    for (const {
+      path,
+      assertVisible,
+      expectedConsoleErrors = [],
+      developmentConsoleErrors = [],
+    } of PAGES) {
       test(path + ' loads clean', async ({ browser }) => {
         const context = await browser.newContext(contextOptions);
         await isolateGuestSessionIp(context);
@@ -167,19 +171,29 @@ for (const { name, contextOptions } of VIEWPORTS) {
         try {
           await page.goto(path, { waitUntil: 'networkidle' });
           await assertVisible(page);
+          const localDevelopment = allowsLocalDevelopmentDiagnostics({
+            url: page.url(),
+            deploymentEnvironment: process.env.LINEJAM_DEPLOY_ENVIRONMENT,
+            localFlag: process.env.LINEJAM_LOCAL,
+            publicLocalFlag: process.env.NEXT_PUBLIC_LINEJAM_LOCAL,
+          });
 
           const allowedConsoleErrors = [
-            ...(expectedDevHydrationDiagnostic
+            ...(localDevelopment && expectedDevHydrationDiagnostic
               ? [expectedDevHydrationDiagnostic]
               : []),
             ...expectedConsoleErrors,
+            ...(localDevelopment ? developmentConsoleErrors : []),
           ];
           const unexpectedConsoleErrors = consoleErrors.filter(
             (message) =>
               !allowedConsoleErrors.some((pattern) => pattern.test(message))
           );
           const unexpectedPageErrors = pageErrors.filter(
-            (message) => !expectedDevHydrationPageError?.test(message)
+            (message) =>
+              !(
+                localDevelopment && expectedDevHydrationPageError?.test(message)
+              )
           );
           expect(unexpectedPageErrors, 'pageerror events on ' + path).toEqual(
             []
