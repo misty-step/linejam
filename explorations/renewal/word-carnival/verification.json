@@ -1,0 +1,460 @@
+{
+  "direction": "word-carnival",
+  "status": "verified",
+  "date": "2026-09-06",
+  "scope": "Offline renewal design exploration only; no production routes, accounts, backend, CLI or MCP mutations.",
+  "origin": "http://127.0.0.1:4400/word-carnival/",
+  "runtime": "Managed Chromium at the local atlas; native pointer and keyboard interaction on Main-owned dedicated CDP Chromium after shared-browser contention.",
+  "inventory": {
+    "counts": {
+      "view": 41,
+      "component": 71,
+      "motion": 25,
+      "sensory": 13
+    },
+    "defaultNavigationCount": 150,
+    "viewport": [
+      375,
+      667
+    ],
+    "query": {
+      "state": "default",
+      "mode": "light",
+      "reduced": 1,
+      "embed": 1
+    },
+    "checks": [
+      "Actual navigation and observe for every ID",
+      "Body and main surface markers match requested ID",
+      "Visible rendered stage body and interaction controls",
+      "Uncaught page errors",
+      "Horizontal overflow",
+      "Broken image resources"
+    ],
+    "initialResults": {
+      "uncaughtErrors": 0,
+      "markerFailures": 0,
+      "blankStages": 0,
+      "horizontalOverflowFailures": 0,
+      "brokenQrSurfaces": [
+        "view/lobby-presentation",
+        "component/lobby-stage",
+        "component/lobby-join-qr"
+      ]
+    },
+    "resolved": "All three QR surfaces were rechecked with a decoded 180px intrinsic image after adding the SVG namespace.",
+    "ids": {
+      "view": [
+        "app-shell",
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery",
+        "connection-notice",
+        "deployment-update",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "poem-image-export",
+        "poem-print",
+        "public-recap",
+        "sign-in",
+        "sign-up",
+        "auth-callback",
+        "profile",
+        "account-controls",
+        "help",
+        "appearance",
+        "releases",
+        "releases-feed",
+        "not-found",
+        "route-error",
+        "global-error",
+        "site-social-preview",
+        "poem-social-preview",
+        "recap-social-preview"
+      ],
+      "component": [
+        "root-layout",
+        "header",
+        "footer",
+        "home-page",
+        "host-page",
+        "join-page",
+        "room-page",
+        "unexpected-room-state",
+        "lobby",
+        "writing-screen",
+        "writing-composer",
+        "waiting-screen",
+        "reveal-phase",
+        "poem-display",
+        "session-recap-hub",
+        "stage-shell",
+        "lobby-stage",
+        "lobby-join-qr",
+        "reveal-stage",
+        "room-chrome",
+        "focused-entry-appearance",
+        "color-mode-control",
+        "help-modal",
+        "connection-status",
+        "deployment-skew-observer",
+        "room-panel-error-boundary",
+        "auth-error-state",
+        "accounts-unavailable",
+        "archive-page",
+        "archive-info-strip",
+        "archive-stats",
+        "stat-line",
+        "archive-stats-skeleton",
+        "poem-card",
+        "poem-card-skeleton",
+        "empty-archive",
+        "poem-silhouette",
+        "poem-silhouette-compact",
+        "author-dots",
+        "author-dots-inline",
+        "poem-detail",
+        "recap-page",
+        "recap-export-button",
+        "auth-layout",
+        "sign-in-page",
+        "sign-up-page",
+        "auth-callback-page",
+        "auth-showcase",
+        "profile-page",
+        "releases-page",
+        "release-card",
+        "technical-details",
+        "not-found-page",
+        "route-error-page",
+        "global-error-page",
+        "button",
+        "input",
+        "label",
+        "alert",
+        "avatar",
+        "host-badge",
+        "loading-state",
+        "round-clock",
+        "stamp-animation",
+        "word-slots",
+        "heart-button",
+        "site-social-card",
+        "poem-preview-card",
+        "poem-fallback-card",
+        "poem-full-card",
+        "recap-social-card"
+      ],
+      "motion": [
+        "global-reduced-motion",
+        "color-mode-transition",
+        "viewport-projection",
+        "writing-focus-scroll",
+        "button-press",
+        "stamp-arrival",
+        "loading-indicators",
+        "fade-up-entrances",
+        "archive-card-interaction",
+        "silhouette-bars",
+        "contributor-hover",
+        "waiting-presence-pulse",
+        "round-clock-drain",
+        "word-slot-feedback",
+        "ready-seal-loop",
+        "submission-confirmation",
+        "author-attribution-reveal",
+        "help-open-close",
+        "chrome-popover-feedback",
+        "reading-target-focus",
+        "stage-roster-highlight",
+        "favorite-crown-ceremony",
+        "ceremony-effects-hook",
+        "profile-image-hover",
+        "unmounted-motion-definitions"
+      ],
+      "sensory": [
+        "brand-identity",
+        "wordmark-and-logo",
+        "device-brand-assets",
+        "paper-grain-and-depth",
+        "typographic-voice",
+        "player-identity",
+        "word-pattern-shape",
+        "icon-vocabulary",
+        "ceremony-audio",
+        "ceremony-haptics",
+        "share-artifacts",
+        "native-platform-surfaces",
+        "public-auth-showcase"
+      ]
+    }
+  },
+  "scenarios": {
+    "finalCoreViewports": {
+      "views": 19,
+      "navigations": 57,
+      "variants": [
+        {
+          "viewport": [
+            390,
+            844
+          ],
+          "mode": "light"
+        },
+        {
+          "viewport": [
+            390,
+            844
+          ],
+          "mode": "dark"
+        },
+        {
+          "viewport": [
+            1440,
+            1000
+          ],
+          "mode": "light"
+        }
+      ],
+      "horizontalOverflowFailures": 0,
+      "markerFailures": 0,
+      "brokenImages": 0,
+      "uncaughtErrors": 0,
+      "evidence": ".qa/renewal-evidence/word-carnival/core-viewports.json"
+    },
+    "actualSpecimenBodies": {
+      "navigations": 109,
+      "counts": {
+        "component": 71,
+        "motion": 25,
+        "sensory": 13
+      },
+      "viewport": [
+        375,
+        667
+      ],
+      "mode": "light",
+      "reduced": true,
+      "emptyBodies": 0,
+      "missingMarkers": 0,
+      "horizontalOverflowFailures": 0,
+      "brokenImages": 0,
+      "uncaughtErrors": 0,
+      "evidence": ".qa/renewal-evidence/word-carnival/specimen-rendering.json"
+    },
+    "coreStress": {
+      "views": 19,
+      "navigations": 38,
+      "viewport": [
+        375,
+        667
+      ],
+      "variants": [
+        "long-text query",
+        "200% text via root font-size 17px to34px"
+      ],
+      "finalHorizontalOverflowFailures": 0,
+      "unfocusedSkipLinksIntruding": 0,
+      "note": "Long-text selects the implemented long-name/line fixture where that core view contains one; no synthetic backend state was injected."
+    },
+    "manualFlow": {
+      "viewport": [
+        390,
+        844
+      ],
+      "rounds": 9,
+      "pattern": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        4,
+        3,
+        2,
+        1
+      ],
+      "invalidTrials": 18,
+      "invalidCountNeverAdvanced": true,
+      "committedInputLocked": true,
+      "acceptedLinesMatchInput": true,
+      "onlyPreviousLineShown": true,
+      "waitingRevealsNoPoems": true,
+      "socketsContainNoDuplicatedWords": true,
+      "typedLineHorizontalClipping": false,
+      "staleAcceptanceToastsInNextRound": 0,
+      "fullRevealLineCount": 9,
+      "privateRecapPoemCount": 1,
+      "privateFavoriteAndNineAttributions": true,
+      "networkFetchOrXhrRequests": [],
+      "uncaughtErrors": [],
+      "inputMethod": "Supplied synthetic QA lines typed through native browser keyboard events, not app-function or state injection.",
+      "evidence": [
+        ".qa/renewal-evidence/word-carnival/manual-rounds.json",
+        ".qa/renewal-evidence/word-carnival/manual-completion.json"
+      ]
+    },
+    "additionalInteractions": {
+      "normalizedJoinCode": "abCd became ABCD; Enter focused pen-name; unnamed submit remained disabled",
+      "modalFocus": "Help Escape returns to opener; appearance/sound return survives rerender; light/dark/system radio cycle and reduced-motion checkbox retain keyboard focus.",
+      "longDraft": "A long single word plus four other words remained intact with five empty-text count sockets, no horizontal overflow and no loss through appearance changes.",
+      "sharing": "A separate full nine-round replay confirmed whole-session scope names Cups and its one local author, then prepare/cancel remains private.",
+      "privacy": "Seven private/pending/revoked/unavailable public fixtures exposed no poem lines or sample first line; account controls returned explicit provider-unavailable feedback.",
+      "orientation": {
+        "viewports": [
+          [
+            844,
+            390
+          ],
+          [
+            375,
+            400
+          ]
+        ],
+        "draft": "words cross the table",
+        "nativeSubmitAcceptedInBoth": true,
+        "overflowFailures": 0
+      },
+      "motion": {
+        "normalReplay": "Observed tile-settle animation after explicit Replay motion",
+        "reducedReplay": "Same Mina joined state; zero animations",
+        "osReducedPreference": "Checked and disabled override control; app cannot disable OS preference"
+      },
+      "sound": {
+        "default": "Off; Play cue disabled",
+        "explicitEnable": "Audio context ran; user-set volume30 and Play cue created two oscillator nodes",
+        "reduced": "Context suspended; sound turned off; Play cue disabled; enabling rejected with a visible explanation",
+        "actuallyHeard": false
+      },
+      "print": {
+        "artifact": ".qa/renewal-evidence/word-carnival/complete-poem-print.pdf",
+        "screenshot": ".qa/renewal-evidence/word-carnival/complete-poem-print-media.png",
+        "fixture": "Synthetic attributed nine-line poem",
+        "pages": 1,
+        "textSize": "16pt",
+        "rootAndBodyWhite": true,
+        "chromeAndControlsHidden": true
+      },
+      "evidence": ".qa/renewal-evidence/word-carnival/supplemental-scenarios.json"
+    }
+  },
+  "fixes": [
+    {
+      "file": "style.css",
+      "observed": "Logo split into LINEJ / AM at375px.",
+      "change": "Keep brand unbroken and nonshrinking; let utility navigation flex and wrap."
+    },
+    {
+      "file": "qr-sketch.svg",
+      "observed": "External QR failed to decode on all three QR surfaces.",
+      "change": "Add the required SVG namespace; retain the original local-sketch payload."
+    },
+    {
+      "file": "style.css",
+      "observed": "200% entry forms overflowed by202px initially, then161px from intrinsic input sizing.",
+      "change": "Allow segment wrapping and constrain entry/form grid sizing; keep the enlarged form within the viewport."
+    },
+    {
+      "file": "style.css",
+      "observed": "Offscreen skip link protruded into the page when enlarged.",
+      "change": "Hide by its own translated height rather than a fixed100px offset."
+    },
+    {
+      "file": "style.css",
+      "observed": "Reading buttons broke words into narrow vertical columns; public/export headings occupied a missing avatar column.",
+      "change": "Give action rows a readable flex basis and use ordinary block flow when no companion icon exists."
+    },
+    {
+      "file": "style.css",
+      "observed": "Dark placeholder was too faint; stamped room codes still used the display face.",
+      "change": "Use the contrast-aware muted text color for placeholders; inherit Atkinson for practical room codes. Bungee stays in logo/display artwork."
+    },
+    {
+      "file": "prototype.js",
+      "observed": "Closing Appearance after a mode change left focus in the closed dialog.",
+      "change": "Rebind the original modal launcher across surface rerenders, including its position among repeated actions."
+    },
+    {
+      "file": "prototype.js",
+      "observed": "Standalone appearance radios lost focus after the first ArrowRight.",
+      "change": "Restore the chosen radio/checkbox so native keyboard cycling continues."
+    },
+    {
+      "file": "prototype.js",
+      "observed": "Acceptance and favorite toasts persisted over the next writing/reading screen.",
+      "change": "Clear route-local transient notification state on navigation."
+    },
+    {
+      "file": "prototype.js",
+      "observed": "Whole-session sharing showed two Almost fixtures after the local one-poem recap.",
+      "change": "Use the actual local poem title and author for that local session scope; leave public/account examples explicitly offline."
+    },
+    {
+      "file": "style.css",
+      "observed": "Print media left mint background below the white poem body.",
+      "change": "Make the print root white as well as the body; confirmed one-page attributed PDF."
+    }
+  ],
+  "visualCritique": {
+    "retained": "Mint print bed, orange registration strip, purple ink-foot actions, original geometric people and compact Bungee wordmark/poster identity.",
+    "writingAndReading": "Atkinson remains on instructions, practical codes, input, count status, actions and poems. One outer print bed and purposeful rules remain, not nested decorative borders.",
+    "noScoring": "Observed acceptance, waiting, reveal and recap contain no points, ranks, score feedback, timer lockout, public favorite winner or arcade progress mechanics.",
+    "evidenceDistinction": "All screenshots are actual rendered browser captures. Contact sheets montage those captures; DOM counts alone did not catch the broken logo, compressed reading controls or phantom sidebar column."
+  },
+  "screenshots": {
+    "home": ".qa/renewal-evidence/word-carnival/home-light-375.png",
+    "homeBeforeFix": ".qa/renewal-evidence/word-carnival/home-before-375.png",
+    "writing": ".qa/renewal-evidence/word-carnival/writing-manual-round4.png",
+    "waiting": ".qa/renewal-evidence/word-carnival/waiting-manual-round4.png",
+    "completePoem": ".qa/renewal-evidence/word-carnival/complete-manual-poem.png",
+    "privateRecap": ".qa/renewal-evidence/word-carnival/private-recap-manual.png",
+    "componentShowcase": ".qa/renewal-evidence/word-carnival/component-contact-sheet.webp",
+    "coreContactSheets": [
+      ".qa/renewal-evidence/word-carnival/core-light-sheet-1.webp",
+      ".qa/renewal-evidence/word-carnival/core-light-sheet-2.webp",
+      ".qa/renewal-evidence/word-carnival/core-light-sheet-3.webp",
+      ".qa/renewal-evidence/word-carnival/core-light-sheet-4.webp",
+      ".qa/renewal-evidence/word-carnival/core-dark-sheet-1.webp",
+      ".qa/renewal-evidence/word-carnival/core-dark-sheet-2.webp",
+      ".qa/renewal-evidence/word-carnival/core-dark-sheet-3.webp",
+      ".qa/renewal-evidence/word-carnival/core-dark-sheet-4.webp"
+    ],
+    "longDraft": ".qa/renewal-evidence/word-carnival/long-draft-five-sockets.png",
+    "desktopDarkReveal": ".qa/renewal-evidence/word-carnival/reveal-presentation-dark-1440.png",
+    "soundControl": ".qa/renewal-evidence/word-carnival/sound-modal-enabled.png",
+    "enlargedEntry": ".qa/renewal-evidence/word-carnival/stress-host-entry-text-200.png"
+  },
+  "failures": [],
+  "knownActionableDefects": [],
+  "unexercisedLimits": [
+    "Headless audio output could not actually be heard; enabled/running/suspended context and cue oscillator creation were observed instead.",
+    "375x400 tests constrained writing space, not a physical mobile software keyboard or IME. 200% text was root-font enlargement, not a device accessibility-setting test.",
+    "Print media and a real browser-generated PDF were checked; native OS print/share dialogs, paper output and image-download delivery were not verified.",
+    "The QR image renders and is explicitly an offline message; it was not scanned on a physical phone.",
+    "Every inventory default was navigated; every combinatorial inventory state/browser/assistive-technology combination was not exercised.",
+    "Shared browser control stalls initially caused one harness-enforced JS VM reset. Main supplied a dedicated CDP process; native pointer/keyboard completed remaining proof. Differently named CDP handles adopted the same page, so later work used one handle. Initial150 navigation summary is grounded in tool output; final57 core and109 specimen records are retained on disk."
+  ],
+  "repositoryGates": "No formatter, linter, build, unit test or project-wide suite run. Main owns final formatting and repository gates.",
+  "ownedChanges": [
+    "explorations/renewal/word-carnival/style.css",
+    "explorations/renewal/word-carnival/prototype.js",
+    "explorations/renewal/word-carnival/qr-sketch.svg",
+    "explorations/renewal/word-carnival/verification.json",
+    ".qa/renewal-evidence/word-carnival/"
+  ]
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Fold Club · Linejam design sketch</title>
+    <link rel="stylesheet" href="../fonts.css" />
+    <link rel="stylesheet" href="./style.css" />
+    <script src="./prototype.js" defer></script>
+  </head>
+  <body data-direction="fold-club" data-mode="light" data-surface-id="home">
+    <a class="skip-link" href="#main">Skip to the sketch</a>
+    <aside class="explorer" aria-label="Design exploration controls">
+      <div class="explorer-heading"><a href="../">All five directions</a><strong>Fold Club</strong><span>Original design sketch, not live gameplay</span></div>
+      <div class="explorer-controls">
+        <label>Explore<select id="surface-select"><option value="view">Views</option><option value="component">Components</option><option value="motion">Motion</option><option value="sensory">Sensory</option></select></label>
+        <label class="wide-control">Surface<select id="id-select"></select></label>
+        <label>State<select id="state-select"></select></label>
+        <label>Appearance<select id="mode-select"><option value="light">Light paper</option><option value="dark">Blue-hour paper</option></select></label>
+        <label class="check-label"><input type="checkbox" id="reduced-select" /> Reduce motion</label>
+        <button type="button" class="small-button" data-action="begin-sketch">Try the nine-round sketch</button>
+      </div>
+    </aside>
+    <div class="game-shell">
+      <header class="game-header">
+        <a class="brand" href="?surface=view&amp;id=home" data-go="home" aria-label="Linejam home">
+          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path class="mark-main" d="M8 8h20l15 20-14 28H8l14-28Z"/><path class="mark-light" d="m28 8 27 12-12 8Z"/><path class="mark-dark" d="m29 56 27-12-13-16Z"/><path class="mark-crease" d="m8 8 14 20 21 0M22 28 8 56"/></svg>
+          <span>linejam<span class="brand-caption">Fold Club</span></span>
+        </a>
+        <nav class="game-nav" aria-label="Main navigation"><button type="button" class="text-button" data-go="archive">Your poems</button><button type="button" class="text-button" data-action="help">How to play</button><button type="button" class="icon-button" data-action="preferences" aria-label="Appearance, sound and avatar settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg></button></nav>
+      </header>
+      <div class="sketch-notice">Design sketch <span aria-hidden="true">/</span> Synthetic room and poems. Nothing leaves this page.</div>
+      <main id="main" tabindex="-1" data-direction="fold-club" data-surface-id="home"></main>
+      <footer class="game-footer"><span>Made together. One line at a time.</span><nav aria-label="More"><button type="button" class="text-button" data-go="archive">Your poems</button><button type="button" class="text-button" data-go="profile">Your identity</button><button type="button" class="text-button" data-go="releases">What’s new</button><button type="button" class="text-button" data-action="exit">Leave sketch</button></nav></footer>
+    </div>
+    <dialog id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>

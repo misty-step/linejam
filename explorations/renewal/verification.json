@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "status": "verified-offline-design-exploration",
+  "recordedAt": "2026-09-07T00:32:19Z",
+  "summary": "All 150 inventory IDs were inspected in each of five offline proposals. Core mobile/desktop flows, enlarged text and reduced motion were exercised; detailed cases and limits are in the linked direction receipts. This is design-prototype evidence, not live multiplayer or production acceptance.",
+  "inventory": {
+    "views": 41,
+    "components": 71,
+    "motion": 25,
+    "sensory": 13,
+    "total": 150,
+    "directions": 5,
+    "documentedTreatments": 750,
+    "missingIds": 0
+  },
+  "directions": [
+    {
+      "id": "fold-club",
+      "receipt": "fold-club/verification.json"
+    },
+    {
+      "id": "jelly-chorus",
+      "receipt": "jelly-chorus/verification.json"
+    },
+    {
+      "id": "midnight-matinee",
+      "receipt": "midnight-matinee/verification.json"
+    },
+    {
+      "id": "word-carnival",
+      "receipt": "word-carnival/verification.json"
+    },
+    {
+      "id": "odd-garden",
+      "receipt": "odd-garden/verification.json"
+    }
+  ],
+  "atlas": {
+    "viewports": [
+      "1440x1250",
+      "390x844"
+    ],
+    "exercised": [
+      "Five-home and five-writing visual comparison",
+      "Native view, palette, direction and reduced-motion controls",
+      "Live workbench: invalid five-word draft rejected for a three-word turn, corrected draft accepted into waiting",
+      "Inventory search narrowed 150 entries to two avatar entries",
+      "Inventory treatment button opened Fold Club avatar in the workbench",
+      "No document-level horizontal overflow at 390px"
+    ],
+    "evidence": [
+      ".qa/renewal-evidence/atlas/home-comparison.webp",
+      ".qa/renewal-evidence/atlas/writing-comparison.webp",
+      ".qa/renewal-evidence/atlas/mobile-live-workbench.webp"
+    ]
+  },
+  "sourceSnapshot": {
+    "algorithm": "SHA-256 of sorted relative-path + NUL + file-SHA-256 records joined by newline",
+    "fingerprint": "475b8c67069dfe427276f8adec0df4320dea4159ff080751514ec1cdec9942f0",
+    "files": {
+      "atlas.css": "3871ab8a4ce91b5d255ebf0ce1a79f63a4dc4118e364178ba97b4382f761a3f0",
+      "atlas.js": "65b3265121d27998f1e7459e05d2adc58bb40e0d62442e19dab785f82ecdef88",
+      "audit-source.json": "3e754ab255aa900d84a62988241b5afe9b87b1e6a37895f86bf64c6fbb83d53b",
+      "brief.json": "d7b0ec11479f1767e1da7188b45616922e9024af88a9516f7532a980b463a4b0",
+      "fold-club/direction.json": "cb7097b5909a566fd0a7003fd6fdbd7745116c58528514828ccf0f48d23ee35b",
+      "fold-club/index.html": "6c40341060da683d566e7714982043d843cf7f85f384c365e6cb98db58542f78",
+      "fold-club/prototype.js": "bed255788b20589067d85093f54dc88d2755e5024d72c2acdc645ba2892932df",
+      "fold-club/style.css": "378dde99f7bd6c2b24119b6af72661d1f74f7130e8dc3a35c2a6403882d88fd5",
+      "fold-club/verification.json": "5a56dce16f068cac9adb816abb81df616f224d5d18e0e5f49f1da2ee88046056",
+      "fonts.css": "668add2a10fc308c21cd488096098718a03409cdad57a609ba8c3b13f5c81803",
+      "fonts/atkinsonhyperlegible-400.ttf": "daa4fc7275d21266748afad0563d8f57e075933686ca6995f06ed8619e99e9e4",
+      "fonts/atkinsonhyperlegible-700.ttf": "b5d9490cf95d925a28ab7b1560e76385134c9bca6cd2d83eee1e51d8c7b1295f",
+      "fonts/atkinsonhyperlegible-OFL.txt": "f32d22b3908fcad2c86a74000614ec22e6a7f66ea7e867e616026a27aebdc143",
+      "fonts/bricolagegrotesque-400.ttf": "b56db40c26850f83ba2ebffa1f7faa01e5ee4e55ac63decee1433de520a38483",
+      "fonts/bricolagegrotesque-600.ttf": "284891c74c258cff7233962e048d9470bfb9fc326b53dd0bca408789297c3409",
+      "fonts/bricolagegrotesque-700.ttf": "913ee3631949ee1b4fb2601269412fca5775eb994d4f87be2c366c94ac123dc5",
+      "fonts/bricolagegrotesque-800.ttf": "50fe1039eb3ff208d027a4867d3f53bd288bba76273a718578f7b3ec0feec388",
+      "fonts/bricolagegrotesque-OFL.txt": "4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba",
+      "fonts/bungee-400.ttf": "ff0ad5d7496a911460625f9052ea50b05e289065be71a1cb21c71896585224d2",
+      "fonts/bungee-OFL.txt": "d5787a50dde5be6c6daecab9ed459939b1bc37cff0d0e00257eaf1ec2cf4c16c",
+      "fonts/dmsans-400.ttf": "b0ae3e89a7d3ef2b1838bb4b1ceb0b17cc3435af061eee809d76aa623ff116e9",
+      "fonts/dmsans-500.ttf": "376427b5322148d8de1e03f263bcca4935a2d60ba71d9f94f4947ab664c711ae",
+      "fonts/dmsans-600.ttf": "b79a2ea7a38f33fd96a282fadb9ce97626bb0724a44d21075859f0e50239993a",
+      "fonts/dmsans-700.ttf": "2a8e7f713ee79fbccdef3cef5c787aff47580299f7da60144961e7db2ec08211",
+      "fonts/dmsans-OFL.txt": "9af36190332437f5ecd09974de43c1f7c77a310a996cdd8ceb25628b458840e1",
+      "fonts/dmserifdisplay-400.ttf": "c03775f8cc3db88cfea259b231abe13f94e6a3d3cb01c09477a2e42a1f5919e1",
+      "fonts/dmserifdisplay-OFL.txt": "a3e5cdd67d4571dd0a24fcc968de0efde7ae97ef752daf0906e4767619dd7231",
+      "fonts/dynapuff-500.ttf": "ccd696928b0ef491c65c1440d1f3f5fde5658c6d0f697ffb4b3fa040837a690e",
+      "fonts/dynapuff-600.ttf": "f0d1668de5ddaac376640dc022f3cb012667ef49b0adf6cea6977f6e58602fb1",
+      "fonts/dynapuff-OFL.txt": "ad0bc2ae83f6dbf6f3edde26752324260c2fbaf9cc021748d363a879dd5b749c",
+      "fonts/figtree-400.ttf": "81f3fc9d8d4e307e5ae0dd43a03d22eb90d50b6cc72241552c460a59b6731b31",
+      "fonts/figtree-500.ttf": "f8a90c01bc4c31aa84be5cbff3e80784bfc0da37e5aaa23eb9e05108b9ba0ece",
+      "fonts/figtree-600.ttf": "b5d3fe714f8283b072579c9318c6cbe9e028ca51d6ba33eed0412a828ec331da",
+      "fonts/figtree-OFL.txt": "140d37233e7f3ce7313798befa9600893bcceaf41a55fa0fa5ad52f7f657a268",
+      "fonts/fraunces-400.ttf": "3eb6cf0a14feb1876cc464fa093af4e0c5b05dc46dec65619c1d95f2a1ab5aa7",
+      "fonts/fraunces-600.ttf": "ff7cf63717c27756df857ca12045a83522569f7b561bedaff813a25274eb263f",
+      "fonts/fraunces-OFL.txt": "bdf4c22802eaf804f998195871c6b8938aac2ac14b2d78a8bd66a6f1eced833b",
+      "fonts/nunitosans-400.ttf": "a699fa825cd47524461c459a54fe3cd51eb13e1e76ba238fe6ea86932979a808",
+      "fonts/nunitosans-600.ttf": "ad2699609215220841b2bbb16dd1899f32559d24f55b4cdaaa913ca3e15e3fbd",
+      "fonts/nunitosans-700.ttf": "ec2336c2beb651fb7f9fb968ef4e5b69e91af624c240331a239d3aefd6e41ef0",
+      "fonts/nunitosans-OFL.txt": "efbb0c9e864cef973982d9a17567e6be5c3d1759695574586f3f18c7ecca064b",
+      "fonts/sources.json": "2cc02b4a955e06a2584a6ee9fb39c83644f61470cbf1204d64047f25639463d6",
+      "index.html": "1fc1c3cbb5a6c59f4c016925dd770635ce618559451bfcbbe5cf18747905b6f8",
+      "inventory.json": "9d1f28836be2c767dc568b9f305600d4cebe0c4d9ad76c9f825054a462f02d9b",
+      "jelly-chorus/direction.json": "ccbf147e0266450e22bf18b4387a09232c6b1f4791f023973aee8b3188cdd1dd",
+      "jelly-chorus/index.html": "9f4d7ab21b36abd66a3f86613e1b64173fdca4f9d46675c5390dbf24998cb5e7",
+      "jelly-chorus/prototype.js": "db1aeb9f5a472fedf1baff1ed285c5527e811ba518ac1678014972d96176ca21",
+      "jelly-chorus/style.css": "1ef73f23251eea634470348fbfb1b3de5dc12d22cbc479983f032decb48a4c01",
+      "jelly-chorus/verification.json": "aae1d41d394fa2451d8d3bdcf79690ac6b213b8a4b4806519d961947ff92f0f1",
+      "midnight-matinee/direction.json": "d70df50cddad9b1f09874e61a22b284487f55c841e8e3e48e752a3e27c8dd9e4",
+      "midnight-matinee/index.html": "9807a90931e949ddb26d5e918ec5be5a80055bcfd3a3463003ee39970b1fe872",
+      "midnight-matinee/invitation-sample.svg": "80c83199dc70d7db632c6a507c9799dad91d455cb8df8c95ade0f8c95e499a51",
+      "midnight-matinee/prototype.js": "6c7b8f12abe8a3f9af438bfbaf048bee6e2188111e95dfe63afcd1f848f7f4bd",
+      "midnight-matinee/style.css": "d4c571b1c348a0a85bd4693a20230e0607a36c4b3da92e54a8c892a79f49552a",
+      "midnight-matinee/verification.json": "8044cc87890972f5f0ae042663796b8eb53370685cea0877c93d63ac1aebac64",
+      "odd-garden/direction.json": "e0cc83f905bfb792cf78fca1f4a665d3b3cae5ef0d35a77a2a6cd33afa6b1631",
+      "odd-garden/index.html": "6cf0456289c14c12fc4f439bf3e2cdec67ee0e48507dd1be4268b81c122353f7",
+      "odd-garden/invitation-sketch.svg": "8b0e3b4ab13584f836170876d7b6cad9b4d7ae36b94034a044d26f475d5d170a",
+      "odd-garden/prototype.js": "b3a28175f10c7414405322dbf2afc4e7c2d7b6fb1b336e487bb603eaec0ba67b",
+      "odd-garden/style.css": "5e01626ad665ea328db0eedf4f10707bf917c213d26d86d59605d210a5e0d69e",
+      "odd-garden/verification.json": "1da9b7aa09e837584c44c383d1aac961e293c5ca58ad7e6736f6de6954d31213",
+      "word-carnival/direction.json": "df12d78ab370633874519b93b07d10fdf09020fdf0f720a4554f0179e4be62f6",
+      "word-carnival/index.html": "f6fdbb8448fb31326ee4cca171a4c4d0cab0d747fe330a709b57d9b276b80d67",
+      "word-carnival/prototype.js": "6b4a49c8d86251bb2f0a720da51f57075b52252e9086671e7465f651637da4f2",
+      "word-carnival/qr-sketch.svg": "a5d8a044ca6977f1f7dc8f81a78df36da0e649d9678d0e78dbca4982ff1edfcd",
+      "word-carnival/style.css": "4eae86a7a0458febe9a39b62921a24b85560c8ac3ecfb331f15e699319b37da7",
+      "word-carnival/verification.json": "9697f7de677c6ac5b81ca09680ab3d57658b469abd6e746325f15544073f1f55"
+    }
+  },
+  "limits": [
+    "Every inventory ID was inspected; not every Cartesian combination of state, viewport and preference was exercised.",
+    "No audience preference study or final production identity selection.",
+    "Prototype accounts, other players, publication and persistence are explicit local fixtures.",
+    "Audio control behavior was exercised; no claim that audio was heard.",
+    "No physical phone keyboard, screen reader, completed native OS share sheet or physical printer verification.",
+    "Real local multiplayer and container acceptance are recorded separately."
+  ]
+}

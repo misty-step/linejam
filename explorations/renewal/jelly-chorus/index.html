@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#EEE8FF">
+    <title>Jelly Chorus · Linejam design sketch</title>
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="./style.css">
+    <script src="./prototype.js" defer></script>
+  </head>
+  <body data-direction="jelly-chorus" data-surface-id="home">
+    <a class="skip-link" href="#surface">Skip to the sketch</a>
+    <aside id="exploration-controls" class="exploration-controls" aria-label="Design exploration controls">
+      <div class="exploration-intro"><a href="../">All five directions</a><strong>Jelly Chorus</strong><span>Local design sketch, not live gameplay</span></div>
+      <div class="exploration-fields">
+        <label>Surface<select id="surface-kind"><option value="view">Views</option><option value="component">Components</option><option value="motion">Motion</option><option value="sensory">Sensory</option></select></label>
+        <label class="surface-select">Show<select id="surface-choice"></select></label>
+        <label>State<select id="state-choice"></select></label>
+        <label>Palette<select id="mode-choice"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+        <label class="check-control"><input id="reduced-choice" type="checkbox"> Reduce motion</label>
+      </div>
+    </aside>
+    <div id="application"></div>
+    <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <dialog id="drawer" class="drawer" aria-labelledby="drawer-title"></dialog>
+    <noscript><main class="noscript"><h1>Jelly Chorus</h1><p>This local interaction sketch needs JavaScript. No live game or account is connected.</p><a href="../">Return to the comparison</a></main></noscript>
+  </body>
+</html>
