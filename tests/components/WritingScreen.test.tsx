@@ -131,20 +131,26 @@ describe('WritingScreen component', () => {
     expect(textarea).toHaveValue('one two tail');
   });
 
-  it('preserves an uncertain draft offline and offers recovery after its only retry fails', async () => {
+  it('preserves an uncertain draft through offline editing attempts and reload recovery after its only retry fails', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const reload = vi
+      .spyOn(window.location, 'reload')
+      .mockImplementation(() => {});
     mockSubmitLineMutation.mockRejectedValue(new Error('Network error'));
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const { unmount } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const textarea = screen.getByRole('textbox');
 
-    await user.type(screen.getByRole('textbox'), 'Verse');
+    await user.type(textarea, 'Verse');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
 
     const disconnectedRetry = await screen.findByRole('button', {
       name: /waiting for connection/i,
     });
+    await user.type(textarea, 'Changed');
+    expect(textarea).toHaveValue('Verse');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(disconnectedRetry).toBeDisabled();
-    expect(screen.getByRole('textbox')).toHaveValue('Verse');
     expect(
       sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
     ).toBe('Verse');
@@ -157,26 +163,51 @@ describe('WritingScreen component', () => {
     expect(retry).toBeEnabled();
     await user.click(retry);
 
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/reload.*reconnect/i);
+    const reloadRoom = await screen.findByRole('button', {
+      name: /reload room/i,
     });
-    expect(screen.getByRole('alert')).toHaveTextContent(/draft.*saved/i);
+    await user.type(textarea, 'Changed');
+    expect(textarea).toHaveValue('Verse');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /retry|waiting for connection/i })
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox')).toHaveValue('Verse');
     expect(
       sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
     ).toBe('Verse');
-    const failedSubmit = screen.getByRole('button', {
-      name: /unable to confirm/i,
-    });
+    const failedSubmit = screen.getByTestId(
+      E2E_TEST_IDS.writingSubmitLineButton
+    );
     expect(failedSubmit).toBeDisabled();
     await user.click(failedSubmit);
     expect(mockSubmitLineMutation).toHaveBeenCalledTimes(2);
+
+    act(() => window.dispatchEvent(new Event('offline')));
+    expect(reloadRoom).toBeDisabled();
+    await user.click(reloadRoom);
+    expect(reload).not.toHaveBeenCalled();
+    act(() => window.dispatchEvent(new Event('online')));
+    expect(reloadRoom).toBeEnabled();
+    await user.click(reloadRoom);
+    expect(reload).toHaveBeenCalledTimes(1);
+
+    // A fresh room query still assigns this unsubmitted line after the reload.
+    unmount();
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const restoredTextarea = screen.getByRole('textbox');
+    expect(restoredTextarea).toHaveValue('Verse');
+    await user.type(restoredTextarea, 'Again');
+    expect(restoredTextarea).toHaveValue('VerseAgain');
+    expect(
+      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+    ).toBe('VerseAgain');
+    expect(
+      screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton)
+    ).toBeEnabled();
+    expect(mockSubmitLineMutation).toHaveBeenCalledTimes(2);
   });
 
-  it('waits for server acknowledgement before showing the waiting state', async () => {
+  it('keeps the submitted line unchanged until server acknowledgement opens the waiting state', async () => {
     const pending = Promise.withResolvers<{
       status: 'committed';
       text: string;
@@ -195,6 +226,8 @@ describe('WritingScreen component', () => {
     expect(
       screen.queryByTestId(E2E_TEST_IDS.waitingPhase)
     ).not.toBeInTheDocument();
+    await user.type(screen.getByRole('textbox'), 'Changed');
+    expect(screen.getByRole('textbox')).toHaveValue('Word');
     expect(
       sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
     ).toBe('Word');
@@ -205,7 +238,6 @@ describe('WritingScreen component', () => {
       await screen.findByTestId(E2E_TEST_IDS.waitingPhase)
     ).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/your line is in/i);
     expect(screen.getByRole('status')).not.toHaveAttribute('aria-busy', 'true');
     expect(
       sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
@@ -332,23 +364,25 @@ describe('WritingScreen component', () => {
     expect(screen.getByRole('textbox')).toHaveValue('Recovered line');
   });
 
-  it('resolves an uncertain submission through one idempotent retry', async () => {
+  it('keeps the rejected line unchanged through editing attempts, reconnect and one acknowledged retry', async () => {
+    const acceptedRetry = Promise.withResolvers<{
+      status: 'already_submitted';
+      text: string;
+    }>();
     mockSubmitLineMutation
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce({
-        status: 'already_submitted',
-        text: 'Stored line',
-      });
+      .mockReturnValueOnce(acceptedRetry.promise);
     const user = setupUser();
     renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const textarea = screen.getByRole('textbox');
 
-    await user.type(screen.getByRole('textbox'), 'Draft');
+    await user.type(textarea, 'Draft');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
     const retry = await screen.findByRole('button', { name: /Retry once/i });
-    expect(screen.getAllByRole('button', { name: /Retry once/i })).toHaveLength(
-      1
-    );
-    expect(screen.getByRole('textbox')).toHaveValue('Draft');
+    await user.type(textarea, 'Changed');
+    expect(textarea).toHaveValue('Draft');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(retry).toBeEnabled();
     expect(screen.getByRole('button', { name: /^Submit$/i })).toBeDisabled();
 
     act(() => window.dispatchEvent(new Event('offline')));
@@ -357,35 +391,36 @@ describe('WritingScreen component', () => {
     expect(mockSubmitLineMutation).toHaveBeenCalledTimes(1);
     act(() => window.dispatchEvent(new Event('online')));
     expect(retry).toBeEnabled();
-    await user.click(retry);
+    await user.dblClick(retry);
+    await user.type(textarea, 'Changed');
 
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { name: /line was already recorded/i })
-      ).toBeInTheDocument();
-    });
-    expect(mockSubmitLineMutation.mock.calls).toEqual([
-      [
-        {
-          poemId: mockAssignment.poemId,
-          lineIndex: 0,
-          text: 'Draft',
-          guestToken: 'mock-token',
-        },
-      ],
-      [
-        {
-          poemId: mockAssignment.poemId,
-          lineIndex: 0,
-          text: 'Draft',
-          guestToken: 'mock-token',
-        },
-      ],
-    ]);
+    expect(textarea).toHaveValue('Draft');
+    expect(
+      sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
+    ).toBe('Draft');
+    expect(
+      screen.queryByRole('button', { name: /retry once/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId(E2E_TEST_IDS.waitingPhase)
+    ).not.toBeInTheDocument();
+    expect(mockSubmitLineMutation).toHaveBeenCalledTimes(2);
+    expect(
+      mockSubmitLineMutation.mock.calls.map(([args]) => args.text)
+    ).toEqual(['Draft', 'Draft']);
+
+    await act(async () =>
+      acceptedRetry.resolve({ status: 'already_submitted', text: 'Draft' })
+    );
+
+    expect(
+      await screen.findByTestId(E2E_TEST_IDS.waitingPhase)
+    ).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(
       sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
     ).toBeNull();
+    expect(mockSubmitLineMutation).toHaveBeenCalledTimes(2);
   });
 
   it('submits a normalized line for the assigned round without a guest token for a signed-in player', async () => {

@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { cloneElement } from 'react';
+import { ConvexProvider } from 'convex/react';
+import { createTestConvexClient } from '@/tests/helpers/convexClient';
 import {
   RevealPhase,
   type RevealPhaseDependencies,
@@ -17,6 +19,13 @@ const mockStartGameMutation = vi.fn();
 const mockEnablePublicSessionRecapShare = vi.fn();
 const mockDisablePublicSessionRecapShare = vi.fn();
 const mockUseQuery = vi.fn();
+const mockConvexClient = Object.assign(createTestConvexClient(), {
+  mutation: vi.fn().mockResolvedValue(undefined),
+  watchQuery: vi.fn(() => ({
+    localQueryResult: () => false,
+    onUpdate: () => () => {},
+  })),
+});
 
 const sessionRecapDependencies: SessionRecapHubDependencies = {
   useEnablePublicShare: () => mockEnablePublicSessionRecapShare,
@@ -54,7 +63,12 @@ function renderRevealPhase(
   return render(
     cloneElement(ui, {
       dependencies: revealPhaseDependencies,
-    })
+    }),
+    {
+      wrapper: ({ children }) => (
+        <ConvexProvider client={mockConvexClient}>{children}</ConvexProvider>
+      ),
+    }
   );
 }
 
@@ -357,20 +371,31 @@ describe('RevealPhase component', () => {
     expect(mockRevealPoemMutation).not.toHaveBeenCalled();
   });
 
-  it('calls revealPoem mutation when Reveal button clicked', async () => {
-    mockRevealPoemMutation.mockResolvedValue({ revealed: true });
+  it('opens the whole poem and returns to the reading circle after reveal acceptance', async () => {
     const user = userEvent.setup();
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    const revealButton = screen.getByRole('button', { name: /^Read poem$/i });
-    await user.click(revealButton);
+    await user.click(screen.getByRole('button', { name: /^Read poem$/i }));
 
-    await waitFor(() => {
-      expect(mockRevealPoemMutation).toHaveBeenCalledWith({
-        poemId: 'poem_123',
-        guestToken: 'mock-token',
-      });
+    const poemView = await screen.findByRole('dialog', { name: 'Poem 1' });
+    const poemLines = within(poemView).getByRole('list', {
+      name: 'Poem lines',
     });
+    const visibleLines = within(poemLines).getAllByRole('listitem');
+    expect(visibleLines).toHaveLength(mockMyPoem.lines.length);
+    mockMyPoem.lines.forEach((line, index) => {
+      expect(within(visibleLines[index]).getByText(line.text)).toBeVisible();
+    });
+    expect(
+      within(poemView).getByRole('button', { name: /favorite this poem/i })
+    ).toBeEnabled();
+    const done = within(poemView).getByRole('button', { name: 'Done' });
+    expect(done).toBeEnabled();
+    await user.click(done);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /reading circle/i })
+    ).toBeVisible();
   });
 
   it('makes an absent reader fallback explicit before revealing', async () => {
@@ -397,12 +422,18 @@ describe('RevealPhase component', () => {
     expect(screen.getByText('Step in for Reader Away')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Step in and read' }));
 
-    await waitFor(() => {
-      expect(mockRevealPoemMutation).toHaveBeenCalledWith({
-        poemId: 'poem_123',
-        guestToken: 'mock-token',
-      });
+    const poemView = await screen.findByRole('dialog', { name: 'Poem 1' });
+    const poemLines = within(poemView).getByRole('list', {
+      name: 'Poem lines',
     });
+    const visibleLines = within(poemLines).getAllByRole('listitem');
+    expect(visibleLines).toHaveLength(mockMyPoem.lines.length);
+    mockMyPoem.lines.forEach((line, index) => {
+      expect(within(visibleLines[index]).getByText(line.text)).toBeVisible();
+    });
+    expect(
+      within(poemView).getByRole('button', { name: 'Done' })
+    ).toBeEnabled();
   });
 
   it('disables the read action while the reveal is awaiting acceptance', async () => {

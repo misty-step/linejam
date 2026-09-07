@@ -116,7 +116,6 @@ function WritingComposer({
   const [submissionState, setSubmissionState] = useState<
     'idle' | 'submitting' | 'retryable' | 'failed'
   >('idle');
-  const [retryCount, setRetryCount] = useState(0);
   const [acknowledgement, setAcknowledgement] = useState('Your line is in.');
   const [browserOnline, setBrowserOnline] = useState(
     () => globalThis.navigator?.onLine ?? true
@@ -131,7 +130,8 @@ function WritingComposer({
   const currentWordCount = countWords(text);
   const targetCount = assignment.targetWordCount;
   const isValid = currentWordCount === targetCount;
-  const isReady = isValid && submissionState === 'idle';
+  const isReadOnly = submissionState !== 'idle';
+  const isReady = isValid && !isReadOnly;
 
   useEffect(() => {
     const handleOnline = () => setBrowserOnline(true);
@@ -190,7 +190,14 @@ function WritingComposer({
   }
 
   const submit = async (isRetry = false) => {
-    if (!isValid || (!isRetry && submissionState !== 'idle')) return;
+    if (
+      !isValid ||
+      (isRetry
+        ? submissionState !== 'retryable' || !browserOnline
+        : submissionState !== 'idle')
+    ) {
+      return;
+    }
     setSubmissionState('submitting');
     setError(null);
     try {
@@ -226,17 +233,11 @@ function WritingComposer({
       setError(
         `${errorToFeedback(reportable).message} ${
           isRetry
-            ? 'Your draft is saved. Reload after reconnecting to check the room.'
+            ? 'Your draft is saved. Reconnect, then reload the room to check whether your line was recorded.'
             : 'Your draft is safe. Reconnect, then retry once.'
         }`
       );
     }
-  };
-
-  const handleRetry = () => {
-    if (!browserOnline || retryCount > 0) return;
-    setRetryCount(1);
-    void submit(true);
   };
 
   return (
@@ -271,15 +272,25 @@ function WritingComposer({
               </p>
             </div>
           )}
+          {isReadOnly && (
+            <p
+              id="writing-confirmation"
+              className="text-sm text-text-secondary"
+            >
+              This line stays read-only until the room confirms whether it was
+              recorded.
+            </p>
+          )}
           <textarea
             ref={textareaRef}
             data-testid={E2E_TEST_IDS.writingLineInput}
             className="field-sizing-content min-h-[72px] max-h-[168px] w-full min-w-0 resize-none rounded-md border border-border bg-surface p-3 font-sans text-xl leading-snug text-text-primary outline-none [overflow-wrap:anywhere] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-focus-ring md:p-5 md:text-2xl"
             placeholder="Your line…"
             value={text}
+            readOnly={isReadOnly}
             onChange={(event) => {
+              if (isReadOnly) return;
               setText(event.target.value.replace(/[\r\n]+/g, ' '));
-              setError(null);
             }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') event.preventDefault();
@@ -304,25 +315,39 @@ function WritingComposer({
             aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
             aria-required="true"
             aria-invalid={currentWordCount > targetCount}
-            aria-describedby="word-slots"
+            aria-describedby={
+              isReadOnly ? 'word-slots writing-confirmation' : 'word-slots'
+            }
           />
           {text.length >= 450 && (
             <p className="text-sm text-text-secondary">
               {text.length}/500 characters
             </p>
           )}
-          {error && (
+          {(submissionState === 'retryable' ||
+            submissionState === 'failed') && (
             <Alert variant="error">
               <p>{error}</p>
               {submissionState === 'retryable' && (
                 <Button
                   type="button"
-                  onClick={handleRetry}
-                  disabled={!browserOnline || retryCount > 0}
+                  onClick={() => void submit(true)}
+                  disabled={!browserOnline}
                   variant="secondary"
                   className="mt-3"
                 >
                   {browserOnline ? 'Retry once' : 'Waiting for connection…'}
+                </Button>
+              )}
+              {submissionState === 'failed' && (
+                <Button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  disabled={!browserOnline}
+                  variant="secondary"
+                  className="mt-3"
+                >
+                  Reload room
                 </Button>
               )}
             </Alert>
@@ -357,7 +382,7 @@ function WritingComposer({
             onClick={() => void submit()}
             data-testid={E2E_TEST_IDS.writingSubmitLineButton}
             data-ready={isReady ? 'true' : undefined}
-            disabled={!isValid || submissionState !== 'idle'}
+            disabled={!isReady}
             className="min-h-[44px] min-w-[112px] px-[20px] py-[10px]"
           >
             {submissionState === 'submitting'
