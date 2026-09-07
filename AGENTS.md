@@ -1,18 +1,17 @@
-# AGENTS.md — Linejam
+# Linejam
 
-Compact router for repository agents. Read only the depth your lane needs.
+Use `project.md` and `DESIGN.md` for product constraints; `VISION.md` is
+optional context, not a work gate. Linear owns current priorities; historical
+issues are context, not an automatic queue.
 
-## Start here
+## Authority
 
 - State the goal, files/systems in scope, and live authority before mutation.
-- Use `project.md` and `DESIGN.md` for product/design constraints; `VISION.md`
-  is optional intent context, not a mandatory first read or work gate.
 - Preserve user work: inspect `git status`, never overwrite unrelated changes,
   and never use destructive Git commands.
 - Work from the operator's current request. Check current code and overlapping
-  work before implementation. Linear owns current work and priorities; link
-  implementation and sanitized verification summaries from the work item and
-  PR/session. Historical issues are context, not a required queue.
+  work before implementation. Linear owns current work and priorities; historical
+  issues are context, not a required queue.
 - Base branch: `master`. Commits and PR titles use Conventional Commits.
 
 ## Sources of truth
@@ -36,61 +35,55 @@ or test counts into agent prose.
 
 ## Authority boundaries
 
-- Read-only inspection, focused tests, and requested worktree edits are local
-  lane actions. External writes need authority from the task or operator.
-- Do not start long-running processes (`pnpm dev`, `pnpm dev:convex`,
-  `pnpm start:next`, responders, watch modes, MCP servers) unless the lane
-  explicitly commissions that process and names its shutdown/monitoring owner.
-- Authorized bounded shared-development work is allowed. For a one-shot Convex
-  code sync, use the fail-closed `pnpm convex:sync:shared-dev` flow documented
-  in `docs/ops/observability-ci.md`; do not substitute a bare deploy command.
-  Read-only `function-spec` probes and explicitly scoped dev migrations follow
-  the same target, redaction, and postcondition rules.
+- Read-only investigation, focused checks, and requested worktree edits are
+  local actions. External writes need task or operator authority.
+- Start long-running processes only when commissioned, with a named shutdown
+  and monitoring owner.
+- Bounded shared-development work uses the fail-closed
+  `pnpm convex:sync:shared-dev` flow in `docs/ops/observability-ci.md`, not a bare
+  deploy. Read-only function probes and scoped dev migrations follow the same
+  target, redaction, and postcondition rules.
 - Production deploys, data writes, environment changes, smoke triggers, merges,
-  and provider mutations require explicit live authority for that operation.
-  Keep production guards enabled; a flag is a safety condition, not authority.
-- Never print, paste, commit, or persist credentials. Avoid value-bearing env
-  listings. Use `pnpm convex:env:reconcile` for development or
-  `node scripts/ci/reconcile-convex-env.mjs --target production` for a bounded,
-  values-free production readback.
+  and provider mutations require explicit authority for that operation. A
+  configured target or safety flag does not grant authority. Keep production
+  guards enabled.
+- Never expose credentials or value-bearing environment listings.
+  `docs/ops/observability-ci.md` owns bounded, values-free environment readback;
+  `docs/deployment.md` owns release operations.
 
-## Engineering invariants
+## Domain invariants
 
-- Work red → green → refactor for behavior changes. Build the real acceptance
-  loop first; unit tests alone do not prove browser, scheduler, or deployment
-  behavior.
-- Fix causes at the highest-leverage layer. Do not weaken tests, coverage,
-  lint, hooks, auth, allowlists, or fail-closed deployment checks to get green.
-- Mock external systems and nondeterminism, not the behavior under test. Convex
-  scheduler/database behavior uses `setupConvexTest()`.
-- Parallelize independent Convex reads/writes; avoid sequential write loops and
-  N+1 queries. Every `while` loop needs an explicit bound.
-- `GUEST_TOKEN_SECRET` must match the web and target Convex deployment. Treat
-  guest tokens as credentials.
-- Production rolling deploys require `NEXT_DEPLOYMENT_ID` bound to the source
-  commit and one stable 32-byte base64 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`.
+- `GUEST_TOKEN_SECRET` must match the web and target Convex deployment. Guest
+  tokens are credentials, including CLI create/join output on stderr.
+- Production rolling deploys bind `NEXT_DEPLOYMENT_ID` to the source commit
+  and reuse one stable 32-byte base64 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`.
   Never rotate that key as part of a normal release.
-- Never bypass hooks with `--no-verify`. Never push when `pnpm ci:prepush` is
-  red. Never claim validation without the exact command and exercised surface.
+- Convex scheduler/database verification uses `setupConvexTest()`. Keep
+  database work bounded and avoid per-record query/write loops.
+- Preserve retention and migration sequencing contracts in
+  `docs/ops/data-retention.md` and `docs/convex-migrations.md`.
 
-## Delivery and evidence
+## Acceptance and evidence
 
-Run the narrowest useful check while editing, then the change-type acceptance
-in `docs/testing.md`. `pnpm ci:prepush` is the required fast local gate;
-GitHub's `.github/workflows/ci.yml` merge gate is authoritative for merge.
-Use `pnpm ci:dagger:all` only when the full Docker/browser contract is relevant
-and its required environment is available.
+Use change-scoped acceptance in `docs/testing.md`; documentation-only work
+does not require an application suite merely to prove prose. The pre-push
+policy in `CONTRIBUTING.md` remains in force, and the hosted
+`.github/workflows/ci.yml` merge gate is authoritative. Full Dagger/browser
+acceptance needs the relevant environment and operation authority.
 
-`pnpm test:ci` must report nonzero totals for all four 85% metrics and pass the
-explicit `coverage:check` guard. A `0/0 Unknown%` result is a hard failure in
-every checkout path, including isolated harness worktrees.
+When coverage runs, all four metrics must have nonzero totals and pass
+`coverage:check`; `0/0 Unknown%` is failure in every checkout location.
+
+CLI/MCP behavior is not proof of the rendered player experience.
+`docs/agent-faces.md` separates those surfaces; use `play-linejam` for
+commissioned complete multiplayer browser verification, not every UI edit.
+Only observed completion, room closure, fresh-session rejection, session
+cleanup, and inspected run-local artifacts can support its pass receipt.
 
 Before handoff, adversarially review the diff for stale claims, authority
 ambiguity, accidental scope, secret exposure, and safety regressions. Keep
-security-sensitive evidence in permission-appropriate retained storage; share
-only sanitized conclusions and links in Linear or a public PR. Record exact
-tests, exercised revision/surface, residual risk, and commit/PR/deployment IDs.
-Raw run bundles are not repository fixtures; selected safe public assets and
-machine-consumed release content remain versioned.
-Review, merge, deploy, monitor, and production verification are distinct
-acceptance surfaces; perform only the ones authorized by the lane.
+raw or sensitive run output in approved retained artifact storage, not
+repository fixtures. Share sanitized, revision-specific conclusions and
+links in Linear or the PR. Record exact commands, exercised surfaces, and
+unverified risk. Review, merge, deploy, monitor, and production verification
+are distinct operations, each requiring its own authorized scope.

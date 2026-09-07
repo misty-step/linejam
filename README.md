@@ -31,7 +31,7 @@ The constraint is the game. You see only the line before yours. The result is co
 
 **Features**: human-authored collaborative poems, chosen player avatars, one visual identity with Light/Dark/System color modes, poem sharing, and in-game help
 
-## Tech Stack
+## Development
 
 - **Frontend**: Next.js 16, React, TypeScript
 - **Backend**: Convex (real-time sync)
@@ -91,11 +91,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#starting-work).
 
 ## Agent Faces
 
-Linejam ships thin agent-facing faces over the same Convex core the web app uses — no reimplemented game logic. See [docs/agent-faces.md](docs/agent-faces.md) for the CLI/MCP command surface, identity model, environment contract, registration recipe, and API-face disposition.
-
-- `pnpm agent:cli` — terminal CLI to create/join rooms, read game state, submit lines, browse and favorite poems.
-- `pnpm agent:mcp` — stdio MCP server exposing the same actions as tools.
-- [.agents/skills/linejam-cli/SKILL.md](.agents/skills/linejam-cli/SKILL.md) — full usage, identity model, and when to reach for these vs. the browser.
+The [CLI and MCP faces](docs/agent-faces.md) share the game's Convex core and
+guest identity; they do not replace browser acceptance. Use the repo-local
+[`play-linejam` skill](.agents/skills/play-linejam/SKILL.md) for commissioned
+complete multiplayer browser verification.
 
 ## Contributing & Security
 
@@ -105,59 +104,18 @@ Linejam ships thin agent-facing faces over the same Convex core the web app uses
 
 ## Testing
 
-Unit, integration, and E2E suites enforce the coverage thresholds declared in
-`vitest.config.ts`.
+See [docs/testing.md](docs/testing.md) for the relevant acceptance surface,
+coverage guard, and evidence contract. The hosted merge gate is authoritative;
+local browser and deployment checks need the target's operation authority.
 
-```bash
-# Unit & integration tests
-pnpm test         # Run once
-pnpm test:watch   # Watch mode
-pnpm test:ci      # With coverage
-
-# Fast local CI
-pnpm ci:fast
-pnpm ci:prepush
-
-# Full local Dagger parity
-pnpm ci:dagger:all-no-e2e
-pnpm ci:dagger:all
-
-# Browser suites
-pnpm test:e2e       # Local Playwright suite
-pnpm test:e2e:early-smoke # Fast selector smoke to reveal phase
-pnpm test:e2e:smoke # Remote preview/prod smoke via PLAYWRIGHT_BASE_URL
-pnpm test:e2e:ui    # Interactive UI mode
-
-# Coverage report
-open coverage/index.html
-```
-
-**Coverage Thresholds** (enforced in CI):
-
-- Lines: 85%
-- Branches: 85%
-- Functions: 85%
-- Statements: 85%
-
-**Test Structure**:
-
-- `tests/` — Unit and integration tests (Vitest)
-- `tests/e2e/` — End-to-end tests (Playwright)
-- `tests/helpers/` — Shared test utilities
-
-See [docs/testing.md](docs/testing.md) for patterns and guidelines.
+Parlor is imported under `.agents/skills/parlor` for guidance only, not as an
+installed framework. Refresh that complete package through its owner importer;
+do not format or patch its reference or provenance locally.
 
 ## Secret Scanning
 
-Pre-commit hooks automatically scan for leaked credentials (Clerk, Convex, Sentry keys).
-
-```bash
-# Install gitleaks (required for local development)
-brew install gitleaks
-```
-
-**False positives?** Add patterns to `.gitleaks.toml` allowlist section.
-**Hook failing?** Ensure gitleaks is installed: `brew install gitleaks`
+The pre-commit hook scans staged files for credentials. Keep the scanner
+enabled and use `.gitleaks.toml` only for reviewed false positives.
 
 ## Architecture
 
@@ -168,11 +126,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 Sentry is Linejam's sole error, monitor, release, and incident-evidence
 platform. Browser, Node, Edge, and Convex failures use release- and
 environment-tagged events; production health and smoke use Sentry monitors.
-Actionable Sentry issues create one durable GitHub Issue through the signed
-Convex webhook bridge. `pnpm ci:fast` is the fast host loop (typecheck, lint,
-tests); GitHub Actions' `merge-gate` remains the authoritative full contract,
-with `pnpm ci:dagger:all` for local parity. See
-[docs/ops/observability-ci.md](docs/ops/observability-ci.md).
+Sentry-linked GitHub issues remain native incident evidence; Linear owns current
+work and priorities. See [docs/ops/observability-ci.md](docs/ops/observability-ci.md)
+for alert authority, retention, and the hosted merge gate.
 
 ## Design
 

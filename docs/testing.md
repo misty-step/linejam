@@ -12,7 +12,7 @@ pnpm test                                  # all Vitest tests
 pnpm test:ci                               # Vitest coverage + nonzero-total guard
 pnpm lint
 pnpm typecheck
-pnpm ci:prepush                            # required fast local gate
+pnpm ci:prepush                            # fast local pre-push gate
 
 pnpm test:e2e                              # deterministic Playwright suite
 pnpm test:e2e:early-smoke                  # host-to-reveal selector contract
@@ -56,15 +56,20 @@ post-test guard rejects Vitest's otherwise threshold-safe `0/0 Unknown%` state.
 
 ## Match evidence to the change
 
-| Change                          | Minimum acceptance                                                                  |
-| ------------------------------- | ----------------------------------------------------------------------------------- |
-| Pure documentation/config       | formatting, link/path/command verification, relevant script test, `pnpm ci:prepush` |
-| Domain utility                  | focused Vitest plus `pnpm ci:prepush`                                               |
-| Convex query/mutation/scheduler | `convex-test` integration on the real scheduler/DB plus fast gate                   |
-| Component interaction           | Testing Library behavior test plus the relevant browser route                       |
-| Game flow/auth/realtime         | Playwright with separate contexts and the targeted Convex deployment                |
-| Visual/theme                    | deterministic browser flow and retained screenshots/video/manifest                  |
-| Deployment/observability        | local gates plus authorized provider, smoke, health, and log postconditions         |
+| Change                              | Minimum acceptance                                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Documentation or non-runtime config | affected formatting, link/path/command resolution, and relevant schema/importer evidence; no application suite for prose alone |
+| Domain utility                      | focused Vitest plus `pnpm ci:prepush`                                                                                          |
+| Convex query/mutation/scheduler     | `convex-test` integration on the real scheduler/DB plus fast gate                                                              |
+| Component interaction               | Testing Library behavior test plus the relevant browser route                                                                  |
+| Game flow/auth/realtime             | Playwright with separate contexts and the targeted Convex deployment                                                           |
+| Visual/theme                        | deterministic browser flow and retained screenshots/video/manifest                                                             |
+| Deployment/observability            | local gates plus authorized provider, smoke, health, and log postconditions                                                    |
+
+Configuration that changes executable behavior follows the relevant behavior
+row, not the documentation row. The pre-push hook policy still applies when
+pushing; do not run the same full gate again merely to validate a guide edit.
+Hosted CI remains authoritative for merge.
 
 Unit tests are not acceptance for browser rendering, real scheduling,
 deployment identity, or production health.
@@ -81,8 +86,6 @@ deployment identity, or production health.
   `tests/helpers/convexTest.ts`; seed with `tests/helpers/convexSeed.ts` where
   applicable. This exercises indexes, transactions, scheduled functions, and
   generated handlers instead of a hand-built database mock.
-- Every regression starts red on the defect, turns green on the fix, then gets
-  refactored without changing the oracle.
 
 ## Browser and live-target rules
 
@@ -186,6 +189,11 @@ For static rendering that does not need a room flow, use
 `pnpm evidence:static-server`; it owns the narrow unsynced-Convex bypass and
 disables Sentry ingest for that capture. Do not generalize its escape hatch to
 game tests.
+
+Use `.agents/skills/play-linejam/SKILL.md` only for commissioned complete
+multiplayer verification. Its concurrent players, nine-round lifecycle, room
+closure, fresh-session rejection, and sanitized write-once receipt are not
+prerequisites for an isolated rendering or documentation check.
 
 Agentic QA is advisory and never replaces deterministic checks:
 

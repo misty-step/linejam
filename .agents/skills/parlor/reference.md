@@ -21,9 +21,9 @@ For an app without Parlor source or dependencies, explicitly use `--guidance-onl
 
 Read the imported `SOURCE.json` and inspect installed source signatures before coding. Maintain guidance upstream, not in derived consumer copies. A skill provides context; the user's request and the game's requirements remain authority.
 
-For a new game, inspect the complete `examples/first-tap` application in the same checkout and follow [Run First Tap](https://parlor.mistystep.io/docs/first-game/). From the Parlor repository root, its path is `pnpm install` → `pnpm build:packages`, then `pnpm --filter @parlor/first-tap dev:backend` in one terminal and `pnpm --filter @parlor/first-tap run setup` followed by `pnpm --filter @parlor/first-tap dev` in another. Select an isolated development backend and browse `http://localhost:3000` with separate identities. The example's setup is development-only and scoped to its selected backend; it is not a production secret configurator.
+For a new integration, use [Run First Tap](https://parlor.mistystep.io/docs/first-game/) and the relevant parts of `examples/first-tap` at the selected revision. Existing integrations need only the contracts touched by the task, not a complete example read. First Tap's setup is isolated-development tooling, not a production secret configurator.
 
-## Install and align source
+## Align with installed source
 
 Parlor is a pre-1.0 source distribution. Its `@parlor/*` packages are private workspace packages, not npm releases. Do not suggest `npm install @parlor/*`.
 
@@ -66,23 +66,19 @@ pnpm install
 pnpm -r --filter './vendor/parlor/packages/**' --filter './vendor/parlor/integrations/**' --if-present build
 ```
 
-Package exports point to built `dist` files. Rebuild after source updates. Import the aligned repository-local skill with the owner-provided command above; inspect `.agents/skills/parlor/SOURCE.json` and its pinned `reference.md`. The website skill may be newer than the installed packages.
+Package exports point to built `dist` files. Rebuild after a deliberate source update. Import the aligned repository-local skill with the owner-provided command above; inspect `.agents/skills/parlor/SOURCE.json` and its pinned `reference.md`. The website skill may be newer than the installed packages.
 
 The vendored workspace entries include only the library directories, not Parlor's apps, examples, or root package. Preserve existing dependency build permissions and compiler exclusions; the installation guide records the current toolchain requirements.
 
-Inspect these local contracts before coding:
+Inspect the installed export maps, signatures, and implementation relevant to the changed integration. Examples and current website docs explain intent but may not match an older pin. Read additional auth, match, or browser contracts when the change crosses those boundaries, not as a universal preflight.
 
-- `integrations/convex/src/index.ts`, its package export map, and `integrations/convex/convex/{schema,identity,rooms,matches,abandonment,presence}.ts`.
-- `packages/auth/src/{index,server}.ts` for credential input/output types and verification.
-- `packages/react/src/index.ts`, component props, and `packages/web/src/browser.ts` for browser callback contracts.
-
-## Compose the Convex backend
+## Compose application-owned state
 
 Parlor uses ordinary application-local Convex tables, not an installed Convex Component. Merge the tables into the game's schema and add separate game tables referencing `roomId` and `matchId`:
 
 ```typescript
-import { parlorTables } from '@parlor/convex/schema';
-import { defineSchema } from 'convex/server';
+import { parlorTables } from "@parlor/convex/schema";
+import { defineSchema } from "convex/server";
 
 export default defineSchema({
   ...parlorTables,
@@ -99,7 +95,7 @@ export {
   heartbeat,
   leaveRoom,
   closeRoom,
-} from '@parlor/convex/rooms';
+} from "@parlor/convex/rooms";
 ```
 
 Generate the consuming application's Convex API and use its `api.rooms.*` references. Do not import generated code from Parlor's reference application.
@@ -133,19 +129,17 @@ The game server owns phase transitions, deadlines, randomized choices, and score
 - Resolve the actor and explicitly enforce frozen participant membership. Inside a validated game mutation, the authorization fragment is:
 
 ```typescript
-import { requireActiveMatch, resolvePlayer } from '@parlor/convex';
-import { ConvexError } from 'convex/values';
+import { requireActiveMatch, resolvePlayer } from "@parlor/convex";
+import { ConvexError } from "convex/values";
 
 const actor = await resolvePlayer(ctx, args.guestToken);
 await requireActiveMatch(ctx, args.matchId, args.roomId);
 const participant = await ctx.db
-  .query('matchParticipants')
-  .withIndex('by_match_player', (q) =>
-    q.eq('matchId', args.matchId).eq('playerId', actor.playerId)
-  )
+  .query("matchParticipants")
+  .withIndex("by_match_player", (q) => q.eq("matchId", args.matchId).eq("playerId", actor.playerId))
   .unique();
 if (!participant) {
-  throw new ConvexError({ code: 'MATCH_PARTICIPANT_REQUIRED' });
+  throw new ConvexError({ code: "MATCH_PARTICIPANT_REQUIRED" });
 }
 ```
 
@@ -158,54 +152,16 @@ Then enforce the game's phase, turn, submission uniqueness, and deadline rules. 
 
 ## Continue every sweeper page
 
-`sweepAbandonedMatches(ctx, { limit?, cursor? })` returns `{ scanned, abandoned, hasMore, continueCursor }`. It handles a bounded page of active envelopes and abandons hard-expired matches or those whose participants are all away under its abandonment policy. `hardDeadline: false` skips only the fixed time cap; everyone-away cleanup still applies. The sweeper does not close rooms, transfer hosts, or delete game data.
+`sweepAbandonedMatches(ctx, { limit?, cursor? })` returns `{ scanned, abandoned, hasMore, continueCursor }`. The game owns the internal mutation and cron registration. Schedule each continuation with the opaque cursor until `hasMore` is false; a page with zero abandoned matches can still have more pages. Restarting only the first page can starve later matches.
 
-Register a game-owned internal mutation at `convex/maintenance.ts`; continue using that application's generated reference:
-
-```typescript
-import { sweepAbandonedMatches, type SweepResult } from '@parlor/convex';
-import { v } from 'convex/values';
-import { internal } from './_generated/api';
-import { internalMutation } from './_generated/server';
-
-export const sweepAbandoned = internalMutation({
-  args: { cursor: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<SweepResult> => {
-    const result = await sweepAbandonedMatches(ctx, { limit: 50, ...args });
-    if (result.hasMore && result.continueCursor !== null) {
-      await ctx.scheduler.runAfter(0, internal.maintenance.sweepAbandoned, {
-        cursor: result.continueCursor,
-      });
-    }
-    return result;
-  },
-});
-```
-
-Merge an interval into the application's existing `convex/crons.ts` registry (or create the registry if absent):
-
-```typescript
-import { cronJobs } from 'convex/server';
-import { internal } from './_generated/api';
-
-const crons = cronJobs();
-crons.interval(
-  'sweep abandoned matches',
-  { minutes: 1 },
-  internal.maintenance.sweepAbandoned,
-  {}
-);
-export default crons;
-```
-
-Never restart only the first page at every interval: healthy early matches can starve abandoned later ones. Keep `requireActiveMatch` and game-phase deadline guards on commands for both timed and untimed envelopes, even when cron sweeping is enabled.
+The sweeper abandons hard-expired or everyone-away envelopes, not rooms or game data. `hardDeadline: false` skips only the fixed cap. It neither transfers hosts nor replaces command-time lifecycle and game-phase deadline guards. The [matches guide](https://parlor.mistystep.io/docs/matches/#sweep-every-page) shows the application-owned wrapper.
 
 ## Compose the React client
 
-- Use the application's `ConvexProvider` from `convex/react`. Own one `useGuestCredential({ issuer, autoAcquire: true })` at the application boundary and share its result through application-owned state/context; Parlor does not export a guest provider. Handle loading, renewal failure, retry, and memory-only storage explicitly. Inspect `examples/first-tap/app/providers.tsx`, `app/page.tsx`, and `app/guest-issuer.ts` in that example; `app/room-view.tsx` owns live controls and browser hooks. Retry an initial failed acquisition with `acquire()` when no proof exists; use `refresh()` for retained proof. Keep selected-room state outside temporarily credential-gated rendering.
+- Use the application's `ConvexProvider` from `convex/react`. Own one `useGuestCredential({ issuer, autoAcquire: true })` at the application boundary and share its result through application-owned state/context; Parlor does not export a guest provider. Handle renewal failure and memory-only storage explicitly. Retry initial acquisition with `acquire()` when no proof exists; use `refresh()` for retained proof. Keep selected-room state outside temporarily credential-gated rendering.
 - Do not query or mutate guest-only endpoints until `credential` exists; use Convex's `"skip"` query argument while waiting. Send the credential as `guestToken`, not as a player ID.
 - Import `@parlor/react/styles.css` when using Parlor's UI. Inspect exported component props rather than guessing them.
-- `useHeartbeat` requires a sender returning `void` or `PromiseLike<void>`, not the heartbeat mutation result. For a component with nullable `roomId`/`guestToken` and a `heartbeat` mutation hook:
+- `useHeartbeat` requires a sender returning `void` or `PromiseLike<void>`, not the heartbeat mutation receipt. For a component with nullable `roomId`/`guestToken` and a `heartbeat` mutation hook:
 
 ```typescript
 useHeartbeat({
@@ -220,11 +176,13 @@ useWakeLock({ enabled: matchActive });
 
 Wake lock and audio are progressive browser capabilities. Denial, unsupported browsers, suspended tabs, and muted audio must not block play.
 
-## Prove the integration and hand it off
+## Verify the changed integration
 
-Use the consuming game's configured Convex backend and HTTP guest issuer with separate browser identities. Verify create → join → start → submit → reveal → score → rematch, refresh preserving the player/seat, late-join spectators, rejected unauthorized commands, and hidden-state projections. Exercise host departure, background/foreground, connection loss/recovery, and sweeper continuation beyond the first page. Check physical mobile browsers, including denied wake lock/audio; if unavailable, report that gap explicitly rather than calling viewport emulation device proof.
+Exercise the path changed by the task against the consuming game's approved backend and HTTP guest issuer. A presentation-only change does not require replaying the full game lifecycle. For a new integration, verify create → join → start → submit → reveal → score → rematch with separate browser identities.
 
-The playground's local simulation is not evidence that guest signing, Convex functions, cookies, scheduling, or deployed mobile flows work. Obtain human review for credential handling, authorization/projections, schema/data migrations, and any production deployment or secret change. Report the exact revision and paths exercised, remaining risks, and environment limitations without performance or stability claims.
+When a trust or lifecycle boundary changes, exercise its affected transitions and failure cases: same-player renewal, unauthorized commands and viewer-safe projections, frozen late-join/rematch eligibility, mutation-driven host departure, reconnects, or sweeper continuation as applicable. Browser capability changes need denied/unsupported behavior; distinguish physical-device evidence from viewport emulation and report unavailable environments.
+
+The playground's local simulation does not prove guest signing, Convex functions, cookies, scheduling, or deployed mobile behavior. Review changed credential, authorization, and data boundaries before shipping. Production access, secret changes, destructive schema/data work, and deployment require separate operator authorization, not repeated approval for ordinary requested local implementation. Report the pin, paths and scenarios exercised, and verification gaps without unsupported stability claims.
 
 For a bug or missing primitive, prepare a minimal reproduction with the pinned commit and expected/actual behavior. Linear owns current work, prioritization, and selected unresolved opportunities; create or update an item only when the user requests it. Historical GitHub reports may remain useful evidence, but are not an automatic intake queue. Exclude tokens, cookies, private data, and secrets. Keep durable contracts and portable procedures in the repository, concise work summaries in Linear, and raw or sensitive run output in approved retained artifact storage.
 

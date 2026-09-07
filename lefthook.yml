@@ -28,7 +28,7 @@ pre-commit:
 
     format:
       glob: '*.{js,ts,jsx,tsx,json,md,css}'
-      exclude: '{convex/_generated/**,explorations/renewal/**}'
+      exclude: '{convex/_generated/**,explorations/renewal/**,.agents/skills/parlor/**}'
       run: pnpm prettier --write {staged_files}
       stage_fixed: true
 

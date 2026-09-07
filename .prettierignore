@@ -33,3 +33,6 @@ tools/oxlint/anti-slop/
 # Retained, source-fingerprinted offline design proposals (not application code).
 explorations/renewal/
 
+# Immutable owner-imported guidance
+.agents/skills/parlor/
+

@@ -164,8 +164,8 @@ The Host confirms that `.qa/runs/<run-id>/artifact-0001.png` exists, then sends
 `GAME_COMPLETED`. Guests do not create a second success artifact.
 
 The pinned CLI takes a selector before the output path. Omitting `body` can save
-to a temporary path instead. Always inspect the reported destination and confirm
-the required file exists. For controls below the fold, use `scrollintoview` on a
+to a temporary path instead. Inspect the reported destination and confirm the
+required file exists. For controls below the fold, use `scrollintoview` on a
 fresh visible reference before clicking; if a click reports success without a
 state change, focus that control and press Enter once, then inspect the result.
 

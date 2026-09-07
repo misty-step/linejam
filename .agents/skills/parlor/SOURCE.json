@@ -5,14 +5,14 @@
   },
   "reference": {
     "path": "skills/parlor/SKILL.md",
-    "revision": "59aa00efca7f681fec1e3ee6dad9b43c29efa8b3",
+    "revision": "62d0f3a0299f7419d4c890c4c97dba18fbe6facd",
     "origin": "working-tree",
     "differsFromCommit": true,
-    "sha256": "e12b5d2475ce44e4127639519ae2019e9fc6051f49f7fdf21e7058987a3f8094"
+    "sha256": "24d86d4943da81de44d99a8553e0c3972526b6d4e1006fa8fa217ebc240ea355"
   },
   "importer": {
     "path": "scripts/import-skill.mjs",
-    "baseRevision": "59aa00efca7f681fec1e3ee6dad9b43c29efa8b3",
-    "sha256": "85d4c6d3f016848860dbbbbc437d9faa70bf51c8ab5596c7bd057bdaa91a7042"
+    "baseRevision": "62d0f3a0299f7419d4c890c4c97dba18fbe6facd",
+    "sha256": "f9766eb03aa32ef1e86bbcf5e9347a035cae03db14b63220dd71cb1d4f56ae97"
   }
 }
