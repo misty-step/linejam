@@ -1,5 +1,4 @@
 .git
-.github
 .next
 .evidence
 coverage
@@ -10,6 +9,28 @@ node_modules
 .env.local
 .env.production.local
 .env.*
-!.env.example
 dagger/.env
 *.log
+
+# Local runtime state, browser output, and host-only configuration.
+.qa
+.worktrees
+.agents
+# The checked-in QA receipt schema is source, not personal agent configuration.
+!.agents/skills/play-linejam/result.schema.json
+.claude
+.codex
+.pi
+.mcp.json
+.vercel
+.convex
+**/node_modules
+**/.env
+**/.env.*
+!.env.example
+**/.npmrc
+**/.pnpmrc
+**/.convex
+**/*.pem
+**/*.key
+**/*.tsbuildinfo

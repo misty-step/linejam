@@ -1,0 +1,193 @@
+# Use scripts/local/cli.mjs: it supplies a private env file and checks ownership.
+x-local-labels: &local-labels
+  io.linejam.local.owner: ${LINEJAM_LOCAL_OWNER:?Use the local CLI}
+  io.linejam.local.checkout: ${LINEJAM_LOCAL_CHECKOUT:?Use the local CLI}
+
+x-app-build: &app-build
+  context: .
+  dockerfile: scripts/local/Dockerfile
+  target: development
+  args:
+    LOCAL_UID: ${LINEJAM_LOCAL_UID:?Use the local CLI}
+    LOCAL_GID: ${LINEJAM_LOCAL_GID:?Use the local CLI}
+
+x-local-environment: &local-environment
+  LINEJAM_LOCAL: '1'
+  NEXT_PUBLIC_LINEJAM_LOCAL: '1'
+  LINEJAM_DEPLOY_ENVIRONMENT: development
+  NEXT_PUBLIC_CONVEX_URL: http://127.0.0.1:${LINEJAM_LOCAL_CONVEX_PORT:?Use the local CLI}
+  CONVEX_SERVER_URL: http://convex:3210
+  NEXT_PUBLIC_SENTRY_ENABLED: '0'
+  LINEJAM_SENTRY_ENABLED: '0'
+  NEXT_TELEMETRY_DISABLED: '1'
+  CONVEX_ALLOW_ANONYMOUS: 'false'
+  CI: '1'
+  HOME: /tmp/linejam-home
+
+x-source-watch: &source-watch
+  - action: sync
+    path: .
+    target: /workspace
+    initial_sync: true
+    ignore:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - compose.yaml
+      - scripts/local/
+  - action: rebuild
+    path: package.json
+  - action: rebuild
+    path: pnpm-lock.yaml
+  - action: rebuild
+    path: pnpm-workspace.yaml
+  - action: rebuild
+    path: scripts/local
+
+services:
+  convex:
+    # Verified published multi-platform digest, not a source SHA or moving tag.
+    image: ghcr.io/get-convex/convex-backend@sha256:1f2044e3eac463ac78973b136c0baf72d4ada602611d853d6f99f280e29e0a98
+    labels: *local-labels
+    init: true
+    stop_signal: SIGINT
+    stop_grace_period: 15s
+    ports:
+      - '127.0.0.1:${LINEJAM_LOCAL_CONVEX_PORT:?Use the local CLI}:3210'
+      - '127.0.0.1:${LINEJAM_LOCAL_SITE_PORT:?Use the local CLI}:3211'
+    environment:
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:${LINEJAM_LOCAL_CONVEX_PORT:?Use the local CLI}
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:${LINEJAM_LOCAL_SITE_PORT:?Use the local CLI}
+      DISABLE_BEACON: '1'
+      DISABLE_METRICS_ENDPOINT: 'true'
+      DO_NOT_REQUIRE_SSL: '1'
+      RUST_LOG: info
+    volumes:
+      - data:/convex/data
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:3210/version]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
+
+  app:
+    image: ${LINEJAM_LOCAL_PROJECT:?Use the local CLI}-app
+    build: *app-build
+    labels: *local-labels
+    init: true
+    user: '${LINEJAM_LOCAL_UID}:${LINEJAM_LOCAL_GID}'
+    command: [node, scripts/local/container.mjs, app]
+    environment: *local-environment
+    secrets: [guest_token]
+    ports:
+      - '127.0.0.1:${LINEJAM_LOCAL_APP_PORT:?Use the local CLI}:3000'
+    depends_on:
+      convex:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, scripts/local/container.mjs, health]
+      interval: 5s
+      timeout: 15s
+      retries: 48
+      start_period: 20s
+    develop:
+      watch: *source-watch
+
+  sync:
+    image: ${LINEJAM_LOCAL_PROJECT:?Use the local CLI}-app
+    build: *app-build
+    labels: *local-labels
+    profiles: [tools]
+    init: true
+    user: '${LINEJAM_LOCAL_UID}:${LINEJAM_LOCAL_GID}'
+    command: [node, scripts/local/container.mjs, sync]
+    environment: *local-environment
+    secrets: [guest_token, convex_admin_key]
+    volumes:
+      - type: bind
+        source: ${LINEJAM_LOCAL_STATE:?Use the local CLI}/artifacts
+        target: /artifacts
+        bind:
+          create_host_path: false
+
+  convex-watch:
+    image: ${LINEJAM_LOCAL_PROJECT:?Use the local CLI}-app
+    build: *app-build
+    labels: *local-labels
+    profiles: [watch]
+    init: true
+    user: '${LINEJAM_LOCAL_UID}:${LINEJAM_LOCAL_GID}'
+    command: [node, scripts/local/container.mjs, watch]
+    environment: *local-environment
+    secrets: [guest_token, convex_admin_key]
+    depends_on:
+      convex:
+        condition: service_healthy
+    develop:
+      watch: *source-watch
+
+  check:
+    image: ${LINEJAM_LOCAL_PROJECT:?Use the local CLI}-app
+    build: *app-build
+    labels: *local-labels
+    profiles: [tools]
+    init: true
+    user: '${LINEJAM_LOCAL_UID}:${LINEJAM_LOCAL_GID}'
+    command: [node, scripts/local/container.mjs, check]
+    environment: *local-environment
+    secrets: [guest_token]
+    # Installed dependencies are baked in. Checks cannot contact any provider.
+    network_mode: none
+    volumes:
+      - type: bind
+        source: ${LINEJAM_LOCAL_STATE:?Use the local CLI}/artifacts
+        target: /artifacts
+        bind:
+          create_host_path: false
+
+  qa:
+    image: ${LINEJAM_LOCAL_PROJECT:?Use the local CLI}-qa
+    build:
+      <<: *app-build
+      target: qa
+    labels: *local-labels
+    profiles: [tools]
+    init: true
+    user: '${LINEJAM_LOCAL_UID}:${LINEJAM_LOCAL_GID}'
+    command: [node, scripts/local/container.mjs, qa]
+    shm_size: 1gb
+    environment:
+      LINEJAM_LOCAL: '1'
+      NEXT_PUBLIC_LINEJAM_LOCAL: '1'
+      LINEJAM_DEPLOY_ENVIRONMENT: development
+      E2E_BASE_URL: http://127.0.0.1:${LINEJAM_LOCAL_APP_PORT:?Use the local CLI}
+      NEXT_PUBLIC_CONVEX_URL: http://127.0.0.1:${LINEJAM_LOCAL_CONVEX_PORT:?Use the local CLI}
+      LINEJAM_LOCAL_SITE_PORT: ${LINEJAM_LOCAL_SITE_PORT:?Use the local CLI}
+      LINEJAM_EVIDENCE_DIR: /artifacts/qa/evidence
+      LINEJAM_EVIDENCE_RESULT_FILE: /artifacts/qa/evidence/result.json
+      PLAYWRIGHT_HTML_OUTPUT_DIR: /artifacts/qa/report
+      PLAYWRIGHT_JSON_OUTPUT_FILE: /artifacts/qa/results.json
+      NEXT_TELEMETRY_DISABLED: '1'
+      CI: '1'
+      HOME: /tmp/linejam-home
+    volumes:
+      - type: bind
+        source: ${LINEJAM_LOCAL_STATE:?Use the local CLI}/artifacts
+        target: /artifacts
+        bind:
+          create_host_path: false
+
+networks:
+  default:
+    labels: *local-labels
+
+volumes:
+  data:
+    labels: *local-labels
+
+secrets:
+  guest_token:
+    file: ${LINEJAM_LOCAL_STATE:?Use the local CLI}/secrets/guest-token
+  convex_admin_key:
+    file: ${LINEJAM_LOCAL_STATE:?Use the local CLI}/secrets/convex-admin-key

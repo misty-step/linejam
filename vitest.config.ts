@@ -28,6 +28,7 @@ export default defineConfig({
       '**/.next/**',
       '**/tests/e2e/**',
       '**/.worktrees/**', // Exclude git worktrees - they have their own test environments
+      '**/.qa/**', // Disposable runtime copies and evidence are not source tests.
       '**/.agents/**',
       '**/.claude/**',
       '**/.codex/**',
@@ -49,6 +50,7 @@ export default defineConfig({
         rootCoverageExclude('.claude'),
         rootCoverageExclude('.codex'),
         rootCoverageExclude('.pi'),
+        rootCoverageExclude('.qa'),
         rootCoverageExclude('.spellbook'),
       ],
       thresholds: {
