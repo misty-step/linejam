@@ -5,19 +5,21 @@ Compact router for repository agents. Read only the depth your lane needs.
 ## Start here
 
 - State the goal, files/systems in scope, and live authority before mutation.
-- Read `VISION.md` and `project.md` before changing product direction.
+- Use `project.md` and `DESIGN.md` for product/design constraints; `VISION.md`
+  is optional intent context, not a mandatory first read or work gate.
 - Preserve user work: inspect `git status`, never overwrite unrelated changes,
   and never use destructive Git commands.
-- GitHub Issues is the only work ledger. Before implementation, read the Issue
-  and follow the assignee claim contract in `CONTRIBUTING.md`. Never create or
-  update Linejam work in Powder.
+- Work from the operator's current request. Check current code and overlapping
+  work before implementation. Linear owns current work and priorities; link
+  implementation and sanitized verification summaries from the work item and
+  PR/session. Historical issues are context, not a required queue.
 - Base branch: `master`. Commits and PR titles use Conventional Commits.
 
 ## Sources of truth
 
 | Concern                         | Source                                                        |
 | ------------------------------- | ------------------------------------------------------------- |
-| Product and architecture        | `VISION.md`, `project.md`, `docs/ARCHITECTURE.md`             |
+| Product and architecture        | `project.md`, `DESIGN.md`, `docs/ARCHITECTURE.md`             |
 | Data/API                        | `convex/schema.ts`, `convex/_generated/api.d.ts`              |
 | Assignment rules                | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`   |
 | Tests and QA                    | `docs/testing.md`, `vitest.config.ts`, Playwright configs     |
@@ -84,9 +86,11 @@ explicit `coverage:check` guard. A `0/0 Unknown%` result is a hard failure in
 every checkout path, including isolated harness worktrees.
 
 Before handoff, adversarially review the diff for stale claims, authority
-ambiguity, accidental scope, secret exposure, and safety regressions. Put
-security-sensitive evidence only in a private advisory and add a sanitized
-receipt to the public Issue or PR. Otherwise record exact tests, live evidence,
-residual risk, and commit/PR/deployment identifiers in that public record.
+ambiguity, accidental scope, secret exposure, and safety regressions. Keep
+security-sensitive evidence in permission-appropriate retained storage; share
+only sanitized conclusions and links in Linear or a public PR. Record exact
+tests, exercised revision/surface, residual risk, and commit/PR/deployment IDs.
+Raw run bundles are not repository fixtures; selected safe public assets and
+machine-consumed release content remain versioned.
 Review, merge, deploy, monitor, and production verification are distinct
 acceptance surfaces; perform only the ones authorized by the lane.

@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Superseded by the single-identity contract in [DESIGN.md](../../DESIGN.md).
+`lib/design/tokens.ts` now owns Light/Dark tokens and `lib/colorMode/` owns
+Light/Dark/System. The multi-theme registry and recipes below are historical,
+not instructions to restore selectable identities.
 
 ## Context
 

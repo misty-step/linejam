@@ -1,5 +1,11 @@
 # Linejam 921 Proof Assets Lab Decision
 
+Historical proof-asset decision, superseded for the current public site by
+[site/DESIGN.md](../../../site/DESIGN.md) and the selected identity in
+[DESIGN.md](../../../DESIGN.md). The options, recap reference, mark, and locked
+copy below describe that earlier pass; they are not a current capture inventory
+or instructions to restore its reveal reel. Retain the lab and its provenance.
+
 ## Options
 
 1. Artifact plus reveal reel: full poem text beside CSS-only reveal motion and a public recap link.
