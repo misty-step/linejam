@@ -116,6 +116,46 @@ jobs:
       - name: Build check
         run: ./scripts/ci/dagger-call.sh build-check
 
+  # Additive, secret-free acceptance. The CLI owns a fresh isolated app/backend,
+  # guest browser loop, and runtime evidence; it does not replace Clerk E2E.
+  local-guest-qa:
+    name: Isolated Guest QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Run isolated guest QA
+        run: node scripts/local/cli.mjs qa --project ci
+
+      - name: Upload isolated guest QA evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: isolated-guest-qa
+          # Explicit safe paths only: never upload the owner record, generated
+          # credentials, compose.env, or private Docker config next to these.
+          path: |
+            .qa/local/linejam-local-ci/receipt.json
+            .qa/local/linejam-local-ci/artifacts/**
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop isolated guest stack
+        if: always()
+        run: node scripts/local/cli.mjs down --project ci
+
   early-smoke:
     name: Early Selector Smoke
     runs-on: ubuntu-latest
@@ -180,7 +220,6 @@ jobs:
       CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
       PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
       PLAYWRIGHT_REQUIRE_AUTH_E2E: '1'
-      LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '0'
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
       NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
       NEXT_PUBLIC_SENTRY_ENABLED: '1'
@@ -316,11 +355,16 @@ jobs:
   merge-gate:
     name: merge-gate
     runs-on: ubuntu-latest
-    needs: [quality-gates, test-build, early-smoke, e2e, qa-evidence]
+    needs:
+      [quality-gates, test-build, local-guest-qa, early-smoke, e2e, qa-evidence]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
+          if [[ "${{ needs.local-guest-qa.result }}" != "success" ]]; then
+            echo "Isolated guest QA must succeed; skipped is not acceptance."
+            exit 1
+          fi
           if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \
              [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
             exit 1

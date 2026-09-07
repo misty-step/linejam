@@ -206,30 +206,11 @@ function_requires_guest_token() {
 	esac
 }
 
-function_requires_local_convex_sync() {
-	case "$FUNCTION_NAME" in
-		all|e-2-e)
-			return 0
-			;;
-		*)
-			return 1
-			;;
-	esac
-}
-
-function_requires_clerk_convex_template() {
-	case "$FUNCTION_NAME" in
-		all|e-2-e)
-			return 0
-			;;
-		*)
-			return 1
-			;;
-	esac
-}
-
 function_requires_clerk_convex_template_validation() {
 	case "$FUNCTION_NAME" in
+		all|e-2-e)
+			return 0
+			;;
 		smoke)
 			[[ "${PLAYWRIGHT_REQUIRE_AUTH_SMOKE:-0}" == "1" ]]
 			return
@@ -240,86 +221,6 @@ function_requires_clerk_convex_template_validation() {
 	esac
 }
 
-
-should_prepare_local_convex() {
-	local sync_mode="${LINEJAM_SYNC_CONVEX_BEFORE_DAGGER:-auto}"
-
-	case "$sync_mode" in
-		0|false|FALSE|no|NO)
-			return 1
-			;;
-		1|true|TRUE|yes|YES)
-			return 0
-			;;
-	esac
-
-	[[ -z "${CI:-}" ]]
-}
-
-derive_clerk_issuer_domain() {
-	run_node - <<'NODE'
-const publishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ||
-  process.env.CLERK_PUBLISHABLE_KEY?.trim() ||
-  '';
-
-if (!publishableKey) {
-  process.exit(1);
-}
-
-const encodedDomain = publishableKey.split('_').at(-1);
-if (!encodedDomain) {
-  process.exit(1);
-}
-
-try {
-  const decoded = Buffer.from(encodedDomain, 'base64url')
-    .toString('utf8')
-    .replace(/\$+$/, '');
-
-  if (!decoded) {
-    process.exit(1);
-  }
-
-  process.stdout.write(
-    decoded.startsWith('https://') ? decoded : `https://${decoded}`
-  );
-} catch {
-  process.exit(1);
-}
-NODE
-}
-
-ensure_dev_clerk_issuer_domain() {
-	local issuer_domain="${CLERK_JWT_ISSUER_DOMAIN:-}"
-	if [[ -z "$issuer_domain" ]]; then
-		issuer_domain="$(derive_clerk_issuer_domain)"
-	fi
-
-	if [[ -z "$issuer_domain" ]]; then
-		echo >&2 "Unable to derive CLERK_JWT_ISSUER_DOMAIN for the active Convex dev deployment. Set CLERK_JWT_ISSUER_DOMAIN or NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY before running local Dagger auth coverage."
-		return 1
-	fi
-
-	local normalized_issuer_domain
-	normalized_issuer_domain="$(normalize_url "$issuer_domain")"
-	local current_issuer_domain=""
-	if current_issuer_domain="$(run_npx convex env get CLERK_JWT_ISSUER_DOMAIN 2>/dev/null || true)"; then
-		current_issuer_domain="$(normalize_url "$current_issuer_domain")"
-	fi
-
-	if [[ -n "$current_issuer_domain" && "$current_issuer_domain" == "$normalized_issuer_domain" ]]; then
-		return 0
-	fi
-
-	if [[ -n "$current_issuer_domain" ]]; then
-		echo "Updating CLERK_JWT_ISSUER_DOMAIN in the active Convex dev deployment..." >&2
-	else
-		echo "Seeding CLERK_JWT_ISSUER_DOMAIN into the active Convex dev deployment..." >&2
-	fi
-
-	run_npx convex env set CLERK_JWT_ISSUER_DOMAIN "$issuer_domain" >/dev/null
-}
 
 validate_smoke_base_url() {
 	local enforce_allowlist="${LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST:-0}"
@@ -388,41 +289,6 @@ if (error) {
 NODE
 }
 
-prepare_local_convex_backend() {
-	local target_url
-	target_url="$(normalize_url "${NEXT_PUBLIC_CONVEX_URL:-}")"
-
-	if [[ -z "$target_url" ]] || is_local_convex_url "$target_url"; then
-		return 0
-	fi
-
-	local dev_url
-	dev_url="$(convex_url_for_mode dev)"
-	local prod_url
-	prod_url="$(convex_url_for_mode prod)"
-
-	if [[ "$target_url" == "$dev_url" ]]; then
-		ensure_dev_clerk_issuer_domain
-		echo "Syncing the active Convex dev deployment before local Dagger E2E..." >&2
-		run_npx convex dev --once --typecheck disable --codegen disable >/dev/null
-		return 0
-	fi
-
-	if [[ "$target_url" == "$prod_url" ]]; then
-		if [[ "${LINEJAM_ALLOW_PROD_CONVEX_SYNC:-0}" != "1" ]]; then
-			echo >&2 "Refusing to sync the Convex production deployment from local Dagger. Set LINEJAM_ALLOW_PROD_CONVEX_SYNC=1 only if you intentionally want local Dagger to push production Convex code."
-			return 1
-		fi
-
-		echo "Syncing the Convex production deployment before local Dagger E2E..." >&2
-		run_npx convex deploy --yes --typecheck disable --codegen disable >/dev/null
-		return 0
-	fi
-
-	echo >&2 "NEXT_PUBLIC_CONVEX_URL does not match the active Convex dev or production deployment. Point local Dagger at the same backend the Convex CLI resolves, or set LINEJAM_SYNC_CONVEX_BEFORE_DAGGER=0 to skip automatic sync."
-	return 1
-}
-
 sync_shared_dev_once() {
 	if [[ "$EXPLICIT_SHARED_DEV_SYNC_AUTHORITY" != "1" ]]; then
 		echo >&2 "Refusing shared Convex dev sync without per-invocation authority. Set LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC=1 only for an explicitly authorized sync."
@@ -465,53 +331,11 @@ sync_shared_dev_once() {
 	echo "Shared Convex dev sync verified by a fresh function-spec read."
 }
 
-hydrate_guest_token_secret() {
-	if [[ -n "${GUEST_TOKEN_SECRET:-}" ]]; then
-		return 0
-	fi
-
-	local target_url
-	target_url="$(normalize_url "${NEXT_PUBLIC_CONVEX_URL:-}")"
-	if [[ -z "$target_url" ]] || is_local_convex_url "$target_url"; then
-		echo >&2 "GUEST_TOKEN_SECRET is required when NEXT_PUBLIC_CONVEX_URL targets a remote deployment. Export it manually or point local Dagger at a local Convex backend."
+require_guest_token_secret() {
+	if [[ -z "${GUEST_TOKEN_SECRET:-}" ]]; then
+		echo >&2 "GUEST_TOKEN_SECRET is required for ${FUNCTION_NAME}. Supply the deployment-aligned value in the invoking environment or a local dotenv file; checks never fetch remote secrets or prepare shared providers."
 		return 1
 	fi
-
-	local dev_url
-	dev_url="$(convex_url_for_mode dev)"
-	local prod_url
-	prod_url="$(convex_url_for_mode prod)"
-
-	if [[ "$target_url" == "$dev_url" ]]; then
-		export GUEST_TOKEN_SECRET
-		GUEST_TOKEN_SECRET="$(run_npx convex env get GUEST_TOKEN_SECRET)"
-		return 0
-	fi
-
-	if [[ "$target_url" == "$prod_url" ]]; then
-		export GUEST_TOKEN_SECRET
-		GUEST_TOKEN_SECRET="$(run_npx convex env get GUEST_TOKEN_SECRET --prod)"
-		return 0
-	fi
-
-	echo >&2 "Unable to hydrate GUEST_TOKEN_SECRET because NEXT_PUBLIC_CONVEX_URL does not match the active Convex dev or production deployment."
-	return 1
-}
-
-ensure_clerk_convex_template() {
-	local publishable_key="${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-${CLERK_PUBLISHABLE_KEY:-}}"
-
-	if [[ -z "${CLERK_SECRET_KEY:-}" || -z "$publishable_key" ]]; then
-		return 0
-	fi
-
-	local -a command=(node ./scripts/ci/ensure-clerk-convex-template.mjs)
-	if [[ "${LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE:-0}" == "1" ]]; then
-		command+=(--allow-live-mutation)
-	fi
-
-	export NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$publishable_key"
-	with_clean_node_ipc_env "${command[@]}"
 }
 
 validate_clerk_convex_template() {
@@ -544,20 +368,15 @@ if [[ "$FUNCTION_NAME" == "sync-shared-dev" ]]; then
 	exit 0
 fi
 
-if function_requires_local_convex_sync && should_prepare_local_convex; then
-	prepare_local_convex_backend
-fi
-
-if function_requires_clerk_convex_template; then
-	ensure_clerk_convex_template
-fi
+# Ordinary checks only validate existing provider configuration. Shared Convex
+# deployment writes belong exclusively to the explicitly authorized command above.
 
 if function_requires_clerk_convex_template_validation; then
 	validate_clerk_convex_template
 fi
 
 if function_requires_guest_token; then
-	hydrate_guest_token_secret
+	require_guest_token_secret
 fi
 
 

@@ -57,8 +57,10 @@ that token.
   command without `--prod`, then execute the named query/probe postcondition.
 - Prove migration logic with `convex-test` before touching a shared deployment.
 
-Production Convex deploys remain fail-closed. Local Dagger rejects them unless
-`LINEJAM_ALLOW_PROD_CONVEX_SYNC=1`; hosted builds additionally enforce the
+Production Convex deploys remain fail-closed. Ordinary local Dagger checks never
+sync code or configure providers. The separately commissioned shared-dev sync
+rejects production unconditionally; the retired production-sync override grants
+no authority. Hosted builds enforce the
 `LINEJAM_DEPLOY_ENVIRONMENT`/`CONVEX_DEPLOY_KEY` contract. These guards do not
 replace operator authority. See `docs/deployment.md`.
 
@@ -83,9 +85,10 @@ The production hosted build adds two postconditions before activation:
 runtime required-name health, so the scheduled monitor catches later drift.
 
 `pnpm ci:dagger:all` is the local full-contract mirror when Docker and required
-Clerk, Convex, guest-token, and Sentry inputs are available. Dagger may prepare
-the active dev backend for `all`/`e2e`; production sync still needs its explicit
-guard. Do not label `ci:prepush` or unit tests as deployment proof.
+Clerk, Convex, guest-token, and Sentry inputs are available. Ordinary Dagger
+checks never prepare a backend or reconcile providers. Shared-development sync
+is a separate explicitly authorized operation; production targets are rejected
+unconditionally. Do not label `ci:prepush` or unit tests as deployment proof.
 
 ## Review through production
 
@@ -306,8 +309,8 @@ The postmortem record must contain:
   the incident;
 - observed contributing conditions and evidence for any reviewed root-cause
   conclusion;
-- mitigation, recovery proof, residual risk, and separately owned follow-up
-  GitHub Issues.
+- mitigation, recovery proof, residual risk, and separately selected follow-up
+  work in Linear.
 
 Four durable evidence links are required for the seeded serious-incident drill
 and for every serious incident where those artifacts exist:
@@ -324,6 +327,11 @@ exist, record `not applicable` and the observed reason; never invent a link or
 a root-cause claim. GitHub Actions and explicitly authorized merge/deployment
 operations remain release authority: an agent-generated fix is never
 auto-merged or auto-deployed.
+
+The bridge Issue and Sentry remain native incident-evidence records. They do
+not create a second current-work queue or authorize follow-on work: current
+requests and Linear own selection and prioritization. Preserve historical
+GitHub follow-up links; do not automatically re-import them into Linear.
 
 `master` branch protection enforces the `merge-gate` status check, linear
 history, resolved review conversations, and pull-request-only changes. It

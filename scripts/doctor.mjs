@@ -155,9 +155,7 @@ export function checkSentryConfig(env = process.env) {
 }
 
 function timeoutSignal(timeoutMs) {
-  return 'timeout' in AbortSignal
-    ? AbortSignal.timeout(timeoutMs)
-    : undefined;
+  return 'timeout' in AbortSignal ? AbortSignal.timeout(timeoutMs) : undefined;
 }
 
 /** @param {{ url?: string, fetchImpl?: typeof fetch, timeoutMs?: number }} [options] */

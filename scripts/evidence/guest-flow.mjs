@@ -168,8 +168,12 @@ async function writeSummary({
 }
 
 async function main() {
-  const { allowlistPath, baseUrl, outDir, serverLogPath: serverLogSource } =
-    parseArgs(process.argv.slice(2));
+  const {
+    allowlistPath,
+    baseUrl,
+    outDir,
+    serverLogPath: serverLogSource,
+  } = parseArgs(process.argv.slice(2));
   const resultFile = path.join(outDir, 'guest-flow.result.json');
   const run = makeRunner(process.cwd());
 
