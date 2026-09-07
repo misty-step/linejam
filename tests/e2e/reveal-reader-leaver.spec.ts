@@ -160,6 +160,44 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
         })
       )
     );
+
+    const startNext = hostPage.getByRole('button', {
+      name: 'Start Next Round',
+      exact: true,
+    });
+    const readingCircle = hostPage.getByRole('heading', {
+      name: 'The reading circle',
+    });
+    await expect(startNext).toBeVisible();
+    const startBox = await startNext.boundingBox();
+    const circleBox = await readingCircle.boundingBox();
+    expect(startBox).not.toBeNull();
+    expect(circleBox).not.toBeNull();
+    if (startBox && circleBox) {
+      expect(startBox.y).toBeLessThan(circleBox.y);
+    }
+    await hostPage.screenshot({
+      path: testInfo.outputPath('post-reveal-next-actions-mobile.png'),
+    });
+
+    const scroller = visibleTestId(hostPage, E2E_TEST_IDS.revealPhase);
+    const stickyMirror = hostPage.getByRole('region', {
+      name: 'Continue this session',
+    });
+    await expect(stickyMirror).toHaveCount(0);
+
+    await scroller.evaluate((node) => {
+      node.scrollTo(0, node.scrollHeight);
+    });
+    await expect(stickyMirror).toBeVisible();
+    await hostPage.screenshot({
+      path: testInfo.outputPath('post-reveal-sticky-mirror-mobile.png'),
+    });
+
+    await scroller.evaluate((node) => {
+      node.scrollTo(0, 0);
+    });
+    await expect(stickyMirror).toHaveCount(0);
   } finally {
     await departedContext?.close();
     await Promise.allSettled(contexts.map((context) => context.close()));

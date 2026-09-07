@@ -122,6 +122,24 @@ describe('RoomChrome component', () => {
     ).toBeInTheDocument();
   });
 
+  it('does not emphasize Invite when post-reveal actions own the hierarchy', () => {
+    renderWithColorMode(
+      <RoomChrome
+        roomCode="ABCD"
+        title="All poems revealed"
+        subtitle="Start another round, or leave the room."
+        inviteEmphasized={false}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Share room invite/i })
+    ).not.toHaveClass('bg-primary');
+    expect(
+      screen.getByText('Start another round, or leave the room.')
+    ).toBeInTheDocument();
+  });
+
   it('collapses active-game controls into one bounded toolbar', () => {
     renderWithColorMode(
       <RoomChrome

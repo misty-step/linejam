@@ -34,8 +34,6 @@ describe('SessionRecapHub', () => {
   const defaultProps = {
     roomCode: 'ABCD',
     playerCount: 2,
-    onStartNextRound: vi.fn(),
-    onBackToLobby: vi.fn(),
     poems: [
       {
         // SAFETY: Synthetic Convex document id fixture for SessionRecapHub tests.
@@ -83,8 +81,7 @@ describe('SessionRecapHub', () => {
     expect(heading).toHaveClass('scroll-mt-28');
   });
 
-  it('renders sorted poem replay links and host controls', async () => {
-    const user = userEvent.setup();
+  it('renders sorted poem replay links without room-lifecycle controls', () => {
     renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     expect(screen.getByText('2 poems')).toBeInTheDocument();
@@ -100,12 +97,12 @@ describe('SessionRecapHub', () => {
     expect(
       screen.queryByRole('link', { name: /Open Shared Recap/i })
     ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Start Next Round' }));
-    await user.click(screen.getByRole('button', { name: 'Back to Lobby' }));
-
-    expect(defaultProps.onStartNextRound).toHaveBeenCalledTimes(1);
-    expect(defaultProps.onBackToLobby).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole('button', { name: 'Start Next Round' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Back to Lobby' })
+    ).not.toBeInTheDocument();
   });
 
   it('discloses recap publication before the share control', () => {
@@ -161,18 +158,7 @@ describe('SessionRecapHub', () => {
     shareClient.nativeShare = nativeShare;
     const user = userEvent.setup();
 
-    renderSessionRecapHub(
-      <SessionRecapHub
-        {...defaultProps}
-        isStartingNextRound
-        error="Could not start a new round."
-      />
-    );
-
-    expect(
-      screen.getByText('Could not start a new round.')
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled();
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     await user.click(
       screen.getByRole('button', { name: /Share the whole set/i })
@@ -338,22 +324,17 @@ describe('SessionRecapHub', () => {
     expect(localStorage.getItem('linejam:ceremony-muted')).toBeNull();
   });
 
-  it('lets anyone in the room continue (no host gating)', async () => {
-    const user = userEvent.setup();
+  it('keeps replay and share available without room-lifecycle controls', () => {
     renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
-    const startButton = screen.getByRole('button', {
-      name: 'Start Next Round',
-    });
-    const lobbyButton = screen.getByRole('button', { name: 'Back to Lobby' });
-    expect(startButton).toBeInTheDocument();
-    expect(lobbyButton).toBeInTheDocument();
-
+    expect(
+      screen.getByRole('button', { name: /Share the whole set/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Start Next Round' })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/while the host starts the next round/i)
     ).not.toBeInTheDocument();
-
-    await user.click(startButton);
-    expect(defaultProps.onStartNextRound).toHaveBeenCalledTimes(1);
   });
 });

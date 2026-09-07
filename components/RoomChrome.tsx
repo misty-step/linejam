@@ -24,6 +24,7 @@ interface RoomChromeProps {
   subtitle: string;
   compact?: boolean;
   statusBoard?: boolean;
+  inviteEmphasized?: boolean;
 }
 
 function chromeButtonClasses({
@@ -56,6 +57,7 @@ export function RoomChrome({
   subtitle,
   compact = false,
   statusBoard = false,
+  inviteEmphasized = true,
 }: RoomChromeProps) {
   const [showAppearance, setShowAppearance] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -288,7 +290,7 @@ export function RoomChrome({
                 onClick={handleShare}
                 className={cn(
                   chromeButtonClasses({
-                    emphasized: true,
+                    emphasized: inviteEmphasized,
                     iconOnly: statusBoard || compact,
                     compact: usesBoundedControls,
                   }),

@@ -82,10 +82,6 @@ interface SessionRecapHubProps {
   guestToken?: string;
   poems: SessionRecapPoem[];
   playerCount: number;
-  error?: string | null;
-  isStartingNextRound?: boolean;
-  onStartNextRound: () => void;
-  onBackToLobby: () => void;
   dependencies?: SessionRecapHubDependencies;
 }
 
@@ -96,10 +92,6 @@ export function SessionRecapHub({
   guestToken,
   poems,
   playerCount,
-  error,
-  isStartingNextRound = false,
-  onStartNextRound,
-  onBackToLobby,
   dependencies,
 }: SessionRecapHubProps) {
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
@@ -168,8 +160,7 @@ export function SessionRecapHub({
             Session complete
           </h2>
           <p className="text-text-secondary leading-relaxed">
-            Replay the full set, share the group recap, or keep this room moving
-            into another round.
+            Replay the full set, or share the group recap.
           </p>
           <div className="flex flex-wrap gap-2 text-xs font-mono uppercase tracking-widest text-text-muted">
             <span>{sortedPoems.length} poems</span>
@@ -181,9 +172,7 @@ export function SessionRecapHub({
         </div>
       </div>
 
-      {(error || shareError) && (
-        <Alert variant="error">{error || shareError}</Alert>
-      )}
+      {shareError && <Alert variant="error">{shareError}</Alert>}
 
       {/* Room favorite — only crowned when the room actually gave hearts */}
       {favoritePoem && sessionFavorites && (
@@ -284,26 +273,6 @@ export function SessionRecapHub({
           )}
           <span>{isMuted ? 'Muted' : 'Sound'}</span>
         </button>
-      </div>
-
-      {/* Anyone in the room can keep it moving — a vanished host never strands the recap. */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          onClick={onStartNextRound}
-          size="lg"
-          className="h-14"
-          disabled={isStartingNextRound}
-        >
-          {isStartingNextRound ? 'Starting...' : 'Start Next Round'}
-        </Button>
-        <Button
-          onClick={onBackToLobby}
-          variant="outline"
-          size="lg"
-          className="h-14"
-        >
-          Back to Lobby
-        </Button>
       </div>
 
       <Link

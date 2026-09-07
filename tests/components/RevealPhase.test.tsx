@@ -477,6 +477,23 @@ describe('RevealPhase component', () => {
     ).toBeInTheDocument();
   });
 
+  it('places next-session actions before the reading circle and recap', () => {
+    mockUseQuery.mockReturnValue(mockStateAllRevealed);
+
+    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
+
+    const start = screen.getByRole('button', { name: /Start Next Round/i });
+    const circle = screen.getByRole('heading', { name: /The reading circle/i });
+    const recap = screen.getByRole('heading', { name: /Session complete/i });
+
+    expect(
+      start.compareDocumentPosition(circle) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      circle.compareDocumentPosition(recap) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it('shows Back to Lobby button for host when all revealed', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealed);
 
