@@ -46,11 +46,11 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /playwright/.cache/
-.pi/
 .qa/
 .evidence/
 .worktrees
-.claude/
+.pi/*
+!.pi/skills
 
 thinktank.log
 thinktank_*/

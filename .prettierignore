@@ -30,3 +30,6 @@ server/
 .evidence/
 tools/oxlint/anti-slop/
 
+# Immutable owner-imported guidance
+.agents/skills/parlor/
+

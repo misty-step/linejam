@@ -29,7 +29,7 @@ A digital version of the paper-folding poetry game—casual multiplayer fun with
 
 - **Milestone:** Restore public trust — anonymous play must survive identity-provider failure, private poems must stay private until explicit publication, and functional smoke failures must page.
 - **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across Light and Dark modes (including System resolution) → evidence-led aesthetic polish → revenue stretch.
-- **Stance:** The 010–012 expansion arc (multiple game modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). [GitHub Issues](https://github.com/misty-step/linejam/issues) is the sole work ledger; `CONTRIBUTING.md` owns the claim and Iron Forest scheduling contract.
+- **Stance:** The 010–012 expansion arc (multiple game modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). Linear owns current work and priorities; GitHub and Sentry remain native incident evidence.
 - **Identity:** Ink & Anticipation is the only visual identity. `lib/design/tokens.ts` owns the canonical tokens, while `lib/colorMode/` owns the Light/Dark/System mode-only control and API. Light uses action `#b43a12`, focus `#e85d2b`, background `#faf9f7`, surface `#ffffff`, and ink `#1c1917`; Dark uses action `#f06b3b`, focus `#e85d2b`, background `#1c1917`, surface `#292524`, and ink `#faf9f7`. Fonts are Libre Baskerville, IBM Plex Sans, and JetBrains Mono.
 
 ## Quality Bar

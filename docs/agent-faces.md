@@ -4,194 +4,103 @@ Linejam exposes thin backend faces for scripted agents and a browser-play
 contract for autonomous QA agents that exercise the same rendered interface as
 human players.
 
-The shipped faces are thin adapters:
+| Face       | Command                                | Owns                                                    |
+| ---------- | -------------------------------------- | ------------------------------------------------------- |
+| CLI        | `pnpm agent:cli -- <group> <action>`   | Argument parsing and JSON output                        |
+| MCP        | `pnpm agent:mcp`                       | stdio JSON-RPC, `tools/list`, `tools/call`              |
+| CLI skill  | `.agents/skills/linejam-cli/SKILL.md`  | When to use CLI/MCP versus browser automation           |
+| Browser QA | `.agents/skills/play-linejam/SKILL.md` | Complete multiplayer UI gameplay, closure, and evidence |
 
-| Face       | Command                                     | Consumer                               | Owns                                       |
-| ---------- | ------------------------------------------- | -------------------------------------- | ------------------------------------------ |
-| CLI        | `pnpm agent:cli -- <group> <action> [args]` | Terminal agents, scripts, smoke checks | Argument parsing and JSON output           |
-| MCP        | `pnpm agent:mcp`                            | MCP-capable harnesses                  | stdio JSON-RPC, `tools/list`, `tools/call` |
-| CLI Skill  | `.agents/skills/linejam-cli/SKILL.md`       | Codex and other repo-aware agents      | When to use CLI/MCP vs. browser automation |
-| Browser QA | `.agents/skills/play-linejam/SKILL.md`      | Autonomous QA coordinators & players   | End-to-end browser gameplay via human UI   |
+The CLI, MCP, and CLI skill route through `scripts/lib/linejamClient.ts` and
+generated Convex functions. Browser QA drives the web UI and its normal guest
+session. Game rules, assignment, presence, host migration, poems, and favorites
+stay in Convex.
 
-The CLI, MCP, and CLI skill route through `scripts/lib/linejamClient.ts`, which
-calls Convex functions from `convex/_generated/api`. Browser QA instead drives
-the deployed web UI and its normal guest-session path. Game rules, assignment,
-presence, host migration, poems, and favorites stay in Convex; no agent face
-duplicates them.
-
-## Identity Model
+## Identity
 
 Agent sessions use the same anonymous guest-token model as the browser.
 
 - `linejam_mint_guest` mints `{ guestId, guestToken }` without joining a room.
 - CLI `room create` and `room join` mint a guest token when one is not supplied.
-- Reuse one `guestToken` across follow-up calls. Room membership and host status
-  are tied to that identity.
+- Reuse one `guestToken` across follow-up calls. Membership and host status are
+  tied to that identity.
 - Pass CLI identity as `--guest-token TOKEN` or `LINEJAM_GUEST_TOKEN`.
-- Pass MCP identity as the `guestToken` argument on every tool except
-  `linejam_mint_guest`.
+- Pass MCP identity as `guestToken` on every tool except `linejam_mint_guest`.
 
 The token is signed by `lib/guestToken.ts` with `GUEST_TOKEN_SECRET`, matching
-the browser guest session route. For local development, the code falls back to a
-development-only secret when `NODE_ENV` is not production. Deployed and
-production-like harnesses must provide the same `GUEST_TOKEN_SECRET` used by the
-target Convex deployment.
+the browser guest session. Local development may fall back to a development-only
+secret when `NODE_ENV` is not production. Deployed and production-like harnesses
+must use the same `GUEST_TOKEN_SECRET` as the target Convex deployment.
 
-## Environment Contract
+## Environment
 
-Source the deployment environment before running either face:
+Launch from a caller-selected Linejam checkout with the intended deployment
+environment, using the harness environment wrapper or a trusted `.env.local`.
+Do not assume a machine-specific path or treat an example as permission to
+write to a remote backend.
 
-```bash
-cd /Users/phaedrus/Development/linejam
-set -a
-[ -f .env.local ] && . ./.env.local
-set +a
-```
-
-Required for live room/game tools:
-
-- `NEXT_PUBLIC_CONVEX_URL` points at the Convex deployment the agent should use.
-- `GUEST_TOKEN_SECRET` matches that deployment for production-like targets.
-
-Optional but common:
-
-- `LINEJAM_GUEST_TOKEN` keeps CLI calls on the same guest identity.
+- `NEXT_PUBLIC_CONVEX_URL` selects the Convex deployment.
+- `GUEST_TOKEN_SECRET` must match that deployment for production-like targets.
+- `LINEJAM_GUEST_TOKEN` keeps CLI calls on one guest identity.
 - `CONVEX_OVERRIDE_ACCESS_TOKEN` is only for one-shot Convex CLI metadata
   probes in isolated worktrees; the agent faces do not need it.
 
-Never hardcode deployment URLs or tokens into MCP configuration. Keep the repo
-path stable and source `.env.local` or the harness's environment wrapper at
-launch time.
+Never hardcode deployment URLs or tokens into MCP configuration, print
+value-bearing environment listings, or retain credentials in transcripts.
+Shared-development and production writes are separate scopes and need explicit
+operation authority.
 
-## CLI Face
+## CLI
 
-Use the CLI when a script or human-readable terminal transcript is the easiest
-proof surface.
-
-```bash
-pnpm agent:cli -- room create "Ada"
-pnpm agent:cli -- room join ABCD "Byron" --guest-token "$LINEJAM_GUEST_TOKEN"
-pnpm agent:cli -- room state ABCD --guest-token "$LINEJAM_GUEST_TOKEN"
-pnpm agent:cli -- game start ABCD --guest-token "$LINEJAM_GUEST_TOKEN"
-pnpm agent:cli -- game assignment ABCD --guest-token "$LINEJAM_GUEST_TOKEN"
-pnpm agent:cli -- game submit-line <poemId> 0 "Moon" --guest-token "$LINEJAM_GUEST_TOKEN"
-pnpm agent:cli -- poems list ABCD --guest-token "$LINEJAM_GUEST_TOKEN"
-pnpm agent:cli -- favorites list --guest-token "$LINEJAM_GUEST_TOKEN"
-```
+Use `pnpm agent:cli --help` for the current action and argument list. Supply
+`LINEJAM_GUEST_TOKEN` through the environment so identity is not copied into
+command-line arguments. Create/join, gameplay, and favorite actions write real
+data on the selected deployment.
 
 The CLI prints JSON to stdout. When it mints a guest token implicitly, it prints
-the token to stderr so the caller can capture and reuse it.
+the token to stderr for reuse. Capture that stream only in a credential-safe
+sink and redact before retaining any output.
 
-## MCP Face
+## MCP
 
-Use the MCP server when an agent harness should discover Linejam actions as
-tools. The server is a stdio JSON-RPC process that supports:
+Start `pnpm agent:mcp` as a stdio process only when the task commissions it and
+names its shutdown owner. It supports `initialize`, `tools/list`, and
+`tools/call`. Use `tools/list` for the current actions rather than a copied
+catalog. `linejam_mint_guest` is the first call for most sessions; every other
+tool requires the returned `guestToken`.
 
-- `initialize`
-- `tools/list`
-- `tools/call`
+Configure the MCP client to launch `pnpm agent:mcp` with the selected checkout
+as its working directory and the environment described above. If the client
+cannot set a working directory or load that environment, use a caller-owned
+wrapper that does both before replacing itself with the server. The
+registration must not embed credentials or assume a global checkout path.
 
-Registered tools:
+Validate a new registration with `initialize` and `tools/list`. Tool discovery
+is not permission to create rooms or evidence that browser gameplay works.
 
-- `linejam_mint_guest`
-- `linejam_create_room`
-- `linejam_join_room`
-- `linejam_room_state`
-- `linejam_start_game`
-- `linejam_current_assignment`
-- `linejam_submit_line`
-- `linejam_list_poems`
-- `linejam_get_poem`
-- `linejam_toggle_favorite`
-- `linejam_list_favorites`
+## Browser QA
 
-`linejam_mint_guest` is the first call for most sessions. Every other tool
-requires the returned `guestToken`.
+The repo-local [`play-linejam`](../.agents/skills/play-linejam/SKILL.md) skill
+owns complete multiplayer browser verification through the rendered UI. It is
+not a backend setup tool and is not required for an isolated rendering or
+documentation check. The coordinator and player contracts own target authority,
+isolated sessions, nine rounds and reveal, room closure, fresh-session
+rejection, and unconditional cleanup.
 
-### Codex Registration
+`pnpm qa:play-linejam:result` validates the closed schema and semantic pass
+invariants, verifies every retained artifact is a non-empty regular run-local
+file, and persists the sanitized receipt exactly once. Backend calls, preflight,
+or an uninspected screenshot do not establish real-player acceptance.
 
-Copy-paste registration for the canonical local checkout:
+## API-face disposition
 
-```bash
-codex mcp add linejam -- bash -lc 'cd /Users/phaedrus/Development/linejam && set -a && [ -f .env.local ] && . ./.env.local; set +a; exec pnpm agent:mcp'
-```
+Linejam does not ship a public HTTP API. Convex functions are the durable game
+API; the web app, CLI, and MCP all call the same generated functions. Existing
+Next.js `/api` routes are internal support (health, guest session minting), not
+a product integration surface.
 
-Inspect or remove it:
-
-```bash
-codex mcp get linejam
-codex mcp remove linejam
-```
-
-### Claude Desktop / JSON Registration
-
-Use the same command shape in JSON-based MCP clients:
-
-```json
-{
-  "mcpServers": {
-    "linejam": {
-      "command": "bash",
-      "args": [
-        "-lc",
-        "cd /Users/phaedrus/Development/linejam && set -a && [ -f .env.local ] && . ./.env.local; set +a; exec pnpm agent:mcp"
-      ]
-    }
-  }
-}
-```
-
-## Registration Proof
-
-The verified registration flow shows that Codex registered the Linejam MCP
-server, the registered command returned a successful `tools/list`, and
-`linejam_mint_guest` minted a guest identity.
-
-## Browser QA Face (`play-linejam` Skill)
-
-While the CLI and MCP faces perform direct backend mutations via Convex, autonomous
-user-flow and UI acceptance testing uses the repo-local `play-linejam` skill:
-
-- **Skill**: `.agents/skills/play-linejam/SKILL.md` (`skill://play-linejam/SKILL.md`)
-- **Driver**: Pinned `agent-browser` (version `0.27.0`)
-- **Target**: `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL` (default:
-  `http://localhost:3333`). Every remote target requires explicit operation
-  authority because browser play writes real game data.
-- **Isolation**: Each participant (Host, Guests, Verifier) runs in an isolated
-  session (`agent-browser --session <name>`).
-- **Scope**: Exercises the real rendered human UI—lobby creation/joining, 9-round
-  writing inputs and word-slot validations, waiting screens, reading-circle reveal
-  ceremonies, recap hub navigation, `Back to Lobby` -> `Close room` teardown, and
-  fresh-session join rejection verification.
-- **Result gate**: `pnpm qa:play-linejam:result` validates a candidate from
-  stdin against the checked-in schema and semantic pass invariants, verifies
-  each retained artifact is a non-empty regular run-local file, then writes the
-  sanitized run receipt exactly once.
-
-Reach for `linejam-cli` / `agent:mcp` when you need fast, deterministic backend state
-setup or inspection. Reach for `play-linejam` when verifying human UI behavior,
-visual state progression, responsive interactions, or end-to-end game lifecycles.
-
-## API-Face Disposition
-
-Waiver: Linejam does not ship a separate public HTTP API face now.
-
-The durable API for game state is Convex. The web app, CLI, and MCP server all
-call the same generated Convex functions. The existing Next.js `/api` routes are
-internal app support routes such as health and guest session minting; they are
-not a product integration surface.
-
-This is intentional for the current party-game product:
-
-- External consumers identified so far are agents, QA lanes, and playtesters.
-  They are better served by CLI and MCP tools that preserve guest identity and
-  avoid another auth contract.
-- A public HTTP API would duplicate Convex contracts, require a separate auth
-  and rate-limit story, and add support surface without a known non-agent
-  consumer.
-- If a future consumer cannot run MCP/CLI and needs direct HTTP integration,
-  scope that as a new card with its own audience, authentication, rate limits,
-  endpoint list, compatibility promise, and e2e contract.
-
-Until that scoped card exists, "Convex functions are the API; CLI and MCP are
-the distribution faces" is the active disposition.
+A public HTTP API would duplicate Convex contracts and invent a second auth and
+rate-limit story without a known non-agent consumer. If a later consumer cannot
+run MCP/CLI and needs HTTP, treat that as a new card with its own audience,
+authentication, rate limits, endpoint list, compatibility promise, and e2e
+contract.

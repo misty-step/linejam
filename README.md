@@ -31,50 +31,21 @@ The constraint is the game. You see only the line before yours. The result is co
 
 **Features**: human-authored collaborative poems, one fixed Ink & Anticipation visual identity with Light/Dark/System color modes, poem sharing, and in-game help
 
-## Tech Stack
+## Development
 
-- **Frontend**: Next.js 16, React, TypeScript
-- **Backend**: Convex (real-time sync)
-- **Styling**: Tailwind CSS 4, custom design system
-- **Auth**: Clerk (optional) + anonymous guests
-
-## Getting Started
-
-```bash
-# Bootstrap dependencies and .env.local
-bash scripts/setup.sh
-
-# Or create .env.local without installing dependencies
-bash scripts/setup.sh --write-env --skip-install
-
-# Add your Convex, Clerk, guest-token, and Sentry values to .env.local
-
-# Verify configuration before starting services (fails on missing or invalid values)
-pnpm run doctor
-
-# Run development servers (parallel)
-pnpm dev # Next.js :3000 + Convex backend
-
-# Verify the live app and health path once the dev server is running
-pnpm run doctor
-```
-
-Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.
-
-### Starting work
-
-Start from a current request and check active branches, PRs, and sessions for
-overlap. Record ownership and verification evidence in the session or PR;
-historical issues do not require a new ticket or assignment ceremony.
-See [CONTRIBUTING.md](CONTRIBUTING.md#starting-work).
+Use [CONTRIBUTING.md](CONTRIBUTING.md) for setup and
+[docs/testing.md](docs/testing.md) for change-scoped verification. Commands and
+dependency versions live in `package.json`, not a second framework catalog.
+Local services and their target Convex deployment must agree on the guest
+secret; see [operations authority](docs/ops/observability-ci.md) before syncing
+shared development or running remote QA.
 
 ## Agent Faces
 
-Linejam ships thin agent-facing faces over the same Convex core the web app uses — no reimplemented game logic. See [docs/agent-faces.md](docs/agent-faces.md) for the CLI/MCP command surface, identity model, environment contract, registration recipe, and API-face disposition.
-
-- `pnpm agent:cli` — terminal CLI to create/join rooms, read game state, submit lines, browse and favorite poems.
-- `pnpm agent:mcp` — stdio MCP server exposing the same actions as tools.
-- [.agents/skills/linejam-cli/SKILL.md](.agents/skills/linejam-cli/SKILL.md) — full usage, identity model, and when to reach for these vs. the browser.
+The [CLI and MCP faces](docs/agent-faces.md) share the game's Convex core and
+guest identity; they do not replace browser acceptance. Use the repo-local
+[`play-linejam` skill](.agents/skills/play-linejam/SKILL.md) for commissioned
+complete multiplayer browser verification.
 
 ## Contributing & Security
 
@@ -84,59 +55,18 @@ Linejam ships thin agent-facing faces over the same Convex core the web app uses
 
 ## Testing
 
-Unit, integration, and E2E suites enforce the coverage thresholds declared in
-`vitest.config.ts`.
+See [docs/testing.md](docs/testing.md) for the relevant acceptance surface,
+coverage guard, and evidence contract. The hosted merge gate is authoritative;
+local browser and deployment checks need the target's operation authority.
 
-```bash
-# Unit & integration tests
-pnpm test         # Run once
-pnpm test:watch   # Watch mode
-pnpm test:ci      # With coverage
-
-# Fast local CI
-pnpm ci:fast
-pnpm ci:prepush
-
-# Full local Dagger parity
-pnpm ci:dagger:all-no-e2e
-pnpm ci:dagger:all
-
-# Browser suites
-pnpm test:e2e       # Local Playwright suite
-pnpm test:e2e:early-smoke # Fast selector smoke to reveal phase
-pnpm test:e2e:smoke # Remote preview/prod smoke via PLAYWRIGHT_BASE_URL
-pnpm test:e2e:ui    # Interactive UI mode
-
-# Coverage report
-open coverage/index.html
-```
-
-**Coverage Thresholds** (enforced in CI):
-
-- Lines: 85%
-- Branches: 85%
-- Functions: 85%
-- Statements: 85%
-
-**Test Structure**:
-
-- `tests/` — Unit and integration tests (Vitest)
-- `tests/e2e/` — End-to-end tests (Playwright)
-- `tests/helpers/` — Shared test utilities
-
-See [docs/testing.md](docs/testing.md) for patterns and guidelines.
+Parlor is imported under `.agents/skills/parlor` for guidance only, not as an
+installed framework. Refresh that complete package through its owner importer;
+do not format or patch its reference or provenance locally.
 
 ## Secret Scanning
 
-Pre-commit hooks automatically scan for leaked credentials (Clerk, Convex, Sentry keys).
-
-```bash
-# Install gitleaks (required for local development)
-brew install gitleaks
-```
-
-**False positives?** Add patterns to `.gitleaks.toml` allowlist section.
-**Hook failing?** Ensure gitleaks is installed: `brew install gitleaks`
+The pre-commit hook scans staged files for credentials. Keep the scanner
+enabled and use `.gitleaks.toml` only for reviewed false positives.
 
 ## Architecture
 
@@ -147,17 +77,15 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain mod
 Sentry is Linejam's sole error, monitor, release, and incident-evidence
 platform. Browser, Node, Edge, and Convex failures use release- and
 environment-tagged events; production health and smoke use Sentry monitors.
-Actionable Sentry issues create one durable GitHub Issue through the signed
-Convex webhook bridge. `pnpm ci:fast` is the fast host loop (typecheck, lint,
-tests); GitHub Actions' `merge-gate` remains the authoritative full contract,
-with `pnpm ci:dagger:all` for local parity. See
-[docs/ops/observability-ci.md](docs/ops/observability-ci.md).
+Sentry-linked GitHub issues remain native incident evidence; Linear owns current
+work and priorities. See [docs/ops/observability-ci.md](docs/ops/observability-ci.md)
+for alert authority, retention, and the hosted merge gate.
 
 ## Design
 
-Ink & Anticipation is Linejam's single visual identity: Kenya Hara minimalism with warm white, near-black ink, and a vermillion accent. The token source of truth is `lib/design/tokens.ts`; `lib/colorMode/` owns the mode-only control and API for Light, Dark, and System preferences, persisted under `linejam-theme-mode`.
-
-Light uses action `#b43a12`, focus `#e85d2b`, background `#faf9f7`, surface `#ffffff`, and ink `#1c1917`. Dark uses action `#f06b3b`, focus `#e85d2b`, background `#1c1917`, surface `#292524`, and ink `#faf9f7`. Typography uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels.
+Ink & Anticipation is Linejam's visual identity. [DESIGN.md](DESIGN.md) owns its
+product constraints; use the token source rather than duplicating a palette in
+operational guidance.
 
 ## License
 
