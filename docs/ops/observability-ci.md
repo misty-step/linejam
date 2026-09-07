@@ -25,21 +25,31 @@ LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC=1 pnpm convex:sync:shared-dev
 The flag must be present in the invoking process; putting it in a dotenv file
 does not authorize the operation. `scripts/ci/dagger-call.sh` loads the normal
 env files, requires an explicit remote `NEXT_PUBLIC_CONVEX_URL`, resolves both
-the active dev and production URLs with `convex function-spec`, rejects local,
-production, and mismatched targets, runs exactly:
+the active dev and production URLs with `convex function-spec`, requires both
+identities, rejects local, production, and mismatched targets, then runs exactly:
 
 ```bash
-pnpm exec convex dev --once --typecheck disable --codegen disable
+pnpm exec convex dev --once --typecheck disable --codegen disable --tail-logs disable
 ```
 
-It suppresses routine sync output, then performs a fresh `function-spec` read
-and fails if the deployment identity changed. The command is bounded and does
-not start the Convex watcher.
+It suppresses routine sync output and disables server-log streaming, then
+performs a fresh `function-spec` read and fails if the deployment identity
+changed. The command is bounded and does not start the Convex watcher.
 
 Convex CLI authentication normally comes from `~/.convex/config.json`. In an
 isolated environment, an operator may inject `CONVEX_OVERRIDE_ACCESS_TOKEN`
 through the approved credential plane. Never print, copy into chat, or commit
 that token.
+
+A team access token supports discovery but is not a personal CLI login. For an
+authorized sync, use Convex's [Management API deploy-key flow](https://docs.convex.dev/platform-apis/overview#pushing-code-to-a-deployment)
+to create an expiring key for the confirmed dev deployment, and inject it as
+`CONVEX_DEPLOY_KEY` alongside the team token. The verified permissions are
+`deployment:deploy`, `deployment:env:view`, and `deployment:data:view`. Keep the
+key in memory and revoke it when the operation ends. Discovery clears both
+`CONVEX_DEPLOY_KEY` and its `CONVEX_DEPLOYMENT_TOKEN` alias because a scoped key
+makes Convex ignore `--prod`. Before syncing, a separate read verifies that the
+actual sync credential resolves to the same confirmed development URL.
 
 ## Probes and dev migrations
 

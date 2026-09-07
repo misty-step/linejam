@@ -23,8 +23,6 @@ FUNCTION_NAME="${1:?Usage: scripts/ci/dagger-call.sh <function> [extra dagger ar
 shift || true
 EXPLICIT_SHARED_DEV_SYNC_AUTHORITY="${LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC:-0}"
 
-CONVEX_DEV_URL=""
-CONVEX_PROD_URL=""
 
 case "$FUNCTION_NAME" in
   all-no-e2e) FUNCTION_NAME="all-no-e-2-e" ;;
@@ -132,36 +130,20 @@ normalize_url() {
 convex_url_for_mode() {
 	local mode="${1:?mode is required}"
 
-	if [[ "$mode" == "dev" && -n "$CONVEX_DEV_URL" ]]; then
-		printf '%s' "$CONVEX_DEV_URL"
-		return 0
-	fi
-
-	if [[ "$mode" == "prod" && -n "$CONVEX_PROD_URL" ]]; then
-		printf '%s' "$CONVEX_PROD_URL"
-		return 0
-	fi
-
 	local -a command=(run_npx convex function-spec)
 	if [[ "$mode" == "prod" ]]; then
 		command+=(--prod)
 	fi
 
 	local url
-	url="$(
+	if ! url="$(
 		"${command[@]}" | \
 			sed -n 's/.*"url": "\([^"]*\)".*/\1/p' | \
 			head -n 1
-	)"
-	url="$(normalize_url "$url")"
-
-	if [[ "$mode" == "dev" ]]; then
-		CONVEX_DEV_URL="$url"
-	else
-		CONVEX_PROD_URL="$url"
+	)"; then
+		return 1
 	fi
-
-	printf '%s' "$url"
+	normalize_url "$url"
 }
 
 is_local_convex_url() {
@@ -302,25 +284,38 @@ sync_shared_dev_once() {
 		return 1
 	fi
 
+	# Scoped keys make Convex ignore --prod. Discover account/team identities
+	# independently, then verify the actual sync credential against that target.
 	local dev_url
-	dev_url="$(convex_url_for_mode dev)"
+	dev_url="$(CONVEX_DEPLOY_KEY='' CONVEX_DEPLOYMENT_TOKEN='' convex_url_for_mode dev)"
 	local prod_url
-	prod_url="$(convex_url_for_mode prod)"
+	prod_url="$(CONVEX_DEPLOY_KEY='' CONVEX_DEPLOYMENT_TOKEN='' convex_url_for_mode prod)"
+
+	if [[ -z "$dev_url" || -z "$prod_url" ]]; then
+		echo >&2 "Shared Convex dev sync could not verify both deployment identities."
+		return 1
+	fi
 
 	if [[ "$target_url" == "$prod_url" ]]; then
 		echo >&2 "Refusing shared Convex dev sync because NEXT_PUBLIC_CONVEX_URL resolves to production."
 		return 1
 	fi
 
-	if [[ -z "$dev_url" || "$target_url" != "$dev_url" ]]; then
+	if [[ "$target_url" != "$dev_url" ]]; then
 		echo >&2 "Refusing shared Convex dev sync because NEXT_PUBLIC_CONVEX_URL does not match the CLI's active dev deployment."
 		return 1
 	fi
 
-	echo "Preflight confirmed the active non-production Convex dev deployment; syncing once..." >&2
-	run_npx convex dev --once --typecheck disable --codegen disable >/dev/null
+	local credential_url
+	credential_url="$(convex_url_for_mode dev)"
+	if [[ "$credential_url" != "$target_url" ]]; then
+		echo >&2 "Refusing shared Convex dev sync because its credential resolves to a different deployment."
+		return 1
+	fi
 
-	CONVEX_DEV_URL=""
+	echo "Preflight confirmed the active non-production Convex dev deployment; syncing once..." >&2
+	run_npx convex dev --once --typecheck disable --codegen disable --tail-logs disable >/dev/null
+
 	local verified_url
 	verified_url="$(convex_url_for_mode dev)"
 	if [[ "$verified_url" != "$target_url" ]]; then

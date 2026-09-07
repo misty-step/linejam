@@ -353,7 +353,7 @@ printf '%s' "\${NEXT_PUBLIC_SENTRY_DSN:-}" > "${envLog}"
     expect(result.stderr).toContain('explicit remote NEXT_PUBLIC_CONVEX_URL');
   });
 
-  it('syncs only the confirmed shared dev deployment and verifies it afterward', () => {
+  it('discovers targets independently of a scoped deploy key and retains that key only for the authorized sync', () => {
     const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
     workspaces.push(workspace);
 
@@ -371,9 +371,16 @@ printf '%s' "\${NEXT_PUBLIC_SENTRY_DSN:-}" > "${envLog}"
       `#!/bin/sh
 printf '%s\n' "$*" >> "${callsLog}"
 case "$*" in
-  *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
-  *"function-spec"*) printf '{"url": "https://dev.example.test", "functions": []}\n' ;;
-  *"convex dev --once"*) exit 0 ;;
+  *"function-spec"*)
+    if [ -n "$CONVEX_DEPLOY_KEY" ] || [ -n "$CONVEX_DEPLOYMENT_TOKEN" ]; then
+      printf '{"url": "https://dev.example.test", "functions": []}\n'
+    else
+      case "$*" in
+        *"--prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
+        *) printf '{"url": "https://dev.example.test", "functions": []}\n' ;;
+      esac
+    fi ;;
+  *"convex dev --once"*) test "$CONVEX_DEPLOY_KEY" = "fixture-dev-deploy-key" ;;
   *) exit 2 ;;
 esac
 `
@@ -382,6 +389,8 @@ esac
 
     const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
       LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+      CONVEX_DEPLOY_KEY: 'fixture-dev-deploy-key',
+      CONVEX_DEPLOYMENT_TOKEN: 'fixture-legacy-deploy-key',
     });
 
     expect(result.status).toBe(0);
@@ -390,7 +399,69 @@ esac
     expect(calls).toContain(
       'exec convex dev --once --typecheck disable --codegen disable'
     );
-    expect(calls.match(/exec convex function-spec/g)).toHaveLength(3);
+  });
+
+  it('does not sync when production identity cannot be verified', () => {
+    const fixture = createProviderFixture();
+    workspaces.push(fixture.workspace);
+    writeExecutable(
+      join(fixture.binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\\n' "$*" >> "${fixture.convexCalls}"
+case "$*" in
+  *"function-spec --prod"*) exit 1 ;;
+  *"function-spec"*) printf '{"url": "https://dev.example.test"}\\n' ;;
+  *"convex dev"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+
+    const result = runDaggerCall(
+      fixture.workspace,
+      fixture.binDir,
+      'sync-shared-dev',
+      fixture.env
+    );
+
+    expect(result.status).toBe(1);
+    expect(readFileSync(fixture.convexCalls, 'utf8')).not.toContain(
+      'convex dev'
+    );
+  });
+
+  it('rejects a production-scoped credential even with a valid development target', () => {
+    const fixture = createProviderFixture();
+    workspaces.push(fixture.workspace);
+    writeExecutable(
+      join(fixture.binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\\n' "$*" >> "${fixture.convexCalls}"
+case "$*" in
+  *"function-spec --prod"*) printf '{"url": "https://prod.example.test"}\\n' ;;
+  *"function-spec"*)
+    if [ -n "$CONVEX_DEPLOY_KEY" ]; then
+      printf '{"url": "https://prod.example.test"}\\n'
+    else
+      printf '{"url": "https://dev.example.test"}\\n'
+    fi ;;
+  *"convex dev"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+
+    const result = runDaggerCall(
+      fixture.workspace,
+      fixture.binDir,
+      'sync-shared-dev',
+      { ...fixture.env, CONVEX_DEPLOY_KEY: 'fixture-prod-deploy-key' }
+    );
+
+    expect(result.status).toBe(1);
+    expect(readFileSync(fixture.convexCalls, 'utf8')).not.toContain(
+      'convex dev'
+    );
   });
 
   it('refuses a shared dev sync when the configured target is production', () => {
@@ -471,7 +542,7 @@ esac
     workspaces.push(workspace);
 
     const callsLog = join(workspace, 'pnpm-calls.log');
-    const devProbeMarker = join(workspace, 'dev-probed');
+    const syncMarker = join(workspace, 'synced');
     copyFileSync(
       resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
       join(scriptsDir, 'dotenv.mjs')
@@ -487,14 +558,13 @@ printf '%s\n' "$*" >> "${callsLog}"
 case "$*" in
   *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
   *"function-spec"*)
-    if [ -f "${devProbeMarker}" ]; then
+    if [ -f "${syncMarker}" ]; then
       printf '{"url": "https://changed.example.test", "functions": []}\n'
     else
-      : > "${devProbeMarker}"
       printf '{"url": "https://dev.example.test", "functions": []}\n'
     fi
     ;;
-  *"convex dev --once"*) exit 0 ;;
+  *"convex dev --once"*) : > "${syncMarker}" ;;
   *) exit 2 ;;
 esac
 `
