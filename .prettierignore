@@ -30,6 +30,6 @@ server/
 .evidence/
 .qa/
 tools/oxlint/anti-slop/
+# Retained, source-fingerprinted offline design proposals (not application code).
+explorations/renewal/
 
-# Design-lab artifacts
-explorations/

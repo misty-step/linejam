@@ -22,7 +22,7 @@
     "next-env.d.ts",
     "convex/_generated/**",
     "dagger/**",
-    "explorations/**",
+    "explorations/renewal/**",
     "coverage/**",
     "playwright-report/**",
     "test-results/**",

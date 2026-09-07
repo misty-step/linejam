@@ -22,13 +22,13 @@ pre-commit:
 
     lint:
       glob: '*.{js,ts,jsx,tsx}'
-      exclude: '{convex/_generated/**,explorations/**}'
+      exclude: '{convex/_generated/**,explorations/renewal/**}'
       run: pnpm eslint --fix {staged_files} && pnpm exec oxlint {staged_files}
       stage_fixed: true
 
     format:
       glob: '*.{js,ts,jsx,tsx,json,md,css}'
-      exclude: '{convex/_generated/**,explorations/**}'
+      exclude: '{convex/_generated/**,explorations/renewal/**}'
       run: pnpm prettier --write {staged_files}
       stage_fixed: true
 

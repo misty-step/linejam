@@ -66,9 +66,8 @@ The site explains the human game, the round structure and privacy boundary,
 with direct host/join links. Historical proof compositions are not current
 screenshots or evidence for the redesigned application.
 
-`docs/labs/linejam-921-proof-assets/` is the retained record of the earlier
-proof-asset decision. It describes the previous identity and is history, not the
-current site contract.
+The earlier proof-asset decision describes the previous identity and is history,
+not the current site contract.
 
 ## Footer Links
 

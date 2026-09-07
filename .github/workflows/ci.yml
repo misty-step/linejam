@@ -4,12 +4,7 @@ on:
   pull_request:
     branches: [master]
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.vscode/**'
-      - 'LICENSE'
-      - '.gitignore'
+    # Every PR needs merge-gate, including documentation-only changes.
   push:
     branches: [master]
     paths-ignore:
