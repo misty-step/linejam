@@ -157,11 +157,17 @@ successful completed-game surface before leaving it:
 
 ```bash
 pnpm exec agent-browser --session <run-id>-host wait '[data-testid="session-complete"]'
-pnpm exec agent-browser --session <run-id>-host screenshot --full ".qa/runs/<run-id>/artifact-0001.png"
+pnpm exec agent-browser --session <run-id>-host screenshot body ".qa/runs/<run-id>/artifact-0001.png" --full
 ```
 
 The Host confirms that `.qa/runs/<run-id>/artifact-0001.png` exists, then sends
 `GAME_COMPLETED`. Guests do not create a second success artifact.
+
+The pinned CLI takes a selector before the output path. Omitting `body` can save
+to a temporary path instead. Inspect the reported destination and confirm the
+required file exists. For controls below the fold, use `scrollintoview` on a
+fresh visible reference before clicking; if a click reports success without a
+state change, focus that control and press Enter once, then inspect the result.
 
 ## 6. Room Closure Path (Host)
 

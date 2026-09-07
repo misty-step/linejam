@@ -86,12 +86,9 @@ visible before a player has to report them.
 
 - `project.md` is the product brief: target user, glossary, active focus,
   quality bar, patterns, and anti-goals.
-- `AGENTS.md` is the agent router, gate contract, invariants, and environment
-  boundary map.
+- `AGENTS.md` is the agent router for authority, domain invariants, and evidence.
 - `README.md` is the public project orientation and contributor entrypoint.
-- GitHub Issues is the sole work ledger; the claim and Iron Forest scheduling
-  contract lives in `CONTRIBUTING.md`. Sentry is the sole incident-evidence
-  platform; [#393](https://github.com/misty-step/linejam/issues/393) records its
-  production cutover.
-- `docs/testing.md`, Dagger code, and hosted `merge-gate` define the validation
-  surface.
+- Linear owns current work and priorities. GitHub and Sentry remain native
+  incident evidence; [#393](https://github.com/misty-step/linejam/issues/393)
+  records the Sentry production cutover.
+- `docs/testing.md` and hosted `merge-gate` define the validation surface.
