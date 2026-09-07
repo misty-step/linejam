@@ -10,7 +10,7 @@ normal product code and the local Convex database.
 - Node.js 22 or newer on the host. The application image pins Node **22.23.2**.
 - A reachable **local Linux-container Docker daemon**, including rootless Docker
   or Docker Desktop on a Linux/macOS host.
-- Docker Compose **2.32 or newer**, and BuildKit/buildx. Install CLI plugins where
+- Docker Compose **5.5 or newer**, and BuildKit/buildx. Install CLI plugins where
   Docker can discover them independently of a personal Docker configuration.
 - Registry/package/browser-download access for the initial image builds. No
   registry login is imported. After images are built, application, backend, sync,
@@ -199,7 +199,12 @@ before running the existing browser specs selected by
 - canonical guest-flow screenshots and recorded host video.
 
 These are the existing product-flow tests and UI helpers, not a second game
-implementation. The runner refuses a result where selected cases were skipped.
+implementation. The runner refuses skipped, retried, failed, or missing test
+results. It also uses the shared evidence verdict to reject recorded flow,
+browser-runtime, console, network, and video-finalization errors, even when
+Playwright reports green tests. The current run must produce its evidence result,
+at least one screenshot, and host video; every listed screenshot and the video
+must be nonempty regular files. Earlier evidence cannot satisfy a later run.
 It uses one worker and no retries so a failed lifecycle is not hidden.
 
 Chromium uses the **same loopback app/Convex origins** as a human host browser.
@@ -217,7 +222,9 @@ Artifacts are bind-mounted only into this project's ignored output directory:
   artifacts/
     backend-source.json
     qa/
+      verdict.json
       results.json
+      playwright.log
       report/
       test-results/
       evidence/
@@ -230,8 +237,17 @@ Playwright retains failure screenshots/traces where the existing test's context
 lifecycle supports them; the evidence spec separately captures its manual guest
 contexts and video. A receipt contains exact source fingerprints, lockfile and
 package-manager identity, runtime image IDs, and readiness observations, never
-an admin key or HMAC secret. Keep QA artifacts local unless intentionally
-reviewing/redacting them: they can contain room codes and the lines typed by QA.
+an admin key or HMAC secret. Raw Playwright output stays in mode-600
+`artifacts/qa/playwright.log`; terminal failures report only counts and paths.
+Keep logs, reports, traces, and evidence local unless intentionally reviewing and
+redacting them: browser output can contain session credentials, room codes, and
+the lines typed by QA.
+
+`artifacts/qa/verdict.json` is the publishable QA receipt: only PASS/FAIL,
+Playwright counts, and evidence validation booleans/counts. Unavailable counts
+are `null`; no free-form errors, room codes, credentials, or poem text are copied
+into it. It is written on success and ordinary failure, and an earlier verdict
+is removed before a new run starts.
 
 **QA leaves the app and backend running**, on both success and failure, for
 inspection. Its caller owns the subsequent `down` or `reset`.
@@ -267,9 +283,19 @@ removal, so a fresh startup cannot race with deletion of old state.
 | Convex synchronization failure               | Fix the reported source/schema issue and rerun `up`. The frontend is not started as a falsely healthy replacement. Existing local data is preserved.                |
 | App health/guest-secret parity failure       | Inspect the readiness failure; rerun `up` to synchronize the generated key and source. If disposable state is corrupt, use the confirmed scoped `reset`, then `up`. |
 | Browser QA failure                           | Inspect `artifacts/qa/`; services remain available. Run `down` when finished or `reset` for a clean database.                                                       |
-| Active project lock                          | Stop its owning `dev`/CLI process, or choose another project. Locks from confirmed dead PIDs are reclaimed; live owners are never killed.                           |
+| Active project lock                          | Stop its owning `dev`/CLI process, or choose another project. Live owners are never killed and locks are never automatically reclaimed.                             |
 | Ownership mismatch or state without a marker | Do not adopt/delete it automatically. Use another project and investigate the original owner's local state.                                                         |
-| Forced interruption                          | Rerun `down` with the same project/socket; only a confirmed dead operation lock is reclaimed.                                                                       |
+| Stale lock or forced interruption            | Follow the manual lock-recovery procedure below before rerunning `down` with the same project/socket; otherwise choose another project.                             |
+
+**Manual stale-lock recovery:** first stop every CLI/agent command for that
+project and prevent supervisors from restarting them. Inspect the owned
+`owner.json` and `operation.lock` in `.qa/local/<full-project-name>/`; confirm
+that the ownership marker names this checkout/project and that the recorded PID
+is still absent. Only then remove that exact `operation.lock` file manually.
+Never remove a live lock, ownership marker, state directory, or Docker resources
+to bypass this refusal. If ownership or process liveness is uncertain, keep the
+lock and use another project. Automatic reclamation is deliberately disabled:
+a dead-PID snapshot cannot prove that the file still belongs to the dead process.
 
 State lives under **`.qa/local/<full-project-name>/`**, already ignored by Git
 and explicitly excluded from Docker source copies. Generated guest/admin files

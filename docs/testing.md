@@ -122,7 +122,7 @@ unless the lane explicitly requests guest-only evidence and records the gap.
 ## Isolated guest QA and retained evidence
 
 The repository-owned runtime needs Node 22+, a local Linux Docker daemon,
-Compose 2.32+, and buildx. Initial image/package/browser installation needs
+Compose 5.5+, and buildx. Initial image/package/browser installation needs
 download access, but the app/backend guest loop runs without shared-provider
 credentials. The hosted job runs the same command as local acceptance:
 
@@ -137,11 +137,15 @@ containers/network but retains data and evidence. Hosted evidence is uploaded
 before unconditional shutdown and retained for 14 days:
 
 - `.qa/local/linejam-local-ci/receipt.json`
-- `.qa/local/linejam-local-ci/artifacts/**` (browser/evidence output and backend-source receipt)
+- `.qa/local/linejam-local-ci/artifacts/qa/verdict.json` (allowlisted counts and booleans)
+- `.qa/local/linejam-local-ci/artifacts/qa/evidence/*.png`
+- `.qa/local/linejam-local-ci/artifacts/qa/evidence/raw-video/*.webm`
 
-Upload those exact paths only. Neighboring owner records, generated credentials,
-`compose.env`, and private Docker config are not shareable artifacts. Missing
-evidence fails upload rather than silently yielding an empty receipt.
+Upload those exact paths only. Raw reports, logs, JSON evidence, traces, owner
+records, generated credentials, `compose.env`, and private Docker config may
+contain credentials and must stay private. Missing evidence fails upload rather
+than silently yielding an empty receipt. The verdict rejects recorded flow,
+runtime, and artifact errors even when Playwright reports passing tests.
 
 ## Dependency audit
 

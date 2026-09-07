@@ -29,7 +29,7 @@ const commands = new Set([
   'check',
   'qa',
 ]);
-const help = `Linejam: isolated local Docker runtime (Linux containers; Node 22+; Compose 2.32+)
+const help = `Linejam: isolated local Docker runtime (Linux containers; Node 22+; Compose 5.5+)
 
   node scripts/local/cli.mjs <up|dev|status|down|reset|check|qa> [options]
 
@@ -281,7 +281,7 @@ async function stateFor(options) {
     );
   }
   for (const name of ['secrets', 'artifacts', 'docker-config'])
-    await directory(path.join(state, name), true);
+    await directory(path.join(state, name), !exists);
   if (!exists) {
     await writeFile(
       path.join(state, 'secrets/guest-token'),
@@ -433,11 +433,11 @@ async function requireDocker(config) {
   const match = /^v?(\d+)\.(\d+)\./.exec(version);
   if (
     !match ||
-    Number(match[1]) < 2 ||
-    (Number(match[1]) === 2 && Number(match[2]) < 32)
+    Number(match[1]) < 5 ||
+    (Number(match[1]) === 5 && Number(match[2]) < 5)
   ) {
     throw new Error(
-      'Install Docker Compose 2.32+ for isolated watch/initial sync.'
+      'Install Docker Compose 5.5+ for isolated watch/initial sync.'
     );
   }
   const os = await docker(config, ['version', '--format', '{{.Server.Os}}'], {
@@ -520,8 +520,11 @@ async function lock(config, command) {
     } catch (error) {
       if (error.code !== 'ESRCH') throw error;
     }
-    await unlink(file);
-    handle = await open(file, 'wx', 0o600);
+    // A dead PID does not authorize unlinking: another contender may have
+    // replaced the file since we read it. Portable unlink has no identity guard.
+    throw new Error(
+      `Stale local operation lock from ${previous.command} PID ${previous.pid}: ${file}. Stop all commands for this project, verify its ownership marker and that PID is still absent, then manually remove only operation.lock; or choose another project.`
+    );
   }
   await handle.writeFile(
     JSON.stringify({
@@ -688,7 +691,11 @@ async function main() {
   let removedState = false;
   try {
     await requireDocker(config);
-    await writeComposeEnvironment(config);
+    if (options.command === 'status') {
+      await ownedFile(path.join(config.state, 'compose.env'));
+    } else {
+      await writeComposeEnvironment(config);
+    }
     await assertOwnedResources(config);
     if (options.command === 'status') {
       await compose(config, [

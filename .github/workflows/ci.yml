@@ -130,6 +130,18 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install supported Docker Compose
+        uses: docker/setup-compose-action@4eb059ff7f16592f9c84d5ca339c53cb7c5064e2 # v2
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/linejam-compose-bootstrap
+        with:
+          version: v5.5.1
+
+      - name: Expose Compose to the isolated Docker client
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/linejam-compose-bootstrap
+        run: sudo install -D "$DOCKER_CONFIG/cli-plugins/docker-compose" /usr/local/lib/docker/cli-plugins/docker-compose
+
       - name: Run isolated guest QA
         run: node scripts/local/cli.mjs qa --project ci
 
@@ -138,11 +150,13 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: isolated-guest-qa
-          # Explicit safe paths only: never upload the owner record, generated
-          # credentials, compose.env, or private Docker config next to these.
+          # Raw logs, JSON results and network traces can contain guest tokens.
+          # Upload only the source receipt, values-free verdict and local UI media.
           path: |
             .qa/local/linejam-local-ci/receipt.json
-            .qa/local/linejam-local-ci/artifacts/**
+            .qa/local/linejam-local-ci/artifacts/qa/verdict.json
+            .qa/local/linejam-local-ci/artifacts/qa/evidence/*.png
+            .qa/local/linejam-local-ci/artifacts/qa/evidence/raw-video/*.webm
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
