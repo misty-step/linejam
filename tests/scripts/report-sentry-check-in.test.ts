@@ -71,6 +71,8 @@ describe('Sentry workflow reporting', () => {
         checkinMargin: 60,
         maxRuntime: 15,
         timezone: 'UTC',
+        failureIssueThreshold: 3,
+        recoveryThreshold: 1,
       }
     );
     expect(sdk.captureException).toHaveBeenCalledWith(

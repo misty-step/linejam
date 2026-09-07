@@ -110,12 +110,18 @@ incident-evidence platform:
 - Sentry Uptime owns `/api/health` availability. The
   `linejam-production-smoke` Cron Monitor covers the actual hourly scheduled
   smoke. The first failed production smoke remains non-paging; the second
-  consecutive failure opens the monitor and emits one closed-tag
-  `productionSmoke` Sentry issue. A passing run recovers it. The monitor's
-  60-minute check-in margin exists because GitHub Actions schedule events are
-  best-effort and run 10-53 minutes late in practice; a slot is only satisfied
-  by a check-in inside `[expected, expected + margin]`, so a smaller margin
-  marks every slot missed even when the smoke passes (LINEJAM-9).
+  consecutive failure reports an `error` check-in and emits one closed-tag
+  `productionSmoke` Sentry issue, which is the paging signal for real smoke
+  failures. A passing run recovers the monitor. The monitor absorbs GitHub
+  Actions schedule noise, which is best-effort in two ways. Runs fire 10-53
+  minutes late (LINEJAM-9); the 60-minute check-in margin covers that delay
+  because a slot is satisfied only inside `[expected, expected + margin]`.
+  Whole hourly slots are also dropped with no run at all
+  (LINEJAM-V: 14 of 244 slots over Aug 17-27 2026, including back-to-back
+  drops while every executed smoke passed), covered by the three
+  consecutive failed-or-missed check-in threshold. The monitor incident
+  therefore pages only when the smoke stops running or keeps failing for
+  roughly three consecutive hourly slots.
 - The live observability contract exits red only when a second bounded Sentry
   sample confirms the first sample's drift. A healthy first sample performs no
   duplicate reads; a persistent second failure remains authoritative.

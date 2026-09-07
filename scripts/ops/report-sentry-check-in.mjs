@@ -12,19 +12,29 @@ export const SENTRY_MONITOR_SLUGS = Object.freeze({
   productionSmoke: 'linejam-production-smoke',
 });
 
-// GitHub Actions scheduled workflows are best-effort: the `17 * * * *` cron
-// fires late by 10-53 minutes in practice (observed Aug 5-17 2026), and the
-// check-in only arrives after the smoke finishes. A crontab slot is satisfied
-// solely by a check-in landing inside [expected, expected + margin], so the
-// margin must cover the scheduler delay; 5 minutes marked every slot missed
-// even when the smoke passed (LINEJAM-9). 60 minutes covers the observed
-// distribution while still paging after two consecutive genuinely missed
-// slots.
+// GitHub Actions scheduled workflows are best-effort in two distinct ways.
+// First, the `17 * * * *` cron fires late by 10-53 minutes in practice
+// (observed Aug 5-17 2026), and the check-in only arrives after the smoke
+// finishes. A crontab slot is satisfied solely by a check-in landing inside
+// [expected, expected + margin], so the margin must cover the scheduler
+// delay; 5 minutes marked every slot missed even when the smoke passed
+// (LINEJAM-9). 60 minutes covers the observed delay distribution.
+// Second, GitHub drops whole hourly slots with no run at all: 14 of 244
+// slots between Aug 17-27 2026, including back-to-back drops, while every
+// smoke that did run passed (LINEJAM-V). No margin covers a slot with zero
+// check-ins, so the failure threshold must absorb dropped slots: two
+// consecutive empty slots occurred roughly every three days on a healthy
+// production, three never did. Real smoke failures still page through the
+// `productionSmoke` error event emitted at the second consecutive failing
+// run; the monitor incident is the backstop for the smoke not running or
+// failing for about three consecutive hours.
 const PRODUCTION_SMOKE_MONITOR_CONFIG = Object.freeze({
   schedule: { type: 'crontab', value: '17 * * * *' },
   checkinMargin: 60,
   maxRuntime: 15,
   timezone: 'UTC',
+  failureIssueThreshold: 3,
+  recoveryThreshold: 1,
 });
 const ALLOWED_MONITOR_SLUGS = new Set(Object.values(SENTRY_MONITOR_SLUGS));
 const PROD_ESCALATION_THRESHOLD = 2;
