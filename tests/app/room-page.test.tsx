@@ -37,9 +37,11 @@ function TestLobby() {
 function TestWritingScreen({
   roomCode,
   showChrome,
+  guestToken,
 }: {
   roomCode: string;
   showChrome?: boolean;
+  guestToken?: string | null;
 }) {
   if (writingPhaseFails) {
     throw new Error('assignment query failed');
@@ -51,7 +53,7 @@ function TestWritingScreen({
       <span>Write the first line.</span>
       <span>
         {writingView === 'waiting' ? 'Waiting view' : 'Writing view'} {roomCode}{' '}
-        {showChrome ? 'chrome on' : 'chrome off'}
+        {showChrome ? 'chrome on' : 'chrome off'} {guestToken ?? 'no token'}
       </span>
     </>
   );
@@ -257,6 +259,9 @@ describe('RoomPage', () => {
 
     expect(await screen.findByText('1 word')).toBeInTheDocument();
     expect(screen.getByText('Write the first line.')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Writing view ABCD chrome on guest-token/i)
+    ).toBeInTheDocument();
   });
 
   it('keeps a writing query failure inside the room panel fallback', async () => {

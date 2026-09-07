@@ -30,16 +30,6 @@ const mockRouter: AppRouterInstance = {
 
 const lobbyDependencies: LobbyDependencies = {
   useRouter: () => mockRouter,
-  useUser: () => ({
-    clerkUser: null,
-    guestId: 'guest_123',
-    guestToken: 'mock-token',
-    isLoading: false,
-    isAuthenticated: false,
-    displayName: 'Guest',
-    authError: null,
-    retryAuth: vi.fn(),
-  }),
   useStartGame: () => mockMutations.startGame,
   useLeaveLobby: () => mockMutations.leaveLobby,
   useCloseRoom: () => mockMutations.closeRoom,
@@ -105,7 +95,14 @@ describe('Lobby component', () => {
   });
 
   it('renders the room code as the lobby hero', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     // Room code "ABCD" is formatted as "AB CD" and shown as the in-body hero
     expect(screen.getByText('AB CD')).toHaveClass(
@@ -114,7 +111,14 @@ describe('Lobby component', () => {
   });
 
   it('announces the room code to screen readers without duplicating visual chrome', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const roomCodeStatus = screen
       .getAllByRole('status')
@@ -124,7 +128,14 @@ describe('Lobby component', () => {
   });
 
   it('renders player list from room state', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={false}
+      />
+    );
 
     // Assert - Both players should be visible
     expect(screen.getByText('Host Player')).toBeInTheDocument();
@@ -141,7 +152,14 @@ describe('Lobby component', () => {
 
   it('puts lobby utilities behind the Status Board room-tools disclosure', async () => {
     const user = userEvent.setup();
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost
+      />
+    );
 
     const tools = screen.getByText('Room tools').closest('summary');
     expect(tools).toBeInTheDocument();
@@ -157,7 +175,14 @@ describe('Lobby component', () => {
   });
 
   it('keeps the primary action in a non-overlapping viewport sibling', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const scrollRegion = screen.getByTestId(E2E_TEST_IDS.lobbyScrollRegion);
     const actionZone = screen.getByTestId(E2E_TEST_IDS.lobbyActionZone);
@@ -181,7 +206,14 @@ describe('Lobby component', () => {
   it('Start Game button disabled with <2 players', () => {
     const singlePlayer = [mockPlayers[0]];
 
-    renderLobby(<Lobby room={mockRoom} players={singlePlayer} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={singlePlayer}
+        isHost={true}
+      />
+    );
 
     const startButtons = screen.getAllByRole('button', {
       name: /Need .* player/i,
@@ -191,7 +223,14 @@ describe('Lobby component', () => {
   });
 
   it('Start Game button enabled with ≥2 players', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const startButtons = screen.getAllByRole('button', {
       name: /Start Linejam/i,
@@ -203,7 +242,14 @@ describe('Lobby component', () => {
     mockMutations.startGame.mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const startButtons = screen.getAllByRole('button', {
       name: /Start Linejam/i,
@@ -225,7 +271,12 @@ describe('Lobby component', () => {
     const user = userEvent.setup();
 
     renderLobby(
-      <Lobby room={rematchRoom} players={mockPlayers} isHost={true} />
+      <Lobby
+        guestToken="mock-token"
+        room={rematchRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
     );
     await user.click(
       screen.getAllByRole('button', { name: /Start Linejam/i })[0]
@@ -247,7 +298,14 @@ describe('Lobby component', () => {
     mockMutations.startGame.mockRejectedValue(new Error('Game start failed'));
     const user = userEvent.setup();
 
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const startButtons = screen.getAllByRole('button', {
       name: /Start Linejam/i,
@@ -264,7 +322,14 @@ describe('Lobby component', () => {
   });
 
   it('shows "Waiting for host" button when not host', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={false}
+      />
+    );
 
     const waitingButtons = screen.getAllByRole('button', {
       name: /Waiting for host/i,
@@ -276,7 +341,14 @@ describe('Lobby component', () => {
   it('lets the host open and exit a room-scale presentation lobby', async () => {
     const user = userEvent.setup();
 
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     await user.click(screen.getByRole('button', { name: /Present room/i }));
 
@@ -299,7 +371,14 @@ describe('Lobby component', () => {
   });
 
   it('keeps presentation mode host-only in the lobby', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={false}
+      />
+    );
 
     expect(
       screen.queryByRole('button', { name: /Present room/i })
@@ -321,13 +400,19 @@ describe('Lobby component', () => {
       stableId: 'stable_late_789',
     };
     const { rerender } = renderLobby(
-      <Lobby room={mockRoom} players={mockPlayers} isHost={true} />
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
     );
 
     await user.click(screen.getByRole('button', { name: /Present room/i }));
 
     rerender(
       <Lobby
+        guestToken="mock-token"
         room={mockRoom}
         players={[...mockPlayers, latePlayer]}
         isHost={true}
@@ -342,7 +427,14 @@ describe('Lobby component', () => {
 
   it('Close room button calls mutation and navigates to home (host)', async () => {
     const user = userEvent.setup();
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const closeButtons = screen.getAllByRole('button', {
       name: /Close room/i,
@@ -361,7 +453,14 @@ describe('Lobby component', () => {
 
   it('Leave room button calls mutation and navigates to home (guest)', async () => {
     const user = userEvent.setup();
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={false}
+      />
+    );
 
     const leaveButtons = screen.getAllByRole('button', {
       name: /Leave room/i,
@@ -379,14 +478,28 @@ describe('Lobby component', () => {
   });
 
   it('shows host badge for host player', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const hostPlayerItem = screen.getByText('Host Player').closest('li');
     expect(hostPlayerItem).toBeInTheDocument();
   });
 
   it('wraps roster chips before the action zone on narrow layouts', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const rosterList = screen.getByText('Host Player').closest('ul');
     expect(rosterList).toHaveClass('flex', 'flex-wrap', 'min-w-0');
@@ -400,7 +513,12 @@ describe('Lobby component', () => {
     ];
 
     renderLobby(
-      <Lobby room={mockRoom} players={playersWithLongName} isHost={true} />
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={playersWithLongName}
+        isHost={true}
+      />
     );
 
     const nameSpan = screen.getByText(longName);
@@ -408,7 +526,14 @@ describe('Lobby component', () => {
   });
 
   it('stacks roster badges at narrow widths and reserves a column when space permits', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
+    renderLobby(
+      <Lobby
+        guestToken="mock-token"
+        room={mockRoom}
+        players={mockPlayers}
+        isHost={true}
+      />
+    );
 
     const hostPlayerItem = screen.getByText('Host Player').closest('li');
     expect(hostPlayerItem).toHaveClass(

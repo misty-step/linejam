@@ -120,10 +120,12 @@ interface RoomPageState {
 
 function ResolvedRoomPage({
   code,
+  guestToken,
   roomState,
   dependencies,
 }: {
   code: string;
+  guestToken: string | null;
   roomState: RoomPageState;
   dependencies: RoomPageDependencies;
 }) {
@@ -147,7 +149,12 @@ function ResolvedRoomPage({
               playerCount: players.length,
             })}
           />
-          <LobbyComponent room={room} players={players} isHost={isHost} />
+          <LobbyComponent
+            room={room}
+            players={players}
+            isHost={isHost}
+            guestToken={guestToken}
+          />
         </div>
       </RoomPanelErrorBoundary>
     );
@@ -160,7 +167,11 @@ function ResolvedRoomPage({
         roomCode={code}
         panel="writing"
       >
-        <WritingScreenComponent roomCode={code} showChrome />
+        <WritingScreenComponent
+          roomCode={code}
+          guestToken={guestToken}
+          showChrome
+        />
       </RoomPanelErrorBoundary>
     );
   }
@@ -172,7 +183,11 @@ function ResolvedRoomPage({
         roomCode={code}
         panel="reveal"
       >
-        <RevealPhaseComponent roomCode={code} showChrome />
+        <RevealPhaseComponent
+          roomCode={code}
+          guestToken={guestToken}
+          showChrome
+        />
       </RoomPanelErrorBoundary>
     );
   }
@@ -238,6 +253,7 @@ function RoomPageContent({
       <ConnectionStatusComponent />
       <ResolvedRoomPage
         code={code}
+        guestToken={guestToken}
         roomState={roomState}
         dependencies={dependencies}
       />

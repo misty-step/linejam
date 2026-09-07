@@ -16,31 +16,20 @@ import {
 import type { WaitingScreenDependencies } from '@/components/WaitingScreen';
 import type { Id } from '@/convex/_generated/dataModel';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
+import { buildRoomQueryArgs } from '@/lib/roomQueryArgs';
 
 const mockSubmitLineMutation = vi.fn();
 const mockEndGameMutation = vi.fn();
 const mockUseQuery = vi.fn();
 
-const mockUseRoomQueryArgs: WritingScreenDependencies['useRoomQueryArgs'] = (
-  roomCode,
-  propToken
-) => {
-  const guestToken = propToken ?? 'mock-token';
-  return {
-    guestToken,
-    shouldSkip: false,
-    queryArgs: { roomCode, guestToken },
-  };
-};
-
 const waitingScreenDependencies: WaitingScreenDependencies = {
-  useRoomQueryArgs: mockUseRoomQueryArgs,
+  buildRoomQueryArgs,
   useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
   useEndGame: () => mockEndGameMutation,
 };
 
 const writingScreenDependencies: WritingScreenDependencies = {
-  useRoomQueryArgs: mockUseRoomQueryArgs,
+  buildRoomQueryArgs,
   useCurrentAssignment: (args) =>
     mockUseQuery('game:getCurrentAssignment', args),
   useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
@@ -124,14 +113,18 @@ describe('WritingScreen component', () => {
   });
 
   it('keeps the word counter visible in the composer flow', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     const wordSlots = document.getElementById('word-slots');
     expect(wordSlots).toBeInTheDocument();
   });
 
   it('declares the one-line 500-character mobile input contract', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     const textarea = screen.getByTestId(E2E_TEST_IDS.writingLineInput);
     expect(textarea).toHaveAttribute('maxlength', '500');
@@ -148,7 +141,9 @@ describe('WritingScreen component', () => {
   });
 
   it('shows textarea with correct aria label for word count', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByRole('textbox')).toHaveAttribute(
       'aria-label',
@@ -159,7 +154,9 @@ describe('WritingScreen component', () => {
   it('calls submitLine mutation with correct args on submit', async () => {
     mockSubmitLineMutation.mockResolvedValue(undefined);
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Poetry');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
@@ -178,7 +175,9 @@ describe('WritingScreen component', () => {
   it('shows error message when submission fails', async () => {
     mockSubmitLineMutation.mockRejectedValue(new Error('Network error'));
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Verse');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
@@ -196,7 +195,9 @@ describe('WritingScreen component', () => {
       return promise;
     });
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Word');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
@@ -210,7 +211,9 @@ describe('WritingScreen component', () => {
   });
 
   it('shows word count validation via WordSlots', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText('words')).toBeInTheDocument();
     const wordSlots = document.getElementById('word-slots');
@@ -218,7 +221,9 @@ describe('WritingScreen component', () => {
   });
 
   it('shows the first-run writing coachmark inline without opening help', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(
       screen.getByText(/you only see one carried line/i)
@@ -230,7 +235,9 @@ describe('WritingScreen component', () => {
   it('does not repeat the writing coachmark after this device has seen it', () => {
     localStorage.setItem('linejam:writing-coachmark-seen', '1');
 
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(
       screen.queryByText(/you only see one carried line/i)
@@ -251,7 +258,9 @@ describe('WritingScreen component', () => {
       return activeAssignment;
     });
 
-    const { rerender } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const { rerender } = renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
     expect(scrollToSpy).toHaveBeenCalledWith({
       top: 0,
       left: 0,
@@ -261,7 +270,11 @@ describe('WritingScreen component', () => {
     scrollToSpy.mockClear();
     activeAssignment = mockAssignmentRound5;
     rerender(
-      <WritingScreen roomCode="ABCD" dependencies={writingScreenDependencies} />
+      <WritingScreen
+        guestToken="mock-token"
+        roomCode="ABCD"
+        dependencies={writingScreenDependencies}
+      />
     );
 
     expect(scrollToSpy).toHaveBeenCalledWith({
@@ -275,7 +288,9 @@ describe('WritingScreen component', () => {
   it('enforces correct round constraint (diamond pattern: 1,2,3,4,5,4,3,2,1)', async () => {
     mockUseQuery.mockReturnValue(mockAssignmentRound5);
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'One two three');
@@ -295,7 +310,9 @@ describe('WritingScreen component', () => {
   it('renders the loading state while the assignment query is unresolved', () => {
     mockUseQuery.mockReturnValue(undefined);
 
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(
       screen.getByText(/Preparing your writing desk/i)
@@ -310,7 +327,9 @@ describe('WritingScreen component', () => {
       return mockAssignmentRound5;
     });
 
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(
       screen.getByText('The moon rises silently tonight')
@@ -331,7 +350,9 @@ describe('WritingScreen component', () => {
     });
     mockSubmitLineMutation.mockResolvedValue(undefined);
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Final');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
@@ -342,7 +363,9 @@ describe('WritingScreen component', () => {
   });
 
   it('owns the dynamic game viewport and reserves a non-overlapping action zone', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     const phase = screen.getByTestId(E2E_TEST_IDS.writingPhase);
     const submit = screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton);
@@ -393,7 +416,9 @@ describe('WritingScreen component', () => {
 
   it('updates word count as user types', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Hello');
     await waitFor(() => {
@@ -407,7 +432,9 @@ describe('WritingScreen component', () => {
 
   it('preserves the draft when the browser goes offline', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'Still here');
@@ -425,20 +452,26 @@ describe('WritingScreen component', () => {
       '  Recovered\nline  '
     );
 
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByRole('textbox')).toHaveValue('Recovered line');
   });
 
   it('submit button disabled when word count is wrong', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByRole('button', { name: /^Submit$/i })).toBeDisabled();
   });
 
   it('submit button enabled when word count is correct', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Word');
     await waitFor(() => {
@@ -451,7 +484,9 @@ describe('WritingScreen component', () => {
 
   it('shows a visible ready signal when the target word count is reached', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Word');
 
@@ -465,18 +500,14 @@ describe('WritingScreen component', () => {
   });
 
   it('submits guestToken as undefined when no guest session is established yet', async () => {
-    const dependenciesWithoutGuest: WritingScreenDependencies = {
-      ...writingScreenDependencies,
-      useRoomQueryArgs: (roomCode) => ({
-        guestToken: null,
-        shouldSkip: false,
-        queryArgs: { roomCode, guestToken: undefined },
-      }),
-    };
     mockSubmitLineMutation.mockResolvedValue(undefined);
     const user = setupUser();
     render(
-      <WritingScreen roomCode="ABCD" dependencies={dependenciesWithoutGuest} />
+      <WritingScreen
+        roomCode="ABCD"
+        guestToken={null}
+        dependencies={writingScreenDependencies}
+      />
     );
 
     await user.type(screen.getByRole('textbox'), 'Poetry');
@@ -496,7 +527,9 @@ describe('WritingScreen component', () => {
   it('shows confirmation message after successful submit', async () => {
     mockSubmitLineMutation.mockResolvedValue(undefined);
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Beautiful');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
@@ -516,7 +549,9 @@ describe('WritingScreen component', () => {
         text: 'Stored line',
       });
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     await user.type(screen.getByRole('textbox'), 'Draft');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
@@ -539,20 +574,26 @@ describe('WritingScreen component', () => {
       return null;
     });
 
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByText(/Ready|Others are writing/i)).toBeInTheDocument();
   });
 
   it('textarea has aria-invalid when word count is wrong', () => {
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
 
     expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('textarea has aria-invalid=false when word count is correct', async () => {
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    renderWritingScreen(
+      <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+    );
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'Perfect');
@@ -568,7 +609,9 @@ describe('WritingScreen component', () => {
         if (query === 'game:getRoundProgress') return mockRoundProgress;
         return { ...mockAssignment, lineIndex, targetWordCount };
       });
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+      );
     };
 
     it('shows "write one word…" for round 1 (singular)', () => {
@@ -629,7 +672,9 @@ describe('WritingScreen component', () => {
         if (query === 'game:getRoundProgress') return mockRoundProgress;
         return { ...mockAssignment, targetWordCount };
       });
-      return renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      return renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+      );
     };
 
     it('announces "Remove 1 word" when exactly 1 word over target', async () => {
@@ -686,7 +731,9 @@ describe('WritingScreen component', () => {
         'Recovered'
       );
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+      );
 
       expect(screen.getByRole('textbox')).toHaveValue('Recovered');
       expect(screen.getByText('Draft restored')).toBeInTheDocument();
@@ -694,7 +741,9 @@ describe('WritingScreen component', () => {
 
     it('keeps an in-progress line in session storage for reload recovery', async () => {
       const user = setupUser();
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+      );
 
       await user.type(screen.getByRole('textbox'), 'Hello');
 
@@ -710,7 +759,9 @@ describe('WritingScreen component', () => {
         'Recovered'
       );
       const user = setupUser();
-      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" />
+      );
 
       await user.click(screen.getByRole('button', { name: /^Submit$/i }));
 
@@ -746,7 +797,9 @@ describe('WritingScreen component', () => {
         return { ...mockAssignment, hasSubmitted: true };
       });
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" showChrome />
+      );
 
       expect(screen.getByTestId(E2E_TEST_IDS.waitingPhase)).toBeInTheDocument();
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -755,7 +808,7 @@ describe('WritingScreen component', () => {
     it('resets the draft when the assignment advances to the next round', async () => {
       const user = setupUser();
       const { rerender } = renderWritingScreen(
-        <WritingScreen roomCode="ABCD" />
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" />
       );
       const textarea = screen.getByRole('textbox');
       if (!(textarea instanceof HTMLTextAreaElement)) {
@@ -778,6 +831,7 @@ describe('WritingScreen component', () => {
 
       rerender(
         <WritingScreen
+          guestToken="mock-token"
           roomCode="ABCD"
           dependencies={writingScreenDependencies}
         />
@@ -806,7 +860,9 @@ describe('WritingScreen component', () => {
         return mockAssignment;
       });
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" showChrome />
+      );
 
       expect(screen.getByText('Round 1 · 1 word')).toBeInTheDocument();
     });
@@ -825,7 +881,9 @@ describe('WritingScreen component', () => {
         };
       });
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" showChrome />
+      );
 
       expect(screen.getByText('Last line · 1 word')).toBeInTheDocument();
     });
@@ -845,7 +903,9 @@ describe('WritingScreen component', () => {
         return null;
       });
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(
+        <WritingScreen guestToken="mock-token" roomCode="ABCD" showChrome />
+      );
 
       expect(screen.getByText('Round 3 of 9')).toBeInTheDocument();
       expect(screen.getByText('1 of 2 ready.')).toBeInTheDocument();

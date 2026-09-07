@@ -3,10 +3,7 @@ import { useMutation, useQuery } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
 import { WORD_COUNTS } from '../convex/lib/gameRules';
-import {
-  useRoomQueryArgs,
-  type RoomQueryArgs,
-} from '../hooks/useRoomQueryArgs';
+import { buildRoomQueryArgs, type RoomQueryArgs } from '../lib/roomQueryArgs';
 import { captureError } from '../lib/error';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
@@ -33,20 +30,20 @@ function useDefaultEndGame(): EndGame {
 }
 
 export interface WaitingScreenDependencies {
-  useRoomQueryArgs: typeof useRoomQueryArgs;
+  buildRoomQueryArgs: typeof buildRoomQueryArgs;
   useRoundProgress: typeof useDefaultRoundProgress;
   useEndGame: () => EndGame;
 }
 
 const defaultDependencies: WaitingScreenDependencies = {
-  useRoomQueryArgs,
+  buildRoomQueryArgs,
   useRoundProgress: useDefaultRoundProgress,
   useEndGame: useDefaultEndGame,
 };
 
 interface WaitingScreenProps {
   roomCode: string;
-  guestToken?: string | null;
+  guestToken: string | null;
   embedded?: boolean;
   isLateJoiner?: boolean;
   progressOverride?: {
@@ -68,18 +65,13 @@ interface WaitingScreenProps {
 
 export function WaitingScreen({
   roomCode,
-  guestToken: propToken,
+  guestToken,
   embedded = false,
   isLateJoiner = false,
   progressOverride,
   dependencies = defaultDependencies,
 }: WaitingScreenProps) {
-  // Use prop token if provided (from parent component), otherwise use hook token
-  // This allows immediate query execution when transitioning from WritingScreen
-  const { queryArgs, guestToken } = dependencies.useRoomQueryArgs(
-    roomCode,
-    propToken
-  );
+  const queryArgs = dependencies.buildRoomQueryArgs(roomCode, guestToken);
   const queriedProgress = dependencies.useRoundProgress(
     progressOverride === undefined ? queryArgs : 'skip'
   );

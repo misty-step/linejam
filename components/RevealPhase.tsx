@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
-import { useUser } from '../lib/auth';
 import { cn } from '../lib/utils';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { captureError } from '../lib/error';
@@ -65,7 +64,6 @@ function useDefaultStartGame(): StartGame {
   return useMutation(api.game.startGame);
 }
 export interface RevealPhaseDependencies {
-  useUser: typeof useUser;
   useRevealState: typeof useDefaultRevealState;
   useRevealPoem: () => RevealPoem;
   useStartNewCycle: () => StartNewCycle;
@@ -76,7 +74,6 @@ export interface RevealPhaseDependencies {
 }
 
 const defaultDependencies: RevealPhaseDependencies = {
-  useUser,
   useRevealState: useDefaultRevealState,
   useRevealPoem: useDefaultRevealPoem,
   useStartNewCycle: useDefaultStartNewCycle,
@@ -87,16 +84,17 @@ const defaultDependencies: RevealPhaseDependencies = {
 
 interface RevealPhaseProps {
   roomCode: string;
+  guestToken: string | null;
   showChrome?: boolean;
   dependencies?: RevealPhaseDependencies;
 }
 
 export function RevealPhase({
   roomCode,
+  guestToken,
   showChrome = false,
   dependencies = defaultDependencies,
 }: RevealPhaseProps) {
-  const { guestToken } = dependencies.useUser();
   const [showingPoemId, setShowingPoemId] = useState<Id<'poems'> | null>(null);
   const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
   const [error, setError] = useState<string | null>(null);
