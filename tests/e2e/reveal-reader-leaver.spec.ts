@@ -139,7 +139,7 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
     await expect(fallbackButton).toBeVisible({
       timeout: PRESENCE_AWAY_MS + 30_000,
     });
-    await expect(fallbackButton).toHaveAccessibleName('Step In & Read');
+    await expect(fallbackButton).toHaveAccessibleName('Step in and read');
     await expect(hostPage.getByText('Step in for Reader Away')).toBeVisible();
 
     await hostPage.screenshot({

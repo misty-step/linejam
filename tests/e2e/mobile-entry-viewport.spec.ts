@@ -200,7 +200,7 @@ test('mobile sign-up presents one focused account task', async ({
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
 
-  const heading = page.getByRole('heading', { name: /join the jam/i });
+  const heading = page.getByRole('heading', { name: /create an account/i });
   await expect(heading).toBeVisible();
   await expect(heading).toBeInViewport();
   await expect(page.getByText('Recent Creation')).toBeHidden();

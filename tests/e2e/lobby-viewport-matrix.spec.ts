@@ -100,7 +100,7 @@ async function assertNoRosterCollisions(page: Page, viewportWidth: number) {
 
   for (let i = 0; i < rowCount; i++) {
     const row = rows.nth(i);
-    const nameSpan = row.locator('span.truncate').first();
+    const nameSpan = row.locator('span.font-semibold').first();
     const nameBox = await nameSpan.boundingBox();
     expect(nameBox).not.toBeNull();
     expect(nameBox!.x).toBeGreaterThanOrEqual(0);
