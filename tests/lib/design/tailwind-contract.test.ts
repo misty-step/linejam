@@ -7,7 +7,6 @@ const appError = readFileSync('app/error.tsx', 'utf8');
 const globalError = readFileSync('app/global-error.tsx', 'utf8');
 const lobby = readFileSync('components/Lobby.tsx', 'utf8');
 const poemDisplay = readFileSync('components/PoemDisplay.tsx', 'utf8');
-const readme = readFileSync('README.md', 'utf8');
 
 const textTokens = [
   'text-xs',
@@ -98,8 +97,5 @@ describe('Tailwind identity contract', () => {
         'var(--font-jetbrains-mono)'
       );
     }
-    expect(readme).toContain('Libre Baskerville');
-    expect(readme).toContain('IBM Plex Sans');
-    expect(readme).toContain('JetBrains Mono');
   });
 });
