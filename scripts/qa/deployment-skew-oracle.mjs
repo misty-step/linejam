@@ -102,14 +102,18 @@ async function verifyRecovery(page) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  let browser;
   let session;
+  let stage = 'browser-launch';
 
   try {
+    browser = await chromium.launch({ headless: true });
+    stage = 'initial-receipt';
     const receiptContext = await browser.newContext();
     const receiptPage = await receiptContext.newPage();
     const initialId = await readDeploymentId(receiptPage, BASE_URL);
     await receiptContext.close();
+    stage = 'room-setup';
     session = await establishHeldRoom(browser);
     const stagedId = await readDeploymentId(session.hostPage, BASE_URL);
     if (stagedId !== initialId) {
@@ -117,17 +121,33 @@ async function main() {
     }
 
     console.log(`READY deployment=${initialId}`);
+    stage = 'deployment-wait';
     const nextId = await waitForNextDeployment(session.hostPage, initialId);
     console.log(`DETECTED deployment=${nextId}`);
+    stage = 'draft-staging';
     await stageDraft(session);
+    stage = 'draft-recovery';
     await verifyRecovery(session.hostPage);
     console.log('PASS stale client reloaded with its draft restored');
+  } catch {
+    // Browser errors can embed request headers. Report only the operation.
+    console.error(`FAIL deployment skew oracle stage=${stage}`);
+    process.exitCode = 1;
   } finally {
-    await Promise.allSettled([
+    const cleanup = await Promise.allSettled([
       session?.guestContext.close(),
       session?.hostContext.close(),
     ]);
-    await browser.close();
+    let cleanupFailed = cleanup.some((result) => result.status === 'rejected');
+    try {
+      await browser?.close();
+    } catch {
+      cleanupFailed = true;
+    }
+    if (cleanupFailed) {
+      console.error('FAIL deployment skew oracle stage=browser-cleanup');
+      process.exitCode = 1;
+    }
   }
 }
 
