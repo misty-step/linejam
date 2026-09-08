@@ -1,0 +1,3264 @@
+{
+  "version": 1,
+  "views": [
+    {
+      "id": "app-shell",
+      "label": "Application shell and identity",
+      "route": "/*",
+      "sources": [
+        "app/layout.tsx",
+        "app/providers.tsx",
+        "components/Header.tsx",
+        "components/Footer.tsx",
+        "lib/routes.ts",
+        "lib/colorMode/context.tsx",
+        "lib/design/tokens.ts"
+      ],
+      "states": [
+        "first paint before hydration",
+        "guest and signed-in navigation",
+        "general routes show header/footer; host/join/room suppress both; auth suppresses header only",
+        "mobile overflow menu versus desktop utilities",
+        "appearance/help/account overlays",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer",
+        "button"
+      ],
+      "priority": "support",
+      "purpose": "Own global navigation, runtime wrappers, coherent identity and accessible cross-route controls; RootLayout/Providers/ColorModeProvider are one nonredundant shell owner."
+    },
+    {
+      "id": "home",
+      "label": "Start or join a game",
+      "route": "/",
+      "sources": [
+        "app/page.tsx"
+      ],
+      "states": [
+        "first visit",
+        "returning guest/account",
+        "mobile fixed thumb-zone actions",
+        "desktop inline actions",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "home-page",
+        "button",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Explain collaborative human-written poetry and offer two immediate paths without requiring an account."
+    },
+    {
+      "id": "host-entry",
+      "label": "Create a room",
+      "route": "/host",
+      "sources": [
+        "app/host/page.tsx"
+      ],
+      "states": [
+        "guest authentication loading",
+        "authentication error and retry",
+        "empty or whitespace-only name; enabled named entry",
+        "name focused with keyboard open",
+        "create pending",
+        "mutation error and retry by resubmission",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "host-page",
+        "focused-entry-appearance",
+        "color-mode-control",
+        "input",
+        "button",
+        "alert",
+        "loading-state",
+        "auth-error-state",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Name the host and create a room; keep submit reachable without introducing settings or mechanics."
+    },
+    {
+      "id": "join-entry",
+      "label": "Join by code or invitation",
+      "route": "/join?code=ABCD",
+      "sources": [
+        "app/join/page.tsx",
+        "app/join/JoinPage.tsx"
+      ],
+      "states": [
+        "Suspense plain Loading fallback",
+        "guest authentication loading/error/retry",
+        "manual four-letter normalized room code",
+        "invitation code prefilled/read-only and hint visible",
+        "code Enter moves to name; invite focuses name",
+        "empty name/code; joining; mutation error",
+        "room unavailable/full or join access rejection via error feedback",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "join-page",
+        "focused-entry-appearance",
+        "color-mode-control",
+        "input",
+        "button",
+        "alert",
+        "loading-state",
+        "auth-error-state",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Enter a name and room code, preserving direct invite flow and guest-first access; JoinRoutePage/JoinPage/JoinForm are one owner, not three redesigns."
+    },
+    {
+      "id": "room-lobby",
+      "label": "Room lobby and roster",
+      "route": "/room/[code]",
+      "sources": [
+        "app/room/[code]/page.tsx",
+        "app/room/[code]/RoomPage.tsx",
+        "components/Lobby.tsx",
+        "lib/roomChromeCopy.ts"
+      ],
+      "states": [
+        "one player and disabled minimum-two start",
+        "two through eight players; full room",
+        "host Start/Close versus participant Waiting/Leave",
+        "joining roster; away markers; long names",
+        "Room tools disclosure closed/open; join QR",
+        "start/leave/close mutation error",
+        "return to lobby after recap or abandoned game",
+        "host control ownership changes when backend state changes",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "room-page",
+        "room-chrome",
+        "lobby",
+        "avatar",
+        "host-badge",
+        "stamp-animation",
+        "lobby-join-qr",
+        "button",
+        "alert",
+        "color-mode-control",
+        "help-modal",
+        "room-panel-error-boundary",
+        "loading-state",
+        "auth-error-state",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Gather 2–8 people using room code/QR, identify the host and readiness, and start the unchanged nine-round game. Close/leave are lobby actions, not invented in-game mechanics."
+    },
+    {
+      "id": "lobby-presentation",
+      "label": "Lobby shared-screen presentation",
+      "route": "/room/[code]",
+      "sources": [
+        "components/Lobby.tsx",
+        "components/stage/LobbyStage.tsx",
+        "components/stage/StageShell.tsx"
+      ],
+      "states": [
+        "host opens Present room from tools",
+        "large join QR and formatted room code",
+        "live roster; recently joined chip for 1600ms; away; host badge",
+        "exit returns to live lobby",
+        "narrow presentation viewport and long roster",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "lobby-stage",
+        "stage-shell",
+        "avatar",
+        "host-badge",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Make the same lobby joinable from phones while one shared display carries the code and attendance."
+    },
+    {
+      "id": "room-writing",
+      "label": "Compose and submit a hidden line",
+      "route": "/room/[code]",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "components/ui/WordSlots.tsx",
+        "lib/writingDraft.ts",
+        "lib/roomChromeCopy.ts",
+        "hooks/useRoomQueryArgs.ts"
+      ],
+      "states": [
+        "assignment/auth gate loading",
+        "rounds 1–9; target 1/2/3/4/5/4/3/2/1 words",
+        "first line has no carried text; later rounds show previous line only",
+        "one-time carried-line coachmark",
+        "blank; below target; exactly valid; over target; more than ten overflow words",
+        "long word; multiline paste normalized to one line; 500-character limit",
+        "focused/blurred textarea; keyboard open; restored draft notice",
+        "soft 90-second clock warm zone and overtime without a deadline gate",
+        "submitting; recorded confirmation; already-recorded confirmation",
+        "final line sealed and reveal-next confirmation",
+        "retryable failure with saved draft; offline retry disabled; one retry; terminal failure asks reload",
+        "assignment already submitted or confirmation timer goes to waiting",
+        "server round advance may bypass the 1500ms confirmation",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "room-page",
+        "room-chrome",
+        "writing-screen",
+        "writing-composer",
+        "word-slots",
+        "round-clock",
+        "button",
+        "alert",
+        "loading-state",
+        "color-mode-control",
+        "help-modal",
+        "room-panel-error-boundary",
+        "auth-error-state",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Keep the carried line, exact word constraint, draft and commit action clear. Preserve blindness, human authorship, saved-draft recovery and server-driven round transitions."
+    },
+    {
+      "id": "room-waiting",
+      "label": "Submitted and group-waiting state",
+      "route": "/room/[code]",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "components/WaitingScreen.tsx",
+        "hooks/useRoundClock.ts"
+      ],
+      "states": [
+        "round progress undefined/null shows neutral loading",
+        "some active players submitted; all submitted Ready",
+        "waiting names with away suffixes",
+        "submitted avatar/name treatment versus active pulsing marker",
+        "spectators listed separately and excluded from active completion count",
+        "round segment progress and soft clock",
+        "host End game collapsed; confirming; ending; error with retry",
+        "abandon returns lobby without revealing partial poems",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "room-page",
+        "room-chrome",
+        "writing-screen",
+        "waiting-screen",
+        "avatar",
+        "round-clock",
+        "loading-state",
+        "alert",
+        "button",
+        "color-mode-control",
+        "help-modal",
+        "room-panel-error-boundary",
+        "auth-error-state",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Explain whose turn remains and that the group will advance automatically; the host may end a stalled game, never reveal partial poems."
+    },
+    {
+      "id": "late-join-spectator",
+      "label": "Late join and spectator view",
+      "route": "/room/[code]",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "components/WaitingScreen.tsx",
+        "convex/lib/gameRules.ts",
+        "convex/game.ts"
+      ],
+      "states": [
+        "joins during active game without assignment",
+        "watching-this-game explanation; next-game invitation",
+        "roster marks watching; progress excludes spectators",
+        "can watch completed reveal",
+        "normal assignment only in the next game",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "room-page",
+        "room-chrome",
+        "writing-screen",
+        "waiting-screen",
+        "avatar",
+        "round-clock",
+        "loading-state",
+        "color-mode-control",
+        "help-modal",
+        "room-panel-error-boundary",
+        "auth-error-state",
+        "button",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Represent a real room member without giving retroactive lines or changing the active assignment matrix, poem count or round position."
+    },
+    {
+      "id": "reveal-circle",
+      "label": "Reveal assignments and reading circle",
+      "route": "/room/[code]",
+      "sources": [
+        "components/RevealPhase.tsx",
+        "lib/roomChromeCopy.ts"
+      ],
+      "states": [
+        "reveal state loading",
+        "assigned private preview and Reveal & Read",
+        "fallback reader Step in for/Step In & Read",
+        "unsealing pending and error",
+        "my poem already revealed: Re-Read My Poem",
+        "no assigned poem/spectator",
+        "ordered rows: Reading now, Up next, Read, later rows",
+        "host Present reveal",
+        "all poems revealed adds recap hub",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "room-page",
+        "room-chrome",
+        "reveal-phase",
+        "avatar",
+        "button",
+        "alert",
+        "loading-state",
+        "session-recap-hub",
+        "color-mode-control",
+        "help-modal",
+        "room-panel-error-boundary",
+        "auth-error-state",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Organize human reading without showing unrevealed full poems to unauthorized viewers; presentation must distinguish assignment, reveal permission and reading progress."
+    },
+    {
+      "id": "poem-reading",
+      "label": "Whole poem reading and in-room reread",
+      "route": "/room/[code]",
+      "sources": [
+        "components/RevealPhase.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "states": [
+        "assigned or fallback reader opens after successful reveal",
+        "already-revealed reread opens same composition",
+        "whole poem visible at once, no line-by-line advancement",
+        "read-aloud cue, reader/poem-number announcement and heading focus",
+        "date and first-line teaser; fixed line numbers; author markers",
+        "author marker selected for 2s",
+        "heart selected/unselected; sound on/muted",
+        "share/save success or failure",
+        "Done returns reading circle",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "poem-display",
+        "heart-button",
+        "button",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Give the revealed human poem the stage; keep reading order, authorship, return path and optional artifact controls legible without changing reveal authority."
+    },
+    {
+      "id": "reveal-presentation",
+      "label": "Shared-screen reveal and reading stage",
+      "route": "/room/[code]",
+      "sources": [
+        "components/stage/RevealStage.tsx",
+        "components/stage/StageShell.tsx",
+        "components/RevealPhase.tsx"
+      ],
+      "states": [
+        "host opens stage",
+        "no poems ready",
+        "waiting for assigned reader",
+        "assigned poem or fallback reader ready on this device",
+        "revealing pending/error",
+        "whole active poem; Finish poem returns stage overview",
+        "already revealed poem ready to read",
+        "running order current/read/waiting",
+        "exit returns reveal circle",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "reveal-stage",
+        "stage-shell",
+        "avatar",
+        "button",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Project the existing reading ceremony with oversized distance-readable content, without authorizing extra poems or introducing a new synchronized line-reveal mechanic."
+    },
+    {
+      "id": "session-recap",
+      "label": "Completed room recap and rematch",
+      "route": "/room/[code]",
+      "sources": [
+        "components/SessionRecapHub.tsx",
+        "components/RevealPhase.tsx"
+      ],
+      "states": [
+        "all poems revealed",
+        "no hearts/no crown",
+        "live favorite leader and changing leader",
+        "poem replay links",
+        "recap privacy warning; share copied/shared/error",
+        "muted/sound preference",
+        "Start Next Round pending/error",
+        "Back to Lobby; Exit Room",
+        "any participant may continue after host disappears",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "session-recap-hub",
+        "label",
+        "button",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Celebrate the whole set, link every replay, offer optional public recap sharing, and keep rematch versus lobby versus exit distinguishable."
+    },
+    {
+      "id": "room-unavailable",
+      "label": "Missing, closed, expired or nonmember room",
+      "route": "/room/[code]",
+      "sources": [
+        "app/room/[code]/RoomPage.tsx",
+        "convex/rooms.ts"
+      ],
+      "states": [
+        "getRoomState null: nonexistent/expired/no identity/nonparticipant",
+        "host closing a lobby removes participants, so others get this same unavailable branch",
+        "Return to join action",
+        "leaver returns home; revisiting without membership is unavailable",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "room-page",
+        "room-panel-error-boundary",
+        "loading-state",
+        "auth-error-state",
+        "button",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Current product has one Room not found surface, not a dedicated CLOSED screen; designs must account for closure without claiming a separate shipped status."
+    },
+    {
+      "id": "room-recovery",
+      "label": "Room-level and phase-level recovery",
+      "route": "/room/[code]",
+      "sources": [
+        "components/RoomPanelErrorBoundary.tsx",
+        "app/room/[code]/RoomPage.tsx"
+      ],
+      "states": [
+        "room query/render failure",
+        "lobby/writing/reveal panel failure",
+        "Refresh reloads document",
+        "unexpected status branch with Go home; text recommends refreshing/rejoining",
+        "initial room loading",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "room-page",
+        "room-panel-error-boundary",
+        "unexpected-room-state",
+        "button",
+        "loading-state",
+        "auth-error-state",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Isolate a failed room panel while describing what remains safe; nested error-boundary wrappers share this visual recovery owner."
+    },
+    {
+      "id": "guest-session-recovery",
+      "label": "Guest connection/authentication recovery",
+      "route": "/host; /join; /room/[code]; /me/poems",
+      "sources": [
+        "components/AuthErrorState.tsx",
+        "lib/auth.ts",
+        "app/api/guest/session/handler.ts"
+      ],
+      "states": [
+        "guest bootstrap loading",
+        "authentication error message",
+        "Try again retries authentication; title/retry labels configurable",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "auth-error-state",
+        "alert",
+        "button",
+        "loading-state",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Keep local/browser guest identity usable without replacing failures with an account wall."
+    },
+    {
+      "id": "connection-notice",
+      "label": "Offline, reconnecting and restored status",
+      "route": "/room/[code]",
+      "sources": [
+        "components/ConnectionStatus.tsx",
+        "components/WritingScreen.tsx"
+      ],
+      "states": [
+        "healthy initial connection renders nothing",
+        "browser offline",
+        "websocket interruption/retries",
+        "restored notice for 3s",
+        "notice alongside draft retry and active room chrome",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "connection-status",
+        "alert",
+        "button",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Expose transport state without erasing drafts or interrupting human play; recovery must work without provider writes in QA."
+    },
+    {
+      "id": "deployment-update",
+      "label": "Updated deployment notice",
+      "route": "/*",
+      "sources": [
+        "components/DeploymentSkewObserver.tsx",
+        "components/DeploymentSkewRejectionObserver.tsx",
+        "app/api/deployment/route.ts"
+      ],
+      "states": [
+        "healthy/unknown/no deployment id renders no notice",
+        "version mismatch from initial/focus/visibility/60s check",
+        "stale server-action rejection event",
+        "persistent reload CTA; version-check network failure alone does not mark stale",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "deployment-skew-observer",
+        "button"
+      ],
+      "priority": "support",
+      "purpose": "Offer an explicit reload when the running client is stale, preserving the draft-safe message; rejection observer is nonvisual plumbing owned here."
+    },
+    {
+      "id": "archive",
+      "label": "Personal archive",
+      "route": "/me/poems",
+      "sources": [
+        "app/me/poems/page.tsx",
+        "components/archive/index.ts"
+      ],
+      "states": [
+        "auth/query loading with stats and six card skeletons",
+        "guest auth error/retry",
+        "empty guest or account collection",
+        "populated guest browser-only preservation note",
+        "populated signed-in reveal hint",
+        "favorites first, newest within groups; first card featured",
+        "one/two/three-column gallery",
+        "favorite pending/optimistic/reverted on failure",
+        "public poem revoke pending",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "archive-page",
+        "archive-info-strip",
+        "archive-stats",
+        "stat-line",
+        "archive-stats-skeleton",
+        "empty-archive",
+        "poem-card",
+        "poem-card-skeleton",
+        "poem-silhouette",
+        "author-dots",
+        "button",
+        "auth-error-state",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Make completed contributions a browsable collection without forcing signup, preserving explicit-public-only sharing."
+    },
+    {
+      "id": "poem-detail",
+      "label": "Participant poem detail and archive reread",
+      "route": "/poem/[id]",
+      "sources": [
+        "app/poem/[id]/page.tsx",
+        "app/poem/[id]/PoemDetail.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "states": [
+        "loading",
+        "participant has full poem and favorite capability",
+        "private versus public-enabled participant poem",
+        "public link revoke",
+        "archive back link; date; teaser; contributor legend",
+        "author marker selection",
+        "favorite selected/unselected",
+        "share/save/print actions and feedback",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "poem-detail",
+        "poem-display",
+        "button",
+        "alert",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Read the complete attributed poem in page flow. This is the stable replay target from archive and recap, not a second gameplay loop."
+    },
+    {
+      "id": "public-poem",
+      "label": "Outsider public or unavailable poem",
+      "route": "/poem/[id]?share=[slug]",
+      "sources": [
+        "app/poem/[id]/PoemDetail.tsx",
+        "app/poem/[id]/metadata.ts",
+        "components/PoemDisplay.tsx"
+      ],
+      "states": [
+        "explicitly public authorized content",
+        "prepared share still pending: Preparing this shared poem",
+        "pending link expires",
+        "revoked/private/nonexistent/unavailable has neutral private-or-unavailable fallback",
+        "initial loading",
+        "no participant favorite/revoke controls; home back link",
+        "shared display still renders share/save/print actions; permissions remain backend-owned",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "poem-detail",
+        "poem-display",
+        "button",
+        "alert",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Honor the share token/public opt-in boundary. No private text may leak through fallback, metadata, generated previews or redesign specimen data."
+    },
+    {
+      "id": "poem-sharing",
+      "label": "Poem link sharing and cancellation",
+      "route": "/room/[code]; /poem/[id]",
+      "sources": [
+        "components/PoemDisplay.tsx",
+        "hooks/useSharePoem.ts",
+        "hooks/useShareLink.ts"
+      ],
+      "states": [
+        "privacy disclosure before Share",
+        "prepare inert URL",
+        "native OS share sheet; success activates URL",
+        "native cancellation/timeout/error rolls back pending URL",
+        "clipboard delivery then activation when native unavailable",
+        "activation failure after delivery reports error, no false success",
+        "copied/shared text resets after 2s",
+        "public revoke from participant detail or archive",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "poem-display",
+        "button",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "The existing dialog is the native share sheet, not a custom app modal. Preserve prepare/deliver/activate/cancel behavior; designs may change presentation, not consent or authority."
+    },
+    {
+      "id": "recap-sharing",
+      "label": "Whole-session link sharing",
+      "route": "/room/[code]",
+      "sources": [
+        "components/SessionRecapHub.tsx",
+        "hooks/useShareLink.ts"
+      ],
+      "states": [
+        "full-set privacy warning",
+        "native share success or clipboard success then public recap publication",
+        "native cancellation without publication",
+        "share failure and retry",
+        "copied/shared transient success",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "session-recap-hub",
+        "button",
+        "alert",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Share the entire existing session only after delivery succeeds. This distinct scope must not be confused with sharing one poem."
+    },
+    {
+      "id": "poem-image-export",
+      "label": "Downloadable full poem image",
+      "route": "/poem/[id]/card?mode=light|dark",
+      "sources": [
+        "hooks/useSavePoemImage.ts",
+        "app/poem/[id]/card/route.ts",
+        "app/poem/[id]/card/handler.ts",
+        "lib/poemCard/PoemCard.tsx",
+        "lib/poemCard/colors.ts",
+        "lib/poemCard/fonts.ts"
+      ],
+      "states": [
+        "participant POST keeps guest credential in body",
+        "public GET or 404 unavailable",
+        "applied light/dark palette",
+        "saving; native file share; native cancellation idle",
+        "unsupported/failed native file share falls back to download",
+        "saved or error",
+        "full poem and all unique author names; height grows by line count"
+      ],
+      "components": [
+        "poem-full-card",
+        "poem-display",
+        "button",
+        "alert"
+      ],
+      "priority": "support",
+      "purpose": "Produce a complete human-attributed PNG without publishing a private poem merely to save it. OS image share/download is an external surface."
+    },
+    {
+      "id": "poem-print",
+      "label": "Single-poem print output",
+      "route": "/poem/[id] (print)",
+      "sources": [
+        "components/PoemDisplay.tsx",
+        "app/globals.css"
+      ],
+      "states": [
+        "browser print dialog",
+        "plain ink on white; artifact actions hidden",
+        "long human poem; author legend",
+        "print canceled or accepted by OS"
+      ],
+      "components": [
+        "poem-display"
+      ],
+      "priority": "support",
+      "purpose": "Offer a print view of the stable poem page; print is browser-native, not a custom PDF editor."
+    },
+    {
+      "id": "public-recap",
+      "label": "Public session recap and whole-set export",
+      "route": "/recap/[code]",
+      "sources": [
+        "app/recap/[code]/page.tsx",
+        "app/recap/[code]/RecapPage.tsx",
+        "components/RecapExportButton.tsx",
+        "app/recap/[code]/metadata.ts",
+        "app/globals.css"
+      ],
+      "states": [
+        "explicit public recap available",
+        "private/unavailable/fetch failure calls notFound",
+        "every poem with number, starter, reader, lines and full attribution",
+        "Join this room and Start a new room links",
+        "Export as PDF opens native print; action/footer controls hidden for print",
+        "long collection pagination",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "recap-page",
+        "recap-export-button",
+        "button",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer"
+      ],
+      "priority": "core",
+      "purpose": "Provide a public, replayable whole-set keepsake only after opt-in, with each human contributor retained."
+    },
+    {
+      "id": "sign-in",
+      "label": "Sign-in entry and provider form",
+      "route": "/sign-in/[[...sign-in]]",
+      "sources": [
+        "app/(auth)/layout.tsx",
+        "app/(auth)/AuthLayout.tsx",
+        "app/(auth)/sign-in/[[...sign-in]]/page.tsx",
+        "app/(auth)/sign-in/[[...sign-in]]/SignInPage.tsx",
+        "lib/clerk/appearance.ts",
+        "components/AccountsUnavailable.tsx"
+      ],
+      "states": [
+        "configured Clerk embedded form",
+        "provider-managed social, identity/password, verification, recovery and validation surfaces as enabled by Clerk configuration; enabled subset needs rendered evidence",
+        "mobile form-only versus desktop public poem showcase",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines",
+        "isolated local mode: Accounts are not connected; truthful local-game/browser-session explanation"
+      ],
+      "components": [
+        "root-layout",
+        "auth-layout",
+        "sign-in-page",
+        "auth-showcase",
+        "accounts-unavailable",
+        "footer",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Optional account entry for preservation; SignInRoutePage links to SignInPage, which embeds Clerk SignIn. Provider internals are themed via shared appearance rather than fake local components; local mode uses AccountsUnavailable."
+    },
+    {
+      "id": "sign-up",
+      "label": "Sign-up entry and provider form",
+      "route": "/sign-up/[[...sign-up]]",
+      "sources": [
+        "app/(auth)/layout.tsx",
+        "app/(auth)/AuthLayout.tsx",
+        "app/(auth)/sign-up/[[...sign-up]]/page.tsx",
+        "app/(auth)/sign-up/[[...sign-up]]/SignUpPage.tsx",
+        "lib/clerk/appearance.ts",
+        "components/AccountsUnavailable.tsx"
+      ],
+      "states": [
+        "configured Clerk account creation",
+        "provider-managed social, identity, verification/OTP, validation and error surfaces as enabled by Clerk configuration; enabled subset needs rendered evidence",
+        "mobile form-only versus desktop opt-in public showcase",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines",
+        "isolated local mode: Accounts are not connected; truthful local-game/browser-session explanation"
+      ],
+      "components": [
+        "root-layout",
+        "auth-layout",
+        "sign-up-page",
+        "auth-showcase",
+        "accounts-unavailable",
+        "footer",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Optional account upgrade, never prerequisite for playing or seeing browser-local archive."
+    },
+    {
+      "id": "auth-callback",
+      "label": "Account completion and guest migration",
+      "route": "/callback",
+      "sources": [
+        "app/(auth)/callback/page.tsx",
+        "app/(auth)/callback/AuthCallbackPage.tsx",
+        "app/(auth)/AuthLayout.tsx",
+        "components/AccountsUnavailable.tsx"
+      ],
+      "states": [
+        "Clerk/Convex authentication loading; completing spinner",
+        "signed-out or no guest token returns home",
+        "signed-in backend auth unavailable",
+        "guest migration success then home",
+        "migration failure preserves guest progress with Retry migration/Go home",
+        "local mode account-unavailable fallback if integrations disabled",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines",
+        "isolated local mode: Accounts are not connected; truthful local-game/browser-session explanation"
+      ],
+      "components": [
+        "root-layout",
+        "auth-layout",
+        "auth-callback-page",
+        "auth-showcase",
+        "button",
+        "alert",
+        "accounts-unavailable",
+        "footer",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Move guest contributions into a real account only when authenticated; retain clear recoverability and do not pretend local mode can perform a cloud account migration."
+    },
+    {
+      "id": "profile",
+      "label": "Identity and account status",
+      "route": "/me/profile",
+      "sources": [
+        "app/me/profile/page.tsx"
+      ],
+      "states": [
+        "guest alias or Anonymous Poet; browser guest-id fragment",
+        "guest upgrade link",
+        "authenticated alias/email; optional provider profile image",
+        "Sign Out provider action",
+        "local guest-only state",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "profile-page",
+        "avatar",
+        "label",
+        "button",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Explain the identity attached to poems and the distinction between browser guest storage and authenticated preservation."
+    },
+    {
+      "id": "account-controls",
+      "label": "Account popover and provider account management",
+      "route": "/* (header account control)",
+      "sources": [
+        "components/Header.tsx",
+        "lib/clerk/appearance.ts"
+      ],
+      "states": [
+        "signed-in avatar trigger",
+        "provider UserButton popover",
+        "provider Manage account modal and sign-out action",
+        "guest/local mode lacks authenticated account control",
+        "light/dark shared appearance variables",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "header",
+        "color-mode-control",
+        "help-modal",
+        "button",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Actual account UI is Clerk UserButton, styled in shared appearance; DefaultAccountButton is linked to header owner, not a invented local profile editor."
+    },
+    {
+      "id": "help",
+      "label": "How to play dialog",
+      "route": "/* (header or room menu)",
+      "sources": [
+        "components/HelpModal.tsx",
+        "components/Header.tsx",
+        "components/RoomChrome.tsx"
+      ],
+      "states": [
+        "closed",
+        "open: nine-line word pattern, blind collaboration, counter explanation",
+        "close button, Got it, backdrop or Escape",
+        "focus trap and body scroll lock",
+        "small screen/large text modal reachability",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "help-modal",
+        "button",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Explain the unchanged rules in plain language. Its presentation and illustration are open, not the nine-round word pattern or hidden-line fairness."
+    },
+    {
+      "id": "appearance",
+      "label": "Color-mode controls and popovers",
+      "route": "/* (header, room or focused entry)",
+      "sources": [
+        "components/ColorModeControl.tsx",
+        "components/FocusedEntryAppearance.tsx",
+        "components/Header.tsx",
+        "components/RoomChrome.tsx",
+        "lib/colorMode/context.tsx",
+        "lib/colorMode/apply.ts"
+      ],
+      "states": [
+        "popover closed/open in three chrome owners",
+        "native radio light/dark/system; selected autofocus and arrow-key selection",
+        "Escape/outside click closure; owner-specific focus restoration",
+        "system preference changes and persistence unavailable",
+        "bounded scroll within visual viewport",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "color-mode-control",
+        "focused-entry-appearance",
+        "header",
+        "room-chrome",
+        "help-modal",
+        "button",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Retain accessible theme preference while allowing entirely new identity/palette directions. Current control chooses mode, not multiple product brands."
+    },
+    {
+      "id": "releases",
+      "label": "Product release notes",
+      "route": "/releases",
+      "sources": [
+        "app/releases/page.tsx"
+      ],
+      "states": [
+        "empty release list",
+        "release version/date/product prose",
+        "Technical details disclosure closed/open, grouped by change type",
+        "Back to Linejam and RSS link",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "releases-page",
+        "release-card",
+        "technical-details",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "button",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Keep product updates scannable and readable without making metadata dominate the product notes."
+    },
+    {
+      "id": "releases-feed",
+      "label": "Syndicated release feed",
+      "route": "/releases.xml",
+      "sources": [
+        "app/releases.xml/route.ts"
+      ],
+      "states": [
+        "empty feed or entries",
+        "version/title/date/description in external RSS reader",
+        "link back to release version fragment"
+      ],
+      "components": [],
+      "priority": "support",
+      "purpose": "Public machine-readable content consumed by people through RSS readers; not a bespoke app screen or new React component."
+    },
+    {
+      "id": "not-found",
+      "label": "Not-found fallback",
+      "route": "/* (unmatched or notFound())",
+      "sources": [
+        "app/not-found.tsx"
+      ],
+      "states": [
+        "large 404 stamp, grain and blur",
+        "Return Home",
+        "used by unknown routes and unavailable public recap",
+        "fixed full-screen overlay",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "not-found-page",
+        "button",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Explain a missing destination and offer an immediate way out; this is distinct from private-poem and room-unavailable access-safe messaging."
+    },
+    {
+      "id": "route-error",
+      "label": "Route error boundary",
+      "route": "/* (route render failure)",
+      "sources": [
+        "app/error.tsx"
+      ],
+      "states": [
+        "error boundary fallback",
+        "Try again invokes Next reset",
+        "full-screen fixed overlay",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "root-layout",
+        "route-error-page",
+        "button",
+        "header",
+        "footer",
+        "color-mode-control",
+        "help-modal",
+        "deployment-skew-observer"
+      ],
+      "priority": "support",
+      "purpose": "Recover from route rendering failure; source currently uses round-specific text even outside gameplay."
+    },
+    {
+      "id": "global-error",
+      "label": "Root application error boundary",
+      "route": "/* (root layout failure)",
+      "sources": [
+        "app/global-error.tsx"
+      ],
+      "states": [
+        "document replacement html/body",
+        "Application error and reset button",
+        "failure may occur before theme/runtime providers initialize",
+        "mobile portrait and landscape; software keyboard and safe-area insets",
+        "desktop and large shared screen where applicable",
+        "light, dark, and system color-mode preference",
+        "reduced motion; keyboard navigation; 200% text and long human names/lines"
+      ],
+      "components": [
+        "global-error-page",
+        "button"
+      ],
+      "priority": "support",
+      "purpose": "Provide readable emergency recovery independently of the normal app shell."
+    },
+    {
+      "id": "site-social-preview",
+      "label": "Site social-link artwork",
+      "route": "/opengraph-image",
+      "sources": [
+        "app/opengraph-image.tsx"
+      ],
+      "states": [
+        "1200x630 light identity",
+        "wordmark, tagline, word-count silhouette and circular mark",
+        "remote font load success/partial failure/fallback"
+      ],
+      "components": [
+        "site-social-card"
+      ],
+      "priority": "support",
+      "purpose": "Carry brand recognition into external link previews; no in-app controls and no current dark variant."
+    },
+    {
+      "id": "poem-social-preview",
+      "label": "Poem public-link preview artwork",
+      "route": "/poem/[id]/opengraph-image?share=[slug]",
+      "sources": [
+        "app/poem/[id]/opengraph-image.tsx",
+        "app/poem/[id]/opengraph-image-handler.tsx",
+        "app/poem/[id]/metadata.ts",
+        "lib/poemCard/PoemCard.tsx"
+      ],
+      "states": [
+        "explicit public preview with line snippets",
+        "pending/private/revoked/unavailable generic fallback",
+        "1200x630 fixed light identity",
+        "long preview text truncation; contributor count metadata"
+      ],
+      "components": [
+        "poem-preview-card",
+        "poem-fallback-card"
+      ],
+      "priority": "support",
+      "purpose": "Make a recognizable teaser without exposing unpublished content; keep generic fallback as designed a surface."
+    },
+    {
+      "id": "recap-social-preview",
+      "label": "Session public-link preview artwork",
+      "route": "/recap/[code]/opengraph-image",
+      "sources": [
+        "app/recap/[code]/opengraph-image.tsx",
+        "app/recap/[code]/metadata.ts"
+      ],
+      "states": [
+        "public recap title/counts and up to two columns of poem previews",
+        "private/unavailable generic Linejam recap fallback",
+        "1200x630 fixed light identity",
+        "long preview truncation and many-poem composition"
+      ],
+      "components": [
+        "recap-social-card"
+      ],
+      "priority": "support",
+      "purpose": "Give a whole set a distinct social artifact while keeping consent and preview privacy."
+    }
+  ],
+  "components": [
+    {
+      "id": "root-layout",
+      "label": "RootLayout / Providers and runtime bridges",
+      "sources": [
+        "app/layout.tsx",
+        "app/providers.tsx",
+        "lib/colorMode/context.tsx",
+        "lib/colorMode/index.ts",
+        "lib/colorMode/constants.ts",
+        "lib/colorMode/apply.ts",
+        "lib/design/index.ts",
+        "lib/design/tokens.ts",
+        "lib/design/types.ts",
+        "lib/design/css.ts",
+        "lib/design/contract.ts",
+        "lib/account.tsx"
+      ],
+      "usedBy": [
+        "app-shell",
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery",
+        "connection-notice",
+        "deployment-update",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "public-recap",
+        "sign-in",
+        "sign-up",
+        "auth-callback",
+        "profile",
+        "account-controls",
+        "help",
+        "appearance",
+        "releases",
+        "not-found",
+        "route-error"
+      ],
+      "states": [
+        "prepaint effective color mode",
+        "guest-only local or integrated account runtime",
+        "browser viewport projection",
+        "cross-route composition",
+        "print baseline"
+      ],
+      "purpose": "One shell owner for RootLayout and nonvisual Providers/ColorModeProvider wrappers; redesign common tokens, fonts, responsive geometry and navigation around children, not redundant wrapper screens. Nonvisual analytics providers do not add UI. AccountProvider, ConnectedAccountProvider and ClerkAccountBridge in app/providers.tsx are nonvisual wrappers linked to this owner; ColorModeProvider remains the mode owner."
+    },
+    {
+      "id": "header",
+      "label": "Header and account adapters",
+      "sources": [
+        "components/Header.tsx",
+        "lib/clerk/appearance.ts",
+        "lib/routes.ts"
+      ],
+      "usedBy": [
+        "app-shell",
+        "home",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "public-recap",
+        "profile",
+        "account-controls",
+        "appearance",
+        "releases",
+        "not-found",
+        "route-error"
+      ],
+      "states": [
+        "homepage wordmark hidden",
+        "other normal routes wordmark visible",
+        "hidden on auth and focused play",
+        "guest/local sign-in icon versus Clerk UserButton",
+        "desktop archive/help/appearance icons",
+        "mobile overflow menu",
+        "help and appearance overlays; Escape/outside closure"
+      ],
+      "purpose": "Global navigation composition, including DefaultSignedOut, DefaultSignedIn and DefaultAccountButton wrappers. Clerk popover/manage-account internals are external UI styled by appearance.ts, not separate local components."
+    },
+    {
+      "id": "footer",
+      "label": "Footer",
+      "sources": [
+        "components/Footer.tsx",
+        "lib/routes.ts"
+      ],
+      "usedBy": [
+        "app-shell",
+        "home",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "public-recap",
+        "sign-in",
+        "sign-up",
+        "auth-callback",
+        "profile",
+        "releases",
+        "not-found",
+        "route-error"
+      ],
+      "states": [
+        "normal route visible",
+        "host/join/room hidden",
+        "releases link",
+        "current-year copyright",
+        "external project attribution"
+      ],
+      "purpose": "Shared footer with three small metadata items; keep it out of focused gameplay and account for print visibility."
+    },
+    {
+      "id": "home-page",
+      "label": "Home",
+      "sources": [
+        "app/page.tsx"
+      ],
+      "usedBy": [
+        "home"
+      ],
+      "states": [
+        "mobile fixed CTA tray",
+        "desktop inline CTA pair"
+      ],
+      "purpose": "Wordmark/tagline/explainer/action composition; inline renderActions is the shared action owner, not an independent component."
+    },
+    {
+      "id": "host-page",
+      "label": "HostPage",
+      "sources": [
+        "app/host/page.tsx"
+      ],
+      "usedBy": [
+        "host-entry"
+      ],
+      "states": [
+        "name form",
+        "auth loading/error",
+        "create pending/error",
+        "scroll body and in-flow action zone"
+      ],
+      "purpose": "Host entry owner with focused appearance control, labelled name input and create action."
+    },
+    {
+      "id": "join-page",
+      "label": "JoinPage / JoinForm / JoinRoutePage",
+      "sources": [
+        "app/join/page.tsx",
+        "app/join/JoinPage.tsx"
+      ],
+      "usedBy": [
+        "join-entry"
+      ],
+      "states": [
+        "Suspense fallback",
+        "manual code",
+        "invite prefill/read-only",
+        "name form",
+        "auth loading/error",
+        "join pending/error"
+      ],
+      "purpose": "One visual owner for route, Suspense wrapper and JoinForm; code/name field flow and join feedback are the designable composition."
+    },
+    {
+      "id": "room-page",
+      "label": "RoomPage / RoomPageContent / ResolvedRoomPage / RoomRoutePage",
+      "sources": [
+        "app/room/[code]/page.tsx",
+        "app/room/[code]/RoomPage.tsx",
+        "hooks/usePresence.ts",
+        "hooks/useRoomQueryArgs.ts"
+      ],
+      "usedBy": [
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "room-unavailable",
+        "room-recovery"
+      ],
+      "states": [
+        "auth and room loading",
+        "null unavailable",
+        "LOBBY",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "unexpected status",
+        "room/panel error fallback"
+      ],
+      "purpose": "One orchestration owner for thin route/state wrappers, nested phase boundaries and presence lifecycle. Route dispatch is not an additional gameplay view."
+    },
+    {
+      "id": "unexpected-room-state",
+      "label": "UnexpectedRoomState",
+      "sources": [
+        "app/room/[code]/RoomPage.tsx"
+      ],
+      "usedBy": [
+        "room-recovery"
+      ],
+      "states": [
+        "unrecognized status",
+        "Go home recovery"
+      ],
+      "purpose": "Actual fallback composition: explanatory heading/body and home action, no automatic refresh or invented room state."
+    },
+    {
+      "id": "lobby",
+      "label": "Lobby",
+      "sources": [
+        "components/Lobby.tsx"
+      ],
+      "usedBy": [
+        "room-lobby"
+      ],
+      "states": [
+        "host/nonhost action pair",
+        "1–8 seats",
+        "roster arrivals/away/host badge",
+        "tools disclosure and QR",
+        "presentation open",
+        "action errors"
+      ],
+      "purpose": "Room-code card, roster section, tools disclosure and fixed-frame action tray; inline renderButton owns existing role-sensitive CTA composition."
+    },
+    {
+      "id": "writing-screen",
+      "label": "WritingScreen",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "hooks/useRoomQueryArgs.ts"
+      ],
+      "usedBy": [
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator"
+      ],
+      "states": [
+        "loading",
+        "assignment present",
+        "no assignment/spectator",
+        "already-submitted waiting",
+        "round changes remount composer"
+      ],
+      "purpose": "Phase composition owner: compact RoomChrome plus WritingComposer or WaitingScreen. Preserve assignment-keyed draft and live-state lifecycle."
+    },
+    {
+      "id": "writing-composer",
+      "label": "WritingComposer",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "lib/writingDraft.ts"
+      ],
+      "usedBy": [
+        "room-writing"
+      ],
+      "states": [
+        "carried line absent/present",
+        "coachmark first use",
+        "restored draft",
+        "focused/blurred",
+        "below/exact/above word target",
+        "submitting/confirmed/already-recorded",
+        "retryable/failed/offline",
+        "last-line confirmation"
+      ],
+      "purpose": "Designable writing body and submit tray: clock, carried line, editable line, character count, live constraint status, word chips and recovery. Inline submitBlock belongs here."
+    },
+    {
+      "id": "waiting-screen",
+      "label": "WaitingScreen",
+      "sources": [
+        "components/WaitingScreen.tsx"
+      ],
+      "usedBy": [
+        "room-waiting",
+        "late-join-spectator"
+      ],
+      "states": [
+        "embedded versus standalone sizing",
+        "loading/null transition",
+        "submitted count/all ready",
+        "active/submitted/away/watching roster",
+        "late-join explanation",
+        "host end-game confirmation/pending/error"
+      ],
+      "purpose": "Waiting composition includes count, names, visual round segments, soft clock and roster. Abandonment confirmation is inline, not a modal."
+    },
+    {
+      "id": "reveal-phase",
+      "label": "RevealPhase",
+      "sources": [
+        "components/RevealPhase.tsx"
+      ],
+      "usedBy": [
+        "reveal-circle"
+      ],
+      "states": [
+        "loading",
+        "assignment cards",
+        "fallback reader",
+        "reveal pending/error",
+        "reread button",
+        "ordered reading circle",
+        "host stage",
+        "all-revealed recap"
+      ],
+      "purpose": "Own reveal assignment cards and reading-circle rows, including focus/status announcements; these inline compositions must receive a distinct treatment in each direction."
+    },
+    {
+      "id": "poem-display",
+      "label": "PoemDisplay",
+      "sources": [
+        "components/PoemDisplay.tsx",
+        "hooks/useSharePoem.ts",
+        "hooks/useShareLink.ts",
+        "hooks/useSavePoemImage.ts",
+        "hooks/useCeremonyEffects.ts"
+      ],
+      "usedBy": [
+        "poem-reading",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "poem-image-export",
+        "poem-print"
+      ],
+      "states": [
+        "fixed reveal overlay versus archive page flow",
+        "with/without metadata",
+        "whole poem shown at once",
+        "author marker selected 2s",
+        "archive contributor legend",
+        "participant favorite/public revoke",
+        "share/save/error/success",
+        "reveal heart/mute/Done versus archive Print"
+      ],
+      "purpose": "Unified complete-poem composition: metadata header, fixed number/author gutters, human lines, transient author attribution, privacy warning and artifact footer; inline ceremonyMuteButton shares this owner."
+    },
+    {
+      "id": "session-recap-hub",
+      "label": "SessionRecapHub",
+      "sources": [
+        "components/SessionRecapHub.tsx",
+        "hooks/useShareLink.ts",
+        "hooks/useCeremonyEffects.ts"
+      ],
+      "usedBy": [
+        "reveal-circle",
+        "session-recap",
+        "recap-sharing"
+      ],
+      "states": [
+        "no favorite",
+        "live favorite leader",
+        "replay link list",
+        "share status/error",
+        "muted/sound",
+        "rematch pending/error",
+        "lobby/home navigation"
+      ],
+      "purpose": "Session-complete composition with optional favorite crown, set-level sharing, all replay links and any-participant continuation actions."
+    },
+    {
+      "id": "stage-shell",
+      "label": "StageShell",
+      "sources": [
+        "components/stage/StageShell.tsx"
+      ],
+      "usedBy": [
+        "lobby-presentation",
+        "reveal-presentation"
+      ],
+      "states": [
+        "fixed full-viewport presentation",
+        "title/subtitle",
+        "exit control",
+        "scrollable shared-screen content"
+      ],
+      "purpose": "Common actual shell for LobbyStage and RevealStage; not redundant because it owns the external-display layout and exit interaction."
+    },
+    {
+      "id": "lobby-stage",
+      "label": "LobbyStage",
+      "sources": [
+        "components/stage/LobbyStage.tsx"
+      ],
+      "usedBy": [
+        "lobby-presentation"
+      ],
+      "states": [
+        "code/QR hero",
+        "roster joins highlighted 1600ms",
+        "away/host labels",
+        "long names and 8 players"
+      ],
+      "purpose": "Large shared-display lobby composition; separate from the phone control surface but reads the same live roster."
+    },
+    {
+      "id": "lobby-join-qr",
+      "label": "LobbyJoinQr",
+      "sources": [
+        "components/stage/LobbyStage.tsx"
+      ],
+      "usedBy": [
+        "room-lobby"
+      ],
+      "states": [
+        "180px labelled QR",
+        "open join link",
+        "room code changes"
+      ],
+      "purpose": "Small QR/link module used inside Lobby room tools; room-chrome QR is inline under its own owner, not this component."
+    },
+    {
+      "id": "reveal-stage",
+      "label": "RevealStage",
+      "sources": [
+        "components/stage/RevealStage.tsx"
+      ],
+      "usedBy": [
+        "reveal-presentation"
+      ],
+      "states": [
+        "no poems",
+        "wait for reader",
+        "assignment/fallback preview",
+        "reveal pending/error",
+        "active full poem",
+        "finished overview",
+        "already-revealed reread",
+        "running order"
+      ],
+      "purpose": "Shared display composition with reader identity, whole poem, finish/reveal control and running order; no per-line reveal choreography currently mounted."
+    },
+    {
+      "id": "room-chrome",
+      "label": "RoomChrome",
+      "sources": [
+        "components/RoomChrome.tsx",
+        "lib/roomChromeCopy.ts",
+        "hooks/useShareLink.ts"
+      ],
+      "usedBy": [
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "appearance"
+      ],
+      "states": [
+        "lobby status-board",
+        "compact writing",
+        "normal reveal",
+        "formatted code QR popover",
+        "code copy copied/error/retry",
+        "invite share copied/shared/error",
+        "overflow, archive, help, appearance",
+        "Escape/outside close"
+      ],
+      "purpose": "Focused gameplay navigation/status composition, including inline QR/copy panel and menu items. Keep phase progress readable while minimizing repeated code and utility weight."
+    },
+    {
+      "id": "focused-entry-appearance",
+      "label": "FocusedEntryAppearance",
+      "sources": [
+        "components/FocusedEntryAppearance.tsx"
+      ],
+      "usedBy": [
+        "host-entry",
+        "join-entry",
+        "appearance"
+      ],
+      "states": [
+        "closed/open",
+        "Escape restores trigger",
+        "outside click closes",
+        "bounded dialog height"
+      ],
+      "purpose": "Appearance popover owner for host/join screens without Header; same ColorModeControl body as other owners."
+    },
+    {
+      "id": "color-mode-control",
+      "label": "ColorModeControl",
+      "sources": [
+        "components/ColorModeControl.tsx",
+        "lib/colorMode/context.tsx"
+      ],
+      "usedBy": [
+        "app-shell",
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "public-recap",
+        "profile",
+        "account-controls",
+        "appearance",
+        "releases",
+        "not-found",
+        "route-error"
+      ],
+      "states": [
+        "light/dark/system native radios",
+        "selected autoFocus",
+        "keyboard arrows",
+        "focus ring",
+        "three-column touch labels"
+      ],
+      "purpose": "Actual shared mode selector. New brands may replace its styling, not lose readable checked/focus state or system preference."
+    },
+    {
+      "id": "help-modal",
+      "label": "HelpModal",
+      "sources": [
+        "components/HelpModal.tsx"
+      ],
+      "usedBy": [
+        "app-shell",
+        "home",
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "public-recap",
+        "profile",
+        "account-controls",
+        "help",
+        "appearance",
+        "releases",
+        "not-found",
+        "route-error"
+      ],
+      "states": [
+        "open/closed",
+        "backdrop fade and panel entrance",
+        "close/Got it/Escape/backdrop",
+        "focus trap and body scroll lock"
+      ],
+      "purpose": "Rules composition with word pattern, blind collaboration and counter explanation; new illustrations and structure may replace historical manuscript metaphors."
+    },
+    {
+      "id": "connection-status",
+      "label": "ConnectionStatus",
+      "sources": [
+        "components/ConnectionStatus.tsx"
+      ],
+      "usedBy": [
+        "connection-notice"
+      ],
+      "states": [
+        "hidden initial/healthy",
+        "offline",
+        "reconnecting",
+        "restored for 3s"
+      ],
+      "purpose": "Fixed polite live-status banner; overlaps must be considered with room chrome and other recovery surfaces."
+    },
+    {
+      "id": "deployment-skew-observer",
+      "label": "DeploymentSkewObserver / DeploymentSkewRejectionObserver",
+      "sources": [
+        "components/DeploymentSkewObserver.tsx",
+        "components/DeploymentSkewRejectionObserver.tsx",
+        "app/api/deployment/route.ts"
+      ],
+      "usedBy": [
+        "app-shell",
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery",
+        "connection-notice",
+        "deployment-update",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "public-recap",
+        "sign-in",
+        "sign-up",
+        "auth-callback",
+        "profile",
+        "account-controls",
+        "help",
+        "appearance",
+        "releases",
+        "not-found",
+        "route-error"
+      ],
+      "states": [
+        "hidden",
+        "stale version notice",
+        "Reload Linejam"
+      ],
+      "purpose": "One visual owner for update banner and nonvisual rejection observer; preserve draft-safe user-controlled reload and fail-neutral version checks."
+    },
+    {
+      "id": "room-panel-error-boundary",
+      "label": "RoomPanelErrorBoundary",
+      "sources": [
+        "components/RoomPanelErrorBoundary.tsx"
+      ],
+      "usedBy": [
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "room-unavailable",
+        "room-recovery"
+      ],
+      "states": [
+        "children rendered",
+        "caught error fallback",
+        "panel/code change clears boundary",
+        "Refresh reloads document"
+      ],
+      "purpose": "Room and phase boundaries reuse the same recovery presentation; include the actual Component subclass without duplicate entries for every wrapper instance."
+    },
+    {
+      "id": "auth-error-state",
+      "label": "AuthErrorState",
+      "sources": [
+        "components/AuthErrorState.tsx"
+      ],
+      "usedBy": [
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery",
+        "archive"
+      ],
+      "states": [
+        "custom/default title",
+        "message",
+        "custom/default retry action"
+      ],
+      "purpose": "Shared guest/auth connection recovery composition with Alert and Button, not a signup wall."
+    },
+    {
+      "id": "accounts-unavailable",
+      "label": "AccountsUnavailable",
+      "sources": [
+        "components/AccountsUnavailable.tsx"
+      ],
+      "usedBy": [
+        "sign-in",
+        "sign-up",
+        "auth-callback"
+      ],
+      "states": [
+        "isolated local guest-only state",
+        "Play as guest navigation"
+      ],
+      "purpose": "Truthful account-disconnected explanation on sign-in/sign-up/callback: local poems are stored in the local game and tied to this browser guest session, not an online account."
+    },
+    {
+      "id": "archive-page",
+      "label": "ArchivePage",
+      "sources": [
+        "app/me/poems/page.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "auth/loading/error",
+        "guest/account",
+        "empty/populated",
+        "featured first favorite/newest",
+        "responsive gallery"
+      ],
+      "purpose": "Archive composition owner combines statistics, guest persistence strip and completed poem cards; no filter/search UI is currently mounted."
+    },
+    {
+      "id": "archive-info-strip",
+      "label": "ArchiveInfoStrip",
+      "sources": [
+        "components/archive/ArchiveInfoStrip.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "guest with/without poems",
+        "account with poems",
+        "account empty hides strip"
+      ],
+      "purpose": "Inline archive navigation/preservation explanation; guest access never dead-ends and any account promotion must stay optional."
+    },
+    {
+      "id": "archive-stats",
+      "label": "ArchiveStats",
+      "sources": [
+        "components/archive/ArchiveStats.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "total poems accent",
+        "favorites",
+        "unique collaborators",
+        "total authored lines",
+        "singular/plural"
+      ],
+      "purpose": "Named statistics region with four StatLine rows; redesign density and hierarchy without inventing new game scoring."
+    },
+    {
+      "id": "stat-line",
+      "label": "StatLine",
+      "sources": [
+        "components/archive/ArchiveStats.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "default/accent",
+        "icon/value/label",
+        "locale-formatted number"
+      ],
+      "purpose": "Actual internal repeated statistics row under ArchiveStats, kept as a component entry because it owns a repeated visual grammar."
+    },
+    {
+      "id": "archive-stats-skeleton",
+      "label": "ArchiveStatsSkeleton",
+      "sources": [
+        "components/archive/ArchiveStats.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "four pulsing placeholder rows"
+      ],
+      "purpose": "Loading counterpart to archive statistics; no fake numbers."
+    },
+    {
+      "id": "poem-card",
+      "label": "PoemCard",
+      "sources": [
+        "components/archive/PoemCard.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "default/featured",
+        "hover lift/read arrow/line-count badge",
+        "favorite optimistic/pending/reverted",
+        "public revoke pending",
+        "staggered entrance"
+      ],
+      "purpose": "Archive card composition: silhouette, favorite, optional revoke link, first-line preview, coauthors, colored dots/count, date and hover metadata; nested controls currently sit within Link."
+    },
+    {
+      "id": "poem-card-skeleton",
+      "label": "PoemCardSkeleton",
+      "sources": [
+        "components/archive/PoemCard.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "pulsing shape/text/footer placeholders"
+      ],
+      "purpose": "Archive gallery loading surface, designed alongside the actual card composition."
+    },
+    {
+      "id": "empty-archive",
+      "label": "EmptyArchive",
+      "sources": [
+        "components/archive/EmptyArchive.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "default empty: ghost silhouette, headline, start/join actions",
+        "filtered variant exists but no shipped search/filter caller found"
+      ],
+      "purpose": "Existing default and filtered component branches; filtered variant needs a specimen, not an invented product search workflow."
+    },
+    {
+      "id": "poem-silhouette",
+      "label": "PoemSilhouette",
+      "sources": [
+        "components/archive/PoemSilhouette.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "sm/md/lg",
+        "word-count bars",
+        "animate on parent hover",
+        "nonanimated ghost empty-state shape"
+      ],
+      "purpose": "Poem structure visualization with an accessible word-pattern label; visual expression can change while underlying nine-line counts remain truthful."
+    },
+    {
+      "id": "poem-silhouette-compact",
+      "label": "PoemSilhouetteCompact",
+      "sources": [
+        "components/archive/PoemSilhouette.tsx",
+        "components/archive/index.ts"
+      ],
+      "usedBy": [],
+      "states": [
+        "horizontal miniature bar variant",
+        "exported but no app/components consumer beyond barrel found"
+      ],
+      "purpose": "Actual unused exported variant; design directions may explicitly retire or visually align it, not falsely claim it is a mounted route surface."
+    },
+    {
+      "id": "author-dots",
+      "label": "AuthorDots",
+      "sources": [
+        "components/archive/AuthorDots.tsx"
+      ],
+      "usedBy": [
+        "archive"
+      ],
+      "states": [
+        "sm/md/lg",
+        "up to five visible contributors",
+        "overflow +N",
+        "hover scale/stagger",
+        "group accessible contributor count"
+      ],
+      "purpose": "Compact contributor identity group with room-relative color assignment; color is supplementary, not sufficient identification."
+    },
+    {
+      "id": "author-dots-inline",
+      "label": "AuthorDotsInline",
+      "sources": [
+        "components/archive/AuthorDots.tsx",
+        "components/archive/index.ts"
+      ],
+      "usedBy": [],
+      "states": [
+        "empty renders null",
+        "colored gradient underline",
+        "exported but no app/components consumer beyond barrel found"
+      ],
+      "purpose": "Actual unused exported compact attribution variant; link its design to AuthorDots rather than inventing a usage."
+    },
+    {
+      "id": "poem-detail",
+      "label": "PoemDetail / Page",
+      "sources": [
+        "app/poem/[id]/page.tsx",
+        "app/poem/[id]/PoemDetail.tsx"
+      ],
+      "usedBy": [
+        "poem-detail",
+        "public-poem"
+      ],
+      "states": [
+        "participant/public data",
+        "loading",
+        "pending share before expiry",
+        "private/revoked/unavailable",
+        "favorite/public revoke actions"
+      ],
+      "purpose": "One route owner for thin Page adapter, access-safe fallback and PoemDisplay metadata. Do not duplicate the unified reading composition."
+    },
+    {
+      "id": "recap-page",
+      "label": "RecapPage / createRecapPage",
+      "sources": [
+        "app/recap/[code]/page.tsx",
+        "app/recap/[code]/RecapPage.tsx"
+      ],
+      "usedBy": [
+        "public-recap"
+      ],
+      "states": [
+        "public whole set",
+        "unavailable notFound",
+        "all poem article/attribution rows",
+        "join/new-room links",
+        "print output"
+      ],
+      "purpose": "Factory-returned React page plus thin re-export have one visual owner; each repeated poem article is inline composition, not a fabricated RecapPoemCard component."
+    },
+    {
+      "id": "recap-export-button",
+      "label": "RecapExportButton",
+      "sources": [
+        "components/RecapExportButton.tsx",
+        "app/globals.css"
+      ],
+      "usedBy": [
+        "public-recap"
+      ],
+      "states": [
+        "Export as PDF invokes native print",
+        "hidden during print"
+      ],
+      "purpose": "Actual whole-set print/export action; no custom PDF dialog or success state exists in source."
+    },
+    {
+      "id": "auth-layout",
+      "label": "AuthLayout / AuthRouteLayout",
+      "sources": [
+        "app/(auth)/AuthLayout.tsx",
+        "app/(auth)/layout.tsx"
+      ],
+      "usedBy": [
+        "sign-in",
+        "sign-up",
+        "auth-callback"
+      ],
+      "states": [
+        "form first on mobile",
+        "50/50 desktop form/showcase",
+        "home wordmark",
+        "tagline footer"
+      ],
+      "purpose": "One visual owner for layout adapter and split composition; desktop showcase uses only opt-in public material."
+    },
+    {
+      "id": "sign-in-page",
+      "label": "SignInPage / SignInRoutePage",
+      "sources": [
+        "app/(auth)/sign-in/[[...sign-in]]/SignInPage.tsx",
+        "app/(auth)/sign-in/[[...sign-in]]/page.tsx",
+        "lib/clerk/appearance.ts"
+      ],
+      "usedBy": [
+        "sign-in"
+      ],
+      "states": [
+        "integrated Clerk sign-in",
+        "isolated local AccountsUnavailable"
+      ],
+      "purpose": "One owner for route and embedded Clerk SignIn form; external provider UI receives shared colors/fonts/input/button/error/OTP/social appearance. Enabled provider flows must be observed, not assumed. Historical DefaultSignIn wrapper was removed by local-runtime integration."
+    },
+    {
+      "id": "sign-up-page",
+      "label": "SignUpPage / SignUpRoutePage",
+      "sources": [
+        "app/(auth)/sign-up/[[...sign-up]]/SignUpPage.tsx",
+        "app/(auth)/sign-up/[[...sign-up]]/page.tsx",
+        "lib/clerk/appearance.ts"
+      ],
+      "usedBy": [
+        "sign-up"
+      ],
+      "states": [
+        "integrated Clerk sign-up",
+        "isolated local AccountsUnavailable"
+      ],
+      "purpose": "One owner for account-creation route and embedded Clerk SignUp form; preserve optional upgrade and make enabled provider variants coherent without fabricating local controls. Historical DefaultSignUp wrapper was removed by local-runtime integration."
+    },
+    {
+      "id": "auth-callback-page",
+      "label": "AuthCallbackPage / ConnectedAuthCallbackPage / AuthCallbackRoutePage",
+      "sources": [
+        "app/(auth)/callback/AuthCallbackPage.tsx",
+        "app/(auth)/callback/page.tsx"
+      ],
+      "usedBy": [
+        "auth-callback"
+      ],
+      "states": [
+        "completing spinner",
+        "missing backend auth/migration failure",
+        "Retry migration/Go home",
+        "success home redirect",
+        "local AccountsUnavailable"
+      ],
+      "purpose": "One completion/migration recovery owner including route wrapper; no success animation is currently rendered before redirect. ConnectedAuthCallbackPage is the integrated-account branch, not a second redesign surface."
+    },
+    {
+      "id": "auth-showcase",
+      "label": "AuthShowcase",
+      "sources": [
+        "components/auth/AuthShowcase.tsx"
+      ],
+      "usedBy": [
+        "sign-in",
+        "sign-up",
+        "auth-callback"
+      ],
+      "states": [
+        "latest opted-in public poem",
+        "query pending/empty sample copy",
+        "desktop-only via AuthLayout",
+        "featured label and attribution"
+      ],
+      "purpose": "Auth-side poem example composition. Per-line animationDelay is present without an animation class; do not claim it animates."
+    },
+    {
+      "id": "profile-page",
+      "label": "ProfilePage",
+      "sources": [
+        "app/me/profile/page.tsx"
+      ],
+      "usedBy": [
+        "profile"
+      ],
+      "states": [
+        "guest alias/id fragment/upgrade copy",
+        "account alias/email/image/sign-out",
+        "local accounts-disconnected explanation"
+      ],
+      "purpose": "Identity card composition, not an editable profile form; Clerk handles account management separately."
+    },
+    {
+      "id": "releases-page",
+      "label": "ReleasesPage",
+      "sources": [
+        "app/releases/page.tsx"
+      ],
+      "usedBy": [
+        "releases"
+      ],
+      "states": [
+        "empty",
+        "loaded list",
+        "home/rss navigation"
+      ],
+      "purpose": "Release index owner with title/introduction and ReleaseCard list."
+    },
+    {
+      "id": "release-card",
+      "label": "ReleaseCard",
+      "sources": [
+        "app/releases/page.tsx"
+      ],
+      "usedBy": [
+        "releases"
+      ],
+      "states": [
+        "version/date",
+        "optional product-note paragraphs",
+        "technical disclosure"
+      ],
+      "purpose": "Actual per-release article composition with TechnicalDetails child."
+    },
+    {
+      "id": "technical-details",
+      "label": "TechnicalDetails",
+      "sources": [
+        "app/releases/page.tsx"
+      ],
+      "usedBy": [
+        "releases"
+      ],
+      "states": [
+        "collapsed/expanded",
+        "grouped change types",
+        "optional scope prefix"
+      ],
+      "purpose": "Actual release disclosure composition; prefer progressive disclosure over turning technical metadata into primary content."
+    },
+    {
+      "id": "not-found-page",
+      "label": "NotFound",
+      "sources": [
+        "app/not-found.tsx"
+      ],
+      "usedBy": [
+        "not-found"
+      ],
+      "states": [
+        "fixed 404 stage",
+        "stamp/blur/grain",
+        "Return Home"
+      ],
+      "purpose": "Not-found error composition with exceptionally large numerical display."
+    },
+    {
+      "id": "route-error-page",
+      "label": "Error",
+      "sources": [
+        "app/error.tsx"
+      ],
+      "usedBy": [
+        "route-error"
+      ],
+      "states": [
+        "caught error",
+        "Try again/reset"
+      ],
+      "purpose": "Route-level error composition; normal shell may remain mounted behind fixed fallback."
+    },
+    {
+      "id": "global-error-page",
+      "label": "GlobalError",
+      "sources": [
+        "app/global-error.tsx"
+      ],
+      "usedBy": [
+        "global-error"
+      ],
+      "states": [
+        "root document replacement",
+        "Try again/reset"
+      ],
+      "purpose": "Root emergency error composition must work before normal providers/tokens succeed."
+    },
+    {
+      "id": "button",
+      "label": "Button",
+      "sources": [
+        "components/ui/Button.tsx",
+        "app/globals.css"
+      ],
+      "usedBy": [
+        "app-shell",
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery",
+        "connection-notice",
+        "deployment-update",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "poem-image-export",
+        "public-recap",
+        "auth-callback",
+        "profile",
+        "account-controls",
+        "help",
+        "appearance",
+        "releases",
+        "not-found",
+        "route-error",
+        "global-error"
+      ],
+      "states": [
+        "primary/secondary/outline/ghost",
+        "sm/md/lg",
+        "hover/active/focus-visible",
+        "disabled grayscale/brightness",
+        "optional success stamp"
+      ],
+      "purpose": "Shared native button, forwarded ref and classes; redesign CTA hierarchy, readable disabled state and pressed feedback together."
+    },
+    {
+      "id": "input",
+      "label": "Input",
+      "sources": [
+        "components/ui/Input.tsx"
+      ],
+      "usedBy": [
+        "host-entry",
+        "join-entry"
+      ],
+      "states": [
+        "type prop",
+        "empty/placeholder/filled",
+        "focus ring",
+        "disabled",
+        "read-only code through caller"
+      ],
+      "purpose": "Shared forwarded native input; inherited native semantics and labels are retained across entry forms."
+    },
+    {
+      "id": "label",
+      "label": "Label",
+      "sources": [
+        "components/ui/Label.tsx"
+      ],
+      "usedBy": [
+        "session-recap",
+        "profile"
+      ],
+      "states": [
+        "default/accent",
+        "polymorphic element via as",
+        "uppercase tracked mono"
+      ],
+      "purpose": "Shared metadata label, not a guaranteed HTML form label; form-label semantics come from caller-supplied element."
+    },
+    {
+      "id": "alert",
+      "label": "Alert",
+      "sources": [
+        "components/ui/Alert.tsx"
+      ],
+      "usedBy": [
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery",
+        "connection-notice",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "poem-image-export",
+        "auth-callback"
+      ],
+      "states": [
+        "error/success/warning/info",
+        "custom class/HTML props"
+      ],
+      "purpose": "Shared role=alert feedback block; info/success variations exist even where current callers mostly show errors."
+    },
+    {
+      "id": "avatar",
+      "label": "Avatar",
+      "sources": [
+        "components/ui/Avatar.tsx",
+        "lib/avatarColor.ts"
+      ],
+      "usedBy": [
+        "room-lobby",
+        "lobby-presentation",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "reveal-presentation",
+        "profile"
+      ],
+      "states": [
+        "xs/sm/md/lg/xl = 8/10/12/16/20px",
+        "filled/outlined",
+        "single-user versus room-unique color"
+      ],
+      "purpose": "Actual avatar is a small colored marker, not an illustration. Name stays primary; identity artwork and shape are open to replacement while stable human identification stays clear."
+    },
+    {
+      "id": "host-badge",
+      "label": "HostBadge",
+      "sources": [
+        "components/ui/HostBadge.tsx"
+      ],
+      "usedBy": [
+        "room-lobby",
+        "lobby-presentation"
+      ],
+      "states": [
+        "light/dark",
+        "crown icon plus HOST label"
+      ],
+      "purpose": "Actual host-authority badge with status role; crown is also used for room favorite and requires semantic differentiation."
+    },
+    {
+      "id": "loading-state",
+      "label": "LoadingState",
+      "sources": [
+        "components/ui/LoadingState.tsx"
+      ],
+      "usedBy": [
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery"
+      ],
+      "states": [
+        "room preparing",
+        "unsealing",
+        "setting up room",
+        "joining session",
+        "generic message"
+      ],
+      "purpose": "Pulsing accent dot and italic display text with polite busy status; LoadingMessages is data linked here, not a component."
+    },
+    {
+      "id": "round-clock",
+      "label": "RoundClock",
+      "sources": [
+        "components/ui/RoundClock.tsx",
+        "hooks/useRoundClock.ts",
+        "convex/lib/gameRules.ts"
+      ],
+      "usedBy": [
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator"
+      ],
+      "states": [
+        "absent start renders nothing",
+        "draining fraction",
+        "last quarter warm",
+        "overtime full-width faded bar",
+        "reduced-motion transition disabled"
+      ],
+      "purpose": "Two-pixel decorative server-anchored soft timer, never an enforced deadline and currently hidden from assistive technology."
+    },
+    {
+      "id": "stamp-animation",
+      "label": "StampAnimation",
+      "sources": [
+        "components/ui/StampAnimation.tsx",
+        "app/globals.css"
+      ],
+      "usedBy": [
+        "room-lobby"
+      ],
+      "states": [
+        "child arrival with optional delay",
+        "backwards fill",
+        "reduced motion single near-zero animation"
+      ],
+      "purpose": "Actual animation wrapper used around lobby roster entries. It has one motion owner; do not fabricate a separate stamp logo component."
+    },
+    {
+      "id": "word-slots",
+      "label": "WordSlots",
+      "sources": [
+        "components/ui/WordSlots.tsx"
+      ],
+      "usedBy": [
+        "room-writing"
+      ],
+      "states": [
+        "text chips and empty target slots",
+        "exact-target accent",
+        "overflow dashed error chips up to 10 then +N",
+        "count-only square variant",
+        "mobile/desktop sizing and wrapping"
+      ],
+      "purpose": "Actual constraint display with live count; chip words mirror whitespace tokenization and are sized to content, so arbitrary long tokens need explicit design handling."
+    },
+    {
+      "id": "heart-button",
+      "label": "HeartButton",
+      "sources": [
+        "components/ui/HeartButton.tsx"
+      ],
+      "usedBy": [
+        "poem-reading"
+      ],
+      "states": [
+        "unknown/unfavorited/favorited query",
+        "aria-pressed",
+        "active press scale",
+        "failure logged without visible error"
+      ],
+      "purpose": "Self-contained reveal favorite toggle; does not currently own crown sound or optimistic animation."
+    },
+    {
+      "id": "site-social-card",
+      "label": "Site ImageResponse composition",
+      "sources": [
+        "app/opengraph-image.tsx"
+      ],
+      "usedBy": [
+        "site-social-preview"
+      ],
+      "states": [
+        "1200x630 light",
+        "partial font load"
+      ],
+      "purpose": "Real JSX image composition in Image(), outside DOM UI; wordmark/shape/brand mark must be covered in each identity direction."
+    },
+    {
+      "id": "poem-preview-card",
+      "label": "poemPreviewCardElement",
+      "sources": [
+        "lib/poemCard/PoemCard.tsx",
+        "app/poem/[id]/opengraph-image-handler.tsx"
+      ],
+      "usedBy": [
+        "poem-social-preview"
+      ],
+      "states": [
+        "public teaser lines",
+        "fixed 1200x630",
+        "80-character line truncation"
+      ],
+      "purpose": "Real JSX export renderer for public preview, distinct from complete private download."
+    },
+    {
+      "id": "poem-fallback-card",
+      "label": "poemFallbackCardElement",
+      "sources": [
+        "lib/poemCard/PoemCard.tsx",
+        "app/poem/[id]/opengraph-image-handler.tsx"
+      ],
+      "usedBy": [
+        "poem-social-preview"
+      ],
+      "states": [
+        "private/unavailable/pending generic branding"
+      ],
+      "purpose": "Access-safe generic social-card composition; no human poem text in fallback."
+    },
+    {
+      "id": "poem-full-card",
+      "label": "poemFullCardElement",
+      "sources": [
+        "lib/poemCard/PoemCard.tsx",
+        "lib/poemCard/colors.ts",
+        "lib/poemCard/fonts.ts",
+        "app/poem/[id]/card/handler.ts"
+      ],
+      "usedBy": [
+        "poem-image-export"
+      ],
+      "states": [
+        "light/dark full download",
+        "1200px width, line-count-derived height",
+        "all human author names"
+      ],
+      "purpose": "Real JSX complete-poem export composition, with number/brand header, line stack, rule, attribution and circular mark."
+    },
+    {
+      "id": "recap-social-card",
+      "label": "Recap ImageResponse composition",
+      "sources": [
+        "app/recap/[code]/opengraph-image.tsx"
+      ],
+      "usedBy": [
+        "recap-social-preview"
+      ],
+      "states": [
+        "public two-column poem previews",
+        "generic unavailable fallback",
+        "fixed light 1200x630"
+      ],
+      "purpose": "Real generated whole-session artwork, not an in-app React card."
+    }
+  ],
+  "motion": [
+    {
+      "id": "global-reduced-motion",
+      "label": "Global reduced-motion policy",
+      "sources": [
+        "app/globals.css"
+      ],
+      "trigger": "Operating-system prefers-reduced-motion: reduce matches.",
+      "accessibility": "All elements and pseudo-elements get 0.01ms animation/transition durations, one animation iteration and auto scroll; mode transitions are set to none. Animation delays are not globally cleared, so initially opacity-zero staggered content still needs rendered inspection."
+    },
+    {
+      "id": "color-mode-transition",
+      "label": "useColorMode / applyColorMode",
+      "sources": [
+        "lib/colorMode/context.tsx",
+        "lib/colorMode/apply.ts",
+        "app/layout.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Explicit light/dark choice or changed system preference after first application adds a 300ms global color/background/border/shadow transition.",
+      "accessibility": "First paint is applied synchronously without transition; prefers-reduced-motion disables the transition class. Native radio checked/focus state communicates selection without motion; localStorage failure falls back gracefully."
+    },
+    {
+      "id": "viewport-projection",
+      "label": "useVisualViewport",
+      "sources": [
+        "hooks/useVisualViewport.ts",
+        "app/providers.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "visualViewport resize/scroll plus window resize/orientationchange are coalesced in requestAnimationFrame into height and offset CSS variables.",
+      "accessibility": "Functional keyboard/safe-area geometry, not decorative animation. Necessary under reduced motion too. Real mobile keyboard, landscape and text zoom must be inspected because desktop dimensions do not reproduce overlay keyboards."
+    },
+    {
+      "id": "writing-focus-scroll",
+      "label": "Writing focus and round reset",
+      "sources": [
+        "components/WritingScreen.tsx"
+      ],
+      "trigger": "Textarea focus schedules scrollIntoView(nearest) after 300ms; changing poem/line resets window scroll to top.",
+      "accessibility": "Both scroll paths explicitly use auto, not smooth. Labelled textarea and manual Enter suppression keep input single-line; check that focus/scroll does not hide the carried line or action zone with the keyboard."
+    },
+    {
+      "id": "button-press",
+      "label": "Shared button and native control feedback",
+      "sources": [
+        "components/ui/Button.tsx",
+        "components/ui/Input.tsx",
+        "components/ui/HeartButton.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Primary press translates 2px and crushes shadow; secondary/outline/ghost scale to 0.96; heart active scales to 0.90; input/button use transitions; success may add stamp.",
+      "accessibility": "Visible focus rings and native disabled state exist. Global reduced-motion shortens duration, but instantaneous :active transforms remain because the transforms themselves are not removed."
+    },
+    {
+      "id": "stamp-arrival",
+      "label": "StampAnimation / animate-stamp",
+      "sources": [
+        "components/ui/StampAnimation.tsx",
+        "components/Lobby.tsx",
+        "components/ui/Button.tsx",
+        "app/not-found.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Lobby roster mount with i*150ms delay; stampAnimate prop on submit/share success; 404 mount. Scale 0 to 1.08 to 1 with rotation over duration-slow (400ms).",
+      "accessibility": "Global reduced-motion uses near-zero duration/one iteration but preserves delay; wrapper uses backwards fill, so delayed arrivals can remain hidden briefly. Text must remain understandable with animation disabled."
+    },
+    {
+      "id": "loading-indicators",
+      "label": "Loading pulse and auth spinner",
+      "sources": [
+        "components/ui/LoadingState.tsx",
+        "components/archive/PoemCard.tsx",
+        "components/archive/ArchiveStats.tsx",
+        "app/poem/[id]/PoemDetail.tsx",
+        "app/(auth)/callback/AuthCallbackPage.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Guest/room/reveal loading pulses a dot; archive loading pulses six cards and stats; poem detail pulses raw Loading text; account callback spins a circle.",
+      "accessibility": "LoadingState and callback expose polite busy status; archive skeletons and raw poem loader do not use the same full status semantics. Global reduced-motion shortens animation and stops repetition."
+    },
+    {
+      "id": "fade-up-entrances",
+      "label": "Common fade/slide entrances",
+      "sources": [
+        "app/globals.css",
+        "components/HelpModal.tsx",
+        "components/WritingScreen.tsx",
+        "components/archive/PoemCard.tsx",
+        "app/not-found.tsx",
+        "app/error.tsx",
+        "app/global-error.tsx"
+      ],
+      "trigger": "Initial or conditional render moves 12px upward while becoming opaque; writing coachmark/carried line/Ready/confirmation, help content, archive cards and error copy use this.",
+      "accessibility": "Global reduced-motion guard exists. The effects are independently triggered rather than an orchestrated phase transition; verify screen-reader content remains available and focus is not motion-dependent."
+    },
+    {
+      "id": "archive-card-interaction",
+      "label": "Archive stagger and hover detail",
+      "sources": [
+        "components/archive/PoemCard.tsx",
+        "app/me/poems/page.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Featured card enters first; remaining cards delay (index+1)*50ms; hover lifts card, changes border/shadow, reveals read arrow and a line-count badge; favorite scales on hover/press.",
+      "accessibility": "Reduced-motion shortens durations but leaves delays and hover transforms. Line-count badge depends on mouse hover state rather than focus; navigation and favorite must remain usable on touch/keyboard."
+    },
+    {
+      "id": "silhouette-bars",
+      "label": "Poem silhouette bar reveal",
+      "sources": [
+        "components/archive/PoemSilhouette.tsx",
+        "components/archive/PoemCard.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "PoemCard mouse hover passes animate=true: each bar scales horizontally and fades over 400ms with index*50ms delay.",
+      "accessibility": "Whole silhouette has role=img and a word-count-pattern label. Reduced-motion duration override still leaves stagger delays; bar shape must not stay invisible in reduced-motion snapshots."
+    },
+    {
+      "id": "contributor-hover",
+      "label": "AuthorDots hover and stagger",
+      "sources": [
+        "components/archive/AuthorDots.tsx"
+      ],
+      "trigger": "Each tiny contributor dot scales to 1.25 on hover with index*20ms transition delay.",
+      "accessibility": "Group announces contributor count; dots are nonfocusable and title labels say Contributor N rather than human names. Global reduced-motion shortens transitions but hover transform remains."
+    },
+    {
+      "id": "waiting-presence-pulse",
+      "label": "Active writer presence pulse",
+      "sources": [
+        "components/WaitingScreen.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Active, non-away, nonspectator avatar gets an inline 2s infinite pulse from scale 1 to 1.8 and opacity .6 to 0; submitted names are dimmed/struck through.",
+      "accessibility": "Global reduced-motion limits the pulse to one near-zero iteration. Actual submitted/waiting text and polite waiting-name announcements carry state independently of animation; avatar animationDelay alone does not add an entrance."
+    },
+    {
+      "id": "round-clock-drain",
+      "label": "useRoundClock and soft pacing line",
+      "sources": [
+        "hooks/useRoundClock.ts",
+        "components/ui/RoundClock.tsx",
+        "convex/lib/gameRules.ts"
+      ],
+      "trigger": "Server round start anchors 1-second ticking; 2px bar narrows through the 90s soft window, warms in last quarter, becomes full width at 35% opacity in overtime.",
+      "accessibility": "Timer never blocks submission and is aria-hidden/presentation; no spoken numeric countdown. motion-reduce:transition-none removes interpolation while time updates remain functional."
+    },
+    {
+      "id": "word-slot-feedback",
+      "label": "WordSlots fill and overflow feedback",
+      "sources": [
+        "components/ui/WordSlots.tsx",
+        "components/WritingScreen.tsx"
+      ],
+      "trigger": "Typing changes empty/filled/exact/overflow chip colors; count-only variant applies small filled-slot delays.",
+      "accessibility": "WordSlots has role=status/accessible count, WritingComposer separately debounces Add/Remove/Ready announcements by 500ms. Specific motion-reduce transition removal exists; verify duplicate live announcements and long-word containment."
+    },
+    {
+      "id": "ready-seal-loop",
+      "label": "Writing ready-state emphasis",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Exact word target while idle renders Ready fade-up text and an infinite 1250ms expanding shadow ring around Submit.",
+      "accessibility": "Count and enabled button convey readiness without ring. Global reduced-motion suppresses repetition. New direction should decide if an idle repeating cue is useful or noisy, not assume it must remain."
+    },
+    {
+      "id": "submission-confirmation",
+      "label": "Submit confirmation and waiting handoff",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "components/ui/Button.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Successful persistence shows confirmed stored text with fade-up and stamped button; waits 1500ms before WaitingScreen unless server already advances assignment.",
+      "accessibility": "Draft only clears on confirmed/already-submitted state; confirmation delay is functional state timing and is not changed by CSS reduced motion. Full-page waiting changes need keyboard/focus and announcement inspection."
+    },
+    {
+      "id": "author-attribution-reveal",
+      "label": "Poem author-marker reveal",
+      "sources": [
+        "components/PoemDisplay.tsx"
+      ],
+      "trigger": "Selecting a 44px author marker reveals an absolutely positioned author name with 500ms opacity transition; clears after 2s.",
+      "accessibility": "Marker has accessible Show author for line N label and focus ring; hidden attribution uses aria-hidden. No explicit live announcement or name in button label; 2s timeout is not relaxed for assistive technology."
+    },
+    {
+      "id": "help-open-close",
+      "label": "Help modal entrance and focus lifecycle",
+      "sources": [
+        "components/HelpModal.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Open mounts 300ms backdrop fade and fade-up panel; close unmounts immediately.",
+      "accessibility": "Close button autofocus, Tab trap, aria-modal and Escape handling exist; body scroll locks. Code does not explicitly restore previous focus on close or constrain dialog max-height, both need actual browser inspection."
+    },
+    {
+      "id": "chrome-popover-feedback",
+      "label": "Header/room/entry popover controls",
+      "sources": [
+        "components/Header.tsx",
+        "components/RoomChrome.tsx",
+        "components/FocusedEntryAppearance.tsx",
+        "components/ColorModeControl.tsx"
+      ],
+      "trigger": "Menu/QR/appearance panels mount immediately; hover/focus/checked state changes use color/all transitions.",
+      "accessibility": "Native mode radios support arrows. Appearance dialogs are nonmodal; Escape restores owner-specific trigger. Inspect outside-click regions, focus handoff and 45dvh bounded scrolling on cramped screens."
+    },
+    {
+      "id": "reading-target-focus",
+      "label": "Reveal reading focus and announcements",
+      "sources": [
+        "components/RevealPhase.tsx",
+        "components/PoemDisplay.tsx",
+        "components/stage/RevealStage.tsx"
+      ],
+      "trigger": "First unrevealed row changes focus; poem overlay focuses a hidden heading; stage active/headline poem focuses reader heading. Whole poem appears together.",
+      "accessibility": "Polite status announces transition/reader, not the poem text. No current line-by-line animation; preserve complete reading order and test return focus when closing/finishing."
+    },
+    {
+      "id": "stage-roster-highlight",
+      "label": "Stage join highlight",
+      "sources": [
+        "components/stage/LobbyStage.tsx"
+      ],
+      "trigger": "New player ID receives background tint and Just joined chip for 1600ms; colors transition.",
+      "accessibility": "Roster text communicates arrival; no separate live arrival announcement is implemented in this component. Motion reduction does not remove timed chip state."
+    },
+    {
+      "id": "favorite-crown-ceremony",
+      "label": "Room-favorite crown and burst",
+      "sources": [
+        "components/SessionRecapHub.tsx",
+        "app/globals.css"
+      ],
+      "trigger": "Favorite card mount includes 900ms heart-burst and 760ms dropping/rotating crown-settle; a new leader ID invokes punctuate(crown).",
+      "accessibility": "Burst/crown are decorative; favorite text and heart count remain. Global reduced-motion shortens visuals; ceremony hook suppresses sound/haptic. Existing DOM is not keyed to leader ID, so visual retrigger on leader changes needs inspection."
+    },
+    {
+      "id": "ceremony-effects-hook",
+      "label": "useCeremonyEffects audio/haptic gating",
+      "sources": [
+        "hooks/useCeremonyEffects.ts",
+        "components/PoemDisplay.tsx",
+        "components/SessionRecapHub.tsx"
+      ],
+      "trigger": "The only located punctuate call is crown on favorite leader change. PoemDisplay exposes mute only. Hook also defines line/final-line events but no app/components caller triggers them.",
+      "accessibility": "Persisted mute defaults false; reduced-motion disables both sound and vibration. OS support/autoplay may prevent effects, exceptions are best-effort. Text/visual ceremony remains usable with no audio. Hook instances do not subscribe to storage/mute changes in other instances."
+    },
+    {
+      "id": "profile-image-hover",
+      "label": "Account profile image filter",
+      "sources": [
+        "app/me/profile/page.tsx"
+      ],
+      "trigger": "Authenticated profile image is grayscale until hover and transitions to color.",
+      "accessibility": "Decorative transform only; no information should depend on hover. Global reduced-motion shortens the transition, not the filter difference."
+    },
+    {
+      "id": "unmounted-motion-definitions",
+      "label": "Defined but unmounted motion",
+      "sources": [
+        "app/globals.css",
+        "components/auth/AuthShowcase.tsx",
+        "components/WaitingScreen.tsx"
+      ],
+      "trigger": "animate-type, animate-breathe and animate-final-line-settle/wipe keyframes are defined but no current app/components use was found. AuthShowcase line and WaitingScreen list animationDelay values alone do not cause animation.",
+      "accessibility": "No claim that these effects render. If retained in a direction, establish intentional triggers and reduced-motion alternatives; do not inherit dead effects as obligations."
+    }
+  ],
+  "sensory": [
+    {
+      "id": "brand-identity",
+      "label": "Existing visual identity is replaceable",
+      "sources": [
+        "lib/design/tokens.ts",
+        "app/globals.css",
+        "app/layout.tsx"
+      ],
+      "role": "Historical Ink & Anticipation pairs paper/ink tones with rust-orange accent, Libre Baskerville display, IBM Plex Sans body and JetBrains Mono labels. Operator reopens all identity choices; only mechanics/privacy/accessibility/mobile/guest obligations remain constraints."
+    },
+    {
+      "id": "wordmark-and-logo",
+      "label": "Wordmark and generated circular mark",
+      "sources": [
+        "app/page.tsx",
+        "components/Header.tsx",
+        "app/(auth)/AuthLayout.tsx",
+        "app/opengraph-image.tsx",
+        "lib/poemCard/PoemCard.tsx"
+      ],
+      "role": "Text wordmark is repeated in app chrome and artifacts; generated social/full-card compositions include a rotated solid circular accent. No separate Logo React component exists. New logo, imagery and brand expression are explicitly in scope for exploration."
+    },
+    {
+      "id": "device-brand-assets",
+      "label": "Browser and installation icon assets",
+      "sources": [
+        "app/favicon.ico",
+        "app/icon.png",
+        "app/apple-icon.png",
+        "public/android-chrome-192x192.png",
+        "public/android-chrome-512x512.png",
+        "public/site.webmanifest"
+      ],
+      "role": "Actual shipped binary icons and standalone manifest are a design surface. Source inventory has not visually inspected their pixels; Main must inspect them. Manifest currently hardcodes white theme/background colors."
+    },
+    {
+      "id": "paper-grain-and-depth",
+      "label": "Grain, paper, blur and shadows",
+      "sources": [
+        "app/globals.css",
+        "lib/design/tokens.ts",
+        "app/not-found.tsx",
+        "app/error.tsx",
+        "app/global-error.tsx"
+      ],
+      "role": "Global 3% SVG turbulence texture, .paper borders/shadow, offset rust-tinted token shadows, translucent blurred room trays and extra localized 404 grain/blur form the current material language; all may be replaced."
+    },
+    {
+      "id": "typographic-voice",
+      "label": "Type roles and local text styling",
+      "sources": [
+        "app/globals.css",
+        "lib/design/tokens.ts",
+        "components/ui/Label.tsx",
+        "lib/clerk/appearance.ts",
+        "lib/poemCard/fonts.ts"
+      ],
+      "role": "Three font families, custom modular scale, widely used tracked mono uppercase labels and italic poem teasers define the current voice. UI, Clerk forms and server-generated image fonts must all be considered in any direction."
+    },
+    {
+      "id": "player-identity",
+      "label": "Player and author identity markers",
+      "sources": [
+        "components/ui/Avatar.tsx",
+        "components/archive/AuthorDots.tsx",
+        "components/PoemDisplay.tsx",
+        "lib/avatarColor.ts",
+        "app/me/profile/page.tsx"
+      ],
+      "role": "Deterministic 12-color palette with collision resolution; 8–20px avatars, contributor dots and optional real provider photo. Stable names and authorship are obligations; colors/dot-only identity can become expressive avatars or shapes without new game mechanics."
+    },
+    {
+      "id": "word-pattern-shape",
+      "label": "Nine-line poem shape",
+      "sources": [
+        "components/ui/WordSlots.tsx",
+        "components/archive/PoemSilhouette.tsx",
+        "components/HelpModal.tsx",
+        "app/opengraph-image.tsx",
+        "convex/lib/gameRules.ts"
+      ],
+      "role": "The 1–2–3–4–5–4–3–2–1 constraint appears as word chips, miniature diamond-like bars, a help sequence and social-card art. Preserve rule truth, not the manuscript/seal metaphor."
+    },
+    {
+      "id": "icon-vocabulary",
+      "label": "Shared icon vocabulary",
+      "sources": [
+        "components/Header.tsx",
+        "components/RoomChrome.tsx",
+        "components/ui/HostBadge.tsx",
+        "components/ui/HeartButton.tsx",
+        "components/SessionRecapHub.tsx",
+        "components/RecapExportButton.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "role": "Lucide icons cover archive/help/palette/invite, crown authority/favorite, heart, presentation, sound/mute, download and print; inline SVG favorite/RSS also exist. Design each symbol consistently with a clear label or accessible name; do not make decorative icon inventory into fake components."
+    },
+    {
+      "id": "ceremony-audio",
+      "label": "Synthesized ceremony tones",
+      "sources": [
+        "hooks/useCeremonyEffects.ts",
+        "components/SessionRecapHub.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "role": "WebAudio generates short 120ms tones with gain peak .035: line 440Hz sine and final-line 660Hz sine are defined but uncalled; crown 740Hz triangle is the current live caller. A new AudioContext is made per effect and closed after 160ms. Default unmuted, persisted mute and reduced-motion suppression; no background music or speech synthesis in these hooks."
+    },
+    {
+      "id": "ceremony-haptics",
+      "label": "Ceremony vibration patterns",
+      "sources": [
+        "hooks/useCeremonyEffects.ts",
+        "components/SessionRecapHub.tsx"
+      ],
+      "role": "navigator.vibrate patterns: line 8ms, final-line [14,30,18], crown [16,40,22]; only crown currently invoked. Same mute/reduced-motion gate as audio; device capability dependent, never required to understand state."
+    },
+    {
+      "id": "share-artifacts",
+      "label": "Public preview and private full-image artifacts",
+      "sources": [
+        "lib/poemCard/PoemCard.tsx",
+        "lib/poemCard/colors.ts",
+        "lib/poemCard/fonts.ts",
+        "app/poem/[id]/card/handler.ts",
+        "app/poem/[id]/opengraph-image-handler.tsx",
+        "app/recap/[code]/opengraph-image.tsx"
+      ],
+      "role": "Distinct artifact compositions: generic unavailable preview, public teaser, full attributed downloadable PNG and whole-set social preview. Preview stays light; full image follows applied mode. Private save is not public sharing; all human attribution must survive."
+    },
+    {
+      "id": "native-platform-surfaces",
+      "label": "Native share, download and print affordances",
+      "sources": [
+        "hooks/useShareLink.ts",
+        "hooks/useSavePoemImage.ts",
+        "components/RecapExportButton.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "role": "OS share sheets and browser print/download UI are external surfaces invoked by app controls. There is no custom ShareDialog or ExportDialog component; inventory records the real triggers, cancellation and feedback instead."
+    },
+    {
+      "id": "public-auth-showcase",
+      "label": "Auth poem example and optional provider imagery",
+      "sources": [
+        "components/auth/AuthShowcase.tsx",
+        "app/(auth)/AuthLayout.tsx",
+        "app/me/profile/page.tsx"
+      ],
+      "role": "Desktop account entry displays latest explicitly public human poem or static sample words; profile may display Clerk image. No generic stock photo, mascot or illustration component is currently mounted; introducing one is an exploration choice, not an existing mechanics obligation."
+    }
+  ]
+}

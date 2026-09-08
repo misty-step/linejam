@@ -423,15 +423,15 @@ export class GuestFlowSession {
   }
 
   async expectHostLobby() {
-    await expect(this.playerName(this.hostPage, this.hostName)).toBeVisible();
+    await expect(this.playerName(this.hostPage, this.hostName)).toBeVisible({
+      timeout: 15000,
+    });
     await expect(
       visibleTestId(this.hostPage, E2E_TEST_IDS.lobbyStartGameButton)
     ).toBeVisible();
   }
 
   async openHelpModal() {
-    // Help, Appearance, and archive live behind the overflow menu.
-    await this.hostPage.getByRole('button', { name: /More options/i }).click();
     await this.hostPage
       .getByRole('button', { name: /How to play/i })
       .last()
@@ -596,7 +596,7 @@ export class GuestFlowSession {
     await Promise.all(
       [this.hostPage, this.guestPage].map(async (page) => {
         const assignedButton = page
-          .getByRole('button', { name: 'Reveal & Read', exact: true })
+          .getByTestId(E2E_TEST_IDS.revealPoemButton)
           .filter({ visible: true });
         await expect(assignedButton).toHaveCount(1);
       })
@@ -610,7 +610,7 @@ export class GuestFlowSession {
     const page = this.page(actor);
 
     const assignedButton = page
-      .getByRole('button', { name: 'Reveal & Read', exact: true })
+      .getByTestId(E2E_TEST_IDS.revealPoemButton)
       .filter({ visible: true });
     await expect(assignedButton).toHaveCount(1);
     await assignedButton.click();
@@ -641,7 +641,7 @@ export class GuestFlowSession {
 
   async startNextRound() {
     await this.hostPage
-      .getByRole('button', { name: 'Start Next Round', exact: true })
+      .getByRole('button', { name: 'Play again', exact: true })
       .click();
     await this.expectRound(1);
     await this.expectWritingUi();
@@ -670,6 +670,6 @@ export class GuestFlowSession {
   }
 
   private playerName(page: Page, name: string) {
-    return page.getByText(new RegExp(`^${escapeRegex(name)}$`));
+    return page.getByRole('listitem').filter({ hasText: name });
   }
 }

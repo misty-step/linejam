@@ -1,0 +1,400 @@
+{
+  "direction": "odd-garden",
+  "status": "complete",
+  "verifiedAt": "2026-09-06T23:12:52.593Z",
+  "runtime": {
+    "baseURL": "http://127.0.0.1:4400/odd-garden/",
+    "browser": "Managed Chromium on a dedicated clean CDP connection",
+    "surface": "Offline design exploration only; no production routes, backend, CLI or MCP mutations",
+    "viewportMethod": "Explicit Chromium CSS viewport emulation, deviceScaleFactor 1; not a physical phone"
+  },
+  "coverage": {
+    "inventoryDefaults": {
+      "views": 41,
+      "components": 71,
+      "motion": 25,
+      "sensory": 13,
+      "total": 150,
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "state": "default",
+      "mode": "light",
+      "embed": true,
+      "correctMarkers": 150,
+      "renderedBodies": 150,
+      "horizontalOverflowFailures": 0,
+      "uncaughtPageErrors": 0,
+      "checks": [
+        "Actual navigation and browser observation for every ID",
+        "Correct body surface and surface ID markers",
+        "Rendered main content and available native controls",
+        "Document horizontal overflow",
+        "Uncaught page errors",
+        "Actual screenshot captures, reviewed through contact sheets"
+      ],
+      "reports": [
+        ".qa/renewal-evidence/odd-garden/final-view-inventory.json",
+        ".qa/renewal-evidence/odd-garden/final-component-inventory.json",
+        ".qa/renewal-evidence/odd-garden/final-motion-inventory.json",
+        ".qa/renewal-evidence/odd-garden/final-sensory-inventory.json"
+      ]
+    },
+    "coreViews": {
+      "count": 19,
+      "ids": [
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "public-recap"
+      ],
+      "scenarios": 95,
+      "matrices": [
+        {
+          "viewport": "390x844",
+          "mode": "light",
+          "state": "default",
+          "textScale": "100%",
+          "count": 19,
+          "report": ".qa/renewal-evidence/odd-garden/core-light.json"
+        },
+        {
+          "viewport": "390x844",
+          "mode": "dark",
+          "state": "default",
+          "textScale": "100%",
+          "count": 19,
+          "report": ".qa/renewal-evidence/odd-garden/core-dark.json"
+        },
+        {
+          "viewport": "1440x900",
+          "mode": "light",
+          "state": "default",
+          "textScale": "100%",
+          "count": 19,
+          "report": ".qa/renewal-evidence/odd-garden/core-desktop.json"
+        },
+        {
+          "viewport": "390x844",
+          "mode": "light",
+          "state": "long-text",
+          "textScale": "200% root font size",
+          "count": 19,
+          "report": ".qa/renewal-evidence/odd-garden/text200-light.json"
+        },
+        {
+          "viewport": "390x844",
+          "mode": "dark",
+          "state": "long-text",
+          "textScale": "200% root font size",
+          "count": 19,
+          "report": ".qa/renewal-evidence/odd-garden/text200-dark.json"
+        }
+      ],
+      "horizontalOverflowFailures": 0,
+      "incorrectMarkers": 0,
+      "unfocusedSkipLinkVisibleFailures": 0
+    },
+    "finalRerunScope": "The full 150-default and 95-core matrices were rerendered after the global typography/reflow fixes. After the last localized companion-grid refinement, all 41 views and the avatar, host-page, join-page and profile-page components were revisited; host/join form captures were refreshed in both palettes, and native companion selection was rechecked at 375x667/100% and 390x844/200%. Unaffected motion, sensory, and desktop specimens were not rerun again for that mobile-only grid change."
+  },
+  "manualWriting": {
+    "status": "passed",
+    "viewport": "390x844",
+    "name": "Juniper",
+    "companion": "Twig",
+    "entry": "Native pen-name entry, companion choice, host form and start control; no example-fill shortcut or application-function invocation",
+    "roundTargets": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      4,
+      3,
+      2,
+      1
+    ],
+    "validSubmissions": 9,
+    "invalidWordCountAttemptsBlocked": 9,
+    "acceptedWaitingStates": 9,
+    "nextRoundTransitions": 8,
+    "firstRoundHadNoPreviousLine": true,
+    "subsequentRoundsOnlyShowedImmediatelyPreviousLine": true,
+    "writingAndWaitingNeverShowedWholePoem": true,
+    "completeRevealHadAllNineManuallyEnteredLines": true,
+    "privateRecapPoems": 2,
+    "additionalRecapPoem": "Explicit fictional Tuesday specimen, not another live writer",
+    "manualLines": [
+      "Acorn",
+      "finds spectacles",
+      "beside the mailbox",
+      "where four impatient snails",
+      "are arguing over borrowed umbrellas",
+      "the postman offers tea",
+      "nobody remembers why",
+      "we wave",
+      "Onward"
+    ],
+    "report": ".qa/renewal-evidence/odd-garden/manual-loop.json",
+    "finalLayoutReplay": "The full manual nine-round path was repeated after the typography refinement; complete manual reveal and private recap were recaptured. Reading/recap return controls were activated by native keyboard after pointer/compositor scroll misses."
+  },
+  "interactionChecks": {
+    "entryAndBoundaries": {
+      "whitespaceOnlyNameBlocked": true,
+      "penNameCharacterLimit": 80,
+      "lineCharacterLimit": 500,
+      "overTargetBlocked": true,
+      "overtimeExactTargetStillSubmittable": true,
+      "recoveryPreservedCustomDraft": true,
+      "recoveryPreservedIntentionallyEmptyDraft": true,
+      "pastedNewlineNormalizedOnCommit": true,
+      "joinCodeNormalized": true,
+      "invitationFieldReadOnly": true,
+      "reports": [
+        ".qa/renewal-evidence/odd-garden/entry-proof.json",
+        ".qa/renewal-evidence/odd-garden/boundaries.json",
+        ".qa/renewal-evidence/odd-garden/long-content.json"
+      ]
+    },
+    "longContent": {
+      "completedAdditionalNineRoundPoem": true,
+      "unbrokenCarriedLineCharacters": 500,
+      "normalAnd200PercentDocumentOverflow": 0,
+      "shortViewport": "390x420; native Tab reached Send line and Enter committed the carried-line round",
+      "note": "This resized browser viewport is not a physical on-screen-keyboard test.",
+      "report": ".qa/renewal-evidence/odd-garden/long-content.json"
+    },
+    "keyboardAndModals": {
+      "nativeTabEntry": true,
+      "helpModalInitialFocus": true,
+      "forwardAndReverseFocusContainment": true,
+      "backgroundInertWhileOpen": true,
+      "escapeRestoredTriggerFocus": true,
+      "comfortPaletteControlOperated": true,
+      "modalInternalHorizontalOverflowAt200Percent": 0,
+      "authorShowHideAndRetainedFocus": true,
+      "favoritePressedStateAndRetainedFocus": true,
+      "reports": [
+        ".qa/renewal-evidence/odd-garden/interactions.json",
+        ".qa/renewal-evidence/odd-garden/modal-print-repair.json",
+        ".qa/renewal-evidence/odd-garden/representatives.json"
+      ]
+    },
+    "motion": {
+      "reducedQueryReplaySurfaces": 25,
+      "activeAnimationsAfterReplay": 0,
+      "osReducedMotionWithoutQueryVerified": true,
+      "completePoemStillRendered": true,
+      "report": ".qa/renewal-evidence/odd-garden/reduced-motion.json"
+    },
+    "sound": {
+      "explicitControl": "Comfort sound checkbox, volume range, Play one cue",
+      "observed": [
+        "Sound-off playback remained off",
+        "Enabling sound did not play automatically",
+        "Native range keyboard input changed volume",
+        "Explicit Play one cue reported one soft cue played",
+        "Sound was switched off again"
+      ],
+      "actuallyHeard": false,
+      "limit": "No audible output was heard in this browser session; acoustic quality and loudness are not verified.",
+      "report": ".qa/renewal-evidence/odd-garden/interactions.json"
+    },
+    "presentation": {
+      "viewport": "1440x900",
+      "palettes": [
+        "light",
+        "dark"
+      ],
+      "completePoemLinesVisible": 9,
+      "ninthLineBottomCSSPixels": 750.484375,
+      "poemFontCSSPixels": 28.8,
+      "lobbyAndRevealExitControlsWorked": true,
+      "report": ".qa/renewal-evidence/odd-garden/presentation.json"
+    },
+    "sharingAndExports": {
+      "cancelPrivateReturnedToPoemWithoutPublishing": true,
+      "cancelExistingPublicPreservedPublication": true,
+      "explicitRevokeRemovedPublicationWithoutLosingPoem": true,
+      "recapCancelAndConfirmedReturnWorked": true,
+      "privateUnavailablePublicSurfacesChecked": 4,
+      "privateUnavailablePoemNodes": 0,
+      "publicSpecimensAndDownloadContainedFictionalContent": true,
+      "noRealPublicURLCreated": true,
+      "nativeSvgDownloadSavedAndVisuallyOpenedInChromium": true,
+      "nativePrintButtonBeforeprintObserved": true,
+      "publicPrintPoemLines": 9,
+      "recapPrintPoems": 2,
+      "recapPrintLines": 18,
+      "recapPdfPages": 2,
+      "printExcludedApplicationControlsAndFeedback": true,
+      "printRetainedCompleteAuthorLegend": true,
+      "reports": [
+        ".qa/renewal-evidence/odd-garden/privacy-and-export.json",
+        ".qa/renewal-evidence/odd-garden/print-specimen.json"
+      ],
+      "artifacts": [
+        ".qa/renewal-evidence/odd-garden/downloads/linejam-odd-garden-synthetic-poem.svg",
+        ".qa/renewal-evidence/odd-garden/public-poem-print.pdf",
+        ".qa/renewal-evidence/odd-garden/recap-print-specimen.pdf"
+      ]
+    },
+    "companionGrid": {
+      "viewport100": "375x667: four options in one row, no label or document overflow",
+      "viewport200": "390x844: two readable columns, no label or document overflow",
+      "nativeKeyboardSelectionChangedPressedState": true,
+      "report": ".qa/renewal-evidence/odd-garden/avatar-layout.json"
+    }
+  },
+  "fixes": [
+    {
+      "files": [
+        "style.css"
+      ],
+      "issue": "Mobile headings and enlarged-text panel insets dominated the phone and broke ordinary words.",
+      "change": "Restrained responsive heading sizes and insets keep writing/reading primary while allowing actual 200% text reflow.",
+      "proof": "All 19 core views in both palettes at 200% text; final contact sheets visually inspected."
+    },
+    {
+      "files": [
+        "style.css"
+      ],
+      "issue": "Long writer names, archive statistics and header content produced horizontal overflow; the unfocused skip link appeared at 200% text.",
+      "change": "Permit relevant flex groups to wrap, allow shrinkable text children, and hide the skip link by its own full height.",
+      "proof": "95 core compositions have zero document overflow and a hidden unfocused skip link."
+    },
+    {
+      "files": [
+        "style.css"
+      ],
+      "issue": "A 500-character unbroken carried line expanded the writing page by 3727 CSS pixels.",
+      "change": "Allow the previous-line block to shrink and wrap unbroken content.",
+      "proof": "The same carried line has zero horizontal overflow at normal and 200% text, and remains submittable through a short viewport."
+    },
+    {
+      "files": [
+        "style.css"
+      ],
+      "issue": "Reading controls preceded the actual poem on a phone; the desktop reveal pushed the ninth line below a 900px screen.",
+      "change": "Place the poem before the reader rail on mobile and compact presentation framing while retaining readable poem type.",
+      "proof": "Actual complete manual-poem screenshots and both desktop presentation palettes; all nine desktop lines end above 751px."
+    },
+    {
+      "files": [
+        "style.css"
+      ],
+      "issue": "The enlarged comfort modal overflowed internally and its floated close control squeezed the heading.",
+      "change": "Give modal controls shrinkable/wrapping layouts, a separate close row and appropriately scaled heading.",
+      "proof": "Internal modal overflow is zero at 200%; palette selection, focus containment and Escape return still work."
+    },
+    {
+      "files": [
+        "prototype.js"
+      ],
+      "issue": "Substring state matching interpreted recovery and overtime as the over-target fixture; editing a fixture draft did not take ownership before recovery.",
+      "change": "Use exact or hyphen-prefixed state matching and mark real line editing as manual draft ownership.",
+      "proof": "Custom and explicitly emptied drafts survive recovery; a 6/3 line is blocked while exact-target overtime remains enabled."
+    },
+    {
+      "files": [
+        "prototype.js",
+        "direction.json"
+      ],
+      "issue": "Cancel sharing stranded the reader in confirmation and could discard an already-public preview state.",
+      "change": "Return cancellation to its owning poem/recap without changing visibility, keep explicit revocation separate, and provide success return controls.",
+      "proof": "Private cancel, already-public cancel, deliberate revoke and both recap return paths were exercised."
+    },
+    {
+      "files": [
+        "prototype.js"
+      ],
+      "issue": "Public specimen/export helpers could fall through to manually completed private sketch data.",
+      "change": "Select public synthetic poems and fictional author names explicitly in public rendering and image export.",
+      "proof": "Public and unavailable/private fixtures inspected; actual downloaded SVG contains only the fictional public poem and authors. This is not a production authorization claim."
+    },
+    {
+      "files": [
+        "prototype.js",
+        "style.css",
+        "direction.json"
+      ],
+      "issue": "Print included application heading/download feedback and crowded inline author labels; the isolated recap print control contained no printable poems.",
+      "change": "Exclude screen controls and feedback from print, preserve the complete author legend, and give the isolated print control two explicit fictional print-only specimens.",
+      "proof": "Actual browser-generated one-poem PDF and two-page/two-poem recap PDF were visually inspected, with 9 and 18 lines respectively."
+    },
+    {
+      "files": [
+        "style.css"
+      ],
+      "issue": "The companion picker wrapped its fourth option onto an unnecessary second row at 375px.",
+      "change": "Use a mobile responsive grid with rem-sized minimum cells so normal text fits four options while enlarged text reflows to two columns.",
+      "proof": "Native Twig selection and zero option/document overflow verified at 375px/100% and 390px/200%."
+    }
+  ],
+  "screenshots": {
+    "representative": {
+      "home": ".qa/renewal-evidence/odd-garden/home-light-390.png",
+      "darkHome": ".qa/renewal-evidence/odd-garden/home-dark-390.png",
+      "writing": ".qa/renewal-evidence/odd-garden/writing-round-five-390.png",
+      "darkWriting": ".qa/renewal-evidence/odd-garden/writing-dark-390.png",
+      "completeManualPoem": ".qa/renewal-evidence/odd-garden/complete-manual-poem-390.png",
+      "privateManualRecap": ".qa/renewal-evidence/odd-garden/private-manual-recap-390.png",
+      "componentShowcase": ".qa/renewal-evidence/odd-garden/component-contact-1.jpg",
+      "printAndAccountComponents": ".qa/renewal-evidence/odd-garden/component-contact-4.jpg",
+      "enlargedCore": ".qa/renewal-evidence/odd-garden/text200-dark-contact-1.jpg",
+      "enlargedReading": ".qa/renewal-evidence/odd-garden/text200-light-contact-2.jpg",
+      "comfort": ".qa/renewal-evidence/odd-garden/comfort-dark-text200-390.png",
+      "presentation": ".qa/renewal-evidence/odd-garden/reveal-presentation-light-1440.png",
+      "darkPresentation": ".qa/renewal-evidence/odd-garden/reveal-presentation-dark-1440.png",
+      "downloadedArtifact": ".qa/renewal-evidence/odd-garden/downloaded-svg-chromium.png",
+      "recapPrintPageOne": ".qa/renewal-evidence/odd-garden/recap-print-pdf-preview.png",
+      "recapPrintPageTwo": ".qa/renewal-evidence/odd-garden/recap-print-pdf-page-two.png",
+      "enlargedCompanion": ".qa/renewal-evidence/odd-garden/avatar-picker-200.png"
+    },
+    "contactSheets": {
+      "view": 4,
+      "component": 6,
+      "motion": 3,
+      "sensory": 2,
+      "coreLight": 2,
+      "coreDark": 2,
+      "coreDesktop": 2,
+      "text200Light": 2,
+      "text200Dark": 2,
+      "total": 25
+    },
+    "perIdCaptures": ".qa/renewal-evidence/odd-garden/captures/",
+    "sanitization": "Only invented fixture people, fictional poems, and explicitly typed Juniper/Acorn boundary inputs. No real user/session data."
+  },
+  "failures": [],
+  "unexercisedLimits": [
+    "This is a standalone offline proposal, not a live room, multiplayer synchronization, authentication, account migration, backend persistence or production privacy/authorization verification.",
+    "Every inventory ID was inspected in its default state. Selected boundary states and the 19 core long-text states were exercised; every possible state/viewport combination was not exhaustively tested.",
+    "No physical phone, touch gesture, hardware safe-area behavior or real on-screen keyboard was exercised. The short-viewport check used native keyboard input in desktop Chromium.",
+    "Sound controls and an explicit cue request were exercised, but no audio was actually heard. Acoustic character, loudness and external-device playback remain unverified.",
+    "Native SVG download and browser PDF output were verified. OS share sheets, a completed native print dialog and physical printer output were not.",
+    "Cross-browser and real production font-loading/network failure behavior were not exercised. Bundled local assets were used."
+  ],
+  "toolingNotes": [
+    "The shared browser and direct click helper were unreliable during this session. A dedicated clean CDP tab, measured native mouse input and native keyboard activation were used instead. No application-function calls or synthetic DOM click dispatch were used to advance the manual game.",
+    "After full-page captures, some pointer activations missed during compositor scrolling. Those attempts were not counted as successful; observable native-keyboard returns and separate author-toggle checks supplied the proof.",
+    "A scrolled full-page screenshot painted the otherwise offscreen fixed skip link over form content. Actual viewport metrics placed its bottom at zero and retained keyboard focus on Twig. The enlarged companion screenshot was recaptured from document scroll position zero."
+  ],
+  "repositoryGates": "No builds, formatters, linters, unit tests or project-wide suites run by this worker. Main owns the final repository gates."
+}

@@ -74,20 +74,21 @@ Hybrid auth pattern:
 
 ### 4. UI Layer (`app/`, `components/`, `lib/design/`, `lib/colorMode/`)
 
-**Owns**: Rendering, the fixed Ink & Anticipation identity, color-mode control, and user interactions.
+**Owns**: Rendering, the single visual identity, color-mode control, and user interactions.
 
 `app/layout.tsx` is a server component: it reads the middleware nonce and emits the first-paint color-mode script. Interactive game surfaces are client components, and Convex hooks handle their data fetching and real-time sync.
 
 `lib/design/tokens.ts` is the source of truth for the identity's token sets. `lib/colorMode/` exposes `ColorModeProvider`, `useColorMode`, `applyColorMode`, `getAppliedColorMode`, and the `linejam-theme-mode` storage key. `ColorModeControl` offers the only appearance choice: Light, Dark, or System; System follows `prefers-color-scheme`. There is no theme registry, picker roster, theme ID, or retained-theme compatibility state. The static marketing site (`site/`) consumes the same token tables through generated `site/tokens.css`.
 
-#### Fixed identity palette
+#### Identity palette
 
 | Effective mode | Action    | Focus     | Background | Surface   | Ink       |
 | -------------- | --------- | --------- | ---------- | --------- | --------- |
-| Light          | `#b43a12` | `#e85d2b` | `#faf9f7`  | `#ffffff` | `#1c1917` |
-| Dark           | `#f06b3b` | `#e85d2b` | `#1c1917`  | `#292524` | `#faf9f7` |
+| Light          | `#672cb5` | `#672cb5` | `#eee8ff`  | `#ffffff` | `#39234e` |
+| Dark           | `#d5b5ff` | `#d5b5ff` | `#23172f`  | `#33223f` | `#f7f1ff` |
 
-Typography is fixed as Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels.
+Typography is DynaPuff for the wordmark and arrival headings, and Nunito Sans for
+interface text, functional headings and complete poems.
 
 ## Data Flow
 

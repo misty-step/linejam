@@ -198,7 +198,6 @@ describe('PoemDetail', () => {
         ],
         metadata: expect.objectContaining({
           backHref: '/me/poems',
-          backLabel: '← Archive',
           createdAt: 1234,
           firstLine: 'first line',
           isFavorited: true,
@@ -240,7 +239,6 @@ describe('PoemDetail', () => {
         allStableIds: ['public-ada'],
         metadata: expect.objectContaining({
           backHref: '/',
-          backLabel: '← Linejam',
           firstLine: 'public first line',
           isFavorited: false,
           isParticipant: false,

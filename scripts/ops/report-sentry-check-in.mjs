@@ -254,10 +254,7 @@ export async function reportSentryWorkflow({
   if (!runtimeOptions.release) {
     throw new Error('NEXT_DEPLOYMENT_ID is required for Sentry reporting');
   }
-  if (
-    plan.kind === 'check_in' &&
-    runtimeOptions.environment !== 'production'
-  ) {
+  if (plan.kind === 'check_in' && runtimeOptions.environment !== 'production') {
     throw new Error(
       `The ${monitorSlug} monitor only accepts production check-ins; ` +
         `a ${runtimeOptions.environment} check-in would seed a permanent ` +

@@ -1,0 +1,803 @@
+{
+  "findings": [
+    {
+      "id": "operator-noisy-views",
+      "area": "Whole product",
+      "sources": [],
+      "observation": "Operator reports that pages and views are too noisy. This is accepted ground truth, not a hypothesis to falsify.",
+      "consequence": "The renewal must materially improve visual hierarchy rather than merely repaint the same density.",
+      "recommendation": "Each of the five directions must decide a primary task for every view, reduce competing controls/labels and retain purposeful fun rather than strip the game bare.",
+      "evidence": "operator",
+      "verify": "Main: capture representative existing surfaces to localize contributors, then compare redesigned hierarchy; do not ask screenshots to disprove the operator."
+    },
+    {
+      "id": "operator-component-quality",
+      "area": "Components",
+      "sources": [],
+      "observation": "Operator reports that components are ugly.",
+      "consequence": "Token-only changes without new component craft will not satisfy the brief.",
+      "recommendation": "Reconsider shape, states, affordances, iconography, avatar language and composition across every actual component ID; include loading/error/empty states.",
+      "evidence": "operator",
+      "verify": "Main: inspect all shared primitives and their real compositions in five directions, not isolated button swatches only."
+    },
+    {
+      "id": "operator-motion-quality",
+      "area": "Animation and transitions",
+      "sources": [],
+      "observation": "Operator reports that animations are awkward or missing.",
+      "consequence": "Both noisy effects and missing transition meaning need attention; adding more animation everywhere is not the answer.",
+      "recommendation": "Give each meaningful action/phase change one clear response and specify timing, interruption, reduced-motion and silent alternatives per motion ID.",
+      "evidence": "operator",
+      "verify": "Main: record start/join, valid-word threshold, submit/wait, reveal/Done, heart/crown, rematch and recovery transitions."
+    },
+    {
+      "id": "operator-type-sizing",
+      "area": "Typography",
+      "sources": [],
+      "observation": "Operator reports text that is too big or too small.",
+      "consequence": "Existing nominal type classes cannot be treated as a validated hierarchy.",
+      "recommendation": "Establish role-based type sizes for handheld play, reading, shared-screen presentation and utility information; use real long human content.",
+      "evidence": "operator",
+      "verify": "Main: compare computed type sizes and readability at narrow widths, shared-display distance and 200% text."
+    },
+    {
+      "id": "operator-spacing",
+      "area": "Spacing and composition",
+      "sources": [],
+      "observation": "Operator reports spacing is wrong.",
+      "consequence": "Preserving current whitespace laws mechanically would contradict the request.",
+      "recommendation": "Recompose spacing around related tasks and responsive constraints rather than uniformly increasing or decreasing padding.",
+      "evidence": "operator",
+      "verify": "Main: inspect content-to-action distance, scroll depth, textarea/keyboard geometry and actual vertical rhythm."
+    },
+    {
+      "id": "operator-reopened-brand",
+      "area": "Identity and scope",
+      "sources": [],
+      "observation": "Operator explicitly reopens logo, typography, colors/themes, avatars/images/sounds, view flows/workflows and historical DESIGN.md identity/layout constraints. Requires five whole-product directions and treatment of every view/component/composition/animation.",
+      "consequence": "Existing Ink & Anticipation rules are historical source context, not mandatory visual acceptance criteria.",
+      "recommendation": "Preserve core mechanics, privacy, human attribution, guest access, mobile and accessibility obligations only; allow five genuinely different identities.",
+      "evidence": "operator",
+      "verify": "Main: reject any direction that keeps historical aesthetics solely because code comments call them laws."
+    },
+    {
+      "id": "operator-playful-not-spartan",
+      "area": "Emotional tone",
+      "sources": [],
+      "observation": "Operator wants fun, whimsy and delight grounded in proven game principles, with simplicity/elegance but not austerity, Spartan or business-app styling.",
+      "consequence": "Noise reduction must not erase the social surprise and pleasure of the game.",
+      "recommendation": "Concentrate delight at meaningful group moments, playful identity and authored artifacts; keep utilitarian repair states calm and clear.",
+      "evidence": "operator",
+      "verify": "Main: evaluate emotional distinction during complete gameplay, not just marketing screenshots."
+    },
+    {
+      "id": "mechanics-are-not-aesthetic-locks",
+      "area": "Game and privacy invariants",
+      "sources": [
+        "convex/lib/gameRules.ts",
+        "components/WritingScreen.tsx",
+        "components/WaitingScreen.tsx",
+        "components/RevealPhase.tsx",
+        "hooks/useSharePoem.ts"
+      ],
+      "observation": "Source fixes the nine word targets, hidden carried-line writing, current-game matrix fairness for late joiners, soft timer, human reading and explicit share activation. These are independent of paper/seal/editorial styling.",
+      "consequence": "Conflating mechanics with current visual metaphors would constrain exploration unnecessarily, while casually changing them would exceed scope.",
+      "recommendation": "Keep the same state machine and permissions beneath new compositions; treat every alternate flow as presentation of existing actions, not new scoring, AI authorship, line skipping or voting rules.",
+      "evidence": "source",
+      "verify": "Main: exercise nine rounds, late join, reveal authority and canceled/private sharing in the isolated local runtime."
+    },
+    {
+      "id": "typography-semantic-scale-collision",
+      "area": "Shared tokens and type hierarchy",
+      "sources": [
+        "lib/design/tokens.ts",
+        "app/globals.css",
+        "components/WritingScreen.tsx",
+        "components/WaitingScreen.tsx",
+        "app/host/page.tsx",
+        "app/join/JoinPage.tsx"
+      ],
+      "observation": "Tailwind text tokens are rebound to a custom scale (lg 1.333rem, xl 1.777rem, 3xl 3.157rem, 5xl 5.61rem), while templates also use larger stock classes, clamp values and arbitrary pixel sizes.",
+      "consequence": "Source class names can hide unexpectedly large jumps; identical nominal roles have several sizing systems. Actual resulting sizes require compiled/browser evidence.",
+      "recommendation": "Use one explicit role scale per responsive context; reserve truly huge type for the projected stage or a deliberate hero, not routine status and form copy.",
+      "evidence": "source",
+      "verify": "Main: collect computed font-size/line-height for home title, host/join title, waiting heading, textarea, buttons, help body and metadata at 320/390/768/1440px."
+    },
+    {
+      "id": "metadata-overdecoration",
+      "area": "Labels and visual hierarchy",
+      "sources": [
+        "components/ui/Label.tsx",
+        "components/RoomChrome.tsx",
+        "components/Lobby.tsx",
+        "components/RevealPhase.tsx",
+        "components/SessionRecapHub.tsx",
+        "components/Footer.tsx"
+      ],
+      "observation": "Tracked uppercase mono labels, numbered poem metadata, borders, chips and dividers repeat across chrome, cards and footers; several labels use 10px or smaller values.",
+      "consequence": "Likely contributors to the reported noise and too-small secondary text; labels can consume more attention and width than their information earns.",
+      "recommendation": "Prefer sentence case and grouped human-readable information; retain numbers only for meaningful round/reading order and keep accessible state labels explicit.",
+      "evidence": "source",
+      "verify": "Main: count competing labels in lobby/reveal/recap screenshots and inspect at text zoom; this source observation is not a rendered contrast verdict."
+    },
+    {
+      "id": "layered-material-noise",
+      "area": "Global surfaces and chrome",
+      "sources": [
+        "app/globals.css",
+        "lib/design/tokens.ts",
+        "components/RoomChrome.tsx",
+        "components/Lobby.tsx",
+        "components/WritingScreen.tsx",
+        "app/not-found.tsx"
+      ],
+      "observation": "The app combines global grain, offset accent shadows, repeated thin borders, blurred translucent trays and local accent tints; 404 adds its own grain/blur.",
+      "consequence": "Many material cues can compete with human poem content even when each is individually subtle.",
+      "recommendation": "Each direction should select one coherent depth/material grammar and use stronger treatment only for state or primary action. Texture is optional, not part of the mechanics.",
+      "evidence": "source",
+      "verify": "Main: inspect light/dark screenshots on ordinary and high-density displays, including flat areas and body copy over texture."
+    },
+    {
+      "id": "undefined-radius-token",
+      "area": "Shared token coherence",
+      "sources": [
+        "lib/design/tokens.ts",
+        "components/Lobby.tsx",
+        "components/RoomChrome.tsx"
+      ],
+      "observation": "Lobby and room chrome reference --radius-xl, but the inspected design token tables define sm/md/lg/full and no xl.",
+      "consequence": "Intended grouping shapes may silently resolve differently than designers assume; current class names alone cannot certify radius.",
+      "recommendation": "Choose a complete role-based shape system and remove unowned token references during the selected implementation, rather than preserve accidental fallback geometry.",
+      "evidence": "source",
+      "verify": "Main: inspect computed border-radius on lobby panels/chrome; inventory is source-grounded and does not assert current pixels."
+    },
+    {
+      "id": "lobby-repeated-room-status",
+      "area": "Lobby hierarchy",
+      "sources": [
+        "components/Lobby.tsx",
+        "components/RoomChrome.tsx",
+        "lib/roomChromeCopy.ts"
+      ],
+      "observation": "Room identity appears in chrome and a large room-code card; player quantity appears as readiness copy, seats, roster count and start-button requirement; join QR is available through both chrome and tools.",
+      "consequence": "Duplicated navigation/status may contribute to noise and reduce space for names/readiness.",
+      "recommendation": "Explore one dominant shared code/readiness composition and quieter optional tools, while keeping QR/code/share reachable and 2–8-player readiness visible.",
+      "evidence": "source",
+      "verify": "Main: inspect host and nonhost lobbies with 1, 2 and 8 players, tools open, longest names and text zoom."
+    },
+    {
+      "id": "entry-composition-divergence",
+      "area": "Host and join workflow",
+      "sources": [
+        "app/host/page.tsx",
+        "app/join/JoinPage.tsx",
+        "components/FocusedEntryAppearance.tsx"
+      ],
+      "observation": "Host uses a left-aligned scroll frame and persistent action zone; Join uses a right-aligned title/card and ordinary page flow. Labels vary among Host Identity, Your Name, Session, Room and Game.",
+      "consequence": "People moving between create/join may have to relearn alignment, vocabulary and where the main action lives.",
+      "recommendation": "Use coherent naming and entry geometry unless a direction has a deliberate task-based reason to differ; keep invite-prefilled code and name focus behavior.",
+      "evidence": "source",
+      "verify": "Main: walk home→host and home/invite→join on real mobile keyboard surfaces and compare action reachability."
+    },
+    {
+      "id": "writing-spacing-and-size",
+      "area": "Writing composition",
+      "sources": [
+        "components/WritingScreen.tsx"
+      ],
+      "observation": "Desktop writing uses min-height 320/360px textarea, large type, md spacing up to 64px between related blocks and an 80px submit button. The carried line and a large editable line share the same display-font language.",
+      "consequence": "Likely contributors to excessive empty space and weak received-versus-authored hierarchy, especially for the one-word rounds; mobile has a separate compressed rhythm.",
+      "recommendation": "Design carried context, input and constraint as one deliberate task unit with proportional spacing; make word-one and word-five rounds both feel intentional without inflating short content.",
+      "evidence": "source",
+      "verify": "Main: screenshot blank, one-word, five-word and longest-valid lines; inspect distance to slots and Submit before/after keyboard opening."
+    },
+    {
+      "id": "nested-scroll-and-action-geometry",
+      "area": "Mobile viewport lifecycle",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "components/WaitingScreen.tsx",
+        "components/Lobby.tsx",
+        "app/host/page.tsx",
+        "hooks/useVisualViewport.ts",
+        "app/globals.css"
+      ],
+      "observation": "Several phases use clipped viewport frames with separately scrollable body/action zones; WaitingScreen nests another full-height scroll area and min-h-full headline block.",
+      "consequence": "Functional anti-keyboard-overlap work can create awkward nested scroll, unreachable content or large empty stretches; source alone cannot determine the rendered result.",
+      "recommendation": "Keep main action in a reachable in-flow tray but minimize independent scroll regions and give the primary task a simple reading order. Preserve safe areas and VisualViewport handling.",
+      "evidence": "source",
+      "verify": "Main: actual phone keyboard, landscape, 200% text, short viewport, long errors and open menu; inspect scroll chaining and focused element visibility."
+    },
+    {
+      "id": "word-chip-long-token-pressure",
+      "area": "Word-count feedback",
+      "sources": [
+        "components/ui/WordSlots.tsx",
+        "components/WritingScreen.tsx"
+      ],
+      "observation": "Filled chips use whitespace-nowrap and grow to the whole word; overflow-x is hidden on writing containers. Inputs allow up to 500 characters and word targets count whitespace, not character width.",
+      "consequence": "A single extremely long human token can be wider than the phone, and source containment may clip the constraint representation; not a rendered claim.",
+      "recommendation": "Give long words a legible wrap strategy within the selected direction while preserving exact text and whitespace tokenization. Keep over-target status readable without flooding chips.",
+      "evidence": "source",
+      "verify": "Main: use ordinary long words and a boundary-length unbroken token in local writing; inspect chips, textarea, target status and action tray at 320px."
+    },
+    {
+      "id": "word-counter-help-mismatch",
+      "area": "Instructional coherence",
+      "sources": [
+        "components/HelpModal.tsx",
+        "components/ui/WordSlots.tsx",
+        "components/WritingScreen.tsx"
+      ],
+      "observation": "Help describes squares filling and sealing a line, while the active writer supplies text chips containing words and labels the action Submit.",
+      "consequence": "A new player may look for an outdated visual cue or different action name.",
+      "recommendation": "Align help examples, coachmark, live constraint and action verb to the selected direction; retain exact target counts and blind collaboration.",
+      "evidence": "source",
+      "verify": "Main: first-use play without prior product knowledge; compare the help description to the live valid/overflow states."
+    },
+    {
+      "id": "placeholder-and-state-contrast",
+      "area": "Writing contrast and disabled feedback",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "components/ui/Button.tsx",
+        "app/globals.css",
+        "lib/design/contract.ts"
+      ],
+      "observation": "Writing requests placeholder:text-text-muted/20 but global ::placeholder forces muted color/opacity; disabled buttons combine grayscale and brightness changes; contrast contract covers flat token pairs, not every alpha/filter composition.",
+      "consequence": "Computed placeholder and disabled contrast can differ from token-table expectations; color-only state emphasis may be ambiguous.",
+      "recommendation": "Check actual composited colors for all states and use form labels/text/state shape alongside color. Keep essential placeholder/instructions on a readable floor.",
+      "evidence": "source",
+      "verify": "Main: inspect computed placeholder/disabled values and rendered contrast in both modes, including ready/not-ready states and translucent trays."
+    },
+    {
+      "id": "timer-softness-and-perception",
+      "area": "Soft round clock",
+      "sources": [
+        "components/ui/RoundClock.tsx",
+        "hooks/useRoundClock.ts",
+        "convex/lib/gameRules.ts"
+      ],
+      "observation": "Clock is a decorative 2px shrinking line, last-quarter accent, then full-width low-opacity line on overtime; it is aria-hidden and never gates submission.",
+      "consequence": "People may interpret the reset-to-full bar as time renewed or miss the pacing cue entirely; motion/sensory changes must not turn it into a punitive countdown.",
+      "recommendation": "Choose a clearer but still gentle pacing vocabulary and make the absence of a hard deadline apparent without adding new gameplay timing rules.",
+      "evidence": "source",
+      "verify": "Main: watch 90-second normal→warm→overtime transition in both motion modes with active and waiting users."
+    },
+    {
+      "id": "waiting-hierarchy-and-liveness",
+      "area": "Waiting and completion",
+      "sources": [
+        "components/WaitingScreen.tsx",
+        "components/ConnectionStatus.tsx"
+      ],
+      "observation": "Waiting repeats progress in headline/count/segments/names/avatar treatments; submitted names become struck through, while away and watching markers use small text and multiple opacity reductions.",
+      "consequence": "A fulfilled social contribution can read as crossed-out/absent, and status differences may blur on small screens.",
+      "recommendation": "Give contributed/writing/away/watching distinct positive, understandable states with one primary progress signal; retain names and privacy rather than hide uncertainty behind ambient animation.",
+      "evidence": "source",
+      "verify": "Main: compare 2/8-player waiting, mixed away/spectators and all-ready moments on handheld and shared screens."
+    },
+    {
+      "id": "host-migration-is-implicit",
+      "area": "Leavers, fallback readers and host migration",
+      "sources": [
+        "hooks/usePresence.ts",
+        "convex/presence.ts",
+        "convex/lib/gameRules.ts",
+        "components/Lobby.tsx",
+        "components/WaitingScreen.tsx",
+        "components/RevealPhase.tsx"
+      ],
+      "observation": "Presence heartbeats run every 15s; away threshold is 45s and stale-host threshold 60s. Frontend reacts to isHost and fallback-reader authority but has no distinct host-handoff notice.",
+      "consequence": "A new host or fallback reader can acquire responsibility without an obvious explanation; a briefly absent person and a leaver can look similar.",
+      "recommendation": "Design role transitions and step-in copy within existing server authority; keep the group moving without adding voting/ownership mechanics.",
+      "evidence": "source",
+      "verify": "Main: simulate host absence and reader fallback only locally, then inspect newly available controls, status language and assistive announcements."
+    },
+    {
+      "id": "late-join-state-needs-dignity",
+      "area": "Spectator experience",
+      "sources": [
+        "components/WritingScreen.tsx",
+        "components/WaitingScreen.tsx",
+        "convex/lib/gameRules.ts"
+      ],
+      "observation": "Late join gets no current assignment and sees You are watching this game; next-game promise is in WaitingScreen. Spectators count as room people but are excluded from round completion.",
+      "consequence": "A redesign focused only on writer screens could leave real joiners confused or accidentally change fairness by assigning retroactive work.",
+      "recommendation": "Provide a clear low-noise spectator identity, current-phase orientation and promise of the next existing game; do not expose hidden text or add side activities/mechanics.",
+      "evidence": "source",
+      "verify": "Main: join during a middle round, watch through reveal and participate in rematch; inspect every transition."
+    },
+    {
+      "id": "closed-room-conflation",
+      "area": "Room unavailable recovery",
+      "sources": [
+        "convex/rooms.ts",
+        "app/room/[code]/RoomPage.tsx",
+        "components/Lobby.tsx"
+      ],
+      "observation": "Closing the lobby removes participant rows; getRoomState null also represents wrong/expired code, no identity or no membership. UI currently calls all of these Room not found.",
+      "consequence": "A person whose host closed the room may receive an explanation that blames their code, while designs could mistakenly invent a distinct CLOSED component.",
+      "recommendation": "Explore access-safe context and clear return/join actions while acknowledging the current shared branch; any differentiated explanation must respect data the client actually has.",
+      "evidence": "source",
+      "verify": "Main: close a local lobby with a second browser present, then revisit as leaver/nonmember and inspect state/copy without remote gameplay."
+    },
+    {
+      "id": "lobby-action-feedback",
+      "area": "Lobby start, close and leave feedback",
+      "sources": [
+        "components/Lobby.tsx"
+      ],
+      "observation": "Start/leave/close actions await mutations but the component has no submitting/pending state; close/leave are immediately invoked by buttons.",
+      "consequence": "An action can feel unacknowledged during delay and the destructive scope of Close room is easy to miss beside ordinary navigation.",
+      "recommendation": "Specify disabled/busy and consequence-aware presentation for the existing actions in each direction; do not invent new termination rules.",
+      "evidence": "source",
+      "verify": "Main: inspect slow local mutation responses and compare host Close room with participant Leave room labels/feedback."
+    },
+    {
+      "id": "reveal-read-versus-revealed",
+      "area": "Reading ceremony semantics",
+      "sources": [
+        "components/RevealPhase.tsx",
+        "components/stage/RevealStage.tsx"
+      ],
+      "observation": "Reading-circle Read status is driven by isRevealed, while the reader presses Reveal & Read before reading the displayed poem. Reading now is first unrevealed, not a transmitted start/finish performance state.",
+      "consequence": "The board can imply a reading is complete or a different person is reading while a poem is still being read aloud.",
+      "recommendation": "Use labels and visual hierarchy faithful to available revealed/assigned state, and differentiate stage-local Finish from shared reveal status. Do not add a new synchronization mechanic as a visual fix.",
+      "evidence": "source",
+      "verify": "Main: keep one poem open on reader while observing another device; record circle labels before reveal, during aloud reading, after Done and during reread."
+    },
+    {
+      "id": "reveal-to-recap-weight",
+      "area": "Reveal and recap information architecture",
+      "sources": [
+        "components/RevealPhase.tsx",
+        "components/SessionRecapHub.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "observation": "All-revealed recap is appended below assignment/reread/presentation/reading-circle content. Poem overlay footer offers heart, sharing, save and Done; recap offers share, rematch, lobby and exit.",
+      "consequence": "The group’s next social action may compete with archival/publishing utilities, and recap can be below a substantial scroll stack.",
+      "recommendation": "Separate the primary read/continue rhythm from optional keeping/sharing, with a clearly visible completion moment using existing actions and no forced publication.",
+      "evidence": "source",
+      "verify": "Main: finish the last poem on phone and desktop, close it and locate recap/rematch without hunting; compare primary versus secondary visual weight."
+    },
+    {
+      "id": "avatar-expression-and-distance",
+      "area": "Player identity",
+      "sources": [
+        "components/ui/Avatar.tsx",
+        "components/stage/LobbyStage.tsx",
+        "components/stage/RevealStage.tsx",
+        "lib/avatarColor.ts",
+        "components/archive/AuthorDots.tsx"
+      ],
+      "observation": "Avatar sizes range 8–20px even when stage names become many rem tall; palette collision resolution is room-relative and compact contributor dots show generic titles rather than names.",
+      "consequence": "Tiny color-only marks offer little social personality and limited distance recognition; color distinction is not a substitute for names.",
+      "recommendation": "Explore expressive stable avatars/shapes with name pairing, multi-mode contrast and restrained motion; preserve attribution and do not make account photos mandatory.",
+      "evidence": "source",
+      "verify": "Main: inspect 8 players on stage, both color modes and color-vision simulation; verify names remain primary and identical across phases."
+    },
+    {
+      "id": "crown-semantic-collision",
+      "area": "Authority and celebration",
+      "sources": [
+        "components/ui/HostBadge.tsx",
+        "components/SessionRecapHub.tsx"
+      ],
+      "observation": "A crown denotes the host in the lobby and the room-favorite poem in recap.",
+      "consequence": "The same symbol mixes authority and celebration, particularly if new directions make it the dominant motif.",
+      "recommendation": "Give host role and favorite celebration distinct visual grammars or clear contextual labels; do not add a new ranking system.",
+      "evidence": "source",
+      "verify": "Main: compare roster and recap recognition without explanatory copy from the design author."
+    },
+    {
+      "id": "favorite-feedback-divergence",
+      "area": "Favorite controls",
+      "sources": [
+        "components/archive/PoemCard.tsx",
+        "components/ui/HeartButton.tsx",
+        "app/poem/[id]/PoemDetail.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "observation": "Archive uses optimistic local favorite state with silent rollback; reveal HeartButton uses reactive query state and logs failure; detail invokes mutation through a plain icon button. Only HeartButton has aria-pressed.",
+      "consequence": "One action has inconsistent pending/error/pressed feedback, making reliability hard to read and reducing accessibility consistency.",
+      "recommendation": "Unify observable favorite semantics and clear recovery feedback within the chosen design; use reversible positive acknowledgment, not a new scoring action.",
+      "evidence": "source",
+      "verify": "Main: favorite/unfavorite across archive, detail and reveal, then inspect local failure and keyboard/screen-reader state without external writes."
+    },
+    {
+      "id": "archive-card-nested-interactions",
+      "area": "Archive card interaction",
+      "sources": [
+        "components/archive/PoemCard.tsx"
+      ],
+      "observation": "PoemCard wraps an article in a Link but nests favorite and public-revoke buttons inside it; hover reveals arrow/line-count details through mouse-only state.",
+      "consequence": "Nested interactive elements and hover-only detail complicate touch/keyboard intent and may make accidental navigation more likely.",
+      "recommendation": "Define a clear primary read target and separate named utility targets, with equivalent focus/touch information and a 44px floor where actions matter.",
+      "evidence": "source",
+      "verify": "Main: keyboard Tab/Enter/Space, touch favorite/revoke, and click card text; inspect focus order and whether one action unexpectedly navigates."
+    },
+    {
+      "id": "archive-density-and-order",
+      "area": "Archive composition",
+      "sources": [
+        "app/me/poems/page.tsx",
+        "components/archive/ArchiveStats.tsx",
+        "components/archive/PoemCard.tsx",
+        "components/archive/ArchiveInfoStrip.tsx"
+      ],
+      "observation": "Four vertical stats precede a preservation/reveal info strip and featured-first gallery; favorite sort promotes one poem and uses larger card treatment, while each card repeats silhouette/count/coauthors/dots/date.",
+      "consequence": "Collection browsing can give inventory metadata more weight than poetry and obscure why a card is featured; source does not prove a user-visible layout failure.",
+      "recommendation": "Decide whether the collection is primarily reading, memories or saved favorites, and organize existing data accordingly. Do not add filters/search simply because an unused filtered empty state exists.",
+      "evidence": "source",
+      "verify": "Main: inspect empty, one-poem and many-poem archives for guest/account, favorites and long previews in every responsive grid."
+    },
+    {
+      "id": "poem-reading-gutters-and-attribution",
+      "area": "Poem detail and reveal readability",
+      "sources": [
+        "components/PoemDisplay.tsx"
+      ],
+      "observation": "Each line reserves a number gutter plus 2.75rem author gutter; author names are absolutely positioned below the line, shown for only 2s. Archive also has full contributor legend and first-line teaser before full text.",
+      "consequence": "Fixed gutters reduce narrow reading width; transient names can overlap next lines or be missed, and duplicate teaser/full first line can dilute the artifact.",
+      "recommendation": "Prioritize an uninterrupted whole poem, with accessible persistent-on-request authorship and compact contextual identity. Preserve every human contributor, not the current margin construction.",
+      "evidence": "source",
+      "verify": "Main: view all nine lines with maximum practical human content, select first/last author markers, use keyboard and screen reader, and inspect 320px plus zoom."
+    },
+    {
+      "id": "outsider-share-controls",
+      "area": "Public poem capability communication",
+      "sources": [
+        "app/poem/[id]/PoemDetail.tsx",
+        "components/PoemDisplay.tsx",
+        "hooks/useSharePoem.ts",
+        "hooks/useSavePoemImage.ts"
+      ],
+      "observation": "Public outsider detail suppresses favorite/revoke but PoemDisplay still renders Share and Save image; those handlers use participant share mutations and participant POST card access.",
+      "consequence": "A public reader can see actions whose backend authority differs from their access, leading to confusing failures or misleading public-consent language.",
+      "recommendation": "Make displayed capabilities and privacy copy match actual viewer role without weakening backend access. Distinguish copying an already-public link from granting publication if the selected implementation supports that existing authority boundary.",
+      "evidence": "source",
+      "verify": "Main: open locally opted-in public poem as a fresh outsider, exercise visible controls and cancellation, and record actual errors/permissions before proposing workflow changes."
+    },
+    {
+      "id": "sharing-scope-and-native-ui",
+      "area": "Sharing consent and delivery",
+      "sources": [
+        "hooks/useShareLink.ts",
+        "hooks/useSharePoem.ts",
+        "components/PoemDisplay.tsx",
+        "components/SessionRecapHub.tsx"
+      ],
+      "observation": "Poem sharing prepares an inert URL, delivers it, then activates; cancel/error rolls back. Whole-set sharing uses a distinct publish-after-delivery path. UI names are short Share versus Share the whole set with privacy copy nearby.",
+      "consequence": "A broad visual redesign can accidentally merge private save, public poem and public recap, or fabricate app dialogs that do not exist.",
+      "recommendation": "Treat one-poem public link, full-set public link and private image save as clearly different scopes; preserve native share cancellation and activation ordering.",
+      "evidence": "source",
+      "verify": "Main: native share success/cancel/error, clipboard success/failure, pending-expired link and revoke, all local; no remote publication checks."
+    },
+    {
+      "id": "export-full-card-content-risk",
+      "area": "Image export and social artwork",
+      "sources": [
+        "lib/poemCard/PoemCard.tsx",
+        "app/poem/[id]/card/handler.ts",
+        "app/recap/[code]/opengraph-image.tsx"
+      ],
+      "observation": "Full-card height grows by line count at 64px per line rather than measured wrapping; 38px line text and complete author attribution can exceed assumed height. Recap social card is fixed 630px high with multiple poem previews.",
+      "consequence": "Long human lines or many long names can pressure export bounds even if the in-app poem scrolls correctly; generated artwork needs its own evidence.",
+      "recommendation": "Prototype complete artifacts with worst-practical lines/names and preserve all attribution; explicitly separate fixed teaser truncation from full-text keepsake behavior.",
+      "evidence": "source",
+      "verify": "Main: generate local full PNG in both modes and 8-poem recap preview, inspect pixels and print preview; no claim of current clipping without rendered output."
+    },
+    {
+      "id": "print-chrome-and-theme",
+      "area": "Print export",
+      "sources": [
+        "app/globals.css",
+        "components/PoemDisplay.tsx",
+        "components/RecapExportButton.tsx",
+        "app/recap/[code]/RecapPage.tsx",
+        "components/Header.tsx",
+        "components/Footer.tsx"
+      ],
+      "observation": "Print CSS sets white/black variables and avoids breaks within recap poem articles; callsites hide artifact actions and recap footer, but shared Header/Footer do not specify print:hidden.",
+      "consequence": "Unexpected site chrome or inline root theme precedence could reduce printed artifact quality; source alone does not establish the resulting print output.",
+      "recommendation": "Give single-poem and whole-set print clear artifact boundaries and ensure chrome, texture and color-mode residue are excluded without removing human attribution.",
+      "evidence": "source",
+      "verify": "Main: inspect browser print preview from both dark and light poem/recap pages with multi-page content."
+    },
+    {
+      "id": "brand-artifact-consistency",
+      "area": "External brand footprint",
+      "sources": [
+        "app/opengraph-image.tsx",
+        "lib/poemCard/PoemCard.tsx",
+        "app/poem/[id]/opengraph-image-handler.tsx",
+        "public/site.webmanifest"
+      ],
+      "observation": "Site/poem/recap artwork use related but separate compositions; poem preview metadata says linejam.com while full-card metadata says linejam.app; manifest colors stay white.",
+      "consequence": "A new identity can drift across installed icon, live interface and shared artifact if only UI tokens change.",
+      "recommendation": "Design logo/wordmark, icons, social teaser, full keepsake, print and manifest as a coordinated system; resolve canonical naming/domain with site configuration in the final implementation.",
+      "evidence": "source",
+      "verify": "Main: inspect actual icon pixels, installation/browser theme, all three generated preview types and full export; inventory did not inspect binary pixels."
+    },
+    {
+      "id": "modal-focus-and-bounds",
+      "area": "Help and presentation accessibility",
+      "sources": [
+        "components/HelpModal.tsx",
+        "components/stage/StageShell.tsx",
+        "components/PoemDisplay.tsx"
+      ],
+      "observation": "Help traps Tab and locks body scroll but does not restore previous focus or bound panel height. StageShell is a fixed section with Exit but no Escape handler/focus trap; PoemDisplay focuses a heading but has no modal trap.",
+      "consequence": "Long text, small heights and keyboard navigation may expose content behind overlays or make exit hard; current visual quality cannot be inferred from aria labels alone.",
+      "recommendation": "Define a consistent appropriate overlay/nonmodal lifecycle: entry focus, reachable close, contained scrolling, background interaction policy and return focus. Respect the task rather than label every surface a modal blindly.",
+      "evidence": "source",
+      "verify": "Main: keyboard-only open/close/Tab/Escape and mobile zoom on help, presentation and poem reading; inspect actual focus restoration and background reachability."
+    },
+    {
+      "id": "room-qr-outside-click-region",
+      "area": "Room QR interaction",
+      "sources": [
+        "components/RoomChrome.tsx"
+      ],
+      "observation": "The QR popover is under the room-code branch, outside menuRef, while the open-popover mousedown handler closes all panels when the target is outside menuRef.",
+      "consequence": "[INFERENCE] Clicking inside QR/copy content may be treated as an outside click before its control fires; this needs a concrete rendered interaction.",
+      "recommendation": "Make popover containment and dismissal logic match the actual visual owner during implementation; prioritize reliable copy/close controls over decorative panel motion.",
+      "evidence": "source",
+      "verify": "Main: open QR, click Copy code, retry error, and Close QR using mouse/touch/keyboard in the real local room surface."
+    },
+    {
+      "id": "recovery-banner-stacking",
+      "area": "Recovery hierarchy",
+      "sources": [
+        "components/DeploymentSkewObserver.tsx",
+        "components/ConnectionStatus.tsx",
+        "components/RoomChrome.tsx",
+        "components/WritingScreen.tsx"
+      ],
+      "observation": "Deployment update is fixed top z120, connection is top z60, room chrome is sticky z40, and draft retry error sits in writing content; each can carry a separate action/message.",
+      "consequence": "Simultaneous interruption states can cover controls or overload the same screen with competing recovery instructions.",
+      "recommendation": "Design explicit priority and placement for update/offline/draft error while preserving each real state; one message must not falsely imply successful persistence.",
+      "evidence": "source",
+      "verify": "Main: locally combine stale deployment, offline, long submit error and keyboard-open writer; inspect accessible order and unobscured action area."
+    },
+    {
+      "id": "root-fallback-self-sufficiency",
+      "area": "Global error and not-found",
+      "sources": [
+        "app/global-error.tsx",
+        "app/error.tsx",
+        "app/not-found.tsx",
+        "app/layout.tsx",
+        "app/globals.css"
+      ],
+      "observation": "GlobalError replaces html/body yet uses runtime CSS variables normally set by RootLayout; error/not-found surfaces use fixed overflow-hidden layouts, blur and large display type; 404 reaches 10/14rem.",
+      "consequence": "Root failure before token initialization and short/zoomed viewports may compromise the very controls needed for recovery.",
+      "recommendation": "Design emergency states that remain readable without healthy app providers and let text/actions scroll; minimize decorative burden in repair states without losing brand recognition.",
+      "evidence": "source",
+      "verify": "Main: render actual root/route failure and unknown path in controlled local QA, including first paint, 200% text and short landscape."
+    },
+    {
+      "id": "error-scope-and-loading-consistency",
+      "area": "Loading and recovery language",
+      "sources": [
+        "components/ui/LoadingState.tsx",
+        "app/join/JoinPage.tsx",
+        "app/poem/[id]/PoemDetail.tsx",
+        "app/(auth)/callback/AuthCallbackPage.tsx",
+        "app/error.tsx",
+        "app/recap/[code]/RecapPage.tsx"
+      ],
+      "observation": "Loading appears as poetic dot, raw Loading text, skeletons and spinner. Route Error refers to current round even for other routes; recap fetch failure collapses to notFound.",
+      "consequence": "Different failure causes can feel inconsistent or misleading; loading’s theatrical tone should not obscure a stalled connection.",
+      "recommendation": "Create one coherent state vocabulary with task-specific cause/action and access-safe unavailable messaging; preserve privacy and distinguish loading, permission and transport recovery where actual data allows.",
+      "evidence": "source",
+      "verify": "Main: inspect auth loading, join Suspense, private/public poem pending, recap backend failure and non-game route error."
+    },
+    {
+      "id": "motion-unorchestrated-and-unused",
+      "area": "Motion system",
+      "sources": [
+        "app/globals.css",
+        "components/WritingScreen.tsx",
+        "components/WaitingScreen.tsx",
+        "components/archive/PoemCard.tsx",
+        "components/auth/AuthShowcase.tsx"
+      ],
+      "observation": "Several independent loops/staggers and fade-ups exist, while type/breathe/final-line animations are defined but unmounted and AuthShowcase has delay without animation. Whole-poem reveal currently has no per-line animation.",
+      "consequence": "This source split plausibly contributes to operator reports of awkward or missing motion; dead definitions are not proof of rendered delight.",
+      "recommendation": "Specify a short motion score per meaningful event and remove unneeded loops/unused definitions only in the final selected implementation. Keep full poem visible together unless mechanics authority explicitly changes.",
+      "evidence": "source",
+      "verify": "Main: record real transitions and compare timings with source triggers; test default and reduced motion, not just still screenshots."
+    },
+    {
+      "id": "reduced-motion-delayed-visibility",
+      "area": "Reduced motion",
+      "sources": [
+        "app/globals.css",
+        "components/archive/PoemCard.tsx",
+        "components/ui/StampAnimation.tsx",
+        "components/archive/PoemSilhouette.tsx"
+      ],
+      "observation": "Global reduced-motion overrides duration/iterations but not animation-delay; cards/bars may start opacity-zero and stamps use backwards fill. Hover/active transforms also remain with nearly instant transitions.",
+      "consequence": "Reduced-motion users may still wait through invisible stagger delays or see abrupt scale changes; no rendered invisibility claim is made here.",
+      "recommendation": "Design genuine static equivalents that remove unnecessary delay and preserve final-state visibility, not merely extremely short animations.",
+      "evidence": "source",
+      "verify": "Main: reload populated archive/lobby in reduced motion, hover cards, press controls and inspect visibility/focus at initial and delayed frames."
+    },
+    {
+      "id": "audio-trigger-and-preference-contract",
+      "area": "Audio and haptics",
+      "sources": [
+        "hooks/useCeremonyEffects.ts",
+        "components/PoemDisplay.tsx",
+        "components/SessionRecapHub.tsx"
+      ],
+      "observation": "Only crown calls punctuate; line/final-line tones are unused. Mute defaults off and gates vibration too; prefers-reduced-motion also disables audio/haptic. New AudioContext per tone may encounter autoplay policies.",
+      "consequence": "Visible sound toggles can promise more audible feedback than currently exists, while sensitivity preferences combine distinct sensory choices.",
+      "recommendation": "Define which existing milestones deserve optional sound/haptic; make silent and reduced-motion experiences complete, with explicit user control and no added gameplay dependency.",
+      "evidence": "source",
+      "verify": "Main: use actual browser/device audio and vibration capability to inspect crown and mute; do not claim line/submission sound plays from unused hook definitions."
+    },
+    {
+      "id": "crown-visual-and-audio-retrigger",
+      "area": "Favorite leader changes",
+      "sources": [
+        "components/SessionRecapHub.tsx",
+        "app/globals.css"
+      ],
+      "observation": "Leader ID change triggers crown tone, but crown/heart-burst markup keeps its React position without a leader key.",
+      "consequence": "[INFERENCE] A late favorite change can replay audio without the same visual settling effect, making sensory response inconsistent.",
+      "recommendation": "Treat leader change as one coherent optional feedback event and preserve a clear static favorite label; avoid excessive competitive celebration.",
+      "evidence": "source",
+      "verify": "Main: change favorite leader with local players after recap mounts and compare visual animation, sound, text and reduced-motion behavior."
+    },
+    {
+      "id": "account-local-vs-connected",
+      "area": "Account surfaces and truthful local QA",
+      "sources": [
+        "components/AccountsUnavailable.tsx",
+        "app/providers.tsx",
+        "app/(auth)/sign-in/[[...sign-in]]/SignInPage.tsx",
+        "app/(auth)/sign-up/[[...sign-up]]/SignUpPage.tsx",
+        "app/(auth)/callback/AuthCallbackPage.tsx",
+        "app/me/profile/page.tsx",
+        "components/archive/ArchiveInfoStrip.tsx"
+      ],
+      "observation": "Local integration provides a real account-disconnected surface; connected mode uses Clerk forms and account UI. Archive guest strip still describes optional cross-device signup and links to signup.",
+      "consequence": "Local-only visual QA cannot claim to have exercised real account/OTP/social flows; optional upgrade messaging must remain understandable when accounts are unavailable.",
+      "recommendation": "Cover truthful local fallback now and specify real connected provider surfaces as separately verified variants. Never mock successful sign-in or weaken credential/privacy gates to obtain screenshots.",
+      "evidence": "source",
+      "verify": "Main: capture local sign-in/sign-up/callback/profile and inspect archive→signup fallback; connected account evidence requires separately authorized runtime capability."
+    },
+    {
+      "id": "releases-reading-rhythm",
+      "area": "Support content hierarchy",
+      "sources": [
+        "app/releases/page.tsx",
+        "app/releases.xml/route.ts"
+      ],
+      "observation": "Releases uses very large headings, long 96px article/title gaps, duplicated version header/inline version and collapsed technical detail. Feed links point to version fragments while ReleaseCard does not set an id in inspected source.",
+      "consequence": "Support reading may feel sparse/long despite dense technical detail; feed navigation may not land at its intended release.",
+      "recommendation": "Make update prose primary, de-emphasize redundant version data and retain useful collapsible technical content; align link destinations in final implementation.",
+      "evidence": "source",
+      "verify": "Main: inspect populated/empty release page, expanded details and RSS entry navigation locally."
+    },
+    {
+      "id": "landmark-and-semantic-ownership",
+      "area": "Document structure",
+      "sources": [
+        "app/layout.tsx",
+        "app/page.tsx",
+        "app/recap/[code]/RecapPage.tsx",
+        "components/RevealPhase.tsx",
+        "components/ui/Label.tsx"
+      ],
+      "observation": "RootLayout wraps children in main; several child pages/phase bodies create their own main. Label defaults to p rather than a form-label element.",
+      "consequence": "Semantic hierarchy can diverge from visual hierarchy even if headings look polished.",
+      "recommendation": "Keep a deliberate single main landmark per ordinary document and real label/control associations; redesign composition semantics alongside style.",
+      "evidence": "source",
+      "verify": "Main: inspect accessibility tree and heading/landmark navigation for home, room, recap and auth forms."
+    },
+    {
+      "id": "inventory-coverage-boundary",
+      "area": "Audit provenance",
+      "sources": [
+        "app/robots.ts",
+        "app/sitemap.ts",
+        "app/api/health/route.ts",
+        "app/api/guest/session/route.ts",
+        "app/api/deployment/route.ts",
+        "app/api/internal/sentry-preview-drill/route.ts",
+        "components/archive/index.ts"
+      ],
+      "observation": "Inventory covers every actual user-facing page, component and generated artifact located in app/components plus scoped hooks/design/colorMode. API health/guest/deployment/internal drill and robots/sitemap are infrastructure or crawler endpoints, not human UI views; their observable auth/deployment errors are linked to real UI owners. Thin route/re-export/provider wrappers are linked, not duplicated.",
+      "consequence": "Fake components or fabricated dialogs would give five design builders false surface obligations; source findings alone do not establish actual pixels.",
+      "recommendation": "Use stable IDs as coverage checklist, include unused exported visual variants as explicit specimens/retirement decisions, and attach rendered evidence separately.",
+      "evidence": "source",
+      "verify": "Main: perform rendered QA and final schema/coverage validation; this agent intentionally ran no builds, tests, formatters, services or browser sessions."
+    }
+  ],
+  "workflowAlternatives": [
+    {
+      "id": "coherent-entry-pair",
+      "proposal": "Use one family of compact name-first entry compositions for Host and Join, with room code revealed/preloaded only where needed; keep both current routes and immediate guest play.",
+      "tradeoff": "Improves continuity and keyboard ergonomics, but too much visual similarity can obscure whether the user is creating or joining; retain clear action verbs and invite context."
+    },
+    {
+      "id": "invitation-as-lobby-primary",
+      "proposal": "Let one dominant room code/QR/invite composition carry lobby invitation, with player names and minimum-two readiness immediately adjacent; move duplicate utility metadata into the existing tools disclosure.",
+      "tradeoff": "Reduces repeated chrome without sacrificing onboarding; needs distinct host and participant priorities and a clear route to presentation mode."
+    },
+    {
+      "id": "roster-as-social-identity",
+      "proposal": "Explore an expressive responsive roster whose stable avatar/name pairs celebrate arrivals and distinguish writing, ready, away and watching without using several dimming/strike-through layers.",
+      "tradeoff": "More social warmth and recognizability, but every direction must keep long names, 8-player density, color-vision accessibility and assistive labels readable."
+    },
+    {
+      "id": "constraint-near-composition",
+      "proposal": "Unify carried context, editable line and exact-word constraint in a single compact task group; keep the submit action reachable in an in-flow tray and reduce desktop empty textarea height for short rounds.",
+      "tradeoff": "Improves hand/eye travel and short-round proportionality, but cannot obscure the one carried line, current target or draft recovery; actual keyboard proof is required."
+    },
+    {
+      "id": "acknowledgment-not-idle-pulsing",
+      "proposal": "Replace continuous ready-state decoration with a brief response when the target becomes valid and a clear static enabled Submit state; give confirmed persistence one satisfying acknowledgment before existing waiting handoff.",
+      "tradeoff": "Quieter and more causal, but reduced-motion users still need the same static readiness/persistence evidence and rapid server advance may shorten acknowledgment."
+    },
+    {
+      "id": "waiting-as-shared-progress",
+      "proposal": "After submission, lead with a positive personal completion state and one readable group-progress representation; keep names, away/watch distinctions, soft pacing and host end-game access secondary but discoverable.",
+      "tradeoff": "Reduces redundant progress signals and avoids crossing out contributors; must not invent side games, auto-submissions or remove visibility into the actual blocker."
+    },
+    {
+      "id": "reveal-as-reading-stage",
+      "proposal": "Make the whole human poem the center of the ceremony with clear reader attribution and one dominant return/continue control; use shared labels that describe actual revealed/assigned state rather than claiming a synchronized read-finished state.",
+      "tradeoff": "Stronger read-aloud focus, but the existing local Done/Finish actions are not a server-wide reading protocol; no line-by-line reveal mechanics should be introduced."
+    },
+    {
+      "id": "recap-as-next-social-step",
+      "proposal": "Surface the existing complete-set recap as a clear phase conclusion, with replay/favorite recognition and the next social choice grouped ahead of optional publishing utilities.",
+      "tradeoff": "May require rearranging rather than appending the existing recap composition; preserve any-participant rematch, Back to Lobby and Exit as genuinely different actions."
+    },
+    {
+      "id": "separate-keep-from-publish",
+      "proposal": "Group Print/Save image as private keeping and Share poem/Share whole set as public publication, with explicit scope and current viewer capability before the native share sheet.",
+      "tradeoff": "Clearer consent but an extra disclosure can add friction; never merge private download with public enablement or publish on native cancellation."
+    },
+    {
+      "id": "archive-as-human-keepsakes",
+      "proposal": "Give poem previews and contributor context priority over statistics and repeated miniature metadata, using favorites as an understandable sort/treatment rather than unexplained oversized first-card decoration.",
+      "tradeoff": "Warmer collection browsing, but sparse poetry can look uniform; use actual content and existing metadata without adding search/filter product mechanics solely for variety."
+    },
+    {
+      "id": "spectator-with-belonging",
+      "proposal": "Give late arrivals a clear spectator identity and current-phase context, plus a concise statement that they join the next existing game; carry their name/avatar through waiting and reveal.",
+      "tradeoff": "Preserves inclusion without breaking active assignment fairness, but cannot reveal hidden lines or add spectator participation to current-round completion."
+    },
+    {
+      "id": "guest-preservation-not-gating",
+      "proposal": "Keep guest archive and local identity fully accessible; place optional account preservation explanations near the existing save/return context and show truthful account-disconnected local fallback.",
+      "tradeoff": "Supports guest trust without conversion pressure; connected-account design needs separately authorized evidence and cannot promise cloud persistence in local mode."
+    },
+    {
+      "id": "consistent-utility-overlays",
+      "proposal": "Give help, appearance, QR and account utilities a coherent family of nonmodal/popover or modal patterns chosen by task, with explicit keyboard entry/exit, focus restoration and bounded scrolling.",
+      "tradeoff": "A uniform aesthetic helps, but making everything modal creates unnecessary friction; preserve the actual share/print OS surfaces instead of pretending they are custom panels."
+    },
+    {
+      "id": "one-recovery-priority",
+      "proposal": "Arrange offline, draft-submit failure and deployment-update information by urgency so the highest actionable state is visible without erasing the others; explain what is saved and what needs retry/reload.",
+      "tradeoff": "Reduces recovery noise, but aggregation cannot hide uncertainty or claim successful submission; local fault scenarios must prove the selected hierarchy."
+    },
+    {
+      "id": "optional-sensory-punctuation",
+      "proposal": "Use brief optional sound/haptic only for carefully selected existing milestones such as confirmed action or favorite recognition, paired with complete visual/textual state and a discoverable mute preference.",
+      "tradeoff": "Adds delight without mechanics, but autoplay/device support and sensitivity vary; every design must remain fully legible silent and reduced-motion."
+    },
+    {
+      "id": "coherent-artifact-family",
+      "proposal": "Design site preview, one-poem public teaser, access-safe fallback, full attributed PNG, public recap, print and device icons as one recognizable family with formats sized for their actual destination.",
+      "tradeoff": "More complete identity than token recoloring, but generated images require separate font/layout/pagination evidence and must preserve privacy and all human attribution."
+    }
+  ]
+}

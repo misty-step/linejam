@@ -3,10 +3,6 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import {
-  AuthLayout,
-  type AuthLayoutDependencies,
-} from '@/app/(auth)/AuthLayout';
-import {
   JoinPage,
   type JoinPageDependencies,
   type JoinRoom,
@@ -15,14 +11,9 @@ import { Header } from '@/components/Header';
 import type { HeaderDependencies } from '@/components/Header';
 import { ColorModeProvider } from '@/lib/colorMode';
 import { installMatchMedia } from '@/tests/helpers/matchMedia';
-import {
-  SignInPage,
-  type SignInPageDependencies,
-} from '@/app/(auth)/sign-in/[[...sign-in]]/SignInPage';
-import {
-  SignUpPage,
-  type SignUpPageDependencies,
-} from '@/app/(auth)/sign-up/[[...sign-up]]/SignUpPage';
+import { SignInPage } from '@/app/(auth)/sign-in/[[...sign-in]]/SignInPage';
+import { SignUpPage } from '@/app/(auth)/sign-up/[[...sign-up]]/SignUpPage';
+import { AccountContext } from '@/lib/account';
 
 let currentPathname = '/join';
 let currentSearchParams = new URLSearchParams('code=ABCD');
@@ -30,9 +21,6 @@ let currentIsSignedIn = false;
 
 const mockRouter = { push: vi.fn() };
 const mockJoinRoom = vi.fn<JoinRoom>();
-const authLayoutDependencies: AuthLayoutDependencies = {
-  ShowcaseComponent: () => <div>Recent Creation</div>,
-};
 
 const joinDependencies: JoinPageDependencies = {
   useRouter: () => mockRouter,
@@ -53,21 +41,11 @@ const headerDependencies: HeaderDependencies = {
   AccountButton: () => <button type="button">Account</button>,
 };
 
-const signInDependencies: SignInPageDependencies = {
-  isClerkConfigured: true,
-  SignInComponent: () => <div>Don&apos;t have an account</div>,
-};
-
-const signUpDependencies: SignUpPageDependencies = {
-  isClerkConfigured: true,
-  SignUpComponent: () => <div>Already have an account</div>,
-};
-
 function renderEntry(ui: ReactNode) {
   return render(<ColorModeProvider>{ui}</ColorModeProvider>);
 }
 
-describe('mobile entry layout', () => {
+describe('entry and shell behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -79,101 +57,63 @@ describe('mobile entry layout', () => {
     installMatchMedia(false);
   });
 
-  it('keeps the join action inline with the required fields on narrow phones', async () => {
+  it('preserves invitation prefill and Enter-to-name navigation', async () => {
     renderEntry(<JoinPage dependencies={joinDependencies} />);
 
-    const heading = await screen.findByRole('heading', {
-      level: 1,
-      name: /join session/i,
-    });
-    const button = screen.getByRole('button', { name: /enter room/i });
-    const actionRegion = button.parentElement;
-
-    expect(heading).toHaveClass('text-3xl', 'sm:text-4xl');
-    expect(actionRegion).not.toHaveClass('fixed');
-    expect(actionRegion).not.toHaveClass('inset-x-0', 'bottom-0');
-    const code = screen.getByLabelText(/room code/i);
-    const name = screen.getByLabelText(/your name/i);
-    expect(code).toBeInTheDocument();
-    expect(name).toBeInTheDocument();
+    const code = await screen.findByRole('textbox', { name: /room code/i });
+    const name = screen.getByRole('textbox', { name: /your pen name/i });
+    expect(code).toHaveValue('ABCD');
+    expect(code).not.toHaveAttribute('readonly');
+    expect(name).toBeRequired();
 
     fireEvent.keyDown(code, { key: 'Enter' });
     expect(name).toHaveFocus();
-    const appearance = screen.getByRole('button', { name: /Appearance/i });
-    expect(appearance).toHaveClass('min-h-11');
-    fireEvent.click(appearance);
-    expect(
-      screen.getByRole('group', { name: /Color mode/i })
-    ).toBeInTheDocument();
   });
 
-  it('puts the account task before decorative poem content on phones', () => {
-    renderEntry(
-      <AuthLayout dependencies={authLayoutDependencies}>
-        <div>Account access</div>
-      </AuthLayout>
-    );
-
-    const authColumn =
-      screen.getByText('Account access').parentElement?.parentElement;
-    const showcaseColumn = screen
-      .getByText('Recent Creation')
-      .closest('.flex-1');
-
-    expect(authColumn).not.toHaveClass('order-2');
-    expect(showcaseColumn).toHaveClass('hidden', 'lg:block');
-    expect(authColumn).toHaveClass('justify-start', 'lg:justify-center');
-    expect(screen.getByRole('link', { name: 'Linejam' })).toHaveClass(
-      'min-h-11'
-    );
-  });
-
-  it('uses compact header spacing without shrinking visible touch targets', () => {
+  it('keeps account, archive, help, and appearance paths available without duplicate controls', () => {
     currentPathname = '/me/poems';
     renderEntry(<Header dependencies={headerDependencies} />);
 
-    const header = screen.getByRole('banner');
-    expect(header).toHaveClass('px-3', 'gap-2', 'sm:px-6');
-    expect(screen.getByRole('link', { name: 'Linejam' })).toHaveClass(
-      'min-h-11'
+    expect(screen.getByRole('link', { name: 'Linejam' })).toHaveAttribute(
+      'href',
+      '/'
+    );
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      '/sign-in'
+    );
+    expect(screen.getAllByRole('button', { name: 'Appearance' })).toHaveLength(
+      1
     );
 
-    for (const name of [
-      'Sign in',
-      'View your poem archive',
-      'How to play',
-      'Appearance',
-    ]) {
-      expect(
-        screen.getByRole(/play|Appearance/.test(name) ? 'button' : 'link', {
-          name,
-        })
-      ).toHaveClass('w-11', 'h-11');
-    }
-
     const menu = screen.getByRole('button', { name: 'More options' });
-    expect(menu).toHaveClass('w-11', 'h-11');
     expect(menu).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(menu);
     expect(menu).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('link', { name: 'Your poems' })).toHaveClass(
-      'min-h-11'
+    expect(screen.getByRole('link', { name: 'Your poems' })).toHaveAttribute(
+      'href',
+      '/me/poems'
     );
-    const mobileAppearance = screen.getAllByRole('button', {
-      name: 'Appearance',
-    })[1];
-    expect(mobileAppearance).toHaveClass('min-h-11');
-    fireEvent.click(mobileAppearance);
+    expect(
+      screen.getByRole('button', { name: 'How to play' })
+    ).toBeInTheDocument();
+
+    const appearance = screen.getByRole('button', { name: 'Appearance' });
+    fireEvent.click(appearance);
     expect(menu).toHaveAttribute('aria-expanded', 'false');
     expect(
-      screen.getByRole('group', { name: /Color mode/i })
+      screen.getByRole('group', { name: 'Color mode' })
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
+    expect(document.documentElement).toHaveClass('dark');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(appearance).toHaveFocus();
     expect(
-      screen.queryByRole('link', { name: /theme/i })
+      screen.queryByRole('group', { name: 'Color mode' })
     ).not.toBeInTheDocument();
   });
 
-  it('renders the signed-in account control through Show', () => {
+  it('renders the signed-in account control', () => {
     currentPathname = '/me/poems';
     currentIsSignedIn = true;
 
@@ -185,13 +125,14 @@ describe('mobile entry layout', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('closes the mobile header menu outside or with Escape and restores focus', () => {
+  it('closes the header menu outside or with Escape and restores focus', () => {
     currentPathname = '/me/poems';
     renderEntry(<Header dependencies={headerDependencies} />);
 
     const menu = screen.getByRole('button', { name: 'More options' });
     fireEvent.click(menu);
-    fireEvent.mouseDown(menu);
+    expect(screen.getByRole('link', { name: 'Your poems' })).toHaveFocus();
+    fireEvent.pointerDown(menu);
     expect(menu).toHaveAttribute('aria-expanded', 'true');
 
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -199,7 +140,7 @@ describe('mobile entry layout', () => {
     expect(menu).toHaveFocus();
 
     fireEvent.click(menu);
-    fireEvent.mouseDown(document.body);
+    fireEvent.pointerDown(document.body);
     expect(menu).toHaveAttribute('aria-expanded', 'false');
   });
 
@@ -227,15 +168,18 @@ describe('mobile entry layout', () => {
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
   });
 
-  it('renders exactly one account-switch prompt on sign-in', () => {
-    renderEntry(<SignInPage dependencies={signInDependencies} />);
-
-    expect(screen.getAllByText(/don(?:'|’)t have an account/i)).toHaveLength(1);
-  });
-
-  it('renders exactly one account-switch prompt on sign-up', () => {
-    renderEntry(<SignUpPage dependencies={signUpDependencies} />);
-
-    expect(screen.getAllByText(/already have an account/i)).toHaveLength(1);
-  });
+  it.each([SignInPage, SignUpPage])(
+    'offers guest play on a disconnected local account route',
+    (AccountPage) => {
+      render(
+        <AccountContext.Provider value={{ kind: 'local' }}>
+          <AccountPage />
+        </AccountContext.Provider>
+      );
+      expect(
+        screen.getByRole('link', { name: /play as guest/i })
+      ).toHaveAttribute('href', '/');
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    }
+  );
 });

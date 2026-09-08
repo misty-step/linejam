@@ -1,56 +1,33 @@
-/**
- * ArchiveInfoStrip
- *
- * The archive page's one persistent, low-key info line. Reuses the exact
- * hairline-hint convention the page already used for signed-in users
- * ("Tap any poem to reveal the full verse") and layers in a guest-specific
- * the chosen Hairline Info Strip for linejam-942: it is always visible,
- * never a modal or redirect, and matches an existing pattern instead of
- * inventing new chrome.
- *
- * linejam-942: the archive entry point must never dead-end on a bare auth
- * wall — a guest sees this even with zero poems.
- */
-
-'use client';
-
 import Link from 'next/link';
 
 type ArchiveInfoStripProps = {
   isAuthenticated: boolean;
-  hasPoems: boolean;
+  accountsAvailable: boolean;
 };
 
+/** Guest access belongs to this browser, even before the first poem exists. */
 export function ArchiveInfoStrip({
   isAuthenticated,
-  hasPoems,
+  accountsAvailable,
 }: ArchiveInfoStripProps) {
-  const showRevealHint = hasPoems;
-  const showGuestNote = !isAuthenticated;
-
-  if (!showRevealHint && !showGuestNote) {
-    return null;
-  }
+  if (isAuthenticated) return null;
 
   return (
-    <div className="mt-8 py-4 border-y border-[var(--color-border-subtle)] space-y-1.5">
-      {showRevealHint && (
-        <p className="text-sm text-[var(--color-text-muted)] font-mono">
-          Tap any poem to reveal the full verse
-        </p>
-      )}
-      {showGuestNote && (
-        <p className="text-sm text-[var(--color-text-muted)] font-mono">
-          Saved to this browser only.{' '}
+    <p className="mt-5 max-w-xl text-sm leading-relaxed text-[var(--color-text-secondary)]">
+      Your guest poems are linked to this browser.{' '}
+      {accountsAvailable ? (
+        <>
           <Link
             href="/sign-up"
-            className="text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] underline underline-offset-2"
+            className="inline-flex min-h-11 items-center text-[var(--color-primary)] underline underline-offset-4 hover:text-[var(--color-primary-hover)]"
           >
             Sign up
           </Link>{' '}
-          to keep it forever, on any device.
-        </p>
+          to access them on other devices.
+        </>
+      ) : (
+        'Keep this guest session to return to them. Accounts are not connected in this local game.'
       )}
-    </div>
+    </p>
   );
 }

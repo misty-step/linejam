@@ -15,6 +15,8 @@ import {
   getActiveGame,
 } from './lib/room';
 import { retentionEligibleAt } from './lib/retentionPolicy';
+import { avatarIdValidator } from './lib/avatars';
+import { getDefaultAvatarId } from '../lib/avatars';
 
 const generateRoomCode = (): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -34,10 +36,11 @@ const generateRoomCode = (): string => {
 export const createRoom = mutation({
   args: {
     displayName: v.string(),
+    avatarId: v.optional(avatarIdValidator),
     guestToken: v.optional(v.string()),
     guestId: v.optional(v.string()), // Deprecated: throws error, kept for clear messaging
   },
-  handler: async (ctx, { displayName, guestToken, guestId }) => {
+  handler: async (ctx, { displayName, avatarId, guestToken, guestId }) => {
     const user = await ensureUserHelper(ctx, {
       displayName,
       guestToken,
@@ -77,6 +80,9 @@ export const createRoom = mutation({
       roomId: roomId,
       userId: user._id,
       displayName: displayName,
+      avatarId:
+        avatarId ??
+        getDefaultAvatarId(user.clerkUserId || user.guestId || user._id),
       joinedAt: Date.now(),
     });
 
@@ -88,10 +94,14 @@ export const joinRoom = mutation({
   args: {
     code: v.string(),
     displayName: v.string(),
+    avatarId: v.optional(avatarIdValidator),
     guestToken: v.optional(v.string()),
     guestId: v.optional(v.string()), // Deprecated: throws error, kept for clear messaging
   },
-  handler: async (ctx, { code, displayName, guestToken, guestId }) => {
+  handler: async (
+    ctx,
+    { code, displayName, avatarId, guestToken, guestId }
+  ) => {
     const user = await ensureUserHelper(ctx, {
       displayName,
       guestToken,
@@ -129,13 +139,24 @@ export const joinRoom = mutation({
 
     const typedName = normalizeDisplayName(displayName);
     const existingPlayer = currentPlayers.find((p) => p.userId === user._id);
+    const selectedAvatarId =
+      avatarId ??
+      existingPlayer?.avatarId ??
+      getDefaultAvatarId(user.clerkUserId || user.guestId || user._id);
 
     if (existingPlayer) {
-      // User is already in the room. Honor the typed display name rather
-      // than silently discarding it. This is also idempotent for a
-      // late-join spectator refreshing the direct invite.
-      if (existingPlayer.displayName !== typedName) {
-        await ctx.db.patch(existingPlayer._id, { displayName: typedName });
+      // Explicit choices replace the room selection; older callers preserve it.
+      // Rejoining also fills a legacy membership's missing avatar.
+      if (
+        existingPlayer.displayName !== typedName ||
+        existingPlayer.avatarId !== selectedAvatarId
+      ) {
+        await ctx.db.patch(existingPlayer._id, {
+          displayName: typedName,
+          avatarId: selectedAvatarId,
+        });
+      }
+      if (user.displayName !== typedName) {
         await ctx.db.patch(user._id, { displayName: typedName });
       }
       return room;
@@ -149,6 +170,7 @@ export const joinRoom = mutation({
       roomId: room._id,
       userId: user._id,
       displayName: typedName,
+      avatarId: selectedAvatarId,
       joinedAt: Date.now(),
     });
     if (user.displayName !== typedName) {
@@ -212,17 +234,20 @@ export const getRoomState = query({
       .withIndex('by_room', (q) => q.eq('roomId', room._id))
       .collect();
 
-    // Fetch user records to get stable IDs for avatar colors
+    // Reuse the identity records for stable IDs and legacy avatar defaults.
     const now = Date.now();
     const players = await Promise.all(
       roomPlayers.map(async (rp) => {
         const userRecord = await ctx.db.get(rp.userId);
+        const stableId =
+          userRecord?.clerkUserId || userRecord?.guestId || rp.userId;
         // Keep the raw heartbeat timestamp off the wire; `isAway` is the only
         // presence signal clients need.
         const { lastSeenAt, ...rest } = rp;
         return {
           ...rest,
-          stableId: userRecord?.clerkUserId || userRecord?.guestId || rp.userId,
+          stableId,
+          avatarId: rp.avatarId ?? getDefaultAvatarId(stableId),
           isAway: isPresenceStale(lastSeenAt, now, PRESENCE_AWAY_MS),
         };
       })

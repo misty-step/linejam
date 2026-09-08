@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { Doc } from '@/convex/_generated/dataModel';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { formatRoomCode } from '@/lib/roomCode';
-import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
 import { HostBadge } from '@/components/ui/HostBadge';
 import { StageShell } from './StageShell';
@@ -47,7 +45,7 @@ export function LobbyJoinQr({ room }: { room: Doc<'rooms'> }) {
       />
       <a
         href={joinUrl}
-        className="text-sm font-mono text-primary underline underline-offset-4"
+        className="flex min-h-[44px] items-center text-center text-base font-semibold text-primary underline underline-offset-4"
       >
         Open join link
       </a>
@@ -56,57 +54,28 @@ export function LobbyJoinQr({ room }: { room: Doc<'rooms'> }) {
 }
 
 export function LobbyStage({ room, players, onExit }: LobbyStageProps) {
-  const [recentlyJoinedIds, setRecentlyJoinedIds] = useState<string[]>([]);
-  const timeoutIds = useRef<Array<ReturnType<typeof setTimeout>>>([]);
-  const previousPlayerIds = useRef(
-    new Set(players.map((player) => String(player._id)))
-  );
-  const allStableIds = useMemo(
-    () => players.map((player) => player.stableId),
-    [players]
-  );
+  const allStableIds = players.map((player) => player.stableId);
   const formattedCode = formatRoomCode(room.code);
   const joinUrl = buildJoinUrl(room.code);
-
-  useEffect(() => {
-    const currentIds = new Set(players.map((player) => String(player._id)));
-    const joinedIds = players
-      .map((player) => String(player._id))
-      .filter((id) => !previousPlayerIds.current.has(id));
-
-    if (joinedIds.length > 0) {
-      setRecentlyJoinedIds((current) =>
-        Array.from(new Set([...current, ...joinedIds]))
-      );
-
-      const timeoutId = setTimeout(() => {
-        setRecentlyJoinedIds((current) =>
-          current.filter((id) => !joinedIds.includes(id))
-        );
-      }, 1600);
-      timeoutIds.current.push(timeoutId);
-    }
-
-    previousPlayerIds.current = currentIds;
-  }, [players]);
-
-  useEffect(() => {
-    const timeouts = timeoutIds.current;
-    return () => {
-      timeouts.forEach(clearTimeout);
-    };
-  }, []);
 
   return (
     <StageShell
       testId={E2E_TEST_IDS.lobbyPresentationStage}
-      title="Join from any phone"
-      subtitle="Scan the code, then look up when the poems begin."
+      title="Join the room"
       onExit={onExit}
     >
-      <div className="grid min-h-full gap-10 xl:grid-cols-[minmax(360px,0.85fr)_minmax(0,1fr)] xl:items-center">
-        <section className="flex flex-col items-center justify-center gap-8 text-center">
-          <div className="rounded-[2rem] border border-border bg-surface p-5 shadow-[var(--shadow-lg)]">
+      <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:items-start xl:gap-16">
+        <section
+          aria-label="Join this room"
+          className="flex min-w-0 flex-col items-center gap-5 text-center"
+        >
+          <div className="min-w-0 max-w-full">
+            <p className="mb-1 text-lg text-text-secondary">Room code</p>
+            <p className="break-words text-5xl font-bold leading-tight tracking-wide text-text-primary sm:text-6xl xl:text-7xl">
+              {formattedCode}
+            </p>
+          </div>
+          <div className="w-full max-w-[min(22rem,34vh)] rounded-[var(--radius-lg)] border border-border bg-surface p-4">
             <QRCodeSVG
               value={joinUrl}
               size={420}
@@ -115,66 +84,54 @@ export function LobbyStage({ room, players, onExit }: LobbyStageProps) {
               bgColor="var(--color-surface)"
               role="img"
               aria-label={`QR code for joining room ${formattedCode}`}
-              className="h-[min(44vh,420px)] w-[min(44vh,420px)]"
+              className="block h-auto w-full"
             />
           </div>
-          <p className="font-mono text-[clamp(4.5rem,12vw,11rem)] font-semibold leading-none tracking-[0.16em] text-text-primary">
-            {formattedCode}
-          </p>
         </section>
 
-        <section className="flex flex-col justify-center">
-          <div className="mb-8 flex items-end justify-between gap-4 border-b border-border-subtle pb-5">
-            <div>
-              <p className="text-xs font-mono uppercase tracking-[0.28em] text-text-muted">
-                Live roster
-              </p>
-              <p className="mt-2 text-4xl font-[var(--font-display)] leading-none md:text-6xl">
-                {players.length} in the room
-              </p>
-            </div>
+        <section aria-labelledby="stage-roster-heading" className="min-w-0">
+          <div className="mb-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border pb-4">
+            <h2
+              id="stage-roster-heading"
+              className="text-2xl font-bold text-text-primary md:text-3xl"
+            >
+              Players
+            </h2>
+            <p
+              className="text-lg text-text-secondary md:text-xl"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {players.length} of 8
+            </p>
           </div>
 
-          <ul className="grid gap-3">
-            {players.map((player) => {
-              const isRecent = recentlyJoinedIds.includes(String(player._id));
-
-              return (
-                <li
-                  key={player._id}
-                  className={cn(
-                    'flex min-w-0 items-center justify-between gap-5 border-b border-border-subtle py-4 transition-colors',
-                    isRecent && 'bg-primary/5'
-                  )}
-                >
-                  <div className="flex min-w-0 items-center gap-4">
-                    <Avatar
-                      stableId={player.stableId}
-                      displayName={player.displayName}
-                      allStableIds={allStableIds}
-                      size="xl"
-                    />
-                    <span className="min-w-0 truncate text-[clamp(2rem,5vw,5rem)] font-medium leading-none text-text-primary">
-                      {player.displayName}
+          <ul className="min-w-0 divide-y divide-border-subtle">
+            {players.map((player) => (
+              <li
+                key={player._id}
+                className="flex min-w-0 items-center gap-4 py-4"
+              >
+                <Avatar
+                  stableId={player.stableId}
+                  avatarId={player.avatarId}
+                  displayName={player.displayName}
+                  allStableIds={allStableIds}
+                  size="xl"
+                />
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
+                  <span className="min-w-0 break-words text-2xl font-semibold leading-tight text-text-primary [overflow-wrap:anywhere] md:text-3xl xl:text-4xl">
+                    {player.displayName}
+                  </span>
+                  {player.userId === room.hostUserId && <HostBadge />}
+                  {player.isAway && (
+                    <span className="text-base text-text-secondary md:text-lg">
+                      Away
                     </span>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-3">
-                    {isRecent && (
-                      <span className="rounded-full border border-primary px-3 py-1.5 text-xs font-mono uppercase tracking-[0.18em] text-primary">
-                        Just joined
-                      </span>
-                    )}
-                    {player.isAway && (
-                      <span className="rounded-full border border-border px-3 py-1.5 text-xs font-mono uppercase tracking-[0.18em] text-text-muted">
-                        Away
-                      </span>
-                    )}
-                    {player.userId === room.hostUserId && <HostBadge />}
-                  </div>
-                </li>
-              );
-            })}
+                  )}
+                </div>
+              </li>
+            ))}
           </ul>
         </section>
       </div>

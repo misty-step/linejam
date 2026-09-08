@@ -1,6 +1,6 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { defineConfig, globalIgnores } from 'eslint/config';
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTs from 'eslint-config-next/typescript';
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -8,26 +8,29 @@ const eslintConfig = defineConfig([
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
     // Generated files
-    "convex/_generated/**",
-    "dagger/**",
+    'convex/_generated/**',
+    'dagger/**',
+    // Design-lab artifacts (static sketches, not product code)
+    'explorations/**',
     // Test coverage output
-    "coverage/**",
-    "playwright-report/**",
-    "test-results/**",
+    'coverage/**',
+    'playwright-report/**',
+    'test-results/**',
+    '.qa/**',
     // Vendored local lint plugin
-    "tools/oxlint/anti-slop/**",
+    'tools/oxlint/anti-slop/**',
   ]),
   // Catch stray console.* calls — use structured logger instead.
   // Allowed in logger.ts (implements the logger), error.ts (dev fallback),
   // and errors.ts (Convex structured output).
   {
     rules: {
-      "no-console": ["error", { allow: ["warn", "error"] }],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
   // Player-path Convex functions must throw ConvexError, never plain Error:
@@ -39,16 +42,16 @@ const eslintConfig = defineConfig([
   // for genuinely internal invariants, prod redaction is a feature.
   {
     files: [
-      "convex/*.ts",
-      "convex/lib/room.ts",
-      "convex/lib/auth.ts",
-      "convex/lib/rateLimit.ts",
-      "convex/lib/abuseRateLimit.ts",
-      "convex/lib/assignPoemReaders.ts",
+      'convex/*.ts',
+      'convex/lib/room.ts',
+      'convex/lib/auth.ts',
+      'convex/lib/rateLimit.ts',
+      'convex/lib/abuseRateLimit.ts',
+      'convex/lib/assignPoemReaders.ts',
     ],
     rules: {
-      "no-restricted-syntax": [
-        "error",
+      'no-restricted-syntax': [
+        'error',
         {
           selector: "ThrowStatement > NewExpression[callee.name='Error']",
           message:
@@ -65,14 +68,14 @@ const eslintConfig = defineConfig([
   // Relax no-console in files that legitimately need it
   {
     files: [
-      "lib/logger.ts",
-      "lib/error.ts",
-      "convex/lib/errors.ts",
-      "scripts/**",
-      "tests/**",
+      'lib/logger.ts',
+      'lib/error.ts',
+      'convex/lib/errors.ts',
+      'scripts/**',
+      'tests/**',
     ],
     rules: {
-      "no-console": "off",
+      'no-console': 'off',
     },
   },
 ]);

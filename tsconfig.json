@@ -30,5 +30,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "dagger", ".claude", "tools/oxlint/anti-slop"]
+  "exclude": [
+    "node_modules",
+    "dagger",
+    ".claude",
+    ".qa",
+    "tools/oxlint/anti-slop"
+  ]
 }

@@ -15,8 +15,7 @@ function schemaChangeBlocks(diff) {
   for (const line of diff.split('\n')) {
     const marker = line[0];
     const isChange =
-      (marker === '+' || marker === '-') &&
-      !line.startsWith(marker.repeat(3));
+      (marker === '+' || marker === '-') && !line.startsWith(marker.repeat(3));
     if (!isChange) {
       current = null;
       continue;
@@ -25,9 +24,7 @@ function schemaChangeBlocks(diff) {
       current = { before: [], after: [] };
       blocks.push(current);
     }
-    current[marker === '-' ? 'before' : 'after'].push(
-      line.slice(1).trim()
-    );
+    current[marker === '-' ? 'before' : 'after'].push(line.slice(1).trim());
   }
 
   return blocks;

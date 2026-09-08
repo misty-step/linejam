@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -10,6 +11,9 @@ import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { hashRoomId, trackGameJoined } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { toErrorReportable } from '../../lib/errorCore';
+import { getDefaultAvatarId, type AvatarId } from '../../lib/avatars';
+import { Brand } from '../../components/Brand';
+import { AvatarPicker } from '../../components/AvatarPicker';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -50,6 +54,7 @@ export interface JoinRoomResult {
 export type JoinRoom = (args: {
   code: string;
   displayName: string;
+  avatarId: AvatarId;
   guestToken?: string;
 }) => Promise<JoinRoomResult>;
 
@@ -93,6 +98,9 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
     normalizeRoomCode(searchParams.get('code') || '')
   );
   const [name, setName] = useState('');
+  const [avatarId, setAvatarId] = useState<AvatarId>(() =>
+    getDefaultAvatarId(guestToken || 'linejam-join')
+  );
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -110,6 +118,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
       const room = await joinRoomMutation({
         code: normalizedCode,
         displayName: normalizedName,
+        avatarId,
         guestToken: guestToken || undefined,
       });
       trackGameJoined({
@@ -132,7 +141,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)]">
+      <div className="flex min-h-48 items-center justify-center">
         <LoadingState message={LoadingMessages.JOINING_SESSION} />
       </div>
     );
@@ -141,104 +150,99 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
   const hasCode = !!searchParams.get('code');
 
   return (
-    <div className="max-w-xl w-full ml-auto">
-      <p className="text-xs font-mono uppercase tracking-[0.32em] text-text-muted mb-2 sm:mb-3 text-right">
-        Join game
-      </p>
-      <h1 className="text-3xl sm:text-4xl md:text-6xl font-[var(--font-display)] leading-tight mb-5 sm:mb-8 text-right break-words">
-        Join Session
+    <>
+      <h1 className="mb-5 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
+        Join room
       </h1>
 
-      <div className="p-5 sm:p-8 border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]">
-        <p className="mb-5 sm:mb-8 text-base leading-relaxed text-[var(--color-text-secondary)]">
-          You&apos;ll add one hidden line at a time, then everyone reads the
-          finished poems together.
-        </p>
-        {hasCode && (
-          <p
-            id="join-invite-hint"
-            className="mb-5 text-sm text-[var(--color-text-secondary)]"
+      <form
+        onSubmit={handleJoin}
+        aria-label="Join room"
+        className="space-y-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6"
+      >
+        <div className="space-y-2">
+          <label
+            htmlFor="code"
+            className="block text-base font-semibold text-[var(--color-text-primary)]"
           >
-            Invite link loaded. Enter your name to join room {code}.
-          </p>
-        )}
-        <form onSubmit={handleJoin} className="space-y-5 sm:space-y-8">
-          <div className="space-y-2 sm:space-y-3">
-            <label
-              htmlFor="code"
-              className="block text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wide"
-            >
-              Room Code
-            </label>
-            <Input
-              id="code"
-              data-testid={E2E_TEST_IDS.joinRoomCodeInput}
-              placeholder="ABCD"
-              value={code}
-              onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
-              maxLength={7}
-              readOnly={hasCode}
-              aria-describedby={hasCode ? 'join-invite-hint' : undefined}
-              required
-              autoFocus={!hasCode}
-              inputMode="text"
-              autoCapitalize="characters"
-              autoCorrect="off"
-              autoComplete="off"
-              spellCheck={false}
-              enterKeyHint="next"
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  nameInputRef.current?.focus();
-                }
-              }}
-              className="uppercase tracking-[0.35em] sm:tracking-[0.5em] text-center font-mono text-2xl h-14 sm:h-16 bg-[var(--color-muted)] border-2 scroll-mb-28"
-            />
-          </div>
+            Room code
+          </label>
+          <Input
+            id="code"
+            name="roomCode"
+            data-testid={E2E_TEST_IDS.joinRoomCodeInput}
+            placeholder="ABCD"
+            value={code}
+            onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
+            maxLength={7}
+            required
+            autoFocus={!hasCode}
+            inputMode="text"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            enterKeyHint="next"
+            disabled={isSubmitting}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                nameInputRef.current?.focus();
+              }
+            }}
+            className="h-12 text-lg font-semibold uppercase tracking-[0.2em]"
+          />
+        </div>
 
-          <div className="space-y-2 sm:space-y-3">
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wide"
-            >
-              Your Name
-            </label>
-            <Input
-              ref={nameInputRef}
-              id="name"
-              data-testid={E2E_TEST_IDS.joinNameInput}
-              placeholder="Enter your name..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoFocus={hasCode}
-              autoCapitalize="words"
-              autoComplete="off"
-              enterKeyHint="go"
-              className="text-lg h-14 scroll-mb-28"
-            />
-          </div>
+        <div className="space-y-2">
+          <label
+            htmlFor="name"
+            className="block text-base font-semibold text-[var(--color-text-primary)]"
+          >
+            Your pen name
+          </label>
+          <Input
+            ref={nameInputRef}
+            id="name"
+            name="displayName"
+            data-testid={E2E_TEST_IDS.joinNameInput}
+            placeholder="e.g. Alex"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus={hasCode}
+            autoCapitalize="words"
+            autoComplete="nickname"
+            enterKeyHint="go"
+            disabled={isSubmitting}
+            className="h-12 text-base"
+          />
+        </div>
 
-          <div className="pt-1 sm:pt-4 space-y-4">
-            {error && (
-              <Alert variant="error" data-testid={E2E_TEST_IDS.joinErrorAlert}>
-                {error}
-              </Alert>
-            )}
+        <AvatarPicker
+          value={avatarId}
+          onChange={setAvatarId}
+          disabled={isSubmitting}
+        />
 
-            <Button
-              type="submit"
-              data-testid={E2E_TEST_IDS.joinRoomButton}
-              className="w-full text-base sm:text-lg h-12 sm:h-14"
-              disabled={!name.trim() || !code.trim() || isSubmitting}
-            >
-              {isSubmitting ? 'Joining...' : 'Enter Room'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="space-y-4">
+          {error && (
+            <Alert variant="error" data-testid={E2E_TEST_IDS.joinErrorAlert}>
+              {error}
+            </Alert>
+          )}
+
+          <Button
+            type="submit"
+            data-testid={E2E_TEST_IDS.joinRoomButton}
+            className="min-h-12 w-full text-base"
+            disabled={!name.trim() || !code.trim() || isSubmitting}
+          >
+            {isSubmitting ? 'Joining room…' : 'Join room'}
+          </Button>
+        </div>
+      </form>
+    </>
   );
 }
 
@@ -246,13 +250,28 @@ export function JoinPage({
   dependencies = defaultJoinPageDependencies,
 }: JoinPageProps = {}) {
   return (
-    <div className="min-h-screen w-full bg-[var(--color-background)] px-4 py-6 sm:p-6 md:p-12 lg:p-20 flex flex-col">
-      <div className="mb-4 flex w-full max-w-xl justify-end self-end sm:mb-6">
-        <FocusedEntryAppearance />
+    <div className="lj-game-frame lj-viewport-offset relative min-h-0 overflow-hidden bg-[var(--color-background)]">
+      <div className="lj-safe-frame h-full overflow-y-auto [--lj-safe-frame-space:1rem] sm:[--lj-safe-frame-space:2rem]">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+            <Link
+              href="/"
+              aria-label="Linejam home"
+              className="inline-flex min-h-11 min-w-0 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2"
+            >
+              <Brand className="text-2xl" />
+            </Link>
+            <FocusedEntryAppearance className="ml-auto" />
+          </div>
+          <Suspense
+            fallback={
+              <LoadingState message={LoadingMessages.JOINING_SESSION} />
+            }
+          >
+            <JoinForm dependencies={dependencies} />
+          </Suspense>
+        </div>
       </div>
-      <Suspense fallback={<div>Loading...</div>}>
-        <JoinForm dependencies={dependencies} />
-      </Suspense>
     </div>
   );
 }

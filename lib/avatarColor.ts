@@ -10,7 +10,7 @@
 // - Warmth (fits ink/paper aesthetic)
 // - Visual distinction between adjacent colors
 const AVATAR_PALETTE = [
-  '#e85d2b', // Persimmon focus ink
+  '#e85d2b', // Ember
   '#c2410c', // Burnt sienna
   '#0d9488', // Teal
   '#7c3aed', // Violet

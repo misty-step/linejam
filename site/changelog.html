@@ -21,24 +21,13 @@
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="linejam.css" />
     <link rel="stylesheet" href="marketing.css" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
   </head>
   <body>
     <svg aria-hidden="true" width="0" height="0" style="position: absolute">
-      <symbol id="i-scroll-text" viewBox="0 0 24 24">
-        <path d="M15 12h-5" />
-        <path d="M15 8h-5" />
-        <path
-          d="M19 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0 0 4h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"
-        />
-      </symbol>
       <symbol id="i-palette" viewBox="0 0 24 24">
-        <path
-          d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
-        />
-        <circle cx="13.5" cy="6.5" r=".5" />
-        <circle cx="17.5" cy="10.5" r=".5" />
-        <circle cx="6.5" cy="12.5" r=".5" />
-        <circle cx="8.5" cy="7.5" r=".5" />
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 3v18a9 9 0 0 0 0-18" fill="currentColor" stroke="none" />
       </symbol>
       <symbol id="i-circle-check" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" />
@@ -49,17 +38,12 @@
     <div class="lj-shell">
       <header class="lj-bar msk-bar">
         <a class="lj-wordmark" href="./" aria-label="Linejam home">
-          <span class="lj-mark" aria-hidden="true">
-            <svg class="lj-icon" data-lucide="scroll-text">
-              <use href="#i-scroll-text" />
-            </svg>
-          </span>
           <span class="lj-wordmark-label">Linejam</span>
         </a>
         <span class="msk-actions">
           <nav class="lj-nav" aria-label="Site">
-            <a href="./">home</a>
-            <a href="changelog.html" aria-current="page">release notes</a>
+            <a href="./">Home</a>
+            <a href="changelog.html" aria-current="page">Release notes</a>
           </nav>
           <details class="lj-appearance">
             <summary class="lj-icon-button" aria-label="Color mode">
@@ -92,13 +76,8 @@
         <article class="lj-doc msk-page" aria-labelledby="release-notes-title">
           <h1 id="release-notes-title">Release notes</h1>
           <p class="lj-lede">
-            Linejam ships continuously. These notes are generated in plain
-            language from the same
-            <a
-              href="https://github.com/misty-step/linejam/blob/master/CHANGELOG.md"
-              >CHANGELOG.md</a
-            >
-            source that feeds the app's /releases page.
+            What changed in Linejam. You can also read the
+            <a href="https://www.linejam.app/releases">latest releases in the app</a>.
           </p>
 
           <section class="msk-release">
@@ -1021,7 +1000,7 @@
       </main>
 
       <footer class="lj-bar lj-footer msk-footer">
-        <p class="lj-kicker">Linejam release notes are public by default.</p>
+        <p class="lj-muted">A game by Misty Step.</p>
         <nav class="lj-foot-links" aria-label="Footer">
           <a
             data-footer-link="github"

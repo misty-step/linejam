@@ -13,6 +13,7 @@ import {
   computeFullCardSize,
   type AttributedLine,
 } from '@/lib/poemCard/PoemCard';
+import { getConvexServerUrl, isLocalServerMode } from '@/lib/localMode';
 
 type CardPoem = {
   poem: { indexInRoom: number };
@@ -25,6 +26,7 @@ type ImageResponseOptions = NonNullable<
 >;
 
 export interface CardRouteDependencies {
+  loadFonts: typeof loadCardFonts;
   fetchPublicPoem(poemId: Id<'poems'>): Promise<CardPoem | null>;
   fetchPoemDetail(
     poemId: Id<'poems'>,
@@ -44,17 +46,29 @@ export interface CardRouteHandlers {
 }
 
 export const defaultCardRouteDependencies: CardRouteDependencies = {
+  loadFonts: loadCardFonts,
   fetchPublicPoem: (poemId) =>
-    fetchQuery(api.poems.getPublicPoemFull, { poemId }),
+    fetchQuery(
+      api.poems.getPublicPoemFull,
+      { poemId },
+      { url: getConvexServerUrl() }
+    ),
   fetchPoemDetail: (poemId, guestToken, clerkToken) =>
     clerkToken
       ? fetchQuery(
           api.poems.getPoemDetail,
           { poemId, guestToken: undefined },
-          { token: clerkToken }
+          { token: clerkToken, url: getConvexServerUrl() }
         )
-      : fetchQuery(api.poems.getPoemDetail, { poemId, guestToken }),
-  getConvexToken: async () => (await auth()).getToken({ template: 'convex' }),
+      : fetchQuery(
+          api.poems.getPoemDetail,
+          { poemId, guestToken },
+          { url: getConvexServerUrl() }
+        ),
+  getConvexToken: async () =>
+    isLocalServerMode()
+      ? null
+      : (await auth()).getToken({ template: 'convex' }),
   createImageResponse: (element, options) =>
     new ImageResponse(element, options),
 };
@@ -128,14 +142,14 @@ async function renderCard(
 
   const colors = resolveCardColors(mode);
   const fonts = getCardFontPairing();
-  const { fonts: loadedFonts } = await loadCardFonts();
+  const { fonts: loadedFonts } = await dependencies.loadFonts();
 
   const lines: AttributedLine[] = poem.lines.map((line) => ({
     text: line.text,
     authorName: line.authorName,
   }));
 
-  const cardSize = computeFullCardSize(lines.length);
+  const cardSize = computeFullCardSize(lines);
 
   const image = dependencies.createImageResponse(
     poemFullCardElement({

@@ -6,12 +6,17 @@ messages.
 ## Setup
 
 ```bash
-bash scripts/setup.sh
+node scripts/local/cli.mjs dev
 ```
 
-Fill `.env.local` with the Convex, Clerk, guest-token, and Sentry values needed
-for the loop you are running. Keep `GUEST_TOKEN_SECRET` aligned across local,
-DigitalOcean App Platform, and Convex when testing room flows.
+This runs the real isolated guest game without provider credentials or a host
+dotenv file. Ctrl-C stops the owned stack. See
+[local development](docs/local-development.md) for QA, reset, concurrent projects,
+and readiness evidence.
+
+Hosted-provider integration is a separate, explicitly commissioned lane. Use
+`bash scripts/setup.sh` for that lane and align its web/Convex guest secret;
+ordinary checks never sync code or create provider configuration automatically.
 
 ## Starting Work
 

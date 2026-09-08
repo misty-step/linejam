@@ -15,46 +15,42 @@ export const linejamClerkAppearance = {
     card: 'shadow-none border-0 p-0 bg-transparent',
     // Form
     formButtonPrimary:
-      'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-inverse)] font-[var(--font-sans)] font-medium h-12 rounded-[var(--radius-md)] transition-all duration-[var(--duration-normal)]',
+      'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-inverse)] font-sans font-semibold min-h-12 rounded-[var(--radius-md)] transition-colors duration-[var(--duration-fast)]',
     formFieldInput:
-      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-sans)] text-base h-12 rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-[var(--color-focus-ring)] focus:ring-2 focus:ring-offset-2',
-    formFieldLabel:
-      'text-[var(--color-text-secondary)] font-[var(--font-sans)] text-sm',
+      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-sans text-base h-12 rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-[var(--color-focus-ring)] focus:ring-2 focus:ring-offset-2',
+    formFieldLabel: 'text-[var(--color-text-secondary)] font-sans text-sm',
     formFieldInputShowPasswordButton:
-      'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
+      'min-h-11 min-w-11 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
     // Social buttons
     socialButtonsBlockButton:
-      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-sans)] h-12 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-hover)] transition-all duration-[var(--duration-normal)]',
+      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-sans min-h-12 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-hover)] transition-colors duration-[var(--duration-fast)]',
     socialButtonsBlockButtonText: 'font-medium',
     // Divider
     dividerLine: 'bg-[var(--color-border)]',
-    dividerText:
-      'text-[var(--color-text-muted)] font-[var(--font-sans)] text-sm',
+    dividerText: 'text-[var(--color-text-muted)] font-sans text-sm',
     // Footer
-    footerActionText:
-      'text-[var(--color-text-secondary)] font-[var(--font-sans)]',
+    footerActionText: 'text-[var(--color-text-secondary)] font-sans',
     footerActionLink:
-      'text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-medium',
+      'inline-flex min-h-11 items-center text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-semibold',
     // Identity preview (after first step)
-    identityPreviewText:
-      'text-[var(--color-text-primary)] font-[var(--font-sans)]',
+    identityPreviewText: 'text-[var(--color-text-primary)] font-sans',
     identityPreviewEditButton:
-      'text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]',
+      'min-h-11 min-w-11 text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]',
     // Alert/Error states
     alert:
       'bg-[var(--color-error)]/10 border-[var(--color-error)] text-[var(--color-error)]',
     // OTP input
     otpCodeFieldInput:
-      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-mono)] text-xl rounded-[var(--radius-md)]',
+      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-sans text-xl tabular-nums min-h-12 rounded-[var(--radius-md)]',
     // UserButton popover + embedded "Manage account" modal
     userButtonPopoverCard:
-      'bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-lg)]',
+      'bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)]',
     userButtonPopoverActionButton:
-      'text-[var(--color-text-primary)] font-[var(--font-sans)] hover:bg-[var(--color-surface-hover)]',
-    userButtonPopoverActionButtonText: 'font-[var(--font-sans)]',
+      'text-[var(--color-text-primary)] font-sans hover:bg-[var(--color-surface-hover)]',
+    userButtonPopoverActionButtonText: 'font-sans',
     userButtonPopoverFooter: 'hidden',
     modalBackdrop: 'bg-[var(--color-background)]/80',
-    modalContent: 'bg-[var(--color-surface)]',
+    modalContent: 'bg-[var(--color-surface)] rounded-[var(--radius-lg)]',
   },
   options: {
     socialButtonsPlacement: 'top' as const,

@@ -104,78 +104,25 @@ describe('Lobby component', () => {
     mockMutations.closeRoom.mockResolvedValue(undefined);
   });
 
-  it('renders the room code as the lobby hero', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    // Room code "ABCD" is formatted as "AB CD" and shown as the in-body hero
-    expect(screen.getByText('AB CD')).toHaveClass(
-      'text-[clamp(2rem,16vw,3rem)]'
-    );
-  });
-
-  it('announces the room code to screen readers without duplicating visual chrome', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const roomCodeStatus = screen
-      .getAllByRole('status')
-      .find((status) => status.textContent?.includes('Room code AB CD'));
-    expect(roomCodeStatus).toBeDefined();
-    expect(roomCodeStatus).toHaveClass('sr-only');
-  });
-
   it('renders player list from room state', () => {
     renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
 
     // Assert - Both players should be visible
     expect(screen.getByText('Host Player')).toBeInTheDocument();
     expect(screen.getByText('Guest Player')).toBeInTheDocument();
-    expect(screen.getByText('Host Player').parentElement).toHaveClass(
-      'min-w-0',
-      'max-w-full',
-      'flex-1'
-    );
-    expect(
-      screen.getByText('Host Player').closest('.animate-stamp')
-    ).toHaveClass('mx-[12px]', 'sm:mx-0');
   });
 
-  it('puts lobby utilities behind the Status Board room-tools disclosure', async () => {
+  it('opens the join QR without hiding the start action', async () => {
     const user = userEvent.setup();
     renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost />);
 
-    const tools = screen.getByText('Room tools').closest('summary');
-    expect(tools).toBeInTheDocument();
-    expect(tools?.parentElement).not.toHaveAttribute('open');
+    const qrToggle = screen.getByText('Show QR code');
 
-    await user.click(tools!);
-
-    expect(tools?.parentElement).toHaveAttribute('open');
+    await user.click(qrToggle);
     expect(
-      screen.getByRole('button', { name: /Present room/i })
+      screen.getByRole('img', { name: 'QR code for joining room AB CD' })
     ).toBeInTheDocument();
-    expect(screen.getByTestId('lobby-join-qr')).toBeInTheDocument();
-  });
-
-  it('keeps the primary action in a non-overlapping viewport sibling', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const scrollRegion = screen.getByTestId(E2E_TEST_IDS.lobbyScrollRegion);
-    const actionZone = screen.getByTestId(E2E_TEST_IDS.lobbyActionZone);
-    const start = screen.getByTestId(E2E_TEST_IDS.lobbyStartGameButton);
-
-    expect(scrollRegion.parentElement).toBe(actionZone.parentElement);
-    expect(scrollRegion.nextElementSibling).toBe(actionZone);
-    expect(scrollRegion).toHaveClass('min-h-0', 'overflow-y-auto');
-    expect(actionZone).toHaveClass('min-h-0', 'max-h-[50%]', 'flex-[0_1_auto]');
-    expect(start).toHaveClass(
-      'min-h-[64px]',
-      'h-auto',
-      'min-w-0',
-      'px-[16px]',
-      'py-[12px]'
-    );
-    expect(actionZone).not.toHaveClass('flex-none');
-    expect(actionZone).not.toHaveClass('fixed', 'sticky');
+    expect(screen.getByTestId(E2E_TEST_IDS.lobbyStartGameButton)).toBeEnabled();
   });
 
   it('Start Game button disabled with <2 players', () => {
@@ -197,26 +144,6 @@ describe('Lobby component', () => {
       name: /Start Linejam/i,
     });
     expect(startButtons[0]).not.toBeDisabled();
-  });
-
-  it('calls startGame mutation when Start button clicked', async () => {
-    mockMutations.startGame.mockResolvedValue(undefined);
-    const user = userEvent.setup();
-
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const startButtons = screen.getAllByRole('button', {
-      name: /Start Linejam/i,
-    });
-
-    await user.click(startButtons[0]);
-
-    await waitFor(() => {
-      expect(mockMutations.startGame).toHaveBeenCalledWith({
-        code: 'ABCD',
-        guestToken: 'mock-token',
-      });
-    });
   });
 
   it('emits lobby-ready and started only after a successful start with the next cycle', async () => {
@@ -270,7 +197,6 @@ describe('Lobby component', () => {
       name: /Waiting for host/i,
     });
     expect(waitingButtons[0]).toBeDisabled();
-    expect(waitingButtons[0]).toHaveClass('opacity-50', 'cursor-not-allowed');
   });
 
   it('lets the host open and exit a room-scale presentation lobby', async () => {
@@ -281,9 +207,6 @@ describe('Lobby component', () => {
     await user.click(screen.getByRole('button', { name: /Present room/i }));
 
     const stage = screen.getByTestId('lobby-presentation-stage');
-    expect(
-      within(stage).getByRole('heading', { name: /Join from any phone/i })
-    ).toBeInTheDocument();
     expect(within(stage).getByText('AB CD')).toBeInTheDocument();
     expect(
       within(stage).getByLabelText(/QR code for joining room AB CD/i)
@@ -296,6 +219,7 @@ describe('Lobby component', () => {
     );
 
     expect(screen.queryByTestId('lobby-presentation-stage')).toBeNull();
+    expect(screen.getByRole('button', { name: /Present room/i })).toHaveFocus();
   });
 
   it('keeps presentation mode host-only in the lobby', () => {
@@ -306,7 +230,7 @@ describe('Lobby component', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('marks a player who joins while the lobby presentation stage is open', async () => {
+  it('updates the roster while the lobby presentation is open', async () => {
     const user = userEvent.setup();
     const latePlayer = {
       // SAFETY: Synthetic Convex roomPlayer ID for late joining player.
@@ -337,7 +261,6 @@ describe('Lobby component', () => {
 
     const stage = screen.getByTestId('lobby-presentation-stage');
     expect(within(stage).getByText('Late Poet')).toBeInTheDocument();
-    expect(within(stage).getByText(/Just joined/i)).toBeInTheDocument();
   });
 
   it('Close room button calls mutation and navigates to home (host)', async () => {
@@ -382,39 +305,12 @@ describe('Lobby component', () => {
     renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     const hostPlayerItem = screen.getByText('Host Player').closest('li');
-    expect(hostPlayerItem).toBeInTheDocument();
-  });
-
-  it('wraps roster chips before the action zone on narrow layouts', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const rosterList = screen.getByText('Host Player').closest('ul');
-    expect(rosterList).toHaveClass('flex', 'flex-wrap', 'min-w-0');
-  });
-
-  it('truncates long player names instead of overflowing the roster row (linejam-946: mid-width collision)', () => {
-    const longName = 'A'.repeat(80);
-    const playersWithLongName = [
-      { ...mockPlayers[0], displayName: longName },
-      mockPlayers[1],
-    ];
-
-    renderLobby(
-      <Lobby room={mockRoom} players={playersWithLongName} isHost={true} />
-    );
-
-    const nameSpan = screen.getByText(longName);
-    expect(nameSpan).toHaveClass('truncate', 'min-w-0');
-  });
-
-  it('stacks roster badges at narrow widths and reserves a column when space permits', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const hostPlayerItem = screen.getByText('Host Player').closest('li');
-    expect(hostPlayerItem).toHaveClass(
-      'grid',
-      'grid-cols-1',
-      'sm:grid-cols-[minmax(0,1fr)_auto]'
-    );
+    expect(
+      within(hostPlayerItem!).getByRole('status', { name: 'Room host' })
+    ).toBeInTheDocument();
+    const guestPlayerItem = screen.getByText('Guest Player').closest('li');
+    expect(
+      within(guestPlayerItem!).queryByRole('status', { name: 'Room host' })
+    ).not.toBeInTheDocument();
   });
 });

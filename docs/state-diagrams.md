@@ -298,7 +298,7 @@ stateDiagram-v2
 
 ## Fixed Identity and Color Mode Flow
 
-Linejam has one fixed **Ink & Anticipation** identity. `lib/design/tokens.ts` is the token source of truth, and `lib/colorMode/` owns `ColorModeProvider`, `useColorMode`, `applyColorMode`, and `getAppliedColorMode`. `components/ColorModeControl.tsx` is the only appearance control: Light, Dark, or System. The preference persists under `linejam-theme-mode`; System resolves to an effective Light or Dark mode from `prefers-color-scheme`.
+Linejam has one visual identity. `lib/design/tokens.ts` is the token source of truth, and `lib/colorMode/` owns `ColorModeProvider`, `useColorMode`, `applyColorMode`, and `getAppliedColorMode`. `components/ColorModeControl.tsx` is the only appearance control: Light, Dark, or System. The preference persists under `linejam-theme-mode`; System resolves to an effective Light or Dark mode from `prefers-color-scheme`.
 
 ```mermaid
 stateDiagram-v2
@@ -328,24 +328,24 @@ stateDiagram-v2
 
     note right of appliedLight
         Identity tokens from lib/design/tokens.ts
-        action #b43a12
-        focus #e85d2b
-        background #faf9f7
+        action #672cb5
+        focus #672cb5
+        background #eee8ff
         surface #ffffff
-        ink #1c1917
+        ink #39234e
     end note
 
     note right of appliedDark
         Identity tokens from lib/design/tokens.ts
-        action #f06b3b
-        focus #e85d2b
-        background #1c1917
-        surface #292524
-        ink #faf9f7
+        action #d5b5ff
+        focus #d5b5ff
+        background #23172f
+        surface #33223f
+        ink #f7f1ff
     end note
 ```
 
-The fixed palette uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels in every effective mode.
+DynaPuff sets the wordmark and arrival headings; Nunito Sans carries interface text and complete poems in every effective mode.
 
 ---
 

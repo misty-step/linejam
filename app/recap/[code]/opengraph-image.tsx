@@ -3,10 +3,12 @@ import { fetchQuery } from 'convex/nextjs';
 import { api } from '../../../convex/_generated/api';
 import { designTokens } from '../../../lib/design';
 import { getCardFontPairing, loadCardFonts } from '../../../lib/poemCard/fonts';
+import { getConvexServerUrl } from '@/lib/localMode';
 
 export const runtime = 'edge';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
+export const alt = 'Poems written together on Linejam';
 
 const identityTokens = designTokens.light;
 const cardFonts = getCardFontPairing();
@@ -17,32 +19,19 @@ export default async function Image({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  const recap = await fetchQuery(api.poems.getPublicSessionRecap, {
-    roomCode: code,
-  }).catch(() => null);
-  const { fonts: loadedFonts } = await loadCardFonts();
-
-  const title = recap ? `Room ${recap.roomCode}` : 'Linejam';
-  const subtitle = recap
-    ? `${recap.poemCount} poems by ${recap.playerCount} poets`
-    : 'Session recap';
-  const poemPreviews =
-    recap?.poems
-      .map((poem) => ({
-        key: String(poem._id),
-        number: (poem.indexInRoom + 1).toString().padStart(2, '0'),
-        readerName: poem.readerName,
-        preview:
-          poem.preview.length > 58
-            ? `${poem.preview.slice(0, 55).trimEnd()}...`
-            : poem.preview,
-      }))
-      .filter((poem) => poem.preview.length > 0) ?? [];
-  const midpoint = Math.ceil(poemPreviews.length / 2);
-  const previewColumns = [
-    poemPreviews.slice(0, midpoint),
-    poemPreviews.slice(midpoint),
-  ].filter((column) => column.length > 0);
+  const [recap, { fonts }] = await Promise.all([
+    fetchQuery(
+      api.poems.getPublicSessionRecap,
+      { roomCode: code },
+      { url: getConvexServerUrl() }
+    ).catch(() => null),
+    loadCardFonts(),
+  ]);
+  const previews =
+    recap?.poems.filter((poem) => poem.preview.length > 0).slice(0, 4) ?? [];
+  const previewColumns = [previews.slice(0, 2), previews.slice(2)].filter(
+    (column) => column.length > 0
+  );
 
   return new ImageResponse(
     <div
@@ -51,120 +40,113 @@ export default async function Image({
         flexDirection: 'column',
         width: '100%',
         height: '100%',
+        padding: '48px 64px',
         backgroundColor: identityTokens['color-background'],
-        color: identityTokens['color-foreground'],
-        padding: '72px 84px',
-        fontFamily: cardFonts.displayFamily,
+        color: identityTokens['color-text-primary'],
+        fontFamily: cardFonts.sansFamily,
       }}
     >
       <div
         style={{
-          fontSize: 30,
-          color: identityTokens['color-primary'],
-          fontFamily: cardFonts.sansFamily,
-          letterSpacing: 0,
-          textTransform: 'uppercase',
-        }}
-      >
-        {title}
-      </div>
-      <div
-        style={{
-          marginTop: 22,
-          fontSize: 76,
-          lineHeight: 0.95,
-        }}
-      >
-        Session recap
-      </div>
-      <div
-        style={{
-          marginTop: 28,
-          fontSize: 30,
-          color: identityTokens['color-text-secondary'],
-          fontFamily: cardFonts.sansFamily,
-        }}
-      >
-        {subtitle}
-      </div>
-      <div
-        style={{
           display: 'flex',
-          gap: 26,
-          marginTop: 44,
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
-        {(previewColumns.length > 0
-          ? previewColumns
-          : [
-              [
-                {
-                  key: 'fallback',
-                  number: '01',
-                  readerName: 'Linejam',
-                  preview: 'Write poems together, one line at a time.',
-                },
-              ],
-            ]
-        ).map((column, columnIndex) => (
+        <div
+          style={{
+            fontFamily: cardFonts.displayFamily,
+            fontWeight: 500,
+            fontSize: 42,
+            color: identityTokens['color-primary'],
+          }}
+        >
+          Linejam
+        </div>
+        {recap && (
+          <div style={{ fontSize: 26 }}>{`Room ${recap.roomCode}`}</div>
+        )}
+      </div>
+      <div style={{ fontSize: 44, marginTop: 22 }}>
+        {recap
+          ? `${recap.poemCount} poems by ${recap.playerCount} poets`
+          : 'A little room for words.'}
+      </div>
+      <div style={{ display: 'flex', gap: 20, marginTop: 28, flex: 1 }}>
+        {previewColumns.map((column, columnIndex) => (
           <div
-            key={`column-${columnIndex}`}
+            key={columnIndex}
             style={{
               display: 'flex',
               flex: 1,
               flexDirection: 'column',
-              gap: 12,
+              gap: 16,
             }}
           >
             {column.map((poem) => (
               <div
-                key={poem.key}
+                key={String(poem._id)}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  borderLeft: `3px solid ${identityTokens['color-primary']}`,
-                  paddingLeft: 16,
+                  gap: 12,
+                  padding: '18px 22px',
+                  backgroundColor: identityTokens['color-surface'],
+                  borderRadius: identityTokens['radius-lg'],
                 }}
               >
                 <div
                   style={{
                     fontSize: 16,
+                    lineHeight: 1.3,
                     color: identityTokens['color-text-secondary'],
-                    fontFamily: cardFonts.sansFamily,
-                    letterSpacing: 0,
-                    textTransform: 'uppercase',
                   }}
                 >
-                  {`Poem ${poem.number} / ${poem.readerName}`}
+                  {`Poem ${poem.indexInRoom + 1} / Read by ${poem.readerName}`}
                 </div>
                 <div
                   style={{
-                    marginTop: 5,
                     fontSize: 26,
-                    lineHeight: 1.18,
+                    lineHeight: 1.3,
+                    wordBreak: 'break-word',
                   }}
                 >
-                  {`“${poem.preview}”`}
+                  {poem.preview.length > 58
+                    ? `${poem.preview.slice(0, 55).trimEnd()}...`
+                    : poem.preview}
                 </div>
               </div>
             ))}
           </div>
         ))}
+        {!recap && (
+          <div
+            style={{
+              fontSize: 30,
+              color: identityTokens['color-text-secondary'],
+            }}
+          >
+            Write a line. Pass it on.
+          </div>
+        )}
       </div>
       <div
         style={{
-          position: 'absolute',
-          bottom: 72,
-          right: 84,
-          width: 70,
-          height: 70,
-          borderRadius: 999,
-          backgroundColor: identityTokens['color-primary'],
-          opacity: 0.9,
-          transform: 'rotate(-5deg)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: 20,
+          fontSize: 22,
+          color: identityTokens['color-text-secondary'],
         }}
-      />
+      >
+        <div>
+          {recap && recap.poemCount > previews.length
+            ? `Read all ${recap.poemCount} poems`
+            : 'Written together. Read together.'}
+        </div>
+        <div>linejam.app</div>
+      </div>
     </div>,
-    { ...size, fonts: loadedFonts }
+    { ...size, fonts }
   );
 }

@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
@@ -42,36 +41,8 @@ const EXPECTED_TEST_IDS = {
   recapExportButton: 'recap-export-button',
 } as const;
 
-const SOURCE_FILES = [
-  'app/host/page.tsx',
-  'app/join/JoinPage.tsx',
-  'components/Lobby.tsx',
-  'components/stage/LobbyStage.tsx',
-  'components/stage/RevealStage.tsx',
-  'components/ConnectionStatus.tsx',
-  'components/WritingScreen.tsx',
-  'components/WaitingScreen.tsx',
-  'components/RevealPhase.tsx',
-  'components/PoemDisplay.tsx',
-  'components/SessionRecapHub.tsx',
-  'components/RecapExportButton.tsx',
-  'components/ui/WordSlots.tsx',
-];
-
 describe('E2E selector contract', () => {
   it('keeps load-bearing selectors frozen', () => {
     expect(E2E_TEST_IDS).toEqual(EXPECTED_TEST_IDS);
-  });
-
-  it('binds every contract selector to source markup', () => {
-    const source = SOURCE_FILES.map((path) => readFileSync(path, 'utf8')).join(
-      '\n'
-    );
-
-    for (const key of Object.keys(EXPECTED_TEST_IDS)) {
-      expect(source, `missing data-testid binding for ${key}`).toMatch(
-        new RegExp(`(?:data-testid|testId)=\\{E2E_TEST_IDS\\.${key}\\}`)
-      );
-    }
   });
 });

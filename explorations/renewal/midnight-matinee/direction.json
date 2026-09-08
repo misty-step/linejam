@@ -1,0 +1,1086 @@
+{
+  "id": "midnight-matinee",
+  "name": "Midnight Matinee",
+  "thesis": "A pocket theatre: writing is backstage intimacy and a complete human-made poem is the shared performance. Exploration only, not a selected production identity.",
+  "palette": {
+    "dark": {
+      "base": "#261C3B",
+      "paper": "#382A50",
+      "ink": "#FFF4E7",
+      "action": "#F4C56A",
+      "actionInk": "#30203F",
+      "lavender": "#B5A3E5",
+      "rose": "#F4B3B8"
+    },
+    "light": {
+      "base": "#F0E8F5",
+      "paper": "#FFFCF7",
+      "ink": "#332442",
+      "action": "#E9B64F",
+      "actionInk": "#30203F",
+      "lavender": "#725197",
+      "rose": "#983E5E"
+    }
+  },
+  "type": {
+    "display": "DM Serif Display",
+    "poem": "DM Serif Display",
+    "body": "DM Sans",
+    "source": "Locally bundled SIL OFL families; Georgia and sans-serif fallbacks",
+    "alignment": "Left-aligned poem and practical text; centered stage object, never centered verse"
+  },
+  "principles": [
+    "One original arch/curtain metaphor carries identity in grayscale; no casino accents, neon, grain, repeated gold borders or uniform dashboard cards.",
+    "Human names and literal actions outrank stage language. No one must perform an identity or read aloud; an available human can step in.",
+    "Quiet writing, complete stable reading. The only animated aperture belongs to a deliberate completed-poem reveal.",
+    "Sound defaults off, haptics are omitted, OS reduced motion and an additional explicit reduce override both remove decorative motion.",
+    "Before coding, the plan compared a gilded theatre poster with an intimate pocket playbill. Critique rejected the gilded option as formal and status-oriented; the retained arch uses plain paper, sentence-case controls and dark ink on gold.",
+    "Every standalone scene is labelled a disconnected design sketch. Synthetic sample cast and poems are never claimed as live gameplay or backend evidence."
+  ],
+  "workflow": [
+    "Home → host or invited/manual join form → named cast lobby with a clear invitation.",
+    "Start local sketch → nine human-typed rounds of 1,2,3,4,5,4,3,2,1 words, only the previous entry visible → immediately available recorded receipt → deliberate next round.",
+    "After the ninth accepted line, open one complete poem → optional human reader handoff or step-in → private recap.",
+    "Replay the whole poem, start another sketch, return to lobby or exit. Private keep, local image save and print never imply public linking.",
+    "Public poem and whole-recap publication are separately disclosed, explicitly simulated local states with cancellation/error/revocation; no backend or external asset calls."
+  ],
+  "tradeoffs": [
+    "The theatre metaphor provides a strong shared-screen composition, but a named reader can increase social pressure. Keep step-in and Done visible, avoid a moving spotlight, and never force sound or dramatic delay.",
+    "A single 340ms movement is confined to ten-pixel curtain edges. Every line is readable from first paint, even if animation is suspended; reduced motion removes the edge movement entirely.",
+    "Dark plum is intimate but could read premium or casino-like. The intentional lavender daylight mode, ordinary language and gold-only action/ticket restraint counter that risk.",
+    "Cameos aid grayscale recognition but are optional; pen names remain the sole necessary identity.",
+    "The current favorite-leader crown is deliberately not carried into this proposal: a private Keep control avoids scoring the group’s writing.",
+    "No browser, runtime, accessibility or deployment claims are made by this authoring pass; Main owns rendered verification. QR encodes an explicitly harmless sketch text; account and publication states are disconnected treatments, not live integrations."
+  ],
+  "views": [
+    {
+      "id": "app-shell",
+      "composition": "One persistent pocket-theatre portal with the curtain-line mark, quiet utilities and a separate sketch-provenance rail.",
+      "hierarchy": "People and the next action precede account tools. Compact game chrome keeps recovery reachable.",
+      "interaction": "Home, collection, help and appearance have labelled controls; dialogs return focus to the invoking control.",
+      "mobile": "Utilities wrap in normal flow. No fixed toolbar covers the keyboard.",
+      "motion": "Routine navigation is immediate; no theatrical entrance for utility pages.",
+      "copy": "A little room for unexpected poems."
+    },
+    {
+      "id": "home",
+      "composition": "A large left-aligned invitation faces one original open-curtain illustration; the literal nine-count arc follows the entry actions.",
+      "hierarchy": "Create a room and Join a room are the two dominant actions. Human collaboration precedes account benefits.",
+      "interaction": "Both paths open a focused name form. How to play is optional and never blocks entry.",
+      "mobile": "A compact three-line invitation keeps both entry actions in the first phone viewport; the smaller still illustration follows. Buttons wrap at large text sizes.",
+      "motion": "The illustration stays still. The sole expressive aperture belongs to a completed poem.",
+      "copy": "A little room. An unexpected poem."
+    },
+    {
+      "id": "host-entry",
+      "composition": "One intimate arch contains the name form and optional cameo disclosure, without a settings questionnaire.",
+      "hierarchy": "Name, Create sketch room, then honest guest and local-data context.",
+      "interaction": "Empty names show inline recovery; pending and error keep the entered name and nearby submit action.",
+      "mobile": "Name and action share the same scroll surface; no arrival autofocus or keyboard-covering footer.",
+      "motion": "No form entrance, fake spinner or identity ceremony.",
+      "copy": "Bring a name. The room is yours to start."
+    },
+    {
+      "id": "join-entry",
+      "composition": "The same quiet name stage begins with a clearly identified manual or invited destination.",
+      "hierarchy": "Room code and ordinary human name precede all optional customization.",
+      "interaction": "Code Enter moves to name; invited code is read-only and explained. SKETCH is a labelled non-live token, never a real room code.",
+      "mobile": "Stacked labelled fields retain long names, invitation context and recovery text.",
+      "motion": "Pending updates in place; no stamped-code theatrics.",
+      "copy": "There is a place for you."
+    },
+    {
+      "id": "room-lobby",
+      "composition": "A named cast strip tops one arch stage, paired with a single perforated gold invitation ticket.",
+      "hierarchy": "Invitation, present humans and the host start action form the hierarchy; room tools stay disclosed.",
+      "interaction": "Host and participant controls differ. One-person start is unavailable; full, away and error states keep name and ownership clear.",
+      "mobile": "The invitation stacks before the stage; the cast wraps into visible rows so no person's presence depends on discovering a sideways scroll.",
+      "motion": "One cameo may settle on arrival, never delayed or staggered human names.",
+      "copy": "The cast is gathering. Everyone gets a turn."
+    },
+    {
+      "id": "lobby-presentation",
+      "composition": "An enlarged invitation ticket and the same named cast form a readable shared-screen playbill.",
+      "hierarchy": "Room destination, complete roster and permanent Exit presentation; no TV-only dependency.",
+      "interaction": "Open invitation returns to the local join sketch. The original QR specimen encodes only LINEJAM DESIGN SKETCH, not a live destination.",
+      "mobile": "Ticket and roster stack at narrow widths, preserving the same hierarchy.",
+      "motion": "One short cameo settle and a textual arrival label; no stage flash.",
+      "copy": "A place for everyone."
+    },
+    {
+      "id": "room-writing",
+      "composition": "One previous line and one generous textarea sit left aligned within a quiet arch; the cast retires to compact chrome.",
+      "hierarchy": "Required word count, carried line, current input, nearby count and Submit line.",
+      "interaction": "The core path requires nine human-typed entries of 1,2,3,4,5,4,3,2,1 words; only the previous entry is exposed. Paste normalizes whitespace, input bounds at 500 characters, and retries retain drafts.",
+      "mobile": "Input and action stay in flow; long words wrap, textarea grows and no fixed tray obscures a keyboard.",
+      "motion": "Ready is static. Accepted receipt does not impose a wait. No writing text moves.",
+      "copy": "Write 3 words. Only the previous line comes with you."
+    },
+    {
+      "id": "room-waiting",
+      "composition": "A recorded receipt occupies the stage with a calm named status list beneath.",
+      "hierarchy": "Your recorded line is primary; writing, away and watching labels are secondary, not a scoreboard.",
+      "interaction": "Continue explicitly advances the disconnected sketch. Host end-game asks confirmation and returns to lobby without partial reveal.",
+      "mobile": "Receipt and roster stack without crossed-out names or a floating timer.",
+      "motion": "One 180ms receipt settle; no repeating writer pulse or mandatory confirmation delay.",
+      "copy": "Your line is in. Take a breath."
+    },
+    {
+      "id": "late-join-spectator",
+      "composition": "An open-seat drawing and direct watching explanation replace the composer inside the stage.",
+      "hierarchy": "Watching this game precedes progress; spectators do not look like overdue active writers.",
+      "interaction": "Preview completed reading order, then join the next game through the usual lobby; no partial reveal or disabled fake input.",
+      "mobile": "One concise notice plus named roster, with natural scrolling.",
+      "motion": "The empty seat stays still; no impatient motion.",
+      "copy": "Pull up a seat. You can write in the next game."
+    },
+    {
+      "id": "reveal-circle",
+      "composition": "A reading-order programme faces a private reading-invitation ticket; the current human reader is the anchor.",
+      "hierarchy": "Current reader, Reveal and read, then reread, step-in and presentation.",
+      "interaction": "An available human can step in; pending/error remain with the read action. Complete poems open together, not line by line.",
+      "mobile": "Reading order and invitation stack before the whole-poem stage; names wrap.",
+      "motion": "Only deliberate reveal gets one 340ms curtain aperture, absent under reduced motion.",
+      "copy": "Let the words have a room."
+    },
+    {
+      "id": "poem-reading",
+      "composition": "One complete left-aligned poem fills an arch playbill, with the reader named above and actions outside the text.",
+      "hierarchy": "All nine lines at once; current reader and Done remain easy to locate.",
+      "interaction": "Persistent attribution, personal keep, local image save and step-in never animate the poem. Done reaches the private recap; reading order remains available.",
+      "mobile": "The full poem scrolls naturally; narrow verse is not squeezed by icon-only author dots. Long-text fixtures exercise long words and wrapped verse.",
+      "motion": "Only curtain edges move once. Repeated keep, author and reader actions never replay the aperture.",
+      "copy": "A whole poem. A human voice."
+    },
+    {
+      "id": "reveal-presentation",
+      "composition": "A focused whole poem sits below a named reader, step-in, Done and Exit controls. Personal save/share utilities stay out of the shared-screen reading composition.",
+      "hierarchy": "All nine sample lines fit the standard 1440×900 shared screen; reader recovery stays above the poem. Waiting and no-ready-poem states do not fabricate hidden text.",
+      "interaction": "Opening a ready poem keeps the shared presentation active. Finish or return to reading order; fallback reading remains deliberate.",
+      "mobile": "Narrow presentation returns to the same single column rather than clipping a landscape canvas.",
+      "motion": "No scrolling recital, moving spotlight, typewriter or autoplay.",
+      "copy": "One poem. One reader. Everyone listening."
+    },
+    {
+      "id": "session-recap",
+      "composition": "A private programme collection replaces a podium; readable poem links lead to full replay.",
+      "hierarchy": "Private by default, the complete work, then another game, lobby and exit.",
+      "interaction": "Keep is personal rather than a vote. Whole-set publication has separate disclosure, cancellation and revoke states.",
+      "mobile": "Rows and wrapping actions replace a dense card gallery.",
+      "motion": "No crown, winner burst, applause or celebratory score.",
+      "copy": "Keep the words. Leave the spotlight."
+    },
+    {
+      "id": "room-unavailable",
+      "composition": "An empty arch contains one room-status explanation and a clear way back.",
+      "hierarchy": "Unavailable destination and Join another room; no leaked poem, code or membership detail.",
+      "interaction": "Return to join or Home without pretending an expired room can be restored.",
+      "mobile": "Compact normal-flow stage works at short height and large text.",
+      "motion": "No error stamp, blur or shaking curtain.",
+      "copy": "This room is no longer available."
+    },
+    {
+      "id": "room-recovery",
+      "composition": "A repair notice stays inside the familiar arch with retained local draft shown separately.",
+      "hierarchy": "What is safe and what to do next: retained words, retry, re-entry.",
+      "interaction": "Retry restores the sketch composer without a fake backend success; Home remains secondary.",
+      "mobile": "Recovery text and actions wrap without overlaying the draft.",
+      "motion": "Immediate repair state, not theatrical failure.",
+      "copy": "The room lost its place. Your words did not."
+    },
+    {
+      "id": "guest-session-recovery",
+      "composition": "The focused entry arch contains a contextual guest-session status and retry.",
+      "hierarchy": "Guest-first access and recovery precede any account suggestion.",
+      "interaction": "Loading and error are distinct; retry keeps local name and draft. The prototype never claims a real authentication request.",
+      "mobile": "Name and repair text share a single scroll surface.",
+      "motion": "Static busy status, no required spinner.",
+      "copy": "Let’s reconnect your place."
+    },
+    {
+      "id": "connection-notice",
+      "composition": "An in-flow status strip sits above the writing stage, never across its textarea.",
+      "hierarchy": "Offline, reconnecting or restored text states what happens to the retained draft.",
+      "interaction": "Offline disables sending while retaining typing; restored state removes the blocking wording.",
+      "mobile": "The notice expands the page rather than floating above the keyboard.",
+      "motion": "No reconnect pulse; text communicates the state in silence.",
+      "copy": "Offline. Your draft stays in this tab."
+    },
+    {
+      "id": "deployment-update",
+      "composition": "A quiet persistent edition notice sits above ordinary page content with Reload.",
+      "hierarchy": "Detected update and voluntary action; normal network failure is not called stale.",
+      "interaction": "Healthy omits the notice. The sketch reload action does not discard an in-memory draft.",
+      "mobile": "Text and reload wrap in ordinary document flow.",
+      "motion": "No forced refresh, countdown or animation masking latency.",
+      "copy": "A new edition is ready. Reload when you can."
+    },
+    {
+      "id": "archive",
+      "composition": "A personal playbill shelf uses wide readable poem rows and modest collection facts.",
+      "hierarchy": "Poems and private status precede factual totals; no dashboard KPI cards.",
+      "interaction": "Open, personal keep and explicit public-link revoke are separate; guest copy explains browser limits.",
+      "mobile": "One column on phones; first lines and long names wrap without hover-dependent actions.",
+      "motion": "No staggered entry or lifted hover cards; Open poem always shows.",
+      "copy": "Your little collection."
+    },
+    {
+      "id": "poem-detail",
+      "composition": "A complete saved playbill has an archive breadcrumb and independent permission strip.",
+      "hierarchy": "The poem comes before sharing; private save and public linking have different verbs.",
+      "interaction": "Attribution persists, local image/print are private, and public revoke remains independently actionable.",
+      "mobile": "All actions sit below the text, not on top of narrow lines.",
+      "motion": "Rereading has no ceremony; no timed author tooltip.",
+      "copy": "A poem to come back to."
+    },
+    {
+      "id": "public-poem",
+      "composition": "Authorized public poems receive a clean guest playbill; unavailable links receive a neutral empty arch with no snippets.",
+      "hierarchy": "The permission state gates the whole poem and all attribution.",
+      "interaction": "Public view offers save/print but no participant keep or revoke; pending, private, expired and revoked states reveal nothing.",
+      "mobile": "Same responsive full-poem measure; unavailable state is concise.",
+      "motion": "No pretend progress or blurred private preview.",
+      "copy": "This poem is private or no longer available."
+    },
+    {
+      "id": "poem-sharing",
+      "composition": "An inline playbill disclosure explains whole-poem public scope before delivery-state controls.",
+      "hierarchy": "All lines and attribution would become readable; private image saving remains a different action.",
+      "interaction": "Local consent, delivery, cancellation, activation failure and revoke are explicit simulations. Native OS share chrome is never imitated.",
+      "mobile": "Disclosure comes before full-width choices; no cramped modal keyboard overlap.",
+      "motion": "Status wording changes in place; no success stamp before activation.",
+      "copy": "Anyone with the link could read this whole poem."
+    },
+    {
+      "id": "recap-sharing",
+      "composition": "A whole-programme disclosure makes the full-set publication scope explicit.",
+      "hierarchy": "Every poem and contributor, not only the currently viewed work.",
+      "interaction": "Cancellation remains private. Local success/revoke demonstrate reversibility without network publication.",
+      "mobile": "Scope precedes choices in one readable column.",
+      "motion": "No share reward, social burst or theatrical fan-out.",
+      "copy": "Share the whole evening, only if everyone is comfortable."
+    },
+    {
+      "id": "poem-image-export",
+      "composition": "The whole poem becomes an arch-topped local PNG with restrained Linejam identity and full attribution.",
+      "hierarchy": "All nine lines, author names and readable contrast; no exported action buttons.",
+      "interaction": "Actual local canvas download uses the selected palette and height derived from wrapped words/names. It never publishes a URL.",
+      "mobile": "Screen preview scales while the real image remains 1200px wide and grows vertically.",
+      "motion": "Stable saving and error feedback, no delay.",
+      "copy": "Save an image. Keep it private."
+    },
+    {
+      "id": "poem-print",
+      "composition": "Plain ink on white with every line and full attribution; stage ornament reduces to a simple document.",
+      "hierarchy": "Poem first; navigation, utilities and artwork do not print.",
+      "interaction": "Explicit Print invokes the real browser dialog. The OS owns accept, cancel and destination.",
+      "mobile": "Screen preview is readable on a phone; print has no clipped fixed-height poem region.",
+      "motion": "Static document, no animation.",
+      "copy": "A paper copy of the whole poem."
+    },
+    {
+      "id": "public-recap",
+      "composition": "A public programme contains complete poem articles, each retaining reader and attribution context.",
+      "hierarchy": "Public scope and entire works precede join/new-room promotion.",
+      "interaction": "Unavailable state suppresses all content. Real browser print includes the complete sample set, not only one selected card.",
+      "mobile": "Full poems stack on phones; columns appear only when readable.",
+      "motion": "No motion while reading or printing a collection.",
+      "copy": "The poems from this room."
+    },
+    {
+      "id": "sign-in",
+      "composition": "A calm account-entry arch sits beside an optional clearly synthetic sample playbill on desktop.",
+      "hierarchy": "Optional cross-device keeping benefit; guest play remains available.",
+      "interaction": "Provider-managed form styling, verification and error are labelled previews. Local mode says Accounts are not connected; nothing is authenticated.",
+      "mobile": "Form first; showcase omitted on narrow screens.",
+      "motion": "No identity-performance animation.",
+      "copy": "Your poems, between devices."
+    },
+    {
+      "id": "sign-up",
+      "composition": "The same account arch uses creation wording and a visible guest alternative.",
+      "hierarchy": "Account benefit does not become a play gate or compulsory avatar choice.",
+      "interaction": "Preview verification without sending or storing credentials; no fake account success.",
+      "mobile": "Labels and touch-sized fields remain reachable with text scaling.",
+      "motion": "Stable immediate form states.",
+      "copy": "Keep coming back."
+    },
+    {
+      "id": "auth-callback",
+      "composition": "A compact transfer-status playbill frames guest-progress safety as the outcome.",
+      "hierarchy": "Completing, unavailable and migration failure are distinct.",
+      "interaction": "Retry and Go home never erase locally typed words. A success treatment is labelled as a preview, not real migration.",
+      "mobile": "Concise status expands for errors in document flow.",
+      "motion": "Static busy wording instead of an endless spinner.",
+      "copy": "Bringing your guest poems with you."
+    },
+    {
+      "id": "profile",
+      "composition": "An original cameo and ordinary pen name lead a modest personal identity stage.",
+      "hierarchy": "Name is primary; account or browser-only facts are secondary, with no public status theatre.",
+      "interaction": "Name and cameo change locally; guest and signed-in treatments stay truthful and separate.",
+      "mobile": "Long names wrap; no compulsory photo or miniature color-dot identity.",
+      "motion": "No grayscale-to-color hover transformation.",
+      "copy": "The name your room knows."
+    },
+    {
+      "id": "account-controls",
+      "composition": "A compact account-treatment panel opens with plain management and sign-out verbs.",
+      "hierarchy": "Provider-owned account controls sit outside the game; local guest mode never impersonates authentication.",
+      "interaction": "Manage-account opens a labelled design treatment; Escape restores focus. Sign-out only changes local preview state.",
+      "mobile": "Bounded scrollable panel, native controls and large text.",
+      "motion": "No floating panel entrance.",
+      "copy": "Your account, outside the game."
+    },
+    {
+      "id": "help",
+      "composition": "A short programme dialog gives the truthful nine-count arc and three literal rules.",
+      "hierarchy": "Write a line, see only the previous line, read all completed lines together.",
+      "interaction": "Close, Got it, Escape and backdrop all close; focus trap, scroll lock and focus restoration are implemented.",
+      "mobile": "Short-height dialog scrolls without hiding its close action.",
+      "motion": "Immediate dialog, no instructional fade-up.",
+      "copy": "Nine lines. One unexpected poem."
+    },
+    {
+      "id": "appearance",
+      "composition": "A practical settings playbill offers native daylight/evening/system radios, reduced motion, optional sound and cameos.",
+      "hierarchy": "Readable palette first; sensory choices independent and optional.",
+      "interaction": "System preference is honored. Explicit reduce can only reduce further. Sound begins off and requires activation before a cue.",
+      "mobile": "Touch-sized labels and bounded scrolling instead of icon-only palette dots.",
+      "motion": "Palette changes immediately, without a global color wash.",
+      "copy": "Daylight or evening. Same little room."
+    },
+    {
+      "id": "releases",
+      "composition": "A quiet chronological programme page leads with plain product copy and native technical disclosure.",
+      "hierarchy": "Version/date and user-facing changes precede grouped details.",
+      "interaction": "Sample release content is explicitly synthetic; Home and sample RSS preview remain linked.",
+      "mobile": "One comfortable column; no decorative timeline.",
+      "motion": "Native details opens without animated height.",
+      "copy": "What changed in the room."
+    },
+    {
+      "id": "releases-feed",
+      "composition": "A plain RSS artifact preview shows title, description and sample entry without fake reader chrome.",
+      "hierarchy": "Actual feed fields, clearly labelled synthetic rather than real product history.",
+      "interaction": "Download a local sample RSS XML document. External feed readers are not emulated.",
+      "mobile": "Long source lines wrap and full text remains downloadable.",
+      "motion": "No motion or tracking.",
+      "copy": "In your own reader."
+    },
+    {
+      "id": "not-found",
+      "composition": "An empty miniature arch and human-sized 404 explanation replace a giant error stamp.",
+      "hierarchy": "What happened and Return home are the hierarchy.",
+      "interaction": "Safe return without revealing guessed destination details.",
+      "mobile": "Normal document flow, not a fixed full-screen overlay.",
+      "motion": "No error theatrics.",
+      "copy": "Nothing is playing at this address."
+    },
+    {
+      "id": "route-error",
+      "composition": "The familiar arch holds a concise repair state and native recovery controls.",
+      "hierarchy": "Try again, then Home, with local draft safety explicit.",
+      "interaction": "Recovery opens the retained draft without pretending a server repair occurred.",
+      "mobile": "Readable copy and wrapping controls at narrow widths.",
+      "motion": "Immediate error; no content shake.",
+      "copy": "This page lost its place."
+    },
+    {
+      "id": "global-error",
+      "composition": "A minimal standalone recovery composition keeps fallback colors and ordinary typography.",
+      "hierarchy": "Application failure and the safe next action survive without illustration or providers.",
+      "interaction": "Native recovery controls do not rely on audio, motion or account context.",
+      "mobile": "No fixed overlay or tiny type; normal page flow survives text zoom.",
+      "motion": "No runtime animation dependency.",
+      "copy": "Linejam could not open this page."
+    },
+    {
+      "id": "site-social-preview",
+      "composition": "A light programme-cover artwork pairs the original curtain-line mark with a short invitation and truthful count arc.",
+      "hierarchy": "Linejam and collaborative poetry stay readable at thumbnail size; no private room data.",
+      "interaction": "Static original artwork, not an interactive miniature or backend screenshot.",
+      "mobile": "Responsive specimen keeps the artwork legible and surrounding controls separate.",
+      "motion": "Static by definition.",
+      "copy": "A little room. An unexpected poem."
+    },
+    {
+      "id": "poem-social-preview",
+      "composition": "An authorized public teaser fills a light arch card; private, pending or revoked uses generic brand only.",
+      "hierarchy": "Public scope before teaser. No faint private text or hidden contributor leakage.",
+      "interaction": "Explicit permission-state selector demonstrates the boundary without creating a public link.",
+      "mobile": "Long teasers wrap; full private export remains a separate complete artifact.",
+      "motion": "Static by definition.",
+      "copy": "A poem made together."
+    },
+    {
+      "id": "recap-social-preview",
+      "composition": "A light programme cover contains two authorized teaser columns and a clear whole-session title.",
+      "hierarchy": "Collection identity and public scope precede fragments; unavailable is generic brand only.",
+      "interaction": "State preview never activates publication or borrows private content.",
+      "mobile": "Specimen stacks or scales cleanly without clipping surrounding navigation.",
+      "motion": "Static by definition.",
+      "copy": "The poems from this room."
+    }
+  ],
+  "components": [
+    {
+      "id": "root-layout",
+      "treatment": "One semantic theatre shell, original curtain mark, local fonts, two explicit palettes and persistent sketch provenance.",
+      "states": "Guest and account preview variants share navigation; focused game chrome contracts rather than hiding recovery.",
+      "accessibility": "Skip link, main landmark, natural scroll and native controls work without motion, audio or remote services."
+    },
+    {
+      "id": "header",
+      "treatment": "Curtain-line wordmark at left; Library, Help, Appearance and ordinary name utilities at right.",
+      "states": "Compact wrapping utilities retain labels in guest/account and narrow states; overlays restore their trigger focus.",
+      "accessibility": "No essential icon-only navigation or hover-only menu."
+    },
+    {
+      "id": "footer",
+      "treatment": "A quiet closing programme rule with Home, privacy context and exploration exit.",
+      "states": "Navigation remains separate from the active writing action; print removes footer.",
+      "accessibility": "Wrapping text links and visible focus do not rely on decoration."
+    },
+    {
+      "id": "home-page",
+      "treatment": "Large left invitation and one illustrated curtain aperture; two explicit entry buttons beneath.",
+      "states": "First visit and returning collection state change helper copy, not the primary action locations.",
+      "accessibility": "Actions remain in document flow, reachable with text zoom and touch."
+    },
+    {
+      "id": "host-page",
+      "treatment": "Name form inside one intimate arch, optional cameos below the name.",
+      "states": "Empty, pending and error remain on the same form with the typed name intact.",
+      "accessibility": "Visible label, inline error, native submit and no compulsory avatar."
+    },
+    {
+      "id": "join-page",
+      "treatment": "Invitation ticket joins a code/name form without an account detour.",
+      "states": "Manual, read-only invite, loading, full-room and retry states retain destination context.",
+      "accessibility": "Code Enter advances to the name; read-only is explained in text."
+    },
+    {
+      "id": "room-page",
+      "treatment": "Room phase is a single stage owner, with concise room identity and phase-specific contents.",
+      "states": "Lobby, writing, waiting, reveal and unavailable each have an actual composition; no card summarizing a hidden phase.",
+      "accessibility": "Phase focus moves to the scene heading only after a deliberate navigation."
+    },
+    {
+      "id": "unexpected-room-state",
+      "treatment": "An empty arch with a direct safe exit rather than displaying unrecognized room data.",
+      "states": "Unexpected state gives Home and Rejoin without exposing prior poem text.",
+      "accessibility": "Plain text recovery, no visual-code dependence."
+    },
+    {
+      "id": "lobby",
+      "treatment": "A named cast strip and one perforated gold invitation ticket frame the host’s start area.",
+      "states": "One-person minimum, full cast, participant waiting, away and mutation error all retain visible names.",
+      "accessibility": "No ranked or crossed-out roster; room capacity and ownership are words."
+    },
+    {
+      "id": "writing-screen",
+      "treatment": "Quiet stage holds either the real composer, receipt or explicit spectator explanation.",
+      "states": "Assignment loading, assigned writing, already recorded and no-assignment states do not expose other lines.",
+      "accessibility": "A single labelled textarea when entitled to write; no disabled imitation for spectators."
+    },
+    {
+      "id": "writing-composer",
+      "treatment": "One previous line, one large textarea and an honest count form a single visual unit.",
+      "states": "Below/exact/over target, restored draft, sending, accepted, retry and offline are on-surface states; input caps at 500 characters.",
+      "accessibility": "Whitespace count, long-word wrapping and aria-described inline guidance; no per-keystroke sound."
+    },
+    {
+      "id": "waiting-screen",
+      "treatment": "Recorded receipt above a cast status list, with no pressure pulse.",
+      "states": "Loading, some recorded, all ready, away and spectator labels are plain language; host abandon is confirmed.",
+      "accessibility": "Names remain full contrast and spectators are explicitly excluded from active count."
+    },
+    {
+      "id": "reveal-phase",
+      "treatment": "A running-order playbill with a private read invitation and named current reader.",
+      "states": "Ready, pending, error, fallback reader, reread and all-read states have corresponding explicit actions.",
+      "accessibility": "Step in is human-controlled; no autoplay or mandatory speaking."
+    },
+    {
+      "id": "poem-display",
+      "treatment": "A whole-poem arch playbill; attribution and actions sit outside the quiet text column.",
+      "states": "Reveal, archive, public and reread preserve all lines; author details persist until closed; sharing and saving differ.",
+      "accessibility": "Semantic ordered full text, no timed author tooltip and no text transforms."
+    },
+    {
+      "id": "session-recap-hub",
+      "treatment": "A private programme collection, never a crown podium.",
+      "states": "No-favorite and favorite states only change your personal keep control; rematch, lobby and exit stay explicit.",
+      "accessibility": "No competition, social winner or audio burst; private scope stated before publication."
+    },
+    {
+      "id": "stage-shell",
+      "treatment": "A scalable arch with a clear title, named reader and persistent Exit presentation.",
+      "states": "Lobby and reveal presentation reuse the phone hierarchy at larger type size.",
+      "accessibility": "Natural scroll, no forced fullscreen or fixed clipped poem region."
+    },
+    {
+      "id": "lobby-stage",
+      "treatment": "An enlarged invitation playbill with the complete cast alongside.",
+      "states": "Just joined and away use text; room full remains calm; exit returns to lobby.",
+      "accessibility": "Not dependent on a TV, QR scanning or an anonymous colored dot."
+    },
+    {
+      "id": "lobby-join-qr",
+      "treatment": "Invitation destination and plain Open invitation action are the primary accessible route.",
+      "states": "An original QR specimen actually encodes only LINEJAM DESIGN SKETCH; it is explicitly labelled as text, not a live invitation. Open invitation and copied sketch token are working local alternatives.",
+      "accessibility": "Readable destination, copy recovery and precise QR alt text; no invented valid room code or fake live barcode."
+    },
+    {
+      "id": "reveal-stage",
+      "treatment": "One focused full poem and human reader; running order below rather than stacked competing poems.",
+      "states": "Waiting, ready, revealing, error, reread and finish states stay in the same stage.",
+      "accessibility": "All lines appear together; exit and step-in recovery are focusable."
+    },
+    {
+      "id": "room-chrome",
+      "treatment": "Small room label, phase text and a labelled Room tools disclosure.",
+      "states": "Copy, invite, presentation and appearance feedback stay next to their control; writing chrome stays compact.",
+      "accessibility": "Tool labels and persistent failure messages, no hidden icon-only commands."
+    },
+    {
+      "id": "focused-entry-appearance",
+      "treatment": "A small Appearance control on the name-entry stage opens the same bounded settings panel.",
+      "states": "Open, selected and closed states restore the trigger and never discard form text.",
+      "accessibility": "Escape, native radio keyboard behavior and constrained scroll."
+    },
+    {
+      "id": "color-mode-control",
+      "treatment": "Native labelled Light, Dark and System radio rows with tangible selected state.",
+      "states": "Mode applies instantly; system follows preference; storage unavailability never blocks selection.",
+      "accessibility": "No icon guessing, CSS inversion or animated whole-screen color wash."
+    },
+    {
+      "id": "help-modal",
+      "treatment": "Programme-style short rule sheet with a truthful nine-count arc.",
+      "states": "Open, close, Escape and backdrop all return to the invoking control; no compulsory tutorial.",
+      "accessibility": "Focus trap, scrollable max-height and literal rule wording."
+    },
+    {
+      "id": "connection-status",
+      "treatment": "An in-flow lavender or rose edge notice above the current work.",
+      "states": "Healthy omits notice; offline, reconnecting and restored retain the draft and state whether retry is available.",
+      "accessibility": "Status text carries meaning without blinking or a transient-only toast."
+    },
+    {
+      "id": "deployment-skew-observer",
+      "treatment": "A quiet edition-update strip with Reload, visually outside the writing input.",
+      "states": "Healthy has no notice; detected mismatch persists; ordinary network error does not claim a new version.",
+      "accessibility": "No forced refresh, countdown or draft loss in the sketch."
+    },
+    {
+      "id": "room-panel-error-boundary",
+      "treatment": "An inline repair panel retains the familiar arch and clear draft safety language.",
+      "states": "Panel failure and recovered state show different content without replacing the entire page with a stamp.",
+      "accessibility": "Explicit retry/home links and readable error contrast."
+    },
+    {
+      "id": "auth-error-state",
+      "treatment": "Guest-session connection error inside the existing entry stage.",
+      "states": "Custom title and retry copy remain plain; retry keeps name and draft.",
+      "accessibility": "role alert only for newly surfaced failures, not repeated decorative motion."
+    },
+    {
+      "id": "accounts-unavailable",
+      "treatment": "An honest local-guest playbill says Accounts are not connected.",
+      "states": "No provider form is claimed live in local mode; Play as guest is available.",
+      "accessibility": "Clear distinction between local play and cross-device account saving."
+    },
+    {
+      "id": "archive-page",
+      "treatment": "Readable playbill shelf with full-width poem rows and modest collection facts.",
+      "states": "Loading, empty, guest, account, kept and published-link states preserve privacy distinction.",
+      "accessibility": "Open poem actions always visible without hover."
+    },
+    {
+      "id": "archive-info-strip",
+      "treatment": "A compact factual preservation note under the archive heading.",
+      "states": "Guest empty invites play; guest populated explains browser limits; signed-in populated explains account keeping.",
+      "accessibility": "No account pressure or misleading permanence claim."
+    },
+    {
+      "id": "archive-stats",
+      "treatment": "One quiet facts sentence or four small factual rows, not golden dashboard KPI cards.",
+      "states": "Poem, personal keep, collaborator and line totals use readable labels and correct singular/plural.",
+      "accessibility": "No ranks; numbers have text context and are not the archive’s primary focus."
+    },
+    {
+      "id": "stat-line",
+      "treatment": "Simple label/value pair aligned to the playbill’s left edge.",
+      "states": "Accent is reserved for the collection total and remains modest; zero is not hidden.",
+      "accessibility": "Readable words, tabular numerals and no decorative icon dependency."
+    },
+    {
+      "id": "archive-stats-skeleton",
+      "treatment": "Static reserved-size fact lines with one Preparing collection status.",
+      "states": "Loading placeholders do not pulse or pretend to show counts; loaded text replaces them in place.",
+      "accessibility": "aria-busy identifies the owner; decorative skeleton shapes are hidden from assistive technology."
+    },
+    {
+      "id": "poem-card",
+      "treatment": "A miniature arch with a readable first line, full contributors and visible Open poem button.",
+      "states": "Featured means a larger first line, not rotation; personal keep and revoke expose pending and failure text.",
+      "accessibility": "Keyboard/touch see the same controls as pointer hover; long titles wrap."
+    },
+    {
+      "id": "poem-card-skeleton",
+      "treatment": "A still arch-shaped placeholder reserving the poem row’s approximate dimensions.",
+      "states": "Loading text announces once; no six-card independent shimmer.",
+      "accessibility": "Hidden shapes and visible status label avoid meaningless repeated announcements."
+    },
+    {
+      "id": "empty-archive",
+      "treatment": "An empty stage and direct Start or Join actions, with no invented poem fragments.",
+      "states": "Empty guest and account variants explain where future completed poems will appear.",
+      "accessibility": "No gray ghost content that could be mistaken for an inaccessible poem."
+    },
+    {
+      "id": "poem-silhouette",
+      "treatment": "The true nine-count arc is rendered as static widths/heights with the literal count sequence.",
+      "states": "Small/medium/large variants retain the same truth; empty state stays still.",
+      "accessibility": "A full accessible pattern label accompanies decorative geometry."
+    },
+    {
+      "id": "poem-silhouette-compact",
+      "treatment": "Unused compact source variant is retired in favor of the same readable static count arc.",
+      "states": "Showcase explicitly labels this retirement and demonstrates the replacement, not a hidden implementation.",
+      "accessibility": "One labelled rule visualization rather than duplicate inaccessible miniatures."
+    },
+    {
+      "id": "author-dots",
+      "treatment": "Distinct cameo silhouettes with visible human names replace color-only dots.",
+      "states": "Up to a small inline group followed by a labelled Show all contributors control; expanded list remains open.",
+      "accessibility": "Color is optional; names and silhouettes survive grayscale."
+    },
+    {
+      "id": "author-dots-inline",
+      "treatment": "Unused inline gradient underline is retired; ordinary named attribution is the proposed replacement.",
+      "states": "Empty attribution says nothing invented; selected attribution is persistent text.",
+      "accessibility": "No hover-only identity or anonymous Contributor N labels."
+    },
+    {
+      "id": "poem-detail",
+      "treatment": "Archive/public detail owns one full playbill and an independent permission strip.",
+      "states": "Loading, public pending, authorized, private and revoked do not share leaked teaser markup.",
+      "accessibility": "Outsiders have no participant keep or revoke controls."
+    },
+    {
+      "id": "recap-page",
+      "treatment": "Complete poems are individual programme articles with their own reader and attribution.",
+      "states": "Public and unavailable states are separate; every authorized poem is included in print.",
+      "accessibility": "No partial print clipping; native document flow and headings."
+    },
+    {
+      "id": "recap-export-button",
+      "treatment": "Plain Print or save PDF button outside the poem articles.",
+      "states": "Invokes real browser print on click; browser owns accept/cancel and destination.",
+      "accessibility": "No fake custom operating-system export dialog; hidden in print."
+    },
+    {
+      "id": "auth-layout",
+      "treatment": "One quiet account-entry arch; synthetic/public sample playbill at desktop right only.",
+      "states": "Form first on mobile; disconnected local mode replaces provider interaction truthfully.",
+      "accessibility": "Guest play is always available and decorative showcase is not required to understand entry."
+    },
+    {
+      "id": "sign-in-page",
+      "treatment": "Provider-form visual treatment with optional sign-in purpose and guest exit.",
+      "states": "Integrated-form sketch, verification, recovery and accounts-unavailable states are labelled, not live authentication.",
+      "accessibility": "No credentials leave the prototype or are stored."
+    },
+    {
+      "id": "sign-up-page",
+      "treatment": "Account-creation treatment shares the same calm arch and optional guest route.",
+      "states": "Creation preview, verification and error retain field space; local mode has no pretend account success.",
+      "accessibility": "Large text and native labels; no required photo or display identity performance."
+    },
+    {
+      "id": "auth-callback-page",
+      "treatment": "Guest-progress transfer status becomes a concise playbill.",
+      "states": "Completing, migration error, retry and local unavailability preserve in-memory game text.",
+      "accessibility": "Status wording says what is safe; no spinner required."
+    },
+    {
+      "id": "auth-showcase",
+      "treatment": "A clearly synthetic sample whole-poem playbill, never borrowed public user text.",
+      "states": "Pending/empty sample state stays labeled; explicitly public production source would be separately authorized.",
+      "accessibility": "Showcase is optional and omitted on phones; no stock or provider imagery dependency."
+    },
+    {
+      "id": "profile-page",
+      "treatment": "Cameo plus ordinary pen name above modest guest/account facts.",
+      "states": "Guest, integrated account and disconnected local modes have truthful different copy.",
+      "accessibility": "Full names wrap; optional avatar never replaces the accessible name."
+    },
+    {
+      "id": "releases-page",
+      "treatment": "Simple chronological programme notes with product copy before technical detail.",
+      "states": "Empty and loaded examples are explicitly synthetic sketch content.",
+      "accessibility": "Native disclosure and readable linked headings; no animated timeline."
+    },
+    {
+      "id": "release-card",
+      "treatment": "Version/date sit above one product-note paragraph and a technical disclosure.",
+      "states": "No card stack effect; collapsed and expanded detail reserve ordinary document flow.",
+      "accessibility": "Semantic heading/time/detail without reliance on tiny metadata."
+    },
+    {
+      "id": "technical-details",
+      "treatment": "Native details/summary section groups technical changes beneath the product note.",
+      "states": "Closed and open are actual interactive disclosure states.",
+      "accessibility": "Keyboard Enter/Space, no animated height, no hidden copy on focus."
+    },
+    {
+      "id": "not-found-page",
+      "treatment": "Quiet empty arch and direct return action instead of a giant 404 stamp.",
+      "states": "Missing routes and unavailable recap reveal no content.",
+      "accessibility": "No motion, grain or fixed overlay requirement for recovery."
+    },
+    {
+      "id": "route-error-page",
+      "treatment": "Familiar repair arch with Retry and Home.",
+      "states": "Failure and retry feedback preserve a readable scene and draft safety.",
+      "accessibility": "Native controls work in silent/reduced modes."
+    },
+    {
+      "id": "global-error-page",
+      "treatment": "Minimal standalone recovery surface with fallback serif/sans and direct text.",
+      "states": "Works as a document-level composition even when other runtime styling is absent.",
+      "accessibility": "No dependency on custom image, sound, focus manager or provider."
+    },
+    {
+      "id": "button",
+      "treatment": "Warm-gold primary with dark plum text; outlined secondary, quiet textual utility and explicit rose danger.",
+      "states": "Hover uses an inset outline; press is at most one pixel; disabled and pending carry readable labels.",
+      "accessibility": "Minimum 44px target, 3px focus outline; reduced motion removes press movement."
+    },
+    {
+      "id": "input",
+      "treatment": "Plain labelled plum-paper field with a stable border and generous line height.",
+      "states": "Empty, filled, focused, disabled, read-only and invalid differ through text/border semantics.",
+      "accessibility": "Native label, described help, error association and long-text containment."
+    },
+    {
+      "id": "label",
+      "treatment": "Sentence-case DM Sans labels, not tracked uppercase monospace.",
+      "states": "Required word target can use modest weight; explanatory labels remain normal human language.",
+      "accessibility": "Programmatically associated labels do not rely on placeholder text."
+    },
+    {
+      "id": "alert",
+      "treatment": "A colored left-edge notice with title, reason and nearby recovery action.",
+      "states": "Error/success/warning/info all differ in language as well as accent.",
+      "accessibility": "Status versus alert semantics fit urgency; no disappearing only-copy."
+    },
+    {
+      "id": "avatar",
+      "treatment": "Original oval, fan, moon and plume cameos with distinct inner silhouettes; pen names remain primary.",
+      "states": "Optional selection, absent cameo, host and reader states never change a person’s name.",
+      "accessibility": "44px or larger meaningful cameo showcase; no color-only identification."
+    },
+    {
+      "id": "host-badge",
+      "treatment": "A small textual Host label replaces a crown to separate responsibility from rank.",
+      "states": "Light/dark and transferred host states preserve clear ownership wording.",
+      "accessibility": "No royal/favorite symbolism or color-only status."
+    },
+    {
+      "id": "loading-state",
+      "treatment": "A still curtain-line mark and contextual Preparing text.",
+      "states": "Room, join, reveal and account operations identify the awaited outcome; no fake numerical progress.",
+      "accessibility": "One polite aria-busy region; motion never required."
+    },
+    {
+      "id": "round-clock",
+      "treatment": "A quiet soft-pacing line with Take your time copy; no timer-shaped badge.",
+      "states": "Warm/overtime are nonblocking text states; absent start omits pacing.",
+      "accessibility": "Never announces a ticking countdown or gates valid submission."
+    },
+    {
+      "id": "stamp-animation",
+      "treatment": "A 160ms cameo settle replaces rotated stamping; words are never inside the animated wrapper.",
+      "states": "Arrival and acknowledgement trigger once, with no staggered hidden names.",
+      "accessibility": "Reduced motion is immediate, no residual animation delay."
+    },
+    {
+      "id": "word-slots",
+      "treatment": "A small row of discrete count marks below the actual textarea, without duplicating every typed word as tiles.",
+      "states": "Below/exact/over target is a literal count with Add/Remove words guidance; overflow is summarized rather than creating ten noisy tiles.",
+      "accessibility": "One debounced count announcement, long words stay in textarea and input is not visually fragmented."
+    },
+    {
+      "id": "heart-button",
+      "treatment": "Keep privately is a labelled toggle, not a vote or reaction score.",
+      "states": "Unkept/kept/pending/error use aria-pressed and visible feedback; failure restores previous value.",
+      "accessibility": "No silent logged-only failure, reward animation or hover-only heart label."
+    },
+    {
+      "id": "site-social-card",
+      "treatment": "Light arch artwork with original mark and truthful nine-count pattern.",
+      "states": "Fallback fonts retain hierarchy and no private data is present.",
+      "accessibility": "High-contrast large title and simple silhouette survive thumbnail/grayscale."
+    },
+    {
+      "id": "poem-preview-card",
+      "treatment": "Authorized public teaser on a light playbill with a clear shared-poem label.",
+      "states": "Long teaser truncation is intentional for social preview only, never full download.",
+      "accessibility": "Private/pending/revoked uses separate generic artwork."
+    },
+    {
+      "id": "poem-fallback-card",
+      "treatment": "Generic curtain-line brand and invitation, containing no poem or contributor data.",
+      "states": "Same safe composition for unavailable, pending and private.",
+      "accessibility": "No faint or blurred private text masquerading as privacy."
+    },
+    {
+      "id": "poem-full-card",
+      "treatment": "Whole-poem, full-attribution image with restrained arch rule and no embedded app controls.",
+      "states": "Local PNG honors light/dark and derives height from all wrapped lines and names.",
+      "accessibility": "No clipping; readable type and high-contrast ink/gold pairing."
+    },
+    {
+      "id": "recap-social-card",
+      "treatment": "Programme-cover artwork with up to two authorized teaser columns.",
+      "states": "Public artwork is distinct from generic unavailable fallback; no private count or author leak.",
+      "accessibility": "Large readable heading and high-contrast static composition."
+    }
+  ],
+  "motion": [
+    {
+      "id": "global-reduced-motion",
+      "choreography": "Aperture and cameo settle disappear entirely; all content is already present and ordered.",
+      "timing": "Immediate under OS reduce or the explicit reduce override.",
+      "reducedMotion": "No residual delays, transforms, smooth scrolling or hidden starting opacity."
+    },
+    {
+      "id": "color-mode-transition",
+      "choreography": "Replace the global color wash with an immediate palette change and native checked radio state.",
+      "timing": "0ms, including first paint.",
+      "reducedMotion": "Identical immediate state; no special alternate skin."
+    },
+    {
+      "id": "viewport-projection",
+      "choreography": "Keep the writing action in normal document flow and focus the textarea only by deliberate action.",
+      "timing": "Functional reflow only; no interpolated viewport motion.",
+      "reducedMotion": "Same keyboard-safe geometry and automatic nearest scrolling."
+    },
+    {
+      "id": "writing-focus-scroll",
+      "choreography": "Manual focus brings the composer into the nearest visible area; round change focuses the new heading without smooth travel.",
+      "timing": "Immediate auto scroll; no decorative delay.",
+      "reducedMotion": "Identical focus and scroll behavior."
+    },
+    {
+      "id": "button-press",
+      "choreography": "An inset outline and optional one-pixel physical press acknowledge touch; no large scale crush.",
+      "timing": "90–120ms only while actively pressing.",
+      "reducedMotion": "Remove the transform; border and focus still change."
+    },
+    {
+      "id": "stamp-arrival",
+      "choreography": "One cameo moves down 5px and settles; its human name never enters an opacity-zero wrapper.",
+      "timing": "160ms once, no player-index delay.",
+      "reducedMotion": "Cameo and name both appear immediately."
+    },
+    {
+      "id": "loading-indicators",
+      "choreography": "Static status text and still reserved-size silhouettes replace independent pulses and spinners.",
+      "timing": "No repeating animation; state changes only when the sketch control is used.",
+      "reducedMotion": "Same informative static status."
+    },
+    {
+      "id": "fade-up-entrances",
+      "choreography": "Retire routine fade-up entrances; the one memorable entrance belongs to completed-poem curtain edges.",
+      "timing": "0ms for forms, notices, archive and errors.",
+      "reducedMotion": "Same immediate composition."
+    },
+    {
+      "id": "archive-card-interaction",
+      "choreography": "Underline Open poem and show an inset border on focus/hover; no lifted cards or hidden badges.",
+      "timing": "Immediate hover/focus state; no stagger.",
+      "reducedMotion": "Same visible controls without translation."
+    },
+    {
+      "id": "silhouette-bars",
+      "choreography": "Keep the nine-count arc fully drawn; no hover-triggered bar growth.",
+      "timing": "Static on first paint and replay.",
+      "reducedMotion": "Identical accessible rule silhouette."
+    },
+    {
+      "id": "contributor-hover",
+      "choreography": "Click a named contributor control to reveal persistent attribution below the poem, without moving poem lines.",
+      "timing": "Immediate; stays open until dismissed.",
+      "reducedMotion": "Identical text disclosure; no hover dependence."
+    },
+    {
+      "id": "waiting-presence-pulse",
+      "choreography": "Remove the endless writer pulse and struck-through names; a plain Recorded/Writing/Away label carries presence.",
+      "timing": "No repeated animation.",
+      "reducedMotion": "Identical calm cast status."
+    },
+    {
+      "id": "round-clock-drain",
+      "choreography": "Soft pacing changes a quiet line and helper text; overtime says there is no cut-off.",
+      "timing": "Discrete state preview; no countdown announcement or urgency loop.",
+      "reducedMotion": "Immediate nonblocking state with no interpolation."
+    },
+    {
+      "id": "word-slot-feedback",
+      "choreography": "Count marks and Add/Remove guidance update next to the textarea; ready is a stable accepted color and text.",
+      "timing": "Visual state immediate; spoken count debounced 500ms.",
+      "reducedMotion": "Same count semantics and no animated fill."
+    },
+    {
+      "id": "ready-seal-loop",
+      "choreography": "Retire the ready pulse. Exact count enables a still Submit line button and says Ready to send.",
+      "timing": "No idle loop or repeated nudge.",
+      "reducedMotion": "Identical stable ready state."
+    },
+    {
+      "id": "submission-confirmation",
+      "choreography": "After explicit successful local commit, one receipt mark settles while accepted wording and the saved line are immediately readable.",
+      "timing": "180ms visual acknowledgement; Continue is available immediately, with no mandatory 1500ms wait.",
+      "reducedMotion": "Receipt appears immediately; manual continuation unchanged."
+    },
+    {
+      "id": "author-attribution-reveal",
+      "choreography": "Show authors as a persistent labelled text section; no 2-second tooltip or moving text.",
+      "timing": "Immediate open/close controlled by reader.",
+      "reducedMotion": "Identical disclosure, full keyboard operation."
+    },
+    {
+      "id": "help-open-close",
+      "choreography": "Programme dialog mounts immediately, traps focus, locks background scroll and restores its trigger on close.",
+      "timing": "0ms; lifecycle not animation-dependent.",
+      "reducedMotion": "Identical focus lifecycle."
+    },
+    {
+      "id": "chrome-popover-feedback",
+      "choreography": "Tools/appearance open immediately and retain their triggering focus context.",
+      "timing": "0ms, Escape and outside dismissal immediate.",
+      "reducedMotion": "Same bounded panel and native selected state."
+    },
+    {
+      "id": "reading-target-focus",
+      "choreography": "A single movement along ten-pixel curtain edges accompanies the already-visible complete poem; focus lands on the reader heading, never an individual line.",
+      "timing": "340ms maximum, triggered by deliberate reveal; no masked words, delayed content mounting or waiting before controls are available.",
+      "reducedMotion": "Curtains do not render motion; whole poem and focus appear immediately."
+    },
+    {
+      "id": "stage-roster-highlight",
+      "choreography": "One cameo settles and Just joined text appears; the named status remains until the next deliberate preview state.",
+      "timing": "160ms cameo, persistent textual arrival context.",
+      "reducedMotion": "Static cameo and arrival text."
+    },
+    {
+      "id": "favorite-crown-ceremony",
+      "choreography": "Remove crown, winner and burst. Keep privately changes only a personal collection state.",
+      "timing": "Immediate toggle; no applause, ranked leader or ceremony.",
+      "reducedMotion": "Identical private keep feedback."
+    },
+    {
+      "id": "ceremony-effects-hook",
+      "choreography": "Explicit sound activation permits one warm bell only when Play cue or a deliberate reader invitation is pressed.",
+      "timing": "A 380ms bounded two-partial envelope; no recurring events.",
+      "reducedMotion": "Sound still separately opt-in; silence is complete. No haptics are used."
+    },
+    {
+      "id": "profile-image-hover",
+      "choreography": "Remove grayscale/color filters; cameo or optional provider image remains visually stable.",
+      "timing": "Static.",
+      "reducedMotion": "Same identity silhouette and name."
+    },
+    {
+      "id": "unmounted-motion-definitions",
+      "choreography": "Do not carry typewriter, breathing or final-line wipe definitions into this direction; the full poem preview stays still.",
+      "timing": "No mounted effect or dead animation dependency.",
+      "reducedMotion": "Identical static full-poem composition."
+    }
+  ],
+  "sensory": [
+    {
+      "id": "brand-identity",
+      "treatment": "Pocket theatre, not luxury lounge: plum paper, a generous arch and ordinary human verbs; one curtain-line signature.",
+      "controls": "Daylight/evening modes and explicit reduced motion; guest first.",
+      "risk": "Theatre can make shy writers feel observed; quiet writing, unranked cast and easy human step-in counter that."
+    },
+    {
+      "id": "wordmark-and-logo",
+      "treatment": "Original inline SVG joins an open pair of curtains and a single carried line; DM Serif Linejam stays readable in monochrome.",
+      "controls": "Artwork preview includes small/large and both palette contexts.",
+      "risk": "No borrowed stage logo, casino gold border or illegible ligature."
+    },
+    {
+      "id": "device-brand-assets",
+      "treatment": "The curtain-line mark fits a simple plum square with lavender geometry and a light companion; no tiny wordmark inside an icon.",
+      "controls": "Static app-icon, browser-size and installation-size previews; no installation or manifest mutation.",
+      "risk": "Small-size recognition depends on the silhouette rather than color or detail."
+    },
+    {
+      "id": "paper-grain-and-depth",
+      "treatment": "Plain plum paper with a single restrained stage shadow and two arch edges; no grain, blur or background gradient.",
+      "controls": "Both modes are intentionally drawn, not inverted.",
+      "risk": "Too much gilding reads formal; gold is confined to the main action and invitation."
+    },
+    {
+      "id": "typographic-voice",
+      "treatment": "DM Serif Display for invitation and complete poem, DM Sans for names, labels, counts and controls; local licensed fonts only.",
+      "controls": "Type specimen includes long words, readable body text and large-text-friendly wrapping.",
+      "risk": "Serif poem type needs generous line-height and width; no tiny all-caps theatre metadata."
+    },
+    {
+      "id": "player-identity",
+      "treatment": "Original oval, fan, moon and plume cameo silhouettes with optional stage-color accent; visible names remain the identity.",
+      "controls": "Optional cameo selection and name-only choice, no photos needed.",
+      "risk": "Cameos are not costumes, genders or performance roles; nobody must customize to join."
+    },
+    {
+      "id": "word-pattern-shape",
+      "treatment": "An arch-like rise and fall literally displays 1,2,3,4,5,4,3,2,1; the poem itself remains left aligned.",
+      "controls": "Static labelled diagram and actual count interaction, no word prompts.",
+      "risk": "Avoid making the count arc look like scoring, an audio meter or a countdown."
+    },
+    {
+      "id": "icon-vocabulary",
+      "treatment": "A consistent original two-pixel line vocabulary for curtain, bell, keep, print, archive and help, always paired with words.",
+      "controls": "Visible labels and accessible names; no emoji substitutions.",
+      "risk": "Decorative symbols never substitute for privacy, authority or recovery text."
+    },
+    {
+      "id": "ceremony-audio",
+      "treatment": "An original warm bell made from 392Hz and 784Hz sine partials with a soft attack and 380ms decay; no music or applause.",
+      "controls": "Defaults OFF; Enable sound then Play cue required. Stop/disable is explicit; context is created only after activation.",
+      "risk": "Sound can compete with a human reader; short, low gain and never required to know whose turn it is."
+    },
+    {
+      "id": "ceremony-haptics",
+      "treatment": "No vibration patterns in this direction. A visible reader-name change and recorded receipt are the entire acknowledgement.",
+      "controls": "Sound remains independently optional; no navigator.vibrate call or device dependency.",
+      "risk": "Haptics add surprise and pressure without explaining the poem; omission is intentional."
+    },
+    {
+      "id": "share-artifacts",
+      "treatment": "Distinct generic brand preview, authorized public teaser, complete privately saved image and whole-session programme artwork.",
+      "controls": "Explicit public/private state previews and a real local full-poem PNG download.",
+      "risk": "Never leak private lines into fallback previews; full author names survive image/print output."
+    },
+    {
+      "id": "native-platform-surfaces",
+      "treatment": "Labelled Share, Save image and Print controls hand off to native capabilities only after consent; OS chrome is not drawn.",
+      "controls": "The sketch exposes local delivery/cancel/error states, actual local PNG and real print on click; no network publication.",
+      "risk": "Native cancellation is not an error or evidence of publication. Local files are not public links."
+    },
+    {
+      "id": "public-auth-showcase",
+      "treatment": "A clearly synthetic nine-line sample playbill sits beside the optional account form; provider imagery is not invented.",
+      "controls": "Hide showcase on phones and allow name-only identity; no external assets.",
+      "risk": "Public source authorization must remain separate from account marketing; sample fixture is not real human gameplay evidence."
+    }
+  ]
+}

@@ -1,0 +1,1089 @@
+{
+  "id": "word-carnival",
+  "name": "Word Carnival",
+  "thesis": "A screen-printed word toy: one interlocking letter-block identity, named geometric people and a quiet writing runway that becomes an ordered complete print.",
+  "palette": {
+    "light": {
+      "base": "#DFF4EB",
+      "paper": "#FFFFFF",
+      "ink": "#282148",
+      "action": "#5939B5",
+      "orange": "#F47545",
+      "yellow": "#F2D65F"
+    },
+    "dark": {
+      "base": "#211C32",
+      "paper": "#302846",
+      "ink": "#FAF8FF",
+      "action": "#D5C6FF",
+      "orange": "#FF9A71",
+      "yellow": "#F2D65F"
+    }
+  },
+  "type": {
+    "display": "Bungee, bundled; logo and compact poster headline only",
+    "body": "Atkinson Hyperlegible, bundled; controls, names, notices and navigation",
+    "poem": "Atkinson Hyperlegible, bundled; complete readable nine-line prints"
+  },
+  "principles": [
+    "Plan: use the letterpress bed as the sole spatial metaphor: poster entry, one registration-edged form, named token rail, stable writing runway, complete ordered print.",
+    "Critique before coding: a first idea used individual typed-word tiles. That read as Wordle-like competition and duplicated input, so it was replaced with count-only sockets outside a stable textarea.",
+    "Spend boldness once: entry artwork and logo may be chunky; writing, waiting and reading remove Bungee, decorative characters and nested outlines.",
+    "Actual human content is never judged, scored, generated or revealed early. The nine-count rule alone changes the commit action.",
+    "Grayscale distinction comes from interlocking blocks, notches, an open poster composition and token silhouettes, not color alone.",
+    "Native semantics, persistent labels, large targets, wrapping text, silent defaults and OS-plus-local reduced motion are structural requirements.",
+    "The prototype is explicitly local and synthetic. It makes no live room, authentication, cloud-save or publication claim."
+  ],
+  "workflow": [
+    "Start or Join opens one compact name/code form; optional avatar choice never blocks arrival.",
+    "The lobby is a named token rail with an invitation strip, not a setup dashboard; host starts at two people.",
+    "The interactive local sketch plays one human writing seat through all nine exact counts 1,2,3,4,5,4,3,2,1; fixture names are clearly not live players.",
+    "Each writing step exposes only the previous line and a stable input; accepted state retains the complete submitted line.",
+    "A receipt and static status replace the editor while waiting; Continue simulation is explicit rather than fake connected-player progress.",
+    "Reveal begins with human reading order; an authorized action opens the complete nine-line print at once.",
+    "Done returns to the circle; recap collects private prints and separates replay, another game, lobby and exit.",
+    "Personal favorite is a quiet private preference, never a public winning poem or crown.",
+    "Private PNG saving and native printing are distinct from clearly simulated, reversible public-link consent states."
+  ],
+  "tradeoffs": [
+    "The word Carnival can imply an arcade or competitive party game. There are intentionally no scores, coins, crowns, ranking, urgency cues, loops or flashing. This naming risk remains to test with humans.",
+    "Bungee can look loud or juvenile. It is restricted to the logo and one entry headline; all writing and reading use Atkinson Hyperlegible.",
+    "Count sockets could still recall word-puzzle games. They represent the requested number only, never vocabulary quality, correctness or attempts.",
+    "The print metaphor is graphic rather than physically literal; people expecting folding may need the short previous-line explanation.",
+    "Geometric tokens are intentionally low-detail and original. Distinct silhouettes help grayscale recognition, but real usability and small-display legibility require Main rendered review.",
+    "No automatic waiting animation or favorite ceremony may feel quieter than the name suggests; the trade buys unpressured human writing and aloud reading.",
+    "The local core is a single-person interaction sketch, not networked gameplay proof; account, QR room invitation and publication states are explicitly design fixtures.",
+    "No validation, build, test, formatter, service or browser was run by this task; Main owns rendered and integrated verification."
+  ],
+  "views": [
+    {
+      "id": "app-shell",
+      "composition": "A shallow interlocking wordmark masthead above an open mint print bed; essential room controls stay in the same readable flow.",
+      "hierarchy": "Brand at left; human task in the center; help, appearance and guest identity remain secondary.",
+      "interaction": "Utilities open bounded native dialogs and restore trigger focus; the skip link goes directly to the current composition.",
+      "mobile": "Utilities wrap rather than overlap; no fixed bottom panel competes with the software keyboard.",
+      "motion": "No route-wide flourish; committed content may register once against the print bed.",
+      "copy": "One line. Many minds."
+    },
+    {
+      "id": "home",
+      "composition": "A compact two-column screen-printed poster pairs a large two-line invitation with original letter-block token art; the nine-count shape is a small footer rule.",
+      "hierarchy": "The Bungee headline carries the single loud moment; two practical start/join actions sit directly below plain-language rules.",
+      "interaction": "Start and Join lead directly to the name panel; neither asks for an account, avatar, settings or a tutorial first.",
+      "mobile": "The art becomes a short horizontal composition below the two in-flow thumb-sized actions; copy remains left aligned.",
+      "motion": "No idle animation; button presses move only three pixels and settle on release.",
+      "copy": "One line. Many minds. Make a poem nobody could write alone."
+    },
+    {
+      "id": "host-entry",
+      "composition": "One white form panel sits on a yellow registration offset; a small arch token and three literal rules occupy the quiet second column.",
+      "hierarchy": "Your name is the only required decision; Create room follows it in document order.",
+      "interaction": "Whitespace-only names cannot submit; pending and retry states occupy the same panel without clearing the name.",
+      "mobile": "The supporting rules follow the form; the action stays in flow so a phone keyboard never hides a fixed footer.",
+      "motion": "Creation acknowledgement uses one short tile settle after success, not while waiting.",
+      "copy": "What should we call you? No account needed."
+    },
+    {
+      "id": "join-entry",
+      "composition": "A single name-and-code plate replaces separate boxed steps; the room code is a plainly labelled field, not a secret arcade password.",
+      "hierarchy": "Room code then pen name; direct invitation states lock the provided code and focus the name.",
+      "interaction": "Four letters normalize to uppercase; Enter on code moves to name; rejection explains changing code or retrying without losing the name.",
+      "mobile": "Both labels remain visible above large inputs; the two-field form is short enough to scroll with the keyboard.",
+      "motion": "A pressed Join button stays pending without decorative shaking; a valid arrival settles once.",
+      "copy": "Joining friends? Add your name."
+    },
+    {
+      "id": "room-lobby",
+      "composition": "A wide room-code invitation strip tops a horizontal rail of geometric people; one low white platform contains the host start action.",
+      "hierarchy": "People and the room destination come before rules or decoration; Host is a small text role, never a crown.",
+      "interaction": "At least two named specimens enable Start; guest state says Waiting for host; Leave and host Close require explicit confirmation.",
+      "mobile": "The token rail wraps into two named columns, then one with large text; the start platform follows rather than covering it.",
+      "motion": "A new token settles 7px onto the rail once; away and present states are textual, never blinking.",
+      "copy": "Everyone here? Start with one word."
+    },
+    {
+      "id": "lobby-presentation",
+      "composition": "A room-code poster and large labelled QR sample occupy one side; the same named token rail fills the other side.",
+      "hierarchy": "Join destination and attendance are distance-readable; Exit presentation is always visible.",
+      "interaction": "The QR explicitly encodes a design-sketch message, not a real room; Open join sketch remains a working alternative.",
+      "mobile": "The display composition stacks without forcing landscape; all eight names can scroll.",
+      "motion": "A short Just joined label accompanies one token-settle event; the label carries the meaning in silence.",
+      "copy": "Come join the table."
+    },
+    {
+      "id": "room-writing",
+      "composition": "A single plain white writing runway contains only the immediately previous line, a stable textarea, five reserved count sockets and the commit action.",
+      "hierarchy": "Previous line first, exact requested word count second, your draft third; Bungee and token characters leave the editing area.",
+      "interaction": "The local core advances through exactly 1,2,3,4,5,4,3,2,1; whitespace normalizes on commit; drafts cap at 500 characters and stay editable on errors.",
+      "mobile": "The textarea never resizes as words appear; long words wrap; count feedback and the full-width action follow in natural scroll.",
+      "motion": "Count sockets change fill without moving text; only accepted submission triggers one press-registration acknowledgement.",
+      "copy": "Write 4 words. Only the line before yours is visible."
+    },
+    {
+      "id": "room-waiting",
+      "composition": "A quiet received-line receipt replaces the editor, followed by a named roster and a literal next-step explanation; no busy mascot watches the writers.",
+      "hierarchy": "Line accepted is first; group status is second; round position and host recovery are small and separate.",
+      "interaction": "The offline sketch exposes Continue simulation explicitly; real automatic handoff is described without pretending connected players exist. End game never reveals partial work.",
+      "mobile": "Receipt and roster stay one column; a long submitted line wraps on the same paper width.",
+      "motion": "One tile settle marks acceptance; waiting is static with no pulsing active-writer dots.",
+      "copy": "Your line is in. The next round starts when everyone is ready."
+    },
+    {
+      "id": "late-join-spectator",
+      "composition": "A narrow watching band sits above the current round rail and an unranked roster; no empty textarea implies a missing assignment.",
+      "hierarchy": "Watching this game is stated before group progress; joining the next game is the sole participation promise.",
+      "interaction": "A spectator may observe already released poems but gains no retroactive writing slot; sample counts exclude the watching token.",
+      "mobile": "The watcher explanation leads, with names wrapping below rather than a separate sidebar.",
+      "motion": "No speculative progress motion; a textual next-game invitation is static.",
+      "copy": "You are watching this game. You can write in the next one."
+    },
+    {
+      "id": "reveal-circle",
+      "composition": "An ordered reading list sits on a print-shop counter with the current reader named at the top; full unrevealed poem content is absent.",
+      "hierarchy": "Reading now, Up next and Read are words and order, not colored trophies; the authorized reveal action sits with its reader.",
+      "interaction": "Reveal and read opens the entire authorized poem; Step in is an explicit recovery state; reread returns to the same whole print.",
+      "mobile": "The reading order becomes a single list with buttons below each name; no horizontal carousel.",
+      "motion": "The whole print registers once on a deliberate reveal action; focus moves to the reader heading.",
+      "copy": "The poems are ready. Take turns reading them aloud."
+    },
+    {
+      "id": "poem-reading",
+      "composition": "One complete nine-line ordered print fills the main column; a small reader-and-actions rail sits outside its text margin.",
+      "hierarchy": "The poem is quiet Atkinson text, not display type; every line appears at once with stable author disclosure.",
+      "interaction": "Done returns to the reading circle; selecting Show authors keeps names visible until toggled, without a timed disappearance.",
+      "mobile": "Actions fall below the whole poem; large and long text expands the page rather than clipping.",
+      "motion": "A single 190ms registration snap applies to the whole sheet, never individual words or lines.",
+      "copy": "Read it aloud, if you like. All nine lines are here."
+    },
+    {
+      "id": "reveal-presentation",
+      "composition": "A distance-readable white print replaces the poster art, with a compact running order beneath and an always-reachable Exit presentation.",
+      "hierarchy": "Current human reader and the complete poem dominate; waiting state contains no unreleased text.",
+      "interaction": "Reveal authority is unchanged; waiting, ready, reading and finished states use the same full-print object.",
+      "mobile": "On narrow displays the poem precedes the running order and scrolls naturally.",
+      "motion": "No typewriter, curtain or stagger; only one print-registration snap on whole-poem reveal.",
+      "copy": "Mina is reading. Take your time."
+    },
+    {
+      "id": "session-recap",
+      "composition": "A private print shelf collects the whole set with individual replay links; a separate ending strip distinguishes Play again, Lobby and Exit.",
+      "hierarchy": "All human poems are equal-size keepsakes; personal favorite marks do not elect a winner or acquire a crown.",
+      "interaction": "Replay reads a complete poem; recap sharing states its whole-set scope and is separate from private saving; the local simulation labels all publication states.",
+      "mobile": "Prints become a one-column stack with attribution; ending actions wrap and remain distinct.",
+      "motion": "The shelf appears immediately; private favorite acknowledgement is a small static bookmark change.",
+      "copy": "Made together. Kept private."
+    },
+    {
+      "id": "room-unavailable",
+      "composition": "The invitation strip becomes a quiet unoccupied print bed with a clear unavailable message and a join form path.",
+      "hierarchy": "No speculative reason or private room information appears; the corrective action leads.",
+      "interaction": "Return to join restores the code/name flow; no fake CLOSED backend status is invented.",
+      "mobile": "One short paragraph and two large actions fit a narrow phone.",
+      "motion": "No error stamp, shaking or disappearance.",
+      "copy": "This room is unavailable. Ask your host for a fresh invitation."
+    },
+    {
+      "id": "room-recovery",
+      "composition": "A localized purple-edged recovery strip stays inside the current paper composition while room chrome remains usable.",
+      "hierarchy": "What failed, what is safe and Refresh room are stated in that order.",
+      "interaction": "The draft remains visible in the writing recovery specimen; refresh/rejoin are explicit choices, not repeated hidden retries.",
+      "mobile": "Message and retry fit in the same single-column sheet without a fullscreen blocker.",
+      "motion": "The error appears immediately without moving the draft or flashing red.",
+      "copy": "The room view could not load. Your draft is still here."
+    },
+    {
+      "id": "guest-session-recovery",
+      "composition": "A short guest-connection plate with one geometric token replaces account-style onboarding.",
+      "hierarchy": "The guest session is the subject; retry is not presented as sign-in.",
+      "interaction": "Retry preserves the pen name; local guest play remains available when accounts are disconnected.",
+      "mobile": "A small form-width layout keeps connection text and the action together.",
+      "motion": "Loading is a static three-line printing placeholder with an announced status.",
+      "copy": "Let us reconnect your guest session."
+    },
+    {
+      "id": "connection-notice",
+      "composition": "A compact in-flow status strip is inserted above the writing bed; the editor, previous line and draft remain untouched.",
+      "hierarchy": "Offline, Reconnecting and Back online use text and a left rule, not only a colored dot.",
+      "interaction": "Offline disables retry but does not clear typing; restored status can be dismissed; healthy state leaves no empty alert.",
+      "mobile": "The strip wraps above the sheet instead of overlaying the keyboard or submit button.",
+      "motion": "No pulse or countdown; restored acknowledgement fades only after its text has been announced.",
+      "copy": "You are offline. Keep your draft here; retry when connected."
+    },
+    {
+      "id": "deployment-update",
+      "composition": "A persistent narrow update slip sits above the existing task with a visible Reload Linejam action.",
+      "hierarchy": "Availability of an update is distinct from a connection error; draft-safety copy precedes reload.",
+      "interaction": "The sketch states that reload is a local preview reset, not a version check; healthy state has no banner.",
+      "mobile": "Reload is a large in-flow button, not a disappearing toast.",
+      "motion": "The notice arrives without a route transition or moving input focus.",
+      "copy": "A newer Linejam is ready. Keep your draft before reloading."
+    },
+    {
+      "id": "archive",
+      "composition": "An open print shelf replaces a statistics dashboard: a compact preservation note and plain collection totals lead into whole-poem keepsakes.",
+      "hierarchy": "Poems lead; private favorites are a personal filter, not a popularity score; the first print may be wider but not a champion.",
+      "interaction": "Read, favorite and public-link reversal stay separate; empty and loading states retain Start/Join choices.",
+      "mobile": "A one-column print shelf becomes two columns only where complete lines stay legible; there is no horizontal scroll.",
+      "motion": "No staggered cards or hover-only details; links and attribution are visible from the start.",
+      "copy": "Your poems. Still a little surprising."
+    },
+    {
+      "id": "poem-detail",
+      "composition": "A page-flow ordered print has an archive return link above and a separate private/public action rail below.",
+      "hierarchy": "Whole text and full human attribution precede favoriting, sharing, image saving and native print.",
+      "interaction": "Participant controls include reversible public availability; no action silently turns a private save into publication.",
+      "mobile": "All actions wrap below the poem; author labels expand in flow.",
+      "motion": "No timed author popup; the full print stays steady when a favorite changes.",
+      "copy": "A poem made together. Private unless you choose to share."
+    },
+    {
+      "id": "public-poem",
+      "composition": "Authorized public content uses the same ordered print with a simple Linejam invitation; unavailable states are wordless about the hidden poem.",
+      "hierarchy": "Public attribution leads only after authorization; the fallback contains no teaser, author or metadata leak.",
+      "interaction": "A prepared link shows Preparing this shared poem; private/revoked/expired states return neutral unavailable copy with Start a room.",
+      "mobile": "The poem and invitation form one reading column without participant-only controls.",
+      "motion": "No reveal flourish on unavailable or pending states; authorized full text is immediate.",
+      "copy": "A poem from a room of people. Start your own."
+    },
+    {
+      "id": "poem-sharing",
+      "composition": "A narrow consent plate beside the single poem print names the one-poem scope before native delivery controls.",
+      "hierarchy": "Private now versus available to anyone with the delivered link is explicit; native share is not imitated with a fabricated OS dialog.",
+      "interaction": "Local preparation, cancellation, delivery and reversal are clearly marked simulations; the actual device share button shares only the synthetic sketch text.",
+      "mobile": "Scope warning sits before the action and never collapses into an icon tooltip.",
+      "motion": "Prepare stays still; only successful delivery gets a short registration acknowledgement.",
+      "copy": "Share this poem with a link? Saving an image does not publish it."
+    },
+    {
+      "id": "recap-sharing",
+      "composition": "A whole-set stack thumbnail replaces the single-poem thumbnail on the consent plate; each included poem is named.",
+      "hierarchy": "This shares every poem, not just your line, is the first scope statement.",
+      "interaction": "Cancellation leaves the local publication preview private; delivery and activation failure have distinct states; no real token is created.",
+      "mobile": "The complete scope statement remains above the share control on phones.",
+      "motion": "One stack-level acknowledgement follows a simulated successful delivery, never each poem.",
+      "copy": "This link includes the whole session."
+    },
+    {
+      "id": "poem-image-export",
+      "composition": "A full-width art-proof of the entire attributed poem sits beside a small output description, without public-link consent machinery.",
+      "hierarchy": "Complete lines, all author names and applied mode are first; download is explicitly private.",
+      "interaction": "The sketch generates an actual local PNG with wrapped lines and all attribution; errors and saving states leave the print readable.",
+      "mobile": "The preview scales, but downloaded text is rendered at a fixed readable width with height calculated from wrapping.",
+      "motion": "A short print-registration snap acknowledges image readiness; no publishing animation.",
+      "copy": "Save the whole poem as an image. This does not make a public link."
+    },
+    {
+      "id": "poem-print",
+      "composition": "A plain ink-on-white reading print removes color planes, navigation, buttons and all decorative token art.",
+      "hierarchy": "The nine lines and full attribution are the only primary content; a small Linejam signature comes last.",
+      "interaction": "Print opens the browser-native print surface; cancellation makes no state or privacy change.",
+      "mobile": "The on-screen preview scrolls normally and print uses page margins rather than a fixed screenshot height.",
+      "motion": "No print animation or invented custom print dialog.",
+      "copy": "One poem, all its people, ready for paper."
+    },
+    {
+      "id": "public-recap",
+      "composition": "A public set is a sequence of full prints, each with starter, reader and contributor legend, not a collage of truncated cards.",
+      "hierarchy": "Session scope and every poem are visible before the join/new-room invitation.",
+      "interaction": "Export uses browser-native print; unavailable sets show the neutral missing-page surface without text leakage.",
+      "mobile": "One continuous vertical reading sequence handles any collection length and long attribution.",
+      "motion": "No ranking or favorite ceremony; each complete print appears in reading order.",
+      "copy": "A whole evening of unexpected lines."
+    },
+    {
+      "id": "sign-in",
+      "composition": "A form-width account plate has an optional public synthetic print to its right on desktop; local mode replaces provider fields with a truthful unavailable state.",
+      "hierarchy": "Playing as a guest stays obvious; provider sign-in is optional preservation, not access to the game.",
+      "interaction": "The prototype does not imitate working provider authentication; connected-state samples are labelled provider appearance sketches.",
+      "mobile": "Form first, public example below or absent; no illustration delays the usable action.",
+      "motion": "Only provider busy status moves, if supported; the local fallback is static.",
+      "copy": "Accounts are not connected in this local sketch. You can still play as a guest."
+    },
+    {
+      "id": "sign-up",
+      "composition": "A single preservation panel uses plain fields only as a labelled provider appearance specimen, paired with a quiet public poem example.",
+      "hierarchy": "Guest-first play remains the primary escape; account upgrade explains durable access without promising migration here.",
+      "interaction": "Account creation is not simulated as successful; provider validation/recovery ownership is clearly stated.",
+      "mobile": "The short account-unavailable state replaces a tall faux sign-up page on mobile.",
+      "motion": "No celebratory account-success effects or automatic carousel.",
+      "copy": "Keep playing here. Connect an account in the real integrated app to preserve access."
+    },
+    {
+      "id": "auth-callback",
+      "composition": "A small registration-alignment status plate replaces the whole account form during completion.",
+      "hierarchy": "Completing, not connected and migration needs retry are distinct messages; guest progress safety is visible.",
+      "interaction": "A failed migration offers Retry migration and Go home without clearing the local specimen; no cloud migration is claimed.",
+      "mobile": "Status and recovery controls remain a single narrow stack.",
+      "motion": "Static loading bars replace an endless spinner; success returns without a theatrical delay.",
+      "copy": "Finishing account setup. Your guest progress stays safe if this needs a retry."
+    },
+    {
+      "id": "profile",
+      "composition": "A geometric identity token and wrapped pen name lead a simple preservation sheet; no performance numbers or photo hover effect.",
+      "hierarchy": "Browser guest identity and integrated account identity are explicitly different states.",
+      "interaction": "The local sketch can change only its token; account management is identified as provider-owned and unavailable locally.",
+      "mobile": "Long names and email addresses wrap rather than shrinking; controls follow identity in document order.",
+      "motion": "Avatar selection changes silhouette immediately without color-filter animation.",
+      "copy": "You are playing as a guest on this browser."
+    },
+    {
+      "id": "account-controls",
+      "composition": "A compact provider-owned account popover is framed as a labelled appearance specimen, not a second custom profile editor.",
+      "hierarchy": "Guest state says no connected account; signed-in specimen shows account management and sign-out as provider actions.",
+      "interaction": "The sketch never claims real sign-out or editing; a local guest fallback returns directly to play.",
+      "mobile": "A bounded native dialog avoids cropped account actions at narrow widths and large text.",
+      "motion": "One 170ms panel entrance only; focus and Escape remain functional without motion.",
+      "copy": "Account controls belong to your connected account provider."
+    },
+    {
+      "id": "help",
+      "composition": "A bounded white instruction plate uses one tiny nine-count rail and three plain numbered steps; no illustrated writing prompt.",
+      "hierarchy": "One human line, only the previous line, and a whole-poem aloud ending explain the game.",
+      "interaction": "Open uses a native dialog with Escape, close action and focus restoration; the showcase exposes the same content in flow.",
+      "mobile": "The dialog scrolls within the viewport with a reachable Got it action at large text.",
+      "motion": "A 170ms panel settle answers opening; the instructions themselves never animate.",
+      "copy": "Nine rounds: 1, 2, 3, 4, 5, 4, 3, 2, 1 words."
+    },
+    {
+      "id": "appearance",
+      "composition": "Three native radio choices sit on one plain print plate with a live sample and independent motion/sound controls.",
+      "hierarchy": "Light, Dark and System are literal words; current selection is not color-only.",
+      "interaction": "Native radio arrow keys work; selection updates the whole sketch; sound remains off until separately enabled.",
+      "mobile": "Touch targets are at least 44px; controls wrap without nested border clutter.",
+      "motion": "Palette changes are immediate, avoiding a page-wide wash or flash.",
+      "copy": "Choose what feels comfortable. The words stay the same."
+    },
+    {
+      "id": "releases",
+      "composition": "A dated vertical noticeboard uses one release heading and a readable change paragraph per entry; technical details are a native disclosure.",
+      "hierarchy": "Product changes lead; implementation notes are secondary and expandable.",
+      "interaction": "Release links and feed link remain ordinary anchors; all specimen entries are labelled fictional design examples.",
+      "mobile": "Single-column prose keeps a short measure at every width.",
+      "motion": "No stamp entrance or release-card hover motion.",
+      "copy": "What changed in Linejam."
+    },
+    {
+      "id": "releases-feed",
+      "composition": "A plain syndicated-feed preview uses title, date, short summary and a working back-to-releases link.",
+      "hierarchy": "The feed is content, not another styled application page; its external-reader ownership is explained.",
+      "interaction": "The sketch presents sample feed entries but does not invent a live feed endpoint.",
+      "mobile": "Readable feed text wraps in the page, mirroring accessible external-reader semantics.",
+      "motion": "No motion in syndicated content.",
+      "copy": "Read updates in your feed reader."
+    },
+    {
+      "id": "not-found",
+      "composition": "A misplaced original letter-block token beside a small 404 replaces the full-screen stamped alarm; the main action returns to the poster.",
+      "hierarchy": "Page not found is clearer than a huge decorative numeral; no unavailable poem text is shown.",
+      "interaction": "Return home is the primary action with Join as a useful secondary route.",
+      "mobile": "One short message and two large controls fit without fixed overlays.",
+      "motion": "No shake, grain, blur or automatic stamp.",
+      "copy": "That page is not here. The next poem could be."
+    },
+    {
+      "id": "route-error",
+      "composition": "The failed route becomes a localized blank print bed with one plain failure message; masthead and guest navigation survive.",
+      "hierarchy": "Try again and Home are explicit recovery options with no opaque error trace.",
+      "interaction": "Retry restores the selected local composition; specimen text explains a real route reset would retry the boundary.",
+      "mobile": "No fixed full-screen error layer hides browser navigation or grows beyond the viewport.",
+      "motion": "Error appears immediately without alarm animation.",
+      "copy": "This page could not load. Try again or go home."
+    },
+    {
+      "id": "global-error",
+      "composition": "A self-contained plain white error sheet uses system-safe legible text and no dependence on token art or theme initialization.",
+      "hierarchy": "Application error and retry stay available even if every decorative layer fails.",
+      "interaction": "The local reset restarts the sketch; no success is claimed before an actual render.",
+      "mobile": "Basic document flow and large native buttons survive narrow layouts and zoom.",
+      "motion": "No animation, font dependency or sensory cue is required.",
+      "copy": "Linejam could not start. Try again."
+    },
+    {
+      "id": "site-social-preview",
+      "composition": "A landscape mint poster pairs the interlocking Linejam mark, a compact Bungee invitation and the original nine-block print shape.",
+      "hierarchy": "The name and collaborative promise survive thumbnail reduction; there is no screenshot of private text.",
+      "interaction": "A readable local preview can be saved as a sketch; production font fallback is represented by a plain-text state.",
+      "mobile": "The fixed landscape art scales inside a phone viewport with a textual equivalent below.",
+      "motion": "Social preview is entirely static.",
+      "copy": "One line. Many minds."
+    },
+    {
+      "id": "poem-social-preview",
+      "composition": "An authorized public teaser is printed on a white rectangle over mint with a small Linejam signature; generic fallback shows only the mark and invitation.",
+      "hierarchy": "Only explicitly public teaser content appears; private, pending and revoked states share a no-text fallback.",
+      "interaction": "The state selector demonstrates the boundary without accessing any real poem.",
+      "mobile": "Long teaser words wrap within safe margins; the page supplies accessible full text separately from the artwork.",
+      "motion": "No motion in exported preview artwork.",
+      "copy": "A poem made together."
+    },
+    {
+      "id": "recap-social-preview",
+      "composition": "Two offset miniature print fronts suggest a whole set; public state shows two concise synthetic teasers, private state only neutral stack geometry.",
+      "hierarchy": "Session scope and the Linejam mark lead; counts describe content, never awards.",
+      "interaction": "Public/unavailable selections make the no-leak fallback observable in the sketch.",
+      "mobile": "The fixed landscape composition scales proportionally and is described in text below.",
+      "motion": "No ranking, burst or moving preview.",
+      "copy": "A whole set of unexpected poems."
+    }
+  ],
+  "components": [
+    {
+      "id": "root-layout",
+      "treatment": "A single mint print bed owns the wordmark, focus order, paper surface and safe document scroll; no nested dashboard frame.",
+      "states": "Light/dark, local guest, provider appearance specimen, prepaint and print examples keep the same reading order.",
+      "accessibility": "Skip link, semantic main, legible fallbacks and no fixed input-covering chrome."
+    },
+    {
+      "id": "header",
+      "treatment": "A two-piece interlocking L/J mark and small Bungee Linejam signature share a shallow rail with labelled utilities.",
+      "states": "Guest utilities, room-minimal navigation and account-owned appearance are shown without icon-only mystery.",
+      "accessibility": "Wrapping 44px targets; native dialogs restore focus to the trigger."
+    },
+    {
+      "id": "footer",
+      "treatment": "A plain prose baseline with Releases and exploration exit replaces a decorative footer panel.",
+      "states": "Shown on browsing routes; focused writing uses only the explicit local-sketch note.",
+      "accessibility": "Ordinary underlined links, readable dates, no low-contrast tiny copyright block."
+    },
+    {
+      "id": "home-page",
+      "treatment": "A compact asymmetric poster concentrates display type and original geometric token art in one place.",
+      "states": "First visit and returning guest share the direct Start/Join pair; no account gate.",
+      "accessibility": "In-flow mobile actions remain reachable with zoom and keyboard; art is decorative."
+    },
+    {
+      "id": "host-page",
+      "treatment": "One name plate with a yellow offset registration edge and short rules beside it.",
+      "states": "Empty, valid, creating, authentication error and retained-name retry.",
+      "accessibility": "Persistent visible label and native required input; feedback sits beside the same action."
+    },
+    {
+      "id": "join-page",
+      "treatment": "Code and pen name share one calm white plate instead of step cards.",
+      "states": "Manual four-letter code, readonly invite, joining, unavailable and retained-name recovery.",
+      "accessibility": "Code normalization is explicit; Enter moves from code to name; no placeholder-only label."
+    },
+    {
+      "id": "room-page",
+      "treatment": "The print bed swaps phase-specific objects: token shelf, runway, receipt, complete print.",
+      "states": "Loading, lobby, writing, waiting, completed, unavailable and unexpected state have explicit visible treatments.",
+      "accessibility": "Phase focus moves to the heading, not a decorative token; user drafts are not hidden behind transitions."
+    },
+    {
+      "id": "unexpected-room-state",
+      "treatment": "A small unoccupied registration frame with a literal unrecognized-room message.",
+      "states": "Unexpected status shows Go home and Return to join rather than pretending to know the backend phase.",
+      "accessibility": "No color-only severity or raw exception details; recovery controls are native buttons."
+    },
+    {
+      "id": "lobby",
+      "treatment": "Named geometric people sit on a wrapping rail above a low start platform.",
+      "states": "One seat, full eight-seat specimen, host/guest, away, arrival, tools, start failure and confirmation.",
+      "accessibility": "Names and Host labels carry identity and authority; no crown, rank or sorting by performance."
+    },
+    {
+      "id": "writing-screen",
+      "treatment": "A compact round heading surrounds one stable, calm writing runway.",
+      "states": "Assignment loading, first line, later line, spectator, recorded receipt and next round are visibly distinct.",
+      "accessibility": "Only previous text is rendered; no hidden full poem in the writing DOM."
+    },
+    {
+      "id": "writing-composer",
+      "treatment": "A plain textarea above reserved count sockets and a single commit row; typed words are not animated tiles.",
+      "states": "Blank/below/exact/overflow, multiline, long text, 500-character bound, pending, accepted, offline and draft-safe retry.",
+      "accessibility": "Textarea never remounts on typing; visible label, debounced single count status, focus outline and word wrapping."
+    },
+    {
+      "id": "waiting-screen",
+      "treatment": "A short printed receipt followed by static named states, with host recovery well separated.",
+      "states": "Waiting, all ready, null loading, away, spectator and confirm/end/error variants.",
+      "accessibility": "No pulsing writer surveillance; status text is polite and does not imply a deadline."
+    },
+    {
+      "id": "reveal-phase",
+      "treatment": "An ordered human reading list with one authorized full-print opening action.",
+      "states": "Assigned reader, fallback, revealing, retry, reread and all-revealed recap.",
+      "accessibility": "No unreleased text in the list; buttons name their reader and focus returns after reading."
+    },
+    {
+      "id": "poem-display",
+      "treatment": "A complete nine-line print with generous margins and quiet Atkinson text.",
+      "states": "In-room read, archive page, author-visible, favorite, public controls and image/print feedback.",
+      "accessibility": "Whole poem is in semantic ordered-list order; author names stay open rather than vanishing after two seconds."
+    },
+    {
+      "id": "session-recap-hub",
+      "treatment": "An equal-weight print shelf plus a separate three-way ending strip.",
+      "states": "No favorites, private favorites, sharing, error, replay, rematch, lobby and exit.",
+      "accessibility": "No favorite winner/crown ceremony; private keepsake preference is not public scoring."
+    },
+    {
+      "id": "stage-shell",
+      "treatment": "A wide unboxed presentation bed with a shallow title/exit rail.",
+      "states": "Lobby invitation, waiting reader, active full poem and running-order overview.",
+      "accessibility": "Always visible exit, full scrolling at narrow sizes and readable distance typography."
+    },
+    {
+      "id": "lobby-stage",
+      "treatment": "The room invitation becomes a poster-scale code/QR specimen beside the named token rail.",
+      "states": "Two to eight specimen people, joined text, away and long names.",
+      "accessibility": "QR has a textual destination explanation and working Open join sketch alternative."
+    },
+    {
+      "id": "lobby-join-qr",
+      "treatment": "An original local QR on a white square with generous quiet zone sits beside the room destination.",
+      "states": "Static QR encodes a design-sketch message, explicitly not a live invitation; Open join sketch is functional.",
+      "accessibility": "Caption explains exactly what scans; no unlabelled fake game code or color-inverted QR."
+    },
+    {
+      "id": "reveal-stage",
+      "treatment": "An oversized complete print with current reader title and a calm running-order footer.",
+      "states": "No ready poem, waiting, authorized ready, pending/retry, full read and finished overview.",
+      "accessibility": "Whole poem scrolls; no line-by-line reveal or stage-only controls that disappear on phones."
+    },
+    {
+      "id": "room-chrome",
+      "treatment": "Room destination and a small tools disclosure occupy one horizontal registration rail.",
+      "states": "Copy/invite examples, tools open, participant/host actions and connection notices.",
+      "accessibility": "Essential leave/help/appearance controls remain available in embed; code is labelled as specimen."
+    },
+    {
+      "id": "focused-entry-appearance",
+      "treatment": "A single Appearance text control opens a compact native dialog above the name plate.",
+      "states": "Closed/open, current mode and keyboard Escape return.",
+      "accessibility": "Bounded dialog scroll, native radio arrows and trigger focus restoration."
+    },
+    {
+      "id": "color-mode-control",
+      "treatment": "Light, Dark and System are three native radio rows with small actual paper/ink swatches.",
+      "states": "Selected, hover, focus and system-following; forced query mode is readable.",
+      "accessibility": "Text and checked state identify mode; no invert filter or color-only selection."
+    },
+    {
+      "id": "help-modal",
+      "treatment": "One bounded instruction plate contains the exact count rail and three literal steps.",
+      "states": "Open/closed and Got it/Escape/backdrop closure use one content owner.",
+      "accessibility": "Native modal focus containment, scrollable content and restored opener focus."
+    },
+    {
+      "id": "connection-status",
+      "treatment": "A compact left-rule strip inserts above, never over, the current task.",
+      "states": "Healthy is absent; Offline, Reconnecting and Restored use distinct text.",
+      "accessibility": "Draft remains editable; status is polite; no blinking or color-only signal."
+    },
+    {
+      "id": "deployment-skew-observer",
+      "treatment": "A persistent update slip offers a deliberate reload instead of automatic interruption.",
+      "states": "Healthy is absent; version mismatch specimen shows Reload Linejam and draft guidance.",
+      "accessibility": "No focus steal or dismissal timeout; source failures are not mislabelled updates."
+    },
+    {
+      "id": "room-panel-error-boundary",
+      "treatment": "The failed phase is replaced by a small recovery plate inside otherwise functional room chrome.",
+      "states": "Caught failure, retry and restored sheet; writing specimen retains draft text.",
+      "accessibility": "Plain cause/action language; primary recovery stays keyboard reachable."
+    },
+    {
+      "id": "auth-error-state",
+      "treatment": "A guest-session connection error, not a login wall, with a single clear retry.",
+      "states": "Custom context, default guest state, busy retry and local recovery.",
+      "accessibility": "Error text and native button are adjacent; no password/credential imitation."
+    },
+    {
+      "id": "accounts-unavailable",
+      "treatment": "A truthful local-mode plate explains that accounts are not connected and points back to guest play.",
+      "states": "Local guest browsing and optional provider appearance specimens never claim successful authentication.",
+      "accessibility": "No disabled fake login form as the only path; Play as guest is prominent."
+    },
+    {
+      "id": "archive-page",
+      "treatment": "A readable print shelf with preservation copy, simple totals and an optional personal-favorites filter.",
+      "states": "Loading, auth error, empty guest/account, populated and local favorite reversal.",
+      "accessibility": "Whole-print previews remain legible at one column; visible read links do not rely on hover."
+    },
+    {
+      "id": "archive-info-strip",
+      "treatment": "A quiet one-sentence preservation note sits directly above the shelf.",
+      "states": "Browser-only guest copy, connected-account copy and empty account absence are explicit.",
+      "accessibility": "Text explains storage scope without a banner-height account upsell."
+    },
+    {
+      "id": "archive-stats",
+      "treatment": "Four plain prose facts form one wrapping line rather than metric cards.",
+      "states": "Poems, personal favorites, people and contributed lines are collection facts, not scores.",
+      "accessibility": "Locale-readable words and numbers; no accent that implies ranking."
+    },
+    {
+      "id": "stat-line",
+      "treatment": "A single readable fact such as 4 poems with the noun kept adjacent.",
+      "states": "Default/accent and singular/plural states remain one unboxed text run.",
+      "accessibility": "No icon is required to decode a value; text scales and wraps."
+    },
+    {
+      "id": "archive-stats-skeleton",
+      "treatment": "Four static short printing rules occupy the future prose-fact positions.",
+      "states": "Loading contains one Loading collection status, never invented zero totals.",
+      "accessibility": "Skeleton decoration is aria-hidden; a single polite busy label provides meaning."
+    },
+    {
+      "id": "poem-card",
+      "treatment": "A miniature complete print, a visible read link and a personal-favorite control on one outer sheet.",
+      "states": "Featured, normal, favorite pending/error/reverted and public-link removal.",
+      "accessibility": "No hover-only count/read affordance; nested controls are siblings of the reading link."
+    },
+    {
+      "id": "poem-card-skeleton",
+      "treatment": "One blank print with nine soft static line rules preserves the eventual shelf geometry.",
+      "states": "Loading and resolved print share outer width without pulsing paper.",
+      "accessibility": "One parent busy announcement; placeholder rules are hidden from assistive technology."
+    },
+    {
+      "id": "empty-archive",
+      "treatment": "An unoccupied nine-count print shape sits beside Start and Join, not a zero-stat dashboard.",
+      "states": "Empty collection and empty personal filter have different corrective copy.",
+      "accessibility": "No ghost text mistaken for content; invitation actions remain large and explicit."
+    },
+    {
+      "id": "poem-silhouette",
+      "treatment": "Nine vertical registration bars encode exactly 1,2,3,4,5,4,3,2,1.",
+      "states": "Small, medium, large and empty ghost are static; no hover choreography.",
+      "accessibility": "One descriptive image label states the whole shape; individual decorative bars are hidden."
+    },
+    {
+      "id": "poem-silhouette-compact",
+      "treatment": "A small horizontal run of the nine-count bars is an explicitly unmounted design specimen.",
+      "states": "Compact and reduced-motion samples only; not presented as shipped usage.",
+      "accessibility": "The full word-count pattern has a textual equivalent; no tooltip dependency."
+    },
+    {
+      "id": "author-dots",
+      "treatment": "Tiny distinctly shaped tokens sit with actual pen names or a contributor-count disclosure.",
+      "states": "One through five plus overflow disclosure; chosen author remains visible.",
+      "accessibility": "Names replace anonymous Contributor N titles; 44px buttons, not tiny hover dots."
+    },
+    {
+      "id": "author-dots-inline",
+      "treatment": "An unmounted inline authorship specimen uses named underlines with a small shape prefix.",
+      "states": "Empty renders nothing; several names wrap; no color-gradient meaning.",
+      "accessibility": "Real readable names and non-color identity; explicitly labelled unmounted specimen."
+    },
+    {
+      "id": "poem-detail",
+      "treatment": "An attributed print in normal page flow with archive/public-specific navigation.",
+      "states": "Participant, authorized public, preparing, unavailable, favorite and reversal controls.",
+      "accessibility": "Private fallback contains no poem lines, author teaser or metadata."
+    },
+    {
+      "id": "recap-page",
+      "treatment": "A complete ordered set of attributed prints follows a session-scope heading.",
+      "states": "Public available and neutral unavailable; all poems print in natural page flow.",
+      "accessibility": "Full author legends and semantic article headings survive export and pagination."
+    },
+    {
+      "id": "recap-export-button",
+      "treatment": "A labelled Print whole set control invokes browser-native print rather than a custom PDF editor.",
+      "states": "Ready, explanatory print state and return after OS cancellation.",
+      "accessibility": "Native button; print hides all controls and retains the full set."
+    },
+    {
+      "id": "auth-layout",
+      "treatment": "A narrow form-first white plate shares desktop space with one explicitly public synthetic print.",
+      "states": "Local unavailable, connected appearance sample and no-example fallback.",
+      "accessibility": "No private text in showcase; form is first in DOM and mobile order."
+    },
+    {
+      "id": "sign-in-page",
+      "treatment": "An optional account entry preserves the guest escape and uses provider-owned form appearance only as a labelled sample.",
+      "states": "Local unavailable is the default; provider busy/error samples are truthful design-only fixtures.",
+      "accessibility": "No real credential submission or fake successful account state."
+    },
+    {
+      "id": "sign-up-page",
+      "treatment": "An account-preservation plate uses the same calm field hierarchy as guest entry, not a reward screen.",
+      "states": "Disconnected, provider sample, validation and return-to-guest are distinct.",
+      "accessibility": "Account creation is optional; all provider-only actions explain their integration requirement."
+    },
+    {
+      "id": "auth-callback-page",
+      "treatment": "A short account-completion plate reports migration state without exposing account details.",
+      "states": "Completing, disconnected, migration failure, retry and guest-safe home recovery.",
+      "accessibility": "No cloud migration claim; static busy label and keyboard recovery."
+    },
+    {
+      "id": "auth-showcase",
+      "treatment": "A complete synthetic public print serves as a quiet example beside account entry.",
+      "states": "Explicitly public sample, loading and no-public-poem copy, never a private archive excerpt.",
+      "accessibility": "Synthetic label and full textual reading order; absent on cramped screens if necessary."
+    },
+    {
+      "id": "profile-page",
+      "treatment": "A large chosen geometric token, wrapped pen name and plain guest/account preservation text.",
+      "states": "Guest alias, local-only, provider appearance and account unavailable.",
+      "accessibility": "No grayscale-to-color photo reveal; text identity works with no avatar."
+    },
+    {
+      "id": "releases-page",
+      "treatment": "A single-column noticeboard separates readable product notes from technical disclosures.",
+      "states": "Empty and sample release list with Home and feed navigation.",
+      "accessibility": "Release examples labelled fictional; headings and ordinary anchors support navigation."
+    },
+    {
+      "id": "release-card",
+      "treatment": "A date and release title sit on an open white notice with a short prose change description.",
+      "states": "Product text with optional expanded technical detail; no decorative release badges.",
+      "accessibility": "Native details summary is keyboard operable; short line measure."
+    },
+    {
+      "id": "technical-details",
+      "treatment": "A native details disclosure below product prose groups sample changes in a plain list.",
+      "states": "Collapsed and expanded states show the same semantic summary.",
+      "accessibility": "Enter/Space work natively; no hover requirement or custom focus trap."
+    },
+    {
+      "id": "not-found-page",
+      "treatment": "A misplaced letter-block character accompanies a modest 404 and a useful home action.",
+      "states": "Unknown route and unavailable public set share neutral no-content copy.",
+      "accessibility": "No fullscreen fixed art, blur, enormous text clipping or panic motion."
+    },
+    {
+      "id": "route-error-page",
+      "treatment": "A localized failed-print sheet keeps usable navigation around a Try again action.",
+      "states": "Failed and retried local composition states do not expose raw exceptions.",
+      "accessibility": "Semantic alert, clear button and heading focus without a fullscreen overlay."
+    },
+    {
+      "id": "global-error-page",
+      "treatment": "A self-contained plain error document uses legible system fallback text and native actions.",
+      "states": "Root failure and local restart work without the identity illustration.",
+      "accessibility": "No font, theme, animation or provider prerequisite for understanding the error."
+    },
+    {
+      "id": "button",
+      "treatment": "Only primary actions have a 4px ink foot and a short press; secondary actions use one light rule and text actions stay open.",
+      "states": "Primary/secondary/quiet, hover, active, disabled, busy, success and keyboard focus.",
+      "accessibility": "44–50px targets, visible focus ring, disabled semantics and no color-only success."
+    },
+    {
+      "id": "input",
+      "treatment": "White lightly ruled fields use persistent sentence-case labels and generous readable text.",
+      "states": "Empty, filled, focused, read-only invitation, disabled and error without erasing typed data.",
+      "accessibility": "Autocomplete and input mode are explicit; long names wrap in surrounding previews."
+    },
+    {
+      "id": "label",
+      "treatment": "Atkinson sentence-case labels sit directly above the control; required context is prose, not asterisks alone.",
+      "states": "Default, helpful description and error association retain natural casing.",
+      "accessibility": "Real label/for relationships and descriptive IDs; no tracked uppercase mono."
+    },
+    {
+      "id": "alert",
+      "treatment": "A left-edge registration rule signals a compact readable message without a thick nested box.",
+      "states": "Error, saved, warning and informational examples have literal headings and corrective actions.",
+      "accessibility": "Role=status for ordinary feedback, alert only for actionable error; text carries all meaning."
+    },
+    {
+      "id": "avatar",
+      "treatment": "Original arch, notch, wedge and loop geometric token characters have distinct silhouettes and quiet faces.",
+      "states": "Chosen/unselected, small/large, away, no-avatar and long-name companion states.",
+      "accessibility": "Names always visible; avatar options are 44px named buttons; no gender, rank or collectible unlock."
+    },
+    {
+      "id": "host-badge",
+      "treatment": "The word Host sits beside a tiny rectangular key-notch mark, not a crown.",
+      "states": "Host and participant states in both palettes retain text authority.",
+      "accessibility": "Role is announced in readable text; no color or symbol decoding."
+    },
+    {
+      "id": "loading-state",
+      "treatment": "Three static ink-registration rules and a literal contextual busy label replace spinners and shimmer.",
+      "states": "Preparing room, joining, unsealing, collection loading and account completion.",
+      "accessibility": "One polite status and aria-busy; content never remains opacity-zero under reduced motion."
+    },
+    {
+      "id": "round-clock",
+      "treatment": "An unobtrusive thin pacing rule sits below round text and never counts down numerically.",
+      "states": "Normal, late soft window, overtime and no-start absence; submission stays enabled.",
+      "accessibility": "Presentation-only rule plus Take your time text; no deadline announcements."
+    },
+    {
+      "id": "stamp-animation",
+      "treatment": "A geometric token settles onto its rail once, without stamp rotation, scaling from zero or staggered names.",
+      "states": "Arrival, delayed-source acknowledgement and static reduced-motion state.",
+      "accessibility": "Text is visible from first frame; never hides a name while an animation delay runs."
+    },
+    {
+      "id": "word-slots",
+      "treatment": "Reserved count-only registration sockets accompany the stable textarea; typed words are not duplicated into game-board chips.",
+      "states": "Below/exact/over, ten-plus overflow and long-word input have plain Add/Remove count text.",
+      "accessibility": "A single debounced live count avoids double announcements; wrapping input stays unchanged."
+    },
+    {
+      "id": "heart-button",
+      "treatment": "An outlined heart and the words Favorite privately form a quiet personal-collection toggle.",
+      "states": "Off/on, pending and visible failure with prior state restored.",
+      "accessibility": "aria-pressed, at least 44px, text error feedback; no crown, burst or public vote tally."
+    },
+    {
+      "id": "site-social-card",
+      "treatment": "A mint landscape poster with the interlocking mark, compact display promise and original block shape.",
+      "states": "Normal and font-fallback specimens use the same safe margins.",
+      "accessibility": "Static artwork has an equivalent text description; no private gameplay excerpt."
+    },
+    {
+      "id": "poem-preview-card",
+      "treatment": "A white authorized-public teaser print uses calm type and a small brand signature.",
+      "states": "Public teaser and long-word wrapping; fixed social crop intentionally uses a labelled teaser only.",
+      "accessibility": "No hidden private text; readable accessible description accompanies the preview."
+    },
+    {
+      "id": "poem-fallback-card",
+      "treatment": "Neutral interlocking blocks and A poem made together replace every unauthorized text snippet.",
+      "states": "Private, pending, expired, revoked and unavailable share the same no-leak identity artwork.",
+      "accessibility": "No author, title, poem lines or participant counts in fallback content."
+    },
+    {
+      "id": "poem-full-card",
+      "treatment": "A complete attributed image print grows vertically to fit wrapped lines and the human author legend.",
+      "states": "Light/dark, long words, saving, saved and download failure; no public state change.",
+      "accessibility": "Actual local PNG output wraps text and never crops authors; inline DOM poem remains readable."
+    },
+    {
+      "id": "recap-social-card",
+      "treatment": "Two equal miniature authorized-public prints suggest a whole session, without a favorite winner.",
+      "states": "Public two-teaser, long collection and generic private fallback.",
+      "accessibility": "Counts describe scope only; private fallback contains no session metadata."
+    }
+  ],
+  "motion": [
+    {
+      "id": "global-reduced-motion",
+      "choreography": "All decorative displacement, rotations, transitions and animation delays are removed; functional state changes still happen.",
+      "timing": "Immediate when OS reduce or local override is enabled.",
+      "reducedMotion": "Static text, checked states and accepted receipts retain every signal; OS reduction cannot be overridden off."
+    },
+    {
+      "id": "color-mode-transition",
+      "choreography": "Paper, ink and accents switch together without a page-wide color wash.",
+      "timing": "Immediate on radio choice; first paint uses the query mode.",
+      "reducedMotion": "Identical immediate change; no inversion of original art."
+    },
+    {
+      "id": "viewport-projection",
+      "choreography": "Document flow, responsive widths, safe-area padding and a resizable textarea replace a projected fixed bottom tray.",
+      "timing": "CSS reflow follows viewport changes; no animated compensation.",
+      "reducedMotion": "Same functional reflow; nothing is pinned over the keyboard."
+    },
+    {
+      "id": "writing-focus-scroll",
+      "choreography": "The stable textarea takes native focus; only explicit stage navigation focuses a heading and restores natural top position.",
+      "timing": "Native immediate focus; no delayed automatic smooth scroll.",
+      "reducedMotion": "Identical focus lifecycle without motion."
+    },
+    {
+      "id": "button-press",
+      "choreography": "Primary ink foot compresses by three pixels on the user press and returns on release; secondary controls change fill only.",
+      "timing": "100ms press, no extra success bounce.",
+      "reducedMotion": "No active transform; contrast and focus ring provide pressed feedback."
+    },
+    {
+      "id": "stamp-arrival",
+      "choreography": "One geometric token settles seven pixels onto the roster rail; the name stays visible throughout.",
+      "timing": "230ms once after acknowledged arrival, no per-person entrance delay.",
+      "reducedMotion": "Immediate settled token and static Joined text."
+    },
+    {
+      "id": "loading-indicators",
+      "choreography": "Static three-rule placeholders preserve content width; one contextual loading status replaces shimmer and indefinite dots.",
+      "timing": "No repeating motion or false progress.",
+      "reducedMotion": "Exactly the same static busy presentation."
+    },
+    {
+      "id": "fade-up-entrances",
+      "choreography": "Remove generic route and card entrance effects; only the actual changed object may register after a committed action.",
+      "timing": "Immediate content, optional 180ms object acknowledgement.",
+      "reducedMotion": "Immediate full content; never hidden by opacity or delay."
+    },
+    {
+      "id": "archive-card-interaction",
+      "choreography": "Read links and private-favorite controls are always visible; hover changes underline, not card elevation or hidden details.",
+      "timing": "100ms color feedback only.",
+      "reducedMotion": "Underline and focus outline remain; no movement."
+    },
+    {
+      "id": "silhouette-bars",
+      "choreography": "The exact nine-count shape is a static registration diagram, not a mouse-triggered animated chart.",
+      "timing": "No animation.",
+      "reducedMotion": "Identical visible bars and textual pattern."
+    },
+    {
+      "id": "contributor-hover",
+      "choreography": "Select a named author token to reveal persistent in-flow attribution; pointer hover adds a simple underline only.",
+      "timing": "Immediate open until deliberately closed.",
+      "reducedMotion": "Same persistent attribution, with no timed fading."
+    },
+    {
+      "id": "waiting-presence-pulse",
+      "choreography": "Remove the repeating pulse; each person has the literal status Writing, Line in, Away or Watching.",
+      "timing": "State changes immediately on acknowledgement; idle remains still.",
+      "reducedMotion": "Identical text-first status."
+    },
+    {
+      "id": "round-clock-drain",
+      "choreography": "A thin quiet pacing line may shorten discretely, then change to Take your time; no alarm hue or numeric countdown.",
+      "timing": "One-second functional ticks, no interpolated drain.",
+      "reducedMotion": "Same discrete state changes; the line never disables submitting."
+    },
+    {
+      "id": "word-slot-feedback",
+      "choreography": "Count sockets fill in place without duplicating draft words or changing textarea height; exact count enables Send line.",
+      "timing": "Immediate fill; count announcement debounced 450ms.",
+      "reducedMotion": "Same count and enabled action, no socket displacement."
+    },
+    {
+      "id": "ready-seal-loop",
+      "choreography": "Delete the infinite Ready ring; exact count yields a still You have the right count message.",
+      "timing": "No loop; immediate enabled action.",
+      "reducedMotion": "Identical static readiness."
+    },
+    {
+      "id": "submission-confirmation",
+      "choreography": "A received-line print registers once, then remains readable before the local sketch exposes Continue simulation.",
+      "timing": "190ms registration; no forced disappearance in this manual offline sketch.",
+      "reducedMotion": "Immediate Line accepted receipt; functional handoff does not rely on animation duration."
+    },
+    {
+      "id": "author-attribution-reveal",
+      "choreography": "Author names open in the poem margin and remain until toggled; no two-second tooltip expiration.",
+      "timing": "Immediate layout expansion.",
+      "reducedMotion": "Same persistent names and descriptive toggle state."
+    },
+    {
+      "id": "help-open-close",
+      "choreography": "A native dialog settles six pixels once with a restrained backdrop; closing restores opener focus.",
+      "timing": "170ms open; immediate close.",
+      "reducedMotion": "No transition; focus containment, Escape and restoration remain."
+    },
+    {
+      "id": "chrome-popover-feedback",
+      "choreography": "Utility panels appear at the trigger with checked native controls and no staggered rows.",
+      "timing": "Immediate panel, 100ms control-fill change.",
+      "reducedMotion": "Static checked/focus feedback with identical keyboard behavior."
+    },
+    {
+      "id": "reading-target-focus",
+      "choreography": "The whole authorized print appears together; reader heading receives focus and a short status names the reading turn.",
+      "timing": "190ms sheet registration only on deliberate reveal.",
+      "reducedMotion": "Entire poem appears immediately with identical heading focus; no forced line recitation."
+    },
+    {
+      "id": "stage-roster-highlight",
+      "choreography": "A new token receives a plain Joined label and one short settle on the shared-screen rail.",
+      "timing": "230ms settle; Joined text remains long enough to read and does not conceal a name.",
+      "reducedMotion": "Static Joined label and silhouette; no transient-only information."
+    },
+    {
+      "id": "favorite-crown-ceremony",
+      "choreography": "Remove crown, leader burst and public winner emphasis; a personal favorite changes the labelled heart state.",
+      "timing": "Immediate toggle; no ceremony.",
+      "reducedMotion": "Identical personal state and visible failure recovery."
+    },
+    {
+      "id": "ceremony-effects-hook",
+      "choreography": "Reuse one explicitly activated local audio context; only accepted line or deliberate Play cue may make one gentle woodblock.",
+      "timing": "Approximately 70ms cue, at least 180ms between cues; default off.",
+      "reducedMotion": "Reduced motion mutes action-linked cues; silence preserves the same accepted text."
+    },
+    {
+      "id": "profile-image-hover",
+      "choreography": "Chosen geometric identity remains stable on hover; optional provider imagery is never grayscale-gated.",
+      "timing": "No filter transition or image motion.",
+      "reducedMotion": "Identical unfiltered identity."
+    },
+    {
+      "id": "unmounted-motion-definitions",
+      "choreography": "Retire unused typewriter, breathing and final-line wipe definitions; the showcase explicitly demonstrates a static final print.",
+      "timing": "No hidden, looping or untriggered animation.",
+      "reducedMotion": "Identical final print; no invisible content awaiting a keyframe."
+    }
+  ],
+  "sensory": [
+    {
+      "id": "brand-identity",
+      "treatment": "Mint/white screen-print bed, deep purple ink and action, orange/yellow registration accents; boldness lives in the entry poster and quietens during writing.",
+      "controls": "Light/dark selection and local reduced-motion control; no ambient sound.",
+      "risk": "Carnival can imply competition: no scores, coins, ranks, urgency or jackpot imagery; count sockets are instructions, not correctness judgments."
+    },
+    {
+      "id": "wordmark-and-logo",
+      "treatment": "Original interlocking L/J letter-block symbol with a small Bungee Linejam wordmark; negative-space notches remain distinct in grayscale.",
+      "controls": "Large mark and compact masthead specimens; a plain text name remains available.",
+      "risk": "Block type can become shouty: Bungee is restricted to memorable entry display and logo, never forms or poem text."
+    },
+    {
+      "id": "device-brand-assets",
+      "treatment": "A square purple/mint interlocking monogram crops cleanly as favicon and installation icon; original geometric SVG uses no remote asset.",
+      "controls": "Show large, 48px and 24px samples with explicit accessible Linejam names.",
+      "risk": "Small interlock details can blur; keep two broad shapes and no letter microtext in the icon."
+    },
+    {
+      "id": "paper-grain-and-depth",
+      "treatment": "Flat clean color planes, one occasional registration offset and no texture, blur, pseudo-paper grain or thick nested outlines.",
+      "controls": "Side-by-side plain paper and print-edge examples in both modes.",
+      "risk": "Stacked shadows can imply card-kit UI; one outer print owns depth and every nested control stays quiet."
+    },
+    {
+      "id": "typographic-voice",
+      "treatment": "Bungee only for logo and compact poster headline; bundled Atkinson Hyperlegible for every usable label, long name and complete poem.",
+      "controls": "Large-text-friendly layouts; normal sentence-case labels and quiet poem specimen.",
+      "risk": "Display density can overwhelm poetry; remove display typography from writing and full poem readings."
+    },
+    {
+      "id": "player-identity",
+      "treatment": "Original arch, notch, wedge and loop token characters use different silhouettes and always-visible names; selection is optional and never earned.",
+      "controls": "Named avatar buttons plus a No avatar choice; pen name alone is sufficient.",
+      "risk": "Token rosters can look like a scoreboard: preserve arrival order, neutral expressions and literal status without rankings."
+    },
+    {
+      "id": "word-pattern-shape",
+      "treatment": "The true 1,2,3,4,5,4,3,2,1 pattern appears as a small registration rail; writing uses reserved count sockets, not letter-puzzle tiles.",
+      "controls": "Whole pattern label; exact count feedback; no color-only valid state.",
+      "risk": "Word-tile metaphor can imply judged vocabulary; explain that only the word count matters and no word is scored."
+    },
+    {
+      "id": "icon-vocabulary",
+      "treatment": "Simple original line icons use squared ends and one notch motif: links, print, help, heart and appearance always have words alongside.",
+      "controls": "44px named actions and a text-only fallback; no emoji or ambiguous crown icon.",
+      "risk": "Too many pictograms can become noisy; retain text controls and use icons only where they genuinely help scanning."
+    },
+    {
+      "id": "ceremony-audio",
+      "treatment": "An original low-volume two-part sine/triangle woodblock knock accompanies a deliberately played cue or accepted submission only.",
+      "controls": "Sound defaults off; explicit Enable sound and Play cue; volume slider; one context, rate bound and clear off state.",
+      "risk": "No per-keystroke click, score jingle, background loop or autoplay; shared rooms should remain comfortably silent."
+    },
+    {
+      "id": "ceremony-haptics",
+      "treatment": "No automatic vibration is included in this direction; a labelled tactile decision specimen explains why press, text and optional woodblock already suffice.",
+      "controls": "Haptics stay off; the showcase offers visual press Replay instead of sending unrequested device vibration.",
+      "risk": "Phone vibration can startle and resembles game urgency; removing it makes silent mode truly quiet."
+    },
+    {
+      "id": "share-artifacts",
+      "treatment": "Different original print compositions for generic fallback, authorized teaser, complete attributed PNG and whole-set preview; a private image never creates a public link.",
+      "controls": "Working local PNG download and native print; clearly labelled simulated link-consent states.",
+      "risk": "Private text must never enter generic social previews; full attribution and long-word wrapping survive saved output."
+    },
+    {
+      "id": "native-platform-surfaces",
+      "treatment": "Native share, file download and browser print are invoked from labelled controls; OS sheets are never fabricated as branded modal screens.",
+      "controls": "Explicit user-triggered Share sample, Save image and Print; cancellation explains that no publication occurred in this offline sketch.",
+      "risk": "Browser capability varies; text/copy/download alternatives must be truthful and never report an unconfirmed public link."
+    },
+    {
+      "id": "public-auth-showcase",
+      "treatment": "One explicitly synthetic, public-example full print sits beside optional account entry; original tokens replace stock or provider photos in the sketch.",
+      "controls": "Local accounts-unavailable fallback and guest escape; no credentials accepted or fake cloud migration.",
+      "risk": "An attractive account poster can become a gate: keep guest play obvious and never borrow private archive content."
+    }
+  ]
+}

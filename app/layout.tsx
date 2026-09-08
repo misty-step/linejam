@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer';
 import { designTokens } from '@/lib/design';
 import { COLOR_MODE_STORAGE_KEY } from '@/lib/colorMode/constants';
 import { siteConfig } from '@/lib/config';
+import { isLocalServerMode } from '@/lib/localMode';
 
 export const metadata: Metadata = {
   title: siteConfig.title,
@@ -94,6 +95,7 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: colorModeInitScript }}
         />
         <Providers
+          localMode={isLocalServerMode()}
           deploymentId={resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID)}
         >
           <div className="min-h-screen flex flex-col bg-[var(--color-background)]">

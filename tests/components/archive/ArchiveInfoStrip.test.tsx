@@ -3,42 +3,26 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ArchiveInfoStrip } from '@/components/archive/ArchiveInfoStrip';
 
-/**
- * Chosen Hairline Info Strip / linejam-942 design decision. Regression
- * coverage for linejam-942 acceptance: the archive entry point must always
- * explain what signing in adds for a guest, and must never depend on an auth
- * wall.
- */
 describe('ArchiveInfoStrip', () => {
-  it('renders nothing for a signed-in user with no poems yet', () => {
+  it('does not offer registration to a signed-in participant', () => {
     const { container } = render(
-      <ArchiveInfoStrip isAuthenticated hasPoems={false} />
+      <ArchiveInfoStrip isAuthenticated accountsAvailable />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the reveal hint (no guest copy) for a signed-in user with poems', () => {
-    render(<ArchiveInfoStrip isAuthenticated hasPoems />);
-    expect(
-      screen.getByText(/tap any poem to reveal the full verse/i)
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/sign up/i)).not.toBeInTheDocument();
-  });
-
-  it('explains the guest tradeoff even with zero poems (never a dead end)', () => {
-    render(<ArchiveInfoStrip isAuthenticated={false} hasPoems={false} />);
-    expect(screen.getByText(/saved to this browser only/i)).toBeInTheDocument();
+  it('gives guests a registration path without blocking the archive', () => {
+    render(<ArchiveInfoStrip isAuthenticated={false} accountsAvailable />);
     expect(screen.getByRole('link', { name: /sign up/i })).toHaveAttribute(
       'href',
       '/sign-up'
     );
   });
 
-  it('shows both the reveal hint and the guest explainer for a guest with poems', () => {
-    render(<ArchiveInfoStrip isAuthenticated={false} hasPoems />);
-    expect(
-      screen.getByText(/tap any poem to reveal the full verse/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/saved to this browser only/i)).toBeInTheDocument();
+  it('does not send local guests to an unavailable account provider', () => {
+    render(
+      <ArchiveInfoStrip isAuthenticated={false} accountsAvailable={false} />
+    );
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 });

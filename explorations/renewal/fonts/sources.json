@@ -1,0 +1,159 @@
+{
+  "stylesheet": "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque%3Awght%40400%3B600%3B700%3B800&family=DM+Sans%3Awght%40400%3B500%3B600%3B700&family=DynaPuff%3Awght%40500%3B600&family=Nunito+Sans%3Awght%40400%3B600%3B700&family=DM+Serif+Display&family=Bungee&family=Atkinson+Hyperlegible%3Awght%40400%3B700&family=Fraunces%3Aopsz%2Cwght%409..144%2C400%3B9..144%2C600&family=Figtree%3Awght%40400%3B500%3B600&display=swap",
+  "fonts": [
+    {
+      "family": "Atkinson Hyperlegible",
+      "weight": "400",
+      "file": "fonts/atkinsonhyperlegible-400.ttf",
+      "source": "https://fonts.gstatic.com/s/atkinsonhyperlegible/v12/9Bt23C1KxNDXMspQ1lPyU89-1h6ONRlW45GE5Q.ttf",
+      "bytes": 52476
+    },
+    {
+      "family": "Atkinson Hyperlegible",
+      "weight": "700",
+      "file": "fonts/atkinsonhyperlegible-700.ttf",
+      "source": "https://fonts.gstatic.com/s/atkinsonhyperlegible/v12/9Bt73C1KxNDXMspQ1lPyU89-1h6ONRlW45G8WbcNcw.ttf",
+      "bytes": 53416
+    },
+    {
+      "family": "Bricolage Grotesque",
+      "weight": "400",
+      "file": "fonts/bricolagegrotesque-400.ttf",
+      "source": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9U6as8bTXq_nANBjzKo3IeZx8z6up5BeSl5jBNz_19PpbpMXuECpwUxJBOm_OJWiaaD30YfKfjZZoLvRviyM0.ttf",
+      "bytes": 82192
+    },
+    {
+      "family": "Bricolage Grotesque",
+      "weight": "600",
+      "file": "fonts/bricolagegrotesque-600.ttf",
+      "source": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9U6as8bTXq_nANBjzKo3IeZx8z6up5BeSl5jBNz_19PpbpMXuECpwUxJBOm_OJWiaaD30YfKfjZZoLvcXlyM0.ttf",
+      "bytes": 82304
+    },
+    {
+      "family": "Bricolage Grotesque",
+      "weight": "700",
+      "file": "fonts/bricolagegrotesque-700.ttf",
+      "source": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9U6as8bTXq_nANBjzKo3IeZx8z6up5BeSl5jBNz_19PpbpMXuECpwUxJBOm_OJWiaaD30YfKfjZZoLvfzlyM0.ttf",
+      "bytes": 82204
+    },
+    {
+      "family": "Bricolage Grotesque",
+      "weight": "800",
+      "file": "fonts/bricolagegrotesque-800.ttf",
+      "source": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9U6as8bTXq_nANBjzKo3IeZx8z6up5BeSl5jBNz_19PpbpMXuECpwUxJBOm_OJWiaaD30YfKfjZZoLvZvlyM0.ttf",
+      "bytes": 82332
+    },
+    {
+      "family": "Bungee",
+      "weight": "400",
+      "file": "fonts/bungee-400.ttf",
+      "source": "https://fonts.gstatic.com/s/bungee/v17/N0bU2SZBIuF2PU_ECg.ttf",
+      "bytes": 110456
+    },
+    {
+      "family": "DM Sans",
+      "weight": "400",
+      "file": "fonts/dmsans-400.ttf",
+      "source": "https://fonts.gstatic.com/s/dmsans/v17/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAopxhTg.ttf",
+      "bytes": 48280
+    },
+    {
+      "family": "DM Sans",
+      "weight": "500",
+      "file": "fonts/dmsans-500.ttf",
+      "source": "https://fonts.gstatic.com/s/dmsans/v17/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAkJxhTg.ttf",
+      "bytes": 48308
+    },
+    {
+      "family": "DM Sans",
+      "weight": "600",
+      "file": "fonts/dmsans-600.ttf",
+      "source": "https://fonts.gstatic.com/s/dmsans/v17/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAfJthTg.ttf",
+      "bytes": 48280
+    },
+    {
+      "family": "DM Sans",
+      "weight": "700",
+      "file": "fonts/dmsans-700.ttf",
+      "source": "https://fonts.gstatic.com/s/dmsans/v17/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwARZthTg.ttf",
+      "bytes": 48200
+    },
+    {
+      "family": "DM Serif Display",
+      "weight": "400",
+      "file": "fonts/dmserifdisplay-400.ttf",
+      "source": "https://fonts.gstatic.com/s/dmserifdisplay/v17/-nFnOHM81r4j6k0gjAW3mujVU2B2K_c.ttf",
+      "bytes": 70348
+    },
+    {
+      "family": "DynaPuff",
+      "weight": "500",
+      "file": "fonts/dynapuff-500.ttf",
+      "source": "https://fonts.gstatic.com/s/dynapuff/v9/z7N5dRvsZDIVHbYPMhZJ3HQ83UaSu4uhr7-ZFeoYkgAr1x8RSyQu6Yg.ttf",
+      "bytes": 87956
+    },
+    {
+      "family": "DynaPuff",
+      "weight": "600",
+      "file": "fonts/dynapuff-600.ttf",
+      "source": "https://fonts.gstatic.com/s/dynapuff/v9/z7N5dRvsZDIVHbYPMhZJ3HQ83UaSu4uhr7-ZFeoYkgAr1x8RS8gp6Yg.ttf",
+      "bytes": 87980
+    },
+    {
+      "family": "Figtree",
+      "weight": "400",
+      "file": "fonts/figtree-400.ttf",
+      "source": "https://fonts.gstatic.com/s/figtree/v9/_Xmz-HUzqDCFdgfMsYiV_F7wfS-Bs_d_QF5e.ttf",
+      "bytes": 35976
+    },
+    {
+      "family": "Figtree",
+      "weight": "500",
+      "file": "fonts/figtree-500.ttf",
+      "source": "https://fonts.gstatic.com/s/figtree/v9/_Xmz-HUzqDCFdgfMsYiV_F7wfS-Bs_dNQF5e.ttf",
+      "bytes": 35996
+    },
+    {
+      "family": "Figtree",
+      "weight": "600",
+      "file": "fonts/figtree-600.ttf",
+      "source": "https://fonts.gstatic.com/s/figtree/v9/_Xmz-HUzqDCFdgfMsYiV_F7wfS-Bs_ehR15e.ttf",
+      "bytes": 36216
+    },
+    {
+      "family": "Fraunces",
+      "weight": "400",
+      "file": "fonts/fraunces-400.ttf",
+      "source": "https://fonts.gstatic.com/s/fraunces/v38/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxujDg.ttf",
+      "bytes": 71580
+    },
+    {
+      "family": "Fraunces",
+      "weight": "600",
+      "file": "fonts/fraunces-600.ttf",
+      "source": "https://fonts.gstatic.com/s/fraunces/v38/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIcaRyjDg.ttf",
+      "bytes": 71632
+    },
+    {
+      "family": "Nunito Sans",
+      "weight": "400",
+      "file": "fonts/nunitosans-400.ttf",
+      "source": "https://fonts.gstatic.com/s/nunitosans/v19/pe1mMImSLYBIv1o4X1M8ce2xCx3yop4tQpF_MeTm0lfGWVpNn64CL7U8upHZIbMV51Q42ptCp5F5bxqqtQ1yiU4G1ilntA.ttf",
+      "bytes": 106700
+    },
+    {
+      "family": "Nunito Sans",
+      "weight": "600",
+      "file": "fonts/nunitosans-600.ttf",
+      "source": "https://fonts.gstatic.com/s/nunitosans/v19/pe1mMImSLYBIv1o4X1M8ce2xCx3yop4tQpF_MeTm0lfGWVpNn64CL7U8upHZIbMV51Q42ptCp5F5bxqqtQ1yiU4GCC5ntA.ttf",
+      "bytes": 106832
+    },
+    {
+      "family": "Nunito Sans",
+      "weight": "700",
+      "file": "fonts/nunitosans-700.ttf",
+      "source": "https://fonts.gstatic.com/s/nunitosans/v19/pe1mMImSLYBIv1o4X1M8ce2xCx3yop4tQpF_MeTm0lfGWVpNn64CL7U8upHZIbMV51Q42ptCp5F5bxqqtQ1yiU4GMS5ntA.ttf",
+      "bytes": 106792
+    }
+  ]
+}

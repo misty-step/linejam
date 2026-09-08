@@ -1,13 +1,6 @@
 import { Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * HostBadge — Editorial Authority Marker
- *
- * Replaces Japanese hanko stamp with universal crown + label badge.
- * Inline horizontal badge for immediate recognition without cultural specificity.
- */
-
 interface HostBadgeProps {
   className?: string;
 }
@@ -18,16 +11,7 @@ export function HostBadge({ className }: HostBadgeProps) {
       role="status"
       aria-label="Room host"
       className={cn(
-        // Layout
-        'inline-flex items-center gap-2 px-2 py-1',
-
-        // Background & border use semantic identity utilities.
-        'bg-primary/5 border border-primary/20',
-        'dark:bg-primary/10 dark:border-primary/30',
-
-        // Shape & Shadow
-        'rounded-sm shadow-sm',
-
+        'inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-1 text-primary',
         className
       )}
     >
@@ -35,9 +19,7 @@ export function HostBadge({ className }: HostBadgeProps) {
       <Crown className="w-4 h-4 text-primary" aria-hidden="true" />
 
       {/* Text Label */}
-      <span className="text-xs font-medium tracking-wide text-primary uppercase font-sans">
-        HOST
-      </span>
+      <span className="text-xs font-semibold">Host</span>
     </div>
   );
 }

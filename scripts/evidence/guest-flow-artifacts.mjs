@@ -51,6 +51,17 @@ function isString(value) {
   return Object.prototype.toString.call(value) === '[object String]';
 }
 
+export function isRecordedEvidenceResult(result) {
+  return (
+    Array.isArray(result?.runtimeErrors) &&
+    result.runtimeErrors.every(isString) &&
+    (result.flowError === null || isString(result.flowError)) &&
+    Array.isArray(result.checks) &&
+    result.checks.length > 0 &&
+    result.checks.every(isString)
+  );
+}
+
 export function normalizeEvidenceResult(baseUrl, result, testError) {
   const resultBaseUrl =
     isString(result?.baseUrl) && result.baseUrl ? result.baseUrl : baseUrl;
@@ -81,11 +92,19 @@ export function normalizeEvidenceResult(baseUrl, result, testError) {
   };
 }
 
-export async function collectFileArtifactErrors({
-  gifPath,
+async function isNonemptyFile(file) {
+  if (!file) return false;
+  try {
+    const stat = await fs.stat(file);
+    return stat.isFile() && stat.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function collectRecordedArtifactErrors({
   outDir,
   screenshots,
-  serverLogPath,
   videoPath,
 }) {
   const artifactErrors = [];
@@ -100,26 +119,47 @@ export async function collectFileArtifactErrors({
     const screenshotPath = path.isAbsolute(screenshot)
       ? screenshot
       : path.join(outDir, screenshot);
-    if (!(await exists(screenshotPath))) {
+    if (!(await isNonemptyFile(screenshotPath))) {
       artifactErrors.push(
-        artifactIssue('screenshot', `Screenshot is missing: ${screenshot}`)
+        artifactIssue(
+          'screenshot',
+          `Screenshot is missing or empty: ${screenshot}`
+        )
       );
     }
   }
 
-  if (!videoPath || !(await exists(videoPath))) {
+  if (!(await isNonemptyFile(videoPath))) {
     artifactErrors.push(
-      artifactIssue('video', 'Packaged host video is missing.')
+      artifactIssue('video', 'Host video is missing or empty.')
     );
   }
 
-  if (!gifPath || !(await exists(gifPath))) {
-    artifactErrors.push(artifactIssue('gif', 'Generated GIF is missing.'));
+  return artifactErrors;
+}
+
+export async function collectFileArtifactErrors({
+  gifPath,
+  outDir,
+  screenshots,
+  serverLogPath,
+  videoPath,
+}) {
+  const artifactErrors = await collectRecordedArtifactErrors({
+    outDir,
+    screenshots,
+    videoPath,
+  });
+
+  if (!(await isNonemptyFile(gifPath))) {
+    artifactErrors.push(
+      artifactIssue('gif', 'Generated GIF is missing or empty.')
+    );
   }
 
-  if (!serverLogPath || !(await exists(serverLogPath))) {
+  if (!(await isNonemptyFile(serverLogPath))) {
     artifactErrors.push(
-      artifactIssue('serverLog', 'Evidence server log is missing.')
+      artifactIssue('serverLog', 'Evidence server log is missing or empty.')
     );
   }
 

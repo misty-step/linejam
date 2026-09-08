@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Linejam — Odd Garden design sketch</title>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./prototype.js"></script>
+</head>
+<body data-direction="odd-garden" data-surface-id="home">
+  <a class="skip-link" href="#main">Skip to the game sketch</a>
+  <aside class="exploration" aria-label="Design exploration controls">
+    <a href="../">All five directions</a>
+    <strong>Odd Garden</strong>
+    <label>Explore <select id="surface"><option value="view">Views</option><option value="component">Components</option><option value="motion">Motion</option><option value="sensory">Sensory</option></select></label>
+    <label>Surface <select id="surface-id"></select></label>
+    <label>State <select id="state"></select></label>
+    <label>Palette <select id="mode"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    <label class="check"><input id="reduced" type="checkbox"> Reduce motion</label>
+  </aside>
+  <header id="game-header" class="game-header"></header>
+  <main id="main" tabindex="-1"></main>
+  <footer class="sketch-footer"><span>Design sketch. Invented people and poems. No live room.</span><button class="text-button" data-action="reset">Restart sketch</button></footer>
+  <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+  <div id="overlay"></div>
+</body>
+</html>

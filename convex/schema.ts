@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import { avatarIdValidator } from './lib/avatars';
 
 const retentionState = v.union(
   v.literal('active'),
@@ -72,6 +73,8 @@ export default defineSchema({
     roomId: v.id('rooms'),
     userId: v.id('users'),
     displayName: v.string(),
+    /** Room-scoped selection; optional only for existing memberships. */
+    avatarId: v.optional(avatarIdValidator),
     seatIndex: v.optional(v.number()),
     joinedAt: v.number(),
     /** Last client heartbeat timestamp (ms). Missing on legacy rows; treated as stale. */

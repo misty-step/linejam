@@ -1,46 +1,49 @@
 # Project: Linejam
 
-## Vision
+## Product brief
 
 A digital version of the paper-folding poetry game—casual multiplayer fun with persistent, shareable artifacts.
 
-**North Star:** World-class casual party game with Stripe-level design and polish. Players feel delighted, not overwhelmed. The game works, it's fun, it creates memorable moments with friends.
+**North Star:** A world-class casual party game with a distinctive, joyful identity. Players feel delighted, not overwhelmed. The game works, it's fun, it creates memorable moments with friends; elegance must not become austerity.
 **Target User:** Friends at a gathering who want a quick, creative, funny activity. No signup required (guest mode). Works on phones. Minimal explanation needed.
-**Current Focus:** Recover the public trust floor, then prove the party payoff. The mechanic is settled—9 rounds, 1,2,3,4,5,4,3,2,1 words—and depth comes from the people, reveal, and artifact, not from more modes. Sequenced path: anonymous-play and privacy incidents → truthful production control plane → privacy-safe funnel plus field playtests → accessibility and evidence-led polish → revenue stretch.
+**Selected identity:** The operator chose a hybrid of the renewal exploration: Jelly Chorus composition and palette, Fold Club's lobby layout and approachable copy, Word Carnival's brevity. The nine-round 1,2,3,4,5,4,3,2,1 mechanic, human authorship, and privacy boundaries remain unchanged. `DESIGN.md` owns the selected design; this brief does not track rollout completion.
 **Key Differentiators:** Lower friction than paper; persistent shareable artifacts; digital-native sharing; can evolve mechanics without physical constraints.
 
 ## Domain Glossary
 
-| Term              | Definition                                                                                                                 |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Room              | A game session, identified by a short room code                                                                            |
-| Poem              | One collaborative poem being written in a room (multiple per game)                                                         |
-| Line              | A single contribution to a poem; constrained word count per round                                                          |
-| Assignment Matrix | 9×N array assigning which player writes which poem's line per round                                                        |
-| Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                                                                           |
-| Reveal            | End-of-game state where complete poems are shown to all players                                                            |
-| Guest             | Anonymous player identified by UUID in localStorage                                                                        |
-| Pen Name          | Author display name captured at write-time                                                                                 |
-| WordSlot          | Genkoyoshi-inspired word count indicator UI component                                                                      |
-| Color mode        | Appearance preference for the fixed Ink & Anticipation identity: Light, Dark, or System; persisted as `linejam-theme-mode` |
-| Visual identity   | Ink & Anticipation, Linejam's single fixed visual identity                                                                 |
+| Term              | Definition                                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| Room              | A game session, identified by a short room code                                                                 |
+| Poem              | One collaborative poem being written in a room (multiple per game)                                              |
+| Line              | A single contribution to a poem; constrained word count per round                                               |
+| Assignment Matrix | 9×N array assigning which player writes which poem's line per round                                             |
+| Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                                                                |
+| Reveal            | End-of-game state where complete poems are shown to all players                                                 |
+| Guest             | Anonymous player identified by UUID in localStorage                                                             |
+| Pen Name          | Author display name captured at write-time                                                                      |
+| Avatar            | The player's chosen character from a fixed cast, stored with their room membership                              |
+| Color mode        | Appearance preference for the single visual identity: Light, Dark, or System; persisted as `linejam-theme-mode` |
+| Visual identity   | Linejam's one shipped identity: violet/lavender tokens, DynaPuff wordmark, Nunito Sans interface and poems      |
 
-## Active Focus
+## Ownership and scope
 
-- **Milestone:** Restore public trust — anonymous play must survive identity-provider failure, private poems must stay private until explicit publication, and functional smoke failures must page.
-- **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across Light and Dark modes (including System resolution) → evidence-led aesthetic polish → revenue stretch.
-- **Stance:** The 010–012 expansion arc (multiple game modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). Linear owns current work and priorities; GitHub and Sentry remain native incident evidence.
-- **Identity:** Ink & Anticipation is the only visual identity. `lib/design/tokens.ts` owns the canonical tokens, while `lib/colorMode/` owns the Light/Dark/System mode-only control and API. Light uses action `#b43a12`, focus `#e85d2b`, background `#faf9f7`, surface `#ffffff`, and ink `#1c1917`; Dark uses action `#f06b3b`, focus `#e85d2b`, background `#1c1917`, surface `#292524`, and ink `#faf9f7`. Fonts are Libre Baskerville, IBM Plex Sans, and JetBrains Mono.
+- Current requests authorize work; Linear owns work status, priorities, and selected unresolved opportunities. Historical issues and exploration receipts are context, not an automatic intake queue.
+- This repository owns the game contract, accepted design, technical decisions, procedures, fixtures, and published artifacts. `VISION.md` is optional intent and constraint context, not a higher authority or required workflow.
+- One human-authored core mode remains the product. Production deployment, provider configuration, backup restoration, and remote gameplay remain separately authorized operations.
+- **Shipped identity:** One violet/lavender identity with a chosen-avatar cast. `lib/design/tokens.ts` owns its tokens, `lib/colorMode/` owns Light/Dark/System, and `DESIGN.md` owns the contract. `explorations/renewal/` is retained exploration evidence, not a second component system.
 
 ## Quality Bar
 
-- [ ] Guest mode works without friction on mobile and survives Clerk failure
-- [ ] Light, Dark, and System modes render the fixed identity correctly without hardcoded overrides
-- [ ] Core game loop completes reliably with 2-6 players (no silent failures)
-- [x] Security headers and rate limits are in place
-- [ ] Saving remains private; public poem/recap access requires explicit, reversible consent
-- [ ] Functional production smoke pages an operator and disagrees visibly with shallow health when the player loop is down
-- [ ] A privacy-safe funnel plus repeated field playtests identifies the next product improvement
+- Guest mode works without friction on mobile and survives Clerk failure.
+- The shipped identity is legible, accessible, and coherent across light/dark preferences without accidental overrides.
+- The core game loop completes reliably with 2–6 players, without silent failures.
+- Security headers and rate limits remain part of the product boundary.
+- Saving remains private; public poem/recap access requires explicit, reversible consent.
+- Functional production smoke reaches an operator and disagrees visibly with shallow health when the player loop is down.
+
+These are acceptance expectations, not a completion checklist or a claim of
+current production verification. Evidence must name the exercised revision and
+surface; proposed field studies and follow-on work belong in Linear.
 
 ## Engineering Pointers
 
@@ -56,18 +59,12 @@ Read the owning source for implementation detail:
 - Verification and authority: `docs/testing.md` and
   `docs/ops/observability-ci.md`.
 
-## Stretch Goal
-
-Print-on-demand poetry booklets via Lulu API: users curate favorite poems,
-boutique design treatment, physical artifact shipped to them, small revenue cut
-per book.
-
 ## Anti-Goals
 
 - Multiple game modes — one core loop, refined; variety comes from the players, not the mechanics (Rhyme Relay + Quick Jam were built and deleted, #275)
 - Ornamental in-game nudges — e.g. per-line "sparks"; the word constraint is the only prompt the player needs (deleted #278)
 - Feature bloat (no gamification, leaderboards, achievements)
-- Heavy monetization (no subscriptions, no ads) — print-on-demand booklets are the only revenue bet
+- Heavy monetization (no subscriptions, no ads); possible physical keepsakes are an unselected opportunity, not a committed feature.
 - Social network aspirations
 
 ## Lessons Learned
@@ -79,5 +76,5 @@ per book.
 
 ---
 
-_Last updated: 2026-08-30_
-_Updated during: fixed Ink & Anticipation identity and color-mode guidance [#475](https://github.com/misty-step/linejam/issues/475); prior human-only authorship cutover context remains [#419](https://github.com/misty-step/linejam/issues/419)._
+_Last updated: 2026-09-07_
+_Updated during: production design renewal from the operator's selected hybrid direction; prior human-only authorship cutover context remains [#419](https://github.com/misty-step/linejam/issues/419)._

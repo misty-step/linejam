@@ -1,98 +1,47 @@
 'use client';
 
 import { SignUp } from '@clerk/nextjs';
-import Link from 'next/link';
-import type { ComponentType } from 'react';
+import { useAccountState } from '@/lib/account';
+import { AccountsUnavailable } from '@/components/AccountsUnavailable';
 
 /**
  * Clerk sign-up surface. Shared fixed-identity colors, fonts, inputs, and
  * buttons come from the provider; this route only hides Clerk's duplicate
  * heading. The catch-all route receives OAuth callbacks.
  *
- * Without Clerk configuration, guests receive the unauthenticated play path.
+ * Explicit local mode keeps account controls outside the guest runtime.
  */
-
-// Check if Clerk is configured (publishable key available on client)
-const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-function DefaultSignUp() {
-  return (
-    <SignUp
-      appearance={{
-        elements: {
-          headerTitle: 'hidden',
-          headerSubtitle: 'hidden',
-        },
-      }}
-      routing="path"
-      path="/sign-up"
-      signInUrl="/sign-in"
-      fallbackRedirectUrl="/callback"
-    />
-  );
-}
-
-export interface SignUpPageDependencies {
-  isClerkConfigured: boolean;
-  SignUpComponent: ComponentType;
-}
-
-const defaultSignUpPageDependencies: SignUpPageDependencies = {
-  isClerkConfigured,
-  SignUpComponent: DefaultSignUp,
-};
-
-interface SignUpPageProps {
-  dependencies?: SignUpPageDependencies;
-}
-
-export function SignUpPage({
-  dependencies = defaultSignUpPageDependencies,
-}: SignUpPageProps = {}) {
-  const { SignUpComponent } = dependencies;
-  // Show fallback when Clerk is not configured
-  if (!dependencies.isClerkConfigured) {
-    return (
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-[var(--font-display)] text-[var(--color-text-primary)]">
-            Authentication unavailable
-          </h1>
-          <p className="text-[var(--color-text-secondary)] font-[var(--font-sans)]">
-            Sign-up is not available in this environment.
-          </p>
-        </div>
-        <div className="p-4 rounded-[var(--radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)]">
-          <p className="text-[var(--color-text-secondary)] font-[var(--font-sans)] text-sm">
-            You can still play as a guest! Your poems will be saved locally.
-          </p>
-        </div>
-        <Link
-          href="/"
-          className="inline-block px-6 py-3 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-[var(--radius-md)] font-[var(--font-sans)] font-medium hover:bg-[var(--color-primary-hover)] transition-colors"
-        >
-          Play as guest
-        </Link>
-      </div>
-    );
-  }
+export function SignUpPage() {
+  const account = useAccountState();
+  if (account.kind === 'local') return <AccountsUnavailable />;
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl md:text-4xl font-[var(--font-display)] text-[var(--color-text-primary)]">
-          Join the jam
+        <h1 className="text-3xl font-sans font-bold text-[var(--color-text-primary)]">
+          Create an account
         </h1>
-        <p className="text-[var(--color-text-secondary)] font-[var(--font-sans)]">
-          Create an account to save your poems and track your creations
+        <p className="text-[var(--color-text-secondary)] font-sans">
+          Keep your poems with you on any device.
         </p>
       </div>
 
       {/* Clerk SignUp Component — shared appearance from ClerkProvider;
           only the redundant Clerk-native header is hidden here since this
           page renders its own above. */}
-      <SignUpComponent />
+      <SignUp
+        appearance={{
+          elements: {
+            headerTitle: 'hidden',
+            headerSubtitle: 'hidden',
+          },
+        }}
+        routing="path"
+        path="/sign-up"
+        signInUrl="/sign-in"
+        fallbackRedirectUrl="/callback"
+      />
     </div>
   );
 }

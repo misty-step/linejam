@@ -2,9 +2,8 @@ import type { ColorMode } from './types';
 import { designTokens } from './tokens';
 
 const FONT_STACKS = {
-  '--font-libre-baskerville': "'Libre Baskerville', Georgia, serif",
-  '--font-ibm-plex': "'IBM Plex Sans', Arial, sans-serif",
-  '--font-jetbrains-mono': "'JetBrains Mono', monospace",
+  '--font-dynapuff': "'DynaPuff', sans-serif",
+  '--font-nunito': "'Nunito Sans', system-ui, sans-serif",
 } as const;
 
 function declarations(mode: ColorMode, indent = '  '): string {

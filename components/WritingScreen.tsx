@@ -18,8 +18,7 @@ import { Alert } from '@/components/ui/Alert';
 import { RoomChrome } from '@/components/RoomChrome';
 import { Button } from '@/components/ui/Button';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
-import { WordSlots } from '@/components/ui/WordSlots';
-import { RoundClock } from '@/components/ui/RoundClock';
+import { RoundProgress } from '@/components/ui/RoundProgress';
 import {
   WaitingScreen,
   type WaitingScreenDependencies,
@@ -75,8 +74,6 @@ const defaultDependencies: WritingScreenDependencies = {
   useSubmitLine: useDefaultSubmitLine,
 };
 
-const WRITING_COACHMARK_STORAGE_KEY = 'linejam:writing-coachmark-seen';
-
 export interface WritingAssignment {
   poemId: Id<'poems'>;
   roomId: string;
@@ -93,43 +90,16 @@ export interface WritingAssignment {
 interface WritingComposerProps {
   assignment: WritingAssignment;
   guestToken?: string | null;
-  queryArgs: RoomQueryArgs;
   roomCode: string;
   dependencies: Pick<
     WritingScreenDependencies,
-    'useRoundProgress' | 'useSubmitLine' | 'waitingScreenDependencies'
+    'useSubmitLine' | 'waitingScreenDependencies'
   >;
-}
-
-function numberToWord(n: number): string {
-  const words = ['zero', 'one', 'two', 'three', 'four', 'five'];
-  return words[n] ?? String(n);
-}
-
-function shouldShowWritingCoachmark() {
-  if (globalThis.window === undefined) return false;
-
-  try {
-    return window.localStorage.getItem(WRITING_COACHMARK_STORAGE_KEY) !== '1';
-  } catch {
-    return true;
-  }
-}
-
-function markWritingCoachmarkSeen() {
-  if (globalThis.window === undefined) return;
-
-  try {
-    window.localStorage.setItem(WRITING_COACHMARK_STORAGE_KEY, '1');
-  } catch {
-    // The coachmark is still visible for this render if storage is unavailable.
-  }
 }
 
 function WritingComposer({
   assignment,
   guestToken,
-  queryArgs,
   roomCode,
   dependencies,
 }: WritingComposerProps) {
@@ -144,34 +114,24 @@ function WritingComposer({
   );
   const [draftWasRestored] = useState(() => text.length > 0);
   const [submissionState, setSubmissionState] = useState<
-    'idle' | 'submitting' | 'confirmed' | 'retryable' | 'failed'
+    'idle' | 'submitting' | 'retryable' | 'failed'
   >('idle');
-  const [retryCount, setRetryCount] = useState(0);
-  const [confirmedText, setConfirmedText] = useState('');
-  const [confirmedMessage, setConfirmedMessage] = useState(
-    'Your Line Submitted'
-  );
+  const [acknowledgement, setAcknowledgement] = useState('Your line is in.');
   const [browserOnline, setBrowserOnline] = useState(
     () => globalThis.navigator?.onLine ?? true
   );
   const [showWaitingScreen, setShowWaitingScreen] = useState(
     assignment.hasSubmitted
   );
-
-  // Pre-fetch waiting screen data during confirmation for smooth transition
-  // When submissionState becomes 'confirmed', Convex starts fetching getRoundProgress
-  // By the time we transition to WaitingScreen, data is already cached → no loading flash
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const prefetchWaitingData = dependencies.useRoundProgress(
-    submissionState === 'confirmed' ? queryArgs : 'skip'
-  );
   const [error, setError] = useState<string | null>(null);
   const [liveRegionMessage, setLiveRegionMessage] = useState('');
-  const [hasFocus, setHasFocus] = useState(false);
-  const [showCoachmark] = useState(shouldShowWritingCoachmark);
-  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimeoutRef = useRef<number | undefined>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const currentWordCount = countWords(text);
+  const targetCount = assignment.targetWordCount;
+  const isValid = currentWordCount === targetCount;
+  const isReadOnly = submissionState !== 'idle';
+  const isReady = isValid && !isReadOnly;
 
   useEffect(() => {
     const handleOnline = () => setBrowserOnline(true);
@@ -184,70 +144,30 @@ function WritingComposer({
     };
   }, []);
 
-  // Keep the line visible when the on-screen keyboard opens. The composer has
-  // its own scroll region, so `nearest` does not move the in-flow action tray.
-  const handleTextareaFocus = () => {
-    setHasFocus(true);
-    if (focusTimeoutRef.current) {
-      clearTimeout(focusTimeoutRef.current);
-    }
-    focusTimeoutRef.current = setTimeout(() => {
-      // `nearest` keeps the line visible without driving the submit button down
-      // under the on-screen keyboard on the compact mobile layout.
-      textareaRef.current?.scrollIntoView({
-        behavior: 'auto',
-        block: 'nearest',
-      });
-      focusTimeoutRef.current = null;
-    }, 300);
-  };
-
-  const currentWordCount = countWords(text);
-  const targetCount = assignment.targetWordCount;
-  const isValid = currentWordCount === targetCount;
-  const isReady = isValid && submissionState === 'idle';
-  const placeholderText = `write ${numberToWord(targetCount)} word${targetCount === 1 ? '' : 's'}…`;
-
-  const handleTextChange = (value: string) => {
-    // Keep the client contract one-line while preserving pasted content. The
-    // mutation applies the same whitespace collapse before storing the line.
-    setText(value.replace(/[\r\n]+/g, ' '));
-    setError(null);
-  };
-
-  // Announce validation state changes to screen readers (debounced)
   useEffect(() => {
     saveWritingDraft(draftKey, text);
   }, [draftKey, text]);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isValid) {
-        setLiveRegionMessage('Ready to submit');
-      } else if (currentWordCount > targetCount) {
-        const diff = currentWordCount - targetCount;
-        setLiveRegionMessage(`Remove ${diff} word${diff !== 1 ? 's' : ''}`);
-      } else if (currentWordCount < targetCount && currentWordCount > 0) {
-        const diff = targetCount - currentWordCount;
-        setLiveRegionMessage(`Add ${diff} word${diff !== 1 ? 's' : ''}`);
-      } else {
-        setLiveRegionMessage('');
-      }
-    }, 500); // Debounce 500ms to avoid announcing every keystroke
-
-    return () => clearTimeout(timeoutId);
+    const timeout = setTimeout(() => {
+      const difference = targetCount - currentWordCount;
+      setLiveRegionMessage(
+        isValid
+          ? 'Ready to submit'
+          : currentWordCount === 0
+            ? ''
+            : `${difference > 0 ? 'Add' : 'Remove'} ${Math.abs(difference)} word${Math.abs(difference) === 1 ? '' : 's'}`
+      );
+    }, 500);
+    return () => clearTimeout(timeout);
   }, [isValid, currentWordCount, targetCount]);
 
-  useEffect(() => {
-    return () => {
-      if (submitTimeoutRef.current) {
-        clearTimeout(submitTimeoutRef.current);
-      }
-      if (focusTimeoutRef.current) {
-        clearTimeout(focusTimeoutRef.current);
-      }
-    };
-  }, []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(focusTimeoutRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (assignment.hasSubmitted) clearWritingDraft(draftKey);
@@ -257,17 +177,12 @@ function WritingComposer({
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [assignment.poemId, assignment.lineIndex]);
 
-  useEffect(() => {
-    if (showCoachmark) {
-      markWritingCoachmarkSeen();
-    }
-  }, [showCoachmark]);
-
   if (showWaitingScreen || assignment.hasSubmitted) {
     return (
       <WaitingScreen
         roomCode={roomCode}
         guestToken={guestToken}
+        acknowledgement={acknowledgement}
         embedded
         dependencies={dependencies.waitingScreenDependencies}
       />
@@ -275,8 +190,14 @@ function WritingComposer({
   }
 
   const submit = async (isRetry = false) => {
-    if (!isValid || (!isRetry && submissionState !== 'idle')) return;
-
+    if (
+      !isValid ||
+      (isRetry
+        ? submissionState !== 'retryable' || !browserOnline
+        : submissionState !== 'idle')
+    ) {
+      return;
+    }
     setSubmissionState('submitting');
     setError(null);
     try {
@@ -286,18 +207,14 @@ function WritingComposer({
         text: normalizeLineText(text),
         guestToken: guestToken || undefined,
       });
-      const storedText = result?.text ?? text.trim();
-      const wasAlreadySubmitted = result?.status === 'already_submitted';
-      setConfirmedText(storedText);
-      setConfirmedMessage(
-        wasAlreadySubmitted
-          ? 'Your line was already recorded'
-          : 'Your Line Submitted'
+      setAcknowledgement(
+        result?.status === 'already_submitted'
+          ? 'Your line was already recorded.'
+          : 'Your line is in.'
       );
       clearWritingDraft(draftKey);
-      // Telemetry is best-effort: a tracking failure (e.g. deploy-skew
-      // assignment payloads without funnel fields) must never surface as a
-      // submit error for a line that already persisted.
+      // Only the server acknowledgement advances the composer to waiting.
+      setShowWaitingScreen(true);
       try {
         if (assignment.roomId) {
           trackLineSubmitted({
@@ -307,85 +224,24 @@ function WritingComposer({
           });
         }
       } catch {
-        // Analytics must not break gameplay.
+        // Telemetry cannot turn an accepted line into a failed submission.
       }
-
-      // Show confirmation state briefly before transitioning to waiting
-      setSubmissionState('confirmed');
-
-      // Show confirmation briefly; the live assignment query also moves us
-      // immediately if the server advances the round.
-      submitTimeoutRef.current = setTimeout(() => {
-        setShowWaitingScreen(true);
-        submitTimeoutRef.current = null;
-      }, 1500);
     } catch (cause) {
-      const error = toErrorReportable(cause);
-      captureError(error, { roomCode, poemId: assignment.poemId });
-      if (!isRetry) {
-        setSubmissionState('retryable');
-        setError(
-          `${errorToFeedback(error).message} Your draft is safe. Reconnect, then retry once.`
-        );
-      } else {
-        setSubmissionState('failed');
-        setError(
-          `${errorToFeedback(error).message} Your draft is still saved; reload after reconnecting to check the room.`
-        );
-      }
+      const reportable = toErrorReportable(cause);
+      captureError(reportable, { roomCode, poemId: assignment.poemId });
+      setSubmissionState(isRetry ? 'failed' : 'retryable');
+      setError(
+        `${errorToFeedback(reportable).message} ${
+          isRetry
+            ? 'Your draft is saved. Reconnect, then reload the room to check whether your line was recorded.'
+            : 'Your draft is safe. Reconnect, then retry once.'
+        }`
+      );
     }
   };
 
-  const handleSubmit = () => {
-    void submit();
-  };
-
-  const handleRetry = () => {
-    if (!browserOnline || retryCount > 0) return;
-    setRetryCount(1);
-    void submit(true);
-  };
-
-  const isSubmitDisabled =
-    !isValid ||
-    submissionState === 'submitting' ||
-    submissionState === 'confirmed' ||
-    submissionState === 'retryable' ||
-    submissionState === 'failed';
-
-  const submitBlock = (
-    <>
-      {isReady && (
-        <p className="text-xs font-mono uppercase tracking-widest text-primary animate-fade-in-up">
-          Ready
-        </p>
-      )}
-      <Button
-        onClick={handleSubmit}
-        data-testid={E2E_TEST_IDS.writingSubmitLineButton}
-        data-ready={isReady ? 'true' : undefined}
-        size="lg"
-        disabled={isSubmitDisabled}
-        stampAnimate={submissionState === 'confirmed'}
-        className={cn(
-          'h-[64px] w-full min-w-0 max-w-[240px] text-xl md:h-[80px] md:w-auto md:min-w-[240px] md:max-w-none',
-          isReady && 'animate-ready-seal shadow-md'
-        )}
-      >
-        {submissionState === 'submitting'
-          ? 'Submitting…'
-          : submissionState === 'confirmed'
-            ? 'Submitted'
-            : submissionState === 'failed'
-              ? 'Unable to confirm'
-              : 'Submit'}
-      </Button>
-    </>
-  );
-
   return (
-    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,auto)] overflow-hidden bg-background">
-      {/* Screen reader live region for validation announcements */}
+    <div className="grid min-h-0 flex-1 content-start grid-rows-[minmax(0,auto)_auto] overflow-hidden">
       <div
         className="sr-only"
         role="status"
@@ -394,164 +250,148 @@ function WritingComposer({
       >
         {liveRegionMessage}
       </div>
-
       <div
         data-testid={E2E_TEST_IDS.writingScrollRegion}
-        className="lj-safe-inline min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain pb-6 pt-4 [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:pb-8 md:pt-12"
+        className="lj-safe-inline min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain py-3 [--lj-safe-inline-space:1rem] md:py-8"
       >
-        <div className="mx-auto w-full max-w-3xl">
-          {/* Soft round clock — a hairline of gentle pressure, never a gate */}
-          <div className="mb-5 w-full md:mb-16">
-            <RoundClock roundStartedAt={assignment.roundStartedAt} />
-          </div>
-
-          <div className="w-full space-y-6 md:space-y-16">
-            {showCoachmark && (
-              <div className="border-l-2 border-primary py-1 pl-4 text-sm leading-relaxed text-text-secondary animate-fade-in-up">
-                <p className="font-medium text-text-primary">
-                  You only see one carried line.
-                </p>
-                <p>Match the word slots, then pass it on.</p>
-              </div>
-            )}
-
-            {draftWasRestored && (
-              <p aria-live="polite" className="text-sm text-text-secondary">
-                Draft restored
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
+          <RoundProgress
+            round={assignment.lineIndex + 1}
+            total={assignment.totalRounds}
+          />
+          {draftWasRestored && (
+            <p aria-live="polite" className="text-sm text-text-secondary">
+              Draft restored
+            </p>
+          )}
+          {assignment.previousLineText && (
+            <div data-testid={E2E_TEST_IDS.writingCarriedLine}>
+              <p className="mb-1 text-sm text-text-secondary">Previous line</p>
+              <p className="break-words text-lg font-sans leading-snug text-text-primary [overflow-wrap:anywhere] md:text-2xl">
+                {assignment.previousLineText}
               </p>
-            )}
-            {/* The Memory - No container */}
-            {assignment.previousLineText && (
-              <div
-                data-testid={E2E_TEST_IDS.writingCarriedLine}
-                className="mb-4 animate-fade-in-up md:mb-16"
-              >
-                <p className="mb-3 text-[0.625rem] font-mono uppercase tracking-widest text-primary">
-                  Received line
-                </p>
-                <p className="break-words text-2xl leading-relaxed [overflow-wrap:anywhere] md:text-4xl lg:text-5xl font-[var(--font-display)] italic text-text-secondary">
-                  {assignment.previousLineText}
-                </p>
-              </div>
-            )}
-
-            {submissionState === 'retryable' && (
-              <Alert variant="error" className="mt-8">
-                <p>{error}</p>
+            </div>
+          )}
+          {isReadOnly && (
+            <p
+              id="writing-confirmation"
+              className="text-sm text-text-secondary"
+            >
+              This line stays read-only until the room confirms whether it was
+              recorded.
+            </p>
+          )}
+          <textarea
+            ref={textareaRef}
+            data-testid={E2E_TEST_IDS.writingLineInput}
+            className="field-sizing-content min-h-[72px] max-h-[168px] w-full min-w-0 resize-none rounded-md border border-border bg-surface p-3 font-sans text-xl leading-snug text-text-primary outline-none [overflow-wrap:anywhere] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-focus-ring md:p-5 md:text-2xl"
+            placeholder="Your line…"
+            value={text}
+            readOnly={isReadOnly}
+            onChange={(event) => {
+              if (isReadOnly) return;
+              setText(event.target.value.replace(/[\r\n]+/g, ' '));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.preventDefault();
+            }}
+            onFocus={() => {
+              window.clearTimeout(focusTimeoutRef.current);
+              focusTimeoutRef.current = window.setTimeout(() => {
+                textareaRef.current?.scrollIntoView({
+                  behavior: 'auto',
+                  block: 'center',
+                });
+                focusTimeoutRef.current = undefined;
+              }, 300);
+            }}
+            rows={2}
+            maxLength={500}
+            inputMode="text"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            enterKeyHint="done"
+            wrap="soft"
+            aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
+            aria-required="true"
+            aria-invalid={currentWordCount > targetCount}
+            aria-describedby={
+              isReadOnly ? 'word-slots writing-confirmation' : 'word-slots'
+            }
+          />
+          {text.length >= 450 && (
+            <p className="text-sm text-text-secondary">
+              {text.length}/500 characters
+            </p>
+          )}
+          {(submissionState === 'retryable' ||
+            submissionState === 'failed') && (
+            <Alert variant="error">
+              <p>{error}</p>
+              {submissionState === 'retryable' && (
                 <Button
                   type="button"
-                  onClick={handleRetry}
-                  disabled={!browserOnline || retryCount > 0}
+                  onClick={() => void submit(true)}
+                  disabled={!browserOnline}
                   variant="secondary"
                   className="mt-3"
                 >
                   {browserOnline ? 'Retry once' : 'Waiting for connection…'}
                 </Button>
-              </Alert>
-            )}
-
-            {/* Submission Confirmation */}
-            {submissionState === 'confirmed' && (
-              <div className="mb-12 p-6 border-2 border-success bg-success/5 rounded-sm animate-fade-in-up">
-                <div className="text-sm font-medium text-success mb-2 uppercase tracking-wide">
-                  {assignment.isFinalRound
-                    ? 'Last line sealed'
-                    : '✓ ' + confirmedMessage}
-                </div>
-                {assignment.isFinalRound && (
-                  <p className="mb-3 text-sm text-text-secondary">
-                    Reveal is next.
-                  </p>
-                )}
-                <p className="break-words text-lg italic font-[var(--font-display)] text-text-primary [overflow-wrap:anywhere]">
-                  &ldquo;{confirmedText}&rdquo;
-                </p>
-              </div>
-            )}
-
-            {/* The Canvas - Borderless, blends with page */}
-            <div className="relative">
-              {/* Focus marker (marginalia bar) */}
-              {hasFocus && (
-                <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary" />
               )}
-
-              <textarea
-                ref={textareaRef}
-                data-testid={E2E_TEST_IDS.writingLineInput}
-                className={cn(
-                  'w-full min-w-0 max-w-full min-h-[64px] md:min-h-[320px] lg:min-h-[360px] field-sizing-content overflow-x-hidden [overflow-wrap:anywhere] bg-transparent border-none outline-none resize-none',
-                  'text-3xl md:text-5xl lg:text-6xl font-[var(--font-display)] leading-tight',
-                  'text-text-primary',
-                  'placeholder:text-text-muted/20',
-                  'pl-6'
-                )}
-                placeholder={placeholderText}
-                value={text}
-                onChange={(e) => handleTextChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.preventDefault();
-                }}
-                onFocus={handleTextareaFocus}
-                onBlur={() => setHasFocus(false)}
-                spellCheck={false}
-                maxLength={500}
-                inputMode="text"
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                enterKeyHint="done"
-                wrap="soft"
-                aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
-                aria-required="true"
-                aria-invalid={!isValid}
-                aria-describedby="word-slots line-length"
-              />
-
-              <p
-                id="line-length"
-                aria-live="polite"
-                className="mt-2 pl-6 text-xs font-mono text-text-muted"
-              >
-                {text.length}/500 characters
-              </p>
-
-              {/*
-            Word chips sit tight against the line, left-aligned with the
-            textarea's own `pl-6` — not centered in a full-width row, which
-            reads as one lonely floating box for short targets. Pulling this
-            out of the outer `space-y-*` stack (it's nested in the canvas,
-            not a sibling of it) is what removes the dead gap under the
-            textarea.
-          */}
-              <div className="mt-2 pl-6 md:mt-4">
-                <WordSlots
-                  current={currentWordCount}
-                  target={targetCount}
-                  text={text}
-                />
-              </div>
-            </div>
-
-            {/* Error Display */}
-            {error && submissionState !== 'retryable' && (
-              <Alert variant="error" className="mt-8">
-                {error}
-              </Alert>
-            )}
-          </div>
+              {submissionState === 'failed' && (
+                <Button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  disabled={!browserOnline}
+                  variant="secondary"
+                  className="mt-3"
+                >
+                  Reload room
+                </Button>
+              )}
+            </Alert>
+          )}
         </div>
       </div>
-
-      {/*
-        The action zone is a flex sibling, not an overlay. It may shrink into
-        its own scroll region when room chrome plus 200% text would otherwise
-        push it below the visual viewport.
-      */}
       <div
         data-testid={E2E_TEST_IDS.writingActionZone}
-        className="lj-safe-inline min-h-0 max-h-[55%] overflow-x-hidden overflow-y-auto flex flex-col items-center gap-[12px] border-t-2 border-primary/20 bg-background/95 pt-[12px] pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md [--lj-safe-inline-space:clamp(12px,4vw,24px)] md:[--lj-safe-inline-space:2rem] md:gap-[16px] md:pt-[16px] md:pb-[max(16px,env(safe-area-inset-bottom))]"
+        className="lj-safe-inline bg-background pt-2 pb-[max(12px,env(safe-area-inset-bottom))] [--lj-safe-inline-space:1rem]"
       >
-        {submitBlock}
+        <div className="mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3">
+          <output
+            id="word-slots"
+            data-testid={E2E_TEST_IDS.writingWordSlots}
+            aria-label={`${currentWordCount} of ${targetCount} words`}
+            aria-live="off"
+            className={cn(
+              'shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums',
+              currentWordCount > targetCount
+                ? 'text-error'
+                : 'text-text-secondary'
+            )}
+          >
+            <span className="block">
+              {currentWordCount} / {targetCount}
+            </span>
+            <span className="block text-xs font-normal">
+              {targetCount === 1 ? 'word' : 'words'}
+            </span>
+          </output>
+          <Button
+            onClick={() => void submit()}
+            data-testid={E2E_TEST_IDS.writingSubmitLineButton}
+            data-ready={isReady ? 'true' : undefined}
+            disabled={!isReady}
+            className="min-h-[44px] min-w-[112px] px-[20px] py-[10px]"
+          >
+            {submissionState === 'submitting'
+              ? 'Submitting…'
+              : submissionState === 'failed'
+                ? 'Unable to confirm'
+                : 'Submit'}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -616,7 +456,6 @@ export function WritingScreen({
         key={`${assignment.poemId}:${assignment.lineIndex}`}
         assignment={assignment}
         guestToken={guestToken}
-        queryArgs={queryArgs}
         roomCode={roomCode}
         dependencies={dependencies}
       />

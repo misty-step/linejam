@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery } from 'convex/react';
-import { Crown, Heart, Share2, Volume2, VolumeX } from 'lucide-react';
+import { Crown, Share2, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import {
@@ -16,13 +16,18 @@ import { useShareLink, type ShareLinkClient } from '@/hooks/useShareLink';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
-import { Label } from './ui/Label';
+import { Avatar } from './ui/Avatar';
+import type { AvatarId } from '@/lib/avatars';
+import { errorToFeedback } from '@/lib/errorFeedback';
+import { toErrorReportable } from '@/lib/errorCore';
 
 export interface SessionRecapPoem {
   _id: Id<'poems'>;
   indexInRoom: number;
   preview: string;
   readerName: string;
+  readerStableId?: string;
+  readerAvatarId?: AvatarId;
 }
 interface SessionRecapShareAccess {
   roomCode: string;
@@ -35,6 +40,7 @@ interface SessionFavorites {
 
 export interface SessionRecapHubDependencies {
   useEnablePublicShare: () => (args: SessionRecapShareAccess) => Promise<null>;
+  useDisablePublicShare: () => (args: SessionRecapShareAccess) => Promise<null>;
   useSessionFavorites: (
     args: SessionRecapShareAccess
   ) => SessionFavorites | null | undefined;
@@ -57,6 +63,10 @@ function useDefaultEnablePublicShare() {
   return useMutation(api.shares.enablePublicSessionRecapShare);
 }
 
+function useDefaultDisablePublicShare() {
+  return useMutation(api.shares.disablePublicSessionRecapShare);
+}
+
 function useDefaultSessionFavorites(args: SessionRecapShareAccess) {
   return useQuery(api.favorites.getSessionFavorites, args);
 }
@@ -68,6 +78,7 @@ function sessionRecapUrl(roomCode: string) {
 
 const defaultDependencies: SessionRecapHubDependencies = {
   useEnablePublicShare: useDefaultEnablePublicShare,
+  useDisablePublicShare: useDefaultDisablePublicShare,
   useSessionFavorites: useDefaultSessionFavorites,
   trackRoomInviteShared,
   trackArtifactAction,
@@ -105,6 +116,10 @@ export function SessionRecapHub({
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
   const lastCrownedPoemId = useRef<Id<'poems'> | null>(null);
   const { isMuted, punctuate, toggleMuted } = useCeremonyEffects();
+  const [isSharing, setIsSharing] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [revoked, setRevoked] = useState(false);
 
   const resolvedDependencies = dependencies ?? defaultDependencies;
   // Live tally — the crown can still change as late hearts land.
@@ -118,6 +133,8 @@ export function SessionRecapHub({
       : undefined;
   const enablePublicSessionRecapShare =
     resolvedDependencies.useEnablePublicShare();
+  const disablePublicSessionRecapShare =
+    resolvedDependencies.useDisablePublicShare();
   const enablePublicRecap = async () => {
     await enablePublicSessionRecapShare({
       roomCode,
@@ -144,6 +161,35 @@ export function SessionRecapHub({
     client: resolvedDependencies.shareClient,
   });
 
+  const handlePublish = async () => {
+    if (isSharing || isRevoking) return;
+    setIsSharing(true);
+    setRevokeError(null);
+    setRevoked(false);
+    try {
+      await handleShare();
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleRevoke = async () => {
+    if (isSharing || isRevoking) return;
+    setIsRevoking(true);
+    setRevokeError(null);
+    try {
+      await disablePublicSessionRecapShare({
+        roomCode,
+        guestToken: guestToken || undefined,
+      });
+      setRevoked(true);
+    } catch (cause) {
+      setRevokeError(errorToFeedback(toErrorReportable(cause)).message);
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
   useEffect(() => {
     if (!favoritePoem || sessionFavorites?.leaderCount === 0) return;
     if (lastCrownedPoemId.current === favoritePoem._id) return;
@@ -156,123 +202,173 @@ export function SessionRecapHub({
     <section
       data-testid={E2E_TEST_IDS.sessionComplete}
       aria-labelledby="session-recap-title"
-      className="space-y-8 pt-8 border-t border-border"
+      className="space-y-6 font-sans"
     >
-      <div className="space-y-4">
-        <Label className="block">Session Recap</Label>
-        <div className="space-y-3">
-          <h2
-            id="session-recap-title"
-            className="scroll-mt-28 text-4xl md:text-5xl font-[var(--font-display)] leading-tight"
-          >
-            Session complete
-          </h2>
-          <p className="text-text-secondary leading-relaxed">
-            Replay the full set, share the group recap, or keep this room moving
-            into another round.
-          </p>
-          <div className="flex flex-wrap gap-2 text-xs font-mono uppercase tracking-widest text-text-muted">
-            <span>{sortedPoems.length} poems</span>
-            <span aria-hidden="true">/</span>
-            <span>
-              {playerCount} poet{playerCount === 1 ? '' : 's'}
-            </span>
-          </div>
-        </div>
-      </div>
+      <header className="space-y-2">
+        <h2
+          id="session-recap-title"
+          tabIndex={-1}
+          className="scroll-mt-28 text-2xl font-bold leading-snug text-text-primary focus:outline-none"
+        >
+          Session complete
+        </h2>
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-secondary">
+          <span>{sortedPoems.length} poems</span>
+          <span>
+            {playerCount} poet{playerCount === 1 ? '' : 's'}
+          </span>
+        </p>
+      </header>
 
-      {(error || shareError) && (
-        <Alert variant="error">{error || shareError}</Alert>
+      {(error || shareError || revokeError) && (
+        <Alert variant="error">{error || revokeError || shareError}</Alert>
       )}
 
-      {/* Room favorite — only crowned when the room actually gave hearts */}
       {favoritePoem && sessionFavorites && (
-        <div className="relative overflow-hidden border border-primary bg-surface p-5 shadow-sm">
-          <div
-            aria-hidden="true"
-            className="animate-heart-burst absolute right-5 top-5 h-16 w-16 rounded-full bg-primary/20"
-          />
-          <div className="relative flex items-center gap-2 text-primary">
-            <Heart className="h-4 w-4" fill="currentColor" />
-            <Crown
-              data-testid={E2E_TEST_IDS.roomFavoriteCrown}
-              className="animate-crown-settle h-5 w-5"
-              aria-hidden="true"
-            />
-            <p className="text-[10px] font-mono uppercase tracking-widest">
-              Room favorite · {sessionFavorites.leaderCount} heart
+        <section
+          aria-labelledby="room-favorite-title"
+          className="space-y-2 rounded-2xl border border-primary bg-surface p-5"
+        >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-primary">
+            <h3
+              id="room-favorite-title"
+              className="inline-flex items-center gap-2 text-sm font-bold"
+            >
+              <Crown
+                data-testid={E2E_TEST_IDS.roomFavoriteCrown}
+                className="h-5 w-5"
+                aria-hidden="true"
+              />
+              Room favorite
+            </h3>
+            <span className="text-sm">
+              {sessionFavorites.leaderCount} heart
               {sessionFavorites.leaderCount === 1 ? '' : 's'}
-            </p>
+            </span>
           </div>
           <Link
             href={`/poem/${favoritePoem._id}`}
             prefetch={false}
             data-prefetch="false"
-            className="mt-2 block font-[var(--font-display)] text-2xl italic leading-relaxed text-text-primary hover:text-primary"
+            className="block min-h-11 py-2 text-xl font-semibold leading-snug text-text-primary [overflow-wrap:anywhere] hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring"
           >
-            &ldquo;{favoritePoem.preview || 'Untitled poem'}...&rdquo;
+            {favoritePoem.preview || 'Untitled poem'}…
           </Link>
-          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-text-muted">
+          <p className="text-sm text-text-secondary [overflow-wrap:anywhere]">
             Read by {favoritePoem.readerName}
           </p>
-        </div>
+        </section>
       )}
 
-      <p className="text-sm text-text-muted">
-        Sharing makes the full session recap public to anyone with the link.
-      </p>
-
-      <div className="grid gap-3">
+      <ol
+        aria-label="Session poems"
+        className="overflow-hidden rounded-3xl bg-surface"
+      >
         {sortedPoems.map((poem) => {
           const poemNumber = poem.indexInRoom + 1;
           const preview = poem.preview || 'Untitled poem';
 
           return (
-            <Link
+            <li
               key={poem._id}
-              href={`/poem/${poem._id}`}
-              prefetch={false}
-              data-prefetch="false"
-              aria-label={`Replay poem ${poemNumber}: ${preview}`}
-              className="group block border border-border-subtle bg-surface p-5 transition-colors hover:border-primary"
+              className="border-b border-border-subtle last:border-b-0"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 space-y-2">
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-text-muted">
-                    Poem {poemNumber.toString().padStart(2, '0')} / read by{' '}
-                    {poem.readerName}
+              <Link
+                href={`/poem/${poem._id}`}
+                prefetch={false}
+                data-prefetch="false"
+                aria-label={`Replay poem ${poemNumber}: ${preview}`}
+                className="flex min-h-11 items-start gap-3 p-5 hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                {poem.readerStableId && (
+                  <Avatar
+                    stableId={poem.readerStableId}
+                    displayName={poem.readerName}
+                    avatarId={poem.readerAvatarId}
+                    size="sm"
+                  />
+                )}
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-sm text-text-secondary [overflow-wrap:anywhere]">
+                    Poem {poemNumber}, read by {poem.readerName}
                   </p>
-                  <p className="font-[var(--font-display)] text-xl italic leading-relaxed">
-                    &ldquo;{preview}...&rdquo;
+                  <p className="text-lg font-semibold leading-snug text-text-primary [overflow-wrap:anywhere]">
+                    {preview}…
                   </p>
                 </div>
-                <span className="shrink-0 text-[10px] font-mono uppercase tracking-widest text-text-muted group-hover:text-primary">
-                  Replay
-                </span>
-              </div>
-            </Link>
+              </Link>
+            </li>
           );
         })}
+      </ol>
+
+      <div className="space-y-3">
+        <p id="recap-share-disclosure" className="text-sm text-text-secondary">
+          Sharing makes the full session recap public to anyone with the link.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            onClick={handlePublish}
+            data-testid={E2E_TEST_IDS.sessionRecapShareButton}
+            aria-describedby="recap-share-disclosure"
+            variant="outline"
+            className="min-h-11"
+            disabled={isSharing || isRevoking}
+          >
+            <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
+            {isSharing ? 'Sharing...' : 'Share recap'}
+          </Button>
+          <Button
+            onClick={handleRevoke}
+            variant="ghost"
+            className="min-h-11"
+            disabled={isSharing || isRevoking}
+          >
+            {isRevoking ? 'Revoking...' : 'Revoke public link'}
+          </Button>
+        </div>
+        {(revoked || shared || copied) && (
+          <p role="status" className="text-sm text-primary">
+            {revoked
+              ? 'Public recap link revoked.'
+              : shared
+                ? 'Recap shared.'
+                : 'Recap link copied.'}
+          </p>
+        )}
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Button
-          type="button"
-          onClick={handleShare}
-          data-testid={E2E_TEST_IDS.sessionRecapShareButton}
+          onClick={onStartNextRound}
           size="lg"
-          className="h-14"
+          className="min-h-12"
+          disabled={isStartingNextRound}
         >
-          <Share2 className="mr-2 h-4 w-4" />
-          {shared ? 'Shared!' : copied ? 'Copied!' : 'Share the whole set'}
+          {isStartingNextRound ? 'Starting...' : 'Play again'}
+        </Button>
+        <Button
+          onClick={onBackToLobby}
+          variant="outline"
+          size="lg"
+          className="min-h-12"
+        >
+          Back to lobby
         </Button>
       </div>
 
-      <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href="/"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-text-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring"
+        >
+          Exit room
+        </Link>
         <button
           type="button"
           onClick={toggleMuted}
-          className="inline-flex h-10 items-center gap-2 rounded-full border border-border-subtle px-3 text-xs font-mono uppercase tracking-wider text-text-muted transition-colors hover:border-primary hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm text-text-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-focus-ring"
           aria-label={
             isMuted ? 'Turn ceremony sound on' : 'Mute ceremony sound'
           }
@@ -282,36 +378,9 @@ export function SessionRecapHub({
           ) : (
             <Volume2 className="h-4 w-4" aria-hidden="true" />
           )}
-          <span>{isMuted ? 'Muted' : 'Sound'}</span>
+          <span>{isMuted ? 'Sound off' : 'Sound on'}</span>
         </button>
       </div>
-
-      {/* Anyone in the room can keep it moving — a vanished host never strands the recap. */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          onClick={onStartNextRound}
-          size="lg"
-          className="h-14"
-          disabled={isStartingNextRound}
-        >
-          {isStartingNextRound ? 'Starting...' : 'Start Next Round'}
-        </Button>
-        <Button
-          onClick={onBackToLobby}
-          variant="outline"
-          size="lg"
-          className="h-14"
-        >
-          Back to Lobby
-        </Button>
-      </div>
-
-      <Link
-        href="/"
-        className="block text-center text-sm font-mono uppercase tracking-widest text-text-muted hover:underline"
-      >
-        Exit Room
-      </Link>
     </section>
   );
 }

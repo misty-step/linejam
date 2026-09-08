@@ -16,9 +16,11 @@ import {
   type LinejamClientResult,
 } from '../lib/linejamClient';
 import type { Id } from '@/convex/_generated/dataModel';
+import { AVATAR_IDS, isAvatarId } from '@/lib/avatars';
 
 export type LinejamToolArgs = {
   displayName?: string;
+  avatarId?: string;
   guestToken?: string;
   code?: string;
   roomCode?: string;
@@ -44,7 +46,10 @@ interface ToolDef {
   description: string;
   inputSchema: {
     type: 'object';
-    properties: Record<string, { type: string; description?: string }>;
+    properties: Record<
+      string,
+      { type: string; description?: string; enum?: readonly string[] }
+    >;
     required?: string[];
   };
 }
@@ -53,6 +58,13 @@ const guestTokenProp = {
   type: 'string',
   description:
     'Guest identity token from a prior linejam_create_room/linejam_join_room/linejam_mint_guest call. Required for every tool except linejam_mint_guest.',
+};
+
+const avatarIdProp = {
+  type: 'string',
+  enum: AVATAR_IDS,
+  description:
+    'Room avatar. Omit to keep an existing choice or use a stable default.',
 };
 
 export const TOOLS: ToolDef[] = [
@@ -73,6 +85,7 @@ export const TOOLS: ToolDef[] = [
           type: 'string',
           description: 'Name shown to other players',
         },
+        avatarId: avatarIdProp,
         guestToken: guestTokenProp,
       },
       required: ['displayName', 'guestToken'],
@@ -86,6 +99,7 @@ export const TOOLS: ToolDef[] = [
       properties: {
         code: { type: 'string', description: '4-letter room code' },
         displayName: { type: 'string' },
+        avatarId: avatarIdProp,
         guestToken: guestTokenProp,
       },
       required: ['code', 'displayName', 'guestToken'],
@@ -208,18 +222,25 @@ export async function callTool(
     return mintGuestToken();
   }
 
+  const avatarId = args.avatarId;
+  if (avatarId !== undefined && !isAvatarId(avatarId)) {
+    throw new Error(`Choose an avatar: ${AVATAR_IDS.join(', ')}`);
+  }
+
   const client = injectedClient ?? createLinejamClient();
 
   switch (name) {
     case 'linejam_create_room':
       return client.createRoom({
         displayName: parseRequiredString(args.displayName, 'displayName'),
+        avatarId,
         guestToken: args.guestToken,
       });
     case 'linejam_join_room':
       return client.joinRoom({
         code: parseRequiredString(args.code, 'code'),
         displayName: parseRequiredString(args.displayName, 'displayName'),
+        avatarId,
         guestToken: args.guestToken,
       });
     case 'linejam_room_state':

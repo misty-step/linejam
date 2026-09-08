@@ -1,5 +1,4 @@
-import { useUser as useClerkUser } from '@clerk/nextjs';
-import { useConvexAuth } from 'convex/react';
+import { useAccountState, type AccountState } from '@/lib/account';
 import { useCallback, useEffect, useState } from 'react';
 import { captureError } from '@/lib/error';
 import {
@@ -18,27 +17,8 @@ const CLERK_GUEST_FALLBACK_MS = 5_000;
 const CLERK_LOAD_TIMEOUT_MESSAGE =
   'Clerk did not load in time; continuing with guest play';
 
-export type ClerkUserSummary = {
-  id: string;
-  fullName?: string | null;
-  firstName?: string | null;
-  imageUrl?: string | null;
-  primaryEmailAddress?: { emailAddress?: string } | null;
-};
-
-export type ClerkAuthState = {
-  user: ClerkUserSummary | null;
-  isLoaded: boolean;
-};
-
-export type ConvexAuthState = {
-  isLoading: boolean;
-  isAuthenticated: boolean;
-};
-
 export type UseUserAuthDependencies = {
-  useClerk?: () => ClerkAuthState;
-  useConvex?: () => ConvexAuthState;
+  useAccount?: () => AccountState;
   onError?: (error: ErrorReportable, context?: ErrorReportContext) => void;
 };
 
@@ -58,14 +38,14 @@ export function useUser(
   fetcher: GuestSessionFetcher = defaultGuestSessionFetcher,
   deps?: UseUserAuthDependencies
 ) {
-  const useClerk = deps?.useClerk ?? useClerkUser;
-  const useConvex = deps?.useConvex ?? useConvexAuth;
-  const clerkAuth = useClerk();
-  const clerkUser = clerkAuth.user;
-  const isClerkLoaded = clerkAuth.isLoaded;
-  const convexAuth = useConvex();
-  const isConvexAuthLoading = convexAuth.isLoading;
-  const isConvexAuthenticated = convexAuth.isAuthenticated;
+  const useAccount = deps?.useAccount ?? useAccountState;
+  const account = useAccount();
+  const clerkUser = account.kind === 'clerk' ? account.user : null;
+  const isClerkLoaded = account.kind === 'local' || account.isLoaded;
+  const isConvexAuthLoading =
+    account.kind === 'clerk' && account.convex.isLoading;
+  const isConvexAuthenticated =
+    account.kind === 'clerk' && account.convex.isAuthenticated;
   const reportError = deps?.onError ?? captureError;
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);

@@ -102,6 +102,10 @@ function parseGuestSessionString(
   }
 }
 
+// A cold page can bootstrap from several components before a cookie exists.
+// Share only the in-flight request; later reads still use the cookie authority.
+let pendingGuestSession: Promise<GuestSessionData> | undefined;
+
 /**
  * Default fetcher that calls the guest session API.
  * Used in production; tests can inject a mock fetcher.
@@ -109,7 +113,12 @@ function parseGuestSessionString(
 export const defaultGuestSessionFetcher: GuestSessionFetcher = {
   async fetch(): Promise<GuestSessionData> {
     try {
-      return await fetchGuestSession('/api/guest/session');
+      pendingGuestSession ??= fetchGuestSession('/api/guest/session').finally(
+        () => {
+          pendingGuestSession = undefined;
+        }
+      );
+      return await pendingGuestSession;
     } catch (error) {
       if (isGuestSessionRateLimitError(error)) throw error;
 

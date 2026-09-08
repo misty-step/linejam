@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
 
 import { LobbyJoinQr, LobbyStage } from '@/components/stage/LobbyStage';
 import { Doc, Id } from '@/convex/_generated/dataModel';
@@ -43,9 +43,6 @@ describe('LobbyStage', () => {
     joinedAt: Date.now(),
     stableId: 'stable_late_456',
   };
-  afterEach(() => {
-    vi.useRealTimers();
-  });
 
   it('shows the join QR and direct link without entering presentation mode', () => {
     render(<LobbyJoinQr room={room} />);
@@ -59,19 +56,7 @@ describe('LobbyStage', () => {
     ).toHaveAttribute('href', expect.stringContaining('/join?code=ABCD'));
   });
 
-  it('pins exit beside the stage heading instead of wrapping below scaled copy', () => {
-    render(<LobbyStage room={room} players={[hostPlayer]} onExit={vi.fn()} />);
-
-    const exit = screen.getByRole('button', { name: 'Exit presentation' });
-    expect(exit.closest('header')).toHaveClass(
-      'grid',
-      'grid-cols-[minmax(0,1fr)_auto]'
-    );
-    expect(exit.closest('header')).not.toHaveClass('flex-wrap');
-  });
-
-  it('clears the just-joined badge after the join moment completes', () => {
-    vi.useFakeTimers();
+  it('updates the displayed roster as players join and leave', () => {
     const { rerender } = render(
       <LobbyStage room={room} players={[hostPlayer]} onExit={vi.fn()} />
     );
@@ -84,13 +69,14 @@ describe('LobbyStage', () => {
       />
     );
 
-    expect(screen.getByText(/Just joined/i)).toBeInTheDocument();
+    expect(screen.getByText('Late Poet')).toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(1600);
-    });
+    rerender(
+      <LobbyStage room={room} players={[latePlayer]} onExit={vi.fn()} />
+    );
 
-    expect(screen.queryByText(/Just joined/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Host Player')).not.toBeInTheDocument();
+    expect(screen.getByText('Late Poet')).toBeInTheDocument();
   });
 
   it('renders away player state on the stage roster', () => {
@@ -108,6 +94,9 @@ describe('LobbyStage', () => {
       />
     );
 
-    expect(screen.getByText(/Away/i)).toBeInTheDocument();
+    const awayPlayer = screen.getByText('Late Poet').closest('li');
+    const hostPlayerItem = screen.getByText('Host Player').closest('li');
+    expect(within(awayPlayer!).getByText('Away')).toBeInTheDocument();
+    expect(within(hostPlayerItem!).queryByText('Away')).not.toBeInTheDocument();
   });
 });

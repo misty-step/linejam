@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { cpSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,3 +10,14 @@ const siteTokensPath = resolve(
 );
 
 writeFileSync(siteTokensPath, renderDesignTokensCss());
+
+// The standalone site publishes its own root; public/fonts is the source.
+cpSync(
+  resolve(dirname(siteTokensPath), '../public/fonts'),
+  resolve(dirname(siteTokensPath), 'fonts'),
+  { recursive: true }
+);
+cpSync(
+  resolve(dirname(siteTokensPath), '../public/linejam-mark.svg'),
+  resolve(dirname(siteTokensPath), 'icon.svg')
+);

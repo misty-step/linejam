@@ -20,18 +20,14 @@
     return media.matches ? 'dark' : 'light';
   };
 
-  const applyPreference = (preference, { transition = true } = {}) => {
+  const applyPreference = (preference) => {
     const mode = effectiveMode(preference);
-    if (transition) root.classList.add('mode-transitioning');
     root.classList.remove('light', 'dark');
     root.classList.add(mode);
     root.style.colorScheme = mode;
     document.querySelectorAll('input[name="color-mode"]').forEach((input) => {
       input.checked = input.value === preference;
     });
-    if (transition) {
-      setTimeout(() => root.classList.remove('mode-transitioning'), 300);
-    }
   };
 
   const setPreference = (preference) => {
@@ -41,7 +37,7 @@
     applyPreference(preference);
   };
 
-  applyPreference(readPreference(), { transition: false });
+  applyPreference(readPreference());
 
   document.querySelectorAll('input[name="color-mode"]').forEach((input) => {
     input.addEventListener('change', () => {

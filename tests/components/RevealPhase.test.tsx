@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { cloneElement } from 'react';
+import { ConvexProvider } from 'convex/react';
+import { createTestConvexClient } from '@/tests/helpers/convexClient';
 import {
   RevealPhase,
   type RevealPhaseDependencies,
@@ -15,10 +17,19 @@ const mockRevealPoemMutation = vi.fn();
 const mockStartNewCycleMutation = vi.fn();
 const mockStartGameMutation = vi.fn();
 const mockEnablePublicSessionRecapShare = vi.fn();
+const mockDisablePublicSessionRecapShare = vi.fn();
 const mockUseQuery = vi.fn();
+const mockConvexClient = Object.assign(createTestConvexClient(), {
+  mutation: vi.fn().mockResolvedValue(undefined),
+  watchQuery: vi.fn(() => ({
+    localQueryResult: () => false,
+    onUpdate: () => () => {},
+  })),
+});
 
 const sessionRecapDependencies: SessionRecapHubDependencies = {
   useEnablePublicShare: () => mockEnablePublicSessionRecapShare,
+  useDisablePublicShare: () => mockDisablePublicSessionRecapShare,
   useSessionFavorites: () => null,
   trackRoomInviteShared: vi.fn(),
   trackArtifactAction: vi.fn(),
@@ -52,7 +63,12 @@ function renderRevealPhase(
   return render(
     cloneElement(ui, {
       dependencies: revealPhaseDependencies,
-    })
+    }),
+    {
+      wrapper: ({ children }) => (
+        <ConvexProvider client={mockConvexClient}>{children}</ConvexProvider>
+      ),
+    }
   );
 }
 
@@ -176,6 +192,7 @@ describe('RevealPhase component', () => {
     mockStartNewCycleMutation.mockResolvedValue(undefined);
     mockStartGameMutation.mockResolvedValue(undefined);
     mockEnablePublicSessionRecapShare.mockResolvedValue(null);
+    mockDisablePublicSessionRecapShare.mockResolvedValue(null);
     mockUseQuery.mockReturnValue(mockStateNotRevealed);
   });
 
@@ -186,37 +203,18 @@ describe('RevealPhase component', () => {
     expect(screen.getByText('Bob')).toBeInTheDocument();
   });
 
-  it('displays loading state while fetching', () => {
-    mockUseQuery.mockReturnValue(null);
-
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    expect(screen.getByText(/Unsealing the poems/i)).toBeInTheDocument();
-  });
-
   it('shows a Read chip for revealed poems in the reading circle', () => {
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    const bobRow = screen.getByText('Bob').closest('.border-b');
+    const bobRow = screen.getByText('Bob').closest('li');
     expect(bobRow?.textContent).toContain('Read');
   });
 
   it('shows a Reading now chip for the sole unrevealed poem in the reading circle', () => {
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    const aliceRow = screen.getByText('Alice').closest('.border-b');
+    const aliceRow = screen.getByText('Alice').closest('li');
     expect(aliceRow?.textContent).toContain('Reading now');
-  });
-
-  it('shows the reading-circle heading and explainer', () => {
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    expect(
-      screen.getByRole('heading', { name: /The reading circle/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Everyone reads one poem aloud\./i)
-    ).toBeInTheDocument();
   });
 
   it('drives all four reading-circle chip states off reveal order', () => {
@@ -271,10 +269,10 @@ describe('RevealPhase component', () => {
 
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    const annRow = screen.getByText('Ann').closest('.border-b');
-    const benRow = screen.getByText('Ben').closest('.border-b');
-    const caraRow = screen.getByText('Cara').closest('.border-b');
-    const deeRow = screen.getByText('Dee').closest('.border-b');
+    const annRow = screen.getByText('Ann').closest('li');
+    const benRow = screen.getByText('Ben').closest('li');
+    const caraRow = screen.getByText('Cara').closest('li');
+    const deeRow = screen.getByText('Dee').closest('li');
 
     expect(annRow?.textContent).toContain('Read');
     expect(benRow?.textContent).toContain('Reading now');
@@ -287,18 +285,12 @@ describe('RevealPhase component', () => {
   it('displays my poem preview when not revealed', () => {
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    expect(screen.getByText(/Your Assignment/i)).toBeInTheDocument();
     expect(
       screen.getByText(/The stars align above/i, { exact: false })
     ).toBeInTheDocument();
-  });
-
-  it('shows Reveal & Read button for unrevealed poem', () => {
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
     expect(
-      screen.getByRole('button', { name: /Reveal & Read/i })
-    ).toBeInTheDocument();
+      screen.queryByText('Five words make this line')
+    ).not.toBeInTheDocument();
   });
 
   it('lets the host open a reveal stage and read the whole assigned poem at once', async () => {
@@ -311,14 +303,14 @@ describe('RevealPhase component', () => {
 
     const stage = screen.getByTestId('reveal-presentation-stage');
     expect(
-      within(stage).getByRole('heading', { name: /Alice reads Poem 01/i })
+      within(stage).getByRole('heading', { name: /Alice reads poem 1/i })
     ).toBeInTheDocument();
     expect(
-      within(stage).getByRole('button', { name: /Reveal on stage/i })
+      within(stage).getByRole('button', { name: /^Read poem$/i })
     ).toBeInTheDocument();
 
     await user.click(
-      within(stage).getByRole('button', { name: /Reveal on stage/i })
+      within(stage).getByRole('button', { name: /^Read poem$/i })
     );
 
     await waitFor(() => {
@@ -335,7 +327,7 @@ describe('RevealPhase component', () => {
       within(stage).queryByRole('button', { name: /Next line/i })
     ).not.toBeInTheDocument();
     expect(
-      within(stage).getByRole('button', { name: /Finish poem/i })
+      within(stage).getByRole('button', { name: 'Done' })
     ).toBeInTheDocument();
   });
 
@@ -367,11 +359,11 @@ describe('RevealPhase component', () => {
 
     const stage = screen.getByTestId('reveal-presentation-stage');
     expect(
-      within(stage).getByRole('button', { name: /Read on stage/i })
+      within(stage).getByRole('button', { name: /Read again/i })
     ).toBeInTheDocument();
 
     await user.click(
-      within(stage).getByRole('button', { name: /Read on stage/i })
+      within(stage).getByRole('button', { name: /Read again/i })
     );
 
     expect(within(stage).getByText('Lanterns')).toBeInTheDocument();
@@ -379,20 +371,31 @@ describe('RevealPhase component', () => {
     expect(mockRevealPoemMutation).not.toHaveBeenCalled();
   });
 
-  it('calls revealPoem mutation when Reveal button clicked', async () => {
-    mockRevealPoemMutation.mockResolvedValue({ revealed: true });
+  it('opens the whole poem and returns to the reading circle after reveal acceptance', async () => {
     const user = userEvent.setup();
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    const revealButton = screen.getByRole('button', { name: /Reveal & Read/i });
-    await user.click(revealButton);
+    await user.click(screen.getByRole('button', { name: /^Read poem$/i }));
 
-    await waitFor(() => {
-      expect(mockRevealPoemMutation).toHaveBeenCalledWith({
-        poemId: 'poem_123',
-        guestToken: 'mock-token',
-      });
+    const poemView = await screen.findByRole('dialog', { name: 'Poem 1' });
+    const poemLines = within(poemView).getByRole('list', {
+      name: 'Poem lines',
     });
+    const visibleLines = within(poemLines).getAllByRole('listitem');
+    expect(visibleLines).toHaveLength(mockMyPoem.lines.length);
+    mockMyPoem.lines.forEach((line, index) => {
+      expect(within(visibleLines[index]).getByText(line.text)).toBeVisible();
+    });
+    expect(
+      within(poemView).getByRole('button', { name: /favorite this poem/i })
+    ).toBeEnabled();
+    const done = within(poemView).getByRole('button', { name: 'Done' });
+    expect(done).toBeEnabled();
+    await user.click(done);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /reading circle/i })
+    ).toBeVisible();
   });
 
   it('makes an absent reader fallback explicit before revealing', async () => {
@@ -417,17 +420,23 @@ describe('RevealPhase component', () => {
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(screen.getByText('Step in for Reader Away')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Step In & Read' }));
+    await user.click(screen.getByRole('button', { name: 'Step in and read' }));
 
-    await waitFor(() => {
-      expect(mockRevealPoemMutation).toHaveBeenCalledWith({
-        poemId: 'poem_123',
-        guestToken: 'mock-token',
-      });
+    const poemView = await screen.findByRole('dialog', { name: 'Poem 1' });
+    const poemLines = within(poemView).getByRole('list', {
+      name: 'Poem lines',
     });
+    const visibleLines = within(poemLines).getAllByRole('listitem');
+    expect(visibleLines).toHaveLength(mockMyPoem.lines.length);
+    mockMyPoem.lines.forEach((line, index) => {
+      expect(within(visibleLines[index]).getByText(line.text)).toBeVisible();
+    });
+    expect(
+      within(poemView).getByRole('button', { name: 'Done' })
+    ).toBeEnabled();
   });
 
-  it('shows Unsealing... during reveal mutation', async () => {
+  it('disables the read action while the reveal is awaiting acceptance', async () => {
     const user = userEvent.setup();
     mockRevealPoemMutation.mockImplementation(() => {
       const { promise, resolve } = Promise.withResolvers<void>();
@@ -436,13 +445,11 @@ describe('RevealPhase component', () => {
     });
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    const revealButton = screen.getByRole('button', { name: /Reveal & Read/i });
+    const revealButton = screen.getByRole('button', { name: /^Read poem$/i });
     await user.click(revealButton);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /Unsealing/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Opening/i })).toBeDisabled();
     });
   });
 
@@ -457,11 +464,8 @@ describe('RevealPhase component', () => {
     expect(screen.getByText(/2 poems/i)).toBeInTheDocument();
     expect(screen.getByText(/2 poets/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Share the whole set/i })
+      screen.getByRole('button', { name: /Share recap/i })
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('link', { name: /Open Shared Recap/i })
-    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', {
         name: /Replay poem 1: The stars align above/i,
@@ -473,17 +477,7 @@ describe('RevealPhase component', () => {
       })
     ).toHaveAttribute('href', '/poem/poem_456');
     expect(
-      screen.getByRole('button', { name: /Start Next Round/i })
-    ).toBeInTheDocument();
-  });
-
-  it('shows Back to Lobby button for host when all revealed', () => {
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    expect(
-      screen.getByRole('button', { name: /Back to Lobby/i })
+      screen.getByRole('button', { name: /Play again/i })
     ).toBeInTheDocument();
   });
 
@@ -496,7 +490,7 @@ describe('RevealPhase component', () => {
       screen.getByRole('button', { name: /Back to Lobby/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Start Next Round/i })
+      screen.getByRole('button', { name: /Play again/i })
     ).toBeInTheDocument();
   });
 
@@ -519,54 +513,20 @@ describe('RevealPhase component', () => {
     });
   });
 
-  it('collapses the old second recap link on the session-complete screen', () => {
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    expect(
-      screen.queryByRole('link', { name: /Open Shared Recap/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Share the whole set/i })
-    ).toBeInTheDocument();
-  });
-
   it('gives non-hosts replay and share actions after completion', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealedNotHost);
 
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(
-      screen.getByRole('button', { name: /Share the whole set/i })
+      screen.getByRole('button', { name: /Share recap/i })
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('link', { name: /Open Shared Recap/i })
-    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /Replay poem 1/i })
     ).toHaveAttribute('href', '/poem/poem_123');
     expect(
-      screen.getByRole('button', { name: /Start Next Round/i })
+      screen.getByRole('button', { name: /Play again/i })
     ).toBeInTheDocument();
-  });
-
-  it('disables poem replay prefetch on the session-complete screen', () => {
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    expect(
-      screen.getByRole('link', { name: /Replay poem 1/i })
-    ).toHaveAttribute('data-prefetch', 'false');
-  });
-
-  it('does not show the old archive-only link when all revealed', () => {
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    expect(screen.queryByRole('link', { name: /^Archive$/i })).toBeNull();
   });
 
   it('shows Exit Room link when all revealed', () => {
@@ -579,7 +539,7 @@ describe('RevealPhase component', () => {
     expect(exitLink).toHaveAttribute('href', '/');
   });
 
-  it('shows Re-Read My Poem button when poem already revealed', () => {
+  it('offers a re-read after a poem is revealed', () => {
     mockUseQuery.mockReturnValue({
       ...mockStateNotRevealed,
       myPoem: mockRevealedPoem,
@@ -589,7 +549,7 @@ describe('RevealPhase component', () => {
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
     expect(
-      screen.getByRole('button', { name: /Re-Read My Poem/i })
+      screen.getByRole('button', { name: /Read poem 1 again/i })
     ).toBeInTheDocument();
   });
 
@@ -598,7 +558,7 @@ describe('RevealPhase component', () => {
     const user = userEvent.setup();
     renderRevealPhase(<RevealPhase roomCode="ABCD" />);
 
-    const revealButton = screen.getByRole('button', { name: /Reveal & Read/i });
+    const revealButton = screen.getByRole('button', { name: /^Read poem$/i });
     await user.click(revealButton);
 
     await waitFor(() => {

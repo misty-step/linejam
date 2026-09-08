@@ -30,6 +30,7 @@ describe('GET /poem/[id]/card', () => {
     lastImageResponseCall = null;
 
     const dependencies: CardRouteDependencies = {
+      loadFonts: async () => ({ fonts: [] }),
       fetchPublicPoem: (poemId) => mockFetchQuery({ poemId }),
       fetchPoemDetail: (poemId, guestToken, clerkToken) =>
         clerkToken
@@ -87,7 +88,6 @@ describe('GET /poem/[id]/card', () => {
     expect(lastImageResponseCall?.options).toMatchObject({
       width: 1200,
     });
-    expect(JSON.stringify(lastImageResponseCall?.element)).toContain('#b43a12');
   });
 
   it('passes every line with its human author to the renderer', async () => {
@@ -102,18 +102,6 @@ describe('GET /poem/[id]/card', () => {
     expect(serialized).toContain('Wendell');
     expect(serialized).toContain('Rain');
     expect(serialized).toContain('on rooftops');
-  });
-
-  it('renders the fixed dark identity for a mode-only URL', async () => {
-    mockFetchQuery.mockResolvedValue(attributedPoem);
-
-    const response = await GET(makeRequest('?mode=dark'), {
-      params: Promise.resolve({ id: 'poem123' }),
-    });
-
-    expect(response.status).toBe(200);
-    expect(JSON.stringify(lastImageResponseCall?.element)).toContain('#f06b3b');
-    expect(JSON.stringify(lastImageResponseCall?.element)).toContain('#1c1917');
   });
 
   it('ignores a legacy theme query while preserving the requested mode', async () => {

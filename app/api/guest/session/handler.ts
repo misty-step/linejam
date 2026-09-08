@@ -13,6 +13,7 @@ import { captureServerError } from '@/lib/errorServer';
 import { toErrorReportable, type ErrorReportable } from '@/lib/errorCore';
 import { log, logError, logRequest } from '@/lib/logger';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
+import { getConvexServerUrl, isLocalServerMode } from '@/lib/localMode';
 
 const COOKIE_NAME = 'linejam_guest_token';
 const ROUTE = '/api/guest/session';
@@ -67,8 +68,9 @@ async function getGuestSession(
   const existingOnly = request.nextUrl.searchParams.get('existing') === '1';
 
   try {
+    const cookieName = guestCookieName();
     // Check for existing valid token in cookie
-    const existingToken = request.cookies.get(COOKIE_NAME)?.value;
+    const existingToken = request.cookies.get(cookieName)?.value;
 
     if (existingToken) {
       try {
@@ -98,7 +100,7 @@ async function getGuestSession(
           guestId: payload.guestId,
           token,
         });
-        setGuestCookie(response, token);
+        setGuestCookie(response, token, cookieName);
         logRequest({
           ...baseContext,
           status: 200,
@@ -122,7 +124,7 @@ async function getGuestSession(
     if (existingOnly) {
       const response = NextResponse.json({ guestId: null, token: null });
       if (existingToken) {
-        clearGuestCookie(response);
+        clearGuestCookie(response, cookieName);
       }
       logRequest({
         ...baseContext,
@@ -164,7 +166,7 @@ async function getGuestSession(
     const response = NextResponse.json({ guestId, token });
 
     // Set HttpOnly cookie
-    setGuestCookie(response, token);
+    setGuestCookie(response, token, cookieName);
 
     logRequest({
       ...baseContext,
@@ -195,7 +197,7 @@ async function getGuestSession(
 export async function DELETE(request: NextRequest) {
   const startedAt = Date.now();
   const response = new NextResponse(null, { status: 204 });
-  clearGuestCookie(response);
+  clearGuestCookie(response, guestCookieName());
   logRequest({
     method: request.method,
     route: ROUTE,
@@ -210,23 +212,34 @@ function elapsedMs(startedAt: number) {
   return Math.max(0, Date.now() - startedAt);
 }
 
-function setGuestCookie(response: NextResponse, token: string) {
-  response.cookies.set(COOKIE_NAME, token, {
+function guestCookieName(): string {
+  if (!isLocalServerMode()) return COOKIE_NAME;
+  // Browser cookies ignore ports; local backends own independently keyed identities.
+  const origin = new URL(String(process.env.NEXT_PUBLIC_CONVEX_URL)).origin;
+  return `${COOKIE_NAME}_local_${encodeURIComponent(origin)}`;
+}
+
+function setGuestCookie(
+  response: NextResponse,
+  token: string,
+  cookieName: string
+) {
+  response.cookies.set(cookieName, token, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
     maxAge: GUEST_TOKEN_MAX_AGE_SECONDS,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production' && !isLocalServerMode(),
   });
 }
 
-function clearGuestCookie(response: NextResponse) {
-  response.cookies.set(COOKIE_NAME, '', {
+function clearGuestCookie(response: NextResponse, cookieName: string) {
+  response.cookies.set(cookieName, '', {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
     maxAge: 0,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production' && !isLocalServerMode(),
   });
 }
 
@@ -235,7 +248,7 @@ async function enforceGuestSessionThrottle(
   dependencies: GuestSessionRouteDependencies
 ): Promise<{ allowed: true; rateLimitKey: string } | { allowed: false }> {
   const rateLimitKey = deriveGuestSessionRateLimitKey(request);
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
+  const convexUrl = getConvexServerUrl()?.trim();
 
   if (!convexUrl) {
     if (process.env.NODE_ENV === 'production') {
@@ -279,7 +292,7 @@ async function enforceGuestSessionThrottle(
 }
 
 function getConvexClient(convexUrl: string) {
-  if (!convexClient) {
+  if (!convexClient || convexClient.url !== convexUrl) {
     convexClient = new ConvexHttpClient(convexUrl);
   }
   return convexClient;
@@ -351,6 +364,7 @@ function parseErrorString(value: ErrorReportable | Value): string | null {
 
 function allowUnsyncedConvexThrottle() {
   return (
+    !isLocalServerMode() &&
     process.env.NODE_ENV !== 'production' &&
     process.env.CI !== 'true' &&
     process.env.LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE === '1'

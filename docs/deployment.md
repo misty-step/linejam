@@ -198,8 +198,10 @@ it instead of guessing from the `convex.cloud` hostname, which is shared by dev,
 preview, and production deployments.
 
 The production App Platform build executes the Convex deploy before the Next.js
-build. Local agents must not push production Convex code unless
-`LINEJAM_ALLOW_PROD_CONVEX_SYNC=1` was set deliberately for that operation.
+build. Local checks never deploy production Convex code; the separately
+commissioned shared-dev sync rejects production unconditionally. Production
+operations require explicit operator authority and the hosted deployment guards.
+The retired `LINEJAM_ALLOW_PROD_CONVEX_SYNC` flag cannot grant that authority.
 
 ## Backups and restore
 
@@ -253,14 +255,14 @@ the durable receipt still needs that public, sanitized record.
    Production-shaped keys remain blocked unless `--allow-production` is passed.
 
 4. Run the local or non-production health and representative data checks.
-   Record the redacted restore-drill receipt on the canonical GitHub Issue that
+   Record the redacted restore-drill conclusion on the Linear work item that
    owns the drill. The receipt must link the backup workflow run and retained
    proof artifact, and name the non-secret target class, backup filename, source
    SHA, observed completion time, and check outcome.
 
 The declared recovery objectives are **RPO 24 hours** (the export is daily) and
-**RTO 30 minutes** (the canonical GitHub Issue links the durable restore-drill
-receipt and proof). These objectives assume the operator credential plane and a
+**RTO 30 minutes** (the drill's work record links the durable restore receipt
+and proof). Existing GitHub drill records remain historical evidence. These objectives assume the operator credential plane and a
 working Convex CLI are available; they do not authorize a production import.
 
 ## Deploy the web application

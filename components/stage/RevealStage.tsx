@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Id } from '@/convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
+import type { AvatarId } from '@/lib/avatars';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { Alert } from '@/components/ui/Alert';
 import { Avatar } from '@/components/ui/Avatar';
@@ -14,6 +15,7 @@ interface RevealStagePoemSummary {
   indexInRoom: number;
   readerName: string;
   readerStableId: string;
+  readerAvatarId?: AvatarId;
   isRevealed: boolean;
 }
 
@@ -45,7 +47,7 @@ interface RevealStageProps {
 }
 
 function poemNumber(poem: { indexInRoom: number }) {
-  return (poem.indexInRoom + 1).toString().padStart(2, '0');
+  return String(poem.indexInRoom + 1);
 }
 
 export function RevealStage({
@@ -93,18 +95,24 @@ export function RevealStage({
     sortedPoems.find((poem) => !poem.isRevealed) ??
     sortedPoems[0] ??
     null;
+  const headlinePoemId = headlinePoem?._id;
+  const readingNowId =
+    activePoem?._id ?? sortedPoems.find((poem) => !poem.isRevealed)?._id;
+  const upNextId = sortedPoems.find(
+    (poem) => !poem.isRevealed && poem._id !== readingNowId
+  )?._id;
   useEffect(() => {
-    if (!headlinePoem) return;
+    if (!headlinePoemId) return;
     headlineRef.current?.focus();
-  }, [activePoem, headlinePoem]);
+  }, [activePoemId, headlinePoemId]);
 
   const announcement = activePoem
-    ? 'Poem ' + poemNumber(activePoem) + ' is ready. Read from line one.'
+    ? 'Poem ' + poemNumber(activePoem) + ' revealed.'
     : headlinePoem
       ? headlinePoem.readerName +
-        ', poem ' +
+        ' reads poem ' +
         poemNumber(headlinePoem) +
-        ' is ready to read.'
+        '.'
       : '';
 
   const handleReadOnStage = async () => {
@@ -125,76 +133,76 @@ export function RevealStage({
   return (
     <StageShell
       testId={E2E_TEST_IDS.revealPresentationStage}
-      title="Reveal stage"
-      subtitle="Each reader takes the whole poem in a deliberate running order."
+      title="Reading circle"
+      subtitle=""
       onExit={onExit}
     >
-      <div className="grid min-h-full gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.42fr)] xl:items-stretch">
+      <div className="grid gap-6 font-sans xl:grid-cols-[minmax(0,1fr)_minmax(16rem,0.4fr)] xl:items-start">
         <p role="status" aria-live="polite" className="sr-only">
           {announcement}
         </p>
-        <section className="flex min-h-0 flex-col justify-between border border-border bg-surface p-6 shadow-[var(--shadow-lg)] md:p-12">
+        <section className="min-w-0 rounded-3xl bg-surface p-5 sm:p-8">
           {headlinePoem ? (
-            <div className="space-y-8">
-              <div className="flex items-center gap-5">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
                 <Avatar
                   stableId={headlinePoem.readerStableId}
                   displayName={headlinePoem.readerName}
+                  avatarId={headlinePoem.readerAvatarId}
                   allStableIds={allStableIds}
-                  size="xl"
+                  size="lg"
                 />
-                <div>
-                  <p className="text-xs font-mono uppercase tracking-[0.28em] text-primary">
-                    Reader
-                  </p>
-                  <h2
-                    ref={headlineRef}
-                    tabIndex={-1}
-                    className="text-[clamp(3.25rem,8vw,9rem)] font-[var(--font-display)] leading-[0.92] text-text-primary"
-                  >
-                    {headlinePoem.readerName} reads Poem{' '}
-                    {poemNumber(headlinePoem)}
-                  </h2>
-                </div>
+                <h2
+                  ref={headlineRef}
+                  tabIndex={-1}
+                  className="min-w-0 text-xl font-bold leading-snug text-text-primary [overflow-wrap:anywhere] focus:outline-none sm:text-2xl"
+                >
+                  {headlinePoem.readerName} reads poem{' '}
+                  {poemNumber(headlinePoem)}
+                </h2>
               </div>
 
               {activePoem ? (
-                <div className="space-y-8" aria-label="Poem lines">
+                <ol aria-label="Poem lines" className="space-y-3">
                   {activePoem.lines.map((line, index) => (
-                    <p
-                      key={`${line.text}:${index}`}
-                      className="max-w-5xl font-[var(--font-display)] text-[clamp(2.4rem,5vw,6.25rem)] italic leading-[1.08] text-text-primary"
+                    <li
+                      key={index}
+                      className="grid items-baseline gap-x-6 md:grid-cols-[minmax(0,1fr)_minmax(5rem,0.3fr)]"
                     >
-                      {line.text}
-                    </p>
+                      <p className="min-w-0 whitespace-pre-wrap text-xl not-italic leading-relaxed text-text-primary [overflow-wrap:anywhere] sm:text-2xl lg:text-3xl">
+                        {line.text}
+                      </p>
+                      <span className="min-w-0 text-sm leading-relaxed text-text-secondary [overflow-wrap:anywhere]">
+                        <span className="sr-only">Written by </span>
+                        {line.authorName}
+                      </span>
+                    </li>
                   ))}
-                </div>
+                </ol>
               ) : readablePoem ? (
-                <div className="max-w-5xl space-y-5">
-                  <p className="text-xs font-mono uppercase tracking-[0.28em] text-text-muted">
-                    {readableAssignedPoem?.isFallbackReader
-                      ? `Step in for ${readableAssignedPoem.readerName}`
-                      : readableAssignedPoem
-                        ? 'Ready on this device'
-                        : 'Ready on stage'}
-                  </p>
-                  <p className="font-[var(--font-display)] text-[clamp(2.25rem,5vw,5.5rem)] italic leading-[1.1] text-text-secondary">
-                    &ldquo;{readablePoem.preview}...&rdquo;
+                <div className="space-y-3">
+                  {readableAssignedPoem?.isFallbackReader && (
+                    <p className="font-semibold text-primary">
+                      Step in for {readableAssignedPoem.readerName}
+                    </p>
+                  )}
+                  <p className="text-lg leading-relaxed text-text-secondary [overflow-wrap:anywhere] sm:text-xl">
+                    {readablePoem.preview}…
                   </p>
                 </div>
               ) : (
-                <p className="max-w-3xl text-4xl text-text-secondary">
-                  Waiting for the assigned reader to take the stage.
+                <p className="text-lg text-text-secondary">
+                  Waiting for {headlinePoem.readerName} to open their poem.
                 </p>
               )}
             </div>
           ) : (
-            <p className="text-4xl text-text-secondary">
-              No poems are ready for reveal yet.
+            <p className="text-lg text-text-secondary">
+              No poems are ready yet.
             </p>
           )}
 
-          <div className="mt-10 space-y-4">
+          <div className="mt-6 space-y-3">
             {error && <Alert variant="error">{error}</Alert>}
             {activePoem ? (
               <Button
@@ -202,16 +210,16 @@ export function RevealStage({
                 onClick={handleFinish}
                 data-testid={E2E_TEST_IDS.revealStageNextLineButton}
                 size="lg"
-                className="min-h-16 w-full text-xl sm:w-auto sm:min-w-64"
+                className="min-h-12 w-full sm:w-auto sm:min-w-32"
               >
-                Finish poem
+                Done
               </Button>
             ) : readablePoem ? (
               <Button
                 type="button"
                 onClick={handleReadOnStage}
                 size="lg"
-                className="min-h-16 w-full text-xl sm:w-auto sm:min-w-64"
+                className="min-h-12 w-full sm:w-auto"
                 disabled={
                   !!readableAssignedPoem &&
                   isRevealingId === readableAssignedPoem._id
@@ -219,55 +227,74 @@ export function RevealStage({
               >
                 {readableAssignedPoem &&
                 isRevealingId === readableAssignedPoem._id
-                  ? 'Unsealing...'
+                  ? 'Opening...'
                   : readableAssignedPoem?.isFallbackReader
-                    ? 'Step in on stage'
+                    ? 'Step in and read'
                     : readableAssignedPoem
-                      ? 'Reveal on stage'
-                      : 'Read on stage'}
+                      ? 'Read poem'
+                      : 'Read again'}
               </Button>
             ) : null}
           </div>
         </section>
 
-        <aside className="border border-border-subtle bg-background/70 p-6">
-          <p className="mb-5 text-xs font-mono uppercase tracking-[0.28em] text-text-muted">
-            Running order
-          </p>
-          <ol className="grid gap-2">
+        <aside aria-labelledby="stage-reading-order-title" className="min-w-0">
+          <h2
+            id="stage-reading-order-title"
+            className="mb-3 text-base font-bold text-text-primary"
+          >
+            Reading order
+          </h2>
+          <ol>
             {sortedPoems.map((poem) => {
-              const readingNowId =
-                activePoem?._id ??
-                sortedPoems.find((candidate) => !candidate.isRevealed)?._id ??
-                sortedPoems[0]?._id;
               const isCurrent = readingNowId === poem._id;
+              const status =
+                activePoem?._id === poem._id
+                  ? 'Reading now'
+                  : poem.isRevealed
+                    ? 'Read'
+                    : isCurrent
+                      ? 'Reading now'
+                      : upNextId === poem._id
+                        ? 'Up next'
+                        : null;
 
               return (
                 <li
                   key={poem._id}
+                  aria-current={isCurrent ? 'true' : undefined}
                   className={cn(
-                    'flex items-center justify-between gap-4 border-b border-border-subtle py-4',
-                    poem.isRevealed && 'opacity-50'
+                    'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border-subtle px-3 py-3',
+                    isCurrent && 'rounded-xl bg-surface'
                   )}
                 >
-                  <div className="min-w-0">
-                    <p className="font-mono text-sm text-text-muted">
-                      {poemNumber(poem)}
-                    </p>
-                    <p className="truncate text-2xl font-medium text-text-primary">
-                      {poem.readerName}
-                    </p>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <Avatar
+                      stableId={poem.readerStableId}
+                      displayName={poem.readerName}
+                      avatarId={poem.readerAvatarId}
+                      allStableIds={allStableIds}
+                      size="sm"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-text-primary [overflow-wrap:anywhere]">
+                        {poem.readerName}
+                      </p>
+                      <p className="text-sm text-text-secondary">
+                        Poem {poemNumber(poem)}
+                      </p>
+                    </div>
                   </div>
-                  <span
-                    className={cn(
-                      'rounded-full border px-3 py-1 text-xs font-mono uppercase tracking-[0.16em]',
-                      isCurrent
-                        ? 'border-primary text-primary'
-                        : 'border-border text-text-muted'
-                    )}
-                  >
-                    {poem.isRevealed ? 'Read' : isCurrent ? 'Now' : 'Waiting'}
-                  </span>
+                  {status && (
+                    <span
+                      className={cn(
+                        'text-sm font-semibold',
+                        isCurrent ? 'text-primary' : 'text-text-secondary'
+                      )}
+                    >
+                      {status}
+                    </span>
+                  )}
                 </li>
               );
             })}

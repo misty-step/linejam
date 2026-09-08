@@ -127,7 +127,7 @@ test.describe('Form Validation', () => {
   test('join form requires both code and name', async ({ page }) => {
     await page.goto('/join', { waitUntil: 'networkidle' });
 
-    const submitButton = page.getByRole('button', { name: /Enter Room/i });
+    const submitButton = page.getByRole('button', { name: /Join room/i });
 
     // Initially disabled (no code, no name)
     await expect(submitButton).toBeDisabled();

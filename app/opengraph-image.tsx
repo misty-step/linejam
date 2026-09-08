@@ -1,140 +1,78 @@
 import { ImageResponse } from 'next/og';
 import { designTokens } from '@/lib/design';
+import { getCardFontPairing, loadCardFonts } from '@/lib/poemCard/fonts';
 
 export const runtime = 'edge';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
-export const alt = 'Linejam - Write poems together, one line at a time';
+export const alt = 'Linejam — A little room for words.';
 
 const identityTokens = designTokens.light;
-
-// Fonts (WOFF via jsDelivr)
-const libreBaskervilleUrl =
-  'https://cdn.jsdelivr.net/npm/@fontsource/libre-baskerville/files/libre-baskerville-latin-400-normal.woff';
-const ibmPlexSansUrl =
-  'https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff';
-
-async function fetchFont(url: string): Promise<ArrayBuffer | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return res.arrayBuffer();
-  } catch {
-    return null;
-  }
-}
+const cardFonts = getCardFontPairing();
 
 export default async function Image() {
-  // Load fonts with individual error handling (allows partial success)
-  const [libreBaskerville, ibmPlexSans] = await Promise.allSettled([
-    fetchFont(libreBaskervilleUrl),
-    fetchFont(ibmPlexSansUrl),
-  ]).then((results) =>
-    results.map((r) => (r.status === 'fulfilled' ? r.value : null))
-  );
-
-  // Diamond shape representing the 1-2-3-4-5-4-3-2-1 word pattern
-  const wordCounts = [1, 2, 3, 4, 5, 4, 3, 2, 1];
-  const maxWidth = 200;
+  const { fonts } = await loadCardFonts();
 
   return new ImageResponse(
     <div
       style={{
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         width: '100%',
         height: '100%',
+        padding: '64px 80px',
         backgroundColor: identityTokens['color-background'],
-        fontFamily: 'Libre Baskerville',
-        position: 'relative',
+        color: identityTokens['color-text-primary'],
+        fontFamily: cardFonts.sansFamily,
       }}
     >
-      {/* Title */}
       <div
         style={{
-          fontSize: 120,
-          color: identityTokens['color-foreground'],
-          letterSpacing: '-0.02em',
-          marginBottom: 24,
+          fontFamily: cardFonts.displayFamily,
+          fontWeight: 500,
+          fontSize: 76,
+          color: identityTokens['color-primary'],
         }}
       >
         Linejam
       </div>
-
-      {/* Tagline */}
-      <div
-        style={{
-          fontSize: 32,
-          color: identityTokens['color-text-secondary'],
-          fontFamily: 'IBM Plex Sans',
-          marginBottom: 48,
-        }}
-      >
-        Write poems together. One line at a time.
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        <div style={{ fontSize: 64, lineHeight: 1.15 }}>
+          A little room for words.
+        </div>
+        <div
+          style={{
+            fontSize: 30,
+            color: identityTokens['color-text-secondary'],
+          }}
+        >
+          A poetry game for people who don’t have to be poets.
+        </div>
       </div>
-
-      {/* Diamond shape visualization */}
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
-          gap: 6,
+          justifyContent: 'space-between',
+          fontSize: 26,
         }}
       >
-        {wordCounts.map((count, i) => (
-          <div
-            key={i}
-            style={{
-              width: (count / 5) * maxWidth,
-              height: 8,
-              backgroundColor: identityTokens['color-primary'],
-              borderRadius: 4,
-              opacity: 0.8,
-            }}
-          />
-        ))}
+        <div
+          style={{
+            padding: '16px 28px',
+            borderRadius: identityTokens['radius-lg'],
+            backgroundColor: identityTokens['color-primary'],
+            color: identityTokens['color-text-inverse'],
+          }}
+        >
+          Write a line. Pass it on.
+        </div>
+        <div style={{ color: identityTokens['color-text-secondary'] }}>
+          linejam.app
+        </div>
       </div>
-
-      {/* Stamp */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 60,
-          right: 80,
-          width: 64,
-          height: 64,
-          borderRadius: '50%',
-          backgroundColor: identityTokens['color-primary'],
-          opacity: 0.9,
-          transform: 'rotate(-5deg)',
-        }}
-      />
     </div>,
-    {
-      ...size,
-      fonts: [
-        ...(libreBaskerville
-          ? [
-              {
-                name: 'Libre Baskerville',
-                data: libreBaskerville,
-                style: 'normal' as const,
-              },
-            ]
-          : []),
-        ...(ibmPlexSans
-          ? [
-              {
-                name: 'IBM Plex Sans',
-                data: ibmPlexSans,
-                style: 'normal' as const,
-              },
-            ]
-          : []),
-      ],
-    }
+    { ...size, fonts }
   );
 }

@@ -33,7 +33,9 @@ test('host can end an incomplete game without revealing partial poems', async ({
       session.hostPage.getByRole('heading', { name: 'End this game?' })
     ).toBeVisible();
     await expect(
-      session.hostPage.getByText('Partial poems are not revealed.')
+      session.hostPage.getByText(
+        'Everyone returns to the lobby. Partial poems stay private.'
+      )
     ).toBeVisible();
     await session.hostPage.getByRole('button', { name: 'End game' }).click();
 

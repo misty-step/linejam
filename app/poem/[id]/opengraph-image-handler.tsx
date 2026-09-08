@@ -11,6 +11,7 @@ import {
   POEM_PREVIEW_CARD_SIZE,
 } from '../../../lib/poemCard/PoemCard';
 
+import { getConvexServerUrl } from '@/lib/localMode';
 const size = POEM_PREVIEW_CARD_SIZE;
 
 // Link previews always render the fixed light identity. Social platforms cache
@@ -28,6 +29,7 @@ type ImageResponseOptions = NonNullable<
 >;
 
 export interface PoemOpenGraphDependencies {
+  loadFonts: typeof loadCardFonts;
   fetchPoemPreview(
     poemId: Id<'poems'>,
     shareSlug: string | undefined
@@ -48,8 +50,13 @@ export type PoemOpenGraphImageHandler = (
 ) => Promise<Response>;
 
 export const defaultPoemOpenGraphDependencies: PoemOpenGraphDependencies = {
+  loadFonts: loadCardFonts,
   fetchPoemPreview: (poemId, shareSlug) =>
-    fetchQuery(api.poems.getPublicPoemPreview, { poemId, shareSlug }, {}),
+    fetchQuery(
+      api.poems.getPublicPoemPreview,
+      { poemId, shareSlug },
+      { url: getConvexServerUrl() }
+    ),
   createImageResponse: (element, options) =>
     new ImageResponse(element, options),
 };
@@ -61,7 +68,7 @@ export function createPoemOpenGraphImage(
     params,
     searchParams,
   }: PoemOpenGraphImageProps) {
-    const { fonts: loadedFonts } = await loadCardFonts();
+    const { fonts: loadedFonts } = await dependencies.loadFonts();
 
     const { id } = await params;
     const { share } = (await searchParams) ?? {};
@@ -82,7 +89,7 @@ export function createPoemOpenGraphImage(
       );
     }
 
-    const metadataLine = `By ${preview.poetCount} poet${preview.poetCount !== 1 ? 's' : ''} · linejam.com`;
+    const metadataLine = `By ${preview.poetCount} poet${preview.poetCount !== 1 ? 's' : ''} on Linejam`;
 
     return dependencies.createImageResponse(
       poemPreviewCardElement({

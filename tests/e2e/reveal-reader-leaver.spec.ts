@@ -47,7 +47,7 @@ async function submitLine(page: Page, line: string) {
 
 async function revealAssignedPoem(page: Page) {
   const assignedButton = page
-    .getByRole('button', { name: 'Reveal & Read', exact: true })
+    .getByTestId(E2E_TEST_IDS.revealPoemButton)
     .filter({ visible: true });
   await expect(assignedButton).toHaveCount(1);
   await assignedButton.click();
@@ -120,7 +120,7 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
     await Promise.all(
       [hostPage, presentReaderPage, departedReaderPage].map(async (page) => {
         const assignedButton = page
-          .getByRole('button', { name: 'Reveal & Read', exact: true })
+          .getByTestId(E2E_TEST_IDS.revealPoemButton)
           .filter({ visible: true });
         await expect(assignedButton).toHaveCount(1, { timeout: 30_000 });
       })
@@ -139,7 +139,7 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
     await expect(fallbackButton).toBeVisible({
       timeout: PRESENCE_AWAY_MS + 30_000,
     });
-    await expect(fallbackButton).toHaveAccessibleName('Step In & Read');
+    await expect(fallbackButton).toHaveAccessibleName('Step in and read');
     await expect(hostPage.getByText('Step in for Reader Away')).toBeVisible();
 
     await hostPage.screenshot({

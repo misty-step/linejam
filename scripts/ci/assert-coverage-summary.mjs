@@ -54,11 +54,7 @@ export function assertCoverageSummary(candidate) {
       empty.push(name);
       continue;
     }
-    if (
-      !Number.isFinite(pct) ||
-      pct < 0 ||
-      pct > 100
-    ) {
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
       throw new Error(`Coverage metric ${name} has an invalid percentage.`);
     }
     const expectedPct = Math.floor((covered * 10_000) / total) / 100;

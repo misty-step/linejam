@@ -1,7 +1,10 @@
 # Linejam Vision
 
-Status: Canonical root vision for Linejam. `project.md` is the deeper product
-brief; this file is the north star cold agents should read first.
+Optional product context, not a work queue, instruction hierarchy, or required
+first read. Current requests authorize work; `project.md` owns the product brief
+and `DESIGN.md` the selected design. These constraints explain the product's
+intent and should be reconciled with an explicit product change, not used to
+veto the operator's request. Linear owns current work and prioritization.
 
 ## What Linejam Is
 
@@ -39,8 +42,8 @@ artifact. It does not come from more modes.
   surfaces should preserve the moment without becoming a social network.
 - Saving remains private. Publication is a separate, explicit, reversible act;
   missing or failed consent always means private.
-- Every shipped theme must meet the same mobile, contrast, text-scaling,
-  keyboard, screen-reader, and reduced-motion bar.
+- The shipped identity and both color modes must meet the same mobile, contrast,
+  text-scaling, keyboard, screen-reader, and reduced-motion bar.
 - Reliability, security headers, rate limits, and observability are part of the
   launch promise.
 - Always-on availability matters more than feature breadth. A single game mode
@@ -52,43 +55,28 @@ artifact. It does not come from more modes.
   social-network ambitions.
 - Ornamental prompts or in-game nudges that dilute the word-count constraint.
 - Public launch with known guest/mobile/reveal failures.
-- Internal mocks of app modules in tests. Mock only external systems and
-  nondeterminism.
-- Production Convex mutation or live-key setup without the explicit env gates in
-  `AGENTS.md`.
 
-## Current Bets
-
-1. Restore the public trust floor first: anonymous play survives Clerk failure,
-   private poems stay private, and red functional smoke reaches an operator.
-2. Prove the party payoff through a privacy-safe room-cycle funnel and repeated
-   in-person playtests before adding more product surface.
-3. Polish the existing loop to an unusually high UI, UX, accessibility,
-   performance, and resilience bar; freeze new game modes and keep Ink &
-   Anticipation as the single visual identity.
-4. Collapse duplicate identity, analytics, deployment, and publication paths
-   toward one explicit owner each.
-5. Keep human collaboration—not automated authorship—as the product boundary.
-6. Treat print-on-demand booklets as the only revenue stretch worth revisiting
-   after the core loop earns repeat play.
-
-## What Excellent Looks Like In 6–12 Months
+## Desired experience
 
 Linejam is a host's default creative icebreaker for a 2–6 person gathering: a
 new group starts on phones without accounts or explanation, finishes reliably,
 performs the reveal aloud, keeps a private artifact, and intentionally chooses
 whether to publish it. The team can see where real parties stall or replay
-without collecting poem text. Every retained theme is accessible, one declared
+without collecting poem text. The shipped identity is accessible, one declared
 production control plane is boring to deploy and roll back, and incidents are
 visible before a player has to report them.
 
 ## Where The Depth Lives
 
-- `project.md` is the product brief: target user, glossary, active focus,
-  quality bar, patterns, and anti-goals.
-- `AGENTS.md` is the agent router for authority, domain invariants, and evidence.
+- `project.md` is the product brief: target user, glossary, selected identity,
+  quality expectations, patterns, and anti-goals.
+- `AGENTS.md` is the agent router, gate contract, invariants, and environment
+  boundary map.
 - `README.md` is the public project orientation and contributor entrypoint.
-- Linear owns current work and priorities. GitHub and Sentry remain native
-  incident evidence; [#393](https://github.com/misty-step/linejam/issues/393)
-  records the Sentry production cutover.
-- `docs/testing.md` and hosted `merge-gate` define the validation surface.
+- Linear owns current work, prioritization, and selected unresolved opportunities;
+  historical GitHub Issues remain linked evidence, not a required intake queue.
+  `CONTRIBUTING.md` explains how to start from the current request. Sentry remains
+  the incident-evidence platform; [#393](https://github.com/misty-step/linejam/issues/393)
+  records its production cutover.
+- `docs/testing.md`, Dagger code, and hosted `merge-gate` define the validation
+  surface.

@@ -33,6 +33,7 @@ import {
   buildRevealParticipants,
   selectRevealAuthority,
 } from './lib/revealAuthorization';
+import { getDefaultAvatarId } from '../lib/avatars';
 
 export const startGame = mutation({
   args: {
@@ -417,7 +418,7 @@ export const getRevealPhaseState = query({
       .withIndex('by_game', (q) => q.eq('gameId', game._id))
       .collect();
 
-    // Batch fetch user records for stable IDs (for avatar colors)
+    // Reuse the identity records for stable IDs and legacy avatar defaults.
     const playerUserRecords = await Promise.all(
       players.map((p) => ctx.db.get(p.userId))
     );
@@ -447,6 +448,11 @@ export const getRevealPhaseState = query({
         const readerUserRecord = poem.assignedReaderId
           ? userRecordById.get(poem.assignedReaderId)
           : null;
+        const readerStableId =
+          readerUserRecord?.clerkUserId ||
+          readerUserRecord?.guestId ||
+          poem.assignedReaderId ||
+          '';
 
         return {
           _id: poem._id,
@@ -455,11 +461,9 @@ export const getRevealPhaseState = query({
           preview: firstLine?.text || '',
           assignedReaderId: poem.assignedReaderId,
           readerName: reader?.displayName || 'Unknown',
-          readerStableId:
-            readerUserRecord?.clerkUserId ||
-            readerUserRecord?.guestId ||
-            poem.assignedReaderId ||
-            '',
+          readerStableId,
+          readerAvatarId:
+            reader?.avatarId ?? getDefaultAvatarId(readerStableId),
           revealedAt: poem.revealedAt,
           isRevealed: !!poem.revealedAt,
           canReveal:
@@ -551,10 +555,13 @@ export const getRevealPhaseState = query({
       isHost: room.hostUserId === user._id,
       players: players.map((p) => {
         const userRecord = userRecordById.get(p.userId);
+        const stableId =
+          userRecord?.clerkUserId || userRecord?.guestId || p.userId;
         return {
           userId: p.userId,
           displayName: p.displayName,
-          stableId: userRecord?.clerkUserId || userRecord?.guestId || p.userId,
+          stableId,
+          avatarId: p.avatarId ?? getDefaultAvatarId(stableId),
         };
       }),
     };
@@ -648,7 +655,7 @@ export const getRoundProgress = query({
     // Create poemIndex -> poem lookup map
     const poemByIndex = new Map(poems.map((p) => [p.indexInRoom, p]));
 
-    // Fetch user records to get stable IDs for avatar colors
+    // Reuse the identity records for stable IDs and legacy avatar defaults.
     const userRecords = await Promise.all(
       roomPlayers.map((rp) => ctx.db.get(rp.userId))
     );
@@ -685,6 +692,8 @@ export const getRoundProgress = query({
     const now = Date.now();
     const progress = playerAssignments.map(({ player, poemIndex }, i) => {
       const userRecord = userById.get(player.userId);
+      const stableId =
+        userRecord?.clerkUserId || userRecord?.guestId || player.userId;
       return {
         displayName: player.displayName,
         submitted: lineChecks[i] !== null,
@@ -693,8 +702,8 @@ export const getRoundProgress = query({
         // completion; the next game will include them normally.
         isSpectator: poemIndex === -1,
         userId: player.userId,
-        stableId:
-          userRecord?.clerkUserId || userRecord?.guestId || player.userId,
+        stableId,
+        avatarId: player.avatarId ?? getDefaultAvatarId(stableId),
         isAway: isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS),
       };
     });

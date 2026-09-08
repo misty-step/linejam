@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { isSentryEnabled } from './lib/errorCore';
 
 /**
  * Next.js loads this hook once in each server runtime. Runtime-specific SDK
@@ -22,10 +23,7 @@ export function onRequestError(
   context: Parameters<typeof Sentry.captureRequestError>[2],
   capturer: RequestErrorCapturer = Sentry.captureRequestError
 ) {
-  if (
-    process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1' ||
-    !process.env.NEXT_PUBLIC_SENTRY_DSN?.trim()
-  ) {
+  if (!isSentryEnabled()) {
     return;
   }
 

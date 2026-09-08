@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
+import { requireClerkBrowserAuth } from './support/clerk';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { isolateGuestSessionIp } from './support/guestFlow';
 
@@ -152,7 +153,8 @@ for (const width of [320, 390]) {
 
 test('mobile sign-in presents the account task before the poem showcase', async ({
   page,
-}) => {
+}, testInfo) => {
+  requireClerkBrowserAuth(testInfo, 'mobile sign-in');
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
 
@@ -178,7 +180,8 @@ for (const viewport of [
 ]) {
   test(`rotated phone keeps sign-in focused at ${viewport.width}x${viewport.height}`, async ({
     page,
-  }) => {
+  }, testInfo) => {
+    requireClerkBrowserAuth(testInfo, 'rotated sign-in');
     await page.setViewportSize(viewport);
     await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
 
@@ -190,11 +193,14 @@ for (const viewport of [
   });
 }
 
-test('mobile sign-up presents one focused account task', async ({ page }) => {
+test('mobile sign-up presents one focused account task', async ({
+  page,
+}, testInfo) => {
+  requireClerkBrowserAuth(testInfo, 'mobile sign-up');
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
 
-  const heading = page.getByRole('heading', { name: /join the jam/i });
+  const heading = page.getByRole('heading', { name: /create an account/i });
   await expect(heading).toBeVisible();
   await expect(heading).toBeInViewport();
   await expect(page.getByText('Recent Creation')).toBeHidden();

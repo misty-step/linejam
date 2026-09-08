@@ -33,7 +33,6 @@ const RUN_ID_PATTERN = /[^a-zA-Z0-9._-]/g;
  * }) => AgenticChildProcess} AgenticSpawnProcess
  */
 
-
 function timestamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }

@@ -6,6 +6,35 @@ issues are context, not an automatic queue.
 
 ## Authority
 
+- State the goal, files/systems in scope, and live authority before mutation.
+- Preserve user work: inspect `git status`, never overwrite unrelated changes,
+  and never use destructive Git commands.
+- Work from the operator's current request. Check current code and overlapping
+  work before implementation. Linear owns current work and priorities; historical
+  issues are context, not a required queue.
+- Base branch: `master`. Commits and PR titles use Conventional Commits.
+
+## Sources of truth
+
+| Concern                         | Source                                                        |
+| ------------------------------- | ------------------------------------------------------------- |
+| Product and architecture        | `project.md`, `DESIGN.md`, `docs/ARCHITECTURE.md`             |
+| Data/API                        | `convex/schema.ts`, `convex/_generated/api.d.ts`              |
+| Assignment rules                | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`   |
+| Tests and QA                    | `docs/testing.md`, `vitest.config.ts`, Playwright configs     |
+| CI and live-operation authority | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`   |
+| Production operations           | `docs/deployment.md`                                          |
+| Data retention                  | `docs/ops/data-retention.md`, `convex/lib/retentionPolicy.ts` |
+| Convex environment contract     | `config/convex-env-manifest.json`                             |
+| Schema migration sequencing     | `docs/convex-migrations.md`                                   |
+| DigitalOcean topology contract  | `config/digitalocean-apps.json`, `pnpm ops:do-drift`          |
+| Agent CLI/MCP                   | `.agents/skills/linejam-cli/SKILL.md`, `docs/agent-faces.md`  |
+
+The live stack is declared in `package.json`; do not copy dependency versions
+or test counts into agent prose.
+
+## Authority boundaries
+
 - Read-only investigation, focused checks, and requested worktree edits are
   local actions. External writes need task or operator authority.
 - Start long-running processes only when commissioned, with a named shutdown
@@ -51,10 +80,10 @@ commissioned complete multiplayer browser verification, not every UI edit.
 Only observed completion, room closure, fresh-session rejection, session
 cleanup, and inspected run-local artifacts can support its pass receipt.
 
-Keep raw or sensitive run output in approved retained artifact storage, not
+Before handoff, adversarially review the diff for stale claims, authority
+ambiguity, accidental scope, secret exposure, and safety regressions. Keep
+raw or sensitive run output in approved retained artifact storage, not
 repository fixtures. Share sanitized, revision-specific conclusions and
-links in Linear or the PR; fixtures, selected safe shipped assets, and
-machine-consumed release content remain versioned. Record exact commands,
-exercised surfaces, and unverified risk. Review, merge, deploy, monitor, and
-production verification are distinct operations, each requiring its own
-authorized scope.
+links in Linear or the PR. Record exact commands, exercised surfaces, and
+unverified risk. Review, merge, deploy, monitor, and production verification
+are distinct operations, each requiring its own authorized scope.

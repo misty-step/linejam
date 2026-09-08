@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Word Carnival — an original Linejam design exploration. All rooms and poems on this page are local design sketches.">
+  <title>Word Carnival · Linejam design sketch</title>
+  <script>
+    {
+      const firstPaint = new URLSearchParams(location.search);
+      const chosenMode = firstPaint.get('mode') || 'light';
+      document.documentElement.dataset.mode = chosenMode === 'dark' || chosenMode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.embed = String(firstPaint.get('embed') === '1');
+    }
+  </script>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body data-direction="word-carnival" data-surface-id="home">
+  <a class="skip-link" href="#stage">Skip to design sketch</a>
+  <aside class="exploration" aria-label="Exploration controls">
+    <div class="exploration-title"><a href="../">All five directions</a><strong>Word Carnival</strong><span>Local design sketch, not live gameplay</span></div>
+    <div class="exploration-inputs">
+      <label>Surface<select id="surface-select"><option value="view">View</option><option value="component">Component</option><option value="motion">Motion</option><option value="sensory">Sensory</option></select></label>
+      <label class="entry-control">Example<select id="entry-select"></select></label>
+      <label>State<select id="state-select"></select></label>
+      <label>Mode<select id="mode-select"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+      <label class="check-control"><input type="checkbox" id="reduced-select">Reduce motion</label>
+    </div>
+  </aside>
+  <div id="app"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog id="modal" aria-labelledby="modal-title"></dialog>
+</body>
+</html>

@@ -113,6 +113,80 @@ function runDaggerCall(
   );
 }
 
+function createProviderFixture() {
+  const fixture = createWorkspaceFixture();
+  const { workspace, scriptsDir, binDir } = fixture;
+  for (const script of ['dotenv.mjs', 'ensure-clerk-convex-template.mjs']) {
+    copyFileSync(
+      resolve(process.cwd(), 'scripts/ci', script),
+      join(scriptsDir, script)
+    );
+  }
+  const convexCalls = join(workspace, 'convex-calls');
+  const clerkWrites = join(workspace, 'clerk-writes');
+  const daggerInvoked = join(workspace, 'dagger-invoked');
+  const providerBoundary = join(workspace, 'provider-boundary.mjs');
+  writeExecutable(
+    join(binDir, 'pnpm'),
+    `#!/bin/sh
+printf '%s\\n' "$*" >> "${convexCalls}"
+case "$*" in
+  *"function-spec --prod"*) printf '{"url": "https://prod.example.test"}\\n' ;;
+  *"function-spec"*) printf '{"url": "https://dev.example.test"}\\n' ;;
+  *"env get GUEST_TOKEN_SECRET"*) printf 'remote-secret\\n' ;;
+  *"env get CLERK_JWT_ISSUER_DOMAIN"*) printf '\\n' ;;
+  *"env set"*|*"convex dev"*|*"convex deploy"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+  );
+  writeFileSync(
+    providerBoundary,
+    `import { writeFileSync } from 'node:fs';
+globalThis.fetch = async (url, options = {}) => {
+  if (url !== 'https://api.clerk.com/v1/jwt_templates') {
+    throw new Error('Unexpected provider request: ' + url);
+  }
+  const template = { id: 'fixture-template', name: 'convex' };
+  if ((options.method || 'GET') !== 'GET') {
+    writeFileSync(${JSON.stringify(clerkWrites)}, options.method);
+    return new Response(JSON.stringify(template), { status: 200 });
+  }
+  return new Response(JSON.stringify(
+    process.env.CLERK_FIXTURE_MISSING === '1' ? [] : [template]
+  ), { status: 200 });
+};
+`
+  );
+  writeExecutable(
+    join(binDir, 'dagger'),
+    `#!/bin/sh
+printf 'checked' > "${daggerInvoked}"
+`
+  );
+  initGitRepo(workspace);
+  return {
+    ...fixture,
+    convexCalls,
+    clerkWrites,
+    daggerInvoked,
+    env: {
+      CI: '',
+      NODE_OPTIONS: `--import=${providerBoundary}`,
+      NEXT_PUBLIC_CONVEX_URL: 'https://dev.example.test',
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_fixture',
+      CLERK_SECRET_KEY: 'sk_test_fixture',
+      CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.example.test',
+      GUEST_TOKEN_SECRET: 'fixture-guest-secret',
+      LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '1',
+      LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+      LINEJAM_ALLOW_PROD_CONVEX_SYNC: '1',
+      LINEJAM_ALLOW_LIVE_CLERK_TEMPLATE_CREATE: '1',
+      CLERK_FIXTURE_MISSING: '0',
+    },
+  };
+}
+
 describe('dagger-call.sh', () => {
   const workspaces: string[] = [];
 
@@ -180,44 +254,54 @@ printf '%s' "\${NEXT_PUBLIC_SENTRY_DSN:-}" > "${envLog}"
     );
   });
 
-  it('passes the explicit unsynced Convex throttle flag into Dagger E2E', () => {
-    const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
-    workspaces.push(workspace);
+  it.each(['all', 'e2e'])(
+    '%s checks existing configuration without shared-provider preparation',
+    (command) => {
+      const fixture = createProviderFixture();
+      workspaces.push(fixture.workspace);
 
-    const argsLog = join(workspace, 'dagger-args.log');
+      const result = runDaggerCall(
+        fixture.workspace,
+        fixture.binDir,
+        command,
+        fixture.env
+      );
 
-    copyFileSync(
-      resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
-      join(scriptsDir, 'dotenv.mjs')
-    );
-    writeExecutable(
-      join(binDir, 'dagger'),
-      `#!/bin/sh
-printf '%s\\n' "$@" > "${argsLog}"
-`
-    );
+      expect(result.status).toBe(0);
+      expect(existsSync(fixture.daggerInvoked)).toBe(true);
+      expect(existsSync(fixture.convexCalls)).toBe(false);
+      expect(existsSync(fixture.clerkWrites)).toBe(false);
+    }
+  );
 
-    initGitRepo(workspace);
+  it('fails auth preparation instead of creating a missing Clerk template', () => {
+    const fixture = createProviderFixture();
+    workspaces.push(fixture.workspace);
 
-    const result = runDaggerCall(workspace, binDir, 'e2e', {
-      CLERK_PUBLISHABLE_KEY: '',
-      CLERK_SECRET_KEY: '',
-      GUEST_TOKEN_SECRET: 'test-guest-token-secret',
-      LINEJAM_ALLOW_UNSYNCED_CONVEX_THROTTLE: '1',
-      LINEJAM_SYNC_CONVEX_BEFORE_DAGGER: '0',
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
-      NEXT_PUBLIC_CONVEX_URL: 'https://test.convex.cloud',
-      NEXT_PUBLIC_SENTRY_RELEASE: 'a'.repeat(40),
-      PLAYWRIGHT_CLERK_TEST_EMAIL: '',
+    const result = runDaggerCall(fixture.workspace, fixture.binDir, 'e2e', {
+      ...fixture.env,
+      CLERK_FIXTURE_MISSING: '1',
     });
 
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
+    expect(existsSync(fixture.clerkWrites)).toBe(false);
+    expect(existsSync(fixture.convexCalls)).toBe(false);
+    expect(existsSync(fixture.daggerInvoked)).toBe(false);
+  });
 
-    const args = readFileSync(argsLog, 'utf8').trim().split('\n');
-    expect(args).toContain('e-2-e');
-    expect(args).toContain('--playwright-require-auth-e2e=1');
-    expect(args).toContain('--linejam-allow-unsynced-convex-throttle=1');
-    expect(args).toContain(`--next-public-sentry-release=${'a'.repeat(40)}`);
+  it('requires a supplied guest secret instead of reading it from Convex', () => {
+    const fixture = createProviderFixture();
+    workspaces.push(fixture.workspace);
+
+    const result = runDaggerCall(fixture.workspace, fixture.binDir, 'all', {
+      ...fixture.env,
+      GUEST_TOKEN_SECRET: '',
+    });
+
+    expect(result.status).toBe(1);
+    expect(existsSync(fixture.convexCalls)).toBe(false);
+    expect(existsSync(fixture.clerkWrites)).toBe(false);
+    expect(existsSync(fixture.daggerInvoked)).toBe(false);
   });
 
   it('refuses a shared dev sync without per-invocation authority', () => {
@@ -269,7 +353,7 @@ printf '%s\\n' "$@" > "${argsLog}"
     expect(result.stderr).toContain('explicit remote NEXT_PUBLIC_CONVEX_URL');
   });
 
-  it('syncs only the confirmed shared dev deployment and verifies it afterward', () => {
+  it('discovers targets independently of a scoped deploy key and retains that key only for the authorized sync', () => {
     const { workspace, scriptsDir, binDir } = createWorkspaceFixture();
     workspaces.push(workspace);
 
@@ -287,9 +371,16 @@ printf '%s\\n' "$@" > "${argsLog}"
       `#!/bin/sh
 printf '%s\n' "$*" >> "${callsLog}"
 case "$*" in
-  *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
-  *"function-spec"*) printf '{"url": "https://dev.example.test", "functions": []}\n' ;;
-  *"convex dev --once"*) exit 0 ;;
+  *"function-spec"*)
+    if [ -n "$CONVEX_DEPLOY_KEY" ] || [ -n "$CONVEX_DEPLOYMENT_TOKEN" ]; then
+      printf '{"url": "https://dev.example.test", "functions": []}\n'
+    else
+      case "$*" in
+        *"--prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
+        *) printf '{"url": "https://dev.example.test", "functions": []}\n' ;;
+      esac
+    fi ;;
+  *"convex dev --once"*) test "$CONVEX_DEPLOY_KEY" = "fixture-dev-deploy-key" ;;
   *) exit 2 ;;
 esac
 `
@@ -298,6 +389,8 @@ esac
 
     const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
       LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+      CONVEX_DEPLOY_KEY: 'fixture-dev-deploy-key',
+      CONVEX_DEPLOYMENT_TOKEN: 'fixture-legacy-deploy-key',
     });
 
     expect(result.status).toBe(0);
@@ -306,7 +399,69 @@ esac
     expect(calls).toContain(
       'exec convex dev --once --typecheck disable --codegen disable'
     );
-    expect(calls.match(/exec convex function-spec/g)).toHaveLength(3);
+  });
+
+  it('does not sync when production identity cannot be verified', () => {
+    const fixture = createProviderFixture();
+    workspaces.push(fixture.workspace);
+    writeExecutable(
+      join(fixture.binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\\n' "$*" >> "${fixture.convexCalls}"
+case "$*" in
+  *"function-spec --prod"*) exit 1 ;;
+  *"function-spec"*) printf '{"url": "https://dev.example.test"}\\n' ;;
+  *"convex dev"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+
+    const result = runDaggerCall(
+      fixture.workspace,
+      fixture.binDir,
+      'sync-shared-dev',
+      fixture.env
+    );
+
+    expect(result.status).toBe(1);
+    expect(readFileSync(fixture.convexCalls, 'utf8')).not.toContain(
+      'convex dev'
+    );
+  });
+
+  it('rejects a production-scoped credential even with a valid development target', () => {
+    const fixture = createProviderFixture();
+    workspaces.push(fixture.workspace);
+    writeExecutable(
+      join(fixture.binDir, 'pnpm'),
+      `#!/bin/sh
+printf '%s\\n' "$*" >> "${fixture.convexCalls}"
+case "$*" in
+  *"function-spec --prod"*) printf '{"url": "https://prod.example.test"}\\n' ;;
+  *"function-spec"*)
+    if [ -n "$CONVEX_DEPLOY_KEY" ]; then
+      printf '{"url": "https://prod.example.test"}\\n'
+    else
+      printf '{"url": "https://dev.example.test"}\\n'
+    fi ;;
+  *"convex dev"*) exit 0 ;;
+  *) exit 2 ;;
+esac
+`
+    );
+
+    const result = runDaggerCall(
+      fixture.workspace,
+      fixture.binDir,
+      'sync-shared-dev',
+      { ...fixture.env, CONVEX_DEPLOY_KEY: 'fixture-prod-deploy-key' }
+    );
+
+    expect(result.status).toBe(1);
+    expect(readFileSync(fixture.convexCalls, 'utf8')).not.toContain(
+      'convex dev'
+    );
   });
 
   it('refuses a shared dev sync when the configured target is production', () => {
@@ -338,6 +493,7 @@ esac
 
     const result = runDaggerCall(workspace, binDir, 'sync-shared-dev', {
       LINEJAM_ALLOW_SHARED_DEV_CONVEX_SYNC: '1',
+      LINEJAM_ALLOW_PROD_CONVEX_SYNC: '1',
     });
 
     expect(result.status).toBe(1);
@@ -386,7 +542,7 @@ esac
     workspaces.push(workspace);
 
     const callsLog = join(workspace, 'pnpm-calls.log');
-    const devProbeMarker = join(workspace, 'dev-probed');
+    const syncMarker = join(workspace, 'synced');
     copyFileSync(
       resolve(process.cwd(), 'scripts/ci/dotenv.mjs'),
       join(scriptsDir, 'dotenv.mjs')
@@ -402,14 +558,13 @@ printf '%s\n' "$*" >> "${callsLog}"
 case "$*" in
   *"function-spec --prod"*) printf '{"url": "https://prod.example.test", "functions": []}\n' ;;
   *"function-spec"*)
-    if [ -f "${devProbeMarker}" ]; then
+    if [ -f "${syncMarker}" ]; then
       printf '{"url": "https://changed.example.test", "functions": []}\n'
     else
-      : > "${devProbeMarker}"
       printf '{"url": "https://dev.example.test", "functions": []}\n'
     fi
     ;;
-  *"convex dev --once"*) exit 0 ;;
+  *"convex dev --once"*) : > "${syncMarker}" ;;
   *) exit 2 ;;
 esac
 `
