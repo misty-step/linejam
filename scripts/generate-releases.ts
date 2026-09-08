@@ -1,361 +1,90 @@
 #!/usr/bin/env npx tsx
-/**
- * Generate static release content from CHANGELOG.md.
- *
- * Usage:
- *   pnpm generate:releases           # Generate missing only
- *   pnpm generate:releases --force   # Regenerate all
- *   pnpm generate:releases --dry-run # Parse only, no writes
- *
- * Process:
- * 1. Parse CHANGELOG.md
- * 2. For each release not in content/releases/:
- *    - Generate product notes via OpenRouter (Gemini Flash)
- *    - Write changelog.json and notes.md
- * 3. Update manifest.json
- */
-
-import fs from 'fs';
-import path from 'path';
-import type {
-  ChangeType,
-  Release,
-  ReleaseManifest,
-  ChangelogEntry,
-  ReleaseWithNotes,
-} from '../lib/releases/types';
-import { parseChangelog } from '../lib/releases/parser';
-import { TYPE_LABELS } from '../lib/releases/types';
+/** Project checked-in Landmark notes and technical history. No provider calls. */
+import fs from 'node:fs';
+import path from 'node:path';
+import { readReleaseSources, releaseManifest } from '../lib/releases/loader';
+import type { Release } from '../lib/releases/types';
+import { renderReleaseFeed } from '../lib/releases/feed';
 import { renderSiteChangelogHtml } from './releases/site-changelog';
 
-const CONTENT_DIR = path.join(process.cwd(), 'content', 'releases');
-const CHANGELOG_PATH = path.join(process.cwd(), 'CHANGELOG.md');
-const SITE_CHANGELOG_PATH = path.join(process.cwd(), 'site', 'changelog.html');
-
-// CLI args
-const args = process.argv.slice(2);
-const force = args.includes('--force');
-const dryRun = args.includes('--dry-run');
-const verbose = args.includes('--verbose') || args.includes('-v');
-const siteOnly = args.includes('--site-only');
-
-/**
- * Generate product-friendly notes from technical changelog entries.
- */
-async function generateProductNotes(release: Release): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    console.warn('⚠️  OPENROUTER_API_KEY not set, using fallback notes');
-    return generateFallbackNotes(release);
+export function generateReleases({
+  root = process.cwd(),
+  check = false,
+  dryRun = false,
+}: { root?: string; check?: boolean; dryRun?: boolean } = {}): string[] {
+  const catalog = readReleaseSources(root);
+  for (const diagnostic of catalog.diagnostics) {
+    console.warn(`${diagnostic.severity}: ${diagnostic.message}`);
   }
-
-  const changesText = release.changes
-    .map((c) => `- ${c.type}${c.scope ? `(${c.scope})` : ''}: ${c.description}`)
-    .join('\n');
-
-  const prompt = `You are a product marketer writing release notes for a web app called Linejam - a real-time collaborative poetry game.
-
-Convert these technical changelog entries into user-friendly release notes:
-
-Version: ${release.version}
-Date: ${release.date}
-
-Technical changes:
-${changesText}
-
-Write 2-4 short paragraphs that:
-1. Lead with the most impactful user-facing change
-2. Use plain language, not technical jargon
-3. Focus on benefits to players
-4. Keep it conversational and warm
-5. Skip internal/technical changes users don't care about
-
-Output only the release notes text, no headers or version numbers.`;
-
-  try {
-    const response = await fetch(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://linejam.app',
-          'X-Title': 'Linejam Release Notes Generator',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-001',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 500,
-          temperature: 0.7,
-        }),
-      }
+  if (
+    catalog.diagnostics.some((diagnostic) => diagnostic.severity === 'error')
+  ) {
+    throw new Error(
+      'Release sources are invalid; no projections were written.'
     );
-
-    if (!response.ok) {
-      console.error(
-        'OpenRouter API error:',
-        response.status,
-        response.statusText
-      );
-      return generateFallbackNotes(release);
+  }
+  const outputs = new Map<string, string>([
+    [
+      'content/releases/manifest.json',
+      `${JSON.stringify(releaseManifest(catalog), null, 2)}\n`,
+    ],
+    ['site/changelog.html', renderSiteChangelogHtml(catalog)],
+    ['docs/releases/feed.xml', renderReleaseFeed(catalog)],
+  ]);
+  for (const release of catalog.releases) {
+    const technical: Release = {
+      version: release.version,
+      date: release.date,
+      changes: release.changes,
+    };
+    if (release.compareUrl) {
+      technical.compareUrl = release.compareUrl;
     }
+    outputs.set(
+      `content/releases/v${release.version}/changelog.json`,
+      `${JSON.stringify(technical, null, 2)}\n`
+    );
+  }
+  const changed: string[] = [];
+  for (const [relative, content] of outputs) {
+    const filename = path.join(root, relative);
+    if (
+      fs.existsSync(filename) &&
+      fs.readFileSync(filename, 'utf8') === content
+    )
+      continue;
+    changed.push(relative);
+    if (!check && !dryRun) {
+      fs.mkdirSync(path.dirname(filename), { recursive: true });
+      fs.writeFileSync(filename, content);
+    }
+  }
+  if (check && changed.length > 0) {
+    throw new Error(
+      `Release projections are out of sync:\n${changed.join('\n')}\nRun pnpm generate:releases and commit the results.`
+    );
+  }
+  return changed;
+}
 
-    const data = await response.json();
-    return (
-      data.choices?.[0]?.message?.content?.trim() ||
-      generateFallbackNotes(release)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  try {
+    const args = process.argv.slice(2);
+    for (const arg of args) {
+      if (!['--check', '--dry-run'].includes(arg))
+        throw new Error(`Unknown argument: ${arg}`);
+    }
+    const changed = generateReleases({
+      check: args.includes('--check'),
+      dryRun: args.includes('--dry-run'),
+    });
+    console.log(
+      changed.length > 0
+        ? `${args.includes('--dry-run') ? 'Would update' : 'Updated'}:\n${changed.join('\n')}`
+        : 'Release projections are up to date.'
     );
   } catch (error) {
-    console.error('Failed to generate notes:', error);
-    return generateFallbackNotes(release);
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
   }
 }
-
-/**
- * Generate simple fallback notes when LLM unavailable.
- */
-function generateFallbackNotes(release: Release): string {
-  const userFacingTypes = new Set(['feat', 'fix', 'perf', 'refactor']);
-  const selectedChanges = release.changes
-    .filter((change) => userFacingTypes.has(change.type))
-    .slice(0, 4);
-
-  if (selectedChanges.length === 0) {
-    return 'Maintenance updates for Linejam.';
-  }
-
-  return selectedChanges.map(formatFallbackChange).join('\n\n');
-}
-
-/**
- * Format one parsed changelog entry as a plain-language fallback note.
- */
-function formatFallbackChange(change: ChangelogEntry): string {
-  const scope = change.scope ? `${change.scope}: ` : '';
-  const description = change.description.replace(/\s+/g, ' ').trim();
-  const sentence = description.endsWith('.') ? description : `${description}.`;
-
-  return `${scope}${sentence}`;
-}
-
-function isKnownChangeType(type: string): type is keyof typeof TYPE_LABELS {
-  return Object.hasOwn(TYPE_LABELS, type);
-}
-
-export type GroupedChanges = {
-  [K in ChangeType]?: ChangelogEntry[];
-};
-
-/**
- * Group changes by type.
- */
-function groupByType(changes: ChangelogEntry[]): GroupedChanges {
-  const acc: GroupedChanges = {};
-  for (const change of changes) {
-    const type = change.type;
-    const group = acc[type] ?? [];
-    group.push(change);
-    acc[type] = group;
-  }
-  return acc;
-}
-
-/**
- * Write release content to disk.
- */
-function writeRelease(release: Release, productNotes: string): void {
-  const versionDir = path.join(
-    CONTENT_DIR,
-    `v${release.version.replace(/^v/, '')}`
-  );
-
-  if (!fs.existsSync(versionDir)) {
-    fs.mkdirSync(versionDir, { recursive: true });
-  }
-
-  // Write changelog.json
-  const changelogPath = path.join(versionDir, 'changelog.json');
-  fs.writeFileSync(changelogPath, JSON.stringify(release, null, 2));
-
-  // Write notes.md
-  const notesPath = path.join(versionDir, 'notes.md');
-  fs.writeFileSync(notesPath, productNotes);
-
-  console.log(`  ✅ Wrote ${release.version}`);
-}
-
-/**
- * Update the manifest.
- */
-function writeManifest(releases: Release[]): void {
-  // Sort by semver descending
-  const sorted = [...releases].sort((a, b) => {
-    const [aMaj, aMin, aPat] = a.version
-      .replace(/^v/, '')
-      .split('.')
-      .map(Number);
-    const [bMaj, bMin, bPat] = b.version
-      .replace(/^v/, '')
-      .split('.')
-      .map(Number);
-    if (bMaj !== aMaj) return bMaj - aMaj;
-    if (bMin !== aMin) return bMin - aMin;
-    return bPat - aPat;
-  });
-
-  const manifest: ReleaseManifest = {
-    latest: sorted[0]?.version || '',
-    versions: sorted.map((r) => r.version),
-    generatedAt: new Date().toISOString(),
-  };
-
-  const manifestPath = path.join(CONTENT_DIR, 'manifest.json');
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-
-  console.log(`  ✅ Updated manifest (${manifest.versions.length} versions)`);
-}
-
-/**
- * Read generated product notes for a release.
- */
-function readProductNotes(release: Release): string {
-  const versionDir = path.join(
-    CONTENT_DIR,
-    `v${release.version.replace(/^v/, '')}`
-  );
-  const notesPath = path.join(versionDir, 'notes.md');
-
-  if (!fs.existsSync(notesPath)) {
-    return generateFallbackNotes(release);
-  }
-
-  return fs.readFileSync(notesPath, 'utf-8').trim();
-}
-
-/**
- * Write the marketing-site changelog from the same release records as /releases.
- */
-function writeSiteChangelog(releases: Release[]): void {
-  const releasesWithNotes: ReleaseWithNotes[] = releases.map((release) => ({
-    ...release,
-    productNotes: readProductNotes(release),
-  }));
-
-  fs.writeFileSync(
-    SITE_CHANGELOG_PATH,
-    renderSiteChangelogHtml(releasesWithNotes)
-  );
-
-  console.log('  ✅ Updated site/changelog.html');
-}
-
-/**
- * Get existing versions from disk.
- */
-function getExistingVersions(): Set<string> {
-  if (!fs.existsSync(CONTENT_DIR)) {
-    return new Set();
-  }
-
-  const dirs = fs.readdirSync(CONTENT_DIR, { withFileTypes: true });
-  return new Set(
-    dirs
-      .filter((d) => d.isDirectory() && d.name.startsWith('v'))
-      .map((d) => d.name.slice(1)) // Remove 'v' prefix
-  );
-}
-
-/**
- * Main entry point.
- */
-async function main(): Promise<void> {
-  console.log('📦 Generating release content...\n');
-
-  // Check CHANGELOG.md exists
-  if (!fs.existsSync(CHANGELOG_PATH)) {
-    console.error('❌ CHANGELOG.md not found');
-    console.log('   Create CHANGELOG.md following Keep a Changelog format');
-    process.exit(1);
-  }
-
-  // Parse CHANGELOG.md
-  const content = fs.readFileSync(CHANGELOG_PATH, 'utf-8');
-  const releases = parseChangelog(content);
-
-  console.log(`📋 Found ${releases.length} release(s) in CHANGELOG.md`);
-  if (verbose) {
-    for (const r of releases) {
-      console.log(`   - ${r.version} (${r.date}): ${r.changes.length} changes`);
-    }
-  }
-
-  if (releases.length === 0) {
-    console.log('\n⚠️  No releases found in CHANGELOG.md');
-    process.exit(0);
-  }
-
-  if (siteOnly) {
-    writeSiteChangelog(releases);
-    process.exit(0);
-  }
-
-  if (dryRun) {
-    console.log('\n🔍 Dry run - no files written');
-    for (const release of releases) {
-      console.log(`\n${release.version} (${release.date}):`);
-      const grouped = groupByType(release.changes);
-      for (const [type, changes] of Object.entries(grouped)) {
-        if (!changes) continue;
-        const label = isKnownChangeType(type) ? TYPE_LABELS[type] : type;
-        console.log(`  ${label}:`);
-        for (const change of changes) {
-          const scope = change.scope ? `(${change.scope}) ` : '';
-          console.log(`    - ${scope}${change.description}`);
-        }
-      }
-    }
-    process.exit(0);
-  }
-
-  // Ensure content directory exists
-  if (!fs.existsSync(CONTENT_DIR)) {
-    fs.mkdirSync(CONTENT_DIR, { recursive: true });
-  }
-
-  // Determine which releases to process
-  const existingVersions = getExistingVersions();
-  const toProcess = force
-    ? releases
-    : releases.filter(
-        (r) => !existingVersions.has(r.version.replace(/^v/, ''))
-      );
-
-  if (toProcess.length === 0) {
-    console.log('\n✅ All releases already generated');
-    writeManifest(releases);
-    writeSiteChangelog(releases);
-    process.exit(0);
-  }
-
-  console.log(`\n🔄 Processing ${toProcess.length} release(s)...\n`);
-
-  // Generate content for each release
-  for (const release of toProcess) {
-    console.log(`📝 Generating ${release.version}...`);
-    const productNotes = await generateProductNotes(release);
-    writeRelease(release, productNotes);
-  }
-
-  // Update manifest with all releases
-  console.log('\n📄 Updating manifest...');
-  writeManifest(releases);
-  writeSiteChangelog(releases);
-
-  console.log('\n✨ Done!');
-}
-
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});

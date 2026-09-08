@@ -1,38 +1,118 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - master
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
 
 permissions:
   contents: write
   issues: write
   pull-requests: write
+  actions: write # Explicitly dispatch the full CI gate for token-created PRs.
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: landmark-release-master
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Release with Landmark
+    name: Prepare or publish with Landmark
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout protected branch
         uses: actions/checkout@v7
         with:
+          ref: master
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Run Landmark
-        # Pinned to the v0 tag's commit — this action holds github.token
-        # (repo write: pushes the release commit + tags), so a floating tag is
-        # not acceptable here. Bump deliberately when upgrading Landmark.
-        uses: misty-step/landmark@35d002b7a2bc80efc6d0f412b5adbc3f6a96eeab # v0.28.1
+      - name: Require the exact green source
+        id: gate
+        env:
+          GATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$(git rev-parse HEAD)" != "$GATE_SHA" ]; then
+            echo "::notice::Master moved beyond this CI run; the newer source must pass CI first."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v6
+        if: steps.gate.outputs.ready == 'true'
+      - uses: actions/setup-node@v7
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        if: steps.gate.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Analyze or publish the reviewed release
+        id: landmark
+        if: steps.gate.outputs.ready == 'true'
+        # v0.28.7 is published with Linux binaries + checksums. Its full-mode
+        # prepare hook verifies already-merged artifacts; it never pushes master.
+        uses: misty-step/landmark@a38b2d6d87304eacf9669513f5a8c777751c061d # v0.28.7
         with:
           mode: full
-          node-version: 22
-          healthcheck: 'true'
+          node-version: '22'
           github-token: ${{ github.token }}
-          llm-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          # Landmark synthesis happens once, before the release PR. The full
+          # action otherwise synthesizes only AFTER semantic-release publishes.
+          synthesis: 'false'
+          healthcheck: 'false'
+
+      - name: Prepare Landmark artifacts for review
+        id: prepare
+        if: steps.gate.outputs.ready == 'true' && steps.landmark.outputs.released != 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -f .landmark/run/decision.json ]; then
+            pnpm exec tsx scripts/releases/prepare.ts --allow-synthesis
+          fi
+
+      - name: Open or update the release PR
+        id: release-pr
+        if: steps.prepare.outputs.version != ''
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          token: ${{ github.token }}
+          branch: landmark/release
+          base: master
+          add-paths: |
+            .landmark/release.json
+            package.json
+            CHANGELOG.md
+            content/releases
+            site/changelog.html
+            docs/releases/feed.xml
+          commit-message: 'chore(release): prepare ${{ steps.prepare.outputs.version }}'
+          title: 'chore(release): prepare ${{ steps.prepare.outputs.version }}'
+          body: |
+            Landmark produced this version decision, technical changelog, and player-facing notes.
+            The application, marketing changelog, and feed are deterministic projections of those artifacts.
+
+            This is a release candidate, not a published tag. Review and merge only after the full
+            merge-gate succeeds. The next green master CI run publishes this exact candidate without
+            a release commit, a branch-protection bypass, or a second synthesis call.
+
+      - name: Run the full gate on the token-created PR
+        if: steps.release-pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PR: ${{ steps.release-pr.outputs.pull-request-number }}
+          RELEASE_SHA: ${{ steps.release-pr.outputs.pull-request-head-sha }}
+        run: >-
+          gh workflow run ci.yml --ref landmark/release
+          -f release_pr="$RELEASE_PR" -f expected_sha="$RELEASE_SHA"

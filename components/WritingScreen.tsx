@@ -15,15 +15,13 @@ import { hashRoomId, trackLineSubmitted } from '@/lib/analytics';
 import { countWords } from '@/lib/wordCount';
 import { normalizeLineText } from '@/convex/lib/lineText';
 import { Alert } from '@/components/ui/Alert';
-import { RoomChrome } from '@/components/RoomChrome';
 import { Button } from '@/components/ui/Button';
-import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
+import { LoadingMessages } from '@/components/ui/LoadingState';
 import { RoundProgress } from '@/components/ui/RoundProgress';
 import {
   WaitingScreen,
   type WaitingScreenDependencies,
 } from '@/components/WaitingScreen';
-import { buildInProgressChromeCopy } from '@/lib/roomChromeCopy';
 import {
   clearWritingDraft,
   readWritingDraft,
@@ -33,7 +31,6 @@ import {
 
 interface WritingScreenProps {
   roomCode: string;
-  showChrome?: boolean;
   dependencies?: WritingScreenDependencies;
 }
 
@@ -116,7 +113,9 @@ function WritingComposer({
   const [submissionState, setSubmissionState] = useState<
     'idle' | 'submitting' | 'retryable' | 'failed'
   >('idle');
-  const [acknowledgement, setAcknowledgement] = useState('Your line is in.');
+  const [acknowledgement, setAcknowledgement] = useState(
+    'Tucked into the poem.'
+  );
   const [browserOnline, setBrowserOnline] = useState(
     () => globalThis.navigator?.onLine ?? true
   );
@@ -210,7 +209,7 @@ function WritingComposer({
       setAcknowledgement(
         result?.status === 'already_submitted'
           ? 'Your line was already recorded.'
-          : 'Your line is in.'
+          : 'Tucked into the poem.'
       );
       clearWritingDraft(draftKey);
       // Only the server acknowledgement advances the composer to waiting.
@@ -242,6 +241,9 @@ function WritingComposer({
 
   return (
     <div className="grid min-h-0 flex-1 content-start grid-rows-[minmax(0,auto)_auto] overflow-hidden">
+      <h1 className="sr-only">
+        Write your line for round {assignment.lineIndex + 1}
+      </h1>
       <div
         className="sr-only"
         role="status"
@@ -399,43 +401,40 @@ function WritingComposer({
 
 export function WritingScreen({
   roomCode,
-  showChrome = false,
   dependencies = defaultDependencies,
 }: WritingScreenProps) {
   const { guestToken, shouldSkip, queryArgs } =
     dependencies.useRoomQueryArgs(roomCode);
   const assignment = dependencies.useCurrentAssignment(queryArgs);
   const roundProgress = dependencies.useRoundProgress(
-    showChrome && assignment === null ? queryArgs : 'skip'
+    assignment === null ? queryArgs : 'skip'
   );
 
   if (shouldSkip || assignment === undefined) {
     return (
-      <div className="lj-game-viewport flex items-center justify-center bg-[var(--color-background)]">
-        <LoadingState message={LoadingMessages.LOADING_ROOM} />
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-background p-4">
+        <p
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          className="text-center text-base text-text-secondary"
+        >
+          {LoadingMessages.LOADING_ROOM}
+        </p>
       </div>
     );
   }
 
   if (assignment === null) {
     return (
-      <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col overflow-hidden bg-background">
-        {showChrome && (
-          <RoomChrome
-            roomCode={roomCode}
-            {...buildInProgressChromeCopy({ roundProgress })}
-            compact
-          />
-        )}
-        <WaitingScreen
-          roomCode={roomCode}
-          guestToken={guestToken}
-          progressOverride={roundProgress}
-          isLateJoiner={roundProgress?.isCurrentUserSpectator ?? false}
-          embedded
-          dependencies={dependencies.waitingScreenDependencies}
-        />
-      </div>
+      <WaitingScreen
+        roomCode={roomCode}
+        guestToken={guestToken}
+        progressOverride={roundProgress ?? null}
+        isLateJoiner={roundProgress?.isCurrentUserSpectator ?? false}
+        embedded
+        dependencies={dependencies.waitingScreenDependencies}
+      />
     );
   }
 
@@ -443,15 +442,8 @@ export function WritingScreen({
     <div
       data-testid={E2E_TEST_IDS.writingPhase}
       data-round={assignment.lineIndex + 1}
-      className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background"
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
     >
-      {showChrome && (
-        <RoomChrome
-          roomCode={roomCode}
-          {...buildInProgressChromeCopy({ assignment })}
-          compact
-        />
-      )}
       <WritingComposer
         key={`${assignment.poemId}:${assignment.lineIndex}`}
         assignment={assignment}

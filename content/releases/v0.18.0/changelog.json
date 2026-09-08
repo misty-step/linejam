@@ -1,0 +1,14 @@
+{
+  "version": "0.18.0",
+  "date": "2026-07-11",
+  "changes": [
+    {
+      "type": "feat",
+      "description": "game-screen spine from design lab-001 (mobile-first, theme-agnostic)",
+      "breaking": false,
+      "pr": 338,
+      "commit": "475bee1"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.17.1...v0.18.0"
+}

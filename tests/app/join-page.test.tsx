@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
+import { StrictMode } from 'react';
+import { hydrateRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { ConvexError } from 'convex/values';
 import {
@@ -73,6 +76,19 @@ describe('joining a room', () => {
     localStorage.clear();
   });
 
+  it('does not steal focus when guest setup finishes after a toolbar interaction', async () => {
+    isLoading = true;
+    const view = renderJoinPage();
+    const appearance = screen.getByRole('button', { name: /^Color mode:/ });
+    appearance.focus();
+    isLoading = false;
+    await act(async () => {
+      view.rerender(<JoinPage dependencies={dependencies} />);
+    });
+    expect(screen.getByRole('textbox', { name: 'Room code' })).toBeVisible();
+    expect(appearance).toHaveFocus();
+  });
+
   it('normalizes manual entry and joins with the trimmed pen name and chosen avatar', async () => {
     const user = userEvent.setup();
     renderJoinPage();
@@ -83,13 +99,8 @@ describe('joining a room', () => {
     );
     expect(code).toHaveValue('ABCD');
 
-    const pip = screen.getByRole('radio', { name: 'Pip' });
-    const orbit = screen.getByRole('radio', { name: 'Orbit' });
-    await user.click(pip);
-    expect(pip).toBeChecked();
-    await user.click(orbit);
-    expect(orbit).toBeChecked();
-    expect(pip).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: /change avatar/i }));
+    await user.click(screen.getByRole('button', { name: 'Orbit' }));
 
     await user.click(screen.getByRole('button', { name: /^join room$/i }));
 
@@ -168,8 +179,9 @@ describe('joining a room', () => {
       const user = userEvent.setup();
       renderJoinPage();
       const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
-      const sunny = screen.getByRole('radio', { name: 'Sunny' });
-      await user.click(sunny);
+      const avatar = screen.getByRole('button', { name: /change avatar/i });
+      await user.click(avatar);
+      await user.click(screen.getByRole('button', { name: 'Sunny' }));
       await user.click(screen.getByRole('button', { name: /^join room$/i }));
 
       const alert = await screen.findByRole('alert');
@@ -181,8 +193,8 @@ describe('joining a room', () => {
       expect(code).toHaveValue('ABCD');
       expect(name).toBeEnabled();
       expect(name).toHaveValue('Ada');
-      expect(sunny).toBeEnabled();
-      expect(sunny).toBeChecked();
+      expect(avatar).toBeEnabled();
+      expect(avatar).toHaveAccessibleName(/sunny.*selected/i);
 
       await user.clear(code);
       await user.type(code, 'wxyz');
@@ -237,7 +249,8 @@ describe('joining a room', () => {
     view.rerender(<JoinPage dependencies={dependencies} />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     await enterDetails(user, 'ABCD', 'Ada');
-    await user.click(screen.getByRole('radio', { name: 'Moss' }));
+    await user.click(screen.getByRole('button', { name: /change avatar/i }));
+    await user.click(screen.getByRole('button', { name: 'Moss' }));
     await user.click(screen.getByRole('button', { name: /^join room$/i }));
 
     expect(joinRoom).toHaveBeenCalledExactlyOnceWith({
@@ -258,15 +271,16 @@ describe('joining a room', () => {
     const user = userEvent.setup();
     renderJoinPage();
     const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
-    const plum = screen.getByRole('radio', { name: 'Plum' });
-    await user.click(plum);
+    const avatar = screen.getByRole('button', { name: /change avatar/i });
+    await user.click(avatar);
+    await user.click(screen.getByRole('button', { name: 'Plum' }));
     await user.dblClick(screen.getByRole('button', { name: /^join room$/i }));
 
     const progress = screen.getByRole('button', { name: /joining room/i });
     expect(progress).toBeDisabled();
     expect(code).toBeDisabled();
     expect(name).toBeDisabled();
-    expect(plum).toBeDisabled();
+    expect(avatar).toBeDisabled();
     expect(push).not.toHaveBeenCalled();
     await user.click(progress);
     await user.keyboard('{Enter}');
@@ -282,5 +296,100 @@ describe('joining a room', () => {
       expect(push).toHaveBeenCalledExactlyOnceWith('/room/ABCD')
     );
     expect(joinRoom).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a random default through edits, rerenders, and a failed join, then picks again for a new attempt', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const user = userEvent.setup();
+    joinRoom.mockRejectedValueOnce(new ConvexError('Room is full'));
+    try {
+      const view = render(
+        <StrictMode>
+          <JoinPage dependencies={dependencies} />
+        </StrictMode>,
+        { wrapper: ColorModeProvider }
+      );
+      const avatar = await screen.findByRole('button', {
+        name: /change avatar.*plum.*selected/i,
+      });
+      random.mockReturnValue(0);
+      const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
+      view.rerender(
+        <StrictMode>
+          <JoinPage dependencies={dependencies} />
+        </StrictMode>
+      );
+      expect(avatar).toHaveAccessibleName(/plum.*selected/i);
+      await user.click(screen.getByRole('button', { name: /^join room$/i }));
+      await screen.findByRole('alert');
+
+      await user.clear(code);
+      await user.type(code, 'WXYZ');
+      await user.clear(name);
+      await user.type(name, 'Grace');
+      expect(avatar).toHaveAccessibleName(/plum.*selected/i);
+      await user.click(screen.getByRole('button', { name: /^join room$/i }));
+      expect(joinRoom).toHaveBeenLastCalledWith({
+        code: 'WXYZ',
+        displayName: 'Grace',
+        avatarId: 'plum',
+        guestToken: 'guest-token',
+      });
+      await waitFor(() => expect(push).toHaveBeenCalledWith('/room/WXYZ'));
+      view.unmount();
+
+      renderJoinPage();
+      expect(
+        await screen.findByRole('button', {
+          name: /change avatar.*pip.*selected/i,
+        })
+      ).toBeEnabled();
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  it('hydrates without replacing entry markup when browser randomness differs from the server', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const recoverableError = vi.fn();
+    const entry = (
+      <ColorModeProvider>
+        <StrictMode>
+          <JoinPage dependencies={dependencies} />
+        </StrictMode>
+      </ColorModeProvider>
+    );
+    const container = document.createElement('div');
+    let root: Root | undefined;
+    try {
+      container.innerHTML = renderToString(entry);
+      document.body.appendChild(container);
+      const serverTrigger = within(container).getByRole('button', {
+        name: /change avatar/i,
+      });
+      random.mockReturnValue(0.99);
+
+      await act(async () => {
+        root = hydrateRoot(container, entry, {
+          onRecoverableError: recoverableError,
+        });
+      });
+
+      expect(
+        within(container).getByRole('button', {
+          name: /change avatar.*plum.*selected/i,
+        })
+      ).toBe(serverTrigger);
+      expect(recoverableError).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      random.mockRestore();
+      consoleError.mockRestore();
+    }
   });
 });

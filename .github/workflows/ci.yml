@@ -13,6 +13,18 @@ on:
       - '.vscode/**'
       - 'LICENSE'
       - '.gitignore'
+  # GITHUB_TOKEN-created release PRs do not emit another pull_request workflow.
+  # workflow_dispatch is the supported exception; it runs this same full gate.
+  workflow_dispatch:
+    inputs:
+      release_pr:
+        description: Open Landmark release PR number
+        type: string
+        required: true
+      expected_sha:
+        description: Exact release PR head SHA to verify
+        type: string
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -38,10 +50,26 @@ jobs:
           # The schema sequencing guard compares HEAD with the PR merge base.
           fetch-depth: 0
 
-      - name: Check schema migration sequencing
-        if: github.event_name == 'pull_request'
+      - name: Bind release dispatch to its PR
+        if: github.event_name == 'workflow_dispatch'
         env:
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PR: ${{ inputs.release_pr }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/landmark/release" ]]
+          [[ "$RELEASE_PR" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$RELEASE_PR" |
+            jq -e --arg sha "$GITHUB_SHA" --arg expected "$EXPECTED_SHA" --arg repo "$GITHUB_REPOSITORY" '
+              .state == "open" and .base.ref == "master" and
+              .head.ref == "landmark/release" and .head.repo.full_name == $repo and
+              .head.sha == $expected and $expected == $sha'
+
+      - name: Check schema migration sequencing
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || 'master' }}
         run: >-
           node scripts/ci/check-schema-migration-sequencing.mjs
           "origin/$PR_BASE_REF"
@@ -215,6 +243,7 @@ jobs:
       - name: Verify signed guest throttle is deployed
         if: >
           github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
           github.event.pull_request.head.repo.full_name == github.repository
         run: node scripts/convex/probe-signed-throttle-ready.mjs
 
@@ -234,6 +263,7 @@ jobs:
     needs: [quality-gates]
     if: |
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event.pull_request.draft == false
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
@@ -272,6 +302,7 @@ jobs:
     needs: [quality-gates]
     if: |
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       github.event.pull_request.draft == false
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
@@ -385,6 +416,11 @@ jobs:
         run: |
           if [[ "${{ needs.local-guest-qa.result }}" != "success" ]]; then
             echo "Isolated guest QA must succeed; skipped is not acceptance."
+            exit 1
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && \
+             [[ "${{ contains(needs.*.result, 'skipped') }}" == "true" ]]; then
+            echo "Release PR dispatch must run every merge-gate dependency."
             exit 1
           fi
           if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \

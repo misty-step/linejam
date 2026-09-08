@@ -432,6 +432,7 @@ export class GuestFlowSession {
   }
 
   async openHelpModal() {
+    await this.hostPage.getByRole('button', { name: 'Room options' }).click();
     await this.hostPage
       .getByRole('button', { name: /How to play/i })
       .last()

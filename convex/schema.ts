@@ -27,6 +27,7 @@ export default defineSchema({
   users: defineTable({
     clerkUserId: v.optional(v.string()),
     guestId: v.optional(v.string()),
+    /** Profile name, refreshed on room joins. Never a byline or roster label. */
     displayName: v.string(),
     createdAt: v.number(),
     // Legacy AI fields retained only through the Release A production cleanup.
@@ -72,6 +73,7 @@ export default defineSchema({
   roomPlayers: defineTable({
     roomId: v.id('rooms'),
     userId: v.id('users'),
+    /** The pen name for this room; the source of every byline written here. */
     displayName: v.string(),
     /** Room-scoped selection; optional only for existing memberships. */
     avatarId: v.optional(avatarIdValidator),

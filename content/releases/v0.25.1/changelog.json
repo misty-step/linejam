@@ -1,0 +1,15 @@
+{
+  "version": "0.25.1",
+  "date": "2026-07-17",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "deps",
+      "description": "clear dependabot alerts",
+      "breaking": false,
+      "pr": 380,
+      "commit": "3436e01"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.25.0...v0.25.1"
+}

@@ -20,6 +20,133 @@ health checks, source, build/run commands, environment variable names, and the
 single frontend and Convex production deploy owner. The live provider spec must
 reconcile with it before a release is accepted.
 
+## Release ownership and public history
+
+[Landmark v0.28.7](https://github.com/misty-step/landmark/releases/tag/v0.28.7),
+pinned to `a38b2d6d87304eacf9669513f5a8c777751c061d`, owns release decisions,
+technical history, and player-facing note synthesis. This published revision
+includes the Linux binary and checksums used by its action. `.landmark.yml`
+sets Linejam's product context, end-user audience, voice, and budget.
+
+`package.json` is the checked-in semantic version; `lib/appVersion.ts` exposes
+that same value to the application and release catalog. It is not a source
+identifier. Deployment IDs, Sentry releases, and the rolling-deploy guard remain
+source-SHA based. Never replace those identifiers with a semantic version.
+
+The current recorded version is **0.27.0**, matching the first `CHANGELOG.md`
+entry and the [published GitHub Release](https://github.com/misty-step/linejam/releases/tag/v0.27.0).
+That release has technical history but no recorded player-facing synthesis.
+The public surfaces say so; they do not invent notes for today's unshipped
+changes. Historical v1.x entries remain in date order, not sorted above the
+newer v0.x release line. The old manifest's `latest: 1.15.1` was stale, not an
+authority to bump or relabel the application.
+
+### Prepare, review, then publish
+
+The `Release` workflow runs only after successful `CI` on `master`, and checks
+that its checkout is still the exact green source SHA. It uses Landmark's
+supported full-mode semantic-release hook adapter in `release.config.cjs`:
+
+1. `landmark run --provider local --dry-run` supplies the version decision.
+   There is no local conventional-commit analyzer or second version allocator.
+2. If that decision has no matching reviewed candidate, Landmark's `run`,
+   `synthesize`, and `write-artifacts` commands prepare the technical changelog,
+   public markdown, and `landmark.public-release-notes.v1` JSON. The adapter
+   projects them, together with the package version, into one release PR on
+   `landmark/release`. Its `.landmark/release.json` records the analyzed source
+   SHA and synthesis quality. No tag or GitHub Release exists yet.
+3. `GITHUB_TOKEN` opens the PR and explicitly dispatches the existing full `CI`
+   workflow against its exact head SHA. The dispatch is bound to the open
+   `landmark/release` PR and runs schema sequencing, all E2E/evidence jobs, and
+   the same required `merge-gate`; skipped dependencies cannot pass it.
+   Review and merge normally. There is no auto-merge or protection bypass.
+4. After the merged candidate passes master CI, full mode verifies Landmark's
+   decision still matches the candidate, that only release artifacts changed
+   since its analyzed source, and that semantic-release agrees on the previous
+   tag and next version. Its `prepare` hook checks the committed projections
+   before publishing. It creates no new master commit. Post-publication
+   synthesis and RSS commits are disabled, so notes are synthesized once and
+   release commits cannot create a release loop.
+
+This ordering is deliberate: v0.28.7's ordinary action synthesizes **after**
+semantic-release has already run its prepare hooks and published. Those later
+artifacts cannot be included in the same prepare commit. A direct
+`@semantic-release/git` push also cannot satisfy this repository's protected
+branch. Preparing a normal PR commits package version, changelog, notes,
+manifest, marketing HTML, and feed together before the gate; publication is a
+separate remote step, not an invented cross-provider transaction. A failed
+publication is visible as a failed workflow, not proof that a tag shipped.
+
+### Deterministic local preview and check
+
+With the published Landmark v0.28.7 binary installed on `PATH`:
+
+```sh
+# Free: no model call, artifact writes, tags, or remote mutations.
+landmark run --provider local --repo-root . --repository misty-step/linejam --dry-run
+landmark doctor --repo-root . --format json
+
+# Free, offline projections of already-recorded release content.
+pnpm generate:releases --dry-run
+pnpm generate:releases
+pnpm releases:check
+```
+
+The generator no longer accepts `--force` or `--site-only` and has no provider
+key, model, prompt, or fallback synthesis. It writes only changed files and
+never uses wall-clock time. Commit its outputs together with any source
+artifact changes. `pnpm test` fails and names any stale projection, so drift
+cannot reach `master` and surface later as a Pages failure. Ordinary app builds
+do not run Landmark or contact a provider.
+
+`content/releases/landmark.json` is Landmark's native release-entry JSON array;
+markdown lives in `content/releases/{tag}/notes.md`. The catalog validates the
+checked-in upstream schema and rejects mismatched JSON/markdown. A
+`synthesis.json` quality record distinguishes a policy skip from missing notes.
+Missing notes remain explicitly missing, while malformed sources stop
+generation before writes. A missing or stale manifest is visible in the app,
+never silently trusted as the current version.
+
+`content/releases/legacy-notes.json` preserves the 39 public entries from the
+old `docs/releases/feed.xml`, with the original feed's SHA-256 and recovered
+HTML/plaintext. Only the broken nested CDATA transport wrappers were removed;
+these notes are labeled as legacy, not newly synthesized by the current
+pipeline. Existing per-version legacy markdown is also retained. All release
+dates come from recorded technical history, not Landmark's artifact-creation
+`published_at` field. Both RSS surfaces use a full deterministic render, not
+append-and-reparse CDATA mutation.
+
+### Live prerequisites and recovery
+
+Read-only investigation found the release workflow **manually disabled**. Its
+[last failed run](https://github.com/misty-step/linejam/actions/runs/31910551340)
+failed in `@semantic-release/git` prepare with `GH006`: changes require a PR
+and `merge-gate`. No synthesis ran. This was an observed branch-protection
+failure, not evidence of a token or model-provider failure.
+
+An operator must merge and verify this cutover before deliberately re-enabling
+the updated workflow. This source change does not re-enable it or publish a
+release. `GITHUB_TOKEN` needs the workflow-declared Contents, Issues, Pull
+requests, and Actions write permissions; no new GitHub App or PAT is required.
+The repository's read-only Actions settings reported PR creation/approval
+enabled. GitHub documents the
+[workflow_dispatch exception for GITHUB_TOKEN](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
+
+`OPENROUTER_API_KEY` must be available to the release workflow for Landmark
+synthesis. The repository secret-name listing did not contain it; organization
+secret access could not be inspected (HTTP 403), so inherited availability is
+**unverified**, not known absent. Use the approved credential plane to confirm
+or configure that existing secret name. Missing keys and degraded/failed
+synthesis fail preparation visibly rather than publishing invented fallback
+copy. A deliberate Landmark policy skip remains an explicit skip.
+
+If a release PR becomes stale, the next green master run updates it and
+dispatches its full gate again. If tag history and the Landmark decision
+disagree, reconcile the actual published/tagged history before retrying; do not
+manually bump package metadata or relabel the retained v1.x archive to force a
+pass. A publication failure after merge requires inspection of the exact tag
+and GitHub Release before a rerun; no local check proves remote publication.
+
 ## Prerequisites
 
 - `doctl` authenticated to the Misty Step DigitalOcean account

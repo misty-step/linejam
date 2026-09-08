@@ -35,8 +35,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Generate release notes
-        run: pnpm generate:releases
+      - name: Require checked-in release projections
+        run: pnpm generate:releases --check
       - name: Stage the marketing site
         run: cp -RL site _site
       - uses: actions/configure-pages@v6

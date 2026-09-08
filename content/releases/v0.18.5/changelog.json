@@ -1,0 +1,15 @@
+{
+  "version": "0.18.5",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "reveal",
+      "description": "recover from absent readers",
+      "breaking": false,
+      "pr": 349,
+      "commit": "e0abb0a"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.4...v0.18.5"
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation } from 'convex/react';
@@ -11,7 +11,11 @@ import { hashRoomId, trackGameCreated } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { toErrorReportable } from '../../lib/errorCore';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
-import { getDefaultAvatarId, type AvatarId } from '../../lib/avatars';
+import {
+  AVATAR_IDS,
+  getRandomAvatarId,
+  type AvatarId,
+} from '../../lib/avatars';
 import { Brand } from '../../components/Brand';
 import { AvatarPicker } from '../../components/AvatarPicker';
 import { Button } from '../../components/ui/Button';
@@ -22,18 +26,30 @@ import {
   LoadingState,
   LoadingMessages,
 } from '../../components/ui/LoadingState';
-import { FocusedEntryAppearance } from '../../components/FocusedEntryAppearance';
+import { ColorModeControl } from '../../components/ColorModeControl';
 
 export default function HostPage() {
   const router = useRouter();
   const { guestToken, isLoading, authError, retryAuth } = useUser();
   const createRoomMutation = useMutation(api.rooms.createRoom);
   const [name, setName] = useState('');
-  const [avatarId, setAvatarId] = useState<AvatarId>(() =>
-    getDefaultAvatarId(guestToken || 'linejam-host')
-  );
+  const [avatarId, setAvatarId] = useState<AvatarId>(AVATAR_IDS[0]);
+  const initialAvatarRef = useRef<AvatarId | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    initialAvatarRef.current ??= getRandomAvatarId();
+    const initialAvatar = initialAvatarRef.current;
+    let isStale = false;
+    // Keep server and hydration markup identical; seed this attempt only once.
+    queueMicrotask(() => {
+      if (!isStale) setAvatarId(initialAvatar);
+    });
+    return () => {
+      isStale = true;
+    };
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +101,7 @@ export default function HostPage() {
         className="lj-safe-frame h-full overflow-y-auto [--lj-safe-frame-space:1rem] sm:[--lj-safe-frame-space:2rem]"
       >
         <div className="mx-auto w-full max-w-md">
-          <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <Link
               href="/"
               aria-label="Linejam home"
@@ -93,46 +109,47 @@ export default function HostPage() {
             >
               <Brand className="text-2xl" />
             </Link>
-            <FocusedEntryAppearance className="ml-auto" />
+            <ColorModeControl className="ml-auto" />
           </div>
-          <h1 className="mb-5 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
+          <h1 className="mb-4 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
             Create room
           </h1>
 
           <form
             onSubmit={handleCreate}
             aria-label="Create room"
-            className="space-y-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6"
+            className="space-y-4"
           >
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label
                 htmlFor="name"
-                className="block text-base font-semibold text-[var(--color-text-primary)]"
+                className="block text-sm font-semibold text-[var(--color-text-primary)]"
               >
                 Your pen name
               </label>
-              <Input
-                id="name"
-                name="displayName"
-                data-testid={E2E_TEST_IDS.hostNameInput}
-                placeholder="e.g. Alex"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                autoFocus
-                autoCapitalize="words"
-                autoComplete="nickname"
-                enterKeyHint="go"
-                disabled={isSubmitting}
-                className="h-12 text-base"
-              />
+              <div className="flex items-center gap-3">
+                <Input
+                  id="name"
+                  name="displayName"
+                  data-testid={E2E_TEST_IDS.hostNameInput}
+                  placeholder="e.g. Alex"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  autoFocus
+                  autoCapitalize="words"
+                  autoComplete="nickname"
+                  enterKeyHint="go"
+                  disabled={isSubmitting}
+                  className="h-12 text-base"
+                />
+                <AvatarPicker
+                  value={avatarId}
+                  onChange={setAvatarId}
+                  disabled={isSubmitting}
+                />
+              </div>
             </div>
-
-            <AvatarPicker
-              value={avatarId}
-              onChange={setAvatarId}
-              disabled={isSubmitting}
-            />
 
             <div
               data-testid={E2E_TEST_IDS.hostActionZone}

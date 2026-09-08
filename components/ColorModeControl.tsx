@@ -1,63 +1,41 @@
 'use client';
 
-import { useId } from 'react';
+import { Monitor, Moon, Sun } from 'lucide-react';
 import type { ColorModePreference } from '@/lib/design';
 import { useColorMode } from '@/lib/colorMode';
 import { cn } from '@/lib/utils';
 
-const MODE_OPTIONS: readonly {
-  value: ColorModePreference;
-  label: string;
-}[] = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
-];
+const MODES = {
+  system: { label: 'System', next: 'light', Icon: Monitor },
+  light: { label: 'Light', next: 'dark', Icon: Sun },
+  dark: { label: 'Dark', next: 'system', Icon: Moon },
+} as const satisfies Record<
+  ColorModePreference,
+  { label: string; next: ColorModePreference; Icon: typeof Monitor }
+>;
 
 interface ColorModeControlProps {
   className?: string;
 }
 
-/**
- * The app's single appearance choice. Native radios keep browser-standard
- * arrow-key behavior while their labels provide full-size touch targets.
- */
 export function ColorModeControl({ className = '' }: ColorModeControlProps) {
-  const { modePreference, setModePreference } = useColorMode();
-  const groupName = useId();
+  const { modePreference, setModePreference, isReady } = useColorMode();
+  const { label, next, Icon } = MODES[modePreference];
+  const accessibleLabel = `Color mode: ${label}. Switch to ${MODES[next].label}.`;
 
   return (
-    <fieldset
+    <button
+      type="button"
+      disabled={!isReady}
+      onClick={() => setModePreference(next)}
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
       className={cn(
-        'min-w-0 max-w-full rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-background)] p-1',
+        'inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] transition-colors duration-[var(--duration-normal)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]',
         className
       )}
     >
-      <legend className="sr-only">Color mode</legend>
-      <div className="flex max-w-full flex-wrap gap-1">
-        {MODE_OPTIONS.map(({ value, label }) => (
-          <label
-            key={value}
-            className={cn(
-              'flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1 rounded-[var(--radius-md)] px-2 py-2',
-              'text-sm font-semibold transition-colors duration-[var(--duration-normal)]',
-              'has-[:checked]:bg-[var(--color-surface)] has-[:checked]:text-[var(--color-text-primary)] has-[:checked]:shadow-[var(--shadow-sm)]',
-              'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]',
-              'focus-within:outline-none focus-within:ring-2 focus-within:ring-[var(--color-focus-ring)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--color-background)]'
-            )}
-          >
-            <input
-              type="radio"
-              name={groupName}
-              value={value}
-              checked={modePreference === value}
-              onChange={() => setModePreference(value)}
-              className="h-4 w-4 shrink-0 accent-[var(--color-primary)]"
-            />
-            <span className="leading-tight">{label}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
+      <Icon className="h-5 w-5" aria-hidden="true" />
+    </button>
   );
 }

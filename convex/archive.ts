@@ -175,31 +175,21 @@ export const getArchiveData = query({
     );
     const poems = candidatePoems;
 
-    // Step 4: Collect author IDs and captured bylines. A deleted legacy author
-    // must remain honestly named after its user row is removed.
+    // Step 4: Collect author IDs. Bylines are captured per line at write time,
+    // so a later pen name in another room never rewrites an existing poem.
     const allAuthorIds = new Set<Id<'users'>>();
-    const capturedAuthorNames = new Map<Id<'users'>, string>();
     for (const lines of allPoemLines) {
       for (const line of lines) {
         allAuthorIds.add(line.authorUserId);
-        const capturedName = line.authorDisplayName?.trim();
-        if (capturedName && !capturedAuthorNames.has(line.authorUserId)) {
-          capturedAuthorNames.set(line.authorUserId, capturedName);
-        }
       }
     }
 
-    // Step 5: Batch fetch all authors
+    // Step 5: Batch fetch all authors. A profile name is only the fallback for
+    // legacy lines written before write-time capture.
     const authorIds = [...allAuthorIds];
     const authors = await Promise.all(authorIds.map((id) => ctx.db.get(id)));
-    const authorMap = new Map(
-      authorIds.map((id, i) => [
-        id,
-        {
-          name:
-            authors[i]?.displayName || capturedAuthorNames.get(id) || 'Unknown',
-        },
-      ])
+    const profileNames = new Map(
+      authorIds.map((id, i) => [id, authors[i]?.displayName?.trim() || ''])
     );
 
     // Step 6: Fetch room dates in parallel
@@ -216,24 +206,33 @@ export const getArchiveData = query({
       const favoritedAt = favoriteMap.get(poem._id) || null;
       const authorKeys = buildPoemAuthorKeys(poem._id, [...uniqueAuthors]);
 
+      // Name each collaborator as they signed this poem, not as they are now.
+      const bylines = new Map<Id<'users'>, string>();
+      for (const line of lines) {
+        const captured = line.authorDisplayName?.trim();
+        if (captured && !bylines.has(line.authorUserId)) {
+          bylines.set(line.authorUserId, captured);
+        }
+      }
+      const nameFor = (id: Id<'users'>) =>
+        bylines.get(id) || profileNames.get(id) || 'Unknown';
+
       // Get co-author names (excluding current user)
       const coAuthors = [...uniqueAuthors]
         .filter((id) => id !== user._id)
-        .map((id) => authorMap.get(id)?.name || 'Unknown')
+        .map(nameFor)
         .slice(0, 3); // Limit to 3 for display
 
       return {
         _id: poem._id,
         preview: lines[0]?.text || '...',
-        lines: lines.map((line) => {
-          const author = authorMap.get(line.authorUserId);
-          return {
-            text: line.text,
-            wordCount: line.wordCount,
-            authorKey: authorKeys.get(line.authorUserId)!,
-            authorName: line.authorDisplayName || author?.name || 'Unknown',
-          };
-        }),
+        lines: lines.map((line) => ({
+          text: line.text,
+          wordCount: line.wordCount,
+          authorKey: authorKeys.get(line.authorUserId)!,
+          authorName:
+            line.authorDisplayName?.trim() || nameFor(line.authorUserId),
+        })),
         poetCount: uniqueAuthors.size,
         lineCount: lines.length,
         isFavorited: favoritedAt !== null,

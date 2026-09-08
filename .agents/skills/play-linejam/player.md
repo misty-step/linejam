@@ -171,37 +171,41 @@ state change, focus that control and press Enter once, then inspect the result.
 
 ## 6. Room Closure Path (Host)
 
-1. Return to the lobby and wait for its close action:
+1. Return to the lobby:
    ```bash
    pnpm exec agent-browser --session <run-id>-host find text "Back to Lobby" click
-   pnpm exec agent-browser --session <run-id>-host wait --text "Close room"
+   pnpm exec agent-browser --session <run-id>-host wait '[data-testid="lobby-start-game-button"]'
    ```
-2. Close the room:
+2. Open the host's room action and its confirmation:
    ```bash
-   pnpm exec agent-browser --session <run-id>-host find text "Close room" click
+   pnpm exec agent-browser --session <run-id>-host find role button click --name "Room options" --exact
+   pnpm exec agent-browser --session <run-id>-host find role button click --name "Close room" --exact
+   pnpm exec agent-browser --session <run-id>-host wait --text "Close this room?"
    ```
-3. Confirm the room UI exits before sending `ROOM_CLOSED` to the Coordinator.
+3. Confirm, then inspect the destination:
+   ```bash
+   pnpm exec agent-browser --session <run-id>-host find role button click --name "Close room" --exact
+   pnpm exec agent-browser --session <run-id>-host get url
+   ```
+   Confirm exit from `/room/<code>` before sending `ROOM_CLOSED`.
 
 ### Failure cleanup
 
 On `CLEANUP_ROOM`, the Host performs a bounded best-effort return to the lobby:
 
-1. Inspect the current surface. If `session-complete` is already visible,
-   click **Back to Lobby** and skip to room closure.
-2. If it is a writing turn, submit a valid line for that displayed word count,
-   then use the same three-way post-submit branch as the normal round loop.
-3. If a writing phase one round higher appears, repeat the bounded valid-line
-   submission. On `waiting-phase`, click **End game**, click the confirmation
-   **End game**, and wait for the lobby. This abandons the incomplete game
-   without revealing partial poems.
-4. If `reveal-phase` appears, finish the bounded reading-circle actions until
-   `session-complete`, then click **Back to Lobby**.
-5. In the lobby, click **Close room** and confirm the room UI exits before
-   sending `ROOM_CLOSED`.
+1. Inspect the current surface. If `session-complete` is visible, click
+   **Back to Lobby** and use the room-closure path above.
+2. During writing or waiting, open **Room options**, choose **End game**,
+   confirm **End game**, and wait for the lobby. The host need not submit
+   another line merely to reach this action. Partial poems stay private.
+3. If `reveal-phase` is visible, finish the bounded reading-circle actions
+   until `session-complete`, then click **Back to Lobby**.
+4. In the lobby, use the confirmed room-closure path above. Send `ROOM_CLOSED`
+   only after observing that the room UI exits.
 
-If no known surface can be reached, a valid submission cannot reach the waiting
-screen, game abandonment fails, or room closure cannot be observed, report a
-sanitized `BLOCKER` instead of `ROOM_CLOSED`. The Coordinator records
+If no known surface can be reached, game abandonment fails, or room closure
+cannot be observed, report a sanitized `BLOCKER` instead of `ROOM_CLOSED`.
+The Coordinator records
 `room_closure_failed` and still closes every run-owned browser session.
 
 ## 7. Verifier Execution Flow

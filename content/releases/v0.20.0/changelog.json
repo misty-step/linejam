@@ -1,0 +1,15 @@
+{
+  "version": "0.20.0",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "ci",
+      "description": "enforce safe schema migration sequencing",
+      "breaking": false,
+      "pr": 357,
+      "commit": "5e012f9"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.4...v0.20.0"
+}

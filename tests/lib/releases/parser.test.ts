@@ -23,6 +23,8 @@ describe('parseChangelog', () => {
       {
         version: '1.15.1',
         date: '2026-07-04',
+        compareUrl:
+          'https://github.com/misty-step/linejam/compare/v1.15.0...v1.15.1',
         changes: [
           {
             type: 'fix',
@@ -37,6 +39,8 @@ describe('parseChangelog', () => {
       {
         version: '1.15.0',
         date: '2026-07-03',
+        compareUrl:
+          'https://github.com/misty-step/linejam/compare/v1.14.0...v1.15.0',
         changes: [
           {
             type: 'feat',
@@ -104,5 +108,12 @@ describe('parseChangelog', () => {
 
     expect(findRelease(releases, 'v2.0.0')?.version).toBe('2.0.0');
     expect(findRelease(releases, '1.0.0')).toBeUndefined();
+  });
+
+  it('refuses missing or impossible release dates instead of inventing today', () => {
+    expect(() => parseChangelog('## [0.27.0]\n\n- feat: new lobby')).toThrow();
+    expect(() =>
+      parseChangelog('## [0.27.0] - 2026-02-30\n\n- feat: new lobby')
+    ).toThrow();
   });
 });

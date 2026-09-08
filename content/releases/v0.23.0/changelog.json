@@ -1,0 +1,15 @@
+{
+  "version": "0.23.0",
+  "date": "2026-07-16",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "ai",
+      "description": "add provider kill switch and spend guard",
+      "breaking": false,
+      "pr": 362,
+      "commit": "e642696"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.22.0...v0.23.0"
+}

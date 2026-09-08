@@ -50,6 +50,9 @@ importers:
       '@sentry/node':
         specifier: 10.70.0
         version: 10.70.0(@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.220.0(@opentelemetry/api@1.9.1))
+      ajv:
+        specifier: 8.17.1
+        version: 8.17.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -105,15 +108,6 @@ importers:
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
-      '@semantic-release/changelog':
-        specifier: ^6.0.3
-        version: 6.0.3(semantic-release@25.0.7(typescript@5.9.3))
-      '@semantic-release/exec':
-        specifier: ^7.1.0
-        version: 7.1.0(semantic-release@25.0.7(typescript@5.9.3))
-      '@semantic-release/git':
-        specifier: ^10.0.1
-        version: 10.0.1(semantic-release@25.0.7(typescript@5.9.3))
       '@semantic-release/github':
         specifier: ^12.0.9
         version: 12.0.9(semantic-release@25.0.7(typescript@5.9.3))
@@ -147,9 +141,6 @@ importers:
       agent-browser:
         specifier: 0.27.0
         version: 0.27.0
-      ajv:
-        specifier: 8.17.1
-        version: 8.17.1
       ajv-formats:
         specifier: 3.0.1
         version: 3.0.1(ajv@8.17.1)

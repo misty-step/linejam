@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { loadAllReleases } from '@/lib/releases/loader';
+import { loadReleaseCatalog } from '@/lib/releases/loader';
 import type {
   ReleaseWithNotes,
   ChangelogEntry,
   ChangeType,
 } from '@/lib/releases/types';
-import { TYPE_LABELS } from '@/lib/releases/types';
+import { NOTES_STATUS_LABELS, TYPE_LABELS } from '@/lib/releases/types';
 
 export const dynamic = 'force-static';
 
@@ -14,6 +14,7 @@ function formatDate(dateString: string): string {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
@@ -79,7 +80,7 @@ function TechnicalDetails({ changes }: { changes: ChangelogEntry[] }) {
 
 function ReleaseCard({ release }: { release: ReleaseWithNotes }) {
   return (
-    <article className="pb-12">
+    <article className="pb-12" id={`v${release.version}`}>
       <header className="mb-4">
         <h2 className="font-sans font-bold text-2xl text-[var(--color-text-primary)]">
           Version {release.version}
@@ -95,12 +96,16 @@ function ReleaseCard({ release }: { release: ReleaseWithNotes }) {
         </time>
       </div>
 
+      <p className="mb-4 text-sm text-[var(--color-text-muted)]">
+        {NOTES_STATUS_LABELS[release.notesStatus]}
+      </p>
+
       {release.productNotes && (
         <div className="mb-6 max-w-xl space-y-4">
           {release.productNotes.split('\n\n').map((paragraph, i) => (
             <p
               key={i}
-              className="font-sans text-base leading-relaxed text-[var(--color-text-secondary)]"
+              className="whitespace-pre-line font-sans text-base leading-relaxed text-[var(--color-text-secondary)]"
             >
               {paragraph}
             </p>
@@ -115,7 +120,10 @@ function ReleaseCard({ release }: { release: ReleaseWithNotes }) {
 }
 
 export default function ReleasesPage() {
-  const releases = loadAllReleases();
+  const { currentVersion, releases, diagnostics } = loadReleaseCatalog();
+  const errors = diagnostics.filter(
+    (diagnostic) => diagnostic.severity === 'error'
+  );
 
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
@@ -136,6 +144,11 @@ export default function ReleasesPage() {
             What&apos;s new in Linejam
           </p>
 
+          <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+            Current application version: <strong>v{currentVersion}</strong>.
+            History is ordered by date; older version numbers are preserved.
+          </p>
+
           <a
             href="/releases.xml"
             className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]"
@@ -151,6 +164,20 @@ export default function ReleasesPage() {
             RSS feed
           </a>
         </header>
+
+        {errors.length > 0 && (
+          <aside
+            aria-label="Release content status"
+            className="mb-8 border border-[var(--color-border)] p-4"
+          >
+            <p>Some release content is out of sync.</p>
+            <ul className="mt-2 list-disc pl-5 text-sm">
+              {errors.map((diagnostic) => (
+                <li key={diagnostic.message}>{diagnostic.message}</li>
+              ))}
+            </ul>
+          </aside>
+        )}
 
         {/* Releases */}
         {releases.length === 0 ? (

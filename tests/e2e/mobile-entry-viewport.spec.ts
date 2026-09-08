@@ -72,30 +72,32 @@ for (const viewport of PHONE_VIEWPORTS) {
     expect(actionBox).not.toBeNull();
     expect(boxesOverlap(nameBox!, actionBox!)).toBe(false);
 
-    const appearance = page.getByRole('button', { name: 'Appearance' });
+    const appearance = page.getByRole('button', { name: /^Color mode:/ });
     await expect(appearance).toBeVisible();
     const appearanceBox = await appearance.boundingBox();
     expect(appearanceBox).not.toBeNull();
     expect(appearanceBox!.width).toBeGreaterThanOrEqual(44);
     expect(appearanceBox!.height).toBeGreaterThanOrEqual(44);
 
-    await appearance.click();
-    const colorModes = page.getByRole('group', { name: 'Color mode' });
-    await expect(colorModes).toBeVisible();
-    await expect(colorModes.getByRole('radio')).toHaveCount(3);
-    for (const label of await colorModes.locator('label').all()) {
-      const box = await label.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.height).toBeGreaterThanOrEqual(44);
-    }
-    await appearance.click();
+    const avatar = page.getByRole('button', { name: /^Change avatar,/ });
+    await avatar.click();
+    const picker = page.getByRole('dialog', { name: 'Choose your avatar' });
+    await expect(picker).toBeInViewport();
+    await expectNoHorizontalScroll(page);
+    await picker.getByRole('button', { name: 'Sprout', exact: true }).click();
+    await expect(picker).toHaveCount(0);
+    await expect(avatar).toHaveAccessibleName(/Sprout selected/);
+    await expect(avatar).toBeFocused();
     await expectNoHorizontalScroll(page);
   });
 }
-test('focused host and join entries expose Appearance without marketing chrome', async ({
+test('focused entries cycle color mode with a single keyboard-operable icon', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 667 });
+  await page.addInitScript(() =>
+    localStorage.setItem('linejam-theme-mode', 'system')
+  );
 
   for (const route of ['/host', '/join']) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
@@ -103,18 +105,16 @@ test('focused host and join entries expose Appearance without marketing chrome',
     await expect(page.getByRole('banner')).toHaveCount(0);
     await expect(page.getByRole('contentinfo')).toHaveCount(0);
 
-    const appearance = page.getByRole('button', { name: 'Appearance' });
-    await expect(appearance).toBeVisible();
-    await appearance.click();
-    const colorModes = page.getByRole('group', { name: 'Color mode' });
-    await expect(colorModes).toBeVisible();
-    const light = colorModes.getByRole('radio', { name: 'Light' });
-    const dark = colorModes.getByRole('radio', { name: 'Dark' });
-    await light.check();
-    await light.focus();
-    await page.keyboard.press('ArrowRight');
-    await expect(dark).toBeChecked();
-    await appearance.click();
+    const appearance = page.getByRole('button', { name: /^Color mode:/ });
+    await expect(appearance).toHaveAccessibleName(/System.*Switch to Light/);
+    await expect(appearance).toBeEnabled();
+    await appearance.focus();
+    await page.keyboard.press('Enter');
+    await expect(appearance).toHaveAccessibleName(/Light.*Switch to Dark/);
+    await expect(page.locator('html')).toHaveClass(/light/);
+    await page.keyboard.press('Space');
+    await expect(appearance).toHaveAccessibleName(/Dark.*Switch to System/);
+    await expect(page.locator('html')).toHaveClass(/dark/);
   }
 });
 

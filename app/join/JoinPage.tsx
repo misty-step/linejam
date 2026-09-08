@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from 'convex/react';
@@ -11,7 +11,11 @@ import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { hashRoomId, trackGameJoined } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { toErrorReportable } from '../../lib/errorCore';
-import { getDefaultAvatarId, type AvatarId } from '../../lib/avatars';
+import {
+  AVATAR_IDS,
+  getRandomAvatarId,
+  type AvatarId,
+} from '../../lib/avatars';
 import { Brand } from '../../components/Brand';
 import { AvatarPicker } from '../../components/AvatarPicker';
 import { Alert } from '../../components/ui/Alert';
@@ -22,7 +26,7 @@ import {
   LoadingState,
   LoadingMessages,
 } from '../../components/ui/LoadingState';
-import { FocusedEntryAppearance } from '../../components/FocusedEntryAppearance';
+import { ColorModeControl } from '../../components/ColorModeControl';
 
 function normalizeRoomCode(value: string): string {
   return value
@@ -93,16 +97,39 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
     dependencies.useUser();
   const joinRoomMutation = dependencies.useJoinRoom();
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const hasCode = !!searchParams.get('code');
+  const focusInitialField = useCallback(
+    (form: HTMLFormElement | null) => {
+      // Guest setup can finish after someone has already focused the toolbar.
+      if (!form || document.activeElement !== document.body) return;
+      form
+        .querySelector<HTMLInputElement>(hasCode ? '#name' : '#code')
+        ?.focus();
+    },
+    [hasCode]
+  );
 
   const [code, setCode] = useState(() =>
     normalizeRoomCode(searchParams.get('code') || '')
   );
   const [name, setName] = useState('');
-  const [avatarId, setAvatarId] = useState<AvatarId>(() =>
-    getDefaultAvatarId(guestToken || 'linejam-join')
-  );
+  const [avatarId, setAvatarId] = useState<AvatarId>(AVATAR_IDS[0]);
+  const initialAvatarRef = useRef<AvatarId | null>(null);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    initialAvatarRef.current ??= getRandomAvatarId();
+    const initialAvatar = initialAvatarRef.current;
+    let isStale = false;
+    // Keep server and hydration markup identical; seed this attempt only once.
+    queueMicrotask(() => {
+      if (!isStale) setAvatarId(initialAvatar);
+    });
+    return () => {
+      isStale = true;
+    };
+  }, []);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,23 +174,22 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
     );
   }
 
-  const hasCode = !!searchParams.get('code');
-
   return (
     <>
-      <h1 className="mb-5 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
+      <h1 className="mb-4 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
         Join room
       </h1>
 
       <form
+        ref={focusInitialField}
         onSubmit={handleJoin}
         aria-label="Join room"
-        className="space-y-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6"
+        className="space-y-4"
       >
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label
             htmlFor="code"
-            className="block text-base font-semibold text-[var(--color-text-primary)]"
+            className="block text-sm font-semibold text-[var(--color-text-primary)]"
           >
             Room code
           </label>
@@ -176,7 +202,6 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
             onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
             maxLength={7}
             required
-            autoFocus={!hasCode}
             inputMode="text"
             autoCapitalize="characters"
             autoCorrect="off"
@@ -194,36 +219,36 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label
             htmlFor="name"
-            className="block text-base font-semibold text-[var(--color-text-primary)]"
+            className="block text-sm font-semibold text-[var(--color-text-primary)]"
           >
             Your pen name
           </label>
-          <Input
-            ref={nameInputRef}
-            id="name"
-            name="displayName"
-            data-testid={E2E_TEST_IDS.joinNameInput}
-            placeholder="e.g. Alex"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            autoFocus={hasCode}
-            autoCapitalize="words"
-            autoComplete="nickname"
-            enterKeyHint="go"
-            disabled={isSubmitting}
-            className="h-12 text-base"
-          />
+          <div className="flex items-center gap-3">
+            <Input
+              ref={nameInputRef}
+              id="name"
+              name="displayName"
+              data-testid={E2E_TEST_IDS.joinNameInput}
+              placeholder="e.g. Alex"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoCapitalize="words"
+              autoComplete="nickname"
+              enterKeyHint="go"
+              disabled={isSubmitting}
+              className="h-12 text-base"
+            />
+            <AvatarPicker
+              value={avatarId}
+              onChange={setAvatarId}
+              disabled={isSubmitting}
+            />
+          </div>
         </div>
-
-        <AvatarPicker
-          value={avatarId}
-          onChange={setAvatarId}
-          disabled={isSubmitting}
-        />
 
         <div className="space-y-4">
           {error && (
@@ -253,7 +278,7 @@ export function JoinPage({
     <div className="lj-game-frame lj-viewport-offset relative min-h-0 overflow-hidden bg-[var(--color-background)]">
       <div className="lj-safe-frame h-full overflow-y-auto [--lj-safe-frame-space:1rem] sm:[--lj-safe-frame-space:2rem]">
         <div className="mx-auto w-full max-w-md">
-          <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <Link
               href="/"
               aria-label="Linejam home"
@@ -261,7 +286,7 @@ export function JoinPage({
             >
               <Brand className="text-2xl" />
             </Link>
-            <FocusedEntryAppearance className="ml-auto" />
+            <ColorModeControl className="ml-auto" />
           </div>
           <Suspense
             fallback={

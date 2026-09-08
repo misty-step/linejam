@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   act,
   fireEvent,
@@ -10,288 +9,201 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { RoomChrome } from '@/components/RoomChrome';
-import * as analyticsModule from '@/lib/analytics';
+import { RoomChrome, type RoomAction } from '@/components/RoomChrome';
+import { RoomInvite } from '@/components/RoomInvite';
 import { ColorModeProvider } from '@/lib/colorMode';
 import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
-describe('RoomChrome component', () => {
-  let originalClipboard: Clipboard;
-  let originalLocation: Location;
-  let originalShare: Navigator['share'];
-  const mockWriteText = vi.fn().mockResolvedValue(undefined);
-  let trackRoomInviteSharedSpy: MockInstance;
+const originalClipboard = navigator.clipboard;
+const originalShare = navigator.share;
+const writeText = vi.fn<Clipboard['writeText']>();
+let user: ReturnType<typeof userEvent.setup>;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    localStorage.clear();
-    document.documentElement.className = '';
-    installMatchMedia(false);
-    originalClipboard = navigator.clipboard;
-    originalLocation = window.location;
-    originalShare = navigator.share;
-
-    trackRoomInviteSharedSpy = vi
-      .spyOn(analyticsModule, 'trackRoomInviteShared')
-      .mockImplementation(() => {});
-
-    Object.defineProperty(navigator, 'clipboard', {
-      value: {
-        writeText: mockWriteText,
-      },
-      writable: true,
-      configurable: true,
-    });
-
-    Object.defineProperty(navigator, 'share', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
-
-    Object.defineProperty(window, 'location', {
-      value: {
-        origin: 'https://example.com',
-      },
-      writable: true,
-      configurable: true,
-    });
+beforeEach(() => {
+  user = userEvent.setup();
+  localStorage.clear();
+  installMatchMedia(false);
+  writeText.mockReset().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText },
+    configurable: true,
   });
-
-  afterEach(() => {
-    trackRoomInviteSharedSpy.mockRestore();
-    Object.defineProperty(navigator, 'clipboard', {
-      value: originalClipboard,
-      configurable: true,
-    });
-    Object.defineProperty(window, 'location', {
-      value: originalLocation,
-      configurable: true,
-    });
-    Object.defineProperty(navigator, 'share', {
-      value: originalShare,
-      configurable: true,
-    });
+  Object.defineProperty(navigator, 'share', {
+    value: undefined,
+    configurable: true,
   });
+});
 
-  function renderWithColorMode(ui: React.ReactElement) {
-    return render(<ColorModeProvider>{ui}</ColorModeProvider>);
-  }
+afterEach(() => {
+  Object.defineProperty(navigator, 'clipboard', {
+    value: originalClipboard,
+    configurable: true,
+  });
+  Object.defineProperty(navigator, 'share', {
+    value: originalShare,
+    configurable: true,
+  });
+});
 
-  function renderRoomChrome() {
-    renderWithColorMode(
-      <RoomChrome
-        roomCode="ABCD"
-        title="Need 1 more player"
-        subtitle="Share the code to start."
-      />
-    );
-  }
+function renderChrome(action?: RoomAction, isLobby = false) {
+  return render(
+    <ColorModeProvider>
+      <RoomChrome roomCode="ABCD" isLobby={isLobby} action={action} />
+      {isLobby && <RoomInvite roomCode="ABCD" />}
+    </ColorModeProvider>
+  );
+}
 
-  it('keeps the invite, help, archive and color mode reachable', async () => {
-    const user = userEvent.setup();
-    renderRoomChrome();
-
+describe('room invitations', () => {
+  it('offers one lobby invitation without another code or share entry in options', async () => {
+    renderChrome(undefined, true);
     expect(
-      screen.getByRole('button', { name: /Share room invite/i })
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /More options/i }));
-    const archiveLink = screen.getByRole('link', { name: /Your poems/i });
-    expect(archiveLink).toHaveAttribute('href', '/me/poems');
+      screen.getAllByRole('region', { name: 'Room invitation' })
+    ).toHaveLength(1);
     expect(
-      screen.getByRole('dialog', { name: 'Room options' })
-    ).toBeInTheDocument();
+      screen.getAllByRole('button', { name: /copy room code/i })
+    ).toHaveLength(1);
     expect(
-      screen.getByRole('group', { name: 'Color mode' })
-    ).toBeInTheDocument();
+      screen.getAllByRole('button', { name: 'Share invite' })
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole('img', { name: /QR code for joining room/ })
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Room options' }));
+    const options = screen.getByRole('dialog', { name: 'Room options' });
+    expect(
+      within(options).queryByRole('button', { name: /invite/i })
+    ).toBeNull();
   });
 
-  it('copies a join link when native share is unavailable', async () => {
-    renderRoomChrome();
-
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /Share room invite/i })
-      );
-    });
-
-    await waitFor(() => {
-      expect(mockWriteText).toHaveBeenCalledWith(
-        'https://example.com/join?code=ABCD'
-      );
-      expect(screen.getByRole('status')).toHaveTextContent(
-        /invite link copied/i
-      );
-      expect(trackRoomInviteSharedSpy).toHaveBeenCalledWith({
-        method: 'clipboard',
-        roomCode: 'ABCD',
-      });
-    });
+  it('copies a usable join link when native share is unavailable', async () => {
+    render(<RoomInvite roomCode="ABCD" />);
+    await user.click(screen.getByRole('button', { name: 'Share invite' }));
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/join?code=ABCD`
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(/invite link copied/i);
   });
 
-  it('surfaces room-code clipboard failures and recovers on retry', async () => {
-    mockWriteText.mockRejectedValueOnce(new Error('clipboard blocked'));
-    renderRoomChrome();
-
-    fireEvent.click(screen.getByRole('button', { name: /Room code AB CD/i }));
-    const invite = screen.getByRole('dialog', { name: 'Invite friends' });
-    fireEvent.click(
-      within(invite).getByRole('button', { name: /copy room code/i })
-    );
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /couldn.t copy the room code/i
-    );
-
-    mockWriteText.mockResolvedValueOnce(undefined);
-    fireEvent.click(
+  it('recovers from denied code copying without losing the QR or invitation', async () => {
+    writeText.mockRejectedValueOnce(new Error('clipboard blocked'));
+    render(<RoomInvite roomCode="ABCD" />);
+    await user.click(screen.getByRole('button', { name: /copy room code/i }));
+    expect(await screen.findByRole('alert')).toBeVisible();
+    expect(screen.getByRole('img', { name: /QR code/ })).toBeVisible();
+    await user.click(
       screen.getByRole('button', { name: /retry copying room code/i })
     );
-    await waitFor(() => {
-      expect(mockWriteText).toHaveBeenLastCalledWith('ABCD');
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    });
+    expect(writeText).toHaveBeenLastCalledWith('ABCD');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(/room code copied/i);
   });
 
-  it('uses native share when available', async () => {
-    const nativeShare = vi.fn().mockResolvedValue(undefined);
+  it('uses native sharing without also copying the invite', async () => {
+    const sharedUrls: string[] = [];
     Object.defineProperty(navigator, 'share', {
-      value: nativeShare,
-      writable: true,
+      value: async (data: ShareData) => {
+        sharedUrls.push(data.url ?? '');
+      },
       configurable: true,
     });
-    renderRoomChrome();
-
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /Share room invite/i })
-      );
-    });
-
-    expect(nativeShare).toHaveBeenCalledWith({
-      title: 'Join my Linejam room',
-      text: 'Join my Linejam room with code ABCD.',
-      url: 'https://example.com/join?code=ABCD',
-    });
+    render(<RoomInvite roomCode="ABCD" />);
+    await user.click(screen.getByRole('button', { name: 'Share invite' }));
+    expect(sharedUrls).toEqual([`${window.location.origin}/join?code=ABCD`]);
+    expect(writeText).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveTextContent(/invite shared/i);
-    expect(trackRoomInviteSharedSpy).toHaveBeenCalledWith({
-      method: 'native-share',
-      roomCode: 'ABCD',
+  });
+
+  it('opens the same invitation from play and restores keyboard focus on dismissal', async () => {
+    renderChrome();
+    const inviteTrigger = screen.getByRole('button', {
+      name: /invite friends to room/i,
     });
-  });
-
-  it('opens help from the toolbar and restores the triggering focus', async () => {
-    const user = userEvent.setup();
-    renderRoomChrome();
-
-    const help = screen.getByRole('button', { name: /How to play/i });
-    await user.click(help);
+    await user.click(inviteTrigger);
+    const dialog = screen.getByRole('dialog', { name: 'Invite friends' });
     expect(
-      screen.getByRole('dialog', { name: /How to play/i })
-    ).toBeInTheDocument();
-
-    await user.keyboard('{Escape}');
-
-    expect(
-      screen.queryByRole('dialog', { name: /How to play/i })
-    ).not.toBeInTheDocument();
-    expect(help).toHaveFocus();
-  });
-
-  it('tracks aria-expanded and returns focus to the trigger on escape', async () => {
-    const user = userEvent.setup();
-    renderRoomChrome();
-
-    const trigger = screen.getByRole('button', { name: /More options/i });
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-
-    await user.click(trigger);
-    expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(
-      screen.getByRole('link', { name: /Your poems/i })
-    ).toBeInTheDocument();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('link', { name: /Your poems/i })
-      ).not.toBeInTheDocument();
-    });
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    // Keyboard focus is restored to the trigger, not dropped to <body>.
-    expect(trigger).toHaveFocus();
-  });
-
-  it('closes room options on a backdrop click and restores focus', async () => {
-    const user = userEvent.setup();
-    renderRoomChrome();
-
-    const trigger = screen.getByRole('button', { name: /More options/i });
-    await user.click(trigger);
-    expect(
-      screen.getByRole('group', { name: /Color mode/i })
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole('presentation'));
-
-    expect(
-      screen.queryByRole('dialog', { name: 'Room options' })
-    ).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
-  });
-
-  it('keeps keyboard focus inside options when using the native mode radios', async () => {
-    const user = userEvent.setup();
-    renderRoomChrome();
-
-    const trigger = screen.getByRole('button', { name: /More options/i });
-    await user.click(trigger);
-    const dark = screen.getByRole('radio', { name: 'Dark' });
-    await user.click(dark);
-    expect(dark).toBeChecked();
-    expect(document.documentElement).toHaveClass('dark');
-
-    await user.tab();
-    const close = screen.getByRole('button', { name: 'Close options' });
+      within(dialog).getByRole('region', { name: 'Room invitation' })
+    ).toBeVisible();
+    const close = within(dialog).getByRole('button', { name: 'Close panel' });
     expect(close).toHaveFocus();
     await user.tab({ shift: true });
-    expect(dark).toHaveFocus();
-    await user.keyboard('{Escape}');
-
     expect(
-      screen.queryByRole('dialog', { name: 'Room options' })
-    ).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
+      within(dialog).getByRole('button', { name: 'Share invite' })
+    ).toHaveFocus();
+    await user.tab();
+    expect(close).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(inviteTrigger).toHaveFocus();
+  });
+});
+
+describe('room options', () => {
+  it('keeps help reachable without a second toolbar button or focus trap', async () => {
+    renderChrome();
+    expect(screen.queryByRole('button', { name: 'How to play' })).toBeNull();
+    const options = screen.getByRole('button', { name: 'Room options' });
+    await user.click(options);
+    await user.click(screen.getByRole('button', { name: 'How to play' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: 'How to play' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(options).toHaveFocus();
+    expect(document.body.style.overflow).not.toBe('hidden');
   });
 
-  it('returns from an invite opened through options to the original trigger', async () => {
-    const user = userEvent.setup();
-    renderWithColorMode(
-      <RoomChrome roomCode="ABCD" title="Writing" subtitle="" compact />
-    );
+  it('requires confirmation and lets the host cancel ending a game', async () => {
+    const run = vi.fn().mockResolvedValue(undefined);
+    renderChrome({ kind: 'end-game', run });
+    expect(screen.queryByRole('button', { name: 'End game' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Room options' }));
+    await user.click(screen.getByRole('button', { name: 'End game' }));
+    expect(
+      screen.getByRole('dialog', { name: 'End this game?' })
+    ).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Keep playing' }));
+    expect(run).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Room options' })).toBeVisible();
+  });
 
-    const trigger = screen.getByRole('button', { name: /More options/i });
-    await user.click(trigger);
+  it('keeps a rejected end-game action retryable and prevents duplicate pending requests', async () => {
+    const pending = Promise.withResolvers<void>();
+    const run = vi
+      .fn()
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValue(undefined);
+    renderChrome({ kind: 'end-game', run });
+    await user.click(screen.getByRole('button', { name: 'Room options' }));
+    await user.click(screen.getByRole('button', { name: 'End game' }));
+    const confirm = screen.getByRole('button', { name: 'End game' });
+    await user.dblClick(confirm);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(confirm).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(
+      screen.getByRole('dialog', { name: 'End this game?' })
+    ).toBeVisible();
+    await act(async () => pending.reject(new Error('request unavailable')));
+    expect(await screen.findByRole('alert')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'End game' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'End game' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('does not expose a destructive action without a permitted operation', async () => {
+    renderChrome();
+    await user.click(screen.getByRole('button', { name: 'Room options' }));
     const options = screen.getByRole('dialog', { name: 'Room options' });
-    await user.click(
-      within(options).getByRole('button', { name: 'Invite friends' })
-    );
-
-    const invite = screen.getByRole('dialog', { name: 'Invite friends' });
     expect(
-      within(invite).getByRole('img', {
-        name: 'QR code for joining room AB CD',
+      within(options).queryByRole('button', {
+        name: /end game|close room|leave room/i,
       })
-    ).toBeInTheDocument();
+    ).toBeNull();
     expect(
-      within(invite).getByRole('link', { name: 'Open join link' })
-    ).toHaveAttribute('href', 'https://example.com/join?code=ABCD');
-    await user.click(
-      within(invite).getByRole('button', { name: 'Close invite' })
-    );
-
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
+      within(options).getByRole('link', { name: 'Your poems' })
+    ).toHaveAttribute('href', '/me/poems');
+    fireEvent.click(screen.getByRole('presentation'));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

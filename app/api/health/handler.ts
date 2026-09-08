@@ -2,6 +2,7 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import type { ConvexEnvHealthReport } from '@/convex/lib/env';
 import { resolveDeploymentId } from '@/lib/deploymentId';
+import { APP_VERSION } from '@/lib/appVersion';
 import { isValidSentryDsn } from '@/lib/env';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
@@ -58,6 +59,7 @@ export function createHealthRoute(
       const status = serviceHealthy && deployment.ready ? 200 : 503;
       const body = {
         status: status === 200 ? 'ok' : 'unhealthy',
+        version: APP_VERSION,
         deployment: {
           id: deployment.id,
           skewProtection: deployment.skewProtection,
@@ -92,7 +94,7 @@ export function createHealthRoute(
     } catch (error) {
       logFailure(error, startedAt, dependencies);
       return Response.json(
-        { status: 'error' },
+        { status: 'error', version: APP_VERSION },
         { status: 500, headers: { 'Cache-Control': 'no-store' } }
       );
     }

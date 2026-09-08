@@ -1,0 +1,23 @@
+{
+  "version": "0.25.0",
+  "date": "2026-07-17",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "auth",
+      "description": "migrate Clerk from v6 to v7",
+      "breaking": false,
+      "pr": 376,
+      "commit": "1f3c913"
+    },
+    {
+      "type": "feat",
+      "scope": "themes",
+      "description": "enforce WCAG AA contrast across every registered theme",
+      "breaking": false,
+      "pr": 377,
+      "commit": "fb3df29"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.24.1...v0.25.0"
+}
