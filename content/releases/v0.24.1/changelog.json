@@ -1,0 +1,15 @@
+{
+  "version": "0.24.1",
+  "date": "2026-07-17",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "privacy",
+      "description": "make poem sharing reversible and race-safe",
+      "breaking": false,
+      "pr": 371,
+      "commit": "71b4afe"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.24.0...v0.24.1"
+}

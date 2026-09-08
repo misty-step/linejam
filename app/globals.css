@@ -256,6 +256,32 @@
   );
 }
 
+/* A printed character vignette belongs only to the waiting pause. */
+.lj-waiting-print {
+  border-radius: 47% 53% 44% 56%;
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--color-text-primary) 20%, transparent) 0.6px,
+    transparent 0.9px
+  );
+  background-size: 6px 7px;
+  transform: rotate(-5deg);
+}
+
+@keyframes waiting-line-settle {
+  from {
+    transform: translateY(-0.45rem) rotate(-4deg);
+  }
+  to {
+    transform: translateY(0) rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lj-waiting-settle {
+    animation: waiting-line-settle 380ms var(--ease-out) both;
+  }
+}
+
 /* Fade-in Animation - Simple opacity reveal */
 @keyframes fade-in {
   from {
@@ -298,6 +324,25 @@
 .lj-button-primary:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
+}
+
+.lj-button-danger {
+  background-color: var(--color-error);
+  border-color: var(--color-error);
+  color: var(--color-text-inverse);
+}
+
+.lj-button-danger:hover:not(:disabled) {
+  background-color: color-mix(
+    in oklab,
+    var(--color-error) 90%,
+    var(--color-text-primary)
+  );
+  border-color: color-mix(
+    in oklab,
+    var(--color-error) 90%,
+    var(--color-text-primary)
+  );
 }
 
 .lj-button-secondary {

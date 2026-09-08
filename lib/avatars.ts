@@ -37,6 +37,11 @@ export function isAvatarId(value: string | undefined): value is AvatarId {
   return false;
 }
 
+/** Pick from the supported cast; sharing a character never prevents joining. */
+export function getRandomAvatarId(): AvatarId {
+  return AVATAR_IDS[Math.floor(Math.random() * AVATAR_IDS.length)];
+}
+
 /** Stable fallback for older callers and room memberships without a selection. */
 export function getDefaultAvatarId(stableId: string): AvatarId {
   let hash = 2166136261;

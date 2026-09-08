@@ -3,33 +3,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { cloneElement } from 'react';
-import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { Lobby, type LobbyDependencies } from '@/components/Lobby';
 import type { Doc, Id } from '@/convex/_generated/dataModel';
 
-const mockPush = vi.fn();
 const mockTrackLobbyReady = vi.fn();
 const mockTrackGameStarted = vi.fn();
 
 const mockMutations = {
   startGame: vi.fn(),
-  leaveLobby: vi.fn().mockResolvedValue(undefined),
-  closeRoom: vi.fn().mockResolvedValue(undefined),
-};
-
-const mockRouter: AppRouterInstance = {
-  back: vi.fn(),
-  forward: vi.fn(),
-  refresh: vi.fn(),
-  push: mockPush,
-  replace: vi.fn(),
-  prefetch: vi.fn(),
-  bfcacheId: '',
 };
 
 const lobbyDependencies: LobbyDependencies = {
-  useRouter: () => mockRouter,
   useUser: () => ({
     clerkUser: null,
     guestId: 'guest_123',
@@ -41,8 +26,6 @@ const lobbyDependencies: LobbyDependencies = {
     retryAuth: vi.fn(),
   }),
   useStartGame: () => mockMutations.startGame,
-  useLeaveLobby: () => mockMutations.leaveLobby,
-  useCloseRoom: () => mockMutations.closeRoom,
   hashRoomId: () => '0123456789abcdef',
   trackLobbyReady: mockTrackLobbyReady,
   trackGameStarted: mockTrackGameStarted,
@@ -96,12 +79,7 @@ describe('Lobby component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPush.mockClear();
-    mockMutations.startGame.mockClear();
-    mockMutations.leaveLobby.mockClear();
-    mockMutations.leaveLobby.mockResolvedValue(undefined);
-    mockMutations.closeRoom.mockClear();
-    mockMutations.closeRoom.mockResolvedValue(undefined);
+    mockMutations.startGame.mockReset();
   });
 
   it('renders player list from room state', () => {
@@ -112,16 +90,14 @@ describe('Lobby component', () => {
     expect(screen.getByText('Guest Player')).toBeInTheDocument();
   });
 
-  it('opens the join QR without hiding the start action', async () => {
-    const user = userEvent.setup();
+  it('shows the invitation and QR without hiding the start action', () => {
     renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost />);
-
-    const qrToggle = screen.getByText('Show QR code');
-
-    await user.click(qrToggle);
+    expect(
+      screen.getByRole('region', { name: 'Room invitation' })
+    ).toBeVisible();
     expect(
       screen.getByRole('img', { name: 'QR code for joining room AB CD' })
-    ).toBeInTheDocument();
+    ).toBeVisible();
     expect(screen.getByTestId(E2E_TEST_IDS.lobbyStartGameButton)).toBeEnabled();
   });
 
@@ -199,39 +175,7 @@ describe('Lobby component', () => {
     expect(waitingButtons[0]).toBeDisabled();
   });
 
-  it('lets the host open and exit a room-scale presentation lobby', async () => {
-    const user = userEvent.setup();
-
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    await user.click(screen.getByRole('button', { name: /Present room/i }));
-
-    const stage = screen.getByTestId('lobby-presentation-stage');
-    expect(within(stage).getByText('AB CD')).toBeInTheDocument();
-    expect(
-      within(stage).getByLabelText(/QR code for joining room AB CD/i)
-    ).toBeInTheDocument();
-    expect(within(stage).getByText('Host Player')).toBeInTheDocument();
-    expect(within(stage).getByText('Guest Player')).toBeInTheDocument();
-
-    await user.click(
-      within(stage).getByRole('button', { name: /Exit presentation/i })
-    );
-
-    expect(screen.queryByTestId('lobby-presentation-stage')).toBeNull();
-    expect(screen.getByRole('button', { name: /Present room/i })).toHaveFocus();
-  });
-
-  it('keeps presentation mode host-only in the lobby', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
-
-    expect(
-      screen.queryByRole('button', { name: /Present room/i })
-    ).not.toBeInTheDocument();
-  });
-
-  it('updates the roster while the lobby presentation is open', async () => {
-    const user = userEvent.setup();
+  it('updates the visible roster when another player joins', () => {
     const latePlayer = {
       // SAFETY: Synthetic Convex roomPlayer ID for late joining player.
       _id: 'player_3' as Id<'roomPlayers'>,
@@ -248,8 +192,6 @@ describe('Lobby component', () => {
       <Lobby room={mockRoom} players={mockPlayers} isHost={true} />
     );
 
-    await user.click(screen.getByRole('button', { name: /Present room/i }));
-
     rerender(
       <Lobby
         room={mockRoom}
@@ -259,46 +201,11 @@ describe('Lobby component', () => {
       />
     );
 
-    const stage = screen.getByTestId('lobby-presentation-stage');
-    expect(within(stage).getByText('Late Poet')).toBeInTheDocument();
-  });
-
-  it('Close room button calls mutation and navigates to home (host)', async () => {
-    const user = userEvent.setup();
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const closeButtons = screen.getAllByRole('button', {
-      name: /Close room/i,
-    });
-
-    await user.click(closeButtons[0]);
-
-    await waitFor(() => {
-      expect(mockMutations.closeRoom).toHaveBeenCalledWith({
-        roomCode: 'ABCD',
-        guestToken: 'mock-token',
-      });
-      expect(mockPush).toHaveBeenCalledWith('/');
-    });
-  });
-
-  it('Leave room button calls mutation and navigates to home (guest)', async () => {
-    const user = userEvent.setup();
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
-
-    const leaveButtons = screen.getAllByRole('button', {
-      name: /Leave room/i,
-    });
-
-    await user.click(leaveButtons[0]);
-
-    await waitFor(() => {
-      expect(mockMutations.leaveLobby).toHaveBeenCalledWith({
-        roomCode: 'ABCD',
-        guestToken: 'mock-token',
-      });
-      expect(mockPush).toHaveBeenCalledWith('/');
-    });
+    expect(
+      within(screen.getByRole('list', { name: 'Players' })).getByText(
+        'Late Poet'
+      )
+    ).toBeVisible();
   });
 
   it('shows host badge for host player', () => {

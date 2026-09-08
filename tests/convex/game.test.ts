@@ -1065,9 +1065,9 @@ describe('submitLine', () => {
     expect(line?.wordCount).toBe(2);
   });
 
-  it('succeeds silently if line already submitted (idempotent)', async () => {
+  it('returns the committed line on retry even after room membership disappears', async () => {
     const t = setupConvexTest();
-    const { poemIds } = await seedInProgressGame(t, {
+    const { poemIds, roomId, userIds } = await seedInProgressGame(t, {
       players: [
         { name: 'Alice', clerkUserId: 'clerk_aliceSL05' },
         { name: 'Bob', clerkUserId: 'clerk_bobSL05' },
@@ -1083,6 +1083,16 @@ describe('submitLine', () => {
         text: 'hello',
       })
     ).resolves.toEqual({ status: 'committed', text: 'hello' });
+    await t.run(async (ctx) => {
+      const membership = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', userIds[0])
+        )
+        .first();
+      if (!membership) throw new Error('Expected the writer in the room');
+      await ctx.db.delete(membership._id);
+    });
     await expect(
       asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
         poemId: poemIds[0],
@@ -1100,6 +1110,10 @@ describe('submitLine', () => {
         .collect()
     );
     expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      text: 'hello',
+      authorDisplayName: 'Alice',
+    });
   });
 
   it('does not expose an abandoned line through an idempotent retry', async () => {
@@ -1149,6 +1163,44 @@ describe('submitLine', () => {
         text: 'hello',
       })
     ).rejects.toThrow('Not your turn');
+  });
+
+  it('rejects a new line from an assigned writer without room membership', async () => {
+    const t = setupConvexTest();
+    const { poemIds, roomId, userIds } = await seedInProgressGame(t, {
+      players: [
+        { name: 'Alice', clerkUserId: 'clerk_aliceSLNM' },
+        { name: 'Bob', clerkUserId: 'clerk_bobSLNM' },
+      ],
+      code: 'SLNM',
+    });
+    await t.run(async (ctx) => {
+      const membership = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', userIds[0])
+        )
+        .first();
+      if (!membership) throw new Error('Expected the writer in the room');
+      await ctx.db.delete(membership._id);
+    });
+
+    await expect(
+      asUser(t, 'aliceSLNM').mutation(api.game.submitLine, {
+        poemId: poemIds[0],
+        lineIndex: 0,
+        text: 'hello',
+      })
+    ).rejects.toThrow('Not a room participant');
+    const line = await t.run((ctx) =>
+      ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemIds[0]).eq('indexInPoem', 0)
+        )
+        .first()
+    );
+    expect(line).toBeNull();
   });
 
   it('throws if submitting for a future round', async () => {

@@ -1,7 +1,7 @@
 /**
  * Static releases infrastructure.
  *
- * CHANGELOG.md → Parser → LLM synthesis → Static files → Page rendering
+ * Landmark artifacts → deterministic catalog → app, marketing site, and feed.
  */
 
 export * from './types';

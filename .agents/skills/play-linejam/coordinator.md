@@ -91,7 +91,8 @@ Any -> Coordinator:        "BLOCKER: <sanitized description>" (only on fatal err
 1. Coordinator sends `CLOSE_ROOM` to Host.
 2. Host clicks **Back to Lobby** on the recap hub.
 3. Room transitions back to the Lobby.
-4. Host clicks **Close room** in the Lobby and sends `ROOM_CLOSED` to Coordinator.
+4. Host opens **Room options**, chooses **Close room**, confirms **Close room**,
+   observes exit from the room, and sends `ROOM_CLOSED` to Coordinator.
 5. Coordinator spawns or signals the **Verifier** agent in a fresh session (`<run-id>-verifier`).
 6. Verifier navigates to `/join`, inputs the closed room code, and attempts to enter.
 7. Verifier confirms join is rejected (error alert displayed, URL stays on `/join`) and reports `JOIN_REJECTED`.

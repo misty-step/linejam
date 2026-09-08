@@ -12,6 +12,7 @@ import type { MockInstance } from 'vitest';
 import { ConvexHttpClient } from 'convex/browser';
 import { createHealthRoute } from '@/app/api/health/handler';
 import { withEnv } from '@/tests/helpers/envHelper';
+import { APP_VERSION } from '@/lib/appVersion';
 
 const originalEnv = { ...process.env };
 
@@ -121,6 +122,7 @@ describe('/api/health', () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         status: 'ok',
+        version: APP_VERSION,
         timestamp: expect.any(String),
         deployment: {
           id: HEALTHY_ENV.NEXT_DEPLOYMENT_ID,
@@ -517,7 +519,7 @@ describe('/api/health', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data).toEqual({ status: 'error' });
+      expect(data).toEqual({ status: 'error', version: APP_VERSION });
       expect(response.headers.get('Cache-Control')).toBe('no-store');
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('"message":"Healthcheck failed"')

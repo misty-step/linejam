@@ -350,6 +350,14 @@ export const submitLine = mutation({
       return { status: 'already_submitted' as const, text: existing.text };
     }
 
+    const roomPlayer = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room_user', (q) =>
+        q.eq('roomId', room._id).eq('userId', user._id)
+      )
+      .first();
+    if (!roomPlayer) throw new ConvexError('Not a room participant');
+
     // Validate line length (prevent storage abuse) before normalization.
     if (text.length > MAX_LINE_LENGTH) {
       throw new ConvexError(
@@ -375,7 +383,7 @@ export const submitLine = mutation({
       text: normalizedText,
       wordCount,
       authorUserId: user._id,
-      authorDisplayName: user.displayName,
+      authorDisplayName: roomPlayer.displayName,
       createdAt: Date.now(),
     });
 

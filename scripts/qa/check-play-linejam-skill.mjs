@@ -98,7 +98,7 @@ function validate() {
       );
     }
     if (
-      pkg.devDependencies?.ajv !== '8.17.1' ||
+      pkg.dependencies?.ajv !== '8.17.1' ||
       pkg.devDependencies?.['ajv-formats'] !== '3.0.1'
     ) {
       errors.push('package.json must pin the result validator dependencies');

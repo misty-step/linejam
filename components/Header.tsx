@@ -15,7 +15,7 @@ import { useAccountState } from '@/lib/account';
 import { Archive, LogIn, MoreHorizontal } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { Brand } from './Brand';
-import { FocusedEntryAppearance } from './FocusedEntryAppearance';
+import { ColorModeControl } from './ColorModeControl';
 import { isFocusedPlayRoute } from '@/lib/routes';
 
 interface HeaderAuthBoundaryProps {
@@ -158,7 +158,7 @@ export function Header({
               <AccountButton />
             </SignedIn>
 
-            <FocusedEntryAppearance compact />
+            <ColorModeControl />
 
             <div ref={menuRootRef} className="relative">
               <button

@@ -1,0 +1,15 @@
+{
+  "version": "0.16.6",
+  "date": "2026-07-10",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "ops",
+      "description": "page repeated production smoke failures",
+      "breaking": false,
+      "pr": 330,
+      "commit": "35a4961"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.5...v0.16.6"
+}

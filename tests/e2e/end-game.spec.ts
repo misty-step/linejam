@@ -28,14 +28,12 @@ test('host can end an incomplete game without revealing partial poems', async ({
     await session.submitCurrentLine('host', CANONICAL_GUEST_FLOW_LINES[0]);
     await session.waitForWaitingState('host');
 
+    await session.hostPage
+      .getByRole('button', { name: 'Room options' })
+      .click();
     await session.hostPage.getByRole('button', { name: 'End game' }).click();
     await expect(
       session.hostPage.getByRole('heading', { name: 'End this game?' })
-    ).toBeVisible();
-    await expect(
-      session.hostPage.getByText(
-        'Everyone returns to the lobby. Partial poems stay private.'
-      )
     ).toBeVisible();
     await session.hostPage.getByRole('button', { name: 'End game' }).click();
 

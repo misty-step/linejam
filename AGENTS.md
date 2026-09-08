@@ -1,8 +1,8 @@
 # Linejam
 
-Use `project.md` and `DESIGN.md` for product constraints; `VISION.md` is
-optional context, not a work gate. Linear owns current priorities; historical
-issues are context, not an automatic queue.
+Use `project.md` for product constraints and current direction, and `DESIGN.md`
+for the identity and interaction contract. Linear owns current priorities;
+historical issues are context, not an automatic queue.
 
 ## Authority
 

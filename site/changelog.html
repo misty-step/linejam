@@ -4,7 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Linejam release notes</title>
-    <meta name="description" content="User-facing release notes for Linejam." />
+    <meta
+      name="description"
+      content="User-facing release notes for Linejam."
+    />
     <script>
       try {
         var stored = localStorage.getItem('linejam-theme-mode');
@@ -79,14 +82,22 @@
             What changed in Linejam. You can also read the
             <a href="https://www.linejam.app/releases">latest releases in the app</a>.
           </p>
+          <p>Current application version: <strong>v0.27.0</strong>.</p>
+          <p>Release history is ordered by date. Older version numbers are preserved, not treated as the current version.</p>
 
-          <section class="msk-release">
+
+          <section class="msk-release" id="v0.27.0">
             <p class="lj-kicker">2026-08-01 - v0.27.0</p>
             <h2>Version 0.27.0</h2>
-            <ul>
-              <li>repo: invoke local commitlint in hook.</li>
-              <li>lobby: ship status board room frame.</li>
-            </ul>
+
+            <p>Public notes are not recorded for this release. Technical history is available below.</p>
+            <details>
+              <summary>Technical history (2 changes)</summary>
+              <ul>
+                <li>(repo) invoke local commitlint in hook</li>
+                <li>(lobby) ship status board room frame</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -95,14 +106,20 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.26.0">
             <p class="lj-kicker">2026-07-17 - v0.26.0</p>
             <h2>Version 0.26.0</h2>
             <ul>
-              <li>
-                ops: scheduled encrypted Convex backups with provable restore.
-              </li>
+              <li>Improvements</li>
+              <li>- Your poems and game data are now automatically backed up on a regular schedule, with encryption to keep everything secure, so a hiccup on our end won&#39;t cost you your saved games.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ops) scheduled encrypted Convex backups with provable restore</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -111,12 +128,17 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.25.1">
             <p class="lj-kicker">2026-07-17 - v0.25.1</p>
             <h2>Version 0.25.1</h2>
-            <ul>
-              <li>deps: clear dependabot alerts.</li>
-            </ul>
+
+            <p>Public notes are not recorded for this release. Technical history is available below.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(deps) clear dependabot alerts</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -125,15 +147,23 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.25.0">
             <p class="lj-kicker">2026-07-17 - v0.25.0</p>
             <h2>Version 0.25.0</h2>
             <ul>
-              <li>auth: migrate Clerk from v6 to v7.</li>
-              <li>
-                themes: enforce WCAG AA contrast across every registered theme.
-              </li>
+              <li>New Features</li>
+              <li>- Improved visibility and readability across all themes with stronger color contrast.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed an issue where you couldn&#39;t always join a game that was already in progress, even if there were open spots.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (2 changes)</summary>
+              <ul>
+                <li>(auth) migrate Clerk from v6 to v7</li>
+                <li>(themes) enforce WCAG AA contrast across every registered theme</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -142,12 +172,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.24.1">
             <p class="lj-kicker">2026-07-17 - v0.24.1</p>
             <h2>Version 0.24.1</h2>
             <ul>
-              <li>privacy: make poem sharing reversible and race-safe.</li>
+              <li>Bug Fixes</li>
+              <li>- Turning a poem&#39;s sharing on and off is now fully reliable — toggling it off actually revokes the link, and toggling it back on always produces a working link instead of a dead one.
+- Fixed a rare glitch where sharing a poem at the same time as another action (like a retry or a second share attempt) could leave the link in a broken or confusing state.
+- The poem page now correctly updates when a share link&#39;s status changes, so you won&#39;t see stale &quot;expiring&quot; messages after a link has already been renewed or revoked.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(privacy) make poem sharing reversible and race-safe</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -156,32 +196,52 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.24.0">
             <p class="lj-kicker">2026-07-16 - v0.24.0</p>
             <h2>Version 0.24.0</h2>
             <ul>
-              <li>polish mobile game core loop.</li>
-              <li>security: contain document scripts with nonce CSP.</li>
-              <li>analytics: add privacy-safe room cycle funnel.</li>
-              <li>game: recover live rooms after reconnect.</li>
+              <li>New Features</li>
+              <li>- Friends who show up late can now join instantly by scanning a QR code — no typing, no waiting for a fresh link.
+- If your connection drops mid-game, Linejam now reconnects you right back into the action without losing your spot.
+- The big reveal now unfolds poem by poem in a clear, accessible order, so everyone can follow along easily.</li>
+              <li>Bug Fixes</li>
+              <li>- Smoothed out rough edges in the mobile game experience, including keeping the join QR code fully visible on smaller screens.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (7 changes)</summary>
+              <ul>
+                <li>polish mobile game core loop</li>
+                <li>(security) contain document scripts with nonce CSP</li>
+                <li>(analytics) add privacy-safe room cycle funnel</li>
+                <li>(game) recover live rooms after reconnect</li>
+                <li>(onboarding) add verified-live doctor</li>
+                <li>(reveal) present whole poems in ordered accessible ceremony</li>
+                <li>support late arrivals and zero-tap QR joining</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span
-                >Evidence: PR #370, PR #367, PR #372, PR #369, PR #365, PR #366,
-                PR #368.</span
-              >
+              <span>Evidence: PR #370, PR #367, PR #372, PR #369, PR #365, PR #366, PR #368.</span>
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.23.1">
             <p class="lj-kicker">2026-07-16 - v0.23.1</p>
             <h2>Version 0.23.1</h2>
             <ul>
-              <li>privacy: scrub durable author ids from poem payloads.</li>
+              <li>Bug Fixes</li>
+              <li>- Cleaned up how poems store author information so lasting personal IDs no longer linger in poem data, tightening up privacy behind the scenes.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(privacy) scrub durable author ids from poem payloads</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -190,12 +250,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.23.0">
             <p class="lj-kicker">2026-07-16 - v0.23.0</p>
             <h2>Version 0.23.0</h2>
             <ul>
-              <li>ai: add provider kill switch and spend guard.</li>
+              <li>New Features</li>
+              <li>- Added behind-the-scenes safeguards for our AI-powered poem features, including an emergency shutoff and spending limits, so the game stays reliable even if something goes wrong with the AI service.</li>
+              <li>Improvements</li>
+              <li>- Tightened up how AI-generated content is managed, helping keep Linejam running smoothly for everyone during game night.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ai) add provider kill switch and spend guard</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -204,12 +274,23 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.22.0">
             <p class="lj-kicker">2026-07-16 - v0.22.0</p>
             <h2>Version 0.22.0</h2>
             <ul>
-              <li>retention: enforce bounded data lifecycle.</li>
+              <li>New Features</li>
+              <li>- Old game data doesn&#39;t pile up forever anymore — Linejam now automatically cleans up stale rooms, shares, and other leftovers after a set time, keeping things tidy behind the scenes.</li>
+              <li>Improvements</li>
+              <li>- Data cleanup runs on a predictable schedule, so there&#39;s less digital clutter without any action needed from players.
+- Behind-the-scenes safeguards ensure real player accounts are protected during cleanup, so you never have to worry about losing your own data.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(retention) enforce bounded data lifecycle</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -218,12 +299,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.21.0">
             <p class="lj-kicker">2026-07-15 - v0.21.0</p>
             <h2>Version 0.21.0</h2>
             <ul>
-              <li>obs: alert on AI fallback rate.</li>
+              <li>Improvements</li>
+              <li>- Linejam now keeps a closer eye on its poem-writing AI helper behind the scenes, so any hiccups get caught and fixed faster, keeping your game sessions running smoothly.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:feat) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(obs) alert on AI fallback rate</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -232,12 +323,23 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.20.0">
             <p class="lj-kicker">2026-07-15 - v0.20.0</p>
             <h2>Version 0.20.0</h2>
             <ul>
-              <li>ci: enforce safe schema migration sequencing.</li>
+              <li>This release is all behind-the-scenes plumbing to keep Linejam running smoothly, with no visible changes for players this time.</li>
+              <li>Improvements</li>
+              <li>- Strengthened our internal safety checks to help prevent data hiccups behind the scenes, so future updates roll out more reliably.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ci) enforce safe schema migration sequencing</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -246,12 +348,23 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.19.4">
             <p class="lj-kicker">2026-07-15 - v0.19.4</p>
             <h2>Version 0.19.4</h2>
             <ul>
-              <li>mobile: own the visual game viewport.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a bunch of mobile layout glitches where buttons, controls, and text could spill off-screen or get squished — the game now fits properly within your phone&#39;s viewport.
+- Cramped screens with larger text sizes no longer crowd out important controls like the submit button or exit options.
+- The lobby and room screens no longer overflow or clip when zoomed or scaled, keeping all buttons reachable.
+- If you already submitted your line, the waiting screen now correctly shows you&#39;re waiting instead of losing track of your progress.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(mobile) own the visual game viewport</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -260,12 +373,21 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.19.3">
             <p class="lj-kicker">2026-07-15 - v0.19.3</p>
             <h2>Version 0.19.3</h2>
             <ul>
-              <li>make mobile entry flows viewport safe.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed sign-in, sign-up, and join screens getting cut off or awkward on phones—everything now fits properly on your screen.
+- Squashed a glitch where the header could misbehave during mobile taps and menu interactions.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>make mobile entry flows viewport safe</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -274,12 +396,21 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.19.2">
             <p class="lj-kicker">2026-07-15 - v0.19.2</p>
             <h2>Version 0.19.2</h2>
             <ul>
-              <li>recover stale clients across production deploys.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed an issue where your game could get stuck or act strangely if you were playing right when we rolled out an update behind the scenes — Linejam now smoothly catches you up instead of leaving you on outdated code.
+- Squashed a related snag where your poem draft could be at risk during those same behind-the-scenes updates, so your lines in progress stay safe.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>recover stale clients across production deploys</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -288,12 +419,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.19.1">
             <p class="lj-kicker">2026-07-15 - v0.19.1</p>
             <h2>Version 0.19.1</h2>
             <ul>
-              <li>ci: fail closed on empty coverage.</li>
+              <li>Bug Fixes</li>
+              <li>- Tightened up our internal testing checks behind the scenes, helping us catch problems before they ever reach the game you play.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ci) fail closed on empty coverage</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -302,12 +443,24 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.19.0">
             <p class="lj-kicker">2026-07-15 - v0.19.0</p>
             <h2>Version 0.19.0</h2>
             <ul>
-              <li>ops: declare DigitalOcean topology.</li>
+              <li>Improvements</li>
+              <li>- Behind the scenes, we strengthened how Linejam&#39;s hosting setup is configured and monitored, making the game more reliable for everyone.
+- Added extra checks to catch server hiccups early, so game rounds stay smooth and uninterrupted.
+- Deployment documentation got a refresh, helping keep the game running steadily for players.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, conventional:test) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ops) declare DigitalOcean topology</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -316,12 +469,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.18.6">
             <p class="lj-kicker">2026-07-15 - v0.18.6</p>
             <h2>Version 0.18.6</h2>
             <ul>
-              <li>infra: reconcile Convex environment drift.</li>
+              <li>Bug Fixes</li>
+              <li>- Squashed a behind-the-scenes configuration mismatch that could cause service hiccups, so Linejam runs more reliably.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(infra) reconcile Convex environment drift</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -330,12 +493,20 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.18.5">
             <p class="lj-kicker">2026-07-15 - v0.18.5</p>
             <h2>Version 0.18.5</h2>
             <ul>
-              <li>reveal: recover from absent readers.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a snag where the poem reveal could get stuck if the person meant to read it had already left the game.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(reveal) recover from absent readers</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -344,12 +515,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.18.4">
             <p class="lj-kicker">2026-07-15 - v0.18.4</p>
             <h2>Version 0.18.4</h2>
             <ul>
-              <li>gameplay: preserve rematch assignments.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a rematch bug where player assignments could get mixed up or lost when starting a new round with the same group.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(gameplay) preserve rematch assignments</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -358,12 +539,21 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.18.3">
             <p class="lj-kicker">2026-07-15 - v0.18.3</p>
             <h2>Version 0.18.3</h2>
             <ul>
-              <li>ai: budget ghostwriter generations.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a glitch where the AI ghostwriter could over-generate lines behind the scenes, so it now sticks to sensible limits and stays reliable during play.
+- Cleaned up how bot and ghostwriter turns are handled, reducing the chance of duplicate or conflicting generations in the same round.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ai) budget ghostwriter generations</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -372,12 +562,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.18.2">
             <p class="lj-kicker">2026-07-15 - v0.18.2</p>
             <h2>Version 0.18.2</h2>
             <ul>
-              <li>security: remove unsigned throttle rollout endpoint.</li>
+              <li>Bug Fixes</li>
+              <li>- Closed up a leftover backend shortcut that could let guest sessions bypass secure checks, tightening things up behind the scenes to keep your games safe.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(security) remove unsigned throttle rollout endpoint</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -386,12 +586,21 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.18.1">
             <p class="lj-kicker">2026-07-14 - v0.18.1</p>
             <h2>Version 0.18.1</h2>
             <ul>
-              <li>privacy: require explicit successful sharing.</li>
+              <li>Bug Fixes</li>
+              <li>- Your finished poems now stay completely private until you actually choose to share them, closing a gap that could have exposed them too early.
+- Shared poem cards and guest sessions are now more securely verified, so cards and links only work the way they&#39;re meant to.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(privacy) require explicit successful sharing</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -400,15 +609,23 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.18.0">
             <p class="lj-kicker">2026-07-11 - v0.18.0</p>
             <h2>Version 0.18.0</h2>
             <ul>
-              <li>
-                game-screen spine from design lab-001 (mobile-first,
-                theme-agnostic).
-              </li>
+              <li>New Features</li>
+              <li>- We&#39;ve refreshed the look and feel of game screens, making everything clearer and even more fun to use on your phone.</li>
+              <li>Bug Fixes</li>
+              <li>- The entry screen buttons are now perfectly aligned, so they won&#39;t be hidden by your phone&#39;s home indicator.
+- The &quot;Done&quot; button works reliably in the Reveal phase.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>game-screen spine from design lab-001 (mobile-first, theme-agnostic)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -417,15 +634,20 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.17.1">
             <p class="lj-kicker">2026-07-10 - v0.17.1</p>
             <h2>Version 0.17.1</h2>
             <ul>
-              <li>
-                themes: hydration-safe theme state in the picker hook , closes
-                [#418](https://github.com/misty-step/linejam/issues/418).
-              </li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a glitch on the theme picker page where returning visitors could briefly see an error or mismatched theme right after the page loaded; your saved theme now loads in smoothly every time.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(themes) hydration-safe theme state in the picker hook , closes [#418](https://github.com/misty-step/linejam/issues/418)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -434,15 +656,23 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.17.0">
             <p class="lj-kicker">2026-07-10 - v0.17.0</p>
             <h2>Version 0.17.0</h2>
             <ul>
-              <li>
-                ten-theme collection + /themes specimen picker (design lab-001
-                convergence).
-              </li>
+              <li>New Features</li>
+              <li>- We&#39;ve added ten brand-new visual themes to choose from, each with its own unique style for your poems!
+- Discover all themes easily on the new &quot;Themes&quot; page, where you can preview how each one looks with a real poem.</li>
+              <li>Bug Fixes</li>
+              <li>- Keyboard navigation for selecting themes now works correctly, even if your previously saved theme is no longer available.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>ten-theme collection + /themes specimen picker (design lab-001 convergence)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -451,12 +681,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.8">
             <p class="lj-kicker">2026-07-10 - v0.16.8</p>
             <h2>Version 0.16.8</h2>
             <ul>
-              <li>observability: suppress expected convex throttles.</li>
+              <li>Bug Fixes</li>
+              <li>- Cleaned up behind-the-scenes error reporting so normal traffic slowdowns aren&#39;t mistakenly flagged as problems, helping us focus on real issues that affect your game.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(observability) suppress expected convex throttles</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -465,12 +705,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.7">
             <p class="lj-kicker">2026-07-10 - v0.16.7</p>
             <h2>Version 0.16.7</h2>
             <ul>
-              <li>ops: classify production Convex rate limits.</li>
+              <li>Bug Fixes</li>
+              <li>- Smoothed out a backend hiccup that could mislabel temporary traffic slowdowns, helping the game stay steady during busy moments.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ops) classify production Convex rate limits</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -479,12 +729,24 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.6">
             <p class="lj-kicker">2026-07-10 - v0.16.6</p>
             <h2>Version 0.16.6</h2>
             <ul>
-              <li>ops: page repeated production smoke failures.</li>
+              <li>Improvements</li>
+              <li>- Behind the scenes, we&#39;ve sharpened our monitoring so real problems get flagged to our team faster, while harmless one-off blips no longer trigger unnecessary noise.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed an issue where repeated production hiccups weren&#39;t reliably catching our team&#39;s attention — now they&#39;re routed to get eyes on them right away, keeping the game running smoothly for everyone.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ops) page repeated production smoke failures</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -493,15 +755,21 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.5">
             <p class="lj-kicker">2026-07-09 - v0.16.5</p>
             <h2>Version 0.16.5</h2>
             <ul>
-              <li>
-                bound abandonment sweep + gate health on Convex env capabilities
-                (prod incident 2026-07-09).
-              </li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a backstage bug where a big pile of abandoned games could jam up cleanup entirely, so stuck games now get cleared out reliably again.
+- Improved behind-the-scenes monitoring so we&#39;ll catch it faster if a key game feature quietly stops working, keeping games running smoothly for you.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>bound abandonment sweep + gate health on Convex env capabilities (prod incident 2026-07-09)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -510,12 +778,21 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.4">
             <p class="lj-kicker">2026-07-09 - v0.16.4</p>
             <h2>Version 0.16.4</h2>
             <ul>
-              <li>auth: fail open to guest play.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a snag where a hiccup with our login service could block friends from hosting or joining games as guests — guest play now works no matter what.
+- Players who were already in as guests won&#39;t get bumped out even if the login service is running slow behind the scenes.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(auth) fail open to guest play</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -524,12 +801,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.3">
             <p class="lj-kicker">2026-07-09 - v0.16.3</p>
             <h2>Version 0.16.3</h2>
             <ul>
-              <li>responder: preserve Playwright browser path.</li>
+              <li>Bug Fixes</li>
+              <li>- Squashed a behind-the-scenes glitch in our automated testing setup that could cause smoke tests to run against the wrong browser — no player-facing impact, but it keeps Linejam more reliable under the hood.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(responder) preserve Playwright browser path</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -538,12 +825,22 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.2">
             <p class="lj-kicker">2026-07-09 - v0.16.2</p>
             <h2>Version 0.16.2</h2>
             <ul>
-              <li>ci: declare the Pages release runner.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed a behind-the-scenes hiccup in how updates get published, so new versions of Linejam roll out smoothly and reliably.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found security signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ci) declare the Pages release runner</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -552,12 +849,23 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.16.1">
             <p class="lj-kicker">2026-07-09 - v0.16.1</p>
             <h2>Version 0.16.1</h2>
             <ul>
-              <li>ci: install pnpm before Pages cache lookup.</li>
+              <li>Improvements</li>
+              <li>- Straightened out a hiccup in our deployment pipeline, so site updates go out smoothly and on time.
+- Refreshed under-the-hood libraries that power the app, keeping things running reliably behind the scenes.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix, dependency) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ci) install pnpm before Pages cache lookup</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -566,37 +874,64 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.16.0">
             <p class="lj-kicker">2026-07-08 - v1.16.0</p>
             <h2>Version 1.16.0</h2>
             <ul>
-              <li>clarify core loop submit readiness.</li>
-              <li>convex: drop legacy mode columns.</li>
-              <li>
-                csp: allow the production Clerk custom domain , closes
-                [#291](https://github.com/misty-step/linejam/issues/291).
-              </li>
-              <li>deps: remove unused production dependencies.</li>
+              <li>New Features</li>
+              <li>- Save or print your finished poem as a keepsake image, ready to share or stick on the fridge.
+- Hosts can now put the lobby and poem reveal up on a big screen or shared table, with an easy QR code join and room-readable text for everyone.</li>
+              <li>Bug Fixes</li>
+              <li>- A launch-day snag that could leave players stuck on &quot;Setting up your room...&quot; when joining or hosting is resolved — rooms open reliably now.
+- Guests who just finished a game were getting dumped on a confusing account page when tapping their poem archive; they now land straight on their own poems.</li>
+              <li>Release classification notes</li>
+              <li>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:feat, conventional:fix, conventional:perf, conventional:test, dependency, migration, security) disagreed with model classification; synthesis proceeded. deterministic floor found migration signals but model did not</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (17 changes)</summary>
+              <ul>
+                <li>clarify core loop submit readiness</li>
+                <li>(convex) drop legacy mode columns</li>
+                <li>(csp) allow the production Clerk custom domain , closes [#291](https://github.com/misty-step/linejam/issues/291)</li>
+                <li>(deps) remove unused production dependencies</li>
+                <li>(e2e) isolate remaining guest session contexts</li>
+                <li>(e2e) stabilize guest archive and reveal share , closes [#308](https://github.com/misty-step/linejam/issues/308)</li>
+                <li>(errors) ConvexError taxonomy so friendly messages survive production</li>
+                <li>(evidence) wrap static theme evidence server to suppress stale Convex/Canary noise</li>
+                <li>(identity) guest archive access + themed Clerk auth</li>
+                <li>(releases) generate site changelog from release content</li>
+                <li>(ui) lobby roster collision and sticky-chrome heading overlap , closes [#2](https://github.com/misty-step/linejam/issues/2)</li>
+                <li>(ui) wire themed design tokens</li>
+                <li>(agent) add CLI + MCP faces over the Convex core, plus the skill</li>
+                <li>(artifact) add poem image and print exports</li>
+                <li>(site) add marketing proof assets</li>
+                <li>(site) add public marketing site from the Aesthetic site-kit</li>
+                <li>(stage) host presentation mode — lobby and reveal as a room-scale stage</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span
-                >Evidence: PR #310, PR #298, PR #299, PR #313, PR #316, PR #315,
-                PR #303, commit b90c6ae, PR #307, PR #312, PR #306, commit
-                de6597e, commit e3376af, PR #308, PR #311, commit 7678974, PR
-                #309.</span
-              >
+              <span>Evidence: PR #310, PR #298, PR #299, PR #313, PR #316, PR #315, PR #303, commit b90c6ae, PR #307, PR #312, PR #306, commit de6597e, commit e3376af, PR #308, PR #311, commit 7678974, PR #309.</span>
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.15.1">
             <p class="lj-kicker">2026-07-04 - v1.15.1</p>
             <h2>Version 1.15.1</h2>
             <ul>
-              <li>convex: bound launch reads and live game failures.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed issues with game loading and stability during live gameplay.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(convex) bound launch reads and live game failures</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -605,12 +940,25 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.15.0">
             <p class="lj-kicker">2026-07-04 - v1.15.0</p>
             <h2>Version 1.15.0</h2>
             <ul>
-              <li>make reveal shareable and teach first writers.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed mobile writing to be fully playable with cleaner room interface.</li>
+              <li>New Features</li>
+              <li>- You can now play one streamlined core game mode (previous Rhyme and Quick modes have been combined).
+- You can now automatically become the host when the original host leaves the room.
+- The room now stays alive and recovers automatically if something goes wrong.
+- You can now see a shared recap of your game session after playing.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>make reveal shareable and teach first writers</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -619,12 +967,24 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.14.0">
             <p class="lj-kicker">2026-07-04 - v1.14.0</p>
             <h2>Version 1.14.0</h2>
             <ul>
-              <li>security: harden launch exposure gates.</li>
+              <li>New Features</li>
+              <li>- You can now vote for your favorite poem at the end of each game.
+- The room automatically continues with a new host if the current host leaves mid-game.</li>
+              <li>Improvements</li>
+              <li>- The mobile writing experience is now much easier to use with a cleaner, more spacious design.
+- Rooms now stay active and self-heal if connection issues occur, so your game won&#39;t get stuck.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(security) harden launch exposure gates</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -633,12 +993,24 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.13.0">
             <p class="lj-kicker">2026-07-03 - v1.13.0</p>
             <h2>Version 1.13.0</h2>
             <ul>
-              <li>observability: report canary health check-ins.</li>
+              <li>New Features</li>
+              <li>- You can now enjoy a streamlined single game mode that combines the best of our previous play styles.
+- The game now automatically passes host duties to another player when the current host leaves.
+- You can now access a shared recap page to revisit all the poems created during your session.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed mobile writing experience to work smoothly on phones and cleaned up the room interface.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(observability) report canary health check-ins</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -647,15 +1019,29 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.12.0">
             <p class="lj-kicker">2026-07-03 - v1.12.0</p>
             <h2>Version 1.12.0</h2>
             <ul>
-              <li>
-                ux: tap-to-copy room code, QR scan-to-join, one-tap help, fix
-                submit error.
-              </li>
+              <li>Breaking Changes</li>
+              <li>Game modes simplified: Linejam now focuses on one core collaborative poetry experience. The separate Rhyme Relay and Quick Jam modes have been removed to streamline gameplay. All rooms now use the same fun, pass-the-poem format you love.</li>
+              <li>New Features</li>
+              <li>- You can now vote for your favorite poem at the end of each game session.
+- You can now view a shared recap hub that shows all the poems created during your session.
+- The game now automatically keeps rooms alive and recovers from connection issues so your poetry sessions never get interrupted.
+- You can now seamlessly continue playing even if the original host leaves the room.</li>
+              <li>Improvements</li>
+              <li>- The mobile writing experience now works much better with improved touch controls and less screen clutter.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed mobile touch targets to work properly with thumbs on all game screens.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ux) tap-to-copy room code, QR scan-to-join, one-tap help, fix submit error</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -664,12 +1050,26 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.11.0">
             <p class="lj-kicker">2026-07-03 - v1.11.0</p>
             <h2>Version 1.11.0</h2>
             <ul>
-              <li>observability: wire Convex backend failures to Canary.</li>
+              <li>Breaking Changes</li>
+              <li>We&#39;ve streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.</li>
+              <li>New Features</li>
+              <li>- You can now keep playing even if your game host leaves, as we&#39;ll automatically pick a new host from your group.
+- You can now see a shared recap page after each game to relive your best poem moments together.
+- You can now vote for your favorite poem in each round, and we&#39;ll crown a room champion at the end.</li>
+              <li>Bug Fixes</li>
+              <li>- Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(observability) wire Convex backend failures to Canary</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -678,14 +1078,25 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.10.0">
             <p class="lj-kicker">2026-06-26 - v1.10.0</p>
             <h2>Version 1.10.0</h2>
             <ul>
-              <li>
-                ai: multi-bot solo play + evidence-backed config (028 m1).
-              </li>
+              <li>New Features</li>
+              <li>- You can now play with just one game mode that&#39;s perfectly tuned for collaborative poetry.
+- The room automatically finds a new host when the current host leaves mid-game.
+- Rooms now stay alive and self-heal if something goes wrong during your session.
+- You can now view a shared recap of all the poems created in your game session.</li>
+              <li>Improvements</li>
+              <li>- The mobile writing experience is now much easier to use with a cleaner interface.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ai) multi-bot solo play + evidence-backed config (028 m1)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -694,15 +1105,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.9.1">
             <p class="lj-kicker">2026-06-24 - v1.9.1</p>
             <h2>Version 1.9.1</h2>
             <ul>
-              <li>
-                ui: make the mobile writing surface playable and declutter room
-                chrome.
-              </li>
+              <li>ui: make the mobile writing surface playable and declutter room chrome.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ui) make the mobile writing surface playable and declutter room chrome</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -711,15 +1126,21 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.9.0">
             <p class="lj-kicker">2026-06-23 - v1.9.0</p>
             <h2>Version 1.9.0</h2>
             <ul>
               <li>release: drop pnpm exec step that broke Landmark release.</li>
-              <li>
-                game: consolidate to one core mode — delete rhyme + quick.
-              </li>
+              <li>game: consolidate to one core mode — delete rhyme + quick.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (2 changes)</summary>
+              <ul>
+                <li>(release) drop pnpm exec step that broke Landmark release</li>
+                <li>(game) consolidate to one core mode — delete rhyme + quick</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -728,15 +1149,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.8.0">
             <p class="lj-kicker">2026-06-22 - v1.8.0</p>
             <h2>Version 1.8.0</h2>
             <ul>
-              <li>
-                game: migrate host to a present participant when the host leaves
-                (017).
-              </li>
+              <li>game: migrate host to a present participant when the host leaves (017).</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(game) migrate host to a present participant when the host leaves (017)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -745,15 +1170,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.7.0">
             <p class="lj-kicker">2026-06-21 - v1.7.0</p>
             <h2>Version 1.7.0</h2>
             <ul>
-              <li>
-                game: never let the room die — presence, self-heal, abandonment
-                cron (016).
-              </li>
+              <li>game: never let the room die — presence, self-heal, abandonment cron (016).</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(game) never let the room die — presence, self-heal, abandonment cron (016)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -762,40 +1191,48 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.6.0">
             <p class="lj-kicker">2026-06-13 - v1.6.0</p>
             <h2>Version 1.6.0</h2>
             <ul>
               <li>mobile: pass the thumb test on every game surface.</li>
-              <li>
-                security: force esbuild &gt;=0.28.1 to clear
-                GHSA-gv7w-rqvm-qjhr.
-              </li>
-              <li>
-                game: make rules data and ship Rhyme Relay + Quick Jam modes.
-              </li>
-              <li>
-                realtime: make the room unstrandable — rescue, rematch,
-                self-heal.
-              </li>
+              <li>security: force esbuild &gt;=0.28.1 to clear GHSA-gv7w-rqvm-qjhr.</li>
+              <li>game: make rules data and ship Rhyme Relay + Quick Jam modes.</li>
+              <li>realtime: make the room unstrandable — rescue, rematch, self-heal.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (6 changes)</summary>
+              <ul>
+                <li>(mobile) pass the thumb test on every game surface</li>
+                <li>(security) force esbuild &gt;=0.28.1 to clear GHSA-gv7w-rqvm-qjhr</li>
+                <li>(game) make rules data and ship Rhyme Relay + Quick Jam modes</li>
+                <li>(realtime) make the room unstrandable — rescue, rematch, self-heal</li>
+                <li>(reveal) stage the ceremony and crown a room favorite</li>
+                <li>(writing) engineer tension — round clock, sparks, waiting theater</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span
-                >Evidence: commit 2f6c2be, commit 23c1565, commit c5b3d36,
-                commit a0e6eec, commit f39c155, commit 088bde4.</span
-              >
+              <span>Evidence: commit 2f6c2be, commit 23c1565, commit c5b3d36, commit a0e6eec, commit f39c155, commit 088bde4.</span>
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.5.0">
             <p class="lj-kicker">2026-06-12 - v1.5.0</p>
             <h2>Version 1.5.0</h2>
             <ul>
               <li>sharing: require explicit public links.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(sharing) require explicit public links</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -804,12 +1241,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.4.0">
             <p class="lj-kicker">2026-06-11 - v1.4.0</p>
             <h2>Version 1.4.0</h2>
             <ul>
               <li>reveal: add shared session recap hub.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(reveal) add shared session recap hub</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -818,12 +1262,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.3.0">
             <p class="lj-kicker">2026-06-11 - v1.3.0</p>
             <h2>Version 1.3.0</h2>
             <ul>
               <li>observability: add scrubbed route telemetry.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(observability) add scrubbed route telemetry</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -832,15 +1283,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.2.0">
             <p class="lj-kicker">2026-06-10 - v1.2.0</p>
             <h2>Version 1.2.0</h2>
             <ul>
-              <li>
-                add agentic qa harness , closes
-                [#27248473133](https://github.com/misty-step/linejam/issues/27248473133).
-              </li>
+              <li>add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133).</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -849,17 +1304,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.1.3">
             <p class="lj-kicker">2026-04-21 - v1.1.3</p>
             <h2>Version 1.1.3</h2>
             <ul>
-              <li>
-                ci: stop Dependabot from double-stamping commit scopes , closes
-                [#229](https://github.com/misty-step/linejam/issues/229)
-                [#230](https://github.com/misty-step/linejam/issues/230)
-                [#231](https://github.com/misty-step/linejam/issues/231).
-              </li>
+              <li>ci: stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231).</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(ci) stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231)</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -868,15 +1325,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.1.2">
             <p class="lj-kicker">2026-04-20 - v1.1.2</p>
             <h2>Version 1.1.2</h2>
             <ul>
-              <li>
-                deps: patch Clerk + protobufjs HIGH/CRITICAL advisories and
-                stabilize release pipeline.
-              </li>
+              <li>deps: patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(deps) patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -885,12 +1346,19 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.1.1">
             <p class="lj-kicker">2026-04-15 - v1.1.1</p>
             <h2>Version 1.1.1</h2>
             <ul>
               <li>deps: patch dompurify and ajv advisories.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (1 changes)</summary>
+              <ul>
+                <li>(deps) patch dompurify and ajv advisories</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -899,96 +1367,176 @@
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v1.1.0">
             <p class="lj-kicker">2026-04-15 - v1.1.0</p>
             <h2>Version 1.1.0</h2>
             <ul>
-              <li>
-                a11y: use theme-aware focus ring token instead of hardcoded
-                primary , closes
-                [#151](https://github.com/misty-step/linejam/issues/151).
-              </li>
-              <li>
-                auth: show error state with retry on guest auth failure , closes
-                [#144](https://github.com/misty-step/linejam/issues/144)
-                [#144](https://github.com/misty-step/linejam/issues/144).
-              </li>
+              <li>a11y: use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151).</li>
+              <li>auth: show error state with retry on guest auth failure , closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144).</li>
               <li>ci: pin trufflehog scanner version.</li>
               <li>ci: settle trufflehog workflow.</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (123 changes)</summary>
+              <ul>
+                <li>(a11y) use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151)</li>
+                <li>(auth) show error state with retry on guest auth failure , closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144)</li>
+                <li>(ci) pin trufflehog scanner version</li>
+                <li>(ci) settle trufflehog workflow</li>
+                <li>(ci) upgrade Next.js 16.1.6 (CVE), fix Cerberus API key, fix crypto types , closes [hi#severity](https://github.com/hi/issues/severity)</li>
+                <li>(ci) use GH_RELEASE_TOKEN for semantic-release</li>
+                <li>(game) add bounds checking to assignment matrix access , closes [#143](https://github.com/misty-step/linejam/issues/143)</li>
+                <li>(game) prevent double round advancement via idempotent guard , closes [#142](https://github.com/misty-step/linejam/issues/142)</li>
+                <li>harden canary local dagger qa</li>
+                <li>(lint) add coverage/ to ESLint ignores , closes [#130](https://github.com/misty-step/linejam/issues/130)</li>
+                <li>logShare throws ConvexError on invalid poem ID instead of silent return</li>
+                <li>replace pnpm audit with osv-scanner in dagger</li>
+                <li>simplify room chrome copy</li>
+                <li>unblock hosted convex deployment flow</li>
+                <li>add PostHog analytics + harden Sentry privacy</li>
+                <li>extract session lifecycle core</li>
+                <li>improve quality gates, robustness, and test coverage</li>
+                <li>redesign room chrome as sticky nav</li>
+                <li>scaffold qa and demo evidence harness</li>
+                <li>ship canary-first qa and responder loop</li>
+                <li>(favorites) parallelize getMyFavorites query — N+1 to batch , closes [#145](https://github.com/misty-step/linejam/issues/145)</li>
+                <li>(accessibility) address PR review feedback</li>
+                <li>add GITLEAKS_LICENSE env var to secret scanning job</li>
+                <li>add missing semantic color tokens to design system</li>
+                <li>add pull-requests write permission to gitleaks job</li>
+                <li>address PR review comments for auth and observability</li>
+                <li>apply custom gitleaks config in CI and pre-commit hooks</li>
+                <li>(build) add convex deploy to build script</li>
+                <li>(ci) add security audit to quality gates pipeline , closes [#36](https://github.com/misty-step/linejam/issues/36) [#98](https://github.com/misty-step/linejam/issues/98)</li>
+                <li>configure Convex deploy for Vercel builds</li>
+                <li>configure coverage badges and repair CI build</li>
+                <li>eliminate race condition in round submission validation</li>
+                <li>(error) consolidate duplicate captureError implementations</li>
+                <li>escape apostrophe in quote</li>
+                <li>externalize Pino packages to resolve build errors</li>
+                <li>(game) unify reader assignment algorithm , closes [#89](https://github.com/misty-step/linejam/issues/89) [#89](https://github.com/misty-step/linejam/issues/89) [#89](https://github.com/misty-step/linejam/issues/89)</li>
+                <li>guest token cross-platform compatibility and deployment</li>
+                <li>harden health endpoint for ci</li>
+                <li>(hooks) remove convex deploy from pre-push hooks</li>
+                <li>(logging) wire structured logger in all catch blocks</li>
+                <li>make WritingScreen textarea visible with focus states , closes [#1](https://github.com/misty-step/linejam/issues/1)</li>
+                <li>prevent auto-advancing to new game before poems are read</li>
+                <li>replace browser alert with inline Alert in WritingScreen</li>
+                <li>replace Node.js crypto with Web Crypto API in Convex runtime</li>
+                <li>require auth for getRoom query</li>
+                <li>resolve CI failures (pnpm version conflict + badge 409)</li>
+                <li>resolve P1 and P2 code review feedback</li>
+                <li>(security) add auth check to getRoundProgress query</li>
+                <li>(security) add length validation to displayName and line text , closes [#83](https://github.com/misty-step/linejam/issues/83) [#83](https://github.com/misty-step/linejam/issues/83) [#83](https://github.com/misty-step/linejam/issues/83)</li>
+                <li>(security) enforce authorization on poem and favorite queries</li>
+                <li>(security) remove legacy guestId fallback to prevent auth bypass</li>
+                <li>(security) upgrade @sentry/nextjs to fix CVE-2025-65944 (closes [#36](https://github.com/misty-step/linejam/issues/36))</li>
+                <li>(sentry) add error capture to all catch blocks</li>
+                <li>(test) mock convex api in health check test to avoid server-only error</li>
+                <li>(test) use node environment for health check test to resolve server-only error</li>
+                <li>use gh api PATCH for atomic gist badge updates</li>
+                <li>use pnpm for Convex build command</li>
+                <li>(ux) host leave lobby button now closes room</li>
+                <li>add Alert component for inline error display</li>
+                <li>add ARIA labels to WritingScreen textarea</li>
+                <li>add build-time env validation and enhanced health checks</li>
+                <li>add changelog infrastructure with semantic-release</li>
+                <li>add error feedback deep module</li>
+                <li>add error state to Host page</li>
+                <li>add error state to Lobby component</li>
+                <li>add error state to RevealPhase component</li>
+                <li>add hanko stamp to host badge in lobby</li>
+                <li>add ink seal stamps to WaitingScreen sealed state</li>
+                <li>add ink stamp press animation to buttons</li>
+                <li>add multi-cycle game architecture with schema updates</li>
+                <li>add observability infrastructure</li>
+                <li>add persimmon tint to shadow design tokens</li>
+                <li>add screen reader live region for validation announcements</li>
+                <li>add smooth shadow crushing animation to buttons</li>
+                <li>add stamp animation to submit button on success</li>
+                <li>add Stamp component for Japanese ink seal graphics</li>
+                <li>add submission confirmation state machine</li>
+                <li>add word count guidance text to WritingScreen</li>
+                <li>(analytics) add event tracking for key user actions , closes [#78](https://github.com/misty-step/linejam/issues/78) [#78](https://github.com/misty-step/linejam/issues/78)</li>
+                <li>(archive) redesign archive page with Manuscript Gallery layout</li>
+                <li>(auth) dedicated auth pages with guest migration , closes [#118](https://github.com/misty-step/linejam/issues/118) [#118](https://github.com/misty-step/linejam/issues/118) [#116](https://github.com/misty-step/linejam/issues/116)</li>
+                <li>configure quality gates with Lefthook and CI</li>
+                <li>configure Sentry error tracking with source maps</li>
+                <li>create Label component for editorial typography pattern</li>
+                <li>create LoadingState deep module with preset messages</li>
+                <li>create ornament component for editorial typography</li>
+                <li>enhance health route with error handling and caching</li>
+                <li>implement asymmetric homepage layout with vertical label</li>
+                <li>implement comprehensive design system with Tailwind 4</li>
+                <li>Implement comprehensive test coverage automation</li>
+                <li>implement core game logic and frontend UI</li>
+                <li>implement crypto-secure 6-char room codes with backward compatibility</li>
+                <li>implement server-signed guest tokens with HttpOnly cookies</li>
+                <li>implement staggered asymmetric poem reveal</li>
+                <li>implement structured logging with Pino</li>
+                <li>implement test helper for expired guest tokens</li>
+                <li>implement Zen Garden design system and reveal ceremony</li>
+                <li>improve poem display animation and layout</li>
+                <li>(infra) add deep health check for uptimerobot monitoring</li>
+                <li>(infra) add test-error and health check endpoints</li>
+                <li>(infra) configure Dependabot for automated dependency updates</li>
+                <li>(infrastructure) implement structured logging, analytics, and sentry integration</li>
+                <li>initialize Convex with schema for game data model</li>
+                <li>initialize Next.js project with planning docs</li>
+                <li>redesign archive poem with Literary Broadside aesthetic</li>
+                <li>redesign home page with Literary Broadside aesthetic</li>
+                <li>reduce room codes from 6 to 4 characters</li>
+                <li>render submission confirmation UI</li>
+                <li>replace footer separators with dagger ornaments</li>
+                <li>replace generic loading states with contextual messages</li>
+                <li>(seo) add robots.txt, sitemap.xml, and homepage OG image , closes [#76](https://github.com/misty-step/linejam/issues/76) [#76](https://github.com/misty-step/linejam/issues/76)</li>
+                <li>setup Changesets for version management</li>
+                <li>Share and Export Poems</li>
+                <li>(ui) implement ceremonial WritingScreen redesign with &quot;Digital Ensō&quot; concept</li>
+                <li>(ui) implement combined stamp hover animation (pulse + wiggle)</li>
+                <li>(ui) implement ink spread on hover animation for buttons</li>
+                <li>(ui) implement persimmon glow pulse animation for primary buttons</li>
+                <li>(ui) implement typewriter character shift animation for buttons</li>
+                <li>(ui) split-view lobby + dark mode QR + conditional header , closes [#faf9f7](https://github.com/misty-step/linejam/issues/faf9f7) [#1c1917](https://github.com/misty-step/linejam/issues/1c1917)</li>
+                <li>update placeholder to show required word count</li>
+                <li>eliminate N+1 query patterns in game and poems modules</li>
+                <li>parallelize serial database writes in game mutations , closes [#86](https://github.com/misty-step/linejam/issues/86) [#86](https://github.com/misty-step/linejam/issues/86)</li>
+                <li>Existing localStorage guest IDs will be replaced with</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span
-                >Evidence: PR #159, PR #157, PR #195, PR #181, PR #160, commit
-                ca98baa, PR #156, PR #155, commit 01a269b, PR #154, PR #164,
-                commit 6a76039, PR #210, PR #208, PR #165, PR #213, PR #192, PR
-                #209, PR #201, PR #206, PR #158, commit a342c85, commit c2d8c95,
-                commit 2afd7cf, commit 9315a0b, commit bb9a264, commit d4de3e7,
-                commit 1fda1da, PR #108, commit 60de0fe, commit b252533, PR #64,
-                PR #72, commit 371b919, commit 85613b2, PR #114, commit f0a4cfb,
-                commit fde3631, commit 0de1ae1, commit 6de2615, commit 9fe4ec9,
-                PR #70, commit 2e1f8c1, commit 20452ef, PR #121, commit 7802dff,
-                commit 9e72e46, PR #117, PR #110, commit 28a62e1, PR #71, PR
-                #73, commit 9049e64, commit 33c051e, commit d4fb1cf, commit
-                9ed59b2, commit 5ae5289, PR #109, commit e3a02d6, commit
-                3f51907, commit 30397e8, PR #127, commit 787bc44, commit
-                7244c02, commit 1b42e6c, commit 230588a, commit 6a6c3ed, commit
-                77276d2, commit dbcc5d5, commit f34b623, PR #126, commit
-                14b4e9d, commit 59fd5b5, commit ad028e7, commit 81fced4, commit
-                b39d388, commit 693f17d, commit cadc70f, PR #82, PR #69, PR
-                #119, commit 6a9112d, commit f1850b3, commit 68b061a, commit
-                18463e0, commit 8ff6da7, commit d53aa73, commit 96a01d9, commit
-                1f64c5e, PR #8, commit 8052011, commit 8a016fa, commit cc72f34,
-                commit 06b159a, commit 16658cf, PR #14, commit 4e5bc30, commit
-                46425c2, commit 3042c89, commit 72f28b7, PR #111, commit
-                b19c92e, commit ca00aa1, commit c4ba46f, commit 34b19b0, commit
-                420b717, commit 06c1e4a, commit 2a6ce49, commit 4469d4e, commit
-                18308f0, PR #80, commit d32cd8a, PR #10, commit 198afcd, commit
-                d555e70, commit 1593fdb, commit e3d2aae, commit ac31c21, commit
-                bc9122a, PR #63, PR #9, PR #116.</span
-              >
+              <span>Evidence: PR #159, PR #157, PR #195, PR #181, PR #160, commit ca98baa, PR #156, PR #155, commit 01a269b, PR #154, PR #164, commit 6a76039, PR #210, PR #208, PR #165, PR #213, PR #192, PR #209, PR #201, PR #206, PR #158, commit a342c85, commit c2d8c95, commit 2afd7cf, commit 9315a0b, commit bb9a264, commit d4de3e7, commit 1fda1da, PR #108, commit 60de0fe, commit b252533, PR #64, PR #72, commit 371b919, commit 85613b2, PR #114, commit f0a4cfb, commit fde3631, commit 0de1ae1, commit 6de2615, commit 9fe4ec9, PR #70, commit 2e1f8c1, commit 20452ef, PR #121, commit 7802dff, commit 9e72e46, PR #117, PR #110, commit 28a62e1, PR #71, PR #73, commit 9049e64, commit 33c051e, commit d4fb1cf, commit 9ed59b2, commit 5ae5289, PR #109, commit e3a02d6, commit 3f51907, commit 30397e8, PR #127, commit 787bc44, commit 7244c02, commit 1b42e6c, commit 230588a, commit 6a6c3ed, commit 77276d2, commit dbcc5d5, commit f34b623, PR #126, commit 14b4e9d, commit 59fd5b5, commit ad028e7, commit 81fced4, commit b39d388, commit 693f17d, commit cadc70f, PR #82, PR #69, PR #119, commit 6a9112d, commit f1850b3, commit 68b061a, commit 18463e0, commit 8ff6da7, commit d53aa73, commit 96a01d9, commit 1f64c5e, PR #8, commit 8052011, commit 8a016fa, commit cc72f34, commit 06b159a, commit 16658cf, PR #14, commit 4e5bc30, commit 46425c2, commit 3042c89, commit 72f28b7, PR #111, commit b19c92e, commit ca00aa1, commit c4ba46f, commit 34b19b0, commit 420b717, commit 06c1e4a, commit 2a6ce49, commit 4469d4e, commit 18308f0, PR #80, commit d32cd8a, PR #10, commit 198afcd, commit d555e70, commit 1593fdb, commit e3d2aae, commit ac31c21, commit bc9122a, PR #63, PR #9, PR #116.</span>
             </p>
           </section>
 
-          <section class="msk-release">
+          <section class="msk-release" id="v0.1.0">
             <p class="lj-kicker">2025-01-24 - v0.1.0</p>
             <h2>Version 0.1.0</h2>
             <ul>
-              <li>
-                Get ready to unleash your inner poet! We&#39;re thrilled to
-                announce the launch of Linejam, a brand new real-time
-                collaborative poetry game where you and your friends can create
-                beautiful verses together. Each game consists of 9 rounds,
-                offering plenty of opportunities for creative expression and
-                playful collaboration. If your muse is flying solo, don&#39;t
-                fret! You can now play against AI opponents powered by Gemini,
-                making Linejam a fun and engaging experience whether you&#39;re
-                a lone wolf or part of a pack.
-              </li>
-              <li>
-                We&#39;ve also added some delightful visual flair to enhance
-                your playing experience. Choose from four premium themes –
-                Kenya, Mono, Vintage Paper, and Hyper – to set the mood and
-                inspire your creativity. And when you&#39;ve crafted a poem
-                you&#39;re proud of, easily share it with the world! A simple
-                click lets you copy your masterpiece to the clipboard, ready to
-                paste and share wherever your heart desires.
-              </li>
-              <li>
-                Need a little guidance? We&#39;ve included a handy floating help
-                modal that clearly explains the game&#39;s rules. Plus, our
-                unique word count indicator, inspired by traditional Japanese
-                genkoyoushi paper, helps you keep track of your progress and
-                stay within the flow.
-              </li>
-              <li>
-                Finally, we&#39;ve made some behind-the-scenes tweaks to ensure
-                everything runs smoothly, including fixing an issue with word
-                counting to handle those extra spaces. Happy jamming!
-              </li>
+              <li>Get ready to unleash your inner poet! We&#39;re thrilled to announce the launch of Linejam, a brand new real-time collaborative poetry game where you and your friends can create beautiful verses together. Each game consists of 9 rounds, offering plenty of opportunities for creative expression and playful collaboration. If your muse is flying solo, don&#39;t fret! You can now play against AI opponents powered by Gemini, making Linejam a fun and engaging experience whether you&#39;re a lone wolf or part of a pack.</li>
+              <li>We&#39;ve also added some delightful visual flair to enhance your playing experience. Choose from four premium themes – Kenya, Mono, Vintage Paper, and Hyper – to set the mood and inspire your creativity. And when you&#39;ve crafted a poem you&#39;re proud of, easily share it with the world! A simple click lets you copy your masterpiece to the clipboard, ready to paste and share wherever your heart desires.</li>
+              <li>Need a little guidance? We&#39;ve included a handy floating help modal that clearly explains the game&#39;s rules. Plus, our unique word count indicator, inspired by traditional Japanese genkoyoushi paper, helps you keep track of your progress and stay within the flow.</li>
+              <li>Finally, we&#39;ve made some behind-the-scenes tweaks to ensure everything runs smoothly, including fixing an issue with word counting to handle those extra spaces. Happy jamming!</li>
             </ul>
+            <p>Archived notes from the previous release pipeline.</p>
+            <details>
+              <summary>Technical history (9 changes)</summary>
+              <ul>
+                <li>(game) Real-time collaborative poetry game with 9-round structure</li>
+                <li>(ai) AI players powered by Gemini for solo or small group play</li>
+                <li>(themes) Four premium visual themes (Kenya, Mono, Vintage Paper, Hyper)</li>
+                <li>(auth) Hybrid authentication with Clerk and guest UUID fallback</li>
+                <li>(share) Poem sharing with clipboard copy and analytics tracking</li>
+                <li>(help) Floating help modal explaining gameplay rules</li>
+                <li>(ui) WordSlots genkoyoushi-inspired word count indicator</li>
+                <li>(releases) Static file-based releases infrastructure</li>
+                <li>Ensure proper word counting for multi-space inputs</li>
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />

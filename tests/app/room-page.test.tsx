@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {
   RoomPage,
   type RoomPageDependencies,
@@ -17,6 +18,11 @@ const mockRetryAuth = vi.fn();
 const mockUsePresence = vi.fn<RoomPageDependencies['usePresence']>();
 const mockCaptureError = vi.fn<RoomPageDependencies['captureError']>();
 const mockRouter = { push: mockPush };
+const roomActions = {
+  endGame: vi.fn().mockResolvedValue(undefined),
+  closeRoom: vi.fn().mockResolvedValue(undefined),
+  leaveLobby: vi.fn().mockResolvedValue(undefined),
+};
 let authError: string | null = null;
 let writingPhaseFails = false;
 let writingView: 'writing' | 'waiting' = 'writing';
@@ -34,13 +40,7 @@ function TestLobby() {
   return <div>Lobby view</div>;
 }
 
-function TestWritingScreen({
-  roomCode,
-  showChrome,
-}: {
-  roomCode: string;
-  showChrome?: boolean;
-}) {
+function TestWritingScreen({ roomCode }: { roomCode: string }) {
   if (writingPhaseFails) {
     throw new Error('assignment query failed');
   }
@@ -50,26 +50,17 @@ function TestWritingScreen({
       <span>1 word</span>
       <span>Write the first line.</span>
       <span>
-        {writingView === 'waiting' ? 'Waiting view' : 'Writing view'} {roomCode}{' '}
-        {showChrome ? 'chrome on' : 'chrome off'}
+        {writingView === 'waiting' ? 'Waiting view' : 'Writing view'} {roomCode}
       </span>
     </>
   );
 }
 
-function TestRevealPhase({
-  roomCode,
-  showChrome,
-}: {
-  roomCode: string;
-  showChrome?: boolean;
-}) {
+function TestRevealPhase({ roomCode }: { roomCode: string }) {
   return (
     <>
       <h1>The reading circle</h1>
-      <span>
-        Reveal view {roomCode} {showChrome ? 'chrome on' : 'chrome off'}
-      </span>
+      <span>Reveal view {roomCode}</span>
     </>
   );
 }
@@ -102,6 +93,7 @@ const dependencies: RoomPageDependencies = {
     retryAuth: mockRetryAuth,
   }),
   useRoomState: () => mockUseRoomState(),
+  useRoomActions: () => roomActions,
   usePresence: mockUsePresence,
   captureError: mockCaptureError,
   LobbyComponent: TestLobby,
@@ -150,17 +142,12 @@ describe('RoomPage', () => {
     localStorage.clear();
   });
 
-  it('keeps the missing-room state centered inside safe mobile spacing', async () => {
+  it('offers join recovery when the requested room is missing', async () => {
     mockUseRoomState.mockReturnValue(null);
 
     renderRoomPage();
 
-    const title = await screen.findByText('Room not found');
-    const detail = screen.getByText(/room code is incorrect/i);
     const recovery = screen.getByRole('button', { name: /return to join/i });
-    expect(title.parentElement).toHaveClass('lj-safe-inline', 'text-center');
-    expect(detail).toHaveClass('max-w-md');
-    expect(recovery).toHaveClass('min-h-11', 'w-full');
     recovery.click();
     expect(mockPush).toHaveBeenCalledWith('/join');
   });
@@ -206,58 +193,6 @@ describe('RoomPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the room chrome copy for the lobby state', async () => {
-    mockUseRoomState.mockReturnValue({
-      room: {
-        _id: 'room_1',
-        _creationTime: Date.now(),
-        code: 'ABCD',
-        hostUserId: 'user_1',
-        createdAt: Date.now(),
-        status: 'LOBBY',
-      },
-      players: [
-        {
-          _id: 'player_1',
-          _creationTime: Date.now(),
-          roomId: 'room_1',
-          userId: 'user_1',
-          joinedAt: Date.now(),
-          stableId: 'stable-1',
-          displayName: 'Player 1',
-        },
-      ],
-      isHost: true,
-    });
-
-    renderRoomPage();
-
-    expect(
-      await screen.findByRole('button', { name: /room code AB CD/i })
-    ).toBeInTheDocument();
-    expect(screen.getByText('Waiting for players')).toBeInTheDocument();
-  });
-
-  it('routes in-progress rooms through the writing phase with shared chrome enabled', async () => {
-    mockUseRoomState.mockReturnValue({
-      room: {
-        _id: 'room_1',
-        _creationTime: Date.now(),
-        code: 'ABCD',
-        hostUserId: 'user_1',
-        createdAt: Date.now(),
-        status: 'IN_PROGRESS',
-      },
-      players: [],
-      isHost: true,
-    });
-
-    renderRoomPage();
-
-    expect(await screen.findByText('1 word')).toBeInTheDocument();
-    expect(screen.getByText('Write the first line.')).toBeInTheDocument();
-  });
-
   it('keeps a writing query failure inside the room panel fallback', async () => {
     writingPhaseFails = true;
     mockUseRoomState.mockReturnValue(createRoomState('IN_PROGRESS'));
@@ -270,9 +205,7 @@ describe('RoomPage', () => {
     expect(
       screen.getByText(/failed while syncing live data/i)
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/Writing view ABCD chrome on/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Writing view ABCD/i)).not.toBeInTheDocument();
   });
 
   it('recovers from a failed writing panel when the room moves to reveal', async () => {
@@ -292,41 +225,18 @@ describe('RoomPage', () => {
       </ColorModeProvider>
     );
 
-    expect(
-      await screen.findByText(/Reveal view ABCD chrome on/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Reveal view ABCD/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/this room panel needs a refresh/i)
     ).not.toBeInTheDocument();
   });
 
-  it('routes completed rooms through the reveal phase with shared chrome enabled', async () => {
-    mockUseRoomState.mockReturnValue({
-      room: {
-        _id: 'room_1',
-        _creationTime: Date.now(),
-        code: 'ABCD',
-        hostUserId: 'user_1',
-        createdAt: Date.now(),
-        status: 'COMPLETED',
-      },
-      players: [],
-      isHost: true,
-    });
-
-    renderRoomPage();
-
-    expect(
-      await screen.findByRole('heading', { name: /The reading circle/i })
-    ).toBeInTheDocument();
-  });
-
   it('keeps every room phase mounted across a transient disconnect', async () => {
     const phaseCases = [
       ['lobby', 'LOBBY', /Lobby view/i],
-      ['writing', 'IN_PROGRESS', /Writing view ABCD chrome on/i],
-      ['waiting', 'IN_PROGRESS', /Waiting view ABCD chrome on/i],
-      ['reveal', 'COMPLETED', /Reveal view ABCD chrome on/i],
+      ['writing', 'IN_PROGRESS', /Writing view ABCD/i],
+      ['waiting', 'IN_PROGRESS', /Waiting view ABCD/i],
+      ['reveal', 'COMPLETED', /Reveal view ABCD/i],
     ] as const;
 
     for (const [name, status, phaseCopy] of phaseCases) {
@@ -366,5 +276,51 @@ describe('RoomPage', () => {
       ).toBeInTheDocument();
       view.unmount();
     }
+  });
+
+  it('limits active-game ending to the current host', async () => {
+    const user = userEvent.setup();
+    mockUseRoomState.mockReturnValue({
+      ...createRoomState('IN_PROGRESS'),
+      isHost: false,
+    });
+    const guest = renderRoomPage();
+    await user.click(screen.getByRole('button', { name: 'Room options' }));
+    expect(screen.queryByRole('button', { name: 'End game' })).toBeNull();
+    guest.unmount();
+
+    mockUseRoomState.mockReturnValue(createRoomState('IN_PROGRESS'));
+    renderRoomPage();
+    await user.click(screen.getByRole('button', { name: 'Room options' }));
+    await user.click(screen.getByRole('button', { name: 'End game' }));
+    expect(roomActions.endGame).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'End game' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(roomActions.endGame).toHaveBeenCalledWith({
+      roomCode: 'ABCD',
+      guestToken: 'guest-token',
+    });
+    expect(roomActions.closeRoom).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('lets a lobby guest leave without offering the host close operation', async () => {
+    const user = userEvent.setup();
+    mockUseRoomState.mockReturnValue({
+      ...createRoomState('LOBBY'),
+      isHost: false,
+    });
+    renderRoomPage();
+    await user.click(screen.getByRole('button', { name: 'Room options' }));
+    expect(screen.queryByRole('button', { name: 'Close room' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Leave room' }));
+    expect(mockPush).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Leave room' }));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/'));
+    expect(roomActions.leaveLobby).toHaveBeenCalledWith({
+      roomCode: 'ABCD',
+      guestToken: 'guest-token',
+    });
+    expect(roomActions.closeRoom).not.toHaveBeenCalled();
   });
 });

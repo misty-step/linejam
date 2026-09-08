@@ -92,38 +92,48 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        <div className="min-h-0 space-y-5 overflow-y-auto p-5">
-          <ol className="space-y-4">
-            <li>
-              <h3 className="mb-1 font-sans text-base">Write a line</h3>
-              <p className="text-sm text-text-secondary">
-                Use the word count for this round.
-              </p>
-            </li>
-            <li>
-              <h3 className="mb-1 font-sans text-base">Pass it on</h3>
-              <p className="text-sm text-text-secondary">
-                The next writer sees only your line.
-              </p>
-            </li>
-            <li>
-              <h3 className="mb-1 font-sans text-base">Read together</h3>
-              <p className="text-sm text-text-secondary">
-                After nine rounds, each player reads one complete poem aloud.
-              </p>
-            </li>
-          </ol>
-          <p
-            className="text-center text-sm font-semibold text-primary"
-            aria-label="Words per round: 1, 2, 3, 4, 5, 4, 3, 2, 1"
-          >
-            1 · 2 · 3 · 4 · 5 · 4 · 3 · 2 · 1
-          </p>
-          <Button onClick={onClose} variant="secondary" className="w-full">
-            Got it
-          </Button>
-        </div>
+        <HelpContent onClose={onClose} />
       </div>
+    </div>
+  );
+}
+
+export function HelpContent({ onClose }: Pick<HelpModalProps, 'onClose'>) {
+  return (
+    <div className="min-h-0 space-y-5 overflow-y-auto p-5">
+      <ol className="space-y-4">
+        <li>
+          <h3 className="mb-1 font-sans text-base font-semibold">
+            Write a line
+          </h3>
+          <p className="text-sm text-text-secondary">
+            Use the word count for this round.
+          </p>
+        </li>
+        <li>
+          <h3 className="mb-1 font-sans text-base font-semibold">Pass it on</h3>
+          <p className="text-sm text-text-secondary">
+            The next writer sees only your line.
+          </p>
+        </li>
+        <li>
+          <h3 className="mb-1 font-sans text-base font-semibold">
+            Read together
+          </h3>
+          <p className="text-sm text-text-secondary">
+            After nine rounds, each player reads one complete poem aloud.
+          </p>
+        </li>
+      </ol>
+      <p
+        className="text-center text-sm font-semibold text-primary"
+        aria-label="Words per round: 1, 2, 3, 4, 5, 4, 3, 2, 1"
+      >
+        1 · 2 · 3 · 4 · 5 · 4 · 3 · 2 · 1
+      </p>
+      <Button onClick={onClose} variant="secondary" className="w-full">
+        Got it
+      </Button>
     </div>
   );
 }

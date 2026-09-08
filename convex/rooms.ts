@@ -79,7 +79,7 @@ export const createRoom = mutation({
     await ctx.db.insert('roomPlayers', {
       roomId: roomId,
       userId: user._id,
-      displayName: displayName,
+      displayName: normalizeDisplayName(displayName),
       avatarId:
         avatarId ??
         getDefaultAvatarId(user.clerkUserId || user.guestId || user._id),

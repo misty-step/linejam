@@ -77,7 +77,9 @@ function boxesOverlap(
  * elements, and (b) never extends past the viewport's right edge.
  */
 async function assertNoRosterCollisions(page: Page, viewportWidth: number) {
-  const rows = page.locator('ul li');
+  const rows = page
+    .getByRole('list', { name: 'Players' })
+    .getByRole('listitem');
   await rows.first().waitFor({ state: 'visible', timeout: 15000 });
   await expect
     .poll(
@@ -100,7 +102,7 @@ async function assertNoRosterCollisions(page: Page, viewportWidth: number) {
 
   for (let i = 0; i < rowCount; i++) {
     const row = rows.nth(i);
-    const nameSpan = row.locator('span.font-semibold').first();
+    const nameSpan = row.getByText(/^Matrix (Host|Guest [1-7])$/);
     const nameBox = await nameSpan.boundingBox();
     expect(nameBox).not.toBeNull();
     expect(nameBox!.x).toBeGreaterThanOrEqual(0);

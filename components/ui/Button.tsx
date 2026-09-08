@@ -2,7 +2,7 @@ import { ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -24,6 +24,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             'lj-button-secondary': variant === 'secondary',
             'lj-button-outline': variant === 'outline',
             'lj-button-ghost': variant === 'ghost',
+            'lj-button-danger': variant === 'danger',
           },
           {
             'min-h-11 px-4 py-2 text-sm': size === 'sm',

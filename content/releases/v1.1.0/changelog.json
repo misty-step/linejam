@@ -821,5 +821,6 @@
       "description": "Existing localStorage guest IDs will be replaced with",
       "breaking": false
     }
-  ]
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v1.0.0...v1.1.0"
 }

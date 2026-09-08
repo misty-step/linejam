@@ -17,14 +17,11 @@ import { LoadingState } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { Id } from '../convex/_generated/dataModel';
 import { hashRoomId, trackGameCompleted } from '../lib/analytics';
-import { RoomChrome } from './RoomChrome';
-import { buildRevealChromeCopy } from '../lib/roomChromeCopy';
 import {
   SessionRecapHub,
   type SessionRecapHubDependencies,
 } from './SessionRecapHub';
-import { RevealStage } from './stage/RevealStage';
-import { Presentation, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 type ReadingCircleStatus = 'read' | 'reading-now' | 'up-next' | null;
 
@@ -87,13 +84,11 @@ const defaultDependencies: RevealPhaseDependencies = {
 
 interface RevealPhaseProps {
   roomCode: string;
-  showChrome?: boolean;
   dependencies?: RevealPhaseDependencies;
 }
 
 export function RevealPhase({
   roomCode,
-  showChrome = false,
   dependencies = defaultDependencies,
 }: RevealPhaseProps) {
   const { guestToken } = dependencies.useUser();
@@ -101,7 +96,6 @@ export function RevealPhase({
   const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStartingNow, setIsStartingNow] = useState(false);
-  const [isPresenting, setIsPresenting] = useState(false);
   const readingNowRef = useRef<HTMLDivElement>(null);
   const previousReadingNowId = useRef<Id<'poems'> | null>(null);
   const lastShowingPoemId = useRef<Id<'poems'> | null>(null);
@@ -124,12 +118,12 @@ export function RevealPhase({
   const readingNowId = readingNowPoem?._id ?? null;
 
   useEffect(() => {
-    if (isPresenting || showingPoemId) return;
+    if (showingPoemId) return;
     if (readingNowId && readingNowId !== previousReadingNowId.current) {
       readingNowRef.current?.focus();
       previousReadingNowId.current = readingNowId;
     }
-  }, [isPresenting, readingNowId, showingPoemId]);
+  }, [readingNowId, showingPoemId]);
 
   useEffect(() => {
     if (showingPoemId) {
@@ -183,10 +177,7 @@ export function RevealPhase({
     }
   };
 
-  const revealPoem = async (
-    poemId: Id<'poems'>,
-    { showPoem }: { showPoem: boolean }
-  ): Promise<boolean> => {
+  const handleReveal = async (poemId: Id<'poems'>) => {
     setIsRevealingId(poemId);
     setError(null);
 
@@ -195,27 +186,15 @@ export function RevealPhase({
         poemId,
         guestToken: guestToken || undefined,
       });
-      if (showPoem) {
-        setShowingPoemId(poemId);
-      }
-      return true;
+      setShowingPoemId(poemId);
     } catch (cause) {
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);
       setError(feedback.message);
       captureError(error, { roomCode });
-      return false;
     } finally {
       setIsRevealingId(null);
     }
-  };
-
-  const handleReveal = async (poemId: Id<'poems'>) => {
-    await revealPoem(poemId, { showPoem: true });
-  };
-
-  const handleStageReveal = (poemId: Id<'poems'>) => {
-    return revealPoem(poemId, { showPoem: false });
   };
 
   const handleStartNewCycle = async () => {
@@ -236,7 +215,7 @@ export function RevealPhase({
 
   if (!state)
     return (
-      <div className="lj-game-viewport flex items-center justify-center bg-background">
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-background">
         <LoadingState message="Loading poems..." />
       </div>
     );
@@ -249,13 +228,6 @@ export function RevealPhase({
         (poem) => poem._id === showingPoemId
       )
     : null;
-  const chrome = showChrome ? (
-    <RoomChrome
-      roomCode={roomCode}
-      {...buildRevealChromeCopy({ allRevealed })}
-      compact
-    />
-  ) : null;
 
   if (displayingPoem) {
     // Count unique poets for this poem
@@ -264,7 +236,6 @@ export function RevealPhase({
 
     return (
       <>
-        {chrome}
         <PoemDisplay
           poemId={displayingPoem._id}
           guestToken={guestToken || undefined}
@@ -289,25 +260,12 @@ export function RevealPhase({
   }
 
   return (
-    <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background font-sans">
-      {chrome}
-      {isPresenting && (
-        <RevealStage
-          poems={poems}
-          myPoems={myPoems ?? []}
-          revealedPoems={state.revealedPoems ?? []}
-          allStableIds={allStableIds}
-          error={error}
-          isRevealingId={isRevealingId}
-          onRevealPoem={handleStageReveal}
-          onExit={() => setIsPresenting(false)}
-        />
-      )}
+    <div className="relative flex min-h-0 flex-1 flex-col bg-background font-sans">
       <div
         data-testid={E2E_TEST_IDS.revealPhase}
         className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
       >
-        <main className="lj-safe-inline mx-auto w-full max-w-2xl space-y-[20px] pt-[16px] pb-[max(24px,env(safe-area-inset-bottom))] [--lj-safe-inline-space:16px] sm:py-8">
+        <main className="lj-safe-inline mx-auto w-full max-w-xl space-y-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [--lj-safe-inline-space:1rem] sm:py-8">
           {!allRevealed && (
             <>
               <h1 className="text-2xl font-bold leading-snug text-text-primary">
@@ -480,19 +438,6 @@ export function RevealPhase({
               onBackToLobby={handleStartNewCycle}
               dependencies={dependencies.sessionRecapDependencies}
             />
-          )}
-
-          {state.isHost && (
-            <Button
-              type="button"
-              onClick={() => setIsPresenting(true)}
-              data-testid={E2E_TEST_IDS.revealPresentationButton}
-              variant="outline"
-              className="min-h-11 w-full"
-            >
-              <Presentation className="mr-2 h-4 w-4" aria-hidden="true" />
-              Present reveal
-            </Button>
           )}
         </main>
       </div>

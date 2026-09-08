@@ -1,4 +1,9 @@
-import type { ChangelogEntry, ReleaseWithNotes } from '@/lib/releases/types';
+import {
+  NOTES_STATUS_LABELS,
+  type ChangelogEntry,
+  type ReleaseCatalog,
+  type ReleaseWithNotes,
+} from '@/lib/releases/types';
 
 function escapeHtml(value: string): string {
   return value
@@ -31,17 +36,10 @@ function evidenceLabel(changes: ChangelogEntry[]): string {
 }
 
 function noteBullets(release: ReleaseWithNotes): string[] {
-  const notes = release.productNotes
+  return release.productNotes
     .split(/\n{2,}/)
-    .map((paragraph) => paragraph.replace(/\s+/g, ' ').trim())
+    .map((paragraph) => paragraph.trim())
     .filter(Boolean);
-
-  if (notes.length > 0) return notes;
-
-  return release.changes.map((change) => {
-    const scope = change.scope ? `(${change.scope}) ` : '';
-    return `${scope}${change.description}`;
-  });
 }
 
 function renderReleaseSection(release: ReleaseWithNotes): string {
@@ -50,12 +48,17 @@ function renderReleaseSection(release: ReleaseWithNotes): string {
     .map((bullet) => `              <li>${escapeHtml(bullet)}</li>`)
     .join('\n');
 
-  return `          <section class="msk-release">
+  return `          <section class="msk-release" id="${escapeHtml(versionLabel)}">
             <p class="lj-kicker">${escapeHtml(release.date)} - ${escapeHtml(versionLabel)}</p>
             <h2>Version ${escapeHtml(release.version.replace(/^v/, ''))}</h2>
-            <ul>
-${bullets}
-            </ul>
+${bullets ? `            <ul>\n${bullets}\n            </ul>` : ''}
+            <p>${escapeHtml(NOTES_STATUS_LABELS[release.notesStatus])}</p>
+            <details>
+              <summary>Technical history (${release.changes.length} changes)</summary>
+              <ul>
+${release.changes.map((change) => `                <li>${escapeHtml(`${change.scope ? `(${change.scope}) ` : ''}${change.description}`)}</li>`).join('\n')}
+              </ul>
+            </details>
             <p class="lj-status">
               <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
@@ -65,10 +68,17 @@ ${bullets}
           </section>`;
 }
 
-export function renderSiteChangelogHtml(
-  releases: readonly ReleaseWithNotes[]
-): string {
-  const releaseSections = releases.map(renderReleaseSection).join('\n\n');
+export function renderSiteChangelogHtml(catalog: ReleaseCatalog): string {
+  const releaseSections = catalog.releases
+    .map(renderReleaseSection)
+    .join('\n\n');
+  const errors = catalog.diagnostics.filter(
+    (diagnostic) => diagnostic.severity === 'error'
+  );
+  const diagnostics =
+    errors.length > 0
+      ? `<aside aria-label="Release content status"><p>Some release content is out of sync.</p><ul>${errors.map((diagnostic) => `<li>${escapeHtml(diagnostic.message)}</li>`).join('')}</ul></aside>`
+      : '';
 
   return `<!doctype html>
 <html lang="en">
@@ -154,6 +164,9 @@ export function renderSiteChangelogHtml(
             What changed in Linejam. You can also read the
             <a href="https://www.linejam.app/releases">latest releases in the app</a>.
           </p>
+          <p>Current application version: <strong>v${escapeHtml(catalog.currentVersion)}</strong>.</p>
+          <p>Release history is ordered by date. Older version numbers are preserved, not treated as the current version.</p>
+${diagnostics}
 
 ${releaseSections}
         </article>

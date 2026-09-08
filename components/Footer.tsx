@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isFocusedPlayRoute } from '@/lib/routes';
+import { APP_VERSION } from '@/lib/appVersion';
 
 type FooterProps = {
   className?: string;
@@ -25,7 +26,7 @@ export function Footer({ className = '' }: FooterProps) {
           href="/releases"
           className="inline-flex min-h-11 items-center rounded-[var(--radius-sm)] transition-colors hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2"
         >
-          Releases
+          Releases · v{APP_VERSION}
         </Link>
         <a
           href="https://mistystep.io"

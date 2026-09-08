@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {
   JoinPage,
   type JoinPageDependencies,
@@ -70,8 +71,9 @@ describe('entry and shell behavior', () => {
     expect(name).toHaveFocus();
   });
 
-  it('keeps account, archive, help, and appearance paths available without duplicate controls', () => {
+  it('keeps account, archive, help, and color-mode actions available without duplicate controls', async () => {
     currentPathname = '/me/poems';
+    const user = userEvent.setup();
     renderEntry(<Header dependencies={headerDependencies} />);
 
     expect(screen.getByRole('link', { name: 'Linejam' })).toHaveAttribute(
@@ -82,13 +84,11 @@ describe('entry and shell behavior', () => {
       'href',
       '/sign-in'
     );
-    expect(screen.getAllByRole('button', { name: 'Appearance' })).toHaveLength(
-      1
-    );
+    const colorMode = screen.getByRole('button', { name: /color mode/i });
 
     const menu = screen.getByRole('button', { name: 'More options' });
     expect(menu).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(menu);
+    await user.click(menu);
     expect(menu).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', { name: 'Your poems' })).toHaveAttribute(
       'href',
@@ -98,19 +98,10 @@ describe('entry and shell behavior', () => {
       screen.getByRole('button', { name: 'How to play' })
     ).toBeInTheDocument();
 
-    const appearance = screen.getByRole('button', { name: 'Appearance' });
-    fireEvent.click(appearance);
+    await user.click(colorMode);
     expect(menu).toHaveAttribute('aria-expanded', 'false');
-    expect(
-      screen.getByRole('group', { name: 'Color mode' })
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
-    expect(document.documentElement).toHaveClass('dark');
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(appearance).toHaveFocus();
-    expect(
-      screen.queryByRole('group', { name: 'Color mode' })
-    ).not.toBeInTheDocument();
+    expect(document.documentElement).toHaveClass('light');
+    expect(colorMode).toHaveFocus();
   });
 
   it('renders the signed-in account control', () => {

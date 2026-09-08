@@ -31,7 +31,7 @@ Repository docs own version-bound contracts, accepted decisions, and portable
 procedures. Keep fixtures and shipped assets in the repo; retain raw or
 sensitive run output in approved artifact storage and link sanitized,
 revision-specific conclusions from the work item or PR. Release and runtime
-ledgers keep their existing authority. `VISION.md` is optional context.
+ledgers keep their existing authority. `project.md` owns the product brief.
 
 ## Local Checks
 

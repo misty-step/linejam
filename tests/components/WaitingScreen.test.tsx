@@ -1,14 +1,12 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import { userEvent } from '@testing-library/user-event';
+import { render, screen, within } from '@testing-library/react';
 import {
   WaitingScreen,
   type WaitingScreenDependencies,
 } from '@/components/WaitingScreen';
 
 const progressQuery = vi.fn();
-const endGame = vi.fn();
 const dependencies: WaitingScreenDependencies = {
   useRoomQueryArgs: (roomCode, token) => ({
     guestToken: token ?? 'guest-token',
@@ -16,7 +14,6 @@ const dependencies: WaitingScreenDependencies = {
     queryArgs: { roomCode, guestToken: token ?? 'guest-token' },
   }),
   useRoundProgress: () => progressQuery(),
-  useEndGame: () => endGame,
 };
 const players = [
   {
@@ -48,14 +45,14 @@ describe('WaitingScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     progressQuery.mockReturnValue(progress);
-    endGame.mockResolvedValue({ abandoned: true });
   });
 
   it('distinguishes submitted, writing and away players by name without relying on color', () => {
     progressQuery.mockReturnValue({
       ...progress,
       players: [
-        ...players,
+        { ...players[0], isAway: true },
+        players[1],
         {
           userId: 'cy',
           stableId: 'cy',
@@ -75,14 +72,26 @@ describe('WaitingScreen', () => {
     expect(within(items[2]).getByText('Away')).toBeInTheDocument();
   });
 
-  it('uses supplied progress instead of an older subscription result', () => {
-    progressQuery.mockReturnValue(undefined);
-    renderWaiting({ progressOverride: progress });
-    expect(screen.getByText('Alice')).toBeInTheDocument();
-    expect(screen.getByText('Bob')).toBeInTheDocument();
+  it('uses the current supplied roster instead of an older subscription result', () => {
+    renderWaiting({
+      progressOverride: {
+        ...progress,
+        players: [
+          {
+            userId: 'cy',
+            stableId: 'cy',
+            displayName: 'Cy',
+            submitted: false,
+          },
+        ],
+      },
+    });
+
     expect(
-      document.querySelector('[aria-busy="true"]')
-    ).not.toBeInTheDocument();
+      screen.getByRole('list', { name: 'Players this round' })
+    ).toHaveTextContent('Cy');
+    expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument();
   });
 
   it('does not show an obsolete roster while current progress is unavailable', () => {
@@ -91,9 +100,6 @@ describe('WaitingScreen', () => {
     expect(screen.getByRole('status', { busy: true })).toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
     expect(screen.queryByText('Alice')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('heading', { name: /your line is in/i })
-    ).not.toBeInTheDocument();
 
     rerender(
       <WaitingScreen
@@ -142,9 +148,6 @@ describe('WaitingScreen', () => {
       screen.getByRole('heading', { name: /next game/i })
     ).toBeInTheDocument();
     expect(screen.getByText('Round 4 of 9')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('heading', { name: /your line is in/i })
-    ).not.toBeInTheDocument();
   });
 
   it('does not treat a late spectator as an unfinished writer', () => {
@@ -168,19 +171,34 @@ describe('WaitingScreen', () => {
     expect(
       screen.getByRole('heading', { name: /next round/i })
     ).toBeInTheDocument();
+  });
+
+  it('does not announce round completion when no writers are known', () => {
+    renderWaiting({
+      progressOverride: { ...progress, round: 8, players: [] },
+    });
+
+    expect(screen.getByText('Round 9 of 9')).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'End game' })
+      screen.queryByRole('heading', { name: /next round|ready to read/i })
     ).not.toBeInTheDocument();
   });
 
   it('announces the reveal rather than another round when all final lines arrive', () => {
-    progressQuery.mockReturnValue({ round: 8, isHost: true, players });
+    progressQuery.mockReturnValue({
+      ...progress,
+      round: 4,
+      totalRounds: 5,
+    });
     const { rerender } = renderWaiting();
-    expect(screen.getByText('Round 9 of 9')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'End game' })).toBeEnabled();
+    expect(screen.getByText('Round 5 of 5')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /ready to read/i })
+    ).not.toBeInTheDocument();
 
     progressQuery.mockReturnValue({
-      round: 8,
+      round: 4,
+      totalRounds: 5,
       isHost: true,
       players: players.map((player) => ({ ...player, submitted: true })),
     });
@@ -192,62 +210,15 @@ describe('WaitingScreen', () => {
     expect(
       screen.queryByRole('heading', { name: /next round/i })
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'End game' })
-    ).not.toBeInTheDocument();
   });
 
-  it('requires explicit host confirmation before ending the game and permits cancellation', async () => {
-    const user = userEvent.setup();
+  it('keeps destructive room controls out of the waiting pause, including for the host', () => {
     progressQuery.mockReturnValue({ ...progress, isHost: true });
     renderWaiting();
-    await user.click(screen.getByRole('button', { name: 'End game' }));
-    expect(endGame).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Keep playing' }));
-    expect(endGame).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'End game' }));
-    await user.click(screen.getByRole('button', { name: 'End game' }));
-    await waitFor(() => expect(endGame).toHaveBeenCalledTimes(1));
-    expect(endGame).toHaveBeenCalledWith({
-      roomCode: 'ABCD',
-      guestToken: 'guest-token',
-    });
-  });
 
-  it('keeps the end-game confirmation recoverable when the server rejects it', async () => {
-    const user = userEvent.setup();
-    const retryResponse = Promise.withResolvers<{ abandoned: boolean }>();
-    endGame
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockReturnValueOnce(retryResponse.promise);
-    progressQuery.mockReturnValue({ ...progress, isHost: true });
-    renderWaiting();
-    await user.click(screen.getByRole('button', { name: 'End game' }));
-    await user.click(screen.getByRole('button', { name: 'End game' }));
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Keep playing' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'End game' })).toBeEnabled();
-
-    await user.click(screen.getByRole('button', { name: 'End game' }));
-
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Keep playing' })).toBeDisabled();
-    const endingButton = screen.getByRole('button', { name: /ending game/i });
-    expect(endingButton).toBeDisabled();
-    await user.click(endingButton);
-    expect(endGame).toHaveBeenCalledTimes(2);
-    expect(endGame).toHaveBeenLastCalledWith({
-      roomCode: 'ABCD',
-      guestToken: 'guest-token',
-    });
-    retryResponse.resolve({ abandoned: true });
-    await retryResponse.promise;
-  });
-
-  it('does not offer the destructive host action to another player', () => {
-    renderWaiting();
     expect(
-      screen.queryByRole('button', { name: 'End game' })
-    ).not.toBeInTheDocument();
+      screen.getByRole('list', { name: 'Players this round' })
+    ).toHaveTextContent('Alice');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

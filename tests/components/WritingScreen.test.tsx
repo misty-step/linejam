@@ -21,7 +21,6 @@ import type { RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
 type MockQueryArgs = RoomQueryArgs | 'skip';
 
 const mockSubmitLineMutation = vi.fn();
-const mockEndGameMutation = vi.fn();
 const mockUseQuery = vi.fn();
 
 const mockUseRoomQueryArgs: WritingScreenDependencies['useRoomQueryArgs'] = (
@@ -39,7 +38,6 @@ const mockUseRoomQueryArgs: WritingScreenDependencies['useRoomQueryArgs'] = (
 const waitingScreenDependencies: WaitingScreenDependencies = {
   useRoomQueryArgs: mockUseRoomQueryArgs,
   useRoundProgress: (args) => mockUseQuery('game:getRoundProgress', args),
-  useEndGame: () => mockEndGameMutation,
 };
 
 const writingScreenDependencies: WritingScreenDependencies = {
@@ -101,8 +99,6 @@ describe('WritingScreen component', () => {
       status: 'committed',
       text: 'Word',
     });
-    mockEndGameMutation.mockReset();
-    mockEndGameMutation.mockResolvedValue({ abandoned: true });
 
     mockUseQuery.mockImplementation((query: string, args: MockQueryArgs) => {
       if (args === 'skip') return undefined;
@@ -207,17 +203,32 @@ describe('WritingScreen component', () => {
     expect(mockSubmitLineMutation).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps the submitted line unchanged until server acknowledgement opens the waiting state', async () => {
+  it('keeps the submitted line unchanged until server acknowledgement, then preserves acceptance while the roster catches up', async () => {
     const pending = Promise.withResolvers<{
       status: 'committed';
       text: string;
     }>();
     mockSubmitLineMutation.mockReturnValue(pending.promise);
-    mockUseQuery.mockImplementation((query: string) =>
-      query === 'game:getCurrentAssignment' ? mockAssignment : undefined
-    );
+    let rosterLoaded = false;
+    mockUseQuery.mockImplementation((query: string, args: MockQueryArgs) => {
+      if (args === 'skip') return undefined;
+      if (query === 'game:getCurrentAssignment') return mockAssignment;
+      return rosterLoaded
+        ? {
+            round: 0,
+            players: [
+              {
+                userId: 'alice',
+                stableId: 'alice',
+                displayName: 'Alice',
+                submitted: true,
+              },
+            ],
+          }
+        : undefined;
+    });
     const user = setupUser();
-    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
+    const { rerender } = renderWritingScreen(<WritingScreen roomCode="ABCD" />);
     await user.type(screen.getByRole('textbox'), 'Word');
     await user.click(screen.getByTestId(E2E_TEST_IDS.writingSubmitLineButton));
     expect(
@@ -242,6 +253,19 @@ describe('WritingScreen component', () => {
     expect(
       sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
     ).toBeNull();
+    const acceptedHeading = screen.getByRole('heading').textContent;
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+
+    rosterLoaded = true;
+    rerender(
+      <WritingScreen roomCode="ABCD" dependencies={writingScreenDependencies} />
+    );
+
+    expect(
+      screen.getByRole('list', { name: 'Players this round' })
+    ).toHaveTextContent('Alice');
+    expect(screen.getByRole('heading').textContent).toBe(acceptedHeading);
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
   it('keeps the round target, visible counter and accessible guidance in sync while editing', async () => {
@@ -450,7 +474,6 @@ describe('WritingScreen component', () => {
     render(
       <WritingScreen
         roomCode="ABCD"
-        showChrome
         dependencies={{
           ...writingScreenDependencies,
           useRoomQueryArgs: useSignedInRoomArgs,
@@ -465,14 +488,11 @@ describe('WritingScreen component', () => {
     const textarea = screen.getByRole('textbox', {
       name: /round 8\. Target: 2 words\./i,
     });
-    expect(
-      screen.getByRole('heading', { name: 'Round 8 of 9' })
-    ).toBeInTheDocument();
     await user.type(textarea, '  Moon   rises  ');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
 
     expect(
-      await screen.findByRole('heading', { name: /your line is in/i })
+      await screen.findByTestId(E2E_TEST_IDS.waitingPhase)
     ).toBeInTheDocument();
     expect(mockSubmitLineMutation).toHaveBeenCalledExactlyOnceWith({
       poemId: assignment.poemId,
@@ -583,40 +603,35 @@ describe('WritingScreen component', () => {
   });
 
   it('shows a late joiner the spectator waiting state and current round instead of a composer', () => {
-    mockUseQuery.mockImplementation((query: string) =>
-      query === 'game:getCurrentAssignment'
-        ? null
-        : {
-            round: 5,
-            totalRounds: 9,
-            isCurrentUserSpectator: true,
-            players: [
-              {
-                userId: 'late',
-                stableId: 'late',
-                displayName: 'Late poet',
-                submitted: false,
-                isSpectator: true,
-              },
-            ],
-          }
-    );
-    renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
+    mockUseQuery.mockImplementation((query: string, args: MockQueryArgs) => {
+      if (args === 'skip') return undefined;
+      if (query === 'game:getCurrentAssignment') return null;
+      return {
+        round: 5,
+        totalRounds: 9,
+        isCurrentUserSpectator: true,
+        players: [
+          {
+            userId: 'late',
+            stableId: 'late',
+            displayName: 'Late poet',
+            submitted: false,
+            isSpectator: true,
+          },
+        ],
+      };
+    });
+    renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
     expect(
       screen.getByRole('heading', { name: /next game/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Round 6 of 9' })
-    ).toBeInTheDocument();
+    expect(screen.getByText('Round 6 of 9')).toBeInTheDocument();
     expect(screen.getByText('Late poet')).toBeInTheDocument();
     expect(screen.getByText('Watching')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /^Submit$/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('heading', { name: /your line is in/i })
     ).not.toBeInTheDocument();
   });
 
@@ -700,7 +715,7 @@ describe('WritingScreen component', () => {
         return { ...mockAssignment, hasSubmitted: true };
       });
 
-      renderWritingScreen(<WritingScreen roomCode="ABCD" showChrome />);
+      renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
       expect(screen.getByTestId(E2E_TEST_IDS.waitingPhase)).toBeInTheDocument();
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();

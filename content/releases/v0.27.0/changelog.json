@@ -1,0 +1,21 @@
+{
+  "version": "0.27.0",
+  "date": "2026-08-01",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "repo",
+      "description": "invoke local commitlint in hook",
+      "breaking": false,
+      "commit": "45019db"
+    },
+    {
+      "type": "feat",
+      "scope": "lobby",
+      "description": "ship status board room frame",
+      "breaking": false,
+      "commit": "9f03da5"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.26.0...v0.27.0"
+}

@@ -366,7 +366,6 @@ async function expectOwnsVisualViewport(page: Page, frame: Locator) {
 }
 
 async function expectWritingGeometry(page: Page) {
-  const phase = page.getByTestId(E2E_TEST_IDS.writingPhase);
   const scrollRegion = page.getByTestId(E2E_TEST_IDS.writingScrollRegion);
   const actionZone = page.getByTestId(E2E_TEST_IDS.writingActionZone);
   const input = page.getByTestId(E2E_TEST_IDS.writingLineInput);
@@ -433,7 +432,10 @@ async function expectWritingGeometry(page: Page) {
     expect(boxesOverlap(paintedCarriedBox!, currentActionBox!)).toBe(false);
   }
 
-  await expectOwnsVisualViewport(page, phase);
+  await expectOwnsVisualViewport(
+    page,
+    page.getByTestId(E2E_TEST_IDS.roomFrame)
+  );
 }
 
 test('the complete mobile game holds primary actions through keyboard, rotation, and text scaling', async ({
@@ -504,9 +506,7 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       lobbyActionZone,
       soloStart
     );
-    await expectContentFits(
-      session.hostPage.getByTestId(E2E_TEST_IDS.lobbyPresentationButton)
-    );
+    await expectContentFits(soloStart);
     await session.hostPage.evaluate(() => {
       document.documentElement.style.removeProperty('font-size');
     });
@@ -523,8 +523,8 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     await Promise.all(
       [
         roomChrome,
-        session.hostPage.getByRole('button', { name: /Share room invite/i }),
-        session.hostPage.getByRole('button', { name: /More options/i }),
+        session.hostPage.getByRole('button', { name: /^Share invite$/i }),
+        session.hostPage.getByRole('button', { name: /^Room options$/i }),
         start,
       ].map((locator) =>
         expectInitiallyInsideVisualViewport(session.hostPage, locator)
@@ -538,7 +538,7 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     );
 
     const moreOptions = session.hostPage.getByRole('button', {
-      name: /More options/i,
+      name: /^Room options$/i,
     });
     await moreOptions.click();
     const menuPopover = session.hostPage.getByRole('dialog', {
@@ -547,19 +547,18 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
     await expectInitiallyInsideVisualViewport(session.hostPage, menuPopover);
     await expectNoHorizontalOverflow(menuPopover);
     await expect(
-      menuPopover.getByRole('group', { name: 'Color mode' })
+      menuPopover.getByRole('button', { name: 'How to play' })
     ).toBeVisible();
     await session.hostPage.keyboard.press('Escape');
 
-    await session.hostPage
-      .getByRole('button', { name: /Open QR and copy options for room code/i })
-      .click();
-    const qrPopover = session.hostPage.getByRole('dialog', {
-      name: 'Invite friends',
+    const invitation = session.hostPage.getByRole('region', {
+      name: 'Room invitation',
     });
-    await expectInitiallyInsideVisualViewport(session.hostPage, qrPopover);
-    await expectNoHorizontalOverflow(qrPopover);
-    await session.hostPage.keyboard.press('Escape');
+    await expectNoHorizontalOverflow(invitation);
+    await expectReachableInsideVisualViewport(
+      session.hostPage,
+      invitation.getByRole('img', { name: /QR code/ })
+    );
     await session.hostPage.screenshot({
       path: testInfo.outputPath('lobby-320x667-200-percent.png'),
     });
@@ -567,30 +566,23 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       document.documentElement.style.removeProperty('font-size');
     });
 
-    await session.hostPage
-      .getByTestId(E2E_TEST_IDS.lobbyPresentationButton)
-      .click();
     await session.hostPage.setViewportSize({ width: 667, height: 375 });
     await session.hostPage.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });
-    await expect(
-      session.hostPage.getByTestId(E2E_TEST_IDS.lobbyPresentationStage)
-    ).toHaveCSS('position', 'fixed');
-    await expectInitiallyInsideVisualViewport(
+    await expectSplitPaneGeometry(
       session.hostPage,
-      session.hostPage.getByRole('button', { name: 'Exit presentation' })
+      lobbyScrollRegion,
+      lobbyActionZone,
+      start
     );
     await expectNoHorizontalScroll(session.hostPage);
     await session.hostPage.screenshot({
-      path: testInfo.outputPath('lobby-stage-667x375-200-percent.png'),
+      path: testInfo.outputPath('lobby-667x375-200-percent.png'),
     });
     await session.hostPage.evaluate(() => {
       document.documentElement.style.removeProperty('font-size');
     });
-    await session.hostPage
-      .getByRole('button', { name: 'Exit presentation' })
-      .click();
 
     await Promise.all([
       session.hostPage.setViewportSize({ width: 320, height: 667 }),
@@ -608,11 +600,11 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       ),
       expectInitiallyInsideVisualViewport(
         session.hostPage,
-        session.hostPage.getByRole('button', { name: /How to play/i })
+        session.hostPage.getByRole('button', { name: /^Color mode:/i })
       ),
       expectInitiallyInsideVisualViewport(
         session.hostPage,
-        session.hostPage.getByRole('button', { name: /More options/i })
+        session.hostPage.getByRole('button', { name: /^Room options$/i })
       ),
     ]);
     await session.hostPage.screenshot({
@@ -742,10 +734,13 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
           await expect(directWaitingPhase).toBeVisible();
           await expectOwnsVisualViewport(
             directWaitingPage,
-            directWaitingPhase.locator('..')
+            directWaitingPage.getByTestId(E2E_TEST_IDS.roomFrame)
           );
           await expectNoHorizontalScroll(directWaitingPage);
           await expectNoHorizontalOverflow(directWaitingPhase);
+          await directWaitingPage
+            .getByRole('button', { name: 'Room options' })
+            .click();
           const endGameButton = directWaitingPage.getByRole('button', {
             name: 'End game',
           });
@@ -811,7 +806,10 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
       await expectNoHorizontalScroll(page);
       const revealPhase = page.getByTestId(E2E_TEST_IDS.revealPhase);
       await expectNoHorizontalOverflow(revealPhase);
-      await expectOwnsVisualViewport(page, revealPhase.locator('..'));
+      await expectOwnsVisualViewport(
+        page,
+        page.getByTestId(E2E_TEST_IDS.roomFrame)
+      );
       if (pageIndex === 0) {
         await page.screenshot({
           path: testInfo.outputPath('reveal-390x844-200-percent.png'),
@@ -821,38 +819,21 @@ test('the complete mobile game holds primary actions through keyboard, rotation,
         document.documentElement.style.removeProperty('font-size');
       });
     }
-    await session.hostPage
-      .getByTestId(E2E_TEST_IDS.revealPresentationButton)
-      .click();
     await session.hostPage.setViewportSize({ width: 844, height: 390 });
     await session.hostPage.evaluate(() => {
       document.documentElement.style.fontSize = '200%';
     });
-    await expect(
-      session.hostPage.getByTestId(E2E_TEST_IDS.revealPresentationStage)
-    ).toHaveCSS('position', 'fixed');
-    await expectInitiallyInsideVisualViewport(
-      session.hostPage,
-      session.hostPage.getByRole('button', { name: 'Exit presentation' })
-    );
     await expectReachableInsideVisualViewport(
       session.hostPage,
-      session.hostPage
-        .getByTestId(E2E_TEST_IDS.revealPresentationStage)
-        .getByRole('button', {
-          name: /^(Read poem|Step in and read|Read again)$/,
-        })
+      session.hostPage.getByTestId(E2E_TEST_IDS.revealPoemButton).first()
     );
     await expectNoHorizontalScroll(session.hostPage);
     await session.hostPage.screenshot({
-      path: testInfo.outputPath('reveal-stage-844x390-200-percent.png'),
+      path: testInfo.outputPath('reveal-844x390-200-percent.png'),
     });
     await session.hostPage.evaluate(() => {
       document.documentElement.style.removeProperty('font-size');
     });
-    await session.hostPage
-      .getByRole('button', { name: 'Exit presentation' })
-      .click();
 
     await session.hostPage.setViewportSize({ width: 390, height: 844 });
     await session.hostPage
