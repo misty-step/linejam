@@ -133,12 +133,18 @@ enabled. GitHub documents the
 [workflow_dispatch exception for GITHUB_TOKEN](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
 
 `OPENROUTER_API_KEY` must be available to the release workflow for Landmark
-synthesis. The repository secret-name listing did not contain it; organization
-secret access could not be inspected (HTTP 403), so inherited availability is
-**unverified**, not known absent. Use the approved credential plane to confirm
-or configure that existing secret name. Missing keys and degraded/failed
-synthesis fail preparation visibly rather than publishing invented fallback
-copy. A deliberate Landmark policy skip remains an explicit skip.
+synthesis. Confirm both repository secrets and organization secrets available
+to this repository; listing only repository-owned secrets can miss inherited
+access:
+
+```sh
+gh api repos/misty-step/linejam/actions/organization-secrets --jq '.secrets[].name'
+```
+
+The pre-deploy inspection confirmed the inherited key name without reading its
+value. Missing keys and degraded/failed synthesis fail preparation visibly
+rather than publishing invented fallback copy. A deliberate Landmark policy
+skip remains an explicit skip.
 
 If a release PR becomes stale, the next green master run updates it and
 dispatches its full gate again. If tag history and the Landmark decision
@@ -240,8 +246,7 @@ doctl apps update "$LINEJAM_APP_ID" --spec /tmp/linejam-app.yaml --wait
 rm /tmp/linejam-app.yaml
 ```
 
-Repeat with `LINEJAM_RESPONDER_APP_ID` for responder-only configuration. Read
-the resulting deployment phase and health route before continuing.
+Read the resulting deployment phase and health route before continuing.
 
 ### Rolling-deploy skew protection
 
@@ -416,10 +421,12 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.app/join
 doctl apps logs "$LINEJAM_APP_ID" web --type run --tail 200
 ```
 
-All three routes must return HTTP 200. `/api/health` must report the core app,
-Convex, guest-token, Clerk, AI, and Sentry readiness expected for production.
-Its `guestTokenParity` boolean is a proof result only; neither secret nor a
-fingerprint is returned.
+All three routes must return HTTP 200. `/api/health` must report the intended
+source SHA, connected Convex backend, guest-token parity, and production
+observability readiness. Clerk sign-in is exercised separately by the
+authenticated production smoke, not inferred from a configured public key.
+`guestTokenParity` is a proof result only; neither secret nor a fingerprint is
+returned.
 
 ## Preview smoke
 

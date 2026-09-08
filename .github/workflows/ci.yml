@@ -5,16 +5,12 @@ on:
     branches: [master]
     types: [opened, synchronize, reopened, ready_for_review]
     # Every PR needs merge-gate, including documentation-only changes.
+  # Release requires a successful CI receipt for the exact current master SHA.
+  # Documentation-only merges must receive that receipt too.
   push:
     branches: [master]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.vscode/**'
-      - 'LICENSE'
-      - '.gitignore'
-  # GITHUB_TOKEN-created release PRs do not emit another pull_request workflow.
-  # workflow_dispatch is the supported exception; it runs this same full gate.
+  # Dispatch the same full gate explicitly for token-created release PRs,
+  # without relying on automatic pull_request workflow execution.
   workflow_dispatch:
     inputs:
       release_pr:
