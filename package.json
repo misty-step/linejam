@@ -96,7 +96,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@browserbasehq/stagehand": "3.7.0",
+    "@browserbasehq/stagehand": "4.0.2",
     "@clerk/backend": "^3.11.7",
     "@clerk/testing": "^2.2.10",
     "@commitlint/cli": "^21.2.1",
