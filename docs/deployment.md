@@ -33,8 +33,8 @@ that same value to the application and release catalog. It is not a source
 identifier. Deployment IDs, Sentry releases, and the rolling-deploy guard remain
 source-SHA based. Never replace those identifiers with a semantic version.
 
-The current recorded version is **0.27.0**, matching the first `CHANGELOG.md`
-entry and the [published GitHub Release](https://github.com/misty-step/linejam/releases/tag/v0.27.0).
+Before this cutover, the recorded version was **0.27.0**, matching the then-current
+`CHANGELOG.md` entry and [published GitHub Release](https://github.com/misty-step/linejam/releases/tag/v0.27.0).
 That release has technical history but no recorded player-facing synthesis.
 The public surfaces say so; they do not invent notes for today's unshipped
 changes. Historical v1.x entries remain in date order, not sorted above the
@@ -118,9 +118,9 @@ append-and-reparse CDATA mutation.
 
 ### Live prerequisites and recovery
 
-Read-only investigation found the release workflow **manually disabled**. Its
-[last failed run](https://github.com/misty-step/linejam/actions/runs/31910551340)
-failed in `@semantic-release/git` prepare with `GH006`: changes require a PR
+Before this cutover, the release workflow had been **manually disabled**.
+The [failed run](https://github.com/misty-step/linejam/actions/runs/31910551340)
+stopped in `@semantic-release/git` prepare with `GH006`: changes require a PR
 and `merge-gate`. No synthesis ran. This was an observed branch-protection
 failure, not evidence of a token or model-provider failure.
 

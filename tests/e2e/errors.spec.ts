@@ -264,17 +264,26 @@ test.describe('Party-path error taxonomy', () => {
       const code = session.roomCode;
 
       await session.hostPage
-        .getByRole('button', { name: /close room/i })
+        .getByRole('button', { name: 'Room options', exact: true })
+        .click();
+      await session.hostPage
+        .getByRole('button', { name: 'Close room', exact: true })
+        .click();
+      await expect(
+        session.hostPage.getByRole('heading', { name: 'Close this room?' })
+      ).toBeVisible();
+      await session.hostPage
+        .getByRole('button', { name: 'Close room', exact: true })
         .click();
       await session.hostPage.waitForURL('**/', { timeout: 30000 });
 
       const { context, page } = await newGuestContext(browser);
       try {
         await submitJoin(page, code, 'Latecomer');
-        await expect(joinErrorAlert(page)).toContainText(
-          'This room has been closed. Ask the host for a new room code.',
-          { timeout: 30000 }
-        );
+        await expect(joinErrorAlert(page)).toContainText(/room.*closed/i, {
+          timeout: 30000,
+        });
+        await expect(page).toHaveURL(/\/join(?:\?|$)/);
       } finally {
         await context.close();
       }
