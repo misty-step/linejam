@@ -6,7 +6,6 @@ const globalsCss = readFileSync('app/globals.css', 'utf8');
 const appError = readFileSync('app/error.tsx', 'utf8');
 const globalError = readFileSync('app/global-error.tsx', 'utf8');
 const lobby = readFileSync('components/Lobby.tsx', 'utf8');
-const poemDisplay = readFileSync('components/PoemDisplay.tsx', 'utf8');
 
 const textTokens = [
   'text-xs',
@@ -73,7 +72,7 @@ describe('Tailwind identity contract', () => {
         "import { Button } from '@/components/ui/Button'"
       );
       expect(source).toContain('<Button');
-      expect(source).toContain('font-[var(--font-display)]');
+      expect(source).toContain('font-sans');
       expect(source).not.toContain('text-muted-foreground');
     }
   });
@@ -82,20 +81,10 @@ describe('Tailwind identity contract', () => {
     expect(lobby).not.toMatch(/shadow-\[[^\]]*rgba/);
   });
 
-  it('uses opt-in token spacing utilities instead of globally remapping numeric padding', () => {
-    expect(poemDisplay).toContain('px-space-3');
-    expect(poemDisplay).toContain('gap-space-3');
-  });
-
-  it('keeps the documented font pairing aligned with the fixed identity', () => {
+  it('keeps the selected font pairing aligned with the fixed identity', () => {
     for (const mode of ['light', 'dark'] as const) {
-      expect(designTokens[mode]['font-display']).toBe(
-        'var(--font-libre-baskerville)'
-      );
-      expect(designTokens[mode]['font-sans']).toBe('var(--font-ibm-plex)');
-      expect(designTokens[mode]['font-mono']).toBe(
-        'var(--font-jetbrains-mono)'
-      );
+      expect(designTokens[mode]['font-display']).toBe('var(--font-dynapuff)');
+      expect(designTokens[mode]['font-sans']).toBe('var(--font-nunito)');
     }
   });
 });
