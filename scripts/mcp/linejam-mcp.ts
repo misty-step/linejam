@@ -9,6 +9,7 @@
  */
 
 import * as readline from 'node:readline';
+import { ConvexError } from 'convex/values';
 import {
   createLinejamClient,
   mintGuestToken,
@@ -77,7 +78,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'linejam_create_room',
     description:
-      'Create a new room and join it as host. Returns a 4-letter room code to share with other players.',
+      'Create a new room and join it as host. Returns a 4-character room code to share with other players.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -93,11 +94,11 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: 'linejam_join_room',
-    description: 'Join an existing room by its 4-letter code.',
+    description: 'Join an existing room by its 4-character code.',
     inputSchema: {
       type: 'object',
       properties: {
-        code: { type: 'string', description: '4-letter room code' },
+        code: { type: 'string', description: '4-character room code' },
         displayName: { type: 'string' },
         avatarId: avatarIdProp,
         guestToken: guestTokenProp,
@@ -366,7 +367,14 @@ export async function handleRequest(request: JsonRpcRequest) {
         content: [{ type: 'text', text: JSON.stringify(result) }],
       });
     } catch (error) {
-      replyError(id, error instanceof Error ? error.message : String(error));
+      if (error instanceof ConvexError) {
+        reply(id, {
+          isError: true,
+          content: [{ type: 'text', text: JSON.stringify(error.data) }],
+        });
+      } else {
+        replyError(id, error instanceof Error ? error.message : String(error));
+      }
     }
     return;
   }

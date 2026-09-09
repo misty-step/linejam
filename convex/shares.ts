@@ -1,8 +1,8 @@
 import { ConvexError, v } from 'convex/values';
 import { mutation } from './_generated/server';
 import type { MutationCtx } from './_generated/server';
-import type { Id } from './_generated/dataModel';
-import { checkParticipation, getUser } from './lib/auth';
+import type { Doc, Id } from './_generated/dataModel';
+import { checkGameParticipation, getUser } from './lib/auth';
 import { getCompletedGame, getRoomByCode } from './lib/room';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { isRevealReady } from './lib/sessionLifecycle';
@@ -21,18 +21,15 @@ async function requirePoemParticipant(
     throw new ConvexError('Poem not found');
   }
 
-  if (!user || !(await checkParticipation(ctx, poem.roomId, user._id))) {
+  const game = await ctx.db.get(poem.gameId);
+  if (!user || !(await checkGameParticipation(ctx, game, user._id))) {
     throw new ConvexError('Not authorized to share this poem');
   }
 
-  return poem;
+  return { poem, game };
 }
 
-async function requireCompletedGame(
-  ctx: MutationCtx,
-  gameId: Id<'games'>
-): Promise<void> {
-  const game = await ctx.db.get(gameId);
+function requireCompletedGame(game: Doc<'games'> | null): void {
   if (!isRevealReady(game)) {
     throw new ConvexError('Poem is not ready to share');
   }
@@ -43,8 +40,12 @@ const SHARE_SLUG_TTL_MS = 30_000;
 export const preparePublicPoemShare = mutation({
   args: { poemId: v.id('poems'), guestToken: v.optional(v.string()) },
   handler: async (ctx, { poemId, guestToken }) => {
-    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
-    await requireCompletedGame(ctx, poem.gameId);
+    const { poem, game } = await requirePoemParticipant(
+      ctx,
+      poemId,
+      guestToken
+    );
+    requireCompletedGame(game);
     if (poem.revealedAt === undefined || poem.revealedAt === null) {
       throw new ConvexError('Poem is not ready to share');
     }
@@ -75,8 +76,12 @@ export const activatePublicPoemShare = mutation({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { poemId, slug, nonce, guestToken }) => {
-    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
-    await requireCompletedGame(ctx, poem.gameId);
+    const { poem, game } = await requirePoemParticipant(
+      ctx,
+      poemId,
+      guestToken
+    );
+    requireCompletedGame(game);
     const share = await ctx.db
       .query('shares')
       .withIndex('by_slug', (q) => q.eq('slug', slug))
@@ -136,7 +141,7 @@ export const cancelPublicPoemShare = mutation({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { poemId, slug, nonce, guestToken }) => {
-    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    const { poem } = await requirePoemParticipant(ctx, poemId, guestToken);
     const share = await ctx.db
       .query('shares')
       .withIndex('by_slug', (q) => q.eq('slug', slug))
@@ -176,13 +181,16 @@ async function requireCompletedSessionParticipant(
     throw new ConvexError('Room not found');
   }
 
-  if (!user || !(await checkParticipation(ctx, room._id, user._id))) {
+  if (!user) {
     throw new ConvexError('Not authorized to share this session');
   }
 
   const game = await getCompletedGame(ctx, room._id);
   if (!game) {
     throw new ConvexError('Session recap not ready');
+  }
+  if (!(await checkGameParticipation(ctx, game, user._id))) {
+    throw new ConvexError('Not authorized to share this session');
   }
 
   const poems = await ctx.db
@@ -207,7 +215,11 @@ export const disablePublicPoemShare = mutation({
     guestToken: v.optional(v.string()),
   },
   handler: async (ctx, { poemId, guestToken }) => {
-    const poem = await requirePoemParticipant(ctx, poemId, guestToken);
+    const { poem, game } = await requirePoemParticipant(
+      ctx,
+      poemId,
+      guestToken
+    );
     if (poem.publicShareEnabled !== true) {
       if (poem.publicShareAttempt !== undefined) {
         await ctx.db.patch(poemId, { publicShareAttempt: undefined });
@@ -218,13 +230,10 @@ export const disablePublicPoemShare = mutation({
         publicShareDisabledAt: poem.publicShareDisabledAt,
       };
     }
-    const [favorite, game] = await Promise.all([
-      ctx.db
-        .query('favorites')
-        .withIndex('by_poem', (q) => q.eq('poemId', poemId))
-        .first(),
-      ctx.db.get(poem.gameId),
-    ]);
+    const favorite = await ctx.db
+      .query('favorites')
+      .withIndex('by_poem', (q) => q.eq('poemId', poemId))
+      .first();
     const now = Date.now();
     const remainsProtected =
       favorite !== null || game?.publicRecapEnabled === true;

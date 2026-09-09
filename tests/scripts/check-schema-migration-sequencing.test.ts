@@ -150,6 +150,53 @@ describe('detectSchemaContractionWithMigration', () => {
     });
   });
 
+  it('allows unchanged validators made optional without dropping delimiter context', () => {
+    const result = detectSchemaContractionWithMigration({
+      schemaDiff: `diff --git a/convex/schema.ts b/convex/schema.ts
+@@ -1,6 +1,9 @@
+-    hostUserId: v.id('users'),
+-    status: v.union(
+-      v.literal('LOBBY'),
+-      v.literal('COMPLETED')
++    hostUserId: v.optional(v.id('users')),
++    hostPlayerId: v.optional(v.id('players')),
++    status: v.optional(
++      v.union(
++        v.literal('LOBBY'),
++        v.literal('COMPLETED')
++      )
+     ),
+     createdAt: v.number(),`,
+      migrationsDiff: incidentMigrationDiff,
+    });
+    expect(result.violation).toBe(false);
+    expect(result.removedFields).toEqual([]);
+  });
+
+  it('does not hide changed literal values inside an optional wrapper', () => {
+    const result = detectSchemaContractionWithMigration({
+      schemaDiff: `diff --git a/convex/schema.ts b/convex/schema.ts
+@@ -1 +1 @@
+-    state: v.literal('two words'),
++    state: v.optional(v.literal('twowords')),`,
+      migrationsDiff: incidentMigrationDiff,
+    });
+    expect(result.violation).toBe(true);
+    expect(result.removedFields).toEqual(['state']);
+  });
+
+  it('does not mistake changed literal whitespace for a union expansion', () => {
+    const result = detectSchemaContractionWithMigration({
+      schemaDiff: `diff --git a/convex/schema.ts b/convex/schema.ts
+@@ -1 +1 @@
+-    state: v.union(v.literal('two words'), v.literal('kept')),
++    state: v.union(v.literal('twowords'), v.literal('kept'), v.literal('new')),`,
+      migrationsDiff: incidentMigrationDiff,
+    });
+    expect(result.violation).toBe(true);
+    expect(result.removedFields).toEqual(['state']);
+  });
+
   it('blocks an optional field narrowed to required beside a migration', () => {
     const narrowedFieldDiff = `@@ -1,3 +1,3 @@
 -    legacyMode: v.optional(v.string()),

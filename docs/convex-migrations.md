@@ -23,6 +23,39 @@ The migration and the schema contraction must not share a PR. Expansion and a
 backfill may share a PR when the deployed application remains compatible with
 both shapes.
 
+## Parlor invitation drain
+
+The Parlor cutover is an expansion: native rooms and games add optional identity
+and match references while historical schemas remain valid. Do not backfill old
+rooms into invented native rosters. Historical invitations stop accepting joins;
+their completed poems, favorites and public recaps retain their existing access
+rules.
+
+`internal.migrations.drainLegacyRooms` is an explicit operation, not a cron or a
+deployment side effect. Run it only on an explicitly authorized, verified target
+using the target-selection and evidence rules in
+[`ops/observability-ci.md`](ops/observability-ci.md). Local verification does not
+authorize shared-development or production writes.
+
+1. Preview with `{ "dryRun": true, "cursor": null }`. Pass each
+   `continueCursor` into the next call until `isDone=true`, retaining numeric
+   `scanned`, `eligibleAbandoned`, `closed` and `abandoned` counts. Each call
+   examines at most eight legacy rooms and applies the normal bounded poem
+   cardinality guard without writing.
+2. With migration authority, restart at a null cursor with `dryRun=false` and
+   page to completion. Legacy open invitations are stamped closed. Unfinished
+   games are abandoned, not completed or revealed; existing lines are retained.
+   Empty lobbies enter the seven-day retention path. Completed and protected
+   artifacts keep their existing lifecycle state.
+3. Repeat from a null cursor and require `scanned=0`, `closed=0`,
+   `abandoned=0`, `isDone=true`. Verify an old invitation rejects a fresh join,
+   a retained participant can read a completed artifact, and native rooms were
+   not changed.
+
+Preserve the sanitized receipts with the authorized deployment record. Remove
+legacy schema fields only in a later contraction after those postconditions
+have been observed on the target.
+
 ## Machine-authorship cleanup receipts (Release A)
 
 Release A deliberately keeps `users.kind`, `users.aiPersonaId`,
@@ -93,12 +126,15 @@ its base and blocks changes that both:
 - add an exported Convex function to `convex/migrations.ts`.
 
 This is intentionally a conservative text-diff guard for the known outage
-class, not a TypeScript schema parser. It permits only one proved-safe same-field
-rewrite: a `v.union` whose `v.literal` values are a strict superset of the base
-validator. Optional-to-required changes, literal-union narrowing, and all other
-same-field rewrites remain blocked. Resolve any other false positive by
-separating the migration and schema change. The check fails closed if it cannot
-resolve or diff the base revision.
+class, not a TypeScript schema parser. It permits two proved-safe same-field
+expansions: a `v.union` whose literal values are a strict superset of the base
+validator, and the unchanged validator wrapped in `v.optional(...)`. Quoted
+values remain exact, and unchanged closing delimiters are retained when a
+multiline validator changes indentation. Unsupported expressions fail closed.
+Optional-to-required changes, literal-union narrowing, and all other same-field
+rewrites remain blocked. Resolve any other false positive by separating the
+migration and schema change. The check fails closed if it cannot resolve or
+diff the base revision.
 
 If migrations move to multiple modules, update the guard and its regression
 tests in the same change.

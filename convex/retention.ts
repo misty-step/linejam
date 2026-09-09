@@ -241,14 +241,68 @@ export const runRetentionSweep = internalMutation({
           .query('roomPlayers')
           .withIndex('by_room', (q) => q.eq('roomId', room._id))
           .take(RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1);
-        if (players.length > RETENTION_BATCH_LIMITS.roomPlayersPerRoom) {
+        const members = await ctx.db
+          .query('roomMembers')
+          .withIndex('by_room', (q) => q.eq('roomId', room._id))
+          .take(RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1);
+        const matches = await ctx.db
+          .query('matches')
+          .withIndex('by_room_cycle', (q) => q.eq('roomId', room._id))
+          .take(RETENTION_BATCH_LIMITS.matchesPerRoom + 1);
+        if (members.length > RETENTION_BATCH_LIMITS.roomPlayersPerRoom) {
           return { eligible: 0, deleted: 0, errors: 1 };
         }
+        const matchBatch = matches.slice(
+          0,
+          RETENTION_BATCH_LIMITS.matchesPerRoom
+        );
+        const participants = await Promise.all(
+          matchBatch.map((match) =>
+            ctx.db
+              .query('matchParticipants')
+              .withIndex('by_match', (q) => q.eq('matchId', match._id))
+              .take(RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1)
+          )
+        );
+        if (
+          matchBatch.some((match) => match.status === 'active') ||
+          participants.some(
+            (rows) => rows.length > RETENTION_BATCH_LIMITS.roomPlayersPerRoom
+          )
+        ) {
+          return { eligible: 0, deleted: 0, errors: 1 };
+        }
+        const hasMoreMatches = matches.length > matchBatch.length;
+        const hasMoreProfiles =
+          players.length > RETENTION_BATCH_LIMITS.roomPlayersPerRoom;
         if (!args.dryRun) {
           await Promise.all([
-            ...players.map((player) => ctx.db.delete(player._id)),
-            ctx.db.delete(room._id),
+            ...participants.flat().map((row) => ctx.db.delete(row._id)),
+            ...matchBatch.map((match) => ctx.db.delete(match._id)),
           ]);
+          if (hasMoreMatches) {
+            await ctx.db.patch(room._id, {
+              retentionEligibleAt: now + RETENTION_PARENT_RETRY_MS,
+            });
+          } else {
+            const profileBatch = hasMoreProfiles
+              ? players.slice(0, RETENTION_BATCH_LIMITS.roomPlayersPerRoom)
+              : players;
+            await Promise.all([
+              ...profileBatch.map((player) => ctx.db.delete(player._id)),
+              ...members.map((member) => ctx.db.delete(member._id)),
+            ]);
+            if (hasMoreProfiles) {
+              await ctx.db.patch(room._id, {
+                retentionEligibleAt: now + RETENTION_PARENT_RETRY_MS,
+              });
+            } else {
+              await ctx.db.delete(room._id);
+            }
+          }
+        }
+        if (hasMoreMatches || hasMoreProfiles) {
+          return { eligible: 0, deleted: 0, errors: 0 };
         }
         return {
           eligible: 1,
@@ -378,6 +432,12 @@ export const runRetentionSweep = internalMutation({
           }
           return { eligible: 0, deleted: 0, errors: 0 };
         }
+        const player = await ctx.db
+          .query('players')
+          .withIndex('by_identity', (q) =>
+            q.eq('identityKey', `linejam:user:${user._id}`)
+          )
+          .unique();
         const references = await Promise.all([
           ctx.db
             .query('roomPlayers')
@@ -403,6 +463,28 @@ export const runRetentionSweep = internalMutation({
             .query('migrations')
             .withIndex('by_guest', (q) => q.eq('guestUserId', user._id))
             .first(),
+          ...(player
+            ? [
+                ctx.db
+                  .query('roomPlayers')
+                  .withIndex('by_player', (q) => q.eq('playerId', player._id))
+                  .first(),
+                ctx.db
+                  .query('roomMembers')
+                  .withIndex('by_player', (q) => q.eq('playerId', player._id))
+                  .first(),
+                ctx.db
+                  .query('matchParticipants')
+                  .withIndex('by_player', (q) => q.eq('playerId', player._id))
+                  .first(),
+                ctx.db
+                  .query('rooms')
+                  .withIndex('by_host_open', (q) =>
+                    q.eq('hostPlayerId', player._id)
+                  )
+                  .first(),
+              ]
+            : []),
         ]);
         if (references.some((reference) => reference !== null)) {
           if (!args.dryRun) {
@@ -415,7 +497,10 @@ export const runRetentionSweep = internalMutation({
           }
           return { eligible: 0, deleted: 0, errors: 0 };
         }
-        if (!args.dryRun) await ctx.db.delete(user._id);
+        if (!args.dryRun) {
+          await ctx.db.delete(user._id);
+          if (player) await ctx.db.delete(player._id);
+        }
         return {
           eligible: 1,
           deleted: args.dryRun ? 0 : 1,

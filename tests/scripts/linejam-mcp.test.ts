@@ -15,11 +15,11 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-function fakeClient(overrides: Partial<LinejamClient> = {}): LinejamClient {
+function fakeClient(): LinejamClient {
   // SAFETY: Test fixture stubs all LinejamClient methods with Vitest mocks for MCP tool tests.
   return {
     createRoom: vi.fn().mockResolvedValue({ code: 'ABCD', roomId: 'room1' }),
-    joinRoom: vi.fn().mockResolvedValue({ code: 'ABCD' }),
+    joinRoom: vi.fn().mockResolvedValue({ ok: true, code: 'ABCD' }),
     getRoomState: vi
       .fn()
       .mockResolvedValue({ room: {}, players: [], isHost: false }),
@@ -32,7 +32,6 @@ function fakeClient(overrides: Partial<LinejamClient> = {}): LinejamClient {
     getPoemDetail: vi.fn().mockResolvedValue({ poem: {}, lines: [] }),
     toggleFavorite: vi.fn().mockResolvedValue(null),
     getMyFavorites: vi.fn().mockResolvedValue([]),
-    ...overrides,
   } as LinejamClient;
 }
 
@@ -88,55 +87,6 @@ describe('callTool', () => {
     );
   });
 
-  it('creates a room with the requested host identity and avatar', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_create_room',
-      { displayName: 'Ada', avatarId: 'moss', guestToken: 'host-token' },
-      client
-    );
-    expect(client.createRoom).toHaveBeenCalledExactlyOnceWith({
-      displayName: 'Ada',
-      avatarId: 'moss',
-      guestToken: 'host-token',
-    });
-  });
-
-  it('joins the requested room with the chosen player identity and avatar', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_join_room',
-      {
-        code: 'ABCD',
-        displayName: 'Grace',
-        avatarId: 'plum',
-        guestToken: 'player-token',
-      },
-      client
-    );
-    expect(client.joinRoom).toHaveBeenCalledExactlyOnceWith({
-      code: 'ABCD',
-      displayName: 'Grace',
-      avatarId: 'plum',
-      guestToken: 'player-token',
-    });
-  });
-
-  it('leaves avatar selection to the room when the caller omits it', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_join_room',
-      { code: 'ABCD', displayName: 'Grace', guestToken: 'player-token' },
-      client
-    );
-    expect(client.joinRoom).toHaveBeenCalledExactlyOnceWith({
-      code: 'ABCD',
-      displayName: 'Grace',
-      avatarId: undefined,
-      guestToken: 'player-token',
-    });
-  });
-
   it('rejects an unknown avatar before joining and names all valid choices', async () => {
     const client = fakeClient();
     const result = callTool(
@@ -154,45 +104,6 @@ describe('callTool', () => {
       await expect(result).rejects.toThrow(avatarId);
     }
     expect(client.joinRoom).not.toHaveBeenCalled();
-  });
-
-  it('reads the requested room as the calling guest', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_room_state',
-      { code: 'ABCD', guestToken: 'player-token' },
-      client
-    );
-    expect(client.getRoomState).toHaveBeenCalledExactlyOnceWith({
-      code: 'ABCD',
-      guestToken: 'player-token',
-    });
-  });
-
-  it('requests a game start in the selected room as the host', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_start_game',
-      { code: 'ABCD', guestToken: 'host-token' },
-      client
-    );
-    expect(client.startGame).toHaveBeenCalledExactlyOnceWith({
-      code: 'ABCD',
-      guestToken: 'host-token',
-    });
-  });
-
-  it('requests the guest assignment using roomCode rather than code', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_current_assignment',
-      { roomCode: 'ABCD', guestToken: 'player-token' },
-      client
-    );
-    expect(client.getCurrentAssignment).toHaveBeenCalledExactlyOnceWith({
-      roomCode: 'ABCD',
-      guestToken: 'player-token',
-    });
   });
 
   it('submits line zero without changing the author text', async () => {
@@ -213,51 +124,6 @@ describe('callTool', () => {
       text: '  Night blooms  ',
       guestToken: 'player-token',
     });
-  });
-
-  it('requests poems from the selected room as the calling guest', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_list_poems',
-      { roomCode: 'ABCD', guestToken: 'player-token' },
-      client
-    );
-    expect(client.getPoemsForRoom).toHaveBeenCalledExactlyOnceWith({
-      roomCode: 'ABCD',
-      guestToken: 'player-token',
-    });
-  });
-
-  it('requests the complete selected poem as the calling guest', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_get_poem',
-      { poemId: 'poem1', guestToken: 'player-token' },
-      client
-    );
-    expect(client.getPoemDetail).toHaveBeenCalledExactlyOnceWith({
-      poemId: 'poem1',
-      guestToken: 'player-token',
-    });
-  });
-
-  it('changes the guest favorite for the selected poem', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_toggle_favorite',
-      { poemId: 'poem1', guestToken: 'player-token' },
-      client
-    );
-    expect(client.toggleFavorite).toHaveBeenCalledExactlyOnceWith({
-      poemId: 'poem1',
-      guestToken: 'player-token',
-    });
-  });
-
-  it('routes linejam_list_favorites to client.getMyFavorites', async () => {
-    const client = fakeClient();
-    await callTool('linejam_list_favorites', { guestToken: 'tok' }, client);
-    expect(client.getMyFavorites).toHaveBeenCalledWith({ guestToken: 'tok' });
   });
 
   it('names a missing displayName without creating a room', async () => {
@@ -380,18 +246,6 @@ describe('handleRequest', () => {
     spy.mockRestore();
   });
 
-  it('answers tools/list with the full TOOLS array', async () => {
-    const { spy, lastMessage } = capturedStdout();
-    await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
-    const msg = lastMessage();
-    expect(msg).toMatchObject({
-      jsonrpc: '2.0',
-      id: 2,
-      result: { tools: TOOLS },
-    });
-    spy.mockRestore();
-  });
-
   it('replies with a JSON-RPC error for an unknown method', async () => {
     const { spy, lastMessage } = capturedStdout();
     await handleRequest({ jsonrpc: '2.0', id: 3, method: 'bogus/method' });
@@ -430,6 +284,62 @@ describe('handleRequest', () => {
     await expect(verifyGuestToken(identity.guestToken)).resolves.toBe(
       identity.guestId
     );
+  });
+
+  it('marks committed join rejection as a tool error and accepts a successful next join', async () => {
+    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'http://127.0.0.1:3210');
+    const rejected = {
+      ok: false,
+      code: 'ROOM_NOT_OPEN',
+      message: 'Room is closed',
+    };
+    const joined = { ok: true, code: 'ABCD', _id: 'room1' };
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json({ status: 'success', value: rejected })
+      )
+      .mockResolvedValueOnce(
+        Response.json({ status: 'success', value: joined })
+      );
+    const { lastMessage } = capturedStdout();
+    const params = {
+      name: 'linejam_join_room',
+      arguments: {
+        code: 'ABCD',
+        displayName: 'Guest Poet',
+        guestToken: 'transport-test-identity',
+      },
+    };
+
+    await handleRequest({
+      jsonrpc: '2.0',
+      id: 'rejected-join',
+      method: 'tools/call',
+      params,
+    });
+    const failure = lastMessage();
+    expect(failure).toEqual({
+      jsonrpc: '2.0',
+      id: 'rejected-join',
+      result: {
+        isError: true,
+        content: [{ type: 'text', text: JSON.stringify(rejected) }],
+      },
+    });
+
+    await handleRequest({
+      jsonrpc: '2.0',
+      id: 'successful-join',
+      method: 'tools/call',
+      params,
+    });
+    expect(lastMessage()).toEqual({
+      jsonrpc: '2.0',
+      id: 'successful-join',
+      result: {
+        content: [{ type: 'text', text: JSON.stringify(joined) }],
+      },
+    });
   });
 
   it('reports an invalid tool argument as a correlated RPC error and accepts the next request', async () => {

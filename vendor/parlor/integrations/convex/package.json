@@ -1,0 +1,35 @@
+{
+  "name": "@parlor/convex",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/src/index.js",
+    "./schema": "./dist/convex/schema.js",
+    "./identity": "./dist/convex/identity.js",
+    "./rooms": "./dist/convex/rooms.js",
+    "./matches": "./dist/convex/matches.js",
+    "./presence": "./dist/convex/presence.js",
+    "./abandonment": "./dist/convex/abandonment.js",
+    "./helpers": "./dist/convex/helpers.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@parlor/auth": "workspace:*",
+    "@parlor/core": "workspace:*",
+    "effect": "3.22.1"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "5.0.0",
+    "convex-test": "0.0.56",
+    "vitest": "5.0.0"
+  },
+  "peerDependencies": {
+    "convex": "^1.42.3"
+  }
+}

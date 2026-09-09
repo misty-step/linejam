@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { ConvexError } from 'convex/values';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
@@ -44,46 +43,18 @@ async function seedRoomWithActiveGame(
   hostClerkName: string,
   guestClerkName: string
 ): Promise<{ roomId: Id<'rooms'>; code: string }> {
-  const hostId = await seedClerkUser(t, hostClerkName, { displayName: 'Host' });
-  const guestId = await seedClerkUser(t, guestClerkName, {
+  await seedClerkUser(t, hostClerkName, { displayName: 'Host' });
+  await seedClerkUser(t, guestClerkName, { displayName: 'Guest' });
+  const { roomId, code } = await seedLobbyRoom(t, hostClerkName);
+  const joined = await asUser(t, guestClerkName).mutation(api.rooms.joinRoom, {
+    code,
     displayName: 'Guest',
   });
-  const roomId = await t.run((ctx) =>
-    ctx.db.insert('rooms', {
-      code: 'XYZW',
-      hostUserId: hostId,
-      status: 'IN_PROGRESS',
-      createdAt: 0,
-    })
-  );
-  await t.run((ctx) =>
-    ctx.db.insert('roomPlayers', {
-      roomId,
-      userId: hostId,
-      displayName: 'Host',
-      joinedAt: 0,
-    })
-  );
-  await t.run((ctx) =>
-    ctx.db.insert('roomPlayers', {
-      roomId,
-      userId: guestId,
-      displayName: 'Guest',
-      joinedAt: 1,
-    })
-  );
-  // Insert an IN_PROGRESS game so getActiveGame returns non-null
-  await t.run((ctx) =>
-    ctx.db.insert('games', {
-      roomId,
-      status: 'IN_PROGRESS',
-      cycle: 1,
-      currentRound: 0,
-      assignmentMatrix: [[hostId, guestId]],
-      createdAt: 0,
-    })
-  );
-  return { roomId, code: 'XYZW' };
+  if (joined.ok === false) {
+    throw new Error(joined.message);
+  }
+  await asUser(t, hostClerkName).mutation(api.game.startGame, { code });
+  return { roomId, code };
 }
 
 async function seedExhaustedGuestBucket(
@@ -114,14 +85,23 @@ describe('createRoom', () => {
     });
 
     expect(result.roomId).toMatch(/^[a-z0-9]+$/); // convex Id
-    expect(result.code).toMatch(/^[A-Z]{4}$/);
+    expect(result.code).toMatch(/^[A-Z0-9]{4}$/);
 
     // Room row in DB
     const room = await t.run((ctx) => ctx.db.get(result.roomId));
     expect(room?.status).toBe('LOBBY');
     expect(room?.code).toBe(result.code);
+    expect(room?.hostPlayerId).toBeDefined();
 
-    // Host is in roomPlayers with correct displayName
+    const members = await t.run((ctx) =>
+      ctx.db
+        .query('roomMembers')
+        .withIndex('by_room', (q) => q.eq('roomId', result.roomId))
+        .collect()
+    );
+    expect(members).toHaveLength(1);
+    expect(members[0].playerId).toBe(room?.hostPlayerId);
+
     const players = await t.run((ctx) =>
       ctx.db
         .query('roomPlayers')
@@ -130,6 +110,7 @@ describe('createRoom', () => {
     );
     expect(players).toHaveLength(1);
     expect(players[0].displayName).toBe('Alice');
+    expect(players[0].playerId).toBe(room?.hostPlayerId);
   });
 
   it('assigns host as first player in roomPlayers', async () => {
@@ -159,7 +140,7 @@ describe('createRoom', () => {
     });
 
     expect(result).toMatchObject({
-      code: expect.stringMatching(/^[A-Z]{4}$/),
+      code: expect.stringMatching(/^[A-Z0-9]{4}$/),
       roomId: expect.any(String),
     });
   });
@@ -316,7 +297,7 @@ describe('joinRoom', () => {
       displayName: 'Guest',
     });
 
-    // Returns the room document
+    if (!result.ok) throw new Error(result.message);
     expect(result._id).toBe(roomId);
 
     // Guest is now in roomPlayers
@@ -357,7 +338,7 @@ describe('joinRoom', () => {
     expect(players).toHaveLength(2); // host + joiner, no duplicate
   });
 
-  it('throws when room code is invalid', async () => {
+  it('returns a closed failure receipt when room code is invalid', async () => {
     const t = setupConvexTest();
     await seedClerkUser(t, 'nobody', { displayName: 'Nobody' });
 
@@ -366,7 +347,10 @@ describe('joinRoom', () => {
         code: 'ZZZZ',
         displayName: 'Nobody',
       })
-    ).rejects.toThrow('Room not found');
+    ).resolves.toMatchObject({
+      ok: false,
+      message: 'Room not found',
+    });
   });
 
   it('allows a late join as a spectator without changing the active game', async () => {
@@ -424,37 +408,28 @@ describe('joinRoom', () => {
     );
   });
 
-  it('throws when room is at capacity (8 players)', async () => {
+  it('returns a full-room receipt at eight parlor members', async () => {
     const t = setupConvexTest();
     await seedClerkUser(t, 'overflow', { displayName: 'Overflow' });
-
-    // Create a lobby room and seed 7 additional players to fill to 8
-    const { code, roomId } = await seedLobbyRoom(t, 'overflow');
-
-    await t.run(async (ctx) => {
-      for (let i = 0; i < 7; i++) {
-        const uid = await ctx.db.insert('users', {
-          displayName: `filler${i}`,
-          kind: 'human',
-          createdAt: 0,
-        });
-        await ctx.db.insert('roomPlayers', {
-          roomId,
-          userId: uid,
-          displayName: `filler${i}`,
-          joinedAt: i,
-        });
-      }
-    });
-
-    // 9th join attempt should fail
+    const { code } = await seedLobbyRoom(t, 'overflow');
+    for (let i = 0; i < 7; i++) {
+      await seedClerkUser(t, `filler${i}`, { displayName: `Filler${i}` });
+      const joined = await asUser(t, `filler${i}`).mutation(
+        api.rooms.joinRoom,
+        {
+          code,
+          displayName: `Filler${i}`,
+        }
+      );
+      expect(joined.ok).not.toBe(false);
+    }
     await seedClerkUser(t, 'ninth', { displayName: 'Ninth' });
     await expect(
       asUser(t, 'ninth').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Ninth',
       })
-    ).rejects.toThrow('Room is full');
+    ).resolves.toMatchObject({ ok: false, message: 'Room is full' });
   });
 
   it('enforces rate limit: 11th join within window fails', async () => {
@@ -502,90 +477,93 @@ describe('joinRoom', () => {
     ).rejects.toThrow('Rate limit exceeded');
   });
 
-  it('throws ConvexError (not plain Error) so messages survive prod redaction', async () => {
-    // Convex redacts plain Error messages in production, which breaks the
-    // lib/errorFeedback.ts friendly-message mappings (linejam-941 root cause).
+  it('returns a not-found receipt for an unknown code without throwing', async () => {
     const t = setupConvexTest();
     await seedClerkUser(t, 'redacted', { displayName: 'Redacted' });
-
-    let caught: unknown;
-    try {
-      await asUser(t, 'redacted').mutation(api.rooms.joinRoom, {
+    await expect(
+      asUser(t, 'redacted').mutation(api.rooms.joinRoom, {
         code: 'ZZZZ',
         displayName: 'Redacted',
-      });
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(ConvexError);
-    if (caught instanceof ConvexError) {
-      expect(caught.data).toContain('Room not found');
-    }
+      })
+    ).resolves.toMatchObject({ ok: false, message: 'Room not found' });
   });
 
-  it('throws ConvexError with data for in-progress and full rooms', async () => {
+  it('returns a full-room receipt without throwing', async () => {
     const t = setupConvexTest();
-    let caught: unknown;
-
-    // Room full
-    const { code: fullCode, roomId: fullRoomId } = await seedLobbyRoom(
-      t,
-      'fullhost'
-    );
-    await t.run(async (ctx) => {
-      for (let i = 0; i < 7; i++) {
-        const uid = await ctx.db.insert('users', {
-          displayName: `fillce${i}`,
-          kind: 'human',
-          createdAt: 0,
-        });
-        await ctx.db.insert('roomPlayers', {
-          roomId: fullRoomId,
-          userId: uid,
-          displayName: `fillce${i}`,
-          joinedAt: i,
-        });
-      }
-    });
+    await seedClerkUser(t, 'fullhost', { displayName: 'FullHost' });
+    const { code: fullCode } = await seedLobbyRoom(t, 'fullhost');
+    for (let i = 0; i < 7; i++) {
+      await seedClerkUser(t, `fillce${i}`, { displayName: `Fillce${i}` });
+      const joined = await asUser(t, `fillce${i}`).mutation(
+        api.rooms.joinRoom,
+        {
+          code: fullCode,
+          displayName: `Fillce${i}`,
+        }
+      );
+      expect(joined.ok).not.toBe(false);
+    }
     await seedClerkUser(t, 'ninth-ce', { displayName: 'NinthCE' });
-    caught = undefined;
-    try {
-      await asUser(t, 'ninth-ce').mutation(api.rooms.joinRoom, {
+    await expect(
+      asUser(t, 'ninth-ce').mutation(api.rooms.joinRoom, {
         code: fullCode,
         displayName: 'NinthCE',
-      });
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(ConvexError);
-    if (caught instanceof ConvexError) {
-      expect(caught.data).toContain('Room is full');
-    }
+      })
+    ).resolves.toMatchObject({ ok: false, message: 'Room is full' });
   });
 
-  it('rejects joining a closed room (COMPLETED with no players) with ConvexError', async () => {
+  it('returns a closed-room receipt after the host closes', async () => {
     const t = setupConvexTest();
+    await seedClerkUser(t, 'closer', { displayName: 'Closer' });
     const { code } = await seedLobbyRoom(t, 'closer');
-
-    // Host closes the room: players removed, status COMPLETED
     await asUser(t, 'closer').mutation(api.rooms.closeRoom, {
       roomCode: code,
     });
-
     await seedClerkUser(t, 'latecomer', { displayName: 'Latecomer' });
-    let caught: unknown;
-    try {
-      await asUser(t, 'latecomer').mutation(api.rooms.joinRoom, {
+    await expect(
+      asUser(t, 'latecomer').mutation(api.rooms.joinRoom, {
         code,
         displayName: 'Latecomer',
-      });
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(ConvexError);
-    if (caught instanceof ConvexError) {
-      expect(caught.data).toContain('Room is closed');
-    }
+      })
+    ).resolves.toMatchObject({ ok: false, message: 'Room is closed' });
+  });
+
+  it('rejects drained historical invitations without deleting archive profiles', async () => {
+    const t = setupConvexTest();
+    const hostId = await seedClerkUser(t, 'oldhost', {
+      displayName: 'OldHost',
+    });
+    const roomId = await t.run((ctx) =>
+      ctx.db.insert('rooms', {
+        code: 'ABCD',
+        hostUserId: hostId,
+        status: 'COMPLETED',
+        createdAt: 0,
+      })
+    );
+    await t.run((ctx) =>
+      ctx.db.insert('roomPlayers', {
+        roomId,
+        userId: hostId,
+        displayName: 'OldHost',
+        joinedAt: 0,
+      })
+    );
+    await seedClerkUser(t, 'newguest', { displayName: 'NewGuest' });
+    await expect(
+      asUser(t, 'newguest').mutation(api.rooms.joinRoom, {
+        code: 'ABCD',
+        displayName: 'NewGuest',
+      })
+    ).resolves.toMatchObject({ ok: false, message: 'Room is closed' });
+    const profiles = await t.run((ctx) =>
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect()
+    );
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0].userId).toBe(hostId);
   });
 
   it('still allows joining a COMPLETED room that has players (between games)', async () => {
@@ -708,26 +686,15 @@ describe('getRoom', () => {
     const t = setupConvexTest();
     await seedClerkUser(t, 'hostfull', { displayName: 'HostFull' });
     await seedClerkUser(t, 'viewer', { displayName: 'Viewer' });
-
-    const { code, roomId } = await seedLobbyRoom(t, 'hostfull');
-
-    // Pack to 8 total
-    await t.run(async (ctx) => {
-      for (let i = 0; i < 7; i++) {
-        const uid = await ctx.db.insert('users', {
-          displayName: `seat${i}`,
-          kind: 'human',
-          createdAt: 0,
-        });
-        await ctx.db.insert('roomPlayers', {
-          roomId,
-          userId: uid,
-          displayName: `seat${i}`,
-          joinedAt: i,
-        });
-      }
-    });
-
+    const { code } = await seedLobbyRoom(t, 'hostfull');
+    for (let i = 0; i < 7; i++) {
+      await seedClerkUser(t, `seat${i}`, { displayName: `seat${i}` });
+      const joined = await asUser(t, `seat${i}`).mutation(api.rooms.joinRoom, {
+        code,
+        displayName: `seat${i}`,
+      });
+      expect(joined).not.toMatchObject({ ok: false });
+    }
     const result = await asUser(t, 'viewer').query(api.rooms.getRoom, { code });
     expect(result).toBeNull();
   });
@@ -777,10 +744,9 @@ describe('getRoomState', () => {
     expect(p?.displayName).toBe('SHost');
     // stableId should be clerkUserId (set during seedUser)
     expect(p?.stableId).toBe('clerk_shost');
-    // lastSeenAt must NOT appear on the wire
     expect(p).not.toHaveProperty('lastSeenAt');
-    // isAway: no heartbeat → stale
-    expect(p?.isAway).toBe(true);
+    // Canonical presence uses membership joinedAt until the first heartbeat.
+    expect(p?.isAway).toBe(false);
   });
 
   it('returns isHost=false for a non-host participant', async () => {
@@ -862,13 +828,12 @@ describe('getRoomState', () => {
     await seedClerkUser(t, 'hearthost', { displayName: 'HeartHost' });
     const { code, roomId } = await seedLobbyRoom(t, 'hearthost');
 
-    // Stamp a lastSeenAt on the player row (simulating a heartbeat)
     await t.run(async (ctx) => {
-      const rp = await ctx.db
-        .query('roomPlayers')
+      const member = await ctx.db
+        .query('roomMembers')
         .withIndex('by_room', (q) => q.eq('roomId', roomId))
         .first();
-      if (rp) await ctx.db.patch(rp._id, { lastSeenAt: Date.now() });
+      if (member) await ctx.db.patch(member._id, { lastSeenAt: Date.now() });
     });
 
     const result = await asUser(t, 'hearthost').query(api.rooms.getRoomState, {
@@ -887,32 +852,44 @@ describe('getRoomState', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('leaveLobby', () => {
-  it('deletes roomPlayer record when a non-host leaves', async () => {
+  it('closes canonical membership while retaining the room profile', async () => {
     const t = setupConvexTest();
     await seedClerkUser(t, 'leavehost', { displayName: 'LeaveHost' });
     const guestId = await seedClerkUser(t, 'leaveguest', {
       displayName: 'LeaveGuest',
     });
-
     const { code, roomId } = await seedLobbyRoom(t, 'leavehost');
     await asUser(t, 'leaveguest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'LeaveGuest',
     });
-
     await asUser(t, 'leaveguest').mutation(api.rooms.leaveLobby, {
       roomCode: code,
     });
-
-    const rows = await t.run((ctx) =>
+    const profile = await t.run((ctx) =>
       ctx.db
         .query('roomPlayers')
         .withIndex('by_room_user', (q) =>
           q.eq('roomId', roomId).eq('userId', guestId)
         )
+        .unique()
+    );
+    expect(profile).toBeDefined();
+    const members = await t.run((ctx) =>
+      ctx.db
+        .query('roomMembers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
         .collect()
     );
-    expect(rows).toHaveLength(0);
+    expect(
+      members.every((member) => member.playerId !== profile?.playerId)
+    ).toBe(true);
+    const state = await asUser(t, 'leavehost').query(api.rooms.getRoomState, {
+      code,
+    });
+    expect(state?.players.some((player) => player.userId === guestId)).toBe(
+      false
+    );
   });
 
   it('does nothing when the host tries to leave (host is protected)', async () => {
@@ -983,31 +960,35 @@ describe('leaveLobby', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('closeRoom', () => {
-  it('marks room as COMPLETED and removes all players when host closes', async () => {
+  it('marks the room closed while retaining archive profiles', async () => {
     const t = setupConvexTest();
     await seedClerkUser(t, 'closehost', { displayName: 'CloseHost' });
     await seedClerkUser(t, 'closeguest', { displayName: 'CloseGuest' });
-
     const { code, roomId } = await seedLobbyRoom(t, 'closehost', 'CloseHost');
     await asUser(t, 'closeguest').mutation(api.rooms.joinRoom, {
       code,
       displayName: 'CloseGuest',
     });
-
     await asUser(t, 'closehost').mutation(api.rooms.closeRoom, {
       roomCode: code,
     });
-
     const room = await t.run((ctx) => ctx.db.get(roomId));
     expect(room?.status).toBe('COMPLETED');
-
-    const players = await t.run((ctx) =>
+    expect(room?.closedAt).toBeDefined();
+    const profiles = await t.run((ctx) =>
       ctx.db
         .query('roomPlayers')
         .withIndex('by_room', (q) => q.eq('roomId', roomId))
         .collect()
     );
-    expect(players).toHaveLength(0);
+    expect(profiles).toHaveLength(2);
+    const members = await t.run((ctx) =>
+      ctx.db
+        .query('roomMembers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect()
+    );
+    expect(members.every((member) => member.closedAt !== undefined)).toBe(true);
   });
 
   it('throws when a non-host tries to close the room', async () => {

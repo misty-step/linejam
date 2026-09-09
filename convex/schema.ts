@@ -1,3 +1,4 @@
+import { parlorTables } from '@parlor/convex/schema';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import { avatarIdValidator } from './lib/avatars';
@@ -24,6 +25,11 @@ const retentionTableCounts = v.object({
 });
 
 export default defineSchema({
+  players: parlorTables.players,
+  roomMembers: parlorTables.roomMembers,
+  matches: parlorTables.matches,
+  matchParticipants: parlorTables.matchParticipants,
+
   users: defineTable({
     clerkUserId: v.optional(v.string()),
     guestId: v.optional(v.string()),
@@ -51,11 +57,15 @@ export default defineSchema({
 
   rooms: defineTable({
     code: v.string(),
-    hostUserId: v.id('users'),
-    status: v.union(
-      v.literal('LOBBY'),
-      v.literal('IN_PROGRESS'),
-      v.literal('COMPLETED')
+    hostUserId: v.optional(v.id('users')),
+    hostPlayerId: v.optional(v.id('players')),
+    closedAt: v.optional(v.number()),
+    status: v.optional(
+      v.union(
+        v.literal('LOBBY'),
+        v.literal('IN_PROGRESS'),
+        v.literal('COMPLETED')
+      )
     ),
     createdAt: v.number(),
     startedAt: v.optional(v.number()),
@@ -67,27 +77,34 @@ export default defineSchema({
   })
     .index('by_code', ['code'])
     .index('by_host', ['hostUserId'])
+    .index('by_code_open', ['code', 'closedAt'])
+    .index('by_host_open', ['hostPlayerId', 'closedAt'])
     .index('by_status_created', ['status', 'createdAt'])
     .index('by_retention', ['retentionState', 'retentionEligibleAt']),
 
   roomPlayers: defineTable({
     roomId: v.id('rooms'),
     userId: v.id('users'),
+    /** Canonical membership identity; absent only on retained legacy profiles. */
+    playerId: v.optional(v.id('players')),
     /** The pen name for this room; the source of every byline written here. */
     displayName: v.string(),
     /** Room-scoped selection; optional only for existing memberships. */
     avatarId: v.optional(avatarIdValidator),
     seatIndex: v.optional(v.number()),
     joinedAt: v.number(),
-    /** Last client heartbeat timestamp (ms). Missing on legacy rows; treated as stale. */
+    /** Legacy presence only; live presence is projected from roomMembers. */
     lastSeenAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
     .index('by_user', ['userId'])
-    .index('by_room_user', ['roomId', 'userId']),
+    .index('by_room_user', ['roomId', 'userId'])
+    .index('by_player', ['playerId'])
+    .index('by_room_player', ['roomId', 'playerId']),
 
   games: defineTable({
     roomId: v.id('rooms'),
+    matchId: v.optional(v.id('matches')),
     status: v.union(
       v.literal('IN_PROGRESS'),
       v.literal('COMPLETED'),
@@ -112,6 +129,7 @@ export default defineSchema({
     retentionEligibleAt: v.optional(v.number()),
   })
     .index('by_room', ['roomId'])
+    .index('by_match', ['matchId'])
     .index('by_room_cycle', ['roomId', 'cycle'])
     .index('by_room_status', ['roomId', 'status'])
     .index('by_room_public', ['roomId', 'publicRecapEnabled'])

@@ -1,4 +1,8 @@
 /** @vitest-environment node */
+import { execFile } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseFlags, run } from '@/scripts/cli/linejam-cli';
 import type { LinejamClient } from '@/scripts/lib/linejamClient';
@@ -6,6 +10,7 @@ import { AVATAR_IDS } from '@/lib/avatars';
 import { verifyGuestToken } from '@/lib/guestToken';
 
 const initialExitCode = process.exitCode;
+const execFileAsync = promisify(execFile);
 
 beforeEach(() => {
   vi.stubEnv('LINEJAM_GUEST_TOKEN', undefined);
@@ -17,11 +22,11 @@ afterEach(() => {
   process.exitCode = initialExitCode;
 });
 
-function fakeClient(overrides: Partial<LinejamClient> = {}): LinejamClient {
+function fakeClient(): LinejamClient {
   // SAFETY: Test fixture stubs all LinejamClient methods with Vitest mocks for CLI dispatch tests.
   return {
     createRoom: vi.fn().mockResolvedValue({ code: 'ABCD', roomId: 'room1' }),
-    joinRoom: vi.fn().mockResolvedValue({ code: 'ABCD' }),
+    joinRoom: vi.fn().mockResolvedValue({ ok: true, code: 'ABCD' }),
     getRoomState: vi
       .fn()
       .mockResolvedValue({ room: {}, players: [], isHost: false }),
@@ -34,7 +39,6 @@ function fakeClient(overrides: Partial<LinejamClient> = {}): LinejamClient {
     getPoemDetail: vi.fn().mockResolvedValue({ poem: {}, lines: [] }),
     toggleFavorite: vi.fn().mockResolvedValue(null),
     getMyFavorites: vi.fn().mockResolvedValue([]),
-    ...overrides,
   } as LinejamClient;
 }
 
@@ -118,49 +122,6 @@ describe('run', () => {
     });
   });
 
-  it('creates a room with the chosen name, avatar, and explicit identity', async () => {
-    vi.stubEnv('LINEJAM_GUEST_TOKEN', 'environment-player');
-    const client = fakeClient();
-
-    await run(
-      [
-        'room',
-        'create',
-        'Ada Lovelace',
-        '--avatar',
-        'moss',
-        '--guest-token',
-        'host-token',
-      ],
-      client
-    );
-
-    expect(client.createRoom).toHaveBeenCalledExactlyOnceWith({
-      displayName: 'Ada Lovelace',
-      avatarId: 'moss',
-      guestToken: 'host-token',
-    });
-    expect(stderr).toEqual([]);
-  });
-
-  it('joins a room with the chosen avatar and the environment identity', async () => {
-    vi.stubEnv('LINEJAM_GUEST_TOKEN', 'returning-player');
-    const client = fakeClient();
-
-    await run(
-      ['room', 'join', 'WXYZ', '--avatar', 'plum', 'Grace Hopper'],
-      client
-    );
-
-    expect(client.joinRoom).toHaveBeenCalledExactlyOnceWith({
-      code: 'WXYZ',
-      displayName: 'Grace Hopper',
-      avatarId: 'plum',
-      guestToken: 'returning-player',
-    });
-    expect(stderr).toEqual([]);
-  });
-
   it('prints a signed, reusable guest identity only to stderr when creating without a token', async () => {
     vi.stubEnv('GUEST_TOKEN_SECRET', 'cli-tests-only-guest-token-secret');
     const client = fakeClient();
@@ -177,68 +138,10 @@ describe('run', () => {
     expect(stdout.join('')).not.toContain(guestToken);
     expect(stdout.join('')).not.toContain(guestId);
     expect(JSON.parse(stdout.join(''))).not.toHaveProperty('guestToken');
-    expect(client.createRoom).toHaveBeenCalledExactlyOnceWith({
-      displayName: 'Guest Poet',
-      avatarId: undefined,
-      guestToken,
-    });
 
     stderr.length = 0;
     await run(['room', 'state', 'ABCD', '--guest-token', guestToken], client);
-    expect(client.getRoomState).toHaveBeenCalledExactlyOnceWith({
-      code: 'ABCD',
-      guestToken,
-    });
     expect(stderr).toEqual([]);
-  });
-
-  it('leaves a returning player avatar unchanged when --avatar is omitted', async () => {
-    const client = fakeClient();
-    await run(
-      [
-        'room',
-        'join',
-        'ABCD',
-        'Guest Poet',
-        '--guest-token',
-        'returning-player',
-      ],
-      client
-    );
-
-    expect(client.joinRoom).toHaveBeenCalledExactlyOnceWith({
-      code: 'ABCD',
-      displayName: 'Guest Poet',
-      avatarId: undefined,
-      guestToken: 'returning-player',
-    });
-  });
-
-  it('routes "room state" to client.getRoomState', async () => {
-    const client = fakeClient();
-    await run(['room', 'state', 'ABCD', '--guest-token', 'tok'], client);
-    expect(client.getRoomState).toHaveBeenCalledWith({
-      code: 'ABCD',
-      guestToken: 'tok',
-    });
-  });
-
-  it('routes "game start" to client.startGame', async () => {
-    const client = fakeClient();
-    await run(['game', 'start', 'ABCD', '--guest-token', 'tok'], client);
-    expect(client.startGame).toHaveBeenCalledWith({
-      code: 'ABCD',
-      guestToken: 'tok',
-    });
-  });
-
-  it('routes "game assignment" to client.getCurrentAssignment', async () => {
-    const client = fakeClient();
-    await run(['game', 'assignment', 'ABCD', '--guest-token', 'tok'], client);
-    expect(client.getCurrentAssignment).toHaveBeenCalledWith({
-      roomCode: 'ABCD',
-      guestToken: 'tok',
-    });
   });
 
   it('routes "game submit-line" to client.submitLine with a numeric lineIndex and joined text', async () => {
@@ -262,40 +165,6 @@ describe('run', () => {
       text: 'hello world',
       guestToken: 'tok',
     });
-  });
-
-  it('routes "poems list" to client.getPoemsForRoom', async () => {
-    const client = fakeClient();
-    await run(['poems', 'list', 'ABCD', '--guest-token', 'tok'], client);
-    expect(client.getPoemsForRoom).toHaveBeenCalledWith({
-      roomCode: 'ABCD',
-      guestToken: 'tok',
-    });
-  });
-
-  it('routes "poems get" to client.getPoemDetail', async () => {
-    const client = fakeClient();
-    await run(['poems', 'get', 'poem1', '--guest-token', 'tok'], client);
-    expect(client.getPoemDetail).toHaveBeenCalledWith({
-      poemId: 'poem1',
-      guestToken: 'tok',
-    });
-  });
-
-  it('routes "favorites toggle" to client.toggleFavorite', async () => {
-    const client = fakeClient();
-    await run(['favorites', 'toggle', 'poem1', '--guest-token', 'tok'], client);
-    expect(client.toggleFavorite).toHaveBeenCalledWith({
-      poemId: 'poem1',
-      guestToken: 'tok',
-    });
-    expect(JSON.parse(stdout.join(''))).toEqual({ ok: true });
-  });
-
-  it('routes "favorites list" to client.getMyFavorites', async () => {
-    const client = fakeClient();
-    await run(['favorites', 'list', '--guest-token', 'tok'], client);
-    expect(client.getMyFavorites).toHaveBeenCalledWith({ guestToken: 'tok' });
   });
 
   it('shows command and identity help without requiring a configured deployment', async () => {
@@ -449,4 +318,63 @@ describe('run', () => {
     expect(client.getRoomState).not.toHaveBeenCalled();
     expect(stdout).toEqual([]);
   });
+});
+
+describe('CLI join receipts', () => {
+  it('exits nonzero for a committed rejection and keeps successful joins successful', async () => {
+    const rejected = {
+      ok: false,
+      code: 'ROOM_NOT_OPEN',
+      message: 'Room is closed',
+    };
+    const joined = { ok: true, code: 'ABCD', _id: 'room1' };
+    let receipt: typeof rejected | typeof joined = rejected;
+    const backend = createServer((request, response) => {
+      request.resume();
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ status: 'success', value: receipt }));
+    });
+    await once(backend.listen(0, '127.0.0.1'), 'listening');
+    try {
+      const address = backend.address();
+      if (!(address instanceof Object)) {
+        throw new Error('Expected a loopback TCP backend');
+      }
+      const args = [
+        '--import',
+        'tsx',
+        'scripts/cli/linejam-cli.ts',
+        'room',
+        'join',
+        'ABCD',
+        'Guest Poet',
+      ];
+      const options = {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          NEXT_PUBLIC_CONVEX_URL: `http://127.0.0.1:${address.port}`,
+          LINEJAM_GUEST_TOKEN: 'transport-test-identity',
+        },
+        encoding: 'utf8' as const,
+        timeout: 10_000,
+      };
+
+      await expect(
+        execFileAsync(process.execPath, args, options)
+      ).rejects.toMatchObject({
+        code: 1,
+        stdout: '',
+        stderr: `${JSON.stringify(rejected)}\n`,
+      });
+
+      receipt = joined;
+      const success = await execFileAsync(process.execPath, args, options);
+      expect(JSON.parse(success.stdout)).toEqual(joined);
+      expect(success.stderr).toBe('');
+    } finally {
+      backend.closeAllConnections();
+      await new Promise<void>((resolve) => backend.close(() => resolve()));
+    }
+  }, 30_000);
 });

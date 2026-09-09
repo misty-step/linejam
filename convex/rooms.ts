@@ -1,44 +1,63 @@
+import {
+  closeRoomForPlayer,
+  createRoomForPlayer,
+  joinRoomForPlayer,
+  leaveRoomForPlayer,
+  type JoinRoomErrorCode,
+} from '@parlor/convex/rooms';
 import { v, ConvexError } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { ensureUserHelper, normalizeDisplayName } from './users';
-import { getUser, checkParticipation } from './lib/auth';
 import {
-  PRESENCE_AWAY_MS,
-  isLateJoinAllowed,
-  isPresenceStale,
-} from './lib/gameRules';
+  getUser,
+  checkParticipation,
+  checkGameParticipation,
+} from './lib/auth';
+import {
+  ensureParlorPlayer,
+  findRoomActor,
+  getRoomActor,
+  parlorErrorCode,
+} from './lib/parlor';
+import { PRESENCE_AWAY_MS, isPresenceStale } from './lib/gameRules';
 import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
 import {
   getRoomByCode,
   getRoomActivity,
-  requireRoomByCode,
+  requireLiveRoomByCode,
   getActiveGame,
+  getCompletedGame,
+  getRoomPlayers,
 } from './lib/room';
+import { abandonRoomMatch } from './lib/sessionLifecycle';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { avatarIdValidator } from './lib/avatars';
 import { getDefaultAvatarId } from '../lib/avatars';
+import { RATE_LIMIT_EXCEEDED_MESSAGE } from '../lib/rateLimit';
 
-const generateRoomCode = (): string => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const codeLength = 4;
-
-  // Use crypto-secure random number generation
-  const randomValues = new Uint8Array(codeLength);
-  crypto.getRandomValues(randomValues);
-
-  let result = '';
-  for (let i = 0; i < codeLength; i++) {
-    result += characters.charAt(randomValues[i] % characters.length);
+const parlorDisplayName = (value: string): string | null => {
+  try {
+    return normalizeDisplayName(value);
+  } catch {
+    return null;
   }
-  return result;
 };
+
+const joinFailureMessages = {
+  INVALID_DISPLAY_NAME: 'Display name is required',
+  INVALID_ROOM_CODE: 'Room not found',
+  ROOM_JOIN_RATE_LIMIT: RATE_LIMIT_EXCEEDED_MESSAGE,
+  ROOM_NOT_OPEN: 'Room not found',
+  ROOM_DATA_INVALID: 'Room is unavailable',
+  ROOM_FULL: 'Room is full',
+} satisfies Record<JoinRoomErrorCode, string>;
 
 export const createRoom = mutation({
   args: {
     displayName: v.string(),
     avatarId: v.optional(avatarIdValidator),
     guestToken: v.optional(v.string()),
-    guestId: v.optional(v.string()), // Deprecated: throws error, kept for clear messaging
+    guestId: v.optional(v.string()), // Rejected by the existing identity boundary.
   },
   handler: async (ctx, { displayName, avatarId, guestToken, guestId }) => {
     const user = await ensureUserHelper(ctx, {
@@ -46,47 +65,55 @@ export const createRoom = mutation({
       guestToken,
       guestId,
     });
-
     await checkMutationAbuseRateLimit(ctx, {
       operation: 'createRoom',
       userId: user._id,
       guestToken: user.guestId ? guestToken : undefined,
     });
 
-    const MAX_CODE_ATTEMPTS = 20;
-    let roomCode: string;
-    let existingRoom;
-    let attempts = 0;
-    do {
-      if (attempts >= MAX_CODE_ATTEMPTS) {
+    const actor = await ensureParlorPlayer(ctx, user);
+    const typedName = normalizeDisplayName(displayName);
+    let receipt;
+    try {
+      receipt = await createRoomForPlayer(ctx, {
+        actor,
+        displayName: typedName,
+        normalizeName: parlorDisplayName,
+        // Closed and historical room codes still identify published recaps.
+        isCodeAvailable: async (code) =>
+          !(await ctx.db
+            .query('rooms')
+            .withIndex('by_code', (q) => q.eq('code', code))
+            .first()),
+      });
+    } catch (error) {
+      const code = parlorErrorCode(error);
+      if (code === 'ROOM_CREATION_RATE_LIMIT') {
+        throw new ConvexError(RATE_LIMIT_EXCEEDED_MESSAGE);
+      }
+      if (code === 'ROOM_CODE_EXHAUSTED') {
         throw new ConvexError(
           'Could not generate unique room code. Try again.'
         );
       }
-      roomCode = generateRoomCode();
-      existingRoom = await getRoomByCode(ctx, roomCode);
-      attempts++;
-    } while (existingRoom);
-
-    const roomId = await ctx.db.insert('rooms', {
-      code: roomCode,
+      throw error;
+    }
+    await ctx.db.patch(receipt.roomId, {
       hostUserId: user._id,
       status: 'LOBBY',
-      createdAt: Date.now(),
       retentionState: 'active',
     });
-
     await ctx.db.insert('roomPlayers', {
-      roomId: roomId,
+      roomId: receipt.roomId,
       userId: user._id,
-      displayName: normalizeDisplayName(displayName),
+      playerId: actor.playerId,
+      displayName: typedName,
       avatarId:
         avatarId ??
         getDefaultAvatarId(user.clerkUserId || user.guestId || user._id),
       joinedAt: Date.now(),
     });
-
-    return { code: roomCode, roomId };
+    return { code: receipt.code, roomId: receipt.roomId };
   },
 });
 
@@ -96,7 +123,7 @@ export const joinRoom = mutation({
     displayName: v.string(),
     avatarId: v.optional(avatarIdValidator),
     guestToken: v.optional(v.string()),
-    guestId: v.optional(v.string()), // Deprecated: throws error, kept for clear messaging
+    guestId: v.optional(v.string()), // Rejected by the existing identity boundary.
   },
   handler: async (
     ctx,
@@ -107,77 +134,85 @@ export const joinRoom = mutation({
       guestToken,
       guestId,
     });
-
     await checkMutationAbuseRateLimit(ctx, {
       operation: 'joinRoom',
       userId: user._id,
       guestToken: user.guestId ? guestToken : undefined,
     });
 
-    const room = await requireRoomByCode(ctx, code);
-
-    // Active-game joins are deliberately allowed as spectators. The current
-    // game keeps its immutable assignment matrix and poem count; this row is
-    // eligible for the next game only. Capacity and idempotency still apply
-    // below, so a scan cannot create an unbounded spectator list.
-    const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame && !isLateJoinAllowed(activeGame)) {
-      throw new ConvexError('Cannot join this game state');
+    const room = await getRoomByCode(ctx, code);
+    const profile = room
+      ? await ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room_user', (q) =>
+            q.eq('roomId', room._id).eq('userId', user._id)
+          )
+          .first()
+      : null;
+    // Rejoin must keep the room's player identity even after a lobby leave.
+    let actor;
+    if (profile?.playerId) {
+      const player = await ctx.db.get(profile.playerId);
+      if (!player) throw new ConvexError('Room player identity not found');
+      actor = {
+        playerId: player._id,
+        identityKey: player.identityKey,
+        kind: player.kind,
+        guestId: player.guestId,
+      };
+    } else {
+      actor = await ensureParlorPlayer(ctx, user);
     }
-
-    const currentPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
-
-    // A COMPLETED room with players is a between-games lobby (still
-    // joinable); a COMPLETED room with none was closed by the host or
-    // swept — a dead code, not a party.
-    if (room.status === 'COMPLETED' && currentPlayers.length === 0) {
-      throw new ConvexError('Room is closed');
-    }
-
     const typedName = normalizeDisplayName(displayName);
-    const existingPlayer = currentPlayers.find((p) => p.userId === user._id);
+    const result = await joinRoomForPlayer(ctx, {
+      actor,
+      code,
+      displayName: typedName,
+      normalizeName: parlorDisplayName,
+      capacity: 8,
+    });
+    if (!result.ok) {
+      // Returning, rather than throwing, commits Parlor's failed-attempt counter.
+      return {
+        ...result,
+        message:
+          result.code === 'ROOM_NOT_OPEN' && room
+            ? 'Room is closed'
+            : joinFailureMessages[result.code],
+      };
+    }
+
+    const joinedRoom = await requireLiveRoomByCode(ctx, result.code);
     const selectedAvatarId =
       avatarId ??
-      existingPlayer?.avatarId ??
+      profile?.avatarId ??
       getDefaultAvatarId(user.clerkUserId || user.guestId || user._id);
-
-    if (existingPlayer) {
-      // Explicit choices replace the room selection; older callers preserve it.
-      // Rejoining also fills a legacy membership's missing avatar.
+    if (profile) {
       if (
-        existingPlayer.displayName !== typedName ||
-        existingPlayer.avatarId !== selectedAvatarId
+        profile.displayName !== typedName ||
+        profile.avatarId !== selectedAvatarId ||
+        !profile.playerId
       ) {
-        await ctx.db.patch(existingPlayer._id, {
+        await ctx.db.patch(profile._id, {
           displayName: typedName,
           avatarId: selectedAvatarId,
+          playerId: profile.playerId ?? actor.playerId,
         });
       }
-      if (user.displayName !== typedName) {
-        await ctx.db.patch(user._id, { displayName: typedName });
-      }
-      return room;
+    } else {
+      await ctx.db.insert('roomPlayers', {
+        roomId: result.roomId,
+        userId: user._id,
+        playerId: actor.playerId,
+        displayName: typedName,
+        avatarId: selectedAvatarId,
+        joinedAt: Date.now(),
+      });
     }
-
-    if (currentPlayers.length >= 8) {
-      throw new ConvexError('Room is full');
-    }
-
-    await ctx.db.insert('roomPlayers', {
-      roomId: room._id,
-      userId: user._id,
-      displayName: typedName,
-      avatarId: selectedAvatarId,
-      joinedAt: Date.now(),
-    });
     if (user.displayName !== typedName) {
       await ctx.db.patch(user._id, { displayName: typedName });
     }
-
-    return room;
+    return { ...joinedRoom, ok: true as const };
   },
 });
 
@@ -193,23 +228,13 @@ export const getRoom = query({
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
     const { activeGame, status } = await getRoomActivity(ctx, room);
-
     const isParticipant = await checkParticipation(ctx, room._id, user._id);
     if (isParticipant) return { ...room, status };
-
-    if (activeGame) return null;
-
-    const roomPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
-
+    if (!room.hostPlayerId || room.closedAt !== undefined || activeGame)
+      return null;
+    const roomPlayers = await getRoomPlayers(ctx, room._id);
     if (roomPlayers.length >= 8) return null;
-
-    return {
-      code: room.code,
-      status,
-    };
+    return { code: room.code, status };
   },
 });
 
@@ -221,28 +246,30 @@ export const getRoomState = query({
   handler: async (ctx, { code, guestToken }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) return null;
-
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
     const { status } = await getRoomActivity(ctx, room);
-
-    const isParticipant = await checkParticipation(ctx, room._id, user._id);
-    if (!isParticipant) return null;
-
-    const roomPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
-
-    // Reuse the identity records for stable IDs and legacy avatar defaults.
+    if (room.hostPlayerId || room.closedAt !== undefined) {
+      const actor = room.hostPlayerId
+        ? await findRoomActor(ctx, user, room._id)
+        : null;
+      if (!actor) {
+        const completedGame =
+          status === 'COMPLETED' ? await getCompletedGame(ctx, room._id) : null;
+        if (!(await checkGameParticipation(ctx, completedGame, user._id))) {
+          return null;
+        }
+      }
+    } else if (!(await checkParticipation(ctx, room._id, user._id))) {
+      return null;
+    }
+    const roomPlayers = await getRoomPlayers(ctx, room._id);
     const now = Date.now();
     const players = await Promise.all(
       roomPlayers.map(async (rp) => {
         const userRecord = await ctx.db.get(rp.userId);
         const stableId =
           userRecord?.clerkUserId || userRecord?.guestId || rp.userId;
-        // Keep the raw heartbeat timestamp off the wire; `isAway` is the only
-        // presence signal clients need.
         const { lastSeenAt, ...rest } = rp;
         return {
           ...rest,
@@ -252,10 +279,11 @@ export const getRoomState = query({
         };
       })
     );
-
-    const isHost = user._id === room.hostUserId;
-
-    return { room: { ...room, status }, players, isHost };
+    return {
+      room: { ...room, status },
+      players,
+      isHost: user._id === room.hostUserId,
+    };
   },
 });
 
@@ -267,27 +295,20 @@ export const leaveLobby = mutation({
   handler: async (ctx, { roomCode, guestToken }) => {
     const user = await getUser(ctx, guestToken);
     if (!user) return;
-
     const room = await getRoomByCode(ctx, roomCode);
-    if (!room) return;
-
-    // Can only leave during lobby (no active game)
-    const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) return;
-
-    // Don't let host leave (they should close the room instead)
+    if (!room?.hostPlayerId || room.closedAt !== undefined) return;
+    if (await getActiveGame(ctx, room._id)) return;
     if (room.hostUserId === user._id) return;
-
-    const roomPlayer = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room_user', (q) =>
-        q.eq('roomId', room._id).eq('userId', user._id)
-      )
-      .first();
-
-    if (roomPlayer) {
-      await ctx.db.delete(roomPlayer._id);
-    }
+    const members = await getRoomPlayers(ctx, room._id);
+    if (!members.some((member) => member.userId === user._id)) return;
+    const actor = await getRoomActor(ctx, user, room._id);
+    await leaveRoomForPlayer(ctx, {
+      actor,
+      roomId: room._id,
+      onAbandoned: (envelope) =>
+        abandonRoomMatch(ctx, { envelope, closeRoom: true }),
+    });
+    // Keep room profiles: completed poems and archive authority outlive membership.
   },
 });
 
@@ -298,36 +319,21 @@ export const closeRoom = mutation({
   },
   handler: async (ctx, { roomCode, guestToken }) => {
     const user = await getUser(ctx, guestToken);
-    if (!user) {
-      throw new ConvexError('Not authenticated');
-    }
-
-    const room = await getRoomByCode(ctx, roomCode);
-    if (!room) {
-      throw new ConvexError('Room not found');
-    }
-
-    // Only host can close the room
+    if (!user) throw new ConvexError('Not authenticated');
+    const room = await requireLiveRoomByCode(ctx, roomCode);
     if (room.hostUserId !== user._id) {
       throw new ConvexError('Only the host can close the room');
     }
-
-    // Can only close during lobby (no active game)
-    const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) {
+    if (await getActiveGame(ctx, room._id)) {
       throw new ConvexError('Cannot close room while game is in progress');
     }
-
-    // Remove all players from the room
-    const roomPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
-
-    await Promise.all(roomPlayers.map((rp) => ctx.db.delete(rp._id)));
-
-    // Mark room as completed. Closed lobbies have no artifact to preserve, so
-    // they use the same short lifetime as an abandoned session.
+    const actor = await getRoomActor(ctx, user, room._id);
+    await closeRoomForPlayer(ctx, {
+      actor,
+      roomId: room._id,
+      onAbandoned: (envelope) =>
+        abandonRoomMatch(ctx, { envelope, closeRoom: true }),
+    });
     const completedAt = Date.now();
     await ctx.db.patch(room._id, {
       status: 'COMPLETED',

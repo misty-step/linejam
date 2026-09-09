@@ -59,7 +59,7 @@ describe('joining a room', () => {
     guestToken = 'guest-token';
     isLoading = false;
     authError = null;
-    joinRoom.mockResolvedValue({ _id: 'room-1' });
+    joinRoom.mockResolvedValue({ ok: true, _id: 'room-1' });
     setErrorReporterForTests({
       captureException: vi.fn(),
       isEnabled: () => true,
@@ -97,7 +97,7 @@ describe('joining a room', () => {
       'a-1b cDextra',
       '  Ada Lovelace  '
     );
-    expect(code).toHaveValue('ABCD');
+    expect(code).toHaveValue('A1BC');
 
     await user.click(screen.getByRole('button', { name: /change avatar/i }));
     await user.click(screen.getByRole('button', { name: 'Orbit' }));
@@ -105,20 +105,20 @@ describe('joining a room', () => {
     await user.click(screen.getByRole('button', { name: /^join room$/i }));
 
     expect(joinRoom).toHaveBeenCalledExactlyOnceWith({
-      code: 'ABCD',
+      code: 'A1BC',
       displayName: 'Ada Lovelace',
       avatarId: 'orbit',
       guestToken: 'guest-token',
     });
     await waitFor(() =>
-      expect(push).toHaveBeenCalledExactlyOnceWith('/room/ABCD')
+      expect(push).toHaveBeenCalledExactlyOnceWith('/room/A1BC')
     );
   });
 
   it('requires a room code and a nonblank pen name before allowing a join', async () => {
     const user = userEvent.setup();
     renderJoinPage();
-    const { code, name } = await enterDetails(user, '123-!', 'Ada');
+    const { code, name } = await enterDetails(user, '---!', 'Ada');
     const submit = screen.getByRole('button', { name: /^join room$/i });
 
     expect(code).toHaveValue('');
@@ -128,7 +128,7 @@ describe('joining a room', () => {
     await user.keyboard('{Enter}');
     expect(joinRoom).not.toHaveBeenCalled();
 
-    await user.type(code, 'ABCD');
+    await user.type(code, 'A1B2');
     await user.clear(name);
     await user.type(name, '   ');
     expect(submit).toBeDisabled();
@@ -143,7 +143,7 @@ describe('joining a room', () => {
     expect(submit).toBeEnabled();
     await user.click(submit);
     await waitFor(() =>
-      expect(push).toHaveBeenCalledExactlyOnceWith('/room/ABCD')
+      expect(push).toHaveBeenCalledExactlyOnceWith('/room/A1B2')
     );
   });
 
@@ -218,6 +218,27 @@ describe('joining a room', () => {
     }
   );
 
+  it('offers a usable recovery from a failed-join receipt without throwing', async () => {
+    joinRoom.mockResolvedValueOnce({
+      ok: false,
+      code: 'ROOM_FULL',
+      message: 'Room is full',
+    });
+    const user = userEvent.setup();
+    renderJoinPage();
+    await enterDetails(user, 'A1B2', 'Ada');
+    await user.click(screen.getByRole('button', { name: /^join room$/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/full/i);
+    expect(push).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /^join room$/i }));
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledExactlyOnceWith('/room/A1B2')
+    );
+  });
+
   it('offers authentication retry and waits for a usable session before joining', async () => {
     guestToken = null;
     isLoading = true;
@@ -291,7 +312,9 @@ describe('joining a room', () => {
       guestToken: undefined,
     });
 
-    await act(async () => pending.resolve({ _id: 'room-2', currentCycle: 3 }));
+    await act(async () =>
+      pending.resolve({ ok: true, _id: 'room-2', currentCycle: 3 })
+    );
     await waitFor(() =>
       expect(push).toHaveBeenCalledExactlyOnceWith('/room/ABCD')
     );

@@ -34,9 +34,9 @@ async function createRoom(page: Page, hostName: string) {
   });
   await page.fill('input#name', hostName);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30000 });
-  const roomCode = page.url().match(/\/room\/([A-Z]{4})$/)?.[1] || '';
-  expect(roomCode).toMatch(/^[A-Z]{4}$/);
+  await page.waitForURL(/\/room\/[A-Z0-9]{4}$/, { timeout: 30000 });
+  const roomCode = page.url().match(/\/room\/([A-Z0-9]{4})$/)?.[1] || '';
+  expect(roomCode).toMatch(/^[A-Z0-9]{4}$/);
   return roomCode;
 }
 

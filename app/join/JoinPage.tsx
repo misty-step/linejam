@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from 'convex/react';
+import { ConvexError } from 'convex/values';
 import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
@@ -30,7 +31,7 @@ import { ColorModeControl } from '../../components/ColorModeControl';
 
 function normalizeRoomCode(value: string): string {
   return value
-    .replace(/[^a-zA-Z]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
     .toUpperCase()
     .slice(0, 4);
 }
@@ -50,10 +51,19 @@ interface JoinPageUserState {
   retryAuth(): void;
 }
 
-export interface JoinRoomResult {
+export type JoinRoomSuccess = {
+  ok: true;
   _id: string;
   currentCycle?: number;
-}
+};
+
+export type JoinRoomFailure = {
+  ok: false;
+  code: string;
+  message: string;
+};
+
+export type JoinRoomResult = JoinRoomSuccess | JoinRoomFailure;
 
 export type JoinRoom = (args: {
   code: string;
@@ -148,6 +158,14 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
         avatarId,
         guestToken: guestToken || undefined,
       });
+      if (room.ok === false) {
+        const error = toErrorReportable(new ConvexError(room.message));
+        const feedback = errorToFeedback(error);
+        setError(feedback.message);
+        captureError(error, { roomCode: normalizedCode });
+        setIsSubmitting(false);
+        return;
+      }
       trackGameJoined({
         roomIdHash: hashRoomId(room._id),
         cycle: room.currentCycle ?? 1,

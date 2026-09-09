@@ -1,9 +1,11 @@
 import { ConvexError, v } from 'convex/values';
 import { internalMutation, mutation } from './_generated/server';
+import type { Doc, Id } from './_generated/dataModel';
 import { verifyGuestToken } from './lib/guestToken';
 import { ensureUserHelper } from './users';
 import { abandonGame } from './lib/sessionLifecycle';
 import { retentionEligibleAt } from './lib/retentionPolicy';
+import { getActiveGame, getCompletedGame } from './lib/room';
 
 // SAFETY: Legacy 'mode' column was removed from schema; Convex db.patch requires undefined to delete the field at runtime.
 const removeGameModePatch = { mode: undefined } as never;
@@ -84,6 +86,26 @@ export const migrateGuestToUser = mutation({
       return { alreadyMigrated: true };
     }
 
+    const roomPlayers = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_user', (q) => q.eq('userId', guestUser._id))
+      .collect();
+    const accountProfiles = await Promise.all(
+      roomPlayers.map((profile) =>
+        ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room_user', (q) =>
+            q.eq('roomId', profile.roomId).eq('userId', authUser._id)
+          )
+          .first()
+      )
+    );
+    if (accountProfiles.some((profile) => profile !== null)) {
+      throw new ConvexError(
+        'This account already has a player in one of your guest rooms'
+      );
+    }
+
     const lines = await ctx.db
       .query('lines')
       .withIndex('by_author', (q) => q.eq('authorUserId', guestUser._id))
@@ -106,16 +128,103 @@ export const migrateGuestToUser = mutation({
       )
     );
 
-    const roomPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_user', (q) => q.eq('userId', guestUser._id))
+    const readerAssignments = await ctx.db
+      .query('poems')
+      .withIndex('by_reader', (q) => q.eq('assignedReaderId', guestUser._id))
       .collect();
-
     await Promise.all(
-      roomPlayers.map((player) =>
-        ctx.db.patch(player._id, { userId: authUser._id })
+      readerAssignments.map((poem) =>
+        ctx.db.patch(poem._id, { assignedReaderId: authUser._id })
       )
     );
+
+    // Follow ownership indexes, never the lifetime history of a joined room.
+    // Cache games returned by indexed lookups so each matrix is loaded once.
+    const affectedGames = new Map<Id<'games'>, Doc<'games'> | null>();
+    const authoredPoemIds = new Set<Id<'poems'>>();
+    for (const line of lines) authoredPoemIds.add(line.poemId);
+    for (const poem of readerAssignments) {
+      authoredPoemIds.delete(poem._id);
+      affectedGames.set(poem.gameId, null);
+    }
+    await Promise.all(
+      Array.from(authoredPoemIds, async (poemId) => {
+        const poem = await ctx.db.get(poemId);
+        if (poem) affectedGames.set(poem.gameId, null);
+      })
+    );
+
+    await Promise.all(
+      roomPlayers.map(async (player) => {
+        await ctx.db.patch(player._id, { userId: authUser._id });
+        const room = await ctx.db.get(player.roomId);
+        if (!room) return;
+        if (room.hostUserId === guestUser._id) {
+          await ctx.db.patch(room._id, { hostUserId: authUser._id });
+        }
+        if (!room.hostPlayerId) {
+          // Legacy games have no frozen participant index. Include current
+          // writing/reveal assignments even before the guest writes a line.
+          const [activeGame, completedGame] = await Promise.all([
+            getActiveGame(ctx, room._id),
+            getCompletedGame(ctx, room._id),
+          ]);
+          for (const game of [activeGame, completedGame]) {
+            if (game) affectedGames.set(game._id, game);
+          }
+        }
+      })
+    );
+
+    // Keep frozen player IDs usable by the linked account without retaining
+    // the guest identifier after the guest user is removed.
+    const guestPlayer = await ctx.db
+      .query('players')
+      .withIndex('by_identity', (q) =>
+        q.eq('identityKey', `linejam:user:${guestUser._id}`)
+      )
+      .unique();
+    if (guestPlayer) {
+      const participations = await ctx.db
+        .query('matchParticipants')
+        .withIndex('by_player', (q) => q.eq('playerId', guestPlayer._id))
+        .collect();
+      await Promise.all(
+        participations.map(async (participant) => {
+          const game = await ctx.db
+            .query('games')
+            .withIndex('by_match', (q) => q.eq('matchId', participant.matchId))
+            .unique();
+          if (game) affectedGames.set(game._id, game);
+        })
+      );
+      await ctx.db.patch(guestPlayer._id, {
+        kind: 'authenticated',
+        guestId: undefined,
+      });
+    }
+
+    // Completed assignments still serve reveal ownership and final-line
+    // retries. Preserve those contracts, but never copy or patch an unrelated
+    // matrix merely because the guest joined its room.
+    for (const [gameId, loadedGame] of affectedGames) {
+      const game = loadedGame ?? (await ctx.db.get(gameId));
+      if (!game) continue;
+      let changed = false;
+      for (const row of game.assignmentMatrix) {
+        for (let index = 0; index < row.length; index++) {
+          if (row[index] === guestUser._id) {
+            row[index] = authUser._id;
+            changed = true;
+          }
+        }
+      }
+      if (changed) {
+        await ctx.db.patch(game._id, {
+          assignmentMatrix: game.assignmentMatrix,
+        });
+      }
+    }
 
     await ctx.db.delete(guestUser._id);
 
@@ -484,6 +593,70 @@ export const cleanupMachineAuthorship = internalMutation({
       blocked,
       remaining: !isDone,
       cursor: isDone ? null : continueCursor,
+    };
+  },
+});
+
+/** Explicit cutover operation; no cron or deploy automatically drains old rooms. */
+export const drainLegacyRooms = internalMutation({
+  args: {
+    dryRun: v.boolean(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, { dryRun, cursor }) => {
+    const now = Date.now();
+    const page = await ctx.db
+      .query('rooms')
+      .withIndex('by_host_open', (q) =>
+        q.eq('hostPlayerId', undefined).eq('closedAt', undefined)
+      )
+      .paginate({ cursor: cursor ?? null, numItems: 8 });
+    let abandoned = 0;
+    for (const room of page.page) {
+      const activeGame = await ctx.db
+        .query('games')
+        .withIndex('by_room_status', (q) =>
+          q.eq('roomId', room._id).eq('status', 'IN_PROGRESS')
+        )
+        .unique();
+      if (activeGame?.matchId) {
+        throw new ConvexError(
+          'Legacy room unexpectedly contains a Parlor match'
+        );
+      }
+      if (activeGame) {
+        await abandonGame(ctx, {
+          game: activeGame,
+          closeRoom: true,
+          abandonedAt: now,
+          dryRun,
+        });
+        abandoned++;
+      }
+      if (!dryRun) {
+        await ctx.db.patch(
+          room._id,
+          room.status === 'LOBBY' && !activeGame
+            ? {
+                closedAt: now,
+                status: 'COMPLETED',
+                completedAt: now,
+                currentGameId: undefined,
+                retentionState: 'pending',
+                retentionEligibleAt: retentionEligibleAt(now, 'abandoned'),
+              }
+            : { closedAt: now }
+        );
+      }
+    }
+    return {
+      dryRun,
+      scanned: page.page.length,
+      closed: dryRun ? 0 : page.page.length,
+      abandoned: dryRun ? 0 : abandoned,
+      eligibleAbandoned: abandoned,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
     };
   },
 });

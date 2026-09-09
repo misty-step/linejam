@@ -29,48 +29,35 @@ async function seedCompletedRoom(
   guestId: Id<'users'>;
   roomId: Id<'rooms'>;
   gameId: Id<'games'>;
+  code: string;
 }> {
-  return t.run(async (ctx) => {
-    const hostId = await ctx.db.insert('users', {
-      displayName: 'Host',
-      kind: 'human',
-      clerkUserId: `clerk_${hostClerkName}`,
-      createdAt: 0,
-    });
-    const guestId = await ctx.db.insert('users', {
-      displayName: 'Guest',
-      kind: 'human',
-      clerkUserId: `clerk_${guestClerkName}`,
-      createdAt: 0,
-    });
-    const roomId = await ctx.db.insert('rooms', {
-      code: 'ABCD',
-      hostUserId: hostId,
-      status: 'COMPLETED',
-      createdAt: 0,
-    });
-    await ctx.db.insert('roomPlayers', {
-      roomId,
-      userId: hostId,
-      displayName: 'Host',
-      joinedAt: 0,
-    });
-    await ctx.db.insert('roomPlayers', {
-      roomId,
-      userId: guestId,
-      displayName: 'Guest',
-      joinedAt: 1,
-    });
-    const gameId = await ctx.db.insert('games', {
+  const hostId = await seedClerkUser(t, hostClerkName, { displayName: 'Host' });
+  const guestId = await seedClerkUser(t, guestClerkName, {
+    displayName: 'Guest',
+  });
+  const { code, roomId } = await asUser(t, hostClerkName).mutation(
+    api.rooms.createRoom,
+    { displayName: 'Host' }
+  );
+  const joined = await asUser(t, guestClerkName).mutation(api.rooms.joinRoom, {
+    code,
+    displayName: 'Guest',
+  });
+  expect(joined).not.toMatchObject({ ok: false });
+  const gameId = await t.run(async (ctx) => {
+    const id = await ctx.db.insert('games', {
       roomId,
       status: 'COMPLETED',
       cycle: 1,
       currentRound: 8,
       assignmentMatrix: [[hostId, guestId]],
       createdAt: 0,
+      completionKind: 'normal',
     });
-    return { hostId, guestId, roomId, gameId };
+    await ctx.db.patch(roomId, { status: 'COMPLETED', currentGameId: id });
+    return id;
   });
+  return { hostId, guestId, roomId, gameId, code };
 }
 
 describe('room lifecycle', () => {
@@ -273,7 +260,7 @@ describe('room lifecycle', () => {
       expect(players).toHaveLength(2);
     });
 
-    it('throws when the room does not exist', async () => {
+    it('returns a failure receipt when the room does not exist', async () => {
       const t = setupConvexTest();
       await seedClerkUser(t, 'nobody');
 
@@ -282,7 +269,7 @@ describe('room lifecycle', () => {
           code: 'ZZZZ',
           displayName: 'Nobody',
         })
-      ).rejects.toThrow();
+      ).resolves.toMatchObject({ ok: false });
     });
   });
 
@@ -383,10 +370,10 @@ describe('room lifecycle', () => {
   describe('startNewCycle', () => {
     it('resets a COMPLETED room to LOBBY and clears currentGameId', async () => {
       const t = setupConvexTest();
-      const { roomId } = await seedCompletedRoom(t);
+      const { roomId, code } = await seedCompletedRoom(t);
 
       await asUser(t, 'host').mutation(api.game.startNewCycle, {
-        roomCode: 'ABCD',
+        roomCode: code,
       });
 
       const room = await t.run((ctx) => ctx.db.get(roomId));
@@ -396,11 +383,11 @@ describe('room lifecycle', () => {
 
     it('allows any participant (not just host) to start a new cycle', async () => {
       const t = setupConvexTest();
-      const { roomId } = await seedCompletedRoom(t);
+      const { roomId, code } = await seedCompletedRoom(t);
 
       // guest (not host) fires startNewCycle
       await asUser(t, 'guest').mutation(api.game.startNewCycle, {
-        roomCode: 'ABCD',
+        roomCode: code,
       });
 
       const room = await t.run((ctx) => ctx.db.get(roomId));
@@ -409,14 +396,14 @@ describe('room lifecycle', () => {
 
     it('getRoomState reflects LOBBY status after startNewCycle', async () => {
       const t = setupConvexTest();
-      await seedCompletedRoom(t);
+      const { code } = await seedCompletedRoom(t);
 
       await asUser(t, 'host').mutation(api.game.startNewCycle, {
-        roomCode: 'ABCD',
+        roomCode: code,
       });
 
       const state = await asUser(t, 'host').query(api.rooms.getRoomState, {
-        code: 'ABCD',
+        code,
       });
       expect(state?.room.status).toBe('LOBBY');
     });
@@ -464,23 +451,23 @@ describe('room lifecycle', () => {
 
     it('throws when the caller is not a participant', async () => {
       const t = setupConvexTest();
-      await seedCompletedRoom(t);
+      const { code } = await seedCompletedRoom(t);
       // outsider has a user row but no roomPlayers entry
       await seedClerkUser(t, 'outsider');
 
       await expect(
         asUser(t, 'outsider').mutation(api.game.startNewCycle, {
-          roomCode: 'ABCD',
+          roomCode: code,
         })
       ).rejects.toThrow('Only players in this room can start a new cycle');
     });
 
     it('throws when the caller is unauthenticated', async () => {
       const t = setupConvexTest();
-      await seedCompletedRoom(t);
+      const { code } = await seedCompletedRoom(t);
 
       await expect(
-        t.mutation(api.game.startNewCycle, { roomCode: 'ABCD' })
+        t.mutation(api.game.startNewCycle, { roomCode: code })
       ).rejects.toThrow('User not found');
     });
   });

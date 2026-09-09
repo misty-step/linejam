@@ -17,6 +17,15 @@ function schemaChangeBlocks(diff) {
     const isChange =
       (marker === '+' || marker === '-') && !line.startsWith(marker.repeat(3));
     if (!isChange) {
+      if (
+        marker === ' ' &&
+        current !== null &&
+        /^[)\]}]+[,;]?$/.test(line.slice(1).trim())
+      ) {
+        current.before.push(line.slice(1).trim());
+        current.after.push(line.slice(1).trim());
+        continue;
+      }
       current = null;
       continue;
     }
@@ -30,7 +39,7 @@ function schemaChangeBlocks(diff) {
   return blocks;
 }
 
-function literalUnionValues(lines, field, occurrence) {
+function validatorExpression(lines, field, occurrence) {
   const fieldPrefix = `${field}:`;
   let seen = 0;
   const start = lines.findIndex((line) => {
@@ -41,32 +50,42 @@ function literalUnionValues(lines, field, occurrence) {
   });
   if (start === -1) return null;
 
-  const expressionLines = [];
+  const source = lines
+    .slice(start)
+    .join('\n')
+    .slice(fieldPrefix.length)
+    .trimStart();
+  if (!/^v\.\w+\s*\(/.test(source)) return null;
+  // Preserve quoted values exactly; unsupported syntax and comments fail closed.
+  const tokens =
+    /\s+|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|[\w$]+|[.,()[\]{}:+-]/gy;
   let depth = 0;
-  let opened = false;
-  for (const line of lines.slice(start)) {
-    const expression =
-      expressionLines.length === 0 ? line.slice(fieldPrefix.length) : line;
-    expressionLines.push(expression);
-    for (const character of expression) {
-      if (character === '(') {
-        depth++;
-        opened = true;
-      } else if (character === ')') {
-        depth--;
-      }
+  let expression = '';
+  while (tokens.lastIndex < source.length) {
+    const match = tokens.exec(source);
+    if (match === null) return null;
+    const token = match[0];
+    if (/^\s+$/.test(token)) continue;
+    expression += token;
+    if (token === '(') depth++;
+    if (token === ')' && --depth === 0) {
+      const remainder = source.slice(tokens.lastIndex).trimStart();
+      return remainder === '' || remainder.startsWith(',') ? expression : null;
     }
-    if (opened && depth === 0) break;
   }
+  return null;
+}
 
-  const expression = expressionLines.join('').replaceAll(/\s/g, '');
+function literalUnionValues(lines, field, occurrence) {
+  const expression = validatorExpression(lines, field, occurrence);
+  if (expression === null) return null;
   const literalPattern = /v\.literal\((['"])([^'"]+)\1\)/g;
   const values = Array.from(
     expression.matchAll(literalPattern),
     ([, , value]) => value
   );
   const skeleton = expression.replace(literalPattern, 'L');
-  if (values.length === 0 || !/^v\.union\((?:L,?)+\),?$/.test(skeleton)) {
+  if (values.length === 0 || !/^v\.union\((?:L,?)+\)$/.test(skeleton)) {
     return null;
   }
   return new Set(values);
@@ -81,6 +100,12 @@ function isLiteralUnionExpansion(block, field, occurrence) {
     after.size > before.size &&
     [...before].every((value) => after.has(value))
   );
+}
+
+function isOptionalExpansion(block, field, occurrence) {
+  const before = validatorExpression(block.before, field, occurrence);
+  const after = validatorExpression(block.after, field, occurrence);
+  return before !== null && after === `v.optional(${before})`;
 }
 
 function addedMigrationExports(diff) {
@@ -107,7 +132,10 @@ export function detectSchemaContractionWithMigration({
       if (field === undefined) continue;
       const occurrence = fieldOccurrences.get(field) ?? 0;
       fieldOccurrences.set(field, occurrence + 1);
-      if (!isLiteralUnionExpansion(block, field, occurrence)) {
+      if (
+        !isLiteralUnionExpansion(block, field, occurrence) &&
+        !isOptionalExpansion(block, field, occurrence)
+      ) {
         removedFields.push(field);
       }
     }

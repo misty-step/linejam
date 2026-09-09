@@ -49,6 +49,7 @@ export interface PoemDisplayProps {
   lines: PoemLine[];
   onDone?: () => void;
   alreadyRevealed?: boolean;
+  readOnly?: boolean;
   allStableIds?: string[];
   variant?: 'reveal' | 'archive';
   metadata?: PoemMetadata;
@@ -68,6 +69,7 @@ export function PoemDisplay({
   poemId,
   guestToken,
   lines,
+  readOnly = false,
   onDone,
   allStableIds,
   variant = 'reveal',
@@ -320,7 +322,9 @@ export function PoemDisplay({
                   Done
                 </Button>
               )}
-              <HeartButton poemId={poemId} guestToken={guestToken} />
+              {!readOnly && (
+                <HeartButton poemId={poemId} guestToken={guestToken} />
+              )}
             </div>
           )}
           {(shareError || saveError || revokeError) && (
@@ -328,49 +332,56 @@ export function PoemDisplay({
               {revokeError || shareError || saveError}
             </Alert>
           )}
-          <p id="poem-share-disclosure" className="text-sm text-text-secondary">
-            Sharing makes this poem public to anyone with the link.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={handleSaveImage}
-              data-testid={E2E_TEST_IDS.poemSaveImageButton}
-              variant="outline"
-              disabled={saving}
-              className="min-h-11"
-            >
-              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-              {saving ? 'Saving...' : saved ? 'Saved' : 'Save image'}
-            </Button>
-            <Button
-              onClick={handlePublish}
-              variant="outline"
-              disabled={isSharing || isRevoking}
-              aria-describedby="poem-share-disclosure"
-              className="min-h-11"
-            >
-              {isSharing ? 'Sharing...' : 'Share poem'}
-            </Button>
-            {isArchive && (
-              <Button
-                onClick={() => window.print()}
-                variant="ghost"
-                className="min-h-11"
+          {!readOnly && (
+            <>
+              <p
+                id="poem-share-disclosure"
+                className="text-sm text-text-secondary"
               >
-                Print
-              </Button>
-            )}
-            {(!isArchive || metadata?.isParticipant) && (
-              <Button
-                onClick={handleRevoke}
-                variant="ghost"
-                disabled={isSharing || isRevoking}
-                className="min-h-11 text-text-secondary"
-              >
-                {isRevoking ? 'Revoking...' : 'Revoke public link'}
-              </Button>
-            )}
-          </div>
+                Sharing makes this poem public to anyone with the link.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleSaveImage}
+                  data-testid={E2E_TEST_IDS.poemSaveImageButton}
+                  variant="outline"
+                  disabled={saving}
+                  className="min-h-11"
+                >
+                  <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {saving ? 'Saving...' : saved ? 'Saved' : 'Save image'}
+                </Button>
+                <Button
+                  onClick={handlePublish}
+                  variant="outline"
+                  disabled={isSharing || isRevoking}
+                  aria-describedby="poem-share-disclosure"
+                  className="min-h-11"
+                >
+                  {isSharing ? 'Sharing...' : 'Share poem'}
+                </Button>
+                {isArchive && (
+                  <Button
+                    onClick={() => window.print()}
+                    variant="ghost"
+                    className="min-h-11"
+                  >
+                    Print
+                  </Button>
+                )}
+                {(!isArchive || metadata?.isParticipant) && (
+                  <Button
+                    onClick={handleRevoke}
+                    variant="ghost"
+                    disabled={isSharing || isRevoking}
+                    className="min-h-11 text-text-secondary"
+                  >
+                    {isRevoking ? 'Revoking...' : 'Revoke public link'}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
           {shareStatus && (
             <p role="status" className="text-sm text-primary">
               {shareStatus}

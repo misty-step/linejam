@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { api, internal } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
+import { WORD_COUNTS } from '../../convex/lib/gameRules';
 import { setupConvexTest } from '../helpers/convexTest';
 import { signGuestToken } from '../../lib/guestToken';
 import { type T, asUser, seedUser } from '../helpers/convexSeed';
@@ -237,6 +239,433 @@ describe('migrateGuestToUser', () => {
     });
   });
 
+  it('links a small guest history without traversing unrelated room history', async () => {
+    const t = setupConvexTest();
+    const { guestUserId, guestToken } = await seedGuestUser(t, 'native-link');
+    const friendToken = await signGuestToken('native-link-friend');
+    const archiveRoom = await t.mutation(api.rooms.createRoom, {
+      displayName: 'Guest poet',
+      guestToken,
+    });
+    await t.mutation(api.rooms.joinRoom, {
+      code: archiveRoom.code,
+      displayName: 'Friend',
+      guestToken: friendToken,
+    });
+
+    const unrelated = await t.run(async (ctx) => {
+      const friend = await ctx.db
+        .query('users')
+        .withIndex('by_guest', (q) => q.eq('guestId', 'native-link-friend'))
+        .unique();
+      const friendProfile = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', archiveRoom.roomId).eq('userId', friend!._id)
+        )
+        .unique();
+      const earlierUserId = await ctx.db.insert('users', {
+        displayName: 'Earlier poet',
+        createdAt: 0,
+      });
+      const earlierPlayerId = await ctx.db.insert('players', {
+        identityKey: `linejam:user:${earlierUserId}`,
+        kind: 'authenticated',
+        createdAt: 0,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId: archiveRoom.roomId,
+        userId: earlierUserId,
+        playerId: earlierPlayerId,
+        displayName: 'Earlier poet',
+        joinedAt: 0,
+      });
+      const playerIds = [friendProfile!.playerId!, earlierPlayerId];
+      const matrix = WORD_COUNTS.map((_, round) =>
+        round % 2 === 0
+          ? [friend!._id, earlierUserId]
+          : [earlierUserId, friend!._id]
+      );
+      const gameIds: Id<'games'>[] = [];
+      let samplePoemId: Id<'poems'> | undefined;
+      for (let cycle = 1; cycle <= 256; cycle++) {
+        const matchId = await ctx.db.insert('matches', {
+          roomId: archiveRoom.roomId,
+          cycle,
+          status: 'completed',
+          startedAt: 0,
+          completedAt: 1,
+        });
+        for (const [seatIndex, playerId] of playerIds.entries()) {
+          await ctx.db.insert('matchParticipants', {
+            matchId,
+            playerId,
+            seatIndex,
+          });
+        }
+        const gameId = await ctx.db.insert('games', {
+          roomId: archiveRoom.roomId,
+          matchId,
+          status: 'COMPLETED',
+          cycle,
+          currentRound: WORD_COUNTS.length - 1,
+          assignmentMatrix: matrix,
+          createdAt: 0,
+          completedAt: 1,
+        });
+        gameIds.push(gameId);
+        for (let indexInRoom = 0; indexInRoom < 2; indexInRoom++) {
+          const poemId = await ctx.db.insert('poems', {
+            roomId: archiveRoom.roomId,
+            gameId,
+            indexInRoom,
+            assignedReaderId: matrix[0][(indexInRoom + 1) % 2],
+            createdAt: 0,
+            completedAt: 1,
+          });
+          samplePoemId ??= poemId;
+          for (const [indexInPoem, wordCount] of WORD_COUNTS.entries()) {
+            await ctx.db.insert('lines', {
+              poemId,
+              indexInPoem,
+              text: Array(wordCount).fill('earlier').join(' '),
+              wordCount,
+              authorUserId: matrix[indexInPoem][indexInRoom],
+              createdAt: 0,
+            });
+          }
+        }
+      }
+      return {
+        games: await Promise.all(gameIds.map((id) => ctx.db.get(id))),
+        poemId: samplePoemId!,
+      };
+    });
+
+    await t.mutation(api.game.startGame, {
+      code: archiveRoom.code,
+      guestToken,
+    });
+    const firstAssignment = await t.query(api.game.getCurrentAssignment, {
+      roomCode: archiveRoom.code,
+      guestToken,
+    });
+    for (const [lineIndex, wordCount] of WORD_COUNTS.entries()) {
+      for (const token of [guestToken, friendToken]) {
+        const assignment = await t.query(api.game.getCurrentAssignment, {
+          roomCode: archiveRoom.code,
+          guestToken: token,
+        });
+        if (!assignment) throw new Error('Missing writer assignment');
+        await t.mutation(api.game.submitLine, {
+          poemId: assignment.poemId,
+          lineIndex,
+          text: Array(wordCount).fill('archived').join(' '),
+          guestToken: token,
+        });
+      }
+    }
+    const completedPoems = await t.query(api.poems.getPoemsForRoom, {
+      roomCode: archiveRoom.code,
+      guestToken,
+    });
+    const readerPoem = completedPoems.find(
+      (poem) => poem.assignedReaderId === guestUserId
+    )!;
+    await t.mutation(api.favorites.toggleFavorite, {
+      poemId: readerPoem._id,
+      guestToken,
+    });
+    await t.mutation(api.rooms.closeRoom, {
+      roomCode: archiveRoom.code,
+      guestToken,
+    });
+    const archived = await t.query(api.poems.getPoemDetail, {
+      poemId: firstAssignment!.poemId,
+      guestToken,
+    });
+    expect(
+      await t.query(api.poems.getPoemDetail, {
+        poemId: unrelated.poemId,
+        guestToken,
+      })
+    ).toBeNull();
+
+    const { roomId, code } = await t.mutation(api.rooms.createRoom, {
+      displayName: 'Guest poet',
+      guestToken,
+    });
+    await t.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Friend',
+      guestToken: friendToken,
+    });
+    await t.mutation(api.game.startGame, { code, guestToken });
+    const originalRoom = await t.run((ctx) => ctx.db.get(roomId));
+    const playerId = originalRoom!.hostPlayerId!;
+    const assignment = await t.query(api.game.getCurrentAssignment, {
+      roomCode: code,
+      guestToken,
+    });
+    expect(assignment).not.toBeNull();
+
+    const account = asUser(t, 'linked-poet');
+    // This is a resource contract, not a production history cap: 256 unrelated
+    // games must not consume a transaction sized for nine owned lines, one
+    // favorite, one reader assignment, two profiles, and two affected games.
+    const result = await account.mutation((ctx) =>
+      ctx.runMutation(
+        api.migrations.migrateGuestToUser,
+        { guestToken },
+        { transactionLimits: { documentsRead: 128, documentsWritten: 32 } }
+      )
+    );
+    expect(result).toMatchObject({
+      success: true,
+      linesTransferred: 9,
+      favoritesTransferred: 1,
+      roomsTransferred: 2,
+    });
+    expect(
+      await t.run((ctx) =>
+        Promise.all(unrelated.games.map((game) => ctx.db.get(game!._id)))
+      )
+    ).toEqual(unrelated.games);
+    expect(
+      await account.query(api.poems.getPoemDetail, {
+        poemId: unrelated.poemId,
+      })
+    ).toBeNull();
+    expect(
+      (
+        await t.query(api.poems.getPoemDetail, {
+          poemId: unrelated.poemId,
+          guestToken: friendToken,
+        })
+      )?.lines.map((line) => line.text)
+    ).toEqual(
+      WORD_COUNTS.map((wordCount) => Array(wordCount).fill('earlier').join(' '))
+    );
+    const linkedArchive = await account.query(api.poems.getPoemDetail, {
+      poemId: firstAssignment!.poemId,
+    });
+    expect(archived?.lines.map((line) => line.text)).toEqual(
+      WORD_COUNTS.map((wordCount) =>
+        Array(wordCount).fill('archived').join(' ')
+      )
+    );
+    expect(linkedArchive?.lines.map((line) => line.text)).toEqual(
+      archived?.lines.map((line) => line.text)
+    );
+    expect(await account.query(api.favorites.getMyFavorites, {})).toMatchObject(
+      [{ _id: readerPoem._id, preview: 'archived' }]
+    );
+    expect(await account.query(api.archive.getArchiveData, {})).toMatchObject({
+      stats: { totalPoems: 2, totalFavorites: 1, totalLinesWritten: 9 },
+    });
+    const linkedReader = await account.query(api.game.getRevealPhaseState, {
+      roomCode: archiveRoom.code,
+    });
+    expect(linkedReader?.myPoems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: readerPoem._id,
+          isOwnPoem: false,
+          isFallbackReader: false,
+        }),
+        expect.objectContaining({
+          _id: firstAssignment!.poemId,
+          isOwnPoem: true,
+        }),
+      ])
+    );
+    expect(
+      await account.mutation(api.game.submitLine, {
+        poemId: firstAssignment!.poemId,
+        lineIndex: WORD_COUNTS.length - 1,
+        text: 'retry',
+      })
+    ).toEqual({ status: 'already_submitted', text: 'archived' });
+    await account.mutation(api.presence.heartbeat, { roomCode: code });
+    expect(
+      await account.query(api.game.getCurrentAssignment, { roomCode: code })
+    ).toMatchObject({
+      poemId: assignment!.poemId,
+      lineIndex: assignment!.lineIndex,
+    });
+    await account.mutation(api.game.submitLine, {
+      poemId: assignment!.poemId,
+      lineIndex: assignment!.lineIndex,
+      text: 'linked',
+    });
+    expect(
+      await account.query(api.game.getCurrentAssignment, { roomCode: code })
+    ).toMatchObject({ hasSubmitted: true });
+    expect(await t.run((ctx) => ctx.db.get(guestUserId))).toBeNull();
+    const player = await t.run((ctx) => ctx.db.get(playerId));
+    expect(player).toMatchObject({ kind: 'authenticated' });
+    expect(player).not.toHaveProperty('guestId');
+    expect(
+      await t.query(api.rooms.getRoomState, { code, guestToken })
+    ).toBeNull();
+    expect(
+      await t.query(api.poems.getPoemDetail, {
+        poemId: readerPoem._id,
+        guestToken,
+      })
+    ).toBeNull();
+  });
+
+  it('preserves legacy historical retries and unwritten active assignments when linking', async () => {
+    const t = setupConvexTest();
+    const { guestUserId, guestToken } = await seedGuestUser(t, 'legacy-link');
+    const friendId = await seedUser(t, { displayName: 'Friend' });
+    const code = 'LKLG';
+    const retained = await t.run(async (ctx) => {
+      const roomId = await ctx.db.insert('rooms', {
+        code,
+        hostUserId: guestUserId,
+        status: 'IN_PROGRESS',
+        createdAt: 0,
+      });
+      for (const userId of [guestUserId, friendId]) {
+        await ctx.db.insert('roomPlayers', {
+          roomId,
+          userId,
+          displayName: userId === guestUserId ? 'Guest' : 'Friend',
+          joinedAt: 0,
+        });
+      }
+      const matrix = WORD_COUNTS.map((_, round) =>
+        round % 2 === 0 ? [guestUserId, friendId] : [friendId, guestUserId]
+      );
+      const olderGameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        cycle: 1,
+        currentRound: WORD_COUNTS.length - 1,
+        assignmentMatrix: matrix,
+        createdAt: 0,
+        completedAt: 1,
+      });
+      // This retained poem is assigned to someone else. Only the guest's
+      // authored line links the older game to the migrating identity.
+      const olderPoemId = await ctx.db.insert('poems', {
+        roomId,
+        gameId: olderGameId,
+        indexInRoom: 0,
+        assignedReaderId: friendId,
+        createdAt: 0,
+        completedAt: 1,
+      });
+      await ctx.db.insert('lines', {
+        poemId: olderPoemId,
+        indexInPoem: WORD_COUNTS.length - 1,
+        authorUserId: guestUserId,
+        text: 'saved',
+        wordCount: 1,
+        createdAt: 0,
+      });
+      const unrelatedGameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'COMPLETED',
+        cycle: 2,
+        currentRound: WORD_COUNTS.length - 1,
+        assignmentMatrix: WORD_COUNTS.map(() => [friendId]),
+        createdAt: 1,
+        completedAt: 2,
+      });
+      const activeGameId = await ctx.db.insert('games', {
+        roomId,
+        status: 'IN_PROGRESS',
+        cycle: 3,
+        currentRound: 0,
+        assignmentMatrix: matrix,
+        createdAt: 2,
+      });
+      for (let indexInRoom = 0; indexInRoom < 2; indexInRoom++) {
+        await ctx.db.insert('poems', {
+          roomId,
+          gameId: activeGameId,
+          indexInRoom,
+          createdAt: 2,
+        });
+      }
+      await ctx.db.patch(roomId, {
+        currentGameId: activeGameId,
+        currentCycle: 3,
+      });
+      return {
+        olderPoemId,
+        unrelatedGame: await ctx.db.get(unrelatedGameId),
+      };
+    });
+    const assignment = await t.query(api.game.getCurrentAssignment, {
+      roomCode: code,
+      guestToken,
+    });
+    const account = asUser(t, 'legacy-linked');
+    await account.mutation(api.migrations.migrateGuestToUser, { guestToken });
+    expect(
+      await account.mutation(api.game.submitLine, {
+        poemId: retained.olderPoemId,
+        lineIndex: WORD_COUNTS.length - 1,
+        text: 'retry',
+      })
+    ).toEqual({ status: 'already_submitted', text: 'saved' });
+    expect(
+      await account.query(api.game.getCurrentAssignment, { roomCode: code })
+    ).toMatchObject({
+      poemId: assignment!.poemId,
+      lineIndex: 0,
+    });
+    expect(
+      await account.mutation(api.game.submitLine, {
+        poemId: assignment!.poemId,
+        lineIndex: 0,
+        text: 'linked',
+      })
+    ).toEqual({ status: 'committed', text: 'linked' });
+    expect(
+      await t.run((ctx) => ctx.db.get(retained.unrelatedGame!._id))
+    ).toEqual(retained.unrelatedGame);
+  });
+
+  it('rejects linking two players in the same room before transferring either identity', async () => {
+    const t = setupConvexTest();
+    const { guestUserId, guestToken } = await seedGuestUser(
+      t,
+      'conflicting-guest'
+    );
+    const { code } = await t.mutation(api.rooms.createRoom, {
+      displayName: 'Guest',
+      guestToken,
+    });
+    const account = asUser(t, 'existing-player');
+    await account.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Account',
+    });
+    await t.mutation(api.game.startGame, { code, guestToken });
+    const before = await t.query(api.game.getCurrentAssignment, {
+      roomCode: code,
+      guestToken,
+    });
+    await expect(
+      account.mutation(api.migrations.migrateGuestToUser, { guestToken })
+    ).rejects.toThrow('This account already has a player');
+    expect(await t.run((ctx) => ctx.db.get(guestUserId))).not.toBeNull();
+    expect(
+      await t.query(api.game.getCurrentAssignment, {
+        roomCode: code,
+        guestToken,
+      })
+    ).toEqual(before);
+    expect(await t.run((ctx) => ctx.db.query('migrations').collect())).toEqual(
+      []
+    );
+  });
+
   it('migration is idempotent: re-running returns alreadyMigrated and does not double-insert rows', async () => {
     const t = setupConvexTest();
     const { guestToken } = await seedGuestUser(t, 'guest-idem', 'Idem Guest');
@@ -295,6 +724,130 @@ describe('migrateGuestToUser', () => {
         .first();
       expect(migration).not.toBeNull();
     });
+  });
+});
+
+describe('legacy room drain', () => {
+  it('previews and drains bounded pages while preserving completed artifacts and native rooms', async () => {
+    const t = setupConvexTest();
+    const fixture = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', {
+        clerkUserId: 'clerk_drain-owner',
+        displayName: 'Owner',
+        createdAt: 0,
+      });
+      const rooms = await Promise.all(
+        Array.from({ length: 10 }, (_, index) =>
+          ctx.db.insert('rooms', {
+            code: `OLD${index}`,
+            hostUserId: userId,
+            status: index === 0 ? 'IN_PROGRESS' : 'LOBBY',
+            createdAt: 0,
+            retentionState: 'active',
+          })
+        )
+      );
+      const gameId = await ctx.db.insert('games', {
+        roomId: rooms[0],
+        status: 'IN_PROGRESS',
+        currentRound: 0,
+        cycle: 1,
+        assignmentMatrix: [[userId]],
+        createdAt: 0,
+        retentionState: 'active',
+      });
+      const poemId = await ctx.db.insert('poems', {
+        roomId: rooms[0],
+        gameId,
+        indexInRoom: 0,
+        createdAt: 0,
+      });
+      const lineId = await ctx.db.insert('lines', {
+        poemId,
+        indexInPoem: 0,
+        authorUserId: userId,
+        text: 'kept',
+        wordCount: 1,
+        createdAt: 0,
+      });
+      const completeRoomId = await ctx.db.insert('rooms', {
+        code: 'READ',
+        hostUserId: userId,
+        status: 'COMPLETED',
+        createdAt: 0,
+        retentionState: 'protected',
+      });
+      const completeGameId = await ctx.db.insert('games', {
+        roomId: completeRoomId,
+        status: 'COMPLETED',
+        currentRound: 8,
+        cycle: 1,
+        assignmentMatrix: [[userId]],
+        createdAt: 0,
+        publicRecapEnabled: true,
+        retentionState: 'protected',
+      });
+      return { rooms, gameId, poemId, lineId, completeRoomId, completeGameId };
+    });
+    const native = await asUser(t, 'drain-owner').mutation(
+      api.rooms.createRoom,
+      {
+        displayName: 'Native',
+      }
+    );
+    const preview = await t.mutation(internal.migrations.drainLegacyRooms, {
+      dryRun: true,
+    });
+    expect(preview).toMatchObject({ scanned: 8, closed: 0, isDone: false });
+    expect((await t.run((ctx) => ctx.db.get(fixture.gameId)))?.status).toBe(
+      'IN_PROGRESS'
+    );
+    let cursor: string | null = null;
+    let closed = 0;
+    for (let page = 0; page < 3; page++) {
+      const receipt: {
+        scanned: number;
+        closed: number;
+        isDone: boolean;
+        continueCursor: string;
+      } = await t.mutation(internal.migrations.drainLegacyRooms, {
+        dryRun: false,
+        cursor,
+      });
+      expect(receipt.scanned).toBeLessThanOrEqual(8);
+      closed += receipt.closed;
+      if (receipt.isDone) break;
+      cursor = receipt.continueCursor;
+    }
+    expect(closed).toBe(11);
+    expect((await t.run((ctx) => ctx.db.get(fixture.gameId)))?.status).toBe(
+      'ABANDONED'
+    );
+    expect(await t.run((ctx) => ctx.db.get(fixture.lineId))).toMatchObject({
+      text: 'kept',
+    });
+    expect(await t.run((ctx) => ctx.db.get(fixture.poemId))).not.toHaveProperty(
+      'revealedAt'
+    );
+    expect(
+      await t.run((ctx) => ctx.db.get(fixture.completeGameId))
+    ).toMatchObject({
+      status: 'COMPLETED',
+      publicRecapEnabled: true,
+      retentionState: 'protected',
+    });
+    expect(await t.run((ctx) => ctx.db.get(native.roomId))).not.toHaveProperty(
+      'closedAt'
+    );
+    expect(
+      await t.mutation(internal.migrations.drainLegacyRooms, { dryRun: false })
+    ).toMatchObject({ scanned: 0, closed: 0, isDone: true });
+    expect(
+      await asUser(t, 'drain-owner').mutation(api.rooms.joinRoom, {
+        code: 'OLD1',
+        displayName: 'Owner',
+      })
+    ).toMatchObject({ ok: false });
   });
 });
 
@@ -592,9 +1145,9 @@ describe('cleanupMachineAuthorship', () => {
     expect(
       await t.run(async (ctx) => {
         const retainedRoom = await ctx.db.get(seeded.roomId);
-        return retainedRoom === null
-          ? null
-          : await ctx.db.get(retainedRoom.hostUserId);
+        return retainedRoom?.hostUserId
+          ? await ctx.db.get(retainedRoom.hostUserId)
+          : null;
       })
     ).not.toBeNull();
     expect(

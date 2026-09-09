@@ -22,6 +22,7 @@
  *   linejam-cli favorites list --guest-token TOKEN
  */
 
+import { ConvexError } from 'convex/values';
 import {
   createLinejamClient,
   mintGuestToken,
@@ -230,7 +231,9 @@ async function main() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((error) => {
     process.stderr.write(
-      `error: ${error instanceof Error ? error.message : String(error)}\n`
+      error instanceof ConvexError
+        ? `${JSON.stringify(error.data)}\n`
+        : `error: ${error instanceof Error ? error.message : String(error)}\n`
     );
     process.exitCode = 1;
   });

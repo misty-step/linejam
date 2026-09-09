@@ -1,0 +1,212 @@
+:where(.parlor-room-code) {
+  --parlor-focus-color: #4868d9;
+  --parlor-focus-ring-width: 3px;
+  --parlor-field-border: #6f8585;
+  --parlor-field-background: #f2f7f4;
+  --parlor-field-foreground: #102a2a;
+  --parlor-field-radius: 0.5rem;
+  display: grid;
+  gap: 0.4rem;
+  color: var(--parlor-field-foreground);
+}
+
+.parlor-room-code__label {
+  font-weight: 600;
+}
+
+.parlor-room-code__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 9rem;
+  border: 1px solid var(--parlor-field-border);
+  border-radius: var(--parlor-field-radius);
+  background: var(--parlor-field-background);
+  color: var(--parlor-field-foreground);
+  font: inherit;
+  letter-spacing: 0.18em;
+  padding: 0.7rem 0.8rem;
+  text-transform: uppercase;
+}
+
+.parlor-room-code__input:focus-visible {
+  outline: var(--parlor-focus-ring-width) solid var(--parlor-focus-color);
+  outline-offset: 2px;
+}
+
+.parlor-room-code__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.parlor-room-code__description,
+.parlor-room-code__error {
+  font-size: 0.9em;
+}
+
+.parlor-room-code__error {
+  color: #a53029;
+}
+
+:where(.parlor-avatar-badge) {
+  --parlor-avatar-background: #073b3a;
+  --parlor-avatar-foreground: #f2f7f4;
+  --parlor-avatar-size: 2.75rem;
+  display: inline-grid;
+  width: var(--parlor-avatar-size);
+  height: var(--parlor-avatar-size);
+  box-sizing: border-box;
+  place-items: center;
+  flex: 0 0 var(--parlor-avatar-size);
+  background: var(--parlor-avatar-background);
+  color: var(--parlor-avatar-foreground);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.parlor-avatar-badge--circle {
+  border-radius: 50%;
+}
+
+.parlor-avatar-badge--pill {
+  border-radius: 999px;
+}
+
+.parlor-avatar-badge--square {
+  border-radius: 0.5rem;
+}
+
+.parlor-avatar-badge--triangle {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.parlor-avatar-badge--diamond {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.parlor-avatar-badge--hexagon {
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+.parlor-avatar-badge--star {
+  clip-path: polygon(
+    50% 0,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 100%,
+    50% 74%,
+    21% 100%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+}
+
+.parlor-avatar-badge--ring {
+  border: 0.25rem solid var(--parlor-avatar-background);
+  border-radius: 50%;
+  background: var(--parlor-avatar-foreground);
+  color: var(--parlor-avatar-background);
+}
+
+.parlor-avatar-badge--burst {
+  clip-path: polygon(
+    50% 0,
+    61% 22%,
+    82% 8%,
+    78% 32%,
+    100% 38%,
+    78% 50%,
+    92% 72%,
+    68% 68%,
+    62% 100%,
+    50% 76%,
+    28% 92%,
+    32% 68%,
+    0 62%,
+    24% 50%,
+    8% 28%,
+    32% 32%,
+    38% 0
+  );
+}
+
+.parlor-avatar-badge--leaf {
+  border-radius: 100% 0 100% 0;
+  transform: rotate(-45deg);
+}
+
+.parlor-avatar-badge--leaf > span {
+  transform: rotate(45deg);
+}
+
+.parlor-avatar-badge--arch {
+  border-radius: 100% 100% 0 0;
+}
+
+.parlor-avatar-badge--zigzag {
+  clip-path: polygon(0 20%, 25% 0, 50% 20%, 75% 0, 100% 20%, 100% 100%, 0 100%);
+}
+:where(.parlor-connection-status) {
+  --parlor-status-connected: #1f7a55;
+  --parlor-status-connecting: #b27712;
+  --parlor-status-disconnected: #a53029;
+  --parlor-status-offline: #5c6a6a;
+  --parlor-status-error: #a53029;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #102a2a;
+}
+
+.parlor-connection-status__indicator {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: 0 0 0.65rem;
+  border-radius: 50%;
+  background: var(--parlor-status-offline);
+}
+
+.parlor-connection-status--connected .parlor-connection-status__indicator {
+  background: var(--parlor-status-connected);
+}
+
+.parlor-connection-status--connecting .parlor-connection-status__indicator {
+  background: var(--parlor-status-connecting);
+}
+
+.parlor-connection-status--disconnected .parlor-connection-status__indicator {
+  background: var(--parlor-status-disconnected);
+}
+
+.parlor-connection-status--error .parlor-connection-status__indicator {
+  background: var(--parlor-status-error);
+}
+
+.parlor-connection-status__details {
+  opacity: 0.78;
+}
+
+:where(.parlor-qr-code) {
+  --parlor-qr-background: #f2f7f4;
+  --parlor-qr-foreground: #102a2a;
+  display: inline-grid;
+  justify-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--parlor-qr-foreground);
+}
+
+.parlor-qr-code svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: var(--parlor-qr-background);
+}
+
+.parlor-qr-code figcaption {
+  max-width: 30ch;
+  text-align: center;
+}

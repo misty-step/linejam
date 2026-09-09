@@ -9,6 +9,7 @@ ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     CI=1
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY vendor/parlor ./vendor/parlor
 RUN corepack enable \
     && corepack prepare pnpm@10.22.0 --activate \
     && pnpm install --frozen-lockfile --child-concurrency=1 --network-concurrency=4 \

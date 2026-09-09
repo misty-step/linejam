@@ -36,6 +36,7 @@ describe('SessionRecapHub', () => {
   const defaultProps = {
     roomCode: 'ABCD',
     playerCount: 2,
+    canShare: true,
     onStartNextRound: vi.fn(),
     onBackToLobby: vi.fn(),
     poems: [

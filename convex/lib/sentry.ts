@@ -10,10 +10,7 @@ const RELEASE_PATTERN = /^[0-9a-f]{40}$/;
 const PROJECT_ID_PATTERN = /^\d+$/;
 const PUBLIC_KEY_PATTERN = /^[A-Za-z0-9]+$/;
 
-export const BACKEND_FAILURE_OPERATIONS = [
-  'sweepAbandonedGames',
-  'finishAbandonedGame',
-] as const;
+export const BACKEND_FAILURE_OPERATIONS = ['sweepAbandonedGames'] as const;
 
 export const BACKEND_FAILURE_CODES = ['unexpected_error'] as const;
 

@@ -1,17 +1,17 @@
 # Architecture
 
 Linejam runs a Next.js/React client over application-owned Convex tables and
-functions. Clerk is optional account identity; guests use signed credentials.
-Parlor is **not installed**. Current dependencies and commands live in
-`package.json`, not this document.
+functions, with Parlor owning live room membership, presence, and match
+envelopes. Clerk is optional account identity; guests use signed credentials.
+Current dependencies and commands live in `package.json`, not this document.
 
 ## Current ownership
 
 | Concern                                            | Owning source                                                                                  |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Room codes, joining and room membership            | `convex/rooms.ts`, `convex/lib/room.ts`                                                        |
+| Room codes, joining and room membership            | `@parlor/convex` plus `convex/rooms.ts`, `convex/lib/room.ts`, `convex/lib/parlor.ts`          |
 | Guest issuance, cookies and identity               | `app/api/guest/session/handler.ts`, `lib/guestSession.ts`, `lib/auth.ts`, `convex/lib/auth.ts` |
-| Presence, host recovery and abandonment            | `convex/presence.ts`, `convex/lib/room.ts`, `convex/abandonment.ts`                            |
+| Presence, host recovery and abandonment            | `@parlor/convex` plus `convex/presence.ts`, `convex/abandonment.ts`                            |
 | Start, rounds, accepted submissions and completion | `convex/game.ts`, `convex/lib/sessionLifecycle.ts`, `convex/lib/gameRules.ts`                  |
 | Poem assignment and reader selection               | `convex/lib/assignmentMatrix.ts`, `convex/lib/assignPoemReaders.ts`                            |
 | Private artifacts, publication and retention       | `convex/poems.ts`, `convex/shares.ts`, `convex/favorites.ts`, `convex/retention.ts`            |
@@ -21,6 +21,7 @@ Parlor is **not installed**. Current dependencies and commands live in
 `convex/schema.ts` owns the schema. In outline:
 
 ```text
+players, roomMembers, matches, matchParticipants
 users → roomPlayers → rooms → games → poems → lines
   └───────────────────────── favorites / shares
 ```
@@ -41,83 +42,53 @@ Keep operational detail in [local development](local-development.md),
 [testing](testing.md), [deployment](deployment.md), [sharing privacy](sharing-privacy.md),
 [retention](ops/data-retention.md), and [migration sequencing](convex-migrations.md).
 
-## Parlor assessment
+## Parlor boundary
 
-Source review: Parlor commit
-[`c8f5d6480bd258fe8583b7e5357d31aca5ec60cc`](https://github.com/misty-step/parlor/tree/c8f5d6480bd258fe8583b7e5357d31aca5ec60cc).
-Package/integration source was clean; separate website edits were not changed.
-The imported `.agents/skills/parlor/SOURCE.json` records an older guidance-only
-snapshot, not an installed framework pin. This is a static compatibility
-assessment, **not a tested migration or a dependency selection**.
+`vendor/parlor/UPSTREAM.json` records the immutable Parlor source commit. The
+owner importer records commit-matched installed-source guidance under
+`.agents/skills/parlor`. Convex is an application-owned peer dependency, not a
+second runtime inside Parlor.
 
-### Intended boundary
+| Parlor owns                                                            | Linejam retains                                                              |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Room-code allocation, create/join/leave/close, seats and presence      | Invitation layout, selected avatars, pen names, guest cookies and Clerk link |
+| Frozen match participants, host recovery, paginated match abandonment  | Nine-round assignments, word validation, poems, reveal and reader fallback   |
+| Generic match envelopes (`hardDeadline: false` for untimed human play) | Archive, favorites, public links, retention, historical code recaps          |
 
-| Parlor should own                                                      | Linejam should retain                                                            |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Room-code allocation, parsing, lookup and generic create/join behavior | Invitation layout and product code/lifetime policy                               |
-| Players, memberships, seats and presence/host recovery                 | Pen names, chosen character art and durable author/account mapping               |
-| Frozen participants, late-join eligibility and match envelopes         | Nine-round assignments, word validation, poem state and viewer permissions       |
-| Generic completion/abandonment transitions                             | Whole-poem reveal, reader fallback, archive/favorites/sharing and data retention |
+New rooms use Parlor tables composed into `convex/schema.ts`. Room capacity is
+8, with four-character alphanumeric invitation codes. Create, join, match start,
+completion and abandonment compose inside the caller's Convex transaction.
+Failed joins return structured receipts so admission-attempt counters commit;
+the browser renders that failure, and CLI/MCP translate it after the mutation
+has returned.
 
-Parlor is currently a source-workspace distribution using the consuming app's
-Convex tables, not another hosted room service or a Convex Component. Its React
-package exports primitives and hooks, not a ready-made Linejam lobby or waiting
-screen. Adopting it does not require replacing Linejam's identity or artwork.
+`roomMembers` owns live membership and presence. Successful game starts and
+line submissions refresh presence alongside browser heartbeats. `roomPlayers`
+retains Linejam pen names, avatars and user-to-player mappings; it is not live
+membership or blanket permission to read later games. Completed native games
+use their frozen `matchParticipants` for private reading, favorites, publication
+and reader fallback. Live spectators receive only revealed text. After closure,
+every frozen author may read and reveal remaining poems without live presence;
+this does not reopen membership. Closed spectators receive the unavailable-room
+screen rather than an unusable reveal view.
 
-### Decisions before migration
+Linejam verifies its own guest credential or Clerk identity before calling
+Parlor's trusted identity resolver. `GUEST_TOKEN_SECRET` still belongs to
+Linejam's web/backend boundary; no Parlor guest signing key is needed. Account
+linking keeps the room's `playerId`, clears its guest marker, and rejects
+overlapping guest/account profiles in the same room before transferring data.
+Linking follows indexed ownership and participant records instead of unrelated
+room history. Guest-owned history remains subject to Convex's single-transaction
+limits.
 
-- **Capacity and code policy:** Parlor core fixes room seats at 12; setting
-  `beginMatch` bounds to 2–8 does not reject a ninth room member. Add or agree a
-  framework-owned room-capacity policy. Its four-character alphabet includes
-  digits but excludes I/O, unlike existing Linejam codes. It checks open rooms
-  for collisions, permitting reuse after closure; Linejam checks retained rooms.
-  Preserve existing invitations and code-based recap history deliberately.
-- **Selected avatars:** current Parlor create/join arguments and member schema
-  do not store Linejam's selected character. Decide between application-owned
-  membership metadata and a reusable Parlor extension; do not fork join logic
-  or force seat-derived artwork onto the game.
-- **Identity and existing data:** token formats, lifetimes and credential
-  precedence differ. Parlor does not supply the HTTP cookie/continuity route or
-  an account-link operation. Its player IDs and room schema cannot replace
-  Linejam user/room IDs by renaming imports. Preserve verified guest continuity,
-  Clerk linking, host/reader/matrix references, authorship, favorites, public
-  links, issuance throttling and per-local-backend identity isolation.
-- **Lifecycle policy:** Parlor starts are host-only and select eligible present
-  members; Linejam rematches may be started by any member after completion and
-  currently snapshot all human memberships. Seat/shuffle and host eligibility
-  also differ. Choose intended behavior rather than inherit defaults. Untimed
-  play is already supported through `beginMatch({ hardDeadline: false, ... })`;
-  keep Linejam's human game free of an enforced 30-minute cap.
-- **Completion and cleanup:** Linejam completes writing before reveal and allows
-  idempotent final-line retries afterward. Do not require an active match on
-  those completed-game paths. Parlor's paginated sweeper abandons envelopes,
-  not Linejam poems or rooms. Agree atomic composition or derived lifecycle
-  ownership for room closure, partial-poem privacy and retention; continue every
-  sweeper page. This is a concrete framework/application design question.
-- **Build integration:** the private workspace packages export built `dist`.
-  Bring a reviewed source pin and its manifests into the Docker dependency
-  layer, build before Next/Convex consumption, and establish a deliberate local
-  rebuild path. Toolchain compatibility has not been exercised.
+Historical invitations cannot admit players. Their retained artifacts remain
+readable, and the explicit bounded drain in
+[`convex-migrations.md`](convex-migrations.md#parlor-invitation-drain) closes
+legacy lobbies and abandons unfinished games without fabricating completion.
+Native retention drains frozen match records before removing their parent
+room and keeps referenced identities; see
+[`ops/data-retention.md`](ops/data-retention.md).
 
-The relevant Parlor implementations are `integrations/convex/convex/rooms.ts`,
-`identity.ts`, `matches.ts`, `presence.ts`, `abandonment.ts` and `schema.ts`, plus
-`packages/core/src/index.ts` and `packages/auth/src/server.ts` at the above pin.
-These questions belong with Parlor's owner, not permanent parallel lifecycle
-implementations in the consumer.
-
-### Order and proof
-
-The UI polish is independent of migration. `RoomPage` owns one shared frame,
-`RoomChrome` owns phase-appropriate options, and `RoomInvite` owns code/QR/share
-presentation. Entry and waiting use existing room data without a speculative
-adapter framework or a second room authority.
-
-For the next architecture lane, agree the policies above, then prove a complete
-local-only integration with existing-data fixtures: guest renewal/account link,
-2–8-player create/join with ninth-member rejection, atomic match/poem start,
-late-join spectator/rematch eligibility, host departure, nine human rounds,
-final-line replay, reader fallback, reveal and rematch. Separately prove
-abandonment/retention and preserved private/public archive ownership. A migration
-must remove the old shared machinery and preserve saved artifacts, not maintain
-two room authorities indefinitely. Production cutover follows the existing
-migration and deployment contracts only after that behavior is established.
+Production cutover requires separate deployment and migration authority under
+`docs/convex-migrations.md` and `docs/deployment.md`. Local acceptance does not
+grant either operation.

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makeFunctionReference } from 'convex/server';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
+import { api } from '../../convex/_generated/api';
+import { asUser, seedClerkUser } from '../helpers/convexSeed';
 import {
   RETENTION_BATCH_LIMITS,
   RETENTION_DURATIONS_MS,
@@ -493,6 +495,276 @@ describe('bounded data retention', () => {
     const clerk = await t.run((ctx) => ctx.db.get(clerkId));
     expect(clerk?.retentionState).toBe('protected');
     expect(clerk?.retentionEligibleAt).toBeUndefined();
+  });
+
+  it.each(['profile', 'membership', 'host', 'participant'] as const)(
+    'retains a guest with only a Parlor %s reference, then erases both identities',
+    async (reference) => {
+      const now = Date.UTC(2026, 6, 15, 20);
+      const t = setupConvexTest();
+      const ids = await t.run(async (ctx) => {
+        const userId = await ctx.db.insert('users', {
+          guestId: 'expiring-parlor-guest',
+          displayName: 'Guest',
+          createdAt: now - RETENTION_DURATIONS_MS.guestIdentity - 1,
+          retentionState: 'pending',
+          retentionEligibleAt: now - 1,
+        });
+        const playerId = await ctx.db.insert('players', {
+          identityKey: `linejam:user:${userId}`,
+          guestId: 'expiring-parlor-guest',
+          kind: 'guest',
+          createdAt: now - RETENTION_DURATIONS_MS.guestIdentity - 1,
+        });
+        const accountId = await ctx.db.insert('users', {
+          clerkUserId: 'retained-account',
+          displayName: 'Account',
+          createdAt: 0,
+        });
+        const roomId = await ctx.db.insert('rooms', {
+          code: 'KEEP',
+          hostUserId: accountId,
+          hostPlayerId: reference === 'host' ? playerId : undefined,
+          createdAt: 0,
+        });
+        let referenceId:
+          | Id<'roomPlayers'>
+          | Id<'roomMembers'>
+          | Id<'matchParticipants'>
+          | Id<'rooms'>;
+        if (reference === 'profile') {
+          referenceId = await ctx.db.insert('roomPlayers', {
+            roomId,
+            userId: accountId,
+            playerId,
+            displayName: 'Guest',
+            joinedAt: 0,
+          });
+        } else if (reference === 'membership') {
+          referenceId = await ctx.db.insert('roomMembers', {
+            roomId,
+            playerId,
+            displayName: 'Guest',
+            joinedAt: 0,
+            seatIndex: 0,
+            eligibleFromCycle: 1,
+            closedAt: 1,
+          });
+        } else if (reference === 'participant') {
+          const matchId = await ctx.db.insert('matches', {
+            roomId,
+            cycle: 1,
+            status: 'completed',
+            startedAt: 0,
+            completedAt: 1,
+          });
+          referenceId = await ctx.db.insert('matchParticipants', {
+            matchId,
+            playerId,
+            seatIndex: 0,
+          });
+        } else {
+          referenceId = roomId;
+        }
+        return { userId, playerId, referenceId };
+      });
+
+      await t.mutation(runRetentionSweep, { dryRun: false, now });
+      const deferred = await t.run((ctx) => ctx.db.get(ids.userId));
+      expect(deferred?.retentionEligibleAt).toBe(
+        now + RETENTION_DURATIONS_MS.guestReferenceDeferral
+      );
+      expect(await t.run((ctx) => ctx.db.get(ids.playerId))).toMatchObject({
+        guestId: 'expiring-parlor-guest',
+      });
+      await t.run((ctx) => ctx.db.delete(ids.referenceId));
+      const nextCheck = deferred!.retentionEligibleAt!;
+      const preview = await t.mutation(runRetentionSweep, {
+        dryRun: true,
+        now: nextCheck,
+      });
+      expect(preview.deletedByTable.users).toBe(0);
+      expect(await t.run((ctx) => ctx.db.get(ids.playerId))).not.toBeNull();
+      await t.mutation(runRetentionSweep, { dryRun: false, now: nextCheck });
+      expect(await t.run((ctx) => ctx.db.get(ids.userId))).toBeNull();
+      expect(await t.run((ctx) => ctx.db.get(ids.playerId))).toBeNull();
+      expect(await t.run((ctx) => ctx.db.query('players').collect())).toEqual(
+        []
+      );
+    }
+  );
+
+  it('drains retained profiles after legitimate lobby churn', async () => {
+    const t = setupConvexTest();
+    await seedClerkUser(t, 'churn-host');
+    const room = await asUser(t, 'churn-host').mutation(api.rooms.createRoom, {
+      displayName: 'Host',
+    });
+    const departedPlayers = RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 2;
+    for (let index = 0; index < departedPlayers; index++) {
+      const name = `churn-guest-${index}`;
+      await seedClerkUser(t, name);
+      const joined = await asUser(t, name).mutation(api.rooms.joinRoom, {
+        code: room.code,
+        displayName: name,
+      });
+      expect(joined.ok).toBe(true);
+      await asUser(t, name).mutation(api.rooms.leaveLobby, {
+        roomCode: room.code,
+      });
+    }
+    await asUser(t, 'churn-host').mutation(api.rooms.closeRoom, {
+      roomCode: room.code,
+    });
+    const now = (await t.run((ctx) => ctx.db.get(room.roomId)))
+      ?.retentionEligibleAt;
+    if (now === undefined)
+      throw new Error('Closed lobby has no retention deadline');
+
+    const preview = await t.mutation(runRetentionSweep, { dryRun: true, now });
+    expect(preview.errors).toBe(0);
+    expect(
+      await t.run((ctx) => ctx.db.query('roomPlayers').collect())
+    ).toHaveLength(departedPlayers + 1);
+    const first = await t.mutation(runRetentionSweep, { dryRun: false, now });
+    expect(first.errors).toBe(0);
+    expect(first.deletedByTable.rooms).toBe(0);
+    expect(await t.run((ctx) => ctx.db.get(room.roomId))).not.toBeNull();
+    expect(
+      await t.run((ctx) => ctx.db.query('roomPlayers').collect())
+    ).toHaveLength(
+      departedPlayers + 1 - RETENTION_BATCH_LIMITS.roomPlayersPerRoom
+    );
+    const final = await t.mutation(runRetentionSweep, {
+      dryRun: false,
+      now: now + RETENTION_PARENT_RETRY_MS,
+    });
+    expect(final.deletedByTable.rooms).toBe(1);
+    expect(await t.run((ctx) => ctx.db.get(room.roomId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.query('roomPlayers').collect())).toEqual(
+      []
+    );
+    expect(await t.run((ctx) => ctx.db.query('roomMembers').collect())).toEqual(
+      []
+    );
+  });
+
+  it('drains long rematch histories in bounded pages before deleting the room', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const t = setupConvexTest();
+    const cycles = 11;
+    const { roomId, memberId, playerId } = await t.run(async (ctx) => {
+      const playerId = await ctx.db.insert('players', {
+        identityKey: 'retained-account',
+        kind: 'authenticated',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'LONG',
+        hostPlayerId: playerId,
+        createdAt: 0,
+        closedAt: 1,
+        retentionState: 'pending',
+        retentionEligibleAt: now - 1,
+      });
+      const memberId = await ctx.db.insert('roomMembers', {
+        roomId,
+        playerId,
+        displayName: 'Account',
+        seatIndex: 0,
+        joinedAt: 0,
+        eligibleFromCycle: 1,
+        closedAt: 1,
+      });
+      for (let cycle = 1; cycle <= cycles; cycle++) {
+        const matchId = await ctx.db.insert('matches', {
+          roomId,
+          cycle,
+          status: 'completed',
+          startedAt: 0,
+          completedAt: 1,
+        });
+        await ctx.db.insert('matchParticipants', {
+          matchId,
+          playerId,
+          seatIndex: 0,
+        });
+      }
+      return { roomId, memberId, playerId };
+    });
+    await t.mutation(runRetentionSweep, { dryRun: true, now });
+    expect(
+      await t.run((ctx) => ctx.db.query('matches').collect())
+    ).toHaveLength(cycles);
+    const pages = Math.ceil(cycles / RETENTION_BATCH_LIMITS.matchesPerRoom);
+    for (let page = 1; page <= pages; page++) {
+      const receipt = await t.mutation(runRetentionSweep, {
+        dryRun: false,
+        now: now + (page - 1) * RETENTION_PARENT_RETRY_MS,
+      });
+      expect(receipt.errors).toBe(0);
+      const remaining = Math.max(
+        0,
+        cycles - page * RETENTION_BATCH_LIMITS.matchesPerRoom
+      );
+      expect(
+        await t.run((ctx) => ctx.db.query('matches').collect())
+      ).toHaveLength(remaining);
+      expect(
+        await t.run((ctx) => ctx.db.query('matchParticipants').collect())
+      ).toHaveLength(remaining);
+      if (remaining > 0) {
+        expect(await t.run((ctx) => ctx.db.get(roomId))).not.toBeNull();
+        expect(await t.run((ctx) => ctx.db.get(memberId))).not.toBeNull();
+      }
+    }
+    expect(await t.run((ctx) => ctx.db.get(roomId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(memberId))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(playerId))).not.toBeNull();
+  });
+
+  it('reports corrupt match participant cardinality equally in preview and deletion', async () => {
+    const now = Date.UTC(2026, 6, 15, 20);
+    const t = setupConvexTest();
+    const { roomId, matchId } = await t.run(async (ctx) => {
+      const playerId = await ctx.db.insert('players', {
+        identityKey: 'corrupt-match-account',
+        kind: 'authenticated',
+        createdAt: 0,
+      });
+      const roomId = await ctx.db.insert('rooms', {
+        code: 'WIDE',
+        hostPlayerId: playerId,
+        createdAt: 0,
+        closedAt: 1,
+        retentionState: 'pending',
+        retentionEligibleAt: now - 1,
+      });
+      const matchId = await ctx.db.insert('matches', {
+        roomId,
+        cycle: 1,
+        status: 'completed',
+        startedAt: 0,
+        completedAt: 1,
+      });
+      await Promise.all(
+        Array.from(
+          { length: RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1 },
+          (_, seatIndex) =>
+            ctx.db.insert('matchParticipants', { matchId, playerId, seatIndex })
+        )
+      );
+      return { roomId, matchId };
+    });
+    for (const dryRun of [true, false]) {
+      const result = await t.mutation(runRetentionSweep, { dryRun, now });
+      expect(result).toMatchObject({ errors: 1, deleted: 0 });
+      expect(await t.run((ctx) => ctx.db.get(roomId))).not.toBeNull();
+      expect(await t.run((ctx) => ctx.db.get(matchId))).not.toBeNull();
+      expect(
+        await t.run((ctx) => ctx.db.query('matchParticipants').collect())
+      ).toHaveLength(RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1);
+    }
   });
 
   it('reports and skips an over-cardinality poem instead of partially deleting it', async () => {

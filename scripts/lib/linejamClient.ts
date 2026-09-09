@@ -15,6 +15,7 @@
  */
 
 import { ConvexHttpClient } from 'convex/browser';
+import { ConvexError } from 'convex/values';
 import { randomUUID } from 'crypto';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -64,14 +65,18 @@ export function createLinejamClient(convexUrl = resolveConvexUrl()) {
       return client.mutation(api.rooms.createRoom, args);
     },
 
-    /** Join an existing room by its 4-letter code. */
-    joinRoom(args: {
+    /** Join an existing room by its 4-character code. */
+    async joinRoom(args: {
       code: string;
       displayName: string;
       avatarId?: AvatarId;
       guestToken?: string;
     }) {
-      return client.mutation(api.rooms.joinRoom, args);
+      const receipt = await client.mutation(api.rooms.joinRoom, args);
+      // Convert committed failures here, never inside the Convex transaction:
+      // failed joins must retain their rate-limit accounting.
+      if (receipt.ok === false) throw new ConvexError(receipt);
+      return receipt;
     },
 
     /** Full room + player-list + host-status snapshot. Requires the

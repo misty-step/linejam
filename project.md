@@ -36,11 +36,11 @@ codes, joining, membership, presence and match lifecycle. Linejam and Parlor are
 both owned here; missing framework capabilities are design discussions, not a
 reason to build another permanent set of Linejam workarounds.
 
-Evaluate the boundary before migration. Put migration first only if it removes
-more complexity from the polish work than it introduces. The initial source
-assessment and migration conditions live in `docs/ARCHITECTURE.md`; no Parlor
-source pin, dependency installation or production cutover is selected by this
-brief.
+Parlor source is pinned to an immutable upstream commit in
+`vendor/parlor/UPSTREAM.json`. New rooms use Parlor; historical invitations stop
+admitting players while archives stay. `docs/ARCHITECTURE.md` owns the boundary.
+Production releases and the explicit invitation drain follow
+`docs/deployment.md` and `docs/convex-migrations.md`.
 
 ## Vocabulary
 

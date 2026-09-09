@@ -4,9 +4,8 @@ import { internal } from './_generated/api';
 const crons = cronJobs();
 
 /**
- * Close IN_PROGRESS games after every participant has gone silent. The indexed
- * sweep is cheap when nothing is stranded and schedules bounded per-game
- * abandonment mutations.
+ * Close unattended Parlor matches and their app-owned games atomically.
+ * Each bounded page schedules its cursor continuation, even if none close.
  */
 crons.interval(
   'close abandoned games',
