@@ -1,18 +1,23 @@
 {
   "repository": "https://github.com/misty-step/parlor",
   "framework": {
-    "installed": false
+    "installed": true,
+    "path": "vendor/parlor",
+    "revision": "2b8c5c4114368e40905232a733c4193e22baee03",
+    "origin": "commit",
+    "provenance": "vendor/parlor/UPSTREAM.json",
+    "provenanceSha256": "c782445d5cd4e33c0f6687cdca60ff97124ec9422f5f85d772ecec8c171f7999"
   },
   "reference": {
     "path": "skills/parlor/SKILL.md",
-    "revision": "62d0f3a0299f7419d4c890c4c97dba18fbe6facd",
-    "origin": "working-tree",
-    "differsFromCommit": true,
-    "sha256": "24d86d4943da81de44d99a8553e0c3972526b6d4e1006fa8fa217ebc240ea355"
+    "revision": "2b8c5c4114368e40905232a733c4193e22baee03",
+    "origin": "commit",
+    "differsFromCommit": false,
+    "sha256": "cd8b783b2602bf1c100693d60763e60d70ecb912f82e02781e344404f0ade89a"
   },
   "importer": {
     "path": "scripts/import-skill.mjs",
-    "baseRevision": "62d0f3a0299f7419d4c890c4c97dba18fbe6facd",
-    "sha256": "f9766eb03aa32ef1e86bbcf5e9347a035cae03db14b63220dd71cb1d4f56ae97"
+    "baseRevision": "2b8c5c4114368e40905232a733c4193e22baee03",
+    "sha256": "db37058163d8074b81afcb9b906e9a88bf4d505f36baab8d181cb5a457798f56"
   }
 }

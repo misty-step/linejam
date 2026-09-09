@@ -84,126 +84,98 @@ describe('session lifecycle decisions', () => {
   });
 });
 
-describe('applyLineLifecycleTransition', () => {
-  it('waits for every assigned human and inserts no automatic line', async () => {
-    const t = setupConvexTest();
-    const seeded = await t.run(async (ctx) => {
-      const users = await Promise.all(
-        ['Alice', 'Bob'].map((displayName) =>
-          ctx.db.insert('users', {
-            displayName,
-            kind: 'human',
-            createdAt: 1,
-          })
-        )
-      );
-      const roomId = await ctx.db.insert('rooms', {
-        code: 'WAIT',
-        hostUserId: users[0],
-        status: 'IN_PROGRESS',
-        createdAt: 1,
-      });
-      const assignmentMatrix = Array.from(
-        { length: WORD_COUNTS.length },
-        (_, round) => [users[round % 2], users[(round + 1) % 2]]
-      );
-      const gameId = await ctx.db.insert('games', {
-        roomId,
-        status: 'IN_PROGRESS',
-        cycle: 1,
-        currentRound: 0,
-        assignmentMatrix,
-        createdAt: 1,
-      });
-      const poems = await Promise.all(
-        [0, 1].map((indexInRoom) =>
-          ctx.db.insert('poems', {
-            roomId,
-            gameId,
-            indexInRoom,
-            createdAt: 1,
-          })
-        )
-      );
-      await ctx.db.insert('lines', {
-        poemId: poems[0],
-        indexInPoem: 0,
-        text: 'one',
-        wordCount: 1,
-        authorUserId: users[0],
-        createdAt: 1,
-      });
-      return { roomId, gameId };
-    });
-    const game = await t.run((ctx) => ctx.db.get(seeded.gameId));
-    await t.run((ctx) =>
-      applyLineLifecycleTransition(ctx, {
-        game: game!,
-        roomId: seeded.roomId,
-        lineIndex: 0,
-      })
+async function seedNativeLifecycleGame(
+  t: ReturnType<typeof setupConvexTest>,
+  opts: { code: string; currentRound: number; fillLines: boolean }
+) {
+  return t.run(async (ctx) => {
+    const users = await Promise.all(
+      ['Alice', 'Bob'].map((displayName) =>
+        ctx.db.insert('users', {
+          displayName,
+          kind: 'human',
+          createdAt: 1,
+        })
+      )
     );
-
-    const [after, lines] = await t.run(async (ctx) => [
-      await ctx.db.get(seeded.gameId),
-      await ctx.db.query('lines').collect(),
-    ]);
-    expect(after?.currentRound).toBe(0);
-    expect(after?.status).toBe('IN_PROGRESS');
-    expect(lines).toHaveLength(1);
-  });
-
-  it('completes exactly nine human-authored rounds with deterministic readers', async () => {
-    const t = setupConvexTest();
-    const seeded = await t.run(async (ctx) => {
-      const users = await Promise.all(
-        ['Alice', 'Bob'].map((displayName) =>
-          ctx.db.insert('users', {
-            displayName,
-            kind: 'human',
-            createdAt: 1,
-          })
-        )
-      );
-      const roomId = await ctx.db.insert('rooms', {
-        code: 'DONE',
-        hostUserId: users[0],
-        status: 'IN_PROGRESS',
-        createdAt: 1,
-      });
-      await Promise.all(
-        users.map((userId, seatIndex) =>
-          ctx.db.insert('roomPlayers', {
+    const playerIds = await Promise.all(
+      users.map((userId) =>
+        ctx.db.insert('players', {
+          identityKey: `linejam:user:${userId}`,
+          kind: 'authenticated',
+          createdAt: 1,
+        })
+      )
+    );
+    const roomId = await ctx.db.insert('rooms', {
+      code: opts.code,
+      hostUserId: users[0],
+      hostPlayerId: playerIds[0],
+      status: 'IN_PROGRESS',
+      createdAt: 1,
+    });
+    await Promise.all(
+      users.map((userId, seatIndex) =>
+        Promise.all([
+          ctx.db.insert('roomMembers', {
             roomId,
-            userId,
+            playerId: playerIds[seatIndex],
             displayName: seatIndex === 0 ? 'Alice' : 'Bob',
             seatIndex,
             joinedAt: 1,
-          })
-        )
-      );
-      const assignmentMatrix = Array.from(
-        { length: WORD_COUNTS.length },
-        (_, round) => [users[round % 2], users[(round + 1) % 2]]
-      );
-      const gameId = await ctx.db.insert('games', {
-        roomId,
-        status: 'IN_PROGRESS',
-        cycle: 1,
-        currentRound: WORD_COUNTS.length - 1,
-        assignmentMatrix,
-        createdAt: 1,
-      });
-      const poems = await Promise.all(
-        [0, 1].map((indexInRoom) =>
-          ctx.db.insert('poems', {
+            eligibleFromCycle: 0,
+            lastSeenAt: 1,
+          }),
+          ctx.db.insert('roomPlayers', {
             roomId,
-            gameId,
-            indexInRoom,
-            createdAt: 1,
-          })
-        )
-      );
+            userId,
+            playerId: playerIds[seatIndex],
+            displayName: seatIndex === 0 ? 'Alice' : 'Bob',
+            joinedAt: 1,
+          }),
+        ])
+      )
+    );
+    const assignmentMatrix = Array.from(
+      { length: WORD_COUNTS.length },
+      (_, round) => [users[round % 2], users[(round + 1) % 2]]
+    );
+    const matchId = await ctx.db.insert('matches', {
+      roomId,
+      cycle: 1,
+      status: 'active',
+      startedAt: 1,
+      hardDeadline: false,
+    });
+    await Promise.all(
+      playerIds.map((playerId, seatIndex) =>
+        ctx.db.insert('matchParticipants', {
+          matchId,
+          playerId,
+          seatIndex,
+        })
+      )
+    );
+    const gameId = await ctx.db.insert('games', {
+      roomId,
+      matchId,
+      status: 'IN_PROGRESS',
+      cycle: 1,
+      currentRound: opts.currentRound,
+      assignmentMatrix,
+      createdAt: 1,
+    });
+    const poems = await Promise.all(
+      [0, 1].map((indexInRoom) =>
+        ctx.db.insert('poems', {
+          roomId,
+          gameId,
+          indexInRoom,
+          createdAt: 1,
+        })
+      )
+    );
+    if (opts.fillLines) {
       for (let round = 0; round < WORD_COUNTS.length; round++) {
         const wordCount = WORD_COUNTS[round];
         for (let poemIndex = 0; poemIndex < poems.length; poemIndex++) {
@@ -217,7 +189,54 @@ describe('applyLineLifecycleTransition', () => {
           });
         }
       }
-      return { roomId, gameId, poems, users };
+    } else {
+      await ctx.db.insert('lines', {
+        poemId: poems[0],
+        indexInPoem: 0,
+        text: 'one',
+        wordCount: 1,
+        authorUserId: users[0],
+        createdAt: 1,
+      });
+    }
+    return { roomId, gameId, matchId, poems, users };
+  });
+}
+
+describe('applyLineLifecycleTransition', () => {
+  it('waits for every assigned human and inserts no automatic line', async () => {
+    const t = setupConvexTest();
+    const seeded = await seedNativeLifecycleGame(t, {
+      code: 'WAIT',
+      currentRound: 0,
+      fillLines: false,
+    });
+    const game = await t.run((ctx) => ctx.db.get(seeded.gameId));
+    await t.run((ctx) =>
+      applyLineLifecycleTransition(ctx, {
+        game: game!,
+        roomId: seeded.roomId,
+        lineIndex: 0,
+      })
+    );
+
+    const [after, match, lines] = await t.run(async (ctx) => [
+      await ctx.db.get(seeded.gameId),
+      await ctx.db.get(seeded.matchId),
+      await ctx.db.query('lines').collect(),
+    ]);
+    expect(after?.currentRound).toBe(0);
+    expect(after?.status).toBe('IN_PROGRESS');
+    expect(match?.status).toBe('active');
+    expect(lines).toHaveLength(1);
+  });
+
+  it('completes exactly nine human-authored rounds with deterministic readers', async () => {
+    const t = setupConvexTest();
+    const seeded = await seedNativeLifecycleGame(t, {
+      code: 'DONE',
+      currentRound: WORD_COUNTS.length - 1,
+      fillLines: true,
     });
 
     const game = await t.run((ctx) => ctx.db.get(seeded.gameId));
@@ -229,11 +248,13 @@ describe('applyLineLifecycleTransition', () => {
       })
     );
 
-    const [after, poems] = await t.run(async (ctx) => [
+    const [after, match, poems] = await t.run(async (ctx) => [
       await ctx.db.get(seeded.gameId),
+      await ctx.db.get(seeded.matchId),
       await Promise.all(seeded.poems.map((poemId) => ctx.db.get(poemId))),
     ]);
     expect(after?.status).toBe('COMPLETED');
+    expect(match?.status).toBe('completed');
     expect(after).not.toHaveProperty('completionKind');
     expect(after?.retentionEligibleAt).toBe(
       after!.completedAt! + RETENTION_DURATIONS_MS.privateCompleted

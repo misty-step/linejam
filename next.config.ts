@@ -82,6 +82,7 @@ const nextConfig: NextConfig = {
   devIndicators: localMode ? false : undefined,
   env: clientEnv,
   deploymentId: resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID),
+  transpilePackages: ['@parlor/core', '@parlor/auth'],
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
   images: {
     remotePatterns: [

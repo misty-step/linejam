@@ -242,6 +242,7 @@ export function RevealPhase({
           lines={displayingPoem.lines}
           onDone={() => setShowingPoemId(null)}
           alreadyRevealed={displayingPoem.isRevealed}
+          readOnly={!state.canManageArtifacts}
           allStableIds={allStableIds}
           roomId={state.roomId}
           cycle={state.cycle}
@@ -396,6 +397,15 @@ export function RevealPhase({
                                 </span>
                               </div>
                             </div>
+                            {poem.isRevealed && !state.canManageArtifacts && (
+                              <Button
+                                variant="ghost"
+                                onClick={() => setShowingPoemId(poem._id)}
+                                aria-label={`Read poem ${poem.indexInRoom + 1}`}
+                              >
+                                Read poem
+                              </Button>
+                            )}
                             {status && (
                               <span
                                 className={cn(
@@ -432,10 +442,18 @@ export function RevealPhase({
               guestToken={guestToken || undefined}
               poems={poems}
               playerCount={state.players.length}
+              canShare={state.canManageArtifacts}
+              onReplayPoem={
+                state.canManageArtifacts ? undefined : setShowingPoemId
+              }
               error={error}
               isStartingNextRound={isStartingNow}
-              onStartNextRound={handleStartNow}
-              onBackToLobby={handleStartNewCycle}
+              onStartNextRound={
+                state.canContinueRoom ? handleStartNow : undefined
+              }
+              onBackToLobby={
+                state.canContinueRoom ? handleStartNewCycle : undefined
+              }
               dependencies={dependencies.sessionRecapDependencies}
             />
           )}

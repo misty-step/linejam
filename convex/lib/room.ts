@@ -1,41 +1,150 @@
 import { ConvexError } from 'convex/values';
-import { QueryCtx, MutationCtx } from '../_generated/server';
-import { Doc, Id } from '../_generated/dataModel';
-import { isPresenceStale } from './gameRules';
+import type { QueryCtx, MutationCtx } from '../_generated/server';
+import type { Doc, Id } from '../_generated/dataModel';
 import { isRevealReady } from './sessionLifecycle';
+import { isPresenceStale } from './gameRules';
 
-type RoomStatus = Doc<'rooms'>['status'];
+export type RoomView = Doc<'rooms'> & {
+  hostUserId: Id<'users'>;
+  status: NonNullable<Doc<'rooms'>['status']>;
+};
+
+type RoomStatus = RoomView['status'];
 type RoomActivityInput = Pick<Doc<'rooms'>, '_id' | 'status'>;
 type HostCandidate = Pick<
   Doc<'roomPlayers'>,
   'userId' | 'seatIndex' | 'lastSeenAt'
 >;
 
-/**
- * Look up a room by its code (case-insensitive).
- * Returns null if not found.
- */
+/** Historical codes keep resolving; native hosts come from canonical membership. */
 export async function getRoomByCode(
   ctx: QueryCtx | MutationCtx,
   code: string
-): Promise<Doc<'rooms'> | null> {
-  return await ctx.db
+): Promise<RoomView | null> {
+  const room = await ctx.db
     .query('rooms')
-    .withIndex('by_code', (q) => q.eq('code', code.toUpperCase()))
+    .withIndex('by_code', (q) => q.eq('code', code.trim().toUpperCase()))
     .first();
+  if (!room) return null;
+
+  let hostUserId = room.hostUserId;
+  if (room.hostPlayerId) {
+    const host = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room_player', (q) =>
+        q.eq('roomId', room._id).eq('playerId', room.hostPlayerId)
+      )
+      .unique();
+    if (!host) throw new ConvexError('Room host profile not found');
+    hostUserId = host.userId;
+  }
+  if (!hostUserId || !room.status) {
+    throw new ConvexError('Room metadata not found');
+  }
+  return { ...room, hostUserId, status: room.status };
 }
 
-/**
- * Get the active (IN_PROGRESS) game for a room.
- * Returns null if no active game (room is in lobby or between games).
- *
- * This is the authoritative source for "which game is active" -
- * avoids race conditions from mutable currentGameId pointer.
- */
+/** Project app profiles through the canonical live roster, preserving old archives. */
+export async function getRoomPlayers(
+  ctx: QueryCtx | MutationCtx,
+  roomId: Id<'rooms'>
+): Promise<Doc<'roomPlayers'>[]> {
+  const room = await ctx.db.get(roomId);
+  if (!room) return [];
+  if (!room.hostPlayerId) {
+    return await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room', (q) => q.eq('roomId', roomId))
+      .collect();
+  }
+
+  const members = await ctx.db
+    .query('roomMembers')
+    .withIndex('by_room_seat', (q) => q.eq('roomId', roomId))
+    .filter((q) => q.eq(q.field('closedAt'), undefined))
+    .collect();
+  return await Promise.all(
+    members.map(async (member) => {
+      const profile = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_player', (q) =>
+          q.eq('roomId', roomId).eq('playerId', member.playerId)
+        )
+        .unique();
+      if (!profile) throw new ConvexError('Room player profile not found');
+      return {
+        ...profile,
+        seatIndex: member.seatIndex,
+        lastSeenAt: member.lastSeenAt ?? member.joinedAt,
+      };
+    })
+  );
+}
+
+/** Project a game's frozen writers, retaining their profiles after room closure. */
+export async function getGamePlayers(
+  ctx: QueryCtx | MutationCtx,
+  game: Doc<'games'>
+): Promise<Doc<'roomPlayers'>[]> {
+  const matchId = game.matchId;
+  if (!matchId) return await getRoomPlayers(ctx, game.roomId);
+
+  const participants = await ctx.db
+    .query('matchParticipants')
+    .withIndex('by_match_seat', (q) => q.eq('matchId', matchId))
+    .collect();
+  return await Promise.all(
+    participants.map(async (participant) => {
+      const [profile, member] = await Promise.all([
+        ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room_player', (q) =>
+            q.eq('roomId', game.roomId).eq('playerId', participant.playerId)
+          )
+          .unique(),
+        ctx.db
+          .query('roomMembers')
+          .withIndex('by_room_player', (q) =>
+            q.eq('roomId', game.roomId).eq('playerId', participant.playerId)
+          )
+          .unique(),
+      ]);
+      if (!profile) throw new ConvexError('Room player profile not found');
+      return {
+        ...profile,
+        seatIndex: participant.seatIndex,
+        lastSeenAt:
+          member && member.closedAt === undefined
+            ? (member.lastSeenAt ?? member.joinedAt)
+            : undefined,
+      };
+    })
+  );
+}
+
+/** Parlor owns native match liveness; legacy rows remain readable while draining. */
 export async function getActiveGame(
   ctx: QueryCtx | MutationCtx,
   roomId: Id<'rooms'>
 ): Promise<Doc<'games'> | null> {
+  const room = await ctx.db.get(roomId);
+  if (room?.hostPlayerId) {
+    const match = await ctx.db
+      .query('matches')
+      .withIndex('by_room_status', (q) =>
+        q.eq('roomId', roomId).eq('status', 'active')
+      )
+      .unique();
+    if (!match) return null;
+    const game = await ctx.db
+      .query('games')
+      .withIndex('by_match', (q) => q.eq('matchId', match._id))
+      .unique();
+    if (!game || game.roomId !== roomId || game.status !== 'IN_PROGRESS') {
+      return null;
+    }
+    return game;
+  }
   return await ctx.db
     .query('games')
     .withIndex('by_room_status', (q) =>
@@ -44,10 +153,7 @@ export async function getActiveGame(
     .first();
 }
 
-/**
- * Get the most recently completed game for a room.
- * Used for reveal phase after game completion.
- */
+/** Get the latest normally completed game for the retained reveal view. */
 export async function getCompletedGame(
   ctx: QueryCtx | MutationCtx,
   roomId: Id<'rooms'>
@@ -62,15 +168,7 @@ export async function getCompletedGame(
   return isRevealReady(game) ? game : null;
 }
 
-function deriveIdleRoomStatus(room: Pick<Doc<'rooms'>, 'status'>): RoomStatus {
-  return room.status === 'COMPLETED' ? 'COMPLETED' : 'LOBBY';
-}
-
-/**
- * Resolve the authoritative room activity view.
- * The room document owns idle state (`LOBBY` vs `COMPLETED`);
- * an active game is the only source that can override it.
- */
+/** Application metadata describes idle presentation, never native match authority. */
 export async function getRoomActivity(
   ctx: QueryCtx | MutationCtx,
   room: RoomActivityInput
@@ -78,7 +176,11 @@ export async function getRoomActivity(
   const activeGame = await getActiveGame(ctx, room._id);
   return {
     activeGame,
-    status: activeGame ? 'IN_PROGRESS' : deriveIdleRoomStatus(room),
+    status: activeGame
+      ? 'IN_PROGRESS'
+      : room.status === 'COMPLETED'
+        ? 'COMPLETED'
+        : 'LOBBY',
   };
 }
 
@@ -90,24 +192,18 @@ export async function deriveRoomStatus(
   return status;
 }
 
-/**
- * Look up a room by its code or throw if not found.
- */
 export async function requireRoomByCode(
   ctx: QueryCtx | MutationCtx,
   code: string
-): Promise<Doc<'rooms'>> {
+): Promise<RoomView> {
   const room = await getRoomByCode(ctx, code);
-  if (!room) {
-    throw new ConvexError('Room not found');
-  }
+  if (!room) throw new ConvexError('Room not found');
   return room;
 }
 
 /**
- * Deterministic next-host rule: the present (non-stale) participant with the
- * lowest `seatIndex`. Undefined seats sort last; ties break by userId for
- * stability. Returns null when the room is fully away.
+ * Reveal-fallback host choice among present participants. Live room host
+ * transfer is Parlor's; this only ranks writers for an absent assigned reader.
  */
 export function selectNextHostId(
   players: HostCandidate[],
@@ -115,59 +211,26 @@ export function selectNextHostId(
   staleMs: number
 ): Id<'users'> | null {
   const present = players.filter(
-    (p) => !isPresenceStale(p.lastSeenAt, now, staleMs)
+    (player) => !isPresenceStale(player.lastSeenAt, now, staleMs)
   );
   if (present.length === 0) return null;
 
-  present.sort((a, b) => {
-    const sa = a.seatIndex ?? Number.MAX_SAFE_INTEGER;
-    const sb = b.seatIndex ?? Number.MAX_SAFE_INTEGER;
-    if (sa !== sb) return sa - sb;
-    return a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0;
+  present.sort((left, right) => {
+    const leftSeat = left.seatIndex ?? Number.MAX_SAFE_INTEGER;
+    const rightSeat = right.seatIndex ?? Number.MAX_SAFE_INTEGER;
+    if (leftSeat !== rightSeat) return leftSeat - rightSeat;
+    return left.userId < right.userId ? -1 : left.userId > right.userId ? 1 : 0;
   });
   return present[0].userId;
 }
-
-/**
- * If the room's host has gone presence-stale, promote the deterministic next
- * host (`selectNextHostId`) so host-only actions are never stranded. Idempotent
- * and scoped to rooms with an active game.
- */
-export async function migrateHostIfStale(
-  ctx: MutationCtx,
-  room: Doc<'rooms'>,
-  now: number,
-  staleMs: number
-): Promise<Id<'users'> | null> {
-  const activeGame = await getActiveGame(ctx, room._id);
-  if (!activeGame) return null;
-
-  const hostRow = await ctx.db
-    .query('roomPlayers')
-    .withIndex('by_room_user', (q) =>
-      q.eq('roomId', room._id).eq('userId', room.hostUserId)
-    )
-    .first();
-
-  // Only migrate away from a host we have positive evidence has left: a missing
-  // row (they left entirely) or a heartbeat that has since gone stale. A host
-  // who has never heartbeat (undefined lastSeenAt) is "present-unknown", not
-  // gone — treating it as stale would let a guest steal host from a freshly
-  // created room before the host's first heartbeat lands.
-  const hostHasLeft =
-    !hostRow ||
-    (hostRow.lastSeenAt !== undefined &&
-      isPresenceStale(hostRow.lastSeenAt, now, staleMs));
-  if (!hostHasLeft) return null;
-
-  const players = await ctx.db
-    .query('roomPlayers')
-    .withIndex('by_room', (q) => q.eq('roomId', room._id))
-    .collect();
-
-  const nextHostId = selectNextHostId(players, now, staleMs);
-  if (!nextHostId || nextHostId === room.hostUserId) return null;
-
-  await ctx.db.patch(room._id, { hostUserId: nextHostId });
-  return nextHostId;
+/** Old invitations are drained, never silently converted into new live rooms. */
+export async function requireLiveRoomByCode(
+  ctx: QueryCtx | MutationCtx,
+  code: string
+): Promise<RoomView & { hostPlayerId: Id<'players'> }> {
+  const room = await requireRoomByCode(ctx, code);
+  if (!room.hostPlayerId || room.closedAt !== undefined) {
+    throw new ConvexError('Room is closed');
+  }
+  return { ...room, hostPlayerId: room.hostPlayerId };
 }

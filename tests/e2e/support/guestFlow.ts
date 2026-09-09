@@ -93,7 +93,7 @@ async function ensureVisible(locator: Locator, label: string) {
 async function waitForRoomPath(page: Page, label: string, roomCode?: string) {
   const pathPattern = roomCode
     ? new RegExp(`/room/${escapeRegex(roomCode)}$`)
-    : /\/room\/[A-Z]{4}$/;
+    : /\/room\/[A-Z0-9]{4}$/;
 
   await page.waitForURL(pathPattern, { timeout: 30000 });
 
@@ -412,7 +412,7 @@ export class GuestFlowSession {
         .replace(/\/+$/, '')
         .split('/')
         .pop() ?? '';
-    if (!/^[A-Z]{4}$/.test(roomCode)) {
+    if (!/^[A-Z0-9]{4}$/.test(roomCode)) {
       throw new Error(`Unexpected room code: ${roomCode}`);
     }
 

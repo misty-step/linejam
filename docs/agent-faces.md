@@ -16,6 +16,12 @@ generated Convex functions. Browser QA drives the web UI and its normal guest
 session. Game rules, assignment, presence, host migration, poems, and favorites
 stay in Convex.
 
+A join rejection is a committed Convex receipt: `{ ok: false, code, message }`.
+Returning it from the mutation preserves failed-attempt rate-limit accounting.
+The shared agent client converts that receipt to a `ConvexError` only after the
+mutation returns; neither face treats it as a successful join or changes the
+server transaction. Successful joins retain `{ ok: true, ...room }`.
+
 ## Identity
 
 Agent sessions use the same anonymous guest-token model as the browser.
@@ -57,9 +63,17 @@ Use `pnpm agent:cli --help` for the current action and argument list. Supply
 command-line arguments. Create/join, gameplay, and favorite actions write real
 data on the selected deployment.
 
-The CLI prints JSON to stdout. When it mints a guest token implicitly, it prints
-the token to stderr for reuse. Capture that stream only in a credential-safe
-sink and redact before retaining any output.
+Successful commands exit 0 and print JSON to stdout. A rejected join exits 1,
+leaves stdout empty, and prints the `{ ok: false, code, message }` receipt as
+JSON on stderr. Other structured Convex application errors likewise preserve
+their error data as JSON on stderr; argument and transport failures retain
+`error: ...` diagnostics and a nonzero exit status.
+
+When the CLI mints a guest token implicitly, it prints the token to stderr
+before the create/join attempt, even if that attempt fails. Capture that stream
+only in a credential-safe sink and redact before retaining any output. Supply
+`LINEJAM_GUEST_TOKEN` when a rejected join must produce a single JSON error line
+without credential instructions.
 
 ## MCP
 
@@ -77,6 +91,15 @@ registration must not embed credentials or assume a global checkout path.
 
 Validate a new registration with `initialize` and `tools/list`. Tool discovery
 is not permission to create rooms or evidence that browser gameplay works.
+
+Join rejections and other structured Convex application errors are MCP tool
+failures: the correlated JSON-RPC response contains `result.isError: true` and
+one text content item containing the JSON error data. A rejected join preserves
+`{ ok: false, code, message }` in that text. Inspect `isError`, not merely the
+presence of a JSON-RPC `result`; successful tool calls omit the error flag.
+Malformed requests, invalid arguments, and unstructured transport errors
+continue to use the JSON-RPC `error` envelope. Either failure leaves the server
+available for subsequent requests.
 
 ## Browser QA
 

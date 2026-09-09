@@ -93,10 +93,12 @@ interface SessionRecapHubProps {
   guestToken?: string;
   poems: SessionRecapPoem[];
   playerCount: number;
+  canShare: boolean;
+  onReplayPoem?: (poemId: Id<'poems'>) => void;
   error?: string | null;
   isStartingNextRound?: boolean;
-  onStartNextRound: () => void;
-  onBackToLobby: () => void;
+  onStartNextRound?: () => void;
+  onBackToLobby?: () => void;
   dependencies?: SessionRecapHubDependencies;
 }
 
@@ -107,6 +109,8 @@ export function SessionRecapHub({
   guestToken,
   poems,
   playerCount,
+  canShare,
+  onReplayPoem,
   error,
   isStartingNextRound = false,
   onStartNextRound,
@@ -268,95 +272,127 @@ export function SessionRecapHub({
           const poemNumber = poem.indexInRoom + 1;
           const preview = poem.preview || 'Untitled poem';
 
+          const content = (
+            <>
+              {poem.readerStableId && (
+                <Avatar
+                  stableId={poem.readerStableId}
+                  displayName={poem.readerName}
+                  avatarId={poem.readerAvatarId}
+                  size="sm"
+                />
+              )}
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-sm text-text-secondary [overflow-wrap:anywhere]">
+                  Poem {poemNumber}, read by {poem.readerName}
+                </p>
+                <p className="text-lg font-semibold leading-snug text-text-primary [overflow-wrap:anywhere]">
+                  {preview}…
+                </p>
+              </div>
+            </>
+          );
+
           return (
             <li
               key={poem._id}
               className="border-b border-border-subtle last:border-b-0"
             >
-              <Link
-                href={`/poem/${poem._id}`}
-                prefetch={false}
-                data-prefetch="false"
-                aria-label={`Replay poem ${poemNumber}: ${preview}`}
-                className="flex min-h-11 items-start gap-3 p-5 hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
-              >
-                {poem.readerStableId && (
-                  <Avatar
-                    stableId={poem.readerStableId}
-                    displayName={poem.readerName}
-                    avatarId={poem.readerAvatarId}
-                    size="sm"
-                  />
-                )}
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-sm text-text-secondary [overflow-wrap:anywhere]">
-                    Poem {poemNumber}, read by {poem.readerName}
-                  </p>
-                  <p className="text-lg font-semibold leading-snug text-text-primary [overflow-wrap:anywhere]">
-                    {preview}…
-                  </p>
-                </div>
-              </Link>
+              {onReplayPoem ? (
+                <button
+                  type="button"
+                  onClick={() => onReplayPoem(poem._id)}
+                  aria-label={`Replay poem ${poemNumber}: ${preview}`}
+                  className="flex min-h-11 w-full items-start gap-3 p-5 text-left hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+                >
+                  {content}
+                </button>
+              ) : (
+                <Link
+                  href={`/poem/${poem._id}`}
+                  prefetch={false}
+                  data-prefetch="false"
+                  aria-label={`Replay poem ${poemNumber}: ${preview}`}
+                  className="flex min-h-11 items-start gap-3 p-5 hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+                >
+                  {content}
+                </Link>
+              )}
             </li>
           );
         })}
       </ol>
 
-      <div className="space-y-3">
-        <p id="recap-share-disclosure" className="text-sm text-text-secondary">
-          Sharing makes the full session recap public to anyone with the link.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            onClick={handlePublish}
-            data-testid={E2E_TEST_IDS.sessionRecapShareButton}
-            aria-describedby="recap-share-disclosure"
-            variant="outline"
-            className="min-h-11"
-            disabled={isSharing || isRevoking}
+      {canShare && (
+        <div className="space-y-3">
+          <p
+            id="recap-share-disclosure"
+            className="text-sm text-text-secondary"
           >
-            <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            {isSharing ? 'Sharing...' : 'Share recap'}
-          </Button>
-          <Button
-            onClick={handleRevoke}
-            variant="ghost"
-            className="min-h-11"
-            disabled={isSharing || isRevoking}
-          >
-            {isRevoking ? 'Revoking...' : 'Revoke public link'}
-          </Button>
-        </div>
-        {(revoked || shared || copied) && (
-          <p role="status" className="text-sm text-primary">
-            {revoked
-              ? 'Public recap link revoked.'
-              : shared
-                ? 'Recap shared.'
-                : 'Recap link copied.'}
+            Sharing makes the full session recap public to anyone with the link.
           </p>
-        )}
-      </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={handlePublish}
+              data-testid={E2E_TEST_IDS.sessionRecapShareButton}
+              aria-describedby="recap-share-disclosure"
+              variant="outline"
+              className="min-h-11"
+              disabled={isSharing || isRevoking}
+            >
+              <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
+              {isSharing ? 'Sharing...' : 'Share recap'}
+            </Button>
+            <Button
+              onClick={handleRevoke}
+              variant="ghost"
+              className="min-h-11"
+              disabled={isSharing || isRevoking}
+            >
+              {isRevoking ? 'Revoking...' : 'Revoke public link'}
+            </Button>
+          </div>
+          {(revoked || shared || copied) && (
+            <p role="status" className="text-sm text-primary">
+              {revoked
+                ? 'Public recap link revoked.'
+                : shared
+                  ? 'Recap shared.'
+                  : 'Recap link copied.'}
+            </p>
+          )}
+        </div>
+      )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Button
-          onClick={onStartNextRound}
-          size="lg"
-          className="min-h-12"
-          disabled={isStartingNextRound}
-        >
-          {isStartingNextRound ? 'Starting...' : 'Play again'}
-        </Button>
-        <Button
-          onClick={onBackToLobby}
-          variant="outline"
-          size="lg"
-          className="min-h-12"
-        >
-          Back to lobby
-        </Button>
-      </div>
+      {onStartNextRound || onBackToLobby ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {onStartNextRound && (
+            <Button
+              onClick={onStartNextRound}
+              size="lg"
+              className="min-h-12"
+              disabled={isStartingNextRound}
+            >
+              {isStartingNextRound ? 'Starting...' : 'Play again'}
+            </Button>
+          )}
+          {onBackToLobby && (
+            <Button
+              onClick={onBackToLobby}
+              variant="outline"
+              size="lg"
+              className="min-h-12"
+            >
+              Back to lobby
+            </Button>
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-text-secondary">
+          Start a new room from home to play again.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link

@@ -25,6 +25,7 @@ dagger/.env
 .vercel
 .convex
 **/node_modules
+vendor/**/dist
 **/.env
 **/.env.*
 !.env.example

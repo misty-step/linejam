@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     // Generated files
     'convex/_generated/**',
     'dagger/**',
+    'vendor/**',
     // Design-lab artifacts (static sketches, not product code)
     'explorations/**',
     // Test coverage output

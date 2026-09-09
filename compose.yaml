@@ -35,6 +35,7 @@ x-source-watch: &source-watch
       - pnpm-workspace.yaml
       - compose.yaml
       - scripts/local/
+      - vendor/parlor/
   - action: rebuild
     path: package.json
   - action: rebuild
@@ -43,6 +44,8 @@ x-source-watch: &source-watch
     path: pnpm-workspace.yaml
   - action: rebuild
     path: scripts/local
+  - action: rebuild
+    path: vendor/parlor
 
 services:
   convex:

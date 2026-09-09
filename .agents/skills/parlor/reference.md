@@ -17,6 +17,8 @@ node scripts/import-skill.mjs --target /path/to/game
 
 The owner-provided importer reads the game's pinned `vendor/parlor` checkout or `vendor/parlor/UPSTREAM.json`, imports guidance from that exact commit, and writes a local `SKILL.md`, `reference.md`, and `SOURCE.json`. It never fetches a newer skill, changes dependencies, or updates a source pin. A copied vendor tree can omit the skill: the recorded commit must then be available in the importing Parlor checkout's local Git objects.
 
+An explicitly uncommitted copied source may instead record `origin: "working-tree"` in `UPSTREAM.json`, with `commit` naming its base, `files` mapping every copied source path to its SHA-256, and `reference: { path: "skills/parlor/SKILL.md", sha256 }` naming the reviewed owner guidance. The importer verifies the copied file hashes and uses the owner's working-tree skill only when its hash matches that record. Both imported provenance and scope identify the snapshot as uncommitted; never invent a released commit or commit without authority to make an import work.
+
 For an app without Parlor source or dependencies, explicitly use `--guidance-only`. This imports the owner's working-tree guidance, records its base revision and content hash, and states that the framework is **not installed**. It neither selects nor authorizes a migration. Preserve and review an existing differing import before replacing it; an identical import is left untouched. Keep other repository skills intact.
 
 Read the imported `SOURCE.json` and inspect installed source signatures before coding. Maintain guidance upstream, not in derived consumer copies. A skill provides context; the user's request and the game's requirements remain authority.
@@ -60,6 +62,8 @@ Add the packages the game directly imports to its own `package.json` dependencie
 ```
 
 This is a fragment to merge, not a replacement manifest. Add `@parlor/core` if importing it directly. Declare the game's normal dependencies too: `convex`, React/React DOM, and `effect` if executing auth Effects. Match the checkout's package manifests and React peer range (currently React 19). The consuming workspace needs the TypeScript build tool; inspect Parlor's root manifest for its version and Node/pnpm requirements rather than relying on global tools.
+
+`@parlor/convex` takes `convex` as a peer (`^1.42.3`), not a separately pinned runtime dependency. The consuming workspace owns one compatible Convex installation; declare it at the workspace root as well as in a nested game package, using the same version. Parlor's own root supplies its development version. Do not add a different Convex devDependency to a copied library or parse serialized errors to conceal duplicate SDK copies. Preserve the consumer's package-manager pin; pnpm settings and existing overrides belong in root `pnpm-workspace.yaml`.
 
 ```sh
 pnpm install
@@ -116,6 +120,7 @@ Generate the consuming application's Convex API and use its `api.rooms.*` refere
 - Configure the same server-only key material in the issuer and Convex. Convex reads `PARLOR_GUEST_TOKEN_KEYS` as JSON mapping key IDs to base64url secrets, and `PARLOR_GUEST_TOKEN_AUDIENCE` (default `parlor`). Never expose these secrets in public environment variables, client code, logs, or prompts.
 - Preserve a guest ID across refreshes only from server-verified continuity. A signed `HttpOnly`, `SameSite=Lax`, production-`Secure` cookie is one application-owned mechanism. Reject client-supplied guest IDs and unverified/expired token claims as renewal authority. Keep bearer-token and continuity-cookie lifetimes distinct; document how expired credentials recover without silently changing identity.
 - `resolvePlayer(ctx, guestToken?)` returns a server-resolved actor. Without a guest token it can use verified Convex auth identity; an invalid supplied guest token does not fall back to that identity. Existing players resolve by default; creation requires `{ create: true }` in a mutation. Room create/join already create players as needed.
+- A game with an existing credential authority should keep it. Verify credentials in game-owned server code, then call `resolvePlayerForIdentity(ctx, descriptor, { create? })` with a trusted `IdentityDescriptor` and pass its `PlayerActor` to transaction-local helpers such as `createRoomForPlayer`, `joinRoomForPlayer`, and `beginMatch`. Never accept the descriptor or actor from a client. Do not send an application-specific bearer token to Parlor's verifier or configure a second Parlor key ring merely to compose rooms. Return a failed join receipt from the enclosing mutation rather than throwing it away: rate-limit state must commit.
 
 The [authentication guide](https://parlor.mistystep.io/docs/authentication/) explains the example's application-owned [issuance and continuity route](https://github.com/misty-step/parlor/blob/master/examples/first-tap/app/api/guest/route.ts). Read `examples/first-tap/app/api/guest/route.ts` from the pinned checkout when adapting it to the game's HTTP runtime.
 

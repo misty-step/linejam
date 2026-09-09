@@ -1,0 +1,37 @@
+{
+  "name": "@parlor/react",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist",
+    "src/styles.css"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@parlor/web": "workspace:*",
+    "qrcode.react": "4.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "happy-dom": "20.10.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "peerDependencies": {
+    "react": ">=19 <20",
+    "react-dom": ">=19 <20"
+  }
+}

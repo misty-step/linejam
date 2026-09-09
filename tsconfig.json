@@ -33,6 +33,7 @@
   "exclude": [
     "node_modules",
     "dagger",
+    "vendor",
     ".claude",
     ".qa",
     "tools/oxlint/anti-slop"

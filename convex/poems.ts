@@ -2,8 +2,8 @@ import { v } from 'convex/values';
 import { query } from './_generated/server';
 import type { QueryCtx } from './_generated/server';
 import type { Doc, Id } from './_generated/dataModel';
-import { getUser, checkParticipation } from './lib/auth';
-import { getRoomByCode, getCompletedGame } from './lib/room';
+import { getUser, checkGameParticipation } from './lib/auth';
+import { getRoomByCode, getCompletedGame, getGamePlayers } from './lib/room';
 import {
   isPublicPoemShareEnabled,
   isPublicSessionRecapEnabled,
@@ -51,9 +51,9 @@ function boundedLimit(
 
 async function getCompletePoemLines(
   ctx: QueryCtx,
-  poem: Pick<Doc<'poems'>, '_id' | 'gameId'>
+  poem: Pick<Doc<'poems'>, '_id'>,
+  game: Doc<'games'> | null
 ): Promise<Doc<'lines'>[] | null> {
-  const game = await ctx.db.get(poem.gameId);
   if (!isRevealReady(game)) return null;
   return ctx.db
     .query('lines')
@@ -74,11 +74,10 @@ export const getPoemsForRoom = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return [];
 
-    if (!(await checkParticipation(ctx, room._id, user._id))) return [];
-
     // Active and abandoned games keep every partial line private.
     const currentGame = await getCompletedGame(ctx, room._id);
     if (!currentGame) return [];
+    if (!(await checkGameParticipation(ctx, currentGame, user._id))) return [];
 
     const poems = await ctx.db
       .query('poems')
@@ -86,7 +85,7 @@ export const getPoemsForRoom = query({
       .collect();
 
     const lineGroups = await Promise.all(
-      poems.map((poem) => getCompletePoemLines(ctx, poem))
+      poems.map((poem) => getCompletePoemLines(ctx, poem, currentGame))
     );
     return poems.flatMap((poem, index) => {
       const lines = lineGroups[index];
@@ -109,9 +108,10 @@ export const getPoemDetail = query({
     const poem = await ctx.db.get(poemId);
     if (!poem) return null;
 
-    if (!(await checkParticipation(ctx, poem.roomId, user._id))) return null;
+    const game = await ctx.db.get(poem.gameId);
+    if (!(await checkGameParticipation(ctx, game, user._id))) return null;
 
-    const lines = await getCompletePoemLines(ctx, poem);
+    const lines = await getCompletePoemLines(ctx, poem, game);
     if (!lines) return null;
 
     // Batch fetch all unique authors in parallel
@@ -192,8 +192,20 @@ export const getMyPoems = query({
     const candidates = poemsRaw.filter(
       (poem): poem is NonNullable<typeof poem> => poem !== null
     );
+    const gameIds = [...new Set(candidates.map((poem) => poem.gameId))];
+    const games = await Promise.all(gameIds.map((id) => ctx.db.get(id)));
+    const readableGames = await Promise.all(
+      games.map(async (game) =>
+        game?.matchId && !(await checkGameParticipation(ctx, game, user._id))
+          ? null
+          : game
+      )
+    );
+    const gameById = new Map(gameIds.map((id, i) => [id, readableGames[i]]));
     const lineGroups = await Promise.all(
-      candidates.map((poem) => getCompletePoemLines(ctx, poem))
+      candidates.map((poem) =>
+        getCompletePoemLines(ctx, poem, gameById.get(poem.gameId) ?? null)
+      )
     );
     const completeEntries = candidates
       .map((poem, index) => ({ poem, lines: lineGroups[index] }))
@@ -241,7 +253,8 @@ export const getPublicPoemPreview = query({
     if (shareSlug ? !shareResolved : !isPublicPoemShareEnabled(poem))
       return null;
 
-    const lines = await getCompletePoemLines(ctx, poem);
+    const game = await ctx.db.get(poem.gameId);
+    const lines = await getCompletePoemLines(ctx, poem, game);
     if (!lines) return null;
 
     // Count unique poets
@@ -269,7 +282,8 @@ export const getPublicPoemFull = query({
     if (shareSlug ? !shareResolved : !isPublicPoemShareEnabled(poem))
       return null;
 
-    const lines = await getCompletePoemLines(ctx, poem);
+    const game = await ctx.db.get(poem.gameId);
+    const lines = await getCompletePoemLines(ctx, poem, game);
     if (!lines) return null;
 
     // Batch fetch all unique authors in parallel
@@ -316,7 +330,8 @@ export const getPublicPoemShareStatus = query({
     if (!share) return { state: 'missing' as const };
     if (share.state === 'active') {
       const poem = await ctx.db.get(share.poemId);
-      const lines = poem ? await getCompletePoemLines(ctx, poem) : null;
+      const game = poem ? await ctx.db.get(poem.gameId) : null;
+      const lines = poem ? await getCompletePoemLines(ctx, poem, game) : null;
       return poem?.publicShareEnabled === true && lines !== null
         ? { state: 'active' as const }
         : { state: 'expired' as const };
@@ -345,10 +360,7 @@ export const getPublicSessionRecap = query({
         .query('poems')
         .withIndex('by_game', (q) => q.eq('gameId', game._id))
         .collect(),
-      ctx.db
-        .query('roomPlayers')
-        .withIndex('by_room', (q) => q.eq('roomId', room._id))
-        .collect(),
+      getGamePlayers(ctx, game),
     ]);
 
     if (
@@ -360,7 +372,7 @@ export const getPublicSessionRecap = query({
     }
 
     const lineGroups = await Promise.all(
-      poems.map((poem) => getCompletePoemLines(ctx, poem))
+      poems.map((poem) => getCompletePoemLines(ctx, poem, game))
     );
     if (lineGroups.some((lines) => lines === null)) return null;
 

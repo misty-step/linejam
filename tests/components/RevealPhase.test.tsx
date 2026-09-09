@@ -157,6 +157,8 @@ describe('RevealPhase component', () => {
   const mockStateNotRevealed = {
     status: 'REVEAL' as const,
     isHost: true,
+    canManageArtifacts: true,
+    canContinueRoom: true,
     myPoem: mockMyPoem,
     myPoems: [mockMyPoem],
     poems: mockPoems,

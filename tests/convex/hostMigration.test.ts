@@ -4,134 +4,87 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, seedClerkUser, asUser } from '../helpers/convexSeed';
 import { selectNextHostId } from '../../convex/lib/room';
-import {
-  HOST_MIGRATION_STALE_MS,
-  WORD_COUNTS,
-} from '../../convex/lib/gameRules';
+import { HOST_MIGRATION_STALE_MS } from '../../convex/lib/gameRules';
 
-/**
- * A present participant's heartbeat promotes them when the current host is
- * stale, preserving access to host-only lifecycle actions.
- */
-
-/** A lastSeenAt comfortably past the host-migration staleness threshold. */
 const staleStamp = () => Date.now() - HOST_MIGRATION_STALE_MS - 5_000;
 
-type SeatPlayer = {
-  name: string;
-  seatIndex: number;
-  lastSeenAt?: number;
-};
-
-/** Seed an IN_PROGRESS classic game with explicit seats and presence. */
-async function seedGame(
+async function seedLivePair(
   t: T,
-  players: SeatPlayer[]
+  hostName: string,
+  guestName: string,
+  startGame: boolean
 ): Promise<{
+  code: string;
   roomId: Id<'rooms'>;
-  gameId: Id<'games'>;
-  userIds: Id<'users'>[];
+  gameId: Id<'games'> | null;
+  hostId: Id<'users'>;
+  guestId: Id<'users'>;
 }> {
-  const userIds: Id<'users'>[] = [];
-  for (const player of players) {
-    userIds.push(await seedClerkUser(t, player.name));
+  await seedClerkUser(t, hostName);
+  await seedClerkUser(t, guestName);
+  const created = await asUser(t, hostName).mutation(api.rooms.createRoom, {
+    displayName: hostName,
+  });
+  const joined = await asUser(t, guestName).mutation(api.rooms.joinRoom, {
+    code: created.code,
+    displayName: guestName,
+  });
+  if (joined.ok === false) throw new Error(joined.message);
+  if (startGame) {
+    await asUser(t, hostName).mutation(api.game.startGame, {
+      code: created.code,
+    });
   }
-
-  const roomId = await t.run((ctx) =>
-    ctx.db.insert('rooms', {
-      code: 'ABCD',
-      hostUserId: userIds[0],
-      status: 'IN_PROGRESS',
-      createdAt: 0,
-    })
-  );
-
-  await Promise.all(
-    players.map((p, i) =>
-      t.run((ctx) =>
-        ctx.db.insert('roomPlayers', {
-          roomId,
-          userId: userIds[i],
-          displayName: p.name,
-          seatIndex: p.seatIndex,
-          joinedAt: i,
-          lastSeenAt: p.lastSeenAt,
-        })
-      )
-    )
-  );
-
-  const n = userIds.length;
-  const matrix: Id<'users'>[][] = [];
-  for (let r = 0; r < WORD_COUNTS.length; r++) {
-    matrix.push(
-      Array.from({ length: n }, (_, poem) => userIds[(poem + r) % n])
-    );
-  }
-
-  const roundStartedAt = Date.now();
-  const gameId = await t.run((ctx) =>
-    ctx.db.insert('games', {
-      roomId,
-      status: 'IN_PROGRESS',
-      cycle: 1,
-      currentRound: 0,
-      roundStartedAt,
-      assignmentMatrix: matrix,
-      createdAt: 0,
-    })
-  );
-  await Promise.all(
-    userIds.map((_, i) =>
-      t.run((ctx) =>
-        ctx.db.insert('poems', { roomId, gameId, indexInRoom: i, createdAt: 0 })
-      )
-    )
-  );
-
-  return { roomId, gameId, userIds };
+  const ids = await t.run(async (ctx) => {
+    const host = await ctx.db
+      .query('users')
+      .withIndex('by_clerk', (q) => q.eq('clerkUserId', `clerk_${hostName}`))
+      .unique();
+    const guest = await ctx.db
+      .query('users')
+      .withIndex('by_clerk', (q) => q.eq('clerkUserId', `clerk_${guestName}`))
+      .unique();
+    const game = startGame
+      ? await ctx.db
+          .query('games')
+          .withIndex('by_room_status', (q) =>
+            q.eq('roomId', created.roomId).eq('status', 'IN_PROGRESS')
+          )
+          .unique()
+      : null;
+    return {
+      hostId: host!._id,
+      guestId: guest!._id,
+      gameId: game?._id ?? null,
+    };
+  });
+  return { code: created.code, roomId: created.roomId, ...ids };
 }
 
-/** Seed a LOBBY room (no game yet) with explicit presence per player. */
-async function seedLobby(
-  t: T,
-  players: { name: string; seatIndex?: number; lastSeenAt?: number }[]
-): Promise<{ roomId: Id<'rooms'>; userIds: Id<'users'>[] }> {
-  const userIds: Id<'users'>[] = [];
-  for (const p of players) userIds.push(await seedClerkUser(t, p.name));
-  const roomId = await t.run((ctx) =>
-    ctx.db.insert('rooms', {
-      code: 'ABCD',
-      hostUserId: userIds[0],
-      status: 'LOBBY',
-      createdAt: 0,
-    })
-  );
-  await Promise.all(
-    players.map((p, i) =>
-      t.run((ctx) =>
-        ctx.db.insert('roomPlayers', {
-          roomId,
-          userId: userIds[i],
-          displayName: p.name,
-          seatIndex: p.seatIndex,
-          joinedAt: i,
-          lastSeenAt: p.lastSeenAt,
-        })
+async function ageHost(t: T, roomId: Id<'rooms'>, lastSeenAt: number) {
+  await t.run(async (ctx) => {
+    const room = await ctx.db.get(roomId);
+    const hostPlayerId = room?.hostPlayerId;
+    if (!hostPlayerId) throw new Error('live host missing');
+    const member = await ctx.db
+      .query('roomMembers')
+      .withIndex('by_room_player', (q) =>
+        q.eq('roomId', roomId).eq('playerId', hostPlayerId)
       )
-    )
-  );
-  return { roomId, userIds };
+      .unique();
+    if (!member) throw new Error('host member missing');
+    await ctx.db.patch(member._id, { lastSeenAt });
+  });
 }
 
 const hostOf = (t: T, roomId: Id<'rooms'>) =>
-  t.run((ctx) => ctx.db.get(roomId).then((r) => r?.hostUserId));
+  t.run((ctx) => ctx.db.get(roomId).then((room) => room?.hostUserId));
 
-describe('selectNextHostId (deterministic next-host rule)', () => {
+describe('selectNextHostId (reveal fallback ranking)', () => {
   const now = 10_000_000;
   const fresh = now - 1_000;
   const stale = now - HOST_MIGRATION_STALE_MS - 1_000;
-  // SAFETY: Branded ID fixture for pure unit test of in-memory host migration logic.
+  // SAFETY: Branded ID fixture for pure ranking of reveal fallback candidates.
   const uid = (n: number) => `user_${n}` as Id<'users'>;
 
   it('picks the present human with the lowest seatIndex', () => {
@@ -152,7 +105,7 @@ describe('selectNextHostId (deterministic next-host rule)', () => {
     expect(
       selectNextHostId(
         [
-          { userId: uid(1), seatIndex: 0, lastSeenAt: stale }, // away
+          { userId: uid(1), seatIndex: 0, lastSeenAt: stale },
           { userId: uid(2), seatIndex: 1, lastSeenAt: fresh },
         ],
         now,
@@ -191,123 +144,120 @@ describe('host migration via heartbeat (real engine)', () => {
 
   it('promotes a present participant when the host is stale, restoring agency', async () => {
     const t = setupConvexTest();
-    const { roomId, gameId, userIds } = await seedGame(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() },
-      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() },
-    ]);
+    const { roomId, gameId, code, hostId, guestId } = await seedLivePair(
+      t,
+      'host',
+      'guest',
+      true
+    );
+    await ageHost(t, roomId, staleStamp());
 
     await asUser(t, 'guest').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
+      roomCode: code,
     });
-    expect(await hostOf(t, roomId)).toBe(userIds[1]);
+    expect(await hostOf(t, roomId)).toBe(guestId);
 
     await expect(
-      asUser(t, 'host').mutation(api.game.endGame, { roomCode: 'ABCD' })
+      asUser(t, 'host').mutation(api.game.endGame, { roomCode: code })
     ).rejects.toThrow('Only host can end game');
-    await asUser(t, 'guest').mutation(api.game.endGame, {
-      roomCode: 'ABCD',
-    });
-    const game = await t.run((ctx) => ctx.db.get(gameId));
+    await asUser(t, 'guest').mutation(api.game.endGame, { roomCode: code });
+    const game = await t.run((ctx) => ctx.db.get(gameId!));
     expect(game?.status).toBe('ABANDONED');
+    expect(hostId).not.toBe(guestId);
   });
 
-  it('does not migrate a host who has never heartbeat (fresh room, not yet stale)', async () => {
+  it('does not migrate a host whose join timestamp is still fresh', async () => {
     const t = setupConvexTest();
-    // The host just created the room and has not heartbeat yet (undefined
-    // lastSeenAt). A guest joining and heartbeating first must NOT steal host.
-    const { roomId, userIds } = await seedGame(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: undefined },
-      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() },
-    ]);
+    const { roomId, code, hostId } = await seedLivePair(
+      t,
+      'host',
+      'guest',
+      true
+    );
 
     await asUser(t, 'guest').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
+      roomCode: code,
     });
-
-    expect(await hostOf(t, roomId)).toBe(userIds[0]); // host kept
+    expect(await hostOf(t, roomId)).toBe(hostId);
   });
 
-  it('does not migrate in a lobby (no active game) when the host steps away', async () => {
+  it('also heals a stale lobby host', async () => {
     const t = setupConvexTest();
-    // Host heartbeat once then went stale while the lobby gathered; a guest
-    // waits and heartbeats. With no game in progress there is no agency to
-    // strand, so a guest must not be able to seize the room before kickoff.
-    const { roomId, userIds } = await seedLobby(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() },
-      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() },
-    ]);
+    const { roomId, code, guestId } = await seedLivePair(
+      t,
+      'host',
+      'guest',
+      false
+    );
+    await ageHost(t, roomId, staleStamp());
 
     await asUser(t, 'guest').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
+      roomCode: code,
     });
-
-    expect(await hostOf(t, roomId)).toBe(userIds[0]); // host keeps the room
+    expect(await hostOf(t, roomId)).toBe(guestId);
   });
 
-  it('gives the migrated host close-room agency once the game ends; the old host gets nothing', async () => {
+  it('gives the migrated host close-room agency; the old host gets nothing', async () => {
     const t = setupConvexTest();
-    const { roomId, gameId, userIds } = await seedGame(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() },
-      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() },
-    ]);
-
-    // Mid-game: the present guest's heartbeat promotes them to host.
+    const { roomId, gameId, code, guestId } = await seedLivePair(
+      t,
+      'host',
+      'guest',
+      true
+    );
+    await ageHost(t, roomId, staleStamp());
     await asUser(t, 'guest').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
+      roomCode: code,
     });
-    expect(await hostOf(t, roomId)).toBe(userIds[1]);
+    expect(await hostOf(t, roomId)).toBe(guestId);
 
-    // The game ends; the room returns to a (rematch) lobby, host still the guest.
     await t.run(async (ctx) => {
-      await ctx.db.patch(gameId, { status: 'COMPLETED' });
+      await ctx.db.patch(gameId!, { status: 'COMPLETED' });
       await ctx.db.patch(roomId, { status: 'COMPLETED' });
     });
 
-    // The departed old host has no host power…
     await expect(
-      asUser(t, 'host').mutation(api.rooms.closeRoom, { roomCode: 'ABCD' })
+      asUser(t, 'host').mutation(api.rooms.closeRoom, { roomCode: code })
     ).rejects.toThrow('Only the host can close the room');
-
-    // …and the new host can close the room.
-    await asUser(t, 'guest').mutation(api.rooms.closeRoom, {
-      roomCode: 'ABCD',
-    });
+    await asUser(t, 'guest').mutation(api.rooms.closeRoom, { roomCode: code });
     expect(
-      await t.run((ctx) => ctx.db.get(roomId)).then((r) => r?.status)
+      await t.run((ctx) => ctx.db.get(roomId)).then((room) => room?.status)
     ).toBe('COMPLETED');
   });
 
   it('does not migrate while the host is present', async () => {
     const t = setupConvexTest();
-    const { roomId, userIds } = await seedGame(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: Date.now() }, // present
-      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() },
-    ]);
-
-    await asUser(t, 'guest').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
+    const { roomId, code, hostId } = await seedLivePair(
+      t,
+      'host',
+      'guest',
+      true
+    );
+    await asUser(t, 'host').mutation(api.presence.heartbeat, {
+      roomCode: code,
     });
-
-    expect(await hostOf(t, roomId)).toBe(userIds[0]); // unchanged
+    await asUser(t, 'guest').mutation(api.presence.heartbeat, {
+      roomCode: code,
+    });
+    expect(await hostOf(t, roomId)).toBe(hostId);
   });
 
-  it('is idempotent and does not thrash when the old host returns', async () => {
+  it('is idempotent when the old host returns', async () => {
     const t = setupConvexTest();
-    const { roomId, userIds } = await seedGame(t, [
-      { name: 'host', seatIndex: 0, lastSeenAt: staleStamp() },
-      { name: 'guest', seatIndex: 1, lastSeenAt: Date.now() },
-    ]);
-
+    const { roomId, code, guestId } = await seedLivePair(
+      t,
+      'host',
+      'guest',
+      true
+    );
+    await ageHost(t, roomId, staleStamp());
     await asUser(t, 'guest').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
+      roomCode: code,
     });
-    expect(await hostOf(t, roomId)).toBe(userIds[1]);
-
-    // The old host returns mid-game and heartbeats — they regain nothing; the
-    // present guest stays host (migration only fires when the host is stale).
+    expect(await hostOf(t, roomId)).toBe(guestId);
     await asUser(t, 'host').mutation(api.presence.heartbeat, {
-      roomCode: 'ABCD',
+      roomCode: code,
     });
-    expect(await hostOf(t, roomId)).toBe(userIds[1]);
+    expect(await hostOf(t, roomId)).toBe(guestId);
   });
 });

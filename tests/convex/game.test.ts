@@ -67,6 +67,90 @@ async function seedLobby(
   return { code, roomId, hostId, guestId };
 }
 
+/** Live Parlor room with a completed reading circle, ready for reveal or rematch. */
+async function seedLiveCompletedRoom(
+  t: T,
+  suffix: string
+): Promise<{
+  code: string;
+  roomId: Id<'rooms'>;
+  hostId: Id<'users'>;
+  guestId: Id<'users'>;
+  gameId: Id<'games'>;
+  hostPoemId: Id<'poems'>;
+  guestPoemId: Id<'poems'>;
+}> {
+  const lobby = await seedLobby(t, suffix);
+  const completed = await t.run(async (ctx) => {
+    const matchId = await ctx.db.insert('matches', {
+      roomId: lobby.roomId,
+      cycle: 1,
+      status: 'completed',
+      startedAt: 0,
+      completedAt: 1,
+      hardDeadline: false,
+    });
+    const members = await ctx.db
+      .query('roomMembers')
+      .withIndex('by_room_seat', (q) => q.eq('roomId', lobby.roomId))
+      .collect();
+    for (const member of members) {
+      await ctx.db.insert('matchParticipants', {
+        matchId,
+        playerId: member.playerId,
+        seatIndex: member.seatIndex,
+      });
+    }
+    const gameId = await ctx.db.insert('games', {
+      roomId: lobby.roomId,
+      matchId,
+      status: 'COMPLETED',
+      cycle: 1,
+      currentRound: 8,
+      assignmentMatrix: Array.from({ length: 9 }, (_, r) =>
+        r % 2 === 0
+          ? [lobby.hostId, lobby.guestId]
+          : [lobby.guestId, lobby.hostId]
+      ),
+      createdAt: 0,
+    });
+    const poemIds = await Promise.all(
+      [
+        { readerId: lobby.hostId, lines: ['Lantern', 'Quiet water'] },
+        { readerId: lobby.guestId, lines: ['Cinder', 'Silver moon'] },
+      ].map(async ({ readerId, lines }, indexInRoom) => {
+        const poemId = await ctx.db.insert('poems', {
+          roomId: lobby.roomId,
+          gameId,
+          indexInRoom,
+          assignedReaderId: readerId,
+          createdAt: 0,
+        });
+        await Promise.all(
+          lines.map((text, indexInPoem) =>
+            ctx.db.insert('lines', {
+              poemId,
+              text,
+              indexInPoem,
+              wordCount: indexInPoem + 1,
+              authorUserId: readerId,
+              authorDisplayName: indexInRoom === 0 ? 'Host Pen' : 'Guest Pen',
+              createdAt: 0,
+            })
+          )
+        );
+        return poemId;
+      })
+    );
+    await ctx.db.patch(lobby.roomId, {
+      status: 'COMPLETED',
+      currentCycle: 1,
+    });
+    return { gameId, hostPoemId: poemIds[0], guestPoemId: poemIds[1] };
+  });
+  return { ...lobby, ...completed };
+}
+
 /**
  * Seed a COMPLETED room with a completed game, ready for startNewCycle.
  * Code is derived from suffix (upper-cased, truncated/padded to 4 chars).
@@ -164,32 +248,68 @@ async function seedRevealFallbackRoom(
         })
       )
     );
-    const roomId = await ctx.db.insert('rooms', {
-      code,
-      hostUserId: hostId,
-      status: 'COMPLETED',
-      createdAt: 0,
-    });
-
-    await Promise.all(
-      [
-        { userId: hostId, role: 'host' as const, seatIndex: 0 },
-        { userId: readerId, role: 'reader' as const, seatIndex: 1 },
-        { userId: fallbackId, role: 'fallback' as const, seatIndex: 2 },
-      ].map(({ userId, role, seatIndex }) =>
-        ctx.db.insert('roomPlayers', {
-          roomId,
-          userId,
-          displayName: `${role}${suffix}`,
-          seatIndex,
-          joinedAt: 0,
-          lastSeenAt: lastSeenAt[role],
+    const users = [
+      { userId: hostId, role: 'host' as const, seatIndex: 0 },
+      { userId: readerId, role: 'reader' as const, seatIndex: 1 },
+      { userId: fallbackId, role: 'fallback' as const, seatIndex: 2 },
+    ];
+    const playerIds = await Promise.all(
+      users.map(({ userId }) =>
+        ctx.db.insert('players', {
+          identityKey: `linejam:user:${userId}`,
+          kind: 'authenticated',
+          createdAt: 0,
         })
       )
     );
+    const roomId = await ctx.db.insert('rooms', {
+      code,
+      hostUserId: hostId,
+      hostPlayerId: playerIds[0],
+      status: 'COMPLETED',
+      createdAt: 0,
+    });
+    await Promise.all(
+      users.map(({ userId, role, seatIndex }, index) =>
+        Promise.all([
+          ctx.db.insert('roomMembers', {
+            roomId,
+            playerId: playerIds[index],
+            displayName: `${role}${suffix}`,
+            seatIndex,
+            joinedAt: 0,
+            eligibleFromCycle: 1,
+            lastSeenAt: lastSeenAt[role],
+          }),
+          ctx.db.insert('roomPlayers', {
+            roomId,
+            userId,
+            playerId: playerIds[index],
+            displayName: `${role}${suffix}`,
+            seatIndex,
+            joinedAt: 0,
+            lastSeenAt: lastSeenAt[role],
+          }),
+        ])
+      )
+    );
 
+    const matchId = await ctx.db.insert('matches', {
+      roomId,
+      cycle: 1,
+      status: 'completed',
+      startedAt: 0,
+      completedAt: 1,
+      hardDeadline: false,
+    });
+    await Promise.all(
+      playerIds.map((playerId, seatIndex) =>
+        ctx.db.insert('matchParticipants', { matchId, playerId, seatIndex })
+      )
+    );
     const gameId = await ctx.db.insert('games', {
       roomId,
+      matchId,
       status: 'COMPLETED',
       cycle: 1,
       currentRound: WORD_COUNTS.length - 1,
@@ -352,7 +472,7 @@ describe('startNewCycle', () => {
 
   it('throws if user is not a participant', async () => {
     const t = setupConvexTest();
-    const { code } = await seedCompletedRoom(t, 'SNC2');
+    const { code } = await seedLiveCompletedRoom(t, 'SNC2');
     await seedClerkUser(t, 'outsidersnc2');
 
     await expect(
@@ -383,7 +503,7 @@ describe('startNewCycle', () => {
 
   it('resets room to LOBBY on success for any participant (non-host)', async () => {
     const t = setupConvexTest();
-    const { roomId, code } = await seedCompletedRoom(t, 'SNC5');
+    const { roomId, code } = await seedLiveCompletedRoom(t, 'SNC5');
 
     await asUser(t, 'guestSNC5').mutation(api.game.startNewCycle, {
       roomCode: code,
@@ -396,7 +516,7 @@ describe('startNewCycle', () => {
 
   it('resets room to LOBBY on success for host', async () => {
     const t = setupConvexTest();
-    const { roomId, code } = await seedCompletedRoom(t, 'SNC6');
+    const { roomId, code } = await seedLiveCompletedRoom(t, 'SNC6');
 
     await asUser(t, 'hostSNC6').mutation(api.game.startNewCycle, {
       roomCode: code,
@@ -436,47 +556,6 @@ describe('startGame', () => {
     expect(poems).toHaveLength(2);
   });
 
-  it('removes legacy AI memberships before assigning a new game', async () => {
-    const t = setupConvexTest();
-    const { code, roomId } = await seedLobby(t, 'SGAI');
-    const aiUserId = await t.run(async (ctx) => {
-      const userId = await ctx.db.insert('users', {
-        displayName: 'Legacy Bot',
-        kind: 'AI',
-        createdAt: 0,
-      });
-      await ctx.db.insert('roomPlayers', {
-        roomId,
-        userId,
-        displayName: 'Legacy Bot',
-        joinedAt: 0,
-      });
-      return userId;
-    });
-
-    await asUser(t, 'hostSGAI').mutation(api.game.startGame, { code });
-
-    const { game, memberships, poems } = await t.run(async (ctx) => {
-      const room = await ctx.db.get(roomId);
-      return {
-        game: await ctx.db.get(room!.currentGameId!),
-        memberships: await ctx.db
-          .query('roomPlayers')
-          .withIndex('by_room', (q) => q.eq('roomId', roomId))
-          .collect(),
-        poems: await ctx.db
-          .query('poems')
-          .withIndex('by_game', (q) => q.eq('gameId', room!.currentGameId!))
-          .collect(),
-      };
-    });
-    expect(game?.assignmentMatrix.flat()).not.toContain(aiUserId);
-    expect(memberships.map((membership) => membership.userId)).not.toContain(
-      aiUserId
-    );
-    expect(poems).toHaveLength(2);
-  });
-
   it('rate-limits guest starts by signed network bucket before room lookup', async () => {
     const t = setupConvexTest();
     const bucket = 'guestSession:testStartBucket1234567890';
@@ -504,7 +583,7 @@ describe('startGame', () => {
 
   it('lets any participant fire the rematch once a game has completed', async () => {
     const t = setupConvexTest();
-    const { code, roomId } = await seedCompletedRoom(t, 'SG3A');
+    const { code, roomId } = await seedLiveCompletedRoom(t, 'SG3A');
 
     // Reset to LOBBY; completed game still exists in DB → guest can rematch
     await asUser(t, 'hostSG3A').mutation(api.game.startNewCycle, {
@@ -560,7 +639,13 @@ describe('endGame', () => {
           q.eq('roomId', roomId).eq('userId', guestId)
         )
         .unique();
-      await ctx.db.patch(guest!._id, {
+      const member = await ctx.db
+        .query('roomMembers')
+        .withIndex('by_room_player', (q) =>
+          q.eq('roomId', roomId).eq('playerId', guest!.playerId!)
+        )
+        .unique();
+      await ctx.db.patch(member!._id, {
         lastSeenAt: Date.now() - PRESENCE_AWAY_MS - 1,
       });
     });
@@ -571,20 +656,35 @@ describe('endGame', () => {
       roomCode: code,
     });
 
-    const [room, endedGame, lines, players] = await t.run(async (ctx) => [
-      await ctx.db.get(roomId),
-      await ctx.db.get(activeGameId),
-      await ctx.db.query('lines').collect(),
-      await ctx.db
-        .query('roomPlayers')
-        .withIndex('by_room', (q) => q.eq('roomId', roomId))
-        .collect(),
-    ]);
+    const [room, endedGame, lines, profiles, openMembers] = await t.run(
+      async (ctx) => [
+        await ctx.db.get(roomId),
+        await ctx.db.get(activeGameId),
+        await ctx.db.query('lines').collect(),
+        await ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room', (q) => q.eq('roomId', roomId))
+          .collect(),
+        await ctx.db
+          .query('roomMembers')
+          .withIndex('by_room', (q) => q.eq('roomId', roomId))
+          .collect()
+          .then((members) =>
+            members.filter((member) => member.closedAt === undefined)
+          ),
+      ]
+    );
     expect(room?.status).toBe('LOBBY');
     expect(room?.currentGameId).toBeUndefined();
     expect(endedGame?.status).toBe('ABANDONED');
     expect(lines).toHaveLength(0);
-    expect(players.map((player) => player.userId)).not.toContain(guestId);
+    expect(profiles.map((player) => player.userId)).toContain(guestId);
+    const guestPlayerId = profiles.find(
+      (player) => player.userId === guestId
+    )?.playerId;
+    expect(openMembers.map((member) => member.playerId)).not.toContain(
+      guestPlayerId
+    );
 
     await asUser(t, 'guestEND1').mutation(api.rooms.joinRoom, {
       code,
@@ -752,10 +852,8 @@ describe('getCurrentAssignment', () => {
 
   it('stores every rematch submission in the active game poems', async () => {
     const t = setupConvexTest();
-    const { code, roomId, gameId, hostId, guestId } = await seedCompletedRoom(
-      t,
-      'CA06'
-    );
+    const { code, roomId, gameId, hostId, guestId } =
+      await seedLiveCompletedRoom(t, 'CA06');
 
     const { oldPoemIds, oldPoemsBefore, oldLinesBefore } = await t.run(
       async (ctx) => {
@@ -1118,27 +1216,25 @@ describe('submitLine', () => {
 
   it('does not expose an abandoned line through an idempotent retry', async () => {
     const t = setupConvexTest();
-    const { code, poemIds } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Alice', clerkUserId: 'clerk_aliceSLAB' },
-        { name: 'Bob', clerkUserId: 'clerk_bobSLAB' },
-      ],
-      code: 'SLAB',
-      currentRound: 0,
-    });
+    const { code } = await seedLobby(t, 'SLAB');
+    await asUser(t, 'hostSLAB').mutation(api.game.startGame, { code });
+    const assignment = await asUser(t, 'hostSLAB').query(
+      api.game.getCurrentAssignment,
+      { roomCode: code }
+    );
 
-    await asUser(t, 'aliceSLAB').mutation(api.game.submitLine, {
-      poemId: poemIds[0],
+    await asUser(t, 'hostSLAB').mutation(api.game.submitLine, {
+      poemId: assignment!.poemId,
       lineIndex: 0,
       text: 'secret',
     });
-    await asUser(t, 'aliceSLAB').mutation(api.game.endGame, {
+    await asUser(t, 'hostSLAB').mutation(api.game.endGame, {
       roomCode: code,
     });
 
     await expect(
-      asUser(t, 'aliceSLAB').mutation(api.game.submitLine, {
-        poemId: poemIds[0],
+      asUser(t, 'hostSLAB').mutation(api.game.submitLine, {
+        poemId: assignment!.poemId,
         lineIndex: 0,
         text: 'retry',
       })
@@ -1603,6 +1699,184 @@ describe('getRevealPhaseState', () => {
     expect(
       result!.revealedPoems.some((poem) => poem._id === hiddenPoemId)
     ).toBe(false);
+  });
+
+  it('preserves the completed native reading circle after room closure', async () => {
+    const t = setupConvexTest();
+    const { code, hostId, guestId, hostPoemId, guestPoemId } =
+      await seedLiveCompletedRoom(t, 'RVCL');
+    const host = asUser(t, 'hostRVCL');
+    const guest = asUser(t, 'guestRVCL');
+    await host.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Birch',
+      avatarId: 'pip',
+    });
+    await guest.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Cedar',
+      avatarId: 'moss',
+    });
+    await host.mutation(api.game.revealPoem, { poemId: hostPoemId });
+    await host.mutation(api.rooms.closeRoom, { roomCode: code });
+
+    const reading = await guest.query(api.game.getRevealPhaseState, {
+      roomCode: code,
+    });
+    expect(reading?.players).toEqual([
+      expect.objectContaining({
+        userId: hostId,
+        displayName: 'Birch',
+        avatarId: 'pip',
+      }),
+      expect.objectContaining({
+        userId: guestId,
+        displayName: 'Cedar',
+        avatarId: 'moss',
+      }),
+    ]);
+    expect(reading?.myPoem).toMatchObject({
+      _id: guestPoemId,
+      readerName: 'Cedar',
+      readerAvatarId: 'moss',
+      canReveal: true,
+      isFallbackReader: false,
+    });
+    expect(reading?.myPoem?.lines.map((line) => line.text)).toEqual([
+      'Cinder',
+      'Silver moon',
+    ]);
+    expect(reading?.revealedPoems).toEqual([
+      expect.objectContaining({
+        _id: hostPoemId,
+        readerName: 'Birch',
+        readerAvatarId: 'pip',
+      }),
+    ]);
+    expect(reading?.revealedPoems[0].lines.map((line) => line.text)).toEqual([
+      'Lantern',
+      'Quiet water',
+    ]);
+
+    await expect(
+      guest.mutation(api.game.revealPoem, { poemId: guestPoemId })
+    ).resolves.toEqual({ revealed: true });
+    const recap = await host.query(api.game.getRevealPhaseState, {
+      roomCode: code,
+    });
+    expect(recap?.allRevealed).toBe(true);
+    expect(recap?.revealedPoems.map((poem) => poem._id)).toEqual([
+      hostPoemId,
+      guestPoemId,
+    ]);
+    expect(
+      recap?.revealedPoems[1].lines.map((line) => line.authorName)
+    ).toEqual(['Guest Pen', 'Guest Pen']);
+  });
+
+  it('shows live native spectators only revealed text and denies departed spectators', async () => {
+    const t = setupConvexTest();
+    const { code, roomId, hostId, guestId, hostPoemId, guestPoemId } =
+      await seedLiveCompletedRoom(t, 'RVSP');
+    const spectatorId = await seedClerkUser(t, 'spectatorRVSP');
+    const spectator = asUser(t, 'spectatorRVSP');
+    await spectator.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Spectator',
+    });
+    await t.run(async (ctx) => {
+      const profiles = await ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room', (q) => q.eq('roomId', roomId))
+        .collect();
+      for (const profile of profiles) {
+        if (profile.userId === spectatorId) continue;
+        const member = await ctx.db
+          .query('roomMembers')
+          .withIndex('by_room_player', (q) =>
+            q.eq('roomId', roomId).eq('playerId', profile.playerId!)
+          )
+          .unique();
+        await ctx.db.patch(member!._id, {
+          lastSeenAt: Date.now() - PRESENCE_AWAY_MS - 1,
+        });
+      }
+    });
+
+    const before = await spectator.query(api.game.getRevealPhaseState, {
+      roomCode: code,
+    });
+    expect(before).toMatchObject({
+      myPoem: null,
+      myPoems: [],
+      revealedPoems: [],
+      allRevealed: false,
+    });
+    expect(before?.players.map((player) => player.userId)).toEqual([
+      hostId,
+      guestId,
+    ]);
+    expect(before?.poems).toEqual([
+      expect.objectContaining({
+        _id: hostPoemId,
+        preview: '',
+        canReveal: false,
+        isFallbackReader: false,
+      }),
+      expect.objectContaining({
+        _id: guestPoemId,
+        preview: '',
+        canReveal: false,
+        isFallbackReader: false,
+      }),
+    ]);
+    expect(JSON.stringify(before)).not.toContain('Lantern');
+    expect(JSON.stringify(before)).not.toContain('Quiet water');
+    expect(JSON.stringify(before)).not.toContain('Cinder');
+    expect(JSON.stringify(before)).not.toContain('Silver moon');
+    await expect(
+      spectator.mutation(api.game.revealPoem, { poemId: hostPoemId })
+    ).rejects.toThrow('Not a game participant');
+
+    await asUser(t, 'hostRVSP').mutation(api.game.revealPoem, {
+      poemId: hostPoemId,
+    });
+    const after = await spectator.query(api.game.getRevealPhaseState, {
+      roomCode: code,
+    });
+    expect(after).toMatchObject({
+      myPoem: null,
+      myPoems: [],
+      allRevealed: false,
+    });
+    expect(after?.revealedPoems).toEqual([
+      expect.objectContaining({
+        _id: hostPoemId,
+        preview: 'Lantern',
+        canReveal: false,
+      }),
+    ]);
+    expect(after?.revealedPoems[0].lines.map((line) => line.text)).toEqual([
+      'Lantern',
+      'Quiet water',
+    ]);
+    expect(JSON.stringify(after)).not.toContain('Cinder');
+    expect(JSON.stringify(after)).not.toContain('Silver moon');
+
+    await spectator.mutation(api.rooms.leaveLobby, { roomCode: code });
+    expect(
+      await spectator.query(api.game.getRevealPhaseState, { roomCode: code })
+    ).toBeNull();
+    await spectator.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Spectator',
+    });
+    await asUser(t, 'hostRVSP').mutation(api.rooms.closeRoom, {
+      roomCode: code,
+    });
+    expect(
+      await spectator.query(api.game.getRevealPhaseState, { roomCode: code })
+    ).toBeNull();
   });
 });
 

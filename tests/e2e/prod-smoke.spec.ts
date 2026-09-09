@@ -18,9 +18,9 @@ async function createHostedRoom(hostPage: Page, hostName: string) {
   await hostPage.getByTestId(E2E_TEST_IDS.hostNameInput).fill(hostName);
   await hostPage.getByTestId(E2E_TEST_IDS.hostCreateRoomButton).click();
 
-  await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30000 });
-  const roomCode = hostPage.url().match(/\/room\/([A-Z]{4})$/)?.[1] || '';
-  expect(roomCode).toMatch(/^[A-Z]{4}$/);
+  await hostPage.waitForURL(/\/room\/[A-Z0-9]{4}$/, { timeout: 30000 });
+  const roomCode = hostPage.url().match(/\/room\/([A-Z0-9]{4})$/)?.[1] || '';
+  expect(roomCode).toMatch(/^[A-Z0-9]{4}$/);
   return roomCode;
 }
 

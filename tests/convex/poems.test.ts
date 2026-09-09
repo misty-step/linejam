@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { ConvexError } from 'convex/values';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser, seedLine } from '../helpers/convexSeed';
 import { getDefaultAvatarId } from '../../lib/avatars';
+import { WORD_COUNTS } from '../../convex/lib/gameRules';
 
 /**
  * poems queries on the real convex-test engine (backlog 018): real
@@ -424,6 +426,298 @@ describe('getPoemDetail', () => {
       poemId: poemIds[0],
     });
     expect(result?.poem._id).toBe(poemIds[0]);
+  });
+});
+
+describe('native completed-game artifact access', () => {
+  it('keeps later-game artifacts private while retained writers finish closed archives', async () => {
+    const t = setupConvexTest();
+    const departedId = await seedClerkUser(t, 'departed');
+    const hostId = await seedClerkUser(t, 'host');
+    await seedClerkUser(t, 'writer');
+    await seedClerkUser(t, 'spectator');
+    const clients = {
+      host: asUser(t, 'host'),
+      writer: asUser(t, 'writer'),
+      departed: asUser(t, 'departed'),
+      spectator: asUser(t, 'spectator'),
+    };
+    const { code, roomId } = await clients.host.mutation(api.rooms.createRoom, {
+      displayName: 'Host',
+    });
+    for (const name of ['writer', 'departed'] as const) {
+      await clients[name].mutation(api.rooms.joinRoom, {
+        code,
+        displayName: name,
+      });
+    }
+
+    async function finishGame(
+      writers: readonly ('host' | 'writer' | 'departed')[],
+      word: string
+    ) {
+      for (const [lineIndex, wordCount] of WORD_COUNTS.entries()) {
+        for (const name of writers) {
+          const assignment = await clients[name].query(
+            api.game.getCurrentAssignment,
+            { roomCode: code }
+          );
+          if (!assignment) throw new Error(`Missing assignment for ${name}`);
+          await clients[name].mutation(api.game.submitLine, {
+            poemId: assignment.poemId,
+            lineIndex,
+            text: Array(wordCount).fill(word).join(' '),
+          });
+        }
+      }
+    }
+
+    await clients.host.mutation(api.game.startGame, { code });
+    await finishGame(['host', 'writer', 'departed'], 'earlier');
+    const earlierPoems = await clients.departed.query(
+      api.poems.getPoemsForRoom,
+      {
+        roomCode: code,
+      }
+    );
+    expect(earlierPoems.map((poem) => poem.preview)).toEqual([
+      'earlier',
+      'earlier',
+      'earlier',
+    ]);
+
+    await clients.host.mutation(api.game.startNewCycle, { roomCode: code });
+    await clients.departed.mutation(api.rooms.leaveLobby, { roomCode: code });
+    const departedProfile = await t.run((ctx) =>
+      ctx.db
+        .query('roomPlayers')
+        .withIndex('by_room_user', (q) =>
+          q.eq('roomId', roomId).eq('userId', departedId)
+        )
+        .unique()
+    );
+    expect(departedProfile?.playerId).toBeDefined();
+
+    await clients.host.mutation(api.game.startGame, { code });
+    await clients.spectator.mutation(api.rooms.joinRoom, {
+      code,
+      displayName: 'Spectator',
+    });
+    await finishGame(['host', 'writer'], 'unrevealed');
+    const poems = await clients.host.query(api.poems.getPoemsForRoom, {
+      roomCode: code,
+    });
+    expect(poems.map((poem) => poem.preview)).toEqual([
+      'unrevealed',
+      'unrevealed',
+    ]);
+    const poemId = poems[0]._id;
+    const game = await t.run((ctx) => ctx.db.get(poems[0].gameId));
+    expect(game?.matchId).toBeDefined();
+    expect(game?.cycle).toBe(2);
+
+    for (const viewer of [clients.departed, clients.spectator]) {
+      expect(
+        await viewer.query(api.poems.getPoemDetail, { poemId })
+      ).toBeNull();
+      expect(
+        await viewer.query(api.poems.getPoemsForRoom, { roomCode: code })
+      ).toEqual([]);
+      expect(
+        await viewer.query(api.favorites.getSessionFavorites, {
+          roomCode: code,
+        })
+      ).toBeNull();
+      await expect(
+        viewer.mutation(api.favorites.toggleFavorite, { poemId })
+      ).rejects.toBeInstanceOf(ConvexError);
+    }
+
+    await clients.writer.mutation(api.favorites.toggleFavorite, { poemId });
+    await clients.host.mutation(api.rooms.closeRoom, { roomCode: code });
+    const closedPresence = await t.run(async (ctx) => ({
+      closedAt: (await ctx.db.get(roomId))?.closedAt,
+      members: await ctx.db
+        .query('roomMembers')
+        .withIndex('by_room_seat', (q) => q.eq('roomId', roomId))
+        .collect(),
+    }));
+    expect(closedPresence.closedAt).toBeDefined();
+    expect(
+      closedPresence.members.filter((member) => member.closedAt === undefined)
+    ).toEqual([]);
+
+    // The assigned host is gone; a retained non-host writer can read and reveal.
+    const reading = await clients.writer.query(api.game.getRevealPhaseState, {
+      roomCode: code,
+    });
+    expect(reading?.canContinueRoom).toBe(false);
+    expect(
+      reading?.myPoems.find((poem) => poem.assignedReaderId === hostId)
+    ).toMatchObject({
+      canReveal: true,
+      isFallbackReader: true,
+      lines: WORD_COUNTS.map((count) =>
+        expect.objectContaining({
+          text: Array(count).fill('unrevealed').join(' '),
+        })
+      ),
+    });
+    expect(reading?.myPoems.map((poem) => poem._id).sort()).toEqual(
+      poems.map((poem) => poem._id).sort()
+    );
+    for (const viewer of [clients.departed, clients.spectator]) {
+      expect(
+        await viewer.query(api.game.getRevealPhaseState, { roomCode: code })
+      ).toBeNull();
+      await expect(
+        viewer.mutation(api.game.revealPoem, { poemId })
+      ).rejects.toBeInstanceOf(ConvexError);
+    }
+
+    for (const poem of poems) {
+      await expect(
+        clients.writer.mutation(api.game.revealPoem, { poemId: poem._id })
+      ).resolves.toEqual({ revealed: true });
+    }
+    expect(
+      await clients.writer.query(api.game.getRevealPhaseState, {
+        roomCode: code,
+      })
+    ).toMatchObject({ allRevealed: true, canContinueRoom: false });
+    for (const viewer of [clients.writer, clients.spectator]) {
+      await viewer.mutation(api.presence.heartbeat, { roomCode: code });
+    }
+    const presenceAfterReading = await t.run(async (ctx) => ({
+      closedAt: (await ctx.db.get(roomId))?.closedAt,
+      members: await ctx.db
+        .query('roomMembers')
+        .withIndex('by_room_seat', (q) => q.eq('roomId', roomId))
+        .collect(),
+    }));
+    expect(presenceAfterReading).toEqual(closedPresence);
+    expect(
+      await clients.spectator.query(api.rooms.getRoomState, { code })
+    ).toBeNull();
+    expect(
+      await clients.writer.query(api.rooms.getRoomState, { code })
+    ).toMatchObject({ room: { status: 'COMPLETED' }, players: [] });
+
+    const archived = await clients.writer.query(api.poems.getPoemDetail, {
+      poemId,
+    });
+    expect(archived?.lines.map((line) => line.text)).toEqual(
+      WORD_COUNTS.map((count) => Array(count).fill('unrevealed').join(' '))
+    );
+    expect(
+      (
+        await clients.writer.query(api.poems.getPoemsForRoom, {
+          roomCode: code,
+        })
+      )
+        .map((poem) => poem._id)
+        .sort()
+    ).toEqual(poems.map((poem) => poem._id).sort());
+    expect(
+      await clients.writer.query(api.favorites.getMyFavorites, {})
+    ).toMatchObject([{ _id: poemId, preview: 'unrevealed' }]);
+    expect(
+      await clients.writer.query(api.favorites.getSessionFavorites, {
+        roomCode: code,
+      })
+    ).toMatchObject({ totalHearts: 1, leaderPoemId: poemId });
+    expect(
+      (
+        await clients.departed.query(api.poems.getPoemDetail, {
+          poemId: earlierPoems[0]._id,
+        })
+      )?.lines.map((line) => line.text)
+    ).toEqual(
+      WORD_COUNTS.map((count) => Array(count).fill('earlier').join(' '))
+    );
+    expect(
+      (await clients.departed.query(api.poems.getMyPoems, {}))
+        .map((poem) => poem._id)
+        .sort()
+    ).toEqual(earlierPoems.map((poem) => poem._id).sort());
+    expect(await clients.spectator.query(api.poems.getMyPoems, {})).toEqual([]);
+
+    const pending = await clients.host.mutation(
+      api.shares.preparePublicPoemShare,
+      { poemId }
+    );
+    const activation = { poemId, slug: pending.slug, nonce: pending.nonce };
+    for (const viewer of [clients.departed, clients.spectator]) {
+      expect(
+        await viewer.query(api.poems.getPoemDetail, { poemId })
+      ).toBeNull();
+      await expect(
+        viewer.mutation(api.shares.preparePublicPoemShare, { poemId })
+      ).rejects.toBeInstanceOf(ConvexError);
+      await expect(
+        viewer.mutation(api.shares.activatePublicPoemShare, activation)
+      ).rejects.toBeInstanceOf(ConvexError);
+      await expect(
+        viewer.mutation(api.shares.cancelPublicPoemShare, activation)
+      ).rejects.toBeInstanceOf(ConvexError);
+      await expect(
+        viewer.mutation(api.shares.disablePublicPoemShare, { poemId })
+      ).rejects.toBeInstanceOf(ConvexError);
+      await expect(
+        viewer.mutation(api.shares.enablePublicSessionRecapShare, {
+          roomCode: code,
+        })
+      ).rejects.toBeInstanceOf(ConvexError);
+      await expect(
+        viewer.mutation(api.shares.disablePublicSessionRecapShare, {
+          roomCode: code,
+        })
+      ).rejects.toBeInstanceOf(ConvexError);
+    }
+
+    await clients.host.mutation(api.shares.activatePublicPoemShare, activation);
+    expect(
+      (
+        await t.query(api.poems.getPublicPoemFull, {
+          poemId,
+          shareSlug: pending.slug,
+        })
+      )?.lines.map((line) => line.text)
+    ).toEqual(archived?.lines.map((line) => line.text));
+    await clients.departed.mutation(api.favorites.toggleFavorite, { poemId });
+    expect(
+      await clients.departed.query(api.favorites.getMyFavorites, {})
+    ).toMatchObject([{ _id: poemId, preview: 'unrevealed' }]);
+    expect(
+      await clients.departed.query(api.favorites.isFavorited, { poemId })
+    ).toBe(true);
+
+    await clients.host.mutation(api.shares.enablePublicSessionRecapShare, {
+      roomCode: code,
+    });
+    const recap = await t.query(api.poems.getPublicSessionRecap, {
+      roomCode: code,
+    });
+    expect(recap?.playerCount).toBe(2);
+    expect(recap?.poems.map((poem) => poem.readerName).sort()).toEqual([
+      'Host',
+      'writer',
+    ]);
+
+    await clients.host.mutation(api.shares.disablePublicPoemShare, { poemId });
+    await clients.host.mutation(api.shares.disablePublicSessionRecapShare, {
+      roomCode: code,
+    });
+    expect(
+      await clients.departed.query(api.favorites.getMyFavorites, {})
+    ).toEqual([]);
+    expect(
+      await clients.departed.query(api.favorites.isFavorited, { poemId })
+    ).toBe(false);
+    await clients.departed.mutation(api.favorites.toggleFavorite, { poemId });
+    expect(
+      await clients.writer.query(api.favorites.isFavorited, { poemId })
+    ).toBe(true);
   });
 });
 

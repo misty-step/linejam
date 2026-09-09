@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Id } from '../../../convex/_generated/dataModel';
-import { selectRevealAuthority } from '../../../convex/lib/revealAuthorization';
+import {
+  getRevealAuthorityForParticipant,
+  selectRevealAuthority,
+} from '../../../convex/lib/revealAuthorization';
 
 // SAFETY: Branded ID fixture for pure unit test of in-memory reveal authority resolution.
 const userId = (value: string) => value as Id<'users'>;
@@ -67,6 +70,34 @@ describe('selectRevealAuthority', () => {
         userId('host'),
         now
       )
+    ).toBeNull();
+  });
+});
+
+describe('getRevealAuthorityForParticipant', () => {
+  it('allows only a verified participant to advance an archive without live presence', () => {
+    const archive = {
+      participants: [
+        { userId: userId('reader'), seatIndex: 0 },
+        { userId: userId('author'), seatIndex: 1 },
+      ],
+      assignedReaderId: userId('reader'),
+      hostUserId: userId('reader'),
+      roomClosedAt: 0,
+      now,
+    };
+
+    expect(
+      getRevealAuthorityForParticipant({
+        ...archive,
+        participantUserId: userId('author'),
+      })
+    ).toEqual({ userId: userId('author'), reason: 'archive-participant' });
+    expect(
+      getRevealAuthorityForParticipant({
+        ...archive,
+        participantUserId: null,
+      })
     ).toBeNull();
   });
 });

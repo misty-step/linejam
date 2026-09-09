@@ -36,12 +36,12 @@ async function establishHeldRoom(browser) {
   await hostPage.goto(`${BASE_URL}/host`);
   await hostPage.getByTestId(TEST_ID.hostName).fill('Rollout Host');
   await hostPage.getByTestId(TEST_ID.createRoom).click();
-  await hostPage.waitForURL(/\/room\/[A-Z]{4}$/);
+  await hostPage.waitForURL(/\/room\/[A-Z0-9]{4}$/);
   const roomCode = new URL(hostPage.url()).pathname
     .replace(/\/+$/, '')
     .split('/')
     .pop();
-  if (!roomCode || !/^[A-Z]{4}$/.test(roomCode)) {
+  if (!roomCode || !/^[A-Z0-9]{4}$/.test(roomCode)) {
     throw new Error('Host did not reach a valid room');
   }
 

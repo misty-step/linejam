@@ -52,7 +52,7 @@ describe('entry and shell behavior', () => {
     localStorage.clear();
     document.documentElement.className = '';
     currentIsSignedIn = false;
-    mockJoinRoom.mockResolvedValue({ _id: 'room-1' });
+    mockJoinRoom.mockResolvedValue({ ok: true, _id: 'room-1' });
     currentPathname = '/join';
     currentSearchParams = new URLSearchParams('code=ABCD');
     installMatchMedia(false);

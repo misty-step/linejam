@@ -26,10 +26,10 @@ async function createRoom(page: Page, hostName: string) {
   await page.goto('/host');
   await visibleTestId(page, E2E_TEST_IDS.hostNameInput).fill(hostName);
   await visibleTestId(page, E2E_TEST_IDS.hostCreateRoomButton).click();
-  await page.waitForURL(/\/room\/[A-Z]{4}$/);
+  await page.waitForURL(/\/room\/[A-Z0-9]{4}$/);
 
   const roomCode = new URL(page.url()).pathname.split('/').pop() ?? '';
-  expect(roomCode).toMatch(/^[A-Z]{4}$/);
+  expect(roomCode).toMatch(/^[A-Z0-9]{4}$/);
   return roomCode;
 }
 
