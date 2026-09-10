@@ -16,19 +16,20 @@ historical issues are context, not an automatic queue.
 
 ## Sources of truth
 
-| Concern                         | Source                                                        |
-| ------------------------------- | ------------------------------------------------------------- |
-| Product and architecture        | `project.md`, `DESIGN.md`, `docs/ARCHITECTURE.md`             |
-| Data/API                        | `convex/schema.ts`, `convex/_generated/api.d.ts`              |
-| Assignment rules                | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`   |
-| Tests and QA                    | `docs/testing.md`, `vitest.config.ts`, Playwright configs     |
-| CI and live-operation authority | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`   |
-| Production operations           | `docs/deployment.md`                                          |
-| Data retention                  | `docs/ops/data-retention.md`, `convex/lib/retentionPolicy.ts` |
-| Convex environment contract     | `config/convex-env-manifest.json`                             |
-| Schema migration sequencing     | `docs/convex-migrations.md`                                   |
-| DigitalOcean topology contract  | `config/digitalocean-apps.json`, `pnpm ops:do-drift`          |
-| Agent CLI/MCP                   | `.agents/skills/linejam-cli/SKILL.md`, `docs/agent-faces.md`  |
+| Concern                                       | Source                                                              |
+| --------------------------------------------- | ------------------------------------------------------------------- |
+| Product and architecture                      | `project.md`, `DESIGN.md`, `docs/ARCHITECTURE.md`                   |
+| Data/API                                      | `convex/schema.ts`, `convex/_generated/api.d.ts`                    |
+| Assignment rules                              | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`         |
+| Tests and QA                                  | `docs/testing.md`, `vitest.config.ts`, Playwright configs           |
+| Isolated runtime and multiplayer verification | `docs/local-development.md`, `.agents/skills/play-linejam/SKILL.md` |
+| CI and live-operation authority               | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`         |
+| Production operations                         | `docs/deployment.md`                                                |
+| Data retention                                | `docs/ops/data-retention.md`, `convex/lib/retentionPolicy.ts`       |
+| Convex environment contract                   | `config/convex-env-manifest.json`                                   |
+| Schema migration sequencing                   | `docs/convex-migrations.md`                                         |
+| DigitalOcean topology contract                | `config/digitalocean-apps.json`, `pnpm ops:do-drift`                |
+| Agent CLI/MCP                                 | `.agents/skills/linejam-cli/SKILL.md`, `docs/agent-faces.md`        |
 
 The live stack is declared in `package.json`; do not copy dependency versions
 or test counts into agent prose.
