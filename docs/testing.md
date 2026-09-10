@@ -122,6 +122,178 @@ fails closed on test Clerk keys and requires the pre-created smoke account.
 Keep `PLAYWRIGHT_REQUIRE_AUTH_E2E` and `PLAYWRIGHT_REQUIRE_AUTH_SMOKE` enabled
 unless the lane explicitly requests guest-only evidence and records the gap.
 
+Authenticated room scenarios and the authenticated deployment smoke close the
+room they created through the normal host UI before disposing browser contexts,
+including on assertion failure. This keeps the shared QA account's finite room
+and membership capacity available across runs. A limiter rejection is a failed
+acceptance check, not permission to skip authentication, increase caps, provision
+another account, or clear historical fixtures. Any stale-fixture cleanup needs
+separate target and ownership verification plus explicit mutation authority.
+
+`tests/e2e/guest-session-renewal.spec.ts` shortens the browser validity horizon on
+a real issuer response, advances the browser clock, and holds renewal while
+session storage is unavailable. It checks that the composer and submit action
+stay fenced, then restores the draft only after the same identity returns and
+closes its own game/room. The real-composer Clerk-transition regression in
+`tests/components/WritingScreen.test.tsx` also verifies that a newly published
+principal cannot capture the outgoing draft before passive cleanup. These are
+accelerated boundary checks, not an operating-system suspend/resume oracle.
+
+### Cuelume/audio acceptance in a real browser
+
+Use the repository-owned isolated stack, not a synthetic app or shared backend.
+Choose an unused project name and ports, record the exact target, and wait for
+the CLI's readiness receipt before opening it:
+
+```bash
+node scripts/local/cli.mjs up --project audio-qa --app-port 3533 --convex-port 3410 --site-port 3411
+# Browser target: http://127.0.0.1:3533
+node scripts/local/cli.mjs down --project audio-qa # run after capture, also on failure
+```
+
+The caller owns shutdown in this same checkout. `up` leaves services running;
+`down` preserves data and artifacts. Use separate browser contexts for the two
+guests and an additional same-context, same-origin tab for storage synchronization.
+An owned baseline stack needs its own project, ports, and shutdown. Prerequisites
+and retained-evidence restrictions are in the isolated guest QA section below.
+
+The focused behavior check is:
+
+```bash
+pnpm vitest run tests/hooks/useCeremonyEffects.test.ts
+```
+
+That test uses an audio-engine seam; it does not prove rendered sound or trusted
+input. Browser behavior is owned by `lib/audio.ts`, `components/SoundControl.tsx`,
+and `hooks/useCeremonyEffects.ts`, using the installed `@parlor/web/audio` and
+Cuelume recipes. Follow `tests/e2e/support/guestFlow.ts` (`GuestFlowSession`,
+`CANONICAL_GUEST_FLOW_LINES`) and `tests/e2e/early-smoke.spec.ts` for the real
+host → join → write → reveal procedure; `guest-flow.evidence.spec.ts` owns the
+existing evidence flow. Reuse `lib/e2eTestIds.ts` and rendered accessible controls,
+not a second game harness. The existing suites do not themselves collect a
+destination waveform.
+
+For temporary browser instrumentation:
+
+- Keep normal gesture-required autoplay policy. For Chromium, use
+  `--autoplay-policy=user-gesture-required`; do not use an autoplay bypass or
+  `--mute-audio`. Record browser/version and relevant launch options. Never make
+  evaluator calls count as gestures: use main-world CDP `Runtime.evaluate` with
+  `userGesture: false` for inspection, not injected user activation.
+- Install the probe before app boot in the **page's main world** (for example,
+  CDP `Page.addScriptToEvaluateOnNewDocument` without an isolated `worldName`).
+  Observe native context creation and intercept the actual destination connection,
+  inserting `upstream → AnalyserNode → original AudioDestinationNode`. Preserve
+  native connection behavior and output; do not retain a duplicate direct path,
+  create a probe-owned context, resume the context yourself, or replace `play()`.
+  An isolated-world patch or a `play()` spy is not audio acceptance.
+- Sample `getFloatTimeDomainData` over each labeled action window; `fftSize=2048`
+  at roughly 10 ms intervals is a usable starting point. Report the actual window,
+  sample count, peak (`max(abs(sample))`), RMS (`sqrt(sum(sample²) / sampleCount)`),
+  context count/identity, and context states. Nonzero peak/RMS with a running
+  context establishes rendered signal. Record no-context/no-sample windows as
+  such, rather than implying they contain measured waveform samples.
+- Let scheduled envelopes, shimmer tails, and output settle before opening each
+  silence window, then reset accumulators. Derive the wait from the installed
+  recipes/engine and record it; a previous cue's tail is not an unsolicited cue.
+  With an existing running context, collect actual samples and require zero
+  peak/RMS for the silent window. Do not mistake an empty capture for silence.
+  Native oscillator/buffer-source starts and scheduled offsets are supplemental
+  evidence: a Cuelume recipe can contain multiple layers, so one node is not one
+  cue. For example, the installed toggle has two noise layers, not two activations.
+
+Exercise these boundaries through the rendered app:
+
+1. On fresh pages, before any trusted gesture, record
+   `navigator.userActivation.hasBeenActive === false`, no audio context/source
+   starts, and no output. Page-load/remote cues must not queue up for the first
+   gesture. Perform actual pointer activation and native keyboard activation
+   (Tab to a control, then Enter and Space), not DOM `.click()` or dispatched
+   synthetic events.
+2. Create and join with `host-create-room-button` and `join-room-button`.
+   Their `loading` activation cue is distinct from the later confirmed `sparkle`
+   result; an error is not a success cue. A color-mode control produces one
+   `toggle` recipe per activation. Check recipe layers/offsets against the
+   installed source to rule out an extra generic `release` recipe, rather than
+   requiring one source node or one cue across an entire async operation.
+3. After a gesture unlocks audio, observe an async result and a remote cue with
+   `hasBeenActive === true` but transient `isActive === false`, reusing the same
+   context in that document. For the remote case, reach `session-complete`,
+   settle the host's output, and have the other guest favorite a poem so the
+   host receives a live `room-favorite-crown` update without another host gesture.
+4. Use the real sound controls to mute. All controls must show `Turn sound on`
+   with `aria-pressed=false`; after existing tails settle, activation and async
+   result windows (such as submit/reveal) stay silent. Reload to check the legacy
+   `localStorage` key `linejam:ceremony-muted`: `'1'` preserves explicit mute,
+   `'0'` enables sound, and absence is not an opt-out. Change the choice through
+   a control in a same-origin tab and observe the other tab's controls/output
+   update without remounting. Unmute through `Turn sound on`: one `toggle`
+   recipe restores output and all controls show `Mute sound`/`aria-pressed=true`.
+5. With `prefers-reduced-motion: reduce`, repeat the remote ceremony: audio still
+   produces signal, while ceremony `navigator.vibrate` requests are suppressed.
+   Observe haptic calls separately without replacing audio; a desktop browser
+   does not prove physical vibration. Mute suppresses both future sound and
+   ceremony haptics.
+6. With a running, settled context, hover, type in a text input, try a disabled
+   control, and hold Enter/Space through repeated key events. The initial legal
+   activation may sound; subsequent repeats, hover, typing, and disabled
+   activations must remain silent. Keep each window separate from prior tails.
+
+### Guest-session requests and latency evidence
+
+Attach network observation before navigation and count only
+`GET /api/guest/session`, per actor/document and at bootstrap, lobby, writing,
+waiting, reveal, poem, and recap checkpoints. Do not read or retain request/
+response bodies, cookies, authorization headers, guest tokens, or private lines.
+Record cumulative counts and phase deltas. Normal settled in-document phase
+changes should reuse the acquired guest session; a new tab/full document has
+its own bootstrap. Label expiry, refresh, failure, and retry scenarios separately.
+
+Measure user-perceived latency from a trusted activation to a **rendered-ready**
+endpoint, not a mutation resolution, network response, or route-shell mount.
+Capture `performance.timeOrigin + performance.now()` at trusted `pointerdown`
+(or a separately documented native keyboard equivalent), and sample visible
+readiness on `requestAnimationFrame` so selector-wait overhead is not the clock.
+Use the public selectors and canonical guest-flow procedure above:
+
+- Create → visible `lobby-start-game-button`; join → visible
+  `lobby-waiting-for-host-button`.
+- Start → visible, usable `writing-line-input`; final-round final submit →
+  the assigned visible `reveal-poem-button`.
+- Assigned reveal → all expected poem lines rendered, as checked by
+  `GuestFlowSession.revealAssignedPoem`, not merely `poem-actions`.
+- Existing completed room navigation → rendered `session-complete`; actual
+  private archive-card navigation → all expected poem lines rendered.
+
+Record cold versus warm app compilation/cache/bootstrap state and distinguish
+full-document navigation from client-side SPA navigation. For full-document
+timing, carry only the timestamp/measurement label across navigation in
+same-origin `sessionStorage`. If no product link launches an existing-room load,
+a temporary measurement-only anchor is acceptable, but label that limitation,
+wait for its document's bootstrap to settle before the warm measurement, and
+remove it afterward. Do not count that extra tab's bootstrap in the primary
+two-guest flow or present its full-document timing as SPA latency.
+
+A performance benchmark requires multiple comparable samples per flow/revision,
+consistent browser/host conditions, recorded sample counts and distributions,
+and explicit warm-up/discard rules. Prior single local readings are observations,
+not a speedup guarantee; fewer session requests do not establish faster room
+rendering. Local evidence does not establish hosted Convex latency, Clerk auth,
+provider/deployment alignment, physical-speaker audibility, mobile behavior, or
+Safari autoplay behavior.
+
+Retain a sanitized measurement receipt with exact commands/target, source revision
+and working-tree fingerprint, frontend/backend/lockfile hashes and image identity
+from the local readiness receipt, browser/policy, endpoints, sample counts,
+audio measurements, request counts, limitations, and cleanup results. Refresh
+`up` after source changes; an earlier readiness receipt does not fingerprint
+later edits. Never publish raw browser traces or token-bearing data. Keep the
+procedure here rather than relying on an ignored run receipt or a removed
+one-off script. Finally run `down` for every owned stack, close owned browser
+contexts/processes, and remove temporary probes, DOM launchers, measurement
+storage, profiles, scripts, and disposable baseline worktrees without deleting
+unrelated data or pruning retained local volumes.
+
 ## Isolated guest QA and retained evidence
 
 The repository-owned runtime needs Node 22+, a local Linux Docker daemon,

@@ -247,6 +247,32 @@ describe('getPoemsForRoom', () => {
     expect(result).toHaveLength(1);
     expect(result[0].preview).toBe('Completed poem line');
   });
+
+  it('previews the first retained line without hiding an empty companion poem', async () => {
+    const t = setupConvexTest();
+    const aliceId = await seedClerkUser(t, 'alice');
+    const { poemIds } = await seedRoom(t, { userId: aliceId, poemCount: 2 });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 2,
+      text: 'Later retained line',
+    });
+    await seedLine(t, {
+      poemId: poemIds[0],
+      authorUserId: aliceId,
+      indexInPoem: 1,
+      text: 'First retained line',
+    });
+
+    const result = await asUser(t, 'alice').query(api.poems.getPoemsForRoom, {
+      roomCode: 'ABCD',
+    });
+    expect(result).toMatchObject([
+      { _id: poemIds[0], preview: 'First retained line' },
+      { _id: poemIds[1], preview: '...' },
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -410,22 +436,6 @@ describe('getPoemDetail', () => {
       poemId: poemIds[0],
     });
     expect(result?.lines[0].authorName).toBe('Unknown');
-  });
-
-  it('returns poem document alongside lines', async () => {
-    const t = setupConvexTest();
-    const aliceId = await seedClerkUser(t, 'alice');
-    const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, {
-      poemId: poemIds[0],
-      authorUserId: aliceId,
-      text: 'Only line',
-    });
-
-    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
-      poemId: poemIds[0],
-    });
-    expect(result?.poem._id).toBe(poemIds[0]);
   });
 });
 

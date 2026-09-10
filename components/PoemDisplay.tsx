@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Download, Heart, Volume2, VolumeX } from 'lucide-react';
+import { Download, Heart } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
 import { Avatar } from './ui/Avatar';
@@ -16,7 +16,8 @@ import {
   type UseSharePoemDependencies,
 } from '@/hooks/useSharePoem';
 import { useSavePoemImage } from '@/hooks/useSavePoemImage';
-import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
+import { SoundControl } from './SoundControl';
+import { playSound } from '@/lib/audio';
 import { errorToFeedback } from '@/lib/errorFeedback';
 import { toErrorReportable } from '@/lib/errorCore';
 
@@ -80,7 +81,6 @@ export function PoemDisplay({
 }: PoemDisplayProps) {
   const isArchive = variant === 'archive';
   const firstLineText = lines[0]?.text ?? metadata?.firstLine ?? '';
-  const { isMuted, toggleMuted } = useCeremonyEffects();
   const dialogRef = useRef<HTMLDivElement>(null);
   const poemHeadingRef = useRef<HTMLHeadingElement>(null);
   const onDoneRef = useRef(onDone);
@@ -167,7 +167,9 @@ export function PoemDisplay({
       if (metadata?.onRevokeShare) await metadata.onRevokeShare();
       else await revokeShare();
       setRevoked(true);
+      playSound('success');
     } catch (cause) {
+      playSound('error');
       setRevokeError(errorToFeedback(toErrorReportable(cause)).message);
     } finally {
       setIsRevoking(false);
@@ -243,28 +245,14 @@ export function PoemDisplay({
                 )}
               </div>
             </div>
-            {!isArchive && (
-              <button
-                type="button"
-                onClick={toggleMuted}
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-text-secondary hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring print:hidden"
-                aria-label={
-                  isMuted ? 'Turn ceremony sound on' : 'Mute ceremony sound'
-                }
-              >
-                {isMuted ? (
-                  <VolumeX className="h-5 w-5" aria-hidden="true" />
-                ) : (
-                  <Volume2 className="h-5 w-5" aria-hidden="true" />
-                )}
-              </button>
-            )}
+            {!isArchive && <SoundControl />}
             {isArchive &&
               metadata?.isParticipant &&
               metadata.onToggleFavorite && (
                 <button
                   type="button"
                   onClick={metadata.onToggleFavorite}
+                  data-sound="loading"
                   className={cn(
                     'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring print:hidden',
                     metadata.isFavorited
@@ -315,6 +303,7 @@ export function PoemDisplay({
               {onDone && (
                 <Button
                   onClick={onDone}
+                  data-sound="droplet"
                   data-testid={E2E_TEST_IDS.poemDoneButton}
                   size="lg"
                   className="min-h-12 flex-1 sm:flex-none sm:min-w-32"
@@ -343,6 +332,7 @@ export function PoemDisplay({
               <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={handleSaveImage}
+                  data-sound="loading"
                   data-testid={E2E_TEST_IDS.poemSaveImageButton}
                   variant="outline"
                   disabled={saving}
@@ -353,6 +343,7 @@ export function PoemDisplay({
                 </Button>
                 <Button
                   onClick={handlePublish}
+                  data-sound="loading"
                   variant="outline"
                   disabled={isSharing || isRevoking}
                   aria-describedby="poem-share-disclosure"
@@ -372,6 +363,7 @@ export function PoemDisplay({
                 {(!isArchive || metadata?.isParticipant) && (
                   <Button
                     onClick={handleRevoke}
+                    data-sound="loading"
                     variant="ghost"
                     disabled={isSharing || isRevoking}
                     className="min-h-11 text-text-secondary"

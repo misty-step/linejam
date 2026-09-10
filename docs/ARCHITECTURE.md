@@ -7,16 +7,19 @@ Current dependencies and commands live in `package.json`, not this document.
 
 ## Current ownership
 
-| Concern                                            | Owning source                                                                                  |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Room codes, joining and room membership            | `@parlor/convex` plus `convex/rooms.ts`, `convex/lib/room.ts`, `convex/lib/parlor.ts`          |
-| Guest issuance, cookies and identity               | `app/api/guest/session/handler.ts`, `lib/guestSession.ts`, `lib/auth.ts`, `convex/lib/auth.ts` |
-| Presence, host recovery and abandonment            | `@parlor/convex` plus `convex/presence.ts`, `convex/abandonment.ts`                            |
-| Start, rounds, accepted submissions and completion | `convex/game.ts`, `convex/lib/sessionLifecycle.ts`, `convex/lib/gameRules.ts`                  |
-| Poem assignment and reader selection               | `convex/lib/assignmentMatrix.ts`, `convex/lib/assignPoemReaders.ts`                            |
-| Private artifacts, publication and retention       | `convex/poems.ts`, `convex/shares.ts`, `convex/favorites.ts`, `convex/retention.ts`            |
-| Rendering, artwork and interaction                 | `app/`, `components/`, `hooks/`                                                                |
-| Identity tokens and color preference               | `lib/design/tokens.ts`, `lib/colorMode/`                                                       |
+| Concern                                            | Owning source                                                                                                  |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Room codes, joining and room membership            | `@parlor/convex` plus `convex/rooms.ts`, `convex/lib/room.ts`, `convex/lib/parlor.ts`                          |
+| Guest issuance, cookies and identity               | `app/api/guest/session/handler.ts`, `lib/guestSession.ts`, `lib/auth.ts`, `convex/lib/auth.ts`                 |
+| Presence, host recovery and abandonment            | `@parlor/convex` plus `convex/presence.ts`, `convex/abandonment.ts`                                            |
+| Start, rounds, accepted submissions and completion | `convex/game.ts`, `convex/lib/sessionLifecycle.ts`, `convex/lib/gameRules.ts`                                  |
+| Poem assignment and reader selection               | `convex/lib/assignmentMatrix.ts`, `convex/lib/assignPoemReaders.ts`                                            |
+| Private artifacts, publication and retention       | `convex/poems.ts`, `convex/shares.ts`, `convex/favorites.ts`, `convex/retention.ts`                            |
+| Rendering, artwork and interaction                 | `app/`, `components/`, `hooks/`, `lib/audio.ts`, `components/SoundProvider.tsx`, `components/SoundControl.tsx` |
+| Identity tokens and color preference               | `lib/design/tokens.ts`, `lib/colorMode/`                                                                       |
+
+Linejam owns cue selection and shared mute behavior. It consumes Cuelume live
+synthesis through `@parlor/web/audio`; Parlor does not own Linejam's sound design.
 
 `convex/schema.ts` owns the schema. In outline:
 
@@ -37,6 +40,21 @@ session route owns cookie continuity and returns a bearer for in-memory Convex
 arguments; localStorage is not the guest credential authority. Current backend
 identity resolution prefers Clerk, then a verified guest token. That precedence
 and guest-to-account linking matter when changing identity infrastructure.
+
+The app-level `UserProvider` acquires one guest session per document and shares
+it across routes and room phases. The issuer reports server-relative
+`validForMs`; the fetcher charges request/body time against a local
+`performance.now()` deadline, so device wall-clock skew cannot prolong proof
+or cause immediate reacquisition loops. Expired proof gates private queries
+while reacquisition runs. Clerk arrival fences guest proof immediately, and
+sign-out reacquires rather than restoring a potentially revoked guest.
+
+Writing drafts retain their existing session-storage assignment keys. When
+storage writes are unavailable, a lazy, principal-scoped in-memory fallback
+survives same-identity renewal. The composer is keyed by the published identity
+and draft reads check that owner before restoration; fallback data resets on
+verified identity changes and provider unmount. This preserves the draft without
+retaining a private query subscription or an enabled submit action during expiry.
 
 Keep operational detail in [local development](local-development.md),
 [testing](testing.md), [deployment](deployment.md), [sharing privacy](sharing-privacy.md),

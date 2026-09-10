@@ -11,6 +11,7 @@ import { hashRoomId, trackGameCreated } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { toErrorReportable } from '../../lib/errorCore';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
+import { playSound } from '@/lib/audio';
 import {
   AVATAR_IDS,
   getRandomAvatarId,
@@ -27,6 +28,7 @@ import {
   LoadingMessages,
 } from '../../components/ui/LoadingState';
 import { ColorModeControl } from '../../components/ColorModeControl';
+import { SoundControl } from '../../components/SoundControl';
 
 export default function HostPage() {
   const router = useRouter();
@@ -69,8 +71,10 @@ export default function HostPage() {
         roomIdHash: hashRoomId(roomId),
         cycle: 1,
       });
+      playSound('sparkle');
       router.push(`/room/${code}`);
     } catch (cause) {
+      playSound('error');
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);
       setError(feedback.message);
@@ -109,7 +113,10 @@ export default function HostPage() {
             >
               <Brand className="text-2xl" />
             </Link>
-            <ColorModeControl className="ml-auto" />
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+              <ColorModeControl />
+              <SoundControl />
+            </div>
           </div>
           <h1 className="mb-4 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
             Create room
@@ -167,6 +174,7 @@ export default function HostPage() {
               <Button
                 type="submit"
                 data-testid={E2E_TEST_IDS.hostCreateRoomButton}
+                data-sound="loading"
                 className="min-h-12 w-full text-base"
                 disabled={!name.trim() || isSubmitting}
               >

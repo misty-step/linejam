@@ -28,6 +28,10 @@
           "zone": "linejam.app"
         },
         {
+          "domain": "linejam.mistystep.io",
+          "type": "ALIAS"
+        },
+        {
           "domain": "www.linejam.app",
           "type": "ALIAS",
           "zone": "linejam.app"

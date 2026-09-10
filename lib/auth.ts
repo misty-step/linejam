@@ -1,5 +1,20 @@
-import { useAccountState, type AccountState } from '@/lib/account';
-import { useCallback, useEffect, useState } from 'react';
+'use client';
+
+import {
+  useAccountState,
+  type AccountState,
+  type ClerkAccountState,
+} from '@/lib/account';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { captureError } from '@/lib/error';
 import {
   toErrorReportable,
@@ -8,164 +23,193 @@ import {
 } from '@/lib/errorCore';
 import {
   GUEST_SESSION_RATE_LIMIT_MESSAGE,
-  GuestSessionFetcher,
+  type GuestSessionData,
+  type GuestSessionFetcher,
   defaultGuestSessionFetcher,
   isGuestSessionRateLimitError,
 } from '@/lib/guestSession';
+import { setWritingDraftOwner } from '@/lib/writingDraft';
 
 const CLERK_GUEST_FALLBACK_MS = 5_000;
-const CLERK_LOAD_TIMEOUT_MESSAGE =
-  'Clerk did not load in time; continuing with guest play';
+const CONVEX_AUTH_ERROR =
+  'Your account signed in, but the game server could not verify it. Please refresh and try again.';
 
-export type UseUserAuthDependencies = {
+export type UserProviderDependencies = {
   useAccount?: () => AccountState;
   onError?: (error: ErrorReportable, context?: ErrorReportContext) => void;
 };
 
-/**
- * Hook for managing user identity (Clerk or guest).
- *
- * Guest play is the runtime, so an unavailable Clerk frontend must not hold
- * anonymous users on a loading screen forever. If Clerk does not settle within
- * the bounded bootstrap window, the hook reports the outage and continues with
- * the existing guest-session path. A late Clerk session still takes precedence.
- *
- * @param fetcher - Injectable fetcher for guest session (default: API fetch).
- *                  Tests can inject a mock to avoid network calls.
- * @param deps - Injectable auth providers and error reporting seam.
- */
-export function useUser(
-  fetcher: GuestSessionFetcher = defaultGuestSessionFetcher,
-  deps?: UseUserAuthDependencies
+type GuestState = {
+  session: GuestSessionData | null;
+  error: string | null;
+  expired: boolean;
+};
+
+export interface UserState {
+  clerkUser: ClerkAccountState['user'];
+  guestId: string | null;
+  guestToken: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  displayName: string;
+  authError: string | null;
+  retryAuth(): void;
+}
+
+const UserContext = createContext<UserState | null>(null);
+
+/** One bootstrap owner survives route and phase changes; consumers never acquire identity. */
+export function UserProvider({
+  children,
+  fetcher = defaultGuestSessionFetcher,
+  dependencies,
+}: {
+  children?: ReactNode;
+  fetcher?: GuestSessionFetcher;
+  dependencies?: UserProviderDependencies;
+}) {
+  const user = useUserSession(fetcher, dependencies);
+  return createElement(UserContext.Provider, { value: user }, children);
+}
+
+export function useUser() {
+  const user = useContext(UserContext);
+  if (!user) throw new Error('UserProvider is required');
+  return user;
+}
+
+function useUserSession(
+  fetcher: GuestSessionFetcher,
+  dependencies?: UserProviderDependencies
 ) {
-  const useAccount = deps?.useAccount ?? useAccountState;
+  const useAccount = dependencies?.useAccount ?? useAccountState;
   const account = useAccount();
   const clerkUser = account.kind === 'clerk' ? account.user : null;
+  const clerkUserId = clerkUser?.id;
   const isClerkLoaded = account.kind === 'local' || account.isLoaded;
   const isConvexAuthLoading =
     account.kind === 'clerk' && account.convex.isLoading;
   const isConvexAuthenticated =
     account.kind === 'clerk' && account.convex.isAuthenticated;
-  const reportError = deps?.onError ?? captureError;
-  const [guestId, setGuestId] = useState<string | null>(null);
-  const [guestToken, setGuestToken] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const reportError = dependencies?.onError ?? captureError;
+  const [guest, setGuest] = useState<GuestState | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [clerkLoadTimedOut, setClerkLoadTimedOut] = useState(false);
+  const canLoadGuest = !clerkUserId && (isClerkLoaded || clerkLoadTimedOut);
 
   useEffect(() => {
     if (isClerkLoaded || globalThis.window === undefined) return;
-
     const timeout = window.setTimeout(() => {
-      const error = new Error(CLERK_LOAD_TIMEOUT_MESSAGE);
+      const error = new Error(
+        'Clerk did not load in time; continuing with guest play'
+      );
       error.name = 'ClerkLoadTimeoutError';
       setClerkLoadTimedOut(true);
       reportError(error, { operation: 'clerkLoadTimeout' });
     }, CLERK_GUEST_FALLBACK_MS);
-
     return () => window.clearTimeout(timeout);
   }, [isClerkLoaded, reportError]);
 
   useEffect(() => {
-    if (
-      (!isClerkLoaded && !clerkLoadTimedOut) ||
-      globalThis.window === undefined
-    )
-      return;
-    if (isLoaded && !clerkUser) return;
+    setWritingDraftOwner(clerkUserId ? `clerk:${clerkUserId}` : null);
+    return () => setWritingDraftOwner(null);
+  }, [clerkUserId]);
+
+  useEffect(() => {
+    if (globalThis.window === undefined) return;
     let isStale = false;
-
-    // Signed-in users don't need guest-session setup to proceed.
-    if (clerkUser) {
-      if (isConvexAuthLoading) {
-        queueMicrotask(() => {
-          if (isStale) return;
-          setAuthError(null);
-          setIsLoaded(false);
-        });
-        return () => {
-          isStale = true;
-        };
-      }
-
+    if (clerkUserId) {
+      // Linking can revoke the cookie. A subsequent sign-out must acquire from
+      // that authority again, never resurrect this provider's previous guest.
       queueMicrotask(() => {
-        if (isStale) return;
-        setGuestId(null);
-        setGuestToken(null);
-
-        if (!isConvexAuthenticated) {
-          reportError(new Error('Signed-in user missing Convex auth session'), {
-            operation: 'convexAuthUnavailable',
+        if (!isStale) setGuest(null);
+      });
+    } else if (canLoadGuest) {
+      void fetcher
+        .fetch()
+        .then((session) => {
+          if (!session.guestId || !session.token) {
+            throw new Error('Guest session is missing verified credentials');
+          }
+          if (isStale) return;
+          // Check the monotonic clock at the async boundary, never during render.
+          // An already-expired response stays fenced until the renewal timer runs.
+          const expired =
+            session.expiresAtMonotonic !== undefined &&
+            performance.now() > session.expiresAtMonotonic;
+          setWritingDraftOwner(`guest:${session.guestId}`);
+          setGuest({ session, error: null, expired });
+        })
+        .catch((cause) => {
+          if (isStale) return;
+          const error = toErrorReportable(cause);
+          if (!isGuestSessionRateLimitError(error)) {
+            reportError(error, { operation: 'fetchGuestSession' });
+          }
+          setGuest({
+            session: null,
+            expired: false,
+            error: isGuestSessionRateLimitError(error)
+              ? GUEST_SESSION_RATE_LIMIT_MESSAGE
+              : 'Unable to connect. Please check your connection.',
           });
-          setAuthError(
-            'Your account signed in, but the game server could not verify it. Please refresh and try again.'
-          );
-          setIsLoaded(true);
-          return;
-        }
-
-        setAuthError(null);
-        setIsLoaded(true);
-      });
-      return () => {
-        isStale = true;
-      };
+        });
     }
-
-    fetcher
-      .fetch()
-      .then((data) => {
-        if (isStale) return;
-        setGuestId(data.guestId);
-        setGuestToken(data.token);
-        setAuthError(null);
-        setIsLoaded(true);
-      })
-      .catch((cause) => {
-        if (isStale) return;
-        const error = toErrorReportable(cause);
-        setGuestId(null);
-        setGuestToken(null);
-        if (isGuestSessionRateLimitError(error)) {
-          setAuthError(GUEST_SESSION_RATE_LIMIT_MESSAGE);
-        } else {
-          reportError(error, { operation: 'fetchGuestSession' });
-          setAuthError('Unable to connect. Please check your connection.');
-        }
-        setIsLoaded(true);
-      });
     return () => {
       isStale = true;
     };
-  }, [
-    isClerkLoaded,
-    clerkLoadTimedOut,
-    clerkUser,
-    isLoaded,
-    fetcher,
-    retryCount,
-    isConvexAuthLoading,
-    isConvexAuthenticated,
-    reportError,
-  ]);
+  }, [canLoadGuest, clerkUserId, fetcher, retryCount, reportError]);
 
   const retryAuth = useCallback(() => {
-    setAuthError(null);
-    setIsLoaded(false);
-    setRetryCount((c) => c + 1);
+    setGuest(null);
+    setRetryCount((count) => count + 1);
   }, []);
 
-  const isLoading = !isLoaded;
+  const expiresAtMonotonic = guest?.session?.expiresAtMonotonic;
+  useEffect(() => {
+    if (!canLoadGuest || expiresAtMonotonic === undefined) return;
+    // The fetcher already charged network time against server-relative validity.
+    const timeout = window.setTimeout(
+      retryAuth,
+      Math.max(0, expiresAtMonotonic - performance.now() + 1)
+    );
+    return () => window.clearTimeout(timeout);
+  }, [canLoadGuest, expiresAtMonotonic, retryAuth]);
 
-  return {
-    clerkUser,
-    guestId,
-    guestToken,
-    isLoading,
-    isAuthenticated: !!clerkUser,
-    displayName: clerkUser?.fullName || clerkUser?.firstName || 'Guest',
-    authError,
-    retryAuth,
-  };
+  const accountError =
+    clerkUser && isClerkLoaded && !isConvexAuthLoading && !isConvexAuthenticated
+      ? CONVEX_AUTH_ERROR
+      : null;
+  useEffect(() => {
+    if (accountError) {
+      reportError(new Error('Signed-in user missing Convex auth session'), {
+        operation: 'convexAuthUnavailable',
+      });
+    }
+  }, [accountError, clerkUserId, reportError]);
+
+  // Fence guest proof synchronously when Clerk arrives. Effects must never leave
+  // a render where a signed-in account can issue a query as its previous guest.
+  const guestExpired = guest?.expired ?? false;
+  const session = clerkUser || guestExpired ? null : guest?.session;
+  const guestId = session?.guestId ?? null;
+  const guestToken = session?.token ?? null;
+  const isLoading = clerkUser
+    ? !isClerkLoaded || isConvexAuthLoading
+    : !canLoadGuest || guest === null || guestExpired;
+  const authError = clerkUser ? accountError : (guest?.error ?? null);
+
+  return useMemo(
+    () => ({
+      clerkUser,
+      guestId,
+      guestToken,
+      isLoading,
+      isAuthenticated: !!clerkUser,
+      displayName: clerkUser?.fullName || clerkUser?.firstName || 'Guest',
+      authError,
+      retryAuth,
+    }),
+    [clerkUser, guestId, guestToken, isLoading, authError, retryAuth]
+  );
 }

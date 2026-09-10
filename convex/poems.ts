@@ -84,13 +84,19 @@ export const getPoemsForRoom = query({
       .withIndex('by_game', (q) => q.eq('gameId', currentGame._id))
       .collect();
 
-    const lineGroups = await Promise.all(
-      poems.map((poem) => getCompletePoemLines(ctx, poem, currentGame))
+    const firstLines = await Promise.all(
+      poems.map((poem) =>
+        ctx.db
+          .query('lines')
+          .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
+          .order('asc')
+          .first()
+      )
     );
-    return poems.flatMap((poem, index) => {
-      const lines = lineGroups[index];
-      return lines ? [{ ...poem, preview: lines[0].text }] : [];
-    });
+    return poems.map((poem, index) => ({
+      ...poem,
+      preview: firstLines[index]?.text ?? '...',
+    }));
   },
 });
 
@@ -114,12 +120,18 @@ export const getPoemDetail = query({
     const lines = await getCompletePoemLines(ctx, poem, game);
     if (!lines) return null;
 
-    // Batch fetch all unique authors in parallel
     const uniqueAuthorIds = [...new Set(lines.map((l) => l.authorUserId))];
+    const legacyAuthorIds = [
+      ...new Set(
+        lines
+          .filter((line) => !line.authorDisplayName)
+          .map((line) => line.authorUserId)
+      ),
+    ];
     const authors = await Promise.all(
-      uniqueAuthorIds.map((id) => ctx.db.get(id))
+      legacyAuthorIds.map((id) => ctx.db.get(id))
     );
-    const authorMap = new Map(uniqueAuthorIds.map((id, i) => [id, authors[i]]));
+    const authorMap = new Map(legacyAuthorIds.map((id, i) => [id, authors[i]]));
 
     const authorKeys = buildPoemAuthorKeys(poemId, uniqueAuthorIds);
     const linesWithAuthors = lines.map((line) => {
@@ -202,40 +214,34 @@ export const getMyPoems = query({
       )
     );
     const gameById = new Map(gameIds.map((id, i) => [id, readableGames[i]]));
-    const lineGroups = await Promise.all(
-      candidates.map((poem) =>
-        getCompletePoemLines(ctx, poem, gameById.get(poem.gameId) ?? null)
-      )
-    );
-    const completeEntries = candidates
-      .map((poem, index) => ({ poem, lines: lineGroups[index] }))
-      .filter(
-        (
-          entry
-        ): entry is {
-          poem: (typeof candidates)[number];
-          lines: Doc<'lines'>[];
-        } => entry.lines !== null
-      );
+    const completePoems = candidates
+      .filter((poem) => isRevealReady(gameById.get(poem.gameId) ?? null))
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, poemLimit);
     const uniqueRoomIds = [
-      ...new Set(completeEntries.map(({ poem }) => poem.roomId)),
+      ...new Set(completePoems.map((poem) => poem.roomId)),
     ];
-    const rooms = await Promise.all(
-      uniqueRoomIds.map((roomId) => ctx.db.get(roomId))
-    );
+    const [firstLines, rooms] = await Promise.all([
+      Promise.all(
+        completePoems.map((poem) =>
+          ctx.db
+            .query('lines')
+            .withIndex('by_poem_index', (q) =>
+              q.eq('poemId', poem._id).eq('indexInPoem', 0)
+            )
+            .first()
+        )
+      ),
+      Promise.all(uniqueRoomIds.map((roomId) => ctx.db.get(roomId))),
+    ]);
     const roomMap = new Map(
       uniqueRoomIds.map((roomId, index) => [roomId, rooms[index]])
     );
-
-    return completeEntries
-      .map(({ poem, lines: poemLines }) => ({
-        ...poem,
-        roomDate: roomMap.get(poem.roomId)?.createdAt,
-        preview:
-          poemLines.find((line) => line.indexInPoem === 0)?.text ?? '...',
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, poemLimit);
+    return completePoems.map((poem, index) => ({
+      ...poem,
+      roomDate: roomMap.get(poem.roomId)?.createdAt,
+      preview: firstLines[index]?.text ?? '...',
+    }));
   },
 });
 
@@ -286,12 +292,18 @@ export const getPublicPoemFull = query({
     const lines = await getCompletePoemLines(ctx, poem, game);
     if (!lines) return null;
 
-    // Batch fetch all unique authors in parallel
     const uniqueAuthorIds = [...new Set(lines.map((l) => l.authorUserId))];
+    const legacyAuthorIds = [
+      ...new Set(
+        lines
+          .filter((line) => !line.authorDisplayName)
+          .map((line) => line.authorUserId)
+      ),
+    ];
     const authors = await Promise.all(
-      uniqueAuthorIds.map((id) => ctx.db.get(id))
+      legacyAuthorIds.map((id) => ctx.db.get(id))
     );
-    const authorMap = new Map(uniqueAuthorIds.map((id, i) => [id, authors[i]]));
+    const authorMap = new Map(legacyAuthorIds.map((id, i) => [id, authors[i]]));
 
     const authorKeys = buildPoemAuthorKeys(poemId, uniqueAuthorIds);
 

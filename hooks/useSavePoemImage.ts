@@ -10,6 +10,7 @@ import {
   trackPoemImageSaved,
 } from '@/lib/analytics';
 import { getAppliedColorMode } from '@/lib/colorMode';
+import { playSound } from '@/lib/audio';
 
 export type SaveImageStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -70,6 +71,7 @@ export function useSavePoemImage(
         try {
           await navigator.share({ files: [file], title: 'Linejam poem' });
           setStatus('saved');
+          playSound('success');
           trackPoemImageSaved({ method: 'native-share' });
           if (roomId)
             trackArtifactAction({
@@ -101,6 +103,7 @@ export function useSavePoemImage(
       URL.revokeObjectURL(objectUrl);
 
       setStatus('saved');
+      playSound('success');
       trackPoemImageSaved({ method: 'download' });
       if (roomId)
         trackArtifactAction({
@@ -112,6 +115,7 @@ export function useSavePoemImage(
     } catch (cause) {
       const error = toErrorReportable(cause);
       setStatus('error');
+      playSound('error');
       setError('Failed to save image. Please try again.');
       captureError(error, { operation: 'savePoemImage', poemId });
     }

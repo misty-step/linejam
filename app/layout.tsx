@@ -5,6 +5,7 @@ import './globals.css';
 import { Providers } from './providers';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SoundProvider } from '@/components/SoundProvider';
 import { designTokens } from '@/lib/design';
 import { COLOR_MODE_STORAGE_KEY } from '@/lib/colorMode/constants';
 import { siteConfig } from '@/lib/config';
@@ -94,16 +95,18 @@ export default async function RootLayout({
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: colorModeInitScript }}
         />
-        <Providers
-          localMode={isLocalServerMode()}
-          deploymentId={resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID)}
-        >
-          <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
-            <Header />
-            <main className="flex-1 flex flex-col">{children}</main>
-            <Footer />
-          </div>
-        </Providers>
+        <SoundProvider>
+          <Providers
+            localMode={isLocalServerMode()}
+            deploymentId={resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID)}
+          >
+            <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
+              <Header />
+              <main className="flex-1 flex flex-col">{children}</main>
+              <Footer />
+            </div>
+          </Providers>
+        </SoundProvider>
       </body>
     </html>
   );

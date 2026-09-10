@@ -272,6 +272,17 @@ export async function isolateGuestSessionIp(context: GuestSessionRouteContext) {
   return ip;
 }
 
+export async function closeHostedRoom(page: Page, roomCode: string) {
+  await waitForRoomPath(page, 'owned host room before closure', roomCode);
+  await page.getByRole('button', { name: 'Room options', exact: true }).click();
+  await page.getByRole('button', { name: 'Close room', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Close this room?', exact: true })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close room', exact: true }).click();
+  await page.waitForURL('**/', { timeout: 30000 });
+}
+
 export class GuestFlowSession {
   readonly guestContext: BrowserContext;
   readonly guestName: string;

@@ -21,15 +21,23 @@ export function useRoomQueryArgs(
   dependencies: RoomQueryArgsDependencies = defaultDependencies
 ) {
   const {
+    clerkUser,
+    guestId,
     guestToken: hookToken,
     isLoading: isAuthLoading,
     authError,
+    isAuthenticated,
   } = dependencies.useUser();
-  const guestToken = propToken ?? hookToken;
-  const shouldSkip = !guestToken && (Boolean(authError) || isAuthLoading);
+  const guestToken = isAuthenticated ? null : (propToken ?? hookToken);
+  const shouldSkip = Boolean(authError) || isAuthLoading;
+  const identityKey = clerkUser
+    ? `clerk:${clerkUser.id}`
+    : guestId
+      ? `guest:${guestId}`
+      : null;
   const queryArgs: RoomQueryArgs = shouldSkip
     ? 'skip'
     : { roomCode, guestToken: guestToken || undefined };
 
-  return { guestToken, shouldSkip, queryArgs };
+  return { guestToken, shouldSkip, queryArgs, identityKey };
 }

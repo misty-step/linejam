@@ -17,6 +17,7 @@ describe('defaultGuestSessionFetcher', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    vi.useRealTimers();
     localStorage.clear();
   });
 
@@ -64,6 +65,37 @@ describe('defaultGuestSessionFetcher', () => {
     );
     const session = await defaultGuestSessionFetcher.fetch();
     expect(session.guestId).toBe('recovered_guest');
+  });
+
+  it('charges transport and body decoding time against remaining validity without using the wall clock', async () => {
+    vi.useFakeTimers({
+      toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout'],
+    });
+    vi.setSystemTime(Date.UTC(2026, 8, 10) + 5 * 60_000);
+    const transport = Promise.withResolvers<void>();
+    const body = Promise.withResolvers<{
+      guestId: string;
+      token: string;
+      validForMs: number;
+    }>();
+    global.fetch = vi.fn().mockImplementation(async () => {
+      await transport.promise;
+      return {
+        ok: true,
+        json: () => body.promise,
+      };
+    });
+    const pending = defaultGuestSessionFetcher.fetch();
+    await vi.advanceTimersByTimeAsync(20_000);
+    transport.resolve();
+    await vi.advanceTimersByTimeAsync(10_000);
+    body.resolve({ guestId: 'retained', token: 'opaque', validForMs: 120_000 });
+    const session = await pending;
+    expect(session.expiresAtMonotonic).toBe(performance.now() + 90_000);
+
+    vi.setSystemTime(Date.now() - 24 * 60 * 60_000);
+    await vi.advanceTimersByTimeAsync(90_001);
+    expect(session.expiresAtMonotonic).toBeLessThan(performance.now());
   });
 
   it('preserves a status-bearing error for guest-session rate limits', async () => {

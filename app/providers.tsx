@@ -8,6 +8,7 @@ import {
   type AccountState,
   type ClerkAccountState,
 } from '@/lib/account';
+import { UserProvider } from '@/lib/auth';
 import { convex } from '@/lib/convex';
 import {
   linejamClerkAppearance,
@@ -36,12 +37,14 @@ export function Providers({
 
   return (
     <AccountProvider localMode={localMode}>
-      <PostHogProvider>
-        <PostHogPageview />
-        <DeploymentSkewRejectionObserver />
-        <DeploymentSkewObserver deploymentId={deploymentId} />
-        <ColorModeProvider>{children}</ColorModeProvider>
-      </PostHogProvider>
+      <UserProvider>
+        <PostHogProvider>
+          <PostHogPageview />
+          <DeploymentSkewRejectionObserver />
+          <DeploymentSkewObserver deploymentId={deploymentId} />
+          <ColorModeProvider>{children}</ColorModeProvider>
+        </PostHogProvider>
+      </UserProvider>
     </AccountProvider>
   );
 }

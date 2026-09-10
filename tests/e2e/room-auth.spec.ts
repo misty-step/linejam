@@ -1,6 +1,6 @@
 import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
 import { ensureClerkAuthState, requireClerkBrowserAuth } from './support/clerk';
-import { isolateGuestSessionIp } from './support/guestFlow';
+import { closeHostedRoom, isolateGuestSessionIp } from './support/guestFlow';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -45,9 +45,10 @@ test.describe('Authenticated room joins', () => {
       await openIsolatedPage(browser);
     const { context: signedInContext, page: signedInPage } =
       await openIsolatedPage(browser);
+    let roomCode = '';
 
     try {
-      const roomCode = await createHostedRoom(hostPage, 'Guest Host');
+      roomCode = await createHostedRoom(hostPage, 'Guest Host');
       await ensureClerkAuthState(signedInPage);
       await signedInPage.goto(`/join?code=${roomCode}`);
       await signedInPage.waitForSelector('input#name', {
@@ -67,8 +68,11 @@ test.describe('Authenticated room joins', () => {
         signedInPage.getByText(/unexpected error occurred/i)
       ).not.toBeVisible();
     } finally {
-      await hostContext.close();
-      await signedInContext.close();
+      try {
+        if (roomCode) await closeHostedRoom(hostPage, roomCode);
+      } finally {
+        await Promise.all([hostContext.close(), signedInContext.close()]);
+      }
     }
   });
 });

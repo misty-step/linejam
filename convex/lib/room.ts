@@ -10,7 +10,7 @@ export type RoomView = Doc<'rooms'> & {
 };
 
 type RoomStatus = RoomView['status'];
-type RoomActivityInput = Pick<Doc<'rooms'>, '_id' | 'status'>;
+type RoomActivityInput = Pick<Doc<'rooms'>, '_id' | 'status' | 'hostPlayerId'>;
 type HostCandidate = Pick<
   Doc<'roomPlayers'>,
   'userId' | 'seatIndex' | 'lastSeenAt'
@@ -47,10 +47,9 @@ export async function getRoomByCode(
 /** Project app profiles through the canonical live roster, preserving old archives. */
 export async function getRoomPlayers(
   ctx: QueryCtx | MutationCtx,
-  roomId: Id<'rooms'>
+  room: Pick<Doc<'rooms'>, '_id' | 'hostPlayerId'>
 ): Promise<Doc<'roomPlayers'>[]> {
-  const room = await ctx.db.get(roomId);
-  if (!room) return [];
+  const roomId = room._id;
   if (!room.hostPlayerId) {
     return await ctx.db
       .query('roomPlayers')
@@ -87,7 +86,10 @@ export async function getGamePlayers(
   game: Doc<'games'>
 ): Promise<Doc<'roomPlayers'>[]> {
   const matchId = game.matchId;
-  if (!matchId) return await getRoomPlayers(ctx, game.roomId);
+  if (!matchId) {
+    const room = await ctx.db.get(game.roomId);
+    return room ? await getRoomPlayers(ctx, room) : [];
+  }
 
   const participants = await ctx.db
     .query('matchParticipants')
@@ -125,10 +127,10 @@ export async function getGamePlayers(
 /** Parlor owns native match liveness; legacy rows remain readable while draining. */
 export async function getActiveGame(
   ctx: QueryCtx | MutationCtx,
-  roomId: Id<'rooms'>
+  room: Pick<Doc<'rooms'>, '_id' | 'hostPlayerId'>
 ): Promise<Doc<'games'> | null> {
-  const room = await ctx.db.get(roomId);
-  if (room?.hostPlayerId) {
+  const roomId = room._id;
+  if (room.hostPlayerId) {
     const match = await ctx.db
       .query('matches')
       .withIndex('by_room_status', (q) =>
@@ -173,7 +175,7 @@ export async function getRoomActivity(
   ctx: QueryCtx | MutationCtx,
   room: RoomActivityInput
 ): Promise<{ activeGame: Doc<'games'> | null; status: RoomStatus }> {
-  const activeGame = await getActiveGame(ctx, room._id);
+  const activeGame = await getActiveGame(ctx, room);
   return {
     activeGame,
     status: activeGame

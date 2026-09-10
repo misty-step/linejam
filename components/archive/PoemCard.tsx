@@ -9,6 +9,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
 import { PoemSilhouette } from './PoemSilhouette';
 import { AuthorDots } from './AuthorDots';
+import { playSound } from '@/lib/audio';
 
 interface PoemCardProps {
   poem: {
@@ -57,7 +58,9 @@ export function PoemCard({
         poemId: poem._id,
         guestToken: guestToken || undefined,
       });
+      playSound('success');
     } catch {
+      playSound('error');
       setLocalFavorited((prev) => !prev);
     } finally {
       setIsFavoriting(false);
@@ -73,7 +76,9 @@ export function PoemCard({
         poemId: poem._id,
         guestToken: guestToken || undefined,
       });
+      playSound('success');
     } catch {
+      playSound('error');
       setShareError('Could not revoke the public link. Try again.');
     } finally {
       setIsRevoking(false);
@@ -99,6 +104,7 @@ export function PoemCard({
         <button
           type="button"
           onClick={handleFavoriteClick}
+          data-sound="loading"
           disabled={isFavoriting}
           className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[var(--color-primary)] hover:bg-[var(--color-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)] disabled:opacity-50"
           aria-label={
@@ -149,6 +155,7 @@ export function PoemCard({
           type="button"
           disabled={isRevoking}
           onClick={handleRevokeShare}
+          data-sound="loading"
           className="mt-3 inline-flex min-h-11 items-center text-sm text-[var(--color-primary)] underline underline-offset-4 disabled:opacity-50"
         >
           {isRevoking ? 'Revoking…' : 'Revoke public link'}

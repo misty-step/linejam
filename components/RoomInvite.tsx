@@ -6,6 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useShareLink } from '@/hooks/useShareLink';
 import { trackRoomInviteShared } from '@/lib/analytics';
 import { formatRoomCode } from '@/lib/roomCode';
+import { playSound } from '@/lib/audio';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 
@@ -39,9 +40,11 @@ export function RoomInvite({ roomCode }: { roomCode: string }) {
       if (!navigator.clipboard) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(roomCode);
       setCopyState('copied');
+      playSound('success');
       resetCopy.current = setTimeout(() => setCopyState('idle'), 2000);
     } catch {
       setCopyState('error');
+      playSound('error');
     }
   };
 
@@ -54,6 +57,7 @@ export function RoomInvite({ roomCode }: { roomCode: string }) {
         <button
           type="button"
           onClick={() => void copyCode()}
+          data-sound="loading"
           aria-label={
             copyState === 'error'
               ? `Retry copying room code ${formattedCode}`
@@ -79,6 +83,7 @@ export function RoomInvite({ roomCode }: { roomCode: string }) {
         <Button
           type="button"
           onClick={() => void handleShare()}
+          data-sound="loading"
           variant="outline"
           className="min-h-11 w-full min-w-0 gap-2 px-3 py-2 text-sm sm:w-auto"
         >

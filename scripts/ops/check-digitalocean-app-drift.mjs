@@ -249,7 +249,9 @@ export function validateDigitalOceanAppManifest(candidate) {
       assertExactKeys(domain, ['domain', 'type', 'zone'], domainLabel);
       assertString(domain.domain, `${domainLabel}.domain`);
       assertString(domain.type, `${domainLabel}.type`);
-      assertString(domain.zone, `${domainLabel}.zone`);
+      if (domain.zone !== undefined) {
+        assertString(domain.zone, `${domainLabel}.zone`);
+      }
     });
     assertUnique(
       app.domains.map((domain) => domain.domain),

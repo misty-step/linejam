@@ -75,6 +75,7 @@ describe('GET /api/guest/session', () => {
     captureServerErrorSpy.mockRestore();
     signGuestTokenSpy.mockRestore();
     verifyGuestTokenPayloadSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   describe('with normal operation', () => {
@@ -142,11 +143,16 @@ describe('GET /api/guest/session', () => {
     });
 
     it('re-uses existing valid guest session from cookie', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const now = Date.UTC(2026, 8, 10);
+      vi.setSystemTime(now);
+      const issuedAt = now - guestToken.GUEST_TOKEN_TTL_MS + 120_000;
       const existingToken = await guestToken.signGuestToken(
         'guest_existing_123',
         {
           sessionId: 'session_existing_123',
           rateLimitKey: 'guestSession:existing',
+          issuedAt,
         }
       );
 
@@ -162,7 +168,24 @@ describe('GET /api/guest/session', () => {
       const data = await response.json();
       expect(data.guestId).toBe('guest_existing_123');
       expect(data.token).toBe(existingToken);
+      // Reusing a cookie must not extend the browser's credential lifetime.
+      expect(data.validForMs).toBe(120_000);
       expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+
+      vi.setSystemTime(now + 60_000);
+      const later = await GET(request);
+      const laterData = await later.json();
+      expect(laterData.guestId).toBe('guest_existing_123');
+      expect(laterData.token === existingToken).toBe(true);
+      expect(laterData.validForMs).toBe(60_000);
+      expect(later.cookies.get('linejam_guest_token')).toBeUndefined();
+
+      vi.setSystemTime(now + 120_001);
+      const expired = await GET(request);
+      const replacement = await expired.json();
+      expect(replacement.guestId === data.guestId).toBe(false);
+      expect(replacement.token === existingToken).toBe(false);
+      expect(replacement.validForMs).toBe(guestToken.GUEST_TOKEN_TTL_MS);
 
       expect(jsonLogs()).toContainEqual(
         expect.objectContaining({
@@ -347,10 +370,16 @@ describe('GET /api/guest/session', () => {
       const first = await (await visit(3210, 'create')).json();
       const second = await (await visit(3220, 'create')).json();
       expect(first.guestId).not.toBe(second.guestId);
-      expect(await (await visit(3210, 'read')).json()).toEqual(first);
+      expect(await (await visit(3210, 'read')).json()).toMatchObject({
+        guestId: first.guestId,
+        token: first.token,
+      });
 
       await visit(3220, 'revoke');
-      expect(await (await visit(3210, 'read')).json()).toEqual(first);
+      expect(await (await visit(3210, 'read')).json()).toMatchObject({
+        guestId: first.guestId,
+        token: first.token,
+      });
       expect(await (await visit(3220, 'read')).json()).toEqual({
         guestId: null,
         token: null,

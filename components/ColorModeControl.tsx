@@ -28,6 +28,7 @@ export function ColorModeControl({ className = '' }: ColorModeControlProps) {
       type="button"
       disabled={!isReady}
       onClick={() => setModePreference(next)}
+      data-sound="toggle"
       aria-label={accessibleLabel}
       title={accessibleLabel}
       className={cn(

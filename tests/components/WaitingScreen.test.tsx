@@ -12,6 +12,7 @@ const dependencies: WaitingScreenDependencies = {
     guestToken: token ?? 'guest-token',
     shouldSkip: false,
     queryArgs: { roomCode, guestToken: token ?? 'guest-token' },
+    identityKey: 'guest:waiting-guest',
   }),
   useRoundProgress: () => progressQuery(),
 };
