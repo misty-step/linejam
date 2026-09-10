@@ -9,6 +9,7 @@ import {
   type SessionRecapHubDependencies,
 } from '@/components/SessionRecapHub';
 import type { ShareLinkClient } from '@/hooks/useShareLink';
+import { setSoundMuted } from '@/lib/audio';
 
 const mockEnablePublicSessionRecapShare = vi.fn().mockResolvedValue(null);
 const mockDisablePublicSessionRecapShare = vi.fn().mockResolvedValue(null);
@@ -61,6 +62,7 @@ describe('SessionRecapHub', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    setSoundMuted(false);
     mockEnablePublicSessionRecapShare.mockResolvedValue(null);
     mockDisablePublicSessionRecapShare.mockResolvedValue(null);
     // Default: no hearts given → no room-favorite crown
@@ -213,13 +215,9 @@ describe('SessionRecapHub', () => {
     expect(screen.queryByText(/Room favorite/i)).not.toBeInTheDocument();
   });
 
-  it('does not repeat opted-in crown feedback on an unrelated re-render', async () => {
-    const user = userEvent.setup();
+  it('does not repeat crown feedback on an unrelated re-render', () => {
     const { rerender } = renderSessionRecapHub(
       <SessionRecapHub {...defaultProps} />
-    );
-    await user.click(
-      screen.getByRole('button', { name: 'Turn ceremony sound on' })
     );
     mockSessionFavorites.mockReturnValue({
       counts: [{ poemId: 'poem_1', indexInRoom: 0, count: 3 }],
@@ -290,31 +288,5 @@ describe('SessionRecapHub', () => {
     );
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText('Public recap link revoked.')).toBeVisible();
-  });
-
-  it('remembers an explicit sound choice across mounts', async () => {
-    const user = userEvent.setup();
-    const { unmount } = renderSessionRecapHub(
-      <SessionRecapHub {...defaultProps} />
-    );
-
-    await user.click(
-      screen.getByRole('button', { name: 'Turn ceremony sound on' })
-    );
-    expect(
-      screen.getByRole('button', { name: 'Mute ceremony sound' })
-    ).toBeInTheDocument();
-    unmount();
-
-    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
-    expect(
-      screen.getByRole('button', { name: 'Mute ceremony sound' })
-    ).toBeInTheDocument();
-    await user.click(
-      screen.getByRole('button', { name: 'Mute ceremony sound' })
-    );
-    expect(
-      screen.getByRole('button', { name: 'Turn ceremony sound on' })
-    ).toBeInTheDocument();
   });
 });

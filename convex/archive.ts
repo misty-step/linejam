@@ -133,45 +133,47 @@ export const getArchiveData = query({
       if (poemIds.length >= candidateLimit) break;
     }
 
-    const [poemsRaw, favoriteRows] = await Promise.all([
-      Promise.all(poemIds.map((id) => ctx.db.get(id))),
+    const poemsRaw = await Promise.all(poemIds.map((id) => ctx.db.get(id)));
+    const gameIds = [
+      ...new Set(poemsRaw.flatMap((poem) => (poem ? [poem.gameId] : []))),
+    ];
+    const games = await Promise.all(gameIds.map((id) => ctx.db.get(id)));
+    const gameById = new Map(gameIds.map((id, index) => [id, games[index]]));
+
+    // Partial and abandoned games never enter the archive or consume its limit.
+    const candidatePoems = poemsRaw
+      .filter(
+        (poem): poem is NonNullable<typeof poem> =>
+          poem !== null && isRevealReady(gameById.get(poem.gameId) ?? null)
+      )
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, poemLimit);
+
+    const [allPoemLines, favoriteRows] = await Promise.all([
       Promise.all(
-        poemIds.map((poemId) =>
+        candidatePoems.map((poem) =>
+          ctx.db
+            .query('lines')
+            .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
+            .order('asc')
+            .take(MAX_LINES_PER_POEM)
+        )
+      ),
+      Promise.all(
+        candidatePoems.map((poem) =>
           ctx.db
             .query('favorites')
             .withIndex('by_user_poem', (q) =>
-              q.eq('userId', user._id).eq('poemId', poemId)
+              q.eq('userId', user._id).eq('poemId', poem._id)
             )
             .first()
         )
       ),
     ]);
-    const poemGames = await Promise.all(
-      poemsRaw.map((poem) => (poem ? ctx.db.get(poem.gameId) : null))
-    );
-
-    // Partial and abandoned games never enter the archive or consume its limit.
-    const candidatePoems = poemsRaw
-      .filter(
-        (poem, index): poem is NonNullable<typeof poem> =>
-          poem !== null && isRevealReady(poemGames[index])
-      )
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, poemLimit);
     const favoriteMap = new Map(
       favoriteRows
         .filter((f): f is NonNullable<typeof f> => f !== null)
         .map((f) => [f.poemId, f.createdAt])
-    );
-
-    const allPoemLines = await Promise.all(
-      candidatePoems.map((poem) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
-          .order('asc')
-          .take(MAX_LINES_PER_POEM)
-      )
     );
     const poems = candidatePoems;
 
@@ -180,21 +182,22 @@ export const getArchiveData = query({
     const allAuthorIds = new Set<Id<'users'>>();
     for (const lines of allPoemLines) {
       for (const line of lines) {
-        allAuthorIds.add(line.authorUserId);
+        if (!line.authorDisplayName?.trim())
+          allAuthorIds.add(line.authorUserId);
       }
     }
 
-    // Step 5: Batch fetch all authors. A profile name is only the fallback for
-    // legacy lines written before write-time capture.
+    // Only legacy lines need current profile names. Resolve room dates alongside
+    // those fallbacks rather than adding another serialized database stage.
     const authorIds = [...allAuthorIds];
-    const authors = await Promise.all(authorIds.map((id) => ctx.db.get(id)));
+    const uniqueRoomIds = [...new Set(poems.map((p) => p.roomId))];
+    const [authors, rooms] = await Promise.all([
+      Promise.all(authorIds.map((id) => ctx.db.get(id))),
+      Promise.all(uniqueRoomIds.map((id) => ctx.db.get(id))),
+    ]);
     const profileNames = new Map(
       authorIds.map((id, i) => [id, authors[i]?.displayName?.trim() || ''])
     );
-
-    // Step 6: Fetch room dates in parallel
-    const uniqueRoomIds = [...new Set(poems.map((p) => p.roomId))];
-    const rooms = await Promise.all(uniqueRoomIds.map((id) => ctx.db.get(id)));
     const roomMap = new Map(
       uniqueRoomIds.map((id, i) => [id, rooms[i]?.createdAt || 0])
     );

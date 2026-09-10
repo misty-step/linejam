@@ -11,6 +11,8 @@
 export interface GuestSessionData {
   guestId: string | null;
   token: string | null;
+  /** Local performance.now() deadline, never a server/device wall-clock time. */
+  expiresAtMonotonic?: number;
 }
 
 export interface GuestSessionFetcher {
@@ -70,11 +72,13 @@ interface GuestSessionWireObject {
 interface GuestSessionApiResponse {
   guestId?: GuestSessionWireValue;
   token?: GuestSessionWireValue;
+  validForMs?: GuestSessionWireValue;
 }
 
 async function fetchGuestSession(url: string): Promise<GuestSessionData> {
   clearLegacyGuestTokenMirror();
 
+  const startedAt = performance.now();
   const res = await fetch(url);
   if (!res.ok) {
     throw new GuestSessionHttpError(res.status);
@@ -89,7 +93,16 @@ async function fetchGuestSession(url: string): Promise<GuestSessionData> {
       ? parseGuestSessionString(data.token)
       : null;
 
-  return { guestId, token };
+  // Charge the whole request against the server's remaining validity. This
+  // conservatively includes transport/body time without comparing wall clocks.
+  const validForMs = parseGuestSessionNumber(
+    data instanceof Object ? data.validForMs : undefined
+  );
+  const session: GuestSessionData = { guestId, token };
+  if (validForMs !== undefined) {
+    session.expiresAtMonotonic = startedAt + validForMs;
+  }
+  return session;
 }
 
 function parseGuestSessionString(
@@ -99,6 +112,17 @@ function parseGuestSessionString(
     return String.prototype.valueOf.call(value);
   } catch {
     return null;
+  }
+}
+
+function parseGuestSessionNumber(
+  value: GuestSessionWireValue | undefined
+): number | undefined {
+  try {
+    const number = Number.prototype.valueOf.call(value);
+    return Number.isFinite(number) ? number : undefined;
+  } catch {
+    return undefined;
   }
 }
 

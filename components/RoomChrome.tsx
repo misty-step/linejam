@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Archive, HelpCircle, LogOut, MoreHorizontal, X } from 'lucide-react';
 import { Brand } from './Brand';
 import { ColorModeControl } from './ColorModeControl';
+import { SoundControl } from './SoundControl';
 import { HelpContent } from './HelpModal';
 import { RoomInvite } from './RoomInvite';
 import { Alert } from './ui/Alert';
@@ -13,6 +14,7 @@ import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
 import { toErrorReportable } from '@/lib/errorCore';
 import { formatRoomCode } from '@/lib/roomCode';
+import { playSound } from '@/lib/audio';
 
 export interface RoomAction {
   kind: 'end-game' | 'close-room' | 'leave-room';
@@ -121,7 +123,9 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
     try {
       await action.run();
       setPanel(null);
+      playSound('droplet');
     } catch (cause) {
+      playSound('error');
       const reportable = toErrorReportable(cause);
       setError(errorToFeedback(reportable).message);
       captureError(reportable, { roomCode, operation: action.kind });
@@ -167,6 +171,7 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
           )}
           <div className="flex shrink-0 items-center gap-1">
             <ColorModeControl />
+            <SoundControl />
             <button
               type="button"
               onClick={(event) => {
@@ -247,6 +252,7 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
                         variant="danger"
                         disabled={pending}
                         onClick={() => void confirmAction()}
+                        data-sound="loading"
                         className="min-h-11 flex-1"
                       >
                         {pending ? copy.pending : copy.label}

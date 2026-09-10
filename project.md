@@ -27,8 +27,13 @@ a clear whole-poem reveal, and artifacts worth keeping.
 The operator's production walkthrough sets the priority: **polish the player
 experience by removing noise, improving hierarchy and adding restrained charm.**
 Host/entry, invitations and waiting need attention; the join and writing flow
-already feel good. Room creation felt slower than expected, but optimization is
-not a priority without evidence that it impairs play.
+already feel good. The local investigation traced avoidable waiting to redundant
+identity bootstrap and extra read-path work. One shared identity owner and
+leaner read paths remove that work; hosted RTT and Clerk loading remain separate
+costs. Local evidence does not establish a production speedup.
+
+Restrained Cuelume cues now belong across the player surface, from activation
+and confirmed results through reveal and recap—not a late poem-only tone.
 
 `DESIGN.md` records the implemented interaction contract and acceptance bar.
 The second lane is adopting Parlor for shared party-game infrastructure: room

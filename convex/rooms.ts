@@ -15,7 +15,7 @@ import {
 } from './lib/auth';
 import {
   ensureParlorPlayer,
-  findRoomActor,
+  findRoomMember,
   getRoomActor,
   parlorErrorCode,
 } from './lib/parlor';
@@ -65,13 +65,14 @@ export const createRoom = mutation({
       guestToken,
       guestId,
     });
-    await checkMutationAbuseRateLimit(ctx, {
-      operation: 'createRoom',
-      userId: user._id,
-      guestToken: user.guestId ? guestToken : undefined,
-    });
-
-    const actor = await ensureParlorPlayer(ctx, user);
+    const [actor] = await Promise.all([
+      ensureParlorPlayer(ctx, user),
+      checkMutationAbuseRateLimit(ctx, {
+        operation: 'createRoom',
+        userId: user._id,
+        guestToken: user.guestId ? guestToken : undefined,
+      }),
+    ]);
     const typedName = normalizeDisplayName(displayName);
     let receipt;
     try {
@@ -140,7 +141,10 @@ export const joinRoom = mutation({
       guestToken: user.guestId ? guestToken : undefined,
     });
 
-    const room = await getRoomByCode(ctx, code);
+    const room = await ctx.db
+      .query('rooms')
+      .withIndex('by_code', (q) => q.eq('code', code.trim().toUpperCase()))
+      .first();
     const profile = room
       ? await ctx.db
           .query('roomPlayers')
@@ -232,7 +236,7 @@ export const getRoom = query({
     if (isParticipant) return { ...room, status };
     if (!room.hostPlayerId || room.closedAt !== undefined || activeGame)
       return null;
-    const roomPlayers = await getRoomPlayers(ctx, room._id);
+    const roomPlayers = await getRoomPlayers(ctx, room);
     if (roomPlayers.length >= 8) return null;
     return { code: room.code, status };
   },
@@ -248,12 +252,12 @@ export const getRoomState = query({
     if (!user) return null;
     const room = await getRoomByCode(ctx, code);
     if (!room) return null;
-    const { status } = await getRoomActivity(ctx, room);
+    const [{ status }, membership] = await Promise.all([
+      getRoomActivity(ctx, room),
+      room.hostPlayerId ? findRoomMember(ctx, user._id, room._id) : null,
+    ]);
     if (room.hostPlayerId || room.closedAt !== undefined) {
-      const actor = room.hostPlayerId
-        ? await findRoomActor(ctx, user, room._id)
-        : null;
-      if (!actor) {
+      if (!membership) {
         const completedGame =
           status === 'COMPLETED' ? await getCompletedGame(ctx, room._id) : null;
         if (!(await checkGameParticipation(ctx, completedGame, user._id))) {
@@ -263,7 +267,7 @@ export const getRoomState = query({
     } else if (!(await checkParticipation(ctx, room._id, user._id))) {
       return null;
     }
-    const roomPlayers = await getRoomPlayers(ctx, room._id);
+    const roomPlayers = await getRoomPlayers(ctx, room);
     const now = Date.now();
     const players = await Promise.all(
       roomPlayers.map(async (rp) => {
@@ -297,9 +301,9 @@ export const leaveLobby = mutation({
     if (!user) return;
     const room = await getRoomByCode(ctx, roomCode);
     if (!room?.hostPlayerId || room.closedAt !== undefined) return;
-    if (await getActiveGame(ctx, room._id)) return;
+    if (await getActiveGame(ctx, room)) return;
     if (room.hostUserId === user._id) return;
-    const members = await getRoomPlayers(ctx, room._id);
+    const members = await getRoomPlayers(ctx, room);
     if (!members.some((member) => member.userId === user._id)) return;
     const actor = await getRoomActor(ctx, user, room._id);
     await leaveRoomForPlayer(ctx, {
@@ -324,7 +328,7 @@ export const closeRoom = mutation({
     if (room.hostUserId !== user._id) {
       throw new ConvexError('Only the host can close the room');
     }
-    if (await getActiveGame(ctx, room._id)) {
+    if (await getActiveGame(ctx, room)) {
       throw new ConvexError('Cannot close room while game is in progress');
     }
     const actor = await getRoomActor(ctx, user, room._id);

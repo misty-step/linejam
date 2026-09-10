@@ -36,11 +36,15 @@ function useDefaultRoomUser(): RoomPageUserState {
   return { isLoading, guestToken, authError, retryAuth };
 }
 
-function useDefaultRoomState(code: string, guestToken: string | null) {
-  return useQuery(api.rooms.getRoomState, {
-    code,
-    guestToken: guestToken || undefined,
-  });
+function useDefaultRoomState(
+  code: string,
+  guestToken: string | null,
+  enabled: boolean
+) {
+  return useQuery(
+    api.rooms.getRoomState,
+    enabled ? { code, guestToken: guestToken || undefined } : 'skip'
+  );
 }
 
 interface RoomActionMutations {
@@ -239,10 +243,11 @@ function RoomPageContent({
   const router = dependencies.useRouter();
   const { isLoading, guestToken, authError, retryAuth } =
     dependencies.useUser();
-  const roomState = dependencies.useRoomState(code, guestToken);
+  const identityReady = !isLoading && !authError;
+  const roomState = dependencies.useRoomState(code, guestToken, identityReady);
 
   // Heartbeat presence while the room page is mounted (lobby, writing, reveal).
-  dependencies.usePresence(code, guestToken);
+  dependencies.usePresence(identityReady ? code : null, guestToken);
   if (authError) {
     return <AuthErrorState message={authError} onRetry={retryAuth} />;
   }

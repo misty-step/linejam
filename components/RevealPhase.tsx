@@ -10,6 +10,7 @@ import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { captureError } from '../lib/error';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { toErrorReportable } from '../lib/errorCore';
+import { playSound } from '@/lib/audio';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { PoemDisplay } from './PoemDisplay';
@@ -22,6 +23,7 @@ import {
   type SessionRecapHubDependencies,
 } from './SessionRecapHub';
 import { Check } from 'lucide-react';
+import type { RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
 
 type ReadingCircleStatus = 'read' | 'reading-now' | 'up-next' | null;
 
@@ -43,10 +45,7 @@ type StartGame = (
   args: FunctionArgs<typeof api.game.startGame>
 ) => Promise<FunctionReturnType<typeof api.game.startGame>>;
 
-function useDefaultRevealState(args: {
-  roomCode: string;
-  guestToken?: string;
-}): RevealState {
+function useDefaultRevealState(args: RoomQueryArgs): RevealState {
   return useQuery(api.game.getRevealPhaseState, args);
 }
 
@@ -91,7 +90,7 @@ export function RevealPhase({
   roomCode,
   dependencies = defaultDependencies,
 }: RevealPhaseProps) {
-  const { guestToken } = dependencies.useUser();
+  const { guestToken, isLoading, authError } = dependencies.useUser();
   const [showingPoemId, setShowingPoemId] = useState<Id<'poems'> | null>(null);
   const [isRevealingId, setIsRevealingId] = useState<Id<'poems'> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,10 +99,11 @@ export function RevealPhase({
   const previousReadingNowId = useRef<Id<'poems'> | null>(null);
   const lastShowingPoemId = useRef<Id<'poems'> | null>(null);
 
-  const state = dependencies.useRevealState({
-    roomCode,
-    guestToken: guestToken || undefined,
-  });
+  const state = dependencies.useRevealState(
+    isLoading || authError
+      ? 'skip'
+      : { roomCode, guestToken: guestToken || undefined }
+  );
 
   const revealPoemMutation = dependencies.useRevealPoem();
   const startNewCycleMutation = dependencies.useStartNewCycle();
@@ -167,7 +167,9 @@ export function RevealPhase({
         code: roomCode,
         guestToken: guestToken || undefined,
       });
+      playSound('bloom');
     } catch (cause) {
+      playSound('error');
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);
       setError(feedback.message);
@@ -186,8 +188,10 @@ export function RevealPhase({
         poemId,
         guestToken: guestToken || undefined,
       });
+      playSound('bloom');
       setShowingPoemId(poemId);
     } catch (cause) {
+      playSound('error');
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);
       setError(feedback.message);
@@ -205,7 +209,9 @@ export function RevealPhase({
         roomCode,
         guestToken: guestToken || undefined,
       });
+      playSound('bloom');
     } catch (cause) {
+      playSound('error');
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);
       setError(feedback.message);
@@ -303,6 +309,7 @@ export function RevealPhase({
                           id={`read-poem-${poem._id}`}
                           onClick={() => handleReveal(poem._id)}
                           data-testid={E2E_TEST_IDS.revealPoemButton}
+                          data-sound="loading"
                           size="lg"
                           className="min-h-[48px] w-full px-[16px] py-[12px] text-base"
                           disabled={isRevealingId === poem._id}
@@ -322,6 +329,7 @@ export function RevealPhase({
                         id={`read-poem-${poem._id}`}
                         key={poem._id}
                         onClick={() => setShowingPoemId(poem._id)}
+                        data-sound="bloom"
                         variant="outline"
                         className="min-h-11 w-full"
                       >
@@ -401,6 +409,7 @@ export function RevealPhase({
                               <Button
                                 variant="ghost"
                                 onClick={() => setShowingPoemId(poem._id)}
+                                data-sound="bloom"
                                 aria-label={`Read poem ${poem.indexInRoom + 1}`}
                               >
                                 Read poem

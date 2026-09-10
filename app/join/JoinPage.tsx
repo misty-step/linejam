@@ -12,6 +12,7 @@ import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { hashRoomId, trackGameJoined } from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { toErrorReportable } from '../../lib/errorCore';
+import { playSound } from '@/lib/audio';
 import {
   AVATAR_IDS,
   getRandomAvatarId,
@@ -28,6 +29,7 @@ import {
   LoadingMessages,
 } from '../../components/ui/LoadingState';
 import { ColorModeControl } from '../../components/ColorModeControl';
+import { SoundControl } from '../../components/SoundControl';
 
 function normalizeRoomCode(value: string): string {
   return value
@@ -159,6 +161,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
         guestToken: guestToken || undefined,
       });
       if (room.ok === false) {
+        playSound('error');
         const error = toErrorReportable(new ConvexError(room.message));
         const feedback = errorToFeedback(error);
         setError(feedback.message);
@@ -170,8 +173,10 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
         roomIdHash: hashRoomId(room._id),
         cycle: room.currentCycle ?? 1,
       });
+      playSound('sparkle');
       router.push(`/room/${normalizedCode}`);
     } catch (cause) {
+      playSound('error');
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);
       setError(feedback.message);
@@ -278,6 +283,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
           <Button
             type="submit"
             data-testid={E2E_TEST_IDS.joinRoomButton}
+            data-sound="loading"
             className="min-h-12 w-full text-base"
             disabled={!name.trim() || !code.trim() || isSubmitting}
           >
@@ -304,7 +310,10 @@ export function JoinPage({
             >
               <Brand className="text-2xl" />
             </Link>
-            <ColorModeControl className="ml-auto" />
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+              <ColorModeControl />
+              <SoundControl />
+            </div>
           </div>
           <Suspense
             fallback={

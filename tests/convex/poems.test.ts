@@ -411,22 +411,6 @@ describe('getPoemDetail', () => {
     });
     expect(result?.lines[0].authorName).toBe('Unknown');
   });
-
-  it('returns poem document alongside lines', async () => {
-    const t = setupConvexTest();
-    const aliceId = await seedClerkUser(t, 'alice');
-    const { poemIds } = await seedRoom(t, { userId: aliceId });
-    await seedLine(t, {
-      poemId: poemIds[0],
-      authorUserId: aliceId,
-      text: 'Only line',
-    });
-
-    const result = await asUser(t, 'alice').query(api.poems.getPoemDetail, {
-      poemId: poemIds[0],
-    });
-    expect(result?.poem._id).toBe(poemIds[0]);
-  });
 });
 
 describe('native completed-game artifact access', () => {

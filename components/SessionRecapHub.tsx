@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery } from 'convex/react';
-import { Crown, Share2, Volume2, VolumeX } from 'lucide-react';
+import { Crown, Share2 } from 'lucide-react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import {
@@ -14,6 +14,8 @@ import {
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { useShareLink, type ShareLinkClient } from '@/hooks/useShareLink';
 import { useCeremonyEffects } from '@/hooks/useCeremonyEffects';
+import { SoundControl } from './SoundControl';
+import { playSound } from '@/lib/audio';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { Avatar } from './ui/Avatar';
@@ -119,7 +121,7 @@ export function SessionRecapHub({
 }: SessionRecapHubProps) {
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
   const lastCrownedPoemId = useRef<Id<'poems'> | null>(null);
-  const { isMuted, punctuate, toggleMuted } = useCeremonyEffects();
+  const { punctuate } = useCeremonyEffects();
   const [isSharing, setIsSharing] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
@@ -187,7 +189,9 @@ export function SessionRecapHub({
         guestToken: guestToken || undefined,
       });
       setRevoked(true);
+      playSound('success');
     } catch (cause) {
+      playSound('error');
       setRevokeError(errorToFeedback(toErrorReportable(cause)).message);
     } finally {
       setIsRevoking(false);
@@ -199,7 +203,7 @@ export function SessionRecapHub({
     if (lastCrownedPoemId.current === favoritePoem._id) return;
 
     lastCrownedPoemId.current = favoritePoem._id;
-    punctuate('crown');
+    punctuate();
   }, [favoritePoem, punctuate, sessionFavorites?.leaderCount]);
 
   return (
@@ -302,6 +306,7 @@ export function SessionRecapHub({
                 <button
                   type="button"
                   onClick={() => onReplayPoem(poem._id)}
+                  data-sound="bloom"
                   aria-label={`Replay poem ${poemNumber}: ${preview}`}
                   className="flex min-h-11 w-full items-start gap-3 p-5 text-left hover:bg-primary/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
                 >
@@ -335,6 +340,7 @@ export function SessionRecapHub({
             <Button
               type="button"
               onClick={handlePublish}
+              data-sound="loading"
               data-testid={E2E_TEST_IDS.sessionRecapShareButton}
               aria-describedby="recap-share-disclosure"
               variant="outline"
@@ -346,6 +352,7 @@ export function SessionRecapHub({
             </Button>
             <Button
               onClick={handleRevoke}
+              data-sound="loading"
               variant="ghost"
               className="min-h-11"
               disabled={isSharing || isRevoking}
@@ -370,6 +377,7 @@ export function SessionRecapHub({
           {onStartNextRound && (
             <Button
               onClick={onStartNextRound}
+              data-sound="loading"
               size="lg"
               className="min-h-12"
               disabled={isStartingNextRound}
@@ -380,6 +388,7 @@ export function SessionRecapHub({
           {onBackToLobby && (
             <Button
               onClick={onBackToLobby}
+              data-sound="loading"
               variant="outline"
               size="lg"
               className="min-h-12"
@@ -401,21 +410,7 @@ export function SessionRecapHub({
         >
           Exit room
         </Link>
-        <button
-          type="button"
-          onClick={toggleMuted}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm text-text-secondary hover:text-primary focus-visible:outline-2 focus-visible:outline-focus-ring"
-          aria-label={
-            isMuted ? 'Turn ceremony sound on' : 'Mute ceremony sound'
-          }
-        >
-          {isMuted ? (
-            <VolumeX className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Volume2 className="h-4 w-4" aria-hidden="true" />
-          )}
-          <span>{isMuted ? 'Sound off' : 'Sound on'}</span>
-        </button>
+        <SoundControl showLabel />
       </div>
     </section>
   );

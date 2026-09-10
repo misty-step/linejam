@@ -85,6 +85,7 @@
     "@clerk/nextjs": "^7.7.5",
     "@parlor/convex": "workspace:*",
     "@parlor/core": "workspace:*",
+    "@parlor/web": "workspace:*",
     "@sentry/nextjs": "^10.70.0",
     "@sentry/node": "10.70.0",
     "ajv": "8.17.1",

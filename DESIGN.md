@@ -32,6 +32,18 @@ appearance popover. Keep a 44px target, keyboard activation, focus ring and a
 label stating current and next modes. System tracks the OS. Server/client
 hydration must preserve the saved preference without mismatched icon markup.
 
+### Sound: restrained cues, one shared preference
+
+Cuelume live synthesis adds quiet cues on activation and confirmed results, not
+speculative success or a background soundtrack. The shared `SoundControl` sits
+beside appearance in `Header`, host/join and `RoomChrome`; poem and recap use
+the same control and preference.
+
+Sound is audible by default after a user gesture. Preserve an explicit stored
+mute (`linejam:ceremony-muted` is `'1'`); reduced motion does not silence sound.
+Muted, unavailable or blocked audio must never block play or replace visible
+pending, success and error feedback.
+
 ### Entry: pen name beside the avatar
 
 One pen-name input with the selected avatar alongside it, then Create room or
@@ -52,8 +64,10 @@ consistent plum strokes, and mint/peach/lavender accents. Artwork is static,
 local and legible at roster size in both modes. No runtime image generation or
 new provider dependency is involved.
 
-Room creation latency is noted but deferred. Keep honest pending feedback; do
-not show a created room or successful join before the backend accepts it.
+Keep honest pending and error feedback; do not render a created room or
+successful join before backend acceptance. One app-level `UserProvider` owns
+identity bootstrap. Mounting later room, writing, reveal or poem screens must
+not re-bootstrap identity or re-fetch the guest session.
 
 ### Lobby: one invitation area, one primary action
 
@@ -72,8 +86,9 @@ lobby invitation area is absent. One invitation implementation owns both uses.
 
 Collapse secondary navigation into one Room options menu: How to play, Your
 poems and the relevant leave/close/end action. Do not put the same invitation
-entry in multiple places on one screen. Keep the cycling theme icon separate
-and quiet; help remains reachable in one menu rather than another top-bar icon.
+entry in multiple places on one screen. Keep appearance and sound controls
+separate and quiet; help remains reachable in one menu rather than another
+top-bar icon.
 
 ### One room frame
 
@@ -108,12 +123,12 @@ Group by task rather than wrap everything in another card. Let personality come
 from the cast and selected moments while practical controls remain quiet.
 
 ```text
-Entry                         Lobby
-Linejam          [mode]       Linejam            [mode] [options]
-Your pen name                 [room code       QR]
-[name                ][face]  [Share invite]
-[Create room]                 Players and their states
-                              [Start game]
+Entry                                Lobby
+Linejam          [mode] [sound]      Linejam     [mode] [sound] [options]
+Your pen name                        [room code       QR]
+[name                ][face]         [Share invite]
+[Create room]                        Players and their states
+                                     [Start game]
 ```
 
 The same quiet chrome continues through writing, reading and recap. There are

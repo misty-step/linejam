@@ -16,6 +16,7 @@ import { Archive, LogIn, MoreHorizontal } from 'lucide-react';
 import { HelpModal } from './HelpModal';
 import { Brand } from './Brand';
 import { ColorModeControl } from './ColorModeControl';
+import { SoundControl } from './SoundControl';
 import { isFocusedPlayRoute } from '@/lib/routes';
 
 interface HeaderAuthBoundaryProps {
@@ -159,6 +160,7 @@ export function Header({
             </SignedIn>
 
             <ColorModeControl />
+            <SoundControl />
 
             <div ref={menuRootRef} className="relative">
               <button

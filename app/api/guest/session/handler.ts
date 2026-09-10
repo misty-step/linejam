@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   GUEST_TOKEN_MAX_AGE_SECONDS,
+  GUEST_TOKEN_TTL_MS,
   signGuestToken,
   verifyGuestTokenPayload,
 } from '@/lib/guestToken';
@@ -88,17 +89,24 @@ async function getGuestSession(
           return NextResponse.json({
             guestId: payload.guestId,
             token: existingToken,
+            validForMs: Math.max(
+              0,
+              payload.issuedAt + GUEST_TOKEN_TTL_MS - Date.now()
+            ),
           });
         }
 
         const rateLimitKey = deriveGuestSessionRateLimitKey(request);
+        const issuedAt = Date.now();
         const token = await signGuestToken(payload.guestId, {
           sessionId: randomUUID(),
           rateLimitKey,
+          issuedAt,
         });
         const response = NextResponse.json({
           guestId: payload.guestId,
           token,
+          validForMs: Math.max(0, issuedAt + GUEST_TOKEN_TTL_MS - Date.now()),
         });
         setGuestCookie(response, token, cookieName);
         logRequest({
@@ -158,12 +166,18 @@ async function getGuestSession(
 
     // No valid token - create new guest session
     const guestId = randomUUID();
+    const issuedAt = Date.now();
     const token = await signGuestToken(guestId, {
       sessionId: randomUUID(),
       rateLimitKey: throttle.rateLimitKey,
+      issuedAt,
     });
 
-    const response = NextResponse.json({ guestId, token });
+    const response = NextResponse.json({
+      guestId,
+      token,
+      validForMs: Math.max(0, issuedAt + GUEST_TOKEN_TTL_MS - Date.now()),
+    });
 
     // Set HttpOnly cookie
     setGuestCookie(response, token, cookieName);

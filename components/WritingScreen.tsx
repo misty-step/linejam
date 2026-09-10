@@ -10,6 +10,7 @@ import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { captureError } from '@/lib/error';
 import { errorToFeedback } from '@/lib/errorFeedback';
 import { toErrorReportable } from '@/lib/errorCore';
+import { playSound } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import { hashRoomId, trackLineSubmitted } from '@/lib/analytics';
 import { countWords } from '@/lib/wordCount';
@@ -206,6 +207,7 @@ function WritingComposer({
         text: normalizeLineText(text),
         guestToken: guestToken || undefined,
       });
+      playSound('success');
       setAcknowledgement(
         result?.status === 'already_submitted'
           ? 'Your line was already recorded.'
@@ -226,6 +228,7 @@ function WritingComposer({
         // Telemetry cannot turn an accepted line into a failed submission.
       }
     } catch (cause) {
+      playSound('error');
       const reportable = toErrorReportable(cause);
       captureError(reportable, { roomCode, poemId: assignment.poemId });
       setSubmissionState(isRetry ? 'failed' : 'retryable');
@@ -334,6 +337,7 @@ function WritingComposer({
                 <Button
                   type="button"
                   onClick={() => void submit(true)}
+                  data-sound="loading"
                   disabled={!browserOnline}
                   variant="secondary"
                   className="mt-3"
@@ -383,6 +387,7 @@ function WritingComposer({
           <Button
             onClick={() => void submit()}
             data-testid={E2E_TEST_IDS.writingSubmitLineButton}
+            data-sound="loading"
             data-ready={isReady ? 'true' : undefined}
             disabled={!isReady}
             className="min-h-[44px] min-w-[112px] px-[20px] py-[10px]"

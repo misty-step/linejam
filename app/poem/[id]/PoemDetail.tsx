@@ -7,6 +7,8 @@ import { api } from '../../../convex/_generated/api';
 import { useUser } from '../../../lib/auth';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { PoemDisplay, type PoemLine } from '../../../components/PoemDisplay';
+import { AuthErrorState } from '@/components/AuthErrorState';
+import { playSound } from '@/lib/audio';
 
 export interface PoemDetailData {
   poem: {
@@ -32,15 +34,20 @@ interface FavoritePoemArgs {
 export type MutateFavorite = (args: FavoritePoemArgs) => Promise<void>;
 export type DisablePublicShare = (args: FavoritePoemArgs) => Promise<void>;
 
-function useDefaultGuestToken(): string | undefined {
-  return useUser().guestToken || undefined;
+function useDefaultUser() {
+  const { guestToken, isLoading, authError, retryAuth } = useUser();
+  return { guestToken, isLoading, authError, retryAuth };
 }
 
 function useDefaultPoemDetail(
   poemId: Id<'poems'>,
-  guestToken?: string
+  guestToken: string | undefined,
+  enabled: boolean
 ): PoemDetailData | null | undefined {
-  return useQuery(api.poems.getPoemDetail, { poemId, guestToken });
+  return useQuery(
+    api.poems.getPoemDetail,
+    enabled ? { poemId, guestToken } : 'skip'
+  );
 }
 
 function useDefaultPublicPoem(
@@ -85,7 +92,7 @@ function useDefaultDisablePublicShare(): DisablePublicShare {
 }
 
 export interface PoemDetailDependencies {
-  useGuestToken: typeof useDefaultGuestToken;
+  useUser: typeof useDefaultUser;
   usePoemDetail: typeof useDefaultPoemDetail;
   usePublicPoem: typeof useDefaultPublicPoem;
   useShareStatus: typeof useDefaultShareStatus;
@@ -96,7 +103,7 @@ export interface PoemDetailDependencies {
 }
 
 const defaultPoemDetailDependencies: PoemDetailDependencies = {
-  useGuestToken: useDefaultGuestToken,
+  useUser: useDefaultUser,
   usePoemDetail: useDefaultPoemDetail,
   usePublicPoem: useDefaultPublicPoem,
   useShareStatus: useDefaultShareStatus,
@@ -117,12 +124,21 @@ export function PoemDetail({
   shareSlug,
   dependencies = defaultPoemDetailDependencies,
 }: PoemDetailProps) {
-  const guestToken = dependencies.useGuestToken();
+  const {
+    guestToken: token,
+    isLoading: authLoading,
+    authError,
+    retryAuth,
+  } = dependencies.useUser();
+  const guestToken = token || undefined;
   const PoemDisplayComponent = dependencies.PoemDisplayComponent;
 
-  // Try authenticated query first (includes favorite capability)
-  const poemDetail = dependencies.usePoemDetail(poemId, guestToken);
-  // Fallback to public query for outsiders
+  // Private reads wait for resolved identity; public sharing stays independent.
+  const poemDetail = dependencies.usePoemDetail(
+    poemId,
+    guestToken,
+    !authLoading && !authError
+  );
   const publicPoem = dependencies.usePublicPoem(poemId, shareSlug);
   const shareStatus = dependencies.useShareStatus(shareSlug);
   const pendingShareExpiresAt =
@@ -145,10 +161,14 @@ export function PoemDetail({
     pendingShareKey !== null && expiredShareKey === pendingShareKey;
 
   // Use authenticated data if available, else public
-  const data = poemDetail || publicPoem;
-  const isParticipant = !!poemDetail;
+  const privatePoem = authLoading || authError ? undefined : poemDetail;
+  const data = privatePoem || publicPoem;
+  const isParticipant = !!privatePoem;
   const isLoading =
-    !data && (poemDetail === undefined || publicPoem === undefined);
+    !data &&
+    (authLoading ||
+      (!authError && poemDetail === undefined) ||
+      publicPoem === undefined);
 
   const isFavorited = dependencies.useIsFavorited(
     poemId,
@@ -183,6 +203,10 @@ export function PoemDetail({
     );
   }
 
+  if (!data && authError) {
+    return <AuthErrorState message={authError} onRetry={retryAuth} />;
+  }
+
   if (!data) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center px-6">
@@ -211,7 +235,13 @@ export function PoemDetail({
   const { poem, lines } = data;
 
   const handleToggleFavorite = async () => {
-    await toggleFavorite({ poemId, guestToken });
+    try {
+      await toggleFavorite({ poemId, guestToken });
+      playSound('success');
+    } catch (cause) {
+      playSound('error');
+      throw cause;
+    }
   };
 
   // Transform lines to PoemLine format with author info
@@ -242,7 +272,7 @@ export function PoemDetail({
         firstLine: lines[0]?.text ?? '',
         isParticipant,
         isFavorited: isFavorited ?? false,
-        isPublic: poemDetail?.poem.publicShareEnabled === true,
+        isPublic: privatePoem?.poem.publicShareEnabled === true,
         onToggleFavorite: handleToggleFavorite,
         onRevokeShare: async () => {
           await disablePublicPoemShare({

@@ -7,6 +7,7 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { cn } from '@/lib/utils';
 import { captureError } from '@/lib/error';
 import { toErrorReportable } from '@/lib/errorCore';
+import { playSound } from '@/lib/audio';
 
 interface HeartButtonProps {
   poemId: Id<'poems'>;
@@ -34,7 +35,9 @@ export function HeartButton({
   const handleToggle = async () => {
     try {
       await toggleFavorite({ poemId, guestToken: guestToken || undefined });
+      playSound('success');
     } catch (cause) {
+      playSound('error');
       captureError(toErrorReportable(cause), {
         poemId,
         operation: 'toggleFavorite',
@@ -46,6 +49,7 @@ export function HeartButton({
     <button
       type="button"
       onClick={handleToggle}
+      data-sound="loading"
       aria-pressed={isFavorited === true}
       aria-label={isFavorited ? 'Remove favorite' : 'Favorite this poem'}
       className={cn(

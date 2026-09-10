@@ -24,9 +24,10 @@ export function useRoomQueryArgs(
     guestToken: hookToken,
     isLoading: isAuthLoading,
     authError,
+    isAuthenticated,
   } = dependencies.useUser();
-  const guestToken = propToken ?? hookToken;
-  const shouldSkip = !guestToken && (Boolean(authError) || isAuthLoading);
+  const guestToken = isAuthenticated ? null : (propToken ?? hookToken);
+  const shouldSkip = Boolean(authError) || isAuthLoading;
   const queryArgs: RoomQueryArgs = shouldSkip
     ? 'skip'
     : { roomCode, guestToken: guestToken || undefined };

@@ -1,18 +1,32 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
+import { NextRequest } from 'next/server';
 
-import { useUser, type UseUserAuthDependencies } from '@/lib/auth';
+import {
+  useUser,
+  UserProvider,
+  type UserProviderDependencies,
+} from '@/lib/auth';
 import type { GuestSessionFetcher } from '@/lib/guestSession';
 import { AccountContext, type ClerkAccountState } from '@/lib/account';
+import { useRoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { createGuestSessionRoute } from '@/app/api/guest/session/handler';
+import { GUEST_TOKEN_TTL_MS, signGuestToken } from '@/lib/guestToken';
 
 const mockUseClerkUser =
   vi.fn<() => Pick<ClerkAccountState, 'user' | 'isLoaded'>>();
 const mockUseConvexAuth = vi.fn<() => ClerkAccountState['convex']>();
 const mockCaptureError = vi.fn();
 
-const authDeps: UseUserAuthDependencies = {
+const authDeps: UserProviderDependencies = {
   useAccount: () => ({
     kind: 'clerk',
     ...mockUseClerkUser(),
@@ -22,7 +36,14 @@ const authDeps: UseUserAuthDependencies = {
 };
 
 const renderAuthHook = (fetcher?: GuestSessionFetcher) =>
-  renderHook(() => useUser(fetcher, authDeps));
+  renderHook(() => useUser(), {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(
+        UserProvider,
+        { fetcher, dependencies: authDeps },
+        children
+      ),
+  });
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -76,12 +97,12 @@ describe('useUser hook', () => {
         token: 'local-signed-token',
       }),
     };
-    const { result } = renderHook(() => useUser(fetcher), {
+    const { result } = renderHook(() => useUser(), {
       wrapper: ({ children }: { children: ReactNode }) =>
         createElement(
           AccountContext.Provider,
           { value: { kind: 'local' } },
-          children
+          createElement(UserProvider, { fetcher }, children)
         ),
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -295,27 +316,15 @@ describe('useUser hook', () => {
     expect(result.current.displayName).toBe('Guest');
   });
 
-  it('handles API response with guestId but no token', async () => {
-    // Arrange - API returns guestId only, no token
+  it('rejects a guest response without a usable credential', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ guestId: 'guest-no-token' }),
     });
-
-    mockUseClerkUser.mockReturnValue({
-      user: null,
-      isLoaded: true,
-    });
-
-    // Act
     const { result } = renderAuthHook();
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    // Assert
-    expect(result.current.guestId).toBe('guest-no-token');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.authError).not.toBeNull();
+    expect(result.current.guestId).toBeNull();
     expect(result.current.guestToken).toBeNull();
   });
 
@@ -604,6 +613,309 @@ describe('useUser hook', () => {
       { operation: 'convexAuthUnavailable' }
     );
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps resolved identity when later routes and game phases mount', async () => {
+    const fetcher = {
+      fetch: vi.fn().mockResolvedValue({
+        guestId: 'shared-guest',
+        token: 'shared-token',
+      }),
+    };
+    function Consumer({ phase }: { phase: string }) {
+      const user = useUser();
+      return createElement(
+        'output',
+        null,
+        `${phase}:${user.isLoading ? 'loading' : user.guestId}`
+      );
+    }
+    const tree = (phase: string) =>
+      createElement(
+        UserProvider,
+        { fetcher, dependencies: authDeps },
+        createElement(Consumer, { key: phase, phase })
+      );
+    const view = render(tree('entry'));
+    await screen.findByText('entry:shared-guest');
+    for (const phase of ['room', 'writing', 'reveal', 'poem']) {
+      view.rerender(tree(phase));
+      expect(screen.getByText(`${phase}:shared-guest`)).toBeInTheDocument();
+    }
+    expect(fetcher.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('gates a retained guest token as soon as Clerk starts authenticating', async () => {
+    const fetcher = {
+      fetch: vi.fn().mockResolvedValue({
+        guestId: 'before-account',
+        token: 'before-account-token',
+      }),
+    };
+    const { result, rerender } = renderHook(
+      () => useRoomQueryArgs('ABCD', 'before-account-token'),
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(
+            UserProvider,
+            { fetcher, dependencies: authDeps },
+            children
+          ),
+      }
+    );
+    await waitFor(() => expect(result.current.shouldSkip).toBe(false));
+    mockUseClerkUser.mockReturnValue({
+      user: { id: 'linked-account' },
+      isLoaded: true,
+    });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: true,
+      isAuthenticated: false,
+    });
+    rerender();
+    expect(result.current.queryArgs).toBe('skip');
+    expect(result.current.guestToken).toBeNull();
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    rerender();
+    expect(result.current.queryArgs).toEqual({
+      roomCode: 'ABCD',
+      guestToken: undefined,
+    });
+  });
+
+  it('reacquires from the cookie after account linking and sign-out', async () => {
+    const afterSignOut = createDeferred<{ guestId: string; token: string }>();
+    const fetcher = {
+      fetch: vi
+        .fn()
+        .mockResolvedValueOnce({
+          guestId: 'before-link',
+          token: 'revoked-token',
+        })
+        .mockImplementationOnce(() => afterSignOut.promise),
+    };
+    const { result, rerender } = renderAuthHook(fetcher);
+    await waitFor(() => expect(result.current.guestId).toBe('before-link'));
+    mockUseClerkUser.mockReturnValue({
+      user: { id: 'account' },
+      isLoaded: true,
+    });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    await act(async () => rerender());
+    mockUseClerkUser.mockReturnValue({ user: null, isLoaded: true });
+    mockUseConvexAuth.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: false,
+    });
+    rerender();
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.guestToken).toBeNull();
+    await act(async () => {
+      afterSignOut.resolve({ guestId: 'after-link', token: 'fresh-token' });
+    });
+    expect(result.current.guestId).toBe('after-link');
+    expect(result.current.guestToken).toBe('fresh-token');
+  });
+
+  it.each([
+    { clock: 'ahead', offsetMs: 5 * 60_000 },
+    { clock: 'behind', offsetMs: -5 * 60_000 },
+  ])(
+    'keeps a server-valid retained guest with the client clock five minutes $clock until real expiry',
+    async ({ offsetMs }) => {
+      vi.useFakeTimers({
+        toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout'],
+      });
+      const serverNow = Date.UTC(2026, 8, 10);
+      const remainingMs = 2 * 60_000;
+      vi.setSystemTime(serverNow + offsetMs);
+      const retainedToken = await signGuestToken('retained-guest', {
+        sessionId: 'retained-session',
+        rateLimitKey: 'guestSession:retained',
+        issuedAt: serverNow - GUEST_TOKEN_TTL_MS + remainingMs,
+      });
+      let cookie = retainedToken;
+      const GET = createGuestSessionRoute({ checkThrottle: async () => {} });
+      const requests: Promise<Response>[] = [];
+      const reacquisition = createDeferred<void>();
+      let holdReacquisition = false;
+      mockFetch.mockImplementation((url: string) => {
+        const response = (async () => {
+          if (holdReacquisition) await reacquisition.promise;
+          const request = new NextRequest(
+            new URL(url, 'http://localhost:3000')
+          );
+          request.cookies.set('linejam_guest_token', cookie);
+          // The in-process HTTP boundary has its own server wall clock.
+          // Signing, verification, response parsing and auth remain real.
+          const serverClock = vi
+            .spyOn(Date, 'now')
+            .mockImplementation(() => serverNow + performance.now());
+          try {
+            const result = await GET(request);
+            cookie = result.cookies.get('linejam_guest_token')?.value ?? cookie;
+            return result;
+          } finally {
+            serverClock.mockRestore();
+          }
+        })();
+        requests.push(response);
+        return response;
+      });
+      const queryGates: boolean[] = [];
+      const { result, unmount } = renderHook(
+        () => {
+          const room = useRoomQueryArgs('ABCD');
+          queryGates.push(room.shouldSkip);
+          return { user: useUser(), room };
+        },
+        {
+          wrapper: ({ children }: { children: ReactNode }) =>
+            createElement(UserProvider, { dependencies: authDeps }, children),
+        }
+      );
+      try {
+        await act(async () => {
+          await requests[0];
+        });
+        expect(result.current.user.guestId).toBe('retained-guest');
+        expect(result.current.user.guestToken === retainedToken).toBe(true);
+        queryGates.length = 0;
+
+        // An ahead wall clock used to drop query authorization and reacquire
+        // the same still-valid cookie on every immediate expiry callback.
+        for (let step = 0; step < 3; step += 1) {
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+          });
+          await act(async () => {
+            await requests.at(-1);
+          });
+        }
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(queryGates).not.toContain(true);
+        expect(result.current.room.shouldSkip).toBe(false);
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(remainingMs - 4);
+        });
+        expect(result.current.user.guestId).toBe('retained-guest');
+        expect(result.current.room.shouldSkip).toBe(false);
+
+        holdReacquisition = true;
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2);
+        });
+        expect(result.current.room.queryArgs === 'skip').toBe(true);
+        expect(result.current.user.guestToken === null).toBe(true);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+          reacquisition.resolve();
+          await requests.at(-1);
+        });
+        expect(result.current.user.guestId === 'retained-guest').toBe(false);
+        expect(result.current.user.guestToken === cookie).toBe(true);
+        expect(result.current.user.guestToken === retainedToken).toBe(false);
+        expect(result.current.room.shouldSkip).toBe(false);
+      } finally {
+        unmount();
+        reacquisition.resolve();
+        await Promise.all(requests);
+      }
+    }
+  );
+
+  it('never authorizes a credential that expired while its response was in transit', async () => {
+    vi.useFakeTimers({
+      toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout'],
+    });
+    const delayed = createDeferred<Response>();
+    const renewed = createDeferred<Response>();
+    mockFetch
+      .mockImplementationOnce(() => delayed.promise)
+      .mockImplementationOnce(() => renewed.promise);
+    const authorized: boolean[] = [];
+    const { result } = renderHook(
+      () => {
+        const room = useRoomQueryArgs('ABCD');
+        authorized.push(!room.shouldSkip);
+        return room;
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(UserProvider, { dependencies: authDeps }, children),
+      }
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_001);
+      delayed.resolve(
+        Response.json({
+          guestId: 'too-late',
+          token: 'expired',
+          validForMs: 1_000,
+        })
+      );
+    });
+    expect(result.current.queryArgs).toBe('skip');
+    expect(authorized).not.toContain(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      renewed.resolve(
+        Response.json({ guestId: 'renewed', token: 'fresh', validForMs: 2_000 })
+      );
+    });
+    expect(result.current.shouldSkip).toBe(false);
+    expect(result.current.guestToken).toBe('fresh');
+  });
+
+  it('stops using an expired credential without waiting for a route remount', async () => {
+    vi.useFakeTimers({
+      toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout'],
+    });
+    const renewed = createDeferred<{
+      guestId: string;
+      token: string;
+      expiresAtMonotonic: number;
+    }>();
+    const fetcher = {
+      fetch: vi
+        .fn()
+        .mockResolvedValueOnce({
+          guestId: 'expiring',
+          token: 'old',
+          expiresAtMonotonic: 1_000,
+        })
+        .mockImplementationOnce(() => renewed.promise),
+    };
+    const { result } = renderAuthHook(fetcher);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.guestToken).toBe('old');
+    vi.setSystemTime(Date.now() - 24 * 60 * 60_000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_001);
+    });
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.guestToken).toBeNull();
+    await act(async () => {
+      renewed.resolve({
+        guestId: 'renewed',
+        token: 'new',
+        expiresAtMonotonic: 20_000,
+      });
+    });
+    expect(result.current.guestToken).toBe('new');
   });
 
   // Note: SSR test (window undefined) removed - difficult to test properly in happy-dom

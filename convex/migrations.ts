@@ -166,7 +166,7 @@ export const migrateGuestToUser = mutation({
           // Legacy games have no frozen participant index. Include current
           // writing/reveal assignments even before the guest writes a line.
           const [activeGame, completedGame] = await Promise.all([
-            getActiveGame(ctx, room._id),
+            getActiveGame(ctx, room),
             getCompletedGame(ctx, room._id),
           ]);
           for (const game of [activeGame, completedGame]) {

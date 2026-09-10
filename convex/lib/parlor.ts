@@ -30,16 +30,16 @@ export async function ensureParlorPlayer(
   );
 }
 
-/** Find active membership through the retained identity, including after account linking. */
-export async function findRoomActor(
+/** Indexed live membership lookup without projecting the entire room roster. */
+export async function findRoomMember(
   ctx: QueryCtx | MutationCtx,
-  user: Doc<'users'>,
+  userId: Id<'users'>,
   roomId: Id<'rooms'>
-): Promise<PlayerActor | null> {
+) {
   const profile = await ctx.db
     .query('roomPlayers')
     .withIndex('by_room_user', (q) =>
-      q.eq('roomId', roomId).eq('userId', user._id)
+      q.eq('roomId', roomId).eq('userId', userId)
     )
     .first();
   const playerId = profile?.playerId;
@@ -51,6 +51,18 @@ export async function findRoomActor(
     )
     .unique();
   if (!member || member.closedAt !== undefined) return null;
+  return { profile, member };
+}
+
+/** Find active membership through the retained identity, including after account linking. */
+export async function findRoomActor(
+  ctx: QueryCtx | MutationCtx,
+  user: Doc<'users'>,
+  roomId: Id<'rooms'>
+): Promise<PlayerActor | null> {
+  const membership = await findRoomMember(ctx, user._id, roomId);
+  if (!membership) return null;
+  const playerId = membership.member.playerId;
   const player = await ctx.db.get(playerId);
   if (!player) throw new ConvexError('Room player identity not found');
   return {

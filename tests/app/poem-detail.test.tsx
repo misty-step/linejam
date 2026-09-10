@@ -30,16 +30,29 @@ const mockToggleFavorite = vi.fn<MutateFavorite>();
 const mockDisablePublicShare = vi.fn<DisablePublicShare>();
 const mockPoemDisplay = vi.fn<(props: PoemDisplayProps) => void>();
 let guestToken: string | undefined;
+let authLoading = false;
+let authError: string | null = null;
+const retryAuth = vi.fn();
 
 function TestPoemDisplay(props: PoemDisplayProps) {
   mockPoemDisplay(props);
   return (
-    <section data-testid="poem-display">{props.metadata?.backLabel}</section>
+    <section data-testid="poem-display">
+      {props.metadata?.backLabel}
+      {props.lines.map((line, index) => (
+        <p key={index}>{line.text}</p>
+      ))}
+    </section>
   );
 }
 
 const dependencies: PoemDetailDependencies = {
-  useGuestToken: () => guestToken,
+  useUser: () => ({
+    guestToken: guestToken ?? null,
+    isLoading: authLoading,
+    authError,
+    retryAuth,
+  }),
   usePoemDetail: () => mockQueryResults.poemDetail,
   usePublicPoem: () => mockQueryResults.publicPoem,
   useShareStatus: () => mockQueryResults.shareStatus,
@@ -79,6 +92,8 @@ describe('PoemDetail', () => {
     mockToggleFavorite.mockResolvedValue(undefined);
     mockDisablePublicShare.mockResolvedValue(undefined);
     guestToken = undefined;
+    authLoading = false;
+    authError = null;
   });
 
   afterEach(() => {
@@ -90,6 +105,38 @@ describe('PoemDetail', () => {
     renderPoemDetail(<TestPoemDetail poemId={'poem1' as Id<'poems'>} />);
 
     expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('does not misreport a private poem as missing while identity is loading', () => {
+    authLoading = true;
+    mockQueryResults.poemDetail = null;
+    mockQueryResults.publicPoem = null;
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    renderPoemDetail(<TestPoemDetail poemId={'poem1' as Id<'poems'>} />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.queryByText('Poem not found')).not.toBeInTheDocument();
+  });
+
+  it('opens public poems without waiting for guest bootstrap or its recovery', () => {
+    authLoading = true;
+    mockQueryResults.poemDetail = undefined;
+    mockQueryResults.publicPoem = {
+      poem: { createdAt: 1234 },
+      lines: [
+        { text: 'A public poem', authorName: 'Ada', authorKey: 'poet-a' },
+      ],
+    };
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    const view = renderPoemDetail(
+      <TestPoemDetail poemId={'poem1' as Id<'poems'>} />
+    );
+    expect(screen.getByText('A public poem')).toBeInTheDocument();
+    authLoading = false;
+    authError = 'Unable to connect.';
+    // SAFETY: Synthetic Convex document id fixture for poem detail tests.
+    view.rerender(<TestPoemDetail poemId={'poem1' as Id<'poems'>} />);
+    expect(screen.getByText('A public poem')).toBeInTheDocument();
+    expect(screen.queryByText('Poem not found')).not.toBeInTheDocument();
   });
 
   it('shows a bounded pending state for an inactive share slug', () => {

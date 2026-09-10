@@ -9,6 +9,7 @@ import { useUser } from '../lib/auth';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { toErrorReportable } from '../lib/errorCore';
+import { playSound } from '@/lib/audio';
 import {
   hashRoomId,
   trackGameStarted,
@@ -80,6 +81,7 @@ export function Lobby({
         code: room.code,
         guestToken: guestToken || undefined,
       });
+      playSound('bloom');
       const analyticsProps = {
         roomIdHash: dependencies.hashRoomId(room._id),
         cycle: (room.currentCycle ?? 0) + 1,
@@ -87,6 +89,7 @@ export function Lobby({
       dependencies.trackLobbyReady(analyticsProps);
       dependencies.trackGameStarted(analyticsProps);
     } catch (cause) {
+      playSound('error');
       setError(errorToFeedback(toErrorReportable(cause)).message);
     } finally {
       startingRef.current = false;
@@ -159,6 +162,7 @@ export function Lobby({
             <Button
               onClick={() => void handleStartGame()}
               data-testid={E2E_TEST_IDS.lobbyStartGameButton}
+              data-sound="loading"
               size="lg"
               className="min-h-14 w-full px-4 py-3 text-base"
               disabled={!canStart || starting}
