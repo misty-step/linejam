@@ -1,5 +1,24 @@
 const WRITING_DRAFT_PREFIX = 'linejam:writing-draft';
 const MAX_DRAFT_LENGTH = 500;
+let draftOwner: string | null = null;
+let fallbackDrafts: Map<string, string> | null = null;
+
+/** Volatile drafts belong to one verified principal, never its successor. */
+export function setWritingDraftOwner(owner: string | null): void {
+  if (owner === draftOwner) return;
+  draftOwner = owner;
+  fallbackDrafts = null;
+}
+
+function rememberFallbackDraft(
+  key: string,
+  value: string,
+  owner: string | null
+): void {
+  if (owner === null || owner !== draftOwner) return;
+  fallbackDrafts ??= new Map();
+  fallbackDrafts.set(key, value);
+}
 
 export function writingDraftKey(
   roomCode: string,
@@ -18,7 +37,12 @@ function getSessionStorage(): Storage | null {
   }
 }
 
-export function readWritingDraft(key: string): string {
+export function readWritingDraft(key: string, owner: string | null): string {
+  if (owner === null || (draftOwner !== null && owner !== draftOwner)) {
+    return '';
+  }
+  const fallback = fallbackDrafts?.get(key);
+  if (fallback !== undefined) return fallback;
   const storage = getSessionStorage();
   if (!storage) return '';
 
@@ -29,28 +53,31 @@ export function readWritingDraft(key: string): string {
   }
 }
 
-export function saveWritingDraft(key: string, value: string): void {
+export function saveWritingDraft(
+  key: string,
+  value: string,
+  owner: string | null
+): void {
+  if (owner === null || (draftOwner !== null && owner !== draftOwner)) return;
+  const draft = value.slice(0, MAX_DRAFT_LENGTH);
   const storage = getSessionStorage();
-  if (!storage) return;
+  if (!storage) {
+    rememberFallbackDraft(key, draft, owner);
+    return;
+  }
 
   try {
-    if (value.length === 0) {
+    if (draft.length === 0) {
       storage.removeItem(key);
-      return;
+    } else {
+      storage.setItem(key, draft);
     }
-    storage.setItem(key, value.slice(0, MAX_DRAFT_LENGTH));
+    fallbackDrafts?.delete(key);
   } catch {
-    // Storage can be disabled. The in-memory composer remains usable.
+    rememberFallbackDraft(key, draft, owner);
   }
 }
 
-export function clearWritingDraft(key: string): void {
-  const storage = getSessionStorage();
-  if (!storage) return;
-
-  try {
-    storage.removeItem(key);
-  } catch {
-    // A committed line must not fail because browser storage is unavailable.
-  }
+export function clearWritingDraft(key: string, owner: string | null): void {
+  saveWritingDraft(key, '', owner);
 }

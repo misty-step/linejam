@@ -49,6 +49,13 @@ or cause immediate reacquisition loops. Expired proof gates private queries
 while reacquisition runs. Clerk arrival fences guest proof immediately, and
 sign-out reacquires rather than restoring a potentially revoked guest.
 
+Writing drafts retain their existing session-storage assignment keys. When
+storage writes are unavailable, a lazy, principal-scoped in-memory fallback
+survives same-identity renewal. The composer is keyed by the published identity
+and draft reads check that owner before restoration; fallback data resets on
+verified identity changes and provider unmount. This preserves the draft without
+retaining a private query subscription or an enabled submit action during expiry.
+
 Keep operational detail in [local development](local-development.md),
 [testing](testing.md), [deployment](deployment.md), [sharing privacy](sharing-privacy.md),
 [retention](ops/data-retention.md), and [migration sequencing](convex-migrations.md).

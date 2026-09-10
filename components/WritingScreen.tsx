@@ -89,6 +89,7 @@ interface WritingComposerProps {
   assignment: WritingAssignment;
   guestToken?: string | null;
   roomCode: string;
+  identityKey: string | null;
   dependencies: Pick<
     WritingScreenDependencies,
     'useSubmitLine' | 'waitingScreenDependencies'
@@ -99,6 +100,7 @@ function WritingComposer({
   assignment,
   guestToken,
   roomCode,
+  identityKey,
   dependencies,
 }: WritingComposerProps) {
   const submitLine = dependencies.useSubmitLine();
@@ -108,7 +110,7 @@ function WritingComposer({
     assignment.lineIndex
   );
   const [text, setText] = useState(() =>
-    normalizeLineText(readWritingDraft(draftKey))
+    normalizeLineText(readWritingDraft(draftKey, identityKey))
   );
   const [draftWasRestored] = useState(() => text.length > 0);
   const [submissionState, setSubmissionState] = useState<
@@ -145,8 +147,8 @@ function WritingComposer({
   }, []);
 
   useEffect(() => {
-    saveWritingDraft(draftKey, text);
-  }, [draftKey, text]);
+    saveWritingDraft(draftKey, text, identityKey);
+  }, [draftKey, text, identityKey]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -170,8 +172,8 @@ function WritingComposer({
   );
 
   useEffect(() => {
-    if (assignment.hasSubmitted) clearWritingDraft(draftKey);
-  }, [assignment.hasSubmitted, draftKey]);
+    if (assignment.hasSubmitted) clearWritingDraft(draftKey, identityKey);
+  }, [assignment.hasSubmitted, draftKey, identityKey]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -213,7 +215,7 @@ function WritingComposer({
           ? 'Your line was already recorded.'
           : 'Tucked into the poem.'
       );
-      clearWritingDraft(draftKey);
+      clearWritingDraft(draftKey, identityKey);
       // Only the server acknowledgement advances the composer to waiting.
       setShowWaitingScreen(true);
       try {
@@ -408,7 +410,7 @@ export function WritingScreen({
   roomCode,
   dependencies = defaultDependencies,
 }: WritingScreenProps) {
-  const { guestToken, shouldSkip, queryArgs } =
+  const { guestToken, shouldSkip, queryArgs, identityKey } =
     dependencies.useRoomQueryArgs(roomCode);
   const assignment = dependencies.useCurrentAssignment(queryArgs);
   const roundProgress = dependencies.useRoundProgress(
@@ -450,10 +452,11 @@ export function WritingScreen({
       className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
     >
       <WritingComposer
-        key={`${assignment.poemId}:${assignment.lineIndex}`}
+        key={`${identityKey}:${assignment.poemId}:${assignment.lineIndex}`}
         assignment={assignment}
         guestToken={guestToken}
         roomCode={roomCode}
+        identityKey={identityKey}
         dependencies={dependencies}
       />
     </div>

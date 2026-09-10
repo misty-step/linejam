@@ -130,6 +130,15 @@ acceptance check, not permission to skip authentication, increase caps, provisio
 another account, or clear historical fixtures. Any stale-fixture cleanup needs
 separate target and ownership verification plus explicit mutation authority.
 
+`tests/e2e/guest-session-renewal.spec.ts` shortens the browser validity horizon on
+a real issuer response, advances the browser clock, and holds renewal while
+session storage is unavailable. It checks that the composer and submit action
+stay fenced, then restores the draft only after the same identity returns and
+closes its own game/room. The real-composer Clerk-transition regression in
+`tests/components/WritingScreen.test.tsx` also verifies that a newly published
+principal cannot capture the outgoing draft before passive cleanup. These are
+accelerated boundary checks, not an operating-system suspend/resume oracle.
+
 ### Cuelume/audio acceptance in a real browser
 
 Use the repository-owned isolated stack, not a synthetic app or shared backend.

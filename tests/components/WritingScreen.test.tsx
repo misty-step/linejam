@@ -16,7 +16,8 @@ import {
 import type { WaitingScreenDependencies } from '@/components/WaitingScreen';
 import type { Id } from '@/convex/_generated/dataModel';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
-import type { RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { useRoomQueryArgs, type RoomQueryArgs } from '@/hooks/useRoomQueryArgs';
+import { UserProvider } from '@/lib/auth';
 
 type MockQueryArgs = RoomQueryArgs | 'skip';
 
@@ -32,6 +33,7 @@ const mockUseRoomQueryArgs: WritingScreenDependencies['useRoomQueryArgs'] = (
     guestToken,
     shouldSkip: false,
     queryArgs: { roomCode, guestToken },
+    identityKey: 'guest:writing-guest',
   };
 };
 
@@ -113,6 +115,38 @@ describe('WritingScreen component', () => {
     vi.restoreAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+  });
+
+  it('never restores the outgoing principal draft in a newly mounted Clerk composer', async () => {
+    vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(() => {
+      throw new Error('Storage is unavailable');
+    });
+    let clerkUserId = 'previous-account';
+    const accountDependencies = {
+      useAccount: () => ({
+        kind: 'clerk' as const,
+        user: { id: clerkUserId },
+        isLoaded: true,
+        convex: { isLoading: false, isAuthenticated: true },
+      }),
+    };
+    const view = () => (
+      <UserProvider dependencies={accountDependencies}>
+        <WritingScreen
+          key={clerkUserId}
+          roomCode="ABCD"
+          dependencies={{ ...writingScreenDependencies, useRoomQueryArgs }}
+        />
+      </UserProvider>
+    );
+    const { rerender } = render(view());
+    const input = screen.getByRole('textbox');
+    await setupUser().type(input, 'Private');
+
+    clerkUserId = 'next-account';
+    rerender(view());
+
+    expect(screen.getByRole('textbox')).toHaveValue('');
   });
 
   it('keeps pasted and typed input on a single editable line', async () => {
@@ -454,6 +488,7 @@ describe('WritingScreen component', () => {
       guestToken: null,
       shouldSkip: false,
       queryArgs: { roomCode },
+      identityKey: 'clerk:writing-account',
     });
     const assignment = {
       ...mockAssignmentRound5,
@@ -513,6 +548,7 @@ describe('WritingScreen component', () => {
             guestToken: null,
             shouldSkip: true,
             queryArgs: 'skip',
+            identityKey: null,
           }),
         }}
       />

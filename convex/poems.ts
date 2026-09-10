@@ -88,15 +88,14 @@ export const getPoemsForRoom = query({
       poems.map((poem) =>
         ctx.db
           .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', poem._id).eq('indexInPoem', 0)
-          )
+          .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
+          .order('asc')
           .first()
       )
     );
     return poems.map((poem, index) => ({
       ...poem,
-      preview: firstLines[index]!.text,
+      preview: firstLines[index]?.text ?? '...',
     }));
   },
 });

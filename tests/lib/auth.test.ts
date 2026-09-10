@@ -20,6 +20,11 @@ import { AccountContext, type ClerkAccountState } from '@/lib/account';
 import { useRoomQueryArgs } from '@/hooks/useRoomQueryArgs';
 import { createGuestSessionRoute } from '@/app/api/guest/session/handler';
 import { GUEST_TOKEN_TTL_MS, signGuestToken } from '@/lib/guestToken';
+import {
+  clearWritingDraft,
+  readWritingDraft,
+  saveWritingDraft,
+} from '@/lib/writingDraft';
 
 const mockUseClerkUser =
   vi.fn<() => Pick<ClerkAccountState, 'user' | 'isLoaded'>>();
@@ -687,6 +692,10 @@ describe('useUser hook', () => {
   });
 
   it('reacquires from the cookie after account linking and sign-out', async () => {
+    vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(() => {
+      throw new Error('Storage is unavailable');
+    });
+    const draftKey = 'same-assignment';
     const afterSignOut = createDeferred<{ guestId: string; token: string }>();
     const fetcher = {
       fetch: vi
@@ -697,8 +706,12 @@ describe('useUser hook', () => {
         })
         .mockImplementationOnce(() => afterSignOut.promise),
     };
-    const { result, rerender } = renderAuthHook(fetcher);
+    const { result, rerender, unmount } = renderAuthHook(fetcher);
     await waitFor(() => expect(result.current.guestId).toBe('before-link'));
+    saveWritingDraft(draftKey, 'Guest-only draft', 'guest:before-link');
+    expect(readWritingDraft(draftKey, 'guest:before-link')).toBe(
+      'Guest-only draft'
+    );
     mockUseClerkUser.mockReturnValue({
       user: { id: 'account' },
       isLoaded: true,
@@ -708,6 +721,8 @@ describe('useUser hook', () => {
       isAuthenticated: true,
     });
     await act(async () => rerender());
+    expect(readWritingDraft(draftKey, 'clerk:account')).toBe('');
+    saveWritingDraft(draftKey, 'Signed-in draft', 'clerk:account');
     mockUseClerkUser.mockReturnValue({ user: null, isLoaded: true });
     mockUseConvexAuth.mockReturnValue({
       isLoading: false,
@@ -716,11 +731,19 @@ describe('useUser hook', () => {
     rerender();
     expect(result.current.isLoading).toBe(true);
     expect(result.current.guestToken).toBeNull();
+    expect(readWritingDraft(draftKey, null)).toBe('');
     await act(async () => {
       afterSignOut.resolve({ guestId: 'after-link', token: 'fresh-token' });
     });
     expect(result.current.guestId).toBe('after-link');
     expect(result.current.guestToken).toBe('fresh-token');
+    expect(readWritingDraft(draftKey, 'guest:after-link')).toBe('');
+    saveWritingDraft(draftKey, 'New guest draft', 'guest:after-link');
+    clearWritingDraft(draftKey, 'guest:after-link');
+    expect(readWritingDraft(draftKey, 'guest:after-link')).toBe('');
+    saveWritingDraft(draftKey, 'Uncommitted draft', 'guest:after-link');
+    unmount();
+    expect(readWritingDraft(draftKey, 'guest:after-link')).toBe('');
   });
 
   it.each([
@@ -879,6 +902,10 @@ describe('useUser hook', () => {
   });
 
   it('stops using an expired credential without waiting for a route remount', async () => {
+    vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(() => {
+      throw new Error('Storage is unavailable');
+    });
+    const draftKey = 'expired-assignment';
     vi.useFakeTimers({
       toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout'],
     });
@@ -902,12 +929,16 @@ describe('useUser hook', () => {
       await Promise.resolve();
     });
     expect(result.current.guestToken).toBe('old');
+    saveWritingDraft(draftKey, 'Previous identity draft', 'guest:expiring');
     vi.setSystemTime(Date.now() - 24 * 60 * 60_000);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_001);
     });
     expect(result.current.isLoading).toBe(true);
     expect(result.current.guestToken).toBeNull();
+    expect(readWritingDraft(draftKey, 'guest:expiring')).toBe(
+      'Previous identity draft'
+    );
     await act(async () => {
       renewed.resolve({
         guestId: 'renewed',
@@ -916,6 +947,7 @@ describe('useUser hook', () => {
       });
     });
     expect(result.current.guestToken).toBe('new');
+    expect(readWritingDraft(draftKey, 'guest:renewed')).toBe('');
   });
 
   // Note: SSR test (window undefined) removed - difficult to test properly in happy-dom

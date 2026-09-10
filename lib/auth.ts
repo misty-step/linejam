@@ -28,6 +28,7 @@ import {
   defaultGuestSessionFetcher,
   isGuestSessionRateLimitError,
 } from '@/lib/guestSession';
+import { setWritingDraftOwner } from '@/lib/writingDraft';
 
 const CLERK_GUEST_FALLBACK_MS = 5_000;
 const CONVEX_AUTH_ERROR =
@@ -110,6 +111,11 @@ function useUserSession(
   }, [isClerkLoaded, reportError]);
 
   useEffect(() => {
+    setWritingDraftOwner(clerkUserId ? `clerk:${clerkUserId}` : null);
+    return () => setWritingDraftOwner(null);
+  }, [clerkUserId]);
+
+  useEffect(() => {
     if (globalThis.window === undefined) return;
     let isStale = false;
     if (clerkUserId) {
@@ -131,6 +137,7 @@ function useUserSession(
           const expired =
             session.expiresAtMonotonic !== undefined &&
             performance.now() > session.expiresAtMonotonic;
+          setWritingDraftOwner(`guest:${session.guestId}`);
           setGuest({ session, error: null, expired });
         })
         .catch((cause) => {
