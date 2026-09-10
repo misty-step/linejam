@@ -7,6 +7,12 @@ evidence, and ensuring unconditional browser teardown.
 
 ## 1. Setup & Preflight
 
+Before selecting a target, follow **Prepare the real target** in `SKILL.md`.
+Local preparation and service teardown remain owned by
+`docs/local-development.md`; package/schema preflight below does not start or
+health-check Next or Convex. Record the current local receipt and reported web
+origin, not an older `.qa` artifact or the backend URL.
+
 1. **Target Authority**:
    - Determine `baseUrl` from `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL`
      (default: `http://localhost:3333`).

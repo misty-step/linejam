@@ -195,6 +195,32 @@ multiplayer verification. Its concurrent players, nine-round lifecycle, room
 closure, fresh-session rejection, and sanitized write-once receipt are not
 prerequisites for an isolated rendering or documentation check.
 
+### Verify skill discovery
+
+For a fresh agent, start with `AGENTS.md` and follow its isolated-runtime and
+multiplayer-verification entry to `.agents/skills/play-linejam/SKILL.md`. The
+skill links local setup and this change-scoped check guide; coordinator/player
+contracts remain the owners of gameplay and cleanup. Preserve the repository's
+`.pi/skills` and `.codex/skills` discovery links rather than installing a second
+global copy.
+
+Run `node scripts/qa/check-play-linejam-skill.mjs` for the existing static
+package/schema preflight. This is not a live browser or skill-import test.
+In the intended agent harness, confirm that `play-linejam` resolves to this
+checkout and that its coordinator, player, result-schema, and local-runtime
+references can be read. For an explicit-resource runner with ambient skills
+disabled, include this checkout's skill through that runner's approved resource
+composition; do not enable unrelated global skills or broaden tool authority.
+The existing scheduled prompt at `scripts/qa/play-scheduled.prompt.md` explicitly
+reads the repository skill and role files; reading that prompt is not permission
+to invoke its externally consequential scheduled runner.
+
+A discovery-only exercise should identify the local setup command, web target,
+isolated identities, nine-round/reveal and closure/rejection postconditions, and
+owned browser/service teardown without opening sessions or writing a receipt.
+If the harness cannot resolve these resources, record discovery as blocked even
+when the static preflight passes.
+
 Agentic QA is advisory and never replaces deterministic checks:
 
 ```bash
