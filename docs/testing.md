@@ -122,6 +122,14 @@ fails closed on test Clerk keys and requires the pre-created smoke account.
 Keep `PLAYWRIGHT_REQUIRE_AUTH_E2E` and `PLAYWRIGHT_REQUIRE_AUTH_SMOKE` enabled
 unless the lane explicitly requests guest-only evidence and records the gap.
 
+Authenticated room scenarios and the authenticated deployment smoke close the
+room they created through the normal host UI before disposing browser contexts,
+including on assertion failure. This keeps the shared QA account's finite room
+and membership capacity available across runs. A limiter rejection is a failed
+acceptance check, not permission to skip authentication, increase caps, provision
+another account, or clear historical fixtures. Any stale-fixture cleanup needs
+separate target and ownership verification plus explicit mutation authority.
+
 ### Cuelume/audio acceptance in a real browser
 
 Use the repository-owned isolated stack, not a synthetic app or shared backend.

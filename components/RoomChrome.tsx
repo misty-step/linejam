@@ -149,7 +149,7 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
       <header className="lj-safe-inline shrink-0 bg-background pt-[max(0.25rem,env(safe-area-inset-top))] [--lj-safe-inline-space:1rem]">
         <div
           data-testid="room-chrome"
-          className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 py-2"
+          className="mx-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-3 py-2"
         >
           {isLobby ? (
             <Brand className="text-[20px]" />
@@ -169,7 +169,7 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
               {formatRoomCode(roomCode)}
             </button>
           )}
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1">
             <ColorModeControl />
             <SoundControl />
             <button

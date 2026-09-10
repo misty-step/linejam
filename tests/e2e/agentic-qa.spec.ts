@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { ensureClerkAuthState, hasClerkBrowserAuth } from './support/clerk';
-import { isolateGuestSessionIp } from './support/guestFlow';
+import { closeHostedRoom, isolateGuestSessionIp } from './support/guestFlow';
 import { createAgenticManifest } from '@/qa/agentic/manifest.mjs';
 
 const RUN_DIR = process.env.LINEJAM_AGENTIC_RUN_DIR;
@@ -133,9 +133,10 @@ test.describe('agentic QA missions', () => {
       await openPage(browser);
     attachRuntimeErrorLogging(hostPage, runtimeErrors);
     attachRuntimeErrorLogging(signedInPage, runtimeErrors);
+    let roomCode = '';
 
     try {
-      const roomCode = await createRoom(hostPage, 'Agentic Guest Host');
+      roomCode = await createRoom(hostPage, 'Agentic Guest Host');
       await ensureClerkAuthState(signedInPage);
       await joinRoom(signedInPage, roomCode, 'Agentic Clerk Join');
 
@@ -166,7 +167,11 @@ test.describe('agentic QA missions', () => {
         target: process.env.LINEJAM_AGENTIC_TARGET || 'local',
       });
     } finally {
-      await Promise.all([hostContext.close(), signedInContext.close()]);
+      try {
+        if (roomCode) await closeHostedRoom(hostPage, roomCode);
+      } finally {
+        await Promise.all([hostContext.close(), signedInContext.close()]);
+      }
     }
   });
 
@@ -182,10 +187,11 @@ test.describe('agentic QA missions', () => {
     const { context: guestContext, page: guestPage } = await openPage(browser);
     attachRuntimeErrorLogging(hostPage, runtimeErrors);
     attachRuntimeErrorLogging(guestPage, runtimeErrors);
+    let roomCode = '';
 
     try {
       await ensureClerkAuthState(hostPage);
-      const roomCode = await createRoom(hostPage, 'Agentic Clerk Host');
+      roomCode = await createRoom(hostPage, 'Agentic Clerk Host');
       await joinRoom(guestPage, roomCode, 'Agentic Guest Join');
 
       await expect(hostPage.getByText('Agentic Guest Join')).toBeVisible();
@@ -215,7 +221,11 @@ test.describe('agentic QA missions', () => {
         target: process.env.LINEJAM_AGENTIC_TARGET || 'local',
       });
     } finally {
-      await Promise.all([hostContext.close(), guestContext.close()]);
+      try {
+        if (roomCode) await closeHostedRoom(hostPage, roomCode);
+      } finally {
+        await Promise.all([hostContext.close(), guestContext.close()]);
+      }
     }
   });
 });

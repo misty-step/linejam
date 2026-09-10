@@ -23,7 +23,7 @@ export function SoundControl({
       aria-pressed={!isMuted}
       title={isMuted ? 'Sound off — turn on' : 'Sound on — mute'}
       className={cn(
-        'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-full text-text-secondary transition-colors hover:bg-surface hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 print:hidden',
+        'inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-2 rounded-full text-text-secondary transition-colors hover:bg-surface hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 print:hidden',
         showLabel && 'px-3 text-sm',
         className
       )}

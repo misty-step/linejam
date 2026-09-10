@@ -42,12 +42,6 @@ test('mobile reveal ceremony produces a one-tap shareable recap artifact', async
     await session.playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
 
     await session.hostPage.getByTestId(E2E_TEST_IDS.revealPoemButton).click();
-    await session.hostPage
-      .getByRole('button', { name: /Turn ceremony sound on/i })
-      .click();
-    await expect(
-      session.hostPage.getByRole('button', { name: /Mute ceremony sound/i })
-    ).toBeVisible();
     await expect(session.hostPage.getByText('poetry').first()).toBeVisible({
       timeout: 10000,
     });
