@@ -1,6 +1,6 @@
 import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
 import { ensureClerkAuthState, requireClerkBrowserAuth } from './support/clerk';
-import { isolateGuestSessionIp } from './support/guestFlow';
+import { closeHostedRoom, isolateGuestSessionIp } from './support/guestFlow';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -28,10 +28,10 @@ async function createHostedRoom(hostPage: Page, hostName: string) {
   });
   await hostPage.fill('input#name', hostName);
   await hostPage.click('button[type="submit"]');
-  await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30000 });
+  await hostPage.waitForURL(/\/room\/[A-Z0-9]{4}$/, { timeout: 30000 });
 
-  const roomCode = hostPage.url().match(/\/room\/([A-Z]{4})$/)?.[1] || '';
-  expect(roomCode).toMatch(/^[A-Z]{4}$/);
+  const roomCode = hostPage.url().match(/\/room\/([A-Z0-9]{4})$/)?.[1] || '';
+  expect(roomCode).toMatch(/^[A-Z0-9]{4}$/);
   return roomCode;
 }
 
@@ -45,9 +45,10 @@ test.describe('Authenticated room joins', () => {
       await openIsolatedPage(browser);
     const { context: signedInContext, page: signedInPage } =
       await openIsolatedPage(browser);
+    let roomCode = '';
 
     try {
-      const roomCode = await createHostedRoom(hostPage, 'Guest Host');
+      roomCode = await createHostedRoom(hostPage, 'Guest Host');
       await ensureClerkAuthState(signedInPage);
       await signedInPage.goto(`/join?code=${roomCode}`);
       await signedInPage.waitForSelector('input#name', {
@@ -67,8 +68,11 @@ test.describe('Authenticated room joins', () => {
         signedInPage.getByText(/unexpected error occurred/i)
       ).not.toBeVisible();
     } finally {
-      await hostContext.close();
-      await signedInContext.close();
+      try {
+        if (roomCode) await closeHostedRoom(hostPage, roomCode);
+      } finally {
+        await Promise.all([hostContext.close(), signedInContext.close()]);
+      }
     }
   });
 });

@@ -9,6 +9,7 @@
  */
 
 import * as readline from 'node:readline';
+import { ConvexError } from 'convex/values';
 import {
   createLinejamClient,
   mintGuestToken,
@@ -16,9 +17,11 @@ import {
   type LinejamClientResult,
 } from '../lib/linejamClient';
 import type { Id } from '@/convex/_generated/dataModel';
+import { AVATAR_IDS, isAvatarId } from '@/lib/avatars';
 
 export type LinejamToolArgs = {
   displayName?: string;
+  avatarId?: string;
   guestToken?: string;
   code?: string;
   roomCode?: string;
@@ -44,7 +47,10 @@ interface ToolDef {
   description: string;
   inputSchema: {
     type: 'object';
-    properties: Record<string, { type: string; description?: string }>;
+    properties: Record<
+      string,
+      { type: string; description?: string; enum?: readonly string[] }
+    >;
     required?: string[];
   };
 }
@@ -53,6 +59,13 @@ const guestTokenProp = {
   type: 'string',
   description:
     'Guest identity token from a prior linejam_create_room/linejam_join_room/linejam_mint_guest call. Required for every tool except linejam_mint_guest.',
+};
+
+const avatarIdProp = {
+  type: 'string',
+  enum: AVATAR_IDS,
+  description:
+    'Room avatar. Omit to keep an existing choice or use a stable default.',
 };
 
 export const TOOLS: ToolDef[] = [
@@ -65,7 +78,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: 'linejam_create_room',
     description:
-      'Create a new room and join it as host. Returns a 4-letter room code to share with other players.',
+      'Create a new room and join it as host. Returns a 4-character room code to share with other players.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -73,6 +86,7 @@ export const TOOLS: ToolDef[] = [
           type: 'string',
           description: 'Name shown to other players',
         },
+        avatarId: avatarIdProp,
         guestToken: guestTokenProp,
       },
       required: ['displayName', 'guestToken'],
@@ -80,12 +94,13 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: 'linejam_join_room',
-    description: 'Join an existing room by its 4-letter code.',
+    description: 'Join an existing room by its 4-character code.',
     inputSchema: {
       type: 'object',
       properties: {
-        code: { type: 'string', description: '4-letter room code' },
+        code: { type: 'string', description: '4-character room code' },
         displayName: { type: 'string' },
+        avatarId: avatarIdProp,
         guestToken: guestTokenProp,
       },
       required: ['code', 'displayName', 'guestToken'],
@@ -208,18 +223,25 @@ export async function callTool(
     return mintGuestToken();
   }
 
+  const avatarId = args.avatarId;
+  if (avatarId !== undefined && !isAvatarId(avatarId)) {
+    throw new Error(`Choose an avatar: ${AVATAR_IDS.join(', ')}`);
+  }
+
   const client = injectedClient ?? createLinejamClient();
 
   switch (name) {
     case 'linejam_create_room':
       return client.createRoom({
         displayName: parseRequiredString(args.displayName, 'displayName'),
+        avatarId,
         guestToken: args.guestToken,
       });
     case 'linejam_join_room':
       return client.joinRoom({
         code: parseRequiredString(args.code, 'code'),
         displayName: parseRequiredString(args.displayName, 'displayName'),
+        avatarId,
         guestToken: args.guestToken,
       });
     case 'linejam_room_state':
@@ -345,7 +367,14 @@ export async function handleRequest(request: JsonRpcRequest) {
         content: [{ type: 'text', text: JSON.stringify(result) }],
       });
     } catch (error) {
-      replyError(id, error instanceof Error ? error.message : String(error));
+      if (error instanceof ConvexError) {
+        reply(id, {
+          isError: true,
+          content: [{ type: 'text', text: JSON.stringify(error.data) }],
+        });
+      } else {
+        replyError(id, error instanceof Error ? error.message : String(error));
+      }
     }
     return;
   }

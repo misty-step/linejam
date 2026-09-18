@@ -9,5 +9,6 @@
       "breaking": false,
       "commit": "aad40cb"
     }
-  ]
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v1.3.0...v1.4.0"
 }

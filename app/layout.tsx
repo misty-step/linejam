@@ -5,8 +5,11 @@ import './globals.css';
 import { Providers } from './providers';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { themeIds, defaultThemeId } from '@/lib/themes';
+import { SoundProvider } from '@/components/SoundProvider';
+import { designTokens } from '@/lib/design';
+import { COLOR_MODE_STORAGE_KEY } from '@/lib/colorMode/constants';
 import { siteConfig } from '@/lib/config';
+import { isLocalServerMode } from '@/lib/localMode';
 
 export const metadata: Metadata = {
   title: siteConfig.title,
@@ -41,8 +44,14 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#faf9f7' },
-    { media: '(prefers-color-scheme: dark)', color: '#1c1917' },
+    {
+      media: '(prefers-color-scheme: light)',
+      color: designTokens.light['color-background'],
+    },
+    {
+      media: '(prefers-color-scheme: dark)',
+      color: designTokens.dark['color-background'],
+    },
   ],
 };
 
@@ -53,32 +62,29 @@ export default async function RootLayout({
 }>) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
-  // Blocking script: apply theme before first paint to prevent FOUC
-  // Theme IDs injected from registry to avoid duplication
-  const themeInitScript = `
+  // Blocking script: apply the effective mode and fixed identity before paint.
+  const colorModeInitScript = `
     (function() {
+      var MODE_KEY = ${JSON.stringify(COLOR_MODE_STORAGE_KEY)};
+      var DESIGN_TOKENS = ${JSON.stringify(designTokens)};
+      var storedMode = null;
+
       try {
-        var THEME_KEY = 'linejam-theme-id';
-        var MODE_KEY = 'linejam-theme-mode';
-        var VALID_THEMES = ${JSON.stringify(themeIds)};
-        var DEFAULT_THEME = ${JSON.stringify(defaultThemeId)};
+        storedMode = localStorage.getItem(MODE_KEY);
+      } catch (error) {
+        console.warn('Could not read color mode preference:', error);
+      }
 
-        var storedTheme = localStorage.getItem(THEME_KEY);
-        var storedMode = localStorage.getItem(MODE_KEY);
+      var mode = storedMode === 'light' || storedMode === 'dark'
+        ? storedMode
+        : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      var root = document.documentElement;
 
-        var themeId = VALID_THEMES.indexOf(storedTheme) >= 0 ? storedTheme : DEFAULT_THEME;
-
-        var mode;
-        if (storedMode === 'light' || storedMode === 'dark') {
-          mode = storedMode;
-        } else {
-          mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-
-        document.documentElement.setAttribute('data-theme', themeId);
-        document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(mode);
-      } catch (e) {}
+      Object.entries(DESIGN_TOKENS[mode]).forEach(function(entry) {
+        root.style.setProperty('--' + entry[0], entry[1]);
+      });
+      root.classList.remove('light', 'dark');
+      root.classList.add(mode);
     })();
   `;
 
@@ -87,17 +93,20 @@ export default async function RootLayout({
       <body className="antialiased">
         <script
           nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+          dangerouslySetInnerHTML={{ __html: colorModeInitScript }}
         />
-        <Providers
-          deploymentId={resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID)}
-        >
-          <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
-            <Header />
-            <main className="flex-1 flex flex-col">{children}</main>
-            <Footer />
-          </div>
-        </Providers>
+        <SoundProvider>
+          <Providers
+            localMode={isLocalServerMode()}
+            deploymentId={resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID)}
+          >
+            <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
+              <Header />
+              <main className="flex-1 flex flex-col">{children}</main>
+              <Footer />
+            </div>
+          </Providers>
+        </SoundProvider>
       </body>
     </html>
   );

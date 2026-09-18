@@ -75,6 +75,7 @@ describe('GET /api/guest/session', () => {
     captureServerErrorSpy.mockRestore();
     signGuestTokenSpy.mockRestore();
     verifyGuestTokenPayloadSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   describe('with normal operation', () => {
@@ -142,11 +143,16 @@ describe('GET /api/guest/session', () => {
     });
 
     it('re-uses existing valid guest session from cookie', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const now = Date.UTC(2026, 8, 10);
+      vi.setSystemTime(now);
+      const issuedAt = now - guestToken.GUEST_TOKEN_TTL_MS + 120_000;
       const existingToken = await guestToken.signGuestToken(
         'guest_existing_123',
         {
           sessionId: 'session_existing_123',
           rateLimitKey: 'guestSession:existing',
+          issuedAt,
         }
       );
 
@@ -162,7 +168,24 @@ describe('GET /api/guest/session', () => {
       const data = await response.json();
       expect(data.guestId).toBe('guest_existing_123');
       expect(data.token).toBe(existingToken);
+      // Reusing a cookie must not extend the browser's credential lifetime.
+      expect(data.validForMs).toBe(120_000);
       expect(response.cookies.get('linejam_guest_token')).toBeUndefined();
+
+      vi.setSystemTime(now + 60_000);
+      const later = await GET(request);
+      const laterData = await later.json();
+      expect(laterData.guestId).toBe('guest_existing_123');
+      expect(laterData.token === existingToken).toBe(true);
+      expect(laterData.validForMs).toBe(60_000);
+      expect(later.cookies.get('linejam_guest_token')).toBeUndefined();
+
+      vi.setSystemTime(now + 120_001);
+      const expired = await GET(request);
+      const replacement = await expired.json();
+      expect(replacement.guestId === data.guestId).toBe(false);
+      expect(replacement.token === existingToken).toBe(false);
+      expect(replacement.validForMs).toBe(guestToken.GUEST_TOKEN_TTL_MS);
 
       expect(jsonLogs()).toContainEqual(
         expect.objectContaining({
@@ -316,6 +339,51 @@ describe('GET /api/guest/session', () => {
         })
       );
       expect(JSON.stringify(jsonLogs())).not.toContain('invalid-token');
+    });
+
+    it('preserves local identities across projects and revokes only the selected project', async () => {
+      process.env.LINEJAM_LOCAL = '1';
+      process.env.NEXT_PUBLIC_LINEJAM_LOCAL = '1';
+      process.env.LINEJAM_DEPLOY_ENVIRONMENT = 'development';
+      process.env.CONVEX_DEPLOYMENT = '';
+      process.env.CONVEX_SERVER_URL = 'http://convex:3210';
+      const cookies = new Map<string, string>();
+
+      async function visit(port: number, action: 'create' | 'read' | 'revoke') {
+        process.env.NEXT_PUBLIC_CONVEX_URL = `http://127.0.0.1:${port}`;
+        process.env.GUEST_TOKEN_SECRET = `local-test-secret-for-project-${port}`;
+        const request = new NextRequest(
+          `http://127.0.0.1:3000/api/guest/session${action === 'read' ? '?existing=1' : ''}`,
+          { method: action === 'revoke' ? 'DELETE' : 'GET' }
+        );
+        for (const [name, value] of cookies) request.cookies.set(name, value);
+        const response =
+          action === 'revoke' ? await DELETE(request) : await GET(request);
+        expect(response.status).toBe(action === 'revoke' ? 204 : 200);
+        // One browser cookie jar for the hostname; response ports do not isolate it.
+        for (const cookie of response.cookies.getAll()) {
+          cookies.set(cookie.name, cookie.value);
+        }
+        return response;
+      }
+
+      const first = await (await visit(3210, 'create')).json();
+      const second = await (await visit(3220, 'create')).json();
+      expect(first.guestId).not.toBe(second.guestId);
+      expect(await (await visit(3210, 'read')).json()).toMatchObject({
+        guestId: first.guestId,
+        token: first.token,
+      });
+
+      await visit(3220, 'revoke');
+      expect(await (await visit(3210, 'read')).json()).toMatchObject({
+        guestId: first.guestId,
+        token: first.token,
+      });
+      expect(await (await visit(3220, 'read')).json()).toEqual({
+        guestId: null,
+        token: null,
+      });
     });
 
     it('clears the guest cookie on revocation', async () => {

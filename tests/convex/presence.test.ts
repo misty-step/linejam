@@ -1,65 +1,66 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
-import { type T, asUser } from '../helpers/convexSeed';
-
-/**
- * presence heartbeat on the real convex-test engine (backlog 018): real
- * read-your-writes + real auth (Clerk identity), asserting observable DB
- * state instead of mock-call stubs.
- */
-
-/**
- * Seed a user with a given Clerk subject name and insert them as a room player
- * in a room with code 'ABCD'. Returns the seeded IDs so callers can assert
- * against the real DB state.
- */
-async function seedUserAndRoomPlayer(t: T, clerkName: string) {
-  return t.run(async (ctx) => {
-    const userId = await ctx.db.insert('users', {
-      displayName: clerkName,
-      kind: 'human',
-      clerkUserId: `clerk_${clerkName}`,
-      createdAt: 0,
-    });
-    const hostUserId = userId; // same user hosts the room
-    const roomId = await ctx.db.insert('rooms', {
-      code: 'ABCD',
-      hostUserId,
-      status: 'IN_PROGRESS',
-      createdAt: 0,
-    });
-    const roomPlayerId = await ctx.db.insert('roomPlayers', {
-      roomId,
-      userId,
-      displayName: clerkName,
-      joinedAt: 0,
-      // lastSeenAt intentionally absent — heartbeat should stamp it
-    });
-    return { userId, roomId, roomPlayerId };
-  });
-}
+import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
+async function seedLiveRoom(t: T, clerkName: string) {
+  await seedClerkUser(t, clerkName);
+  return asUser(t, clerkName).mutation(api.rooms.createRoom, {
+    displayName: clerkName,
+  });
+}
+
+async function memberLastSeenAt(
+  t: T,
+  roomId: Id<'rooms'>,
+  userId: Id<'users'>
+): Promise<number | undefined> {
+  const lastSeenAt = await t.run(async (ctx) => {
+    const profile = await ctx.db
+      .query('roomPlayers')
+      .withIndex('by_room_user', (q) =>
+        q.eq('roomId', roomId).eq('userId', userId)
+      )
+      .unique();
+    const playerId = profile?.playerId;
+    if (!playerId) return undefined;
+    const member = await ctx.db
+      .query('roomMembers')
+      .withIndex('by_room_player', (q) =>
+        q.eq('roomId', roomId).eq('playerId', playerId)
+      )
+      .unique();
+    return member?.lastSeenAt ?? undefined;
+  });
+  return lastSeenAt === null ? undefined : lastSeenAt;
+}
+
 describe('presence', () => {
   describe('heartbeat', () => {
-    it('stamps a fresh lastSeenAt on the caller roomPlayers row', async () => {
+    it('stamps canonical membership lastSeenAt', async () => {
       const t = setupConvexTest();
-      const { roomPlayerId } = await seedUserAndRoomPlayer(t, 'alice');
+      const { roomId } = await seedLiveRoom(t, 'alice');
+      const userId = await t.run(async (ctx) => {
+        const user = await ctx.db
+          .query('users')
+          .withIndex('by_clerk', (q) => q.eq('clerkUserId', 'clerk_alice'))
+          .unique();
+        return user!._id;
+      });
 
       const before = Date.now();
       await asUser(t, 'alice').mutation(api.presence.heartbeat, {
-        roomCode: 'ABCD',
+        roomCode: (await t.run((ctx) => ctx.db.get(roomId)))!.code,
       });
       const after = Date.now();
-
-      const player = await t.run((ctx) => ctx.db.get(roomPlayerId));
-      expect(player?.lastSeenAt).toBeDefined();
-      expect(player!.lastSeenAt!).toBeGreaterThanOrEqual(before);
-      expect(player!.lastSeenAt!).toBeLessThanOrEqual(after);
+      const lastSeenAt = await memberLastSeenAt(t, roomId, userId);
+      expect(lastSeenAt).toBeGreaterThanOrEqual(before);
+      expect(lastSeenAt).toBeLessThanOrEqual(after);
     });
 
     it('stamps lastSeenAt to a deterministic value when clock is frozen', async () => {
@@ -67,88 +68,99 @@ describe('presence', () => {
       vi.setSystemTime(new Date('2025-01-15T12:00:00Z'));
 
       const t = setupConvexTest();
-      const { roomPlayerId } = await seedUserAndRoomPlayer(t, 'bob');
-
-      await asUser(t, 'bob').mutation(api.presence.heartbeat, {
-        roomCode: 'ABCD',
+      const { roomId, code } = await seedLiveRoom(t, 'bob');
+      const userId = await t.run(async (ctx) => {
+        const user = await ctx.db
+          .query('users')
+          .withIndex('by_clerk', (q) => q.eq('clerkUserId', 'clerk_bob'))
+          .unique();
+        return user!._id;
       });
 
-      const player = await t.run((ctx) => ctx.db.get(roomPlayerId));
-      expect(player?.lastSeenAt).toBe(
+      await asUser(t, 'bob').mutation(api.presence.heartbeat, {
+        roomCode: code,
+      });
+
+      expect(await memberLastSeenAt(t, roomId, userId)).toBe(
         new Date('2025-01-15T12:00:00Z').getTime()
       );
     });
 
-    it('does nothing when no identity is provided and no guest token is given', async () => {
+    it('does nothing when no identity is provided', async () => {
       const t = setupConvexTest();
-      // Seed a room so the code is valid — the early-exit must be the user
-      // not found, not the room not found.
-      const { roomPlayerId } = await seedUserAndRoomPlayer(t, 'carol');
+      const { roomId, code } = await seedLiveRoom(t, 'carol');
+      const userId = await t.run(async (ctx) => {
+        const user = await ctx.db
+          .query('users')
+          .withIndex('by_clerk', (q) => q.eq('clerkUserId', 'clerk_carol'))
+          .unique();
+        return user!._id;
+      });
 
-      // No .withIdentity → getUser returns null → early return.
-      await t.mutation(api.presence.heartbeat, { roomCode: 'ABCD' });
-
-      const player = await t.run((ctx) => ctx.db.get(roomPlayerId));
-      expect(player?.lastSeenAt).toBeUndefined();
+      await t.mutation(api.presence.heartbeat, { roomCode: code });
+      expect(await memberLastSeenAt(t, roomId, userId)).toBeUndefined();
     });
 
     it('does nothing when the room code does not match any room', async () => {
       const t = setupConvexTest();
-      // Seed a user in 'ABCD' but call with an unknown code.
-      const { roomPlayerId } = await seedUserAndRoomPlayer(t, 'dan');
+      const { roomId } = await seedLiveRoom(t, 'dan');
+      const userId = await t.run(async (ctx) => {
+        const user = await ctx.db
+          .query('users')
+          .withIndex('by_clerk', (q) => q.eq('clerkUserId', 'clerk_dan'))
+          .unique();
+        return user!._id;
+      });
 
       await asUser(t, 'dan').mutation(api.presence.heartbeat, {
         roomCode: 'XXXX',
       });
-
-      const player = await t.run((ctx) => ctx.db.get(roomPlayerId));
-      expect(player?.lastSeenAt).toBeUndefined();
+      expect(await memberLastSeenAt(t, roomId, userId)).toBeUndefined();
     });
 
-    it('does nothing when the caller is not a room player in that room', async () => {
+    it('does nothing when the caller is not a room player', async () => {
       const t = setupConvexTest();
-      // Seed a room, but seed the Clerk user WITHOUT inserting a roomPlayers row.
-      const roomId = await t.run(async (ctx) => {
-        const hostId = await ctx.db.insert('users', {
-          displayName: 'host',
-          kind: 'human',
-          clerkUserId: 'clerk_host',
-          createdAt: 0,
-        });
-        const rid = await ctx.db.insert('rooms', {
-          code: 'ABCD',
-          hostUserId: hostId,
-          status: 'IN_PROGRESS',
-          createdAt: 0,
-        });
-        return rid;
-      });
-
-      // eve has a Clerk identity and a user row, but is NOT in roomPlayers.
-      await t.run((ctx) =>
-        ctx.db.insert('users', {
-          displayName: 'eve',
-          kind: 'human',
-          clerkUserId: 'clerk_eve',
-          createdAt: 0,
-        })
-      );
-
-      // Should return silently without patching anything.
+      const { code } = await seedLiveRoom(t, 'host');
+      await seedClerkUser(t, 'eve');
       await asUser(t, 'eve').mutation(api.presence.heartbeat, {
-        roomCode: 'ABCD',
+        roomCode: code,
+      });
+      const evePlayers = await t.run(async (ctx) => {
+        const user = await ctx.db
+          .query('users')
+          .withIndex('by_clerk', (q) => q.eq('clerkUserId', 'clerk_eve'))
+          .unique();
+        return ctx.db
+          .query('roomPlayers')
+          .withIndex('by_user', (q) => q.eq('userId', user!._id))
+          .collect();
+      });
+      expect(evePlayers).toEqual([]);
+    });
+
+    it('does not restore membership when a heartbeat arrives after departure', async () => {
+      const t = setupConvexTest();
+      const { roomId, code } = await seedLiveRoom(t, 'host');
+      const guestUserId = await seedClerkUser(t, 'departed');
+      await asUser(t, 'departed').mutation(api.rooms.joinRoom, {
+        code,
+        displayName: 'Departed',
+      });
+      await asUser(t, 'departed').mutation(api.rooms.leaveLobby, {
+        roomCode: code,
+      });
+      await asUser(t, 'departed').mutation(api.presence.heartbeat, {
+        roomCode: code,
       });
 
-      // No roomPlayers row for eve — confirm none was created.
-      const evePlayers = await t.run((ctx) =>
+      expect(await memberLastSeenAt(t, roomId, guestUserId)).toBeUndefined();
+      const members = await t.run((ctx) =>
         ctx.db
-          .query('roomPlayers')
+          .query('roomMembers')
           .withIndex('by_room', (q) => q.eq('roomId', roomId))
           .collect()
       );
-      // Only the host row exists (if any), none for eve, and no lastSeenAt on any.
-      const eveRow = evePlayers.find((p) => p.displayName === 'eve');
-      expect(eveRow).toBeUndefined();
+      expect(members).toHaveLength(1);
     });
   });
 });

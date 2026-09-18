@@ -5,6 +5,7 @@ import {
   screen,
   act,
   fireEvent,
+  within,
 } from '@testing-library/react';
 import { ConvexProvider } from 'convex/react';
 import { createTestConvexClient } from '@/tests/helpers/convexClient';
@@ -80,7 +81,6 @@ const poemShareDependencies: UseSharePoemDependencies = {
 // Import after mocking - these use REAL implementations
 import { PoemDisplay, type PoemLine } from '@/components/PoemDisplay';
 import type { Id } from '@/convex/_generated/dataModel';
-import { getUserColor, getUniqueColor } from '@/lib/avatarColor';
 import { installMatchMedia } from '@/tests/helpers/matchMedia';
 
 describe('PoemDisplay component', () => {
@@ -120,8 +120,6 @@ describe('PoemDisplay component', () => {
     { text: 'End', authorName: 'Alice', authorStableId: 'stable_alice' },
   ];
 
-  const allStableIds = ['stable_alice', 'stable_bob'];
-
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -140,7 +138,7 @@ describe('PoemDisplay component', () => {
   });
 
   describe('whole-poem ceremony', () => {
-    it('renders every line and author target on the first reveal paint', () => {
+    it('renders every line and its attribution together on the first reveal paint', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
@@ -150,12 +148,14 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      mockLines.forEach((line) => {
-        expect(screen.getAllByText(line.text).length).toBeGreaterThan(0);
+      const rows = within(
+        screen.getByRole('list', { name: 'Poem lines' })
+      ).getAllByRole('listitem');
+      expect(rows).toHaveLength(mockLines.length);
+      mockLines.forEach((line, index) => {
+        expect(within(rows[index]).getByText(line.text)).toBeVisible();
+        expect(within(rows[index]).getByText(line.authorName!)).toBeVisible();
       });
-      screen
-        .getAllByRole('button', { name: /Show author/i })
-        .forEach((dot) => expect(dot).not.toBeDisabled());
     });
 
     it('makes share, save, and done actions immediately discoverable', () => {
@@ -168,8 +168,7 @@ describe('PoemDisplay component', () => {
         />
       );
 
-      expect(screen.getByTestId('poem-actions')).toHaveClass('opacity-100');
-      expect(screen.getByRole('button', { name: 'Share' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Share poem' })).toBeVisible();
       expect(screen.getByRole('button', { name: /Save image/i })).toBeVisible();
       expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
     });
@@ -185,10 +184,11 @@ describe('PoemDisplay component', () => {
       );
 
       expect(document.activeElement).toBe(
-        screen.getByRole('heading', { name: 'Poem ready to read' })
+        screen.getByRole('heading', { name: 'Poem' })
       );
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'Poem revealed. Read from line one.'
+      expect(screen.getByRole('dialog', { name: 'Poem' })).toBeInTheDocument();
+      expect(screen.getByRole('status')).not.toHaveTextContent(
+        mockLines[4].text
       );
     });
   });
@@ -203,229 +203,9 @@ describe('PoemDisplay component', () => {
       />
     );
 
-    const disclosure = screen.getByText(
-      'Sharing makes this poem public to anyone with the link.'
-    );
-    const shareButton = screen.getByRole('button', { name: 'Share' });
     expect(
-      disclosure.compareDocumentPosition(shareButton) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-  });
-
-  describe('author interaction', () => {
-    it('does not enumerate human contributors before reveal interaction', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-          metadata={{
-            createdAt: Date.now(),
-            firstLine: 'One',
-            uniquePoets: 2,
-            readerName: 'Alice',
-            poemNumber: 1,
-          }}
-        />
-      );
-
-      expect(
-        screen.queryByRole('list', { name: 'Poem contributors' })
-      ).not.toBeInTheDocument();
-    });
-    it('keeps undisclosed author names out of the screen-reader tree', async () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      const firstByline = screen.getAllByText(/— Alice/i)[0];
-      expect(firstByline).toHaveAttribute('aria-hidden', 'true');
-
-      await act(async () => {
-        fireEvent.click(
-          screen.getAllByRole('button', { name: /Show author/i })[0]
-        );
-      });
-
-      expect(firstByline).toHaveAttribute('aria-hidden', 'false');
-    });
-    it('shows author name on dot click', async () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      const firstDot = screen.getAllByRole('button', {
-        name: /Show author/i,
-      })[0];
-      expect(firstDot).toHaveAccessibleName('Show author for line 1');
-      expect(firstDot).not.toHaveAttribute('title');
-
-      // Click to show author
-      await act(async () => {
-        fireEvent.click(firstDot);
-      });
-
-      // Author byline should be visible (first Alice)
-      const aliceBylines = screen.getAllByText(/— Alice/i);
-      expect(aliceBylines[0]).toHaveClass('opacity-100');
-    });
-
-    it('hides author name after 2 seconds', async () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      const firstDot = screen.getAllByRole('button', {
-        name: /Show author/i,
-      })[0];
-
-      // Click to show author
-      await act(async () => {
-        fireEvent.click(firstDot);
-      });
-
-      // Author should be visible
-      const aliceBylines = screen.getAllByText(/— Alice/i);
-      expect(aliceBylines[0]).toHaveClass('opacity-100');
-
-      // After 2 seconds, author should hide
-      await act(async () => {
-        vi.advanceTimersByTime(2000);
-      });
-
-      expect(aliceBylines[0]).toHaveClass('opacity-0');
-    });
-
-    it('exposes the author dot as a real, keyboard-operable button', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      const firstDot = screen.getAllByRole('button', {
-        name: /Show author/i,
-      })[0];
-
-      // A native <button> is keyboard-accessible by construction (Enter/Space
-      // activate it), unlike the old role="button" div.
-      expect(firstDot.tagName).toBe('BUTTON');
-      expect(firstDot).not.toBeDisabled();
-
-      // The activation the keyboard produces reveals the author byline.
-      act(() => {
-        fireEvent.click(firstDot);
-      });
-      const aliceBylines = screen.getAllByText(/— Alice/i);
-      expect(aliceBylines[0]).toHaveClass('opacity-100');
-    });
-
-    it('keeps every author target keyboard and touch reachable', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={false}
-        />
-      );
-
-      const dots = screen.getAllByRole('button', { name: /Show author/i });
-      dots.forEach((dot) => {
-        expect(dot).not.toBeDisabled();
-        expect(dot).toHaveClass('opacity-100');
-      });
-    });
-  });
-
-  describe('author color logic', () => {
-    it('uses getUniqueColor when allStableIds provided', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-          allStableIds={allStableIds}
-        />
-      );
-
-      // Verify actual colors are rendered (using real getUniqueColor)
-      const expectedAliceColor = getUniqueColor('stable_alice', allStableIds);
-      const expectedBobColor = getUniqueColor('stable_bob', allStableIds);
-
-      // The ink mark (inner span) carries the color; the button is the hit zone
-      const dots = screen
-        .getAllByRole('button', { name: /Show author/i })
-        .map((btn) => btn.querySelector('span'));
-      // First dot is Alice
-      expect(dots[0]).toHaveStyle({ backgroundColor: expectedAliceColor });
-      // Second dot is Bob
-      expect(dots[1]).toHaveStyle({ backgroundColor: expectedBobColor });
-    });
-
-    it('uses getUserColor when only authorStableId provided (no allStableIds)', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-          // No allStableIds prop
-        />
-      );
-
-      // Verify actual colors are rendered (using real getUserColor)
-      const expectedAliceColor = getUserColor('stable_alice');
-      const expectedBobColor = getUserColor('stable_bob');
-
-      const dots = screen
-        .getAllByRole('button', { name: /Show author/i })
-        .map((btn) => btn.querySelector('span'));
-      expect(dots[0]).toHaveStyle({ backgroundColor: expectedAliceColor });
-      expect(dots[1]).toHaveStyle({ backgroundColor: expectedBobColor });
-    });
-
-    it('uses muted color when no authorStableId', () => {
-      const linesWithoutStableId: PoemLine[] = [
-        { text: 'Anonymous line', authorName: 'Unknown' },
-      ];
-
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={linesWithoutStableId}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      // Check style attribute directly (toHaveStyle doesn't resolve CSS vars in happy-dom)
-      const ink = screen
-        .getByRole('button', { name: /Show author/i })
-        .querySelector('span');
-      expect(ink?.getAttribute('style')).toContain('var(--color-text-muted)');
-    });
+      screen.getByRole('button', { name: 'Share poem' })
+    ).toHaveAccessibleDescription(/public to anyone with the link/i);
   });
 
   describe('actions', () => {
@@ -467,51 +247,60 @@ describe('PoemDisplay component', () => {
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /^Done$/i }));
       });
-      expect(mockOnDone).toHaveBeenCalled();
+      expect(mockOnDone).toHaveBeenCalledTimes(1);
     });
-  });
 
-  describe('line alignment (DESIGN.md Law 3)', () => {
-    it('gives every line the same fixed-width number gutter so line text always starts at the same x', () => {
+    it('does not claim a public link was revoked until the server accepts it', async () => {
+      mockDisablePublicPoemShare.mockRejectedValueOnce(
+        new Error('Network error')
+      );
       render(
         <PoemDisplay
           poemId={mockPoemId}
           lines={mockLines}
           onDone={mockOnDone}
-          alreadyRevealed={true}
+          shareDependencies={poemShareDependencies}
         />
       );
 
-      // Each line's number+dot+text row shares one grid template — the
-      // gutter width can never differ line to line, so text can never shift.
-      const lineDots = screen.getAllByRole('button', { name: /Show author/i });
-      const rows = lineDots.map((dot) => {
-        const parent = dot.parentElement;
-        if (!(parent instanceof HTMLElement)) {
-          throw new Error('Expected HTMLElement parent');
-        }
-        return parent;
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: 'Revoke public link' })
+        );
       });
-      const templates = rows.map((row) => row.style.gridTemplateColumns);
-      expect(templates).toHaveLength(mockLines.length);
-      expect(new Set(templates).size).toBe(1);
-      expect(templates[0]).toMatch(/^\d+ch /);
+      expect(screen.getByRole('alert')).toBeVisible();
+      expect(
+        screen.queryByText('Public poem link revoked.')
+      ).not.toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: 'Revoke public link' })
+        );
+      });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByText('Public poem link revoked.')).toBeVisible();
     });
 
-    it('renders a visible line number ahead of every line, sized to the poem length', () => {
+    it('keeps keyboard focus inside the reveal dialog and closes with Escape', () => {
       render(
         <PoemDisplay
           poemId={mockPoemId}
           lines={mockLines}
           onDone={mockOnDone}
-          alreadyRevealed={true}
         />
       );
+      const dialog = screen.getByRole('dialog', { name: 'Poem' });
+      const controls = within(dialog).getAllByRole('button');
+      const first = controls[0];
+      const last = controls[controls.length - 1];
 
-      // mockLines has 9 lines, so numbers 1-9 should each appear once.
-      for (let i = 1; i <= mockLines.length; i += 1) {
-        expect(screen.getByText(String(i))).toBeInTheDocument();
-      }
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(last).toHaveFocus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(first).toHaveFocus();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(mockOnDone).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -519,10 +308,6 @@ describe('PoemDisplay component', () => {
     // Noon UTC keeps the calendar day stable across the local test-runner's
     // timezone, unlike a bare date string parsed at UTC midnight.
     const testCreatedAt = Date.UTC(2026, 0, 15, 12);
-    const expectedDateText = new Date(testCreatedAt).toLocaleDateString(
-      'en-US',
-      { month: 'short', day: 'numeric' }
-    );
     const archiveMetadata = {
       createdAt: testCreatedAt,
       backHref: '/archive',
@@ -571,19 +356,6 @@ describe('PoemDisplay component', () => {
       ).toBeInTheDocument();
     });
 
-    it('falls back to the default back label when none is provided', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={mockLines}
-          variant="archive"
-          metadata={{ createdAt: testCreatedAt, backHref: '/archive' }}
-        />
-      );
-
-      expect(screen.getByRole('link', { name: '← Back' })).toBeInTheDocument();
-    });
-
     it('does not offer favorite controls to a non-participant viewer', () => {
       render(
         <PoemDisplay
@@ -603,61 +375,6 @@ describe('PoemDisplay component', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('truncates a long first line in the header title', () => {
-      const longLine =
-        'A remarkably long opening line that easily exceeds forty characters';
-      const linesWithLongFirst: PoemLine[] = [
-        { text: longLine, authorName: 'Alice', authorStableId: 'stable_alice' },
-        ...mockLines.slice(1),
-      ];
-
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={linesWithLongFirst}
-          variant="archive"
-          metadata={{ createdAt: testCreatedAt }}
-        />
-      );
-
-      expect(
-        screen.getByText(`${longLine.slice(0, 40)}...`, { exact: false })
-      ).toBeInTheDocument();
-    });
-
-    it('falls back to the metadata first line when there are no poem lines yet', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={[]}
-          variant="archive"
-          metadata={{
-            createdAt: testCreatedAt,
-            firstLine: 'Fallback title from metadata',
-          }}
-        />
-      );
-
-      expect(
-        screen.getByText(/Fallback title from metadata/)
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('poem-actions')).toBeVisible();
-    });
-
-    it('shows an empty title when there is no line text and no metadata fallback', () => {
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={[]}
-          variant="archive"
-          metadata={{ createdAt: testCreatedAt }}
-        />
-      );
-
-      // The header still renders (date is present) even with nothing to quote.
-      expect(screen.getByText(expectedDateText)).toBeInTheDocument();
-    });
-
     it('labels a contributor as Unknown when no author name is recorded', () => {
       const linesWithMysteryAuthor: PoemLine[] = [
         { text: 'A quiet line', authorStableId: 'stable_mystery' },
@@ -673,25 +390,6 @@ describe('PoemDisplay component', () => {
       );
 
       expect(screen.getByText('Unknown')).toBeInTheDocument();
-    });
-  });
-
-  describe('string line normalization', () => {
-    it('handles plain string lines array', () => {
-      const stringLines = ['One', 'Two words', 'Three simple words'];
-
-      render(
-        <PoemDisplay
-          poemId={mockPoemId}
-          lines={stringLines}
-          onDone={mockOnDone}
-          alreadyRevealed={true}
-        />
-      );
-
-      expect(screen.getByText('One')).toBeInTheDocument();
-      expect(screen.getByText('Two words')).toBeInTheDocument();
-      expect(screen.getByText('Three simple words')).toBeInTheDocument();
     });
   });
 });

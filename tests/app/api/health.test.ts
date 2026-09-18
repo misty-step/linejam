@@ -11,6 +11,8 @@ import {
 import type { MockInstance } from 'vitest';
 import { ConvexHttpClient } from 'convex/browser';
 import { createHealthRoute } from '@/app/api/health/handler';
+import { withEnv } from '@/tests/helpers/envHelper';
+import { APP_VERSION } from '@/lib/appVersion';
 
 const originalEnv = { ...process.env };
 
@@ -120,6 +122,7 @@ describe('/api/health', () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         status: 'ok',
+        version: APP_VERSION,
         timestamp: expect.any(String),
         deployment: {
           id: HEALTHY_ENV.NEXT_DEPLOYMENT_ID,
@@ -429,6 +432,42 @@ describe('/api/health', () => {
     });
   });
 
+  it('reports local observability disabled while checking the Docker backend and guest parity', async () => {
+    await withEnv(
+      {
+        LINEJAM_LOCAL: '1',
+        NEXT_PUBLIC_LINEJAM_LOCAL: '1',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'development',
+        CONVEX_DEPLOYMENT: undefined,
+        NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1:43210',
+        CONVEX_SERVER_URL: 'http://convex:3210',
+        GUEST_TOKEN_SECRET: HEALTHY_ENV.GUEST_TOKEN_SECRET,
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: undefined,
+        NEXT_PUBLIC_SENTRY_DSN: undefined,
+        NEXT_PUBLIC_SENTRY_ENABLED: undefined,
+      },
+      async () => {
+        querySpy.mockImplementation(function (this: ConvexHttpClient) {
+          if (this.url !== 'http://convex:3210') {
+            return Promise.reject(new Error('Unexpected backend target'));
+          }
+          return Promise.resolve({
+            ...HEALTHY_REPORT,
+            deployment: { markerValid: true, url: 'http://127.0.0.1:43210' },
+          });
+        });
+        const response = await GET();
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+          status: 'ok',
+          convex: 'connected',
+          env: { guestTokenParity: true, convexDeploymentMatch: true },
+          observability: { status: 'disabled', sentryEnabled: false },
+        });
+      }
+    );
+  });
+
   describe('with missing env', () => {
     beforeEach(() => {
       process.env = { ...originalEnv };
@@ -480,7 +519,7 @@ describe('/api/health', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data).toEqual({ status: 'error' });
+      expect(data).toEqual({ status: 'error', version: APP_VERSION });
       expect(response.headers.get('Cache-Control')).toBe('no-store');
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('"message":"Healthcheck failed"')

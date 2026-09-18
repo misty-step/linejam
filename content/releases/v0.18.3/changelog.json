@@ -1,0 +1,14 @@
+{
+  "version": "0.18.3",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "ai",
+      "description": "budget ghostwriter generations",
+      "breaking": false,
+      "commit": "4d6bed0"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.2...v0.18.3"
+}

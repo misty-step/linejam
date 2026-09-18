@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
+import { requireClerkBrowserAuth } from './support/clerk';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
 import { isolateGuestSessionIp } from './support/guestFlow';
 
@@ -71,21 +72,51 @@ for (const viewport of PHONE_VIEWPORTS) {
     expect(actionBox).not.toBeNull();
     expect(boxesOverlap(nameBox!, actionBox!)).toBe(false);
 
-    const controls = page.locator('header a:visible, header button:visible');
-    for (let index = 0; index < (await controls.count()); index += 1) {
-      const box = await controls.nth(index).boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.width).toBeGreaterThanOrEqual(44);
-      expect(box!.height).toBeGreaterThanOrEqual(44);
-    }
+    const appearance = page.getByRole('button', { name: /^Color mode:/ });
+    await expect(appearance).toBeVisible();
+    const appearanceBox = await appearance.boundingBox();
+    expect(appearanceBox).not.toBeNull();
+    expect(appearanceBox!.width).toBeGreaterThanOrEqual(44);
+    expect(appearanceBox!.height).toBeGreaterThanOrEqual(44);
 
-    await page.locator('header a[href="/"]').evaluate((wordmark) => {
-      // Emulate a 200% text-only preference without doubling touch geometry.
-      wordmark.style.fontSize = '2.5rem';
-    });
+    const avatar = page.getByRole('button', { name: /^Change avatar,/ });
+    await avatar.click();
+    const picker = page.getByRole('dialog', { name: 'Choose your avatar' });
+    await expect(picker).toBeInViewport();
+    await expectNoHorizontalScroll(page);
+    await picker.getByRole('button', { name: 'Sprout', exact: true }).click();
+    await expect(picker).toHaveCount(0);
+    await expect(avatar).toHaveAccessibleName(/Sprout selected/);
+    await expect(avatar).toBeFocused();
     await expectNoHorizontalScroll(page);
   });
 }
+test('focused entries cycle color mode with a single keyboard-operable icon', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 667 });
+  await page.addInitScript(() =>
+    localStorage.setItem('linejam-theme-mode', 'system')
+  );
+
+  for (const route of ['/host', '/join']) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByRole('banner')).toHaveCount(0);
+    await expect(page.getByRole('contentinfo')).toHaveCount(0);
+
+    const appearance = page.getByRole('button', { name: /^Color mode:/ });
+    await expect(appearance).toHaveAccessibleName(/System.*Switch to Light/);
+    await expect(appearance).toBeEnabled();
+    await appearance.focus();
+    await page.keyboard.press('Enter');
+    await expect(appearance).toHaveAccessibleName(/Light.*Switch to Dark/);
+    await expect(page.locator('html')).toHaveClass(/light/);
+    await page.keyboard.press('Space');
+    await expect(appearance).toHaveAccessibleName(/Dark.*Switch to System/);
+    await expect(page.locator('html')).toHaveClass(/dark/);
+  }
+});
 
 for (const width of [320, 390]) {
   for (const entry of [
@@ -122,7 +153,8 @@ for (const width of [320, 390]) {
 
 test('mobile sign-in presents the account task before the poem showcase', async ({
   page,
-}) => {
+}, testInfo) => {
+  requireClerkBrowserAuth(testInfo, 'mobile sign-in');
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
 
@@ -148,7 +180,8 @@ for (const viewport of [
 ]) {
   test(`rotated phone keeps sign-in focused at ${viewport.width}x${viewport.height}`, async ({
     page,
-  }) => {
+  }, testInfo) => {
+    requireClerkBrowserAuth(testInfo, 'rotated sign-in');
     await page.setViewportSize(viewport);
     await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
 
@@ -160,11 +193,14 @@ for (const viewport of [
   });
 }
 
-test('mobile sign-up presents one focused account task', async ({ page }) => {
+test('mobile sign-up presents one focused account task', async ({
+  page,
+}, testInfo) => {
+  requireClerkBrowserAuth(testInfo, 'mobile sign-up');
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
 
-  const heading = page.getByRole('heading', { name: /join the jam/i });
+  const heading = page.getByRole('heading', { name: /create an account/i });
   await expect(heading).toBeVisible();
   await expect(heading).toBeInViewport();
   await expect(page.getByText('Recent Creation')).toBeHidden();

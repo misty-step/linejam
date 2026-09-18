@@ -1,0 +1,15 @@
+{
+  "version": "0.21.0",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "obs",
+      "description": "alert on AI fallback rate",
+      "breaking": false,
+      "pr": 358,
+      "commit": "01086ca"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.20.0...v0.21.0"
+}

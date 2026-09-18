@@ -68,7 +68,7 @@ describe('gameRules', () => {
     it('respects the caller-supplied threshold', () => {
       const lastSeen = now - 5 * 60_000; // 5 minutes ago
       expect(isPresenceStale(lastSeen, now, 45_000)).toBe(true); // away threshold
-      expect(isPresenceStale(lastSeen, now, 10 * 60_000)).toBe(false); // abandonment threshold
+      expect(isPresenceStale(lastSeen, now, 10 * 60_000)).toBe(false); // longer threshold
     });
   });
 });

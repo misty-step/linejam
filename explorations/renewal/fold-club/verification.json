@@ -1,0 +1,523 @@
+{
+  "direction": "fold-club",
+  "status": "complete",
+  "origin": "http://127.0.0.1:4400/fold-club/",
+  "scope": "Offline design exploration only; no production, backend, CLI or MCP mutations.",
+  "method": {
+    "browser": "Managed Chromium, then a dedicated headless Chromium/CDP browser after shared-tool contention.",
+    "interaction": "Rendered controls exercised with native Puppeteer mouse, keyboard and typing events. No application functions or model writes were used to advance gameplay.",
+    "mobile": "Final surface matrix uses mobile emulation with touch at 375x667 and 390x844. Early light manual runs used a 390x844 desktop viewport with a 15px scrollbar; full-page images contain its 375px content area.",
+    "textResize": "200% text stress doubles each element’s computed font size before measuring and capturing; this is text resizing, not a claim about a specific browser zoom implementation.",
+    "validation": "Browser exercise only. No formatter, linter, build, unit test or project-wide suite was run."
+  },
+  "coverage": {
+    "defaults": {
+      "uniqueInventoryIds": 150,
+      "views": 41,
+      "components": 71,
+      "motion": 25,
+      "sensory": 13,
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "query": {
+        "state": "default",
+        "mode": "light",
+        "embed": 1
+      },
+      "initialPass": 150,
+      "postFixPass": 150,
+      "bodyAndMainMarkerMismatches": 0,
+      "emptyBodies": 0,
+      "uncaughtErrors": 0,
+      "horizontalOverflow": 0,
+      "evidence": ".qa/renewal-evidence/fold-club/default-navigation-final.json",
+      "screenshots": ".qa/renewal-evidence/fold-club/final-defaults/"
+    },
+    "core": {
+      "views": [
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "public-recap"
+      ],
+      "viewCount": 19,
+      "scenarios": 76,
+      "configurations": [
+        {
+          "width": 390,
+          "height": 844,
+          "mode": "light",
+          "textScale": 1
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "mode": "dark",
+          "textScale": 1
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "mode": "light",
+          "textScale": 1
+        },
+        {
+          "width": 375,
+          "height": 667,
+          "mode": "light",
+          "textScale": 2
+        }
+      ],
+      "horizontalOverflow": 0,
+      "evidence": ".qa/renewal-evidence/fold-club/core-final.json",
+      "finalPaletteAndReadingFollowUp": {
+        "scenarios": 22,
+        "uncaughtErrors": 0,
+        "horizontalOverflow": 0,
+        "evidence": ".qa/renewal-evidence/fold-club/palette-reading-final.json"
+      }
+    },
+    "stateVariants": {
+      "count": 51,
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "mode": "light",
+      "cases": [
+        {
+          "id": "room-lobby",
+          "state": "one-player"
+        },
+        {
+          "id": "room-lobby",
+          "state": "full"
+        },
+        {
+          "id": "room-lobby",
+          "state": "participant"
+        },
+        {
+          "id": "room-lobby",
+          "state": "away"
+        },
+        {
+          "id": "room-lobby",
+          "state": "long-name"
+        },
+        {
+          "id": "room-lobby",
+          "state": "pending"
+        },
+        {
+          "id": "room-lobby",
+          "state": "error"
+        },
+        {
+          "id": "lobby-presentation",
+          "state": "full"
+        },
+        {
+          "id": "lobby-presentation",
+          "state": "long-name"
+        },
+        {
+          "id": "lobby-presentation",
+          "state": "away"
+        },
+        {
+          "id": "room-writing",
+          "state": "first-round"
+        },
+        {
+          "id": "room-writing",
+          "state": "below-target"
+        },
+        {
+          "id": "room-writing",
+          "state": "valid"
+        },
+        {
+          "id": "room-writing",
+          "state": "over-target"
+        },
+        {
+          "id": "room-writing",
+          "state": "long-word"
+        },
+        {
+          "id": "room-writing",
+          "state": "restored"
+        },
+        {
+          "id": "room-writing",
+          "state": "loading"
+        },
+        {
+          "id": "room-writing",
+          "state": "pending"
+        },
+        {
+          "id": "room-writing",
+          "state": "accepted"
+        },
+        {
+          "id": "room-writing",
+          "state": "error"
+        },
+        {
+          "id": "room-writing",
+          "state": "offline"
+        },
+        {
+          "id": "room-writing",
+          "state": "final-round"
+        },
+        {
+          "id": "room-waiting",
+          "state": "ready"
+        },
+        {
+          "id": "room-waiting",
+          "state": "away"
+        },
+        {
+          "id": "room-waiting",
+          "state": "loading"
+        },
+        {
+          "id": "room-waiting",
+          "state": "confirm-end"
+        },
+        {
+          "id": "room-waiting",
+          "state": "pending"
+        },
+        {
+          "id": "room-waiting",
+          "state": "error"
+        },
+        {
+          "id": "reveal-circle",
+          "state": "fallback-reader"
+        },
+        {
+          "id": "reveal-circle",
+          "state": "pending"
+        },
+        {
+          "id": "reveal-circle",
+          "state": "error"
+        },
+        {
+          "id": "reveal-circle",
+          "state": "spectator"
+        },
+        {
+          "id": "poem-reading",
+          "state": "long-word"
+        },
+        {
+          "id": "poem-reading",
+          "state": "attribution"
+        },
+        {
+          "id": "poem-reading",
+          "state": "favorite"
+        },
+        {
+          "id": "poem-reading",
+          "state": "error"
+        },
+        {
+          "id": "reveal-presentation",
+          "state": "empty"
+        },
+        {
+          "id": "reveal-presentation",
+          "state": "waiting-reader"
+        },
+        {
+          "id": "reveal-presentation",
+          "state": "pending"
+        },
+        {
+          "id": "reveal-presentation",
+          "state": "error"
+        },
+        {
+          "id": "public-poem",
+          "state": "private"
+        },
+        {
+          "id": "public-poem",
+          "state": "revoked"
+        },
+        {
+          "id": "public-poem",
+          "state": "pending"
+        },
+        {
+          "id": "public-poem",
+          "state": "loading"
+        },
+        {
+          "id": "session-recap",
+          "state": "shared"
+        },
+        {
+          "id": "session-recap",
+          "state": "pending"
+        },
+        {
+          "id": "session-recap",
+          "state": "error"
+        },
+        {
+          "id": "session-recap",
+          "state": "favorite"
+        },
+        {
+          "id": "public-recap",
+          "state": "unavailable"
+        },
+        {
+          "id": "public-recap",
+          "state": "long-word"
+        },
+        {
+          "id": "profile",
+          "state": "long-name"
+        }
+      ],
+      "uncaughtErrors": 0,
+      "horizontalOverflow": 0,
+      "evidence": ".qa/renewal-evidence/fold-club/state-variants.json"
+    },
+    "reducedMotion": {
+      "surfaces": 25,
+      "queryReduced": 1,
+      "animationsAfterReplay": 0,
+      "overflow": 0,
+      "osPreferenceWinsOverAttemptedDisable": true,
+      "evidence": ".qa/renewal-evidence/fold-club/reduced-motion.json"
+    },
+    "layoutStress": {
+      "fullRosterCount": 8,
+      "longNameLengthBeforeSeatSuffix": 37,
+      "viewports": [
+        {
+          "width": 375,
+          "height": 667,
+          "mode": "dark"
+        },
+        {
+          "width": 1440,
+          "height": 900,
+          "mode": "dark"
+        }
+      ],
+      "nameMethod": "The real full-room fixture was rendered first, then only displayed name text was substituted in the DOM to stress all eight long names simultaneously.",
+      "clippedNames": 0,
+      "horizontalOverflow": 0,
+      "shortViewport": {
+        "width": 390,
+        "height": 400,
+        "enabledSendReachable": true,
+        "keyboardSubmissionReachedWaiting": true
+      },
+      "evidence": ".qa/renewal-evidence/fold-club/stress-proof.json"
+    }
+  },
+  "manualFlow": {
+    "completedNineRoundInputPasses": 3,
+    "passModes": [
+      "Light initial defect discovery",
+      "Light after acceptance/reveal animation correction",
+      "Dark with reduced=1 after privacy and reader-count correction"
+    ],
+    "targetPattern": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      4,
+      3,
+      2,
+      1
+    ],
+    "suppliedQaLines": [
+      "Lanterns",
+      "remember rain",
+      "beneath quiet bridges",
+      "where patient bicycles listen",
+      "to all our tiny thunder",
+      "and carry it home",
+      "through borrowed starlight",
+      "until morning",
+      "opens"
+    ],
+    "invalidWordCountAttempts": 18,
+    "invalidAttemptResult": "Below-target and above-target input in every round left Send disabled and remained on the writing surface.",
+    "previousLineOnly": true,
+    "completedPoemLinesExposedDuringWriting": 0,
+    "validCommitsReachedWaiting": true,
+    "nextRoundControlsExercised": 8,
+    "allNineLinesPreserved": true,
+    "completePoemWordCount": 25,
+    "whitespaceNormalizationObserved": true,
+    "privateRecapPoemCount": 1,
+    "rereadCircleCount": 1,
+    "sharedScreenRevealLineCount": 9,
+    "endGameCancellationKeptAcceptedPlace": true,
+    "unfinishedEndReturnedToLobbyWithoutCompletedPoem": true,
+    "leaveConfirmationAndExitExercised": true,
+    "evidence": [
+      ".qa/renewal-evidence/fold-club/manual-loop.json",
+      ".qa/renewal-evidence/fold-club/manual-reveal-final.json",
+      ".qa/renewal-evidence/fold-club/manual-dark-reduced.json",
+      ".qa/renewal-evidence/fold-club/navigation-exit-final.json"
+    ]
+  },
+  "interactionProof": {
+    "entry": "Whitespace-only host name rejected; code normalized to FOLD; Enter on code focuses name; invitation is read-only and initially focuses name. Joined participant has no host Start action, including after presentation return; created host is correctly identified in roster.",
+    "keyboard": "Six forward Tab steps and reverse Tab remained in the dialog. Escape restored the help/settings trigger. Dialog title has one matching ID. State updates retain their triggering action focus, or main when the action disappears.",
+    "privacy": "Canceled/failed delivery remains private; successful-delivery preview alone displays the public-preview claim; revocation restores private state. A one-poem manual sketch no longer invents a second sample poem in session sharing. No real publication occurred.",
+    "reading": "Favorite no longer replays the poem aperture or covers lines with a success toast. Attribution remains until explicitly dismissed; all nine lines stay present. Toasts clear on view navigation.",
+    "motion": "Observed 400ms named-seat settle, 550ms accepted-paper settle, 600ms whole-sheet opening, 180ms guide/tool/attribution fade, 300ms private-heart acknowledgement and a 2px pointer press. Reduced mode suppresses these without withholding content.",
+    "sound": {
+      "initiallyOff": true,
+      "explicitlyEnabled": true,
+      "playControlInvoked": true,
+      "observedAudioContextState": "running",
+      "observedSampleRate": 48000,
+      "turnedOffAgain": true,
+      "actuallyHeard": false
+    },
+    "evidence": [
+      ".qa/renewal-evidence/fold-club/utility-final.json",
+      ".qa/renewal-evidence/fold-club/motion-interactions.json",
+      ".qa/renewal-evidence/fold-club/quiet-reading-final.json",
+      ".qa/renewal-evidence/fold-club/navigation-exit-final.json"
+    ]
+  },
+  "fixes": [
+    {
+      "files": [
+        "style.css"
+      ],
+      "change": "Paper-stack backing layers now render as offset edges instead of painting over the front sheet. Stack, sheet and folded waiting states retain their original paper identity."
+    },
+    {
+      "files": [
+        "style.css",
+        "prototype.js"
+      ],
+      "change": "Narrow social artwork becomes one column rather than breaking ordinary words across two cramped columns. Help steps keep their intended spacing outside dialogs."
+    },
+    {
+      "files": [
+        "style.css"
+      ],
+      "change": "Dark fox/whale paper fills are lighter, preserving readable companion silhouettes against blue-hour sheets."
+    },
+    {
+      "files": [
+        "prototype.js"
+      ],
+      "change": "Local host/participant permissions, host badge, own name in presentation, full-room seat count and spectator end-game controls are consistent."
+    },
+    {
+      "files": [
+        "prototype.js",
+        "style.css"
+      ],
+      "change": "Acceptance/reveal motion belongs to the actual transition, not every rerender. Favorites and attribution no longer refold the whole poem; quiet success feedback does not obscure reading."
+    },
+    {
+      "files": [
+        "prototype.js"
+      ],
+      "change": "Motion inventory uses the real composer, roster, poem, controls and dialogs instead of generic policy placards. Actual control actions produce the represented response."
+    },
+    {
+      "files": [
+        "prototype.js"
+      ],
+      "change": "Dialog Tab boundaries wrap, Escape returns focus, guide title IDs no longer collide, and state rerenders preserve keyboard focus."
+    },
+    {
+      "files": [
+        "prototype.js",
+        "index.html"
+      ],
+      "change": "Invitation/code keyboard focus is correct and Your poems remains reachable through mobile footer navigation."
+    },
+    {
+      "files": [
+        "prototype.js"
+      ],
+      "change": "Sharing preview copy stays private until successful delivery; the manual one-poem session stays one poem in sharing and the reread circle. Stale notifications clear on navigation."
+    },
+    {
+      "files": [
+        "style.css",
+        "direction.json"
+      ],
+      "change": "Removed the unused folding keyframe/rule and updated the direction’s verification limitation statement."
+    }
+  ],
+  "visualReview": {
+    "initialInventoryContactSheetsInspected": 15,
+    "finalComponentMotionAndCoreContactSheetsInspected": 8,
+    "representativeFullSizeScreenshotsInspected": true,
+    "judgment": "The original three-line narrow-home title is retained: both Host and Join remain visible at 375x667, so a generic heading restyle was unwarranted. Writing remains one upright sheet; waiting is one accepted fold; reading exposes every line. The paper stack, ribbon and companions remain distinctive.",
+    "representativeScreenshots": {
+      "home": ".qa/renewal-evidence/fold-club/home-375-light.png",
+      "writing": ".qa/renewal-evidence/fold-club/writing-final-390-light.png",
+      "waiting": ".qa/renewal-evidence/fold-club/waiting-final-390-light.png",
+      "completeManualPoem": ".qa/renewal-evidence/fold-club/complete-poem-final-390-light.png",
+      "quietDarkPoem": ".qa/renewal-evidence/fold-club/reading-quiet-final-dark.png",
+      "privateRecap": ".qa/renewal-evidence/fold-club/core/session-recap-390-dark.png",
+      "components": ".qa/renewal-evidence/fold-club/contact-sheets/components-final.png",
+      "motion": ".qa/renewal-evidence/fold-club/contact-sheets/motion-final-2.png",
+      "coreLight": ".qa/renewal-evidence/fold-club/contact-sheets/core-light-1.png",
+      "coreDark": ".qa/renewal-evidence/fold-club/contact-sheets/core-dark-1.png",
+      "fullLongRosterMobile": ".qa/renewal-evidence/fold-club/core/full-long-roster-375-dark.png",
+      "fullLongRosterDesktop": ".qa/renewal-evidence/fold-club/core/full-long-roster-1440-dark.png",
+      "largeText": ".qa/renewal-evidence/fold-club/core/room-writing-375-light-200text.png",
+      "longPoem": ".qa/renewal-evidence/fold-club/core/poem-reading-long-word-375.png"
+    }
+  },
+  "failures": [],
+  "unexercisedLimits": [
+    "No real phone, software keyboard, physical projector, screen-reader or cross-browser audit. Short-height and 200% text checks are explicitly emulated layout stress.",
+    "The optional cue was invoked and its Web Audio context observed running, but audio was not actually heard; sound quality remains unverified.",
+    "No actual live room, other player, network recovery, authentication, persistence or publication. Account/public fixtures remain explicitly offline.",
+    "Native OS sharing, printing and saving surfaces were not exercised; their rendered controls are not claimed as integrated platform proof."
+  ],
+  "toolingNotes": [
+    "Managed fill/click helpers timed out despite visible targets. Native Puppeteer mouse/keyboard actions in a dedicated Chromium browser completed the interactions.",
+    "A shared Eval VM was reset by a browser-tool timeout. This worker requested no reset; persisted navigation data and screenshots were recovered.",
+    "Pre-fix defaults, core-before, manual-reveal and utility-interaction artifacts intentionally preserve discovered failures. Use the final evidence paths above for acceptance.",
+    "Temporary image-composition probes were removed; no smoke-test script or project test scaffold was retained."
+  ]
+}

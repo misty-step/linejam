@@ -1,0 +1,15 @@
+{
+  "version": "0.18.2",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "remove unsigned throttle rollout endpoint",
+      "breaking": false,
+      "pr": 346,
+      "commit": "912ae5b"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.1...v0.18.2"
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { NextFetchEvent, NextMiddleware } from 'next/server';
 import { buildContentSecurityPolicy } from './lib/contentSecurityPolicy';
+import { isLocalServerMode } from './lib/localMode';
 
 /**
  * Root Middleware
@@ -21,8 +22,8 @@ import { buildContentSecurityPolicy } from './lib/contentSecurityPolicy';
  * a Clerk account belongs behind its own guard in the page component, not
  * a middleware-wide redirect.
  *
- * When Clerk is not configured (no CLERK_SECRET_KEY), the app runs in
- * guest-only mode and this middleware is a no-op passthrough.
+ * Explicit isolated local mode never loads Clerk, even if an unrelated key
+ * exists in the process. Unconfigured environments retain public passthrough.
  */
 
 function passthroughMiddleware(req: NextRequest) {
@@ -48,7 +49,8 @@ export function setClerkMiddlewareLoader(loader: ClerkMiddlewareLoader | null) {
 }
 
 async function resolveUpstreamMiddleware(): Promise<UpstreamMiddleware> {
-  const isClerkConfigured = Boolean(process.env.CLERK_SECRET_KEY);
+  const isClerkConfigured =
+    !isLocalServerMode() && Boolean(process.env.CLERK_SECRET_KEY);
   if (upstreamMiddleware && upstreamConfigured === isClerkConfigured) {
     return upstreamMiddleware;
   }

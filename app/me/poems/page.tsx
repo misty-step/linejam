@@ -1,25 +1,9 @@
-/**
- * Personal Archive Page
- *
- * Manuscript Gallery layout - poems as artifacts in a personal collection.
- *
- * Design Philosophy (Stripe-inspired):
- * - Information density with clear hierarchy
- * - Purposeful animation (staggered entrance)
- * - Progressive disclosure (hover reveals)
- * - Semantic color (author dots)
- *
- * Architecture (Ousterhout):
- * - Single enriched query (no N+1)
- * - Deep components (PoemCard handles everything)
- * - Simple page composition
- */
-
 'use client';
 
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useUser } from '@/lib/auth';
+import { useAccountState } from '@/lib/account';
 import { AuthErrorState } from '@/components/AuthErrorState';
 import {
   PoemCard,
@@ -38,6 +22,7 @@ export default function ArchivePage() {
     retryAuth,
     isAuthenticated,
   } = useUser();
+  const account = useAccountState();
 
   const archiveData = useQuery(
     api.archive.getArchiveData,
@@ -65,11 +50,11 @@ export default function ArchivePage() {
 
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
-      <div className="max-w-6xl mx-auto px-6 md:px-12 lg:px-16 py-12 md:py-16 lg:py-24">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-8 md:py-12">
         {/* Header */}
-        <header className="mb-8 md:mb-12">
+        <header className="mb-8">
           {/* Title */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-[var(--font-display)] leading-[0.9] tracking-tight text-[var(--color-text-primary)]">
+          <h1 className="text-3xl md:text-4xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
             Archive
           </h1>
 
@@ -82,12 +67,10 @@ export default function ArchivePage() {
             ) : null}
           </div>
 
-          {/* Reveal hint (signed-in + has poems) and/or guest identity
-              explainer (always, per linejam-942 — never a dead end) */}
           {!isLoading && (
             <ArchiveInfoStrip
               isAuthenticated={isAuthenticated}
-              hasPoems={poems.length > 0}
+              accountsAvailable={account.kind === 'clerk'}
             />
           )}
         </header>
@@ -105,7 +88,7 @@ export default function ArchivePage() {
             // Empty State
             <EmptyArchive />
           ) : (
-            // Manuscript Gallery
+            // Saved poems
             <section>
               {/* Gallery Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
@@ -115,17 +98,15 @@ export default function ArchivePage() {
                     poem={featuredPoem}
                     guestToken={guestToken}
                     variant="featured"
-                    animationDelay={0}
                   />
                 )}
 
                 {/* Remaining Cards */}
-                {remainingPoems.map((poem, index) => (
+                {remainingPoems.map((poem) => (
                   <PoemCard
                     key={poem._id}
                     poem={poem}
                     guestToken={guestToken}
-                    animationDelay={(index + 1) * 50}
                   />
                 ))}
               </div>

@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "source": "docs/releases/feed.xml before deterministic projection cutover",
+  "sourceSha256": "d4990d6220aa2014bcfe0e57de1f1fdc94deb782aec0ddbe0ea43b723abb1280",
+  "releases": [
+    {
+      "version": "0.26.0",
+      "html": "<h2>Improvements</h2>\n<ul>\n<li>Your poems and game data are now automatically backed up on a regular schedule, with encryption to keep everything secure, so a hiccup on our end won't cost you your saved games.</li>\n</ul>",
+      "plaintext": "Improvements\n\n- Your poems and game data are now automatically backed up on a regular schedule, with encryption to keep everything secure, so a hiccup on our end won't cost you your saved games."
+    },
+    {
+      "version": "0.25.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>Improved visibility and readability across all themes with stronger color contrast.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed an issue where you couldn't always join a game that was already in progress, even if there were open spots.</li>\n</ul>",
+      "plaintext": "New Features\n\n- Improved visibility and readability across all themes with stronger color contrast.\n\nBug Fixes\n\n- Fixed an issue where you couldn't always join a game that was already in progress, even if there were open spots."
+    },
+    {
+      "version": "0.24.1",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Turning a poem's sharing on and off is now fully reliable — toggling it off actually revokes the link, and toggling it back on always produces a working link instead of a dead one.</li>\n<li>Fixed a rare glitch where sharing a poem at the same time as another action (like a retry or a second share attempt) could leave the link in a broken or confusing state.</li>\n<li>The poem page now correctly updates when a share link's status changes, so you won't see stale \"expiring\" messages after a link has already been renewed or revoked.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Turning a poem's sharing on and off is now fully reliable — toggling it off actually revokes the link, and toggling it back on always produces a working link instead of a dead one.\n- Fixed a rare glitch where sharing a poem at the same time as another action (like a retry or a second share attempt) could leave the link in a broken or confusing state.\n- The poem page now correctly updates when a share link's status changes, so you won't see stale \"expiring\" messages after a link has already been renewed or revoked."
+    },
+    {
+      "version": "0.24.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>Friends who show up late can now join instantly by scanning a QR code — no typing, no waiting for a fresh link.</li>\n<li>If your connection drops mid-game, Linejam now reconnects you right back into the action without losing your spot.</li>\n<li>The big reveal now unfolds poem by poem in a clear, accessible order, so everyone can follow along easily.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Smoothed out rough edges in the mobile game experience, including keeping the join QR code fully visible on smaller screens.</li>\n</ul>",
+      "plaintext": "New Features\n\n- Friends who show up late can now join instantly by scanning a QR code — no typing, no waiting for a fresh link.\n- If your connection drops mid-game, Linejam now reconnects you right back into the action without losing your spot.\n- The big reveal now unfolds poem by poem in a clear, accessible order, so everyone can follow along easily.\n\nBug Fixes\n\n- Smoothed out rough edges in the mobile game experience, including keeping the join QR code fully visible on smaller screens."
+    },
+    {
+      "version": "0.23.1",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Cleaned up how poems store author information so lasting personal IDs no longer linger in poem data, tightening up privacy behind the scenes.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Cleaned up how poems store author information so lasting personal IDs no longer linger in poem data, tightening up privacy behind the scenes."
+    },
+    {
+      "version": "0.23.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>Added behind-the-scenes safeguards for our AI-powered poem features, including an emergency shutoff and spending limits, so the game stays reliable even if something goes wrong with the AI service.</li>\n</ul>\n<h2>Improvements</h2>\n<ul>\n<li>Tightened up how AI-generated content is managed, helping keep Linejam running smoothly for everyone during game night.</li>\n</ul>",
+      "plaintext": "New Features\n\n- Added behind-the-scenes safeguards for our AI-powered poem features, including an emergency shutoff and spending limits, so the game stays reliable even if something goes wrong with the AI service.\n\nImprovements\n\n- Tightened up how AI-generated content is managed, helping keep Linejam running smoothly for everyone during game night."
+    },
+    {
+      "version": "0.22.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>Old game data doesn't pile up forever anymore — Linejam now automatically cleans up stale rooms, shares, and other leftovers after a set time, keeping things tidy behind the scenes.</li>\n</ul>\n<h2>Improvements</h2>\n<ul>\n<li>Data cleanup runs on a predictable schedule, so there's less digital clutter without any action needed from players.</li>\n<li>Behind-the-scenes safeguards ensure real player accounts are protected during cleanup, so you never have to worry about losing your own data.</li>\n</ul>",
+      "plaintext": "New Features\n\n- Old game data doesn't pile up forever anymore — Linejam now automatically cleans up stale rooms, shares, and other leftovers after a set time, keeping things tidy behind the scenes.\n\nImprovements\n\n- Data cleanup runs on a predictable schedule, so there's less digital clutter without any action needed from players.\n- Behind-the-scenes safeguards ensure real player accounts are protected during cleanup, so you never have to worry about losing your own data."
+    },
+    {
+      "version": "0.21.0",
+      "html": "<h2>Improvements</h2>\n<ul>\n<li>Linejam now keeps a closer eye on its poem-writing AI helper behind the scenes, so any hiccups get caught and fixed faster, keeping your game sessions running smoothly.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:feat) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Improvements\n\n- Linejam now keeps a closer eye on its poem-writing AI helper behind the scenes, so any hiccups get caught and fixed faster, keeping your game sessions running smoothly.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:feat) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.20.0",
+      "html": "<p>This release is all behind-the-scenes plumbing to keep Linejam running smoothly, with no visible changes for players this time.</p>\n<h2>Improvements</h2>\n<ul>\n<li>Strengthened our internal safety checks to help prevent data hiccups behind the scenes, so future updates roll out more reliably.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "This release is all behind-the-scenes plumbing to keep Linejam running smoothly, with no visible changes for players this time.\n\nImprovements\n\n- Strengthened our internal safety checks to help prevent data hiccups behind the scenes, so future updates roll out more reliably.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.19.4",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a bunch of mobile layout glitches where buttons, controls, and text could spill off-screen or get squished — the game now fits properly within your phone's viewport.</li>\n<li>Cramped screens with larger text sizes no longer crowd out important controls like the submit button or exit options.</li>\n<li>The lobby and room screens no longer overflow or clip when zoomed or scaled, keeping all buttons reachable.</li>\n<li>If you already submitted your line, the waiting screen now correctly shows you're waiting instead of losing track of your progress.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed a bunch of mobile layout glitches where buttons, controls, and text could spill off-screen or get squished — the game now fits properly within your phone's viewport.\n- Cramped screens with larger text sizes no longer crowd out important controls like the submit button or exit options.\n- The lobby and room screens no longer overflow or clip when zoomed or scaled, keeping all buttons reachable.\n- If you already submitted your line, the waiting screen now correctly shows you're waiting instead of losing track of your progress."
+    },
+    {
+      "version": "0.19.3",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed sign-in, sign-up, and join screens getting cut off or awkward on phones—everything now fits properly on your screen.</li>\n<li>Squashed a glitch where the header could misbehave during mobile taps and menu interactions.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed sign-in, sign-up, and join screens getting cut off or awkward on phones—everything now fits properly on your screen.\n- Squashed a glitch where the header could misbehave during mobile taps and menu interactions."
+    },
+    {
+      "version": "0.19.2",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed an issue where your game could get stuck or act strangely if you were playing right when we rolled out an update behind the scenes — Linejam now smoothly catches you up instead of leaving you on outdated code.</li>\n<li>Squashed a related snag where your poem draft could be at risk during those same behind-the-scenes updates, so your lines in progress stay safe.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed an issue where your game could get stuck or act strangely if you were playing right when we rolled out an update behind the scenes — Linejam now smoothly catches you up instead of leaving you on outdated code.\n- Squashed a related snag where your poem draft could be at risk during those same behind-the-scenes updates, so your lines in progress stay safe."
+    },
+    {
+      "version": "0.19.1",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Tightened up our internal testing checks behind the scenes, helping us catch problems before they ever reach the game you play.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Tightened up our internal testing checks behind the scenes, helping us catch problems before they ever reach the game you play.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.19.0",
+      "html": "<h2>Improvements</h2>\n<ul>\n<li>Behind the scenes, we strengthened how Linejam's hosting setup is configured and monitored, making the game more reliable for everyone.</li>\n<li>Added extra checks to catch server hiccups early, so game rounds stay smooth and uninterrupted.</li>\n<li>Deployment documentation got a refresh, helping keep the game running steadily for players.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, conventional:test) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Improvements\n\n- Behind the scenes, we strengthened how Linejam's hosting setup is configured and monitored, making the game more reliable for everyone.\n- Added extra checks to catch server hiccups early, so game rounds stay smooth and uninterrupted.\n- Deployment documentation got a refresh, helping keep the game running steadily for players.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, conventional:test) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.18.6",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Squashed a behind-the-scenes configuration mismatch that could cause service hiccups, so Linejam runs more reliably.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Squashed a behind-the-scenes configuration mismatch that could cause service hiccups, so Linejam runs more reliably.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.18.5",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a snag where the poem reveal could get stuck if the person meant to read it had already left the game.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed a snag where the poem reveal could get stuck if the person meant to read it had already left the game."
+    },
+    {
+      "version": "0.18.4",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a rematch bug where player assignments could get mixed up or lost when starting a new round with the same group.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Fixed a rematch bug where player assignments could get mixed up or lost when starting a new round with the same group.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.18.3",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a glitch where the AI ghostwriter could over-generate lines behind the scenes, so it now sticks to sensible limits and stays reliable during play.</li>\n<li>Cleaned up how bot and ghostwriter turns are handled, reducing the chance of duplicate or conflicting generations in the same round.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed a glitch where the AI ghostwriter could over-generate lines behind the scenes, so it now sticks to sensible limits and stays reliable during play.\n- Cleaned up how bot and ghostwriter turns are handled, reducing the chance of duplicate or conflicting generations in the same round."
+    },
+    {
+      "version": "0.18.2",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Closed up a leftover backend shortcut that could let guest sessions bypass secure checks, tightening things up behind the scenes to keep your games safe.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Closed up a leftover backend shortcut that could let guest sessions bypass secure checks, tightening things up behind the scenes to keep your games safe.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not"
+    },
+    {
+      "version": "0.18.1",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Your finished poems now stay completely private until you actually choose to share them, closing a gap that could have exposed them too early.</li>\n<li>Shared poem cards and guest sessions are now more securely verified, so cards and links only work the way they're meant to.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Your finished poems now stay completely private until you actually choose to share them, closing a gap that could have exposed them too early.\n- Shared poem cards and guest sessions are now more securely verified, so cards and links only work the way they're meant to."
+    },
+    {
+      "version": "0.18.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>We've refreshed the look and feel of game screens, making everything clearer and even more fun to use on your phone.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>The entry screen buttons are now perfectly aligned, so they won't be hidden by your phone's home indicator.</li>\n<li>The \"Done\" button works reliably in the Reveal phase.</li>\n</ul>",
+      "plaintext": "New Features\n\n- We've refreshed the look and feel of game screens, making everything clearer and even more fun to use on your phone.\n\nBug Fixes\n\n- The entry screen buttons are now perfectly aligned, so they won't be hidden by your phone's home indicator.\n- The \"Done\" button works reliably in the Reveal phase."
+    },
+    {
+      "version": "0.17.1",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a glitch on the theme picker page where returning visitors could briefly see an error or mismatched theme right after the page loaded; your saved theme now loads in smoothly every time.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed a glitch on the theme picker page where returning visitors could briefly see an error or mismatched theme right after the page loaded; your saved theme now loads in smoothly every time."
+    },
+    {
+      "version": "0.17.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>We've added ten brand-new visual themes to choose from, each with its own unique style for your poems!</li>\n<li>Discover all themes easily on the new \"Themes\" page, where you can preview how each one looks with a real poem.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Keyboard navigation for selecting themes now works correctly, even if your previously saved theme is no longer available.</li>\n</ul>",
+      "plaintext": "New Features\n\n- We've added ten brand-new visual themes to choose from, each with its own unique style for your poems!\n- Discover all themes easily on the new \"Themes\" page, where you can preview how each one looks with a real poem.\n\nBug Fixes\n\n- Keyboard navigation for selecting themes now works correctly, even if your previously saved theme is no longer available."
+    },
+    {
+      "version": "0.16.8",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Cleaned up behind-the-scenes error reporting so normal traffic slowdowns aren't mistakenly flagged as problems, helping us focus on real issues that affect your game.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Cleaned up behind-the-scenes error reporting so normal traffic slowdowns aren't mistakenly flagged as problems, helping us focus on real issues that affect your game.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.16.7",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Smoothed out a backend hiccup that could mislabel temporary traffic slowdowns, helping the game stay steady during busy moments.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Smoothed out a backend hiccup that could mislabel temporary traffic slowdowns, helping the game stay steady during busy moments.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.16.6",
+      "html": "<h2>Improvements</h2>\n<ul>\n<li>Behind the scenes, we've sharpened our monitoring so real problems get flagged to our team faster, while harmless one-off blips no longer trigger unnecessary noise.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed an issue where repeated production hiccups weren't reliably catching our team's attention — now they're routed to get eyes on them right away, keeping the game running smoothly for everyone.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Improvements\n\n- Behind the scenes, we've sharpened our monitoring so real problems get flagged to our team faster, while harmless one-off blips no longer trigger unnecessary noise.\n\nBug Fixes\n\n- Fixed an issue where repeated production hiccups weren't reliably catching our team's attention — now they're routed to get eyes on them right away, keeping the game running smoothly for everyone.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.16.5",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a backstage bug where a big pile of abandoned games could jam up cleanup entirely, so stuck games now get cleared out reliably again.</li>\n<li>Improved behind-the-scenes monitoring so we'll catch it faster if a key game feature quietly stops working, keeping games running smoothly for you.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed a backstage bug where a big pile of abandoned games could jam up cleanup entirely, so stuck games now get cleared out reliably again.\n- Improved behind-the-scenes monitoring so we'll catch it faster if a key game feature quietly stops working, keeping games running smoothly for you."
+    },
+    {
+      "version": "0.16.4",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a snag where a hiccup with our login service could block friends from hosting or joining games as guests — guest play now works no matter what.</li>\n<li>Players who were already in as guests won't get bumped out even if the login service is running slow behind the scenes.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed a snag where a hiccup with our login service could block friends from hosting or joining games as guests — guest play now works no matter what.\n- Players who were already in as guests won't get bumped out even if the login service is running slow behind the scenes."
+    },
+    {
+      "version": "0.16.3",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Squashed a behind-the-scenes glitch in our automated testing setup that could cause smoke tests to run against the wrong browser — no player-facing impact, but it keeps Linejam more reliable under the hood.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Squashed a behind-the-scenes glitch in our automated testing setup that could cause smoke tests to run against the wrong browser — no player-facing impact, but it keeps Linejam more reliable under the hood.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.16.2",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed a behind-the-scenes hiccup in how updates get published, so new versions of Linejam roll out smoothly and reliably.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found security signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Bug Fixes\n\n- Fixed a behind-the-scenes hiccup in how updates get published, so new versions of Linejam roll out smoothly and reliably.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found security signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "0.16.1",
+      "html": "<h2>Improvements</h2>\n<ul>\n<li>Straightened out a hiccup in our deployment pipeline, so site updates go out smoothly and on time.</li>\n<li>Refreshed under-the-hood libraries that power the app, keeping things running reliably behind the scenes.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix, dependency) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip</p>\n</details>",
+      "plaintext": "Improvements\n\n- Straightened out a hiccup in our deployment pipeline, so site updates go out smoothly and on time.\n- Refreshed under-the-hood libraries that power the app, keeping things running reliably behind the scenes.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix, dependency) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip"
+    },
+    {
+      "version": "1.16.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>Save or print your finished poem as a keepsake image, ready to share or stick on the fridge.</li>\n<li>Hosts can now put the lobby and poem reveal up on a big screen or shared table, with an easy QR code join and room-readable text for everyone.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>A launch-day snag that could leave players stuck on \"Setting up your room...\" when joining or hosting is resolved — rooms open reliably now.</li>\n<li>Guests who just finished a game were getting dumped on a confusing account page when tapping their poem archive; they now land straight on their own poems.</li>\n</ul>\n<details>\n<summary>Release classification notes</summary>\n<p>Landmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:feat, conventional:fix, conventional:perf, conventional:test, dependency, migration, security) disagreed with model classification; synthesis proceeded. deterministic floor found migration signals but model did not</p>\n</details>",
+      "plaintext": "New Features\n\n- Save or print your finished poem as a keepsake image, ready to share or stick on the fridge.\n- Hosts can now put the lobby and poem reveal up on a big screen or shared table, with an easy QR code join and room-readable text for everyone.\n\nBug Fixes\n\n- A launch-day snag that could leave players stuck on \"Setting up your room...\" when joining or hosting is resolved — rooms open reliably now.\n- Guests who just finished a game were getting dumped on a confusing account page when tapping their poem archive; they now land straight on their own poems.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:feat, conventional:fix, conventional:perf, conventional:test, dependency, migration, security) disagreed with model classification; synthesis proceeded. deterministic floor found migration signals but model did not"
+    },
+    {
+      "version": "1.15.1",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed issues with game loading and stability during live gameplay.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed issues with game loading and stability during live gameplay."
+    },
+    {
+      "version": "1.15.0",
+      "html": "<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed mobile writing to be fully playable with cleaner room interface.</li>\n</ul>\n<h2>New Features</h2>\n<ul>\n<li>You can now play one streamlined core game mode (previous Rhyme and Quick modes have been combined).</li>\n<li>You can now automatically become the host when the original host leaves the room.</li>\n<li>The room now stays alive and recovers automatically if something goes wrong.</li>\n<li>You can now see a shared recap of your game session after playing.</li>\n</ul>",
+      "plaintext": "Bug Fixes\n\n- Fixed mobile writing to be fully playable with cleaner room interface.\n\nNew Features\n\n- You can now play one streamlined core game mode (previous Rhyme and Quick modes have been combined).\n- You can now automatically become the host when the original host leaves the room.\n- The room now stays alive and recovers automatically if something goes wrong.\n- You can now see a shared recap of your game session after playing."
+    },
+    {
+      "version": "1.14.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>You can now vote for your favorite poem at the end of each game.</li>\n<li>The room automatically continues with a new host if the current host leaves mid-game.</li>\n</ul>\n<h2>Improvements</h2>\n<ul>\n<li>The mobile writing experience is now much easier to use with a cleaner, more spacious design.</li>\n<li>Rooms now stay active and self-heal if connection issues occur, so your game won't get stuck.</li>\n</ul>",
+      "plaintext": "New Features\n\n- You can now vote for your favorite poem at the end of each game.\n- The room automatically continues with a new host if the current host leaves mid-game.\n\nImprovements\n\n- The mobile writing experience is now much easier to use with a cleaner, more spacious design.\n- Rooms now stay active and self-heal if connection issues occur, so your game won't get stuck."
+    },
+    {
+      "version": "1.13.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>You can now enjoy a streamlined single game mode that combines the best of our previous play styles.</li>\n<li>The game now automatically passes host duties to another player when the current host leaves.</li>\n<li>You can now access a shared recap page to revisit all the poems created during your session.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed mobile writing experience to work smoothly on phones and cleaned up the room interface.</li>\n</ul>",
+      "plaintext": "New Features\n\n- You can now enjoy a streamlined single game mode that combines the best of our previous play styles.\n- The game now automatically passes host duties to another player when the current host leaves.\n- You can now access a shared recap page to revisit all the poems created during your session.\n\nBug Fixes\n\n- Fixed mobile writing experience to work smoothly on phones and cleaned up the room interface."
+    },
+    {
+      "version": "1.12.0",
+      "html": "<h2>Breaking Changes</h2>\n<p><strong>Game modes simplified:</strong> Linejam now focuses on one core collaborative poetry experience. The separate Rhyme Relay and Quick Jam modes have been removed to streamline gameplay. All rooms now use the same fun, pass-the-poem format you love.</p>\n<h2>New Features</h2>\n<ul>\n<li>You can now vote for your favorite poem at the end of each game session.</li>\n<li>You can now view a shared recap hub that shows all the poems created during your session.</li>\n<li>The game now automatically keeps rooms alive and recovers from connection issues so your poetry sessions never get interrupted.</li>\n<li>You can now seamlessly continue playing even if the original host leaves the room.</li>\n</ul>\n<h2>Improvements</h2>\n<ul>\n<li>The mobile writing experience now works much better with improved touch controls and less screen clutter.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed mobile touch targets to work properly with thumbs on all game screens.</li>\n</ul>",
+      "plaintext": "Breaking Changes\n\nGame modes simplified: Linejam now focuses on one core collaborative poetry experience. The separate Rhyme Relay and Quick Jam modes have been removed to streamline gameplay. All rooms now use the same fun, pass-the-poem format you love.\n\nNew Features\n\n- You can now vote for your favorite poem at the end of each game session.\n- You can now view a shared recap hub that shows all the poems created during your session.\n- The game now automatically keeps rooms alive and recovers from connection issues so your poetry sessions never get interrupted.\n- You can now seamlessly continue playing even if the original host leaves the room.\n\nImprovements\n\n- The mobile writing experience now works much better with improved touch controls and less screen clutter.\n\nBug Fixes\n\n- Fixed mobile touch targets to work properly with thumbs on all game screens."
+    },
+    {
+      "version": "1.11.0",
+      "html": "<h2>Breaking Changes</h2>\n<p>We've streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.</p>\n<h2>New Features</h2>\n<ul>\n<li>You can now keep playing even if your game host leaves, as we'll automatically pick a new host from your group.</li>\n<li>You can now see a shared recap page after each game to relive your best poem moments together.</li>\n<li>You can now vote for your favorite poem in each round, and we'll crown a room champion at the end.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go.</li>\n</ul>",
+      "plaintext": "Breaking Changes\n\nWe've streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.\n\nNew Features\n\n- You can now keep playing even if your game host leaves, as we'll automatically pick a new host from your group.\n- You can now see a shared recap page after each game to relive your best poem moments together.\n- You can now vote for your favorite poem in each round, and we'll crown a room champion at the end.\n\nBug Fixes\n\n- Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go."
+    },
+    {
+      "version": "1.10.0",
+      "html": "<h2>New Features</h2>\n<ul>\n<li>You can now play with just one game mode that's perfectly tuned for collaborative poetry.</li>\n<li>The room automatically finds a new host when the current host leaves mid-game.</li>\n<li>Rooms now stay alive and self-heal if something goes wrong during your session.</li>\n<li>You can now view a shared recap of all the poems created in your game session.</li>\n</ul>\n<h2>Improvements</h2>\n<ul>\n<li>The mobile writing experience is now much easier to use with a cleaner interface.</li>\n</ul>",
+      "plaintext": "New Features\n\n- You can now play with just one game mode that's perfectly tuned for collaborative poetry.\n- The room automatically finds a new host when the current host leaves mid-game.\n- Rooms now stay alive and self-heal if something goes wrong during your session.\n- You can now view a shared recap of all the poems created in your game session.\n\nImprovements\n\n- The mobile writing experience is now much easier to use with a cleaner interface."
+    }
+  ]
+}

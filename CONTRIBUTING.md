@@ -6,46 +6,49 @@ messages.
 ## Setup
 
 ```bash
-bash scripts/setup.sh
+node scripts/local/cli.mjs dev
 ```
 
-Fill `.env.local` with the Convex, Clerk, guest-token, and Sentry values needed
-for the loop you are running. Keep `GUEST_TOKEN_SECRET` aligned across local,
-DigitalOcean App Platform, and Convex when testing room flows.
+This runs the real isolated guest game without provider credentials or a host
+dotenv file. Ctrl-C stops the owned stack. See
+[local development](docs/local-development.md) for QA, reset, concurrent projects,
+and readiness evidence.
 
-## Claiming Work
+Hosted-provider integration is a separate, explicitly commissioned lane. Use
+`bash scripts/setup.sh` for that lane and align its web/Convex guest secret;
+ordinary checks never sync code or create provider configuration automatically.
 
-[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
-work ledger. Do not claim, update, or duplicate Linejam work in Powder. The
-cutover is tracked by
-[#393](https://github.com/misty-step/linejam/issues/393).
+## Starting Work
 
-A manual claim is the GitHub Issue assignee. Assign the Issue to the contributor
-before changing the repository. If self-assignment is unavailable, ask a
-maintainer to assign it rather than starting invisible work. Before starting,
-check for an existing assignee.
+Work from a current request and check the affected code before implementation.
+Check existing branches, pull requests, and active sessions for overlap; agree
+on ownership when another contributor is working on the same files. Use a
+focused branch and describe the result and verification evidence in its pull
+request. Linear owns current work and priorities; historical issues are
+context, not an automatic queue or a required intake ceremony.
 
-Create a `forest/<issue>-<slug>` branch and link its pull request to the Issue
-once the work has a pushable change. The branch and PR are delivery evidence,
-not a second lock. On abandonment, remove the assignee and close or hand off the
-PR so the Issue is visibly available again. GitHub needs no lease, run record,
-or claim-status label.
+Repository docs own version-bound contracts, accepted decisions, and portable
+procedures. Keep fixtures and shipped assets in the repo; retain raw or
+sensitive run output in approved artifact storage and link sanitized,
+revision-specific conclusions from the work item or PR. Release and runtime
+ledgers keep their existing authority. `project.md` owns the product brief.
 
 ## Local Checks
 
-Use focused checks while developing:
+Choose focused checks from [docs/testing.md](docs/testing.md). Pure
+documentation or non-runtime configuration needs affected formatting,
+link/command resolution, and relevant schema/importer evidence, not a full
+application run solely to prove prose.
 
-```bash
-pnpm test --run <path>
-pnpm lint
-pnpm typecheck
-```
-
-Before pushing, run the authoritative gate:
+Before pushing behavior changes, run the fast local gate:
 
 ```bash
 pnpm ci:prepush
 ```
+
+The pre-push hook also applies to documentation-only pushes; do not bypass it
+or require a duplicate manual run. Hosted CI's merge gate remains authoritative
+for merge.
 
 Do not use `--no-verify`, lower coverage, disable tests, or loosen lint rules
 to get green. If browser evidence or smoke coverage is relevant, include the

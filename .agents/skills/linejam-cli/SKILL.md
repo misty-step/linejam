@@ -16,14 +16,15 @@ pnpm agent:mcp
 
 Use the CLI for bounded scripted play and JSON receipts. Start the stdio MCP
 server only when the lane explicitly commissions a long-running tool process.
-Use Playwright for rendering, accessibility, keyboard, responsive, or complete
-user-flow claims.
+Use a browser for rendering, accessibility, keyboard, and responsive claims;
+use `play-linejam` only when complete multiplayer UI acceptance is needed.
 
 ## Target and authority
 
-`NEXT_PUBLIC_CONVEX_URL` selects the backend. Confirm it before any write; a
-production target requires explicit live production authority. CLI/MCP writes
-create real rooms, lines, and favorites on that deployment.
+`NEXT_PUBLIC_CONVEX_URL` selects the backend. Confirm it before any write;
+shared-development and other remote targets need explicit operation authority,
+and production needs live production authority. CLI/MCP writes create real
+rooms, lines, and favorites on that deployment; examples are not authorization.
 
 The guest token is a credential. Prefer `LINEJAM_GUEST_TOKEN` over a command-line
 argument, never paste it into chat or evidence, and redact process output before

@@ -5,6 +5,7 @@ import {
   requireClerkBrowserAuth,
 } from './support/clerk';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
+import { closeHostedRoom } from './support/guestFlow';
 
 const REQUIRE_AUTH_SMOKE =
   process.env.PLAYWRIGHT_REQUIRE_AUTH_SMOKE?.trim() === '1';
@@ -18,9 +19,9 @@ async function createHostedRoom(hostPage: Page, hostName: string) {
   await hostPage.getByTestId(E2E_TEST_IDS.hostNameInput).fill(hostName);
   await hostPage.getByTestId(E2E_TEST_IDS.hostCreateRoomButton).click();
 
-  await hostPage.waitForURL(/\/room\/[A-Z]{4}$/, { timeout: 30000 });
-  const roomCode = hostPage.url().match(/\/room\/([A-Z]{4})$/)?.[1] || '';
-  expect(roomCode).toMatch(/^[A-Z]{4}$/);
+  await hostPage.waitForURL(/\/room\/[A-Z0-9]{4}$/, { timeout: 30000 });
+  const roomCode = hostPage.url().match(/\/room\/([A-Z0-9]{4})$/)?.[1] || '';
+  expect(roomCode).toMatch(/^[A-Z0-9]{4}$/);
   return roomCode;
 }
 
@@ -99,9 +100,10 @@ test.describe('Deployment Smoke', () => {
       await openContextPage(browser);
     const { context: signedInContext, page: signedInPage } =
       await openContextPage(browser);
+    let roomCode = '';
 
     try {
-      const roomCode = await createHostedRoom(hostPage, 'Smoke Guest Host');
+      roomCode = await createHostedRoom(hostPage, 'Smoke Guest Host');
 
       await ensureClerkAuthState(signedInPage);
       await signedInPage.goto(`/join?code=${roomCode}`);
@@ -124,8 +126,11 @@ test.describe('Deployment Smoke', () => {
         signedInPage.getByText(/unexpected error occurred/i)
       ).not.toBeVisible();
     } finally {
-      await hostContext.close();
-      await signedInContext.close();
+      try {
+        if (roomCode) await closeHostedRoom(hostPage, roomCode);
+      } finally {
+        await Promise.all([hostContext.close(), signedInContext.close()]);
+      }
     }
   });
 });

@@ -29,14 +29,14 @@ export function retentionEligibleAt(
 }
 
 /**
- * Hard per-mutation batch limits. Related-row guards are deliberately tiny:
- * a poem has nine lines and a room has at most twelve seated players. A row
- * over either guard is reported and skipped rather than partially deleted.
+ * Hard per-mutation batch limits. Poems have nine lines; canonical memberships
+ * and frozen rosters have at most twelve players. Historical profiles and match
+ * cycles drain in bounded pages rather than imposing a lifetime room-size cap.
  */
 export const RETENTION_BATCH_LIMITS = Object.freeze({
-  rooms: 4,
+  rooms: 2,
   games: 8,
-  poems: 12,
+  poems: 11,
   users: 12,
   migrations: 32,
   aiTurns: 64,
@@ -46,6 +46,7 @@ export const RETENTION_BATCH_LIMITS = Object.freeze({
   shares: 64,
   rateLimits: 64,
   retentionRuns: 16,
+  matchesPerRoom: 2,
   roomPlayersPerRoom: 12,
   linesPerPoem: 9,
   favoritesPerPoem: 16,
@@ -70,7 +71,12 @@ export const RETENTION_INVOCATION_LIMITS = Object.freeze({
   maxDocumentReads:
     maxCandidateRows +
     RETENTION_BATCH_LIMITS.rooms *
-      (4 + RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1) +
+      (4 +
+        2 * (RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1) +
+        RETENTION_BATCH_LIMITS.matchesPerRoom +
+        1 +
+        RETENTION_BATCH_LIMITS.matchesPerRoom *
+          (RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1)) +
     RETENTION_BATCH_LIMITS.games +
     RETENTION_BATCH_LIMITS.poems *
       (2 +
@@ -78,10 +84,14 @@ export const RETENTION_INVOCATION_LIMITS = Object.freeze({
         1 +
         RETENTION_BATCH_LIMITS.linesPerPoem +
         1) +
-    RETENTION_BATCH_LIMITS.users * 6,
+    RETENTION_BATCH_LIMITS.users * 12,
   maxDocumentWrites:
     maxCandidateRows +
-    RETENTION_BATCH_LIMITS.rooms * RETENTION_BATCH_LIMITS.roomPlayersPerRoom +
+    RETENTION_BATCH_LIMITS.rooms *
+      (2 * RETENTION_BATCH_LIMITS.roomPlayersPerRoom +
+        RETENTION_BATCH_LIMITS.matchesPerRoom *
+          (RETENTION_BATCH_LIMITS.roomPlayersPerRoom + 1)) +
+    RETENTION_BATCH_LIMITS.users +
     RETENTION_BATCH_LIMITS.poems *
       (RETENTION_BATCH_LIMITS.favoritesPerPoem +
         RETENTION_BATCH_LIMITS.linesPerPoem) +

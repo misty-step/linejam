@@ -2,6 +2,7 @@ import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 import type { ConvexEnvHealthReport } from '@/convex/lib/env';
 import { resolveDeploymentId } from '@/lib/deploymentId';
+import { APP_VERSION } from '@/lib/appVersion';
 import { isValidSentryDsn } from '@/lib/env';
 import { signGuestSessionThrottleProof } from '@/lib/guestSessionThrottleProof';
 import { isValidServerActionEncryptionKey } from '@/lib/serverActionEncryptionKey';
@@ -9,6 +10,7 @@ import { captureServerError } from '@/lib/errorServer';
 import { toErrorReportable } from '@/lib/errorCore';
 import { log, logError, logRequest } from '@/lib/logger';
 
+import { getConvexServerUrl, isLocalServerMode } from '@/lib/localMode';
 const CONVEX_HEALTH_TIMEOUT_MS = 3_000;
 const ROUTE = '/api/health';
 const GUEST_PARITY_KEY = 'guestSession:deployment-readiness';
@@ -32,6 +34,7 @@ export function createHealthRoute(
     const startedAt = Date.now();
 
     try {
+      const localMode = isLocalServerMode();
       const {
         status: convexStatus,
         report: convexEnv,
@@ -47,11 +50,16 @@ export function createHealthRoute(
         convexStatus === 'connected' &&
         convexEnv?.ok === true;
       const sentryReady = envChecks.sentryEnabled;
-      const observabilityReady = sentryReady;
+      const observabilityStatus = localMode
+        ? 'disabled'
+        : sentryReady
+          ? 'ready'
+          : 'degraded';
       const deployment = deploymentReadiness();
       const status = serviceHealthy && deployment.ready ? 200 : 503;
       const body = {
         status: status === 200 ? 'ok' : 'unhealthy',
+        version: APP_VERSION,
         deployment: {
           id: deployment.id,
           skewProtection: deployment.skewProtection,
@@ -64,7 +72,7 @@ export function createHealthRoute(
           ...envChecks,
         },
         observability: {
-          status: observabilityReady ? 'ready' : 'degraded',
+          status: observabilityStatus,
           sentryEnabled: sentryReady,
         },
         timestamp: new Date().toISOString(),
@@ -76,7 +84,7 @@ export function createHealthRoute(
         status,
         durationMs: elapsedMs(startedAt),
         convex: convexStatus,
-        observabilityStatus: observabilityReady ? 'ready' : 'degraded',
+        observabilityStatus,
       });
 
       return Response.json(body, {
@@ -86,7 +94,7 @@ export function createHealthRoute(
     } catch (error) {
       logFailure(error, startedAt, dependencies);
       return Response.json(
-        { status: 'error' },
+        { status: 'error', version: APP_VERSION },
         { status: 500, headers: { 'Cache-Control': 'no-store' } }
       );
     }
@@ -126,6 +134,7 @@ function checkEnvVars(
     convexUrl: !!process.env.NEXT_PUBLIC_CONVEX_URL,
     clerkPublishableKey: !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     sentryEnabled:
+      !isLocalServerMode() &&
       process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1' &&
       isValidSentryDsn(process.env.NEXT_PUBLIC_SENTRY_DSN),
   };
@@ -145,7 +154,7 @@ type ConvexHealth = {
  * silently. Network errors are "unreachable", never a 500 crash.
  */
 async function checkConvex(): Promise<ConvexHealth> {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const convexUrl = getConvexServerUrl();
   if (!convexUrl) {
     return {
       status: 'skipped',
@@ -179,7 +188,10 @@ async function checkConvex(): Promise<ConvexHealth> {
       status: 'connected',
       report,
       guestTokenParity,
-      deploymentMatch: deploymentMatchesWebTarget(convexUrl, report),
+      deploymentMatch: deploymentMatchesWebTarget(
+        process.env.NEXT_PUBLIC_CONVEX_URL ?? convexUrl,
+        report
+      ),
     };
   } catch (error) {
     log.warn('Convex health ping failed; marking unreachable', {

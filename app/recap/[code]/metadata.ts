@@ -1,6 +1,7 @@
 import { fetchQuery } from 'convex/nextjs';
 import type { Metadata } from 'next';
 import { api } from '../../../convex/_generated/api';
+import { getConvexServerUrl } from '@/lib/localMode';
 
 export async function generateMetadata({
   params,
@@ -8,9 +9,11 @@ export async function generateMetadata({
   params: Promise<{ code: string }>;
 }): Promise<Metadata> {
   const { code } = await params;
-  const recap = await fetchQuery(api.poems.getPublicSessionRecap, {
-    roomCode: code,
-  }).catch(() => null);
+  const recap = await fetchQuery(
+    api.poems.getPublicSessionRecap,
+    { roomCode: code },
+    { url: getConvexServerUrl() }
+  ).catch(() => null);
 
   if (!recap) {
     return {

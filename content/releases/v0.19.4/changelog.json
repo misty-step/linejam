@@ -1,0 +1,15 @@
+{
+  "version": "0.19.4",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "mobile",
+      "description": "own the visual game viewport",
+      "breaking": false,
+      "pr": 356,
+      "commit": "953abc7"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.3...v0.19.4"
+}

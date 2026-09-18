@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#261c3b">
+  <title>Midnight Matinee — Linejam design sketch</title>
+  <script>
+    (() => {
+      const preference = new URLSearchParams(location.search).get('mode');
+      const daylight = preference === 'light' || (preference === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.mode = daylight ? 'light' : 'dark';
+    })();
+  </script>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body data-direction="midnight-matinee" data-surface-id="home" data-mode="dark">
+  <a class="skip-link" href="#scene">Skip to the scene</a>
+  <aside id="explorer" class="explorer" aria-label="Design exploration controls"></aside>
+  <div id="app"></div>
+  <div id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="dialog-root"></div>
+</body>
+</html>

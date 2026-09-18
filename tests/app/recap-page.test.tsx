@@ -58,33 +58,4 @@ describe('/recap/[code] page', () => {
     // Aggregate attribution names both authors.
     expect(screen.getByText('Emily, Wendell')).toBeInTheDocument();
   });
-
-  it('offers a print-hidden export action and print-hidden nav CTAs', async () => {
-    mockFetchQuery.mockResolvedValue(baseRecap);
-
-    const element = await RecapPage({
-      params: Promise.resolve({ code: 'WFLM' }),
-    });
-    render(element);
-
-    expect(screen.getByRole('button', { name: /Export as PDF/i })).toHaveClass(
-      'print:hidden'
-    );
-    expect(
-      screen.getByRole('link', { name: 'Join this room' }).closest('footer')
-    ).toHaveClass('print:hidden');
-  });
-
-  it('renders each poem inside a break-avoiding print surface', async () => {
-    mockFetchQuery.mockResolvedValue(baseRecap);
-
-    const element = await RecapPage({
-      params: Promise.resolve({ code: 'WFLM' }),
-    });
-    render(element);
-
-    expect(screen.getByText('Rain').closest('article')).toHaveClass(
-      'poem-print-surface'
-    );
-  });
 });

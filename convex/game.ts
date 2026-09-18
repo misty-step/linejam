@@ -1,6 +1,11 @@
+import {
+  abandonMatch,
+  beginMatch,
+  requireActiveMatch,
+} from '@parlor/convex/matches';
 import { ConvexError, v } from 'convex/values';
 import { mutation, query } from './_generated/server';
-import type { Id } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import {
   generateAssignmentMatrix,
   getMatrixRound,
@@ -14,15 +19,21 @@ import {
 } from './lib/gameRules';
 import { countWords } from './lib/wordCount';
 import { MAX_LINE_LENGTH, normalizeLineText } from './lib/lineText';
-import { getUser, checkParticipation } from './lib/auth';
+import {
+  getUser,
+  checkParticipation,
+  checkGameParticipation,
+} from './lib/auth';
 import {
   getRoomByCode,
-  requireRoomByCode,
+  requireLiveRoomByCode,
+  getRoomPlayers,
+  getGamePlayers,
   getActiveGame,
   getCompletedGame,
 } from './lib/room';
 import {
-  abandonGame,
+  abandonRoomMatch,
   applyLineLifecycleTransition,
   getCycleResetDecision,
   getSubmissionWindow,
@@ -31,8 +42,15 @@ import {
 import { checkMutationAbuseRateLimit } from './lib/abuseRateLimit';
 import {
   buildRevealParticipants,
-  selectRevealAuthority,
+  getRevealAuthorityForParticipant,
 } from './lib/revealAuthorization';
+import { getDefaultAvatarId } from '../lib/avatars';
+import {
+  findRoomMember,
+  getRoomActor,
+  parlorErrorCode,
+  recordRoomActivity,
+} from './lib/parlor';
 
 export const startGame = mutation({
   args: {
@@ -49,79 +67,86 @@ export const startGame = mutation({
       guestToken: user.guestId ? guestToken : undefined,
     });
 
-    const room = await requireRoomByCode(ctx, code);
+    const room = await requireLiveRoomByCode(ctx, code);
+    const [actor, completedGame] = await Promise.all([
+      getRoomActor(ctx, user, room._id),
+      getCompletedGame(ctx, room._id),
+    ]);
 
-    // First game is the host's call. Once the room has a completed game,
-    // any participant can fire the rematch — the same room self-polices.
-    if (room.hostUserId !== user._id) {
-      const [completedGame, isParticipant] = await Promise.all([
-        getCompletedGame(ctx, room._id),
-        checkParticipation(ctx, room._id, user._id),
-      ]);
-      if (!completedGame || !isParticipant) {
+    let match;
+    try {
+      match = await beginMatch(ctx, {
+        roomId: room._id,
+        actor,
+        authorization: completedGame ? 'member' : 'host',
+        participation: 'eligible',
+        minPlayers: 2,
+        maxPlayers: 8,
+        hardDeadline: false,
+      });
+    } catch (error) {
+      const code = parlorErrorCode(error);
+      if (code === 'HOST_REQUIRED') {
         throw new ConvexError('Only host can start game');
       }
+      if (
+        code === 'NOT_ENOUGH_PRESENT_PLAYERS' ||
+        code === 'NOT_ENOUGH_ELIGIBLE_PLAYERS'
+      ) {
+        throw new ConvexError('Need at least 2 players');
+      }
+      if (code === 'MATCH_ALREADY_ACTIVE') {
+        throw new ConvexError('Game already in progress');
+      }
+      throw error;
     }
-
-    // Check no game is currently in progress (authoritative check)
-    const activeGame = await getActiveGame(ctx, room._id);
-    if (activeGame) throw new ConvexError('Game already in progress');
-
-    const roomPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
-    const playerRecords = await Promise.all(
-      roomPlayers.map((player) => ctx.db.get(player.userId))
-    );
-    const legacyMachineMemberships = roomPlayers.filter(
-      (_, index) => playerRecords[index]?.kind === 'AI'
-    );
-    await Promise.all(
-      legacyMachineMemberships.map((player) => ctx.db.delete(player._id))
-    );
-    const players = roomPlayers.filter(
-      (_, index) => playerRecords[index]?.kind !== 'AI'
+    const [participants] = await Promise.all([
+      ctx.db
+        .query('matchParticipants')
+        .withIndex('by_match_seat', (q) => q.eq('matchId', match.id))
+        .collect(),
+      recordRoomActivity(ctx, room, actor),
+    ]);
+    const playerIds = await Promise.all(
+      participants.map(async (participant) => {
+        const profile = await ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room_player', (q) =>
+            q.eq('roomId', room._id).eq('playerId', participant.playerId)
+          )
+          .unique();
+        if (!profile) throw new ConvexError('Room player profile not found');
+        return profile.userId;
+      })
     );
 
-    if (players.length < 2) throw new ConvexError('Need at least 2 players');
-
-    // Assign seats (cryptographically secure random shuffle)
-    const shuffledPlayers = secureShuffle([...players]);
-    await Promise.all(
-      shuffledPlayers.map((player, i) =>
-        ctx.db.patch(player._id, { seatIndex: i })
-      )
-    );
-
-    // Generate assignment matrix — one game, WORD_COUNTS.length rounds.
-    const playerIds = shuffledPlayers.map((p) => p.userId);
+    // Writer order belongs to this game; canonical room seats never shuffle.
     const assignmentMatrix = generateAssignmentMatrix(
-      playerIds,
+      secureShuffle(playerIds),
       WORD_COUNTS.length
     );
 
     // Create Game
     const gameId = await ctx.db.insert('games', {
       roomId: room._id,
+      matchId: match.id,
       status: 'IN_PROGRESS',
-      cycle: (room.currentCycle || 0) + 1,
+      cycle: match.cycle,
       currentRound: 0,
-      roundStartedAt: Date.now(),
+      roundStartedAt: match.startedAt,
       assignmentMatrix,
-      createdAt: Date.now(),
+      createdAt: match.startedAt,
       retentionState: 'active',
     });
 
     // Create Poems
-    const poemCreationTime = Date.now();
     await Promise.all(
-      players.map((_, i) =>
+      participants.map((_, i) =>
         ctx.db.insert('poems', {
           roomId: room._id,
           gameId,
           indexInRoom: i,
-          createdAt: poemCreationTime,
+          createdAt: match.startedAt,
           retentionState: 'active',
         })
       )
@@ -131,8 +156,8 @@ export const startGame = mutation({
     await ctx.db.patch(room._id, {
       status: 'IN_PROGRESS',
       currentGameId: gameId,
-      currentCycle: (room.currentCycle || 0) + 1, // Increment cycle on start if not set, or if set (redundant if startNewCycle handles it, but safe)
-      startedAt: Date.now(),
+      currentCycle: match.cycle,
+      startedAt: match.startedAt,
       retentionState: 'active',
       retentionEligibleAt: undefined,
     });
@@ -148,7 +173,7 @@ export const startNewCycle = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) throw new ConvexError('User not found');
 
-    const room = await requireRoomByCode(ctx, roomCode);
+    const room = await requireLiveRoomByCode(ctx, roomCode);
 
     // Any participant can bring the room back to the lobby after a game —
     // a vanished host must never strand the recap.
@@ -156,10 +181,11 @@ export const startNewCycle = mutation({
     if (!isParticipant) {
       throw new ConvexError('Only players in this room can start a new cycle');
     }
+    await getRoomActor(ctx, user, room._id);
 
     // Check that there's a completed game (authoritative check)
     const [activeGame, completedGame] = await Promise.all([
-      getActiveGame(ctx, room._id),
+      getActiveGame(ctx, room),
       getCompletedGame(ctx, room._id),
     ]);
     const cycleReset = getCycleResetDecision({
@@ -192,19 +218,24 @@ export const endGame = mutation({
     const user = await getUser(ctx, guestToken);
     if (!user) throw new ConvexError('User not found');
 
-    const room = await requireRoomByCode(ctx, roomCode);
+    const room = await requireLiveRoomByCode(ctx, roomCode);
     if (room.hostUserId !== user._id) {
       throw new ConvexError('Only host can end game');
     }
 
-    const game = await getActiveGame(ctx, room._id);
+    const game = await getActiveGame(ctx, room);
     if (!game) throw new ConvexError('No game in progress');
 
+    if (!game.matchId) throw new ConvexError('Game not in progress');
+    const actor = await getRoomActor(ctx, user, room._id);
+    await requireActiveMatch(ctx, game.matchId, room._id);
+    const envelope = await abandonMatch(ctx, {
+      matchId: game.matchId,
+      actor,
+      reason: 'host-ended',
+    });
     const now = Date.now();
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
+    const players = await getRoomPlayers(ctx, room);
     const staleNonHosts = players.filter(
       (player) =>
         player.userId !== room.hostUserId &&
@@ -212,8 +243,18 @@ export const endGame = mutation({
         isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS)
     );
 
-    await Promise.all(staleNonHosts.map((player) => ctx.db.delete(player._id)));
-    await abandonGame(ctx, { game, closeRoom: false, abandonedAt: now });
+    await Promise.all(
+      staleNonHosts.map(async (player) => {
+        const member = await ctx.db
+          .query('roomMembers')
+          .withIndex('by_room_player', (q) =>
+            q.eq('roomId', room._id).eq('playerId', player.playerId!)
+          )
+          .unique();
+        if (member) await ctx.db.delete(member._id);
+      })
+    );
+    await abandonRoomMatch(ctx, { envelope, closeRoom: false });
 
     return { abandoned: true };
   },
@@ -231,9 +272,11 @@ export const getCurrentAssignment = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
-    // Get active game (authoritative source)
-    const game = await getActiveGame(ctx, room._id);
-    if (!game) return null;
+    const [game, membership] = await Promise.all([
+      getActiveGame(ctx, room),
+      room.hostPlayerId ? findRoomMember(ctx, user._id, room._id) : null,
+    ]);
+    if (!game || (game.matchId && !membership)) return null;
 
     const currentRound = game.currentRound;
     const roundAssignments = getMatrixRound(
@@ -349,6 +392,39 @@ export const submitLine = mutation({
       return { status: 'already_submitted' as const, text: existing.text };
     }
 
+    const roomPlayer = (await getRoomPlayers(ctx, room)).find(
+      (player) => player.userId === user._id
+    );
+    if (!roomPlayer) {
+      throw new ConvexError('Not a room participant');
+    }
+    if (game.matchId) {
+      if (
+        game.status !== 'IN_PROGRESS' ||
+        !room.hostPlayerId ||
+        room.closedAt !== undefined
+      ) {
+        throw new ConvexError('Game not in progress');
+      }
+      await requireActiveMatch(ctx, game.matchId, room._id);
+      const playerId = roomPlayer.playerId;
+      if (!playerId) {
+        throw new ConvexError('Not a room participant');
+      }
+      const participant = await ctx.db
+        .query('matchParticipants')
+        .withIndex('by_match_player', (q) =>
+          q.eq('matchId', game.matchId!).eq('playerId', playerId)
+        )
+        .unique();
+      if (!participant) throw new ConvexError('Not a game participant');
+      await recordRoomActivity(
+        ctx,
+        room,
+        await getRoomActor(ctx, user, room._id)
+      );
+    }
+
     // Validate line length (prevent storage abuse) before normalization.
     if (text.length > MAX_LINE_LENGTH) {
       throw new ConvexError(
@@ -374,7 +450,7 @@ export const submitLine = mutation({
       text: normalizedText,
       wordCount,
       authorUserId: user._id,
-      authorDisplayName: user.displayName,
+      authorDisplayName: roomPlayer.displayName,
       createdAt: Date.now(),
     });
 
@@ -400,24 +476,26 @@ export const getRevealPhaseState = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
-    // Verify user is a participant
-    const players = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
-    if (!players.some((p) => p.userId === user._id)) return null;
+    const game = await getCompletedGame(ctx, room._id);
+    if (!game || !isRevealReady(game)) return null;
 
-    // Get most recently completed game (authoritative source)
-    const completedGame = await getCompletedGame(ctx, room._id);
-    if (!completedGame || !isRevealReady(completedGame)) return null;
-    const game = completedGame;
+    const [isParticipant, membership] = await Promise.all([
+      checkGameParticipation(ctx, game, user._id),
+      game.matchId && room.closedAt === undefined
+        ? findRoomMember(ctx, user._id, room._id)
+        : null,
+    ]);
+    const isLiveMember = membership !== null;
+    if (!isParticipant && !isLiveMember) return null;
+    const [players, poems] = await Promise.all([
+      getGamePlayers(ctx, game),
+      ctx.db
+        .query('poems')
+        .withIndex('by_game', (q) => q.eq('gameId', game._id))
+        .collect(),
+    ]);
 
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', game._id))
-      .collect();
-
-    // Batch fetch user records for stable IDs (for avatar colors)
+    // Reuse the identity records for stable IDs and legacy avatar defaults.
     const playerUserRecords = await Promise.all(
       players.map((p) => ctx.db.get(p.userId))
     );
@@ -426,27 +504,48 @@ export const getRevealPhaseState = query({
     );
     const now = Date.now();
     const revealParticipants = buildRevealParticipants(players);
+    const lineRowsByPoem = new Map<Id<'poems'>, Doc<'lines'>[]>();
 
-    // Get first line of each poem for preview
+    // Spectators see a preview only after that poem has been revealed.
     const poemsWithPreview = await Promise.all(
       poems.map(async (poem) => {
-        const revealAuthority = selectRevealAuthority(
-          revealParticipants,
-          poem.assignedReaderId,
-          room.hostUserId,
-          now
-        );
-        const firstLine = await ctx.db
-          .query('lines')
-          .withIndex('by_poem_index', (q) =>
-            q.eq('poemId', poem._id).eq('indexInPoem', 0)
-          )
-          .first();
+        const revealAuthority = getRevealAuthorityForParticipant({
+          participants: revealParticipants,
+          assignedReaderId: poem.assignedReaderId,
+          hostUserId: room.hostUserId,
+          participantUserId: isParticipant ? user._id : null,
+          roomClosedAt: room.closedAt,
+          now,
+        });
+        const needsFullLines =
+          !!poem.revealedAt || (isParticipant && revealAuthority !== null);
+        const readableLines = needsFullLines
+          ? await ctx.db
+              .query('lines')
+              .withIndex('by_poem_index', (q) => q.eq('poemId', poem._id))
+              .collect()
+          : [];
+        if (needsFullLines) lineRowsByPoem.set(poem._id, readableLines);
+        const firstLine = needsFullLines
+          ? readableLines[0]
+          : isParticipant
+            ? await ctx.db
+                .query('lines')
+                .withIndex('by_poem_index', (q) =>
+                  q.eq('poemId', poem._id).eq('indexInPoem', 0)
+                )
+                .first()
+            : null;
 
         const reader = players.find((p) => p.userId === poem.assignedReaderId);
         const readerUserRecord = poem.assignedReaderId
           ? userRecordById.get(poem.assignedReaderId)
           : null;
+        const readerStableId =
+          readerUserRecord?.clerkUserId ||
+          readerUserRecord?.guestId ||
+          poem.assignedReaderId ||
+          '';
 
         return {
           _id: poem._id,
@@ -455,85 +554,77 @@ export const getRevealPhaseState = query({
           preview: firstLine?.text || '',
           assignedReaderId: poem.assignedReaderId,
           readerName: reader?.displayName || 'Unknown',
-          readerStableId:
-            readerUserRecord?.clerkUserId ||
-            readerUserRecord?.guestId ||
-            poem.assignedReaderId ||
-            '',
+          readerStableId,
+          readerAvatarId:
+            reader?.avatarId ?? getDefaultAvatarId(readerStableId),
           revealedAt: poem.revealedAt,
           isRevealed: !!poem.revealedAt,
-          canReveal:
-            poem.assignedReaderId === user._id ||
-            revealAuthority?.userId === user._id,
+          canReveal: revealAuthority !== null,
           isFallbackReader:
-            poem.assignedReaderId !== user._id &&
-            revealAuthority?.userId === user._id,
+            revealAuthority !== null && poem.assignedReaderId !== user._id,
         };
       })
     );
 
-    // Full lines stay scoped to poems this device may reveal, plus the current
-    // user's already-revealed assignments for re-reading.
+    // Only frozen participants get private reading assignments.
     const myPoemsRaw = poemsWithPreview.filter(
       (poem) =>
-        (!poem.isRevealed && poem.canReveal) ||
-        (poem.isRevealed && poem.assignedReaderId === user._id)
+        isParticipant &&
+        ((!poem.isRevealed && poem.canReveal) ||
+          (poem.isRevealed && poem.assignedReaderId === user._id))
     );
 
-    // Find current user's seat
-    const currentPlayer = players.find((p) => p.userId === user._id);
-    const currentUserSeat = currentPlayer?.seatIndex;
+    // Poem ownership follows the frozen writer order, not persistent room seats.
+    const currentUserPoemIndex = getMatrixRound(
+      game.assignmentMatrix,
+      0
+    ).findIndex((userId) => userId === user._id);
 
-    const getPoemLines = async (poemId: Id<'poems'>) => {
-      const lines = await ctx.db
-        .query('lines')
-        .withIndex('by_poem', (q) => q.eq('poemId', poemId))
-        .collect();
-
-      const uniqueAuthorIds = [...new Set(lines.map((l) => l.authorUserId))];
-      const authors = await Promise.all(
-        uniqueAuthorIds.map((id) => ctx.db.get(id))
-      );
-      const authorMap = new Map(
-        uniqueAuthorIds.map((id, i) => [id, authors[i]])
-      );
-
-      return lines
-        .sort((a, b) => a.indexInPoem - b.indexInPoem)
-        .map((line) => {
-          const author = authorMap.get(line.authorUserId);
-          return {
-            text: line.text,
-            authorUserId: line.authorUserId,
-            authorStableId: author?.clerkUserId || author?.guestId || '',
-            // Prefer captured pen name, fall back to current user name for legacy data
-            authorName:
-              line.authorDisplayName || author?.displayName || 'Unknown',
-          };
-        });
-    };
-
-    // Get full lines for ALL user's poems
-    const myPoems = await Promise.all(
-      myPoemsRaw.map(async (poem) => {
-        const poemLines = await getPoemLines(poem._id);
-
-        return {
-          ...poem,
-          lines: poemLines,
-          isOwnPoem: poem.indexInRoom === currentUserSeat,
-        };
+    // The frozen roster already supplied these authors. Only legacy lines can
+    // require a profile outside it; fetch those once across the whole reveal.
+    const missingAuthorIds = new Set<Id<'users'>>();
+    for (const lines of lineRowsByPoem.values()) {
+      for (const line of lines) {
+        if (!userRecordById.has(line.authorUserId)) {
+          missingAuthorIds.add(line.authorUserId);
+        }
+      }
+    }
+    await Promise.all(
+      Array.from(missingAuthorIds, async (id) => {
+        userRecordById.set(id, await ctx.db.get(id));
       })
     );
-
-    const revealedPoems = await Promise.all(
-      poemsWithPreview
-        .filter((poem) => poem.isRevealed)
-        .map(async (poem) => ({
-          ...poem,
-          lines: await getPoemLines(poem._id),
-        }))
+    const linesByPoem = new Map(
+      Array.from(
+        lineRowsByPoem,
+        ([poemId, lines]) =>
+          [
+            poemId,
+            lines.map((line) => {
+              const author = userRecordById.get(line.authorUserId);
+              return {
+                text: line.text,
+                authorUserId: line.authorUserId,
+                authorStableId: author?.clerkUserId || author?.guestId || '',
+                authorName:
+                  line.authorDisplayName || author?.displayName || 'Unknown',
+              };
+            }),
+          ] as const
+      )
     );
+    const myPoems = myPoemsRaw.map((poem) => ({
+      ...poem,
+      lines: linesByPoem.get(poem._id)!,
+      isOwnPoem: poem.indexInRoom === currentUserPoemIndex,
+    }));
+    const revealedPoems = poemsWithPreview
+      .filter((poem) => poem.isRevealed)
+      .map((poem) => ({
+        ...poem,
+        lines: linesByPoem.get(poem._id)!,
+      }));
 
     const allRevealed = poemsWithPreview.every((p) => p.isRevealed);
 
@@ -543,6 +634,8 @@ export const getRevealPhaseState = query({
     return {
       roomId: room._id,
       cycle: game.cycle,
+      canManageArtifacts: isParticipant,
+      canContinueRoom: isLiveMember,
       poems: poemsWithPreview,
       myPoem,
       myPoems,
@@ -551,10 +644,13 @@ export const getRevealPhaseState = query({
       isHost: room.hostUserId === user._id,
       players: players.map((p) => {
         const userRecord = userRecordById.get(p.userId);
+        const stableId =
+          userRecord?.clerkUserId || userRecord?.guestId || p.userId;
         return {
           userId: p.userId,
           displayName: p.displayName,
-          stableId: userRecord?.clerkUserId || userRecord?.guestId || p.userId,
+          stableId,
+          avatarId: p.avatarId ?? getDefaultAvatarId(stableId),
         };
       }),
     };
@@ -573,37 +669,35 @@ export const revealPoem = mutation({
     const poem = await ctx.db.get(poemId);
     if (!poem) throw new ConvexError('Poem not found');
 
-    const [room, game, players] = await Promise.all([
+    const [storedRoom, game] = await Promise.all([
       ctx.db.get(poem.roomId),
       ctx.db.get(poem.gameId),
-      ctx.db
-        .query('roomPlayers')
-        .withIndex('by_room', (q) => q.eq('roomId', poem.roomId))
-        .collect(),
     ]);
+    const room = storedRoom ? await getRoomByCode(ctx, storedRoom.code) : null;
     if (!room) throw new ConvexError('Room not found');
-    if (!isRevealReady(game)) {
+    if (!game || !isRevealReady(game)) {
       throw new ConvexError('Poem is not ready to reveal');
     }
 
-    const currentPlayer = players.find((player) => player.userId === user._id);
-    if (!currentPlayer) throw new ConvexError('Not a room participant');
+    if (!(await checkGameParticipation(ctx, game, user._id))) {
+      throw new ConvexError('Not a game participant');
+    }
 
     if (poem.revealedAt) {
       return { revealed: false };
     }
 
-    const revealAuthority = selectRevealAuthority(
-      buildRevealParticipants(players),
-      poem.assignedReaderId,
-      room.hostUserId,
-      Date.now()
-    );
+    const players = await getGamePlayers(ctx, game);
+    const revealAuthority = getRevealAuthorityForParticipant({
+      participants: buildRevealParticipants(players),
+      assignedReaderId: poem.assignedReaderId,
+      hostUserId: room.hostUserId,
+      participantUserId: user._id,
+      roomClosedAt: room.closedAt,
+      now: Date.now(),
+    });
 
-    if (
-      poem.assignedReaderId !== user._id &&
-      revealAuthority?.userId !== user._id
-    ) {
+    if (!revealAuthority) {
       throw new ConvexError('This poem is not assigned to you');
     }
 
@@ -626,42 +720,33 @@ export const getRoundProgress = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
-    // Fetch all room players and verify user is a participant
-    const roomPlayers = await ctx.db
-      .query('roomPlayers')
-      .withIndex('by_room', (q) => q.eq('roomId', room._id))
-      .collect();
+    const [roomPlayers, game] = await Promise.all([
+      getRoomPlayers(ctx, room),
+      getActiveGame(ctx, room),
+    ]);
+    if (!game || !roomPlayers.some((p) => p.userId === user._id)) return null;
 
-    const isParticipant = roomPlayers.some((p) => p.userId === user._id);
-    if (!isParticipant) return null;
-
-    // Get active game (authoritative source)
-    const game = await getActiveGame(ctx, room._id);
-    if (!game) return null;
-
-    // Batch fetch all poems for this game (O(1) instead of per-player)
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', game._id))
-      .collect();
-
-    // Create poemIndex -> poem lookup map
+    const [poems, userRecords] = await Promise.all([
+      ctx.db
+        .query('poems')
+        .withIndex('by_game', (q) => q.eq('gameId', game._id))
+        .collect(),
+      Promise.all(roomPlayers.map((rp) => ctx.db.get(rp.userId))),
+    ]);
     const poemByIndex = new Map(poems.map((p) => [p.indexInRoom, p]));
-
-    // Fetch user records to get stable IDs for avatar colors
-    const userRecords = await Promise.all(
-      roomPlayers.map((rp) => ctx.db.get(rp.userId))
-    );
     const userById = new Map(
       roomPlayers.map((rp, i) => [rp.userId, userRecords[i]])
     );
 
     // Build player -> poem assignments for current round
+    const roundAssignments = getMatrixRound(
+      game.assignmentMatrix,
+      game.currentRound
+    );
     const playerAssignments = roomPlayers.map((player) => {
-      const poemIndex = getMatrixRound(
-        game.assignmentMatrix,
-        game.currentRound
-      ).findIndex((uid) => uid === player.userId);
+      const poemIndex = roundAssignments.findIndex(
+        (uid) => uid === player.userId
+      );
       return {
         player,
         poemIndex,
@@ -685,6 +770,8 @@ export const getRoundProgress = query({
     const now = Date.now();
     const progress = playerAssignments.map(({ player, poemIndex }, i) => {
       const userRecord = userById.get(player.userId);
+      const stableId =
+        userRecord?.clerkUserId || userRecord?.guestId || player.userId;
       return {
         displayName: player.displayName,
         submitted: lineChecks[i] !== null,
@@ -693,8 +780,8 @@ export const getRoundProgress = query({
         // completion; the next game will include them normally.
         isSpectator: poemIndex === -1,
         userId: player.userId,
-        stableId:
-          userRecord?.clerkUserId || userRecord?.guestId || player.userId,
+        stableId,
+        avatarId: player.avatarId ?? getDefaultAvatarId(stableId),
         isAway: isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS),
       };
     });

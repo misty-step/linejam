@@ -1,0 +1,61 @@
+{
+  "version": "0.24.0",
+  "date": "2026-07-16",
+  "changes": [
+    {
+      "type": "fix",
+      "description": "polish mobile game core loop",
+      "breaking": false,
+      "pr": 370,
+      "commit": "8b6166f"
+    },
+    {
+      "type": "fix",
+      "scope": "security",
+      "description": "contain document scripts with nonce CSP",
+      "breaking": false,
+      "pr": 367,
+      "commit": "7d9e22c"
+    },
+    {
+      "type": "feat",
+      "scope": "analytics",
+      "description": "add privacy-safe room cycle funnel",
+      "breaking": false,
+      "pr": 372,
+      "commit": "e49c20a"
+    },
+    {
+      "type": "feat",
+      "scope": "game",
+      "description": "recover live rooms after reconnect",
+      "breaking": false,
+      "pr": 369,
+      "commit": "e5b3d92"
+    },
+    {
+      "type": "feat",
+      "scope": "onboarding",
+      "description": "add verified-live doctor",
+      "breaking": false,
+      "pr": 365,
+      "commit": "87b686d"
+    },
+    {
+      "type": "feat",
+      "scope": "reveal",
+      "description": "present whole poems in ordered accessible ceremony",
+      "breaking": false,
+      "pr": 366,
+      "commit": "f2efb47"
+    },
+    {
+      "type": "feat",
+      "description": "support late arrivals and zero-tap QR joining",
+      "breaking": false,
+      "pr": 368,
+      "commit": "0680d1f"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.23.1...v0.24.0"
+}

@@ -37,6 +37,6 @@ export const siteConfig = {
   url: normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL),
   title: 'Linejam',
   description:
-    'Pass-the-poem party game. Take turns writing lines you can barely see. Reveal the chaos together.',
+    "A little room for words. A poetry game for people who don't have to be poets. Write a line. Pass it on.",
   githubRepo: 'misty-step/linejam',
 } as const;

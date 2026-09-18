@@ -15,10 +15,12 @@
  */
 
 import { ConvexHttpClient } from 'convex/browser';
+import { ConvexError } from 'convex/values';
 import { randomUUID } from 'crypto';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { signGuestToken } from '@/lib/guestToken';
+import type { AvatarId } from '@/lib/avatars';
 
 export interface GuestIdentity {
   guestId: string;
@@ -55,13 +57,26 @@ export function createLinejamClient(convexUrl = resolveConvexUrl()) {
   return {
     /** Create a room and join it as its host. Returns the room code an
      * agent shares with other players (human or agent). */
-    createRoom(args: { displayName: string; guestToken?: string }) {
+    createRoom(args: {
+      displayName: string;
+      avatarId?: AvatarId;
+      guestToken?: string;
+    }) {
       return client.mutation(api.rooms.createRoom, args);
     },
 
-    /** Join an existing room by its 4-letter code. */
-    joinRoom(args: { code: string; displayName: string; guestToken?: string }) {
-      return client.mutation(api.rooms.joinRoom, args);
+    /** Join an existing room by its 4-character code. */
+    async joinRoom(args: {
+      code: string;
+      displayName: string;
+      avatarId?: AvatarId;
+      guestToken?: string;
+    }) {
+      const receipt = await client.mutation(api.rooms.joinRoom, args);
+      // Convert committed failures here, never inside the Convex transaction:
+      // failed joins must retain their rate-limit accounting.
+      if (receipt.ok === false) throw new ConvexError(receipt);
+      return receipt;
     },
 
     /** Full room + player-list + host-status snapshot. Requires the

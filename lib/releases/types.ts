@@ -1,8 +1,6 @@
 /**
- * Release notes infrastructure types.
- *
- * Static file-based releases for private repos.
- * CHANGELOG.md → Parser → LLM synthesis → Static files → Page rendering
+ * Landmark owns release decisions and public notes. Linejam projects its
+ * checked-in artifacts without contacting a provider during builds.
  */
 
 /** Conventional commit change types */
@@ -36,17 +34,63 @@ export interface Release {
   compareUrl?: string;
 }
 
-/** A release with LLM-generated product notes */
+export type NotesStatus = 'landmark' | 'legacy' | 'missing' | 'skipped';
+
+export const NOTES_STATUS_LABELS = {
+  landmark: 'Release notes by Landmark.',
+  legacy: 'Archived notes from the previous release pipeline.',
+  missing:
+    'Public notes are not recorded for this release. Technical history is available below.',
+  skipped:
+    'Landmark skipped public notes for this release. Technical history is available below.',
+} satisfies Record<NotesStatus, string>;
+
+/** Anything a checked-in JSON source may hold before it is validated. */
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+/** A release with public notes, or an explicit absence of public notes. */
 export interface ReleaseWithNotes extends Release {
-  /** LLM-generated user-friendly summary */
   productNotes: string;
+  notesStatus: NotesStatus;
 }
 
-/** Manifest tracking all generated releases */
+export interface ReleaseDiagnostic {
+  severity: 'warning' | 'error';
+  message: string;
+}
+
+export interface ReleaseCatalog {
+  currentVersion: string;
+  releases: ReleaseWithNotes[];
+  diagnostics: ReleaseDiagnostic[];
+}
+
+/** Deterministic index, never an independent version authority. */
 export interface ReleaseManifest {
-  latest: string;
+  schemaVersion: 2;
+  currentVersion: string;
   versions: string[];
-  generatedAt: string;
+  notes: Record<string, NotesStatus>;
+}
+
+/** Consumed fields of Landmark's release-entry.v1.schema.json contract. */
+export interface LandmarkReleaseEntry {
+  schema_version: 'landmark.public-release-notes.v1';
+  version: string;
+  tag: string;
+  repository: string;
+  audience: string;
+  notes: string;
+  markdown: string;
+  plaintext: string;
+  html: string;
+  slack: string;
+  sections: {
+    title: string;
+    bullets: { text: string; links: { label: string; href: string }[] }[];
+  }[];
+  published_at: string;
 }
 
 /** Mapping from Keep a Changelog section headers to change types */

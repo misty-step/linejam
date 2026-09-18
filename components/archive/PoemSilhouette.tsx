@@ -3,8 +3,6 @@
  *
  * Renders the 1-2-3-4-5-4-3-2-1 word count pattern as proportional bars,
  * creating a distinctive "diamond" silhouette unique to Linejam poems.
- *
- * Design: Stripe-inspired minimal visualization with purposeful animation.
  */
 
 import { CSSProperties } from 'react';
@@ -15,8 +13,6 @@ export interface PoemSilhouetteProps {
   wordCounts: number[];
   /** Optional className for container */
   className?: string;
-  /** Whether to animate bars on mount */
-  animate?: boolean;
   /** Size variant */
   size?: 'sm' | 'md' | 'lg';
 }
@@ -27,16 +23,9 @@ const SIZE_CONFIG = {
   lg: { height: 4, gap: 2, maxWidth: 48 },
 } as const;
 
-/**
- * PoemSilhouette component
- *
- * Deep module: Handles all complexity of visualization internally.
- * Simple interface: just pass wordCounts array.
- */
 export function PoemSilhouette({
   wordCounts,
   className,
-  animate = false,
   size = 'sm',
 }: PoemSilhouetteProps) {
   const config = SIZE_CONFIG[size];
@@ -56,18 +45,11 @@ export function PoemSilhouette({
           width: `${(widthPercent / 100) * config.maxWidth}px`,
           minWidth: '2px',
         };
-        if (animate) {
-          barStyle.animation = 'silhouette-bar-reveal 400ms ease-out forwards';
-          barStyle.animationDelay = `${index * 50}ms`;
-        }
 
         return (
           <div
             key={index}
-            className={cn(
-              'bg-[var(--color-text-muted)] rounded-full transition-all',
-              animate && 'opacity-0'
-            )}
+            className="bg-[var(--color-primary)] rounded-full"
             style={barStyle}
           />
         );

@@ -1,4 +1,4 @@
-# ADR-0008: Pen Names via Write-Time Capture
+# ADR-0008: Room Pen Names via Write-Time Capture
 
 ## Status
 
@@ -6,16 +6,18 @@ Accepted
 
 ## Context
 
-When displaying poem lines, we show the author's display name. But users can change their display name at any time. Question: should we show:
+When displaying poem lines, we show the author's pen name for that room. A persistent guest or signed-in identity can participate in multiple rooms with different names, and can rejoin a room with a new name. The account's `users.displayName` is not the authority for any particular room. Question: should we show:
 
-- **Current name**: What the user is called now (live lookup)
-- **Historical name**: What they were called when they wrote the line
+- **Current name**: What the user or room membership is called now (live lookup)
+- **Historical room name**: What the writer called themselves in that room when they wrote the line
 
 For a poetry game with "pen name" culture, historical names are more appropriate. A line signed "The Wandering Poet" should stay signed that way even if the user later changes to "Bob."
 
 ## Decision
 
-Capture `authorDisplayName` at write time in the `lines` table:
+Capture `roomPlayers.displayName` as `lines.authorDisplayName` when a new line is inserted. Room creation and joining normalize pen names server-side with `normalizeDisplayName`. Resolve the authenticated writer's membership using the `by_room_user` index, never a global profile name or a membership in another room.
+
+Keep the game-state and immutable-assignment checks before the already-submitted return. An accepted retry returns the stored text without changing its captured name, even if the writer's room name or membership has since changed. Only a new insertion requires the current room membership.
 
 ```typescript
 // Schema
@@ -25,18 +27,26 @@ lines: defineTable({
   text: v.string(),
   wordCount: v.number(),
   authorUserId: v.id('users'),
-  authorDisplayName: v.optional(v.string()), // Captured at write-time
+  authorDisplayName: v.optional(v.string()), // Room pen name at write time
   createdAt: v.number(),
 });
 
-// Mutation
+// Mutation: after game/assignment validation and the already-submitted return
+const roomPlayer = await ctx.db
+  .query('roomPlayers')
+  .withIndex('by_room_user', (q) =>
+    q.eq('roomId', room._id).eq('userId', user._id)
+  )
+  .first();
+if (!roomPlayer) throw new ConvexError('Not a room participant');
+
 await ctx.db.insert('lines', {
   poemId,
   indexInPoem: lineIndex,
-  text: text.trim(),
+  text: normalizedText,
   wordCount,
   authorUserId: user._id,
-  authorDisplayName: user.displayName, // Snapshot
+  authorDisplayName: roomPlayer.displayName, // Historical room pen name
   createdAt: Date.now(),
 });
 ```
@@ -48,20 +58,28 @@ await ctx.db.insert('lines', {
 authorName: l.authorDisplayName || author?.displayName || 'Unknown';
 ```
 
-The fallback handles lines written before this feature was added.
+The fallback handles lines written before this feature was added. Reader views,
+poem details, public recaps (including the starter name), and archive/export
+attributions prefer the captured name. Archive collaborator lists are named from
+the bylines on that poem, so a later pen name elsewhere never relabels a saved
+poem. Room rosters, reading order, and round progress read the room membership
+name; a poem's assigned reader is a room role, not an authorship snapshot.
+
+Do not backfill or rewrite existing snapshots from a current user profile or room membership: neither proves the name used when an older line was written. Incorrect names already captured by the former profile-based writer remain unchanged. Repair would require explicit room/line provenance and separately authorized data work.
 
 ## Consequences
 
 **Positive:**
 
 - Poems preserve their original authorship attribution
-- No join/lookup needed at display time (denormalized for reads)
-- Graceful migration: legacy lines fall back to live lookup
+- Attribution does not depend on mutable profile or room-name lookups
+- Different rooms can preserve different pen names for the same identity
+- Legacy lines without snapshots still fall back to live lookup
 
 **Negative:**
 
-- Slight data duplication (name stored twice: users table + lines table)
-- If user wants to retroactively update old pen names, requires migration
+- Name duplication across room memberships and line snapshots
+- Retroactive correction requires provenance and explicit data authorization
 - `optional` field adds null-check overhead
 
 **Alternatives Considered:**

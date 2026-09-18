@@ -1,11 +1,4 @@
-/**
- * ArchiveStats: Vertical stats list with icons
- *
- * Quiet metadata display - one stat per line, small font, icon anchors.
- * Kenya Hara minimalism: information without visual weight.
- */
-
-import { ScrollText, Heart, Users, PenLine } from 'lucide-react';
+import { AlignLeft, Heart, Users, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ArchiveStatsProps {
@@ -29,7 +22,7 @@ function StatLine({ icon, value, label, accent = false }: StatLineProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-2 text-sm font-mono',
+        'flex items-center gap-2 text-sm',
         accent
           ? 'text-[var(--color-primary)]'
           : 'text-[var(--color-text-muted)]'
@@ -42,40 +35,35 @@ function StatLine({ icon, value, label, accent = false }: StatLineProps) {
   );
 }
 
-/**
- * ArchiveStats component
- *
- * Vertical list of stats with icons - quiet, marginalia-style.
- */
 export function ArchiveStats({ stats, className }: ArchiveStatsProps) {
   const iconClass = 'w-4 h-4';
 
   return (
     <div
-      className={cn('flex flex-col gap-1.5', className)}
+      className={cn('flex flex-wrap gap-x-5 gap-y-3', className)}
       role="region"
       aria-label="Archive statistics"
     >
       <StatLine
-        icon={<ScrollText className={iconClass} />}
+        icon={<AlignLeft className={iconClass} aria-hidden="true" />}
         value={stats.totalPoems}
         label={stats.totalPoems === 1 ? 'poem' : 'poems'}
         accent
       />
       <StatLine
-        icon={<Heart className={iconClass} />}
+        icon={<Heart className={iconClass} aria-hidden="true" />}
         value={stats.totalFavorites}
         label={stats.totalFavorites === 1 ? 'favorite' : 'favorites'}
       />
       <StatLine
-        icon={<Users className={iconClass} />}
+        icon={<Users className={iconClass} aria-hidden="true" />}
         value={stats.uniqueCollaborators}
         label={
           stats.uniqueCollaborators === 1 ? 'collaborator' : 'collaborators'
         }
       />
       <StatLine
-        icon={<PenLine className={iconClass} />}
+        icon={<PenLine className={iconClass} aria-hidden="true" />}
         value={stats.totalLinesWritten}
         label={stats.totalLinesWritten === 1 ? 'line written' : 'lines written'}
       />
@@ -88,7 +76,11 @@ export function ArchiveStats({ stats, className }: ArchiveStatsProps) {
  */
 export function ArchiveStatsSkeleton() {
   return (
-    <div className="flex flex-col gap-1.5 animate-pulse">
+    <div
+      role="status"
+      aria-label="Loading archive statistics"
+      className="flex flex-wrap gap-x-5 gap-y-3 motion-safe:animate-pulse"
+    >
       {[1, 2, 3, 4].map((i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-4 h-4 bg-[var(--color-muted)] rounded" />

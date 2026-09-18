@@ -3,6 +3,7 @@ import { beforeSend, beforeSendTransaction } from '@/lib/sentryPrivacy';
 import { getSentryRuntimeOptions } from './sentry.runtime.mjs';
 
 const runtimeOptions = getSentryRuntimeOptions({
+  NEXT_PUBLIC_LINEJAM_LOCAL: process.env.NEXT_PUBLIC_LINEJAM_LOCAL,
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   NEXT_PUBLIC_SENTRY_ENABLED: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
   NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,

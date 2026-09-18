@@ -1,0 +1,508 @@
+{
+  "schemaVersion": 1,
+  "direction": "midnight-matinee",
+  "status": "verified-offline-design-sketch",
+  "verifiedAt": "2026-09-06T22:43:04.611Z",
+  "scope": {
+    "origin": "http://127.0.0.1:4400",
+    "route": "/midnight-matinee/",
+    "productionUiChanged": false,
+    "backendMutations": false,
+    "sourceFiles": [
+      "explorations/renewal/midnight-matinee/prototype.js",
+      "explorations/renewal/midnight-matinee/style.css",
+      "explorations/renewal/midnight-matinee/direction.json"
+    ],
+    "browser": "Managed headless Chromium, then worker-exclusive CDP Chromium; no relay or user session."
+  },
+  "summary": {
+    "inventoryIds": 150,
+    "views": 41,
+    "components": 71,
+    "motion": 25,
+    "sensory": 13,
+    "coreConfigurations": 70,
+    "enlargedTextConfigurations": 30,
+    "reducedMotionConfigurations": 25,
+    "manualRoundsCompleted": 9,
+    "unresolvedBrowserDefects": 0
+  },
+  "inventory": {
+    "query": "?surface=<view|component|motion|sensory>&id=<inventory-id>&state=default&mode=dark&embed=1",
+    "viewport": {
+      "width": 375,
+      "height": 667,
+      "deviceScaleFactor": 1
+    },
+    "checks": [
+      "Navigation followed by browser observation for every ID",
+      "Matching body and main data-surface-id markers and Midnight Matinee direction marker",
+      "Nonempty actual renderer and rendered controls",
+      "Uncaught script errors, console errors, failed resources and off-origin requests",
+      "Horizontal overflow compared with document clientWidth, excluding the browser scrollbar",
+      "Full-page screenshots and all 27 labelled contact sheets"
+    ],
+    "results": {
+      "markerMismatches": 0,
+      "emptyRenderers": 0,
+      "uncaughtErrors": 0,
+      "consoleErrors": 0,
+      "failedResources": 0,
+      "offOriginRequests": 0,
+      "horizontalOverflow": 0
+    },
+    "ids": {
+      "view": [
+        "app-shell",
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "room-recovery",
+        "guest-session-recovery",
+        "connection-notice",
+        "deployment-update",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "poem-image-export",
+        "poem-print",
+        "public-recap",
+        "sign-in",
+        "sign-up",
+        "auth-callback",
+        "profile",
+        "account-controls",
+        "help",
+        "appearance",
+        "releases",
+        "releases-feed",
+        "not-found",
+        "route-error",
+        "global-error",
+        "site-social-preview",
+        "poem-social-preview",
+        "recap-social-preview"
+      ],
+      "component": [
+        "root-layout",
+        "header",
+        "footer",
+        "home-page",
+        "host-page",
+        "join-page",
+        "room-page",
+        "unexpected-room-state",
+        "lobby",
+        "writing-screen",
+        "writing-composer",
+        "waiting-screen",
+        "reveal-phase",
+        "poem-display",
+        "session-recap-hub",
+        "stage-shell",
+        "lobby-stage",
+        "lobby-join-qr",
+        "reveal-stage",
+        "room-chrome",
+        "focused-entry-appearance",
+        "color-mode-control",
+        "help-modal",
+        "connection-status",
+        "deployment-skew-observer",
+        "room-panel-error-boundary",
+        "auth-error-state",
+        "accounts-unavailable",
+        "archive-page",
+        "archive-info-strip",
+        "archive-stats",
+        "stat-line",
+        "archive-stats-skeleton",
+        "poem-card",
+        "poem-card-skeleton",
+        "empty-archive",
+        "poem-silhouette",
+        "poem-silhouette-compact",
+        "author-dots",
+        "author-dots-inline",
+        "poem-detail",
+        "recap-page",
+        "recap-export-button",
+        "auth-layout",
+        "sign-in-page",
+        "sign-up-page",
+        "auth-callback-page",
+        "auth-showcase",
+        "profile-page",
+        "releases-page",
+        "release-card",
+        "technical-details",
+        "not-found-page",
+        "route-error-page",
+        "global-error-page",
+        "button",
+        "input",
+        "label",
+        "alert",
+        "avatar",
+        "host-badge",
+        "loading-state",
+        "round-clock",
+        "stamp-animation",
+        "word-slots",
+        "heart-button",
+        "site-social-card",
+        "poem-preview-card",
+        "poem-fallback-card",
+        "poem-full-card",
+        "recap-social-card"
+      ],
+      "motion": [
+        "global-reduced-motion",
+        "color-mode-transition",
+        "viewport-projection",
+        "writing-focus-scroll",
+        "button-press",
+        "stamp-arrival",
+        "loading-indicators",
+        "fade-up-entrances",
+        "archive-card-interaction",
+        "silhouette-bars",
+        "contributor-hover",
+        "waiting-presence-pulse",
+        "round-clock-drain",
+        "word-slot-feedback",
+        "ready-seal-loop",
+        "submission-confirmation",
+        "author-attribution-reveal",
+        "help-open-close",
+        "chrome-popover-feedback",
+        "reading-target-focus",
+        "stage-roster-highlight",
+        "favorite-crown-ceremony",
+        "ceremony-effects-hook",
+        "profile-image-hover",
+        "unmounted-motion-definitions"
+      ],
+      "sensory": [
+        "brand-identity",
+        "wordmark-and-logo",
+        "device-brand-assets",
+        "paper-grain-and-depth",
+        "typographic-voice",
+        "player-identity",
+        "word-pattern-shape",
+        "icon-vocabulary",
+        "ceremony-audio",
+        "ceremony-haptics",
+        "share-artifacts",
+        "native-platform-surfaces",
+        "public-auth-showcase"
+      ]
+    },
+    "evidence": ".qa/renewal-evidence/midnight-matinee/default-inventory-audit.json",
+    "screenshotsDirectory": ".qa/renewal-evidence/midnight-matinee/defaults/",
+    "contactSheetIndex": ".qa/renewal-evidence/midnight-matinee/contact-sheet-index.json"
+  },
+  "core": {
+    "views": [
+      "home",
+      "host-entry",
+      "join-entry",
+      "room-lobby",
+      "lobby-presentation",
+      "room-writing",
+      "room-waiting",
+      "reveal-circle",
+      "poem-reading",
+      "reveal-presentation",
+      "session-recap",
+      "archive",
+      "poem-detail"
+    ],
+    "configurations": 70,
+    "breakdown": {
+      "phone390x844DefaultLightAndDark": 26,
+      "phone390x844LongTextAt200PercentLightAndDark": 26,
+      "desktop1440x900DefaultLightAndDark": 8,
+      "desktop1440x900LongTextAt200PercentLightAndDark": 4,
+      "phone390x844LongTextAtNormalSizeLightAndDark": 6
+    },
+    "desktopViews": [
+      "home",
+      "room-writing",
+      "lobby-presentation",
+      "reveal-presentation"
+    ],
+    "desktopEnlargedViews": [
+      "lobby-presentation",
+      "reveal-presentation"
+    ],
+    "normalSizeLongTextViews": [
+      "room-lobby",
+      "room-writing",
+      "poem-reading"
+    ],
+    "textEnlargement": "Root font-size changed to 200% (computed 32px); this is text enlargement, not browser page zoom.",
+    "results": {
+      "horizontalOverflow": 0,
+      "uncaughtErrors": 0,
+      "enlargedHeaderOverlaps": 0,
+      "sharedScreenNineLineBottomPx": 764.84375,
+      "sharedScreenViewportHeightPx": 900
+    },
+    "evidence": ".qa/renewal-evidence/midnight-matinee/core-layout-audit.json"
+  },
+  "manualFlow": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "mode": "dark",
+    "entry": "Home Create a room → name form → named lobby → Start nine-round sketch",
+    "inputMethod": "Native browser keyboard input and native pointer controls; no app-state injection, CLI or backend mutations.",
+    "wordTargets": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      4,
+      3,
+      2,
+      1
+    ],
+    "completedRounds": 9,
+    "emptyAndOverTargetChecks": 18,
+    "enterWithInvalidCountDidNotAdvance": 9,
+    "previousLineOnlyChecks": 9,
+    "committedReceipts": 9,
+    "receiptsImmediatelyContinuable": true,
+    "nextRoundTransitions": 8,
+    "finalWholePoemReveal": 1,
+    "allNineManualEntriesPreserved": true,
+    "humanAttributionHonest": true,
+    "privateKeepAndPrivateRecapExercised": true,
+    "evidence": ".qa/renewal-evidence/midnight-matinee/manual-flow.json"
+  },
+  "keyboardAndRecovery": {
+    "helpModal": "Opened while the fifth-round draft was valid; Shift+Tab and Tab wrapped between Close and Got it, Escape restored Help trigger, background inert cleared and draft remained unchanged.",
+    "join": "Code input normalized bad to BAD; Enter moved to name; rejected code retained the form, explained SKETCH and focused the code field.",
+    "appearance": "Changed Daylight to Evening using the modal; Escape restored Appearance trigger and preserved name/code.",
+    "cameo": "Enter opened a visibly marked native disclosure; five 81.97px-high choices appeared. Keyboard selection of Name only preserved the name.",
+    "roster": "Four-person, full eight-person and long-name rosters all wrapped inside the 375px viewport without hidden sideways participants.",
+    "sharedReader": "Fallback reader handoff Mina → Jules kept all nine lines unchanged and did not replay curtains; Exit returned to reading order, Present returned to all nine lines, Done reached private recap.",
+    "evidence": [
+      ".qa/renewal-evidence/midnight-matinee/manual-flow.json",
+      ".qa/renewal-evidence/midnight-matinee/privacy-recovery-audit.json",
+      ".qa/renewal-evidence/midnight-matinee/disclosure-roster-audit.json",
+      ".qa/renewal-evidence/midnight-matinee/shared-screen-interaction.json",
+      ".qa/renewal-evidence/midnight-matinee/fix-regressions.json"
+    ]
+  },
+  "motionAndSound": {
+    "explicitReducedMotionIds": 25,
+    "explicitReducedMotionAnimations": 0,
+    "systemReducedMotionObserved": true,
+    "systemReducedMotionAnimations": 0,
+    "curtainFirstFrame": {
+      "nativeAnimationPausedAtMs": 0,
+      "edgeWidthPx": 10,
+      "poemTextInsetPx": 18.59375,
+      "allNineLinesPresent": true,
+      "poemOpacity": 1,
+      "contentMasked": false
+    },
+    "readySpecimen": "The default ready-seal-loop now renders an exact three-word composer, Ready to send, enabled Submit line and zero animations. Four words disable submission; restored exact input reaches the recorded receipt.",
+    "sound": {
+      "startsOff": true,
+      "playInitiallyDisabled": true,
+      "explicitEnableAndPlayExercised": true,
+      "webAudioContextReachedRunning": true,
+      "oscillatorNodesObserved": 2,
+      "disableReturnedPlayToDisabled": true,
+      "actuallyHeard": false
+    },
+    "evidence": [
+      ".qa/renewal-evidence/midnight-matinee/sensory-keyboard-audit.json",
+      ".qa/renewal-evidence/midnight-matinee/all-reduced-motion-audit.json",
+      ".qa/renewal-evidence/midnight-matinee/ready-type-audit.json"
+    ]
+  },
+  "privacy": {
+    "fallbackStatesExercised": 10,
+    "fallbackPoemOrContributorLeaks": 0,
+    "poemAndRecapConsentPaths": 2,
+    "cancelThenSimulatedDeliveryThenRevocationExercised": true,
+    "noPublicationActuallyPerformed": true,
+    "evidence": ".qa/renewal-evidence/midnight-matinee/privacy-recovery-audit.json"
+  },
+  "colors": [
+    {
+      "mode": "light",
+      "foreground": "rgb(48, 32, 63)",
+      "background": "rgb(233, 182, 79)",
+      "contrastRatio": 8.03,
+      "height": 50
+    },
+    {
+      "mode": "dark",
+      "foreground": "rgb(48, 32, 63)",
+      "background": "rgb(244, 197, 106)",
+      "contrastRatio": 9.29,
+      "height": 50
+    }
+  ],
+  "metadata": {
+    "views": {
+      "metadata": 41,
+      "rendered": 41,
+      "missing": [],
+      "unmapped": [],
+      "duplicates": 0
+    },
+    "components": {
+      "metadata": 71,
+      "rendered": 71,
+      "missing": [],
+      "unmapped": [],
+      "duplicates": 0
+    },
+    "motion": {
+      "metadata": 25,
+      "rendered": 25,
+      "missing": [],
+      "unmapped": [],
+      "duplicates": 0
+    },
+    "sensory": {
+      "metadata": 13,
+      "rendered": 13,
+      "missing": [],
+      "unmapped": [],
+      "duplicates": 0
+    }
+  },
+  "fixes": [
+    {
+      "issue": "Oversized five-line phone invitation displaced the useful actions.",
+      "change": "Compact three-line mobile heading; both large entry actions appear in the first viewport."
+    },
+    {
+      "issue": "Curtains covered poem text during the opening animation, including when background animation was suspended.",
+      "change": "Animation is confined to ten-pixel edge strips outside the text inset. The whole poem is readable at animation time zero."
+    },
+    {
+      "issue": "The shared-screen last line fell below a 900px screen and reader completion/exit lived below private utility controls.",
+      "change": "A focused shared-reading layout shows all nine sample lines by y=764.84 at 1440×900, with step-in, Done and Exit above; personal save/share controls stay out of the projection."
+    },
+    {
+      "issue": "Opening a ready or error-state shared poem switched to the personal reader.",
+      "change": "Open/Reread preserves reveal-presentation."
+    },
+    {
+      "issue": "Long-text poem routes reused the short sample.",
+      "change": "A real nine-line long-word fixture now exercises wrapping with the unchanged 1–5–1 word pattern."
+    },
+    {
+      "issue": "Default and reconnecting connection specimens said sending was unavailable but enabled exact-count input.",
+      "change": "One send-availability guard drives initial render, live input and submission. Offline/default/reconnecting block; restored and normal writing allow valid input."
+    },
+    {
+      "issue": "Long collection excerpts overflowed at 200% text.",
+      "change": "Paragraphs wrap unbroken human content without horizontal page overflow."
+    },
+    {
+      "issue": "Enlarged reader labels were squeezed beside fixed-width recovery controls.",
+      "change": "Reader bars wrap and control width scales with text size."
+    },
+    {
+      "issue": "At 200% text the Linejam wordmark overlapped Appearance.",
+      "change": "Header rows wrap and the brand no longer shrinks over navigation; all 30 enlarged cases have disjoint brand/control bounds."
+    },
+    {
+      "issue": "The phone roster hid the fourth person behind an undisclosed sideways scroll.",
+      "change": "Cast members wrap into visible rows; 4/8/long-name states were exercised."
+    },
+    {
+      "issue": "Native disclosure markers were removed by flex styling, making cameo selection look like an empty section.",
+      "change": "Restored list-item disclosure markers and generous keyboard-operable summaries."
+    },
+    {
+      "issue": "Every component carried the same generic implementation subtitle.",
+      "change": "Removed that boilerplate from all 71 specimens; the renderer and its actual content now carry the explanation."
+    },
+    {
+      "issue": "ready-seal-loop showed the same empty counter as word-slot-feedback despite promising an enabled ready composer.",
+      "change": "Reused the real composer with a valid default fixture; exact/over-target/commit behavior was browser-exercised."
+    },
+    {
+      "issue": "Metadata no longer fully described the revised projection, curtain and roster layouts.",
+      "change": "Updated those descriptions without changing, dropping or duplicating any inventory ID."
+    }
+  ],
+  "visualAssessment": {
+    "reviewedContactSheets": 27,
+    "reviewedInventoryIds": 150,
+    "identity": "The rendered portal mark, cameo silhouettes, invitation ticket, arched playbill and lavender daylight counterpart remain theatre-specific; no sibling paper/jelly branding was found.",
+    "hierarchy": "Quiet textarea and complete verse remain the content focus. Different entry, roster, ticket, reading, recovery, native-control and export compositions replace a catch-all specimen card.",
+    "wholePoem": "All nine lines are mounted together and never advanced line by line. Normal shared-screen sample fits in one 1440×900 viewport; long words and 200% text scroll naturally rather than being clipped or shrunk.",
+    "reviewEvidence": ".qa/renewal-evidence/midnight-matinee/visual-contact-review.json",
+    "reviewAdjudications": [
+      "Unexpected-room-state is intentionally a disconnected generic error boundary with Try again/Home recovery; inventing a specific live backend cause would be misleading.",
+      "Release fixtures remain clearly illustrative rather than inventing real release history. Primitive button specimens intentionally label button roles. Neither is a catch-all renderer used for unrelated inventory IDs.",
+      "The long-name input uses native horizontal caret scrolling, not ellipsis or a clipped static label: all 38 characters remained in value, End reached position 38 and scrolled the field 37px; document width remained contained.",
+      "Private keep and a separate public-link-options action are not contradictory. Ten blocked public fixtures and both cancellation/revocation paths were exercised without exposed private content."
+    ]
+  },
+  "representativeScreenshots": {
+    "homeDark": ".qa/renewal-evidence/midnight-matinee/core/home-default-dark-390-text100.png",
+    "homeLight": ".qa/renewal-evidence/midnight-matinee/core/home-default-light-390-text100.png",
+    "writingManual": ".qa/renewal-evidence/midnight-matinee/manual-writing-round-5-dark-390.png",
+    "writingLight": ".qa/renewal-evidence/midnight-matinee/core/room-writing-default-light-390-text100.png",
+    "completeManualPoem": ".qa/renewal-evidence/midnight-matinee/manual-complete-poem-dark-390.png",
+    "completeLightPoem": ".qa/renewal-evidence/midnight-matinee/core/poem-reading-default-light-390-text100.png",
+    "privateRecap": ".qa/renewal-evidence/midnight-matinee/manual-private-recap-dark-390.png",
+    "sharedDark": ".qa/renewal-evidence/midnight-matinee/core/reveal-presentation-default-dark-1440-text100.png",
+    "sharedLight": ".qa/renewal-evidence/midnight-matinee/core/reveal-presentation-default-light-1440-text100.png",
+    "componentShowcase": ".qa/renewal-evidence/midnight-matinee/contact-sheets/component-10.png",
+    "enlargedReader": ".qa/renewal-evidence/midnight-matinee/text200-reader-top-light-390.png",
+    "curtainFirstFrame": ".qa/renewal-evidence/midnight-matinee/curtain-first-frame-dark-390.png",
+    "reducedMotion": ".qa/renewal-evidence/midnight-matinee/reduced-motion-dark-390.png",
+    "soundEnabled": ".qa/renewal-evidence/midnight-matinee/explicit-sound-enabled-dark-390.png",
+    "cameoDisclosure": ".qa/renewal-evidence/midnight-matinee/cameo-disclosure-light-375.png"
+  },
+  "toolingNotes": [
+    "Shared-browser background throttling caused helper click waits and a shared VM loss. No reset was requested. Native Puppeteer controls completed the flow, and final captures used the dedicated CDP browser.",
+    "Dedicated CDP fullPage:true cropped the rightmost scrollbar-width pixels. Final default/core/sensory captures use an explicit innerWidth clip with captureBeyondViewport; complete screenshots, not cropped tool output, informed final judgments.",
+    "Temporary contact-sheet crop errors were corrected before final review."
+  ],
+  "failures": [],
+  "unexercisedLimits": [
+    "No real multiplayer room, authentication, persistence, provider account, public publication or network recovery was exercised. These are explicitly offline local state fixtures.",
+    "Headless audio was not actually audible to the verifier. Browser Web Audio context/node events and cue acknowledgement were observed; sound quality or loudness is not claimed.",
+    "Text was enlarged to 200% with a 32px root font. Physical mobile software keyboards, assistive-technology speech output and operating-system display zoom were not tested.",
+    "Native print/share dialogs, PNG/RSS download contents, clipboard permissions, installation behavior and QR decoding were not exercised; their assigned rendered specimens were inspected.",
+    "Every ID was inspected in its default state; this is not a claim that every possible state in every inventory entry was exercised. The additional states and controls are enumerated above."
+  ],
+  "validation": {
+    "buildsRun": false,
+    "lintersRun": false,
+    "formattersRun": false,
+    "unitTestsRun": false,
+    "projectSuitesRun": false,
+    "retainedTestScaffolding": false,
+    "repositoryGatesOwner": "Main"
+  }
+}

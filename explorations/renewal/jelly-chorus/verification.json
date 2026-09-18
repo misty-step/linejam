@@ -1,0 +1,729 @@
+{
+  "schemaVersion": 1,
+  "direction": "jelly-chorus",
+  "status": "passed-offline-browser-contract",
+  "completedAt": "2026-09-06T23:11:00.179Z",
+  "scope": {
+    "proposal": "explorations/renewal/jelly-chorus/",
+    "evidence": ".qa/renewal-evidence/jelly-chorus/",
+    "origin": "http://127.0.0.1:4400",
+    "productionUiChanged": false,
+    "backendMutations": false,
+    "servicesStartedOrStopped": false,
+    "tabsClosed": true
+  },
+  "method": {
+    "browser": "Chromium; initial shared managed tab, then Main-owned dedicated headless CDP browser",
+    "navigation": "Real query navigation followed by browser observation, rendered DOM inspection and saved full-page screenshots.",
+    "interaction": "Native mouse clicks at rendered control bounds and native keyboard typing. The nine-round runs used rendered controls, not application function calls or injected game state.",
+    "textEnlargement": "Doubled computed font sizes in the rendered page at 390x844 while retaining layout geometry; this is text-only stress, not a claim about an OS accessibility setting.",
+    "visualReview": "All 150 default captures inspected through 21 inventory contact sheets; 38 core phone cases through six sheets, desktop through two sheets, enlarged text through three sheets, plus direct full-size representative images and named writing-state sheet.",
+    "captureNote": "Stress captures scroll to document top before capture. A full-page Chromium capture initially included an unfocused fixed skip link outside the real viewport; measured negative viewport bounds confirmed the capture artifact, and clean captures were saved."
+  },
+  "coverage": {
+    "inventory": {
+      "total": 150,
+      "views": 41,
+      "components": 71,
+      "motion": 25,
+      "sensory": 13,
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "mode": "light",
+      "state": "default",
+      "embed": true,
+      "ids": {
+        "view": [
+          "app-shell",
+          "home",
+          "host-entry",
+          "join-entry",
+          "room-lobby",
+          "lobby-presentation",
+          "room-writing",
+          "room-waiting",
+          "late-join-spectator",
+          "reveal-circle",
+          "poem-reading",
+          "reveal-presentation",
+          "session-recap",
+          "room-unavailable",
+          "room-recovery",
+          "guest-session-recovery",
+          "connection-notice",
+          "deployment-update",
+          "archive",
+          "poem-detail",
+          "public-poem",
+          "poem-sharing",
+          "recap-sharing",
+          "poem-image-export",
+          "poem-print",
+          "public-recap",
+          "sign-in",
+          "sign-up",
+          "auth-callback",
+          "profile",
+          "account-controls",
+          "help",
+          "appearance",
+          "releases",
+          "releases-feed",
+          "not-found",
+          "route-error",
+          "global-error",
+          "site-social-preview",
+          "poem-social-preview",
+          "recap-social-preview"
+        ],
+        "component": [
+          "root-layout",
+          "header",
+          "footer",
+          "home-page",
+          "host-page",
+          "join-page",
+          "room-page",
+          "unexpected-room-state",
+          "lobby",
+          "writing-screen",
+          "writing-composer",
+          "waiting-screen",
+          "reveal-phase",
+          "poem-display",
+          "session-recap-hub",
+          "stage-shell",
+          "lobby-stage",
+          "lobby-join-qr",
+          "reveal-stage",
+          "room-chrome",
+          "focused-entry-appearance",
+          "color-mode-control",
+          "help-modal",
+          "connection-status",
+          "deployment-skew-observer",
+          "room-panel-error-boundary",
+          "auth-error-state",
+          "accounts-unavailable",
+          "archive-page",
+          "archive-info-strip",
+          "archive-stats",
+          "stat-line",
+          "archive-stats-skeleton",
+          "poem-card",
+          "poem-card-skeleton",
+          "empty-archive",
+          "poem-silhouette",
+          "poem-silhouette-compact",
+          "author-dots",
+          "author-dots-inline",
+          "poem-detail",
+          "recap-page",
+          "recap-export-button",
+          "auth-layout",
+          "sign-in-page",
+          "sign-up-page",
+          "auth-callback-page",
+          "auth-showcase",
+          "profile-page",
+          "releases-page",
+          "release-card",
+          "technical-details",
+          "not-found-page",
+          "route-error-page",
+          "global-error-page",
+          "button",
+          "input",
+          "label",
+          "alert",
+          "avatar",
+          "host-badge",
+          "loading-state",
+          "round-clock",
+          "stamp-animation",
+          "word-slots",
+          "heart-button",
+          "site-social-card",
+          "poem-preview-card",
+          "poem-fallback-card",
+          "poem-full-card",
+          "recap-social-card"
+        ],
+        "motion": [
+          "global-reduced-motion",
+          "color-mode-transition",
+          "viewport-projection",
+          "writing-focus-scroll",
+          "button-press",
+          "stamp-arrival",
+          "loading-indicators",
+          "fade-up-entrances",
+          "archive-card-interaction",
+          "silhouette-bars",
+          "contributor-hover",
+          "waiting-presence-pulse",
+          "round-clock-drain",
+          "word-slot-feedback",
+          "ready-seal-loop",
+          "submission-confirmation",
+          "author-attribution-reveal",
+          "help-open-close",
+          "chrome-popover-feedback",
+          "reading-target-focus",
+          "stage-roster-highlight",
+          "favorite-crown-ceremony",
+          "ceremony-effects-hook",
+          "profile-image-hover",
+          "unmounted-motion-definitions"
+        ],
+        "sensory": [
+          "brand-identity",
+          "wordmark-and-logo",
+          "device-brand-assets",
+          "paper-grain-and-depth",
+          "typographic-voice",
+          "player-identity",
+          "word-pattern-shape",
+          "icon-vocabulary",
+          "ceremony-audio",
+          "ceremony-haptics",
+          "share-artifacts",
+          "native-platform-surfaces",
+          "public-auth-showcase"
+        ]
+      },
+      "checks": [
+        "Matching body surface ID and kind",
+        "Nonempty rendered surface and observed controls",
+        "Uncaught pageerror listener",
+        "Horizontal document overflow",
+        "Infinite CSS animation count",
+        "Full-page screenshot"
+      ]
+    },
+    "namedViewStates": {
+      "count": 132,
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "mode": "light",
+      "perView": {
+        "app-shell": [
+          "account"
+        ],
+        "host-entry": [
+          "loading",
+          "empty",
+          "error",
+          "pending",
+          "recovery",
+          "long-text"
+        ],
+        "join-entry": [
+          "loading",
+          "empty",
+          "error",
+          "pending",
+          "recovery",
+          "invite",
+          "long-text"
+        ],
+        "room-lobby": [
+          "loading",
+          "empty",
+          "error",
+          "full",
+          "participant",
+          "away",
+          "long-text"
+        ],
+        "lobby-presentation": [
+          "full",
+          "away",
+          "long-text"
+        ],
+        "room-writing": [
+          "loading",
+          "empty",
+          "error",
+          "pending",
+          "recovery",
+          "first",
+          "last",
+          "exact",
+          "overflow",
+          "long-text",
+          "offline",
+          "restored",
+          "accepted"
+        ],
+        "room-waiting": [
+          "loading",
+          "accepted",
+          "ready",
+          "error"
+        ],
+        "late-join-spectator": [
+          "loading",
+          "spectator"
+        ],
+        "reveal-circle": [
+          "loading",
+          "empty",
+          "error",
+          "pending",
+          "spectator",
+          "fallback",
+          "reread"
+        ],
+        "poem-reading": [
+          "loading",
+          "error",
+          "pending"
+        ],
+        "reveal-presentation": [
+          "loading",
+          "empty",
+          "error",
+          "pending"
+        ],
+        "session-recap": [
+          "loading",
+          "empty",
+          "error"
+        ],
+        "room-recovery": [
+          "loading",
+          "error",
+          "recovery"
+        ],
+        "guest-session-recovery": [
+          "loading",
+          "error",
+          "recovery"
+        ],
+        "connection-notice": [
+          "offline",
+          "pending",
+          "restored",
+          "recovery"
+        ],
+        "deployment-update": [
+          "empty",
+          "loading"
+        ],
+        "archive": [
+          "loading",
+          "empty",
+          "error",
+          "account"
+        ],
+        "poem-detail": [
+          "loading",
+          "error",
+          "pending"
+        ],
+        "public-poem": [
+          "loading",
+          "pending",
+          "private",
+          "revoked",
+          "empty",
+          "error"
+        ],
+        "poem-sharing": [
+          "pending",
+          "error",
+          "canceled",
+          "recovery"
+        ],
+        "recap-sharing": [
+          "pending",
+          "error",
+          "canceled",
+          "recovery"
+        ],
+        "poem-image-export": [
+          "pending",
+          "private",
+          "empty",
+          "error"
+        ],
+        "public-recap": [
+          "loading",
+          "private",
+          "revoked",
+          "empty",
+          "error"
+        ],
+        "sign-in": [
+          "local",
+          "empty",
+          "error",
+          "pending",
+          "verification",
+          "recovery"
+        ],
+        "sign-up": [
+          "local",
+          "empty",
+          "error",
+          "pending",
+          "verification"
+        ],
+        "auth-callback": [
+          "loading",
+          "error",
+          "local",
+          "empty"
+        ],
+        "profile": [
+          "account",
+          "long-text"
+        ],
+        "account-controls": [
+          "account"
+        ],
+        "releases": [
+          "empty"
+        ],
+        "releases-feed": [
+          "empty"
+        ],
+        "poem-social-preview": [
+          "private",
+          "revoked",
+          "pending",
+          "empty",
+          "error"
+        ],
+        "recap-social-preview": [
+          "private",
+          "revoked",
+          "pending",
+          "empty",
+          "error"
+        ]
+      }
+    },
+    "corePhone": {
+      "views": 19,
+      "cases": 38,
+      "ids": [
+        "home",
+        "host-entry",
+        "join-entry",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "room-waiting",
+        "late-join-spectator",
+        "reveal-circle",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "room-unavailable",
+        "archive",
+        "poem-detail",
+        "public-poem",
+        "poem-sharing",
+        "recap-sharing",
+        "public-recap"
+      ],
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "modes": [
+        "light",
+        "dark"
+      ]
+    },
+    "desktop": {
+      "views": 8,
+      "cases": 16,
+      "ids": [
+        "home",
+        "room-lobby",
+        "lobby-presentation",
+        "room-writing",
+        "poem-reading",
+        "reveal-presentation",
+        "session-recap",
+        "archive"
+      ],
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "modes": [
+        "light",
+        "dark"
+      ]
+    },
+    "landscape": {
+      "views": 5,
+      "cases": 10,
+      "ids": [
+        "home",
+        "host-entry",
+        "room-writing",
+        "poem-reading",
+        "lobby-presentation"
+      ],
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "modes": [
+        "light",
+        "dark"
+      ]
+    },
+    "enlargedText": {
+      "coreViews": 19,
+      "scale": 2,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "latestHorizontalOverflowFailures": 0,
+      "additionalChecks": [
+        "Appearance dialog at 200% text: no internal horizontal overflow; keyboard reaches visible Done and restores trigger",
+        "80-character pen name and 500-character one-word line at 375x667, normal and 200% text",
+        "Enlarged destination label and code stay within their card; all four DEMO letters visible"
+      ]
+    },
+    "recordedEvidence": {
+      "navigationRecords": 683,
+      "uniqueMatrixEntries": 346,
+      "interactionReceipts": 27,
+      "completeNineRoundRunReceipts": 6,
+      "note": "Counts include pre-repair diagnoses and post-repair confirmations. The final result for each matrix combination is used for failure counts; early findings remain in the audit trail."
+    }
+  },
+  "behavior": {
+    "finalNineRoundRun": {
+      "receipt": "final nine-round acceptance with invalid-count protection",
+      "rounds": 9,
+      "wordTargets": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        4,
+        3,
+        2,
+        1
+      ],
+      "invalidCountAttempts": 9,
+      "invalidCountOutcome": "Every disabled-send click retained the writing surface; none advanced.",
+      "hiddenContent": "No complete-poem lines rendered during any accepted/waiting phase. Only the previous line was visible while composing.",
+      "enteredPoem": [
+        "Lanterns",
+        "remember rain",
+        "beneath borrowed umbrellas",
+        "we carry yesterday home",
+        "while every window learns listening",
+        "until the last train",
+        "forgets our names",
+        "and waits",
+        "Still"
+      ],
+      "reader": "Riley is reading",
+      "completeRevealLines": 9,
+      "privateRecap": "Private in this local consent sketch",
+      "phoneWritingDecoration": "No margin companion rendered in writing; no poem-corner character rendered in phone reading. The small named-reader avatar remains outside the poem."
+    },
+    "entry": [
+      "Whitespace-only name rejected and retained for correction",
+      "Optional companion choice accepted without blocking name entry",
+      "Code Enter moves to pen name without joining",
+      "Both query invitation and actual demo invitation control produce read-only DEMO and focused pen name",
+      "One-player lobby start disabled with an explicit reason"
+    ],
+    "recovery": [
+      "Offline/default/reconnecting connection notices keep the draft editable and sending blocked, with exactly one notice",
+      "Restoring a connection preserves the entered four-word draft and enables sending",
+      "Direct round-four assignment commits to round four rather than resetting to round one",
+      "Room, guest, route, global and callback recovery controls reach useful writing/entry/home/offline-account surfaces",
+      "Boundary and connection component drafts remain intact through recovery",
+      "Deployment reload specimen removes its notice without discarding draft",
+      "Waiting error keeps accepted text and recovers to the next-round control",
+      "Host Keep writing preserves receipt; end-game returns to lobby with unfinished poem hidden; close-room returns home",
+      "Presentation exit returns to lobby without leaving the room"
+    ],
+    "readingAndPrivacy": [
+      "All nine entered lines visible together at reveal",
+      "Reader name follows entered pen name; pass-reader works",
+      "Author disclosure survives reader/favorite rerenders",
+      "Favorite toggle and error retry work without publishing",
+      "Sharing consent cancellation remains private; explicit local publication and revocation work",
+      "Next game resets previous public/favorite state; new-game detail is private",
+      "Twelve private/revoked/error public-poem, public-recap and social-preview checks expose no poem lines or sample text",
+      "Downloaded private SVG contains all nine entered lines and Riley attribution; raster inspection confirms legibility",
+      "Native-share unavailable fallback says nothing was published and leaves private status unchanged"
+    ],
+    "keyboard": [
+      "Help Tab and Shift+Tab cycle inside dialog",
+      "Escape returns focus to original help/appearance trigger",
+      "Appearance changes and avatar rerenders preserve a logical focus target",
+      "Enlarged appearance dialog remains scrollable and keyboard-reachable"
+    ],
+    "motion": {
+      "defaultInfiniteAnimationsObserved": 0,
+      "replayedAcknowledgement": {
+        "durationMs": 410,
+        "iterations": 1,
+        "runningAnimationsAfter500Ms": 0
+      },
+      "queryReducedMotion": {
+        "reduced": 1,
+        "animationsAfterReplay": 0
+      },
+      "deviceReducedMotion": {
+        "emulatedPreference": "reduce",
+        "animationsAfterReplay": 0
+      },
+      "sameInformationWithoutMotion": true
+    },
+    "sound": {
+      "initiallyEnabled": false,
+      "enableAndPreviewExercised": true,
+      "disableRestoresSilenceControls": true,
+      "audioContextObserved": "running",
+      "zeroVolumeScheduledGainRamps": 0,
+      "positiveVolumeTest": {
+        "volume": 0.6,
+        "scheduledPeakGain": 0.045
+      },
+      "physicallyHeard": false,
+      "hearingLimit": "The browser verifier cannot hear physical audio output. Web Audio context and scheduling were observed using temporary read-through instrumentation, then restored."
+    }
+  },
+  "fixes": [
+    {
+      "area": "Mobile hierarchy and tone",
+      "change": "Reduced the four-line oversized mobile hero to a compact two-line treatment; kept the original A little strange. Better together. character-led copy. Moved the writing constraint prompt to practical Nunito Sans."
+    },
+    {
+      "area": "Responsive specimens",
+      "change": "Fixed nine overflowing long component headings and wrapping header/footer navigation. Added visible native-disclosure chevrons."
+    },
+    {
+      "area": "Character restraint",
+      "change": "Removed the poem-corner character from recap/sharing columns where it overlapped practical copy. Full presentation rosters use stable responsive rows rather than allowing a long name to push one character above the group."
+    },
+    {
+      "area": "Practical action spacing",
+      "change": "Prevented archive Read and presentation Exit labels from fragmenting. Wrapped room-code controls and constrained enlarged destination content within its card."
+    },
+    {
+      "area": "Long content",
+      "change": "Constrained reader names and author attribution so 80-character names and 500-character lines remain readable at normal and doubled text size without horizontal overflow."
+    },
+    {
+      "area": "Favorite action",
+      "change": "Replaced the broken __omp_shell expression with the actual toggle; fixed selected error-state retry."
+    },
+    {
+      "area": "Per-game ownership",
+      "change": "Seeded reader from the entered name and reset favorite/public/set-public state at new-game start, preventing prior publication state from carrying into a new game."
+    },
+    {
+      "area": "Draft retention and round targeting",
+      "change": "Preserved edited drafts across offline restoration, component-boundary recovery and rerenders; captured the assigned round before activating a standalone writing specimen."
+    },
+    {
+      "area": "Recovery outcomes",
+      "change": "Replaced recovery buttons that only redisplayed the same error with actual local navigation/recovered states; update reload clears the notice without discarding draft."
+    },
+    {
+      "area": "Keyboard and modal lifecycle",
+      "change": "Preserved logical focus through rerenders, kept the original modal trigger during nested/avatar updates, restored focus after close, and explicitly contained Tab/Shift+Tab."
+    },
+    {
+      "area": "Invitation handling",
+      "change": "Code Enter now advances focus rather than submitting entry. All three demo invitation controls route into the existing read-only invite state and focus pen name."
+    },
+    {
+      "area": "Named writing states",
+      "change": "Sending no longer says Ready to send. Error fixtures retain a valid retryable four-word draft. Waiting error has an explicit accepted-receipt recovery state."
+    },
+    {
+      "area": "Connection composition",
+      "change": "Separated reconnecting from sending: reconnecting remains editable, send stays blocked, and the surface shows one connection notice. Word-count updates retain the blocked policy."
+    },
+    {
+      "area": "Word-count presentation",
+      "change": "Allowed overflow markers to wrap cleanly and stopped the +N label inheriting a tiny decorative stroke box."
+    },
+    {
+      "area": "Persistent attribution",
+      "change": "Retained author-disclosure state during reader and favorite rerenders."
+    },
+    {
+      "area": "Sound controls",
+      "change": "Updated controls inside an open appearance drawer after sound changes and made zero cue volume schedule no audible gain ramp."
+    }
+  ],
+  "visualJudgment": {
+    "identity": "Original joined-jelly mark, distinct composed silhouettes and a lavender/plum/mint/peach palette remain intact. The hero is a character-led answer, not Fold Club paper-language copy.",
+    "restraint": "Characters stay out of the phone writing plane and poem text; practical controls remain readable rectangular actions, not decorative blobs. Desktop recap characters no longer overlap actions.",
+    "tone": "No timers, writer ranking, distressed waiting faces, shaming copy or repeating waiting motion were observed. Soft silhouettes and DynaPuff can still read young; audience/age perception is a design risk, not a measured success claim."
+  },
+  "evidence": {
+    "navigation": ".qa/renewal-evidence/jelly-chorus/navigation.jsonl",
+    "interactions": ".qa/renewal-evidence/jelly-chorus/interactions.jsonl",
+    "textScale": ".qa/renewal-evidence/jelly-chorus/text-scale.jsonl",
+    "defaultCaptures": ".qa/renewal-evidence/jelly-chorus/defaults/",
+    "namedStateCaptures": ".qa/renewal-evidence/jelly-chorus/states/",
+    "representativeScreenshots": {
+      "home": ".qa/renewal-evidence/jelly-chorus/defaults/view-home-default-light-375.png",
+      "homeDark": ".qa/renewal-evidence/jelly-chorus/core/view-home-default-dark-390.png",
+      "writing": ".qa/renewal-evidence/jelly-chorus/flows/writing-round-five.png",
+      "acceptedWaiting": ".qa/renewal-evidence/jelly-chorus/flows/accepted-waiting.png",
+      "completePoem": ".qa/renewal-evidence/jelly-chorus/flows/complete-poem.png",
+      "privateRecap": ".qa/renewal-evidence/jelly-chorus/flows/private-recap.png",
+      "desktopRecap": ".qa/renewal-evidence/jelly-chorus/core/view-session-recap-default-light-1440.png",
+      "componentShowcase": ".qa/renewal-evidence/jelly-chorus/component-showcase-contact.jpg",
+      "namedWritingStates": ".qa/renewal-evidence/jelly-chorus/writing-states-contact.jpg",
+      "longText": ".qa/renewal-evidence/jelly-chorus/flows/long-name-and-poem-200-text.png",
+      "enlargedPresentation": ".qa/renewal-evidence/jelly-chorus/core/zoom-lobby-presentation-390.png",
+      "appearanceEnlarged": ".qa/renewal-evidence/jelly-chorus/flows/appearance-200-text.png",
+      "reducedMotion": ".qa/renewal-evidence/jelly-chorus/flows/reduced-motion.png",
+      "sound": ".qa/renewal-evidence/jelly-chorus/flows/sound-enabled.png"
+    },
+    "privateExport": ".qa/renewal-evidence/jelly-chorus/flows/linejam-jelly-chorus-poem.svg"
+  },
+  "failures": {
+    "open": [],
+    "latestMatrixFailures": 0,
+    "latestTextScaleFailures": 0,
+    "uncaughtPageErrorsObservedInRecordedInteractions": 0
+  },
+  "limits": [
+    "This is an offline single-writer design sketch with clearly marked synthetic people/account/public fixtures. No live room, real backend, multiplayer synchronization, authentication migration, real publication or deployment was exercised.",
+    "All inventory defaults and 132 named view states were navigated. Named-state rendering checks and representative visual inspection do not imply every possible interaction permutation of every component was exercised.",
+    "Physical sound could not be heard. Actual device volume, speakers/headphones, haptics and subjective audio comfort remain unverified.",
+    "The private SVG download was exercised and inspected. Real operating-system print/PDF UI and a native share sheet were not exercised; this Chromium reported native sharing unavailable.",
+    "Viewport emulation and native keyboard interaction are not real iOS/Android software-keyboard, safe-area, touch-device or screen-reader verification. Only Chromium was exercised, not Safari or Firefox.",
+    "Twofold text enlargement is a rendered-text stress technique, not a claim that every browser or OS zoom setting behaves identically.",
+    "Age/tone suitability and group/social comfort require real audience research; no audience approval is inferred from screenshots."
+  ],
+  "tooling": {
+    "interruption": "The shared JS VM was lost during an early sweep. Saved captures survived; navigation was recovered and all defaults completed. Main then provided a dedicated browser. Native mouse/keyboard events avoided unreliable high-level click helpers.",
+    "validationSkipped": [
+      "formatters",
+      "linters",
+      "builds",
+      "unit tests",
+      "project-wide suites"
+    ],
+    "retainedTestScaffolding": false
+  }
+}

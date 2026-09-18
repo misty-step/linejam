@@ -63,7 +63,9 @@ export async function ensureClerkAuthState(page: Page) {
 export async function assertClerkProtectedRoute(page: Page) {
   await page.goto('/me/profile');
   await page.waitForURL(/\/me\/profile$/, { timeout: 30000 });
-  await expect(page.getByRole('heading', { name: 'Identity' })).toBeVisible({
+  await expect(
+    page.getByRole('heading', { name: 'Your profile', exact: true })
+  ).toBeVisible({
     timeout: 30000,
   });
 }

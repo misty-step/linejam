@@ -6,6 +6,9 @@ import {
 } from './sentry.runtime.mjs';
 import { resolveDeploymentId } from './lib/deploymentId';
 import { validateEnv } from './lib/env';
+import { isLocalServerMode } from './lib/localMode';
+
+const localMode = isLocalServerMode();
 
 // Validate required env vars during production builds
 // This prevents deploying with missing configuration
@@ -73,8 +76,13 @@ if (sentryRelease) {
 }
 
 const nextConfig: NextConfig = {
+  // Container development is reached through loopback, not its bind hostname.
+  allowedDevOrigins: localMode ? ['127.0.0.1', '[::1]'] : undefined,
+  // The development toolbar otherwise covers the compact word counter.
+  devIndicators: localMode ? false : undefined,
   env: clientEnv,
   deploymentId: resolveDeploymentId(process.env.NEXT_DEPLOYMENT_ID),
+  transpilePackages: ['@parlor/core', '@parlor/auth'],
   serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
   images: {
     remotePatterns: [
@@ -96,6 +104,7 @@ const nextConfig: NextConfig = {
 
   // PostHog reverse proxy (bypass ad blockers)
   async rewrites() {
+    if (localMode) return [];
     return [
       {
         source: '/ingest/static/:path*',
@@ -109,23 +118,25 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: true,
-  telemetry: false,
-  disableLogger: true,
-  widenClientFileUpload: false,
-  sourcemaps: {
-    disable: !hasSentryUploadCredentials,
-    deleteSourcemapsAfterUpload: true,
-  },
-  release: sentryRelease
-    ? {
-        name: sentryRelease,
-        create: hasSentryUploadCredentials,
-        finalize: hasSentryUploadCredentials,
-      }
-    : { create: false, finalize: false },
-});
+export default localMode
+  ? nextConfig
+  : withSentryConfig(nextConfig, {
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: true,
+      telemetry: false,
+      disableLogger: true,
+      widenClientFileUpload: false,
+      sourcemaps: {
+        disable: !hasSentryUploadCredentials,
+        deleteSourcemapsAfterUpload: true,
+      },
+      release: sentryRelease
+        ? {
+            name: sentryRelease,
+            create: hasSentryUploadCredentials,
+            finalize: hasSentryUploadCredentials,
+          }
+        : { create: false, finalize: false },
+    });

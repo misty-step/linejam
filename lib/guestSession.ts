@@ -11,6 +11,8 @@
 export interface GuestSessionData {
   guestId: string | null;
   token: string | null;
+  /** Local performance.now() deadline, never a server/device wall-clock time. */
+  expiresAtMonotonic?: number;
 }
 
 export interface GuestSessionFetcher {
@@ -70,11 +72,13 @@ interface GuestSessionWireObject {
 interface GuestSessionApiResponse {
   guestId?: GuestSessionWireValue;
   token?: GuestSessionWireValue;
+  validForMs?: GuestSessionWireValue;
 }
 
 async function fetchGuestSession(url: string): Promise<GuestSessionData> {
   clearLegacyGuestTokenMirror();
 
+  const startedAt = performance.now();
   const res = await fetch(url);
   if (!res.ok) {
     throw new GuestSessionHttpError(res.status);
@@ -89,7 +93,16 @@ async function fetchGuestSession(url: string): Promise<GuestSessionData> {
       ? parseGuestSessionString(data.token)
       : null;
 
-  return { guestId, token };
+  // Charge the whole request against the server's remaining validity. This
+  // conservatively includes transport/body time without comparing wall clocks.
+  const validForMs = parseGuestSessionNumber(
+    data instanceof Object ? data.validForMs : undefined
+  );
+  const session: GuestSessionData = { guestId, token };
+  if (validForMs !== undefined) {
+    session.expiresAtMonotonic = startedAt + validForMs;
+  }
+  return session;
 }
 
 function parseGuestSessionString(
@@ -102,6 +115,21 @@ function parseGuestSessionString(
   }
 }
 
+function parseGuestSessionNumber(
+  value: GuestSessionWireValue | undefined
+): number | undefined {
+  try {
+    const number = Number.prototype.valueOf.call(value);
+    return Number.isFinite(number) ? number : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// A cold page can bootstrap from several components before a cookie exists.
+// Share only the in-flight request; later reads still use the cookie authority.
+let pendingGuestSession: Promise<GuestSessionData> | undefined;
+
 /**
  * Default fetcher that calls the guest session API.
  * Used in production; tests can inject a mock fetcher.
@@ -109,7 +137,12 @@ function parseGuestSessionString(
 export const defaultGuestSessionFetcher: GuestSessionFetcher = {
   async fetch(): Promise<GuestSessionData> {
     try {
-      return await fetchGuestSession('/api/guest/session');
+      pendingGuestSession ??= fetchGuestSession('/api/guest/session').finally(
+        () => {
+          pendingGuestSession = undefined;
+        }
+      );
+      return await pendingGuestSession;
     } catch (error) {
       if (isGuestSessionRateLimitError(error)) throw error;
 

@@ -26,10 +26,10 @@ async function createRoom(page: Page, hostName: string) {
   await page.goto('/host');
   await visibleTestId(page, E2E_TEST_IDS.hostNameInput).fill(hostName);
   await visibleTestId(page, E2E_TEST_IDS.hostCreateRoomButton).click();
-  await page.waitForURL(/\/room\/[A-Z]{4}$/);
+  await page.waitForURL(/\/room\/[A-Z0-9]{4}$/);
 
   const roomCode = new URL(page.url()).pathname.split('/').pop() ?? '';
-  expect(roomCode).toMatch(/^[A-Z]{4}$/);
+  expect(roomCode).toMatch(/^[A-Z0-9]{4}$/);
   return roomCode;
 }
 
@@ -47,7 +47,7 @@ async function submitLine(page: Page, line: string) {
 
 async function revealAssignedPoem(page: Page) {
   const assignedButton = page
-    .getByRole('button', { name: 'Reveal & Read', exact: true })
+    .getByTestId(E2E_TEST_IDS.revealPoemButton)
     .filter({ visible: true });
   await expect(assignedButton).toHaveCount(1);
   await assignedButton.click();
@@ -120,7 +120,7 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
     await Promise.all(
       [hostPage, presentReaderPage, departedReaderPage].map(async (page) => {
         const assignedButton = page
-          .getByRole('button', { name: 'Reveal & Read', exact: true })
+          .getByTestId(E2E_TEST_IDS.revealPoemButton)
           .filter({ visible: true });
         await expect(assignedButton).toHaveCount(1, { timeout: 30_000 });
       })
@@ -139,7 +139,7 @@ test('three-player reveal survives an assigned reader disconnect on mobile', asy
     await expect(fallbackButton).toBeVisible({
       timeout: PRESENCE_AWAY_MS + 30_000,
     });
-    await expect(fallbackButton).toHaveAccessibleName('Step In & Read');
+    await expect(fallbackButton).toHaveAccessibleName('Step in and read');
     await expect(hostPage.getByText('Step in for Reader Away')).toBeVisible();
 
     await hostPage.screenshot({

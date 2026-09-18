@@ -2,20 +2,21 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
+import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import type { Doc } from '@/convex/_generated/dataModel';
 import { AuthErrorState } from '@/components/AuthErrorState';
 import { Lobby } from '@/components/Lobby';
 import { RevealPhase } from '@/components/RevealPhase';
 import { RoomPanelErrorBoundary } from '@/components/RoomPanelErrorBoundary';
-import { RoomChrome } from '@/components/RoomChrome';
+import { RoomChrome, type RoomAction } from '@/components/RoomChrome';
 import { Button } from '@/components/ui/Button';
 import { WritingScreen } from '@/components/WritingScreen';
 import { LoadingMessages, LoadingState } from '@/components/ui/LoadingState';
 import { useUser } from '@/lib/auth';
 import { captureError } from '@/lib/error';
-import { buildLobbyChromeCopy } from '@/lib/roomChromeCopy';
+import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { usePresence } from '@/hooks/usePresence';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 
@@ -35,17 +36,42 @@ function useDefaultRoomUser(): RoomPageUserState {
   return { isLoading, guestToken, authError, retryAuth };
 }
 
-function useDefaultRoomState(code: string, guestToken: string | null) {
-  return useQuery(api.rooms.getRoomState, {
-    code,
-    guestToken: guestToken || undefined,
-  });
+function useDefaultRoomState(
+  code: string,
+  guestToken: string | null,
+  enabled: boolean
+) {
+  return useQuery(
+    api.rooms.getRoomState,
+    enabled ? { code, guestToken: guestToken || undefined } : 'skip'
+  );
+}
+
+interface RoomActionMutations {
+  endGame(
+    args: FunctionArgs<typeof api.game.endGame>
+  ): Promise<FunctionReturnType<typeof api.game.endGame>>;
+  closeRoom(
+    args: FunctionArgs<typeof api.rooms.closeRoom>
+  ): Promise<FunctionReturnType<typeof api.rooms.closeRoom>>;
+  leaveLobby(
+    args: FunctionArgs<typeof api.rooms.leaveLobby>
+  ): Promise<FunctionReturnType<typeof api.rooms.leaveLobby>>;
+}
+
+function useDefaultRoomActions(): RoomActionMutations {
+  return {
+    endGame: useMutation(api.game.endGame),
+    closeRoom: useMutation(api.rooms.closeRoom),
+    leaveLobby: useMutation(api.rooms.leaveLobby),
+  };
 }
 
 export interface RoomPageDependencies {
   useRouter(): RoomPageRouter;
   useUser(): RoomPageUserState;
   useRoomState: typeof useDefaultRoomState;
+  useRoomActions: typeof useDefaultRoomActions;
   usePresence: typeof usePresence;
   captureError: typeof captureError;
   LobbyComponent: typeof Lobby;
@@ -59,6 +85,7 @@ const defaultRoomPageDependencies: RoomPageDependencies = {
   useUser: useDefaultRoomUser,
   useRoomState: useDefaultRoomState,
   usePresence,
+  useRoomActions: useDefaultRoomActions,
   captureError,
   LobbyComponent: Lobby,
   WritingScreenComponent: WritingScreen,
@@ -121,68 +148,88 @@ interface RoomPageState {
 function ResolvedRoomPage({
   code,
   roomState,
+  guestToken,
   dependencies,
 }: {
   code: string;
   roomState: RoomPageState;
+  guestToken: string | null;
   dependencies: RoomPageDependencies;
 }) {
   const { LobbyComponent, WritingScreenComponent, RevealPhaseComponent } =
     dependencies;
+  const router = dependencies.useRouter();
+  const actions = dependencies.useRoomActions();
   const { room, players, isHost } = roomState;
+  const args = { roomCode: code, guestToken: guestToken || undefined };
+  const action: RoomAction | undefined =
+    room.status === 'LOBBY'
+      ? isHost
+        ? {
+            kind: 'close-room',
+            run: async () => {
+              await actions.closeRoom(args);
+              router.push('/');
+            },
+          }
+        : {
+            kind: 'leave-room',
+            run: async () => {
+              await actions.leaveLobby(args);
+              router.push('/');
+            },
+          }
+      : room.status === 'IN_PROGRESS' && isHost
+        ? {
+            kind: 'end-game',
+            run: async () => {
+              await actions.endGame(args);
+            },
+          }
+        : undefined;
 
-  if (room.status === 'LOBBY') {
+  const panel =
+    room.status === 'LOBBY'
+      ? 'lobby'
+      : room.status === 'IN_PROGRESS'
+        ? 'writing'
+        : room.status === 'COMPLETED'
+          ? 'reveal'
+          : null;
+  if (!panel) {
     return (
-      <RoomPanelErrorBoundary
-        key={`${code}:lobby`}
-        roomCode={code}
-        panel="lobby"
-      >
-        <div className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col bg-background">
-          <RoomChrome
-            roomCode={code}
-            statusBoard
-            {...buildLobbyChromeCopy({
-              code,
-              playerCount: players.length,
-            })}
-          />
-          <LobbyComponent room={room} players={players} isHost={isHost} />
-        </div>
-      </RoomPanelErrorBoundary>
-    );
-  }
-
-  if (room.status === 'IN_PROGRESS') {
-    return (
-      <RoomPanelErrorBoundary
-        key={`${code}:writing`}
-        roomCode={code}
-        panel="writing"
-      >
-        <WritingScreenComponent roomCode={code} showChrome />
-      </RoomPanelErrorBoundary>
-    );
-  }
-
-  if (room.status === 'COMPLETED') {
-    return (
-      <RoomPanelErrorBoundary
-        key={`${code}:reveal`}
-        roomCode={code}
-        panel="reveal"
-      >
-        <RevealPhaseComponent roomCode={code} showChrome />
-      </RoomPanelErrorBoundary>
+      <UnexpectedRoomState
+        code={code}
+        status={String(room.status)}
+        dependencies={dependencies}
+      />
     );
   }
 
   return (
-    <UnexpectedRoomState
-      code={code}
-      status={String(room.status)}
-      dependencies={dependencies}
-    />
+    <RoomPanelErrorBoundary
+      key={`${code}:${panel}`}
+      roomCode={code}
+      panel={panel}
+    >
+      <div
+        data-testid={E2E_TEST_IDS.roomFrame}
+        className="lj-game-frame lj-viewport-offset relative flex min-h-0 flex-col overflow-hidden bg-background"
+      >
+        <RoomChrome
+          roomCode={code}
+          isLobby={panel === 'lobby'}
+          action={action}
+        />
+        {panel === 'lobby' ? (
+          <LobbyComponent room={room} players={players} isHost={isHost} />
+        ) : panel === 'writing' ? (
+          <WritingScreenComponent roomCode={code} />
+        ) : (
+          <RevealPhaseComponent roomCode={code} />
+        )}
+      </div>
+    </RoomPanelErrorBoundary>
   );
 }
 
@@ -196,10 +243,11 @@ function RoomPageContent({
   const router = dependencies.useRouter();
   const { isLoading, guestToken, authError, retryAuth } =
     dependencies.useUser();
-  const roomState = dependencies.useRoomState(code, guestToken);
+  const identityReady = !isLoading && !authError;
+  const roomState = dependencies.useRoomState(code, guestToken, identityReady);
 
   // Heartbeat presence while the room page is mounted (lobby, writing, reveal).
-  dependencies.usePresence(code, guestToken);
+  dependencies.usePresence(identityReady ? code : null, guestToken);
   if (authError) {
     return <AuthErrorState message={authError} onRetry={retryAuth} />;
   }
@@ -239,6 +287,7 @@ function RoomPageContent({
       <ResolvedRoomPage
         code={code}
         roomState={roomState}
+        guestToken={guestToken}
         dependencies={dependencies}
       />
     </>

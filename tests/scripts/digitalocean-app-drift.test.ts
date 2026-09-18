@@ -67,7 +67,7 @@ type ExpectedApp = {
   name: string;
   region: string;
   features: string[];
-  domains: Array<{ domain: string; type: string; zone: string }>;
+  domains: Array<{ domain: string; type: string; zone?: string }>;
   ingress: Array<{ pathPrefix: string; component: string }>;
   services: Array<{
     name: string;
@@ -233,6 +233,39 @@ describe('DigitalOcean app drift', () => {
       frontendProductionOwner: { app: 'linejam', component: 'web' },
       convexProductionOwner: { app: 'linejam', component: 'web' },
     });
+  });
+
+  it('accepts an externally managed alias without hiding later zone drift', () => {
+    const externalAlias = { domain: 'verse.example.com', type: 'ALIAS' };
+    const expected = {
+      ...manifest,
+      apps: [
+        {
+          ...manifest.apps[0],
+          domains: [...manifest.apps[0].domains, externalAlias],
+        },
+      ],
+    };
+    const validated = validateDigitalOceanAppManifest(expected);
+    const live = liveAppFromExpected(expected.apps[0]);
+    expect(
+      diffDigitalOceanApp(validated.apps[0], normalizeDigitalOceanApp(live))
+    ).toEqual([]);
+
+    live.spec.domains = [
+      ...manifest.apps[0].domains,
+      { ...externalAlias, zone: 'example.com' },
+    ];
+    expect(
+      diffDigitalOceanApp(validated.apps[0], normalizeDigitalOceanApp(live))
+    ).toContainEqual({
+      path: 'domains.verse.example.com.zone',
+      expected: undefined,
+      actual: 'example.com',
+    });
+
+    Object.assign(externalAlias, { zone: '' });
+    expect(() => validateDigitalOceanAppManifest(expected)).toThrow();
   });
 
   it('validates a values-free manifest with one frontend and Convex owner', () => {

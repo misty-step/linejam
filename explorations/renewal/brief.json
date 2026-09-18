@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "status": "Exploration, not a selected production identity",
+  "operatorIntent": "Make Linejam feel like a fun, whimsical, delightful party game, not an austere business application. Reopen logo, typography, color, themes, view flow, composition, components, motion, avatars, imagery, and sound while preserving core mechanics.",
+  "invariants": ["One human-authored game, nine rounds with word counts 1,2,3,4,5,4,3,2,1", "Only the previous line is visible while writing", "No generated authors, writing prompts, scores, achievements, rankings, or new game modes", "Full completed poems are readable together in the aloud reveal", "Guest-first, mobile-first, private saving distinct from explicit reversible publication", "Keyboard, screen-reader, text-scaling, contrast, reduced-motion, and sound-off alternatives are part of every direction"],
+  "qualityQuestions": ["Can a new guest understand the next action at a glance?", "Does the interface keep attention on the people and their words?", "Is there one memorable source of delight instead of many competing decorations?", "Does motion explain a committed state change rather than mask latency?", "Can a nervous non-writer join without performing an identity or reading instructions?", "Can every action remain reachable with a phone keyboard, large text, or a long pen name?", "Is the writing surface calmer than the lobby and reveal?", "Does a saved poem remain legible and worth keeping outside the game?"],
+  "directions": [
+    {
+      "id": "fold-club", "name": "Fold Club", "thesis": "A bright, tactile paper-folding toy shared around the table: the mechanic becomes the brand.",
+      "palette": {"base":"#EDF3FF","paper":"#FFFFFF","ink":"#16294A","action":"#2458CB","sun":"#F4D86A","coral":"#F28C9B"},
+      "type": {"display":"Bricolage Grotesque","body":"DM Sans","poem":"Bricolage Grotesque"},
+      "signature": "An original folded-ribbon mark and a single paper slip whose fold state communicates received, written, sealed, and opened.",
+      "layout": "Left-aligned practical text, a gently offset shared paper stack in lobby, one generous received-line/writing sheet, and a whole-poem unfolded sheet at reveal. Thumb action remains part of the sheet rather than a second toolbar.",
+      "avatars": "Small custom cut-paper creatures with distinct silhouettes and visible pen names; no photos required.",
+      "motion": "Paper settles on join, folds only after commit, opens once before the complete readable poem. No perpetual floating paper.",
+      "sound": "Optional short paper-like filtered-noise tick; silent by default and never required to perceive completion.",
+      "risk": "Literal paper craft can become fussy; keep textures and rotations away from editable text.",
+      "avoid": "Cream/terracotta literary-journal restyle, scrapbook clutter, decorative tape on every box."
+    },
+    {
+      "id": "jelly-chorus", "name": "Jelly Chorus", "thesis": "A small cast of expressive companions makes a room feel alive without turning the writers into a scoreboard.",
+      "palette": {"base":"#EEE8FF","paper":"#FFFFFF","ink":"#39234E","action":"#672CB5","mint":"#B6F1D0","peach":"#FFB887"},
+      "type": {"display":"DynaPuff","body":"Nunito Sans","poem":"Nunito Sans"},
+      "signature": "An original joined-jelly wordmark and silhouette-based avatars that react to presence and confirmed line delivery.",
+      "layout": "A friendly entrance with one decisive join/start action; players form a compact chorus above the main writing card. Writing is spacious, and the cast moves to the margin for the poem.",
+      "avatars": "Selectable non-gendered jelly shapes, brows and accessories in a small optional drawer; pen name alone still works.",
+      "motion": "One brief squash-and-settle on acknowledgement; reaction follows server state. Full poem appears at once, with companions quietly framing it.",
+      "sound": "Optional soft marimba-like plop after a deliberate action; no random squeaks or continuous music.",
+      "risk": "Can read as a children's app or make slow writers feel watched; use restrained expressions and no urgency faces.",
+      "avoid": "Achievement confetti, baby talk, faces inside word inputs, endlessly breathing blobs."
+    },
+    {
+      "id": "midnight-matinee", "name": "Midnight Matinee", "thesis": "A pocket theatre: writing is backstage intimacy and the final poem is the shared performance.",
+      "palette": {"base":"#261C3B","paper":"#382A50","ink":"#FFF4E7","action":"#F4C56A","lavender":"#B5A3E5","rose":"#F4B3B8"},
+      "type": {"display":"DM Serif Display","body":"DM Sans","poem":"DM Serif Display"},
+      "signature": "An original open-curtain/line mark, warm ticket-like invitation, and a single focused stage for the current human reader.",
+      "layout": "Compact room chrome, horizontal cast strip, quiet centered stage frame with left-aligned readable text, then a complete poem playbill. Large-screen presentation is a natural extension, not a second product.",
+      "avatars": "Distinct illustrated cameo silhouettes and optional chosen stage-color medallions; names remain primary.",
+      "motion": "A brief curtain aperture before the entire poem, subtle handoff of the reader spotlight; no typewriter reveal or scrolling poem recital.",
+      "sound": "Optional warm bell cue to invite the reader, never canned applause or a track competing with reading aloud.",
+      "risk": "Theatre can feel formal or pressure a shy reader; warm invitations and easy reader recovery must counter that.",
+      "avoid": "Black-and-neon dashboard, casino gold, dramatic waits, mandatory sound, fake audience reactions."
+    },
+    {
+      "id": "word-carnival", "name": "Word Carnival", "thesis": "A bold screen-printed word toy: chunky type, satisfying tile mechanics, and graphic wit rather than tech spectacle.",
+      "palette": {"base":"#DFF4EB","paper":"#FFFFFF","ink":"#282148","action":"#5939B5","orange":"#F47545","yellow":"#F2D65F"},
+      "type": {"display":"Bungee","body":"Atkinson Hyperlegible","poem":"Atkinson Hyperlegible"},
+      "signature": "An original interlocking letter-block logo; typographic blocks carry the playfulness, not a grid of app cards.",
+      "layout": "A compact poster-like home, name/code entry on one strong panel, a player rail, and a single writing runway whose expanding word tiles are the real interaction. Reveal becomes an ordered print rather than animated text fragments.",
+      "avatars": "Simple custom geometric token characters in recognizably different shapes, not numbers or ranks.",
+      "motion": "Physical-feeling press, tile settle, and one print-registration snap on completion; input remains stable and text never clips.",
+      "sound": "Optional gentle woodblock click, bounded in volume and frequency; no arcade scoring sounds.",
+      "risk": "High-energy branding can overwhelm poetry or suggest competition; sharply reduce display type and ornament during writing/read.",
+      "avoid": "Scores, coins, jackpots, flashing neon, all-caps interface labels, thick borders around every nested element."
+    },
+    {
+      "id": "odd-garden", "name": "Odd Garden", "thesis": "An eccentric illustrated garden where nine small contributions become one unexpected thing worth keeping.",
+      "palette": {"base":"#F1F6E8","paper":"#FFFFFF","ink":"#234C42","action":"#245C4B","sun":"#F3D66D","orchid":"#D890BA"},
+      "type": {"display":"Fraunces","body":"Figtree","poem":"Figtree"},
+      "signature": "An original curling line/sprig logo and a small cast of unusual botanical characters; whimsy is in the illustration, not a busy interface.",
+      "layout": "An inviting open field with one asymmetric illustrated edge; focused forms and writing on plain white; waiting groups the present cast; the final poem reads as a beautifully typeset botanical specimen card.",
+      "avatars": "Optional hand-drawn seed, leaf, mushroom and twig companions with diverse shapes and named identification, not collectible rewards.",
+      "motion": "A tiny sprout settles after seal and a single outward bloom frames the whole finished poem; no ambient drifting leaves.",
+      "sound": "Optional soft wooden/chime tone, not birdsong ambience; all room information remains visible in silence.",
+      "risk": "A nature metaphor may obscure the direct paper-fold game or look like a wellbeing app; keep verbs literal and examples playful.",
+      "avoid": "Generic beige wellness cards, pastoral stock photographs, ornamental writing prompts, growth-based gamification."
+    }
+  ],
+  "planCritique": "Rejected a generic cream/serif/terracotta restyle and a near-black/neon game skin because neither changes the current interaction hierarchy or creates a specific Linejam toy. The five retained directions spend boldness in different places: paper transformation, character ensemble, stage ceremony, word mechanics, and odd illustration. Each must calm down for composition and preserve the complete poem as the focal object. They are competing proposals, not five skins to ship together."
+}

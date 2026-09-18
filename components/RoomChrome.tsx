@@ -1,400 +1,314 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
-import {
-  Archive,
-  HelpCircle,
-  MoreHorizontal,
-  Palette,
-  Share2,
-} from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import { HelpModal } from './HelpModal';
-import { ThemeSelector } from './ThemeSelector';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Archive, HelpCircle, LogOut, MoreHorizontal, X } from 'lucide-react';
+import { Brand } from './Brand';
+import { ColorModeControl } from './ColorModeControl';
+import { SoundControl } from './SoundControl';
+import { HelpContent } from './HelpModal';
+import { RoomInvite } from './RoomInvite';
 import { Alert } from './ui/Alert';
-import { cn } from '@/lib/utils';
-import { useShareLink } from '@/hooks/useShareLink';
-import { trackRoomInviteShared } from '@/lib/analytics';
+import { Button } from './ui/Button';
+import { captureError } from '@/lib/error';
+import { errorToFeedback } from '@/lib/errorFeedback';
+import { toErrorReportable } from '@/lib/errorCore';
 import { formatRoomCode } from '@/lib/roomCode';
+import { playSound } from '@/lib/audio';
+
+export interface RoomAction {
+  kind: 'end-game' | 'close-room' | 'leave-room';
+  run(): Promise<void>;
+}
 
 interface RoomChromeProps {
   roomCode: string;
-  title: string;
-  subtitle: string;
-  compact?: boolean;
-  statusBoard?: boolean;
+  isLobby: boolean;
+  action?: RoomAction;
 }
 
-function chromeButtonClasses({
-  emphasized = false,
-  iconOnly = false,
-  compact = false,
-}: {
-  emphasized?: boolean;
-  iconOnly?: boolean;
-  compact?: boolean;
-} = {}) {
-  return cn(
-    'inline-flex items-center justify-center rounded-full border',
-    compact ? 'h-[44px]' : 'h-11',
-    'transition-all duration-[var(--duration-normal)]',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2',
-    iconOnly ? (compact ? 'w-[44px]' : 'w-11') : compact ? 'px-[16px]' : 'px-4',
-    emphasized
-      ? 'border-primary bg-primary text-text-inverse hover:bg-primary-hover'
-      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'
-  );
-}
+const actionCopy = {
+  'end-game': {
+    label: 'End game',
+    title: 'End this game?',
+    detail: 'Everyone returns to the lobby. Partial poems stay private.',
+    cancel: 'Keep playing',
+    pending: 'Ending game…',
+  },
+  'close-room': {
+    label: 'Close room',
+    title: 'Close this room?',
+    detail: 'Everyone leaves this room. Saved poems stay in your archive.',
+    cancel: 'Keep room open',
+    pending: 'Closing room…',
+  },
+  'leave-room': {
+    label: 'Leave room',
+    title: 'Leave this room?',
+    detail: 'The room stays open for the others. You can rejoin with its code.',
+    cancel: 'Stay here',
+    pending: 'Leaving room…',
+  },
+} as const;
 
-const menuItemClasses =
-  'flex w-full items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-background)] focus-visible:outline-none focus-visible:bg-[var(--color-background)]';
+const iconButton =
+  'inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2';
+const menuItem =
+  'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-3 text-left font-semibold hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
 
-export function RoomChrome({
-  roomCode,
-  title,
-  subtitle,
-  compact = false,
-  statusBoard = false,
-}: RoomChromeProps) {
-  const [showThemes, setShowThemes] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showQr, setShowQr] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [codeCopyError, setCodeCopyError] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const { handleShare, copied, shared, shareError } = useShareLink({
-    getShareData: () => ({
-      url: `${window.location.origin}/join?code=${roomCode}`,
-      title: 'Join my Linejam room',
-      text: `Join my Linejam room with code ${roomCode}.`,
-    }),
-    onShared: (method) => {
-      trackRoomInviteShared({ method, roomCode });
-    },
-    failureMessage: 'Failed to share invite. Please try again.',
-  });
+export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
+  const [panel, setPanel] = useState<
+    'invite' | 'options' | 'help' | 'confirm' | null
+  >(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pendingRef = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  const titleId = useId();
+  const panelOpen = panel !== null;
+  const copy = action ? actionCopy[action.kind] : null;
 
-  const joinUrl = `${window.location.origin}/join?code=${roomCode}`;
-  const usesBoundedControls = compact || statusBoard;
+  const close = () => {
+    if (!pendingRef.current) setPanel(null);
+  };
 
-  const handleCopyCode = async () => {
-    setCodeCopyError(false);
+  useEffect(() => {
+    if (!panelOpen) return;
+    const returnFocus = returnFocusRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (!pendingRef.current) setPanel(null);
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (
+        (!event.shiftKey && document.activeElement === last) ||
+        !dialogRef.current.contains(document.activeElement)
+      ) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+      if (returnFocus?.isConnected) returnFocus.focus();
+    };
+  }, [panelOpen]);
+
+  useEffect(() => {
+    if (panel) closeButtonRef.current?.focus();
+  }, [panel]);
+
+  const confirmAction = async () => {
+    if (!action || pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    setError(null);
     try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
-      await navigator.clipboard.writeText(roomCode);
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
-    } catch {
-      setCodeCopied(false);
-      setCodeCopyError(true);
+      await action.run();
+      setPanel(null);
+      playSound('droplet');
+    } catch (cause) {
+      playSound('error');
+      const reportable = toErrorReportable(cause);
+      setError(errorToFeedback(reportable).message);
+      captureError(reportable, { roomCode, operation: action.kind });
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
     }
   };
 
-  // Close the overflow menu / theme panel / QR on outside click or Escape.
-  useEffect(() => {
-    if (!showMenu && !showThemes && !showQr) return;
-
-    const closeAll = () => {
-      setShowMenu(false);
-      setShowThemes(false);
-      setShowQr(false);
-    };
-    const handlePointer = (event: MouseEvent) => {
-      if (
-        event.target instanceof Node &&
-        menuRef.current &&
-        !menuRef.current.contains(event.target)
-      ) {
-        closeAll();
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeAll();
-        menuTriggerRef.current?.focus();
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointer);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handlePointer);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showMenu, showThemes, showQr]);
+  const title =
+    panel === 'invite'
+      ? 'Invite friends'
+      : panel === 'help'
+        ? 'How to play'
+        : panel === 'confirm' && copy
+          ? copy.title
+          : 'Room options';
 
   return (
     <>
-      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
-
-      <div
-        className={cn(
-          'lj-safe-inline sticky top-0 z-40 flex-none',
-          compact
-            ? '[--lj-safe-inline-space:12px] pt-[max(8px,env(safe-area-inset-top))]'
-            : '[--lj-safe-inline-space:0.75rem] pt-[max(0.75rem,env(safe-area-inset-top))] md:[--lj-safe-inline-space:1.5rem]'
-        )}
-      >
+      <header className="lj-safe-inline shrink-0 bg-background pt-[max(0.25rem,env(safe-area-inset-top))] [--lj-safe-inline-space:1rem]">
         <div
-          className={cn(
-            'mx-auto flex w-full max-w-7xl flex-col',
-            compact ? 'gap-[8px]' : 'gap-3'
-          )}
+          data-testid="room-chrome"
+          className="mx-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-3 py-2"
         >
-          {shareError && (
-            <Alert
-              variant="error"
-              className="max-w-xl bg-[var(--color-surface)]/95 shadow-[var(--shadow-lg)] backdrop-blur"
+          {isLobby ? (
+            <Brand className="text-[20px]" />
+          ) : (
+            <button
+              type="button"
+              onClick={(event) => {
+                returnFocusRef.current = event.currentTarget;
+                setPanel('invite');
+              }}
+              aria-label={`Invite friends to room ${formatRoomCode(roomCode)}`}
+              aria-haspopup="dialog"
+              aria-expanded={panel === 'invite'}
+              aria-controls={panel === 'invite' ? panelId : undefined}
+              className="min-h-11 min-w-0 rounded-lg py-2 text-left text-lg font-bold tracking-wide text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
-              {shareError}
-            </Alert>
+              {formatRoomCode(roomCode)}
+            </button>
           )}
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <ColorModeControl />
+            <SoundControl />
+            <button
+              type="button"
+              onClick={(event) => {
+                returnFocusRef.current = event.currentTarget;
+                setPanel('options');
+              }}
+              aria-label="Room options"
+              aria-haspopup="dialog"
+              aria-expanded={panel !== null && panel !== 'invite'}
+              aria-controls={
+                panel !== null && panel !== 'invite' ? panelId : undefined
+              }
+              className={iconButton}
+            >
+              <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </header>
+      {panel && (
+        <div
+          className="lj-game-frame lj-viewport-offset lj-safe-frame fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) close();
+          }}
+        >
           <div
-            data-testid="room-chrome"
-            data-layout={statusBoard ? 'status-board' : undefined}
-            className={cn(
-              statusBoard
-                ? 'grid grid-cols-1 items-center gap-[8px] rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 px-[12px] py-[8px] shadow-[var(--shadow-lg)] backdrop-blur-xl sm:grid-cols-[minmax(0,1fr)_auto]'
-                : 'grid rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)]/92 shadow-[var(--shadow-lg)] backdrop-blur-xl',
-              statusBoard
-                ? compact
-                  ? ''
-                  : 'md:px-5 md:py-3'
-                : compact
-                  ? 'grid-cols-[minmax(0,1fr)_auto] items-center gap-[8px] px-[12px] py-[8px]'
-                  : 'gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-5'
-            )}
+            ref={dialogRef}
+            id={panelId}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            className="flex max-h-full w-full min-w-0 max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-lg)]"
           >
-            <div
-              className={cn(
-                'min-w-0',
-                compact ? 'space-y-0' : 'space-y-1',
-                statusBoard && 'overflow-hidden'
-              )}
-            >
-              <div
-                className={cn(
-                  'flex min-w-0',
-                  statusBoard
-                    ? 'flex-col items-stretch gap-[4px] sm:flex-row sm:items-center sm:gap-2'
-                    : 'items-center gap-2'
-                )}
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-4 py-2">
+              <h2
+                id={titleId}
+                className="min-w-0 break-words text-xl font-bold text-text-primary"
               >
-                <div
-                  className={cn('relative', usesBoundedControls && 'min-w-0')}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowQr((current) => !current);
-                      setShowThemes(false);
-                      setShowMenu(false);
-                    }}
-                    className={cn(
-                      'min-h-[44px] rounded-full border border-[var(--color-border)] bg-[var(--color-background)]/72 text-[0.6875rem] font-mono uppercase tracking-[0.28em] text-[var(--color-text-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer',
-                      usesBoundedControls
-                        ? 'max-w-full truncate px-[10px] py-[2px]'
-                        : 'shrink-0 px-2.5 py-0.5'
-                    )}
-                    aria-label={`Open QR and copy options for room code ${formatRoomCode(roomCode)}`}
-                  >
-                    Room {formatRoomCode(roomCode)}
-                  </button>
-
-                  {showQr && (
-                    <div className="lj-room-popover absolute left-0 top-full z-50 mt-3 max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
-                      <div className="flex flex-col items-center gap-3">
-                        <QRCodeSVG
-                          value={joinUrl}
-                          size={160}
-                          level="M"
-                          fgColor="var(--color-text-primary)"
-                          bgColor="transparent"
-                        />
-                        {codeCopyError && (
-                          <Alert variant="error" className="w-full text-xs">
-                            Couldn&apos;t copy the room code. Try again.
-                          </Alert>
-                        )}
-                        <div className="flex w-full items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleCopyCode();
-                            }}
-                            className="min-h-[44px] min-w-0 flex-1 rounded-full border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-[var(--color-text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
-                            aria-label={
-                              codeCopyError
-                                ? 'Retry copying room code'
-                                : codeCopied
-                                  ? 'Room code copied'
-                                  : 'Copy room code'
-                            }
-                          >
-                            {codeCopied ? 'Copied!' : 'Copy code'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowQr(false)}
-                            className="flex h-[44px] w-[44px] shrink-0 items-center justify-center text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-                            aria-label="Close QR"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {statusBoard ? (
-                  <p
-                    role="status"
-                    aria-live="polite"
-                    aria-label={subtitle ? `${title}. ${subtitle}` : title}
-                    className="min-w-0 truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg"
-                  >
-                    {title}
-                  </p>
-                ) : (
-                  <h1 className="truncate text-base font-[var(--font-display)] font-medium leading-tight text-[var(--color-text-primary)] md:text-lg">
-                    {title}
-                  </h1>
-                )}
-              </div>
-              {!statusBoard && subtitle && (
-                <p className="max-w-3xl whitespace-normal break-words text-xs leading-tight text-[var(--color-text-secondary)] md:text-sm md:leading-relaxed">
-                  {subtitle}
-                </p>
-              )}
+                {title}
+              </h2>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={close}
+                disabled={pending}
+                aria-label="Close panel"
+                className={iconButton}
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
             </div>
-
-            <div
-              ref={menuRef}
-              className={cn(
-                'flex min-w-0 items-center',
-                statusBoard ? 'justify-end gap-[8px]' : 'md:justify-end',
-                statusBoard
-                  ? undefined
-                  : compact
-                    ? 'flex-none gap-[8px]'
-                    : 'gap-2'
-              )}
-            >
-              <button
-                type="button"
-                onClick={handleShare}
-                className={cn(
-                  chromeButtonClasses({
-                    emphasized: true,
-                    iconOnly: statusBoard || compact,
-                    compact: usesBoundedControls,
-                  }),
-                  statusBoard || compact
-                    ? 'flex-none p-0'
-                    : 'min-w-0 flex-1 md:flex-none'
-                )}
-                aria-label="Share room invite"
-              >
-                <Share2
-                  className={cn(
-                    usesBoundedControls ? 'h-[16px] w-[16px]' : 'mr-2 h-4 w-4'
-                  )}
-                />
-                <span
-                  className={statusBoard || compact ? 'sr-only' : 'truncate'}
-                >
-                  {shared ? 'Shared!' : copied ? 'Copied!' : 'Invite'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowHelp(true)}
-                className={cn(
-                  chromeButtonClasses({
-                    iconOnly: true,
-                    compact: usesBoundedControls,
-                  }),
-                  !statusBoard && 'hidden md:inline-flex'
-                )}
-                aria-label="How to play"
-              >
-                <HelpCircle className="h-4 w-4" />
-              </button>
-
-              <div className="relative">
-                <button
-                  ref={menuTriggerRef}
-                  type="button"
-                  onClick={() => {
-                    setShowThemes(false);
-                    setShowQr(false);
-                    setShowMenu((current) => !current);
-                  }}
-                  className={chromeButtonClasses({
-                    iconOnly: true,
-                    compact: usesBoundedControls,
-                  })}
-                  aria-label="More options"
-                  aria-haspopup="true"
-                  aria-expanded={showMenu}
-                >
-                  <MoreHorizontal
-                    className={
-                      usesBoundedControls ? 'h-[16px] w-[16px]' : 'h-4 w-4'
-                    }
-                  />
-                </button>
-
-                {showMenu && (
-                  <div className="lj-room-popover absolute right-0 top-full z-50 mt-3 w-56 max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-[var(--shadow-lg)]">
+            {panel === 'help' ? (
+              <HelpContent onClose={close} />
+            ) : (
+              <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
+                {panel === 'invite' ? (
+                  <RoomInvite roomCode={roomCode} />
+                ) : panel === 'confirm' && action && copy ? (
+                  <div className="space-y-5">
+                    <p className="leading-relaxed text-text-secondary">
+                      {copy.detail}
+                    </p>
+                    {error && <Alert variant="error">{error}</Alert>}
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => setPanel('options')}
+                        className="min-h-11 flex-1"
+                      >
+                        {copy.cancel}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        disabled={pending}
+                        onClick={() => void confirmAction()}
+                        data-sound="loading"
+                        className="min-h-11 flex-1"
+                      >
+                        {pending ? copy.pending : copy.label}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      className={menuItem}
+                      onClick={() => setPanel('help')}
+                    >
+                      <HelpCircle
+                        className="h-5 w-5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      How to play
+                    </button>
                     <Link
                       href="/me/poems"
                       prefetch={false}
-                      className={menuItemClasses}
-                      onClick={() => setShowMenu(false)}
+                      className={menuItem}
+                      onClick={close}
                     >
-                      <Archive className="h-4 w-4 text-[var(--color-text-muted)]" />
+                      <Archive
+                        className="h-5 w-5 shrink-0"
+                        aria-hidden="true"
+                      />
                       Your poems
                     </Link>
-                    <button
-                      type="button"
-                      className={menuItemClasses}
-                      onClick={() => {
-                        setShowHelp(true);
-                        setShowMenu(false);
-                      }}
-                    >
-                      <HelpCircle className="h-4 w-4 text-[var(--color-text-muted)]" />
-                      How to play
-                    </button>
-                    <button
-                      type="button"
-                      className={menuItemClasses}
-                      onClick={() => {
-                        setShowThemes(true);
-                        setShowMenu(false);
-                      }}
-                    >
-                      <Palette className="h-4 w-4 text-[var(--color-text-muted)]" />
-                      Theme
-                    </button>
-                  </div>
-                )}
-
-                {showThemes && (
-                  <div className="lj-room-popover absolute right-0 top-full z-50 mt-3 w-[320px] max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-lg)]">
-                    <ThemeSelector onClose={() => setShowThemes(false)} />
+                    {action && copy && (
+                      <div className="mt-3 border-t border-border-subtle pt-3">
+                        <button
+                          type="button"
+                          className={`${menuItem} text-error`}
+                          onClick={() => {
+                            setError(null);
+                            setPanel('confirm');
+                          }}
+                        >
+                          <LogOut
+                            className="h-5 w-5 shrink-0"
+                            aria-hidden="true"
+                          />
+                          {copy.label}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

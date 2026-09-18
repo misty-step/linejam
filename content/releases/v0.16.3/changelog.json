@@ -1,0 +1,15 @@
+{
+  "version": "0.16.3",
+  "date": "2026-07-09",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "responder",
+      "description": "preserve Playwright browser path",
+      "breaking": false,
+      "pr": 326,
+      "commit": "bb4e8bb"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.2...v0.16.3"
+}

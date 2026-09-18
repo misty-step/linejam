@@ -1,0 +1,15 @@
+{
+  "version": "0.16.4",
+  "date": "2026-07-09",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "auth",
+      "description": "fail open to guest play",
+      "breaking": false,
+      "pr": 327,
+      "commit": "d9ca6a0"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.3...v0.16.4"
+}

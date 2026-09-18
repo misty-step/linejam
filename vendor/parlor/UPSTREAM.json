@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/misty-step/parlor",
+  "commit": "2b8c5c4114368e40905232a733c4193e22baee03",
+  "paths": [
+    "packages",
+    "integrations",
+    "tsconfig.base.json",
+    "LICENSE"
+  ],
+  "modifications": []
+}

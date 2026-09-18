@@ -1,0 +1,15 @@
+{
+  "version": "0.16.1",
+  "date": "2026-07-09",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "install pnpm before Pages cache lookup",
+      "breaking": false,
+      "pr": 323,
+      "commit": "1e1ed2d"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.0...v0.16.1"
+}

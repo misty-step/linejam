@@ -1,0 +1,15 @@
+{
+  "version": "0.26.0",
+  "date": "2026-07-17",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "ops",
+      "description": "scheduled encrypted Convex backups with provable restore",
+      "breaking": false,
+      "pr": 381,
+      "commit": "93e796b"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.25.1...v0.26.0"
+}

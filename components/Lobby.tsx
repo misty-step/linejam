@@ -1,33 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRef, useState } from 'react';
 import { useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
+import type { Doc } from '../convex/_generated/dataModel';
 import { useUser } from '../lib/auth';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { toErrorReportable } from '../lib/errorCore';
-import { formatRoomCode } from '../lib/roomCode';
-import { Alert } from './ui/Alert';
-import { Avatar } from './ui/Avatar';
-import { Button } from './ui/Button';
-import { HostBadge } from './ui/HostBadge';
-import { LobbyJoinQr, LobbyStage } from './stage/LobbyStage';
-import { StampAnimation } from './ui/StampAnimation';
-import { Doc } from '../convex/_generated/dataModel';
-import { Presentation } from 'lucide-react';
+import { playSound } from '@/lib/audio';
 import {
   hashRoomId,
   trackGameStarted,
   trackLobbyReady,
 } from '../lib/analytics';
-
-/**
- * Lobby layout keeps actions separate from the live player list.
- * Room identity and phase status live in RoomChrome above this component.
- */
+import { Alert } from './ui/Alert';
+import { Avatar } from './ui/Avatar';
+import { Button } from './ui/Button';
+import { HostBadge } from './ui/HostBadge';
+import { RoomInvite } from './RoomInvite';
 
 interface LobbyPlayer extends Doc<'roomPlayers'> {
   stableId: string;
@@ -37,42 +29,22 @@ interface LobbyPlayer extends Doc<'roomPlayers'> {
 type StartGame = (
   args: FunctionArgs<typeof api.game.startGame>
 ) => Promise<FunctionReturnType<typeof api.game.startGame>>;
-type LeaveLobby = (
-  args: FunctionArgs<typeof api.rooms.leaveLobby>
-) => Promise<FunctionReturnType<typeof api.rooms.leaveLobby>>;
-type CloseRoom = (
-  args: FunctionArgs<typeof api.rooms.closeRoom>
-) => Promise<FunctionReturnType<typeof api.rooms.closeRoom>>;
 
 function useDefaultStartGame(): StartGame {
   return useMutation(api.game.startGame);
 }
 
-function useDefaultLeaveLobby(): LeaveLobby {
-  return useMutation(api.rooms.leaveLobby);
-}
-
-function useDefaultCloseRoom(): CloseRoom {
-  return useMutation(api.rooms.closeRoom);
-}
-
 export interface LobbyDependencies {
-  useRouter: typeof useRouter;
   useUser: typeof useUser;
   useStartGame: () => StartGame;
-  useLeaveLobby: () => LeaveLobby;
-  useCloseRoom: () => CloseRoom;
   hashRoomId: typeof hashRoomId;
   trackGameStarted: typeof trackGameStarted;
   trackLobbyReady: typeof trackLobbyReady;
 }
 
 const defaultDependencies: LobbyDependencies = {
-  useRouter,
   useUser,
   useStartGame: useDefaultStartGame,
-  useLeaveLobby: useDefaultLeaveLobby,
-  useCloseRoom: useDefaultCloseRoom,
   hashRoomId,
   trackGameStarted,
   trackLobbyReady,
@@ -85,268 +57,136 @@ interface LobbyProps {
   dependencies?: LobbyDependencies;
 }
 
+/** The roster scrolls independently of the one primary start action. */
 export function Lobby({
   room,
   players,
   isHost,
   dependencies = defaultDependencies,
 }: LobbyProps) {
-  const router = dependencies.useRouter();
   const { guestToken } = dependencies.useUser();
   const startGameMutation = dependencies.useStartGame();
-  const leaveLobbyMutation = dependencies.useLeaveLobby();
-  const closeRoomMutation = dependencies.useCloseRoom();
   const [error, setError] = useState<string | null>(null);
-  const [isPresenting, setIsPresenting] = useState(false);
-
-  // For unique avatar colors
-  const allStableIds = players.map((p) => p.stableId);
+  const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
+  const canStart = players.length >= 2;
 
   const handleStartGame = async () => {
-    if (!room) return;
-    setError(null); // Clear error before retry
+    if (!isHost || !canStart || startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    setError(null);
     try {
       await startGameMutation({
         code: room.code,
         guestToken: guestToken || undefined,
       });
-      // The mutation is authoritative and increments the cycle for rematches.
-      // Emit both transition stages only after it succeeds, so retries/failures
-      // cannot report a lobby as ready or use the previous cycle number.
-      const cycle = (room.currentCycle ?? 0) + 1;
+      playSound('bloom');
       const analyticsProps = {
         roomIdHash: dependencies.hashRoomId(room._id),
-        cycle,
+        cycle: (room.currentCycle ?? 0) + 1,
       };
       dependencies.trackLobbyReady(analyticsProps);
       dependencies.trackGameStarted(analyticsProps);
     } catch (cause) {
-      const feedback = errorToFeedback(toErrorReportable(cause));
-      setError(feedback.message);
+      playSound('error');
+      setError(errorToFeedback(toErrorReportable(cause)).message);
+    } finally {
+      startingRef.current = false;
+      setStarting(false);
     }
-  };
-
-  const minPlayers = 2;
-  const needsMore = minPlayers - players.length;
-  const canStart = players.length >= minPlayers;
-
-  const handleLeaveLobby = async () => {
-    setError(null);
-    try {
-      await leaveLobbyMutation({
-        roomCode: room.code,
-        guestToken: guestToken || undefined,
-      });
-      router.push('/');
-    } catch (cause) {
-      const feedback = errorToFeedback(toErrorReportable(cause));
-      setError(feedback.message);
-    }
-  };
-
-  const handleCloseRoom = async () => {
-    setError(null);
-    try {
-      await closeRoomMutation({
-        roomCode: room.code,
-        guestToken: guestToken || undefined,
-      });
-      router.push('/');
-    } catch (cause) {
-      const feedback = errorToFeedback(toErrorReportable(cause));
-      setError(feedback.message);
-    }
-  };
-
-  // Extract button rendering logic (DRY principle for strategic duplication)
-  const renderButton = (className?: string) => {
-    if (isHost) {
-      return (
-        <div className="space-y-3">
-          <Button
-            onClick={handleStartGame}
-            data-testid={E2E_TEST_IDS.lobbyStartGameButton}
-            size="lg"
-            className={`h-auto min-h-[64px] w-full min-w-0 px-[16px] py-[12px] text-[clamp(1rem,5vw,1.125rem)] md:min-h-16 md:px-8 md:text-lg ${className || ''}`}
-            disabled={!canStart}
-            variant={canStart ? 'primary' : 'secondary'}
-          >
-            {canStart
-              ? 'Start Linejam'
-              : `Need ${needsMore} more player${needsMore === 1 ? '' : 's'}`}
-          </Button>
-          <Button
-            onClick={handleCloseRoom}
-            size="md"
-            className="w-full min-w-0 px-[16px] text-[clamp(0.875rem,4.5vw,1rem)] md:px-6 md:text-base"
-            variant="ghost"
-          >
-            Close room
-          </Button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        <Button
-          disabled
-          data-testid={E2E_TEST_IDS.lobbyWaitingForHostButton}
-          size="lg"
-          className={`h-auto min-h-[64px] w-full min-w-0 px-[16px] py-[12px] text-[clamp(1rem,5vw,1.125rem)] opacity-50 cursor-not-allowed md:min-h-16 md:px-8 md:text-lg ${className || ''}`}
-          variant="secondary"
-        >
-          Waiting for host
-        </Button>
-        <Button
-          onClick={handleLeaveLobby}
-          size="md"
-          className="w-full min-w-0 px-[16px] text-[clamp(0.875rem,4.5vw,1rem)] md:px-6 md:text-base"
-          variant="ghost"
-        >
-          Leave room
-        </Button>
-      </div>
-    );
   };
 
   return (
-    <>
-      {isPresenting && (
-        <LobbyStage
-          room={room}
-          players={players}
-          onExit={() => setIsPresenting(false)}
-        />
-      )}
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-        <div
-          data-testid={E2E_TEST_IDS.lobbyScrollRegion}
-          className="lj-safe-frame min-h-0 flex-1 overflow-y-auto overflow-x-hidden md:[--lj-safe-frame-space:3rem]"
-        >
-          <div className="mx-auto w-full max-w-3xl space-y-6 px-[16px] sm:px-6 md:space-y-8">
-            <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[20px] shadow-[var(--shadow-sm)] sm:p-6">
-              <div className="flex min-w-0 flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-mono uppercase tracking-[0.2em] text-text-muted">
-                    Room code
-                  </p>
-                  <p role="status" aria-live="polite" className="sr-only">
-                    Room code {formatRoomCode(room.code)}
-                  </p>
-                  <p className="truncate font-[var(--font-display)] text-[clamp(2rem,16vw,3rem)] font-medium leading-none tracking-[0.08em] text-text-primary">
-                    {formatRoomCode(room.code)}
-                  </p>
-                </div>
-                <span className="min-w-0 max-w-full self-start whitespace-normal break-words rounded-full border border-border-subtle bg-background px-3 py-1 text-center text-xs font-mono uppercase tracking-wider text-text-muted sm:shrink-0 sm:self-auto">
-                  {players.length}/8 seats
-                </span>
-              </div>
-              <p className="mt-3 max-w-prose text-sm leading-relaxed text-text-secondary">
-                Share the code, then start when everyone is ready.
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <h1 className="sr-only">Room lobby</h1>
+      <div
+        data-testid={E2E_TEST_IDS.lobbyScrollRegion}
+        className="lj-safe-inline min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3 [--lj-safe-inline-space:1rem]"
+      >
+        <div className="mx-auto w-full max-w-xl space-y-6">
+          <RoomInvite roomCode={room.code} />
+          <section aria-labelledby="lobby-roster-heading" className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2 px-1">
+              <h2
+                id="lobby-roster-heading"
+                className="text-base font-bold text-text-primary"
+              >
+                Players
+              </h2>
+              <p
+                className="text-sm text-text-secondary"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {players.length} of 8
               </p>
-            </section>
-
-            <section
-              aria-labelledby="lobby-roster-heading"
-              className="rounded-[var(--radius-xl)] border border-border-subtle bg-surface/60 p-[20px] sm:p-6"
+            </div>
+            <ul
+              aria-label="Players"
+              className="min-w-0 divide-y divide-border-subtle"
             >
-              <div className="flex min-w-0 flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <h2
-                  id="lobby-roster-heading"
-                  className="font-[var(--font-display)] text-xl font-medium text-text-primary"
+              {players.map((player) => (
+                <li
+                  key={player._id}
+                  className="flex min-w-0 items-center gap-3 px-1 py-3"
                 >
-                  Players
-                </h2>
-                <span className="min-w-0 max-w-full self-start whitespace-normal break-words text-xs font-mono uppercase tracking-wider text-text-muted sm:shrink-0 sm:self-auto">
-                  {players.length} in room
-                </span>
-              </div>
-
-              <div className="relative mt-4 min-w-0">
-                <ul className="flex min-w-0 max-w-full flex-wrap gap-2">
-                  {players.map((player, i) => (
-                    <StampAnimation
-                      key={player._id}
-                      delay={i * 150}
-                      className="mx-[12px] min-w-0 max-w-[calc(100%-24px)] sm:mx-0 sm:max-w-full"
-                    >
-                      <li className="grid min-w-0 max-w-full grid-cols-1 items-center gap-x-2 gap-y-1 rounded-full border border-border bg-background/60 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                        <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
-                          <Avatar
-                            stableId={player.stableId}
-                            displayName={player.displayName}
-                            allStableIds={allStableIds}
-                            size="md"
-                          />
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
-                            {player.displayName}
-                          </span>
-                          {player.isAway && (
-                            <span className="shrink-0 text-[0.625rem] font-mono uppercase tracking-widest text-text-muted">
-                              away
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex min-w-0 max-w-full flex-wrap items-center justify-self-start gap-1.5 sm:justify-self-end">
-                          {player.userId === room.hostUserId && <HostBadge />}
-                        </div>
-                      </li>
-                    </StampAnimation>
-                  ))}
-                </ul>
-              </div>
-            </section>
-
-            <details className="group rounded-[var(--radius-xl)] border border-border-subtle bg-surface/60">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-medium text-text-primary marker:hidden sm:px-6 [&::-webkit-details-marker]:hidden">
-                <span>Room tools</span>
-                <span
-                  aria-hidden="true"
-                  className="text-xl leading-none text-text-muted transition-transform group-open:rotate-45"
-                >
-                  +
-                </span>
-              </summary>
-              <div className="grid gap-6 border-t border-border-subtle p-5 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)] sm:items-start sm:p-6">
-                <div className="flex min-w-0 justify-center sm:justify-start">
-                  <LobbyJoinQr room={room} />
-                </div>
-                <div className="flex min-w-0 flex-col gap-3">
-                  {isHost && (
-                    <Button
-                      type="button"
-                      onClick={() => setIsPresenting(true)}
-                      data-testid={E2E_TEST_IDS.lobbyPresentationButton}
-                      variant="outline"
-                      size="md"
-                      className="h-auto min-h-[44px] w-full min-w-0 max-w-full px-[16px] py-[10px] text-[clamp(0.875rem,4.5vw,1rem)] md:min-h-11 md:px-6 md:text-base"
-                    >
-                      <Presentation className="mr-[8px] h-4 w-4" />
-                      Present room
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </details>
-          </div>
-        </div>
-
-        <div
-          data-testid={E2E_TEST_IDS.lobbyActionZone}
-          className="lj-safe-inline min-h-0 max-h-[50%] flex-[0_1_auto] overflow-y-auto border-t-2 border-primary/20 bg-background/95 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-lg)] backdrop-blur-md md:[--lj-safe-inline-space:3rem]"
-        >
-          <div className="mx-auto w-full max-w-sm">
-            {error && (
-              <Alert variant="error" className="mb-4">
-                {error}
-              </Alert>
-            )}
-            {renderButton()}
-          </div>
+                  <Avatar
+                    stableId={player.stableId}
+                    avatarId={player.avatarId}
+                    displayName={player.displayName}
+                    size="md"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="min-w-0 break-words text-base font-semibold text-text-primary [overflow-wrap:anywhere]">
+                      {player.displayName}
+                    </span>
+                    {player.userId === room.hostUserId && <HostBadge />}
+                    {player.isAway && (
+                      <span className="text-sm text-text-secondary">Away</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </div>
-    </>
+      <div
+        data-testid={E2E_TEST_IDS.lobbyActionZone}
+        className="lj-safe-inline min-h-0 max-h-[50%] flex-[0_1_auto] overflow-y-auto bg-background pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] [--lj-safe-inline-space:1rem]"
+      >
+        <div className="mx-auto w-full max-w-xl space-y-3">
+          {error && <Alert variant="error">{error}</Alert>}
+          {isHost ? (
+            <Button
+              onClick={() => void handleStartGame()}
+              data-testid={E2E_TEST_IDS.lobbyStartGameButton}
+              data-sound="loading"
+              size="lg"
+              className="min-h-14 w-full px-4 py-3 text-base"
+              disabled={!canStart || starting}
+              variant={canStart ? 'primary' : 'secondary'}
+            >
+              {starting
+                ? 'Starting…'
+                : canStart
+                  ? 'Start Linejam'
+                  : `Need ${2 - players.length} more player${players.length === 1 ? '' : 's'}`}
+            </Button>
+          ) : (
+            <Button
+              disabled
+              data-testid={E2E_TEST_IDS.lobbyWaitingForHostButton}
+              size="lg"
+              className="min-h-14 w-full px-4 py-3 text-base"
+              variant="secondary"
+            >
+              Waiting for host
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

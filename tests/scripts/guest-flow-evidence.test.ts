@@ -446,7 +446,7 @@ describe('guest-flow evidence verdicts', () => {
     });
   });
 
-  it('validates screenshot, video, and server-log artifacts before pass', async () => {
+  it('validates screenshot, video, and packaged artifacts before pass', async () => {
     const outDir = await mkdtemp(path.join(tmpdir(), 'linejam-evidence-test-'));
     const screenshotPath = path.join(outDir, '01-host-lobby.png');
     const videoPath = path.join(outDir, 'guest-flow.webm');
@@ -456,44 +456,40 @@ describe('guest-flow evidence verdicts', () => {
     await writeFile(videoPath, 'video bytes', 'utf8');
     await writeFile(gifPath, 'gif bytes', 'utf8');
     await writeFile(serverLogPath, 'server log', 'utf8');
+    const artifacts = {
+      gifPath,
+      outDir,
+      screenshots: ['01-host-lobby.png'],
+      serverLogPath,
+      videoPath,
+    };
 
-    await expect(
-      collectFileArtifactErrors({
-        gifPath,
-        outDir,
-        screenshots: ['01-host-lobby.png'],
-        serverLogPath,
-        videoPath,
-      })
-    ).resolves.toEqual([]);
+    await expect(collectFileArtifactErrors(artifacts)).resolves.toEqual([]);
 
-    await expect(
-      collectFileArtifactErrors({
-        gifPath: null,
-        outDir,
-        screenshots: ['missing.png'],
-        serverLogPath: null,
-        videoPath: null,
-      })
-    ).resolves.toEqual([
-      { artifact: 'screenshot', message: 'Screenshot is missing: missing.png' },
-      { artifact: 'video', message: 'Packaged host video is missing.' },
-      { artifact: 'gif', message: 'Generated GIF is missing.' },
-      { artifact: 'serverLog', message: 'Evidence server log is missing.' },
+    const missing = await collectFileArtifactErrors({
+      ...artifacts,
+      gifPath: null,
+      screenshots: ['missing.png'],
+      serverLogPath: null,
+      videoPath: null,
+    });
+    expect(missing.map(issueArtifact)).toEqual([
+      'screenshot',
+      'video',
+      'gif',
+      'serverLog',
     ]);
 
-    await expect(
-      collectFileArtifactErrors({
-        gifPath: path.join(outDir, 'missing.gif'),
-        outDir,
-        screenshots: [],
-        serverLogPath,
-        videoPath,
-      })
-    ).resolves.toEqual([
-      { artifact: 'screenshot', message: 'No screenshots were captured.' },
-      { artifact: 'gif', message: 'Generated GIF is missing.' },
-    ]);
+    const uncaptured = await collectFileArtifactErrors({
+      ...artifacts,
+      gifPath: path.join(outDir, 'missing.gif'),
+      screenshots: [],
+    });
+    expect(uncaptured.map(issueArtifact)).toEqual(['screenshot', 'gif']);
+
+    await writeFile(gifPath, '');
+    const empty = await collectFileArtifactErrors(artifacts);
+    expect(empty.map(issueArtifact)).toEqual(['gif']);
   });
 
   it('collects browser page, console, request, and response errors as runtime errors', () => {

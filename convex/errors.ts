@@ -20,10 +20,7 @@ export async function returnAfterBackendReportScheduled<T>(
   return outcome;
 }
 
-const backendOperationValidator = v.union(
-  v.literal('sweepAbandonedGames'),
-  v.literal('finishAbandonedGame')
-);
+const backendOperationValidator = v.literal('sweepAbandonedGames');
 
 const backendFailureCodeValidator = v.literal('unexpected_error');
 

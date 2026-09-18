@@ -7,7 +7,7 @@ import { createTestConvexClient } from '@/tests/helpers/convexClient';
 import type { FunctionArgs } from 'convex/server';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { PoemCard, PoemCardSkeleton } from '@/components/archive/PoemCard';
+import { PoemCard } from '@/components/archive/PoemCard';
 
 const mockToggleFavorite = vi.fn();
 const mockDisablePublicPoemShare = vi.fn();
@@ -147,22 +147,6 @@ describe('PoemCard component', () => {
     });
   });
 
-  describe('animation delay', () => {
-    it('applies animation delay style to link', () => {
-      renderWithConvex(
-        <PoemCard poem={mockPoem} guestToken="token123" animationDelay={150} />
-      );
-      const card = screen.getByTestId('poem-card');
-      expect(card).toHaveStyle({ animationDelay: '150ms' });
-    });
-
-    it('defaults to 0ms animation delay', () => {
-      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
-      const card = screen.getByTestId('poem-card');
-      expect(card).toHaveStyle({ animationDelay: '0ms' });
-    });
-  });
-
   describe('favorite button', () => {
     it('renders unfavorited state correctly', () => {
       renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
@@ -255,24 +239,6 @@ describe('PoemCard component', () => {
       });
     });
 
-    it('stops propagation on favorite button click', async () => {
-      // This is tested indirectly - the button has e.stopPropagation()
-      // and e.preventDefault() which prevent the link navigation
-      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
-      const button = screen.getByRole('button', {
-        name: /add to favorites/i,
-      });
-
-      // Click the button - if propagation wasn't stopped, it would
-      // trigger the link click too
-      fireEvent.click(button);
-
-      // Verify mutation was called, showing the click was processed
-      await waitFor(() => {
-        expect(mockToggleFavorite).toHaveBeenCalled();
-      });
-    });
-
     it('disables favorite button while mutation is in flight', async () => {
       let resolveMutation: () => void;
       const mutationPromise = new Promise<void>((resolve) => {
@@ -302,30 +268,6 @@ describe('PoemCard component', () => {
       renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
       const link = screen.getByRole('link');
       expect(link).toHaveAttribute('href', '/poem/poem123');
-    });
-
-    it('has data-testid for e2e tests', () => {
-      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
-      expect(screen.getByTestId('poem-card')).toBeInTheDocument();
-    });
-  });
-
-  describe('variants', () => {
-    it('renders default variant without span classes', () => {
-      renderWithConvex(
-        <PoemCard poem={mockPoem} guestToken="token123" variant="default" />
-      );
-      const card = screen.getByTestId('poem-card');
-      expect(card).not.toHaveClass('sm:col-span-2');
-    });
-
-    it('renders featured variant with span classes', () => {
-      renderWithConvex(
-        <PoemCard poem={mockPoem} guestToken="token123" variant="featured" />
-      );
-      const card = screen.getByTestId('poem-card');
-      expect(card).toHaveClass('sm:col-span-2');
-      expect(card).toHaveClass('lg:col-span-2');
     });
   });
 
@@ -364,62 +306,5 @@ describe('PoemCard component', () => {
       );
       expect(screen.getByText(/1 line/i)).toBeInTheDocument();
     });
-  });
-
-  describe('hover state', () => {
-    it('handles mouse enter event', () => {
-      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
-      const card = screen.getByTestId('poem-card');
-
-      fireEvent.mouseEnter(card);
-
-      // Card should still be in the document after hover
-      expect(card).toBeInTheDocument();
-    });
-
-    it('handles mouse leave event', () => {
-      renderWithConvex(<PoemCard poem={mockPoem} guestToken="token123" />);
-      const card = screen.getByTestId('poem-card');
-
-      fireEvent.mouseEnter(card);
-      fireEvent.mouseLeave(card);
-
-      // Card should still be in the document after hover cycle
-      expect(card).toBeInTheDocument();
-    });
-  });
-});
-
-describe('PoemCardSkeleton component', () => {
-  it('renders skeleton structure', () => {
-    const { container } = render(<PoemCardSkeleton />);
-    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
-  });
-
-  it('renders silhouette skeleton bars', () => {
-    const { container } = render(<PoemCardSkeleton />);
-    // 9 silhouette bars for 1-2-3-4-5-4-3-2-1
-    const silhouetteBars = container.querySelectorAll(
-      '.flex.flex-col.items-center > div'
-    );
-    expect(silhouetteBars).toHaveLength(9);
-  });
-
-  it('renders text skeleton placeholders', () => {
-    const { container } = render(<PoemCardSkeleton />);
-    // Multiple skeleton rectangles for text
-    const skeletons = container.querySelectorAll(
-      '.bg-\\[var\\(--color-muted\\)\\]'
-    );
-    expect(skeletons.length).toBeGreaterThan(0);
-  });
-
-  it('renders footer skeleton with dots', () => {
-    const { container } = render(<PoemCardSkeleton />);
-    // 3 dot skeletons
-    const dots = container.querySelectorAll(
-      '.rounded-full.bg-\\[var\\(--color-muted\\)\\]'
-    );
-    expect(dots.length).toBeGreaterThanOrEqual(3);
   });
 });

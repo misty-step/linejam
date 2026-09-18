@@ -3,7 +3,10 @@ import { PRESENCE_AWAY_MS, isPresenceStale } from './gameRules';
 import { selectNextHostId } from './room';
 
 export type RevealAuthorityReason =
-  'assigned-reader' | 'host-fallback' | 'participant-fallback';
+  | 'assigned-reader'
+  | 'host-fallback'
+  | 'participant-fallback'
+  | 'archive-participant';
 
 export interface RevealParticipant {
   userId: Id<'users'>;
@@ -63,4 +66,41 @@ export function selectRevealAuthority(
   return fallbackId
     ? { userId: fallbackId, reason: 'participant-fallback' }
     : null;
+}
+
+/**
+ * Call for a reveal-ready game, with a user ID verified by checkGameParticipation.
+ * Closed archives have no live presence: every retained writer may reveal.
+ * Open rooms keep assigned-reader access and the existing live fallback order.
+ */
+export function getRevealAuthorityForParticipant({
+  participants,
+  assignedReaderId,
+  hostUserId,
+  participantUserId,
+  roomClosedAt,
+  now,
+}: {
+  participants: readonly RevealParticipant[];
+  assignedReaderId: Id<'users'> | undefined;
+  hostUserId: Id<'users'>;
+  participantUserId: Id<'users'> | null;
+  roomClosedAt: number | undefined;
+  now: number;
+}): RevealAuthority | null {
+  if (participantUserId === null) return null;
+  if (assignedReaderId === participantUserId) {
+    return { userId: participantUserId, reason: 'assigned-reader' };
+  }
+  if (roomClosedAt !== undefined) {
+    return { userId: participantUserId, reason: 'archive-participant' };
+  }
+
+  const authority = selectRevealAuthority(
+    participants,
+    assignedReaderId,
+    hostUserId,
+    now
+  );
+  return authority?.userId === participantUserId ? authority : null;
 }

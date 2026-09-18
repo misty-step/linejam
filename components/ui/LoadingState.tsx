@@ -1,18 +1,5 @@
-/**
- * LoadingState - Deep Module for Contextual Loading Messages
- *
- * Philosophy (Ousterhout): Hides animation complexity behind simple message interface.
- * Callers pass semantic loading message, module handles pulsing animation + typography.
- *
- * Why strategic: Adding new loading states is trivial (use existing component with new message).
- * Changing animation/styling centralized. No scattered "Loading..." text across codebase.
- *
- * Interface: <LoadingState message="..." />
- * Implementation: Pulsing persimmon dot + editorial typography (hidden from callers)
- */
-
 interface LoadingStateProps {
-  /** Contextual loading message (poetic, specific to operation) */
+  /** The operation the player is waiting for. */
   message: string;
   /** Optional className for layout positioning */
   className?: string;
@@ -24,26 +11,17 @@ interface LoadingStateProps {
  */
 export const LoadingMessages = {
   /** Room data fetch / player sync */
-  LOADING_ROOM: 'Preparing your writing desk...',
+  LOADING_ROOM: 'Loading room…',
   /** Poem reveal phase initialization */
-  UNSEALING_POEMS: 'Unsealing the poems...',
+  UNSEALING_POEMS: 'Loading poems…',
   /** Room creation in progress */
-  SETTING_UP_ROOM: 'Setting up your room...',
+  SETTING_UP_ROOM: 'Creating room…',
   /** Joining session */
-  JOINING_SESSION: 'Joining the session...',
+  JOINING_SESSION: 'Joining room…',
   /** Generic fallback */
-  LOADING: 'Loading...',
+  LOADING: 'Loading…',
 } as const;
 
-/**
- * Contextual loading state component with pulsing persimmon dot.
- *
- * @example
- * ```tsx
- * <LoadingState message={LoadingMessages.PREPARING_DESK} />
- * <LoadingState message="Custom loading message..." />
- * ```
- */
 export function LoadingState({ message, className = '' }: LoadingStateProps) {
   return (
     <div
@@ -52,15 +30,11 @@ export function LoadingState({ message, className = '' }: LoadingStateProps) {
       aria-live="polite"
       aria-busy="true"
     >
-      {/* Pulsing persimmon dot */}
       <div className="flex items-center justify-center" aria-hidden="true">
-        <div className="w-3 h-3 bg-[var(--color-primary)] rounded-full animate-pulse" />
+        <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent motion-safe:animate-spin" />
       </div>
 
-      {/* Editorial typography message */}
-      <p className="text-lg font-[var(--font-display)] text-[var(--color-text-secondary)] italic">
-        {message}
-      </p>
+      <p className="text-base font-sans text-text-secondary">{message}</p>
     </div>
   );
 }

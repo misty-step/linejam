@@ -12,7 +12,7 @@ export const Label = forwardRef<HTMLElement, LabelProps>(
       <Component
         ref={ref}
         className={cn(
-          'text-xs font-mono uppercase tracking-widest',
+          'text-sm font-sans font-semibold',
           {
             'text-text-muted': variant === 'default',
             'text-primary': variant === 'accent',

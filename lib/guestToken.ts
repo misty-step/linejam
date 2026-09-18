@@ -74,11 +74,11 @@ function base64UrlToString(base64Url: string): string {
  */
 export async function signGuestToken(
   guestId: string,
-  options: { sessionId?: string; rateLimitKey?: string } = {}
+  options: { sessionId?: string; rateLimitKey?: string; issuedAt?: number } = {}
 ): Promise<string> {
   const payload: GuestTokenPayload = {
     guestId,
-    issuedAt: Date.now(),
+    issuedAt: options.issuedAt ?? Date.now(),
   };
   if (options.sessionId) {
     payload.sessionId = options.sessionId;

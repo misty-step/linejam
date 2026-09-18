@@ -1,21 +1,12 @@
 import { useEffect, useState } from 'react';
-import { kenyaTheme } from '@/lib/themes/presets/kenya';
+import { designTokens } from '@/lib/design';
 
 /**
- * Shared Clerk Appearance
+ * Shared Clerk appearance for every prebuilt auth and account surface.
  *
- * Single source of truth for how Clerk's prebuilt UI (SignIn, SignUp,
- * UserButton and its "Manage account" modal) is themed. Set once on
- * <ClerkProvider appearance={...}> in app/providers.tsx so every Clerk
- * surface in the app inherits it — not just the two auth pages.
- *
- * Every value is a CSS custom property already driven by the active
- * lib/themes preset (persimmon/mono/hyper/vintage-paper, light or dark),
- * so this never needs to change when a theme is added or edited.
- *
- * Individual pages/components can still pass their own `appearance` prop
- * to override or extend specific elements (Clerk merges component-level
- * appearance on top of the provider-level appearance below).
+ * Clerk needs resolved color literals because its JavaScript derives hover
+ * colors from these values. CSS variable references remain safe for fonts and
+ * radii, which Clerk does not parse as colors.
  */
 export const linejamClerkAppearance = {
   elements: {
@@ -24,46 +15,42 @@ export const linejamClerkAppearance = {
     card: 'shadow-none border-0 p-0 bg-transparent',
     // Form
     formButtonPrimary:
-      'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-inverse)] font-[var(--font-sans)] font-medium h-12 rounded-[var(--radius-md)] transition-all duration-[var(--duration-normal)]',
+      'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-text-inverse)] font-sans font-semibold min-h-12 rounded-[var(--radius-md)] transition-colors duration-[var(--duration-fast)]',
     formFieldInput:
-      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-sans)] text-base h-12 rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-[var(--color-focus-ring)] focus:ring-2 focus:ring-offset-2',
-    formFieldLabel:
-      'text-[var(--color-text-secondary)] font-[var(--font-sans)] text-sm',
+      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-sans text-base h-12 rounded-[var(--radius-md)] focus:border-[var(--color-primary)] focus:ring-[var(--color-focus-ring)] focus:ring-2 focus:ring-offset-2',
+    formFieldLabel: 'text-[var(--color-text-secondary)] font-sans text-sm',
     formFieldInputShowPasswordButton:
-      'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
+      'min-h-11 min-w-11 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
     // Social buttons
     socialButtonsBlockButton:
-      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-sans)] h-12 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-hover)] transition-all duration-[var(--duration-normal)]',
+      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-sans min-h-12 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-hover)] transition-colors duration-[var(--duration-fast)]',
     socialButtonsBlockButtonText: 'font-medium',
     // Divider
     dividerLine: 'bg-[var(--color-border)]',
-    dividerText:
-      'text-[var(--color-text-muted)] font-[var(--font-sans)] text-sm',
+    dividerText: 'text-[var(--color-text-muted)] font-sans text-sm',
     // Footer
-    footerActionText:
-      'text-[var(--color-text-secondary)] font-[var(--font-sans)]',
+    footerActionText: 'text-[var(--color-text-secondary)] font-sans',
     footerActionLink:
-      'text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-medium',
+      'inline-flex min-h-11 items-center text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] font-semibold',
     // Identity preview (after first step)
-    identityPreviewText:
-      'text-[var(--color-text-primary)] font-[var(--font-sans)]',
+    identityPreviewText: 'text-[var(--color-text-primary)] font-sans',
     identityPreviewEditButton:
-      'text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]',
+      'min-h-11 min-w-11 text-[var(--color-primary)] hover:text-[var(--color-primary-hover)]',
     // Alert/Error states
     alert:
       'bg-[var(--color-error)]/10 border-[var(--color-error)] text-[var(--color-error)]',
     // OTP input
     otpCodeFieldInput:
-      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-[var(--font-mono)] text-xl rounded-[var(--radius-md)]',
+      'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-primary)] font-sans text-xl tabular-nums min-h-12 rounded-[var(--radius-md)]',
     // UserButton popover + embedded "Manage account" modal
     userButtonPopoverCard:
-      'bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-lg)]',
+      'bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)]',
     userButtonPopoverActionButton:
-      'text-[var(--color-text-primary)] font-[var(--font-sans)] hover:bg-[var(--color-surface-hover)]',
-    userButtonPopoverActionButtonText: 'font-[var(--font-sans)]',
+      'text-[var(--color-text-primary)] font-sans hover:bg-[var(--color-surface-hover)]',
+    userButtonPopoverActionButtonText: 'font-sans',
     userButtonPopoverFooter: 'hidden',
     modalBackdrop: 'bg-[var(--color-background)]/80',
-    modalContent: 'bg-[var(--color-surface)]',
+    modalContent: 'bg-[var(--color-surface)] rounded-[var(--radius-lg)]',
   },
   options: {
     socialButtonsPlacement: 'top' as const,
@@ -71,14 +58,7 @@ export const linejamClerkAppearance = {
   },
 };
 
-// kenyaTheme.tokens.light hardcodes every optional semantic color (see
-// lib/themes/presets/kenya.ts); this cast just tells TypeScript what's
-// already true so callers below don't need dead `?? 'literal'` fallbacks
-// for fields that can never actually be missing on this preset.
-// SAFETY: kenyaTheme.tokens.light explicitly defines every semantic token in its preset declaration.
-const FALLBACK_TOKENS = kenyaTheme.tokens.light as Required<
-  typeof kenyaTheme.tokens.light
->;
+const FALLBACK_TOKENS = designTokens.light;
 
 function readCssVar(token: string, fallback: string): string {
   if (globalThis.document === undefined) return fallback;
@@ -89,29 +69,10 @@ function readCssVar(token: string, fallback: string): string {
 }
 
 /**
- * Resolve Clerk's `variables` theming knobs (colorPrimary, colorBackground,
- * ...) from the currently applied lib/themes tokens.
- *
- * Why not just reference `var(--color-primary)` here the way the `elements`
- * classes above do? Clerk's own internal stylesheet defines its default
- * component colors as custom properties too, and it loads after Tailwind's
- * utilities in the cascade — at equal specificity, Clerk's own default
- * wins, so `elements` classes referencing our CSS vars are silently
- * overridden (found live while QA-ing linejam-942: the "Continue" button
- * rendered Clerk's stock `#2F3037` gray, not the theme's accent, even with
- * a hand-authored `bg-[var(--color-primary)]` class). `variables` set
- * Clerk's own custom properties directly, which its internal styles read
- * with no cascade fight — but Clerk also uses these to compute derived
- * hover/active shades in JS, which needs a real parseable color, not a
- * `var()` reference. So this reads the resolved literal value lib/themes
- * already applied to the document instead of re-pointing at the variable.
- *
- * A plain function, not a hook, because ClerkProvider sits above
- * ThemeProvider in the tree and has no React context to read the active
- * theme from — {@link useClerkThemeVariables} below calls it on mount and
- * again whenever the document root changes.
+ * Resolve Clerk's color inputs from the identity tokens currently applied to
+ * the document. The fixed light palette is the server-side fallback.
  */
-export function resolveClerkThemeVariables() {
+export function resolveClerkColorVariables() {
   return {
     colorPrimary: readCssVar('color-primary', FALLBACK_TOKENS['color-primary']),
     colorPrimaryForeground: readCssVar(
@@ -144,8 +105,7 @@ export function resolveClerkThemeVariables() {
       'color-text-primary',
       FALLBACK_TOKENS['color-text-primary']
     ),
-    // Not color-derived by Clerk's JS, so these can stay live var()
-    // references and keep tracking the active theme with no extra plumbing.
+    // Clerk does not parse these as colors, so live references track mode.
     fontFamily: 'var(--font-sans)',
     fontFamilyButtons: 'var(--font-sans)',
     // iOS Safari zooms focused form controls below 16px. Clerk's default is
@@ -155,27 +115,20 @@ export function resolveClerkThemeVariables() {
   };
 }
 
-/**
- * React binding for {@link resolveClerkThemeVariables}: re-resolves whenever
- * lib/themes' `applyTheme` mutates `document.documentElement` (its
- * `style`/`data-theme`/mode class), so switching theme or light/dark while a
- * Clerk surface (UserButton popover, embedded account modal) is visible
- * re-themes it without a full page reload.
- */
-export function useClerkThemeVariables() {
-  const [variables, setVariables] = useState(resolveClerkThemeVariables);
+/** Keep Clerk surfaces synchronized with effective light or dark mode. */
+export function useClerkColorVariables() {
+  const [variables, setVariables] = useState(resolveClerkColorVariables);
 
   useEffect(() => {
     const root = document.documentElement;
-    const update = () => setVariables(resolveClerkThemeVariables());
+    const update = () => setVariables(resolveClerkColorVariables());
 
-    // Pick up whatever lib/themes already applied before this effect ran.
     update();
 
     const observer = new MutationObserver(update);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ['style', 'data-theme', 'class'],
+      attributeFilter: ['style', 'class'],
     });
     return () => observer.disconnect();
   }, []);

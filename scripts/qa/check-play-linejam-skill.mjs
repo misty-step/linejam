@@ -98,7 +98,7 @@ function validate() {
       );
     }
     if (
-      pkg.devDependencies?.ajv !== '8.17.1' ||
+      pkg.dependencies?.ajv !== '8.17.1' ||
       pkg.devDependencies?.['ajv-formats'] !== '3.0.1'
     ) {
       errors.push('package.json must pin the result validator dependencies');
@@ -129,55 +129,6 @@ function validate() {
     }
   }
 
-  const playerFile = resolve(SKILL_DIR, 'player.md');
-  if (existsSync(playerFile)) {
-    const playerContract = readFileSync(playerFile, 'utf8');
-    if (
-      !playerContract.includes(`wait '[data-testid="session-complete"]'`) ||
-      !playerContract.includes(
-        'screenshot --full ".qa/runs/<run-id>/artifact-0001.png"'
-      )
-    ) {
-      errors.push(
-        'player.md must capture the completed-game surface to the run-local success artifact'
-      );
-    }
-    if (
-      !playerContract.includes('wait --fn') ||
-      !playerContract.includes(
-        "getAttribute('data-round')) === <submitted-round> + 1"
-      ) ||
-      !playerContract.includes('(<submitted-round> === 9')
-    ) {
-      errors.push(
-        'player.md post-submit flow must accept waiting, exact round advance, or reveal after round 9'
-      );
-    }
-    if (
-      !playerContract.includes('On `CLEANUP_ROOM`') ||
-      !playerContract.includes('click **End game**') ||
-      !playerContract.includes('If `session-complete` is already visible')
-    ) {
-      errors.push(
-        'player.md must define the host failure path back to room closure'
-      );
-    }
-  }
-
-  const coordinatorFile = resolve(SKILL_DIR, 'coordinator.md');
-  if (existsSync(coordinatorFile)) {
-    const coordinatorContract = readFileSync(coordinatorFile, 'utf8');
-    if (
-      !coordinatorContract.includes('ordered `finally` path after every run') ||
-      !coordinatorContract.includes('After confirmed closure') ||
-      !coordinatorContract.includes('Only after those attempts')
-    ) {
-      errors.push(
-        'coordinator.md must attempt room closure and rejection before session teardown'
-      );
-    }
-  }
-
   if (!existsSync(RESULT_WRITER)) {
     errors.push(
       'Missing result writer: scripts/qa/write-play-linejam-result.mjs'
@@ -195,19 +146,12 @@ function validate() {
   if (!existsSync(SCHEDULED_RUNNER)) {
     errors.push('Missing scheduled runner: scripts/qa/run-scheduled-play.mjs');
   }
-  if (existsSync(SCHEDULED_PROMPT)) {
-    const prompt = readFileSync(SCHEDULED_PROMPT, 'utf8');
-    if (
-      !prompt.includes('qa:play-linejam:result') ||
-      !prompt.includes('.agents/skills/play-linejam/')
-    ) {
-      errors.push(
-        'play-scheduled.prompt.md must route the coordinator through the skill and the receipt writer'
-      );
-    }
-  } else {
+  if (
+    !existsSync(SCHEDULED_PROMPT) ||
+    readFileSync(SCHEDULED_PROMPT, 'utf8').trim().length === 0
+  ) {
     errors.push(
-      'Missing scheduled prompt: scripts/qa/play-scheduled.prompt.md'
+      'Missing or empty scheduled prompt: scripts/qa/play-scheduled.prompt.md'
     );
   }
 

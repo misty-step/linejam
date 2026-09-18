@@ -22,13 +22,13 @@ describe('isGameRoute', () => {
 });
 
 describe('isFocusedPlayRoute', () => {
-  it('includes host entry and live rooms', () => {
+  it('includes host and join entry plus live rooms', () => {
     expect(isFocusedPlayRoute('/host')).toBe(true);
+    expect(isFocusedPlayRoute('/join')).toBe(true);
     expect(isFocusedPlayRoute('/room/ABCD')).toBe(true);
   });
 
   it('keeps marketing chrome on non-play routes', () => {
-    expect(isFocusedPlayRoute('/join')).toBe(false);
     expect(isFocusedPlayRoute('/')).toBe(false);
   });
 });

@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useConvexAuth, useMutation } from 'convex/react';
-import { useUser as useClerkUser } from '@clerk/nextjs';
+import { useMutation } from 'convex/react';
+import {
+  useAccountState,
+  type AccountState,
+  type ClerkAccountState,
+} from '@/lib/account';
+import { AccountsUnavailable } from '@/components/AccountsUnavailable';
 import { api } from '@/convex/_generated/api';
 import { clearGuestSession, getExistingGuestSession } from '@/lib/guestSession';
 import { captureError } from '@/lib/error';
@@ -14,24 +19,13 @@ interface AuthCallbackRouter {
   replace(href: string): void;
 }
 
-interface AuthCallbackClerkState {
-  isLoaded: boolean;
-  isSignedIn: boolean | undefined;
-}
-
-interface AuthCallbackConvexState {
-  isLoading: boolean;
-  isAuthenticated: boolean;
-}
-
 export type MigrateGuestToUser = (args: {
   guestToken: string;
 }) => Promise<void>;
 
 export interface AuthCallbackPageDependencies {
   useRouter(): AuthCallbackRouter;
-  useClerkUser(): AuthCallbackClerkState;
-  useConvexAuth(): AuthCallbackConvexState;
+  useAccountState(): AccountState;
   useMigrateGuestToUser(): MigrateGuestToUser;
   getExistingGuestSession: typeof getExistingGuestSession;
   clearGuestSession: typeof clearGuestSession;
@@ -47,8 +41,7 @@ function useDefaultMigrateGuestToUser(): MigrateGuestToUser {
 
 const defaultAuthCallbackPageDependencies: AuthCallbackPageDependencies = {
   useRouter,
-  useClerkUser,
-  useConvexAuth,
+  useAccountState,
   useMigrateGuestToUser: useDefaultMigrateGuestToUser,
   getExistingGuestSession,
   clearGuestSession,
@@ -62,12 +55,27 @@ interface AuthCallbackPageProps {
 export function AuthCallbackPage({
   dependencies = defaultAuthCallbackPageDependencies,
 }: AuthCallbackPageProps = {}) {
+  const account = dependencies.useAccountState();
+  if (account.kind === 'local') return <AccountsUnavailable />;
+  return (
+    <ConnectedAuthCallbackPage dependencies={dependencies} account={account} />
+  );
+}
+
+function ConnectedAuthCallbackPage({
+  dependencies,
+  account,
+}: {
+  dependencies: AuthCallbackPageDependencies;
+  account: ClerkAccountState;
+}) {
   const router = dependencies.useRouter();
-  const { isLoaded, isSignedIn } = dependencies.useClerkUser();
+  const { isLoaded, user } = account;
+  const isSignedIn = !!user;
   const {
     isLoading: isConvexAuthLoading,
     isAuthenticated: isConvexAuthenticated,
-  } = dependencies.useConvexAuth();
+  } = account.convex;
   const migrateGuestToUser = dependencies.useMigrateGuestToUser();
   const hasRun = useRef(false);
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
@@ -147,23 +155,21 @@ export function AuthCallbackPage({
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-6">
+      <div className="flex items-center justify-center bg-[var(--color-surface)]">
         <div className="max-w-xl w-full space-y-6">
           <div className="space-y-2">
-            <h1 className="text-3xl font-[var(--font-display)] text-[var(--color-text-primary)]">
+            <h1 className="text-3xl font-sans font-bold text-[var(--color-text-primary)]">
               Could not finish sign in
             </h1>
             <p className="text-[var(--color-text-secondary)] leading-relaxed">
-              Your account is ready, but your guest progress could not be moved
-              right now.
+              Your guest poems could not be added to your account.
             </p>
           </div>
           <Alert variant="error">
-            Retry the migration or head home and keep playing from a fresh
-            session.
+            Try again to finish signing in, or return home.
           </Alert>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={handleRetry}>Retry migration</Button>
+            <Button onClick={handleRetry}>Try again</Button>
             <Button
               variant="secondary"
               className="sm:flex-1"
@@ -179,20 +185,19 @@ export function AuthCallbackPage({
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-6"
+      className="flex items-center justify-center bg-[var(--color-surface)] py-8"
       role="status"
       aria-live="polite"
       aria-busy="true"
     >
       <div className="flex items-center gap-3 text-[var(--color-text-primary)]">
         <span
-          className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]"
+          className="h-5 w-5 motion-safe:animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-primary)]"
           aria-hidden="true"
         />
-        <p className="text-lg font-[var(--font-display)] text-[var(--color-text-primary)]">
+        <p className="text-lg font-sans text-[var(--color-text-primary)]">
           Completing sign in...
         </p>
-        <span className="sr-only">Completing sign in</span>
       </div>
     </div>
   );

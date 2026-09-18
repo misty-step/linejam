@@ -1,0 +1,15 @@
+{
+  "version": "0.22.0",
+  "date": "2026-07-16",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "retention",
+      "description": "enforce bounded data lifecycle",
+      "breaking": false,
+      "pr": 359,
+      "commit": "83a0083"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.21.0...v0.22.0"
+}

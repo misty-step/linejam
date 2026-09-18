@@ -3,8 +3,6 @@
  *
  * Renders colored dots for each unique author, using the established
  * avatar color system for consistency with PoemDisplay.
- *
- * Design: Hanko (seal) inspired - small marks of authorship.
  */
 
 import { cn } from '@/lib/utils';
@@ -27,12 +25,6 @@ const SIZE_CONFIG = {
   lg: { dot: 10, gap: 4, fontSize: '0.875rem' },
 } as const;
 
-/**
- * AuthorDots component
- *
- * Deep module: Handles color assignment and overflow internally.
- * Simple interface: just pass author IDs.
- */
 export function AuthorDots({
   authorStableIds,
   className,
@@ -57,13 +49,11 @@ export function AuthorDots({
         return (
           <div
             key={stableId}
-            className="rounded-full transition-transform hover:scale-125"
+            className="rounded-full"
             style={{
               width: `${config.dot}px`,
               height: `${config.dot}px`,
               backgroundColor: color,
-              // Slight stagger for visual interest
-              transitionDelay: `${index * 20}ms`,
             }}
             title={`Contributor ${index + 1}`}
           />
@@ -71,7 +61,7 @@ export function AuthorDots({
       })}
       {overflowCount > 0 && (
         <span
-          className="text-[var(--color-text-muted)] font-mono"
+          className="text-[var(--color-text-muted)]"
           style={{ fontSize: config.fontSize }}
         >
           +{overflowCount}
@@ -82,31 +72,13 @@ export function AuthorDots({
 }
 
 /**
- * AuthorDotsInline: Single line variant with author colors as underline
+ * AuthorDotsInline: Compact contributors for narrow metadata rows.
  */
 export function AuthorDotsInline({
   authorStableIds,
   className,
 }: Pick<AuthorDotsProps, 'authorStableIds' | 'className'>) {
-  const uniqueIds = [...new Set(authorStableIds)];
+  if (authorStableIds.length === 0) return null;
 
-  if (uniqueIds.length === 0) return null;
-
-  // Create gradient from author colors
-  const colors = uniqueIds.map((id) => getUniqueColor(id, uniqueIds));
-  const gradient =
-    colors.length === 1
-      ? colors[0]
-      : `linear-gradient(90deg, ${colors.join(', ')})`;
-
-  return (
-    <div
-      className={cn('h-0.5 rounded-full', className)}
-      style={{
-        background: gradient,
-        width: `${Math.min(uniqueIds.length * 12, 48)}px`,
-      }}
-      aria-label={`${uniqueIds.length} contributors`}
-    />
-  );
+  return <AuthorDots authorStableIds={authorStableIds} className={className} />;
 }

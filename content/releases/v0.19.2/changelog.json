@@ -1,0 +1,14 @@
+{
+  "version": "0.19.2",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "fix",
+      "description": "recover stale clients across production deploys",
+      "breaking": false,
+      "pr": 353,
+      "commit": "64ee0d5"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.1...v0.19.2"
+}

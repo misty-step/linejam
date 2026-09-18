@@ -45,8 +45,10 @@ export function resolveSentryRelease(env = process.env) {
  * @param {SentryEnvironment} [env]
  */
 export function getSentryRuntimeOptions(env = process.env) {
-  const dsn = clean(env.NEXT_PUBLIC_SENTRY_DSN);
-  const ingestEnabled = env.NEXT_PUBLIC_SENTRY_ENABLED === '1';
+  const localMode =
+    env.LINEJAM_LOCAL === '1' || env.NEXT_PUBLIC_LINEJAM_LOCAL === '1';
+  const dsn = localMode ? undefined : clean(env.NEXT_PUBLIC_SENTRY_DSN);
+  const ingestEnabled = !localMode && env.NEXT_PUBLIC_SENTRY_ENABLED === '1';
   const environment = resolveSentryEnvironment(env);
 
   return {
@@ -56,8 +58,13 @@ export function getSentryRuntimeOptions(env = process.env) {
     release: resolveSentryRelease(env),
     sendDefaultPii: false,
     enableLogs: false,
-    tracesSampleRate:
-      environment === 'preview' ? 1 : environment === 'production' ? 0.05 : 0,
+    tracesSampleRate: localMode
+      ? 0
+      : environment === 'preview'
+        ? 1
+        : environment === 'production'
+          ? 0.05
+          : 0,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0,
   };

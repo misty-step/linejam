@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+/vendor/**/node_modules/
+/vendor/**/dist/
 /.pnp
 .pnp.*
 .yarn/*
@@ -46,11 +48,11 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /playwright/.cache/
-.pi/
 .qa/
 .evidence/
 .worktrees
-.claude/
+.pi/*
+!.pi/skills
 
 thinktank.log
 thinktank_*/
@@ -59,5 +61,3 @@ thinktank_*/
 # task artifacts
 TASK_COMPLETE
 
-# Design-lab generated screenshots
-explorations/lab-001/.sweep/

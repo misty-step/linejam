@@ -1,0 +1,15 @@
+{
+  "version": "0.16.8",
+  "date": "2026-07-10",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "suppress expected convex throttles",
+      "breaking": false,
+      "pr": 332,
+      "commit": "a11a7a2"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.7...v0.16.8"
+}

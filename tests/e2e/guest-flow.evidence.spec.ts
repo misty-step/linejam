@@ -80,19 +80,6 @@ test('captures canonical guest-flow evidence @evidence', async ({
     );
     await activeSession.closeHelpModal();
 
-    await activeSession.chooseHyperTheme();
-    checks.push(
-      'Theme picker can switch the room to Hyper without breaking the lobby.'
-    );
-    screenshots.push(
-      path.basename(
-        await activeSession.capture(
-          'host',
-          path.join(outDir, GUEST_FLOW_EVIDENCE_FILES.themeHyperLobby)
-        )
-      )
-    );
-
     await activeSession.joinRoom();
     checks.push(
       'Guest can join from a separate browser context and appears in real time.'

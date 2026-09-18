@@ -80,4 +80,21 @@ describe('Sentry runtime options', () => {
       }).release
     ).toBeUndefined();
   });
+
+  it.each(['LINEJAM_LOCAL', 'NEXT_PUBLIC_LINEJAM_LOCAL'])(
+    'disables ingestion and trace transport when %s requests local isolation',
+    (flag) => {
+      expect(
+        getSentryRuntimeOptions({
+          [flag]: '1',
+          NEXT_PUBLIC_SENTRY_DSN: [
+            'https://public',
+            'sentry.example.test/1',
+          ].join('@'),
+          NEXT_PUBLIC_SENTRY_ENABLED: '1',
+          LINEJAM_DEPLOY_ENVIRONMENT: 'development',
+        })
+      ).toMatchObject({ dsn: undefined, enabled: false, tracesSampleRate: 0 });
+    }
+  );
 });

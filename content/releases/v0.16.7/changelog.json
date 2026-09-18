@@ -1,0 +1,15 @@
+{
+  "version": "0.16.7",
+  "date": "2026-07-10",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "ops",
+      "description": "classify production Convex rate limits",
+      "breaking": false,
+      "pr": 331,
+      "commit": "59099ef"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.6...v0.16.7"
+}

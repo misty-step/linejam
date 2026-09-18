@@ -2,6 +2,7 @@ import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
 import { fetchQuery } from 'convex/nextjs';
 import type { Metadata } from 'next';
+import { getConvexServerUrl } from '@/lib/localMode';
 
 export async function generateMetadata({
   params,
@@ -13,10 +14,11 @@ export async function generateMetadata({
   const { id } = await params;
   const { share } = (await searchParams) ?? {};
   // SAFETY: Route parameter `id` is a nominal Convex document ID validated by the query runtime.
-  const preview = await fetchQuery(api.poems.getPublicPoemPreview, {
-    poemId: id as Id<'poems'>,
-    shareSlug: share,
-  }).catch(() => null);
+  const preview = await fetchQuery(
+    api.poems.getPublicPoemPreview,
+    { poemId: id as Id<'poems'>, shareSlug: share },
+    { url: getConvexServerUrl() }
+  ).catch(() => null);
 
   if (!preview) {
     return {

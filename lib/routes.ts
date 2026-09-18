@@ -13,5 +13,5 @@ export function isGameRoute(pathname: string | null | undefined): boolean {
 export function isFocusedPlayRoute(
   pathname: string | null | undefined
 ): boolean {
-  return pathname === '/host' || isGameRoute(pathname);
+  return pathname === '/host' || pathname === '/join' || isGameRoute(pathname);
 }

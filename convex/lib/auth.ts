@@ -72,3 +72,34 @@ export async function checkParticipation(
     .first();
   return !!player;
 }
+
+/**
+ * Artifact access follows the selected game's frozen roster, not room membership.
+ * Retained profiles keep participants' archives readable after departure or closure.
+ */
+export async function checkGameParticipation(
+  ctx: QueryCtx | MutationCtx,
+  game: Doc<'games'> | null,
+  userId: Id<'users'>
+): Promise<boolean> {
+  if (!game) return false;
+  const matchId = game.matchId;
+  if (!matchId) return checkParticipation(ctx, game.roomId, userId);
+
+  const profile = await ctx.db
+    .query('roomPlayers')
+    .withIndex('by_room_user', (q) =>
+      q.eq('roomId', game.roomId).eq('userId', userId)
+    )
+    .first();
+  const playerId = profile?.playerId;
+  if (!playerId) return false;
+
+  const participant = await ctx.db
+    .query('matchParticipants')
+    .withIndex('by_match_player', (q) =>
+      q.eq('matchId', matchId).eq('playerId', playerId)
+    )
+    .unique();
+  return participant !== null;
+}

@@ -1,164 +1,38 @@
 # Linejam
 
-Pass-the-poem party game for friends in the same room.
+A pass-the-poem party game for friends in the same room. Play at
+[linejam.app](https://linejam.app)—no install or account required.
 
-**Play free at [linejam.app](https://linejam.app)** — no install, no account required. [Marketing site](https://misty-step.github.io/linejam/) · [Changelog](https://misty-step.github.io/linejam/changelog.html)
+Each player writes one line per round, seeing only the line before theirs.
+Nine rounds follow `1, 2, 3, 4, 5, 4, 3, 2, 1` words. Then everyone reads the
+complete poems aloud. Saving stays private; publishing a link is explicit and
+reversible.
 
-A real poem from a played-through room (word counts 1/2/3/4/5/4/3/2/1):
+## Run locally
 
-> Shadows
-> grows louder
-> in the hallway
-> where forgotten poems wait
-> for someone brave enough finally
-> where forgotten poems wait
-> in the hallway
-> grows louder
-> Silence
-
-## What It Is
-
-Players take turns adding lines to poems they can't fully see. Each round, you see only the previous line—then write the next one with a specific word count. At the end, everyone reads the complete poems aloud. Chaos, beauty, and laughter ensue.
-
-## How It Works
-
-1. **Host creates a room** → Gets a 4-letter code
-2. **Friends join** → Enter the code and their name
-3. **Write in rounds** → 9 rounds with word counts: 1, 2, 3, 4, 5, 4, 3, 2, 1
-4. **Reveal ceremony** → Each player reads one complete poem aloud
-
-The constraint is the game. You see only the line before yours. The result is collaborative absurdity—poems that no single person could have written.
-
-**Features**: human-authored collaborative poems, curated visual themes, poem sharing, and in-game help
-
-## Tech Stack
-
-- **Frontend**: Next.js 16, React, TypeScript
-- **Backend**: Convex (real-time sync)
-- **Styling**: Tailwind CSS 4, custom design system
-- **Auth**: Clerk (optional) + anonymous guests
-
-## Getting Started
-
-```bash
-# Bootstrap dependencies and .env.local
-bash scripts/setup.sh
-
-# Or create .env.local without installing dependencies
-bash scripts/setup.sh --write-env --skip-install
-
-# Add your Convex, Clerk, guest-token, and Sentry values to .env.local
-
-# Verify configuration before starting services (fails on missing or invalid values)
-pnpm run doctor
-
-# Run development servers (parallel)
-pnpm dev # Next.js :3000 + Convex backend
-
-# Verify the live app and health path once the dev server is running
-pnpm run doctor
+```sh
+node scripts/local/cli.mjs dev
 ```
 
-Keep `NEXT_PUBLIC_CONVEX_URL` pointed at the same backend you're running. For local development, use `http://localhost:8187`; if you target a remote Convex deployment, local Dagger now syncs the active Convex dev backend before auth-heavy E2E runs so frontend/backend validators stay aligned.
+Open `http://127.0.0.1:3333` in separate browser profiles for distinct players.
+The real Next.js/Convex stack needs Node and local Docker, not cloud credentials
+or a host dotenv file. Ctrl-C stops the owned stack and preserves its data.
+See [local development](docs/local-development.md) for prerequisites, QA and reset.
 
-### Work Ledger
+## Project guide
 
-[GitHub Issues](https://github.com/misty-step/linejam/issues) is Linejam's sole
-work ledger. Before starting an issue, follow the single assignee plus
-`forest/<issue>-*` branch/PR claim contract in
-[CONTRIBUTING.md](CONTRIBUTING.md#claiming-work). Do not create or update a
-duplicate task in Powder. The authority cutover and observability migration are
-tracked by [#393](https://github.com/misty-step/linejam/issues/393).
+- [Product brief and current direction](project.md)
+- [Identity and interactions](DESIGN.md)
+- [Architecture and Parlor evaluation](docs/ARCHITECTURE.md)
+- [Contributing](CONTRIBUTING.md) and [testing](docs/testing.md)
+- [CLI/MCP and browser acceptance](docs/agent-faces.md)
+- [Production deployment](docs/deployment.md) and [CI/operations authority](docs/ops/observability-ci.md)
+- [Sharing privacy](docs/sharing-privacy.md), [retention](docs/ops/data-retention.md),
+  [schema migrations](docs/convex-migrations.md), and [security](SECURITY.md)
 
-## Agent Faces
+Commands and dependency versions live in `package.json`. Parlor is not installed;
+its repository-local skill is imported guidance, not an integration.
 
-Linejam ships thin agent-facing faces over the same Convex core the web app uses — no reimplemented game logic. See [docs/agent-faces.md](docs/agent-faces.md) for the CLI/MCP command surface, identity model, environment contract, registration recipe, and API-face disposition.
-
-- `pnpm agent:cli` — terminal CLI to create/join rooms, read game state, submit lines, browse and favorite poems.
-- `pnpm agent:mcp` — stdio MCP server exposing the same actions as tools.
-- [.agents/skills/linejam-cli/SKILL.md](.agents/skills/linejam-cli/SKILL.md) — full usage, identity model, and when to reach for these vs. the browser.
-
-## Contributing & Security
-
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, local checks, commit style, and PR expectations.
-- See [SECURITY.md](SECURITY.md) for vulnerability reporting and response expectations.
-- See [docs/sharing-privacy.md](docs/sharing-privacy.md) for the public-by-link sharing contract.
-
-## Testing
-
-Unit, integration, and E2E suites enforce the coverage thresholds declared in
-`vitest.config.ts`.
-
-```bash
-# Unit & integration tests
-pnpm test         # Run once
-pnpm test:watch   # Watch mode
-pnpm test:ci      # With coverage
-
-# Fast local CI
-pnpm ci:fast
-pnpm ci:prepush
-
-# Full local Dagger parity
-pnpm ci:dagger:all-no-e2e
-pnpm ci:dagger:all
-
-# Browser suites
-pnpm test:e2e       # Local Playwright suite
-pnpm test:e2e:early-smoke # Fast selector smoke to reveal phase
-pnpm test:e2e:smoke # Remote preview/prod smoke via PLAYWRIGHT_BASE_URL
-pnpm test:e2e:ui    # Interactive UI mode
-
-# Coverage report
-open coverage/index.html
-```
-
-**Coverage Thresholds** (enforced in CI):
-
-- Lines: 85%
-- Branches: 85%
-- Functions: 85%
-- Statements: 85%
-
-**Test Structure**:
-
-- `tests/` — Unit and integration tests (Vitest)
-- `tests/e2e/` — End-to-end tests (Playwright)
-- `tests/helpers/` — Shared test utilities
-
-See [docs/testing.md](docs/testing.md) for patterns and guidelines.
-
-## Secret Scanning
-
-Pre-commit hooks automatically scan for leaked credentials (Clerk, Convex, Sentry keys).
-
-```bash
-# Install gitleaks (required for local development)
-brew install gitleaks
-```
-
-**False positives?** Add patterns to `.gitleaks.toml` allowlist section.
-**Hook failing?** Ensure gitleaks is installed: `brew install gitleaks`
-
-## Architecture
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system overview: domain modules, data flow, and where to start reading code.
-
-## Observability & CI
-
-Sentry is Linejam's sole error, monitor, release, and incident-evidence
-platform. Browser, Node, Edge, and Convex failures use release- and
-environment-tagged events; production health and smoke use Sentry monitors.
-Actionable Sentry issues create one durable GitHub Issue through the signed
-Convex webhook bridge. `pnpm ci:fast` is the fast host loop (typecheck, lint,
-tests); GitHub Actions' `merge-gate` remains the authoritative full contract,
-with `pnpm ci:dagger:all` for local parity. See
-[docs/ops/observability-ci.md](docs/ops/observability-ci.md).
-
-## Design
-
-Zen Garden aesthetic—Kenya Hara minimalism with warm white, near-black text, and vermillion accent. The default Kenya theme uses Libre Baskerville for display, IBM Plex Sans for body/UI, and JetBrains Mono for counts and technical labels; other themes define their own pairings in `lib/themes/presets/`.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+[Marketing site](https://misty-step.github.io/linejam/) ·
+[Changelog](https://misty-step.github.io/linejam/changelog.html) ·
+[MIT license](LICENSE)

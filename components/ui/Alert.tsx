@@ -16,8 +16,7 @@ export function Alert({
       role="alert"
       className={cn(
         'p-4 border text-sm rounded-sm',
-        // Use theme utilities instead of arbitrary values
-        // This prevents tailwind-merge from stripping color classes
+        // Named identity utilities survive tailwind-merge class resolution.
         {
           'border-error bg-error/5 text-error': variant === 'error',
           'border-success bg-success/5 text-success': variant === 'success',

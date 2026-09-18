@@ -33,7 +33,6 @@ if (CANONICAL_GUEST_FLOW_LINES.length !== TOTAL_ROUNDS) {
 export const GUEST_FLOW_EVIDENCE_FILES = {
   hostLobby: '01-host-lobby.png',
   helpModal: '02-help-modal.png',
-  themeHyperLobby: '03-theme-hyper-lobby.png',
   twoPlayerLobby: '04-two-player-lobby.png',
   writingValid: '05-writing-valid.png',
   waiting: '06-waiting.png',
@@ -94,7 +93,7 @@ async function ensureVisible(locator: Locator, label: string) {
 async function waitForRoomPath(page: Page, label: string, roomCode?: string) {
   const pathPattern = roomCode
     ? new RegExp(`/room/${escapeRegex(roomCode)}$`)
-    : /\/room\/[A-Z]{4}$/;
+    : /\/room\/[A-Z0-9]{4}$/;
 
   await page.waitForURL(pathPattern, { timeout: 30000 });
 
@@ -273,6 +272,17 @@ export async function isolateGuestSessionIp(context: GuestSessionRouteContext) {
   return ip;
 }
 
+export async function closeHostedRoom(page: Page, roomCode: string) {
+  await waitForRoomPath(page, 'owned host room before closure', roomCode);
+  await page.getByRole('button', { name: 'Room options', exact: true }).click();
+  await page.getByRole('button', { name: 'Close room', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Close this room?', exact: true })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close room', exact: true }).click();
+  await page.waitForURL('**/', { timeout: 30000 });
+}
+
 export class GuestFlowSession {
   readonly guestContext: BrowserContext;
   readonly guestName: string;
@@ -413,7 +423,7 @@ export class GuestFlowSession {
         .replace(/\/+$/, '')
         .split('/')
         .pop() ?? '';
-    if (!/^[A-Z]{4}$/.test(roomCode)) {
+    if (!/^[A-Z0-9]{4}$/.test(roomCode)) {
       throw new Error(`Unexpected room code: ${roomCode}`);
     }
 
@@ -424,15 +434,16 @@ export class GuestFlowSession {
   }
 
   async expectHostLobby() {
-    await expect(this.playerName(this.hostPage, this.hostName)).toBeVisible();
+    await expect(this.playerName(this.hostPage, this.hostName)).toBeVisible({
+      timeout: 15000,
+    });
     await expect(
       visibleTestId(this.hostPage, E2E_TEST_IDS.lobbyStartGameButton)
     ).toBeVisible();
   }
 
   async openHelpModal() {
-    // Help / Theme / archive now live behind the overflow ("More options") menu.
-    await this.hostPage.getByRole('button', { name: /More options/i }).click();
+    await this.hostPage.getByRole('button', { name: 'Room options' }).click();
     await this.hostPage
       .getByRole('button', { name: /How to play/i })
       .last()
@@ -445,18 +456,6 @@ export class GuestFlowSession {
 
   async closeHelpModal() {
     await this.hostPage.getByRole('button', { name: /Got it/i }).click();
-  }
-
-  async chooseHyperTheme() {
-    await this.hostPage.getByRole('button', { name: /More options/i }).click();
-    await this.hostPage.getByRole('button', { name: /^Theme$/i }).click();
-    await this.hostPage
-      .getByRole('radio', { name: /Hyper theme: Digital chaos & brutalism/i })
-      .click();
-    await this.hostPage.waitForFunction(
-      () => document.documentElement.getAttribute('data-theme') === 'hyper'
-    );
-    await this.hostPage.keyboard.press('Escape');
   }
 
   async joinRoom() {
@@ -609,7 +608,7 @@ export class GuestFlowSession {
     await Promise.all(
       [this.hostPage, this.guestPage].map(async (page) => {
         const assignedButton = page
-          .getByRole('button', { name: 'Reveal & Read', exact: true })
+          .getByTestId(E2E_TEST_IDS.revealPoemButton)
           .filter({ visible: true });
         await expect(assignedButton).toHaveCount(1);
       })
@@ -623,7 +622,7 @@ export class GuestFlowSession {
     const page = this.page(actor);
 
     const assignedButton = page
-      .getByRole('button', { name: 'Reveal & Read', exact: true })
+      .getByTestId(E2E_TEST_IDS.revealPoemButton)
       .filter({ visible: true });
     await expect(assignedButton).toHaveCount(1);
     await assignedButton.click();
@@ -654,7 +653,7 @@ export class GuestFlowSession {
 
   async startNextRound() {
     await this.hostPage
-      .getByRole('button', { name: 'Start Next Round', exact: true })
+      .getByRole('button', { name: 'Play again', exact: true })
       .click();
     await this.expectRound(1);
     await this.expectWritingUi();
@@ -683,6 +682,6 @@ export class GuestFlowSession {
   }
 
   private playerName(page: Page, name: string) {
-    return page.getByText(new RegExp(`^${escapeRegex(name)}$`));
+    return page.getByRole('listitem').filter({ hasText: name });
   }
 }

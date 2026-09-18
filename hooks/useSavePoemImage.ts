@@ -9,7 +9,8 @@ import {
   trackArtifactAction,
   trackPoemImageSaved,
 } from '@/lib/analytics';
-import { getAppliedTheme } from '@/lib/themes';
+import { getAppliedColorMode } from '@/lib/colorMode';
+import { playSound } from '@/lib/audio';
 
 export type SaveImageStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -18,17 +19,16 @@ interface PoemCardRequestBody {
 }
 
 /**
- * "Save as image" for a poem's themed artifact card
+ * "Save as image" for a poem's fixed-identity artifact card
  * (`/poem/[id]/card`, rendered by lib/poemCard/PoemCard.tsx). Prefers the
  * Web Share API with a file attachment — that is what actually lands the
  * PNG in a phone's camera roll / share sheet (criterion 1); falls back to a
  * plain browser download where `navigator.share` with files isn't
  * available (most desktop browsers).
  *
- * Reads the theme via `getAppliedTheme()` (a DOM read) rather than
- * `useTheme()` — this hook has no reason to require a `ThemeProvider`
- * ancestor, and `getAppliedTheme()` degrades to the kenya/light default the
- * card route already falls back to when nothing is applied yet (SSR, tests).
+ * Reads the applied color mode via a DOM read rather than requiring a
+ * provider ancestor. When no mode is applied yet (SSR, tests), the card
+ * route defaults to light mode.
  */
 export function useSavePoemImage(
   poemId: Id<'poems'>,
@@ -44,9 +44,9 @@ export function useSavePoemImage(
     setError(null);
 
     try {
-      const applied = getAppliedTheme();
-      const url = applied
-        ? `/poem/${poemId}/card?theme=${encodeURIComponent(applied.themeId)}&mode=${applied.mode}`
+      const mode = getAppliedColorMode();
+      const url = mode
+        ? `/poem/${poemId}/card?mode=${mode}`
         : `/poem/${poemId}/card`;
       const requestBody: PoemCardRequestBody = {};
       if (guestToken) {
@@ -71,6 +71,7 @@ export function useSavePoemImage(
         try {
           await navigator.share({ files: [file], title: 'Linejam poem' });
           setStatus('saved');
+          playSound('success');
           trackPoemImageSaved({ method: 'native-share' });
           if (roomId)
             trackArtifactAction({
@@ -102,6 +103,7 @@ export function useSavePoemImage(
       URL.revokeObjectURL(objectUrl);
 
       setStatus('saved');
+      playSound('success');
       trackPoemImageSaved({ method: 'download' });
       if (roomId)
         trackArtifactAction({
@@ -113,6 +115,7 @@ export function useSavePoemImage(
     } catch (cause) {
       const error = toErrorReportable(cause);
       setStatus('error');
+      playSound('error');
       setError('Failed to save image. Please try again.');
       captureError(error, { operation: 'savePoemImage', poemId });
     }

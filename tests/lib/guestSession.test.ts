@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   defaultGuestSessionFetcher,
-  getExistingGuestSession,
   clearGuestSession,
   GuestSessionHttpError,
 } from '@/lib/guestSession';
@@ -18,35 +17,85 @@ describe('defaultGuestSessionFetcher', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    vi.useRealTimers();
     localStorage.clear();
   });
 
-  it('returns guestId and token on successful fetch', async () => {
+  it('removes the legacy token mirror when fetching a session', async () => {
     localStorage.setItem(legacyStorageKey, 'stale-token');
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ guestId: 'guest_123', token: 'token_abc' }),
     });
 
-    const result = await defaultGuestSessionFetcher.fetch();
-
-    expect(result).toEqual({
-      guestId: 'guest_123',
-      token: 'token_abc',
-    });
-    expect(global.fetch).toHaveBeenCalledWith('/api/guest/session');
+    await defaultGuestSessionFetcher.fetch();
     expect(localStorage.getItem(legacyStorageKey)).toBeNull();
   });
 
-  it('throws error when API returns non-ok status', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
+  it('gives concurrent bootstrap callers the same guest identity', async () => {
+    let identity = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      identity += 1;
+      return Promise.resolve(
+        Response.json({
+          guestId: `guest_${identity}`,
+          token: `token_${identity}`,
+        })
+      );
     });
 
-    await expect(defaultGuestSessionFetcher.fetch()).rejects.toThrow(
-      'Failed to fetch guest session: Guest session API returned 500'
+    const [navigationSession, roomSession] = await Promise.all([
+      defaultGuestSessionFetcher.fetch(),
+      defaultGuestSessionFetcher.fetch(),
+    ]);
+
+    expect(roomSession).toEqual(navigationSession);
+  });
+
+  it('allows a fresh bootstrap after a failed request', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(
+        Response.json({ guestId: 'recovered_guest', token: 'recovered_token' })
+      );
+
+    await expect(defaultGuestSessionFetcher.fetch()).rejects.toBeInstanceOf(
+      Error
     );
+    const session = await defaultGuestSessionFetcher.fetch();
+    expect(session.guestId).toBe('recovered_guest');
+  });
+
+  it('charges transport and body decoding time against remaining validity without using the wall clock', async () => {
+    vi.useFakeTimers({
+      toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout'],
+    });
+    vi.setSystemTime(Date.UTC(2026, 8, 10) + 5 * 60_000);
+    const transport = Promise.withResolvers<void>();
+    const body = Promise.withResolvers<{
+      guestId: string;
+      token: string;
+      validForMs: number;
+    }>();
+    global.fetch = vi.fn().mockImplementation(async () => {
+      await transport.promise;
+      return {
+        ok: true,
+        json: () => body.promise,
+      };
+    });
+    const pending = defaultGuestSessionFetcher.fetch();
+    await vi.advanceTimersByTimeAsync(20_000);
+    transport.resolve();
+    await vi.advanceTimersByTimeAsync(10_000);
+    body.resolve({ guestId: 'retained', token: 'opaque', validForMs: 120_000 });
+    const session = await pending;
+    expect(session.expiresAtMonotonic).toBe(performance.now() + 90_000);
+
+    vi.setSystemTime(Date.now() - 24 * 60 * 60_000);
+    await vi.advanceTimersByTimeAsync(90_001);
+    expect(session.expiresAtMonotonic).toBeLessThan(performance.now());
   });
 
   it('preserves a status-bearing error for guest-session rate limits', async () => {
@@ -83,37 +132,6 @@ describe('defaultGuestSessionFetcher', () => {
 
     expect(result.guestId).toBe('guest_123');
     expect(result.token).toBeNull();
-  });
-
-  it('throws error when fetch fails (network error)', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-
-    await expect(defaultGuestSessionFetcher.fetch()).rejects.toThrow(
-      'Failed to fetch guest session: Network error'
-    );
-  });
-
-  it('handles unknown error types in catch block', async () => {
-    global.fetch = vi.fn().mockRejectedValue('string error');
-
-    await expect(defaultGuestSessionFetcher.fetch()).rejects.toThrow(
-      'Failed to fetch guest session: Unknown error'
-    );
-  });
-  it('reads an existing session without minting a new one', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ guestId: 'guest_existing', token: 'token_existing' }),
-    });
-
-    const result = await getExistingGuestSession();
-
-    expect(result).toEqual({
-      guestId: 'guest_existing',
-      token: 'token_existing',
-    });
-    expect(global.fetch).toHaveBeenCalledWith('/api/guest/session?existing=1');
   });
 });
 

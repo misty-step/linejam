@@ -1,81 +1,67 @@
-# Project: Linejam
+# Linejam
 
-## Vision
+## Product
 
-A digital version of the paper-folding poetry game—casual multiplayer fun with persistent, shareable artifacts.
+A phone-first poetry party game for friends together in one room. The current
+form is the baseline to refine, not replace: easy guest entry, enjoyable writing,
+a clear whole-poem reveal, and artifacts worth keeping.
 
-**North Star:** World-class casual party game with Stripe-level design and polish. Players feel delighted, not overwhelmed. The game works, it's fun, it creates memorable moments with friends.
-**Target User:** Friends at a gathering who want a quick, creative, funny activity. No signup required (guest mode). Works on phones. Minimal explanation needed.
-**Current Focus:** Recover the public trust floor, then prove the party payoff. The mechanic is settled—9 rounds, 1,2,3,4,5,4,3,2,1 words—and depth comes from the people, reveal, and artifact, not from more modes. Sequenced path: anonymous-play and privacy incidents → truthful production control plane → privacy-safe funnel plus field playtests → accessibility and evidence-led polish → revenue stretch.
-**Key Differentiators:** Lower friction than paper; persistent shareable artifacts; digital-native sharing; can evolve mechanics without physical constraints.
+## What stays true
 
-## Domain Glossary
+- One human-authored game: nine rounds of `1, 2, 3, 4, 5, 4, 3, 2, 1` words.
+  Each writer sees only the preceding line; all nine lines open at reveal.
+- Guests can play without accounts, including when Clerk is unavailable.
+  Refresh, reconnect, late joins and host departure must preserve game integrity.
+- Private saving and explicit, reversible publication are different actions.
+  No hidden poem text leaks to spectators or unauthorized viewers.
+- The violet/lavender identity, DynaPuff wordmark and Nunito Sans interface stay.
+  Improve the cast, composition and use of accents rather than start another
+  identity exploration. `DESIGN.md` owns the details; tokens live in source.
+- Phones, large text, keyboards, screen readers, both color modes and reduced
+  motion are part of the experience, not optional finishing work.
+- No generated player contributions, extra game modes, competitive rankings,
+  ornamental prompts, ads or social-network expansion.
 
-| Term              | Definition                                                          |
-| ----------------- | ------------------------------------------------------------------- |
-| Room              | A game session, identified by a short room code                     |
-| Poem              | One collaborative poem being written in a room (multiple per game)  |
-| Line              | A single contribution to a poem; constrained word count per round   |
-| Assignment Matrix | 9×N array assigning which player writes which poem's line per round |
-| Round             | One of 9 rounds (word counts: 1,2,3,4,5,4,3,2,1)                    |
-| Reveal            | End-of-game state where complete poems are shown to all players     |
-| Guest             | Anonymous player identified by UUID in localStorage                 |
-| Pen Name          | Author display name captured at write-time                          |
-| WordSlot          | Genkoyoshi-inspired word count indicator UI component               |
-| Theme             | Visual skin registered in `lib/themes/registry.ts`                  |
+## Current direction
 
-## Active Focus
+The operator's production walkthrough sets the priority: **polish the player
+experience by removing noise, improving hierarchy and adding restrained charm.**
+Host/entry, invitations and waiting need attention; the join and writing flow
+already feel good. The local investigation traced avoidable waiting to redundant
+identity bootstrap and extra read-path work. One shared identity owner and
+leaner read paths remove that work; hosted RTT and Clerk loading remain separate
+costs. Local evidence does not establish a production speedup.
 
-- **Milestone:** Restore public trust — anonymous play must survive identity-provider failure, private poems must stay private until explicit publication, and functional smoke failures must page.
-- **Then:** prove repeatable party value with server-derived room-cycle facts and real in-person sessions → accessibility across every retained theme → evidence-led aesthetic polish → revenue stretch.
-- **Stance:** The 010–012 expansion arc (multiple modes, per-line sparks) was deliberately rolled back — Linejam is **one core mode, refined**. The reliability + infra foundation is laid (presence/self-heal, host migration, convex-test, Landmark releases). [GitHub Issues](https://github.com/misty-step/linejam/issues) is the sole work ledger; `CONTRIBUTING.md` owns the claim and Iron Forest scheduling contract.
-- **Theme:** Restraint as the product — Kenya Hara minimalism applied to the mechanics as much as the visuals.
+Restrained Cuelume cues now belong across the player surface, from activation
+and confirmed results through reveal and recap—not a late poem-only tone.
 
-## Quality Bar
+`DESIGN.md` records the implemented interaction contract and acceptance bar.
+The second lane is adopting Parlor for shared party-game infrastructure: room
+codes, joining, membership, presence and match lifecycle. Linejam and Parlor are
+both owned here; missing framework capabilities are design discussions, not a
+reason to build another permanent set of Linejam workarounds.
 
-- [ ] Guest mode works without friction on mobile and survives Clerk failure
-- [ ] Every retained theme renders correctly without hardcoded overrides
-- [ ] Core game loop completes reliably with 2-6 players (no silent failures)
-- [x] Security headers and rate limits are in place
-- [ ] Saving remains private; public poem/recap access requires explicit, reversible consent
-- [ ] Functional production smoke pages an operator and disagrees visibly with shallow health when the player loop is down
-- [ ] A privacy-safe funnel plus repeated field playtests identifies the next product improvement
+Parlor source is pinned to an immutable upstream commit in
+`vendor/parlor/UPSTREAM.json`. New rooms use Parlor; historical invitations stop
+admitting players while archives stay. `docs/ARCHITECTURE.md` owns the boundary.
+Production releases and the explicit invitation drain follow
+`docs/deployment.md` and `docs/convex-migrations.md`.
 
-## Engineering Pointers
+## Vocabulary
 
-`AGENTS.md` is the compact agent router, not a second architecture manual.
-Read the owning source for implementation detail:
+- **Room:** the gathering and its invitation code; it can host repeated games.
+- **Game/cycle:** one complete nine-round poem-writing session in that room.
+- **Poem:** nine contributions joined by the assignment matrix.
+- **Pen name and avatar:** room-facing identity, not authentication.
+- **Reading circle:** complete poems, assigned readers and a safe fallback for
+  an absent reader. It does not require a separate presentation mode.
 
-- Game rules and assignment: `convex/lib/gameRules.ts` and
-  `convex/lib/assignmentMatrix.ts`.
-- Identity: `lib/auth.ts`, `lib/guestToken.ts`, and `convex/lib/auth.ts`.
-- Error capture and structured logs: `lib/error.ts`, `lib/logger.ts`, and
-  `convex/lib/errors.ts`.
-- Verification and authority: `docs/testing.md` and
-  `docs/ops/observability-ci.md`.
+## Ownership
 
-## Stretch Goal
+Current requests authorize work. Linear owns priorities and work status; this
+brief stores accepted direction, not a second backlog or a new-ticket ritual.
+Old issues and exploration records are context, not outstanding obligations.
 
-Print-on-demand poetry booklets via Lulu API: users curate favorite poems,
-boutique design treatment, physical artifact shipped to them, small revenue cut
-per book.
-
-## Anti-Goals
-
-- Multiple game modes — one core loop, refined; variety comes from the players, not the mechanics (Rhyme Relay + Quick Jam were built and deleted, #275)
-- Ornamental in-game nudges — e.g. per-line "sparks"; the word constraint is the only prompt the player needs (deleted #278)
-- Feature bloat (no gamification, leaderboards, achievements)
-- Heavy monetization (no subscriptions, no ads) — print-on-demand booklets are the only revenue bet
-- Social network aspirations
-
-## Lessons Learned
-
-| Decision                                   | Outcome                | Lesson                                                 |
-| ------------------------------------------ | ---------------------- | ------------------------------------------------------ |
-| Silent guest auth failure                  | Users saw blank screen | Always show error + retry, never silently fail         |
-| logShare returning silently on bad poem ID | Hard to debug          | Use ConvexError for invalid inputs, not silent returns |
-
----
-
-_Last updated: 2026-08-15_
-_Updated during: human-only authorship cutover [#419](https://github.com/misty-step/linejam/issues/419)._
+Keep operating procedures, privacy/retention rules and recovery contracts near
+their source. Production deploys, provider/data changes and remote QA require
+their own scope under `CONTRIBUTING.md` and `docs/ops/observability-ci.md`.

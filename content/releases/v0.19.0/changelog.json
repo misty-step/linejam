@@ -1,0 +1,15 @@
+{
+  "version": "0.19.0",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "feat",
+      "scope": "ops",
+      "description": "declare DigitalOcean topology",
+      "breaking": false,
+      "pr": 351,
+      "commit": "80c1717"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.6...v0.19.0"
+}

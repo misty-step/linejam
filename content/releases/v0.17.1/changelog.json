@@ -1,0 +1,15 @@
+{
+  "version": "0.17.1",
+  "date": "2026-07-10",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "themes",
+      "description": "hydration-safe theme state in the picker hook , closes [#418](https://github.com/misty-step/linejam/issues/418)",
+      "breaking": false,
+      "pr": 336,
+      "commit": "3b34e62"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.17.0...v0.17.1"
+}

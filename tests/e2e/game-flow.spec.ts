@@ -64,7 +64,7 @@ test.describe('Complete Game Flow', () => {
   test('host creates room and gets room code', async () => {
     const roomCode = await activeSession().createRoom();
 
-    expect(roomCode).toMatch(/^[A-Z]{4}$/);
+    expect(roomCode).toMatch(/^[A-Z0-9]{4}$/);
   });
 
   test('guest joins room and appears in lobby', async () => {

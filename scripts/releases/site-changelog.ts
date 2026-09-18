@@ -1,4 +1,9 @@
-import type { ChangelogEntry, ReleaseWithNotes } from '@/lib/releases/types';
+import {
+  NOTES_STATUS_LABELS,
+  type ChangelogEntry,
+  type ReleaseCatalog,
+  type ReleaseWithNotes,
+} from '@/lib/releases/types';
 
 function escapeHtml(value: string): string {
   return value
@@ -31,17 +36,10 @@ function evidenceLabel(changes: ChangelogEntry[]): string {
 }
 
 function noteBullets(release: ReleaseWithNotes): string[] {
-  const notes = release.productNotes
+  return release.productNotes
     .split(/\n{2,}/)
-    .map((paragraph) => paragraph.replace(/\s+/g, ' ').trim())
+    .map((paragraph) => paragraph.trim())
     .filter(Boolean);
-
-  if (notes.length > 0) return notes;
-
-  return release.changes.map((change) => {
-    const scope = change.scope ? `(${change.scope}) ` : '';
-    return `${scope}${change.description}`;
-  });
 }
 
 function renderReleaseSection(release: ReleaseWithNotes): string {
@@ -50,28 +48,40 @@ function renderReleaseSection(release: ReleaseWithNotes): string {
     .map((bullet) => `              <li>${escapeHtml(bullet)}</li>`)
     .join('\n');
 
-  return `          <section class="msk-release">
-            <p class="ae-chrome">${escapeHtml(release.date)} - ${escapeHtml(versionLabel)}</p>
+  return `          <section class="msk-release" id="${escapeHtml(versionLabel)}">
+            <p class="lj-kicker">${escapeHtml(release.date)} - ${escapeHtml(versionLabel)}</p>
             <h2>Version ${escapeHtml(release.version.replace(/^v/, ''))}</h2>
-            <ul>
-${bullets}
-            </ul>
-            <p class="ae-status">
-              <svg class="ae-icon ae-ok" data-lucide="circle-check">
+${bullets ? `            <ul>\n${bullets}\n            </ul>` : ''}
+            <p>${escapeHtml(NOTES_STATUS_LABELS[release.notesStatus])}</p>
+            <details>
+              <summary>Technical history (${release.changes.length} changes)</summary>
+              <ul>
+${release.changes.map((change) => `                <li>${escapeHtml(`${change.scope ? `(${change.scope}) ` : ''}${change.description}`)}</li>`).join('\n')}
+              </ul>
+            </details>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
                 <use href="#i-circle-check" />
               </svg>
-              <span class="ae-status-label">${escapeHtml(evidenceLabel(release.changes))}</span>
+              <span>${escapeHtml(evidenceLabel(release.changes))}</span>
             </p>
           </section>`;
 }
 
-export function renderSiteChangelogHtml(
-  releases: readonly ReleaseWithNotes[]
-): string {
-  const releaseSections = releases.map(renderReleaseSection).join('\n\n');
+export function renderSiteChangelogHtml(catalog: ReleaseCatalog): string {
+  const releaseSections = catalog.releases
+    .map(renderReleaseSection)
+    .join('\n\n');
+  const errors = catalog.diagnostics.filter(
+    (diagnostic) => diagnostic.severity === 'error'
+  );
+  const diagnostics =
+    errors.length > 0
+      ? `<aside aria-label="Release content status"><p>Some release content is out of sync.</p><ul>${errors.map((diagnostic) => `<li>${escapeHtml(diagnostic.message)}</li>`).join('')}</ul></aside>`
+      : '';
 
   return `<!doctype html>
-<html lang="en" data-ae-theme="ember">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -82,38 +92,27 @@ export function renderSiteChangelogHtml(
     />
     <script>
       try {
-        var m = localStorage.getItem('ae-mode');
-        if (m === 'dark' || m === 'light') {
-          document.documentElement.classList.add(m);
-          document.documentElement.style.colorScheme = m;
-        }
+        var stored = localStorage.getItem('linejam-theme-mode');
+        var mode =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.classList.add(mode);
+        document.documentElement.style.colorScheme = mode;
       } catch (e) {}
     </script>
-    <link rel="stylesheet" href="aesthetic.css" />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="linejam.css" />
     <link rel="stylesheet" href="marketing.css" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
   </head>
   <body>
     <svg aria-hidden="true" width="0" height="0" style="position: absolute">
-      <symbol id="i-scroll-text" viewBox="0 0 24 24">
-        <path d="M15 12h-5" />
-        <path d="M15 8h-5" />
-        <path
-          d="M19 17V5a2 2 0 0 0-2-2H4a2 2 0 0 0 0 4h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"
-        />
-      </symbol>
-      <symbol id="i-sun" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2" />
-        <path d="M12 20v2" />
-        <path d="m4.93 4.93 1.41 1.41" />
-        <path d="m17.66 17.66 1.41 1.41" />
-        <path d="M2 12h2" />
-        <path d="M20 12h2" />
-        <path d="m6.34 17.66-1.41 1.41" />
-        <path d="m19.07 4.93-1.41 1.41" />
-      </symbol>
-      <symbol id="i-moon" viewBox="0 0 24 24">
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      <symbol id="i-palette" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 3v18a9 9 0 0 0 0-18" fill="currentColor" stroke="none" />
       </symbol>
       <symbol id="i-circle-check" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10" />
@@ -121,47 +120,61 @@ export function renderSiteChangelogHtml(
       </symbol>
     </svg>
 
-    <div class="ae-screen ae-wide">
-      <header class="ae-bar msk-bar">
-        <a class="ae-logo" href="./" aria-label="Linejam home">
-          <span class="ae-app-mark" aria-hidden="true">
-            <svg class="ae-icon" data-lucide="scroll-text">
-              <use href="#i-scroll-text" />
-            </svg>
-          </span>
-          <span class="ae-name">Linejam</span>
+    <div class="lj-shell">
+      <header class="lj-bar msk-bar">
+        <a class="lj-wordmark" href="./" aria-label="Linejam home">
+          <span class="lj-wordmark-label">Linejam</span>
         </a>
         <span class="msk-actions">
-          <nav class="ae-chrome msk-nav" aria-label="Site">
-            <a href="./">home</a>
-            <a href="changelog.html" aria-current="page">release notes</a>
+          <nav class="lj-nav" aria-label="Site">
+            <a href="./">Home</a>
+            <a href="changelog.html" aria-current="page">Release notes</a>
           </nav>
-          <button class="ae-mode" aria-label="toggle color mode">
-            <svg class="ae-icon ae-sun"><use href="#i-sun" /></svg>
-            <svg class="ae-icon ae-moon"><use href="#i-moon" /></svg>
-          </button>
+          <details class="lj-appearance">
+            <summary class="lj-icon-button" aria-label="Color mode">
+              <svg class="lj-icon" aria-hidden="true">
+                <use href="#i-palette" />
+              </svg>
+            </summary>
+            <fieldset class="lj-mode">
+              <legend>Color mode</legend>
+              <div class="lj-mode-options">
+                <label>
+                  <input type="radio" name="color-mode" value="light" />
+                  <span>Light</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="dark" />
+                  <span>Dark</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-mode" value="system" />
+                  <span>System</span>
+                </label>
+              </div>
+            </fieldset>
+          </details>
         </span>
       </header>
 
-      <main class="ae-stage ae-stage-scroll">
-        <article class="ae-doc msk-page" aria-labelledby="release-notes-title">
+      <main class="lj-stage">
+        <article class="lj-doc msk-page" aria-labelledby="release-notes-title">
           <h1 id="release-notes-title">Release notes</h1>
-          <p class="ae-lede">
-            Linejam ships continuously. These notes are generated in plain
-            language from the same
-            <a href="https://github.com/misty-step/linejam/blob/master/CHANGELOG.md"
-              >CHANGELOG.md</a
-            >
-            source that feeds the app's /releases page.
+          <p class="lj-lede">
+            What changed in Linejam. You can also read the
+            <a href="https://www.linejam.app/releases">latest releases in the app</a>.
           </p>
+          <p>Current application version: <strong>v${escapeHtml(catalog.currentVersion)}</strong>.</p>
+          <p>Release history is ordered by date. Older version numbers are preserved, not treated as the current version.</p>
+${diagnostics}
 
 ${releaseSections}
         </article>
       </main>
 
-      <footer class="ae-bar msk-footer">
-        <p class="ae-chrome">Linejam release notes are public by default.</p>
-        <nav class="ae-foot-links ae-chrome" aria-label="Footer">
+      <footer class="lj-bar lj-footer msk-footer">
+        <p class="lj-muted">A game by Misty Step.</p>
+        <nav class="lj-foot-links" aria-label="Footer">
           <a
             data-footer-link="github"
             href="https://github.com/misty-step/linejam"
@@ -175,7 +188,6 @@ ${releaseSections}
     </div>
 
     <script src="mode.js"></script>
-    <script src="theme.js"></script>
   </body>
 </html>
 `;

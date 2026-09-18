@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 import { mutation, query } from './_generated/server';
-import { getUser, checkParticipation } from './lib/auth';
+import { getUser, checkGameParticipation } from './lib/auth';
 import { getRoomByCode, getCompletedGame } from './lib/room';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { isRevealReady } from './lib/sessionLifecycle';
@@ -59,11 +59,7 @@ export const toggleFavorite = mutation({
     } else {
       if (!poem) throw new ConvexError('Poem not found');
       const game = await ctx.db.get(poem.gameId);
-      const isParticipant = await checkParticipation(
-        ctx,
-        poem.roomId,
-        user._id
-      );
+      const isParticipant = await checkGameParticipation(ctx, game, user._id);
       if (!isParticipant && poem.publicShareEnabled !== true) {
         throw new ConvexError('Not authorized to favorite this poem');
       }
@@ -100,24 +96,27 @@ export const getMyFavorites = query({
     const poemResults = await Promise.all(
       favorites.map((fav) => ctx.db.get(fav.poemId))
     );
-    const gameResults = await Promise.all(
-      poemResults.map((poem) => (poem ? ctx.db.get(poem.gameId) : null))
-    );
+    const gameIds = [
+      ...new Set(
+        poemResults.filter((poem) => poem !== null).map((poem) => poem.gameId)
+      ),
+    ];
+    const games = await Promise.all(gameIds.map((id) => ctx.db.get(id)));
+    const gameById = new Map(gameIds.map((id, i) => [id, games[i]]));
 
-    // A favorite is readable to its owner only while they still participate,
-    // or while the poem is explicitly public. This filters stale favorites
-    // created by outsiders before a later revocation without exposing text.
+    // Private favorites remain readable to the completed game's participants.
+    // Outsider favorites disappear when publication is revoked, without text.
     const access = await Promise.all(
       favorites.map(async (fav, i) => {
         const poem = poemResults[i];
         if (!poem) return false;
-        const game = gameResults[i];
+        const game = gameById.get(poem.gameId) ?? null;
         if (!isRevealReady(game)) {
           return false;
         }
         const [room, isParticipant] = await Promise.all([
           ctx.db.get(poem.roomId),
-          checkParticipation(ctx, poem.roomId, user._id),
+          checkGameParticipation(ctx, game, user._id),
         ]);
         return (
           room !== null && (isParticipant || poem.publicShareEnabled === true)
@@ -175,11 +174,9 @@ export const getSessionFavorites = query({
     const room = await getRoomByCode(ctx, roomCode);
     if (!room) return null;
 
-    const isParticipant = await checkParticipation(ctx, room._id, user._id);
-    if (!isParticipant) return null;
-
     const game = await getCompletedGame(ctx, room._id);
     if (!game) return null;
+    if (!(await checkGameParticipation(ctx, game, user._id))) return null;
 
     const poems = await ctx.db
       .query('poems')
@@ -240,7 +237,7 @@ export const isFavorited = query({
     const game = await ctx.db.get(poem.gameId);
     if (!isRevealReady(game)) return false;
 
-    const isParticipant = await checkParticipation(ctx, poem.roomId, user._id);
+    const isParticipant = await checkGameParticipation(ctx, game, user._id);
     return isParticipant || poem.publicShareEnabled === true;
   },
 });

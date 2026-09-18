@@ -7,6 +7,12 @@ evidence, and ensuring unconditional browser teardown.
 
 ## 1. Setup & Preflight
 
+Before selecting a target, follow **Prepare the real target** in `SKILL.md`.
+Local preparation and service teardown remain owned by
+`docs/local-development.md`; package/schema preflight below does not start or
+health-check Next or Convex. Record the current local receipt and reported web
+origin, not an older `.qa` artifact or the backend URL.
+
 1. **Target Authority**:
    - Determine `baseUrl` from `LINEJAM_PLAY_BASE_URL` or `PLAYWRIGHT_BASE_URL`
      (default: `http://localhost:3333`).
@@ -31,6 +37,7 @@ evidence, and ensuring unconditional browser teardown.
      isolated when multiple coordinators start during the same second.
    - Create evidence folder: `.qa/runs/<run-id>/`.
 3. **Preflight Check**:
+   - Run `pnpm qa:play-linejam:check`; this checks readiness, not gameplay.
    - Verify `pnpm exec agent-browser --version` outputs `0.27.0`.
    - Run `pnpm exec agent-browser skills get core`.
 4. **Player Scale & Session Naming**:
@@ -90,7 +97,8 @@ Any -> Coordinator:        "BLOCKER: <sanitized description>" (only on fatal err
 1. Coordinator sends `CLOSE_ROOM` to Host.
 2. Host clicks **Back to Lobby** on the recap hub.
 3. Room transitions back to the Lobby.
-4. Host clicks **Close room** in the Lobby and sends `ROOM_CLOSED` to Coordinator.
+4. Host opens **Room options**, chooses **Close room**, confirms **Close room**,
+   observes exit from the room, and sends `ROOM_CLOSED` to Coordinator.
 5. Coordinator spawns or signals the **Verifier** agent in a fresh session (`<run-id>-verifier`).
 6. Verifier navigates to `/join`, inputs the closed room code, and attempts to enter.
 7. Verifier confirms join is rejected (error alert displayed, URL stays on `/join`) and reports `JOIN_REJECTED`.
@@ -98,7 +106,7 @@ Any -> Coordinator:        "BLOCKER: <sanitized description>" (only on fatal err
 ## 4. Execution Bounds & Error Policy
 
 - **Global Execution Bound**: 15 minutes for gameplay, closure, verification,
-  and cleanup.
+  and cleanup. Outer scheduled-runner lifetime is separate and longer.
 - **Semantic Waits**: Use UI state indicators such as element presence, URL
   navigation, and form readiness. Do not poll with fixed sleeps.
 - **Error Policy**: Record benign console warnings without failing the run.

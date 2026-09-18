@@ -6,6 +6,7 @@
  */
 
 import { isValidServerActionEncryptionKey } from './serverActionEncryptionKey';
+import { isLocalServerMode } from './localMode';
 
 // Required for Next.js runtime (signing guest tokens)
 const REQUIRED_SERVER_ENV = ['GUEST_TOKEN_SECRET'] as const;
@@ -48,8 +49,13 @@ export function isValidSentryDsn(
 }
 
 export function getServerGuestTokenSecret(): string {
+  const localMode = isLocalServerMode();
   const secret = process.env.GUEST_TOKEN_SECRET?.trim();
   if (secret) return secret;
+
+  if (localMode) {
+    throw new Error('GUEST_TOKEN_SECRET must be set in local mode');
+  }
 
   if (process.env.NODE_ENV === 'production') {
     throw new Error('GUEST_TOKEN_SECRET must be set in production environment');
@@ -63,6 +69,10 @@ export function getServerGuestTokenSecret(): string {
  * Throws during build if any are missing.
  */
 export function validateEnv(): void {
+  if (isLocalServerMode()) {
+    getServerGuestTokenSecret();
+    return;
+  }
   const missing: string[] = [];
   const invalid: string[] = [];
   const isDependabot = process.env.GITHUB_ACTOR === 'dependabot[bot]';

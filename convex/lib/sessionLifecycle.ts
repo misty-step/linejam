@@ -1,3 +1,8 @@
+import { MAX_SEATS } from '@parlor/core';
+import { ConvexError } from 'convex/values';
+import { completeMatch, requireActiveMatch } from '@parlor/convex/matches';
+import { closeRoomAt } from '@parlor/convex/rooms';
+import type { MatchEnvelope } from '@parlor/convex/helpers';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { getMatrixRound } from './assignmentMatrix';
@@ -5,10 +10,10 @@ import { assignPoemReaders } from './assignPoemReaders';
 import { getFinalRoundIndex } from './gameRules';
 import { retentionEligibleAt } from './retentionPolicy';
 
-type LifecycleCtx = Pick<MutationCtx, 'db'>;
+type LifecycleCtx = Pick<MutationCtx, 'db' | 'auth'>;
 type LifecycleGame = Pick<
   Doc<'games'>,
-  '_id' | 'assignmentMatrix' | 'currentRound' | 'status'
+  '_id' | 'matchId' | 'assignmentMatrix' | 'currentRound' | 'status'
 >;
 type LifecyclePoem = Pick<Doc<'poems'>, '_id' | 'indexInRoom'>;
 
@@ -142,6 +147,7 @@ export async function abandonGame(
     game: Pick<Doc<'games'>, '_id' | 'roomId' | 'status'>;
     closeRoom: boolean;
     abandonedAt?: number;
+    dryRun?: boolean;
   }
 ): Promise<boolean> {
   if (args.game.status !== 'IN_PROGRESS') return false;
@@ -149,6 +155,7 @@ export async function abandonGame(
   const abandonedAt = args.abandonedAt ?? Date.now();
   const retentionDeadline = retentionEligibleAt(abandonedAt, 'abandoned');
   const poems = await getGamePoems(ctx, args.game._id);
+  if (args.dryRun) return true;
 
   await Promise.all([
     ctx.db.patch(args.game._id, {
@@ -185,14 +192,47 @@ export async function abandonGame(
   return true;
 }
 
+/** Compose Parlor's terminal envelope with poetry and room retention state. */
+export async function abandonRoomMatch(
+  ctx: LifecycleCtx,
+  args: {
+    envelope: MatchEnvelope;
+    closeRoom: boolean;
+  }
+): Promise<void> {
+  const { envelope } = args;
+  if (envelope.status !== 'abandoned') {
+    throw new ConvexError('Match is not abandoned');
+  }
+  const game = await ctx.db
+    .query('games')
+    .withIndex('by_match', (q) => q.eq('matchId', envelope.id))
+    .unique();
+  if (!game || game.roomId !== envelope.roomId) {
+    throw new ConvexError('Match game not found');
+  }
+  await abandonGame(ctx, {
+    game,
+    closeRoom: args.closeRoom,
+    abandonedAt: envelope.abandonedAt,
+  });
+  if (args.closeRoom) {
+    const room = await ctx.db.get(envelope.roomId);
+    if (!room) throw new ConvexError('Room not found');
+    await closeRoomAt(ctx, room, envelope.abandonedAt);
+  }
+}
+
 async function getGamePoems(
   ctx: LifecycleCtx,
   gameId: Id<'games'>
 ): Promise<Doc<'poems'>[]> {
-  return ctx.db
+  const poems = await ctx.db
     .query('poems')
     .withIndex('by_game', (q) => q.eq('gameId', gameId))
-    .collect();
+    .take(MAX_SEATS + 1);
+  if (poems.length > MAX_SEATS) throw new ConvexError('Too many poems in game');
+  return poems;
 }
 
 async function getMissingRoundPoems(
@@ -235,6 +275,9 @@ export async function applyLineLifecycleTransition(
   ) {
     return;
   }
+  if (freshGame.matchId) {
+    await requireActiveMatch(ctx, freshGame.matchId, args.roomId);
+  }
 
   if (args.lineIndex < getFinalRoundIndex(args.game.assignmentMatrix)) {
     const nextRound = args.lineIndex + 1;
@@ -252,6 +295,12 @@ export async function applyLineLifecycleTransition(
     poems,
     completionTime,
   });
+  if (freshGame.matchId) {
+    await completeMatch(ctx, {
+      matchId: freshGame.matchId,
+      nowMs: completionTime,
+    });
+  }
 
   await Promise.all([
     ctx.db.patch(args.game._id, completionPlan.gamePatch),

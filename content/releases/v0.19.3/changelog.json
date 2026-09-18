@@ -1,0 +1,14 @@
+{
+  "version": "0.19.3",
+  "date": "2026-07-15",
+  "changes": [
+    {
+      "type": "fix",
+      "description": "make mobile entry flows viewport safe",
+      "breaking": false,
+      "pr": 355,
+      "commit": "44b0abe"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.2...v0.19.3"
+}

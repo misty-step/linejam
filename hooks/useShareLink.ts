@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { toErrorReportable, type ErrorReportable } from '@/lib/errorCore';
+import { playSound } from '@/lib/audio';
 
 export type ShareMethod = 'clipboard' | 'native-share';
 type ShareStatus = 'idle' | 'copied' | 'shared' | 'error';
@@ -74,6 +75,7 @@ export function useShareLink({
     if (staged) await commitShare?.();
     else await publishShare?.();
     setStatus(method === 'native-share' ? 'shared' : 'copied');
+    playSound('success');
     notifyShared(method);
     resetStatusSoon();
   };
@@ -153,6 +155,7 @@ export function useShareLink({
       const error = toErrorReportable(cause);
       await rollback();
       setStatus('error');
+      playSound('error');
       setShareError(failureMessage);
       onError?.(error);
     } finally {

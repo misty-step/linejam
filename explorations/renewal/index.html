@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Linejam — Five directions</title>
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="atlas.css" />
+    <script type="module" src="atlas.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#comparison">Skip to the designs</a>
+    <header class="studio-header">
+      <a href="./" class="studio-name">Linejam <span>Renewal studio</span></a>
+      <nav aria-label="Studio sections">
+        <a href="#comparison">Compare</a><a href="#workbench">Try a direction</a><a href="#inventory">Every surface</a><a href="#audit">Audit</a>
+      </nav>
+    </header>
+    <main>
+      <section class="intro" aria-labelledby="title">
+        <div>
+          <h1 id="title">Five ways to<br />feel like Linejam.</h1>
+          <p class="intro-copy">The mechanics stay. Everything around them is up for debate.</p>
+        </div>
+        <aside class="brief-note">
+          <p>A joyful party game, not a business app. One memorable source of delight. Quieter when people are writing or reading.</p>
+          <p>These are competing design sketches, not live multiplayer and not five themes to ship together.</p>
+          <a href="brief.json">Read the exploration brief</a>
+        </aside>
+      </section>
+      <section id="comparison" aria-labelledby="comparison-title">
+        <div class="section-heading"><h2 id="comparison-title">Same moment. Five different answers.</h2><p>Choose any view, component, transition or sensory element.</p></div>
+        <form id="comparison-controls" class="comparison-controls">
+          <label>Explore<select id="surface"><option value="view">Views and workflows</option><option value="component">Components and compositions</option><option value="motion">Motion and transitions</option><option value="sensory">Identity, avatars and sound</option></select></label>
+          <label class="wide-field">Surface<select id="surface-id"></select></label>
+          <label>Appearance<select id="mode"><option value="signature">Signature palette</option><option value="light">All light</option><option value="dark">All dark</option></select></label>
+          <label>State cue<input id="state" list="state-cues" placeholder="Default composition" /><datalist id="state-cues"></datalist></label>
+          <label class="checkbox"><input id="reduced" type="checkbox" /> Reduce motion</label>
+        </form>
+        <p id="surface-purpose" class="surface-purpose"></p>
+        <div id="comparison-grid" class="comparison-grid"></div>
+      </section>
+      <section id="workbench" class="workbench" aria-labelledby="workbench-title">
+        <div class="section-heading"><h2 id="workbench-title">Put your hands on it.</h2><p>Type a line, change a state, open a poem. Nothing leaves this browser.</p></div>
+        <div class="workbench-controls">
+          <label>Direction<select id="active-direction"></select></label>
+          <label>Canvas<select id="canvas"><option value="390">Phone · 390 px</option><option value="375">Narrow phone · 375 px</option><option value="1100">Desktop · 1100 px</option></select></label>
+          <a id="open-direction" class="button-link" target="_blank" rel="noopener">Open full exploration</a>
+          <button id="restart-sketch" type="button">Restart this sketch</button>
+        </div>
+        <div class="workbench-layout">
+          <div class="live-canvas"><iframe id="live-frame" title="Interactive design sketch" class="live-frame"></iframe></div>
+          <aside id="direction-notes" class="direction-notes"></aside>
+        </div>
+      </section>
+      <section id="inventory" aria-labelledby="inventory-title">
+        <div class="section-heading"><h2 id="inventory-title">Nothing quietly left out.</h2><p id="coverage-summary"></p></div>
+        <label class="search-field">Find a surface<input id="inventory-search" type="search" placeholder="Writing, avatar, recovery, print…" /></label>
+        <div class="table-scroll"><table class="inventory-table"><thead><tr id="inventory-columns"><th scope="col">Surface</th></tr></thead><tbody id="inventory-rows"></tbody></table></div>
+      </section>
+      <section id="audit" aria-labelledby="audit-title">
+        <div class="section-heading"><h2 id="audit-title">Change the hierarchy, not just the paint.</h2><p>Operator observations are accepted. Source findings name their evidence and the behavior to inspect.</p></div>
+        <div id="audit-findings" class="audit-findings"></div>
+        <h3>Workflow alternatives, with the mechanics intact</h3>
+        <div id="workflow-alternatives"></div>
+      </section>
+      <section class="reading-list" aria-labelledby="reading-title">
+        <h2 id="reading-title">Inspect the reasoning.</h2>
+        <p>Each direction has its own composition, components, motion, sensory policy and critique. The inventory ties every proposal back to the actual source owners.</p>
+        <div class="reading-links"><a href="inventory.json">Source inventory</a><a href="audit-source.json">Source audit</a><a href="brief.json">Five-direction brief</a></div>
+        <p id="verification-note" class="verification-note"></p>
+      </section>
+    </main>
+    <footer class="studio-footer"><p>Human words. Shared surprise. One complete poem at a time.</p><p>Local exploration only. No accounts, telemetry or external font requests.</p></footer>
+    <p id="load-error" class="load-error" role="alert" hidden></p>
+  </body>
+</html>

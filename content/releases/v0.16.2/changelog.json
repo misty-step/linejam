@@ -1,0 +1,15 @@
+{
+  "version": "0.16.2",
+  "date": "2026-07-09",
+  "changes": [
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "declare the Pages release runner",
+      "breaking": false,
+      "pr": 325,
+      "commit": "d1232b5"
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.1...v0.16.2"
+}
