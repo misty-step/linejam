@@ -62,7 +62,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         # v0.28.7 is published with Linux binaries + checksums. Its full-mode
         # prepare hook verifies already-merged artifacts; it never pushes master.
-        uses: misty-step/landmark@a38b2d6d87304eacf9669513f5a8c777751c061d # v0.28.7
+        uses: misty-step/landmark@ee0b84f88302ddeb93d2cef7a350192479ad0121 # v0.28.8
         with:
           mode: full
           node-version: '22'
@@ -85,7 +85,7 @@ jobs:
       - name: Open or update the release PR
         id: release-pr
         if: steps.prepare.outputs.version != ''
-        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ github.token }}
           branch: landmark/release
