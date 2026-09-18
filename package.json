@@ -118,7 +118,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.1",
     "agent-browser": "0.37.1",
     "ajv-formats": "3.0.1",
     "convex-test": "^0.0.54",
