@@ -82,10 +82,14 @@ updates:
         update-types:
           - 'version-update:semver-major'
           - 'version-update:semver-minor'
+      # convex-test 0.0.55+ imports CommitTsPlaceholder from convex/values and
+      # declares a convex ^1.43.0 peer; this repo stays on 1.42.3 until the
+      # coordinated convex upgrade ships as its own PR. Hold patch bumps too.
       - dependency-name: 'convex-test'
         update-types:
           - 'version-update:semver-major'
           - 'version-update:semver-minor'
+          - 'version-update:semver-patch'
 
       # ─── Auth: Clerk migrations need coordinated env + JWT changes ───
       - dependency-name: '@clerk/nextjs'

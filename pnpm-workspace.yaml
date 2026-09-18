@@ -9,6 +9,14 @@ ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
 
+# promptfoo's optional @openai/codex-security integration resolves
+# extract-zip@2.0.1, which carries two unfixed HIGH advisories
+# (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv). Linejam does not use that
+# integration (agentic QA grades via openai:gpt-4.1-mini), so skip it.
+# Revisit when extract-zip ships a patched release or promptfoo drops it.
+ignoredOptionalDependencies:
+  - '@openai/codex-security'
+
 overrides:
   '@clerk/shared@3': ^3.47.7
   '@clerk/shared@4': ^4.25.5
