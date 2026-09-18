@@ -69,7 +69,7 @@
         "maxRuntimeMinutes": 15,
         "checkinMarginMinutes": 60,
         "recoveryThreshold": 1,
-        "failureIssueThreshold": 2,
+        "failureIssueThreshold": 3,
         "environments": ["production"]
       }
     ],
