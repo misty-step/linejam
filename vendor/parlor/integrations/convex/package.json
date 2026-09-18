@@ -27,7 +27,7 @@
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",
     "convex-test": "0.0.56",
-    "vitest": "5.0.0"
+    "vitest": "4.1.11"
   },
   "peerDependencies": {
     "convex": "^1.42.3"
