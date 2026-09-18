@@ -121,7 +121,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "agent-browser": "0.37.1",
     "ajv-formats": "3.0.1",
-    "convex-test": "^0.0.58",
+    "convex-test": "^0.0.54",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "happy-dom": "^20.14.5",
