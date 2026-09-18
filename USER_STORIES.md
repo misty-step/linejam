@@ -12,6 +12,7 @@ on their phones without signing up, so we can write together even if
 Clerk is down.
 
 Criteria:
+
 1. WHEN a host creates a room, THE SYSTEM SHALL issue a join code and a
    guest session that survives refresh.
 2. WHEN a guest presents a valid guest token for an open room, THE SYSTEM
@@ -31,6 +32,7 @@ where I only see the line before mine, so the reveal is the first time
 anyone hears the whole poem.
 
 Criteria:
+
 1. WHEN a round is assigned, THE SYSTEM SHALL show a writer only the
    preceding line and the word count for that round.
 2. WHEN nine rounds complete, THE SYSTEM SHALL reveal each poem's nine
@@ -50,6 +52,7 @@ Statement: When a poem is done, I want saving it to stay private until I
 explicitly publish a link, so spectators cannot read unpublished text.
 
 Criteria:
+
 1. WHEN a player saves a poem, THE SYSTEM SHALL keep the text private to
    authorized viewers.
 2. WHEN a player publishes, THE SYSTEM SHALL issue a reversible public
