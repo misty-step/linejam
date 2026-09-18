@@ -17,6 +17,6 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "effect": "3.22.1"
+    "effect": "3.22.2"
   }
 }
