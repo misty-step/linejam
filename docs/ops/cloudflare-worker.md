@@ -23,6 +23,7 @@ The build must run with the deployment's environment values exported
 # staging (development-scoped backends)
 set -a; . ./.env.local; set +a
 export NEXT_PUBLIC_SENTRY_ENABLED=1 LINEJAM_SENTRY_ENABLED=true
+export NEXT_DEPLOYMENT_ID="$(git rev-parse HEAD)"
 pnpm build:cf
 pnpm deploy:cf:staging
 
@@ -39,6 +40,10 @@ pnpm build:cf
 pnpm deploy:cf:production
 ```
 
+Always deploy with the scripts above; they pass `--env`. A bare
+`wrangler deploy` would apply the routeless top-level config to the
+production-named Worker and detach its custom domains.
+
 ## Environment contract
 
 `NEXT_PUBLIC_*` values are inlined at build time and must also exist as
@@ -49,11 +54,12 @@ is bound at deploy time with
 `wrangler secret put <NAME> --env <staging|production>` from the approved
 store; it is never committed.
 
-Production secret names (mirror `config/digitalocean-apps.json`):
+Production secret names (what the runtime and build read; the App Platform
+mirror is `config/digitalocean-apps.json`):
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `GUEST_TOKEN_SECRET` (must equal the
 production Convex deployment value), `CLERK_SECRET_KEY`,
 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (stable 32-byte base64; reuse across
-deploys), `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_EVENT_WRITE_TOKEN`,
+deploys), `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_EVENT_WRITE_TOKEN`,
 `SENTRY_WEBHOOK_SECRET`, `SENTRY_AUTOMATION_PROVENANCE_SECRET`,
 `SENTRY_AGENT_LOOP_SECRET`.
 `NEXT_DEPLOYMENT_ID` is the source commit SHA and is set per deploy.
