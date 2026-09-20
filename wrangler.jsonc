@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "linejam",
+  "account_id": "b069014f6a46558ea9146fb6c4ff8f6c",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "send_metrics": false,
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "env": {
+    // Staging: workers.dev URL only. No routes, no custom domains.
+    // Backends are development-scoped (dev Convex deployment + Clerk dev
+    // instance + dev GUEST_TOKEN_SECRET), so staging proves the OpenNext
+    // runtime without touching production contracts.
+    // Build: pnpm build:cf     Deploy: pnpm deploy:cf:staging
+    "staging": {
+      "name": "linejam-staging",
+      "workers_dev": true,
+      "vars": {
+        "NEXT_PUBLIC_CONVEX_URL": "https://exuberant-bloodhound-885.convex.cloud",
+        "NEXT_PUBLIC_SENTRY_ENABLED": "1",
+        "SENTRY_ORG": "misty-step",
+        "SENTRY_PROJECT": "linejam",
+        "LINEJAM_DEPLOY_ENVIRONMENT": "development"
+      }
+      // Key values are never committed (gitleaks flags Clerk key material).
+      // NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and the server secrets
+      // (GUEST_TOKEN_SECRET, CLERK_SECRET_KEY) are bound at deploy with
+      // `wrangler secret put <NAME> --env staging` from the approved store.
+    },
+    // Production: Worker custom domains linejam.app, www.linejam.app,
+    // linejam.mistystep.io. Attachment order matters: linejam.mistystep.io
+    // lives in the active mistystep.io zone; linejam.app/www attach only
+    // after the linejam.app zone is active in Cloudflare (registrar NS
+    // delegation is an operator-owned decision; never flip it early).
+    // Deploy: pnpm deploy:cf:production (after secrets are bound)
+    "production": {
+      "name": "linejam",
+      "workers_dev": false,
+      "routes": [
+        { "pattern": "linejam.mistystep.io", "custom_domain": true },
+        { "pattern": "linejam.app", "custom_domain": true },
+        { "pattern": "www.linejam.app", "custom_domain": true }
+      ],
+      "vars": {
+        "NEXT_PUBLIC_CONVEX_URL": "https://amiable-bulldog-848.convex.cloud",
+        "NEXT_PUBLIC_SENTRY_ENABLED": "1",
+        "SENTRY_ORG": "misty-step",
+        "SENTRY_PROJECT": "linejam",
+        "LINEJAM_DEPLOY_ENVIRONMENT": "production"
+      }
+      // NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY (Clerk live key) and all server
+      // secrets are bound at deploy with `wrangler secret put <NAME>
+      // --env production` from the approved store; never committed.
+    }
+  }
+}
