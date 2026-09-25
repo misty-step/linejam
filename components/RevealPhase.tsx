@@ -13,6 +13,7 @@ import { toErrorReportable } from '../lib/errorCore';
 import { playSound } from '@/lib/audio';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
+import { StickyActionBar } from './ui/StickyActionBar';
 import { PoemDisplay } from './PoemDisplay';
 import { LoadingState } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
@@ -32,6 +33,39 @@ const READING_CIRCLE_STATUS_LABEL = {
   'reading-now': 'Reading now',
   'up-next': 'Up next',
 } as const satisfies Record<Exclude<ReadingCircleStatus, null>, string>;
+
+function PostRevealNextActions({
+  isStartingNextRound,
+  onStartNextRound,
+  onBackToLobby,
+}: {
+  isStartingNextRound: boolean;
+  onStartNextRound: () => void;
+  onBackToLobby: () => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Button
+        onClick={onStartNextRound}
+        data-sound="loading"
+        size="lg"
+        className="min-h-12"
+        disabled={isStartingNextRound}
+      >
+        {isStartingNextRound ? 'Starting...' : 'Start Next Round'}
+      </Button>
+      <Button
+        onClick={onBackToLobby}
+        data-sound="loading"
+        variant="outline"
+        size="lg"
+        className="min-h-12"
+      >
+        Back to Lobby
+      </Button>
+    </div>
+  );
+}
 
 type RevealState =
   FunctionReturnType<typeof api.game.getRevealPhaseState> | undefined;
@@ -98,6 +132,8 @@ export function RevealPhase({
   const readingNowRef = useRef<HTMLDivElement>(null);
   const previousReadingNowId = useRef<Id<'poems'> | null>(null);
   const lastShowingPoemId = useRef<Id<'poems'> | null>(null);
+  const scrollRootRef = useRef<HTMLDivElement>(null);
+  const nextActionsRef = useRef<HTMLDivElement>(null);
 
   const state = dependencies.useRevealState(
     isLoading || authError
@@ -269,10 +305,27 @@ export function RevealPhase({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-background font-sans">
       <div
+        ref={scrollRootRef}
         data-testid={E2E_TEST_IDS.revealPhase}
         className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
       >
         <main className="lj-safe-inline mx-auto w-full max-w-xl space-y-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] [--lj-safe-inline-space:1rem] sm:py-8">
+          {allRevealed && (
+            <section ref={nextActionsRef} className="space-y-4">
+              {error && <Alert variant="error">{error}</Alert>}
+              {state.canContinueRoom ? (
+                <PostRevealNextActions
+                  isStartingNextRound={isStartingNow}
+                  onStartNextRound={handleStartNow}
+                  onBackToLobby={handleStartNewCycle}
+                />
+              ) : (
+                <p className="text-sm text-text-secondary">
+                  Start a new room from home to play again.
+                </p>
+              )}
+            </section>
+          )}
           {!allRevealed && (
             <>
               <h1 className="text-2xl font-bold leading-snug text-text-primary">
@@ -455,19 +508,26 @@ export function RevealPhase({
               onReplayPoem={
                 state.canManageArtifacts ? undefined : setShowingPoemId
               }
-              error={error}
-              isStartingNextRound={isStartingNow}
-              onStartNextRound={
-                state.canContinueRoom ? handleStartNow : undefined
-              }
-              onBackToLobby={
-                state.canContinueRoom ? handleStartNewCycle : undefined
-              }
               dependencies={dependencies.sessionRecapDependencies}
             />
           )}
         </main>
       </div>
+      {allRevealed && state.canContinueRoom && (
+        <StickyActionBar
+          watchRef={nextActionsRef}
+          scrollRootRef={scrollRootRef}
+        >
+          <div className="space-y-3">
+            {error && <Alert variant="error">{error}</Alert>}
+            <PostRevealNextActions
+              isStartingNextRound={isStartingNow}
+              onStartNextRound={handleStartNow}
+              onBackToLobby={handleStartNewCycle}
+            />
+          </div>
+        </StickyActionBar>
+      )}
     </div>
   );
 }

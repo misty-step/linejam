@@ -97,10 +97,6 @@ interface SessionRecapHubProps {
   playerCount: number;
   canShare: boolean;
   onReplayPoem?: (poemId: Id<'poems'>) => void;
-  error?: string | null;
-  isStartingNextRound?: boolean;
-  onStartNextRound?: () => void;
-  onBackToLobby?: () => void;
   dependencies?: SessionRecapHubDependencies;
 }
 
@@ -113,10 +109,6 @@ export function SessionRecapHub({
   playerCount,
   canShare,
   onReplayPoem,
-  error,
-  isStartingNextRound = false,
-  onStartNextRound,
-  onBackToLobby,
   dependencies,
 }: SessionRecapHubProps) {
   const sortedPoems = [...poems].sort((a, b) => a.indexInRoom - b.indexInRoom);
@@ -228,8 +220,8 @@ export function SessionRecapHub({
         </p>
       </header>
 
-      {(error || shareError || revokeError) && (
-        <Alert variant="error">{error || revokeError || shareError}</Alert>
+      {(shareError || revokeError) && (
+        <Alert variant="error">{revokeError || shareError}</Alert>
       )}
 
       {favoritePoem && sessionFavorites && (
@@ -370,37 +362,6 @@ export function SessionRecapHub({
             </p>
           )}
         </div>
-      )}
-
-      {onStartNextRound || onBackToLobby ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {onStartNextRound && (
-            <Button
-              onClick={onStartNextRound}
-              data-sound="loading"
-              size="lg"
-              className="min-h-12"
-              disabled={isStartingNextRound}
-            >
-              {isStartingNextRound ? 'Starting...' : 'Play again'}
-            </Button>
-          )}
-          {onBackToLobby && (
-            <Button
-              onClick={onBackToLobby}
-              data-sound="loading"
-              variant="outline"
-              size="lg"
-              className="min-h-12"
-            >
-              Back to lobby
-            </Button>
-          )}
-        </div>
-      ) : (
-        <p className="text-sm text-text-secondary">
-          Start a new room from home to play again.
-        </p>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
