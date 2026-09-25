@@ -23,6 +23,7 @@ See [local development](docs/local-development.md) for prerequisites, QA and res
 
 - [Product brief and current direction](project.md)
 - [Identity and interactions](DESIGN.md)
+- [User stories](USER_STORIES.md) and [feature map](features/README.md)
 - [Architecture and Parlor evaluation](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md) and [testing](docs/testing.md)
 - [CLI/MCP and browser acceptance](docs/agent-faces.md)

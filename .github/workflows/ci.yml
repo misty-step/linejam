@@ -399,6 +399,119 @@ jobs:
             kill "$(cat "$LINEJAM_EVIDENCE_SERVER_PID")" || true
           fi
 
+  # The pinned checker is fetched outside the candidate checkout. Bun must not
+  # load a PR's bunfig.toml or environment file before it evaluates that source.
+  foundation:
+    name: foundation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      HARNESS_SHA: "6286d1039976485a36a8a0d649c487cfee886939"
+      BUN_URL: https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64-baseline.zip
+      BUN_SHA256: c678040f14fe0440eb839d37cbd0ce4c051a32da72806ac97de6a6aab6bf728f
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch pinned foundation checker and Bun
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/foundation"
+          mkdir -p "$root/checker" "$root/runtime"
+          git init --quiet --initial-branch=checker "$root/checker"
+          git -C "$root/checker" fetch --quiet --no-tags --depth=1 https://github.com/misty-step/harness.git "$HARNESS_SHA"
+          git -C "$root/checker" checkout --quiet --detach "$HARNESS_SHA"
+          test "$(git -C "$root/checker" rev-parse HEAD)" = "$HARNESS_SHA"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            --retry 3 --output "$root/runtime/bun.zip" "$BUN_URL"
+          printf '%s  %s\n' "$BUN_SHA256" "$root/runtime/bun.zip" | sha256sum --check --strict
+          unzip -q "$root/runtime/bun.zip" -d "$root/runtime"
+      - name: Check repository foundations
+        working-directory: ${{ runner.temp }}/foundation
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          bun="$RUNNER_TEMP/foundation/runtime/bun-linux-x64-baseline/bun"
+          checker="$RUNNER_TEMP/foundation/checker/agent-config/bin/foundation-check.ts"
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            [[ "$PR_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$PR_BASE_SHA" =~ ^0+$ ]]
+            git -C "$GITHUB_WORKSPACE" cat-file -e "${PR_BASE_SHA}^{commit}"
+            "$bun" --no-env-file --no-install "$checker" check --repo "$GITHUB_WORKSPACE" --base "$PR_BASE_SHA"
+          else
+            "$bun" --no-env-file --no-install "$checker" check --repo "$GITHUB_WORKSPACE"
+          fi
+
+  # The runner owns and tears down a fresh credential-free local stack.
+  # It reports only walked stories; unchanged stories are not claimed as pass.
+  story-walk:
+    name: story-walk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      HARNESS_SHA: "6286d1039976485a36a8a0d649c487cfee886939"
+      BUN_URL: https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64-baseline.zip
+      BUN_SHA256: c678040f14fe0440eb839d37cbd0ce4c051a32da72806ac97de6a6aab6bf728f
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install supported Docker Compose and verify workspace prerequisites
+        run: bash .exe/setup.sh
+      - name: Fetch pinned foundation checker and Bun
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/foundation"
+          mkdir -p "$root/checker" "$root/runtime"
+          git init --quiet --initial-branch=checker "$root/checker"
+          git -C "$root/checker" fetch --quiet --no-tags --depth=1 https://github.com/misty-step/harness.git "$HARNESS_SHA"
+          git -C "$root/checker" checkout --quiet --detach "$HARNESS_SHA"
+          test "$(git -C "$root/checker" rev-parse HEAD)" = "$HARNESS_SHA"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+            --retry 3 --output "$root/runtime/bun.zip" "$BUN_URL"
+          printf '%s  %s\n' "$BUN_SHA256" "$root/runtime/bun.zip" | sha256sum --check --strict
+          unzip -q "$root/runtime/bun.zip" -d "$root/runtime"
+      - name: Walk affected stories
+        id: walk
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          bun="$RUNNER_TEMP/foundation/runtime/bun-linux-x64-baseline/bun"
+          checker="$RUNNER_TEMP/foundation/checker/agent-config/bin/foundation-check.ts"
+          foundation() { (cd "$RUNNER_TEMP/foundation" && "$bun" --no-env-file --no-install "$checker" "$@" --repo "$GITHUB_WORKSPACE"); }
+          case "$GITHUB_EVENT_NAME" in
+            pull_request) base="$EVENT_BASE_SHA" ;;
+            push)
+              base="$EVENT_BASE_SHA"
+              if [[ "$base" =~ ^0+$ ]]; then base="$(git rev-parse HEAD^)"; fi
+              ;;
+            workflow_dispatch) base="$(git merge-base HEAD origin/master)" ;;
+            *) echo "Unsupported CI event: $GITHUB_EVENT_NAME" >&2; exit 1 ;;
+          esac
+          [[ "$base" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$base" =~ ^0+$ ]]
+          git cat-file -e "${base}^{commit}"
+          affected="$(foundation affected --base "$base")"
+          WALK_BASE="$base" qa/walk --stories "$affected"
+          foundation receipt target/walk/walk-receipt.json --base "$base"
+      - name: Upload sanitized story-walk evidence
+        if: always() && steps.walk.outcome != 'skipped'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: linejam-story-walk-${{ github.sha }}-${{ github.run_id }}
+          path: target/walk/
+          if-no-files-found: warn
+          retention-days: 14
+
   # Rollup job — branch protection requires this exact name to merge.
   # Job name must match exactly. Workflow name: is a display label only.
   merge-gate:

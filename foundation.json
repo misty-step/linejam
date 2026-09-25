@@ -1,0 +1,124 @@
+{
+  "schema": "foundation-adoption/1",
+  "standard": {
+    "id": "misty-step.foundation",
+    "version": "1.1.0",
+    "catalog_sha256": "483f8779e56c969f44316bb29ec5ec698b8b89140b3ca7510c4b30e049815e86",
+    "revision": "6286d1039976485a36a8a0d649c487cfee886939",
+    "source": "https://github.com/misty-step/harness/blob/6286d1039976485a36a8a0d649c487cfee886939/agent-config/skills/foundation/foundation-standard-v1.json"
+  },
+  "capabilities": [
+    "Account-free guest room creation, admission, and identity continuity over Next.js, Convex, and Parlor",
+    "Nine-round human-written poems, scoped preceding-line visibility, reconnect, and complete reveal",
+    "Private poem archive with explicit public-by-link publication and revocation"
+  ],
+  "dispositions": {
+    "FND-CHG-001": {
+      "status": "pending",
+      "missing": "No retained exact-source browser walk of all three guest, poem, and private-sharing outcomes yet",
+      "owner": "Linejam maintainer",
+      "next": "Retain the story-walk CI receipt and nightly full walk against merged source"
+    },
+    "FND-CHG-002": {
+      "status": "pending",
+      "missing": "Failure/recovery observations across Clerk outage, reconnect, and private-link revocation are not retained as one source-bound exercise",
+      "owner": "Linejam maintainer",
+      "next": "Walk guest play without Clerk, reconnect during writing, and unauthorized access before and after publication"
+    },
+    "FND-TRN-001": {
+      "status": "pending",
+      "missing": "No retained transition proof tying exact Next.js/Convex/Parlor source to an authorized deployed artifact and rollback",
+      "owner": "Linejam release owner",
+      "next": "Record target identity, migration sequencing, release receipt and rollback in an authorized release drill"
+    },
+    "FND-OBS-001": {
+      "status": "pending",
+      "missing": "No retrieved complete structured diagnostics proof across guest, game, sharing, and provider failures",
+      "owner": "Linejam operations",
+      "next": "Verify bounded error event fields, safe correlation, exact-release stack resolution, and query retrieval"
+    },
+    "FND-ACT-001": {
+      "status": "pending",
+      "missing": "No reviewed durable authoritative versioned event contract for room-to-reveal success, rejection, abandonment and recovery",
+      "owner": "Linejam product owner",
+      "next": "Specify semantic owners and deduplication in the existing Convex store, then verify emitted journeys"
+    },
+    "FND-DAT-001": {
+      "status": "pending",
+      "missing": "No independent producer-to-sink proof of private-content exclusion, bounded retention, and sink-failure isolation",
+      "owner": "Linejam privacy owner",
+      "next": "Audit Sentry/PostHog payload allowlists, deletion and volume bounds, then exercise a sink outage"
+    },
+    "FND-PRF-001": {
+      "status": "pending",
+      "missing": "No retained retrieved runtime canaries proving source attribution, diagnostic usefulness, and no credential or poem-text leakage",
+      "owner": "Linejam operations",
+      "next": "Retrieve sanitized success and controlled-failure records from intended sinks and inspect release attribution"
+    },
+    "FND-USE-001": {
+      "status": "pending",
+      "missing": "No response drill tying each material failure and product decision to owned query, alert and recovery action",
+      "owner": "Linejam operations",
+      "next": "Name actionable operations and product queries, then run and retain a controlled failure-response drill"
+    },
+    "FND-DOC-001": {
+      "status": "pending",
+      "missing": "The root documents and ADRs exist but docs/postmortems/ lacks an incident-learning README or template",
+      "owner": "Linejam maintainer",
+      "next": "Add and review a project-owned postmortem template and remove doc:postmortems from the baseline"
+    },
+    "FND-MAP-001": {
+      "status": "pending",
+      "missing": "The reviewed feature map awaits a retained exact-source checker result on master",
+      "owner": "Linejam maintainer",
+      "next": "Retain foundation-check check and affected results on the adoption PR and merge commit"
+    },
+    "FND-WLK-001": {
+      "status": "pending",
+      "missing": "No required same-job CI receipt for each affected story and numbered criterion on master yet",
+      "owner": "Linejam maintainer",
+      "next": "Run source-bound isolated qa/walk in PR CI and nightly, validate digests with the pinned checker"
+    },
+    "FND-WS-001": {
+      "status": "pending",
+      "missing": "Credential-free Compose bootstrap and isolated browser walk have not been exercised on exact merged source",
+      "owner": "Linejam maintainer",
+      "next": "Retain CI setup and walk results proving a fresh local Next.js/Convex stack boots"
+    },
+    "FND-DEF-SENTRY-001": {
+      "status": "pending",
+      "missing": "Sentry is configured but complete error-capture, release and source-map contract lacks retrieved runtime proof",
+      "owner": "Linejam operations",
+      "next": "Exercise a controlled error and retrieve its sanitized release-attributed record from Sentry"
+    },
+    "FND-DEF-ACTIVITY-001": {
+      "status": "pending",
+      "missing": "Existing Convex state and product analytics do not establish an owned durable first-party event contract",
+      "owner": "Linejam product owner",
+      "next": "Design minimal versioned Convex journey events with privacy, deduplication and retrieval owners"
+    }
+  },
+  "mode": "bootstrap",
+  "baseline": [
+    {
+      "gap": "doc:postmortems",
+      "owner": "phaedrus",
+      "expires": "2026-10-25"
+    },
+    {
+      "gap": "walk:US-001",
+      "owner": "phaedrus",
+      "expires": "2026-10-25"
+    },
+    {
+      "gap": "walk:US-002",
+      "owner": "phaedrus",
+      "expires": "2026-10-25"
+    },
+    {
+      "gap": "walk:US-003",
+      "owner": "phaedrus",
+      "expires": "2026-10-25"
+    }
+  ]
+}

@@ -23,6 +23,7 @@ historical issues are context, not an automatic queue.
 | Assignment rules                              | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`         |
 | Tests and QA                                  | `docs/testing.md`, `vitest.config.ts`, Playwright configs           |
 | Isolated runtime and multiplayer verification | `docs/local-development.md`, `.agents/skills/play-linejam/SKILL.md` |
+| Foundation checks and story walks             | `.agents/skills/verify-linejam/SKILL.md`, `features/`               |
 | CI and live-operation authority               | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`         |
 | Production operations                         | `docs/deployment.md`                                                |
 | Data retention                                | `docs/ops/data-retention.md`, `convex/lib/retentionPolicy.ts`       |

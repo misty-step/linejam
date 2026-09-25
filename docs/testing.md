@@ -54,6 +54,24 @@ directory measures the same repository source surface as a normal checkout.
 The machine-readable receipt is `coverage/coverage-summary.json`; the explicit
 post-test guard rejects Vitest's otherwise threshold-safe `0/0 Unknown%` state.
 
+## Foundation story-walk cadence
+
+`foundation.json` records the versioned obligation dispositions and any
+time-limited bootstrap gaps. The [feature map](../features/README.md) connects
+live stories to owned source areas; the repository's
+[verify skill](../.agents/skills/verify-linejam/SKILL.md) owns how to run and
+inspect a source-bound walk on an isolated Linux runner.
+
+PR CI runs `foundation-check check --base` in shrink-only ratchet mode, selects
+stories with `affected --base`, then validates the same-job `qa/walk` receipt
+with `receipt --base`. The nightly workflow walks **all** live stories and uses
+`receipt --all`; it retains sanitized evidence for 30 days and opens or updates
+one owned issue on failure. A passing receipt is not proof of hosted Clerk,
+production rollout, provider health, or physical-phone acceptance. The
+existing `merge-gate` and its auth/E2E lanes are unchanged. A new baseline gap
+or later expiry after adoption needs a separately approved extension record,
+not an edit to the current bootstrap baseline.
+
 ## Match evidence to the change
 
 | Change                              | Minimum acceptance                                                                                                             |
