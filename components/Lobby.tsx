@@ -5,7 +5,6 @@ import { useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
 import type { Doc } from '../convex/_generated/dataModel';
-import { useUser } from '../lib/auth';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { errorToFeedback } from '../lib/errorFeedback';
 import { toErrorReportable } from '../lib/errorCore';
@@ -35,7 +34,6 @@ function useDefaultStartGame(): StartGame {
 }
 
 export interface LobbyDependencies {
-  useUser: typeof useUser;
   useStartGame: () => StartGame;
   hashRoomId: typeof hashRoomId;
   trackGameStarted: typeof trackGameStarted;
@@ -43,7 +41,6 @@ export interface LobbyDependencies {
 }
 
 const defaultDependencies: LobbyDependencies = {
-  useUser,
   useStartGame: useDefaultStartGame,
   hashRoomId,
   trackGameStarted,
@@ -54,6 +51,7 @@ interface LobbyProps {
   room: Doc<'rooms'>;
   players: LobbyPlayer[];
   isHost: boolean;
+  guestToken: string | null;
   dependencies?: LobbyDependencies;
 }
 
@@ -62,9 +60,9 @@ export function Lobby({
   room,
   players,
   isHost,
+  guestToken,
   dependencies = defaultDependencies,
 }: LobbyProps) {
-  const { guestToken } = dependencies.useUser();
   const startGameMutation = dependencies.useStartGame();
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
