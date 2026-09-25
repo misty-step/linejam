@@ -55,6 +55,7 @@ next-env.d.ts
 /playwright/.cache/
 .qa/
 .evidence/
+/target/walk/
 .worktrees
 .pi/*
 !.pi/skills
