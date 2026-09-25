@@ -248,6 +248,46 @@ rm /tmp/linejam-app.yaml
 
 Read the resulting deployment phase and health route before continuing.
 
+### Clerk owner operations and email verification
+
+The workspace-owner Clerk CLI login manages applications without one platform
+key per app. Use `npx clerk@latest apps list` to identify Linejam's application,
+then read its production domain status with:
+
+```bash
+npx clerk@latest api \
+  "/platform/applications/<Linejam application ID>/domains/linejam.app/status" \
+  --platform
+```
+
+Require `dns.status`, `ssl.status`, `mail.status`, and overall `status` to be
+`complete`. The required CNAME checks include `accounts.linejam.app`,
+`clkmail.linejam.app`, `clk._domainkey.linejam.app`, and
+`clk2._domainkey.linejam.app` as well as the existing `clerk.linejam.app`.
+Compare each target to the production instance's current requirements; do not
+guess records or confuse frontend DNS with email authentication. Before treating
+sign-in email as healthy, send a real code to an authorized, controlled mailbox
+and confirm receipt and a successful production sign-in. The authenticated
+Playwright smoke uses Clerk testing tokens, so its success does not prove email
+delivery.
+
+The production runtime secret is held at
+`workstation/LINEJAM_PRODUCTION_CLERK_SECRET_KEY`; `.env.pass` names only this
+entry for scoped local commands (`pass-env run -f .env.pass -- <command>`). The
+CLI owner session is not the app's runtime secret. Never print, rotate, or copy
+that secret into the repository or a command argument.
+
+Clerk still requires its Dashboard for analytics and usage, application and
+email logs, workspace members/plan/billing, Account Portal branding, Clerk
+Protect settings, and custom OAuth provider credentials. For a missing sign-in
+email, select the Linejam production instance and open
+[Email Logs](https://dashboard.clerk.com/~/email-logs): filter by recipient and
+the attempt time, inspect delivery status/provider reason, and check earlier
+`bounce`, `spam_report`, or suppression-related `dropped` events for that address.
+Do not remove a suppression or resend until its cause is understood. The CLI can
+inspect and change supported application configuration and call Backend/Platform
+APIs; do not describe the Dashboard-only operations as automated.
+
 ### Rolling-deploy skew protection
 
 App Platform can briefly serve a browser bundle from one release against a
