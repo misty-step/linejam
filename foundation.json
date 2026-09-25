@@ -14,10 +14,8 @@
   ],
   "dispositions": {
     "FND-CHG-001": {
-      "status": "pending",
-      "missing": "No retained exact-source browser walk of all three guest, poem, and private-sharing outcomes yet",
-      "owner": "Linejam maintainer",
-      "next": "Retain the story-walk CI receipt and nightly full walk against merged source"
+      "status": "satisfied",
+      "receipt": "Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36194143444 (full isolated browser walk passed US-001 through US-003 and all nine criteria; source/tree-bound receipt, distinct guest contexts, and runner cleanup)"
     },
     "FND-CHG-002": {
       "status": "pending",
@@ -68,22 +66,18 @@
       "next": "Add and review a project-owned postmortem template and remove doc:postmortems from the baseline"
     },
     "FND-MAP-001": {
-      "status": "pending",
-      "missing": "The reviewed feature map awaits a retained exact-source checker result on master",
-      "owner": "Linejam maintainer",
-      "next": "Retain foundation-check check and affected results on the adoption PR and merge commit"
+      "status": "satisfied",
+      "receipt": "Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36193488123 (foundation passed; features/README.md maps all three live stories to tracked source globs)"
     },
     "FND-WLK-001": {
-      "status": "pending",
-      "missing": "No required same-job CI receipt for each affected story and numbered criterion on master yet",
-      "owner": "Linejam maintainer",
-      "next": "Run source-bound isolated qa/walk in PR CI and nightly, validate digests with the pinned checker"
+      "status": "satisfied",
+      "receipt": "Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36193488123 (story-walk passed; same-job receipt and retained digested artifact linejam-story-walk-27cd6a82efaa400c43716a03f9f085d6c9c7688f-36193488123 cover US-001 through US-003, all nine criteria)"
     },
     "FND-WS-001": {
       "status": "pending",
-      "missing": "Credential-free Compose bootstrap and isolated browser walk have not been exercised on exact merged source",
+      "missing": "Hosted CI proved credential-free Compose setup and an isolated browser walk on merged source, but repeated setup on a fresh owned workspace has not been observed",
       "owner": "Linejam maintainer",
-      "next": "Retain CI setup and walk results proving a fresh local Next.js/Convex stack boots"
+      "next": "Run .exe/setup.sh twice on an authorized fresh workspace and retain toolchain and credential-free bootstrap evidence"
     },
     "FND-DEF-SENTRY-001": {
       "status": "pending",
