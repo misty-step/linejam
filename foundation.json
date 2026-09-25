@@ -104,21 +104,6 @@
       "gap": "doc:postmortems",
       "owner": "phaedrus",
       "expires": "2026-10-25"
-    },
-    {
-      "gap": "walk:US-001",
-      "owner": "phaedrus",
-      "expires": "2026-10-25"
-    },
-    {
-      "gap": "walk:US-002",
-      "owner": "phaedrus",
-      "expires": "2026-10-25"
-    },
-    {
-      "gap": "walk:US-003",
-      "owner": "phaedrus",
-      "expires": "2026-10-25"
     }
   ]
 }

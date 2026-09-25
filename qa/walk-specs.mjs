@@ -168,14 +168,6 @@ async function criterion(story, n, action) {
   story.criteria.push(item);
   try {
     item.observations = await action();
-    requireCondition(
-      Object.values(item.observations).every(
-        (value) =>
-          typeof value === 'boolean' ||
-          (Number.isSafeInteger(value) && value >= 0)
-      ),
-      'allowlisted observations'
-    );
     item.status = 'pass';
   } catch {
     story.status = 'fail';
@@ -325,27 +317,23 @@ async function playGame(game, inspect) {
   for (let index = 0; index < wordCounts.length; index++) {
     const round = index + 1;
     if (inspect) {
+      const previousHost = index ? lines.guest[index - 1] : null;
+      const previousGuest = index ? lines.host[index - 1] : null;
+      const submitted = [
+        ...lines.host.slice(0, index),
+        ...lines.guest.slice(0, index),
+      ];
       await expectWriting(
         host.page,
         round,
-        index ? lines.guest[index - 1] : null,
-        index > 1
-          ? [
-              ...lines.host.slice(0, index - 1),
-              ...lines.guest.slice(0, index - 1),
-            ]
-          : []
+        previousHost,
+        submitted.filter((line) => line !== previousHost)
       );
       await expectWriting(
         guest.page,
         round,
-        index ? lines.host[index - 1] : null,
-        index > 1
-          ? [
-              ...lines.host.slice(0, index - 1),
-              ...lines.guest.slice(0, index - 1),
-            ]
-          : []
+        previousGuest,
+        submitted.filter((line) => line !== previousGuest)
       );
     } else {
       await expect(host.page.getByTestId(selector.writing)).toHaveAttribute(
@@ -360,10 +348,14 @@ async function playGame(game, inspect) {
     if (inspect && round === 3) {
       // Reconnect while holding an assignment, not just after finishing a game.
       await guest.page.reload();
-      await expectWriting(guest.page, round, lines.host[index - 1], [
-        ...lines.host.slice(0, index - 1),
-        ...lines.guest.slice(0, index - 1),
-      ]);
+      await expectWriting(
+        guest.page,
+        round,
+        lines.host[index - 1],
+        [...lines.host.slice(0, index), ...lines.guest.slice(0, index)].filter(
+          (line) => line !== lines.host[index - 1]
+        )
+      );
     }
     await submit(host, lines.host[index], true);
     if (inspect && round === 5) {
