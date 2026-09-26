@@ -6,7 +6,19 @@
     <description>What&apos;s new in Linejam.</description>
     <language>en-us</language>
     <atom:link href="https://linejam.app/releases.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sat, 01 Aug 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 26 Sep 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Linejam v0.27.1</title>
+      <link>https://linejam.app/releases#v0.27.1</link>
+      <guid isPermaLink="false">v0.27.1</guid>
+      <pubDate>Sat, 26 Sep 2026 00:00:00 GMT</pubDate>
+      <description>New Features
+Linejam now keeps your poems and rooms safe with stronger security monitoring behind the scenes.
+The game no longer includes machine-generated writing, so every line comes from a real person in the room.
+Improvements
+Joining a full, missing, or closed room now fails quietly without triggering error alerts.
+Hosts and players should see more reliable room creation and joining after updates to the game&apos;s underlying services.</description>
+    </item>
     <item>
       <title>Linejam v0.27.0</title>
       <link>https://linejam.app/releases#v0.27.0</link>

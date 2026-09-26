@@ -82,9 +82,94 @@
             What changed in Linejam. You can also read the
             <a href="https://www.linejam.app/releases">latest releases in the app</a>.
           </p>
-          <p>Current application version: <strong>v0.27.0</strong>.</p>
+          <p>Current application version: <strong>v0.27.1</strong>.</p>
           <p>Release history is ordered by date. Older version numbers are preserved, not treated as the current version.</p>
 
+
+          <section class="msk-release" id="v0.27.1">
+            <p class="lj-kicker">2026-09-26 - v0.27.1</p>
+            <h2>Version 0.27.1</h2>
+            <ul>
+              <li>New Features
+Linejam now keeps your poems and rooms safe with stronger security monitoring behind the scenes.
+The game no longer includes machine-generated writing, so every line comes from a real person in the room.
+Improvements
+Joining a full, missing, or closed room now fails quietly without triggering error alerts.
+Hosts and players should see more reliable room creation and joining after updates to the game&#39;s underlying services.</li>
+            </ul>
+            <p>Release notes by Landmark.</p>
+            <details>
+              <summary>Technical history (60 changes)</summary>
+              <ul>
+                <li>replace Canary with Sentry (d8570f5)</li>
+                <li>Revert &quot;feat: replace Canary with Sentry &quot; (9a5e965)</li>
+                <li>remediate security audit advisories (b4fa4ae)</li>
+                <li>replace Canary with Sentry (0a562cb)</li>
+                <li>(game) remove machine authorship (3c2655c)</li>
+                <li>(migrations) preserve retained room hosts (d864dc8)</li>
+                <li>install anti-slop Oxlint plugin (1583cf5)</li>
+                <li>(sentry) add bounded autonomous incident response loop (0fd1a7b)</li>
+                <li>(ci) restore production Clerk smoke credentials (b70f202)</li>
+                <li>(observability) migrate legacy Sentry receipts (3cccdbc)</li>
+                <li>(observability) close receipt migration path (c7b2df4)</li>
+                <li>(ops) reconcile Linejam production app registry (bf6bd04)</li>
+                <li>(observability) retry missing agent evidence (22bb393)</li>
+                <li>(observability) provision Node in incident VMs (5b3bb6c)</li>
+                <li>(observability) accept existing native issue link (ece72f9)</li>
+                <li>(observability) accept bounded reasoning request (69f9088)</li>
+                <li>(observability) record evidence collection failures (8512958)</li>
+                <li>(observability) replay exhausted agent receipts (1ccbb75)</li>
+                <li>(observability) route agent through available model (aa2abc4)</li>
+                <li>(observability) scope retry markers to claims (023d7bd)</li>
+                <li>(observability) project model reasoning history (b6cbcdf)</li>
+                <li>(observability) budget agent turns explicitly (b409015)</li>
+                <li>(observability) collect staged agent patches (1682091)</li>
+                <li>(observability) retire Sentry GitHub control plane (c0842d7)</li>
+                <li>(qa) add autonomous browser-play skill (c8332af)</li>
+                <li>(build) allow dependabot builds without secret-backed env vars (39aad0b)</li>
+                <li>(observability) suppress expected Convex rejections from Sentry capture (40aef12)</li>
+                <li>(observability) widen production smoke check-in margin (0143e31)</li>
+                <li>(observability) guard cron monitors against stale environments (4e8022c)</li>
+                <li>(deps) bump the prod-minor-and-patch group across 1 directory with 7 updates (d02055e)</li>
+                <li>(deps) bump the gha-all group across 1 directory with 2 updates (e7f68ab)</li>
+                <li>(observability) label scrubbed exception messages with closed vocabulary (d07575e)</li>
+                <li>(qa) add scheduled production agent-play runner (2159922)</li>
+                <li>(design) collapse selectable themes into one identity (f05a062)</li>
+                <li>(repo) prune dead design explorations and retired doc stubs (7f1b0ad)</li>
+                <li>(agents) use current requests for work selection (ce34268)</li>
+                <li>Slim Linejam agent guidance and restore Parlor import (27c1aa0)</li>
+                <li>renew Linejam design and isolated multiplayer development</li>
+                <li>polish party flow and unify release ownership (fb51761)</li>
+                <li>(qa) bound rollout failure diagnostics (3919b88)</li>
+                <li>(parlor) compose native rooms and retained archives (MIS-52)</li>
+                <li>(qa) connect gameplay verification to local runtime (a056d1f)</li>
+                <li>(game) reuse session and read paths with Cuelume cues (MIS-52) (59f3709)</li>
+                <li>(deps-dev) bump @browserbasehq/stagehand from 3.7.0 to 4.1.0 (13b8b4e)</li>
+                <li>(deps-dev) bump vitest from 4.1.10 to 4.1.11 (77c7b37)</li>
+                <li>(deps-dev) bump @testing-library/jest-dom from 6.9.1 to 7.0.1 (074d9eb)</li>
+                <li>(deps) bump the prod-minor-and-patch group across 1 directory with 11 updates (da80daa)</li>
+                <li>(observability) tolerate dropped GitHub cron slots in smoke monitor (ba61e1d)</li>
+                <li>(deps) bump the gha-all group across 1 directory with 3 updates (50bc87c)</li>
+                <li>add USER_STORIES.md (811a7e1)</li>
+                <li>(deps-dev) bump the dev-minor-and-patch group across 1 directory with 18 updates (0f8b830)</li>
+                <li>(deps) bump the prod-minor-and-patch group with 2 updates (fd44a21)</li>
+                <li>(infra) add Cloudflare Workers OpenNext deployment target (MIS cutover t_a4c8cfca) (69af990)</li>
+                <li>(deps) bump trufflesecurity/trufflehog in the gha-all group (2b57874)</li>
+                <li>(deps-dev) bump the dev-minor-and-patch group across 1 directory with 3 updates (179091d)</li>
+                <li>(deps) bump the prod-minor-and-patch group across 1 directory with 4 updates (7698a16)</li>
+                <li>(auth) record Clerk owner checks and pass reference (95c7aa6)</li>
+                <li>(foundation) adopt ratcheted story walks (MIS-150) (27cd6a8)</li>
+                <li>(foundation) record merged walk evidence (MIS-150) (f100df7)</li>
+                <li>(foundation) close postmortem baseline gap (MIS-150) (66d448d)</li>
+              </ul>
+            </details>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #412, PR #414, PR #415, PR #420, PR #422, PR #430, PR #431, PR #437, PR #438, PR #439, PR #440, PR #442, PR #443, PR #444, PR #445, PR #446, PR #447, PR #448, PR #449, PR #450, PR #451, PR #452, PR #454, PR #427, PR #459, PR #453, PR #456, PR #457, PR #387, PR #391, PR #455, PR #463, PR #476, PR #483, PR #484, PR #489, commit 1f20a79, PR #491, PR #495, commit 1ce4198, PR #497, PR #498, PR #504, PR #499, PR #472, PR #505, PR #474, PR #500, PR #507, PR #506, PR #508, PR #511, PR #512, PR #515, PR #513, PR #516, PR #517, PR #518, PR #519.</span>
+            </p>
+          </section>
 
           <section class="msk-release" id="v0.27.0">
             <p class="lj-kicker">2026-08-01 - v0.27.0</p>

@@ -1,0 +1,418 @@
+{
+  "version": "0.27.1",
+  "date": "2026-09-26",
+  "changes": [
+    {
+      "type": "feat",
+      "description": "replace Canary with Sentry (d8570f5)",
+      "breaking": false,
+      "pr": 412
+    },
+    {
+      "type": "chore",
+      "description": "Revert \"feat: replace Canary with Sentry \" (9a5e965)",
+      "breaking": false,
+      "pr": 412
+    },
+    {
+      "type": "fix",
+      "description": "remediate security audit advisories (b4fa4ae)",
+      "breaking": false,
+      "pr": 414
+    },
+    {
+      "type": "feat",
+      "description": "replace Canary with Sentry (0a562cb)",
+      "breaking": false,
+      "pr": 415
+    },
+    {
+      "type": "feat",
+      "scope": "game",
+      "description": "remove machine authorship (3c2655c)",
+      "breaking": false,
+      "pr": 420
+    },
+    {
+      "type": "fix",
+      "scope": "migrations",
+      "description": "preserve retained room hosts (d864dc8)",
+      "breaking": false,
+      "pr": 422
+    },
+    {
+      "type": "chore",
+      "description": "install anti-slop Oxlint plugin (1583cf5)",
+      "breaking": false,
+      "pr": 430
+    },
+    {
+      "type": "feat",
+      "scope": "sentry",
+      "description": "add bounded autonomous incident response loop (0fd1a7b)",
+      "breaking": false,
+      "pr": 431
+    },
+    {
+      "type": "fix",
+      "scope": "ci",
+      "description": "restore production Clerk smoke credentials (b70f202)",
+      "breaking": false,
+      "pr": 437
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "migrate legacy Sentry receipts (3cccdbc)",
+      "breaking": false,
+      "pr": 438
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "close receipt migration path (c7b2df4)",
+      "breaking": false,
+      "pr": 439
+    },
+    {
+      "type": "fix",
+      "scope": "ops",
+      "description": "reconcile Linejam production app registry (bf6bd04)",
+      "breaking": false,
+      "pr": 440
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "retry missing agent evidence (22bb393)",
+      "breaking": false,
+      "pr": 442
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "provision Node in incident VMs (5b3bb6c)",
+      "breaking": false,
+      "pr": 443
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "accept existing native issue link (ece72f9)",
+      "breaking": false,
+      "pr": 444
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "accept bounded reasoning request (69f9088)",
+      "breaking": false,
+      "pr": 445
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "record evidence collection failures (8512958)",
+      "breaking": false,
+      "pr": 446
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "replay exhausted agent receipts (1ccbb75)",
+      "breaking": false,
+      "pr": 447
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "route agent through available model (aa2abc4)",
+      "breaking": false,
+      "pr": 448
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "scope retry markers to claims (023d7bd)",
+      "breaking": false,
+      "pr": 449
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "project model reasoning history (b6cbcdf)",
+      "breaking": false,
+      "pr": 450
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "budget agent turns explicitly (b409015)",
+      "breaking": false,
+      "pr": 451
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "collect staged agent patches (1682091)",
+      "breaking": false,
+      "pr": 452
+    },
+    {
+      "type": "chore",
+      "scope": "observability",
+      "description": "retire Sentry GitHub control plane (c0842d7)",
+      "breaking": false,
+      "pr": 454
+    },
+    {
+      "type": "test",
+      "scope": "qa",
+      "description": "add autonomous browser-play skill (c8332af)",
+      "breaking": false,
+      "pr": 427
+    },
+    {
+      "type": "fix",
+      "scope": "build",
+      "description": "allow dependabot builds without secret-backed env vars (39aad0b)",
+      "breaking": false,
+      "pr": 459
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "suppress expected Convex rejections from Sentry capture (40aef12)",
+      "breaking": false,
+      "pr": 453
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "widen production smoke check-in margin (0143e31)",
+      "breaking": false,
+      "pr": 456
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "guard cron monitors against stale environments (4e8022c)",
+      "breaking": false,
+      "pr": 457
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "description": "bump the prod-minor-and-patch group across 1 directory with 7 updates (d02055e)",
+      "breaking": false,
+      "pr": 387
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "description": "bump the gha-all group across 1 directory with 2 updates (e7f68ab)",
+      "breaking": false,
+      "pr": 391
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "label scrubbed exception messages with closed vocabulary (d07575e)",
+      "breaking": false,
+      "pr": 455
+    },
+    {
+      "type": "feat",
+      "scope": "qa",
+      "description": "add scheduled production agent-play runner (2159922)",
+      "breaking": false,
+      "pr": 463
+    },
+    {
+      "type": "feat",
+      "scope": "design",
+      "description": "collapse selectable themes into one identity (f05a062)",
+      "breaking": false,
+      "pr": 476
+    },
+    {
+      "type": "chore",
+      "scope": "repo",
+      "description": "prune dead design explorations and retired doc stubs (7f1b0ad)",
+      "breaking": false,
+      "pr": 483
+    },
+    {
+      "type": "chore",
+      "scope": "agents",
+      "description": "use current requests for work selection (ce34268)",
+      "breaking": false,
+      "pr": 484
+    },
+    {
+      "type": "chore",
+      "description": "Slim Linejam agent guidance and restore Parlor import (27c1aa0)",
+      "breaking": false,
+      "pr": 489
+    },
+    {
+      "type": "feat",
+      "description": "renew Linejam design and isolated multiplayer development",
+      "breaking": false,
+      "commit": "1f20a79"
+    },
+    {
+      "type": "feat",
+      "description": "polish party flow and unify release ownership (fb51761)",
+      "breaking": false,
+      "pr": 491
+    },
+    {
+      "type": "fix",
+      "scope": "qa",
+      "description": "bound rollout failure diagnostics (3919b88)",
+      "breaking": false,
+      "pr": 495
+    },
+    {
+      "type": "feat",
+      "scope": "parlor",
+      "description": "compose native rooms and retained archives (MIS-52)",
+      "breaking": false,
+      "commit": "1ce4198"
+    },
+    {
+      "type": "docs",
+      "scope": "qa",
+      "description": "connect gameplay verification to local runtime (a056d1f)",
+      "breaking": false,
+      "pr": 497
+    },
+    {
+      "type": "perf",
+      "scope": "game",
+      "description": "reuse session and read paths with Cuelume cues (MIS-52) (59f3709)",
+      "breaking": false,
+      "pr": 498
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "description": "bump @browserbasehq/stagehand from 3.7.0 to 4.1.0 (13b8b4e)",
+      "breaking": false,
+      "pr": 504
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "description": "bump vitest from 4.1.10 to 4.1.11 (77c7b37)",
+      "breaking": false,
+      "pr": 499
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "description": "bump @testing-library/jest-dom from 6.9.1 to 7.0.1 (074d9eb)",
+      "breaking": false,
+      "pr": 472
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "description": "bump the prod-minor-and-patch group across 1 directory with 11 updates (da80daa)",
+      "breaking": false,
+      "pr": 505
+    },
+    {
+      "type": "fix",
+      "scope": "observability",
+      "description": "tolerate dropped GitHub cron slots in smoke monitor (ba61e1d)",
+      "breaking": false,
+      "pr": 474
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "description": "bump the gha-all group across 1 directory with 3 updates (50bc87c)",
+      "breaking": false,
+      "pr": 500
+    },
+    {
+      "type": "docs",
+      "description": "add USER_STORIES.md (811a7e1)",
+      "breaking": false,
+      "pr": 507
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "description": "bump the dev-minor-and-patch group across 1 directory with 18 updates (0f8b830)",
+      "breaking": false,
+      "pr": 506
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "description": "bump the prod-minor-and-patch group with 2 updates (fd44a21)",
+      "breaking": false,
+      "pr": 508
+    },
+    {
+      "type": "feat",
+      "scope": "infra",
+      "description": "add Cloudflare Workers OpenNext deployment target (MIS cutover t_a4c8cfca) (69af990)",
+      "breaking": false,
+      "pr": 511
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "description": "bump trufflesecurity/trufflehog in the gha-all group (2b57874)",
+      "breaking": false,
+      "pr": 512
+    },
+    {
+      "type": "chore",
+      "scope": "deps-dev",
+      "description": "bump the dev-minor-and-patch group across 1 directory with 3 updates (179091d)",
+      "breaking": false,
+      "pr": 515
+    },
+    {
+      "type": "chore",
+      "scope": "deps",
+      "description": "bump the prod-minor-and-patch group across 1 directory with 4 updates (7698a16)",
+      "breaking": false,
+      "pr": 513
+    },
+    {
+      "type": "docs",
+      "scope": "auth",
+      "description": "record Clerk owner checks and pass reference (95c7aa6)",
+      "breaking": false,
+      "pr": 516
+    },
+    {
+      "type": "feat",
+      "scope": "foundation",
+      "description": "adopt ratcheted story walks (MIS-150) (27cd6a8)",
+      "breaking": false,
+      "pr": 517
+    },
+    {
+      "type": "docs",
+      "scope": "foundation",
+      "description": "record merged walk evidence (MIS-150) (f100df7)",
+      "breaking": false,
+      "pr": 518
+    },
+    {
+      "type": "docs",
+      "scope": "foundation",
+      "description": "close postmortem baseline gap (MIS-150) (66d448d)",
+      "breaking": false,
+      "pr": 519
+    }
+  ],
+  "compareUrl": "https://github.com/misty-step/linejam/compare/v0.27.0...v0.27.1"
+}
