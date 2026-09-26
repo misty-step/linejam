@@ -1,0 +1,18 @@
+{
+  "schema": "foundation-baseline-extension/1",
+  "reason": "Foundation 1.4.0 adds FND-REL-001, FND-ALR-001, and FND-INC-001 operational obligations for applications. Their deployment, alerting, and incident-response evidence remains pending; the responsible owners need a scoped remediation plan and evidence before these timeboxed entries expire.",
+  "entries": [
+    {
+      "gap": "ops:alert",
+      "expires": "2026-10-26"
+    },
+    {
+      "gap": "ops:incident",
+      "expires": "2026-10-26"
+    },
+    {
+      "gap": "ops:ship",
+      "expires": "2026-10-26"
+    }
+  ]
+}
