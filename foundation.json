@@ -60,10 +60,8 @@
       "next": "Name actionable operations and product queries, then run and retain a controlled failure-response drill"
     },
     "FND-DOC-001": {
-      "status": "pending",
-      "missing": "The root documents and ADRs exist but docs/postmortems/ lacks an incident-learning README or template",
-      "owner": "Linejam maintainer",
-      "next": "Add and review a project-owned postmortem template and remove doc:postmortems from the baseline"
+      "status": "satisfied",
+      "receipt": "docs/postmortems/README.md defines incident reporting and links the shared misty-step/harness Pokayoke template"
     },
     "FND-MAP-001": {
       "status": "satisfied",
@@ -92,12 +90,5 @@
       "next": "Design minimal versioned Convex journey events with privacy, deduplication and retrieval owners"
     }
   },
-  "mode": "bootstrap",
-  "baseline": [
-    {
-      "gap": "doc:postmortems",
-      "owner": "phaedrus",
-      "expires": "2026-10-25"
-    }
-  ]
+  "mode": "enforced"
 }
