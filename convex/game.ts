@@ -44,7 +44,7 @@ import {
   buildRevealParticipants,
   getRevealAuthorityForParticipant,
 } from './lib/revealAuthorization';
-import { getDefaultAvatarId } from '../lib/avatars';
+import { firstCastAvatarId, resolveAvatarId } from '../lib/avatars';
 import {
   findRoomMember,
   getRoomActor,
@@ -306,13 +306,22 @@ export const getCurrentAssignment = query({
           q.eq('poemId', poem._id).eq('indexInPoem', indexInPoem)
         )
         .first();
-    const [previousLine, currentLine] = await Promise.all([
+    const [previousLine, currentLine, viewerProfile] = await Promise.all([
       currentRound > 0 ? getLine(currentRound - 1) : Promise.resolve(null),
       getLine(currentRound),
+      // Native rooms already read your profile to confirm membership.
+      membership?.profile ??
+        ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room_user', (q) =>
+            q.eq('roomId', room._id).eq('userId', user._id)
+          )
+          .first(),
     ]);
 
     const isFinalRound =
       currentRound === getFinalRoundIndex(game.assignmentMatrix);
+    const viewerStableId = user.clerkUserId || user.guestId || user._id;
 
     return {
       poemId: poem._id,
@@ -325,6 +334,14 @@ export const getCurrentAssignment = query({
       hasSubmitted: currentLine !== null,
       previousLineText: previousLine?.text,
       roundStartedAt: game.roundStartedAt ?? game.createdAt,
+      // The waiting moment shows your own character before the round roster loads.
+      viewer: {
+        stableId: viewerStableId,
+        displayName: viewerProfile?.displayName ?? user.displayName,
+        avatarId: firstCastAvatarId(
+          resolveAvatarId(viewerProfile?.avatarId, viewerStableId)
+        ),
+      },
     };
   },
 });
@@ -555,8 +572,9 @@ export const getRevealPhaseState = query({
           assignedReaderId: poem.assignedReaderId,
           readerName: reader?.displayName || 'Unknown',
           readerStableId,
-          readerAvatarId:
-            reader?.avatarId ?? getDefaultAvatarId(readerStableId),
+          readerAvatarId: firstCastAvatarId(
+            resolveAvatarId(reader?.avatarId, readerStableId)
+          ),
           revealedAt: poem.revealedAt,
           isRevealed: !!poem.revealedAt,
           canReveal: revealAuthority !== null,
@@ -650,7 +668,7 @@ export const getRevealPhaseState = query({
           userId: p.userId,
           displayName: p.displayName,
           stableId,
-          avatarId: p.avatarId ?? getDefaultAvatarId(stableId),
+          avatarId: firstCastAvatarId(resolveAvatarId(p.avatarId, stableId)),
         };
       }),
     };
@@ -781,7 +799,8 @@ export const getRoundProgress = query({
         isSpectator: poemIndex === -1,
         userId: player.userId,
         stableId,
-        avatarId: player.avatarId ?? getDefaultAvatarId(stableId),
+        avatarId: firstCastAvatarId(resolveAvatarId(player.avatarId, stableId)),
+        isViewer: player.userId === user._id,
         isAway: isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS),
       };
     });

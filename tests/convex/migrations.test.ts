@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { FunctionReturnType } from 'convex/server';
 import { api, internal } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
@@ -1499,5 +1500,125 @@ describe('cleanupMachineAuthorship', () => {
         },
       ]);
     }
+  });
+});
+
+describe('avatar id migration', () => {
+  // The first cast and the Pen Pals character each stored choice keeps.
+  const SUCCESSORS = {
+    pip: 'rhyme',
+    moss: 'haiku',
+    pebble: 'hush',
+    orbit: 'quill',
+    sprout: 'sonnet',
+    sunny: 'doodle',
+    ziggy: 'dusk',
+    plum: 'ode',
+  } as const;
+  const RETIRED = [
+    'pip',
+    'moss',
+    'pebble',
+    'orbit',
+    'sprout',
+    'sunny',
+    'ziggy',
+    'plum',
+  ] as const;
+
+  async function runToCompletion(t: T, dryRun: boolean) {
+    const receipts: FunctionReturnType<
+      typeof internal.migrations.migrateAvatarIds
+    >[] = [];
+    let cursor: string | null = null;
+    do {
+      const receipt: FunctionReturnType<
+        typeof internal.migrations.migrateAvatarIds
+      > = await t.mutation(internal.migrations.migrateAvatarIds, {
+        dryRun,
+        cursor,
+      });
+      receipts.push(receipt);
+      cursor = receipt.isDone ? null : receipt.continueCursor;
+    } while (cursor !== null);
+    return receipts;
+  }
+
+  it('previews, then rewrites every retired id to its successor across pages', async () => {
+    const t = setupConvexTest();
+    const roomId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', {
+        clerkUserId: 'clerk_avatar-owner',
+        displayName: 'Owner',
+        createdAt: 0,
+      });
+      const room = await ctx.db.insert('rooms', {
+        code: 'AVTR',
+        hostUserId: userId,
+        status: 'LOBBY',
+        createdAt: 0,
+        retentionState: 'active',
+      });
+      // More retired choices than one page holds, beside current and absent choices.
+      for (let index = 0; index < 208; index++) {
+        await ctx.db.insert('roomPlayers', {
+          roomId: room,
+          userId,
+          displayName: `Retired ${index}`,
+          avatarId: RETIRED[index % RETIRED.length],
+          joinedAt: index,
+        });
+      }
+      await ctx.db.insert('roomPlayers', {
+        roomId: room,
+        userId,
+        displayName: 'Current',
+        avatarId: 'quill',
+        joinedAt: 300,
+      });
+      await ctx.db.insert('roomPlayers', {
+        roomId: room,
+        userId,
+        displayName: 'Unchosen',
+        joinedAt: 301,
+      });
+      return room;
+    });
+    const stored = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room', (q) => q.eq('roomId', roomId))
+          .collect()
+      );
+
+    const preview = await runToCompletion(t, true);
+    expect(preview.length).toBeGreaterThan(1);
+    expect(preview.reduce((sum, r) => sum + r.eligible, 0)).toBe(208);
+    expect(preview.every((r) => r.changed === 0)).toBe(true);
+    expect(
+      (await stored()).filter((row) => row.avatarId === 'pip')
+    ).toHaveLength(26);
+
+    const applied = await runToCompletion(t, false);
+    expect(applied.reduce((sum, r) => sum + r.changed, 0)).toBe(208);
+    for (const id of RETIRED) {
+      expect(
+        applied.reduce((sum, r) => sum + (r.byRetiredId[id] ?? 0), 0)
+      ).toBe(26);
+    }
+    for (const row of await stored()) {
+      const index = Number(row.displayName.replace('Retired ', ''));
+      const expected =
+        row.displayName === 'Current'
+          ? 'quill'
+          : row.displayName === 'Unchosen'
+            ? undefined
+            : SUCCESSORS[RETIRED[index % RETIRED.length]];
+      expect(row.avatarId, row.displayName).toBe(expected);
+    }
+
+    const confirmation = await runToCompletion(t, true);
+    expect(confirmation.reduce((sum, r) => sum + r.eligible, 0)).toBe(0);
   });
 });

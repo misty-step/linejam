@@ -9,7 +9,7 @@ import { Avatar } from './ui/Avatar';
 import { HeartButton } from './ui/HeartButton';
 import { E2E_TEST_IDS } from '@/lib/e2eTestIds';
 import { cn } from '@/lib/utils';
-import type { AvatarId } from '@/lib/avatars';
+import type { StoredAvatarId } from '@/lib/avatars';
 import { Id } from '@/convex/_generated/dataModel';
 import {
   useSharePoem,
@@ -40,7 +40,7 @@ export interface PoemMetadata {
   uniquePoets?: number;
   readerName?: string;
   readerStableId?: string;
-  readerAvatarId?: AvatarId;
+  readerAvatarId?: StoredAvatarId;
   poemNumber?: number;
 }
 

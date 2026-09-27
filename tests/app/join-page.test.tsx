@@ -100,14 +100,14 @@ describe('joining a room', () => {
     expect(code).toHaveValue('A1BC');
 
     await user.click(screen.getByRole('button', { name: /change avatar/i }));
-    await user.click(screen.getByRole('button', { name: 'Orbit' }));
+    await user.click(screen.getByRole('button', { name: 'Quill' }));
 
     await user.click(screen.getByRole('button', { name: /^join room$/i }));
 
     expect(joinRoom).toHaveBeenCalledExactlyOnceWith({
       code: 'A1BC',
       displayName: 'Ada Lovelace',
-      avatarId: 'orbit',
+      avatarId: 'quill',
       guestToken: 'guest-token',
     });
     await waitFor(() =>
@@ -181,7 +181,7 @@ describe('joining a room', () => {
       const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
       const avatar = screen.getByRole('button', { name: /change avatar/i });
       await user.click(avatar);
-      await user.click(screen.getByRole('button', { name: 'Sunny' }));
+      await user.click(screen.getByRole('button', { name: 'Doodle' }));
       await user.click(screen.getByRole('button', { name: /^join room$/i }));
 
       const alert = await screen.findByRole('alert');
@@ -194,7 +194,7 @@ describe('joining a room', () => {
       expect(name).toBeEnabled();
       expect(name).toHaveValue('Ada');
       expect(avatar).toBeEnabled();
-      expect(avatar).toHaveAccessibleName(/sunny.*selected/i);
+      expect(avatar).toHaveAccessibleName(/doodle.*selected/i);
 
       await user.clear(code);
       await user.type(code, 'wxyz');
@@ -209,7 +209,7 @@ describe('joining a room', () => {
       expect(joinRoom).toHaveBeenLastCalledWith({
         code: 'WXYZ',
         displayName: 'Grace',
-        avatarId: 'sunny',
+        avatarId: 'doodle',
         guestToken: 'guest-token',
       });
       await waitFor(() =>
@@ -271,13 +271,13 @@ describe('joining a room', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     await enterDetails(user, 'ABCD', 'Ada');
     await user.click(screen.getByRole('button', { name: /change avatar/i }));
-    await user.click(screen.getByRole('button', { name: 'Moss' }));
+    await user.click(screen.getByRole('button', { name: 'Haiku' }));
     await user.click(screen.getByRole('button', { name: /^join room$/i }));
 
     expect(joinRoom).toHaveBeenCalledExactlyOnceWith({
       code: 'ABCD',
       displayName: 'Ada',
-      avatarId: 'moss',
+      avatarId: 'haiku',
       guestToken: 'renewed-guest-token',
     });
     await waitFor(() =>
@@ -294,7 +294,7 @@ describe('joining a room', () => {
     const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
     const avatar = screen.getByRole('button', { name: /change avatar/i });
     await user.click(avatar);
-    await user.click(screen.getByRole('button', { name: 'Plum' }));
+    await user.click(screen.getByRole('button', { name: 'Ode' }));
     await user.dblClick(screen.getByRole('button', { name: /^join room$/i }));
 
     const progress = screen.getByRole('button', { name: /joining room/i });
@@ -308,7 +308,7 @@ describe('joining a room', () => {
     expect(joinRoom).toHaveBeenCalledExactlyOnceWith({
       code: 'ABCD',
       displayName: 'Ada',
-      avatarId: 'plum',
+      avatarId: 'ode',
       guestToken: undefined,
     });
 
@@ -333,7 +333,7 @@ describe('joining a room', () => {
         { wrapper: ColorModeProvider }
       );
       const avatar = await screen.findByRole('button', {
-        name: /change avatar.*plum.*selected/i,
+        name: /change avatar.*ode.*selected/i,
       });
       random.mockReturnValue(0);
       const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
@@ -342,7 +342,7 @@ describe('joining a room', () => {
           <JoinPage dependencies={dependencies} />
         </StrictMode>
       );
-      expect(avatar).toHaveAccessibleName(/plum.*selected/i);
+      expect(avatar).toHaveAccessibleName(/ode.*selected/i);
       await user.click(screen.getByRole('button', { name: /^join room$/i }));
       await screen.findByRole('alert');
 
@@ -350,12 +350,12 @@ describe('joining a room', () => {
       await user.type(code, 'WXYZ');
       await user.clear(name);
       await user.type(name, 'Grace');
-      expect(avatar).toHaveAccessibleName(/plum.*selected/i);
+      expect(avatar).toHaveAccessibleName(/ode.*selected/i);
       await user.click(screen.getByRole('button', { name: /^join room$/i }));
       expect(joinRoom).toHaveBeenLastCalledWith({
         code: 'WXYZ',
         displayName: 'Grace',
-        avatarId: 'plum',
+        avatarId: 'ode',
         guestToken: 'guest-token',
       });
       await waitFor(() => expect(push).toHaveBeenCalledWith('/room/WXYZ'));
@@ -364,7 +364,7 @@ describe('joining a room', () => {
       renderJoinPage();
       expect(
         await screen.findByRole('button', {
-          name: /change avatar.*pip.*selected/i,
+          name: /change avatar.*rhyme.*selected/i,
         })
       ).toBeEnabled();
     } finally {
@@ -403,7 +403,7 @@ describe('joining a room', () => {
 
       expect(
         within(container).getByRole('button', {
-          name: /change avatar.*plum.*selected/i,
+          name: /change avatar.*ode.*selected/i,
         })
       ).toBe(serverTrigger);
       expect(recoverableError).not.toHaveBeenCalled();

@@ -136,6 +136,14 @@ export function Lobby({
                     avatarId={player.avatarId}
                     displayName={player.displayName}
                     size="md"
+                    mood={player.isAway ? 'away' : 'idle'}
+                    prop={
+                      player.userId === room.hostUserId
+                        ? 'crown'
+                        : player.isAway
+                          ? 'moon'
+                          : undefined
+                    }
                   />
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="min-w-0 break-words text-base font-semibold text-text-primary [overflow-wrap:anywhere]">

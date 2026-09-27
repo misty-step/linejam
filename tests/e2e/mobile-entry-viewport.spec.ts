@@ -84,9 +84,9 @@ for (const viewport of PHONE_VIEWPORTS) {
     const picker = page.getByRole('dialog', { name: 'Choose your avatar' });
     await expect(picker).toBeInViewport();
     await expectNoHorizontalScroll(page);
-    await picker.getByRole('button', { name: 'Sprout', exact: true }).click();
+    await picker.getByRole('button', { name: 'Sonnet', exact: true }).click();
     await expect(picker).toHaveCount(0);
-    await expect(avatar).toHaveAccessibleName(/Sprout selected/);
+    await expect(avatar).toHaveAccessibleName(/Sonnet selected/);
     await expect(avatar).toBeFocused();
     await expectNoHorizontalScroll(page);
   });

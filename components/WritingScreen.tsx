@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '@/convex/_generated/api';
@@ -83,6 +83,8 @@ export interface WritingAssignment {
   hasSubmitted: boolean;
   previousLineText?: string | null;
   roundStartedAt?: number;
+  /** Your own character, so the waiting moment never waits on the roster. */
+  viewer?: ComponentProps<typeof WaitingScreen>['viewer'];
 }
 
 interface WritingComposerProps {
@@ -185,6 +187,7 @@ function WritingComposer({
         roomCode={roomCode}
         guestToken={guestToken}
         acknowledgement={acknowledgement}
+        viewer={assignment.viewer}
         embedded
         dependencies={dependencies.waitingScreenDependencies}
       />

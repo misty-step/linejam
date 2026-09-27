@@ -6,6 +6,11 @@ import { ensureUserHelper } from './users';
 import { abandonGame } from './lib/sessionLifecycle';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { getActiveGame, getCompletedGame } from './lib/room';
+import {
+  isRetiredAvatarId,
+  RETIRED_AVATAR_SUCCESSORS,
+  type RetiredAvatarId,
+} from '../lib/avatars';
 
 // SAFETY: Legacy 'mode' column was removed from schema; Convex db.patch requires undefined to delete the field at runtime.
 const removeGameModePatch = { mode: undefined } as never;
@@ -655,6 +660,48 @@ export const drainLegacyRooms = internalMutation({
       closed: dryRun ? 0 : page.page.length,
       abandoned: dryRun ? 0 : abandoned,
       eligibleAbandoned: abandoned,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
+/**
+ * Rewrite retired first-cast avatar ids to their Pen Pals successors. Explicit, bounded and
+ * idempotent: page from a null cursor to `isDone`, then repeat with `dryRun` and require
+ * `eligible=0` before the schema contracts (docs/convex-migrations.md).
+ */
+export const migrateAvatarIds = internalMutation({
+  args: {
+    dryRun: v.boolean(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, { dryRun, cursor }) => {
+    const page = await ctx.db
+      .query('roomPlayers')
+      .paginate({ cursor: cursor ?? null, numItems: 200 });
+    const retired = page.page.flatMap((player) =>
+      isRetiredAvatarId(player.avatarId)
+        ? [{ id: player._id, from: player.avatarId }]
+        : []
+    );
+    const byRetiredId: Partial<Record<RetiredAvatarId, number>> = {};
+    for (const { from } of retired) {
+      byRetiredId[from] = (byRetiredId[from] ?? 0) + 1;
+    }
+    if (!dryRun) {
+      await Promise.all(
+        retired.map(({ id, from }) =>
+          ctx.db.patch(id, { avatarId: RETIRED_AVATAR_SUCCESSORS[from] })
+        )
+      );
+    }
+    return {
+      dryRun,
+      scanned: page.page.length,
+      eligible: retired.length,
+      changed: dryRun ? 0 : retired.length,
+      byRetiredId,
       isDone: page.isDone,
       continueCursor: page.continueCursor,
     };

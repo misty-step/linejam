@@ -59,9 +59,16 @@ focus to the trigger. Keyboard focus stays inside until selection or dismissal.
 allowed; do not introduce a new join failure or a pre-join membership lookup
 just to choose a character.
 
-The eight original SVGs use distinct silhouettes, expressions and gestures,
-consistent plum strokes, and mint/peach/lavender accents. Artwork is static,
-local and legible at roster size in both modes. No runtime image generation or
+The Pen Pals cast (Quill, Dusk, Doodle, Rhyme, Haiku, Hush, Sonnet and Ode) shares
+one body, one pair of feet and one face. Six moods echo the written status: at
+rest, writing with a pencil, tucked in with the sealed note, away with the moon,
+reading on the peach reading lamp, and watching as an outlined spectator. Props
+sit beside the status word, never instead of it; the host's character wears the
+crown beside the Host label. Plum ink and each character's color stay the same
+in both modes, and a drawn sticker edge keeps outlines legible on the dark page.
+Sizes of 32px and below use simplified drawings with heavier ink and no props. No
+character body uses the lamp peach or the accepted mint. The artwork is static,
+local data exported from `explorations/avatars`; no runtime image generation or
 new provider dependency is involved.
 
 Keep honest pending and error feedback; do not render a created room or
@@ -104,11 +111,12 @@ data catches up. Without an acknowledgement, waiting copy stays neutral.
 Keep writing, submitted, away and spectator states legible without ranking or
 hurrying people; an empty roster is not proof of round completion.
 
-Use a small character moment, a subtle background texture and accent color to
-make waiting feel alive. Prefer a short settling animation on acknowledgement
-over perpetual bouncing, fake progress or an endless loading spinner. Reduced
-motion gets the complete static composition. Keep texture away from poem text
-and input surfaces; writing and reading remain calm.
+Use a small character moment (your own character holding the sealed note), a
+subtle background texture and accent color to make waiting feel alive. Prefer a
+short settling animation on acknowledgement over perpetual bouncing, fake
+progress or an endless loading spinner. Reduced motion gets the complete static
+composition. Keep texture away from poem text and input surfaces; writing and
+reading remain calm.
 
 End game lives inside the host's Room options during writing or waiting.
 Leave/close actions live there in the lobby. Each requires confirmation with a
