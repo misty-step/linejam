@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { cloneElement } from 'react';
@@ -510,6 +511,8 @@ describe('WritingScreen component', () => {
       status: 'committed',
       text: 'Moon rises',
     });
+    // The round roster is still loading when the line is accepted.
+    mockUseQuery.mockReturnValue(undefined);
     const user = setupUser();
     render(
       <WritingScreen
@@ -531,9 +534,9 @@ describe('WritingScreen component', () => {
     await user.type(textarea, '  Moon   rises  ');
     await user.click(screen.getByRole('button', { name: /^Submit$/i }));
 
-    expect(
-      await screen.findByTestId(E2E_TEST_IDS.waitingPhase)
-    ).toBeInTheDocument();
+    const waiting = await screen.findByTestId(E2E_TEST_IDS.waitingPhase);
+    // Your own character holds the note before the roster arrives.
+    expect(within(waiting).getByLabelText("Ada's avatar")).toBeInTheDocument();
     expect(mockSubmitLineMutation).toHaveBeenCalledExactlyOnceWith({
       poemId: assignment.poemId,
       lineIndex: 7,
