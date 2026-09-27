@@ -500,6 +500,11 @@ describe('WritingScreen component', () => {
       isFinalRound: false,
       roundStartedAt: Date.now(),
       previousLineText: mockAssignmentRound5.previousLineText ?? undefined,
+      viewer: {
+        stableId: 'writing-account',
+        displayName: 'Ada',
+        avatarId: 'pip' as const,
+      },
     };
     mockSubmitLineMutation.mockResolvedValue({
       status: 'committed',

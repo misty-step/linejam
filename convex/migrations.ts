@@ -680,23 +680,27 @@ export const migrateAvatarIds = internalMutation({
     const page = await ctx.db
       .query('roomPlayers')
       .paginate({ cursor: cursor ?? null, numItems: 200 });
+    const retired = page.page.flatMap((player) =>
+      isRetiredAvatarId(player.avatarId)
+        ? [{ id: player._id, from: player.avatarId }]
+        : []
+    );
     const byRetiredId: Partial<Record<RetiredAvatarId, number>> = {};
-    let eligible = 0;
-    for (const player of page.page) {
-      if (!isRetiredAvatarId(player.avatarId)) continue;
-      eligible++;
-      byRetiredId[player.avatarId] = (byRetiredId[player.avatarId] ?? 0) + 1;
-      if (!dryRun) {
-        await ctx.db.patch(player._id, {
-          avatarId: RETIRED_AVATAR_SUCCESSORS[player.avatarId],
-        });
-      }
+    for (const { from } of retired) {
+      byRetiredId[from] = (byRetiredId[from] ?? 0) + 1;
+    }
+    if (!dryRun) {
+      await Promise.all(
+        retired.map(({ id, from }) =>
+          ctx.db.patch(id, { avatarId: RETIRED_AVATAR_SUCCESSORS[from] })
+        )
+      );
     }
     return {
       dryRun,
       scanned: page.page.length,
-      eligible,
-      changed: dryRun ? 0 : eligible,
+      eligible: retired.length,
+      changed: dryRun ? 0 : retired.length,
       byRetiredId,
       isDone: page.isDone,
       continueCursor: page.continueCursor,

@@ -108,6 +108,15 @@ describe('room lifecycle', () => {
       progress?.players.find((player) => player.userId === friendId)?.avatarId
     ).toBe('moss');
 
+    // The waiting moment reads your own character before the roster loads.
+    const friendAssignment = await friend.query(api.game.getCurrentAssignment, {
+      roomCode: code,
+    });
+    expect(friendAssignment?.viewer).toMatchObject({
+      displayName: 'Friend',
+      avatarId: 'moss',
+    });
+
     for (let round = 0; round < WORD_COUNTS.length; round++) {
       for (const participant of [host, friend]) {
         const assignment = await participant.query(

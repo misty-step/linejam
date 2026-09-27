@@ -306,13 +306,22 @@ export const getCurrentAssignment = query({
           q.eq('poemId', poem._id).eq('indexInPoem', indexInPoem)
         )
         .first();
-    const [previousLine, currentLine] = await Promise.all([
+    const [previousLine, currentLine, viewerProfile] = await Promise.all([
       currentRound > 0 ? getLine(currentRound - 1) : Promise.resolve(null),
       getLine(currentRound),
+      // Native rooms already read your profile to confirm membership.
+      membership?.profile ??
+        ctx.db
+          .query('roomPlayers')
+          .withIndex('by_room_user', (q) =>
+            q.eq('roomId', room._id).eq('userId', user._id)
+          )
+          .first(),
     ]);
 
     const isFinalRound =
       currentRound === getFinalRoundIndex(game.assignmentMatrix);
+    const viewerStableId = user.clerkUserId || user.guestId || user._id;
 
     return {
       poemId: poem._id,
@@ -325,6 +334,14 @@ export const getCurrentAssignment = query({
       hasSubmitted: currentLine !== null,
       previousLineText: previousLine?.text,
       roundStartedAt: game.roundStartedAt ?? game.createdAt,
+      // The waiting moment shows your own character before the round roster loads.
+      viewer: {
+        stableId: viewerStableId,
+        displayName: viewerProfile?.displayName ?? user.displayName,
+        avatarId: firstCastAvatarId(
+          resolveAvatarId(viewerProfile?.avatarId, viewerStableId)
+        ),
+      },
     };
   },
 });

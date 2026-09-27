@@ -11,6 +11,11 @@ import { cn } from '../lib/utils';
 import { Avatar, type AvatarMood, type AvatarProp } from './ui/Avatar';
 
 type PlayerState = { label: string; mood: AvatarMood; prop?: AvatarProp };
+type WaitingViewer = {
+  stableId: string;
+  displayName: string;
+  avatarId?: StoredAvatarId;
+};
 
 // The written status stays; the character's face and prop echo it.
 const TUCKED_IN: PlayerState = {
@@ -49,6 +54,8 @@ interface WaitingScreenProps {
   embedded?: boolean;
   isLateJoiner?: boolean;
   acknowledgement?: string;
+  /** Your own character, known before the round roster loads. */
+  viewer?: WaitingViewer;
   progressOverride?: {
     round: number;
     totalRounds?: number;
@@ -74,6 +81,7 @@ export function WaitingScreen({
   isLateJoiner = false,
   progressOverride,
   acknowledgement,
+  viewer: knownViewer,
   dependencies = defaultDependencies,
 }: WaitingScreenProps) {
   const { queryArgs } = dependencies.useRoomQueryArgs(roomCode, propToken);
@@ -89,7 +97,7 @@ export function WaitingScreen({
     activePlayers.every((player) => player.submitted);
   const allStableIds = players.map((player) => player.stableId);
   // Your own character holds your note while the round finishes.
-  const viewer = players.find((player) => player.isViewer);
+  const viewer = players.find((player) => player.isViewer) ?? knownViewer;
   const heading = isLateJoiner
     ? "You're in for the next game."
     : (acknowledgement ??

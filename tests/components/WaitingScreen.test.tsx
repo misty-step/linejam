@@ -87,6 +87,21 @@ describe('WaitingScreen', () => {
     );
   });
 
+  it('keeps your character in the waiting moment while the roster is still loading', () => {
+    progressQuery.mockReturnValue(undefined);
+    const { container } = renderWaiting({
+      acknowledgement: 'Tucked into the poem.',
+      viewer: { stableId: 'bob', displayName: 'Bob', avatarId: 'haiku' },
+    });
+
+    expect(screen.getByText('Tucked into the poem.')).toBeInTheDocument();
+    const moment = container.querySelector('[aria-hidden="true"]');
+    expect(moment?.querySelector('svg')).toHaveAttribute(
+      'aria-label',
+      "Bob's avatar"
+    );
+  });
+
   it('uses the current supplied roster instead of an older subscription result', () => {
     renderWaiting({
       progressOverride: {
