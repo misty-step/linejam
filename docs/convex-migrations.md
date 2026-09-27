@@ -98,30 +98,32 @@ from a null cursor and record its aggregate `changed=0`, `blocked=0` pass.
 Preserve all receipts with the production deployment record; only then may a
 separate PR remove the legacy validators and tables.
 
-## Pen Pals avatar ids
+## Pen Pals avatar ids (completed 2026-09-27)
 
-The Pen Pals cast replaces the first cast's eight ids with successors
-(`RETIRED_AVATAR_SUCCESSORS` in `lib/avatars.ts`). The expansion release lets
-`roomPlayers.avatarId` hold either set. Its responses answer in first-cast ids,
-because browser bundles from before the release can draw only those; the Pen Pals
-renderer draws each as its successor, so the migration changes nothing any client
-can see. `createRoom` and `joinRoom` store the successor whenever a client sends
-a retired id, so nothing written after the release adds to the migration. With
-production migration authority, on the verified target:
+The Pen Pals cast replaced the first cast's eight stored ids index for index:
+pip→rhyme, moss→haiku, pebble→hush, orbit→quill, sprout→sonnet,
+sunny→doodle, ziggy→dusk, plum→ode. Because the order is aligned,
+`getDefaultAvatarId` gives every membership that never chose the successor of
+the character it showed before. Reordering `AVATAR_IDS` would silently change
+those characters.
 
-1. Preview `internal.migrations.migrateAvatarIds` with
-   `{ "dryRun": true, "cursor": null }`, passing each `continueCursor` into the
-   next call until `isDone=true`. Record `scanned`, `eligible` and
-   `byRetiredId`; each call examines at most 200 memberships.
-2. Restart at a null cursor with `dryRun=false` and page to completion,
-   recording `changed` and `byRetiredId`.
-3. Repeat the dry run from a null cursor and require `eligible=0` on every
-   page.
+1. Expansion (#522): `roomPlayers.avatarId` accepted both sets. Writes stored
+   Pen Pals ids, and responses answered in first-cast ids so bundles from before
+   the release kept drawing.
+2. Migration: `migrateAvatarIds` examined at most 200 memberships per call.
+   - Shared dev, 20:39–20:42 UTC: 3,800 of 19,956 rewritten; the final dry run
+     found none on every page.
+   - Production, 21:11–21:13 UTC, after an encrypted export: 1,876 of 14,990
+     eligible, and 1,876 changed (moss 226, orbit 215, pebble 254, pip 257,
+     plum 233, sprout 199, sunny 268, ziggy 224). The final dry run found none
+     on all 75 pages.
+3. Contraction: the validator accepts only `AVATAR_IDS`, responses answer Pen
+   Pals ids, and the retired ids, their mapping and the migration are gone.
 
-Only after those receipts exist may a separate contraction release narrow the
-validator to `AVATAR_IDS`, answer in Pen Pals ids, and remove the retired ids,
-their mapping and this migration. A tab still running a bundle from before the
-expansion release then draws blank avatars beside the names until it reloads.
+The automated guard below did not cover this change. `avatarIdValidator` lives
+in `convex/lib/avatars.ts`, so narrowing it leaves `convex/schema.ts`
+unchanged. The order was held by hand, and Convex's own validation on the
+schema push was the backstop.
 
 ## 2026-07-04 incident
 

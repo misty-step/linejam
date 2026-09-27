@@ -11,7 +11,7 @@ import {
 import { buildPoemAuthorKeys } from './lib/poemAuthorKey';
 import { hashRoomId } from '../lib/roomIdHash';
 import { isRevealReady } from './lib/sessionLifecycle';
-import { firstCastAvatarId, resolveAvatarId } from '../lib/avatars';
+import { getDefaultAvatarId } from '../lib/avatars';
 
 const DEFAULT_MY_POEMS_LIMIT = 24;
 const MAX_MY_POEMS_LIMIT = 48;
@@ -433,15 +433,14 @@ export const getPublicSessionRecap = query({
             createdAt: poem.createdAt,
             preview: lines[0]?.text ?? '',
             readerName: reader?.displayName ?? 'Unknown',
-            readerAvatarId: firstCastAvatarId(
-              resolveAvatarId(
-                reader?.avatarId,
+            readerAvatarId:
+              reader?.avatarId ??
+              getDefaultAvatarId(
                 readerUser?.clerkUserId ||
                   readerUser?.guestId ||
                   poem.assignedReaderId ||
                   ''
-              )
-            ),
+              ),
             starterName:
               firstLine?.authorDisplayName || starter?.displayName || 'Unknown',
             poetCount: uniqueAuthorIds.size,

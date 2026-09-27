@@ -70,18 +70,18 @@ describe('room lifecycle', () => {
 
     const { code } = await host.mutation(api.rooms.createRoom, {
       displayName: 'Host',
-      avatarId: 'pip',
+      avatarId: 'rhyme',
     });
     await friend.mutation(api.rooms.joinRoom, {
       code,
       displayName: 'Friend',
-      avatarId: 'orbit',
+      avatarId: 'quill',
     });
 
     const friendView = await friend.query(api.rooms.getRoomState, { code });
     expect(
       friendView?.players.find((player) => player.userId === hostId)?.avatarId
-    ).toBe('pip');
+    ).toBe('rhyme');
 
     // An older transport or a reconnect must not replace the room selection.
     await friend.mutation(api.rooms.joinRoom, {
@@ -91,13 +91,13 @@ describe('room lifecycle', () => {
     const rejoined = await host.query(api.rooms.getRoomState, { code });
     expect(
       rejoined?.players.find((player) => player.userId === friendId)?.avatarId
-    ).toBe('orbit');
+    ).toBe('quill');
 
     // A deliberate new choice does replace it, without creating a new member.
     await friend.mutation(api.rooms.joinRoom, {
       code,
       displayName: 'Friend',
-      avatarId: 'moss',
+      avatarId: 'haiku',
     });
     await host.mutation(api.game.startGame, { code });
     const progress = await host.query(api.game.getRoundProgress, {
@@ -106,7 +106,7 @@ describe('room lifecycle', () => {
     expect(progress?.players).toHaveLength(2);
     expect(
       progress?.players.find((player) => player.userId === friendId)?.avatarId
-    ).toBe('moss');
+    ).toBe('haiku');
 
     // The waiting moment reads your own character before the roster loads.
     const friendAssignment = await friend.query(api.game.getCurrentAssignment, {
@@ -114,7 +114,7 @@ describe('room lifecycle', () => {
     });
     expect(friendAssignment?.viewer).toMatchObject({
       displayName: 'Friend',
-      avatarId: 'moss',
+      avatarId: 'haiku',
     });
 
     for (let round = 0; round < WORD_COUNTS.length; round++) {
@@ -138,7 +138,7 @@ describe('room lifecycle', () => {
     expect(
       reading?.poems.find((poem) => poem.assignedReaderId === friendId)
         ?.readerAvatarId
-    ).toBe('moss');
+    ).toBe('haiku');
 
     await friend.mutation(api.game.startNewCycle, { roomCode: code });
     await friend.mutation(api.game.startGame, { code });
@@ -147,14 +147,14 @@ describe('room lifecycle', () => {
     });
     expect(
       rematch?.players.find((player) => player.userId === friendId)?.avatarId
-    ).toBe('moss');
+    ).toBe('haiku');
     const rematchFriendView = await friend.query(api.rooms.getRoomState, {
       code,
     });
     expect(
       rematchFriendView?.players.find((player) => player.userId === hostId)
         ?.avatarId
-    ).toBe('pip');
+    ).toBe('rhyme');
   });
 
   // ──────────────────────────────────────────────────────────────────────────
