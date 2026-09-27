@@ -1,0 +1,827 @@
+/* Poem Shape: the 1-2-3-4-5-4-3-2-1 silhouette as the game's map.
+   Concept-local properties derive from kit tokens only. */
+
+:root {
+  /* Outline of a bar that has no line yet. */
+  --ps-track: color-mix(in srgb, var(--color-border) 45%, var(--color-border-subtle));
+  /* A finished line that is not the focus right now. */
+  --ps-dim: color-mix(in srgb, var(--color-primary) 30%, var(--color-border-subtle));
+  /* Avatars sit on a disc so plum strokes stay legible in both modes. */
+  --ps-disc: var(--color-surface);
+  --ps-disc-ring: var(--color-border-subtle);
+  --ps-quiet-ink: color-mix(in srgb, var(--color-text-primary) 55%, var(--color-surface));
+  /* The one choreography: a bar fills when a line is accepted. */
+  --ps-fill-ms: 300ms;
+  --ps-open-ms: 320ms;
+  --ps-enter-ms: 200ms;
+  --ps-gutter: 16px;
+  --ps-bar-h: 6px;
+}
+
+:root.dark {
+  --ps-track: color-mix(in srgb, var(--color-border) 60%, var(--color-border-subtle));
+  --ps-dim: color-mix(in srgb, var(--color-primary) 38%, var(--color-background));
+  --ps-disc: var(--color-foreground);
+  --ps-disc-ring: transparent;
+  --ps-quiet-ink: color-mix(in srgb, var(--color-text-primary) 58%, var(--color-surface));
+}
+
+.lj-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Chrome: code or wordmark left, three quiet tools right ---------- */
+
+.ps-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 64px;
+  padding: 10px 6px 10px var(--ps-gutter);
+}
+
+.ps-wordmark {
+  font-family: var(--font-dynapuff);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+.ps-code {
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  color: var(--color-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ps-tools {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.ps-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.ps-icon:hover,
+.ps-code:hover {
+  background: var(--color-surface-hover);
+}
+
+.ps-ico {
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* ---------- Page frame ---------- */
+
+.ps-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 4px var(--ps-gutter) 24px;
+}
+
+.ps-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.ps-h1 {
+  margin: 8px 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ps-h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ps-lede {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+}
+
+.ps-caption {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+.ps-kicker {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+.ps-meta {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* ---------- Buttons ---------- */
+
+.ps-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 20px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+
+.ps-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.ps-btn--primary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--color-primary-hover);
+}
+
+.ps-btn--primary[aria-disabled='true'] {
+  background: var(--color-primary-active);
+  cursor: progress;
+}
+
+.ps-btn:disabled {
+  background: var(--color-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.ps-btn--quiet {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.ps-btn--quiet:hover:not([aria-disabled='true']) {
+  background: var(--color-surface-hover);
+}
+
+.ps-btn--quiet[aria-disabled='true'] {
+  color: var(--color-text-secondary);
+  cursor: progress;
+}
+
+.ps-btn--fit {
+  width: auto;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 1rem;
+}
+
+/* ---------- The bar: one line of a poem ---------- */
+
+.ps-bar {
+  position: relative;
+  display: block;
+  width: calc(var(--w) * var(--unit, 20%));
+  height: var(--ps-bar-h);
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1.5px var(--ps-track);
+  overflow: hidden;
+}
+
+.ps-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.ps-bar[data-state='filled'] .ps-fill,
+.ps-bar[data-state='dim'] .ps-fill {
+  transform: none;
+}
+
+.ps-bar[data-state='dim'] .ps-fill {
+  background: var(--ps-dim);
+}
+
+.ps-bar[data-state='now'] {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+/* The only transition a bar ever has: filling, added just before a fill. */
+.ps-bar.is-filling .ps-fill {
+  transition: transform var(--ps-fill-ms) var(--ease-out);
+}
+
+.ps-shape {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-shape-gap, 5px);
+}
+
+/* ---------- Avatars ---------- */
+
+.ps-av {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: var(--av);
+  height: var(--av);
+  border-radius: var(--radius-full);
+  background: var(--ps-disc);
+  box-shadow: inset 0 0 0 1px var(--ps-disc-ring);
+}
+
+.ps-av svg {
+  display: block;
+}
+
+/* ---------- Lobby ---------- */
+
+.ps-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.ps-invite__text {
+  display: flex;
+  flex: 1 1 9rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ps-invite__code {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-left: -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-weight: 700;
+  font-size: 2.25rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--color-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ps-invite__code .ps-ico {
+  color: var(--color-text-secondary);
+}
+
+.ps-invite__code.is-copied .ps-ico {
+  color: var(--color-success);
+}
+
+.ps-qr {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 112px;
+  border-radius: var(--radius-sm);
+}
+
+/* Small phones: keep code, share and QR side by side instead of stacking. */
+@media (max-width: 359px) {
+  .ps-invite {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .ps-invite__code {
+    font-size: 1.875rem;
+  }
+
+  .ps-qr {
+    width: 96px;
+    height: 96px;
+  }
+}
+
+.ps-poems {
+  margin-top: 28px;
+}
+
+.ps-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.ps-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+  gap: 28px 16px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-seat {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ps-shape--seat {
+  --unit: 20%;
+  --ps-bar-h: 7px;
+  --ps-shape-gap: 5px;
+  width: min(100%, 124px);
+}
+
+.ps-seat__who {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ps-seat__name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 7px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ps-seat__role {
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Writing: rail on the left, one row per line ---------- */
+
+.ps-spine {
+  --unit: 9px;
+  --r4-pad: 18px;
+  --r5-pad: 12px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-auto-rows: minmax(12px, auto);
+  column-gap: 14px;
+  row-gap: 8px;
+  padding-top: 12px;
+}
+
+.ps-spine > .ps-bar {
+  grid-column: 1;
+  align-self: center;
+}
+
+/* Bar 4 lines up with the first line of the received text. */
+.ps-spine > .ps-bar[data-round='4'] {
+  align-self: start;
+  margin-top: calc(var(--r4-pad) + 1.25rem + 4px + 0.9375rem - 3px);
+}
+
+/* Bar 5 lines up with the first line you type. */
+.ps-spine > .ps-bar[data-round='5'] {
+  align-self: start;
+  margin-top: calc(var(--r5-pad) + 14px + 0.875rem - 3px);
+}
+
+.ps-spine__round {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: center;
+}
+
+.ps-prompt {
+  margin: 2px 0 0;
+  line-height: 1.4;
+}
+
+.ps-spine__received {
+  grid-column: 2;
+  grid-row: 4;
+  padding-top: var(--r4-pad);
+}
+
+.ps-received {
+  margin: 4px 0 0;
+  font-size: 1.375rem;
+  line-height: 1.875rem;
+  overflow-wrap: anywhere;
+}
+
+.ps-spine__compose {
+  grid-column: 2;
+  grid-row: 5;
+  padding-top: var(--r5-pad);
+}
+
+.ps-input {
+  display: block;
+  width: 100%;
+  min-height: calc(2 * 1.75rem + 28px);
+  padding: 12px 14px;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  resize: none;
+}
+
+.ps-input:focus-visible {
+  outline-offset: 3px;
+}
+
+.ps-input[readonly] {
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.ps-meter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 12px;
+}
+
+.ps-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ps-slot {
+  width: 24px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1.5px var(--ps-track);
+}
+
+.ps-slot.is-filled {
+  background: var(--color-primary);
+  box-shadow: none;
+}
+
+.ps-slot.is-over {
+  background: var(--color-error);
+  box-shadow: none;
+}
+
+.ps-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-count.is-exact {
+  color: var(--color-success);
+}
+
+.ps-count.is-over {
+  color: var(--color-error);
+}
+
+.ps-spine__submit {
+  grid-column: 2;
+  grid-row: 6 / 10;
+  align-self: start;
+  padding-top: 8px;
+}
+
+/* ---------- Waiting ---------- */
+
+.ps-ack {
+  padding-top: 12px;
+}
+
+.ps-ack__title {
+  margin: 6px 0 0;
+  font-family: var(--font-dynapuff);
+  font-weight: 600;
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+
+.ps-ack__sub {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+}
+
+.ps-group {
+  margin-top: 32px;
+}
+
+.ps-group__list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-group__poem {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ps-shape--group {
+  --unit: 20%;
+  --ps-shape-gap: 4px;
+  width: min(100%, 72px);
+}
+
+.ps-roster {
+  margin-top: 32px;
+}
+
+.ps-people {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.ps-person:first-child {
+  border-top: 0;
+}
+
+.ps-person__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ps-person__name {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ps-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ps-status--in {
+  color: var(--color-success);
+}
+
+/* ---------- Reading circle ---------- */
+
+.ps-circle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-turn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+}
+
+.ps-turn.is-lit {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.ps-shape--turn {
+  --unit: 15px;
+  --ps-shape-gap: 4px;
+  width: 75px;
+  padding-top: 5px;
+}
+
+.ps-turn__poem {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+.ps-turn__who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 0;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ps-turn.is-lit .ps-turn__who {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.ps-turn__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ps-turn__action {
+  margin-top: 14px;
+}
+
+/* ---------- Poem open ---------- */
+
+.ps-page {
+  margin-top: 4px;
+  padding: 20px 18px 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.ps-page__reader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 0;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ps-page .ps-h1 {
+  margin: 0;
+}
+
+.ps-lines {
+  --unit: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-line {
+  display: grid;
+  grid-template-columns: 45px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 12px;
+}
+
+.ps-line .ps-bar {
+  margin-top: calc(0.9375rem - 3px);
+}
+
+.ps-line__text {
+  font-size: 1.25rem;
+  line-height: 1.875rem;
+  overflow-wrap: anywhere;
+}
+
+.ps-line.is-quiet .ps-line__text {
+  color: var(--ps-quiet-ink);
+}
+
+.ps-line.is-quiet .ps-fill {
+  background: var(--ps-dim);
+}
+
+.ps-key {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.ps-key__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ps-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 14px 4px 6px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.ps-chip:hover {
+  background: var(--color-surface-hover);
+}
+
+.ps-chip[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-muted);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+/* Opening: the empty margin is drawn, then all nine bars fill together
+   while the whole poem appears at once. Classes are skipped under reduced motion. */
+.ps-poem.is-opening .ps-line__text {
+  opacity: 0;
+}
+
+.ps-poem.is-opening .ps-lines .ps-fill {
+  transform: scaleX(0);
+}
+
+.ps-poem.is-opening.is-open .ps-line__text {
+  opacity: 1;
+  transition: opacity var(--ps-enter-ms) var(--ease-out);
+}
+
+.ps-poem.is-opening.is-open .ps-lines .ps-fill {
+  transform: none;
+  transition: transform var(--ps-open-ms) var(--ease-out);
+}

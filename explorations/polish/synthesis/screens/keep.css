@@ -1,0 +1,81 @@
+/* Tucked In: keep slice. Slice-local CSS only; the recap reuses core's recap composition. */
+
+/* ---------- recap ---------- */
+.keep-aside {
+  margin-top: var(--space-1);
+}
+
+/* "Nicely read." on the last poem: the reader alone, centered in the free height. */
+.keep-after {
+  margin-block: auto;
+  padding-block: var(--space-3) var(--space-6);
+}
+
+/* ---------- shared page head (archive, public recap) ---------- */
+.keep-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+}
+
+.keep-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ---------- poem page ---------- */
+.keep-poem {
+  gap: var(--space-3);
+}
+
+/* The back link's text lines up with the sheet's edge. */
+.keep-back {
+  display: flex;
+  margin-inline-start: -12px;
+  margin-bottom: calc(-1 * var(--space-1));
+}
+
+.keep-tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.keep-tools > .ljs-btn--quiet {
+  align-self: center;
+}
+
+/* ---------- public pages ---------- */
+.keep-public__poem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.keep-table {
+  margin-top: calc(-1 * var(--space-1));
+}
+
+.keep-invite {
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-3);
+}
+
+.keep-invite .ljs-h2 {
+  margin-bottom: var(--space-1);
+}
+
+/* ---------- Your poems, empty ---------- */
+/* Centered in the free height, a little above the middle (as core's reader turn). */
+.keep-archive--empty .ljs-empty {
+  margin-block: auto;
+  padding-bottom: var(--space-6);
+}
+
+.keep-archive--empty .ljs-action {
+  margin-top: 0;
+}

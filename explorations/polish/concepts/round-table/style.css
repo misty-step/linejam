@@ -1,0 +1,997 @@
+/* Round Table: one table, a ring of seats, the persistent map of the room.
+   Every value derives from kit/tokens.css. Concept-local properties are prefixed --rt-. */
+
+/* One number drives the table: 0 = compact arc while you write, 1 = the whole table. */
+@property --rt-open {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+/* The light's position on the rim, as an angle (0deg = right, 90deg = bottom, your seat). */
+@property --rt-la {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 90deg;
+}
+
+:root {
+  --rt-pad: var(--color-surface);
+  --rt-pad-edge: var(--color-border-subtle);
+  --rt-rim: color-mix(in srgb, var(--color-border-subtle) 80%, transparent);
+  --rt-mint-edge: color-mix(in srgb, var(--avatar-mint) 55%, var(--color-success));
+  --rt-lamp: color-mix(in srgb, var(--avatar-peach) 58%, transparent);
+  --rt-lamp-edge: color-mix(in srgb, var(--avatar-peach) 70%, var(--color-warning));
+  --rt-arrive: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  --rt-ease-travel: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+:root.dark {
+  /* Seats are light plates in Dark so the cast's plum outlines stay legible (gap 8). */
+  --rt-pad: color-mix(in srgb, var(--avatar-lavender) 80%, var(--color-background));
+  --rt-pad-edge: color-mix(in srgb, var(--avatar-lavender) 60%, var(--color-background));
+  --rt-rim: var(--color-border-subtle);
+  --rt-mint-edge: var(--avatar-mint);
+  --rt-lamp: color-mix(in srgb, var(--avatar-peach) 75%, transparent);
+  --rt-lamp-edge: var(--avatar-peach);
+  --rt-arrive: color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+
+/* ---------- Frame ---------- */
+
+.rt-app {
+  container: rt / inline-size;
+  --rt-open: 1;
+  /* Full-table geometry. Resolved against .rt-app (the container) at every use site. */
+  --rt-rf: clamp(92px, 50cqw - 44px, 150px);
+  --rt-seat: calc(42px + 10px * var(--rt-open));
+  --rt-lab: calc(20px + 20px * var(--rt-open));
+  --rt-r: calc(var(--rt-rf) * (0.8 + 0.2 * var(--rt-open)));
+  --rt-top: calc(var(--rt-seat) / 2 + var(--rt-lab) + 4px);
+  --rt-cy: calc(var(--rt-top) + var(--rt-r));
+  --rt-t: calc(var(--rt-r) - var(--rt-seat) / 2 - 8px);
+  --rt-h: calc(var(--rt-cy) + var(--rt-seat) / 2 + var(--rt-lab) + 4px + var(--rt-open) * var(--rt-r));
+  --rt-hfull: calc(2 * var(--rt-rf) + 52px + 88px);
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: 0 max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  transition: --rt-open 400ms var(--ease-out);
+}
+
+.rt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 60px;
+}
+
+.rt-header-tools {
+  display: flex;
+  align-items: center;
+  margin-right: -10px;
+}
+
+.rt-wordmark {
+  margin: 0;
+  font-family: var(--font-dynapuff);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+.rt-headcode {
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.rt-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.rt-icon:hover,
+.rt-headcode:hover {
+  background: var(--color-surface-hover);
+}
+
+.rt-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Game screens: the table glides to the middle of the screen as it opens. */
+.rt-main--game {
+  padding-top: calc(8px + var(--rt-open) * max(0px, (100dvh - 84px - var(--rt-hfull)) / 2 - 8px));
+}
+
+/* ---------- The table ---------- */
+
+.rt-stage {
+  position: relative;
+  width: 100%;
+  height: var(--rt-h);
+  flex: none;
+}
+
+.rt-rim,
+.rt-table,
+.rt-light {
+  position: absolute;
+  left: 50%;
+  top: var(--rt-cy);
+  translate: -50% -50%;
+  border-radius: 50%;
+}
+
+.rt-rim {
+  width: calc(2 * var(--rt-r));
+  aspect-ratio: 1;
+  border: 1.5px dashed var(--rt-rim);
+}
+
+.rt-table {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: calc(2 * var(--rt-t));
+  height: calc(2 * var(--rt-t));
+  padding: 6px;
+  border: 2px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.rt-center {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  max-width: 100%;
+  text-wrap: balance;
+}
+
+/* Focus is moved here only to announce a change; the center itself is not a control. */
+.rt-center:focus {
+  outline: none;
+}
+
+.rt-light {
+  z-index: 0;
+  left: calc(50% + cos(var(--rt-la)) * var(--rt-r));
+  top: calc(var(--rt-cy) + sin(var(--rt-la)) * var(--rt-r));
+  width: calc(var(--rt-seat) + 30px);
+  aspect-ratio: 1;
+  background: var(--rt-arrive);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rt-light.is-lamp {
+  background: var(--rt-lamp);
+}
+
+.rt-seats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rt-seat {
+  position: absolute;
+  z-index: 3;
+  left: calc(50% + cos(var(--a)) * var(--rt-r));
+  top: calc(var(--rt-cy) + sin(var(--a)) * var(--rt-r));
+  width: var(--rt-seat);
+  height: var(--rt-seat);
+  translate: -50% -50%;
+}
+
+.rt-seat.is-you {
+  opacity: var(--rt-open);
+}
+
+.rt-pad {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--rt-pad-edge);
+  border-radius: 50%;
+  background: var(--rt-pad);
+  transition:
+    background-color 300ms var(--ease-out),
+    border-color 300ms var(--ease-out);
+}
+
+.rt-pad > .lj-avatar {
+  width: 82%;
+  height: 82%;
+}
+
+.rt-badge {
+  position: absolute;
+  right: -5px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--rt-pad-edge);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  opacity: calc(1 - var(--rt-open));
+}
+
+.rt-label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 3px);
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 92px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.rt-seat.is-up .rt-label {
+  top: auto;
+  bottom: calc(100% + 3px);
+}
+
+.rt-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  opacity: var(--rt-open);
+}
+
+.is-arc .rt-status {
+  display: none;
+}
+
+.rt-status svg {
+  flex: none;
+}
+
+/* Full names live in the text layer: read aloud always, shown in the list fallback. */
+.rt-fullname {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Seat states. Each also carries text in .rt-status. */
+.rt-seat.is-empty .rt-pad {
+  border: 2px dashed var(--color-border-subtle);
+  background: transparent;
+}
+
+.rt-seat.is-lit .rt-pad {
+  border-color: var(--rt-mint-edge);
+  background: var(--avatar-mint);
+}
+
+.rt-seat.is-lit .rt-status {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.rt-seat.is-away .rt-pad {
+  border-style: dashed;
+}
+
+.rt-seat.is-away .rt-pad > .lj-avatar {
+  opacity: 0.42;
+}
+
+.rt-seat.is-reader .rt-pad {
+  border-color: var(--rt-lamp-edge);
+}
+
+.rt-seat.is-reader .rt-status {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* The reader's name sits on the lamp's pool: give it the page color so it stays legible. */
+.rt-seat.is-reader .rt-name,
+.rt-seat.is-reader .rt-status {
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+}
+
+.rt-seat.is-you .rt-name::after {
+  content: ' (you)';
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.rt-seat.is-arriving .rt-pad > .lj-avatar {
+  animation: rt-arrive 300ms var(--ease-out) both;
+}
+
+.rt-seat.is-lighting .rt-pad {
+  animation: rt-light-up 300ms var(--ease-out) both;
+}
+
+@keyframes rt-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes rt-light-up {
+  from {
+    transform: scale(0.88);
+  }
+}
+
+/* The watcher sits outside the ring, in the table's corner. */
+.rt-watcher {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 84px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--color-text-secondary);
+  opacity: var(--rt-open);
+}
+
+.rt-watcher .lj-avatar {
+  color: var(--color-text-primary);
+}
+
+.rt-watcher .rt-name {
+  color: var(--color-text-primary);
+}
+
+.rt-wlabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.is-arc .rt-watcher {
+  visibility: hidden;
+}
+
+/* ---------- Table center content ---------- */
+
+.rt-c-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.rt-c-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: clamp(1.375rem, 9cqw, 2.25rem);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rt-c-code svg {
+  color: var(--color-text-secondary);
+}
+
+.rt-c-hint {
+  min-height: 1.2em;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.rt-c-ack {
+  margin: 0;
+  font-family: var(--font-dynapuff);
+  font-weight: 500;
+  font-size: clamp(1.0625rem, 5.4cqw, 1.375rem);
+  line-height: 1.15;
+}
+
+.rt-c-sub {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.rt-c-round {
+  font-weight: 700;
+  font-size: clamp(1.125rem, 6cqw, 1.5rem);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.rt-c-read {
+  margin: 0;
+  font-weight: 700;
+  font-size: clamp(0.8125rem, 4.3cqw, 1.0625rem);
+  line-height: 1.25;
+}
+
+.rt-follow {
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 12px;
+  white-space: nowrap;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-weight: 700;
+  font-size: clamp(0.8125rem, 4cqw, 0.9375rem);
+  cursor: pointer;
+}
+
+.rt-follow:hover {
+  background: var(--color-surface-hover);
+}
+
+/* ---------- Lobby ---------- */
+
+.rt-arrival {
+  margin: 0;
+  font-size: 0.9375rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.rt-arrival strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.rt-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Always white with a 4-module quiet zone, in Light and Dark. */
+.rt-qr {
+  flex: none;
+  padding: 22px;
+  border: 1.5px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+}
+
+.rt-qr svg {
+  display: block;
+  width: 162px;
+  height: 162px;
+}
+
+.rt-invite-side {
+  display: flex;
+  flex: 1 1 8rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rt-invite-side h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.rt-invite-side p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Buttons ---------- */
+
+.rt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  cursor: pointer;
+}
+
+.rt-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.rt-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.rt-btn[aria-busy='true'] {
+  opacity: 0.8;
+}
+
+.rt-btn--quiet {
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.rt-btn--quiet:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.rt-btn--small {
+  width: auto;
+  min-height: 44px;
+  gap: 6px;
+  padding: 8px 10px;
+  white-space: nowrap;
+  font-size: 0.9375rem;
+}
+
+.rt-start {
+  margin-top: auto;
+}
+
+/* ---------- Writing ---------- */
+
+.rt-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rt-received {
+  position: relative;
+  z-index: 4;
+  padding: 12px 16px 14px;
+  border: 2px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.rt-received p {
+  margin: 0;
+}
+
+.rt-kicker {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.rt-received-line {
+  margin-top: 2px;
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.rt-composer-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-weight: 700;
+}
+
+.rt-composer-label span:last-child {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.rt-textarea {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  padding: 12px 14px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: max(1.25rem, 16px);
+  line-height: 1.35;
+  resize: none;
+}
+
+.rt-textarea:focus-visible {
+  border-color: var(--color-primary);
+  outline-offset: 1px;
+}
+
+.rt-textarea[readonly] {
+  color: var(--color-text-secondary);
+}
+
+.rt-count {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.rt-slots {
+  display: flex;
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+
+.rt-slot {
+  flex: 1;
+  height: 10px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.rt-slot.is-filled {
+  border: 1.5px solid var(--color-primary);
+  background: var(--color-primary);
+}
+
+.rt-slot.is-extra {
+  flex: 0.6;
+  border: 1.5px solid var(--color-warning);
+  background: var(--avatar-peach);
+}
+
+.rt-count-text {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-count-hint {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.rt-count-hint.is-over {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+
+.rt-chip {
+  position: fixed;
+  z-index: 30;
+  margin: 0;
+  font-size: max(1.25rem, 16px);
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ---------- Reading ---------- */
+
+.rt-note {
+  margin: 0;
+  font-size: 0.9375rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.rt-sheet {
+  position: fixed;
+  z-index: 20;
+  inset: 60px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  border-radius: 28px;
+  background: var(--color-surface);
+}
+
+.rt-sheet[hidden] {
+  display: none;
+}
+
+/* The ring, collapsed to the sheet's edge: a thin rim with one mark per seat. */
+.rt-frame {
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--color-border-subtle);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.rt-mark {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.rt-mark.is-reader {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--rt-lamp-edge);
+  background: var(--avatar-peach);
+}
+
+.rt-sheet-scroll {
+  position: absolute;
+  inset: 3px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 22px clamp(18px, 6vw, 28px) 20px;
+  border-radius: 25px;
+}
+
+.rt-poem-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rt-poem-head .rt-pad {
+  flex: none;
+  width: 44px;
+  height: 44px;
+}
+
+.rt-poem-title {
+  margin: 0;
+  font-size: 1.375rem;
+  line-height: 1.2;
+  outline-offset: 4px;
+}
+
+.rt-poem-reader {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.rt-lines {
+  margin: 22px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.rt-lines li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  font-size: clamp(1.125rem, 5.8vw, 1.5rem);
+  line-height: 1.38;
+}
+
+.rt-line-by {
+  display: none;
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.show-authors .rt-line-by {
+  display: inline;
+}
+
+.rt-credit {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.rt-toggle {
+  min-height: 44px;
+  margin: 2px 0 16px -8px;
+  align-self: flex-start;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.rt-sheet-scroll > [data-done] {
+  flex: none;
+  margin-top: auto;
+}
+
+/* Short phones: keep Submit on the first screen. */
+@media (max-height: 640px) {
+  .rt-compose {
+    gap: 8px;
+  }
+
+  .rt-received {
+    padding: 8px 14px 10px;
+  }
+
+  .rt-received-line {
+    font-size: 1.25rem;
+  }
+
+  .rt-textarea {
+    min-height: 70px;
+  }
+}
+
+/* ---------- Narrow text fallback: the ring becomes a list ----------
+   Container em follows the root font size, so 150% and 200% text land here at 390 px. */
+@container rt (max-width: 17em) {
+  .rt-main--game {
+    padding-top: 8px;
+  }
+
+  .rt-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: auto;
+  }
+
+  .rt-rim,
+  .rt-light {
+    display: none;
+  }
+
+  .rt-table {
+    position: static;
+    width: auto;
+    aspect-ratio: auto;
+    translate: none;
+    padding: 12px 16px;
+    border-radius: var(--radius-lg);
+  }
+
+  .rt-seats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .rt-seat,
+  .rt-watcher {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: auto;
+    height: auto;
+    translate: none;
+    opacity: 1;
+    text-align: left;
+  }
+
+  .rt-seat .rt-pad {
+    flex: none;
+    width: 48px;
+    height: 48px;
+  }
+
+  .rt-seat.is-empty {
+    display: none;
+  }
+
+  .rt-label,
+  .rt-seat.is-up .rt-label {
+    position: static;
+    translate: none;
+    align-items: flex-start;
+    width: auto;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .rt-watcher {
+    flex-direction: row;
+  }
+
+  .rt-wlabel {
+    align-items: flex-start;
+  }
+
+  .rt-name {
+    display: none;
+  }
+
+  .rt-fullname {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    color: var(--color-text-primary);
+  }
+
+  .rt-seat.is-you .rt-fullname::after {
+    content: ' (you)';
+    font-weight: 400;
+    color: var(--color-text-secondary);
+  }
+
+  .rt-status,
+  .is-arc .rt-status {
+    display: inline-flex;
+    opacity: 1;
+    white-space: normal;
+  }
+
+  .rt-badge {
+    display: none;
+  }
+
+  .is-arc .rt-seats {
+    flex-flow: row wrap;
+  }
+
+  .is-arc .rt-seat.is-you,
+  .is-arc .rt-watcher {
+    display: none;
+  }
+}

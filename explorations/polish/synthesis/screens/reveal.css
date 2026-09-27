@@ -1,0 +1,3 @@
+/* Tucked In: reveal slice. No slice-local rules: every reveal state is composed from the
+   foundation components and the core reading layout classes (core-reading, core-listen,
+   core-turn, core-after, core-page), so it matches 38, 39 and 42 exactly. */

@@ -37,8 +37,8 @@ server/
 .evidence/
 .qa/
 tools/oxlint/anti-slop/
-# Retained, source-fingerprinted offline design proposals (not application code).
-explorations/renewal/
+# Offline design-lab proposals and prototypes (not application code).
+explorations/
 
 # Immutable owner-imported guidance
 .agents/skills/parlor/

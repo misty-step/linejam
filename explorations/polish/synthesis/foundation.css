@@ -1,0 +1,1586 @@
+/* Tucked In: foundation styles. Kit tokens only; local properties derive with color-mix.
+   Class prefix: ljs-. Slices add slice-local CSS in screens/<slice>.css, never here. */
+
+:root {
+  --ease-fold: cubic-bezier(0.55, 0, 0.35, 1);
+  --ljs-pad: 20px;
+  --ljs-col: 440px;
+  --ljs-header: 56px;
+  --ljs-paper: var(--color-surface);
+  --ljs-rule: var(--color-border-subtle);
+  --ljs-ink-past: color-mix(in srgb, var(--color-text-primary) 45%, transparent);
+  --ljs-quiet-line: color-mix(in srgb, var(--color-text-primary) 38%, transparent);
+  --ljs-mark: color-mix(in srgb, var(--avatar-lavender) 55%, transparent);
+  /* Sticker edge: a light die-cut contour around every character. Barely visible on lavender. */
+  --ljs-edge: var(--color-surface);
+  --ljs-edge-k: 0.024;
+  --ljs-edge-max: 2px;
+  /* Accents with roles: peach = someone's turn, mint = accepted. */
+  --ljs-lamp: color-mix(in srgb, var(--avatar-peach) 58%, transparent);
+  --ljs-peach-bg: color-mix(in srgb, var(--avatar-peach) 50%, var(--color-surface));
+  --ljs-peach-ink: var(--avatar-ink);
+  --ljs-mint-bg: color-mix(in srgb, var(--avatar-mint) 72%, var(--color-surface));
+  --ljs-mint-ink: var(--avatar-ink);
+  --ljs-scrim: color-mix(in srgb, var(--avatar-ink) 30%, transparent);
+}
+
+:root.dark {
+  --ljs-mark: color-mix(in srgb, var(--avatar-lavender) 22%, transparent);
+  --ljs-edge: color-mix(in srgb, var(--color-foreground) 90%, var(--avatar-lavender));
+  --ljs-edge-k: 0.032;
+  --ljs-edge-max: 3px;
+  --ljs-lamp: color-mix(in srgb, var(--avatar-peach) 92%, var(--color-background));
+  --ljs-peach-bg: color-mix(in srgb, var(--avatar-peach) 20%, transparent);
+  --ljs-peach-ink: var(--avatar-peach);
+  --ljs-mint-bg: color-mix(in srgb, var(--avatar-mint) 16%, transparent);
+  --ljs-mint-ink: var(--color-success);
+  --ljs-scrim: color-mix(in srgb, var(--color-text-inverse) 62%, transparent);
+}
+
+@media (max-width: 360px) {
+  :root {
+    --ljs-pad: 16px;
+  }
+}
+
+/* ---------- page frame ---------- */
+/* Pages and the overlays appended to <body> (sheets, menus) share one reset. */
+:where(.ljs-root, .ljs-layer, .ljs-menu) :where(h1, h2, h3, p, ol, ul, figure) {
+  margin: 0;
+}
+
+/* Programmatic focus targets (headings moved to after a state change) need no ring. */
+:where(.ljs-root, .ljs-layer) [tabindex='-1']:focus {
+  outline: none;
+}
+
+.ljs-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ljs-header,
+.ljs-notices,
+.ljs-main {
+  width: 100%;
+  max-width: calc(var(--ljs-col) + 2 * var(--ljs-pad));
+  margin-inline: auto;
+}
+
+.ljs-header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: var(--space-2);
+  min-height: var(--ljs-header);
+  padding: 6px calc(var(--ljs-pad) - 10px) 6px var(--ljs-pad);
+}
+
+.ljs-header__tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* One row at any text size: the brand side gives way (capped size, then ellipsis), the 44 px
+   icons never wrap. */
+.ljs-header > :first-child {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ljs-wordmark {
+  font-family: var(--font-dynapuff);
+  font-weight: 600;
+  font-size: min(1.5rem, 25px);
+  line-height: 1.1;
+  color: var(--color-primary);
+}
+
+.ljs-chip-code {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ljs-paper);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: min(1.0625rem, 22px);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ljs-chip-code:hover,
+.ljs-chip-code[aria-expanded='true'] {
+  border-color: var(--color-border);
+}
+
+.ljs-notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--ljs-pad) 0;
+}
+
+.ljs-notices:empty {
+  display: none;
+}
+
+.ljs-main {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--ljs-pad) var(--space-4);
+}
+
+/* The primary action at the end of the flow: pushed to the bottom when there is room,
+   directly after the content when there is not. Never fixed, so it never covers anything. */
+.ljs-action {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ljs-center {
+  text-align: center;
+}
+
+/* ---------- type ---------- */
+.ljs-display {
+  font-family: var(--font-dynapuff);
+  font-weight: 600;
+  font-size: 1.75rem;
+  line-height: 1.15;
+  color: var(--color-text-primary);
+}
+
+.ljs-title {
+  font-weight: 700;
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+
+.ljs-hero-line {
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1.25;
+}
+
+.ljs-h2 {
+  font-weight: 700;
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+
+.ljs-secondary {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.ljs-you {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.ljs-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px var(--space-2);
+}
+
+.ljs-section-head__count {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-ic {
+  flex: none;
+  display: block;
+}
+
+/* ---------- buttons ---------- */
+.ljs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 10px 20px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.ljs-btn--block {
+  width: 100%;
+}
+
+.ljs-btn--lg {
+  min-height: 56px;
+  font-size: 1.125rem;
+}
+
+.ljs-btn--sm {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 0.9375rem;
+}
+
+.ljs-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.ljs-btn--primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.ljs-btn--primary:active {
+  background: var(--color-primary-active);
+}
+
+.ljs-btn--secondary {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.ljs-btn--secondary:hover {
+  background: var(--color-surface-hover);
+}
+
+.ljs-btn--quiet {
+  min-height: 44px;
+  padding-inline: 12px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+}
+
+.ljs-btn--quiet:hover {
+  background: var(--color-surface-hover);
+}
+
+.ljs-btn--danger {
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+}
+
+.ljs-btn:disabled,
+.ljs-btn[aria-disabled='true']:not([aria-busy='true']) {
+  background: var(--color-muted);
+  border-color: transparent;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.ljs-btn--quiet:disabled {
+  background: transparent;
+}
+
+/* Pending keeps the button's color: only the label changes. */
+.ljs-btn[aria-busy='true'] {
+  cursor: progress;
+  pointer-events: none;
+}
+
+.ljs-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.ljs-icon-btn:hover,
+.ljs-icon-btn[aria-expanded='true'] {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.ljs-icon-btn[aria-pressed='true'] {
+  color: var(--color-text-primary);
+}
+
+/* ---------- anchored menu and popover ---------- */
+.ljs-menu {
+  position: absolute;
+  z-index: 30;
+  min-width: 220px;
+  max-width: calc(100vw - 2 * var(--ljs-pad));
+  padding: 6px;
+  background: var(--ljs-paper);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+/* In-game invitation: a panel in flow under the header, with a clear edge over the page. */
+.ljs-invite-panel {
+  width: 100%;
+  max-width: calc(var(--ljs-col) + 2 * var(--ljs-pad));
+  margin-inline: auto;
+  padding: var(--space-1) var(--ljs-pad) var(--space-2);
+}
+
+.ljs-invite-panel .ljs-invite {
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--color-border-subtle);
+}
+
+/* With the invitation open, a writing stage ([data-stage]) gives up its top offset so the
+   received line and the action stay as high as possible. */
+.ljs-invite-panel ~ .ljs-main [data-stage] {
+  margin-top: 0;
+}
+
+.ljs-menu--static {
+  position: relative;
+  z-index: auto;
+}
+
+.ljs-menu__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ljs-menu__item:hover,
+.ljs-menu__item:focus-visible {
+  background: var(--color-surface-hover);
+}
+
+.ljs-menu__item:focus-visible {
+  outline-offset: -2px;
+}
+
+.ljs-menu__item--danger {
+  color: var(--color-error);
+}
+
+.ljs-menu__rule {
+  height: 1px;
+  margin: 6px 6px;
+  background: var(--color-border-subtle);
+}
+
+/* ---------- bottom sheets ---------- */
+.ljs-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.ljs-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--ljs-scrim);
+}
+
+.ljs-sheet {
+  position: relative;
+  width: 100%;
+  max-width: calc(var(--ljs-col) + 2 * var(--ljs-pad));
+  max-height: calc(100dvh - 24px);
+  margin-inline: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--ljs-pad) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  background: var(--ljs-paper);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-lg);
+}
+
+.ljs-sheet--static {
+  border-radius: var(--radius-lg);
+  max-height: none;
+}
+
+.ljs-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ljs-sheet__head .ljs-icon-btn {
+  margin: -8px -10px 0 0;
+}
+
+.ljs-sheet__title {
+  font-weight: 700;
+  font-size: 1.375rem;
+  line-height: 1.2;
+}
+
+.ljs-sheet__body {
+  color: var(--color-text-secondary);
+}
+
+.ljs-sheet__error {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-weight: 600;
+  color: var(--color-error);
+}
+
+.ljs-sheet__error .ljs-ic {
+  margin-top: 1px;
+}
+
+.ljs-sheet__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* ---------- notices ---------- */
+.ljs-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) 12px;
+  padding: 10px 12px 10px 10px;
+  background: var(--ljs-paper);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.ljs-notice__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-muted);
+  color: var(--color-text-primary);
+}
+
+.ljs-notice__text {
+  flex: 1 1 12rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ljs-notice--success .ljs-notice__icon {
+  background: var(--ljs-mint-bg);
+  color: var(--ljs-mint-ink);
+}
+
+.ljs-notice--error .ljs-notice__icon {
+  background: color-mix(in srgb, var(--color-error) 14%, transparent);
+  color: var(--color-error);
+}
+
+.ljs-notice .ljs-btn {
+  margin-left: auto;
+}
+
+/* ---------- characters ---------- */
+.ljs-char {
+  --s: 44px;
+  --ljs-edge-w: clamp(1px, calc(var(--s) * var(--ljs-edge-k)), var(--ljs-edge-max));
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--s);
+  height: var(--s);
+}
+
+.ljs-char > .lj-avatar {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ljs-char--edge > .lj-avatar,
+.ljs-char > .ljs-prop {
+  filter: drop-shadow(var(--ljs-edge-w) 0 0 var(--ljs-edge)) drop-shadow(calc(var(--ljs-edge-w) * -1) 0 0 var(--ljs-edge))
+    drop-shadow(0 var(--ljs-edge-w) 0 var(--ljs-edge)) drop-shadow(0 calc(var(--ljs-edge-w) * -1) 0 var(--ljs-edge));
+}
+
+/* Spectators: the outlined character in the text color, so it stays legible in both modes. */
+.ljs-char--outlined {
+  color: var(--color-text-secondary);
+}
+
+/* The reading lamp: a peach disc behind the character. The layout reserves room for it. */
+.ljs-char--lamp {
+  margin: calc(var(--s) * 0.2);
+}
+
+.ljs-lamp {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--s) * 1.4);
+  height: calc(var(--s) * 1.4);
+  border-radius: var(--radius-full);
+  background: var(--ljs-lamp);
+  transform: translate(-50%, -50%);
+}
+
+.ljs-lamp[data-off] {
+  opacity: 0;
+}
+
+.ljs-prop {
+  position: absolute;
+  z-index: 2;
+  width: calc(var(--s) * 0.46);
+  height: calc(var(--s) * 0.46);
+  pointer-events: none;
+}
+
+.ljs-prop--crown {
+  top: calc(var(--s) * -0.2);
+  left: calc(var(--s) * 0.02);
+  transform: rotate(-16deg);
+}
+
+.ljs-prop--pencil {
+  right: calc(var(--s) * -0.14);
+  bottom: calc(var(--s) * -0.04);
+}
+
+.ljs-prop--note {
+  right: calc(var(--s) * -0.16);
+  bottom: calc(var(--s) * -0.02);
+  transform: rotate(-8deg);
+}
+
+.ljs-prop--moon {
+  top: calc(var(--s) * -0.1);
+  right: calc(var(--s) * -0.14);
+}
+
+.ljs-prop--book {
+  left: calc(var(--s) * -0.2);
+  bottom: calc(var(--s) * -0.06);
+  width: calc(var(--s) * 0.56);
+  height: calc(var(--s) * 0.56);
+  transform: rotate(-6deg);
+}
+
+/* ---------- status chips and roster rows ---------- */
+.ljs-status {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 28px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text-secondary);
+}
+
+.ljs-status--in {
+  background: var(--ljs-mint-bg);
+  color: var(--ljs-mint-ink);
+}
+
+.ljs-status--now {
+  background: var(--ljs-peach-bg);
+  color: var(--ljs-peach-ink);
+}
+
+.ljs-status--next {
+  color: var(--color-text-primary);
+}
+
+.ljs-roster {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ljs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  min-height: 60px;
+  padding: 8px 0;
+  border-top: 1px solid var(--ljs-rule);
+}
+
+.ljs-row:first-child {
+  border-top: 0;
+}
+
+.ljs-row > .ljs-char {
+  margin-right: 4px;
+}
+
+.ljs-row > .ljs-char--lamp {
+  margin: 0 4px 0 0;
+}
+
+/* Reading order: every character sits in from the edge so the lamp disc fits the column. */
+.ljs-row--order > .ljs-char {
+  margin-left: 8px;
+  margin-right: 12px;
+}
+
+.ljs-row__end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin-left: auto;
+}
+
+/* A read poem with "Read again": status chip, then the quiet action under it. */
+.ljs-row__end--stack {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.ljs-row__end--stack .ljs-btn {
+  margin-right: -12px;
+}
+
+.ljs-row__end--stack .ljs-status {
+  padding-right: 0;
+}
+
+.ljs-row__who {
+  flex: 1 1 6.5rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ljs-row__name {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ljs-row__note {
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.ljs-round-roster,
+.ljs-order {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ljs-roster--apart {
+  margin-top: var(--space-2);
+  border-top: 1px dashed var(--color-border-subtle);
+  padding-top: var(--space-1);
+}
+
+/* ---------- lobby gathering ---------- */
+.ljs-gather {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+  gap: var(--space-4) var(--space-3);
+}
+
+.ljs-gather__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.ljs-gather__item > .ljs-char {
+  margin-bottom: 4px;
+}
+
+.ljs-gather__name {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ljs-gather__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- invitation ---------- */
+.ljs-invite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 20px 20px;
+  background: var(--ljs-paper);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.ljs-invite--compact {
+  padding: 18px;
+  gap: 12px;
+}
+
+.ljs-invite__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* The QR drops below the code when the code column cannot keep its basis (320 px, 200% text). */
+.ljs-invite__code-col {
+  flex: 1 1 8.5rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.ljs-invite__code {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: 2.25rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ljs-invite__code .ljs-ic {
+  color: var(--color-text-secondary);
+}
+
+.ljs-invite__code:hover {
+  background: var(--color-surface-hover);
+}
+
+.ljs-invite__status {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.ljs-invite__status:empty {
+  display: none;
+}
+
+.ljs-invite__status.is-good {
+  color: var(--color-success);
+}
+
+.ljs-invite__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.ljs-invite__qr .lj-qr {
+  display: block;
+  border-radius: 12px;
+  outline: 1px solid var(--color-border-subtle);
+}
+
+.ljs-invite__qr figcaption {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ljs-invite__note {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-invite__full {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ljs-invite__full .ljs-ic {
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+}
+
+.ljs-invite__share {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- round glyph ---------- */
+.ljs-round {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.ljs-glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  flex: none;
+}
+
+.ljs-glyph i {
+  display: block;
+  width: 7px;
+  height: calc(var(--n) * 8px);
+  border-radius: 4px;
+  background: var(--color-border-subtle);
+}
+
+.ljs-glyph i.is-past {
+  background: var(--ljs-ink-past);
+}
+
+.ljs-glyph i.is-now {
+  background: var(--color-primary);
+}
+
+.ljs-round__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.ljs-round__text strong {
+  font-weight: 700;
+}
+
+.ljs-round__text span {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- the note ---------- */
+.ljs-note {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr 1fr; /* equal halves, so one folds exactly over the other */
+}
+
+/* Long drafts: natural heights, so the received line is not pushed under a blank half. */
+.ljs-note.is-tall:not(.is-folding):not(.is-folded) {
+  grid-template-rows: auto auto;
+}
+
+.ljs-note__top {
+  position: relative;
+  z-index: 2;
+  transform-origin: 50% 100%;
+}
+
+/* 3D only while folding or folded, so the resting note stays crisp text, not a 3D layer. */
+.ljs-note.is-folding,
+.ljs-note.is-folded {
+  perspective: 1200px;
+}
+
+.ljs-note.is-folding .ljs-note__top,
+.ljs-note.is-folded .ljs-note__top {
+  transform-style: preserve-3d;
+}
+
+.ljs-note.is-folding .ljs-note__face,
+.ljs-note.is-folding .ljs-note__back,
+.ljs-note.is-folded .ljs-note__face,
+.ljs-note.is-folded .ljs-note__back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.ljs-note__face {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 16px 20px 18px;
+  background: var(--ljs-paper);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-md);
+  clip-path: inset(-40px -40px 0 -40px);
+}
+
+.ljs-note__back {
+  display: none;
+  position: absolute;
+  inset: 0;
+  /* After its own flip and the tuck, the local top edge is the visible crease. */
+  border-top: 1.5px solid var(--color-border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--ljs-paper);
+  box-shadow: var(--shadow-md);
+  transform: rotateX(180deg);
+}
+
+.ljs-note__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px 18px;
+  background: var(--ljs-paper);
+  border-top: 1.5px dashed var(--color-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  clip-path: inset(0 -40px -40px -40px);
+}
+
+.ljs-note.is-folding .ljs-note__back,
+.ljs-note.is-folded .ljs-note__back {
+  display: block;
+}
+
+.ljs-note.is-folded .ljs-note__top {
+  transform: rotateX(-180deg);
+}
+
+.ljs-note.is-folded .ljs-note__bottom > * {
+  visibility: hidden;
+}
+
+.ljs-note__folds {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ljs-note__passed {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ljs-note__received {
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.ljs-note__received--fresh {
+  font-size: 1.375rem;
+  text-wrap: balance;
+}
+
+.ljs-note__msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ljs-note__msg--error {
+  align-items: flex-start;
+  color: var(--color-error);
+}
+
+.ljs-note__msg--error .ljs-ic {
+  margin-top: 3px;
+}
+
+.ljs-note__input {
+  display: block;
+  width: 100%;
+  min-height: 2.8rem;
+  padding: 4px 0 6px;
+  border: 0;
+  border-bottom: 2px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  font-size: 1.375rem;
+  line-height: 1.35;
+  resize: none;
+  /* Grows with the line up to about six lines (scales with text size), then scrolls inside,
+     so the count, the limit line and the action stay under it. */
+  max-height: 11.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ljs-note__input:focus {
+  outline: none;
+}
+
+.ljs-note__input:focus-visible,
+.ljs-note__input:focus {
+  border-bottom-color: var(--color-focus-ring);
+  box-shadow: 0 1.5px 0 var(--color-focus-ring);
+}
+
+.ljs-note__input[readonly] {
+  color: var(--color-text-secondary);
+  border-bottom-style: dashed;
+}
+
+.ljs-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.ljs-slots {
+  display: flex;
+  gap: 6px;
+}
+
+.ljs-slot {
+  width: 24px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-border-subtle);
+}
+
+.ljs-slot.is-filled {
+  background: var(--color-text-primary);
+}
+
+.ljs-slot.is-over {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--color-error);
+}
+
+.ljs-count__text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ljs-count__text.is-ready {
+  color: var(--color-text-primary);
+}
+
+.ljs-count__text.is-over {
+  color: var(--color-error);
+}
+
+.ljs-note__limit {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-note__limit[hidden] {
+  display: none;
+}
+
+/* ---------- acknowledgement and reading heroes ---------- */
+.ljs-ack,
+.ljs-hero,
+.ljs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+}
+
+.ljs-ack > .ljs-char {
+  margin-bottom: var(--space-2);
+}
+
+.ljs-ack__echo {
+  max-width: 30ch;
+  color: var(--color-text-primary);
+  text-wrap: balance;
+}
+
+.ljs-ack__echo q {
+  quotes: '\201C' '\201D';
+  font-weight: 600;
+}
+
+.ljs-ack__next {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-hero > .ljs-char {
+  margin-bottom: var(--space-3);
+}
+
+.ljs-hero__title {
+  text-wrap: balance;
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1.25;
+  max-width: 18ch;
+}
+
+.ljs-hero__listen {
+  display: block;
+  font-weight: 700;
+}
+
+.ljs-hero__body {
+  max-width: 30ch;
+  text-wrap: balance;
+  color: var(--color-text-secondary);
+}
+
+.ljs-hero__aside {
+  max-width: 32ch;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-hero__next {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.ljs-hero__next .ljs-char--lamp {
+  margin: 4px;
+}
+
+.ljs-yourturn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.ljs-yourturn > .ljs-char {
+  margin-right: 4px;
+}
+
+.ljs-yourturn p {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.ljs-yourturn strong {
+  font-weight: 700;
+}
+
+.ljs-yourturn span {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- poems ---------- */
+.ljs-poem {
+  list-style: none;
+  padding: 0;
+  text-align: left;
+}
+
+.ljs-poem li {
+  overflow-wrap: anywhere;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.ljs-poem--lg li {
+  font-size: 1.5rem;
+  line-height: 1.45;
+  padding-block: 1px;
+}
+
+.ljs-poem--md li {
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.ljs-poem--sm li {
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+.ljs-poem[data-highlight] li {
+  color: var(--ljs-quiet-line);
+}
+
+.ljs-poem[data-highlight] li.is-hit {
+  color: var(--color-text-primary);
+}
+
+.ljs-poem li.is-hit span {
+  background: var(--ljs-mark);
+  border-radius: 6px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 4px;
+  margin: 0 -4px;
+}
+
+.ljs-sheetpoem,
+.ljs-card {
+  background: var(--ljs-paper);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.ljs-sheetpoem {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 20px 22px;
+  perspective: 1400px;
+}
+
+.ljs-sheetpoem__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ljs-sheetpoem__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+
+.ljs-sheetpoem__title {
+  font-weight: 700;
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+
+.ljs-sheetpoem__tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -6px -8px 0 auto;
+}
+
+.ljs-sheetpoem__body {
+  transform-origin: 50% 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.ljs-byline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-byline--lamp {
+  margin-top: 10px;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.ljs-byline--lamp .ljs-char--lamp {
+  margin: 4px 2px 4px 7px;
+}
+
+.ljs-fav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ljs-fav--icon {
+  padding: 0;
+}
+
+.ljs-fav:hover {
+  background: var(--color-surface-hover);
+}
+
+.ljs-fav[aria-pressed='true'] {
+  color: var(--color-text-primary);
+}
+
+.ljs-fav[aria-pressed='true'] .ljs-ic {
+  fill: currentColor;
+}
+
+.ljs-key {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ljs-rule);
+}
+
+.ljs-key__label {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.ljs-key__label strong {
+  color: var(--color-text-primary);
+}
+
+.ljs-key__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ljs-keychip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 14px 4px 6px;
+  border: 1.5px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ljs-keychip:hover {
+  background: var(--color-surface-hover);
+}
+
+.ljs-keychip[aria-pressed='true'] {
+  border-color: var(--color-text-primary);
+  background: var(--ljs-mark);
+}
+
+.ljs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 18px;
+}
+
+.ljs-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-right: -8px;
+}
+
+.ljs-card__title {
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.ljs-card__open {
+  min-height: 44px;
+  margin: 0 0 0 -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.ljs-card__open:hover {
+  background: var(--color-surface-hover);
+}
+
+.ljs-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px var(--space-2);
+  padding-top: 10px;
+  border-top: 1px solid var(--ljs-rule);
+}
+
+.ljs-card__credits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ljs-card__foot > .ljs-btn {
+  margin: 0 -12px 0 auto;
+}
+
+.ljs-card__meta {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- share and empty ---------- */
+.ljs-share {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ljs-share__disclosure {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+.ljs-share.is-shared {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 8px 10px 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.ljs-share__done {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 14rem;
+  font-weight: 600;
+}
+
+.ljs-share__done .ljs-ic {
+  margin-top: 2px;
+  color: var(--color-success);
+}
+
+.ljs-empty {
+  padding-block: var(--space-4);
+}
+
+.ljs-empty > .ljs-char {
+  margin-bottom: var(--space-2);
+}
+
+.ljs-empty__title {
+  font-weight: 700;
+  font-size: 1.375rem;
+  line-height: 1.25;
+  max-width: 22ch;
+}
+
+.ljs-empty__body {
+  max-width: 30ch;
+  color: var(--color-text-secondary);
+}
+
+/* Reduced motion: no transitions at all (the kit shortens them to 1 ms, which still delays
+   visibility changes by a task and blocks focusing a just-revealed control). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-property: none !important;
+  }
+}

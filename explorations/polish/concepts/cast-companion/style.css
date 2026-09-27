@@ -1,0 +1,811 @@
+/* Cast Companion. Tokens from kit/tokens.css; concept-local properties derive from them. */
+
+:root {
+  /* Sticker edge: a die-cut light contour that follows each character's silhouette,
+     so plum ink never sits directly on a dark ground. Barely visible on lavender. */
+  --cc-edge: var(--color-surface);
+  --cc-edge-k: 0.024; /* edge width as a share of character size */
+  --cc-edge-max: 2px;
+  --cc-side: var(--space-4);
+  --cc-dock-rule: var(--color-border-subtle);
+}
+
+:root.dark {
+  --cc-edge: color-mix(in srgb, var(--color-foreground) 90%, var(--avatar-lavender));
+  --cc-edge-k: 0.032;
+  --cc-edge-max: 3px;
+}
+
+@media (max-width: 360px) {
+  :root {
+    --cc-side: var(--space-3);
+  }
+}
+
+/* ---------- Page frame ---------- */
+.cc-page {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cc-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 60px;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--cc-side);
+}
+
+.cc-wordmark {
+  font-family: var(--font-dynapuff);
+  font-weight: 600;
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+.cc-code-chip {
+  min-height: 44px;
+  min-width: 44px;
+  margin-left: calc(var(--space-2) * -1);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+}
+
+.cc-header-tools {
+  display: flex;
+  align-items: center;
+}
+
+.cc-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.cc-icon-btn:hover,
+.cc-code-chip:hover {
+  background: var(--color-surface-hover);
+}
+
+.cc-main {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--cc-side) var(--space-4);
+  padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+}
+
+.cc-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cc-stage-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: var(--space-4);
+}
+
+/* ---------- Type ---------- */
+.cc-eyebrow {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.cc-meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.cc-h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.cc-name {
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.cc-status {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.cc-status:empty {
+  display: none;
+}
+
+/* ---------- Buttons ---------- */
+.cc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: var(--text-md);
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: center;
+}
+
+.cc-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.cc-btn--primary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--color-primary-hover);
+}
+
+.cc-btn--primary:disabled {
+  background: var(--color-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.cc-btn--primary.is-pending {
+  background: var(--color-primary-active);
+  cursor: progress;
+}
+
+.cc-btn--secondary {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.cc-btn--secondary:hover {
+  background: var(--color-surface-hover);
+}
+
+.cc-btn--small {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+}
+
+.cc-btn--wide {
+  width: 100%;
+}
+
+.cc-text-btn {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cc-action {
+  margin-top: auto;
+  padding-top: var(--space-3);
+}
+
+/* ---------- Characters and props ---------- */
+.cc-char {
+  position: relative;
+  --cc-edge-w: clamp(1px, calc(var(--s) * var(--cc-edge-k)), var(--cc-edge-max));
+  display: inline-block;
+  flex: none;
+  width: var(--s);
+  height: var(--s);
+}
+
+.cc-char > .lj-avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cc-edge > .lj-avatar,
+.cc-edge > .cc-prop,
+.cc-flight-note {
+  filter: drop-shadow(var(--cc-edge-w) 0 0 var(--cc-edge)) drop-shadow(calc(var(--cc-edge-w) * -1) 0 0 var(--cc-edge))
+    drop-shadow(0 var(--cc-edge-w) 0 var(--cc-edge)) drop-shadow(0 calc(var(--cc-edge-w) * -1) 0 var(--cc-edge));
+}
+
+.cc-prop {
+  position: absolute;
+  width: calc(var(--s) * 0.46);
+  height: calc(var(--s) * 0.46);
+  pointer-events: none;
+}
+
+.cc-prop--crown {
+  top: calc(var(--s) * -0.2);
+  left: calc(var(--s) * 0.02);
+  transform: rotate(-16deg);
+}
+
+.cc-prop--pencil {
+  right: calc(var(--s) * -0.14);
+  bottom: calc(var(--s) * -0.04);
+}
+
+.cc-prop--note {
+  right: calc(var(--s) * -0.16);
+  bottom: calc(var(--s) * -0.02);
+  transform: rotate(-8deg);
+}
+
+.cc-prop--note.is-landing {
+  visibility: hidden;
+}
+
+.cc-prop--moon {
+  top: calc(var(--s) * -0.1);
+  right: calc(var(--s) * -0.14);
+  width: calc(var(--s) * 0.46);
+  height: calc(var(--s) * 0.46);
+}
+
+.cc-prop--eyes {
+  right: calc(var(--s) * -0.16);
+  bottom: calc(var(--s) * -0.06);
+  width: calc(var(--s) * 0.54);
+  height: calc(var(--s) * 0.54);
+}
+
+.cc-prop--page {
+  left: calc(var(--s) * -0.2);
+  bottom: calc(var(--s) * -0.06);
+  width: calc(var(--s) * 0.56);
+  height: calc(var(--s) * 0.56);
+  transform: rotate(-6deg);
+}
+
+/* ---------- Cast grid (lobby, waiting) ---------- */
+.cc-cast-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5) var(--space-3);
+}
+
+.cc-cast-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.cc-cast-item .cc-char {
+  margin-bottom: var(--space-2);
+}
+
+.cc-cast-item .cc-status {
+  margin-top: 2px;
+}
+
+/* ---------- Lobby ---------- */
+.cc-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.cc-invite-text {
+  flex: 1 1 9rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.cc-code-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.cc-code-big {
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-primary);
+}
+
+.cc-qr {
+  flex: none;
+  width: 112px;
+  height: 112px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #fff;
+}
+
+.cc-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cc-roster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+  margin-block: auto;
+}
+
+.cc-roster-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.cc-count-quiet {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.cc-cast-grid--lobby {
+  row-gap: var(--space-4);
+}
+
+/* ---------- Writing ---------- */
+.cc-received {
+  margin-top: var(--space-5);
+}
+
+/* Writing body sits a little above center when the keyboard is down. */
+.cc-stage--writing .cc-received {
+  margin-top: auto;
+  padding-top: var(--space-4);
+}
+
+.cc-stage--writing .cc-compose {
+  margin-bottom: auto;
+}
+
+.cc-stage--writing::after {
+  content: '';
+  flex: 0.5 1 0;
+}
+
+.cc-hero-line {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.cc-compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.cc-textarea {
+  display: block;
+  width: 100%;
+  min-height: 5.25rem;
+  field-sizing: content;
+  padding: 0.75rem var(--space-3);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--text-xl);
+  line-height: 1.4;
+  resize: none;
+}
+
+.cc-textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.cc-textarea:read-only {
+  color: var(--color-text-secondary);
+}
+
+.cc-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.cc-slots {
+  display: flex;
+  gap: 6px;
+}
+
+.cc-slot {
+  width: 22px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border);
+}
+
+.cc-slot.is-filled {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.cc-slot.is-over {
+  border-style: dashed;
+  border-color: var(--color-text-secondary);
+}
+
+.cc-count {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-count strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.cc-count-hint::before {
+  content: '. ';
+}
+
+/* ---------- Dock: your character, always in the same place ---------- */
+.cc-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 104px;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--cc-dock-rule);
+}
+
+.cc-dock-char {
+  display: inline-grid;
+  place-items: center start;
+  width: 76px;
+  height: 72px;
+  flex: none;
+}
+
+.cc-dock-text {
+  flex: 1 1 4.5rem;
+  min-width: 0;
+}
+
+.cc-dock-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--text-lg);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Programmatic focus target after a state change; not interactive, so no ring. */
+.cc-dock-title:focus {
+  outline: none;
+}
+
+.cc-ack {
+  font-family: var(--font-dynapuff);
+  font-weight: 500;
+  font-size: var(--text-xl);
+}
+
+.cc-dock-status {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.cc-dock-action {
+  flex: 0 0 auto;
+  /* Wide enough for "Submitting…" so pending never reflows the dock. */
+  min-width: min(9.25rem, 100%);
+  margin-left: auto;
+}
+
+.cc-dock-spacer {
+  flex: 1 0 100%;
+}
+
+/* The flying note during hand-in. */
+.cc-flight {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.cc-flight-paper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 0.75rem var(--space-3);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--text-xl);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.cc-flight-note {
+  position: absolute;
+  --cc-edge-w: 1.5px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
+/* ---------- Waiting ---------- */
+.cc-stage--waiting .cc-cast-grid {
+  row-gap: var(--space-5);
+}
+
+/* ---------- Reading circle ---------- */
+.cc-reader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+}
+
+.cc-reader-char {
+  margin-bottom: var(--space-2);
+}
+
+.cc-reader-line {
+  margin: 0;
+  max-width: 20ch;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.cc-reader-name {
+  color: var(--color-text-primary);
+}
+
+.cc-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-5);
+}
+
+.cc-next-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+
+.cc-next-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.cc-next-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ---------- Poem sheet ---------- */
+.cc-main--poem {
+  gap: var(--space-3);
+}
+
+.cc-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  transform-origin: 50% 0;
+}
+
+.cc-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cc-sheet-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.cc-sheet-title:focus {
+  outline: none;
+}
+
+.cc-sheet-sub {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.cc-poem {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: clamp(1.25rem, 5.6vw, 1.375rem);
+  line-height: 1.55;
+  text-align: left;
+  color: var(--color-text-primary);
+}
+
+.cc-poem li {
+  overflow-wrap: anywhere;
+}
+
+.cc-line-by {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.show-authors .cc-poem {
+  line-height: 1.4;
+}
+
+.show-authors .cc-poem li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--space-3);
+  padding-block: 1px;
+}
+
+.show-authors .cc-line-by {
+  margin-left: auto;
+  text-align: right;
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.cc-credits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.cc-credit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.cc-credit-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Cast sheet board ---------- */
+.cc-sheet-board {
+  gap: var(--space-4);
+}
+
+.cc-sheet-board section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cc-board-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-2);
+}
+
+.cc-board-row li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.cc-board-row--props {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  row-gap: var(--space-4);
+}
+
+.cc-board-row--props .cc-name {
+  font-size: var(--text-sm);
+}
+
+/* Reduced motion: every composition above is already its own end state;
+   app.js skips the hand-in, open, swap and arrival animations entirely. */

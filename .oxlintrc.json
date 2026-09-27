@@ -23,7 +23,7 @@
     "convex/_generated/**",
     "dagger/**",
     "vendor/**",
-    "explorations/renewal/**",
+    "explorations/**",
     "coverage/**",
     "playwright-report/**",
     "test-results/**",

@@ -1,0 +1,877 @@
+/* Lights Down. Concept-local properties derive from kit tokens only. */
+
+.ld-app {
+  --ld-gutter: 1.25rem;
+  --ld-width: 30rem;
+
+  /* Luminance axis. */
+  --ld-lamp: var(--color-surface);
+  --ld-night: color-mix(in srgb, var(--avatar-ink) 42%, #000);
+  --ld-night-ink: var(--avatar-lavender);
+  --ld-night-quiet: color-mix(in srgb, var(--avatar-lavender) 68%, var(--ld-night));
+  --ld-night-raised: color-mix(in srgb, var(--avatar-lavender) 12%, var(--ld-night));
+  /* The reader's page is the light --color-surface in both modes, with light ink. */
+  --ld-page: #fff;
+  --ld-page-ink: var(--avatar-ink);
+  --ld-page-quiet: color-mix(in srgb, var(--avatar-ink) 78%, #fff);
+
+  /* Timings (stated in README motion spec). */
+  --ld-dim: 450ms;
+  --ld-brighten: 300ms;
+  --ld-return: 450ms;
+  --ld-release: 200ms;
+  --ld-arrive: 300ms;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  transition:
+    background-color var(--ld-dim) var(--ease-in),
+    color var(--ld-dim) var(--ease-in);
+}
+
+:root.dark .ld-app {
+  --ld-lamp: var(--color-foreground);
+}
+
+/* Lights down: a listener's phone while someone reads. Ignores the appearance preference. */
+.ld-app.is-night {
+  background: var(--ld-night);
+  color: var(--ld-night-ink);
+  color-scheme: dark;
+}
+
+/* The page: the reader's phone while they read. Ignores the appearance preference. */
+.ld-app.is-page {
+  background: var(--ld-page);
+  color: var(--ld-page-ink);
+  color-scheme: light;
+  transition-duration: var(--ld-brighten);
+  transition-timing-function: var(--ease-out);
+}
+
+/* Lights return. */
+.ld-app.is-waking {
+  transition-duration: var(--ld-return);
+  transition-timing-function: var(--ease-out);
+}
+
+.is-night :focus-visible {
+  outline-color: var(--ld-night-ink);
+}
+
+.is-page :focus-visible {
+  outline-color: var(--ld-page-ink);
+}
+
+.ld-app p {
+  text-wrap: pretty;
+}
+
+/* ---------- chrome ---------- */
+
+.ld-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: calc(var(--ld-width) + 2 * var(--ld-gutter));
+  margin: 0 auto;
+  min-height: 4rem;
+  padding: var(--space-2) calc(var(--ld-gutter) - 0.625rem) var(--space-2) var(--ld-gutter);
+}
+
+.ld-bar__left {
+  min-width: 0;
+}
+
+.ld-bar__right,
+.ld-bar__quiet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ld-bar__right {
+  margin-left: auto;
+}
+
+/* Controls that exist only while the room is lit. */
+.ld-daylight {
+  transition:
+    opacity var(--ld-return) var(--ease-out),
+    visibility 0s linear 0s;
+}
+
+.is-night .ld-daylight,
+.is-page .ld-daylight {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--ld-dim) var(--ease-in),
+    visibility 0s linear var(--ld-dim);
+}
+
+.ld-wordmark {
+  font-family: var(--font-dynapuff);
+  font-weight: 600;
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+.ld-code {
+  min-height: 44px;
+  min-width: 44px;
+  margin-left: -0.5rem;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ld-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color var(--ld-dim) var(--ease-in);
+}
+
+.ld-icon-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.is-night .ld-icon-btn {
+  color: var(--ld-night-quiet);
+}
+
+.is-night .ld-icon-btn:hover {
+  background: var(--ld-night-raised);
+}
+
+.is-page .ld-icon-btn {
+  color: var(--ld-page-quiet);
+}
+
+.is-page .ld-icon-btn:hover {
+  background: color-mix(in srgb, var(--ld-page-ink) 6%, var(--ld-page));
+}
+
+.ld-options {
+  position: relative;
+}
+
+.ld-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 12rem;
+  padding: 0.375rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.ld-menu[hidden] {
+  display: none;
+}
+
+.ld-menu button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ld-menu button:hover {
+  background: var(--color-surface-hover);
+}
+
+.is-night .ld-menu {
+  border-color: color-mix(in srgb, var(--ld-night-ink) 22%, var(--ld-night));
+  background: var(--ld-night-raised);
+  box-shadow: none;
+}
+
+.is-night .ld-menu button:hover {
+  background: color-mix(in srgb, var(--ld-night-ink) 18%, var(--ld-night));
+}
+
+.is-page .ld-menu {
+  border-color: color-mix(in srgb, var(--ld-page-ink) 18%, var(--ld-page));
+  background: var(--ld-page);
+}
+
+.is-page .ld-menu button:hover {
+  background: color-mix(in srgb, var(--ld-page-ink) 6%, var(--ld-page));
+}
+
+/* ---------- shared layout ---------- */
+
+.ld-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: calc(var(--ld-width) + 2 * var(--ld-gutter));
+  margin: 0 auto;
+  padding: var(--space-2) var(--ld-gutter) var(--space-4);
+}
+
+.ld-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-3);
+}
+
+.ld-kicker {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.ld-kicker--plain {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ld-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  padding: 0.5rem 1.25rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+
+.ld-btn--block {
+  width: 100%;
+  min-height: 56px;
+}
+
+.ld-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.ld-btn--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.ld-btn--primary:disabled {
+  background: color-mix(in srgb, var(--color-primary) 42%, var(--color-background));
+  cursor: not-allowed;
+}
+
+.ld-btn--quiet {
+  min-height: 44px;
+  padding: 0.375rem 1rem;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+}
+
+.ld-btn--ink {
+  background: var(--ld-page-ink);
+  color: var(--ld-page);
+}
+
+.ld-btn[aria-busy='true'] {
+  cursor: progress;
+}
+
+/* ---------- lamp: a character on a lit disc ---------- */
+
+.ld-lamp {
+  --lamp: 44px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--lamp);
+  height: var(--lamp);
+  border-radius: var(--radius-full);
+  background: var(--ld-lamp);
+}
+
+.ld-lamp .lj-avatar {
+  display: block;
+}
+
+/* ---------- lobby ---------- */
+
+.ld-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) 0.75rem;
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.ld-invite__text {
+  display: flex;
+  flex: 1 1 7rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ld-invite__code {
+  min-height: 44px;
+  margin-left: -0.25rem;
+  padding: 0 0.25rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ld-invite__note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.ld-invite__share {
+  flex: 1 1 100%;
+}
+
+.ld-qr {
+  flex: none;
+  width: clamp(88px, 28vw, 116px);
+  aspect-ratio: 1;
+}
+
+.ld-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.ld-roster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ld-roster__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ld-roster ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.ld-person:last-child {
+  border-bottom: 0;
+}
+
+.ld-person__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ld-person__note {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.ld-you {
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+.ld-badge {
+  flex: none;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--radius-full);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.ld-status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.ld-status--done {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+/* ---------- writing ---------- */
+
+.ld-round {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.ld-given {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ld-given__line {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.ld-field textarea {
+  display: block;
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.875rem 1rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: max(1.25rem, 16px);
+  line-height: 1.4;
+  resize: none;
+  overflow-wrap: anywhere;
+}
+
+.ld-field textarea:focus-visible {
+  border-color: var(--color-primary);
+}
+
+.ld-field textarea[readonly] {
+  color: var(--color-text-secondary);
+}
+
+.ld-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.ld-count {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.ld-count__num {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ld-count__hint {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.is-over .ld-count__hint {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.is-ready .ld-count__hint {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.ld-btn--submit {
+  min-width: 8.5rem;
+}
+
+/* ---------- waiting acknowledgement ---------- */
+
+.ld-ack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  text-align: center;
+}
+
+.ld-ack__title {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-dynapuff);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ld-ack__title:focus {
+  outline: none;
+}
+
+.ld-ack__meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.ld-ack__line {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.ld-ack__line q {
+  color: var(--color-text-primary);
+}
+
+/* ---------- listener: lights down ---------- */
+
+.ld-listen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 0 var(--ld-gutter) var(--space-5);
+  text-align: center;
+}
+
+.ld-listen__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+}
+
+.ld-listen__line {
+  max-width: 15em;
+  margin: 0;
+  font-size: 1.625rem;
+  text-wrap: balance;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ld-listen__line span {
+  display: block;
+  font-weight: 700;
+}
+
+.ld-quiet {
+  color: var(--color-text-secondary);
+  transition: color var(--ld-dim) var(--ease-in);
+}
+
+.is-night .ld-quiet {
+  color: var(--ld-night-quiet);
+}
+
+.ld-listen__turn {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+/* ---------- reader: turn, page, return ---------- */
+
+.ld-turn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: calc(var(--ld-width) + 2 * var(--ld-gutter));
+  margin: 0 auto;
+  padding: 0 var(--ld-gutter) var(--space-4);
+}
+
+.ld-turn__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.ld-turn__title {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ld-turn__detail,
+.ld-turn__next {
+  max-width: 22em;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.ld-turn__next {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.ld-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: calc(var(--ld-width) + 2 * var(--ld-gutter));
+  margin: 0 auto;
+  padding: 0 var(--ld-gutter) var(--space-4);
+}
+
+.ld-page__title {
+  margin: 0;
+  color: var(--ld-page-quiet);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.ld-page__title:focus {
+  outline: none;
+}
+
+.ld-poem {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.ld-poem li {
+  overflow-wrap: anywhere;
+}
+
+/* Set for reading aloud: large, generous leading, whole poem visible at once. */
+.ld-poem--aloud {
+  margin-top: var(--space-3);
+  font-size: clamp(1.25rem, 6.4vw, 1.75rem);
+  line-height: 1.55;
+}
+
+.ld-poem--aloud li + li {
+  margin-top: 0.3em;
+}
+
+.ld-byline {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.is-page .ld-byline {
+  color: var(--ld-page-quiet);
+}
+
+/* ---------- listener after reading ---------- */
+
+.ld-after {
+  gap: var(--space-3);
+}
+
+.ld-after__who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.ld-sheet {
+  padding: 1.25rem 1.25rem 0.75rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.ld-sheet__title {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.ld-poem--along {
+  font-size: var(--text-xl);
+  line-height: 1.6;
+}
+
+.ld-credits {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.ld-credits summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ld-credits summary::-webkit-details-marker {
+  display: none;
+}
+
+.ld-credits summary::after {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: -0.25rem 0 0 0.625rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.ld-credits[open] summary::after {
+  margin-top: 0.25rem;
+  transform: rotate(-135deg);
+}
+
+.ld-credits ol {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.ld-credits li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+  padding: 0.25rem 0;
+}
+
+.ld-credits li span:last-child {
+  color: var(--color-text-secondary);
+}
+
+.ld-after__next {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+/* ---------- motion: arrive and release ---------- */
+
+@keyframes ld-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ld-arrive {
+  animation: ld-arrive var(--ld-arrive) var(--ease-out) both;
+}
+
+/* The poem arrives as the lights come back up, finishing within 450 ms. */
+.ld-arrive--late {
+  animation-delay: 150ms;
+}
+
+.ld-release {
+  opacity: 0;
+  transition: opacity var(--ld-release) var(--ease-in);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-arrive,
+  .ld-arrive--late {
+    animation: none;
+  }
+
+  .ld-app,
+  .ld-app *,
+  .ld-daylight {
+    transition: none !important;
+  }
+}

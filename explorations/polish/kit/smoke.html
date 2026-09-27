@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Linejam kit smoke</title>
+    <link rel="stylesheet" href="./tokens.css" />
+    <link rel="stylesheet" href="./base.css" />
+    <script src="./cast.js"></script>
+    <script src="./content.js"></script>
+    <script src="./qr.js"></script>
+  </head>
+  <body>
+    <main style="padding: 24px">
+      <h1 style="font-family: var(--font-dynapuff); font-weight: 600; margin: 0 0 12px">Linejam kit</h1>
+      <div id="cast"></div>
+      <p id="poem"></p>
+      <div id="qr"></div>
+    </main>
+    <script>
+      document.getElementById('cast').innerHTML = LJ.CAST_IDS.map((id) => LJ.avatar(id, { size: 64 })).join('');
+      document.getElementById('poem').textContent = LJ.room.poems[0].lines.map((l) => l[0]).join(' / ');
+      document.getElementById('qr').innerHTML = LJ.qr({ size: 160 });
+    </script>
+  </body>
+</html>
