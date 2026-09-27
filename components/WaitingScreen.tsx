@@ -1,7 +1,7 @@
 import { useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
-import type { StoredAvatarId } from '@/lib/avatars';
+import type { AvatarId } from '@/lib/avatars';
 import {
   useRoomQueryArgs,
   type RoomQueryArgs,
@@ -14,7 +14,7 @@ type PlayerState = { label: string; mood: AvatarMood; prop?: AvatarProp };
 type WaitingViewer = {
   stableId: string;
   displayName: string;
-  avatarId?: StoredAvatarId;
+  avatarId?: AvatarId;
 };
 
 // The written status stays; the character's face and prop echo it.
@@ -65,7 +65,7 @@ interface WaitingScreenProps {
       userId: string;
       stableId: string;
       displayName: string;
-      avatarId?: StoredAvatarId;
+      avatarId?: AvatarId;
       isViewer?: boolean;
       isAway?: boolean;
       isSpectator?: boolean;

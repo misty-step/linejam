@@ -32,11 +32,7 @@ import {
 import { abandonRoomMatch } from './lib/sessionLifecycle';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { avatarIdValidator } from './lib/avatars';
-import {
-  currentAvatarId,
-  firstCastAvatarId,
-  resolveAvatarId,
-} from '../lib/avatars';
+import { getDefaultAvatarId } from '../lib/avatars';
 import { RATE_LIMIT_EXCEEDED_MESSAGE } from '../lib/rateLimit';
 
 const parlorDisplayName = (value: string): string | null => {
@@ -113,10 +109,9 @@ export const createRoom = mutation({
       userId: user._id,
       playerId: actor.playerId,
       displayName: typedName,
-      avatarId: resolveAvatarId(
-        avatarId,
-        user.clerkUserId || user.guestId || user._id
-      ),
+      avatarId:
+        avatarId ??
+        getDefaultAvatarId(user.clerkUserId || user.guestId || user._id),
       joinedAt: Date.now(),
     });
     return { code: receipt.code, roomId: receipt.roomId };
@@ -192,14 +187,10 @@ export const joinRoom = mutation({
     }
 
     const joinedRoom = await requireLiveRoomByCode(ctx, result.code);
-    // A retired stored choice or an older client's selection resolves to its successor.
     const selectedAvatarId =
-      avatarId === undefined
-        ? resolveAvatarId(
-            profile?.avatarId,
-            user.clerkUserId || user.guestId || user._id
-          )
-        : currentAvatarId(avatarId);
+      avatarId ??
+      profile?.avatarId ??
+      getDefaultAvatarId(user.clerkUserId || user.guestId || user._id);
     if (profile) {
       if (
         profile.displayName !== typedName ||
@@ -287,9 +278,7 @@ export const getRoomState = query({
         return {
           ...rest,
           stableId,
-          // Answer in first-cast ids until the contraction release, so bundles from
-          // before Pen Pals keep drawing; the Pen Pals renderer maps them.
-          avatarId: firstCastAvatarId(resolveAvatarId(rp.avatarId, stableId)),
+          avatarId: rp.avatarId ?? getDefaultAvatarId(stableId),
           isAway: isPresenceStale(lastSeenAt, now, PRESENCE_AWAY_MS),
         };
       })

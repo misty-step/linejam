@@ -504,7 +504,7 @@ describe('WritingScreen component', () => {
       viewer: {
         stableId: 'writing-account',
         displayName: 'Ada',
-        avatarId: 'pip' as const,
+        avatarId: 'rhyme' as const,
       },
     };
     mockSubmitLineMutation.mockResolvedValue({

@@ -1,9 +1,5 @@
 import { cn } from '@/lib/utils';
-import {
-  currentAvatarId,
-  getDefaultAvatarId,
-  type StoredAvatarId,
-} from '@/lib/avatars';
+import { getDefaultAvatarId, type AvatarId } from '@/lib/avatars';
 import {
   AVATAR_ART,
   AVATAR_PROP_ART,
@@ -22,8 +18,7 @@ interface AvatarProps {
   stableId: string;
   /** User's display name for aria-label */
   displayName: string;
-  /** A stored choice; retired first-cast ids draw as their Pen Pals successor. */
-  avatarId?: StoredAvatarId;
+  avatarId?: AvatarId;
   /** Retained for callers that also use room-wide attribution colors. */
   allStableIds?: string[];
   /** Size variant */
@@ -128,10 +123,7 @@ export function Avatar({
   outlined = false,
   className,
 }: AvatarProps) {
-  const chosen =
-    avatarId === undefined
-      ? getDefaultAvatarId(stableId)
-      : currentAvatarId(avatarId);
+  const chosen = avatarId ?? getDefaultAvatarId(stableId);
   // A newer server during a rolling deploy may send an id this bundle cannot draw.
   const art =
     AVATAR_ART[

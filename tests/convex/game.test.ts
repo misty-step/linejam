@@ -1710,12 +1710,12 @@ describe('getRevealPhaseState', () => {
     await host.mutation(api.rooms.joinRoom, {
       code,
       displayName: 'Birch',
-      avatarId: 'pip',
+      avatarId: 'rhyme',
     });
     await guest.mutation(api.rooms.joinRoom, {
       code,
       displayName: 'Cedar',
-      avatarId: 'moss',
+      avatarId: 'haiku',
     });
     await host.mutation(api.game.revealPoem, { poemId: hostPoemId });
     await host.mutation(api.rooms.closeRoom, { roomCode: code });
@@ -1727,18 +1727,18 @@ describe('getRevealPhaseState', () => {
       expect.objectContaining({
         userId: hostId,
         displayName: 'Birch',
-        avatarId: 'pip',
+        avatarId: 'rhyme',
       }),
       expect.objectContaining({
         userId: guestId,
         displayName: 'Cedar',
-        avatarId: 'moss',
+        avatarId: 'haiku',
       }),
     ]);
     expect(reading?.myPoem).toMatchObject({
       _id: guestPoemId,
       readerName: 'Cedar',
-      readerAvatarId: 'moss',
+      readerAvatarId: 'haiku',
       canReveal: true,
       isFallbackReader: false,
     });
@@ -1750,7 +1750,7 @@ describe('getRevealPhaseState', () => {
       expect.objectContaining({
         _id: hostPoemId,
         readerName: 'Birch',
-        readerAvatarId: 'pip',
+        readerAvatarId: 'rhyme',
       }),
     ]);
     expect(reading?.revealedPoems[0].lines.map((line) => line.text)).toEqual([

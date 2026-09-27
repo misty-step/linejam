@@ -4,11 +4,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser } from '../helpers/convexSeed';
 import { signGuestToken } from '../../lib/guestToken';
-import {
-  firstCastAvatarId,
-  getDefaultAvatarId,
-  type AvatarId,
-} from '../../lib/avatars';
+import { getDefaultAvatarId, type AvatarId } from '../../lib/avatars';
 import {
   ABUSE_RATE_LIMITS,
   type AbuseRateLimitOperation,
@@ -232,7 +228,7 @@ describe('room avatars', () => {
 
     const { code } = await host.mutation(api.rooms.createRoom, {
       displayName: 'Host',
-      avatarId: 'sunny',
+      avatarId: 'doodle',
     });
     await expect(
       host.mutation(api.rooms.joinRoom, {
@@ -242,7 +238,7 @@ describe('room avatars', () => {
       })
     ).rejects.toThrow();
     const state = await host.query(api.rooms.getRoomState, { code });
-    expect(state?.players[0]?.avatarId).toBe('sunny');
+    expect(state?.players[0]?.avatarId).toBe('doodle');
   });
 
   it('resolves legacy memberships consistently and saves the default on rejoin', async () => {
@@ -254,8 +250,6 @@ describe('room avatars', () => {
     );
     const hostStableId = 'clerk_legacy-avatar-host';
     const expectedAvatar = getDefaultAvatarId(hostStableId);
-    // Responses answer in first-cast ids until the contraction release.
-    const answeredAvatar = firstCastAvatarId(expectedAvatar);
     const observer = asUser(t, 'legacy-avatar-guest');
 
     const roster = await observer.query(api.rooms.getRoomState, { code });
@@ -265,11 +259,11 @@ describe('room avatars', () => {
     expect(
       roster?.players.find((player) => player.stableId === hostStableId)
         ?.avatarId
-    ).toBe(answeredAvatar);
+    ).toBe(expectedAvatar);
     expect(
       progress?.players.find((player) => player.stableId === hostStableId)
         ?.avatarId
-    ).toBe(answeredAvatar);
+    ).toBe(expectedAvatar);
 
     await asUser(t, 'legacy-avatar-host').mutation(api.rooms.joinRoom, {
       code,
@@ -283,85 +277,6 @@ describe('room avatars', () => {
         .unique()
     );
     expect(membership?.avatarId).toBe(expectedAvatar);
-  });
-
-  it('keeps answering a stored first-cast choice in first-cast ids and stores its successor on rejoin', async () => {
-    const t = setupConvexTest();
-    const { code, roomId } = await seedRoomWithActiveGame(
-      t,
-      'retired-avatar-host',
-      'retired-avatar-guest'
-    );
-    const hostStableId = 'clerk_retired-avatar-host';
-    const hostMembership = () =>
-      t.run((ctx) =>
-        ctx.db
-          .query('roomPlayers')
-          .withIndex('by_room', (q) => q.eq('roomId', roomId))
-          .filter((q) => q.eq(q.field('displayName'), 'Host'))
-          .unique()
-      );
-    // A membership saved before Pen Pals still holds Pip.
-    const saved = await hostMembership();
-    if (!saved) throw new Error('host membership missing');
-    await t.run((ctx) => ctx.db.patch(saved._id, { avatarId: 'pip' }));
-
-    const observer = asUser(t, 'retired-avatar-guest');
-    const answered = async () => {
-      const roster = await observer.query(api.rooms.getRoomState, { code });
-      const progress = await observer.query(api.game.getRoundProgress, {
-        roomCode: code,
-      });
-      return [roster, progress].map(
-        (view) =>
-          view?.players.find((player) => player.stableId === hostStableId)
-            ?.avatarId
-      );
-    };
-    expect(await answered()).toEqual(['pip', 'pip']);
-
-    await asUser(t, 'retired-avatar-host').mutation(api.rooms.joinRoom, {
-      code,
-      displayName: 'Host',
-    });
-    expect((await hostMembership())?.avatarId).toBe('rhyme');
-    expect(await answered()).toEqual(['pip', 'pip']);
-  });
-
-  it('stores Pen Pals ids from old and new clients and answers older bundles in first-cast ids', async () => {
-    const t = setupConvexTest();
-    await seedClerkUser(t, 'mixed-client-guest', { displayName: 'Guest' });
-    const { code, roomId } = await asUser(t, 'mixed-client-host').mutation(
-      api.rooms.createRoom,
-      { displayName: 'Host', avatarId: 'orbit' }
-    );
-    const joined = await asUser(t, 'mixed-client-guest').mutation(
-      api.rooms.joinRoom,
-      { code, displayName: 'Guest', avatarId: 'ode' }
-    );
-    expect(joined.ok).not.toBe(false);
-
-    const stored = await t.run((ctx) =>
-      ctx.db
-        .query('roomPlayers')
-        .withIndex('by_room', (q) => q.eq('roomId', roomId))
-        .collect()
-    );
-    expect(
-      Object.fromEntries(stored.map((row) => [row.displayName, row.avatarId]))
-    ).toEqual({ Host: 'quill', Guest: 'ode' });
-    const state = await asUser(t, 'mixed-client-host').query(
-      api.rooms.getRoomState,
-      { code }
-    );
-    expect(
-      Object.fromEntries(
-        (state?.players ?? []).map((player) => [
-          player.displayName,
-          player.avatarId,
-        ])
-      )
-    ).toEqual({ Host: 'orbit', Guest: 'plum' });
   });
 });
 

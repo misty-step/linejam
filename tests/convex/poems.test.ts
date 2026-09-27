@@ -4,7 +4,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser, seedLine } from '../helpers/convexSeed';
-import { firstCastAvatarId, getDefaultAvatarId } from '../../lib/avatars';
+import { getDefaultAvatarId } from '../../lib/avatars';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
 
 /**
@@ -1503,7 +1503,7 @@ describe('getPublicSessionRecap', () => {
         roomId,
         userId: aliceId,
         displayName: 'Alice',
-        avatarId: 'sunny',
+        avatarId: 'doodle',
         joinedAt: 0,
       });
       await ctx.db.insert('roomPlayers', {
@@ -1566,12 +1566,12 @@ describe('getPublicSessionRecap', () => {
     expect(result?.poems[0]).toMatchObject({
       preview: 'Poem one opening',
       readerName: 'Alice',
-      readerAvatarId: 'sunny',
+      readerAvatarId: 'doodle',
       starterName: 'Alice Pen',
       poetCount: 1,
     });
     expect(result?.poems[1].readerAvatarId).toBe(
-      firstCastAvatarId(getDefaultAvatarId('clerk_bob'))
+      getDefaultAvatarId('clerk_bob')
     );
     const publicPayload = JSON.stringify(result);
     for (const identifier of [aliceId, bobId, 'clerk_alice', 'clerk_bob']) {
