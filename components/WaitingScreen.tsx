@@ -140,6 +140,7 @@ export function WaitingScreen({
                 size="hero"
                 mood={isLateJoiner ? 'watching' : 'tucked'}
                 prop={isLateJoiner ? undefined : 'note'}
+                outlined={isLateJoiner}
                 className={cn(
                   'absolute top-0 left-[32px]',
                   acknowledgement && 'lj-waiting-settle'

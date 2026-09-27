@@ -167,17 +167,23 @@ describe('WaitingScreen', () => {
           userId: 'late',
           stableId: 'late',
           displayName: 'Late poet',
+          avatarId: 'quill' as const,
           submitted: false,
           isSpectator: true,
+          isViewer: true,
         },
       ],
     });
-    renderWaiting({ isLateJoiner: true });
+    const { container } = renderWaiting({ isLateJoiner: true });
 
     expect(
       screen.getByRole('heading', { name: /next game/i })
     ).toBeInTheDocument();
     expect(screen.getByText('Round 4 of 9')).toBeInTheDocument();
+    // A spectator's own character is outlined too, without Quill's lilac body.
+    const hero = container.querySelector('[aria-hidden="true"] svg');
+    expect(hero).toHaveAttribute('aria-label', "Late poet's avatar");
+    expect(hero?.innerHTML.toLowerCase()).not.toContain('#cbb5ff');
   });
 
   it('does not treat a late spectator as an unfinished writer', () => {
