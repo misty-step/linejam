@@ -6,6 +6,11 @@ import { ensureUserHelper } from './users';
 import { abandonGame } from './lib/sessionLifecycle';
 import { retentionEligibleAt } from './lib/retentionPolicy';
 import { getActiveGame, getCompletedGame } from './lib/room';
+import {
+  isRetiredAvatarId,
+  RETIRED_AVATAR_SUCCESSORS,
+  type RetiredAvatarId,
+} from '../lib/avatars';
 
 // SAFETY: Legacy 'mode' column was removed from schema; Convex db.patch requires undefined to delete the field at runtime.
 const removeGameModePatch = { mode: undefined } as never;
@@ -655,6 +660,44 @@ export const drainLegacyRooms = internalMutation({
       closed: dryRun ? 0 : page.page.length,
       abandoned: dryRun ? 0 : abandoned,
       eligibleAbandoned: abandoned,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
+/**
+ * Rewrite retired first-cast avatar ids to their Pen Pals successors. Explicit, bounded and
+ * idempotent: page from a null cursor to `isDone`, then repeat with `dryRun` and require
+ * `eligible=0` before the schema contracts (docs/convex-migrations.md).
+ */
+export const migrateAvatarIds = internalMutation({
+  args: {
+    dryRun: v.boolean(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, { dryRun, cursor }) => {
+    const page = await ctx.db
+      .query('roomPlayers')
+      .paginate({ cursor: cursor ?? null, numItems: 200 });
+    const byRetiredId: Partial<Record<RetiredAvatarId, number>> = {};
+    let eligible = 0;
+    for (const player of page.page) {
+      if (!isRetiredAvatarId(player.avatarId)) continue;
+      eligible++;
+      byRetiredId[player.avatarId] = (byRetiredId[player.avatarId] ?? 0) + 1;
+      if (!dryRun) {
+        await ctx.db.patch(player._id, {
+          avatarId: RETIRED_AVATAR_SUCCESSORS[player.avatarId],
+        });
+      }
+    }
+    return {
+      dryRun,
+      scanned: page.page.length,
+      eligible,
+      changed: dryRun ? 0 : eligible,
+      byRetiredId,
       isDone: page.isDone,
       continueCursor: page.continueCursor,
     };

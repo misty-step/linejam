@@ -54,6 +54,16 @@
   color-scheme: dark;
 }
 
+/* The cast's sticker edge: white on the light page, near-white on the dark one, where it
+   keeps plum outlines legible. */
+:root {
+  --avatar-edge: var(--color-surface);
+}
+
+:root.dark {
+  --avatar-edge: var(--color-foreground);
+}
+
 /* ==========================================================================
    Tailwind v4 Theme Registration
    ==========================================================================
@@ -265,6 +275,18 @@
   );
   background-size: 6px 7px;
   transform: rotate(-5deg);
+}
+
+/* The reading lamp: a peach disc behind whoever is reading now. */
+.lj-reading-lamp {
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: color-mix(in srgb, #ffb887 58%, transparent);
+}
+
+:root.dark .lj-reading-lamp {
+  background: color-mix(in srgb, #ffb887 92%, var(--color-background));
 }
 
 @keyframes waiting-line-settle {

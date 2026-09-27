@@ -21,14 +21,14 @@ const players = [
     userId: 'alice',
     stableId: 'alice',
     displayName: 'Alice',
-    avatarId: 'pip' as const,
+    avatarId: 'rhyme' as const,
     submitted: true,
   },
   {
     userId: 'bob',
     stableId: 'bob',
     displayName: 'Bob',
-    avatarId: 'moss' as const,
+    avatarId: 'haiku' as const,
     submitted: false,
   },
 ];
@@ -71,6 +71,20 @@ describe('WaitingScreen', () => {
     expect(within(items[1]).getByText('Writing')).toBeInTheDocument();
     expect(within(items[2]).getByText('Cy')).toBeInTheDocument();
     expect(within(items[2]).getByText('Away')).toBeInTheDocument();
+  });
+
+  it("shows the viewer's own character in the waiting moment, not the first player's", () => {
+    progressQuery.mockReturnValue({
+      ...progress,
+      players: [players[0], { ...players[1], isViewer: true }],
+    });
+    const { container } = renderWaiting();
+    // The moment is decorative; the roster below carries every name and status.
+    const moment = container.querySelector('[aria-hidden="true"]');
+    expect(moment?.querySelector('svg')).toHaveAttribute(
+      'aria-label',
+      "Bob's avatar"
+    );
   });
 
   it('uses the current supplied roster instead of an older subscription result', () => {

@@ -19,7 +19,7 @@ import { playSound } from '@/lib/audio';
 import { Alert } from './ui/Alert';
 import { Button } from './ui/Button';
 import { Avatar } from './ui/Avatar';
-import type { AvatarId } from '@/lib/avatars';
+import type { StoredAvatarId } from '@/lib/avatars';
 import { errorToFeedback } from '@/lib/errorFeedback';
 import { toErrorReportable } from '@/lib/errorCore';
 
@@ -29,7 +29,7 @@ export interface SessionRecapPoem {
   preview: string;
   readerName: string;
   readerStableId?: string;
-  readerAvatarId?: AvatarId;
+  readerAvatarId?: StoredAvatarId;
 }
 interface SessionRecapShareAccess {
   roomCode: string;

@@ -1,15 +1,30 @@
 import { useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { api } from '../convex/_generated/api';
-import { Check, Eye, Moon, PencilLine } from 'lucide-react';
-import { AVATAR_COLORS, type AvatarId } from '@/lib/avatars';
+import type { StoredAvatarId } from '@/lib/avatars';
 import {
   useRoomQueryArgs,
   type RoomQueryArgs,
 } from '../hooks/useRoomQueryArgs';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { cn } from '../lib/utils';
-import { Avatar } from './ui/Avatar';
+import { Avatar, type AvatarMood, type AvatarProp } from './ui/Avatar';
+
+type PlayerState = { label: string; mood: AvatarMood; prop?: AvatarProp };
+
+// The written status stays; the character's face and prop echo it.
+const TUCKED_IN: PlayerState = {
+  label: 'Submitted',
+  mood: 'tucked',
+  prop: 'note',
+};
+const WRITING: PlayerState = {
+  label: 'Writing',
+  mood: 'writing',
+  prop: 'pencil',
+};
+const AWAY: PlayerState = { label: 'Away', mood: 'away', prop: 'moon' };
+const WATCHING: PlayerState = { label: 'Watching', mood: 'watching' };
 
 type RoundProgressResult =
   FunctionReturnType<typeof api.game.getRoundProgress> | undefined;
@@ -43,7 +58,8 @@ interface WaitingScreenProps {
       userId: string;
       stableId: string;
       displayName: string;
-      avatarId?: AvatarId;
+      avatarId?: StoredAvatarId;
+      isViewer?: boolean;
       isAway?: boolean;
       isSpectator?: boolean;
     }>;
@@ -72,6 +88,8 @@ export function WaitingScreen({
     activePlayers.length > 0 &&
     activePlayers.every((player) => player.submitted);
   const allStableIds = players.map((player) => player.stableId);
+  // Your own character holds your note while the round finishes.
+  const viewer = players.find((player) => player.isViewer);
   const heading = isLateJoiner
     ? "You're in for the next game."
     : (acknowledgement ??
@@ -106,49 +124,20 @@ export function WaitingScreen({
             className="relative mx-auto mb-4 h-[112px] w-[176px]"
           >
             <div className="lj-waiting-print absolute inset-x-[4px] top-[12px] bottom-[4px]" />
-            <Avatar
-              stableId="waiting-character"
-              displayName="Moss"
-              avatarId="moss"
-              size="xl"
-              className="absolute top-[4px] left-[12px] -rotate-6"
-            />
-            <svg
-              viewBox="0 0 104 92"
-              className={cn(
-                'absolute right-[4px] bottom-0 h-[92px] w-[104px]',
-                acknowledgement && 'lj-waiting-settle'
-              )}
-              fill="none"
-              focusable="false"
-            >
-              <path
-                d="M12 59c5-8 49-10 66-4 15 5 17 19 3 25-15 6-63 6-72-2-5-5-3-13 3-19Z"
-                fill={AVATAR_COLORS.mint}
+            {viewer && (
+              <Avatar
+                stableId={viewer.stableId}
+                displayName={viewer.displayName}
+                avatarId={viewer.avatarId}
+                size="hero"
+                mood={isLateJoiner ? 'watching' : 'tucked'}
+                prop={isLateJoiner ? undefined : 'note'}
+                className={cn(
+                  'absolute top-0 left-[32px]',
+                  acknowledgement && 'lj-waiting-settle'
+                )}
               />
-              <path
-                d="m28 15 39 3 14 16-5 39-53-4 5-54Z"
-                fill="var(--color-surface)"
-                stroke="var(--color-text-primary)"
-                strokeWidth="2"
-                strokeLinejoin="round"
-              />
-              <path
-                d="m67 18-1 16h15"
-                fill={AVATAR_COLORS.peach}
-                stroke="var(--color-text-primary)"
-                strokeWidth="2"
-                strokeLinejoin="round"
-              />
-              <path
-                d="m37 39 19 2m-21 9 30 2m-29 9 19 1"
-                stroke="var(--color-text-primary)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                opacity=".45"
-              />
-              <circle cx="87" cy="12" r="5" fill={AVATAR_COLORS.peach} />
-            </svg>
+            )}
           </div>
           <div
             role="status"
@@ -178,20 +167,13 @@ export function WaitingScreen({
             aria-label="Players this round"
           >
             {players.map((player) => {
-              const status = player.isSpectator
-                ? 'Watching'
+              const state = player.isSpectator
+                ? WATCHING
                 : player.submitted
-                  ? 'Submitted'
+                  ? TUCKED_IN
                   : player.isAway
-                    ? 'Away'
-                    : 'Writing';
-              const StatusIcon = player.isSpectator
-                ? Eye
-                : player.submitted
-                  ? Check
-                  : player.isAway
-                    ? Moon
-                    : PencilLine;
+                    ? AWAY
+                    : WRITING;
               return (
                 <li
                   key={player.userId}
@@ -203,6 +185,8 @@ export function WaitingScreen({
                     avatarId={player.avatarId}
                     allStableIds={allStableIds}
                     size="lg"
+                    mood={state.mood}
+                    prop={state.prop}
                     outlined={player.isSpectator}
                   />
                   <span className="mt-2 w-full text-center text-sm font-semibold leading-tight [overflow-wrap:anywhere]">
@@ -210,17 +194,13 @@ export function WaitingScreen({
                   </span>
                   <span
                     className={cn(
-                      'mt-1 inline-flex items-center gap-1 text-xs leading-snug',
-                      player.submitted && !player.isSpectator
+                      'mt-1 text-xs leading-snug',
+                      state === TUCKED_IN
                         ? 'text-success'
                         : 'text-text-secondary'
                     )}
                   >
-                    <StatusIcon
-                      className="h-3 w-3 shrink-0"
-                      aria-hidden="true"
-                    />
-                    {status}
+                    {state.label}
                   </span>
                 </li>
               );

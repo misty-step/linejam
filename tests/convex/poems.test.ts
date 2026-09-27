@@ -4,7 +4,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { setupConvexTest } from '../helpers/convexTest';
 import { type T, asUser, seedClerkUser, seedLine } from '../helpers/convexSeed';
-import { getDefaultAvatarId } from '../../lib/avatars';
+import { firstCastAvatarId, getDefaultAvatarId } from '../../lib/avatars';
 import { WORD_COUNTS } from '../../convex/lib/gameRules';
 
 /**
@@ -1571,7 +1571,7 @@ describe('getPublicSessionRecap', () => {
       poetCount: 1,
     });
     expect(result?.poems[1].readerAvatarId).toBe(
-      getDefaultAvatarId('clerk_bob')
+      firstCastAvatarId(getDefaultAvatarId('clerk_bob'))
     );
     const publicPayload = JSON.stringify(result);
     for (const identifier of [aliceId, bobId, 'clerk_alice', 'clerk_bob']) {

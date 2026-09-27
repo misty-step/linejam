@@ -44,7 +44,7 @@ import {
   buildRevealParticipants,
   getRevealAuthorityForParticipant,
 } from './lib/revealAuthorization';
-import { getDefaultAvatarId } from '../lib/avatars';
+import { firstCastAvatarId, resolveAvatarId } from '../lib/avatars';
 import {
   findRoomMember,
   getRoomActor,
@@ -555,8 +555,9 @@ export const getRevealPhaseState = query({
           assignedReaderId: poem.assignedReaderId,
           readerName: reader?.displayName || 'Unknown',
           readerStableId,
-          readerAvatarId:
-            reader?.avatarId ?? getDefaultAvatarId(readerStableId),
+          readerAvatarId: firstCastAvatarId(
+            resolveAvatarId(reader?.avatarId, readerStableId)
+          ),
           revealedAt: poem.revealedAt,
           isRevealed: !!poem.revealedAt,
           canReveal: revealAuthority !== null,
@@ -650,7 +651,7 @@ export const getRevealPhaseState = query({
           userId: p.userId,
           displayName: p.displayName,
           stableId,
-          avatarId: p.avatarId ?? getDefaultAvatarId(stableId),
+          avatarId: firstCastAvatarId(resolveAvatarId(p.avatarId, stableId)),
         };
       }),
     };
@@ -781,7 +782,8 @@ export const getRoundProgress = query({
         isSpectator: poemIndex === -1,
         userId: player.userId,
         stableId,
-        avatarId: player.avatarId ?? getDefaultAvatarId(stableId),
+        avatarId: firstCastAvatarId(resolveAvatarId(player.avatarId, stableId)),
+        isViewer: player.userId === user._id,
         isAway: isPresenceStale(player.lastSeenAt, now, PRESENCE_AWAY_MS),
       };
     });

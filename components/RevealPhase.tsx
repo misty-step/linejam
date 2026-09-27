@@ -388,14 +388,29 @@ export function RevealPhase({
                             )}
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
-                              <Avatar
-                                stableId={poem.readerStableId}
-                                displayName={poem.readerName}
-                                avatarId={poem.readerAvatarId}
-                                allStableIds={allStableIds}
-                                size="sm"
-                                outlined={!poem.isRevealed}
-                              />
+                              {/* The reader on the lamp; the others keep one slot width. */}
+                              <span
+                                className={cn(
+                                  'grid h-10 w-10 shrink-0 place-items-center',
+                                  status === 'reading-now' && 'lj-reading-lamp'
+                                )}
+                              >
+                                <Avatar
+                                  stableId={poem.readerStableId}
+                                  displayName={poem.readerName}
+                                  avatarId={poem.readerAvatarId}
+                                  allStableIds={allStableIds}
+                                  size="sm"
+                                  mood={
+                                    status === 'reading-now'
+                                      ? 'reading'
+                                      : 'idle'
+                                  }
+                                  outlined={
+                                    !poem.isRevealed && status !== 'reading-now'
+                                  }
+                                />
+                              </span>
                               <div className="min-w-0">
                                 <span className="block font-semibold text-text-primary [overflow-wrap:anywhere]">
                                   {poem.readerName}

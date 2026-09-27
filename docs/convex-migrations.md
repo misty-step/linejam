@@ -98,6 +98,31 @@ from a null cursor and record its aggregate `changed=0`, `blocked=0` pass.
 Preserve all receipts with the production deployment record; only then may a
 separate PR remove the legacy validators and tables.
 
+## Pen Pals avatar ids
+
+The Pen Pals cast replaces the first cast's eight ids with successors
+(`RETIRED_AVATAR_SUCCESSORS` in `lib/avatars.ts`). The expansion release lets
+`roomPlayers.avatarId` hold either set. Its responses answer in first-cast ids,
+because browser bundles from before the release can draw only those; the Pen Pals
+renderer draws each as its successor, so the migration changes nothing any client
+can see. `createRoom` and `joinRoom` store the successor whenever a client sends
+a retired id, so nothing written after the release adds to the migration. With
+production migration authority, on the verified target:
+
+1. Preview `internal.migrations.migrateAvatarIds` with
+   `{ "dryRun": true, "cursor": null }`, passing each `continueCursor` into the
+   next call until `isDone=true`. Record `scanned`, `eligible` and
+   `byRetiredId`; each call examines at most 200 memberships.
+2. Restart at a null cursor with `dryRun=false` and page to completion,
+   recording `changed` and `byRetiredId`.
+3. Repeat the dry run from a null cursor and require `eligible=0` on every
+   page.
+
+Only after those receipts exist may a separate contraction release narrow the
+validator to `AVATAR_IDS`, answer in Pen Pals ids, and remove the retired ids,
+their mapping and this migration. A tab still running a bundle from before the
+expansion release then draws blank avatars beside the names until it reloads.
+
 ## 2026-07-04 incident
 
 PR #298 introduced `dropLegacyModeColumns` while its schema diff removed

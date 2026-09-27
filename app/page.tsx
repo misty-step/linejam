@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Avatar } from '../components/ui/Avatar';
+import { AVATAR_NAMES } from '../lib/avatars';
 
 export default function Home() {
   return (
@@ -17,30 +18,15 @@ export default function Home() {
       </p>
 
       <div className="mt-6 flex items-center gap-2" aria-hidden="true">
-        <Avatar
-          stableId="home-pip"
-          displayName="Pip"
-          avatarId="pip"
-          size="lg"
-        />
-        <Avatar
-          stableId="home-moss"
-          displayName="Moss"
-          avatarId="moss"
-          size="lg"
-        />
-        <Avatar
-          stableId="home-sunny"
-          displayName="Sunny"
-          avatarId="sunny"
-          size="lg"
-        />
-        <Avatar
-          stableId="home-plum"
-          displayName="Plum"
-          avatarId="plum"
-          size="lg"
-        />
+        {(['rhyme', 'haiku', 'doodle', 'ode'] as const).map((avatarId) => (
+          <Avatar
+            key={avatarId}
+            stableId={`home-${avatarId}`}
+            displayName={AVATAR_NAMES[avatarId]}
+            avatarId={avatarId}
+            size="lg"
+          />
+        ))}
       </div>
 
       <nav
