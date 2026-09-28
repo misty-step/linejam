@@ -133,8 +133,9 @@ produce “Production deployment failure.” Hosted `ci`, `python-suites`, and
 `convex-kit` passed at that commit. The draft is held; CodeRabbit skipped draft
 review. It is not merged or deployed and is not claimed as live alert behavior.
 
-The Linejam correction is in [draft PR #535](https://github.com/misty-step/linejam/pull/535)
-at commit `57ceaf9aa23226a0774c3115e731e93b157b8086`.
+The Linejam correction is in [PR #535](https://github.com/misty-step/linejam/pull/535);
+its fix commit is `57ceaf9aa23226a0774c3115e731e93b157b8086`, with later
+commits limited to incident and runbook wording.
 [Hosted CI run 36466073857](https://github.com/misty-step/linejam/actions/runs/36466073857)
 passed its merge gate. Its [sanitized story-walk receipt](https://github.com/misty-step/linejam/actions/runs/36466073857/artifacts/10989678877)
 records US-004 criteria 1–6 passing at tree
