@@ -138,7 +138,8 @@ completion independently routes failures to Kaylee's alert intake:
 - `Production Smoke` owns the player-health job (guest entry and game start,
   US-001/US-002, plus authenticated join). Its downstream
   `Sentry player-health reporting` job owns the monitor check-in. Reporting
-  cannot change the player job's result and runs only on `master`.
+  runs only on `master`, warns on failure, and cannot change the player job
+  or aggregate workflow result. The smoke's pass/fail measures Linejam health.
   Consecutive failures count the actual `Run production smoke` step in prior
   completed master runs, including historical runs where bookkeeping failed
   after the browser passed; aggregate workflow failures never count as player
@@ -149,8 +150,12 @@ completion independently routes failures to Kaylee's alert intake:
   It has no independent manual trigger. It reads the live release receipt and
   records that currently served release, not the earlier browser-tested release.
   The marker links to this bookkeeping run; it is not browser acceptance evidence.
-  Authentication errors fail this workflow; they are not ignored and cannot turn
-  player smoke red.
+  Deploy-marker errors are tolerated at the marker step, with an explicit
+  warning and the original step outcome in the summary, not a fabricated
+  success. The script itself still exits nonzero on rejected writes.
+  Phaedrus declined an organization-wide release token: revisit marker access
+  only if Sentry offers a genuinely project-scoped option. No token expansion
+  or custom authorization service is part of this exception.
   The privileged `workflow_run` path checks out only protected `master` and
   consumes no triggering-run code or artifacts.
   The [MIS-174 postmortem](../postmortems/2026-09-27-production-smoke-sentry-coupling.md)
@@ -161,9 +166,9 @@ completion independently routes failures to Kaylee's alert intake:
   that may be broken. The
   [alert route guard](https://github.com/misty-step/hermes-config/blob/master/docs/alert-routing.md)
   owns webhook drift, delivery failures, and alerts pending over 30 minutes.
-  Verify a failed bookkeeping run's completion delivery and its incident
-  record after changes; a red job alone is not delivery proof. Keep the
-  `SENTRY_RELEASE_TOKEN` repair separate from the player-health signal.
+  Verify independent failure delivery when changing that alert route.
+  Warning-only deploy markers do not create a failed-workflow incident;
+  inspect their annotations and step outcome instead.
 - The live observability contract exits red only when a second bounded Sentry
   sample confirms the first sample's drift. A healthy first sample performs no
   duplicate reads; a persistent second failure remains authoritative.
@@ -175,8 +180,8 @@ completion independently routes failures to Kaylee's alert intake:
   exists.
 - Smoke workflows read the served commit from `/api/health`; they never infer
   it from the workflow checkout. If that receipt is unavailable, the smoke and
-  artifacts still run, Sentry issue emission is skipped to avoid ambiguous
-  attribution, and the workflow fails.
+  artifacts still run and Sentry issue emission is skipped to avoid ambiguous
+  attribution. Reporting warns without overriding the player-health result.
 - Unresolved Sentry issues are polled from the operator workstation. Each new
   issue dispatches one bounded OMP investigation that may open a pull request
   and posts a postmortem note to Discord. Sentry holds incident evidence and

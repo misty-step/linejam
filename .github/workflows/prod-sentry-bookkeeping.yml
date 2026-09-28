@@ -43,6 +43,10 @@ jobs:
         run: node scripts/ops/resolve-sentry-release.mjs
 
       - name: Record Sentry production deploy
+        id: marker
+        # Sentry has no Linejam-only release-write token; do not grant org-wide
+        # access just for deploy markers. Keep attempting, but warn on failure.
+        continue-on-error: true
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_RELEASE_TOKEN }}
           SENTRY_ORG: misty-step
@@ -50,17 +54,20 @@ jobs:
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/ops/record-sentry-deploy.mjs
 
-      # A red workflow reaches Kaylee via the repository's independent GitHub
-      # workflow_run webhook, even when Sentry authentication is broken.
       - name: Summarize bookkeeping
         if: always()
         env:
           BOOKKEEPING_STATUS: ${{ job.status }}
+          MARKER_OUTCOME: ${{ steps.marker.outcome }}
         run: |
+          if [ "$MARKER_OUTCOME" != "success" ]; then
+            echo "::warning::Sentry deploy marker ${MARKER_OUTCOME}; player health is unchanged. Revisit when Sentry offers project-scoped release access."
+          fi
           {
             echo "## Sentry release and deploy bookkeeping"
             echo
             echo "- Bookkeeping: ${BOOKKEEPING_STATUS}"
+            echo "- Deploy marker: ${MARKER_OUTCOME}"
             echo "- This result does not measure player health. See Production Smoke."
-            echo "- Failures route to Kaylee through the GitHub workflow_run webhook."
+            echo "- Marker failures are warning-only; no org-wide release token is authorized."
           } >> "$GITHUB_STEP_SUMMARY"

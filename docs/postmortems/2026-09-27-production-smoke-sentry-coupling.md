@@ -2,8 +2,8 @@
 
 - **Incident date:** 2026-09-27 (alert); first rejected marker observed
   2026-09-13.
-- **Status:** Mitigated, not closed. The signal split is deployed; credential,
-  trigger, and deployment-authority follow-ups remain open.
+- **Status:** Signal split and trigger correction deployed; warning-only policy
+  adopted on 2026-09-28. The execution record tracks rollout and closure receipts.
 - **Operational owner:** Linejam production observability; Kaylee coordinates
   the incident.
 - **Tracker:**
@@ -95,29 +95,50 @@ narrower than verified triage or recovery of Sentry writes.
 
 [PR #531](https://github.com/misty-step/linejam/pull/531) removes Sentry writes
 from the `smoke` player-health job. A separate master-only reporting job owns
-monitor check-ins; a separate, hard-failing `Sentry Production Bookkeeping`
+monitor check-ins; the initially hard-failing `Sentry Production Bookkeeping`
 workflow owns release/deploy recording. The failure-streak counter reads
 browser-step outcomes, including old mixed-result runs, rather than aggregate
 job/workflow conclusions; missing or ambiguous evidence fails toward escalation.
 The parsed-workflow and counter regressions reject a Sentry writer in the player
 job and reject bookkeeping failures counted as failed browser checks. A rejected
 Sentry release credential can no longer turn a passing **player job** red or
-masquerade as a consecutive browser failure. The aggregate Production Smoke
-workflow can still show reporting failure; operators must use the named player
-job as the health signal.
+masquerade as a consecutive browser failure. Initially the aggregate Production
+Smoke workflow could still fail on reporting; the later policy below removes
+that remaining coupling.
 
 The later trigger correction removes `workflow_dispatch` and its alternative
 admission path: only completion of the protected master Production Smoke can
 launch bookkeeping. The parsed-YAML test failed before this correction on the
-extra trigger and passed afterward. Until that correction is merged, the manual
-production-write affordance remains available; this portion is not yet
-error-proofed in production.
+extra trigger and passed afterward. [PR #536](https://github.com/misty-step/linejam/pull/536)
+merged the correction as `65c5dfa` with explicit deployment approval.
+Bookkeeping has no independent manual production-write trigger.
 
 The authority near-miss is a different class. Master merges automatically deploy
 through the existing DigitalOcean configuration. A fail-closed merge/deploy
 authorization preflight is needed before a future merge, but neither this signal
 split nor an instruction in this report enforces it. No deployment policy is
 changed by the trigger correction.
+
+## Warning-only policy decision, 2026-09-28
+
+Phaedrus, relayed by Kaylee, declined an organization-wide Sentry release token.
+The marker must still run, but a rejected write is warning-only. It remains in
+the existing bookkeeping workflow rather than moving a privileged writer back
+into the player job. The marker step tolerates its exit status; its summary
+reads `steps.marker.outcome` so a tolerated failure is not reported as success.
+Monitor reporting likewise cannot override the aggregate player-smoke result;
+its failure remains visible in its own job and warning.
+
+This is an explicit operator-approved observability tradeoff, not restored Sentry
+write access. The marker script keeps its error and nonzero exit. The structural
+health boundary and regression prevent optional Sentry delivery from turning a
+healthy game red, while annotations and actual outcomes retain the failure.
+No token is issued, rotated, or broadened. No proxy is added.
+
+The revised closure contract is a reviewed, green merge followed by a green
+hourly master smoke with the attempted marker's warning visible. A successful
+Sentry deploy record is no longer a closure prerequisite. The execution record
+below owns the exact merge and scheduled-run receipts.
 
 ## Follow-up
 
@@ -128,29 +149,23 @@ contract checks are
 and
 [`count-consecutive-prod-smoke-failures.test.ts`](../../tests/scripts/count-consecutive-prod-smoke-failures.test.ts).
 
-1. **Linejam observability owner:** review and merge the scoped trigger
-   correction only with explicit authority for the consequent automatic player
-   deployment. Retain its parsed-workflow regression and verify the deployed
-   trigger has no standalone dispatch. Do not manually trigger Production Smoke
-   or bookkeeping merely to create a receipt.
-2. **Phaedrus, token decision:** Sentry's native Internal Integration token with
-   minimal `project:releases` scope has organization-wide release authority,
-   including other projects and release administration/deletion; it cannot
-   enforce a Linejam-project-only boundary. The existing `SENTRY_AUTH_TOKEN` is
-   not a safe substitute for that decision. If org-wide release authority is
-   acceptable, separately authorize one dedicated token, a names-only pass
-   reference, replacing only Linejam's `SENTRY_RELEASE_TOKEN` secret, and
-   read-only/normal-run verification. Otherwise keep the marker red and decide
-   an architecture that actually enforces project isolation. No token was
-   created or rotated in this work.
+1. **Linejam observability owner:** review and merge the warning-only policy
+   under the granted merge/deployment authority. Verify the next hourly master
+   smoke and its consequent bookkeeping attempt; do not manually dispatch a
+   production run merely to substitute for scheduled evidence.
+2. **Linejam observability owner:** revisit deploy markers if Sentry offers a
+   genuinely project-scoped release-write option. Native `project:releases`
+   currently authorizes organization-wide release administration/deletion.
+   A dedicated name does not narrow it, and the held `SENTRY_AUTH_TOKEN` must
+   not be substituted. Keep marker attempts warning-only meanwhile.
 3. **Deployment owner:** decide a fail-closed merge/deploy authorization
    preflight for auto-deploy branches. This remedy requires an explicit policy
    decision; the unauthorized PR #531 deployment is acknowledged, not
    retroactively authorized.
-4. **Kaylee / incident owner:** after authorized token restoration and the
-   normal bookkeeping run, verify Sentry's real deploy record and the complete
-   independent alert route. Close MIS-174 only when the fix, the regressions,
-   and these remaining operational postconditions are linked. The
+4. **Kaylee / incident owner:** close MIS-174 against the revised warning-only
+   contract once the next hourly master smoke is green and the attempted
+   marker's real outcome and warning are recorded. Do not claim marker recovery
+   or make the separately owned alert-classifier rollout a new closure gate. The
    [execution record](https://linear.app/misty-step/issue/MIS-174/github-production-failure#comment-c8583aa3)
    retains the source run IDs and narrower evidence.
 
