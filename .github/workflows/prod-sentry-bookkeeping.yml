@@ -1,0 +1,68 @@
+name: Sentry Production Bookkeeping
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Production Smoke]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-sentry-bookkeeping
+  cancel-in-progress: false
+
+jobs:
+  bookkeeping:
+    name: Sentry release and deploy bookkeeping
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      (github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PLAYWRIGHT_BASE_URL: https://www.linejam.app
+      LINEJAM_ALLOWED_SMOKE_ORIGINS: https://www.linejam.app
+      LINEJAM_DEPLOY_ENVIRONMENT: production
+    steps:
+      # workflow_run is privileged: never execute the triggering run's code
+      # or download its artifacts. Only the protected branch owns this job.
+      - name: Checkout protected branch
+        uses: actions/checkout@v7
+        with:
+          ref: master
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Resolve deployed Sentry release
+        run: node scripts/ops/resolve-sentry-release.mjs
+
+      - name: Record Sentry production deploy
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_RELEASE_TOKEN }}
+          SENTRY_ORG: misty-step
+          SENTRY_PROJECT: linejam
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/ops/record-sentry-deploy.mjs
+
+      # A red workflow reaches Kaylee via the repository's independent GitHub
+      # workflow_run webhook, even when Sentry authentication is broken.
+      - name: Summarize bookkeeping
+        if: always()
+        env:
+          BOOKKEEPING_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Sentry release and deploy bookkeeping"
+            echo
+            echo "- Bookkeeping: ${BOOKKEEPING_STATUS}"
+            echo "- This result does not measure player health. See Production Smoke."
+            echo "- Failures route to Kaylee through the GitHub workflow_run webhook."
+          } >> "$GITHUB_STEP_SUMMARY"

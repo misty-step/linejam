@@ -115,8 +115,8 @@ unconditionally. Do not label `ci:prepush` or unit tests as deployment proof.
 
 ## Observability facts
 
-Sentry is Linejam's sole production error, monitor, release, and
-incident-evidence platform:
+Sentry owns production errors, monitors, and release evidence. GitHub workflow
+completion independently routes failures to Kaylee's alert intake:
 
 - Browser, Node, Edge, and Convex transports use exact release and environment
   attribution. Browser source maps are uploaded during the production build.
@@ -135,6 +135,30 @@ incident-evidence platform:
   consecutive failed-or-missed check-in threshold. The monitor incident
   therefore pages only when the smoke stops running or keeps failing for
   roughly three consecutive hourly slots.
+- `Production Smoke` owns the player-health job (guest entry and game start,
+  US-001/US-002, plus authenticated join). Its downstream
+  `Sentry player-health reporting` job owns the monitor check-in. Reporting
+  cannot change the player job's result and runs only on `master`.
+  Consecutive failures count the actual `Run production smoke` step in prior
+  completed master runs, including historical runs where bookkeeping failed
+  after the browser passed; aggregate workflow failures never count as player
+  failures. Unavailable history escalates conservatively rather than claiming
+  a clean history.
+- `Sentry Production Bookkeeping` (`prod-sentry-bookkeeping.yml`) runs after
+  each completed master Production Smoke run, regardless of its conclusion,
+  and can be dispatched manually with operation authority. It reads the live
+  release receipt and records the deploy independently. Authentication errors
+  fail this workflow; they are not ignored and cannot turn player smoke red.
+  The privileged `workflow_run` path checks out only protected `master` and
+  consumes no triggering-run code or artifacts.
+- Failed default-branch workflows reach Kaylee through the repository's
+  independent GitHub `workflow_run` webhook, not through the Sentry credential
+  that may be broken. The
+  [alert route guard](https://github.com/misty-step/hermes-config/blob/master/docs/alert-routing.md)
+  owns webhook drift, delivery failures, and alerts pending over 30 minutes.
+  Verify a failed bookkeeping run's completion delivery and its incident
+  record after changes; a red job alone is not delivery proof. Keep the
+  `SENTRY_RELEASE_TOKEN` repair separate from the player-health signal.
 - The live observability contract exits red only when a second bounded Sentry
   sample confirms the first sample's drift. A healthy first sample performs no
   duplicate reads; a persistent second failure remains authoritative.
