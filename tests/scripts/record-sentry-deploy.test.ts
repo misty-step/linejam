@@ -83,20 +83,21 @@ describe('Sentry deploy marker', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it('does not expose provider response bodies on failure', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValue(
-        new Response('PROHIBITED_PROVIDER_BODY', { status: 403 })
-      );
+  it.each([401, 403])(
+    'rejects HTTP %i without exposing provider bodies',
+    async (status) => {
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValue(
+          new Response('PROHIBITED_PROVIDER_BODY', { status })
+        );
 
-    await expect(recordSentryDeploy({ ...INPUT, fetchImpl })).rejects.toThrow(
-      'HTTP 403'
-    );
-    await expect(
-      recordSentryDeploy({ ...INPUT, fetchImpl })
-    ).rejects.not.toThrow('PROHIBITED_PROVIDER_BODY');
-  });
+      await expect(recordSentryDeploy({ ...INPUT, fetchImpl })).rejects.toEqual(
+        new Error(`Sentry deploy request failed: HTTP ${status}`)
+      );
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('rejects non-canonical inputs before any provider request', async () => {
     const fetchImpl = vi.fn();

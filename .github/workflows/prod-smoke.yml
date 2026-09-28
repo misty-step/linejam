@@ -23,6 +23,10 @@ jobs:
     permissions:
       contents: read
       actions: read
+    outputs:
+      outcome: ${{ steps.smoke.outcome }}
+      release_outcome: ${{ steps.release.outcome }}
+      release: ${{ steps.deployment.outputs.release }}
     env:
       PLAYWRIGHT_BASE_URL: https://www.linejam.app
       PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1'
@@ -32,9 +36,6 @@ jobs:
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
-      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-      NEXT_PUBLIC_SENTRY_ENABLED: '1'
-      LINEJAM_DEPLOY_ENVIRONMENT: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -52,6 +53,10 @@ jobs:
         id: release
         continue-on-error: true
         run: node scripts/ops/resolve-sentry-release.mjs
+
+      - name: Export deployed release
+        id: deployment
+        run: echo "release=$NEXT_DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -109,56 +114,87 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      # Preserve the two-run escalation contract: one blip remains workflow
-      # evidence, two consecutive failures open/hold the Sentry monitor
-      # incident, and a passing run recovers it.
-      - name: Determine consecutive-failure streak
-        id: streak
+      - name: Summarize player health
         if: always()
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          count="$(node scripts/ops/count-consecutive-prod-smoke-failures.mjs '${{ steps.smoke.outcome }}')"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
-
-      - name: Report status to Sentry
-        if: always()
-        env:
-          SENTRY_AUTOMATION_PROVENANCE_SECRET: ${{ secrets.SENTRY_AUTOMATION_PROVENANCE_SECRET }}
-          LINEJAM_MONITOR_SLUG: linejam-production-smoke
-          LINEJAM_RELEASE_RESOLUTION_OUTCOME: ${{ steps.release.outcome }}
-          LINEJAM_MONITOR_OUTCOME: ${{ steps.smoke.outcome }}
-          LINEJAM_MONITOR_CONSECUTIVE_FAILURES: ${{ steps.streak.outputs.count }}
-        run: node scripts/ops/report-sentry-check-in.mjs
-
-      - name: Record Sentry production deploy
-        if: always() && steps.release.outcome == 'success'
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_RELEASE_TOKEN }}
-          SENTRY_ORG: misty-step
-          SENTRY_PROJECT: linejam
-          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: node scripts/ops/record-sentry-deploy.mjs
-
-      - name: Annotate failure in the step summary
-        if: steps.smoke.outcome == 'failure'
-        env:
-          STREAK_COUNT: ${{ steps.streak.outputs.count }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
         run: |
           {
-            echo "## Production Smoke failed"
+            echo "## Production player health"
             echo
-            echo "- Consecutive failures: ${STREAK_COUNT}"
-            echo "- Run: ${RUN_URL}"
-            if [ "${STREAK_COUNT}" -ge 2 ]; then
-              echo "- Escalated: reported to the \`linejam-production-smoke\` Sentry monitor as failed."
-            else
-              echo "- Not yet escalated: below the 2-run threshold. Recorded as transient workflow evidence without opening an incident."
-            fi
+            echo "- Browser smoke: ${SMOKE_OUTCOME}"
+            echo "- Deployed release receipt: ${RELEASE_OUTCOME}"
+            echo "- Sentry reporting and release bookkeeping have independent results."
           } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Enforce deployed release attribution
         if: always() && steps.release.outcome != 'success'
         run: |
           echo "::error::Production smoke could not resolve the commit served by /api/health."
           exit 1
+
+  reporting:
+    name: Sentry player-health reporting
+    needs: smoke
+    if: always() && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    env:
+      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+      NEXT_PUBLIC_SENTRY_ENABLED: '1'
+      LINEJAM_DEPLOY_ENVIRONMENT: production
+      NEXT_DEPLOYMENT_ID: ${{ needs.smoke.outputs.release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Only browser outcomes count, including runs before the job split.
+      - name: Determine consecutive-failure streak
+        id: streak
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SMOKE_OUTCOME: ${{ needs.smoke.outputs.outcome }}
+        run: |
+          count="$(node scripts/ops/count-consecutive-prod-smoke-failures.mjs "$SMOKE_OUTCOME")"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Report status to Sentry
+        env:
+          SENTRY_AUTOMATION_PROVENANCE_SECRET: ${{ secrets.SENTRY_AUTOMATION_PROVENANCE_SECRET }}
+          LINEJAM_MONITOR_SLUG: linejam-production-smoke
+          LINEJAM_RELEASE_RESOLUTION_OUTCOME: ${{ needs.smoke.outputs.release_outcome }}
+          LINEJAM_MONITOR_OUTCOME: ${{ needs.smoke.outputs.outcome }}
+          LINEJAM_MONITOR_CONSECUTIVE_FAILURES: ${{ steps.streak.outputs.count }}
+        run: node scripts/ops/report-sentry-check-in.mjs
+
+      - name: Summarize reporting
+        if: always()
+        env:
+          SMOKE_OUTCOME: ${{ needs.smoke.outputs.outcome }}
+          STREAK_COUNT: ${{ steps.streak.outputs.count }}
+          REPORTING_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Sentry player-health reporting"
+            echo
+            echo "- Reporting: ${REPORTING_STATUS}"
+            echo "- Browser smoke: ${SMOKE_OUTCOME}"
+            echo "- Consecutive browser failures: ${STREAK_COUNT}"
+            echo "- A reporting failure is an observability incident, not a player-health result."
+          } >> "$GITHUB_STEP_SUMMARY"
