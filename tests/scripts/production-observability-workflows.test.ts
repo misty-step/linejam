@@ -1,10 +1,13 @@
 /** @vitest-environment node */
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
 type Step = {
   name?: string;
+  id?: string;
+  if?: string;
   run?: string;
   uses?: string;
   env?: Record<string, string>;
@@ -52,7 +55,7 @@ describe('production health and observability ownership (MIS-174)', () => {
       );
     }
     expect(jobs.reporting.needs).toBe('smoke');
-    expect(jobs.reporting['continue-on-error']).not.toBe(true);
+    expect(jobs.reporting['continue-on-error']).toBe(true);
     expect(
       jobs.reporting.steps.find(
         (step) => step.name === 'Report status to Sentry'
@@ -77,7 +80,7 @@ describe('production health and observability ownership (MIS-174)', () => {
     expect(attribution?.['continue-on-error']).not.toBe(true);
   });
 
-  it('keeps deploy-marker failures hard and independently routable on master', () => {
+  it('attempts deploy markers on master without making provider failure fatal', () => {
     const smoke = workflow('prod-smoke.yml');
     const bookkeeping = workflow('prod-sentry-bookkeeping.yml');
     expect(bookkeeping.on).toEqual({
@@ -99,8 +102,7 @@ describe('production health and observability ownership (MIS-174)', () => {
     expect(job.if).not.toContain('conclusion');
     expect(job.if).toContain("github.ref == 'refs/heads/master'");
     const marker = job.steps.find((step) => step.run === markerCommand);
-    expect(marker).toBeDefined();
-    expect(marker?.['continue-on-error']).not.toBe(true);
+    expect(marker).toMatchObject({ id: 'marker', 'continue-on-error': true });
     expect(marker?.env?.SENTRY_AUTH_TOKEN).toBe(
       '${{ secrets.SENTRY_RELEASE_TOKEN }}'
     );
@@ -114,4 +116,55 @@ describe('production health and observability ownership (MIS-174)', () => {
       )
     ).toBe(false);
   });
+
+  it.each(['success', 'failure', 'skipped'])(
+    'surfaces the actual %s marker outcome instead of its tolerated conclusion',
+    (outcome) => {
+      const summary = workflow(
+        'prod-sentry-bookkeeping.yml'
+      ).jobs.bookkeeping.steps.find(
+        (step) => step.name === 'Summarize bookkeeping'
+      );
+      expect(summary).toMatchObject({
+        if: 'always()',
+        env: { MARKER_OUTCOME: '${{ steps.marker.outcome }}' },
+      });
+      const result = spawnSync('bash', ['-e', '-c', summary!.run!], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GITHUB_STEP_SUMMARY: '/dev/null',
+          BOOKKEEPING_STATUS: 'success',
+          MARKER_OUTCOME: outcome,
+        },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.includes('::warning::')).toBe(outcome !== 'success');
+    }
+  );
+
+  it.each(['success', 'failure'])(
+    'keeps the independent %s reporting outcome visible',
+    (status) => {
+      const summary = workflow('prod-smoke.yml').jobs.reporting.steps.find(
+        (step) => step.name === 'Summarize reporting'
+      );
+      expect(summary).toMatchObject({
+        if: 'always()',
+        env: { REPORTING_STATUS: '${{ job.status }}' },
+      });
+      const result = spawnSync('bash', ['-e', '-c', summary!.run!], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GITHUB_STEP_SUMMARY: '/dev/null',
+          REPORTING_STATUS: status,
+          SMOKE_OUTCOME: 'success',
+          STREAK_COUNT: '0',
+        },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.includes('::warning::')).toBe(status === 'failure');
+    }
+  );
 });

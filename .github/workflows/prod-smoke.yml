@@ -132,6 +132,8 @@ jobs:
     name: Sentry player-health reporting
     needs: smoke
     if: always() && github.ref == 'refs/heads/master'
+    # Observability delivery must not turn healthy Linejam smoke red.
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -190,6 +192,9 @@ jobs:
           STREAK_COUNT: ${{ steps.streak.outputs.count }}
           REPORTING_STATUS: ${{ job.status }}
         run: |
+          if [ "$REPORTING_STATUS" != "success" ]; then
+            echo "::warning::Sentry player-health reporting ${REPORTING_STATUS}; see the browser smoke result."
+          fi
           {
             echo "## Sentry player-health reporting"
             echo
