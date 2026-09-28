@@ -78,6 +78,7 @@ describe('production health and observability ownership (MIS-174)', () => {
     expect(job.needs).toBeUndefined();
     expect(job['continue-on-error']).not.toBe(true);
     expect(job.if).not.toContain('conclusion');
+    expect(job.if).toContain("github.ref == 'refs/heads/master'");
     const marker = job.steps.find((step) => step.run === markerCommand);
     expect(marker).toBeDefined();
     expect(marker?.['continue-on-error']).not.toBe(true);

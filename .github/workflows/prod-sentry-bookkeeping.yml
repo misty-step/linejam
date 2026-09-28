@@ -18,8 +18,9 @@ jobs:
   bookkeeping:
     name: Sentry release and deploy bookkeeping
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.head_repository.full_name == github.repository
+      github.ref == 'refs/heads/master' &&
+      (github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:

@@ -42,19 +42,20 @@ export function countConsecutiveFailures(currentOutcome, priorConclusions) {
 }
 
 function runId(value) {
-  if (
-    (typeof value !== 'string' && typeof value !== 'number') ||
-    (typeof value === 'number' && !Number.isSafeInteger(value)) ||
-    !/^[1-9]\d*$/.test(String(value))
-  ) {
+  const encoded = String(value);
+  const id = Number(encoded);
+  if (!/^[1-9]\d*$/.test(encoded) || !Number.isSafeInteger(id)) {
     throw new Error('Invalid GitHub run ID');
   }
-  return BigInt(value);
+  return id;
 }
 
 function timestamp(value) {
-  const time = typeof value === 'string' ? Date.parse(value) : NaN;
-  if (!Number.isFinite(time)) {
+  const time = Date.parse(value);
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value) ||
+    !Number.isFinite(time)
+  ) {
     throw new Error('Missing or invalid production smoke run timestamp');
   }
   return time;
@@ -109,7 +110,7 @@ export async function fetchPriorRunConclusions({
   }
   const currentTime = timestamp(current.run_started_at ?? current.created_at);
   const history = await get(
-    `/actions/workflows/${WORKFLOW_FILE}/runs?branch=master&status=completed&per_page=${HISTORY_LIMIT}`
+    `/actions/workflows/${WORKFLOW_FILE}/runs?branch=master&per_page=${HISTORY_LIMIT}`
   );
   if (
     !Array.isArray(history?.workflow_runs) ||
@@ -148,8 +149,9 @@ export async function fetchPriorRunConclusions({
     if (
       !Array.isArray(jobsBody?.jobs) ||
       jobsBody.jobs.length >= 100 ||
-      (typeof jobsBody.total_count === 'number' &&
-        jobsBody.total_count > jobsBody.jobs.length)
+      (jobsBody.total_count !== undefined &&
+        (!Number.isInteger(jobsBody.total_count) ||
+          jobsBody.total_count !== jobsBody.jobs.length))
     ) {
       throw new Error(`Unusable production smoke jobs for run ${id}`);
     }
