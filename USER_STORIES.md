@@ -63,3 +63,36 @@ Criteria:
 No-gos: no hidden poem text in spectator payloads.
 
 Evidence: `tests/convex/archive.test.ts`, `tests/app/api/poem-card-route.test.ts`
+
+## Capability: Release administration
+
+## US-004 Prepare a reviewed release when generated notes fail
+
+Statement: When a release-notes provider fails, I want a clearly marked
+technical-only candidate to review, so provider availability does not prevent
+releasing verified changes or get mistaken for a player outage.
+
+Criteria:
+
+1. IF the release-notes provider fails, THEN THE SYSTEM SHALL prepare a
+   technical-only candidate with an explicit provider-failure status and
+   deterministic technical history, without inventing notes or claiming a
+   deliberate policy skip.
+2. WHEN a technical-only candidate replaces an earlier candidate for the same
+   version, THE SYSTEM SHALL remove stale generated notes from every release
+   projection.
+3. IF release evidence is malformed or generated notes fail grounding or
+   integrity checks, THEN THE SYSTEM SHALL reject the candidate.
+4. WHILE a candidate has not passed the existing review and CI gates, THE
+   SYSTEM SHALL publish neither its tag nor its GitHub Release.
+5. WHERE a release has only technical history because its notes provider
+   failed, THE SYSTEM SHALL show that status consistently in the application,
+   changelog, feed, release PR, and published release.
+6. WHEN note generation fails, THE SYSTEM SHALL expose the failure as release
+   administration evidence without representing it as a player outage.
+
+No-gos: no fabricated notes, automatic review bypass, key rotation, or budget
+increase as an error-handling strategy.
+
+Evidence: `tests/scripts/release-prepare.test.ts`,
+`tests/lib/releases/catalog.test.ts`, `.github/workflows/release.yml`

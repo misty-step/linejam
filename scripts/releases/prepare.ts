@@ -17,6 +17,26 @@ const isVersionRecordList = ajv.compile<{ version: string }[]>({
   type: 'array',
   items: versionRecordSchema,
 });
+const isFailedProviderAttempts = ajv.compile<
+  { model: string; succeeded: false; quality: 'failed'; message: string }[]
+>({
+  type: 'array',
+  minItems: 1,
+  items: {
+    type: 'object',
+    required: ['model', 'succeeded', 'quality', 'message'],
+    properties: {
+      model: { type: 'string', minLength: 1 },
+      succeeded: { const: false },
+      quality: { const: 'failed' },
+      message: { type: 'string', minLength: 1 },
+      classification: { type: 'object' },
+      cost: { type: 'object' },
+      decision: { type: 'object' },
+    },
+    additionalProperties: false,
+  },
+});
 const isDecisionPlan = ajv.compile<{
   evidence: {
     version: string;
@@ -162,7 +182,17 @@ if (decision.bump === 'none') {
       : changelog.slice(0, insertion) + section + changelog.slice(insertion)
   );
 
+  // Evidence from an earlier attempt must never authorize this invocation.
   const qualityPath = '.landmark/run/quality.txt';
+  const attemptsPath = '.landmark/run/attempts.json';
+  for (const evidence of [
+    qualityPath,
+    attemptsPath,
+    '.landmark/run/context.json',
+    '.landmark/run/claims.json',
+    '.landmark/run/notes.md',
+  ])
+    fs.rmSync(evidence, { force: true });
   const synthesis = spawnSync(
     binary,
     [
@@ -182,27 +212,61 @@ if (decision.bump === 'none') {
       '--quality-file',
       qualityPath,
       '--attempts-file',
-      '.landmark/run/attempts.json',
+      attemptsPath,
       '--context-metadata-file',
       '.landmark/run/context.json',
       '--claim-map-file',
       '.landmark/run/claims.json',
     ],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
   );
+  // At the pinned Landmark revision, only failed provider requests produce
+  // per-model "model <id> failed: HTTP NNN" or curl transport errors. Empty,
+  // malformed, degraded, or ungrounded responses take different paths. Never
+  // classify stderr (which can contain provider bodies) or a stale quality file.
+  let quality: 'valid' | 'skipped' | 'unavailable';
   if (synthesis.status !== 0) {
-    // execFileSync's thrown error includes argv, which contains the provider key.
-    throw new Error(
-      'Landmark synthesis failed; inspect its quality and attempt evidence. No release PR was published.'
-    );
+    let attempts: unknown;
+    try {
+      attempts = readJson(attemptsPath);
+    } catch {
+      // Missing/malformed evidence is not a provider failure.
+    }
+    const providerUnavailable =
+      !synthesis.error &&
+      synthesis.status !== null &&
+      !fs.existsSync(qualityPath) &&
+      isFailedProviderAttempts(attempts) &&
+      attempts.every((attempt) => {
+        const prefix = `model ${attempt.model} failed: `;
+        if (!attempt.model.trim() || !attempt.message.startsWith(prefix))
+          return false;
+        const failure = attempt.message.slice(prefix.length);
+        // A bad request or unsupported model is a configuration error, not
+        // provider unavailability. Network-only curl codes exclude local I/O.
+        return (
+          /^HTTP (?:401|402|403|408|409|429|5\d{2})$/.test(failure) ||
+          /^curl: \((?:5|6|7|16|18|28|35|52|55|56|92)\) /.test(failure)
+        );
+      });
+    if (!providerUnavailable) {
+      // Process errors include argv with the key, and provider stderr/body
+      // must not be copied into CI logs.
+      throw new Error(
+        'Landmark synthesis failed; inspect its quality and attempt evidence. No release PR was published.'
+      );
+    }
+    quality = 'unavailable';
+  } else {
+    const verdict = fs.readFileSync(qualityPath, 'utf8').trim();
+    if (verdict !== 'valid' && verdict !== 'skipped') {
+      throw new Error(
+        'Landmark synthesis quality did not pass validation; no release PR will be published.'
+      );
+    }
+    quality = verdict;
   }
   const notes = synthesis.stdout;
-  const quality = fs.readFileSync(qualityPath, 'utf8').trim();
-  if (!['valid', 'skipped'].includes(quality)) {
-    throw new Error(
-      `Landmark synthesis quality is ${quality}; no release PR will be published.`
-    );
-  }
   fs.writeFileSync(
     `${directory}/synthesis.json`,
     `${JSON.stringify({ quality }, null, 2)}\n`
@@ -259,8 +323,18 @@ if (decision.bump === 'none') {
     `${JSON.stringify({ schemaVersion: 1, version, tag, previousTag, sourceSha, preparedAt, quality }, null, 2)}\n`
   );
   generateReleases();
-  if (process.env.GITHUB_OUTPUT)
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+  if (process.env.GITHUB_OUTPUT) {
+    const notesMessage =
+      quality === 'valid'
+        ? 'Player-facing notes were generated and grounded by Landmark.'
+        : quality === 'skipped'
+          ? 'Player-facing notes were intentionally skipped by Landmark policy.'
+          : 'Player-facing notes are unavailable because the provider call failed; this is a technical-only candidate.';
+    fs.appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `version=${version}\nnotes_status=${quality}\nnotes_message=${notesMessage}\n`
+    );
+  }
   console.log(
     `Prepared ${tag} for review; no tag, GitHub Release, or master commit was published.`
   );

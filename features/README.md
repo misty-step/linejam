@@ -5,3 +5,4 @@ The [user stories](../USER_STORIES.md) own product intent. These source globs id
 - [Guest party](guest-party.md): US-001 — account-free room creation, guest join, and identity continuity.
 - [Poem](poem.md): US-002 — nine human-written rounds, constrained visibility, reveal, and reconnect.
 - [Keep and share](keep-and-share.md): US-003 — private archive and deliberate, reversible publication.
+- [Release administration](release-administration.md): US-004 — provider-failure recovery, technical-only public history, and reviewed publication.

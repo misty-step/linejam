@@ -95,7 +95,7 @@ export const analyzeCommits = async (_config, context) => {
       'Landmark and semantic-release disagree about the previous release. Reconcile tag history before publishing.'
     );
   }
-  if (!['valid', 'skipped'].includes(candidate.quality))
+  if (!['valid', 'skipped', 'unavailable'].includes(candidate.quality))
     throw new Error('Prepared notes did not pass Landmark publication policy.');
   prepared = candidate;
   return bump;
@@ -114,7 +114,9 @@ export const generateNotes = async (_config, context) => {
   const notes =
     prepared.quality === 'valid'
       ? fs.readFileSync(path.join(directory, 'notes.md'), 'utf8').trim()
-      : 'Landmark skipped public notes for this release.';
+      : prepared.quality === 'skipped'
+        ? 'Landmark intentionally skipped public notes for this release.'
+        : 'Public notes are unavailable because the notes provider failed. This release contains technical history only.';
   const technical = fs
     .readFileSync(path.join(directory, 'technical.md'), 'utf8')
     .trim();

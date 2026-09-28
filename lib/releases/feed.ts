@@ -13,15 +13,26 @@ function escapeXml(value: string): string {
 export function renderReleaseFeed(catalog: ReleaseCatalog): string {
   const siteUrl = 'https://linejam.app';
   const items = catalog.releases
-    .map(
-      (release) => `    <item>
+    .map((release) => {
+      let description =
+        release.productNotes || NOTES_STATUS_LABELS[release.notesStatus];
+      if (release.notesStatus === 'unavailable') {
+        const technical = release.changes
+          .map(
+            ({ scope, description }) =>
+              `- ${scope ? `(${scope}) ` : ''}${description}`
+          )
+          .join('\n');
+        description = `${NOTES_STATUS_LABELS.unavailable}\n\nTechnical history:\n${technical}`;
+      }
+      return `    <item>
       <title>Linejam v${escapeXml(release.version)}</title>
       <link>${siteUrl}/releases#v${escapeXml(release.version)}</link>
       <guid isPermaLink="false">v${escapeXml(release.version)}</guid>
       <pubDate>${new Date(`${release.date}T00:00:00Z`).toUTCString()}</pubDate>
-      <description>${escapeXml(release.productNotes || NOTES_STATUS_LABELS[release.notesStatus])}</description>
-    </item>`
-    )
+      <description>${escapeXml(description)}</description>
+    </item>`;
+    })
     .join('\n');
   const latestDate = catalog.releases[0]?.date;
   const problems = catalog.diagnostics.some(

@@ -47,7 +47,8 @@ function TechnicalDetails({ changes }: { changes: ChangelogEntry[] }) {
   return (
     <details className="group">
       <summary className="min-h-11 cursor-pointer py-3 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]">
-        Technical details ({changes.length} changes)
+        Technical details ({changes.length}{' '}
+        {changes.length === 1 ? 'change' : 'changes'})
       </summary>
 
       <div className="mt-8 space-y-8">
