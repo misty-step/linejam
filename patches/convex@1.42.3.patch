@@ -1,0 +1,46 @@
+diff --git a/src/react/ConvexAuthState.tsx b/src/react/ConvexAuthState.tsx
+--- a/src/react/ConvexAuthState.tsx
++++ b/src/react/ConvexAuthState.tsx
+@@ -109,2 +109,14 @@
+   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
++  const [wasAuthProviderAuthenticated, setWasAuthProviderAuthenticated] =
++    useState(authProviderAuthenticated);
++
++  // A new sign-in has no server verdict yet. Never reuse signed-out false
++  // as a rejection while setAuth is still fetching and confirming its token.
++  if (authProviderAuthenticated !== wasAuthProviderAuthenticated) {
++    setWasAuthProviderAuthenticated(authProviderAuthenticated);
++    if (authProviderAuthenticated) {
++      setIsConvexAuthenticated(null);
++      setIsRefreshing(false);
++    }
++  }
+ 
+diff --git a/dist/esm/react/ConvexAuthState.js b/dist/esm/react/ConvexAuthState.js
+--- a/dist/esm/react/ConvexAuthState.js
++++ b/dist/esm/react/ConvexAuthState.js
+@@ -30,2 +30,10 @@
+   const [isRefreshing, setIsRefreshing] = useState(false);
++  const [wasAuthProviderAuthenticated, setWasAuthProviderAuthenticated] = useState(authProviderAuthenticated);
++  if (authProviderAuthenticated !== wasAuthProviderAuthenticated) {
++    setWasAuthProviderAuthenticated(authProviderAuthenticated);
++    if (authProviderAuthenticated) {
++      setIsConvexAuthenticated(null);
++      setIsRefreshing(false);
++    }
++  }
+   if (authProviderLoading && isConvexAuthenticated !== null) {
+diff --git a/dist/cjs/react/ConvexAuthState.js b/dist/cjs/react/ConvexAuthState.js
+--- a/dist/cjs/react/ConvexAuthState.js
++++ b/dist/cjs/react/ConvexAuthState.js
+@@ -58,2 +58,10 @@
+   const [isRefreshing, setIsRefreshing] = (0, import_react.useState)(false);
++  const [wasAuthProviderAuthenticated, setWasAuthProviderAuthenticated] = (0, import_react.useState)(authProviderAuthenticated);
++  if (authProviderAuthenticated !== wasAuthProviderAuthenticated) {
++    setWasAuthProviderAuthenticated(authProviderAuthenticated);
++    if (authProviderAuthenticated) {
++      setIsConvexAuthenticated(null);
++      setIsRefreshing(false);
++    }
++  }
+   if (authProviderLoading && isConvexAuthenticated !== null) {
