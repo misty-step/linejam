@@ -22,11 +22,12 @@ reconcile with it before a release is accepted.
 
 ## Release ownership and public history
 
-[Landmark v0.28.7](https://github.com/misty-step/landmark/releases/tag/v0.28.7),
-pinned to `a38b2d6d87304eacf9669513f5a8c777751c061d`, owns release decisions,
-technical history, and player-facing note synthesis. This published revision
-includes the Linux binary and checksums used by its action. `.landmark.yml`
-sets Linejam's product context, end-user audience, voice, and budget.
+Landmark owns release decisions, technical history, and player-facing note
+synthesis. The [Release workflow](../.github/workflows/release.yml) owns the
+published Landmark binary revision and checksum pin; consult its current
+action configuration rather than copying a version or hash from this guide.
+`.landmark.yml` sets Linejam's product context, end-user audience, voice,
+and budget.
 
 `package.json` is the checked-in semantic version; `lib/appVersion.ts` exposes
 that same value to the application and release catalog. It is not a source
@@ -50,9 +51,13 @@ supported full-mode semantic-release hook adapter in `release.config.cjs`:
 1. `landmark run --provider local --dry-run` supplies the version decision.
    There is no local conventional-commit analyzer or second version allocator.
 2. If that decision has no matching reviewed candidate, Landmark's `run`,
-   `synthesize`, and `write-artifacts` commands prepare the technical changelog,
-   public markdown, and `landmark.public-release-notes.v1` JSON. The adapter
-   projects them, together with the package version, into one release PR on
+   `synthesize`, and `write-artifacts` commands prepare the technical changelog
+   and, when synthesis succeeds, public markdown and
+   `landmark.public-release-notes.v1` JSON. An attempted provider call that
+   fails may instead prepare a reviewable **technical-only** candidate with
+   `synthesis.json` quality `unavailable`: no invented public notes, no
+   `notes.md`, and no native Landmark JSON entry for that version. The adapter
+   projects the package version and artifacts into one release PR on
    `landmark/release`. Its `.landmark/release.json` records the analyzed source
    SHA and synthesis quality. No tag or GitHub Release exists yet.
 3. `GITHUB_TOKEN` opens the PR and explicitly dispatches the existing full `CI`
@@ -65,21 +70,22 @@ supported full-mode semantic-release hook adapter in `release.config.cjs`:
    since its analyzed source, and that semantic-release agrees on the previous
    tag and next version. Its `prepare` hook checks the committed projections
    before publishing. It creates no new master commit. Post-publication
-   synthesis and RSS commits are disabled, so notes are synthesized once and
-   release commits cannot create a release loop.
+   synthesis and RSS commits are disabled, so any public notes are synthesized
+   during PR preparation and release commits cannot create a release loop.
 
-This ordering is deliberate: v0.28.7's ordinary action synthesizes **after**
-semantic-release has already run its prepare hooks and published. Those later
-artifacts cannot be included in the same prepare commit. A direct
+This ordering is deliberate: the pinned Landmark action normally synthesizes
+**after** semantic-release has already run its prepare hooks and published.
+Those later artifacts cannot be included in the same prepare commit. A direct
 `@semantic-release/git` push also cannot satisfy this repository's protected
-branch. Preparing a normal PR commits package version, changelog, notes,
-manifest, marketing HTML, and feed together before the gate; publication is a
-separate remote step, not an invented cross-provider transaction. A failed
-publication is visible as a failed workflow, not proof that a tag shipped.
+branch. Preparing a normal PR commits package version, changelog, any public
+notes, manifest, marketing HTML, and feed together before the gate;
+publication is a separate remote step, not an invented cross-provider
+transaction. A failed publication is visible as a failed workflow, not proof
+that a tag shipped.
 
 ### Deterministic local preview and check
 
-With the published Landmark v0.28.7 binary installed on `PATH`:
+With the published Landmark binary pinned by the workflow installed on `PATH`:
 
 ```sh
 # Free: no model call, artifact writes, tags, or remote mutations.
@@ -101,11 +107,16 @@ do not run Landmark or contact a provider.
 
 `content/releases/landmark.json` is Landmark's native release-entry JSON array;
 markdown lives in `content/releases/{tag}/notes.md`. The catalog validates the
-checked-in upstream schema and rejects mismatched JSON/markdown. A
-`synthesis.json` quality record distinguishes a policy skip from missing notes.
-Missing notes remain explicitly missing, while malformed sources stop
-generation before writes. A missing or stale manifest is visible in the app,
-never silently trusted as the current version.
+checked-in upstream schema and rejects mismatched JSON/markdown.
+`synthesis.json` quality distinguishes a deliberate policy `skipped`, a failed
+provider attempt `unavailable`, and generated `valid` notes; absent quality and
+notes remain explicitly `missing`. Neither `skipped` nor `unavailable` can
+coexist with public notes for that version. Malformed records, failed grounding
+or integrity checks, and contradictory stale notes stop generation before
+writes rather than taking the technical-only path. The release index records
+`notesStatus: unavailable`, while the app, site changelog, and RSS feed display
+the explicit public status with technical history. A missing or stale manifest
+is visible in the app, never silently trusted as the current version.
 
 `content/releases/legacy-notes.json` preserves the 39 public entries from the
 old `docs/releases/feed.xml`, with the original feed's SHA-256 and recovered
@@ -118,33 +129,44 @@ append-and-reparse CDATA mutation.
 
 ### Live prerequisites and recovery
 
-Before this cutover, the release workflow had been **manually disabled**.
-The [failed run](https://github.com/misty-step/linejam/actions/runs/31910551340)
+Before the release-PR cutover, the workflow had been **manually disabled**.
+The [earlier failed run](https://github.com/misty-step/linejam/actions/runs/31910551340)
 stopped in `@semantic-release/git` prepare with `GH006`: changes require a PR
 and `merge-gate`. No synthesis ran. This was an observed branch-protection
-failure, not evidence of a token or model-provider failure.
+failure, not a model-provider failure.
 
-An operator must merge and verify this cutover before deliberately re-enabling
-the updated workflow. This source change does not re-enable it or publish a
-release. `GITHUB_TOKEN` needs the workflow-declared Contents, Issues, Pull
-requests, and Actions write permissions; no new GitHub App or PAT is required.
-The repository's read-only Actions settings reported PR creation/approval
-enabled. GitHub documents the
+The updated workflow is now enabled. Its current two-stage
+prepare-then-publish contract requires an exact green source and a normally
+reviewed PR. `GITHUB_TOKEN` needs the workflow-declared Contents, Issues,
+Pull requests, and Actions write permissions; no new GitHub App or PAT is
+required. GitHub documents the
 [workflow_dispatch exception for GITHUB_TOKEN](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
 
-`OPENROUTER_API_KEY` must be available to the release workflow for Landmark
-synthesis. Confirm both repository secrets and organization secrets available
-to this repository; listing only repository-owned secrets can miss inherited
-access:
+The release workflow reads the **repository-owned** `OPENROUTER_API_KEY`
+secret. It overrides any inherited organization secret of that name. Its
+issuer-owned identity is `misty-step/linejam/ci/release-notes`: USD 5 at each
+UTC month boundary, enabled, and restricted to Landmark's balanced model
+chain. The repository `.env.pass` names the dedicated pass entry only as
+`LINEJAM_RELEASE_OPENROUTER_API_KEY`; it deliberately does **not** export a
+generic `OPENROUTER_API_KEY` into other local consumers such as Jev. CI alone
+maps its repository secret to Landmark's required input. An authorized
+operator can bind that single repository secret securely without printing the
+token:
 
 ```sh
-gh api repos/misty-step/linejam/actions/organization-secrets --jq '.secrets[].name'
+pass-env run -f .env.pass -- sh -c 'printf %s "$LINEJAM_RELEASE_OPENROUTER_API_KEY" | gh secret set OPENROUTER_API_KEY --repo misty-step/linejam'
 ```
 
-The pre-deploy inspection confirmed the inherited key name without reading its
-value. Missing keys and degraded/failed synthesis fail preparation visibly
-rather than publishing invented fallback copy. A deliberate Landmark policy
-skip remains an explicit skip.
+The [MIS-183 attempt 2](https://github.com/misty-step/linejam/actions/runs/36445103936/attempts/2)
+prepared a valid current-source candidate after that binding; its
+[candidate CI](https://github.com/misty-step/linejam/actions/runs/36456022124)
+passed the full merge gate. Neither action published the release. Missing
+configuration, malformed release evidence, and failed grounding or integrity
+checks remain preparation failures, never a policy skip or an
+unavailable-provider candidate. A failed attempted provider call can produce
+a technical-only PR with explicit `unavailable` quality for human review; it
+does not bypass the full PR CI gate, merge review, master CI, or publication
+checks. A deliberate Landmark policy skip remains an explicit `skipped`.
 
 If a release PR becomes stale, the next green master run updates it and
 dispatches its full gate again. If tag history and the Landmark decision

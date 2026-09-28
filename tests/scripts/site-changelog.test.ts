@@ -78,4 +78,41 @@ describe('release projections', () => {
       'escape <room>'
     );
   });
+
+  it('renders provider-failed public notes with technical history on the site and in RSS (US-004)', () => {
+    const unavailable: ReleaseCatalog = {
+      ...catalog,
+      currentVersion: '0.28.0',
+      releases: [
+        {
+          ...catalog.releases[1],
+          version: '0.28.0',
+          notesStatus: 'unavailable',
+        },
+      ],
+    };
+    const status =
+      'Public notes could not be generated for this release. Technical history is available below.';
+    const template = document.createElement('template');
+    template.innerHTML = renderSiteChangelogHtml(unavailable);
+    const section = template.content.getElementById('v0.28.0');
+    expect(section?.textContent).toContain(status);
+    expect(section?.querySelector('details')?.textContent).toContain(
+      'escape <room> names & keep joins safe'
+    );
+    expect(section?.querySelector('details')?.open).toBe(false);
+    expect(section?.textContent).not.toContain('Landmark skipped');
+
+    const xml = new DOMParser().parseFromString(
+      renderReleaseFeed(unavailable),
+      'application/xml'
+    );
+    expect(xml.querySelector('parsererror')).toBeNull();
+    const description = xml.querySelector('item description')?.textContent;
+    expect(description).toContain(status);
+    expect(description).toContain(
+      'Technical history:\n- (rooms) escape <room> names & keep joins safe'
+    );
+    expect(description).not.toContain('Landmark skipped');
+  });
 });

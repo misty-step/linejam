@@ -60,7 +60,7 @@ jobs:
       - name: Analyze or publish the reviewed release
         id: landmark
         if: steps.gate.outputs.ready == 'true'
-        # v0.28.7 is published with Linux binaries + checksums. Its full-mode
+        # Pinned Landmark publishes Linux binaries with checksums. Its full-mode
         # prepare hook verifies already-merged artifacts; it never pushes master.
         uses: misty-step/landmark@ee0b84f88302ddeb93d2cef7a350192479ad0121 # v0.28.8
         with:
@@ -82,6 +82,16 @@ jobs:
             pnpm exec tsx scripts/releases/prepare.ts --allow-synthesis
           fi
 
+      - name: Summarize prepared release notes
+        if: steps.prepare.outputs.version != ''
+        env:
+          RELEASE_VERSION: ${{ steps.prepare.outputs.version }}
+          NOTES_STATUS: ${{ steps.prepare.outputs.notes_status }}
+          NOTES_MESSAGE: ${{ steps.prepare.outputs.notes_message }}
+        run: |
+          echo "### Release candidate v${RELEASE_VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Public notes (${NOTES_STATUS}): ${NOTES_MESSAGE}" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Open or update the release PR
         id: release-pr
         if: steps.prepare.outputs.version != ''
@@ -100,7 +110,8 @@ jobs:
           commit-message: 'chore(release): prepare ${{ steps.prepare.outputs.version }}'
           title: 'chore(release): prepare ${{ steps.prepare.outputs.version }}'
           body: |
-            Landmark produced this version decision, technical changelog, and player-facing notes.
+            Landmark produced this version decision and technical changelog for review.
+            Public notes (${{ steps.prepare.outputs.notes_status }}): ${{ steps.prepare.outputs.notes_message }}
             The application, marketing changelog, and feed are deterministic projections of those artifacts.
 
             This is a release candidate, not a published tag. Review and merge only after the full

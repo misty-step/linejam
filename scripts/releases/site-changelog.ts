@@ -54,7 +54,7 @@ function renderReleaseSection(release: ReleaseWithNotes): string {
 ${bullets ? `            <ul>\n${bullets}\n            </ul>` : ''}
             <p>${escapeHtml(NOTES_STATUS_LABELS[release.notesStatus])}</p>
             <details>
-              <summary>Technical history (${release.changes.length} changes)</summary>
+              <summary>Technical history (${release.changes.length} ${release.changes.length === 1 ? 'change' : 'changes'})</summary>
               <ul>
 ${release.changes.map((change) => `                <li>${escapeHtml(`${change.scope ? `(${change.scope}) ` : ''}${change.description}`)}</li>`).join('\n')}
               </ul>

@@ -34,7 +34,8 @@ export interface Release {
   compareUrl?: string;
 }
 
-export type NotesStatus = 'landmark' | 'legacy' | 'missing' | 'skipped';
+export type NotesStatus =
+  'landmark' | 'legacy' | 'missing' | 'skipped' | 'unavailable';
 
 export const NOTES_STATUS_LABELS = {
   landmark: 'Release notes by Landmark.',
@@ -43,6 +44,8 @@ export const NOTES_STATUS_LABELS = {
     'Public notes are not recorded for this release. Technical history is available below.',
   skipped:
     'Landmark skipped public notes for this release. Technical history is available below.',
+  unavailable:
+    'Public notes could not be generated for this release. Technical history is available below.',
 } satisfies Record<NotesStatus, string>;
 
 /** Anything a checked-in JSON source may hold before it is validated. */

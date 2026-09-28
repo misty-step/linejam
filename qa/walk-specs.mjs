@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 // Runs only inside the existing local Compose QA image. No raw browser output is published.
 import { randomBytes } from 'node:crypto';
-import { mkdir, open, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { cp, mkdir, open, readFile, rm, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
+import { exerciseReleaseCandidate } from './release-walk-fixture.mjs';
 
 const ids = JSON.parse(process.env.WALK_STORIES || '[]');
 const resultFile = '/artifacts/walk/observations.json';
@@ -680,6 +685,188 @@ async function walkThree(browser) {
   });
 }
 
+async function walkFour(browser) {
+  const story = { id: 'US-004', status: 'pass', criteria: [] };
+  stories.push(story);
+  const candidate = await exerciseReleaseCandidate();
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  let server;
+  let context;
+  try {
+    await criterion(story, 1, async () => {
+      requireCondition(
+        candidate.prepared.quality === 'unavailable' &&
+          candidate.prepared.sourceSha === candidate.sourceSha &&
+          candidate.manifest.notes[candidate.version] === 'unavailable' &&
+          candidate.firstOutput.includes('notes_status=unavailable\n') &&
+          !candidate.firstOutput.includes('skipped') &&
+          candidate.releaseBody.includes('Technical history') &&
+          !candidate.releaseBody.includes('skipped'),
+        'provider failure candidate'
+      );
+      return {
+        currentSource: true,
+        providerFailureStatus: true,
+        technicalOnly: true,
+      };
+    });
+    await criterion(story, 2, async () => {
+      requireCondition(
+        candidate.nativeEntries.every(
+          (entry) => entry.version !== candidate.version
+        ) &&
+          candidate.projections.every(
+            (projection) => !projection.includes(candidate.stale)
+          ) &&
+          !existsSync(
+            path.join(
+              candidate.root,
+              'content/releases',
+              candidate.tag,
+              'notes.md'
+            )
+          ),
+        'stale public notes removed'
+      );
+      return { oldGeneratedNotesRemoved: true, projectionsClean: true };
+    });
+    await criterion(story, 3, async () => {
+      requireCondition(
+        candidate.malformedRejected && candidate.ungroundedRejected,
+        'invalid release evidence fails closed'
+      );
+      return { malformedDecisionRejected: true, ungroundedNotesRejected: true };
+    });
+    await criterion(story, 4, async () => {
+      requireCondition(
+        candidate.tags === '' &&
+          candidate.firstOutput.includes(`version=${candidate.version}\n`) &&
+          candidate.releaseBody.includes('Technical history'),
+        'pre-review candidate cannot publish'
+      );
+      return { candidateWithoutTag: true, publicationRequiresReview: true };
+    });
+    await criterion(story, 5, async () => {
+      // This QA image is an isolated disposable copy. Projecting the candidate
+      // here cannot mutate the host checkout, hosted release, or guest app.
+      const pkgPath = path.join(root, 'package.json');
+      const pkg = JSON.parse(await readFile(pkgPath, 'utf8'));
+      pkg.version = candidate.version;
+      await writeFile(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+      await writeFile(
+        path.join(root, 'CHANGELOG.md'),
+        await readFile(path.join(candidate.root, 'CHANGELOG.md'))
+      );
+      await rm(path.join(root, 'content/releases'), { recursive: true });
+      await cp(
+        path.join(candidate.root, 'content/releases'),
+        path.join(root, 'content/releases'),
+        { recursive: true }
+      );
+      for (const relative of [
+        'site/changelog.html',
+        'docs/releases/feed.xml',
+      ]) {
+        await writeFile(
+          path.join(root, relative),
+          await readFile(path.join(candidate.root, relative))
+        );
+      }
+      const listener = createServer();
+      await new Promise((resolve) => listener.listen(0, '127.0.0.1', resolve));
+      const port = listener.address().port;
+      await new Promise((resolve) => listener.close(resolve));
+      server = spawn(
+        process.execPath,
+        [
+          'node_modules/next/dist/bin/next',
+          'dev',
+          '--webpack',
+          '--hostname',
+          '127.0.0.1',
+          '--port',
+          String(port),
+        ],
+        { cwd: root, stdio: 'ignore', detached: true }
+      );
+      let response;
+      for (let attempt = 0; attempt < 90; attempt++) {
+        if (server.exitCode !== null) break;
+        try {
+          response = await fetch(`http://127.0.0.1:${port}/releases`, {
+            signal: AbortSignal.timeout(1000),
+          });
+          if (response.ok) break;
+        } catch {}
+        await pause(500);
+      }
+      requireCondition(response?.ok, 'isolated release UI availability');
+      context = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+      });
+      const page = await context.newPage();
+      await page.route('**/npm/@clerk/**', (route) => route.abort('failed'));
+      await page.goto(`http://127.0.0.1:${port}/releases`);
+      const release = page.locator(`[id="${candidate.tag}"]`);
+      await expect(
+        release.getByText(
+          'Public notes could not be generated for this release. Technical history is available below.'
+        )
+      ).toBeVisible();
+      await release.locator('summary').click();
+      await expect(release).toContainText(
+        'preserve submitted lines after reconnect'
+      );
+      requireCondition(
+        !(await release.textContent()).includes(candidate.stale),
+        'app has no old notes'
+      );
+      await page.goto(`file://${path.join(root, 'site/changelog.html')}`);
+      await expect(page.locator(`[id="${candidate.tag}"]`)).toContainText(
+        'Public notes could not be generated for this release.'
+      );
+      await page.locator(`[id="${candidate.tag}"] summary`).click();
+      await expect(page.locator(`[id="${candidate.tag}"]`)).toContainText(
+        'preserve submitted lines after reconnect'
+      );
+      await page.goto(`file://${path.join(root, 'docs/releases/feed.xml')}`);
+      const feed = await page.textContent('body');
+      requireCondition(
+        feed.includes(
+          'Public notes could not be generated for this release.'
+        ) &&
+          feed.includes('preserve submitted lines after reconnect') &&
+          !feed.includes(candidate.stale) &&
+          candidate.releaseBody.includes('notes provider failed'),
+        'feed and publication body describe unavailable technical history'
+      );
+      return {
+        appStatusVisible: true,
+        appTechnicalHistoryRevealed: true,
+        siteStatusVisible: true,
+        feedTechnicalHistory: true,
+        publicationBodyTechnicalOnly: true,
+      };
+    });
+    await criterion(story, 6, async () => {
+      requireCondition(
+        candidate.firstOutput.includes('provider call failed') &&
+          candidate.firstOutput.includes('technical-only candidate') &&
+          !candidate.firstOutput.includes('player outage'),
+        'release administration evidence'
+      );
+      return { providerFailureNamed: true, noPlayerOutageClaim: true };
+    });
+  } finally {
+    await context?.close();
+    if (server?.pid && server.exitCode === null) {
+      // The detached process group belongs only to this disposable QA image.
+      process.kill(-server.pid, 'SIGTERM');
+    }
+    await rm(candidate.root, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   requireCondition(
     process.env.LINEJAM_LOCAL === '1' &&
@@ -704,6 +891,7 @@ async function main() {
         'US-001': walkOne,
         'US-002': walkTwo,
         'US-003': walkThree,
+        'US-004': walkFour,
       };
       for (const id of ids) {
         if (!walks[id]) {

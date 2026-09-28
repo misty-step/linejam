@@ -85,6 +85,18 @@ function landmarkNotes(root: string): LandmarkReleaseEntry {
   return entry;
 }
 
+function synthesisQuality(
+  root: string,
+  quality: 'valid' | 'skipped' | 'unavailable'
+) {
+  const directory = path.join(root, 'content/releases/v0.27.0');
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(
+    path.join(directory, 'synthesis.json'),
+    JSON.stringify({ quality })
+  );
+}
+
 afterEach(() => {
   vi.useRealTimers();
   for (const root of roots.splice(0))
@@ -179,6 +191,7 @@ describe('release catalog authority', () => {
       path.join(root, 'content/releases/v0.27.0/notes.md'),
       entry.markdown
     );
+    synthesisQuality(root, 'valid');
     generateReleases({ root });
     expect(loadReleaseCatalog(root).releases[0]).toMatchObject({
       date: '2026-08-01',
@@ -189,18 +202,99 @@ describe('release catalog authority', () => {
 
   it('records a policy skip separately from a missing release note', () => {
     const root = fixture();
-    fs.mkdirSync(path.join(root, 'content/releases/v0.27.0'), {
-      recursive: true,
-    });
-    fs.writeFileSync(
-      path.join(root, 'content/releases/v0.27.0/synthesis.json'),
-      JSON.stringify({ quality: 'skipped' })
-    );
+    synthesisQuality(root, 'skipped');
     generateReleases({ root });
     expect(loadReleaseCatalog(root).releases[0]).toMatchObject({
       notesStatus: 'skipped',
       productNotes: '',
     });
+  });
+
+  it('projects failed provider notes as unavailable with technical history (US-004)', () => {
+    const root = fixture();
+    synthesisQuality(root, 'unavailable');
+    generateReleases({ root });
+    const catalog = loadReleaseCatalog(root);
+    expect(
+      catalog.diagnostics.filter(
+        (diagnostic) => diagnostic.severity === 'error'
+      )
+    ).toEqual([]);
+    expect(catalog.releases[0]).toMatchObject({
+      notesStatus: 'unavailable',
+      productNotes: '',
+      changes: [
+        expect.objectContaining({ description: 'show the room status board' }),
+      ],
+    });
+    expect(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(root, 'content/releases/manifest.json'),
+          'utf8'
+        )
+      ).notes
+    ).toMatchObject({ '0.27.0': 'unavailable', '1.15.1': 'legacy' });
+    expect(
+      fs.existsSync(path.join(root, 'content/releases/v0.27.0/notes.md'))
+    ).toBe(false);
+  });
+
+  it('rejects stale generated markdown on an unavailable release (US-004)', () => {
+    const root = fixture();
+    synthesisQuality(root, 'unavailable');
+    fs.writeFileSync(
+      path.join(root, 'content/releases/v0.27.0/notes.md'),
+      'Notes from an earlier candidate.'
+    );
+    const manifestPath = path.join(root, 'content/releases/manifest.json');
+    const previousManifest = fs.readFileSync(manifestPath, 'utf8');
+    expect(() => generateReleases({ root })).toThrow();
+    expect(fs.readFileSync(manifestPath, 'utf8')).toBe(previousManifest);
+  });
+
+  it('rejects a native Landmark entry on an unavailable release (US-004)', () => {
+    const root = fixture();
+    landmarkNotes(root);
+    fs.unlinkSync(path.join(root, 'content/releases/v0.27.0/notes.md'));
+    synthesisQuality(root, 'unavailable');
+    expect(() => generateReleases({ root })).toThrow();
+  });
+
+  it('rejects archived public notes on a provider-failed release (US-004)', () => {
+    const root = fixture();
+    synthesisQuality(root, 'unavailable');
+    fs.writeFileSync(
+      path.join(root, 'content/releases/legacy-notes.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        source: 'archived feed fixture',
+        sourceSha256: '0'.repeat(64),
+        releases: [
+          {
+            version: '0.27.0',
+            html: '<p>Stale public notes.</p>',
+            plaintext: 'Stale public notes.',
+          },
+        ],
+      })
+    );
+    expect(() => generateReleases({ root })).toThrow();
+  });
+
+  it('rejects malformed provider-failure records instead of displaying unavailable (US-004)', () => {
+    const root = fixture();
+    synthesisQuality(root, 'unavailable');
+    fs.writeFileSync(
+      path.join(root, 'content/releases/v0.27.0/synthesis.json'),
+      JSON.stringify({ quality: 'unavailable', extra: 'invalid' })
+    );
+    const catalog = readReleaseSources(root);
+    expect(catalog.releases[0]).toMatchObject({
+      notesStatus: 'missing',
+      productNotes: '',
+    });
+    expect(() => generateReleases({ root })).toThrow();
   });
 
   it('generates all projections idempotently and detects drift without rewriting it', () => {

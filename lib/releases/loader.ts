@@ -21,10 +21,12 @@ const isVersionRecord = ajv.compile<{ version: string }>({
   required: ['version'],
   properties: { version: { type: 'string' } },
 });
-const isSynthesisStatus = ajv.compile<{ quality: 'valid' | 'skipped' }>({
+const isSynthesisStatus = ajv.compile<{
+  quality: 'valid' | 'skipped' | 'unavailable';
+}>({
   type: 'object',
   required: ['quality'],
-  properties: { quality: { enum: ['valid', 'skipped'] } },
+  properties: { quality: { enum: ['valid', 'skipped', 'unavailable'] } },
   additionalProperties: false,
 });
 const isReleaseRecord = ajv.compile<Release>({
@@ -244,16 +246,17 @@ export function readReleaseSources(root = process.cwd()): ReleaseCatalog {
         ? readJson(statusPath)
         : undefined;
       if (status !== undefined && !isSynthesisStatus(status)) {
-        throw new Error(
-          'synthesis did not produce valid or policy-skipped notes'
-        );
+        throw new Error('invalid synthesis quality record');
       }
       if (invalidNotes.has(release.version))
         throw new Error('malformed Landmark entry');
-      if (isSynthesisStatus(status) && status.quality === 'skipped') {
-        if (entry || fs.existsSync(notesPath))
-          throw new Error('skipped synthesis still has public notes');
-        notesStatus = 'skipped';
+      if (
+        isSynthesisStatus(status) &&
+        (status.quality === 'skipped' || status.quality === 'unavailable')
+      ) {
+        if (entry || legacy || fs.existsSync(notesPath))
+          throw new Error(`${status.quality} synthesis still has public notes`);
+        notesStatus = status.quality;
       } else if (entry) {
         if (
           fs.readFileSync(notesPath, 'utf8').trim() !== entry.markdown.trim()
@@ -277,10 +280,20 @@ export function readReleaseSources(root = process.cwd()): ReleaseCatalog {
         `Public notes for v${release.version} are unavailable: ${String(error)}`
       );
     }
-    if (notesStatus === 'missing' || notesStatus === 'skipped') {
+    if (
+      notesStatus === 'missing' ||
+      notesStatus === 'skipped' ||
+      notesStatus === 'unavailable'
+    ) {
+      const reason =
+        notesStatus === 'skipped'
+          ? 'were skipped by Landmark policy'
+          : notesStatus === 'unavailable'
+            ? 'could not be generated'
+            : 'are not recorded';
       report(
         'warning',
-        `v${release.version}: public notes ${notesStatus === 'skipped' ? 'were skipped by Landmark policy' : 'are not recorded'}. Technical history is retained.`
+        `v${release.version}: public notes ${reason}. Technical history is retained.`
       );
     }
     withNotes.push({ ...release, productNotes, notesStatus });

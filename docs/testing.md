@@ -72,17 +72,29 @@ existing `merge-gate` and its auth/E2E lanes are unchanged. A new baseline gap
 or later expiry after adoption needs a separately approved extension record,
 not an edit to the current bootstrap baseline.
 
+US-004 adds a credential-free release-administration path to the existing
+source-bound story walk. In the disposable QA container it prepares a
+technical-only candidate from a controlled provider failure, checks stale
+notes, malformed and ungrounded rejection, exercises the reviewed publication
+adapter, and reads the candidate in an isolated Next release page, site
+changelog, and feed. Its receipt proves those local paths only; it does not
+publish a tag or GitHub Release, prove a real provider balance, certify the
+hosted alert classifier, or grant merge/deployment authority. The
+[MIS-183 postmortem](postmortems/2026-09-28-release-provider-coupling.md)
+retains the actual issuer, workflow, and operations receipts separately.
+
 ## Match evidence to the change
 
-| Change                              | Minimum acceptance                                                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Documentation or non-runtime config | affected formatting, link/path/command resolution, and relevant schema/importer evidence; no application suite for prose alone |
-| Domain utility                      | focused Vitest plus `pnpm ci:prepush`                                                                                          |
-| Convex query/mutation/scheduler     | `convex-test` integration on the real scheduler/DB plus fast gate                                                              |
-| Component interaction               | Testing Library behavior test plus the relevant browser route                                                                  |
-| Game flow/auth/realtime             | Playwright with separate contexts and the targeted Convex deployment                                                           |
-| Visual/theme                        | deterministic browser flow and retained screenshots/video/manifest                                                             |
-| Deployment/observability            | local gates plus authorized provider, smoke, health, and log postconditions                                                    |
+| Change                              | Minimum acceptance                                                                                                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documentation or non-runtime config | affected formatting, link/path/command resolution, and relevant schema/importer evidence; no application suite for prose alone                                                  |
+| Domain utility                      | focused Vitest plus `pnpm ci:prepush`                                                                                                                                           |
+| Convex query/mutation/scheduler     | `convex-test` integration on the real scheduler/DB plus fast gate                                                                                                               |
+| Component interaction               | Testing Library behavior test plus the relevant browser route                                                                                                                   |
+| Game flow/auth/realtime             | Playwright with separate contexts and the targeted Convex deployment                                                                                                            |
+| Visual/theme                        | deterministic browser flow and retained screenshots/video/manifest                                                                                                              |
+| Deployment/observability            | local gates plus authorized provider, smoke, health, and log postconditions                                                                                                     |
+| Release administration              | controlled provider-failure candidate, catalog/projection and publication-adapter checks, isolated release-surface walk, then separately authorized online workflow/PR evidence |
 
 Configuration that changes executable behavior follows the relevant behavior
 row, not the documentation row. The pre-push hook policy still applies when
