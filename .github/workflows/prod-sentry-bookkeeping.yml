@@ -1,7 +1,6 @@
 name: Sentry Production Bookkeeping
 
 on:
-  workflow_dispatch:
   workflow_run:
     workflows: [Production Smoke]
     types: [completed]
@@ -19,8 +18,7 @@ jobs:
     name: Sentry release and deploy bookkeeping
     if: >-
       github.ref == 'refs/heads/master' &&
-      (github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.head_repository.full_name == github.repository)
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
