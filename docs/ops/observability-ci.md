@@ -145,12 +145,17 @@ completion independently routes failures to Kaylee's alert intake:
   failures. Unavailable history escalates conservatively rather than claiming
   a clean history.
 - `Sentry Production Bookkeeping` (`prod-sentry-bookkeeping.yml`) runs after
-  each completed master Production Smoke run, regardless of its conclusion,
-  and can be dispatched manually with operation authority. It reads the live
-  release receipt and records the deploy independently. Authentication errors
-  fail this workflow; they are not ignored and cannot turn player smoke red.
+  each completed master Production Smoke run, regardless of its conclusion.
+  It has no independent manual trigger. It reads the live release receipt and
+  records that currently served release, not the earlier browser-tested release.
+  The marker links to this bookkeeping run; it is not browser acceptance evidence.
+  Authentication errors fail this workflow; they are not ignored and cannot turn
+  player smoke red.
   The privileged `workflow_run` path checks out only protected `master` and
   consumes no triggering-run code or artifacts.
+  The [MIS-174 postmortem](../postmortems/2026-09-27-production-smoke-sentry-coupling.md)
+  separates player-health evidence, marker authentication, and merge/deployment
+  authority.
 - Failed default-branch workflows reach Kaylee through the repository's
   independent GitHub `workflow_run` webhook, not through the Sentry credential
   that may be broken. The

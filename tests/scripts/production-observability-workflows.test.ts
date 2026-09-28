@@ -80,10 +80,12 @@ describe('production health and observability ownership (MIS-174)', () => {
   it('keeps deploy-marker failures hard and independently routable on master', () => {
     const smoke = workflow('prod-smoke.yml');
     const bookkeeping = workflow('prod-sentry-bookkeeping.yml');
-    expect(bookkeeping.on.workflow_run).toEqual({
-      workflows: ['Production Smoke'],
-      types: ['completed'],
-      branches: ['master'],
+    expect(bookkeeping.on).toEqual({
+      workflow_run: {
+        workflows: ['Production Smoke'],
+        types: ['completed'],
+        branches: ['master'],
+      },
     });
     const markerCommand = 'node scripts/ops/record-sentry-deploy.mjs';
     expect(
