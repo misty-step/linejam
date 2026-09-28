@@ -79,16 +79,51 @@ describe('migrateGuestToUser', () => {
     expect(rows).toHaveLength(1);
   });
 
-  it('throws Guest user not found when no user record exists for the guestId', async () => {
+  it('treats an unplayed guest session as empty without consuming a later migration', async () => {
     const t = setupConvexTest();
-    // Token is valid but there is no matching guest user row in the DB.
-    const guestToken = await signGuestToken('guest-missing');
+    const guestToken = await signGuestToken('guest-unplayed');
+    const account = asUser(t, 'bob');
+    const untouchedUserId = await seedUser(t, {
+      displayName: 'Another guest',
+      guestId: 'guest-unrelated',
+    });
+    const before = await t.run((ctx) => ctx.db.query('users').collect());
 
-    await expect(
-      asUser(t, 'bob').mutation(api.migrations.migrateGuestToUser, {
-        guestToken,
-      })
-    ).rejects.toThrow('Guest user not found');
+    expect(
+      await account.mutation(api.migrations.migrateGuestToUser, { guestToken })
+    ).toEqual({
+      success: true,
+      linesTransferred: 0,
+      favoritesTransferred: 0,
+      roomsTransferred: 0,
+    });
+    expect(await t.run((ctx) => ctx.db.query('users').collect())).toEqual(
+      before
+    );
+    expect(await t.run((ctx) => ctx.db.query('migrations').collect())).toEqual(
+      []
+    );
+
+    const { roomId } = await t.mutation(api.rooms.createRoom, {
+      displayName: 'Now playing',
+      guestToken,
+    });
+    expect(
+      await account.mutation(api.migrations.migrateGuestToUser, { guestToken })
+    ).toMatchObject({ success: true, roomsTransferred: 1 });
+
+    await t.run(async (ctx) => {
+      const owner = await ctx.db
+        .query('users')
+        .withIndex('by_clerk', (q) => q.eq('clerkUserId', 'clerk_bob'))
+        .unique();
+      expect(owner).not.toBeNull();
+      expect((await ctx.db.get(roomId))?.hostUserId).toBe(owner!._id);
+      expect(await ctx.db.get(untouchedUserId)).toEqual(before[0]);
+      expect(await ctx.db.query('migrations').collect()).toEqual([
+        expect.objectContaining({ clerkUserId: 'clerk_bob' }),
+      ]);
+    });
   });
 
   it('returns alreadyMigrated when the Clerk user record IS the guest record (same _id)', async () => {
