@@ -142,4 +142,29 @@ describe('production health and observability ownership (MIS-174)', () => {
       expect(result.stdout.includes('::warning::')).toBe(outcome !== 'success');
     }
   );
+
+  it.each(['success', 'failure'])(
+    'keeps the independent %s reporting outcome visible',
+    (status) => {
+      const summary = workflow('prod-smoke.yml').jobs.reporting.steps.find(
+        (step) => step.name === 'Summarize reporting'
+      );
+      expect(summary).toMatchObject({
+        if: 'always()',
+        env: { REPORTING_STATUS: '${{ job.status }}' },
+      });
+      const result = spawnSync('bash', ['-e', '-c', summary!.run!], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GITHUB_STEP_SUMMARY: '/dev/null',
+          REPORTING_STATUS: status,
+          SMOKE_OUTCOME: 'success',
+          STREAK_COUNT: '0',
+        },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.includes('::warning::')).toBe(status === 'failure');
+    }
+  );
 });
