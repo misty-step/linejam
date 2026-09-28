@@ -112,11 +112,12 @@ checked-in upstream schema and rejects mismatched JSON/markdown.
 provider attempt `unavailable`, and generated `valid` notes; absent quality and
 notes remain explicitly `missing`. Neither `skipped` nor `unavailable` can
 coexist with public notes for that version. Malformed records, failed grounding
-or integrity checks, and contradictory stale notes stop generation before
-writes rather than taking the technical-only path. The release index records
-`notesStatus: unavailable`, while the app, site changelog, and RSS feed display
-the explicit public status with technical history. A missing or stale manifest
-is visible in the app, never silently trusted as the current version.
+or integrity checks, and unreconciled public notes fail preparation rather than
+taking the technical-only path. A failed local attempt may have written files;
+discard them. The workflow does not refresh the release PR after failure. The
+release index records `notesStatus: unavailable`; the app, site changelog, and
+RSS feed display the explicit public status with technical history. A missing
+or stale manifest is visible in the app, never silently trusted as current.
 
 `content/releases/legacy-notes.json` preserves the 39 public entries from the
 old `docs/releases/feed.xml`, with the original feed's SHA-256 and recovered
