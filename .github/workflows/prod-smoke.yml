@@ -128,12 +128,6 @@ jobs:
             echo "- Sentry reporting and release bookkeeping have independent results."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Enforce deployed release attribution
-        if: always() && steps.release.outcome != 'success'
-        run: |
-          echo "::error::Production smoke could not resolve the commit served by /api/health."
-          exit 1
-
   reporting:
     name: Sentry player-health reporting
     needs: smoke
@@ -182,6 +176,12 @@ jobs:
           LINEJAM_MONITOR_OUTCOME: ${{ needs.smoke.outputs.outcome }}
           LINEJAM_MONITOR_CONSECUTIVE_FAILURES: ${{ steps.streak.outputs.count }}
         run: node scripts/ops/report-sentry-check-in.mjs
+
+      - name: Enforce deployed release attribution
+        if: always() && needs.smoke.outputs.release_outcome != 'success'
+        run: |
+          echo "::error::Sentry reporting could not resolve the commit served by /api/health; see the independent player-health result."
+          exit 1
 
       - name: Summarize reporting
         if: always()

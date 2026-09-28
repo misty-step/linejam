@@ -58,6 +58,23 @@ describe('production health and observability ownership (MIS-174)', () => {
         (step) => step.name === 'Report status to Sentry'
       )
     ).toMatchObject({ run: 'node scripts/ops/report-sentry-check-in.mjs' });
+    expect(
+      player.steps.find(
+        (step) => step.name === 'Resolve deployed Sentry release'
+      )
+    ).toMatchObject({ 'continue-on-error': true });
+    expect(
+      player.steps.find(
+        (step) => step.name === 'Enforce deployed release attribution'
+      )
+    ).toBeUndefined();
+    const attribution = jobs.reporting.steps.find(
+      (step) => step.name === 'Enforce deployed release attribution'
+    );
+    expect(attribution).toMatchObject({
+      if: "always() && needs.smoke.outputs.release_outcome != 'success'",
+    });
+    expect(attribution?.['continue-on-error']).not.toBe(true);
   });
 
   it('keeps deploy-marker failures hard and independently routable on master', () => {
