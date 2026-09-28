@@ -75,7 +75,14 @@ export const migrateGuestToUser = mutation({
     }
 
     if (!guestUser) {
-      throw new ConvexError('Guest user not found');
+      // Browsing issues a guest token; only playing creates a guest user.
+      // Do not record a migration that would consume a later real transfer.
+      return {
+        success: true,
+        linesTransferred: 0,
+        favoritesTransferred: 0,
+        roomsTransferred: 0,
+      };
     }
 
     const authUser = await ensureUserHelper(ctx, {

@@ -157,6 +157,23 @@ closes its own game/room. The real-composer Clerk-transition regression in
 principal cannot capture the outgoing draft before passive cleanup. These are
 accelerated boundary checks, not an operating-system suspend/resume oracle.
 
+### Guest-to-account callback acceptance
+
+For migration changes, walk `/callback` with both a fresh, never-played guest
+session and a guest who has hosted/joined and contributed a line. Use an approved
+existing test account; the populated-history case needs an account without a
+prior migration receipt. An already-migrated account exercises the retry path,
+not a new transfer. Do not reset player records to manufacture a test fixture.
+
+For empty history, verify automatic return home without recovery, removal of the
+guest cookie, and authenticated access. For populated history, record the owned
+room before signing in, then verify its seat, prior contribution, and host
+controls survive the callback and reload. End and close the owned room through
+the UI and sign out. Keep tokens, room codes, and poem text out of public evidence.
+The real database regression lives in `tests/convex/migrations.test.ts`; the
+browser result, target, revision, and identity precondition belong in the incident
+or PR receipt. A passing generic sign-in smoke is not migration acceptance.
+
 ### Cuelume/audio acceptance in a real browser
 
 Use the repository-owned isolated stack, not a synthetic app or shared backend.
