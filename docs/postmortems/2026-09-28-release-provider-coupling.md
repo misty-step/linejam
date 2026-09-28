@@ -133,13 +133,24 @@ produce “Production deployment failure.” Hosted `ci`, `python-suites`, and
 `convex-kit` passed at that commit. The draft is held; CodeRabbit skipped draft
 review. It is not merged or deployed and is not claimed as live alert behavior.
 
+The Linejam correction is in [draft PR #535](https://github.com/misty-step/linejam/pull/535)
+at commit `57ceaf9aa23226a0774c3115e731e93b157b8086`.
+[Hosted CI run 36466073857](https://github.com/misty-step/linejam/actions/runs/36466073857)
+passed its merge gate. Its [sanitized story-walk receipt](https://github.com/misty-step/linejam/actions/runs/36466073857/artifacts/10989678877)
+records US-004 criteria 1–6 passing at tree
+`c754682c33c39387871a4e530f94b8c3a94bfde8`: controlled provider
+failure, stale-note removal, invalid-evidence rejection, candidate gate,
+rendered public surfaces, and correct release-only incident wording. This is
+isolated CI acceptance, not a hosted technical-only publication.
+
 ## Follow-up
 
-The incident remains In Progress until the structural correction has completed
-its failing-before/passing-after regression, native-path smoke, review, and
-explicitly authorized rollout. The classification patch is independently
-cherry-pickable; it does not depend on hermes-config's separate root-consolidation
-PR #105.
+The failing-before/passing-after regression, pinned-native smoke, and US-004
+hosted story walk are complete. The incident remains In Progress pending
+review, explicit authorization for the Linejam correction's merge/deployment,
+and the separately authorized hermes-config alert-classifier rollout. That
+classifier patch is independently cherry-pickable; it does not depend on
+hermes-config's separate root-consolidation PR #105.
 
 Merging Linejam master triggers a player deployment. Credential integration and
 release verification do not authorize that merge or deployment, nor do they
