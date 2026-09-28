@@ -9,6 +9,7 @@ ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     CI=1
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 COPY vendor/parlor ./vendor/parlor
 RUN corepack enable \
     && corepack prepare pnpm@10.22.0 --activate \

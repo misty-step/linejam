@@ -13,6 +13,7 @@ const sourceRoots = [
   'config',
   'public',
   'content',
+  'patches',
   'scripts/local',
   'package.json',
   'pnpm-lock.yaml',
@@ -63,6 +64,7 @@ export async function sourceIdentity() {
       relative.startsWith('convex/') ||
       relative.startsWith('lib/') ||
       relative.startsWith('config/') ||
+      relative.startsWith('patches/') ||
       relative.startsWith('sentry.') ||
       [
         'package.json',

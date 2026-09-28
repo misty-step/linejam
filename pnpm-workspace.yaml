@@ -2,6 +2,10 @@ packages:
   - vendor/parlor/packages/*
   - vendor/parlor/integrations/*
 
+# MIS-184: keep a new sign-in pending until Convex returns its own verdict.
+patchedDependencies:
+  convex@1.42.3: patches/convex@1.42.3.patch
+
 ignoredBuiltDependencies:
   - '@clerk/shared'
   - esbuild
