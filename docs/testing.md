@@ -36,12 +36,12 @@ check's constituent commands.
 The hosted `merge-gate` remains authoritative for merge. Acceptance surfaces
 are additive, not interchangeable:
 
-| Surface                                         | What it proves                                                                             | What it does not prove                                              |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `pnpm ci:prepush`                               | Fast static/domain/integration checks                                                      | Browser rendering or running backend acceptance                     |
-| Local CLI `check`                               | Containerized checks, coverage, and app build                                              | Guest room flow or hosted-provider auth                             |
-| Local CLI `qa` / hosted `Isolated Guest QA`     | Fresh local Convex/app guest flow plus runtime evidence, with no provider secrets          | Clerk sign-in, hosted Convex deployment alignment, or Sentry ingest |
-| Hosted Dagger E2E and QA Evidence               | Existing selector, full auth/browser, and evidence acceptance against configured providers | Secret-free local isolation                                         |
+| Surface                                     | What it proves                                                                             | What it does not prove                                              |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `pnpm ci:prepush`                           | Fast static/domain/integration checks                                                      | Browser rendering or running backend acceptance                     |
+| Local CLI `check`                           | Containerized checks, coverage, and app build                                              | Guest room flow or hosted-provider auth                             |
+| Local CLI `qa` / hosted `Isolated Guest QA` | Fresh local Convex/app guest flow plus runtime evidence, with no provider secrets          | Clerk sign-in, hosted Convex deployment alignment, or Sentry ingest |
+| Hosted Dagger E2E and QA Evidence           | Existing selector, full auth/browser, and evidence acceptance against configured providers | Secret-free local isolation                                         |
 
 The new guest job must finish with `success`; a skipped/cancelled/failed job
 cannot satisfy the merge gate. Existing full E2E/auth and evidence lanes remain.
