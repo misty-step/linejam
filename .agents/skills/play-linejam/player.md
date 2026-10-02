@@ -15,7 +15,8 @@ pnpm exec agent-browser --version
 pnpm exec agent-browser skills get core
 ```
 
-Confirm the CLI version is `0.27.0`.
+Confirm the CLI version matches the exact `agent-browser` release in
+`package.json`. Read the installed core skill for that release's command syntax.
 
 After each session's initial `open`, set the product-priority mobile viewport
 before taking its first snapshot:

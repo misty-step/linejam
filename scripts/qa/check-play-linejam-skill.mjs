@@ -92,16 +92,16 @@ function validate() {
     const pkg = JSON.parse(
       readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf8')
     );
-    if (pkg.devDependencies?.['agent-browser'] !== '0.27.0') {
-      errors.push(
-        `package.json devDependencies.agent-browser must be exact "0.27.0", got: ${pkg.devDependencies?.['agent-browser']}`
-      );
-    }
-    if (
-      pkg.dependencies?.ajv !== '8.17.1' ||
-      pkg.devDependencies?.['ajv-formats'] !== '3.0.1'
-    ) {
-      errors.push('package.json must pin the result validator dependencies');
+    for (const [name, version] of [
+      ['agent-browser', pkg.devDependencies?.['agent-browser']],
+      ['ajv', pkg.dependencies?.ajv],
+      ['ajv-formats', pkg.devDependencies?.['ajv-formats']],
+    ]) {
+      if (
+        !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(version ?? '')
+      ) {
+        errors.push(`package.json must pin ${name} to an exact release`);
+      }
     }
     const checkScript = pkg.scripts?.['qa:play-linejam:check'];
     if (checkScript !== 'node ./scripts/qa/check-play-linejam-skill.mjs') {

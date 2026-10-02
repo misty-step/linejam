@@ -11,8 +11,8 @@ has explicit operator authority to play as guests against this exact target:
 
 1. Read `.agents/skills/play-linejam/SKILL.md`, `coordinator.md`, and
    `player.md` in this repository and follow them exactly.
-2. Confirm the runtime preflight: `pnpm qa:play-linejam:check` and
-   `pnpm exec agent-browser --version` must report `0.27.0`.
+2. Confirm the runtime preflight: `pnpm qa:play-linejam:check` must pass, and
+   `pnpm exec agent-browser --version` must match the exact release in `package.json`.
 3. Spawn the Host and Guest player agents and run the complete lifecycle:
    room creation, lobby join, nine rounds with exact target word counts,
    reveal and reading circle, room closure, and fresh-session join rejection.

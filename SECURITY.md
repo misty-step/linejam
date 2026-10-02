@@ -41,3 +41,16 @@ Out of scope:
 - Social engineering
 - Findings that require leaked credentials not obtained from this repository
 - Scanner-only reports without a working exploit path
+
+## Dependency maintenance
+
+Security overrides in `pnpm-workspace.yaml` use minimum versions and target only
+requests below the fixed release. Never pin an exact replacement. Preserve a
+consumer's major-version contract where needed; newer parent requests must fall
+outside the override selector so the next security fix remains eligible.
+
+Regenerate `pnpm-lock.yaml` with the repository's pinned pnpm, verify a frozen
+install and the dependency audit, then read back Dependabot alerts after merge.
+Keep the repository dependency graph enabled; a patched lockfile alone cannot
+refresh alerts while GitHub dependency analysis is disabled. Never dismiss
+alerts merely to make the count match the locally patched graph.
