@@ -79,8 +79,9 @@ replace operator authority. See `docs/deployment.md`.
 1. Focused test/lint/typecheck for the changed surface.
 2. `pnpm ci:prepush`: provider-retirement check, typecheck, lint, and Vitest.
 3. Proportionate browser, evidence, or live-dev proof from `docs/testing.md`.
-4. Hosted `.github/workflows/ci.yml` merge gate: quality, test/build, early
-   selector smoke, E2E, and QA evidence jobs as configured there.
+4. Hosted `.github/workflows/ci.yml` merge gate: quality, test/build, isolated
+   guest QA, E2E (including selector smoke), and QA evidence jobs as configured
+   there.
 5. After an authorized merge/deploy, confirm source SHA, provider deployment
    health, production smoke, public route postconditions, and relevant logs.
 

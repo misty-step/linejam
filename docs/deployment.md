@@ -516,9 +516,9 @@ pnpm ci:dagger:all
 
 The first command is the required host gate. The Dagger command is the complete
 local parity gate when Docker and the required browser/auth environment are
-available. Hosted `merge-gate`, early smoke, production smoke, and the live
-route probes are separate acceptance surfaces; one does not substitute for the
-others.
+available. Hosted `merge-gate` (including selector smoke in E2E Mirror),
+production smoke, and the live route probes are separate acceptance surfaces;
+one does not substitute for the others.
 
 ## Troubleshooting
 
