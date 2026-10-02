@@ -41,7 +41,7 @@ jobs:
       NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           # The schema sequencing guard compares HEAD with the PR merge base.
           fetch-depth: 0
@@ -116,7 +116,7 @@ jobs:
       NEXT_PUBLIC_SENTRY_ENABLED: '1'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -145,7 +145,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
@@ -184,7 +184,7 @@ jobs:
 
       - name: Upload isolated guest QA evidence
         if: always() && steps.qa.outcome != 'skipped'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: isolated-guest-qa
           # Raw logs, JSON results and network traces can contain guest tokens.
@@ -223,7 +223,7 @@ jobs:
       NEXT_PUBLIC_SENTRY_ENABLED: '1'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -280,7 +280,7 @@ jobs:
       LINEJAM_BASE_URL: http://127.0.0.1:3333
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Set NEXT_PUBLIC_CONVEX_URL fallback
         run: |
@@ -337,7 +337,7 @@ jobs:
         run: pnpm evidence:guest-flow
 
       - name: Upload QA evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: qa-evidence
@@ -345,7 +345,7 @@ jobs:
           retention-days: 14
 
       - name: Upload QA evidence raw test results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: qa-evidence-test-results
@@ -354,7 +354,7 @@ jobs:
           retention-days: 14
 
       - name: Upload QA evidence server log
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: qa-evidence-server-log
@@ -381,7 +381,7 @@ jobs:
       BUN_URL: https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64-baseline.zip
       BUN_SHA256: c678040f14fe0440eb839d37cbd0ce4c051a32da72806ac97de6a6aab6bf728f
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -427,7 +427,7 @@ jobs:
       BUN_URL: https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64-baseline.zip
       BUN_SHA256: c678040f14fe0440eb839d37cbd0ce4c051a32da72806ac97de6a6aab6bf728f
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -474,7 +474,7 @@ jobs:
           foundation receipt target/walk/walk-receipt.json --base "$base"
       - name: Upload sanitized story-walk evidence
         if: always() && steps.walk.outcome != 'skipped'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: linejam-story-walk-${{ github.sha }}-${{ github.run_id }}
           path: target/walk/
