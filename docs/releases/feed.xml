@@ -6,7 +6,20 @@
     <description>What&apos;s new in Linejam.</description>
     <language>en-us</language>
     <atom:link href="https://linejam.app/releases.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sat, 01 Aug 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 02 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Linejam v0.28.0</title>
+      <link>https://linejam.app/releases#v0.28.0</link>
+      <guid isPermaLink="false">v0.28.0</guid>
+      <pubDate>Fri, 02 Oct 2026 00:00:00 GMT</pubDate>
+      <description>New Features
+Choose from the brand-new Pen Pals cast when picking your avatar for game night.
+Improvements
+Visual styling across all rooms is now unified into a single, polished design.
+Bug Fixes
+Your waiting character is now clearly highlighted if you join a game in progress.
+Signing in after playing as a guest reliably preserves your rooms and poems.</description>
+    </item>
     <item>
       <title>Linejam v0.27.0</title>
       <link>https://linejam.app/releases#v0.27.0</link>

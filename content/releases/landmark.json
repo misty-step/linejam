@@ -1,0 +1,49 @@
+[
+  {
+    "audience": "end-user",
+    "html": "<h2>New Features</h2>\n<ul>\n<li>Choose from the brand-new Pen Pals cast when picking your avatar for game night.</li>\n</ul>\n<h2>Improvements</h2>\n<ul>\n<li>Visual styling across all rooms is now unified into a single, polished design.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Your waiting character is now clearly highlighted if you join a game in progress.</li>\n<li>Signing in after playing as a guest reliably preserves your rooms and poems.</li>\n</ul>\n",
+    "markdown": "## New Features\n- Choose from the brand-new Pen Pals cast when picking your avatar for game night.\n\n## Improvements\n- Visual styling across all rooms is now unified into a single, polished design.\n\n## Bug Fixes\n- Your waiting character is now clearly highlighted if you join a game in progress.\n- Signing in after playing as a guest reliably preserves your rooms and poems.",
+    "notes": "## New Features\n- Choose from the brand-new Pen Pals cast when picking your avatar for game night.\n\n## Improvements\n- Visual styling across all rooms is now unified into a single, polished design.\n\n## Bug Fixes\n- Your waiting character is now clearly highlighted if you join a game in progress.\n- Signing in after playing as a guest reliably preserves your rooms and poems.",
+    "plaintext": "New Features\nChoose from the brand-new Pen Pals cast when picking your avatar for game night.\nImprovements\nVisual styling across all rooms is now unified into a single, polished design.\nBug Fixes\nYour waiting character is now clearly highlighted if you join a game in progress.\nSigning in after playing as a guest reliably preserves your rooms and poems.",
+    "published_at": "2026-10-02T15:41:52.704219280+00:00",
+    "release_url": "https://github.com/misty-step/linejam/releases/tag/v0.28.0",
+    "repository": "misty-step/linejam",
+    "schema_version": "landmark.public-release-notes.v1",
+    "sections": [
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "Choose from the brand-new Pen Pals cast when picking your avatar for game night."
+          }
+        ],
+        "title": "New Features"
+      },
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "Visual styling across all rooms is now unified into a single, polished design."
+          }
+        ],
+        "title": "Improvements"
+      },
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "Your waiting character is now clearly highlighted if you join a game in progress."
+          },
+          {
+            "links": [],
+            "text": "Signing in after playing as a guest reliably preserves your rooms and poems."
+          }
+        ],
+        "title": "Bug Fixes"
+      }
+    ],
+    "slack": "## New Features\n- Choose from the brand-new Pen Pals cast when picking your avatar for game night.\n\n## Improvements\n- Visual styling across all rooms is now unified into a single, polished design.\n\n## Bug Fixes\n- Your waiting character is now clearly highlighted if you join a game in progress.\n- Signing in after playing as a guest reliably preserves your rooms and poems.",
+    "tag": "v0.28.0",
+    "version": "0.28.0"
+  }
+]
