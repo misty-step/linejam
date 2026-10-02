@@ -108,6 +108,13 @@ updates:
       # plan the Vite 7 → 8 cascade upgrade.
       - dependency-name: '@vitejs/plugin-react'
         update-types: ['version-update:semver-major']
+      # @vitest/coverage-v8 5.x pins vitest 5.0.1 exactly (peer dep plus the
+      # coverageFilesDirectory handshake between provider and runner); under
+      # vitest 4 it fails every coverage take with "coverageFilesDirectory is
+      # required". Hold majors until the vitest 5 upgrade ships as its own
+      # coordinated PR; unlock vitest and coverage-v8 together.
+      - dependency-name: '@vitest/coverage-v8'
+        update-types: ['version-update:semver-major']
 
       # ─── Playwright: runner + browser channel bumps need coordination ───
       - dependency-name: '@playwright/test'
