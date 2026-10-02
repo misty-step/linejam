@@ -97,7 +97,9 @@ function validate() {
       ['ajv', pkg.dependencies?.ajv],
       ['ajv-formats', pkg.devDependencies?.['ajv-formats']],
     ]) {
-      if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) {
+      if (
+        !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(version ?? '')
+      ) {
         errors.push(`package.json must pin ${name} to an exact release`);
       }
     }
