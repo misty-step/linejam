@@ -41,11 +41,17 @@ are additive, not interchangeable:
 | `pnpm ci:prepush`                               | Fast static/domain/integration checks                                                      | Browser rendering or running backend acceptance                     |
 | Local CLI `check`                               | Containerized checks, coverage, and app build                                              | Guest room flow or hosted-provider auth                             |
 | Local CLI `qa` / hosted `Isolated Guest QA`     | Fresh local Convex/app guest flow plus runtime evidence, with no provider secrets          | Clerk sign-in, hosted Convex deployment alignment, or Sentry ingest |
-| Hosted early smoke, Dagger E2E, and QA Evidence | Existing selector, full auth/browser, and evidence acceptance against configured providers | Secret-free local isolation                                         |
+| Hosted Dagger E2E and QA Evidence               | Existing selector, full auth/browser, and evidence acceptance against configured providers | Secret-free local isolation                                         |
 
 The new guest job must finish with `success`; a skipped/cancelled/failed job
 cannot satisfy the merge gate. Existing full E2E/auth and evidence lanes remain.
 Neither `ci:dagger:all` nor the local CLI is a complete hosted-pipeline mirror.
+
+The selector smoke runs within E2E Mirror. On pushes, manual dispatches, and
+same-repository PRs, the signed guest-throttle readiness probe runs first against
+the same configured Convex target. There is no separate hosted selector-smoke
+job, earlier feedback, or draft-only run; the focused local command remains
+available.
 
 `pnpm test:ci` must emit nonzero totals for lines, statements, functions, and
 branches before it can pass. Coverage paths are checkout-location independent:
