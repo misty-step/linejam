@@ -36,7 +36,7 @@ jobs:
       LINEJAM_DEPLOY_ENVIRONMENT: preview
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -71,7 +71,7 @@ jobs:
           exit "$code"
 
       - name: Upload preview smoke logs
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: preview-smoke-logs
@@ -79,7 +79,7 @@ jobs:
           retention-days: 14
 
       - name: Upload preview Playwright artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
           name: preview-smoke-playwright
