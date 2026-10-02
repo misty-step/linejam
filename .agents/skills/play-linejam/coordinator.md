@@ -38,7 +38,7 @@ origin, not an older `.qa` artifact or the backend URL.
    - Create evidence folder: `.qa/runs/<run-id>/`.
 3. **Preflight Check**:
    - Run `pnpm qa:play-linejam:check`; this checks readiness, not gameplay.
-   - Verify `pnpm exec agent-browser --version` outputs `0.27.0`.
+   - Verify `pnpm exec agent-browser --version` matches the exact release in `package.json`.
    - Run `pnpm exec agent-browser skills get core`.
 4. **Player Scale & Session Naming**:
    - Support 2 to 6 players; default to 4 players (1 host and 3 guests).
