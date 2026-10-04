@@ -24,6 +24,11 @@ function createWorkspace({
   patchKey = `convex@${resolvedVersion}`,
   patchPath = `patches/${patchKey}.patch`,
   createPatch = true,
+}: {
+  resolvedVersion?: string;
+  patchKey?: string;
+  patchPath?: string;
+  createPatch?: boolean;
 } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'linejam-convex-patch-pin-'));
   workspaces.push(root);
