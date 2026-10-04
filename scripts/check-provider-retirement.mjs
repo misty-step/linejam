@@ -3,6 +3,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { checkConvexPatchPin } from './qa/check-convex-patch-pin.mjs';
+
 const root = process.cwd();
 const provider = ['ver', 'cel'].join('');
 const providerEnvPrefix = provider.toUpperCase() + '_';
@@ -98,3 +100,13 @@ if (violations.length > 0) {
 }
 
 console.log('provider-retirement: active runtime is provider-portable');
+
+try {
+  const convexPatchPin = await checkConvexPatchPin({ root });
+  console.log(
+    `convex-patch-pin: ${convexPatchPin.patchKey} -> ${convexPatchPin.patchPath}`
+  );
+} catch (error) {
+  console.error(`convex-patch-pin: ${error.message}`);
+  process.exit(1);
+}
