@@ -27,7 +27,9 @@ function resolvedDependencyVersion(dependency) {
   }
 
   const version = reference.split('(', 1)[0].trim();
-  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)) {
+  if (
+    !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)
+  ) {
     throw new Error(
       `pnpm-lock.yaml has an unsupported resolved convex version: ${reference}`
     );

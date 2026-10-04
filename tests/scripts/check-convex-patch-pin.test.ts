@@ -91,9 +91,7 @@ describe('checkConvexPatchPin', () => {
       patchKey: 'convex@1.42.3',
     });
 
-    await expect(
-      checkConvexPatchPin({ root: fixture.root })
-    ).rejects.toThrow(
+    await expect(checkConvexPatchPin({ root: fixture.root })).rejects.toThrow(
       'Resolved convex@1.43.0 is not a key in pnpm-workspace.yaml patchedDependencies.'
     );
   });
@@ -101,9 +99,7 @@ describe('checkConvexPatchPin', () => {
   it('fails when the configured patch file is missing', async () => {
     const fixture = createWorkspace({ createPatch: false });
 
-    await expect(
-      checkConvexPatchPin({ root: fixture.root })
-    ).rejects.toThrow(
+    await expect(checkConvexPatchPin({ root: fixture.root })).rejects.toThrow(
       'pnpm-workspace.yaml patch file is missing: patches/convex@9.8.7.patch'
     );
   });
