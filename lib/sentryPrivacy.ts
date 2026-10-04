@@ -580,7 +580,7 @@ function sanitizeSpans(
       const status =
         span.status && Object.hasOwn(SAFE_TRACE_STATUS, span.status)
           ? span.status
-          : undefined;
+          : 'unknown_error';
       const startTimestamp = safeTimestamp(span.start_timestamp);
       const timestamp = safeTimestamp(span.timestamp);
       if (startTimestamp === undefined || timestamp === undefined) {
@@ -591,6 +591,7 @@ function sanitizeSpans(
         span_id: span.span_id,
         start_timestamp: startTimestamp,
         timestamp,
+        status,
         data: {},
       };
       if (span.parent_span_id && SPAN_ID.test(span.parent_span_id)) {
@@ -598,9 +599,6 @@ function sanitizeSpans(
       }
       if (operation) {
         sanitized.op = operation;
-      }
-      if (status) {
-        sanitized.status = status;
       }
       return sanitized;
     })

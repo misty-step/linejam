@@ -350,7 +350,7 @@ describe('Sentry transport privacy boundary', () => {
     });
     expect(transaction?.transaction).toBe('unknown-route');
     expect(transaction?.spans?.[0]).not.toHaveProperty('op');
-    expect(transaction?.spans?.[0]).not.toHaveProperty('status');
+    expect(transaction?.spans?.[0]).toHaveProperty('status', 'unknown_error');
   });
 
   it('drops deployment-skew noise before it becomes an incident', () => {
@@ -615,6 +615,7 @@ describe('Sentry transport privacy boundary', () => {
         span_id: '8'.repeat(16),
         start_timestamp: 1,
         timestamp: 2,
+        status: 'unknown_error',
         data: {},
       },
     ]);
