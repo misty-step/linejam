@@ -90,7 +90,7 @@
     "@parlor/core": "workspace:*",
     "@parlor/web": "workspace:*",
     "@sentry/nextjs": "^10.75.0",
-    "@sentry/node": "10.75.0",
+    "@sentry/node": "11.3.0",
     "ajv": "8.20.0",
     "clsx": "^2.1.1",
     "convex": "^1.42.3",
