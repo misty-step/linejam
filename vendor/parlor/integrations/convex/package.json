@@ -22,7 +22,7 @@
   "dependencies": {
     "@parlor/auth": "workspace:*",
     "@parlor/core": "workspace:*",
-    "effect": "3.22.2"
+    "effect": "4.0.0"
   },
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",
