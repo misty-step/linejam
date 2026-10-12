@@ -86,7 +86,7 @@
     "analytics:room-cycle": "tsx scripts/analytics/room-cycle-funnel.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.9.4",
+    "@clerk/nextjs": "^7.9.14",
     "@parlor/convex": "workspace:*",
     "@parlor/core": "workspace:*",
     "@parlor/web": "workspace:*",
@@ -95,9 +95,9 @@
     "ajv": "8.20.0",
     "clsx": "^2.1.1",
     "convex": "^1.42.3",
-    "lucide-react": "^1.47.0",
-    "next": "16.3.8",
-    "posthog-js": "^1.434.0",
+    "lucide-react": "^1.54.0",
+    "next": "16.4.0",
+    "posthog-js": "^1.438.7",
     "qrcode.react": "^4.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
