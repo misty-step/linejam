@@ -144,7 +144,7 @@ export default async function Image({
             ? `Read all ${recap.poemCount} poems`
             : 'Written together. Read together.'}
         </div>
-        <div>linejam.app</div>
+        <div>linejam.mistystep.io</div>
       </div>
     </div>,
     { ...size, fonts }

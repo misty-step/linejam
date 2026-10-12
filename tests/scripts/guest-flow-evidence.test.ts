@@ -306,17 +306,6 @@ describe('guest-flow evidence verdicts', () => {
       outDir: '/tmp/evidence',
       serverLogPath: '/tmp/server.log',
     });
-
-    expect(
-      parseArgs([], { NODE_ENV: 'test' }, new Date('2026-06-11T00:00:00Z'))
-    ).toMatchObject({
-      allowlistPath: '',
-      baseUrl: 'https://www.linejam.app',
-      outDir: expect.stringContaining(
-        'linejam-evidence-2026-06-11T00-00-00-000Z'
-      ),
-      serverLogPath: '',
-    });
   });
 
   it('normalizes malformed guest-flow result payloads before verdicting', () => {

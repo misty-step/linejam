@@ -9,16 +9,16 @@ not a Cloudflare database migration.
 
 ## Current state and target
 
-Until the reviewed cutover is activated, production remains DigitalOcean App
-Platform app `1fb85c4b-18eb-441c-940d-5fda33dc5923`, serving `linejam.app`,
-`www.linejam.app` and `linejam.mistystep.io`. Its build also owns production
-Convex deployment. Cloudflare headers alone do not prove its removal.
-
-The replacement is Worker `linejam`, account
-`b069014f6a46558ea9146fb6c4ff8f6c`, configured in `wrangler.jsonc`.
+The production home is `https://linejam.mistystep.io`, in the active Cloudflare
+`mistystep.io` zone. Worker `linejam`, account
+`b069014f6a46558ea9146fb6c4ff8f6c`, is configured in `wrangler.jsonc`.
 `linejam-staging` remains development-scoped, not production acceptance.
-The Cloudflare `linejam.app` zone must be active before production custom-domain
-attachment. Preserve Clerk, account, mail, DKIM and TXT records during delegation.
+`linejam.app` and `www.linejam.app` are not migration targets. Do not change
+their registrar delegation or attach them to this Worker.
+
+DigitalOcean app `1fb85c4b-18eb-441c-940d-5fda33dc5923` retains the old image
+for rollback. Keep its auto-build disabled before the Cloudflare release;
+Cloudflare headers alone do not prove removal of the old origin/build owner.
 
 ## One production release owner
 
@@ -73,16 +73,16 @@ in the credential plane before changing it. Keep its current successful image
 and all resources; deletion remains the global controller's operation.
 
 Order: verify recovered production inputs; independently review the exact source
-and operation payload; freeze DO auto-builds; prepare Cloudflare delegation and
-production credentials; merge green source; verify the release on all hostnames.
+and operation payload; freeze DO auto-builds; install production credentials;
+merge green source; verify the release at `linejam.mistystep.io`.
 Acceptance requires real multiplayer UI through nine rounds, reveal,
 rematch/reconnect, room closure, fresh-session join rejection and session cleanup,
 with inspected private artifacts. Verify browser requests/WebSockets use Convex,
 database changes persist, Clerk DNS/TLS and callbacks work, Sentry attribution is
 source-bound, and neither Worker origin nor production release steps call DO.
 
-Rollback: disable the Cloudflare Production workflow and restore captured domain/DNS
-routing to the retained DO image. Restore DO auto-build ownership only after
+Rollback: disable the Cloudflare Production workflow and restore captured
+`linejam.mistystep.io` routing to the retained DO image. Restore DO auto-build ownership only after
 stopping the Cloudflare owner; never rebuild Cloudflare-ingress source on DO.
 Later Worker-only rollback uses a recorded healthy Cloudflare version.
 Frontend rollback does not restore Convex data. Preserve schema, migration and

@@ -1,4 +1,4 @@
-const PRODUCTION_SMOKE_ORIGIN = 'https://www.linejam.app';
+const PRODUCTION_SMOKE_ORIGIN = 'https://linejam.mistystep.io';
 
 /**
  * Returns an error when production auth smoke is configured with test Clerk keys.

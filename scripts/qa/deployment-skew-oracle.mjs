@@ -3,7 +3,7 @@ import { chromium } from '@playwright/test';
 import { readDeploymentId } from './deployment-skew-receipt.mjs';
 
 const BASE_URL = new URL(
-  process.env.PLAYWRIGHT_BASE_URL || 'https://www.linejam.app'
+  process.env.PLAYWRIGHT_BASE_URL || 'https://linejam.mistystep.io'
 ).origin;
 const TIMEOUT_MS = positiveInteger(
   process.env.LINEJAM_SKEW_ORACLE_TIMEOUT_MS,

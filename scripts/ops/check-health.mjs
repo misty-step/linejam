@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { pathToFileURL } from 'node:url';
 
-export const DEFAULT_HEALTH_URL = 'https://www.linejam.app/api/health';
+export const DEFAULT_HEALTH_URL = 'https://linejam.mistystep.io/api/health';
 export const DEFAULT_TIMEOUT_MS = 10_000;
 
 export async function runHealthCheck({

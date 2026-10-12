@@ -11,7 +11,7 @@ function escapeXml(value: string): string {
 
 /** Full replacement, not append/CDATA mutation; reruns are byte-identical. */
 export function renderReleaseFeed(catalog: ReleaseCatalog): string {
-  const siteUrl = 'https://linejam.app';
+  const siteUrl = 'https://linejam.mistystep.io';
   const items = catalog.releases
     .map((release) => {
       let description =

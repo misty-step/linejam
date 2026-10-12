@@ -3,7 +3,7 @@
  * Used by metadata routes (robots.ts, sitemap.ts) and layout metadata.
  */
 
-const DEFAULT_SITE_URL = 'https://linejam.app';
+const DEFAULT_SITE_URL = 'https://linejam.mistystep.io';
 
 /**
  * Normalize and validate a site URL:
