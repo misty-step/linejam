@@ -1,7 +1,16 @@
 /** @vitest-environment node */
 import { execFile } from 'node:child_process';
 import { once } from 'node:events';
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseFlags, run } from '@/scripts/cli/linejam-cli';
@@ -317,6 +326,40 @@ describe('run', () => {
     }
     expect(client.getRoomState).not.toHaveBeenCalled();
     expect(stdout).toEqual([]);
+  });
+});
+
+describe('CLI entry point', () => {
+  it('prints help from a checkout path that needs URL encoding', async () => {
+    const checkout = mkdtempSync(join(tmpdir(), 'linejam cli % # '));
+    try {
+      mkdirSync(join(checkout, 'scripts/cli'), { recursive: true });
+      copyFileSync(
+        resolve('scripts/cli/linejam-cli.ts'),
+        join(checkout, 'scripts/cli/linejam-cli.ts')
+      );
+      copyFileSync(resolve('tsconfig.json'), join(checkout, 'tsconfig.json'));
+      symlinkSync(resolve('scripts/lib'), join(checkout, 'scripts/lib'));
+      for (const directory of ['lib', 'convex', 'node_modules']) {
+        symlinkSync(resolve(directory), join(checkout, directory));
+      }
+
+      const result = await execFileAsync(
+        process.execPath,
+        ['--import', 'tsx', 'scripts/cli/linejam-cli.ts', '--help'],
+        {
+          cwd: checkout,
+          env: { NODE_ENV: 'test' },
+          encoding: 'utf8',
+          timeout: 10_000,
+        }
+      );
+      expect(result.stdout).toContain('room create <displayName>');
+      expect(result.stdout).toContain('game submit-line');
+      expect(result.stderr).toBe('');
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+    }
   });
 });
 
