@@ -30,7 +30,8 @@ while the new Worker trusts only `cf-connecting-ip`. Never run both build owners
 
 The `Production` GitHub environment must contain production-scoped values for:
 
-- Release only: `CLOUDFLARE_API_TOKEN`, `CONVEX_DEPLOY_KEY`, `SENTRY_AUTH_TOKEN`.
+- Release only: `CLOUDFLARE_API_TOKEN`, `CONVEX_DEPLOY_KEY`. Reuse the existing
+  `SENTRY_RELEASE_TOKEN` for the build's `SENTRY_AUTH_TOKEN`.
 - Runtime and build: `GUEST_TOKEN_SECRET`, `CLERK_SECRET_KEY`,
   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SENTRY_DSN`,
   `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, `SENTRY_AUTOMATION_PROVENANCE_SECRET`.
