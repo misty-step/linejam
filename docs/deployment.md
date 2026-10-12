@@ -342,7 +342,7 @@ player-triggered reload, and restored draft. Creating the draft only after the
 receipt changes keeps the proof inside the game's 90-second ghost-fill floor.
 
 ```bash
-PLAYWRIGHT_BASE_URL=https://www.linejam.app pnpm qa:deployment-skew
+PLAYWRIGHT_BASE_URL=https://linejam.mistystep.io pnpm qa:deployment-skew
 ```
 
 ## Convex configuration
@@ -476,9 +476,9 @@ doctl apps create-deployment "$LINEJAM_APP_ID" --force-rebuild --wait
 Acceptance probes:
 
 ```bash
-curl -fsS https://linejam.app/api/health
-curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.app/host
-curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.app/join
+curl -fsS https://linejam.mistystep.io/api/health
+curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.mistystep.io/host
+curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.mistystep.io/join
 doctl apps logs "$LINEJAM_APP_ID" web --type run --tail 200
 ```
 
@@ -603,7 +603,7 @@ pnpm exec convex import --replace-all ./convex-backup.zip --prod
 - [ ] hosted merge and smoke gates pass
 - [ ] the active web deployment matches the intended source SHA
 - [ ] production Convex env reconciliation names every required manifest entry
-- [ ] `linejam.app` health, host, and join routes return 200
+- [ ] `linejam.mistystep.io` health, host, and join routes return 200
 - [ ] production Sentry monitors report current check-ins
 - [ ] one signed Sentry alert creates or reuses exactly one canonical GitHub Issue
 - [ ] Clerk custom-domain DNS and TLS verify
