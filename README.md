@@ -1,7 +1,7 @@
 # Linejam
 
 A pass-the-poem party game for friends in the same room. Play at
-[linejam.app](https://linejam.app)—no install or account required.
+[linejam.mistystep.io](https://linejam.mistystep.io)—no install or account required.
 
 Each player writes one line per round, seeing only the line before theirs.
 Nine rounds follow `1, 2, 3, 4, 5, 4, 3, 2, 1` words. Then everyone reads the

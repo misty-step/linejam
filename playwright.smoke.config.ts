@@ -4,7 +4,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL?.trim();
 
 if (!BASE_URL) {
   throw new Error(
-    'PLAYWRIGHT_BASE_URL is required for smoke runs. Example: PLAYWRIGHT_BASE_URL=https://www.linejam.app pnpm test:e2e:smoke'
+    'PLAYWRIGHT_BASE_URL is required for smoke runs. Example: PLAYWRIGHT_BASE_URL=https://linejam.mistystep.io pnpm test:e2e:smoke'
   );
 }
 

@@ -17,9 +17,11 @@ const historicalRoots = [
 const ignoredRoots = [
   '.git',
   '.next',
+  '.open-next',
   '.pnpm-store',
   '.qa',
   '.vercel',
+  '.wrangler',
   'coverage',
   'node_modules',
   'playwright-report',

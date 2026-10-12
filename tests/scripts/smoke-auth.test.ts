@@ -11,7 +11,7 @@ describe('getSmokeClerkKeyError', () => {
   it('returns null when authenticated smoke is disabled', () => {
     expect(
       getSmokeClerkKeyError(
-        'https://www.linejam.app',
+        'https://linejam.mistystep.io',
         env({
           PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '0',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_example',
@@ -24,7 +24,7 @@ describe('getSmokeClerkKeyError', () => {
   it('rejects production smoke with a test publishable key', () => {
     expect(
       getSmokeClerkKeyError(
-        'https://www.linejam.app',
+        'https://linejam.mistystep.io',
         env({
           PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_example',
@@ -39,7 +39,7 @@ describe('getSmokeClerkKeyError', () => {
   it('rejects production smoke with a test secret key', () => {
     expect(
       getSmokeClerkKeyError(
-        'https://www.linejam.app',
+        'https://linejam.mistystep.io',
         env({
           PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_example',
@@ -67,7 +67,7 @@ describe('getSmokeClerkKeyError', () => {
   it('requires Clerk credentials when authenticated smoke is enabled', () => {
     expect(
       getSmokeClerkKeyError(
-        'https://www.linejam.app',
+        'https://linejam.mistystep.io',
         env({
           PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1',
         })
@@ -80,7 +80,7 @@ describe('getSmokeClerkKeyError', () => {
   it('rejects a fallback Clerk publishable test key in production smoke', () => {
     expect(
       getSmokeClerkKeyError(
-        'https://www.linejam.app',
+        'https://linejam.mistystep.io',
         env({
           PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1',
           CLERK_PUBLISHABLE_KEY: 'pk_test_example',

@@ -41,7 +41,7 @@ function report(scores: string[] = []) {
 function runAudit(
   output: string,
   status: number,
-  { stderr = '', signal = false, missingScanner = false } = {}
+  { stderr = '', signal = false, missingScanner = false, now = Date.now() } = {}
 ) {
   const workspace = mkdtempSync(join(tmpdir(), 'linejam-osv-audit-'));
   workspaces.push(workspace);
@@ -74,21 +74,30 @@ process.exitCode = Number(process.env.OSV_FIXTURE_STATUS);
   ]) {
     delete env[key];
   }
-  return spawnSync(process.execPath, [auditScript], {
-    cwd: workspace,
-    env: {
-      ...env,
-      // Restrict the missing-scanner case so a host installation cannot mask it.
-      PATH: missingScanner
-        ? workspace
-        : `${workspace}:${process.env.PATH ?? ''}`,
-      OSV_FIXTURE_OUTPUT: output,
-      OSV_FIXTURE_STATUS: String(status),
-      OSV_FIXTURE_STDERR: stderr,
-      OSV_FIXTURE_SIGNAL: signal ? '1' : '0',
-    },
-    encoding: 'utf8',
-  });
+  // Load the audit only after setting the child clock; static imports run first.
+  return spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '--eval',
+      `Date.now = () => ${now}; await import(${JSON.stringify(auditScript)});`,
+    ],
+    {
+      cwd: workspace,
+      env: {
+        ...env,
+        // Restrict the missing-scanner case so a host installation cannot mask it.
+        PATH: missingScanner
+          ? workspace
+          : `${workspace}:${process.env.PATH ?? ''}`,
+        OSV_FIXTURE_OUTPUT: output,
+        OSV_FIXTURE_STATUS: String(status),
+        OSV_FIXTURE_STDERR: stderr,
+        OSV_FIXTURE_SIGNAL: signal ? '1' : '0',
+      },
+      encoding: 'utf8',
+    }
+  );
 }
 
 afterEach(() => {
@@ -122,6 +131,31 @@ describe('OSV audit process boundary', () => {
     expect(result.stderr).toContain(
       'CRITICAL 9.0 fixture-package@1.0.0: OSV-fixture-2'
     );
+  });
+
+  it('expires the approved braces exception and still blocks other advisories', () => {
+    const output = report(['8.7']);
+    const pkg = output.results[0].packages[0];
+    pkg.package.name = 'braces';
+    pkg.package.version = '3.0.3';
+    pkg.vulnerabilities[0].id = 'GHSA-vfj7-8cjw-p6xm';
+    pkg.groups[0].ids = ['GHSA-vfj7-8cjw-p6xm'];
+    pkg.groups[0].aliases = ['CVE-2026-93687'];
+    const expiry = Date.parse('2026-10-19T00:00:00Z');
+    expect(
+      runAudit(JSON.stringify(output), 1, { now: expiry - 1 }).status
+    ).toBe(0);
+    expect(runAudit(JSON.stringify(output), 1, { now: expiry }).status).toBe(1);
+
+    pkg.vulnerabilities.push({ id: 'OSV-other-high' });
+    pkg.groups.push({
+      ids: ['OSV-other-high'],
+      aliases: ['OSV-other-high'],
+      max_severity: '7.0',
+    });
+    const result = runAudit(JSON.stringify(output), 1, { now: expiry - 1 });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('HIGH 7.0 braces@3.0.3: OSV-other-high');
   });
 
   it('cannot pass a network failure with a clean-looking JSON body', () => {

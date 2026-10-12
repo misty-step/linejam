@@ -509,44 +509,53 @@ describe('GET /api/guest/session', () => {
       expect(captureServerErrorSpy).not.toHaveBeenCalled();
     });
 
-    it('prefers the App Platform client address over a forwarded chain', async () => {
+    it('uses the Cloudflare client address for distinct production throttle buckets', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
       process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
-      const requestFor = (platformIp: string) =>
-        new NextRequest('https://www.linejam.app/api/guest/session', {
-          headers: {
-            'do-connecting-ip': platformIp,
-            'x-forwarded-for': '203.0.113.99, 10.0.0.1',
-          },
-        });
+      process.env.GUEST_TOKEN_SECRET = 'production-guest-secret';
+      const keys = [];
+      for (const clientIp of ['198.51.100.21', '198.51.100.22']) {
+        const request = new NextRequest(
+          'https://www.linejam.app/api/guest/session',
+          {
+            headers: {
+              'cf-connecting-ip': clientIp,
+              'do-connecting-ip': '203.0.113.99',
+              'x-forwarded-for': '203.0.113.99, 10.0.0.1',
+            },
+          }
+        );
+        expect((await GET(request)).status).toBe(200);
+        keys.push(mutationSpy.mock.calls.at(-1)?.[0]?.key);
+      }
 
-      await GET(requestFor('198.51.100.21'));
-      const firstKey = mutationSpy.mock.calls.at(-1)?.[0]?.key;
-      await GET(requestFor('198.51.100.22'));
-      const secondKey = mutationSpy.mock.calls.at(-1)?.[0]?.key;
-
-      expect(firstKey).toMatch(/^guestSession:/);
-      expect(secondKey).toMatch(/^guestSession:/);
-      expect(secondKey).not.toBe(firstKey);
+      expect(keys[0]).toMatch(/^guestSession:/);
+      expect(keys[1]).not.toBe(keys[0]);
     });
 
-    it('ignores caller-controlled forwarding headers in production', async () => {
+    it('ignores former-provider and forwarding headers in production', async () => {
       vi.stubEnv('NODE_ENV', 'production');
       process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
       process.env.GUEST_TOKEN_SECRET = 'production-test-secret';
 
-      const requestFor = (forwardedIp: string) =>
-        new NextRequest('https://www.linejam.app/api/guest/session', {
-          headers: { 'x-forwarded-for': forwardedIp },
-        });
+      const keys = [];
+      for (const spoofedIp of ['198.51.100.31', '198.51.100.32']) {
+        const request = new NextRequest(
+          'https://www.linejam.app/api/guest/session',
+          {
+            headers: {
+              'do-connecting-ip': spoofedIp,
+              'x-real-ip': spoofedIp,
+              'x-forwarded-for': spoofedIp,
+            },
+          }
+        );
+        expect((await GET(request)).status).toBe(200);
+        keys.push(mutationSpy.mock.calls.at(-1)?.[0]?.key);
+      }
 
-      await GET(requestFor('198.51.100.31'));
-      const firstKey = mutationSpy.mock.calls.at(-1)?.[0]?.key;
-      await GET(requestFor('198.51.100.32'));
-      const secondKey = mutationSpy.mock.calls.at(-1)?.[0]?.key;
-
-      expect(firstKey).toMatch(/^guestSession:/);
-      expect(secondKey).toBe(firstKey);
-      vi.unstubAllEnvs();
+      expect(keys[0]).toMatch(/^guestSession:/);
+      expect(keys[1]).toBe(keys[0]);
     });
   });
 

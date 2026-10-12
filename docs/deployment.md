@@ -1,24 +1,22 @@
 # Deployment Guide
 
-Linejam runs on DigitalOcean App Platform. Convex remains the realtime backend,
-Clerk remains the optional identity provider, and Sentry is the incident,
-monitoring, and release-evidence platform. This guide is the production contract
-for the web application and its hosted Convex deployment.
+Linejam's production home is `https://linejam.mistystep.io`. The Cloudflare
+frontend release and rollback path is in [the Worker guide](ops/cloudflare-worker.md).
+Hosted Convex remains the realtime backend, Clerk the optional identity
+provider, and Sentry the incident and monitoring platform.
 
 ## Production topology
 
-| Component       | App Platform name | Source                                | Runtime contract                      |
-| --------------- | ----------------- | ------------------------------------- | ------------------------------------- |
-| Web application | `linejam`         | `misty-step/linejam`, branch `master` | buildpack, port `3000`, `/api/health` |
+| Component       | Cloudflare Worker | Source                                | Runtime contract |
+| --------------- | ----------------- | ------------------------------------- | ---------------- |
+| Web application | `linejam`         | `misty-step/linejam`, branch `master` | `/api/health`    |
 
-The app deploys automatically from `master`. The public application is
-`https://linejam.app`.
+The Cloudflare Production workflow releases the exact successful `master` CI
+source. `linejam.app` and `www.linejam.app` are not deployment targets.
 
-[`config/digitalocean-apps.json`](../config/digitalocean-apps.json) is the
-canonical, values-free topology contract. It pins components, routes, domains,
-health checks, source, build/run commands, environment variable names, and the
-single frontend and Convex production deploy owner. The live provider spec must
-reconcile with it before a release is accepted.
+The DigitalOcean instructions and [`config/digitalocean-apps.json`](../config/digitalocean-apps.json)
+below are retained-provider recovery references. Keep DO auto-build disabled
+during this cutover; DO destruction remains controller-owned.
 
 ## Release ownership and public history
 
@@ -344,7 +342,7 @@ player-triggered reload, and restored draft. Creating the draft only after the
 receipt changes keeps the proof inside the game's 90-second ghost-fill floor.
 
 ```bash
-PLAYWRIGHT_BASE_URL=https://www.linejam.app pnpm qa:deployment-skew
+PLAYWRIGHT_BASE_URL=https://linejam.mistystep.io pnpm qa:deployment-skew
 ```
 
 ## Convex configuration
@@ -478,9 +476,9 @@ doctl apps create-deployment "$LINEJAM_APP_ID" --force-rebuild --wait
 Acceptance probes:
 
 ```bash
-curl -fsS https://linejam.app/api/health
-curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.app/host
-curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.app/join
+curl -fsS https://linejam.mistystep.io/api/health
+curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.mistystep.io/host
+curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.mistystep.io/join
 doctl apps logs "$LINEJAM_APP_ID" web --type run --tail 200
 ```
 
@@ -605,7 +603,7 @@ pnpm exec convex import --replace-all ./convex-backup.zip --prod
 - [ ] hosted merge and smoke gates pass
 - [ ] the active web deployment matches the intended source SHA
 - [ ] production Convex env reconciliation names every required manifest entry
-- [ ] `linejam.app` health, host, and join routes return 200
+- [ ] `linejam.mistystep.io` health, host, and join routes return 200
 - [ ] production Sentry monitors report current check-ins
 - [ ] one signed Sentry alert creates or reuses exactly one canonical GitHub Issue
 - [ ] Clerk custom-domain DNS and TLS verify

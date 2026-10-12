@@ -108,7 +108,7 @@ async function createActor(browser, label) {
   const ip = `10.${[0, 0, 0].map(() => 1 + Math.floor(Math.random() * 254)).join('.')}`;
   await context.route('**/api/guest/session*', (route) =>
     route.continue({
-      headers: { ...route.request().headers(), 'do-connecting-ip': ip },
+      headers: { ...route.request().headers(), 'cf-connecting-ip': ip },
     })
   );
   await context.route('**/npm/@clerk/**', (route) => route.abort('failed'));

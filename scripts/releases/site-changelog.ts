@@ -162,7 +162,7 @@ export function renderSiteChangelogHtml(catalog: ReleaseCatalog): string {
           <h1 id="release-notes-title">Release notes</h1>
           <p class="lj-lede">
             What changed in Linejam. You can also read the
-            <a href="https://www.linejam.app/releases">latest releases in the app</a>.
+            <a href="https://linejam.mistystep.io/releases">latest releases in the app</a>.
           </p>
           <p>Current application version: <strong>v${escapeHtml(catalog.currentVersion)}</strong>.</p>
           <p>Release history is ordered by date. Older version numbers are preserved, not treated as the current version.</p>

@@ -1,0 +1,110 @@
+name: Cloudflare Production
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: Production
+    steps:
+      - name: Checkout protected source
+        uses: actions/checkout@v7
+        with:
+          ref: master
+          persist-credentials: false
+
+      - name: Require the exact green source
+        id: gate
+        env:
+          GATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$(git rev-parse HEAD)" != "$GATE_SHA" ]; then
+            echo "::notice::Master moved; wait for the newer source's CI."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v6
+        if: steps.gate.outputs.ready == 'true'
+      - uses: actions/setup-node@v7
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install pinned dependencies
+        if: steps.gate.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy backend then Cloudflare frontend
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          CONVEX_DEPLOYMENT: prod:amiable-bulldog-848
+          CONVEX_DEPLOYMENT_URL: https://amiable-bulldog-848.convex.cloud
+          NEXT_PUBLIC_CONVEX_URL: https://amiable-bulldog-848.convex.cloud
+          LINEJAM_DEPLOY_ENVIRONMENT: production
+          GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
+          NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
+          NEXT_DEPLOYMENT_ID: ${{ github.event.workflow_run.head_sha }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_JWT_ISSUER_DOMAIN: https://clerk.linejam.app
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_ENABLED: '1'
+          LINEJAM_SENTRY_ENABLED: 'true'
+          SENTRY_AUTOMATION_PROVENANCE_SECRET: ${{ secrets.SENTRY_AUTOMATION_PROVENANCE_SECRET }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_RELEASE_TOKEN }}
+          SENTRY_ORG: misty-step
+          SENTRY_PROJECT: linejam
+        run: |
+          pnpm build:release:cf
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+          import { tmpdir } from 'node:os';
+          import { join } from 'node:path';
+          const directory = mkdtempSync(join(tmpdir(), 'linejam-cf-'));
+          try {
+            const file = join(directory, 'secrets.json');
+            const names = ['GUEST_TOKEN_SECRET', 'CLERK_SECRET_KEY', 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', 'NEXT_PUBLIC_SENTRY_DSN', 'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY', 'SENTRY_AUTOMATION_PROVENANCE_SECRET'];
+            writeFileSync(file, JSON.stringify(Object.fromEntries(names.map(name => [name, process.env[name]]))), { mode: 0o600 });
+            const result = spawnSync('pnpm', ['deploy:cf:production', '--secrets-file', file, '--var', `NEXT_DEPLOYMENT_ID:${process.env.NEXT_DEPLOYMENT_ID}`], { stdio: 'inherit' });
+            process.exitCode = result.status ?? 1;
+          } finally {
+            rmSync(directory, { recursive: true, force: true });
+          }
+          NODE
+
+      - name: Verify served source and backend readiness
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          const origin = 'https://linejam.mistystep.io';
+          const response = await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(20000), redirect: 'error' });
+          const health = await response.json();
+          if (!response.ok || health.status !== 'ok' || health.deployment?.id !== process.env.EXPECTED_SHA || health.convex !== 'connected' || health.env?.guestTokenParity !== true) {
+            throw new Error(`Production readiness failed: ${origin}`);
+          }
+          console.log(`Verified ${origin}: source, Convex connection and guest-secret parity.`);
+          NODE

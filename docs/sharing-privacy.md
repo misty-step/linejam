@@ -52,6 +52,6 @@ The guest-session throttle accepts only server-signed opaque buckets. Forged
 bucket keys are rejected before a rate-limit row is created, repeated requests
 reuse one row per bucket, and the scheduled cleanup removes expired rows.
 Production resolves the shared signing secret at module load and fails closed
-when it is absent. The web tier trusts only App Platform's
-`do-connecting-ip` header in production; caller-selected forwarding headers
-cannot mint new durable buckets.
+when it is absent. The web tier trusts only Cloudflare's
+`cf-connecting-ip` header at the production Worker boundary; former-provider
+and caller-selected forwarding headers cannot mint new durable buckets.
