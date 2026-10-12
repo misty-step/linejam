@@ -47,7 +47,7 @@
         "projectSlug": "linejam",
         "status": "active",
         "environment": "production",
-        "url": "https://www.linejam.app/api/health",
+        "url": "https://linejam.mistystep.io/api/health",
         "method": "GET",
         "intervalSeconds": 60,
         "timeoutMs": 10000,

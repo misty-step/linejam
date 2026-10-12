@@ -249,7 +249,7 @@ export function poemFullCardElement({
         {attribution && (
           <div style={{ wordBreak: 'break-word' }}>{attribution}</div>
         )}
-        <div>linejam.app</div>
+        <div>linejam.mistystep.io</div>
       </div>
     </div>
   );

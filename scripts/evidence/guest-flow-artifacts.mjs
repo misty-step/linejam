@@ -4,7 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { artifactIssue } from './verdict.mjs';
 
-const DEFAULT_BASE_URL = 'https://www.linejam.app';
+const DEFAULT_BASE_URL = 'https://linejam.mistystep.io';
 
 export function parseArgs(argv, env = process.env, now = new Date()) {
   const args = {

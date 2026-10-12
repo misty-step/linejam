@@ -69,7 +69,7 @@ export default async function Image() {
           Write a line. Pass it on.
         </div>
         <div style={{ color: identityTokens['color-text-secondary'] }}>
-          linejam.app
+          linejam.mistystep.io
         </div>
       </div>
     </div>,

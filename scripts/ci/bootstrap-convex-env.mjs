@@ -430,9 +430,9 @@ export function deployHostedConvex({
 }
 
 /**
- * App Platform does not activate the build until this process exits. Keep the
- * values-free name reconciliation and zero-write guest-secret parity probe in
- * this unskippable post-deploy path so frontend traffic cannot race stale or
+ * The release owner must not activate the frontend until this process exits.
+ * Keep values-free name reconciliation and the zero-write guest-secret parity
+ * probe in this unskippable path so frontend traffic cannot race stale or
  * mismatched Convex configuration.
  *
  * @param {{ env: EnvShape; target: ReturnType<typeof resolveConvexEnvTarget>; runner: Runner }} options
@@ -461,7 +461,11 @@ function runPostDeployVerification({ env, target, runner }) {
 
 async function main() {
   if (process.argv.includes('--deploy')) {
-    deployHostedConvex();
+    deployHostedConvex({
+      buildCommand: process.argv.includes('--cloudflare')
+        ? 'pnpm run build:cf'
+        : 'pnpm run build:check',
+    });
     return;
   }
 

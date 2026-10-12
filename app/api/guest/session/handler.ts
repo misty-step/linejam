@@ -320,17 +320,15 @@ function deriveGuestSessionRateLimitKey(request: NextRequest): string {
 }
 
 function getClientIp(request: NextRequest): string {
-  const appPlatformIp = request.headers.get('do-connecting-ip')?.trim();
-  if (appPlatformIp) return appPlatformIp;
+  const cloudflareIp = request.headers.get('cf-connecting-ip')?.trim();
+  if (cloudflareIp) return cloudflareIp;
 
-  // DigitalOcean App Platform owns do-connecting-ip in production. Do not
-  // let callers select durable throttle buckets through forwarded headers.
+  // Cloudflare owns cf-connecting-ip at the Worker boundary. Former provider
+  // and forwarding headers must not select production throttle buckets.
   if (process.env.NODE_ENV === 'production') return 'unknown';
 
-  for (const header of ['cf-connecting-ip', 'x-real-ip']) {
-    const value = request.headers.get(header)?.trim();
-    if (value) return value;
-  }
+  const realIp = request.headers.get('x-real-ip')?.trim();
+  if (realIp) return realIp;
 
   const forwardedFor = request.headers.get('x-forwarded-for');
   if (forwardedFor) {

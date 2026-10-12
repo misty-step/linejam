@@ -241,8 +241,8 @@ coordinator agent that drives a `play-linejam` fleet (1 host + 3 guests by
 default) through the rendered UI of the target deployment, then validates and
 persists the run receipt.
 
-Operator authority granted 2026-08-17 covers anonymous guest play against
-`https://www.linejam.app` on a schedule. Agents create one guest room per run
+Operator authority granted 2026-08-17 covers scheduled anonymous guest play.
+The current production target is `https://linejam.mistystep.io`. Agents create one guest room per run
 with synthetic lines, never sign in, never purchase, never share or favorite
 poems, and close the room before finishing. This is QA traffic in closed
 rooms that retention cleans up; it is distinct from the machine-authored
@@ -274,7 +274,7 @@ it. Sentry stays out of this lane: the ledger for fleet failures is the
 issue, per the no-second-work-ledger rule.
 
 Recommended cadence: `23 */4 * * *` as a Hermes `--no-agent` cron job, e.g.
-`LINEJAM_PLAY_TARGET=https://www.linejam.app LINEJAM_PLAY_AUTHORITY=1 pnpm qa:play-linejam:scheduled`.
+`LINEJAM_PLAY_TARGET=https://linejam.mistystep.io LINEJAM_PLAY_AUTHORITY=1 pnpm qa:play-linejam:scheduled`.
 
 Kill switches: pause the Hermes job, or unset `LINEJAM_PLAY_AUTHORITY` — the
 next invocation then fails closed before any browser starts. Stop conditions

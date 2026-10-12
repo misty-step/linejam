@@ -17,7 +17,7 @@ jobs:
     permissions:
       contents: read
     env:
-      LINEJAM_HEALTH_URL: https://www.linejam.app/api/health
+      LINEJAM_HEALTH_URL: https://linejam.mistystep.io/api/health
       LINEJAM_HEALTH_TIMEOUT_MS: '10000'
     steps:
       - name: Checkout code

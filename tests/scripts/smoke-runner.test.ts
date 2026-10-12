@@ -528,7 +528,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-test-key',
     });
@@ -549,7 +549,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-test-secret',
     });

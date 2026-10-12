@@ -1,85 +1,94 @@
-# Cloudflare Workers deployment target (cutover in progress)
+# Cloudflare Workers production cutover
 
-Standing policy `2026-09-18-hosting-and-autonomy.md`: the public product is
-Cloudflare. Linejam currently serves `linejam.app`, `www.linejam.app`, and
-`linejam.mistystep.io` from DigitalOcean App Platform (`linejam-6qoir`).
-This document describes the OpenNext-on-Cloudflare replacement and the
-remaining cutover steps. The App Platform app stays running until each
-production hostname is served by the Worker.
+Parent initiative: `K-20261012-infrastructure-gets-simpler-seen-through`.
 
-## Artifacts
+Move the frontend, origin, DNS and release owner off DigitalOcean. Hosted Convex
+(`amiable-bulldog-848`) remains the database, backend functions and reactive
+WebSocket service; Clerk and Sentry retain their existing interfaces. This is
+not a Cloudflare database migration.
 
-- `open-next.config.ts` — OpenNext Cloudflare adapter config.
-- `wrangler.jsonc` — Worker config: `staging` (workers.dev only) and
-  `production` (custom domains) environments.
-- Scripts: `build:cf`, `deploy:cf:staging`, `deploy:cf:production`.
+## Current state and target
 
-## Build and deploy
+The production home is `https://linejam.mistystep.io`, in the active Cloudflare
+`mistystep.io` zone. Worker `linejam`, account
+`b069014f6a46558ea9146fb6c4ff8f6c`, is configured in `wrangler.jsonc`.
+`linejam-staging` remains development-scoped, not production acceptance.
+`linejam.app` and `www.linejam.app` are not migration targets. Do not change
+their registrar delegation or attach them to this Worker.
 
-The build must run with the deployment's environment values exported
-(public values from the env record; secrets never printed):
+DigitalOcean app `1fb85c4b-18eb-441c-940d-5fda33dc5923` retains the old image
+for rollback. Keep its auto-build disabled before the Cloudflare release;
+Cloudflare headers alone do not prove removal of the old origin/build owner.
+
+## One production release owner
+
+`.github/workflows/cloudflare-production.yml` consumes successful protected-master
+push CI, rejects stale source and deploys through `pnpm deploy:cf:production`.
+Disable DigitalOcean `web.github.deploy_on_push` before merging the Cloudflare
+ingress change: the retained old image trusts its original ingress header,
+while the new Worker trusts only `cf-connecting-ip`. Never run both build owners.
+
+The `Production` GitHub environment must contain production-scoped values for:
+
+- Release only: `CLOUDFLARE_API_TOKEN`, `CONVEX_DEPLOY_KEY`. Reuse the existing
+  `SENTRY_RELEASE_TOKEN` for the build's `SENTRY_AUTH_TOKEN`.
+- Runtime and build: `GUEST_TOKEN_SECRET`, `CLERK_SECRET_KEY`,
+  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SENTRY_DSN`,
+  `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, `SENTRY_AUTOMATION_PROVENANCE_SECRET`.
+
+Do not rely on development-valued repository secrets as production fallbacks.
+Recover the existing stable server-action key; never generate or rotate it for
+this migration. Reuse the production guest and provenance secrets. Keep recovery
+material in pass and transfer through stdin/private temporary files, never argv,
+logs, public comments or source.
+
+The workflow runs the existing hosted Convex wrapper through `build:release:cf`.
+OpenNext runs only `build:check`, avoiding recursive backend deployment.
+Manifest reconciliation
+and the zero-write guest-secret parity probe remain unskippable before Worker
+activation. Runtime secrets are installed with the Worker version through a
+mode-0600 temporary secrets file, removed on exit. The Convex deploy key and
+Sentry upload token are not Worker bindings.
+
+For an explicitly authorized release outside the workflow, supply the same
+production environment through the existing credential broker and bind the
+runtime secrets to the Worker first:
 
 ```sh
-# staging (development-scoped backends)
-set -a; . ./.env.local; set +a
-export NEXT_PUBLIC_SENTRY_ENABLED=1 LINEJAM_SENTRY_ENABLED=true
-export NEXT_DEPLOYMENT_ID="$(git rev-parse HEAD)"
-pnpm build:cf
-pnpm deploy:cf:staging
-
-# bind staging key material (piped from the env record; never printed)
-# GUEST_TOKEN_SECRET, CLERK_SECRET_KEY, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-# via: printf %s "$NAME" | pnpm exec wrangler secret put NAME --env staging
-```
-
-```sh
-# production (after secrets are bound — see below)
-set -a; . ./.env.production.local; set +a
-export NEXT_DEPLOYMENT_ID="$(git rev-parse HEAD)"
-pnpm build:cf
+# NEXT_DEPLOYMENT_ID must be the exact reviewed, merged checkout SHA.
+pnpm build:release:cf
 pnpm deploy:cf:production
 ```
 
-Always deploy with the scripts above; they pass `--env`. A bare
-`wrangler deploy` would apply the routeless top-level config to the
-production-named Worker and detach its custom domains.
+A bare `wrangler deploy` is not the release path: it omits backend deployment,
+production environment selection, source binding and parity postconditions.
+For a bounded local packaging check, `CIRCLE_NODE_TOTAL=2` limits Next's static
+build to one worker; this does not change production runtime or host limits.
 
-## Environment contract
+## Reversible cutover and acceptance
 
-`NEXT_PUBLIC_*` values are inlined at build time and must also exist as
-Worker bindings. Committed `vars` carry only non-key values (Convex URLs,
-Sentry org/project, environment markers). Key material — including the
-Clerk publishable key, which the repo secret scanner treats as a secret —
-is bound at deploy time with
-`wrangler secret put <NAME> --env <staging|production>` from the approved
-store; it is never committed.
+The initiative's private `do-linejam` evidence owns exact provider/DNS payloads,
+credential references and observed deployment/version IDs. Capture the DO spec
+in the credential plane before changing it. Keep its current successful image
+and all resources; deletion remains the global controller's operation.
 
-Production secret names (what the runtime and build read; the App Platform
-mirror is `config/digitalocean-apps.json`):
-`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `GUEST_TOKEN_SECRET` (must equal the
-production Convex deployment value), `CLERK_SECRET_KEY`,
-`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (stable 32-byte base64; reuse across
-deploys), `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_EVENT_WRITE_TOKEN`,
-`SENTRY_WEBHOOK_SECRET`, `SENTRY_AUTOMATION_PROVENANCE_SECRET`,
-`SENTRY_AGENT_LOOP_SECRET`.
-`NEXT_DEPLOYMENT_ID` is the source commit SHA and is set per deploy.
+Order: verify recovered production inputs; independently review the exact source
+and operation payload; freeze DO auto-builds; install production credentials;
+merge green source; verify the release at `linejam.mistystep.io`.
+Acceptance requires real multiplayer UI through nine rounds, reveal,
+rematch/reconnect, room closure, fresh-session join rejection and session cleanup,
+with inspected private artifacts. Verify browser requests/WebSockets use Convex,
+database changes persist, Clerk DNS/TLS and callbacks work, Sentry attribution is
+source-bound, and neither Worker origin nor production release steps call DO.
 
-## Remaining cutover steps (operator-owned decisions)
+Rollback: disable the Cloudflare Production workflow and restore captured
+`linejam.mistystep.io` routing to the retained DO image. Restore DO auto-build ownership only after
+stopping the Cloudflare owner; never rebuild Cloudflare-ingress source on DO.
+Later Worker-only rollback uses a recorded healthy Cloudflare version.
+Frontend rollback does not restore Convex data. Preserve schema, migration and
+retention sequencing; do not roll functions backward across an incompatible
+migration or import data without the explicit recovery contract.
 
-1. Bind the production secrets above to the `linejam` Worker.
-2. Attach `linejam.mistystep.io` (zone already active on Cloudflare).
-3. For `linejam.app` / `www.linejam.app`: the Cloudflare zone exists but is
-   pending while DigitalOcean nameservers are authoritative. Stage the zone
-   records (apex, `www`, `clerk` CNAME, SPF TXT) first, then the registrar
-   NS flip is an explicit operator decision. Do not flip early; an empty
-   pending zone black-holes the name.
-4. Soak, then delete the App Platform app and its domains.
-
-## Verification
-
-- Staging: workers.dev URL returns 200, page title marker (`Linejam`),
-  `server: cloudflare`, `cf-ray`.
-- `/api/health` reports the real configuration state; do not mask missing
-  environment values.
-- Production: custom-domain hostnames return 200 with `cf-ray`, and the
-  old App Platform origin stays reachable until the soak completes.
+Workflow health probes prove served source, Convex connectivity and guest-secret
+parity. They do not replace the player walk, authenticated smoke, callback proof
+or the controller's four-product deletion gate.

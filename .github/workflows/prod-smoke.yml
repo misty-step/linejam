@@ -20,6 +20,7 @@ jobs:
     name: Production Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: Production
     permissions:
       contents: read
       actions: read
@@ -28,11 +29,11 @@ jobs:
       release_outcome: ${{ steps.release.outcome }}
       release: ${{ steps.deployment.outputs.release }}
     env:
-      PLAYWRIGHT_BASE_URL: https://www.linejam.app
+      PLAYWRIGHT_BASE_URL: https://linejam.mistystep.io
       PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1'
       LINEJAM_SMOKE_RUNNER: playwright
       LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1'
-      LINEJAM_ALLOWED_SMOKE_ORIGINS: https://www.linejam.app
+      LINEJAM_ALLOWED_SMOKE_ORIGINS: https://linejam.mistystep.io
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}

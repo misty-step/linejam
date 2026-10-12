@@ -72,7 +72,7 @@ describe('release projections', () => {
       catalog.releases[0].productNotes
     );
     expect(items[0].querySelector('link')?.textContent).toBe(
-      'https://linejam.app/releases#v0.27.0'
+      'https://linejam.mistystep.io/releases#v0.27.0'
     );
     expect(items[1].querySelector('description')?.textContent).not.toContain(
       'escape <room>'

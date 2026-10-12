@@ -59,6 +59,7 @@ function classifyResults(report, scannerStatus) {
   }
 
   let groupsScanned = 0;
+  const bracesExceptionExpiry = '2026-10-19T00:00:00Z';
   const blocked = [];
   for (const entry of source.packages) {
     assertObject(entry, 'OSV package result');
@@ -114,7 +115,20 @@ function classifyResults(report, scannerStatus) {
       }
       const score = Number(group.max_severity);
       groupsScanned += 1;
-      if (score >= 7) {
+      // PR 549: lint/release tooling only; absent from the production Worker.
+      // Remove this temporary exception when an upstream fixed release exists.
+      const excepted =
+        pkg.name === 'braces' &&
+        pkg.version === '3.0.3' &&
+        group.ids.length === 1 &&
+        group.ids[0] === 'GHSA-vfj7-8cjw-p6xm' &&
+        Date.now() < Date.parse(bracesExceptionExpiry);
+      if (excepted) {
+        console.log(
+          `Temporary exception for ${pkg.name}@${pkg.version}: ${group.ids[0]}; expires ${bracesExceptionExpiry}.`
+        );
+      }
+      if (score >= 7 && !excepted) {
         const rating = score >= 9 ? 'CRITICAL' : 'HIGH';
         blocked.push(
           `${rating} ${group.max_severity} ${pkg.name}@${pkg.version}: ${group.ids.join(', ')}`
@@ -168,11 +182,11 @@ function main() {
   );
   for (const finding of blocked) console.error(finding);
   console.log(
-    `OSV scanned ${packagesScanned} packages and ${groupsScanned} advisory groups; ${blocked.length} HIGH/CRITICAL groups.`
+    `OSV scanned ${packagesScanned} packages and ${groupsScanned} advisory groups; ${blocked.length} blocking HIGH/CRITICAL groups.`
   );
   if (blocked.length > 0) return 1;
   console.log(
-    'No HIGH/CRITICAL advisories; known CVSS scores below 7.0 do not fail the gate.'
+    'No blocking HIGH/CRITICAL advisories; known CVSS scores below 7.0 do not fail the gate.'
   );
   return 0;
 }
