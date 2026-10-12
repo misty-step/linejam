@@ -254,7 +254,7 @@ export interface GuestSessionRouteContext {
  * never bleed between tests, spec files, or parallel workers sharing the CI
  * server's single IP.
  *
- * The simulated DigitalOcean ingress header is scoped to the app's
+ * The simulated Cloudflare ingress header is scoped to the app's
  * guest-session route (where the bucket key is derived). Production-mode
  * builds intentionally ignore caller-controlled forwarding headers, so local
  * E2E must model the trusted platform boundary instead. A context-wide
@@ -266,7 +266,7 @@ export async function isolateGuestSessionIp(context: GuestSessionRouteContext) {
   const ip = `10.${octet()}.${octet()}.${octet()}`;
   await context.route('**/api/guest/session*', async (route) => {
     await route.continue({
-      headers: { ...route.request().headers(), 'do-connecting-ip': ip },
+      headers: { ...route.request().headers(), 'cf-connecting-ip': ip },
     });
   });
   return ip;

@@ -29,6 +29,7 @@
     "build": "node ./scripts/ci/bootstrap-convex-env.mjs --deploy",
     "build:check": "next build",
     "build:cf": "opennextjs-cloudflare build",
+    "build:release:cf": "node ./scripts/ci/bootstrap-convex-env.mjs --deploy --cloudflare",
     "deploy:cf:staging": "wrangler deploy --env staging",
     "deploy:cf:production": "wrangler deploy --env production",
     "start:next": "next start",

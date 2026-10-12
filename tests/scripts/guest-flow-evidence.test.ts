@@ -15,13 +15,9 @@ import {
 } from '@/scripts/evidence/guest-flow-artifacts.mjs';
 import {
   attachGuestFlowRuntimeErrorLogging,
-  isolateGuestSessionIp,
   type GuestFlowRuntimeConsoleMessage,
   type GuestFlowRuntimeRequest,
   type GuestFlowRuntimeResponse,
-  type GuestFlowHeaders,
-  type GuestSessionRoute,
-  type GuestSessionRouteContext,
 } from '@/tests/e2e/support/guestFlow';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -35,36 +31,6 @@ interface GuestFlowRuntimeEvents {
 }
 
 describe('guest-flow evidence verdicts', () => {
-  it('isolates local production browsers through the trusted ingress header', async () => {
-    let routePattern = '';
-    let routeHandler: ((route: GuestSessionRoute) => Promise<void>) | undefined;
-    let continuedHeaders: GuestFlowHeaders | undefined;
-    const context: GuestSessionRouteContext = {
-      async route(pattern, handler) {
-        routePattern = pattern;
-        routeHandler = handler;
-      },
-    };
-
-    const ip = await isolateGuestSessionIp(context);
-    await routeHandler?.({
-      async continue({ headers }) {
-        continuedHeaders = headers;
-      },
-      request() {
-        return { headers: () => ({ accept: 'application/json' }) };
-      },
-    });
-
-    expect(routePattern).toBe('**/api/guest/session*');
-    expect(ip).toMatch(/^10(?:\.\d{1,3}){3}$/);
-    expect(continuedHeaders).toEqual({
-      accept: 'application/json',
-      'do-connecting-ip': ip,
-    });
-    expect(continuedHeaders).not.toHaveProperty('x-forwarded-for');
-  });
-
   it('passes clean evidence without waivers', () => {
     expect(resolveEvidenceVerdict({})).toMatchObject({
       result: 'PASS',

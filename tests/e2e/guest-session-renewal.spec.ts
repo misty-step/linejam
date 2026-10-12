@@ -31,7 +31,7 @@ test('keeps the same-identity draft across renewal with unavailable session stor
   await session.hostPage.clock.install();
   await session.hostContext.route('**/api/guest/session*', async (route) => {
     const response = await route.fetch({
-      headers: { ...route.request().headers(), 'do-connecting-ip': hostIp },
+      headers: { ...route.request().headers(), 'cf-connecting-ip': hostIp },
     });
     const body = await response.json();
     requests += 1;
