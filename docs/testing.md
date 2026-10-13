@@ -123,6 +123,13 @@ deployment identity, or production health.
   applicable. This exercises indexes, transactions, scheduled functions, and
   generated handlers instead of a hand-built database mock.
 
+Keep one primary proof per observable contract; another layer must catch a
+distinct consumer-visible failure. Prefer a complete room/rematch or publication
+journey over repeating its setup for each return field. Preserve independent
+authorization, retention, migration and protocol boundaries. Do not pin source
+text, CSS classes, constant inventories, pluralization or mock forwarding; use
+the existing native/browser checks for those compositions.
+
 ## Browser and live-target rules
 
 Playwright uses the checked-in `playwright.config.ts` and

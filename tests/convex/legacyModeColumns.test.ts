@@ -1,24 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import { internal } from '../../convex/_generated/api';
 import { setupConvexTestWithSchema } from '../helpers/convexTest';
-import schema from '../../convex/schema';
-
-const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
-
-function readSourceFiles(dir: string): Array<[path: string, source: string]> {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const absolutePath = join(dir, entry.name);
-    if (entry.isDirectory()) return readSourceFiles(absolutePath);
-    if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) return [];
-    return [[absolutePath, readFileSync(absolutePath, 'utf8')]];
-  });
-}
-
 const legacyModeSchema = defineSchema({
   users: defineTable({
     displayName: v.string(),
@@ -98,24 +82,5 @@ describe('legacy mode column migration', () => {
 
     expect(game).not.toHaveProperty('mode');
     expect(room).not.toHaveProperty('selectedMode');
-  });
-
-  it('keeps the final schema and tests free of the retired mode columns', async () => {
-    const schemaSource = readFileSync(
-      join(repoRoot, 'convex/schema.ts'),
-      'utf8'
-    );
-    const convexTestSources = readSourceFiles(join(repoRoot, 'tests/convex'));
-
-    expect(JSON.stringify(schema)).not.toContain('selectedMode');
-    expect(JSON.stringify(schema)).not.toContain('"mode"');
-    expect(schemaSource).not.toContain('selectedMode');
-    expect(schemaSource).not.toMatch(/\bmode:\s*v\.optional/);
-
-    const staleSeeders = convexTestSources
-      .filter(([path]) => !path.endsWith('legacyModeColumns.test.ts'))
-      .filter(([, source]) => /\bmode:\s*['"]classic['"]/.test(source));
-
-    expect(staleSeeders).toEqual([]);
   });
 });

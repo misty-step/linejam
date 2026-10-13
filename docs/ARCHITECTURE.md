@@ -24,6 +24,10 @@ synthesis through `@parlor/web/audio`; Parlor does not own Linejam's sound desig
 Archive contributor colors use `lib/avatarColor.ts`'s roster-aware allocator;
 profile metadata uses its stable-identity selector.
 
+Personal archive history has one query, `archive.getArchiveData`; `poems`
+owns individual artifacts and room/public projections. Room activity reads use
+`getRoomActivity` rather than a second status-only wrapper.
+
 `convex/schema.ts` owns the schema. In outline:
 
 ```text

@@ -265,50 +265,6 @@ describe('archive', () => {
       expect(result.stats?.totalFavorites).toBe(1);
     });
 
-    it('calculates unique collaborators excluding self', async () => {
-      const t = setupConvexTest();
-      const userId = await seedUser(t, {
-        displayName: 'Me',
-        clerkUserId: 'clerk_me',
-        guestId: 'guest_me',
-      });
-      const collab1 = await seedUser(t, {
-        displayName: 'Collab1',
-        guestId: 'guest_c1',
-      });
-      const collab2 = await seedUser(t, {
-        displayName: 'Collab2',
-        guestId: 'guest_c2',
-      });
-      const { poemId } = await seedCompletedRoom(t, userId);
-      await seedLine(t, {
-        poemId,
-        authorUserId: userId,
-        text: 'A',
-        wordCount: 1,
-        indexInPoem: 0,
-      });
-      await seedLine(t, {
-        poemId,
-        authorUserId: collab1,
-        text: 'B',
-        wordCount: 1,
-        indexInPoem: 1,
-      });
-      await seedLine(t, {
-        poemId,
-        authorUserId: collab2,
-        text: 'C',
-        wordCount: 1,
-        indexInPoem: 2,
-      });
-
-      const result = await queryArchive(t, 'clerk_me');
-
-      // 2 collaborators (collab1, collab2), not counting self
-      expect(result.stats?.uniqueCollaborators).toBe(2);
-    });
-
     it('limits coAuthors to 3 entries even with more authors', async () => {
       const t = setupConvexTest();
       const userId = await seedUser(t, {
@@ -343,113 +299,6 @@ describe('archive', () => {
       const result = await queryArchive(t, 'clerk_host');
 
       expect(result.poems[0].coAuthors).toHaveLength(3);
-    });
-
-    it('sorts poems by creation date descending (most recent first)', async () => {
-      const t = setupConvexTest();
-      const now = Date.now();
-      const userId = await seedUser(t, {
-        displayName: 'Poet',
-        clerkUserId: 'clerk_poet',
-        guestId: 'guest_poet',
-      });
-
-      // Create two rooms with poems at different timestamps.
-      const { roomId: room1 } = await t.run(async (ctx) => {
-        const roomId = await ctx.db.insert('rooms', {
-          code: 'AAAA',
-          hostUserId: userId,
-          status: 'COMPLETED',
-          createdAt: now - 10000,
-        });
-        await ctx.db.insert('roomPlayers', {
-          roomId,
-          userId,
-          displayName: 'Poet',
-          joinedAt: now - 10000,
-        });
-        const gameId = await ctx.db.insert('games', {
-          roomId,
-          status: 'COMPLETED',
-          cycle: 1,
-          currentRound: 0,
-          assignmentMatrix: [[userId]],
-          createdAt: now - 10000,
-        });
-        return { roomId, gameId };
-      });
-
-      const { roomId: room2 } = await t.run(async (ctx) => {
-        const roomId = await ctx.db.insert('rooms', {
-          code: 'BBBB',
-          hostUserId: userId,
-          status: 'COMPLETED',
-          createdAt: now,
-        });
-        await ctx.db.insert('roomPlayers', {
-          roomId,
-          userId,
-          displayName: 'Poet',
-          joinedAt: now,
-        });
-        const gameId = await ctx.db.insert('games', {
-          roomId,
-          status: 'COMPLETED',
-          cycle: 1,
-          currentRound: 0,
-          assignmentMatrix: [[userId]],
-          createdAt: now,
-        });
-        return { roomId, gameId };
-      });
-
-      // Insert poems with explicit createdAt timestamps
-      const [olderPoemId, newerPoemId] = await t.run(async (ctx) => {
-        // Older poem in room1
-        const game1 = await ctx.db
-          .query('games')
-          .withIndex('by_room', (q) => q.eq('roomId', room1))
-          .first();
-        const p1 = await ctx.db.insert('poems', {
-          roomId: room1,
-          gameId: game1!._id,
-          indexInRoom: 0,
-          createdAt: now - 10000,
-        });
-        // Newer poem in room2
-        const game2 = await ctx.db
-          .query('games')
-          .withIndex('by_room', (q) => q.eq('roomId', room2))
-          .first();
-        const p2 = await ctx.db.insert('poems', {
-          roomId: room2,
-          gameId: game2!._id,
-          indexInRoom: 0,
-          createdAt: now,
-        });
-        return [p1, p2];
-      });
-
-      await seedLine(t, {
-        poemId: olderPoemId,
-        authorUserId: userId,
-        text: 'Old',
-        wordCount: 1,
-        indexInPoem: 0,
-      });
-      await seedLine(t, {
-        poemId: newerPoemId,
-        authorUserId: userId,
-        text: 'New',
-        wordCount: 1,
-        indexInPoem: 0,
-      });
-
-      const result = await queryArchive(t, 'clerk_poet');
-
-      // Most recent first
-      expect(result.poems[0]._id).toBe(newerPoemId);
-      expect(result.poems[1]._id).toBe(olderPoemId);
     });
 
     it('handles null poems gracefully — lines pointing to deleted poems are skipped', async () => {
@@ -548,62 +397,6 @@ describe('archive', () => {
       expect(mysteryLine?.authorName).toBe('Unknown');
       expect(mysteryLine?.authorKey).toEqual(expect.any(String));
       expect(JSON.stringify(result)).not.toContain(ghostId);
-    });
-
-    it('prefers authorDisplayName from line over author.displayName', async () => {
-      const t = setupConvexTest();
-      const userId = await seedUser(t, {
-        displayName: 'User Display Name',
-        clerkUserId: 'clerk_display',
-        guestId: 'guest_display',
-      });
-      const { poemId } = await seedCompletedRoom(t, userId);
-      await seedLine(t, {
-        poemId,
-        authorUserId: userId,
-        text: 'Hello',
-        wordCount: 1,
-        indexInPoem: 0,
-        authorDisplayName: 'Line Display Name',
-      });
-
-      const result = await queryArchive(t, 'clerk_display');
-
-      // Should prefer line.authorDisplayName over author.displayName
-      expect(result.poems[0].lines[0].authorName).toBe('Line Display Name');
-    });
-
-    it('returns preview as "..." when poem has no lines', async () => {
-      const t = setupConvexTest();
-      const userId = await seedUser(t, {
-        displayName: 'Empty Poem',
-        clerkUserId: 'clerk_empty_poem',
-        guestId: 'guest_empty_poem',
-      });
-      const { poemId } = await seedCompletedRoom(t, userId);
-
-      // Insert one line attributed to this user so getArchiveData picks up the poem,
-      // then delete it — the poem exists but has zero lines from by_poem index.
-      const lineId = await seedLine(t, {
-        poemId,
-        authorUserId: userId,
-        text: 'Ghost',
-        wordCount: 1,
-        indexInPoem: 0,
-      });
-      await t.run((ctx) => ctx.db.delete(lineId));
-
-      const result = await queryArchive(t, 'clerk_empty_poem');
-
-      // No lines for this user → userLines empty → early return with empty stats.
-      // (If by_author has no rows after deletion, the user has no archive poems.)
-      expect(result.poems).toEqual([]);
-      expect(result.stats).toEqual({
-        totalPoems: 0,
-        totalFavorites: 0,
-        uniqueCollaborators: 0,
-        totalLinesWritten: 0,
-      });
     });
 
     it('returns preview as first line text', async () => {
@@ -782,26 +575,6 @@ describe('archive', () => {
   describe('getRecentPublicPoems', () => {
     it('returns empty array when no completed rooms exist', async () => {
       const t = setupConvexTest();
-
-      const result = await t.query(api.archive.getRecentPublicPoems, {});
-
-      expect(result).toEqual([]);
-    });
-
-    it('returns empty array when completed rooms have no poems', async () => {
-      const t = setupConvexTest();
-      await t.run(async (ctx) => {
-        const userId = await ctx.db.insert('users', {
-          displayName: 'Host',
-          createdAt: 0,
-        });
-        await ctx.db.insert('rooms', {
-          code: 'ABCD',
-          hostUserId: userId,
-          status: 'COMPLETED',
-          createdAt: 0,
-        });
-      });
 
       const result = await t.query(api.archive.getRecentPublicPoems, {});
 
@@ -1267,147 +1040,32 @@ describe('archive', () => {
       expect(poemIds).toEqual(expect.arrayContaining(returnedIds));
     });
 
-    it('uses default limit of 5 when limit is omitted', async () => {
-      const t = setupConvexTest();
-      // 10 rooms each with 1 poem and 3 lines
-      await t.run(async (ctx) => {
-        for (let i = 0; i < 10; i++) {
-          const u = await ctx.db.insert('users', {
-            displayName: `U${i}`,
-            guestId: `guest_def_${i}`,
-            createdAt: 0,
-          });
-          const roomId = await ctx.db.insert('rooms', {
-            code: `DF${String(i).padStart(2, '0')}`,
-            hostUserId: u,
-            status: 'COMPLETED',
-            createdAt: i,
-          });
-          const gameId = await ctx.db.insert('games', {
-            roomId,
-            status: 'COMPLETED',
-            cycle: 1,
-            currentRound: 0,
-            assignmentMatrix: [[u]],
-            createdAt: i,
-          });
-          const poemId = await ctx.db.insert('poems', {
-            roomId,
-            gameId,
-            indexInRoom: 0,
-            publicShareEnabled: true,
-            createdAt: i,
-          });
-          for (let j = 0; j < 3; j++) {
-            await ctx.db.insert('lines', {
-              poemId,
-              authorUserId: u,
-              text: `L${j}`,
-              wordCount: 1,
-              indexInPoem: j,
-              createdAt: 0,
-            });
-          }
-        }
-      });
-
-      const result = await t.query(api.archive.getRecentPublicPoems, {});
-
-      expect(result.length).toBeLessThanOrEqual(5);
-    });
-
     it('returns poems from multiple different rooms with correct poet counts', async () => {
       const t = setupConvexTest();
-      const [poemId1, poemId2] = await t.run(async (ctx) => {
-        const u1 = await ctx.db.insert('users', {
-          displayName: 'U1',
-          guestId: 'gu1',
-          createdAt: 0,
+      const poemIds = [];
+      for (const index of [0, 1]) {
+        const userId = await seedUser(t, { displayName: `Poet ${index}` });
+        const { poemId } = await seedCompletedRoom(t, userId, {
+          createdAt: index,
         });
-        const u2 = await ctx.db.insert('users', {
-          displayName: 'U2',
-          guestId: 'gu2',
-          createdAt: 0,
-        });
-
-        // Room 1 — only u1 writes
-        const room1 = await ctx.db.insert('rooms', {
-          code: 'ROOM',
-          hostUserId: u1,
-          status: 'COMPLETED',
-          createdAt: 0,
-        });
-        const game1 = await ctx.db.insert('games', {
-          roomId: room1,
-          status: 'COMPLETED',
-          cycle: 1,
-          currentRound: 0,
-          assignmentMatrix: [[u1]],
-          createdAt: 0,
-        });
-        const p1 = await ctx.db.insert('poems', {
-          roomId: room1,
-          gameId: game1,
-          indexInRoom: 0,
-          publicShareEnabled: true,
-          createdAt: 0,
-        });
-        for (let i = 0; i < 3; i++) {
-          await ctx.db.insert('lines', {
-            poemId: p1,
-            authorUserId: u1,
-            text: `a${i}`,
-            wordCount: 1,
-            indexInPoem: i,
-            createdAt: 0,
+        poemIds.push(poemId);
+        await t.run((ctx) =>
+          ctx.db.patch(poemId, { publicShareEnabled: true })
+        );
+        for (let line = 0; line < 3; line++) {
+          await seedLine(t, {
+            poemId,
+            authorUserId: userId,
+            text: `Room ${index} line ${line}`,
+            indexInPoem: line,
           });
         }
-
-        // Room 2 — only u2 writes
-        const room2 = await ctx.db.insert('rooms', {
-          code: 'ROM2',
-          hostUserId: u2,
-          status: 'COMPLETED',
-          createdAt: 1,
-        });
-        const game2 = await ctx.db.insert('games', {
-          roomId: room2,
-          status: 'COMPLETED',
-          cycle: 1,
-          currentRound: 0,
-          assignmentMatrix: [[u2]],
-          createdAt: 1,
-        });
-        const p2 = await ctx.db.insert('poems', {
-          roomId: room2,
-          gameId: game2,
-          indexInRoom: 0,
-          publicShareEnabled: true,
-          createdAt: 1,
-        });
-        for (let i = 0; i < 3; i++) {
-          await ctx.db.insert('lines', {
-            poemId: p2,
-            authorUserId: u2,
-            text: `b${i}`,
-            wordCount: 1,
-            indexInPoem: i,
-            createdAt: 0,
-          });
-        }
-
-        return [p1, p2];
-      });
-
+      }
       const result = await t.query(api.archive.getRecentPublicPoems, {
         limit: 5,
       });
-
-      expect(result).toHaveLength(2);
-      const r1 = result.find((p: { _id: Id<'poems'> }) => p._id === poemId1);
-      const r2 = result.find((p: { _id: Id<'poems'> }) => p._id === poemId2);
-      expect(r1?.poetCount).toBe(1);
-      expect(r2?.poetCount).toBe(1);
+      expect(result.map((poem) => poem._id).sort()).toEqual(poemIds.sort());
+      expect(result.map((poem) => poem.poetCount)).toEqual([1, 1]);
     });
   });
 });

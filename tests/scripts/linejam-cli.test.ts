@@ -153,29 +153,6 @@ describe('run', () => {
     expect(stderr).toEqual([]);
   });
 
-  it('routes "game submit-line" to client.submitLine with a numeric lineIndex and joined text', async () => {
-    const client = fakeClient();
-    await run(
-      [
-        'game',
-        'submit-line',
-        'poem1',
-        '2',
-        'hello',
-        'world',
-        '--guest-token',
-        'tok',
-      ],
-      client
-    );
-    expect(client.submitLine).toHaveBeenCalledWith({
-      poemId: 'poem1',
-      lineIndex: 2,
-      text: 'hello world',
-      guestToken: 'tok',
-    });
-  });
-
   it('shows command and identity help without requiring a configured deployment', async () => {
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', undefined);
     for (const argv of [[], ['--help'], ['-h']]) {

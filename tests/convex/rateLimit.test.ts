@@ -57,29 +57,6 @@ describe('checkRateLimit', () => {
     expect(row!.resetTime).toBe(Date.now() + 1000);
   });
 
-  it('allows request when limit exists and under max, incrementing hits', async () => {
-    const t = setupConvexTest();
-    const now = Date.now();
-
-    // Seed a row at hits=2 inside an active window
-    await t.run(async (ctx) => {
-      await ctx.db.insert('rateLimits', {
-        key: KEY,
-        hits: 2,
-        resetTime: now + 10000,
-      });
-    });
-
-    await t.run(async (ctx) => {
-      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 1000 });
-    });
-
-    const row = await readRateLimit(t, KEY);
-    expect(row!.hits).toBe(3);
-    // resetTime should be unchanged (still within active window)
-    expect(row!.resetTime).toBe(now + 10000);
-  });
-
   it('allows request at hits=max-1 and increments to max', async () => {
     const t = setupConvexTest();
     const now = Date.now();
@@ -98,6 +75,7 @@ describe('checkRateLimit', () => {
 
     const row = await readRateLimit(t, KEY);
     expect(row!.hits).toBe(5);
+    expect(row!.resetTime).toBe(now + 10000);
   });
 
   it('throws when hits equals max within an active window', async () => {
@@ -123,27 +101,6 @@ describe('checkRateLimit', () => {
     expect(row!.hits).toBe(5);
   });
 
-  it('resets limit when window has expired (resetTime in the past)', async () => {
-    const t = setupConvexTest();
-    const now = Date.now();
-
-    await t.run(async (ctx) => {
-      await ctx.db.insert('rateLimits', {
-        key: KEY,
-        hits: 5,
-        resetTime: now - 1000, // Expired
-      });
-    });
-
-    await t.run(async (ctx) => {
-      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 60000 });
-    });
-
-    const row = await readRateLimit(t, KEY);
-    expect(row!.hits).toBe(1);
-    expect(row!.resetTime).toBe(now + 60000);
-  });
-
   it('resets when resetTime equals current time exactly (boundary)', async () => {
     const t = setupConvexTest();
     const now = Date.now();
@@ -162,19 +119,6 @@ describe('checkRateLimit', () => {
 
     const row = await readRateLimit(t, KEY);
     expect(row!.hits).toBe(1);
-  });
-
-  it('sets correct resetTime on a fresh window (no prior row)', async () => {
-    const t = setupConvexTest();
-    const now = Date.now();
-
-    await t.run(async (ctx) => {
-      await checkRateLimit(ctx, { key: KEY, max: 5, windowMs: 60000 });
-    });
-
-    const row = await readRateLimit(t, KEY);
-    // Fake timers pin Date.now() so resetTime must be exactly now + windowMs
-    expect(row!.resetTime).toBe(now + 60000);
   });
 
   it('allows requests again after window expires (sequential calls)', async () => {

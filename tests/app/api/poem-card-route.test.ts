@@ -90,20 +90,6 @@ describe('GET /poem/[id]/card', () => {
     });
   });
 
-  it('passes every line with its human author to the renderer', async () => {
-    mockFetchQuery.mockResolvedValue(attributedPoem);
-
-    await GET(makeRequest(), { params: Promise.resolve({ id: 'poem123' }) });
-
-    // The mocked ImageResponse captures the JSX from the shared full-card
-    // renderer so attribution and line content can be checked together.
-    const serialized = JSON.stringify(lastImageResponseCall?.element);
-    expect(serialized).toContain('Emily');
-    expect(serialized).toContain('Wendell');
-    expect(serialized).toContain('Rain');
-    expect(serialized).toContain('on rooftops');
-  });
-
   it('ignores a legacy theme query while preserving the requested mode', async () => {
     mockFetchQuery.mockResolvedValue(attributedPoem);
 
@@ -118,16 +104,6 @@ describe('GET /poem/[id]/card', () => {
     const modeOnly = JSON.stringify(lastImageResponseCall?.element);
 
     expect(withLegacyTheme).toBe(modeOnly);
-  });
-
-  it('passes the poem id through to the public query', async () => {
-    mockFetchQuery.mockResolvedValue(attributedPoem);
-
-    await GET(makeRequest(), { params: Promise.resolve({ id: 'poem123' }) });
-
-    expect(mockFetchQuery).toHaveBeenCalledWith({
-      poemId: 'poem123',
-    });
   });
 
   it('renders a private card for a guest participant without publishing it', async () => {
