@@ -277,14 +277,14 @@ then read its production domain status with:
 
 ```bash
 npx clerk@latest api \
-  "/platform/applications/<Linejam application ID>/domains/linejam.app/status" \
+  "/platform/applications/<Linejam application ID>/domains/linejam.mistystep.io/status" \
   --platform
 ```
 
 Require `dns.status`, `ssl.status`, `mail.status`, and overall `status` to be
-`complete`. The required CNAME checks include `accounts.linejam.app`,
-`clkmail.linejam.app`, `clk._domainkey.linejam.app`, and
-`clk2._domainkey.linejam.app` as well as the existing `clerk.linejam.app`.
+`complete`. The app-scoped production domain uses `is_secondary: true`, keeping
+Clerk infrastructure under `linejam.mistystep.io`, not shared `mistystep.io`.
+Read the required DNS records from this existing instance's domain metadata.
 Compare each target to the production instance's current requirements; do not
 guess records or confuse frontend DNS with email authentication. Before treating
 sign-in email as healthy, send a real code to an authorized, controlled mailbox
@@ -538,7 +538,7 @@ revision at runtime.
 
 ### Clerk-backed host or join hangs
 
-Confirm `clerk.linejam.app` resolves to Clerk's frontend API service, the TLS
+Confirm `clerk.linejam.mistystep.io` resolves to Clerk's frontend API service, the TLS
 certificate verifies, and `CLERK_JWT_ISSUER_DOMAIN` matches the production
 Clerk instance. Guest mode should remain available when Clerk is degraded.
 
