@@ -1,6 +1,6 @@
 ---
 name: verify-linejam
-description: Run source-bound account-free guest, nine-round poem, and sharing/privacy walks on Linejam's isolated Next.js and Convex stack, then inspect the foundation receipt.
+description: Run source-bound account-free guest, nine-round poem, and sharing/privacy walks on Linejam's isolated Next.js and Convex stack, then inspect the story-walk receipt.
 ---
 
 # Verify Linejam
@@ -9,7 +9,7 @@ Use this skill for a PR-relevant story walk or the owned nightly full walk. [The
 
 ## Launch
 
-On the isolated Linux/amd64 runner or an authorized project VM, install Node 22+ and ensure a local Docker daemon and Buildx are available, then run `bash .exe/setup.sh`. Setup installs Docker Compose 5.5.1 to a user plugin path after checking its published digest if the pinned version is missing; it does not install or start Docker. Run `qa/walk --stories "US-001 US-002"` for selected affected stories, or `qa/walk --all` for the nightly full walk. The runner owns a fresh project-scoped local Next.js/Convex stack and a bounded browser journey, then tears down only its own containers/network. Never point it at a shared, preview, or production backend.
+On the isolated Linux/amd64 runner or an authorized project VM, install Node 22+ and ensure a local Docker daemon and Buildx are available, then run `bash .exe/setup.sh`. Setup installs Docker Compose 5.5.1 to a user plugin path after checking its published digest if the pinned version is missing; it does not install or start Docker. Run `qa/walk --stories "US-001 US-002"` for selected stories, or `qa/walk --all` for the full walk used by CI and nightly. The runner owns a fresh project-scoped local Next.js/Convex stack and a bounded browser journey, then tears down only its own containers/network. Never point it at a shared, preview, or production backend.
 
 ## Doctor
 
@@ -21,7 +21,7 @@ The walk uses separate browser sessions for host, guest, and spectator. Check th
 
 ## Evidence
 
-Read `target/walk/walk-receipt.json`: it binds the run to exact HEAD and tree, enumerates the numbered criteria actually observed, and hashes sanitized artifacts. In CI, the pinned checker runs from `$RUNNER_TEMP/foundation`, never from the checkout: `foundation-check check --base "$BASE_SHA" --repo "$GITHUB_WORKSPACE"`, then `affected --base "$BASE_SHA"`, the walk, and `receipt target/walk/walk-receipt.json --base "$BASE_SHA"`. Nightly runs `check`, `qa/walk --all`, and `receipt target/walk/walk-receipt.json --all`. A passing checker receipt is not hosted Clerk, production, physical phone, or provider-outage proof; name such gaps rather than promoting fixture evidence.
+Read `target/walk/walk-receipt.json`: it binds the run to exact HEAD and tree, enumerates the numbered criteria actually observed, and hashes sanitized artifacts. CI and nightly invoke `qa/walk --all` directly. The runner validates clean source, synchronized runtime identity, and observed criteria, and exits nonzero on walk or cleanup failure. A passing walk is not hosted Clerk, production, physical phone, or provider-outage proof; name such gaps rather than promoting fixture evidence.
 
 ## Cleanup
 
