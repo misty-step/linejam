@@ -80,7 +80,7 @@ database changes persist, Clerk DNS/TLS and callbacks work, Sentry attribution i
 source-bound, and neither Worker origin nor production release steps call DO.
 
 Rollback: disable the Cloudflare Production workflow and restore captured
-`linejam.mistystep.io` routing to the retained DO image. Restore DO auto-build ownership only after
+`linejam.mistystep.io` routing to the retained DO image. Keep DO auto-build disabled even after
 stopping the Cloudflare owner; never rebuild Cloudflare-ingress source on DO.
 Later Worker-only rollback uses a recorded healthy Cloudflare version.
 Frontend rollback does not restore Convex data. Preserve schema, migration and
