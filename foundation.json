@@ -15,7 +15,7 @@
   "dispositions": {
     "FND-CHG-001": {
       "status": "pending",
-      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; the prior evidence is a run link: Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36194143444 (full isolated browser walk passed US-001 through US-003 and all nine criteria; source/tree-bound receipt, distinct guest contexts, and runner cleanup)",
+      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; prior evidence: Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36194143444 (full isolated browser walk passed US-001 through US-003 and all nine criteria; source/tree-bound receipt, distinct guest contexts, and runner cleanup)",
       "owner": "Chips",
       "next": "Have the CI foundation job write foundation-evidence/1 receipts for this obligation, then mark it satisfied"
     },
@@ -63,19 +63,19 @@
     },
     "FND-DOC-001": {
       "status": "pending",
-      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; the prior evidence is a run link: docs/postmortems/README.md defines incident reporting and links the shared misty-step/harness Pokayoke template",
+      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; prior evidence: docs/postmortems/README.md defines incident reporting and links the shared misty-step/harness Pokayoke template",
       "owner": "Chips",
       "next": "Have the CI foundation job write foundation-evidence/1 receipts for this obligation, then mark it satisfied"
     },
     "FND-MAP-001": {
       "status": "pending",
-      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; the prior evidence is a run link: Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36193488123 (foundation passed; features/README.md maps all three live stories to tracked source globs)",
+      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; prior evidence: Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36193488123 (foundation passed; features/README.md maps all three live stories to tracked source globs)",
       "owner": "Chips",
       "next": "Have the CI foundation job write foundation-evidence/1 receipts for this obligation, then mark it satisfied"
     },
     "FND-WLK-001": {
       "status": "pending",
-      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; the prior evidence is a run link: Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36193488123 (story-walk passed; same-job receipt and retained digested artifact linejam-story-walk-27cd6a82efaa400c43716a03f9f085d6c9c7688f-36193488123 cover US-001 through US-003, all nine criteria)",
+      "missing": "Foundation 1.9.0 needs a candidate-job foundation-evidence/1 receipt under foundation/receipts/; prior evidence: Master 27cd6a82efaa400c43716a03f9f085d6c9c7688f: https://github.com/misty-step/linejam/actions/runs/36193488123 (story-walk passed; same-job receipt and retained digested artifact linejam-story-walk-27cd6a82efaa400c43716a03f9f085d6c9c7688f-36193488123 cover US-001 through US-003, all nine criteria)",
       "owner": "Chips",
       "next": "Have the CI foundation job write foundation-evidence/1 receipts for this obligation, then mark it satisfied"
     },
