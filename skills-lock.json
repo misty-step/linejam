@@ -1,0 +1,20 @@
+{
+  "skills": {
+    "linejam-cli": {
+      "source": "./.agents/skills/linejam-cli",
+      "computedHash": "50ab6bdcff11ba8e4ebc5240f277274e581455c71ed16a0d7da75d85f19acf39"
+    },
+    "parlor": {
+      "source": "./.agents/skills/parlor",
+      "computedHash": "724086b2b70bc790943d68209501d26270cb9edb7c8bcdad82bc4386f2061264"
+    },
+    "play-linejam": {
+      "source": "./.agents/skills/play-linejam",
+      "computedHash": "3856b2ae4aa983b06090bb7c29ed8495182b009e29edc15e31dd279f29c990c6"
+    },
+    "verify-linejam": {
+      "source": "./.agents/skills/verify-linejam",
+      "computedHash": "8a09df0e30e71a3d5af0292167179b94bee8e392bf0f6ae3513d10d1f616bb51"
+    }
+  }
+}

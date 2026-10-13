@@ -1,0 +1,57 @@
+# Linejam primitives taxonomy; code and linked docs own behavior truth.
+# PR risk: composes -> low, extends -> medium, adds -> high.
+# Edit when primitives or their ownership roots change; longest-prefix match.
+version: 1
+owner: Chips
+groups:
+  - { id: surfaces, name: Entry points }
+  - { id: auth, name: Identity & trust }
+  - { id: data, name: Data entities & storage }
+  - { id: runtime, name: Jobs, workflows & execution }
+  - { id: platform, name: Platform & ops }
+  - { id: design, name: UI components & tokens }
+primitives:
+  - id: app-ui
+    group: surfaces
+    name: Browser game
+    summary: Guest entry, writing, reveal and archive routes.
+    code: [app/]
+    docs: [project.md, DESIGN.md]
+  - id: guest-identity
+    group: auth
+    name: Guest and account identity
+    summary: Signed guest session issuance and Clerk identity resolution.
+    code: [app/api/guest/, lib/clerk/, lib/guestSession.ts, lib/guestToken.ts, convex/lib/auth.ts]
+    docs: [docs/ARCHITECTURE.md]
+    decisions: ['0001']
+  - id: room-lifecycle
+    group: runtime
+    name: Parlor rooms and matches
+    summary: Shared admission, membership, presence and match lifecycle composed by Linejam.
+    code: [vendor/parlor/, convex/rooms.ts, convex/presence.ts, convex/abandonment.ts, convex/lib/parlor.ts]
+    docs: [docs/ARCHITECTURE.md]
+  - id: poem-game
+    group: data
+    name: Nine-round poems and artifacts
+    summary: Assignment, accepted lines, captured bylines, private archives and explicit publication.
+    code: [convex/]
+    docs: [docs/ARCHITECTURE.md, docs/sharing-privacy.md, docs/ops/data-retention.md]
+    decisions: ['0002', '0003', '0008']
+  - id: player-design
+    group: design
+    name: Player components and identity tokens
+    summary: Shared interaction components, colors, typography and appearance preference.
+    code: [components/, lib/design/, lib/colorMode/]
+    docs: [DESIGN.md]
+  - id: agent-faces
+    group: surfaces
+    name: CLI and MCP
+    summary: Scripted gameplay and artifact access through repository-owned agent interfaces.
+    code: [scripts/cli/, scripts/mcp/]
+    docs: [docs/agent-faces.md]
+  - id: isolated-runtime
+    group: platform
+    name: Isolated development and verification
+    summary: Owned local stacks and bounded CI verification with retained evidence and cleanup.
+    code: [scripts/local/, scripts/ci/, scripts/qa/]
+    docs: [docs/local-development.md, docs/testing.md, docs/ops/observability-ci.md]

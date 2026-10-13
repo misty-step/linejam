@@ -2,10 +2,10 @@
   "schema": "foundation-adoption/1",
   "standard": {
     "id": "misty-step.foundation",
-    "version": "1.1.0",
-    "catalog_sha256": "483f8779e56c969f44316bb29ec5ec698b8b89140b3ca7510c4b30e049815e86",
-    "revision": "6286d1039976485a36a8a0d649c487cfee886939",
-    "source": "https://github.com/misty-step/harness/blob/6286d1039976485a36a8a0d649c487cfee886939/agent-config/skills/foundation/foundation-standard-v1.json"
+    "version": "1.9.0",
+    "catalog_sha256": "fa2e17f12c8ce3435d86dc2fe8797084bca478f7d5d6cd48efbfb80277c5aec8",
+    "revision": "afbaf33b3f940108ccaf06c74841c9fbfa812bd0",
+    "source": "https://github.com/misty-step/harness/blob/afbaf33b3f940108ccaf06c74841c9fbfa812bd0/agent-config/skills/foundation/foundation-standard-v1.json"
   },
   "capabilities": [
     "Account-free guest room creation, admission, and identity continuity over Next.js, Convex, and Parlor",
@@ -88,7 +88,172 @@
       "missing": "Existing Convex state and product analytics do not establish an owned durable first-party event contract",
       "owner": "Linejam product owner",
       "next": "Design minimal versioned Convex journey events with privacy, deduplication and retrieval owners"
+    },
+    "FND-REV-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-REV-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-REV-001 against the pinned catalog and retain the required proof through the authorized review process"
+    },
+    "FND-SEC-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-SEC-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-SEC-001 against the pinned catalog and retain the required proof through the authorized review process"
+    },
+    "FND-CIT-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-CIT-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-CIT-001 against the pinned catalog and retain the required proof through the authorized review process"
+    },
+    "FND-REL-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-REL-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-REL-001 against the pinned catalog and retain the required proof through the authorized review process"
+    },
+    "FND-ALR-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-ALR-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-ALR-001 against the pinned catalog and retain the required proof through the authorized review process"
+    },
+    "FND-INC-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-INC-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-INC-001 against the pinned catalog and retain the required proof through the authorized review process"
+    },
+    "FND-FBK-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-FBK-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-FBK-001 against the pinned catalog and retain the required proof through the authorized review process"
+    },
+    "FND-BRD-001": {
+      "status": "pending",
+      "missing": "No current independent assessment and retained evidence for FND-BRD-001 under Foundation Standard 1.9.0",
+      "owner": "Chips",
+      "next": "Assess FND-BRD-001 against the pinned catalog and retain the required proof through the authorized review process"
     }
   },
-  "mode": "enforced"
+  "mode": "bootstrap",
+  "surfaces": [
+    "ui",
+    "api",
+    "deployed"
+  ],
+  "baseline": [
+    {
+      "gap": "doc:AGENTS.md",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "doc:DOMAIN.md",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "doc:runbook",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "entry:check",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-ACT-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-BRD-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-CHG-002",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-CIT-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-DAT-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-DEF-ACTIVITY-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-DEF-SENTRY-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-FBK-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-OBS-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-PRF-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-REV-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-SEC-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-TRN-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-USE-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-WS-001",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "ops:alert",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "ops:incident",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "ops:ship",
+      "owner": "Chips",
+      "expires": "2026-11-12"
+    }
+  ]
 }

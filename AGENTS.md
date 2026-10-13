@@ -4,6 +4,8 @@ Use `project.md` for product constraints and current direction, and `DESIGN.md`
 for the identity and interaction contract. Linear owns current priorities;
 historical issues are context, not an automatic queue.
 
+Open docs/decisions/index.md before proposing a new primitive, surface, or storage home.
+
 ## Authority
 
 - State the goal, files/systems in scope, and live authority before mutation.
