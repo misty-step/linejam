@@ -21,6 +21,9 @@ Current dependencies and commands live in `package.json`, not this document.
 Linejam owns cue selection and shared mute behavior. It consumes Cuelume live
 synthesis through `@parlor/web/audio`; Parlor does not own Linejam's sound design.
 
+Archive contributor colors use `lib/avatarColor.ts`'s roster-aware allocator;
+profile metadata uses its stable-identity selector.
+
 `convex/schema.ts` owns the schema. In outline:
 
 ```text
