@@ -79,14 +79,6 @@ export function getUniqueColor(
 }
 
 /**
- * Get color for single user context (no collision resolution).
- * Use this for Profile page where there's no room context.
- */
-export function getUserColor(stableId: string): AvatarColor {
-  return AVATAR_PALETTE[hashToIndex(stableId)];
-}
-
-/**
  * Get the stable identifier for a user.
  * Prefers clerkUserId (permanent) over guestId (session-based).
  *
