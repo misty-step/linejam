@@ -60,23 +60,21 @@ directory measures the same repository source surface as a normal checkout.
 The machine-readable receipt is `coverage/coverage-summary.json`; the explicit
 post-test guard rejects Vitest's otherwise threshold-safe `0/0 Unknown%` state.
 
-## Foundation story-walk cadence
+## Source-bound story-walk cadence
 
-`foundation.json` records the versioned obligation dispositions and any
-time-limited bootstrap gaps. The [feature map](../features/README.md) connects
-live stories to owned source areas; the repository's
+The [feature map](../features/README.md) connects live stories to owned source
+areas; the repository's
 [verify skill](../.agents/skills/verify-linejam/SKILL.md) owns how to run and
 inspect a source-bound walk on an isolated Linux runner.
 
-PR CI runs `foundation-check check --base` in shrink-only ratchet mode, selects
-stories with `affected --base`, then validates the same-job `qa/walk` receipt
-with `receipt --base`. The nightly workflow walks **all** live stories and uses
-`receipt --all`; it retains sanitized evidence for 30 days and opens or updates
-one owned issue on failure. A passing receipt is not proof of hosted Clerk,
-production rollout, provider health, or physical-phone acceptance. The
-existing `merge-gate` and its auth/E2E lanes are unchanged. A new baseline gap
-or later expiry after adoption needs a separately approved extension record,
-not an edit to the current bootstrap baseline.
+CI and nightly invoke `qa/walk --all` directly to walk **all** live stories.
+The runner validates clean exact HEAD/tree, synchronized runtime source identity,
+and observed numbered criteria, and exits nonzero on walk or cleanup failure.
+Its source-bound receipt and sanitized artifacts remain in `target/walk/`.
+CI retains this evidence for 14 days; nightly retains it for 30 days and opens
+or updates one owned issue on failure. A passing walk is not proof of hosted
+Clerk, production rollout, provider health, or physical-phone acceptance. The
+existing `merge-gate` and its auth/E2E lanes are unchanged.
 
 US-004 adds a credential-free release-administration path to the existing
 source-bound story walk. In the disposable QA container it prepares a
