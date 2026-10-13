@@ -13,11 +13,6 @@ import { hashRoomId } from '../lib/roomIdHash';
 import { isRevealReady } from './lib/sessionLifecycle';
 import { getDefaultAvatarId } from '../lib/avatars';
 
-const DEFAULT_MY_POEMS_LIMIT = 24;
-const MAX_MY_POEMS_LIMIT = 48;
-const MAX_LINES_PER_POEM = 9;
-const MY_POEMS_CANDIDATE_FACTOR = 4;
-
 async function resolvesPublicShare(
   ctx: QueryCtx,
   poemId: Id<'poems'>,
@@ -36,17 +31,6 @@ async function resolvesPublicShare(
     share?.poemId === poemId &&
     share?.state === 'active'
   );
-}
-
-function boundedLimit(
-  value: number | undefined,
-  fallback: number,
-  max: number
-) {
-  if (value === undefined || !Number.isFinite(value)) return fallback;
-  const rounded = Math.floor(value);
-  if (rounded <= 0) return fallback;
-  return Math.min(rounded, max);
 }
 
 async function getCompletePoemLines(
@@ -158,90 +142,6 @@ export const getPoemDetail = query({
       },
       lines: linesWithAuthors,
     };
-  },
-});
-
-export const getMyPoems = query({
-  args: {
-    guestToken: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, { guestToken, limit }) => {
-    const user = await getUser(ctx, guestToken);
-    if (!user) return [];
-
-    const poemLimit = boundedLimit(
-      limit,
-      DEFAULT_MY_POEMS_LIMIT,
-      MAX_MY_POEMS_LIMIT
-    );
-    // Scan beyond the output limit so recent abandoned sessions cannot hide
-    // older completed poems. The factor caps query cost under pathological use.
-    const authorLineWindow =
-      poemLimit * MAX_LINES_PER_POEM * MY_POEMS_CANDIDATE_FACTOR;
-
-    // Find a bounded window of latest lines written by user.
-    const lines = await ctx.db
-      .query('lines')
-      .withIndex('by_author_created', (q) => q.eq('authorUserId', user._id))
-      .order('desc')
-      .take(authorLineWindow);
-
-    // Gather a bounded superset; completion is checked before the requested
-    // output limit is applied.
-    const poemIds: Id<'poems'>[] = [];
-    const seenPoemIds = new Set<Id<'poems'>>();
-    const candidateLimit = poemLimit * MY_POEMS_CANDIDATE_FACTOR;
-    for (const line of lines) {
-      if (seenPoemIds.has(line.poemId)) continue;
-      seenPoemIds.add(line.poemId);
-      poemIds.push(line.poemId);
-      if (poemIds.length >= candidateLimit) break;
-    }
-    if (poemIds.length === 0) return [];
-
-    const poemsRaw = await Promise.all(poemIds.map((id) => ctx.db.get(id)));
-    const candidates = poemsRaw.filter(
-      (poem): poem is NonNullable<typeof poem> => poem !== null
-    );
-    const gameIds = [...new Set(candidates.map((poem) => poem.gameId))];
-    const games = await Promise.all(gameIds.map((id) => ctx.db.get(id)));
-    const readableGames = await Promise.all(
-      games.map(async (game) =>
-        game?.matchId && !(await checkGameParticipation(ctx, game, user._id))
-          ? null
-          : game
-      )
-    );
-    const gameById = new Map(gameIds.map((id, i) => [id, readableGames[i]]));
-    const completePoems = candidates
-      .filter((poem) => isRevealReady(gameById.get(poem.gameId) ?? null))
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, poemLimit);
-    const uniqueRoomIds = [
-      ...new Set(completePoems.map((poem) => poem.roomId)),
-    ];
-    const [firstLines, rooms] = await Promise.all([
-      Promise.all(
-        completePoems.map((poem) =>
-          ctx.db
-            .query('lines')
-            .withIndex('by_poem_index', (q) =>
-              q.eq('poemId', poem._id).eq('indexInPoem', 0)
-            )
-            .first()
-        )
-      ),
-      Promise.all(uniqueRoomIds.map((roomId) => ctx.db.get(roomId))),
-    ]);
-    const roomMap = new Map(
-      uniqueRoomIds.map((roomId, index) => [roomId, rooms[index]])
-    );
-    return completePoems.map((poem, index) => ({
-      ...poem,
-      roomDate: roomMap.get(poem.roomId)?.createdAt,
-      preview: firstLines[index]?.text ?? '...',
-    }));
   },
 });
 

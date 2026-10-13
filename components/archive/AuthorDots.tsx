@@ -70,15 +70,3 @@ export function AuthorDots({
     </div>
   );
 }
-
-/**
- * AuthorDotsInline: Compact contributors for narrow metadata rows.
- */
-export function AuthorDotsInline({
-  authorStableIds,
-  className,
-}: Pick<AuthorDotsProps, 'authorStableIds' | 'className'>) {
-  if (authorStableIds.length === 0) return null;
-
-  return <AuthorDots authorStableIds={authorStableIds} className={className} />;
-}

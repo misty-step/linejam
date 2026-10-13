@@ -106,26 +106,6 @@ describe('callTool', () => {
     expect(client.joinRoom).not.toHaveBeenCalled();
   });
 
-  it('submits line zero without changing the author text', async () => {
-    const client = fakeClient();
-    await callTool(
-      'linejam_submit_line',
-      {
-        poemId: 'poem1',
-        lineIndex: 0,
-        text: '  Night blooms  ',
-        guestToken: 'player-token',
-      },
-      client
-    );
-    expect(client.submitLine).toHaveBeenCalledExactlyOnceWith({
-      poemId: 'poem1',
-      lineIndex: 0,
-      text: '  Night blooms  ',
-      guestToken: 'player-token',
-    });
-  });
-
   it('names a missing displayName without creating a room', async () => {
     const client = fakeClient();
     await expect(

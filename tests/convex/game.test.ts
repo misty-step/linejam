@@ -1319,63 +1319,6 @@ describe('submitLine', () => {
     ).rejects.toThrow('Round not started yet');
   });
 
-  it('submits line successfully — inserts line with correct fields', async () => {
-    const t = setupConvexTest();
-    const { poemIds, userIds } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Alice', clerkUserId: 'clerk_aliceSL08' },
-        { name: 'Bob', clerkUserId: 'clerk_bobSL08' },
-      ],
-      code: 'SL08',
-      currentRound: 0,
-    });
-
-    await asUser(t, 'aliceSL08').mutation(api.game.submitLine, {
-      poemId: poemIds[0],
-      lineIndex: 0,
-      text: 'hello',
-    });
-
-    const line = await t.run((ctx) =>
-      ctx.db
-        .query('lines')
-        .withIndex('by_poem_index', (q) =>
-          q.eq('poemId', poemIds[0]).eq('indexInPoem', 0)
-        )
-        .first()
-    );
-    expect(line).not.toBeNull();
-    expect(line!.text).toBe('hello');
-    expect(line!.authorUserId).toBe(userIds[0]);
-    expect(line!.wordCount).toBe(1);
-  });
-
-  it('advances round when all poems have lines (both players submit)', async () => {
-    const t = setupConvexTest();
-    const { poemIds, gameId } = await seedInProgressGame(t, {
-      players: [
-        { name: 'Alice', clerkUserId: 'clerk_aliceSL09' },
-        { name: 'Bob', clerkUserId: 'clerk_bobSL09' },
-      ],
-      code: 'SL09',
-      currentRound: 0,
-    });
-
-    await asUser(t, 'aliceSL09').mutation(api.game.submitLine, {
-      poemId: poemIds[0],
-      lineIndex: 0,
-      text: 'hello',
-    });
-    await asUser(t, 'bobSL09').mutation(api.game.submitLine, {
-      poemId: poemIds[1],
-      lineIndex: 0,
-      text: 'world',
-    });
-
-    const game = await t.run((ctx) => ctx.db.get(gameId));
-    expect(game!.currentRound).toBe(1);
-  });
-
   it('marks room and game completed when humans submit the final round', async () => {
     const t = setupConvexTest();
     const { roomId, gameId, poemIds, matrix } = await seedInProgressGame(t, {

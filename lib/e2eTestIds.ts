@@ -32,5 +32,3 @@ export const E2E_TEST_IDS = {
   poemSaveImageButton: 'poem-save-image-button',
   recapExportButton: 'recap-export-button',
 } as const;
-
-export type E2ETestId = (typeof E2E_TEST_IDS)[keyof typeof E2E_TEST_IDS];

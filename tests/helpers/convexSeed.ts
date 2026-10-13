@@ -6,10 +6,9 @@ import { setupConvexTest } from './convexTest';
  *
  * Every `tests/convex/*` suite runs on the real in-memory engine via
  * `setupConvexTest()`. These are the genuinely-common building blocks — a typed
- * tester handle, Clerk-identity auth, user/line inserts, and a line reader — so
- * suites stop re-deriving them. Suite-specific game seeding (assignment
- * matrices, mode-specific rosters) stays local to each suite, where the shape
- * is part of the test's intent.
+ * tester handle, Clerk-identity auth and user/line inserts — so suites stop
+ * re-deriving them. Suite-specific game seeding (assignment matrices and rosters)
+ * stays local to each suite, where the shape is part of the test's intent.
  */
 
 /** The convex-test tester handle returned by `setupConvexTest()`. */
@@ -111,27 +110,5 @@ export function seedLine(
       lineDoc.authorDisplayName = opts.authorDisplayName;
     }
     return ctx.db.insert('lines', lineDoc);
-  });
-}
-
-/** All `lines` for a game's poems, flattened (order not guaranteed). */
-export function getAllLines(
-  t: T,
-  gameId: Id<'games'>
-): Promise<Doc<'lines'>[]> {
-  return t.run(async (ctx) => {
-    const poems = await ctx.db
-      .query('poems')
-      .withIndex('by_game', (q) => q.eq('gameId', gameId))
-      .collect();
-    const perPoem = await Promise.all(
-      poems.map((poem) =>
-        ctx.db
-          .query('lines')
-          .withIndex('by_poem', (q) => q.eq('poemId', poem._id))
-          .collect()
-      )
-    );
-    return perPoem.flat();
   });
 }

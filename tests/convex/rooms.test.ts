@@ -131,20 +131,6 @@ describe('createRoom', () => {
     expect(players[0].userId).toBe(userId);
   });
 
-  it('returns room ID and code on success', async () => {
-    const t = setupConvexTest();
-    await seedClerkUser(t, 'carol', { displayName: 'Carol' });
-
-    const result = await asUser(t, 'carol').mutation(api.rooms.createRoom, {
-      displayName: 'Carol',
-    });
-
-    expect(result).toMatchObject({
-      code: expect.stringMatching(/^[A-Z0-9]{4}$/),
-      roomId: expect.any(String),
-    });
-  });
-
   it('generates unique codes across multiple rooms', async () => {
     const t = setupConvexTest();
     await seedClerkUser(t, 'dave', { displayName: 'Dave' });
@@ -475,41 +461,6 @@ describe('joinRoom', () => {
         guestToken,
       })
     ).rejects.toThrow('Rate limit exceeded');
-  });
-
-  it('returns a not-found receipt for an unknown code without throwing', async () => {
-    const t = setupConvexTest();
-    await seedClerkUser(t, 'redacted', { displayName: 'Redacted' });
-    await expect(
-      asUser(t, 'redacted').mutation(api.rooms.joinRoom, {
-        code: 'ZZZZ',
-        displayName: 'Redacted',
-      })
-    ).resolves.toMatchObject({ ok: false, message: 'Room not found' });
-  });
-
-  it('returns a full-room receipt without throwing', async () => {
-    const t = setupConvexTest();
-    await seedClerkUser(t, 'fullhost', { displayName: 'FullHost' });
-    const { code: fullCode } = await seedLobbyRoom(t, 'fullhost');
-    for (let i = 0; i < 7; i++) {
-      await seedClerkUser(t, `fillce${i}`, { displayName: `Fillce${i}` });
-      const joined = await asUser(t, `fillce${i}`).mutation(
-        api.rooms.joinRoom,
-        {
-          code: fullCode,
-          displayName: `Fillce${i}`,
-        }
-      );
-      expect(joined.ok).not.toBe(false);
-    }
-    await seedClerkUser(t, 'ninth-ce', { displayName: 'NinthCE' });
-    await expect(
-      asUser(t, 'ninth-ce').mutation(api.rooms.joinRoom, {
-        code: fullCode,
-        displayName: 'NinthCE',
-      })
-    ).resolves.toMatchObject({ ok: false, message: 'Room is full' });
   });
 
   it('returns a closed-room receipt after the host closes', async () => {

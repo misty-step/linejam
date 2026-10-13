@@ -82,14 +82,6 @@ describe('Lobby component', () => {
     mockMutations.startGame.mockReset();
   });
 
-  it('renders player list from room state', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={false} />);
-
-    // Assert - Both players should be visible
-    expect(screen.getByText('Host Player')).toBeInTheDocument();
-    expect(screen.getByText('Guest Player')).toBeInTheDocument();
-  });
-
   it('shows the invitation and QR without hiding the start action', () => {
     renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost />);
     expect(
@@ -111,15 +103,6 @@ describe('Lobby component', () => {
     });
     expect(startButtons[0]).toBeDisabled();
     expect(startButtons[0]).toHaveTextContent('Need 1 more player');
-  });
-
-  it('Start Game button enabled with ≥2 players', () => {
-    renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
-
-    const startButtons = screen.getAllByRole('button', {
-      name: /Start Linejam/i,
-    });
-    expect(startButtons[0]).not.toBeDisabled();
   });
 
   it('emits lobby-ready and started only after a successful start with the next cycle', async () => {

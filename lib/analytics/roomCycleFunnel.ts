@@ -1,11 +1,3 @@
-export type FunnelStage =
-  | 'human_room'
-  | 'game_started'
-  | 'writing_completed'
-  | 'all_revealed'
-  | 'encore'
-  | 'artifact_action';
-
 export type FunnelSource = 'server-derived' | 'event-derived';
 
 export type FunnelEvent = {

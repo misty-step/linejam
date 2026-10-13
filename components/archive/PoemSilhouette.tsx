@@ -57,36 +57,3 @@ export function PoemSilhouette({
     </div>
   );
 }
-
-/**
- * PoemSilhouetteCompact: Horizontal inline variant for tight spaces
- */
-export function PoemSilhouetteCompact({
-  wordCounts,
-  className,
-}: Pick<PoemSilhouetteProps, 'wordCounts' | 'className'>) {
-  const maxCount = Math.max(...wordCounts, 5);
-
-  return (
-    <div
-      className={cn('flex items-end gap-px', className)}
-      aria-label={`Poem silhouette`}
-      role="img"
-    >
-      {wordCounts.map((count, index) => {
-        const heightPercent = (count / maxCount) * 100;
-
-        return (
-          <div
-            key={index}
-            className="bg-[var(--color-text-muted)] rounded-sm"
-            style={{
-              width: '3px',
-              height: `${Math.max(heightPercent * 0.12, 2)}px`,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}

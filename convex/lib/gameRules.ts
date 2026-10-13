@@ -23,23 +23,13 @@ export const WORD_COUNTS = [1, 2, 3, 4, 5, 4, 3, 2, 1] as const;
  * spectator until the next lobby cycle, can watch the reveal, and becomes a
  * normal matrix participant only when the next game starts.
  */
-export const LATE_JOIN_POLICY = {
-  allowedStatus: 'IN_PROGRESS',
-  assignment: 'next-game-only',
-  fairness: 'preserve-completed-and-active-matrix-rows',
-  poemCount: 'unchanged',
-  roundPosition: 'current-round-spectator',
-  spectatorFallback: 'wait-until-next-game',
-  revealParticipation: 'viewer',
-} as const;
-
 export function isLateJoinAllowed(
   game:
     | { readonly status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED' }
     | null
     | undefined
 ): boolean {
-  return game?.status === LATE_JOIN_POLICY.allowedStatus;
+  return game?.status === 'IN_PROGRESS';
 }
 
 /**
@@ -52,9 +42,6 @@ export function getFinalRoundIndex(assignmentMatrix: {
 }): number {
   return assignmentMatrix.length - 1;
 }
-
-/** Soft pacing target for a round. The clock pressures; it never blocks. */
-export const ROUND_CLOCK_MS = 90_000;
 
 /** Heartbeat cadence for the client presence hook. */
 export const PRESENCE_HEARTBEAT_MS = 15_000;

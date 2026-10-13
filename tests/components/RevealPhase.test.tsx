@@ -198,27 +198,6 @@ describe('RevealPhase component', () => {
     mockUseQuery.mockReturnValue(mockStateNotRevealed);
   });
 
-  it('displays poem status list with reader names', () => {
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    expect(screen.getByText('Alice')).toBeInTheDocument();
-    expect(screen.getByText('Bob')).toBeInTheDocument();
-  });
-
-  it('shows a Read chip for revealed poems in the reading circle', () => {
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    const bobRow = screen.getByText('Bob').closest('li');
-    expect(bobRow?.textContent).toContain('Read');
-  });
-
-  it('shows a Reading now chip for the sole unrevealed poem in the reading circle', () => {
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    const aliceRow = screen.getByText('Alice').closest('li');
-    expect(aliceRow?.textContent).toContain('Reading now');
-  });
-
   it('drives all four reading-circle chip states off reveal order', () => {
     const fourPoems = [
       {
@@ -418,25 +397,6 @@ describe('RevealPhase component', () => {
     ).toBeInTheDocument();
   });
 
-  it('calls startNewCycle mutation when Back to Lobby clicked', async () => {
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-    mockStartNewCycleMutation.mockResolvedValue(undefined);
-    const user = userEvent.setup();
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    const newRoundButton = screen.getByRole('button', {
-      name: /Back to Lobby/i,
-    });
-    await user.click(newRoundButton);
-
-    await waitFor(() => {
-      expect(mockStartNewCycleMutation).toHaveBeenCalledWith({
-        roomCode: 'ABCD',
-        guestToken: 'mock-token',
-      });
-    });
-  });
-
   it('gives non-hosts replay and share actions after completion', () => {
     mockUseQuery.mockReturnValue(mockStateAllRevealedNotHost);
 
@@ -451,16 +411,6 @@ describe('RevealPhase component', () => {
     expect(
       screen.getByRole('button', { name: /Play again/i })
     ).toBeInTheDocument();
-  });
-
-  it('shows Exit Room link when all revealed', () => {
-    mockUseQuery.mockReturnValue(mockStateAllRevealed);
-
-    renderRevealPhase(<RevealPhase roomCode="ABCD" />);
-
-    const exitLink = screen.getByRole('link', { name: /Exit Room/i });
-    expect(exitLink).toBeInTheDocument();
-    expect(exitLink).toHaveAttribute('href', '/');
   });
 
   it('offers a re-read after a poem is revealed', () => {

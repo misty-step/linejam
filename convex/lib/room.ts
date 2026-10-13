@@ -186,14 +186,6 @@ export async function getRoomActivity(
   };
 }
 
-export async function deriveRoomStatus(
-  ctx: QueryCtx | MutationCtx,
-  room: RoomActivityInput
-): Promise<RoomStatus> {
-  const { status } = await getRoomActivity(ctx, room);
-  return status;
-}
-
 export async function requireRoomByCode(
   ctx: QueryCtx | MutationCtx,
   code: string
