@@ -24,7 +24,7 @@ function taintedEvent(): ErrorEvent {
       ip_address: '203.0.113.42',
     },
     request: {
-      url: `https://linejam.app/room/${FORBIDDEN}?prompt=${FORBIDDEN}`,
+      url: `https://linejam.mistystep.io/room/${FORBIDDEN}?prompt=${FORBIDDEN}`,
       query_string: `prompt=${FORBIDDEN}`,
       headers: { authorization: FORBIDDEN, cookie: FORBIDDEN },
       cookies: { session: FORBIDDEN },
@@ -77,7 +77,7 @@ function taintedEvent(): ErrorEvent {
       images: [
         {
           type: 'sourcemap',
-          code_file: `https://linejam.app/_next/static/chunk.js?token=${FORBIDDEN}`,
+          code_file: `https://linejam.mistystep.io/_next/static/chunk.js?token=${FORBIDDEN}`,
           debug_id: '12345678-1234-1234-1234-123456789abc',
         },
       ],
@@ -168,7 +168,7 @@ describe('Sentry transport privacy boundary', () => {
   it('drops traversal, non-static source locations, and malformed debug IDs', () => {
     const event = taintedEvent();
     event.exception!.values![0]!.stacktrace!.frames![0]!.filename =
-      'https://linejam.app/_next/static/%2e%2e/server.js';
+      'https://linejam.mistystep.io/_next/static/%2e%2e/server.js';
     event.debug_meta = {
       images: [
         {
@@ -178,20 +178,21 @@ describe('Sentry transport privacy boundary', () => {
         },
         {
           type: 'sourcemap',
-          code_file: 'https://linejam.app/_next/static/%2e%2e/server.js',
+          code_file:
+            'https://linejam.mistystep.io/_next/static/%2e%2e/server.js',
           debug_id: '12345678-1234-1234-1234-123456789abc',
         },
         {
           type: 'sourcemap',
           code_file: [
             'https://private-user',
-            'linejam.app/_next/static/chunk.js',
+            'linejam.mistystep.io/_next/static/chunk.js',
           ].join('@'),
           debug_id: '12345678-1234-1234-1234-123456789abc',
         },
         {
           type: 'sourcemap',
-          code_file: 'https://linejam.app/_next/static/chunk.js',
+          code_file: 'https://linejam.mistystep.io/_next/static/chunk.js',
           debug_id: FORBIDDEN,
         },
       ],
@@ -540,14 +541,17 @@ describe('Sentry transport privacy boundary', () => {
   });
 
   it.each([
-    `https://linejam.app/_next/static/${'a'.repeat(1_025)}.js`,
+    `https://linejam.mistystep.io/_next/static/${'a'.repeat(1_025)}.js`,
     String.raw`C:\linejam\_next\static\chunk.js`,
-    'https://linejam.app/_next/static/%E0%A4%A.js',
-    `https://linejam.app/_next/static/${'a'.repeat(513)}.js`,
-    'https://linejam.app/_next/static/chunks//page.js',
-    'https://linejam.app/_next/static/chunk.css',
-    'ftp://linejam.app/_next/static/chunk.js',
-    ['https://user:password', 'linejam.app/_next/static/chunk.js'].join('@'),
+    'https://linejam.mistystep.io/_next/static/%E0%A4%A.js',
+    `https://linejam.mistystep.io/_next/static/${'a'.repeat(513)}.js`,
+    'https://linejam.mistystep.io/_next/static/chunks//page.js',
+    'https://linejam.mistystep.io/_next/static/chunk.css',
+    'ftp://linejam.mistystep.io/_next/static/chunk.js',
+    [
+      'https://user:password',
+      'linejam.mistystep.io/_next/static/chunk.js',
+    ].join('@'),
   ])('rejects unsafe source location %s', (filename) => {
     const event = taintedEvent();
     event.exception!.values![0]!.stacktrace!.frames![0]!.filename = filename;

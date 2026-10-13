@@ -25,12 +25,12 @@ describe('runHealthCheck', () => {
 
     await expect(
       runHealthCheck({
-        url: 'https://www.linejam.app/api/health',
+        url: 'https://linejam.mistystep.io/api/health',
         fetchImpl,
       })
     ).resolves.toEqual({
       ok: true,
-      url: 'https://www.linejam.app/api/health',
+      url: 'https://linejam.mistystep.io/api/health',
       httpStatus: 200,
       bodyStatus: 'ok',
       convex: 'connected',
@@ -38,7 +38,7 @@ describe('runHealthCheck', () => {
       timestamp: '2026-07-04T00:00:00.000Z',
     });
     expect(fetchImpl).toHaveBeenCalledWith(
-      'https://www.linejam.app/api/health',
+      'https://linejam.mistystep.io/api/health',
       expect.objectContaining({
         headers: { accept: 'application/json' },
       })
@@ -53,7 +53,10 @@ describe('runHealthCheck', () => {
       );
 
     await expect(
-      runHealthCheck({ url: 'https://www.linejam.app/api/health', fetchImpl })
+      runHealthCheck({
+        url: 'https://linejam.mistystep.io/api/health',
+        fetchImpl,
+      })
     ).rejects.toThrow('HTTP 503');
   });
 
@@ -65,7 +68,10 @@ describe('runHealthCheck', () => {
       );
 
     await expect(
-      runHealthCheck({ url: 'https://www.linejam.app/api/health', fetchImpl })
+      runHealthCheck({
+        url: 'https://linejam.mistystep.io/api/health',
+        fetchImpl,
+      })
     ).rejects.toThrow('body status "unhealthy"');
   });
 
@@ -75,7 +81,10 @@ describe('runHealthCheck', () => {
       .mockResolvedValue(new Response('not json', { status: 200 }));
 
     await expect(
-      runHealthCheck({ url: 'https://www.linejam.app/api/health', fetchImpl })
+      runHealthCheck({
+        url: 'https://linejam.mistystep.io/api/health',
+        fetchImpl,
+      })
     ).rejects.toThrow('response was not JSON');
   });
 
@@ -99,7 +108,7 @@ describe('runHealthCheck', () => {
       });
 
       const check = runHealthCheck({
-        url: 'https://www.linejam.app/api/health',
+        url: 'https://linejam.mistystep.io/api/health',
         timeoutMs: 10,
         fetchImpl,
       });
@@ -116,7 +125,10 @@ describe('runHealthCheck', () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('network down'));
 
     await expect(
-      runHealthCheck({ url: 'https://www.linejam.app/api/health', fetchImpl })
+      runHealthCheck({
+        url: 'https://linejam.mistystep.io/api/health',
+        fetchImpl,
+      })
     ).rejects.toThrow('network down');
   });
 
@@ -126,7 +138,7 @@ describe('runHealthCheck', () => {
       .mockResolvedValue(new Response('', { status: 503 }));
     await expect(
       runHealthCheck({
-        url: 'https://www.linejam.app/api/health',
+        url: 'https://linejam.mistystep.io/api/health',
         fetchImpl: emptyFetch,
       })
     ).rejects.toThrow('<empty>');
@@ -138,7 +150,7 @@ describe('runHealthCheck', () => {
 
     await expect(
       runHealthCheck({
-        url: 'https://www.linejam.app/api/health',
+        url: 'https://linejam.mistystep.io/api/health',
         fetchImpl: longFetch,
       })
     ).rejects.toThrow(`${'x'.repeat(500)}...`);

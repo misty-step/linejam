@@ -42,8 +42,8 @@ describe('resolveSentryRelease', () => {
 
     await expect(
       resolveSentryRelease({
-        baseUrl: 'https://www.linejam.app',
-        allowedOrigins: ['https://www.linejam.app'],
+        baseUrl: 'https://linejam.mistystep.io',
+        allowedOrigins: ['https://linejam.mistystep.io'],
         allowedHosts: [],
         fetchImpl,
       })
@@ -56,7 +56,7 @@ describe('resolveSentryRelease', () => {
     await expect(
       resolveSentryRelease({
         baseUrl: 'https://attacker.example',
-        allowedOrigins: ['https://www.linejam.app'],
+        allowedOrigins: ['https://linejam.mistystep.io'],
         allowedHosts: [],
         fetchImpl,
       })
@@ -67,13 +67,13 @@ describe('resolveSentryRelease', () => {
 
 describe('validateSmokeBaseUrl', () => {
   it.each([
-    'http://www.linejam.app',
-    'https://secret@www.linejam.app',
-    'https://www.linejam.app:8443',
+    'http://linejam.mistystep.io',
+    'https://secret@linejam.mistystep.io',
+    'https://linejam.mistystep.io:8443',
   ])('rejects unsafe release source %s', (baseUrl) => {
     expect(() =>
       validateSmokeBaseUrl(baseUrl, {
-        allowedOrigins: ['https://www.linejam.app'],
+        allowedOrigins: ['https://linejam.mistystep.io'],
       })
     ).toThrow('HTTPS origin without credentials or a port');
   });

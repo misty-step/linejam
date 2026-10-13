@@ -13,14 +13,17 @@ describe('deployment skew oracle', () => {
 
     const deploymentId = await readDeploymentId(
       { request: { get } },
-      'https://www.linejam.app'
+      'https://linejam.mistystep.io'
     );
 
     expect(deploymentId).toBe('deployment-next');
-    expect(get).toHaveBeenCalledWith('https://www.linejam.app/api/deployment', {
-      failOnStatusCode: true,
-      headers: { Accept: 'application/json' },
-    });
+    expect(get).toHaveBeenCalledWith(
+      'https://linejam.mistystep.io/api/deployment',
+      {
+        failOnStatusCode: true,
+        headers: { Accept: 'application/json' },
+      }
+    );
   });
 
   it('rejects a deployment receipt without a string identifier', async () => {
@@ -31,7 +34,7 @@ describe('deployment skew oracle', () => {
     });
 
     await expect(
-      readDeploymentId({ request: { get } }, 'https://www.linejam.app')
+      readDeploymentId({ request: { get } }, 'https://linejam.mistystep.io')
     ).rejects.toThrow('Production returned no deployment receipt');
   });
 });

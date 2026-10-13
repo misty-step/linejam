@@ -37,7 +37,7 @@ function healthyManifest(runDir: string) {
       { kind: 'screenshot', path: path.join(runDir, 'host-lobby.png') },
       { kind: 'screenshot', path: path.join(runDir, 'signed-in-join.png') },
     ],
-    baseUrl: 'https://preview.linejam.app',
+    baseUrl: 'https://preview.linejam.mistystep.io',
     deterministicChecks: [
       { name: 'guest host created room', status: 'pass' },
       { name: 'signed-in player joined room', status: 'pass' },
@@ -110,7 +110,7 @@ describe('agentic QA critic', () => {
   it('fails a manifest that omits expected mission evidence', () => {
     const manifest = createAgenticManifest({
       artifacts: [{ kind: 'screenshot', path: '/tmp/run/host-lobby.png' }],
-      baseUrl: 'https://preview.linejam.app',
+      baseUrl: 'https://preview.linejam.mistystep.io',
       deterministicChecks: [
         { name: 'generic error UI absent', status: 'pass' },
       ],
@@ -303,7 +303,7 @@ describe('agentic QA CLI', () => {
         '--mission',
         'guest-host-signed-in-join',
         '--base-url',
-        'https://preview.linejam.app',
+        'https://preview.linejam.mistystep.io',
         '--out-dir',
         tempDir,
       ],

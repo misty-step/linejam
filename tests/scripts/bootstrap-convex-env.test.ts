@@ -77,7 +77,7 @@ describe('bootstrap-convex-env', () => {
             'test',
             'solid-beetle-24.clerk.accounts.dev'
           ),
-          CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+          CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.mistystep.io',
           ...sentryEnv,
         })
       )
@@ -130,7 +130,7 @@ describe('bootstrap-convex-env', () => {
           GUEST_TOKEN_SECRET: 'guest-secret',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
             'live',
-            'clerk.linejam.app'
+            'clerk.linejam.mistystep.io'
           ),
           ...sentryEnv,
         })
@@ -148,7 +148,7 @@ describe('bootstrap-convex-env', () => {
           GUEST_TOKEN_SECRET: 'guest-secret',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
             'live',
-            'clerk.linejam.app'
+            'clerk.linejam.mistystep.io'
           ),
           ...sentryEnv,
           SENTRY_AUTOMATION_PROVENANCE_SECRET: 'short',
@@ -175,7 +175,7 @@ describe('bootstrap-convex-env', () => {
           'test',
           'solid-beetle-24.clerk.accounts.dev'
         ),
-        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.mistystep.io',
         ...sentryEnv,
       }),
       runner,
@@ -278,7 +278,7 @@ describe('bootstrap-convex-env', () => {
           GUEST_TOKEN_SECRET: 'guest-secret',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
             'live',
-            'clerk.linejam.app'
+            'clerk.linejam.mistystep.io'
           ),
           CLERK_JWT_ISSUER_DOMAIN: 'https://solid-beetle-24.clerk.accounts.dev',
         })
@@ -343,9 +343,9 @@ describe('bootstrap-convex-env', () => {
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
           'live',
-          'clerk.linejam.app'
+          'clerk.linejam.mistystep.io'
         ),
-        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.mistystep.io',
         ...sentryEnv,
         ...provenanceSecrets,
       }),
@@ -414,9 +414,9 @@ describe('bootstrap-convex-env', () => {
           GUEST_TOKEN_SECRET: 'guest-secret',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
             'live',
-            'clerk.linejam.app'
+            'clerk.linejam.mistystep.io'
           ),
-          CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+          CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.mistystep.io',
           ...sentryEnv,
           ...provenanceSecrets,
         }),
@@ -670,9 +670,9 @@ exit 0
             GUEST_TOKEN_SECRET: 'guest-secret',
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkPublishableKey(
               'live',
-              'clerk.linejam.app'
+              'clerk.linejam.mistystep.io'
             ),
-            CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+            CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.mistystep.io',
             ...sentryEnv,
             ...provenanceSecrets,
           },

@@ -267,7 +267,7 @@ describe('play-linejam result validation', () => {
 
   it('rejects non-origin targets and foreign evidence paths', () => {
     const targetWithPath = validResult();
-    targetWithPath.target = 'https://linejam.app/join?code=ABCD';
+    targetWithPath.target = 'https://linejam.mistystep.io/join?code=ABCD';
     expect(() => validatePlayLinejamResult(targetWithPath, schema)).toThrow(
       'target must be an origin without credentials, path, query, or hash'
     );
@@ -282,13 +282,13 @@ describe('play-linejam result validation', () => {
 
   it('rejects invalid target, artifact, and session relationships', () => {
     const nonHttpTarget = validResult();
-    nonHttpTarget.target = 'ftp://linejam.app';
+    nonHttpTarget.target = 'ftp://linejam.mistystep.io';
     expect(() => validatePlayLinejamResult(nonHttpTarget, schema)).toThrow(
       'target must use http or https'
     );
 
     const nonCanonicalTarget = validResult();
-    nonCanonicalTarget.target = 'https://linejam.app:443';
+    nonCanonicalTarget.target = 'https://linejam.mistystep.io:443';
     expect(() => validatePlayLinejamResult(nonCanonicalTarget, schema)).toThrow(
       'target must use its canonical origin form'
     );

@@ -285,7 +285,7 @@ describe('guest-flow evidence verdicts', () => {
           '--allowlist',
           'waivers.json',
           '--base-url',
-          'https://preview.linejam.app',
+          'https://preview.linejam.mistystep.io',
           '--out-dir',
           '/tmp/evidence',
           '--server-log',
@@ -293,7 +293,7 @@ describe('guest-flow evidence verdicts', () => {
         ],
         {
           ...process.env,
-          LINEJAM_BASE_URL: 'https://www.linejam.app',
+          LINEJAM_BASE_URL: 'https://linejam.mistystep.io',
           LINEJAM_EVIDENCE_ALLOWLIST: 'env-waivers.json',
           LINEJAM_EVIDENCE_DIR: '/tmp/env-evidence',
           LINEJAM_EVIDENCE_SERVER_LOG: '/tmp/env-server.log',
@@ -302,7 +302,7 @@ describe('guest-flow evidence verdicts', () => {
       )
     ).toEqual({
       allowlistPath: 'waivers.json',
-      baseUrl: 'https://preview.linejam.app',
+      baseUrl: 'https://preview.linejam.mistystep.io',
       outDir: '/tmp/evidence',
       serverLogPath: '/tmp/server.log',
     });
@@ -311,7 +311,7 @@ describe('guest-flow evidence verdicts', () => {
   it('normalizes malformed guest-flow result payloads before verdicting', () => {
     expect(
       normalizeEvidenceResult(
-        'https://fallback.linejam.app',
+        'https://fallback.linejam.mistystep.io',
         {
           baseUrl: '',
           checks: ['created room', 42],
@@ -324,7 +324,7 @@ describe('guest-flow evidence verdicts', () => {
         new Error('playwright failed')
       )
     ).toEqual({
-      baseUrl: 'https://fallback.linejam.app',
+      baseUrl: 'https://fallback.linejam.mistystep.io',
       checks: ['created room', '42'],
       flowError: 'playwright failed',
       rawVideoPath: null,
@@ -335,9 +335,9 @@ describe('guest-flow evidence verdicts', () => {
 
     expect(
       normalizeEvidenceResult(
-        'https://fallback.linejam.app',
+        'https://fallback.linejam.mistystep.io',
         {
-          baseUrl: 'https://actual.linejam.app',
+          baseUrl: 'https://actual.linejam.mistystep.io',
           checks: null,
           flowError: 'room failed',
           rawVideoPath: '/tmp/raw-video.webm',
@@ -348,7 +348,7 @@ describe('guest-flow evidence verdicts', () => {
         'string failure'
       )
     ).toEqual({
-      baseUrl: 'https://actual.linejam.app',
+      baseUrl: 'https://actual.linejam.mistystep.io',
       checks: [],
       flowError: 'room failed',
       rawVideoPath: '/tmp/raw-video.webm',
@@ -358,8 +358,11 @@ describe('guest-flow evidence verdicts', () => {
     });
 
     expect(
-      normalizeEvidenceResult('https://fallback.linejam.app', null, 'failed')
-        .flowError
+      normalizeEvidenceResult(
+        'https://fallback.linejam.mistystep.io',
+        null,
+        'failed'
+      ).flowError
     ).toBe('failed');
   });
 
@@ -463,25 +466,25 @@ describe('guest-flow evidence verdicts', () => {
     });
     page.emit('requestfailed', {
       method: () => 'POST',
-      url: () => 'https://www.linejam.app/api/guest/session',
+      url: () => 'https://linejam.mistystep.io/api/guest/session',
       failure: () => ({ errorText: 'net::ERR_FAILED' }),
     });
     page.emit('response', {
       status: () => 500,
-      url: () => 'https://www.linejam.app/api/guest/session',
+      url: () => 'https://linejam.mistystep.io/api/guest/session',
       request: () => ({ method: () => 'GET' }),
     });
     page.emit('response', {
       status: () => 200,
-      url: () => 'https://www.linejam.app/host',
+      url: () => 'https://linejam.mistystep.io/host',
       request: () => ({ method: () => 'GET' }),
     });
 
     expect(runtimeErrors).toEqual([
       '[host] pageerror: render exploded',
       '[host] console: Convex mutation failed',
-      '[host] requestfailed: POST https://www.linejam.app/api/guest/session net::ERR_FAILED',
-      '[host] response: 500 GET https://www.linejam.app/api/guest/session',
+      '[host] requestfailed: POST https://linejam.mistystep.io/api/guest/session net::ERR_FAILED',
+      '[host] response: 500 GET https://linejam.mistystep.io/api/guest/session',
     ]);
 
     expect(resolveEvidenceVerdict({ runtimeErrors })).toMatchObject({

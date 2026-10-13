@@ -5,7 +5,8 @@ import {
   type SentryPreviewDrillRouteDependencies,
 } from '@/app/api/internal/sentry-preview-drill/handler';
 
-const url = 'https://preview.linejam.app/api/internal/sentry-preview-drill';
+const url =
+  'https://preview.linejam.mistystep.io/api/internal/sentry-preview-drill';
 
 function request(token = 'drill-secret') {
   return new Request(url, {

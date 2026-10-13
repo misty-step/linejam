@@ -54,7 +54,7 @@ afterEach(() => {
 
 function validEnv(overrides = {}) {
   return {
-    LINEJAM_PLAY_TARGET: 'https://www.linejam.app',
+    LINEJAM_PLAY_TARGET: 'https://linejam.mistystep.io',
     LINEJAM_PLAY_AUTHORITY: '1',
     LINEJAM_PLAY_STATE_DIR: path.join(scratch, 'state'),
     LINEJAM_PLAY_REPO: scratch,
@@ -65,7 +65,7 @@ function validEnv(overrides = {}) {
 describe('gateEnvironment', () => {
   it('accepts an authorized canonical remote origin', () => {
     const config = gateEnvironment(validEnv());
-    expect(config.target).toBe('https://www.linejam.app');
+    expect(config.target).toBe('https://linejam.mistystep.io');
     expect(config.loopback).toBe(false);
     expect(config.players).toBe(4);
   });
@@ -79,22 +79,22 @@ describe('gateEnvironment', () => {
   it('rejects non-origin and non-canonical targets', () => {
     expect(() =>
       gateEnvironment(
-        validEnv({ LINEJAM_PLAY_TARGET: 'https://www.linejam.app/host' })
+        validEnv({ LINEJAM_PLAY_TARGET: 'https://linejam.mistystep.io/host' })
       )
     ).toThrow('invalid_target');
     expect(() =>
       gateEnvironment(
-        validEnv({ LINEJAM_PLAY_TARGET: 'https://user@www.linejam.app' })
+        validEnv({ LINEJAM_PLAY_TARGET: 'https://user@linejam.mistystep.io' })
       )
     ).toThrow('invalid_target');
     expect(() =>
       gateEnvironment(
-        validEnv({ LINEJAM_PLAY_TARGET: 'ftp://www.linejam.app' })
+        validEnv({ LINEJAM_PLAY_TARGET: 'ftp://linejam.mistystep.io' })
       )
     ).toThrow('invalid_target');
     expect(() =>
       gateEnvironment(
-        validEnv({ LINEJAM_PLAY_TARGET: 'https://www.linejam.app:443' })
+        validEnv({ LINEJAM_PLAY_TARGET: 'https://linejam.mistystep.io:443' })
       )
     ).toThrow('invalid_target');
     expect(() =>
@@ -148,24 +148,24 @@ describe('gateEnvironment', () => {
 
 describe('slugifyTarget and buildRunId', () => {
   it('derives schema-safe slugs', () => {
-    expect(slugifyTarget('https://www.linejam.app')).toBe(
-      'https-www-linejam-app'
+    expect(slugifyTarget('https://linejam.mistystep.io')).toBe(
+      'https-linejam-mistystep-io'
     );
     expect(slugifyTarget('http://localhost:3333')).toBe('http-localhost-3333');
   });
 
   it('builds run ids matching the receipt schema', () => {
-    const runId = buildRunId(NOW, 'https://www.linejam.app', ENTROPY);
+    const runId = buildRunId(NOW, 'https://linejam.mistystep.io', ENTROPY);
     expect(runId).toBe(
-      '20260817T120000Z-https-www-linejam-app-00112233445566778899aabbccddeeff-play'
+      '20260817T120000Z-https-linejam-mistystep-io-00112233445566778899aabbccddeeff-play'
     );
     expect(RUN_ID_PATTERN.test(runId)).toBe(true);
   });
 
   it('rejects entropy that breaks the schema', () => {
-    expect(() => buildRunId(NOW, 'https://www.linejam.app', 'XYZ')).toThrow(
-      'invalid_run_id'
-    );
+    expect(() =>
+      buildRunId(NOW, 'https://linejam.mistystep.io', 'XYZ')
+    ).toThrow('invalid_run_id');
   });
 });
 
@@ -173,17 +173,17 @@ describe('renderPrompt', () => {
   it('renders every placeholder', () => {
     expect(
       renderPrompt(PROMPT_TEMPLATE, {
-        TARGET: 'https://www.linejam.app',
+        TARGET: 'https://linejam.mistystep.io',
         RUN_ID: 'rid',
         PLAYER_COUNT: 4,
       })
-    ).toBe('target https://www.linejam.app run rid players 4');
+    ).toBe('target https://linejam.mistystep.io run rid players 4');
   });
 
   it('fails when placeholders remain', () => {
     expect(() =>
       renderPrompt(PROMPT_TEMPLATE, {
-        TARGET: 'https://www.linejam.app',
+        TARGET: 'https://linejam.mistystep.io',
         RUN_ID: 'rid',
       })
     ).toThrow('prompt_template');
@@ -197,7 +197,7 @@ describe('parseReceipt', () => {
     writeFileSync(path.join(dir, 'result.json'), JSON.stringify(body));
   }
 
-  const runId = buildRunId(NOW, 'https://www.linejam.app', ENTROPY);
+  const runId = buildRunId(NOW, 'https://linejam.mistystep.io', ENTROPY);
 
   it('maps a passed receipt', () => {
     writeReceipt(runId, { runId, status: 'passed', durationMs: 600000 });
@@ -358,7 +358,7 @@ describe('runScheduledPlay', () => {
     });
 
     expect(code).toBe(0);
-    const runId = buildRunId(NOW, 'https://www.linejam.app', ENTROPY);
+    const runId = buildRunId(NOW, 'https://linejam.mistystep.io', ENTROPY);
     const stateDir = path.join(scratch, 'state');
     expect(
       existsSync(path.join(stateDir, 'runs', runId, 'qa-run', 'result.json'))
@@ -378,7 +378,7 @@ describe('runScheduledPlay', () => {
     expect(existsSync(path.join(stateDir, 'lock'))).toBe(false);
     expect(calls.some(([file]) => file === 'gh')).toBe(false);
     expect(stdoutSpy).toHaveBeenCalledWith(
-      expect.stringContaining('passed ok players=4 target=www.linejam.app')
+      expect.stringContaining('passed ok players=4 target=linejam.mistystep.io')
     );
     const ompCall = calls.find(([file]) => file === 'omp');
     expect(ompCall).toBeDefined();

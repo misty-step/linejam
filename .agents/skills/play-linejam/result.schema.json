@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://linejam.app/schemas/play-linejam-result.schema.json",
+  "$id": "https://linejam.mistystep.io/schemas/play-linejam-result.schema.json",
   "title": "LinejamPlayResult",
   "description": "Aggregate run results and per-player results from autonomous Linejam browser-play QA runs. Excludes room codes, guest tokens, poem text, and raw UI errors.",
   "type": "object",

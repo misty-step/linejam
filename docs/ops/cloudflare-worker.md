@@ -13,11 +13,9 @@ The production home is `https://linejam.mistystep.io`, in the active Cloudflare
 `mistystep.io` zone. Worker `linejam`, account
 `b069014f6a46558ea9146fb6c4ff8f6c`, is configured in `wrangler.jsonc`.
 `linejam-staging` remains development-scoped, not production acceptance.
-`linejam.app` and `www.linejam.app` are not migration targets. Do not change
-their registrar delegation or attach them to this Worker.
 
 DigitalOcean app `1fb85c4b-18eb-441c-940d-5fda33dc5923` retains the old image
-for rollback. Keep its auto-build disabled before the Cloudflare release;
+for rollback. Its checked-in rollback reference requires auto-build disabled;
 Cloudflare headers alone do not prove removal of the old origin/build owner.
 
 ## One production release owner

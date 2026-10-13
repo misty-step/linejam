@@ -514,7 +514,7 @@
         "app/poem/[id]/opengraph-image-handler.tsx",
         "public/site.webmanifest"
       ],
-      "observation": "Site/poem/recap artwork use related but separate compositions; poem preview metadata says linejam.com while full-card metadata says linejam.app; manifest colors stay white.",
+      "observation": "Site/poem/recap artwork use related but separate compositions; preview and full-card metadata used inconsistent domains in this historical audit; manifest colors stay white.",
       "consequence": "A new identity can drift across installed icon, live interface and shared artifact if only UI tokens change.",
       "recommendation": "Design logo/wordmark, icons, social teaser, full keepsake, print and manifest as a coordinated system; resolve canonical naming/domain with site configuration in the final implementation.",
       "evidence": "source",

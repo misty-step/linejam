@@ -114,7 +114,7 @@ describe('GET /api/guest/session', () => {
       process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
 
       const request = new NextRequest(
-        'https://www.linejam.app/api/guest/session'
+        'https://linejam.mistystep.io/api/guest/session'
       );
       const response = await GET(request);
 
@@ -132,7 +132,7 @@ describe('GET /api/guest/session', () => {
       process.env.NEXT_PUBLIC_CONVEX_URL = '';
 
       const response = await GET(
-        new NextRequest('https://www.linejam.app/api/guest/session')
+        new NextRequest('https://linejam.mistystep.io/api/guest/session')
       );
       const data = await response.json();
 
@@ -468,7 +468,7 @@ describe('GET /api/guest/session', () => {
 
       const clientIp = '203.0.113.7';
       const request = new NextRequest(
-        'https://www.linejam.app/api/guest/session',
+        'https://linejam.mistystep.io/api/guest/session',
         {
           headers: {
             'x-forwarded-for': `${clientIp}, 10.0.0.1`,
@@ -501,7 +501,7 @@ describe('GET /api/guest/session', () => {
       mutationSpy.mockRejectedValue(error);
 
       const response = await GET(
-        new NextRequest('https://www.linejam.app/api/guest/session')
+        new NextRequest('https://linejam.mistystep.io/api/guest/session')
       );
 
       expect(response.status).toBe(429);
@@ -516,7 +516,7 @@ describe('GET /api/guest/session', () => {
       const keys = [];
       for (const clientIp of ['198.51.100.21', '198.51.100.22']) {
         const request = new NextRequest(
-          'https://www.linejam.app/api/guest/session',
+          'https://linejam.mistystep.io/api/guest/session',
           {
             headers: {
               'cf-connecting-ip': clientIp,
@@ -541,7 +541,7 @@ describe('GET /api/guest/session', () => {
       const keys = [];
       for (const spoofedIp of ['198.51.100.31', '198.51.100.32']) {
         const request = new NextRequest(
-          'https://www.linejam.app/api/guest/session',
+          'https://linejam.mistystep.io/api/guest/session',
           {
             headers: {
               'do-connecting-ip': spoofedIp,
@@ -569,7 +569,7 @@ describe('GET /api/guest/session', () => {
       );
 
       const response = await GET(
-        new NextRequest('https://www.linejam.app/api/guest/session')
+        new NextRequest('https://linejam.mistystep.io/api/guest/session')
       );
       const data = await response.json();
 
@@ -625,7 +625,7 @@ describe('GET /api/guest/session', () => {
         );
 
         const response = await GET(
-          new NextRequest('https://www.linejam.app/api/guest/session')
+          new NextRequest('https://linejam.mistystep.io/api/guest/session')
         );
 
         expect(response.status).toBe(500);
@@ -640,7 +640,7 @@ describe('GET /api/guest/session', () => {
       mutationSpy.mockRejectedValue('Rate limit exceeded');
 
       const response = await GET(
-        new NextRequest('https://www.linejam.app/api/guest/session')
+        new NextRequest('https://linejam.mistystep.io/api/guest/session')
       );
       const data = await response.json();
 
@@ -656,7 +656,7 @@ describe('GET /api/guest/session', () => {
       mutationSpy.mockRejectedValue('temporary Convex transport failure');
 
       const response = await GET(
-        new NextRequest('https://www.linejam.app/api/guest/session')
+        new NextRequest('https://linejam.mistystep.io/api/guest/session')
       );
       const data = await response.json();
 
@@ -691,7 +691,7 @@ describe('GET /api/guest/session', () => {
       mutationSpy.mockRejectedValue({ code: 'upstream_down' });
 
       const response = await GET(
-        new NextRequest('https://www.linejam.app/api/guest/session')
+        new NextRequest('https://linejam.mistystep.io/api/guest/session')
       );
       const data = await response.json();
 

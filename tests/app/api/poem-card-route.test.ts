@@ -52,7 +52,9 @@ describe('GET /poem/[id]/card', () => {
   });
 
   function makeRequest(search = '') {
-    return new NextRequest(`https://linejam.app/poem/poem123/card${search}`);
+    return new NextRequest(
+      `https://linejam.mistystep.io/poem/poem123/card${search}`
+    );
   }
 
   const attributedPoem = {
@@ -109,7 +111,7 @@ describe('GET /poem/[id]/card', () => {
   it('renders a private card for a guest participant without publishing it', async () => {
     mockFetchQuery.mockResolvedValue(attributedPoem);
     const request = new NextRequest(
-      'https://linejam.app/poem/poem123/card?mode=dark',
+      'https://linejam.mistystep.io/poem/poem123/card?mode=dark',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,11 +133,14 @@ describe('GET /poem/[id]/card', () => {
 
   it('returns unavailable when Clerk cannot mint a Convex token', async () => {
     mockGetToken.mockRejectedValue(new Error('Clerk is offline'));
-    const request = new NextRequest('https://linejam.app/poem/poem123/card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
+    const request = new NextRequest(
+      'https://linejam.mistystep.io/poem/poem123/card',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }
+    );
 
     const response = await POST(request, {
       params: Promise.resolve({ id: 'poem123' }),
@@ -148,11 +153,14 @@ describe('GET /poem/[id]/card', () => {
   it('falls back to Clerk auth for a malformed guest token object', async () => {
     mockGetToken.mockResolvedValue('convex-jwt');
     mockFetchQuery.mockResolvedValue(attributedPoem);
-    const request = new NextRequest('https://linejam.app/poem/poem123/card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guestToken: { toString: null } }),
-    });
+    const request = new NextRequest(
+      'https://linejam.mistystep.io/poem/poem123/card',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guestToken: { toString: null } }),
+      }
+    );
 
     const response = await POST(request, {
       params: Promise.resolve({ id: 'poem123' }),
@@ -169,11 +177,14 @@ describe('GET /poem/[id]/card', () => {
   it('forwards Clerk Convex auth for a signed-in participant card', async () => {
     mockGetToken.mockResolvedValue('convex-jwt');
     mockFetchQuery.mockResolvedValue(attributedPoem);
-    const request = new NextRequest('https://linejam.app/poem/poem123/card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
+    const request = new NextRequest(
+      'https://linejam.mistystep.io/poem/poem123/card',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }
+    );
 
     const response = await POST(request, {
       params: Promise.resolve({ id: 'poem123' }),
