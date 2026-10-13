@@ -4,7 +4,7 @@ const STATIC_CLERK_SOURCES = [
   'https://api.clerk.com',
   // Production Clerk serves clerk-js and its frontend API from the custom
   // domain; omitting it blocks auth entirely and dead-ends every room flow.
-  'https://clerk.linejam.app',
+  'https://clerk.linejam.mistystep.io',
 ];
 
 const LOCAL_CONNECT_SOURCES = [
