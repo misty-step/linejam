@@ -22,6 +22,7 @@
  *   linejam-cli favorites list --guest-token TOKEN
  */
 
+import { pathToFileURL } from 'node:url';
 import { ConvexError } from 'convex/values';
 import {
   createLinejamClient,
@@ -228,7 +229,10 @@ async function main() {
   await run(process.argv.slice(2));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((error) => {
     process.stderr.write(
       error instanceof ConvexError
