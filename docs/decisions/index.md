@@ -1,7 +1,7 @@
 # Decisions
 
 A steering veto list. Open it before proposing a new primitive, surface, or
-storage home. Write a record after deciding *not* to build something the next
+storage home. Write a record after deciding _not_ to build something the next
 agent will otherwise re-propose. Do not write one per PR. Start from
 [0000-template.md](0000-template.md); see [primitives.yaml](../architecture/primitives.yaml).
 

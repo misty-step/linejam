@@ -6,14 +6,17 @@
 - **Powder:** `<item id, optional>`
 
 ## Context
+
 What proposal or situation forced this. A few sentences on system state and constraints,
 with links to code. Written after the decision, not as a design brief.
 
 ## Decision
+
 One or two sentences. Usually a product-shaped no ("we will not build X"). Name the
 existing primitive that covers the need instead.
 
 ## Consequences
+
 What stays simple, what gets harder, what is rejected at parse/lint time if anything,
 and the **revisit-if**: the concrete condition that reopens this.
 
