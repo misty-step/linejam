@@ -21,7 +21,7 @@ primitives:
     group: auth
     name: Guest and account identity
     summary: Signed guest session issuance and Clerk identity resolution.
-    code: [app/api/guest/, lib/clerk/, lib/guestSession.ts, lib/guestToken.ts, convex/lib/auth.ts]
+    code: [app/api/guest/session/, lib/clerk/, lib/guestSession.ts, lib/guestToken.ts, convex/guestSessions.ts, convex/users.ts, convex/lib/guestToken.ts, convex/lib/sessionLifecycle.ts, convex/lib/auth.ts]
     docs: [docs/ARCHITECTURE.md]
     decisions: ['0001']
   - id: room-lifecycle
@@ -30,13 +30,14 @@ primitives:
     summary: Shared admission, membership, presence and match lifecycle composed by Linejam.
     code: [vendor/parlor/, convex/rooms.ts, convex/presence.ts, convex/abandonment.ts, convex/lib/parlor.ts]
     docs: [docs/ARCHITECTURE.md]
+    decisions: ['0007']
   - id: poem-game
     group: data
     name: Nine-round poems and artifacts
     summary: Assignment, accepted lines, captured bylines, private archives and explicit publication.
-    code: [convex/]
+    code: [convex/game.ts, convex/poems.ts, convex/archive.ts, convex/shares.ts, convex/favorites.ts, convex/lib/assignmentMatrix.ts, convex/lib/gameRules.ts, convex/lib/assignPoemReaders.ts, convex/lib/poemAuthorKey.ts, convex/lib/revealAuthorization.ts, convex/lib/wordCount.ts, convex/lib/lineText.ts, convex/lib/sharing.ts]
     docs: [docs/ARCHITECTURE.md, docs/sharing-privacy.md, docs/ops/data-retention.md]
-    decisions: ['0002', '0003', '0008']
+    decisions: ['0002', '0003', '0007', '0008']
   - id: player-design
     group: design
     name: Player components and identity tokens

@@ -1,0 +1,94 @@
+{
+  "schema": "foundation-baseline-extension/1",
+  "reason": "Foundation Standard 1.9.0 re-pin explicitly changes mode from enforced to bootstrap: the pinned checker rejects any baseline in enforced mode, and the 22 listed gaps lack required evidence or structure. Existing satisfied dispositions are preserved; no CI receipt is fabricated. All entries expire 2026-11-12 (30 days after 2026-10-13), with owner Chips. Pending FND-REL-001, FND-ALR-001 and FND-INC-001 use the checker-required ops:ship, ops:alert and ops:incident keys; every other pending disposition uses obl:<id>. The four doc/entry gaps are structural gaps, not extra pending obligations. This extension records the enforcement downgrade for designated reviewer assessment; it does not establish approval or completion. skills-lock.json is explicitly in scope in the original re-pin brief and required by Foundation 1.9.0 for the existing vendored .agents/skills; it records local source hashes without changing skill contents.",
+  "entries": [
+    {
+      "gap": "doc:AGENTS.md",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "doc:DOMAIN.md",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "doc:runbook",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "entry:check",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-ACT-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-BRD-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-CHG-002",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-CIT-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-DAT-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-DEF-ACTIVITY-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-DEF-SENTRY-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-FBK-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-OBS-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-PRF-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-REV-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-SEC-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-TRN-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-USE-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "obl:FND-WS-001",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "ops:alert",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "ops:incident",
+      "expires": "2026-11-12"
+    },
+    {
+      "gap": "ops:ship",
+      "expires": "2026-11-12"
+    }
+  ]
+}
