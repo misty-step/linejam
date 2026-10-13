@@ -10,11 +10,11 @@ import {
 } from '@/scripts/ops/check-digitalocean-app-drift.mjs';
 
 const manifest = {
-  schemaVersion: 1 as const,
-  deploymentAuthority: {
+  schemaVersion: 2 as const,
+  rollbackReference: {
     source: { repository: 'misty-step/linejam', branch: 'master' },
-    frontendProductionOwner: { app: 'linejam', component: 'web' },
-    convexProductionOwner: {
+    frontendTarget: { app: 'linejam', component: 'web' },
+    convexBuildReference: {
       app: 'linejam',
       component: 'web',
       buildCommand: 'pnpm install --frozen-lockfile && pnpm build',
@@ -26,9 +26,7 @@ const manifest = {
       name: 'linejam',
       region: 'nyc',
       features: ['buildpack-stack=ubuntu-22'],
-      domains: [
-        { domain: 'linejam.app', type: 'PRIMARY', zone: 'linejam.app' },
-      ],
+      domains: [{ domain: 'linejam.mistystep.io', type: 'ALIAS' }],
       ingress: [{ pathPrefix: '/', component: 'web' }],
       services: [
         {
@@ -36,7 +34,7 @@ const manifest = {
           source: {
             repository: 'misty-step/linejam',
             branch: 'master',
-            deployOnPush: true,
+            deployOnPush: false,
           },
           buildCommand: 'pnpm install --frozen-lockfile && pnpm build',
           runCommand: 'pnpm run start:next',
@@ -122,9 +120,7 @@ function liveApp() {
       name: 'linejam',
       region: 'nyc',
       features: ['buildpack-stack=ubuntu-22'],
-      domains: [
-        { domain: 'linejam.app', type: 'PRIMARY', zone: 'linejam.app' },
-      ],
+      domains: [{ domain: 'linejam.mistystep.io', type: 'ALIAS' }],
       ingress: {
         rules: [
           {
@@ -139,7 +135,7 @@ function liveApp() {
           github: {
             repo: 'misty-step/linejam',
             branch: 'master',
-            deploy_on_push: true,
+            deploy_on_push: false,
           },
           build_command: 'pnpm install --frozen-lockfile && pnpm build',
           run_command: 'pnpm run start:next',
@@ -222,17 +218,18 @@ function liveAppFromExpected(expected: ExpectedApp) {
 }
 
 describe('DigitalOcean app drift', () => {
-  it('loads the committed values-free production contract', () => {
+  it('loads the committed values-free rollback reference with auto-build held', () => {
     const committed = loadDigitalOceanAppManifest();
 
     expect(committed.apps.map((app: { name: string }) => app.name)).toEqual([
       'linejam',
     ]);
     expect(JSON.stringify(committed)).not.toContain('value');
-    expect(committed.deploymentAuthority).toMatchObject({
-      frontendProductionOwner: { app: 'linejam', component: 'web' },
-      convexProductionOwner: { app: 'linejam', component: 'web' },
+    expect(committed.rollbackReference).toMatchObject({
+      frontendTarget: { app: 'linejam', component: 'web' },
+      convexBuildReference: { app: 'linejam', component: 'web' },
     });
+    expect(committed.apps[0].services[0].source.deployOnPush).toBe(false);
   });
 
   it('accepts an externally managed alias without hiding later zone drift', () => {
@@ -268,7 +265,7 @@ describe('DigitalOcean app drift', () => {
     expect(() => validateDigitalOceanAppManifest(expected)).toThrow();
   });
 
-  it('validates a values-free manifest with one frontend and Convex owner', () => {
+  it('validates a values-free manifest with one frontend and Convex build reference', () => {
     expect(validateDigitalOceanAppManifest(manifest)).toEqual(manifest);
     expect(() =>
       validateDigitalOceanAppManifest({
@@ -308,13 +305,13 @@ describe('DigitalOcean app drift', () => {
     },
     {
       name: 'an unsupported schema version',
-      mutate: (copy: typeof manifest) => ({ ...copy, schemaVersion: 2 }),
-      message: 'manifest.schemaVersion must be 1',
+      mutate: (copy: typeof manifest) => ({ ...copy, schemaVersion: 1 }),
+      message: 'manifest.schemaVersion must be 2',
     },
     {
       name: 'a non-boolean deploy-on-push flag',
       mutate: (copy: typeof manifest) => {
-        Reflect.set(copy.deploymentAuthority.source, 'deployOnPush', 'yes');
+        Reflect.set(copy.rollbackReference.source, 'deployOnPush', 'yes');
         return copy;
       },
       message: 'deployOnPush must be boolean',
@@ -439,12 +436,12 @@ describe('DigitalOcean app drift', () => {
       message: 'secret must be boolean',
     },
     {
-      name: 'an unresolved frontend owner',
+      name: 'an unresolved frontend rollback target',
       mutate: (copy: typeof manifest) => {
-        copy.deploymentAuthority.frontendProductionOwner.component = 'missing';
+        copy.rollbackReference.frontendTarget.component = 'missing';
         return copy;
       },
-      message: 'frontend production owner does not resolve',
+      message: 'frontend rollback target does not resolve',
     },
     {
       name: 'domains on a non-frontend app',
@@ -454,10 +451,10 @@ describe('DigitalOcean app drift', () => {
         frontend.name = 'other';
         frontend.domains = [];
         copy.apps.push(frontend);
-        copy.deploymentAuthority.frontendProductionOwner.app = 'other';
+        copy.rollbackReference.frontendTarget.app = 'other';
         return copy;
       },
-      message: 'Exactly the frontend production owner app must declare domains',
+      message: 'Exactly the frontend rollback target app must declare domains',
     },
     {
       name: 'no frontend ingress',
@@ -465,19 +462,19 @@ describe('DigitalOcean app drift', () => {
         copy.apps[0].ingress = [];
         return copy;
       },
-      message: 'must own a declared ingress route',
+      message: 'must have a declared ingress route',
     },
     {
       name: 'a mismatched Convex build command',
       mutate: (copy: typeof manifest) => {
-        copy.deploymentAuthority.convexProductionOwner.buildCommand =
+        copy.rollbackReference.convexBuildReference.buildCommand =
           'pnpm convex deploy';
         return copy;
       },
       message: 'build command must match its service',
     },
     {
-      name: 'multiple Convex build-command owners',
+      name: 'multiple retained Convex build-command matches',
       mutate: (copy: typeof manifest) => {
         const duplicateOwner = structuredClone(copy.apps[0]);
         duplicateOwner.id = 'other';
@@ -487,7 +484,8 @@ describe('DigitalOcean app drift', () => {
         copy.apps.push(duplicateOwner);
         return copy;
       },
-      message: 'Exactly one declared service must own the Convex production',
+      message:
+        'Exactly one retained service must match the Convex build reference',
     },
   ])('rejects $name', ({ mutate, message }) => {
     expect(() =>
@@ -495,7 +493,18 @@ describe('DigitalOcean app drift', () => {
     ).toThrow(message);
   });
 
-  it('rejects services that diverge from the declared source authority', () => {
+  it.each([true, undefined])(
+    'rejects auto-build not explicitly held: %s',
+    (flag) => {
+      const copy = manifestCopy();
+      Reflect.set(copy.apps[0].services[0].source, 'deployOnPush', flag);
+      expect(() => validateDigitalOceanAppManifest(copy)).toThrow(
+        'deployOnPush disabled'
+      );
+    }
+  );
+
+  it('rejects services that diverge from the retained source reference', () => {
     expect(() =>
       validateDigitalOceanAppManifest({
         ...manifest,
@@ -529,6 +538,18 @@ describe('DigitalOcean app drift', () => {
     expect(
       diffDigitalOceanApp(manifest.apps[0], normalizeDigitalOceanApp(liveApp()))
     ).toEqual([]);
+  });
+
+  it('detects a live auto-build revival against the retained hold', () => {
+    const live = liveApp();
+    live.spec.services[0].github.deploy_on_push = true;
+    expect(
+      diffDigitalOceanApp(manifest.apps[0], normalizeDigitalOceanApp(live))
+    ).toContainEqual({
+      path: 'services.web.source.deployOnPush',
+      expected: false,
+      actual: true,
+    });
   });
 
   it('compares features without treating ordering as drift', () => {
@@ -690,12 +711,12 @@ describe('DigitalOcean app drift', () => {
     );
   });
 
-  it('checks the sole production app from the committed manifest', () => {
+  it('checks the retained app from the committed manifest', () => {
     // SAFETY: Manifest loader returns validated apps manifest conforming to { apps: ExpectedApp[] }.
-    const production = loadDigitalOceanAppManifest() as {
+    const retained = loadDigitalOceanAppManifest() as {
       apps: ExpectedApp[];
     };
-    const liveApps = production.apps.map(liveAppFromExpected);
+    const liveApps = retained.apps.map(liveAppFromExpected);
     const runner = vi.fn((_command: string, args: string[]) => {
       if (args[1] === 'list') {
         return { status: 0, stdout: JSON.stringify(liveApps) };
@@ -716,7 +737,7 @@ describe('DigitalOcean app drift', () => {
     });
     expect(runner).toHaveBeenCalledWith(
       'doctl',
-      ['apps', 'get', production.apps[0]?.id, '--output', 'json'],
+      ['apps', 'get', retained.apps[0]?.id, '--output', 'json'],
       expect.any(Object)
     );
   });

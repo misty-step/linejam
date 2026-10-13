@@ -1,15 +1,15 @@
 {
-  "schemaVersion": 1,
-  "deploymentAuthority": {
+  "schemaVersion": 2,
+  "rollbackReference": {
     "source": {
       "repository": "misty-step/linejam",
       "branch": "master"
     },
-    "frontendProductionOwner": {
+    "frontendTarget": {
       "app": "linejam",
       "component": "web"
     },
-    "convexProductionOwner": {
+    "convexBuildReference": {
       "app": "linejam",
       "component": "web",
       "buildCommand": "pnpm install --frozen-lockfile && pnpm build"
@@ -23,18 +23,8 @@
       "features": ["buildpack-stack=ubuntu-22"],
       "domains": [
         {
-          "domain": "linejam.app",
-          "type": "PRIMARY",
-          "zone": "linejam.app"
-        },
-        {
           "domain": "linejam.mistystep.io",
           "type": "ALIAS"
-        },
-        {
-          "domain": "www.linejam.app",
-          "type": "ALIAS",
-          "zone": "linejam.app"
         }
       ],
       "ingress": [{ "pathPrefix": "/", "component": "web" }],
@@ -44,7 +34,7 @@
           "source": {
             "repository": "misty-step/linejam",
             "branch": "master",
-            "deployOnPush": true
+            "deployOnPush": false
           },
           "buildCommand": "pnpm install --frozen-lockfile && pnpm build",
           "runCommand": "pnpm run start:next",

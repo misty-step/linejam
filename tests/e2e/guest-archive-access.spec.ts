@@ -9,8 +9,8 @@ import {
  * Regression coverage for linejam-942.
  *
  * Live prod bug (2026-07-06): tapping the header archive icon as a guest
- * redirected (middleware.ts protecting /me/*) to accounts.linejam.app —
- * Clerk's hosted Account Portal, stock violet, "Secured by Clerk" — with no
+ * redirected (middleware.ts protecting /me/*) to Clerk's hosted Account
+ * Portal, stock violet, "Secured by Clerk" — with no
  * way back to the poems the guest just wrote. /me/poems and /me/profile
  * already resolved guest identity themselves via the guest cookie; the
  * middleware gate was the only thing standing between a guest and their own

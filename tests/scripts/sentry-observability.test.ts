@@ -372,7 +372,7 @@ it('reports every declared identity and field drift', () => {
   Object.assign(snapshot.uptimeMonitors[0], {
     status: 'disabled',
     environment: null,
-    url: 'https://www.linejam.app/',
+    url: 'https://linejam.mistystep.io/',
     method: 'POST',
     intervalSeconds: 300,
     timeoutMs: 1,

@@ -35,7 +35,6 @@
       // `wrangler secret put <NAME> --env staging` from the approved store.
     },
     // Production home: linejam.mistystep.io in the active mistystep.io zone.
-    // linejam.app and www are not deployment or DNS migration targets.
     // Deploy: pnpm deploy:cf:production (after secrets are bound)
     "production": {
       "name": "linejam",

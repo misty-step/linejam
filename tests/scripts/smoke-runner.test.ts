@@ -88,7 +88,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-2',
       spawnProcess: spawnMock,
@@ -107,7 +107,7 @@ describe('runSmoke', () => {
         cwd: REPO_ROOT,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: expect.objectContaining({
-          PLAYWRIGHT_BASE_URL: 'https://www.linejam.app',
+          PLAYWRIGHT_BASE_URL: 'https://linejam.mistystep.io',
         }),
       })
     );
@@ -119,7 +119,7 @@ describe('runSmoke', () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('smoke stdout');
     expect(result.stderr).toContain('smoke stderr');
-    expect(result.baseUrl).toBe('https://www.linejam.app');
+    expect(result.baseUrl).toBe('https://linejam.mistystep.io');
     expect(result.runner).toBe('dagger');
   });
 
@@ -129,7 +129,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-playwright-runner',
       runner: 'playwright',
@@ -156,7 +156,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://preview.linejam.app',
+      baseUrl: 'https://preview.linejam.mistystep.io',
       eventName: 'incident.opened',
       deliveryId: 'evt-3',
       spawnProcess: spawnMock,
@@ -180,7 +180,7 @@ describe('runSmoke', () => {
     let settled = false;
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'health_check.down',
       deliveryId: 'evt-timeout',
       spawnProcess: spawnMock,
@@ -210,7 +210,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.regression',
       deliveryId: 'evt-error',
       spawnProcess: spawnMock,
@@ -239,7 +239,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-default-timeout',
       spawnProcess: spawnMock,
@@ -263,7 +263,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'health_check.down',
       deliveryId: 'evt-timeout-force-kill',
       spawnProcess: spawnMock,
@@ -289,7 +289,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-capped-output',
       spawnProcess: spawnMock,
@@ -315,8 +315,8 @@ describe('runSmoke', () => {
     process.env.STAGEHAND_MODEL_API_KEY = 'stagehand-model-key';
     process.env.LINEJAM_PROMPTFOO_CRITIC = '1';
     process.env.LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST = '1';
-    process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS = 'https://www.linejam.app';
-    process.env.LINEJAM_ALLOWED_SMOKE_HOSTS = 'www.linejam.app';
+    process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS = 'https://linejam.mistystep.io';
+    process.env.LINEJAM_ALLOWED_SMOKE_HOSTS = 'linejam.mistystep.io';
     process.env.LINEJAM_ALLOWED_SMOKE_HOST_PATTERN = '^linejam';
 
     const child = createMockChild(0);
@@ -324,7 +324,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-env',
       spawnProcess: spawnMock,
@@ -339,12 +339,12 @@ describe('runSmoke', () => {
       ['ci:dagger:smoke'],
       expect.objectContaining({
         env: expect.objectContaining({
-          PLAYWRIGHT_BASE_URL: 'https://www.linejam.app',
+          PLAYWRIGHT_BASE_URL: 'https://linejam.mistystep.io',
           PLAYWRIGHT_BROWSERS_PATH: '/ms-playwright',
           CLERK_SECRET_KEY: 'clerk-secret',
           LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST: '1',
-          LINEJAM_ALLOWED_SMOKE_ORIGINS: 'https://www.linejam.app',
-          LINEJAM_ALLOWED_SMOKE_HOSTS: 'www.linejam.app',
+          LINEJAM_ALLOWED_SMOKE_ORIGINS: 'https://linejam.mistystep.io',
+          LINEJAM_ALLOWED_SMOKE_HOSTS: 'linejam.mistystep.io',
           LINEJAM_ALLOWED_SMOKE_HOST_PATTERN: '^linejam',
           LINEJAM_PROMPTFOO_CRITIC: '1',
           STAGEHAND_MODEL: 'openai/gpt-4.1-mini',
@@ -370,7 +370,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://preview.linejam.app',
+      baseUrl: 'https://preview.linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-agentic',
       spawnProcess: spawnMock,
@@ -405,7 +405,7 @@ describe('runSmoke', () => {
         '--mission',
         'signed-in-host-guest-join',
         '--base-url',
-        'https://preview.linejam.app',
+        'https://preview.linejam.mistystep.io',
       ],
       expect.objectContaining({ cwd: REPO_ROOT })
     );
@@ -428,7 +428,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://preview.linejam.app',
+      baseUrl: 'https://preview.linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-agentic-skipped',
       spawnProcess: spawnMock,
@@ -460,7 +460,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const pending = runSmoke({
-      baseUrl: 'https://preview.linejam.app',
+      baseUrl: 'https://preview.linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-agentic-timeout',
       spawnProcess: spawnMock,
@@ -485,7 +485,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-invalid-runner',
       runner: 'bogus',
@@ -501,12 +501,12 @@ describe('runSmoke', () => {
 
   it('fails fast when smoke allowlisting rejects the base url', async () => {
     process.env.LINEJAM_ENFORCE_SMOKE_URL_ALLOWLIST = '1';
-    process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS = 'https://www.linejam.app';
+    process.env.LINEJAM_ALLOWED_SMOKE_ORIGINS = 'https://linejam.mistystep.io';
 
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
-      baseUrl: 'https://preview.linejam.app',
+      baseUrl: 'https://preview.linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-untrusted-origin',
     });
@@ -571,7 +571,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-missing-clerk-creds',
     });
@@ -598,7 +598,7 @@ describe('runSmoke', () => {
     const { runSmoke } = await import('@/scripts/ops/run-smoke.mjs');
 
     const result = await runSmoke({
-      baseUrl: 'https://www.linejam.app',
+      baseUrl: 'https://linejam.mistystep.io',
       eventName: 'error.new_class',
       deliveryId: 'evt-template-missing',
     });

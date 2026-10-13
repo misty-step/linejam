@@ -17,7 +17,7 @@ describe('convex/auth.config', () => {
   it('registers Clerk as a Convex auth provider when CLERK_JWT_ISSUER_DOMAIN is set', async () => {
     await withEnv(
       {
-        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.app',
+        CLERK_JWT_ISSUER_DOMAIN: 'https://clerk.linejam.mistystep.io',
         CLERK_FRONTEND_API_URL: undefined,
       },
       async () => {
@@ -26,7 +26,7 @@ describe('convex/auth.config', () => {
         expect(config).toEqual({
           providers: [
             {
-              domain: 'https://clerk.linejam.app',
+              domain: 'https://clerk.linejam.mistystep.io',
               applicationID: 'convex',
             },
           ],
@@ -61,7 +61,8 @@ describe('convex/auth.config', () => {
       {
         CLERK_JWT_ISSUER_DOMAIN: undefined,
         CLERK_FRONTEND_API_URL: undefined,
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'dummy_key_Y2xlcmsubGluZWphbS5hcHAk',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
+          'dummy_key_Y2xlcmsubGluZWphbS5taXN0eXN0ZXAuaW8k',
       },
       async () => {
         const config = (await import('../../convex/auth.config')).default;
@@ -69,7 +70,7 @@ describe('convex/auth.config', () => {
         expect(config).toEqual({
           providers: [
             {
-              domain: 'https://clerk.linejam.app',
+              domain: 'https://clerk.linejam.mistystep.io',
               applicationID: 'convex',
             },
           ],

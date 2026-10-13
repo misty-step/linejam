@@ -185,35 +185,35 @@ function validateService(service, label) {
 }
 
 /**
- * Validate the deliberately sanitized provider contract. It is not a provider
- * export: value fields are forbidden at every depth.
+ * Validate the values-free retained-provider rollback reference, not production
+ * release authority. Auto-build must stay disabled; build commands are provenance.
  */
 export function validateDigitalOceanAppManifest(candidate) {
   assertValuesFree(candidate);
   assertExactKeys(
     candidate,
-    ['schemaVersion', 'deploymentAuthority', 'apps'],
+    ['schemaVersion', 'rollbackReference', 'apps'],
     'manifest'
   );
-  if (candidate.schemaVersion !== 1) {
-    throw new Error('manifest.schemaVersion must be 1.');
+  if (candidate.schemaVersion !== 2) {
+    throw new Error('manifest.schemaVersion must be 2.');
   }
   assertExactKeys(
-    candidate.deploymentAuthority,
-    ['source', 'frontendProductionOwner', 'convexProductionOwner'],
-    'manifest.deploymentAuthority'
+    candidate.rollbackReference,
+    ['source', 'frontendTarget', 'convexBuildReference'],
+    'manifest.rollbackReference'
   );
   validateSource(
-    candidate.deploymentAuthority.source,
-    'manifest.deploymentAuthority.source'
+    candidate.rollbackReference.source,
+    'manifest.rollbackReference.source'
   );
   validateOwner(
-    candidate.deploymentAuthority.frontendProductionOwner,
-    'manifest.deploymentAuthority.frontendProductionOwner'
+    candidate.rollbackReference.frontendTarget,
+    'manifest.rollbackReference.frontendTarget'
   );
   validateOwner(
-    candidate.deploymentAuthority.convexProductionOwner,
-    'manifest.deploymentAuthority.convexProductionOwner',
+    candidate.rollbackReference.convexBuildReference,
+    'manifest.rollbackReference.convexBuildReference',
     true
   );
   if (!Array.isArray(candidate.apps) || candidate.apps.length === 0) {
@@ -279,74 +279,72 @@ export function validateDigitalOceanAppManifest(candidate) {
     );
   });
 
-  const findOwnerService = (owner, label) => {
-    const app = candidate.apps.find((entry) => entry.name === owner.app);
+  const findReferenceService = (reference, label) => {
+    const app = candidate.apps.find((entry) => entry.name === reference.app);
     const service = app?.services.find(
-      (entry) => entry.name === owner.component
+      (entry) => entry.name === reference.component
     );
     if (!service)
       throw new Error(`${label} does not resolve to a declared service.`);
     return service;
   };
-  const frontendOwner = candidate.deploymentAuthority.frontendProductionOwner;
-  findOwnerService(frontendOwner, 'frontend production owner');
+  const frontendTarget = candidate.rollbackReference.frontendTarget;
+  findReferenceService(frontendTarget, 'frontend rollback target');
   const domainApps = candidate.apps.filter((app) => app.domains.length > 0);
-  if (domainApps.length !== 1 || domainApps[0].name !== frontendOwner.app) {
+  if (domainApps.length !== 1 || domainApps[0].name !== frontendTarget.app) {
     throw new Error(
-      'Exactly the frontend production owner app must declare domains.'
+      'Exactly the frontend rollback target app must declare domains.'
     );
   }
   if (
     !domainApps[0].ingress.some(
-      (rule) => rule.component === frontendOwner.component
+      (rule) => rule.component === frontendTarget.component
     )
   ) {
     throw new Error(
-      'Frontend production owner must own a declared ingress route.'
+      'Frontend rollback target must have a declared ingress route.'
     );
   }
-  const convexService = findOwnerService(
-    candidate.deploymentAuthority.convexProductionOwner,
-    'Convex production owner'
+  const convexService = findReferenceService(
+    candidate.rollbackReference.convexBuildReference,
+    'Retained Convex build reference'
   );
   if (
     convexService.buildCommand !==
-    candidate.deploymentAuthority.convexProductionOwner.buildCommand
+    candidate.rollbackReference.convexBuildReference.buildCommand
   ) {
-    throw new Error(
-      'Convex production owner build command must match its service.'
-    );
+    throw new Error('Retained Convex build command must match its service.');
   }
 
-  const authoritySource = candidate.deploymentAuthority.source;
+  const sourceReference = candidate.rollbackReference.source;
   const allServices = candidate.apps.flatMap((app) =>
     app.services.map((service) => ({ app: app.name, service }))
   );
   for (const { app, service } of allServices) {
     if (
-      service.source.repository !== authoritySource.repository ||
-      service.source.branch !== authoritySource.branch ||
-      service.source.deployOnPush !== true
+      service.source.repository !== sourceReference.repository ||
+      service.source.branch !== sourceReference.branch ||
+      service.source.deployOnPush !== false
     ) {
       throw new Error(
-        `manifest service ${app}/${service.name} must use the declared source with deployOnPush enabled.`
+        `manifest service ${app}/${service.name} must use the declared source with deployOnPush disabled.`
       );
     }
   }
-  const convexCommandOwners = allServices.filter(
+  const convexCommandServices = allServices.filter(
     ({ service }) =>
       service.buildCommand ===
-      candidate.deploymentAuthority.convexProductionOwner.buildCommand
+      candidate.rollbackReference.convexBuildReference.buildCommand
   );
   if (
-    convexCommandOwners.length !== 1 ||
-    convexCommandOwners[0].app !==
-      candidate.deploymentAuthority.convexProductionOwner.app ||
-    convexCommandOwners[0].service.name !==
-      candidate.deploymentAuthority.convexProductionOwner.component
+    convexCommandServices.length !== 1 ||
+    convexCommandServices[0].app !==
+      candidate.rollbackReference.convexBuildReference.app ||
+    convexCommandServices[0].service.name !==
+      candidate.rollbackReference.convexBuildReference.component
   ) {
     throw new Error(
-      'Exactly one declared service must own the Convex production build command.'
+      'Exactly one retained service must match the Convex build reference.'
     );
   }
 
@@ -621,7 +619,7 @@ export function runDigitalOceanDriftCheck({
   );
   const liveSourceApps = sourceApps(
     inventory,
-    validated.deploymentAuthority.source
+    validated.rollbackReference.source
   );
   const expectedIds = validated.apps.map((app) => app.id).sort();
   const liveIds = liveSourceApps.map((app) => app.id);

@@ -12,11 +12,13 @@ provider, and Sentry the incident and monitoring platform.
 | Web application | `linejam`         | `misty-step/linejam`, branch `master` | `/api/health`    |
 
 The Cloudflare Production workflow releases the exact successful `master` CI
-source. `linejam.app` and `www.linejam.app` are not deployment targets.
+source to the canonical origin without `www`.
 
 The DigitalOcean instructions and [`config/digitalocean-apps.json`](../config/digitalocean-apps.json)
-below are retained-provider recovery references. Keep DO auto-build disabled
-during this cutover; DO destruction remains controller-owned.
+below are retained-provider recovery references, not production release authority.
+The values-free rollback contract preserves source/build provenance and the
+nonretired domain alias, requires `deployOnPush: false`, and grants no rebuild
+permission. Keep DO auto-build disabled; DO destruction remains controller-owned.
 
 ## Release ownership and public history
 
@@ -174,7 +176,7 @@ manually bump package metadata or relabel the retained v1.x archive to force a
 pass. A publication failure after merge requires inspection of the exact tag
 and GitHub Release before a rerun; no local check proves remote publication.
 
-## Prerequisites
+## Retained DigitalOcean recovery prerequisites
 
 - `doctl` authenticated to the Misty Step DigitalOcean account
 - App Platform GitHub access to `misty-step/linejam`
@@ -188,7 +190,7 @@ exports can contain encrypted provider values and belong in a mode-`0600`
 temporary file only. The committed topology contract is separately constructed
 and validated to reject every environment `value` field.
 
-## Discover the live apps
+## Inspect the retained DigitalOcean app
 
 Resolve IDs from the provider instead of copying an old deployment ID:
 
@@ -208,7 +210,7 @@ doctl apps get "$LINEJAM_APP_ID" -o json |
   jq '.[0] | {name: .spec.name, ingress: .default_ingress, deployment: .active_deployment.id, phase: .active_deployment.phase}'
 ```
 
-The active deployment must report `ACTIVE` before a release is accepted.
+The retained deployment must report `ACTIVE` before it can be a recovery target.
 
 Reconcile every meaningful, non-value provider field against the committed
 contract with:
@@ -227,7 +229,7 @@ paths; provider stdout and stderr are never replayed. A component, build
 command, route, source, health check, environment name/type/scope, domain, or
 sizing change is meaningful drift.
 
-## Environment contract
+## Retained DigitalOcean environment contract
 
 `GUEST_TOKEN_SECRET` is load-bearing: the App Platform web service and Convex
 must receive the identical value. A mismatch breaks guest-token verification.
@@ -309,7 +311,7 @@ Do not remove a suppression or resend until its cause is understood. The CLI can
 inspect and change supported application configuration and call Backend/Platform
 APIs; do not describe the Dashboard-only operations as automated.
 
-### Rolling-deploy skew protection
+### Retained DigitalOcean rolling-deploy reference
 
 App Platform can briefly serve a browser bundle from one release against a
 server from the next release. Two production-only variables make that handoff
@@ -368,7 +370,7 @@ The reconciler invokes only `convex env ... list --names-only`, rejects any
 non-name output without echoing it, and fails on either a missing required name
 or an undeclared live name. The hosted production build runs this reconciliation
 after `convex deploy` and then runs the signed guest-token parity dry run before
-App Platform can activate the web build. A present-but-different
+Cloudflare can activate the Worker version. A present-but-different
 `GUEST_TOKEN_SECRET` therefore fails deployment even though both providers have
 a variable with the right name.
 
@@ -390,7 +392,7 @@ by the hosted bootstrap in the target Convex environment. Runtime health uses
 it instead of guessing from the `convex.cloud` hostname, which is shared by dev,
 preview, and production deployments.
 
-The production App Platform build executes the Convex deploy before the Next.js
+The Cloudflare release build executes the Convex deploy before the OpenNext
 build. Local checks never deploy production Convex code; the separately
 commissioned shared-dev sync rejects production unconditionally. Production
 operations require explicit operator authority and the hosted deployment guards.
@@ -458,20 +460,14 @@ The declared recovery objectives are **RPO 24 hours** (the export is daily) and
 and proof). Existing GitHub drill records remain historical evidence. These objectives assume the operator credential plane and a
 working Convex CLI are available; they do not authorize a production import.
 
-## Deploy the web application
+## Deploy the web application (Cloudflare)
 
-The normal path is declarative:
+The normal path is the [Cloudflare release workflow](ops/cloudflare-worker.md):
 
 1. Merge a green change to `master`.
-2. App Platform detects the source update and deploys `linejam`.
-3. Confirm the active deployment source SHA and `ACTIVE` phase.
+2. Cloudflare Production consumes the exact successful protected-master CI source.
+3. Confirm the served deployment source SHA.
 4. Exercise the public health, host, and join routes.
-
-To rebuild the current `master` source without changing configuration:
-
-```bash
-doctl apps create-deployment "$LINEJAM_APP_ID" --force-rebuild --wait
-```
 
 Acceptance probes:
 
@@ -479,7 +475,6 @@ Acceptance probes:
 curl -fsS https://linejam.mistystep.io/api/health
 curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.mistystep.io/host
 curl -fsS -o /dev/null -w '%{http_code}\n' https://linejam.mistystep.io/join
-doctl apps logs "$LINEJAM_APP_ID" web --type run --tail 200
 ```
 
 All three routes must return HTTP 200. `/api/health` must report the intended
@@ -522,9 +517,9 @@ one does not substitute for the others.
 
 ### Guest token verification fails
 
-1. Confirm `GUEST_TOKEN_SECRET` exists on the App Platform web service.
+1. Confirm `GUEST_TOKEN_SECRET` exists on the production Worker.
 2. Confirm the same value exists in the production Convex environment.
-3. Confirm the active deployment was built after the App Platform change.
+3. Confirm the active Worker version includes the intended secret bindings.
 4. Re-run `/api/guest/session` and inspect value-free runtime logs.
 
 Do not print either value to compare it. Compare secret fingerprints through an
@@ -544,20 +539,20 @@ Clerk instance. Guest mode should remain available when Clerk is degraded.
 
 ## Rotation and rollback
 
-For `GUEST_TOKEN_SECRET`, update App Platform and Convex in one bounded window,
+For `GUEST_TOKEN_SECRET`, update the Worker and Convex in one bounded window,
 then redeploy and replay guest creation. Existing guest tokens become invalid.
 Rotate `SENTRY_AUTOMATION_PROVENANCE_SECRET` in the smoke workflow secret stores
 and production Convex environment in one bounded window; verify one trusted
 event before ending the window.
 
-App Platform deployments are source-driven. If a source release is bad, use a
-normal `git revert` of the offending commit, pass the gates, and merge the
-forward fix to `master`. For a bad environment-only change, restore the prior
-entry in the active spec and redeploy. Never use destructive Git history to
-simulate rollback.
+Production release rollback follows [the Worker guide](ops/cloudflare-worker.md).
+If a source release is bad, use a normal `git revert` of the offending commit,
+pass the gates, and merge the forward fix to `master`. Never use destructive
+Git history to simulate rollback.
 
-For immediate mitigation while the forward fix is in flight, App Platform
-supports provider-level rollback to a prior successful deployment. This
+The retained App Platform recovery path supports provider-level rollback to a
+prior successful deployment only with explicit recovery authority and the
+Cloudflare release owner stopped. Keep DO auto-build disabled. This
 reuses the already-built container, so recovery is minutes, not a full
 pipeline cycle. The 2026-07-17 drill measured 104 seconds to `ACTIVE` for
 the rollback and 115 seconds for the roll-forward, with `/api/health`
@@ -568,7 +563,7 @@ APP_ID="$LINEJAM_APP_ID"
 TARGET="$(doctl apps list-deployments "$APP_ID" \
   --format ID,Phase --no-header | awk '$2 == "SUPERSEDED" { print $1; exit }')"
 
-# Validate, then execute. skip_pin keeps master pushes deploying normally.
+# Validate, then execute only within the authorized recovery operation.
 curl -s -X POST "https://api.digitalocean.com/v2/apps/$APP_ID/rollback/validate" \
   -H "Authorization: Bearer $DIGITALOCEAN_TOKEN" -H "Content-Type: application/json" \
   -d "{\"deployment_id\":\"$TARGET\",\"skip_pin\":true}"
@@ -579,7 +574,9 @@ curl -s -X POST "https://api.digitalocean.com/v2/apps/$APP_ID/rollback" \
 
 With `skip_pin: true` there is no pinned rollback state to revert: to return
 to the newest release, run the same rollback call against the most recent
-healthy deployment ID. `doctl` 1.163 has no rollback subcommand; the REST
+healthy retained deployment ID. This does not re-enable auto-build; do not
+rebuild current Cloudflare-ingress source on DO. `doctl` 1.163 has no rollback
+subcommand; the REST
 endpoint is the supported path. The rolled-back frontend must remain
 compatible with the live Convex functions, which forward deploys guarantee
 (`qa:deployment-skew`); never roll back across a Convex schema migration
@@ -598,7 +595,7 @@ pnpm exec convex import --replace-all ./convex-backup.zip --prod
 ## Release checklist
 
 - [ ] `pnpm ci:prepush` passes
-- [ ] `pnpm ops:do-drift` reports the production app clean
+- [ ] for DO recovery only, `pnpm ops:do-drift` reports the retained app clean
 - [ ] `pnpm ci:dagger:all` passes or its environment limitation is recorded
 - [ ] hosted merge and smoke gates pass
 - [ ] the active web deployment matches the intended source SHA

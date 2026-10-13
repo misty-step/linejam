@@ -25,9 +25,9 @@ describe('development-only browser diagnostics', () => {
 
   it('cannot be enabled for remote, production, preview or undeclared runtimes', () => {
     const denied: DevelopmentDiagnosticTarget[] = [
-      { ...local, url: 'https://linejam.app/recap/ZZZZ' },
+      { ...local, url: 'https://linejam.mistystep.io/recap/ZZZZ' },
       { ...local, url: 'https://localhost.example.com/' },
-      { ...local, url: 'http://localhost@linejam.app/' },
+      { ...local, url: 'http://localhost@linejam.mistystep.io/' },
       { ...local, url: 'file:///tmp/linejam' },
       { ...local, deploymentEnvironment: 'production' },
       { ...local, deploymentEnvironment: 'preview' },

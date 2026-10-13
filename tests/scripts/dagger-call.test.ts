@@ -694,7 +694,7 @@ printf 'called' > "${invokeLog}"
       join(workspace, '.env.local'),
       [
         'PLAYWRIGHT_REQUIRE_AUTH_SMOKE=1',
-        'PLAYWRIGHT_BASE_URL=https://staging.linejam.app',
+        'PLAYWRIGHT_BASE_URL=https://staging.linejam.mistystep.io',
       ].join('\n')
     );
     writeExecutable(

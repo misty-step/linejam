@@ -54,7 +54,7 @@ describe('getSmokeClerkKeyError', () => {
   it('allows preview smoke to use test keys', () => {
     expect(
       getSmokeClerkKeyError(
-        'https://preview.linejam.app',
+        'https://preview.linejam.mistystep.io',
         env({
           PLAYWRIGHT_REQUIRE_AUTH_SMOKE: '1',
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_example',
