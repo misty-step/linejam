@@ -472,7 +472,7 @@ the durable receipt still needs that public, sanitized record.
    Production-shaped keys remain blocked unless `--allow-production` is passed.
 
 4. Run the local or non-production health and representative data checks.
-   Record the redacted restore-drill conclusion on the Linear work item that
+   Record the redacted restore-drill conclusion on the Kanban work item that
    owns the drill. The receipt must link the backup workflow run and retained
    proof artifact, and name the non-secret target class, backup filename, source
    SHA, observed completion time, and check outcome.

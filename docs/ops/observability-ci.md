@@ -361,7 +361,7 @@ The postmortem record must contain:
 - observed contributing conditions and evidence for any reviewed root-cause
   conclusion;
 - mitigation, recovery proof, residual risk, and separately selected follow-up
-  work in Linear.
+  work in Powder, with execution tracked in Kanban.
 
 Four durable evidence links are required for the seeded serious-incident drill
 and for every serious incident where those artifacts exist:
@@ -381,8 +381,8 @@ auto-merged or auto-deployed.
 
 The bridge Issue and Sentry remain native incident-evidence records. They do
 not create a second current-work queue or authorize follow-on work: current
-requests and Linear own selection and prioritization. Preserve historical
-GitHub follow-up links; do not automatically re-import them into Linear.
+requests and Powder own selection and prioritization; Kanban owns work in flight.
+Preserve historical GitHub follow-up links rather than importing a second queue.
 
 `master` branch protection enforces the `merge-gate` status check, linear
 history, resolved review conversations, and pull-request-only changes. It

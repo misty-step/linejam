@@ -1,8 +1,9 @@
 # Linejam
 
-Use `project.md` for product constraints and current direction, and `DESIGN.md`
-for the identity and interaction contract. Linear owns current priorities;
-historical issues are context, not an automatic queue.
+Run `project-context linejam` before starting work on this project.
+Use `SPEC.md` for observable behavior, `project.md` for the product brief, and
+`DESIGN.md` for identity and interaction. Powder owns priorities, open questions
+and decisions in flight; historical issues are context, not an automatic queue.
 
 ## Authority
 
@@ -10,15 +11,16 @@ historical issues are context, not an automatic queue.
 - Preserve user work: inspect `git status`, never overwrite unrelated changes,
   and never use destructive Git commands.
 - Work from the operator's current request. Check current code and overlapping
-  work before implementation. Linear owns current work and priorities; historical
-  issues are context, not a required queue.
+  work before implementation. Kanban owns work in flight, GitHub owns PRs, CI and
+  inbound issues, and Glass owns health. Powder owns priority, not a second queue
+  in this repository.
 - Base branch: `master`. Commits and PR titles use Conventional Commits.
 
 ## Sources of truth
 
 | Concern                                       | Source                                                              |
 | --------------------------------------------- | ------------------------------------------------------------------- |
-| Product and architecture                      | `project.md`, `DESIGN.md`, `docs/ARCHITECTURE.md`                   |
+| Behavior and architecture                     | `SPEC.md`, `project.md`, `DESIGN.md`, `docs/ARCHITECTURE.md`        |
 | Data/API                                      | `convex/schema.ts`, `convex/_generated/api.d.ts`                    |
 | Assignment rules                              | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`         |
 | Tests and QA                                  | `docs/testing.md`, `vitest.config.ts`, Playwright configs           |
@@ -86,6 +88,6 @@ Before handoff, adversarially review the diff for stale claims, authority
 ambiguity, accidental scope, secret exposure, and safety regressions. Keep
 raw or sensitive run output in approved retained artifact storage, not
 repository fixtures. Share sanitized, revision-specific conclusions and
-links in Linear or the PR. Record exact commands, exercised surfaces, and
+links in Kanban or the PR. Record exact commands, exercised surfaces, and
 unverified risk. Review, merge, deploy, monitor, and production verification
 are distinct operations, each requiring its own authorized scope.
