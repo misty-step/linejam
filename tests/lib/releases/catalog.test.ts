@@ -312,11 +312,14 @@ describe('release catalog authority', () => {
         fs.readFileSync(path.join(root, filename), 'utf8')
       )
     ).toEqual(before);
-    fs.writeFileSync(path.join(root, 'site/changelog.html'), 'stale page');
+    fs.writeFileSync(
+      path.join(root, 'content/releases/catalog.json'),
+      'stale catalog'
+    );
     expect(() => generateReleases({ root, check: true })).toThrow();
     expect(
-      fs.readFileSync(path.join(root, 'site/changelog.html'), 'utf8')
-    ).toBe('stale page');
+      fs.readFileSync(path.join(root, 'content/releases/catalog.json'), 'utf8')
+    ).toBe('stale catalog');
   });
 
   it('keeps this repository projections in sync with its release sources', () => {

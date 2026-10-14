@@ -107,7 +107,9 @@ do not run Landmark or contact a provider.
 
 `content/releases/landmark.json` is Landmark's native release-entry JSON array;
 markdown lives in `content/releases/{tag}/notes.md`. The catalog validates the
-checked-in upstream schema and rejects mismatched JSON/markdown.
+checked-in upstream schema and rejects mismatched JSON/markdown. The generator
+also writes `content/releases/catalog.json` for the app's release page and RSS
+route: Workers import this checked projection, never the filesystem/Ajv loader.
 `synthesis.json` quality distinguishes a deliberate policy `skipped`, a failed
 provider attempt `unavailable`, and generated `valid` notes; absent quality and
 notes remain explicitly `missing`. Neither `skipped` nor `unavailable` can
