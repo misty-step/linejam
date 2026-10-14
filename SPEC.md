@@ -79,9 +79,11 @@ Detailed acceptance:
 - Scripted players have command-line and MCP interfaces for room creation,
   joining and state; game start, assignment and line submission; completed-poem
   reads; and favorite toggling/listing. They obey the same identity, membership,
-  word-count and privacy rules, not privileged automation rules. Creation/join
-  can mint a guest identity; subsequent actions must reuse it. The command line
-  prints successful results as JSON on stdout with exit zero; rejected joins
+  word-count and privacy rules, not privileged automation rules. Command-line
+  creation/join can mint a guest identity; MCP offers a separate mint-guest action
+  and requires that identity on other calls. Subsequent actions reuse the same
+  identity. The command line prints successful results as JSON on stdout with
+  exit zero; rejected joins
   produce a structured failure on stderr, empty stdout and a nonzero exit.
   Implicitly minted credentials are reported separately on stderr and must not
   be treated as shareable game output. MCP supports initialization, tool discovery
