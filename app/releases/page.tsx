@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { loadReleaseCatalog } from '@/lib/releases/loader';
+import { releaseCatalog } from '@/lib/releases/catalog';
 import type {
   ReleaseWithNotes,
   ChangelogEntry,
@@ -121,7 +121,7 @@ function ReleaseCard({ release }: { release: ReleaseWithNotes }) {
 }
 
 export default function ReleasesPage() {
-  const { currentVersion, releases, diagnostics } = loadReleaseCatalog();
+  const { currentVersion, releases, diagnostics } = releaseCatalog;
   const errors = diagnostics.filter(
     (diagnostic) => diagnostic.severity === 'error'
   );

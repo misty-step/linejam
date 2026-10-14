@@ -1,10 +1,10 @@
-import { loadReleaseCatalog } from '@/lib/releases/loader';
+import { releaseCatalog } from '@/lib/releases/catalog';
 import { renderReleaseFeed } from '@/lib/releases/feed';
 
 export const dynamic = 'force-static';
 
 export async function GET() {
-  const rss = renderReleaseFeed(loadReleaseCatalog());
+  const rss = renderReleaseFeed(releaseCatalog);
 
   return new Response(rss, {
     headers: {

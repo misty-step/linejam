@@ -107,7 +107,9 @@ do not run Landmark or contact a provider.
 
 `content/releases/landmark.json` is Landmark's native release-entry JSON array;
 markdown lives in `content/releases/{tag}/notes.md`. The catalog validates the
-checked-in upstream schema and rejects mismatched JSON/markdown.
+checked-in upstream schema and rejects mismatched JSON/markdown. The generator
+also writes `content/releases/catalog.json` for the app's release page and RSS
+route: Workers import this checked projection, never the filesystem/Ajv loader.
 `synthesis.json` quality distinguishes a deliberate policy `skipped`, a failed
 provider attempt `unavailable`, and generated `valid` notes; absent quality and
 notes remain explicitly `missing`. Neither `skipped` nor `unavailable` can
@@ -116,8 +118,9 @@ or integrity checks, and unreconciled public notes fail preparation rather than
 taking the technical-only path. A failed local attempt may have written files;
 discard them. The workflow does not refresh the release PR after failure. The
 release index records `notesStatus: unavailable`; the app, site changelog, and
-RSS feed display the explicit public status with technical history. A missing
-or stale manifest is visible in the app, never silently trusted as current.
+RSS feed display the explicit public status with technical history. Missing or
+stale projections are detected by `pnpm releases:check` and the catalog freshness
+test before deployment; the app does not inspect the manifest at runtime.
 
 `content/releases/legacy-notes.json` preserves the 39 public entries from the
 old `docs/releases/feed.xml`, with the original feed's SHA-256 and recovered

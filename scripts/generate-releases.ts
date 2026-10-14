@@ -24,6 +24,7 @@ export function generateReleases({
     );
   }
   const outputs = new Map<string, string>([
+    ['content/releases/catalog.json', `${JSON.stringify(catalog, null, 2)}\n`],
     [
       'content/releases/manifest.json',
       `${JSON.stringify(releaseManifest(catalog), null, 2)}\n`,

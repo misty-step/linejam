@@ -1,0 +1,2015 @@
+{
+  "currentVersion": "0.27.0",
+  "releases": [
+    {
+      "version": "0.27.0",
+      "date": "2026-08-01",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "repo",
+          "description": "invoke local commitlint in hook",
+          "breaking": false,
+          "commit": "45019db"
+        },
+        {
+          "type": "feat",
+          "scope": "lobby",
+          "description": "ship status board room frame",
+          "breaking": false,
+          "commit": "9f03da5"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.26.0...v0.27.0",
+      "productNotes": "",
+      "notesStatus": "missing"
+    },
+    {
+      "version": "0.26.0",
+      "date": "2026-07-17",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "ops",
+          "description": "scheduled encrypted Convex backups with provable restore",
+          "breaking": false,
+          "pr": 381,
+          "commit": "93e796b"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.25.1...v0.26.0",
+      "productNotes": "Improvements\n\n- Your poems and game data are now automatically backed up on a regular schedule, with encryption to keep everything secure, so a hiccup on our end won't cost you your saved games.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.25.1",
+      "date": "2026-07-17",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "deps",
+          "description": "clear dependabot alerts",
+          "breaking": false,
+          "pr": 380,
+          "commit": "3436e01"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.25.0...v0.25.1",
+      "productNotes": "",
+      "notesStatus": "missing"
+    },
+    {
+      "version": "0.25.0",
+      "date": "2026-07-17",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "auth",
+          "description": "migrate Clerk from v6 to v7",
+          "breaking": false,
+          "pr": 376,
+          "commit": "1f3c913"
+        },
+        {
+          "type": "feat",
+          "scope": "themes",
+          "description": "enforce WCAG AA contrast across every registered theme",
+          "breaking": false,
+          "pr": 377,
+          "commit": "fb3df29"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.24.1...v0.25.0",
+      "productNotes": "New Features\n\n- Improved visibility and readability across all themes with stronger color contrast.\n\nBug Fixes\n\n- Fixed an issue where you couldn't always join a game that was already in progress, even if there were open spots.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.24.1",
+      "date": "2026-07-17",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "privacy",
+          "description": "make poem sharing reversible and race-safe",
+          "breaking": false,
+          "pr": 371,
+          "commit": "71b4afe"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.24.0...v0.24.1",
+      "productNotes": "Bug Fixes\n\n- Turning a poem's sharing on and off is now fully reliable — toggling it off actually revokes the link, and toggling it back on always produces a working link instead of a dead one.\n- Fixed a rare glitch where sharing a poem at the same time as another action (like a retry or a second share attempt) could leave the link in a broken or confusing state.\n- The poem page now correctly updates when a share link's status changes, so you won't see stale \"expiring\" messages after a link has already been renewed or revoked.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.24.0",
+      "date": "2026-07-16",
+      "changes": [
+        {
+          "type": "fix",
+          "description": "polish mobile game core loop",
+          "breaking": false,
+          "pr": 370,
+          "commit": "8b6166f"
+        },
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "contain document scripts with nonce CSP",
+          "breaking": false,
+          "pr": 367,
+          "commit": "7d9e22c"
+        },
+        {
+          "type": "feat",
+          "scope": "analytics",
+          "description": "add privacy-safe room cycle funnel",
+          "breaking": false,
+          "pr": 372,
+          "commit": "e49c20a"
+        },
+        {
+          "type": "feat",
+          "scope": "game",
+          "description": "recover live rooms after reconnect",
+          "breaking": false,
+          "pr": 369,
+          "commit": "e5b3d92"
+        },
+        {
+          "type": "feat",
+          "scope": "onboarding",
+          "description": "add verified-live doctor",
+          "breaking": false,
+          "pr": 365,
+          "commit": "87b686d"
+        },
+        {
+          "type": "feat",
+          "scope": "reveal",
+          "description": "present whole poems in ordered accessible ceremony",
+          "breaking": false,
+          "pr": 366,
+          "commit": "f2efb47"
+        },
+        {
+          "type": "feat",
+          "description": "support late arrivals and zero-tap QR joining",
+          "breaking": false,
+          "pr": 368,
+          "commit": "0680d1f"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.23.1...v0.24.0",
+      "productNotes": "New Features\n\n- Friends who show up late can now join instantly by scanning a QR code — no typing, no waiting for a fresh link.\n- If your connection drops mid-game, Linejam now reconnects you right back into the action without losing your spot.\n- The big reveal now unfolds poem by poem in a clear, accessible order, so everyone can follow along easily.\n\nBug Fixes\n\n- Smoothed out rough edges in the mobile game experience, including keeping the join QR code fully visible on smaller screens.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.23.1",
+      "date": "2026-07-16",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "privacy",
+          "description": "scrub durable author ids from poem payloads",
+          "breaking": false,
+          "pr": 363,
+          "commit": "12d8e55"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.23.0...v0.23.1",
+      "productNotes": "Bug Fixes\n\n- Cleaned up how poems store author information so lasting personal IDs no longer linger in poem data, tightening up privacy behind the scenes.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.23.0",
+      "date": "2026-07-16",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "ai",
+          "description": "add provider kill switch and spend guard",
+          "breaking": false,
+          "pr": 362,
+          "commit": "e642696"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.22.0...v0.23.0",
+      "productNotes": "New Features\n\n- Added behind-the-scenes safeguards for our AI-powered poem features, including an emergency shutoff and spending limits, so the game stays reliable even if something goes wrong with the AI service.\n\nImprovements\n\n- Tightened up how AI-generated content is managed, helping keep Linejam running smoothly for everyone during game night.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.22.0",
+      "date": "2026-07-16",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "retention",
+          "description": "enforce bounded data lifecycle",
+          "breaking": false,
+          "pr": 359,
+          "commit": "83a0083"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.21.0...v0.22.0",
+      "productNotes": "New Features\n\n- Old game data doesn't pile up forever anymore — Linejam now automatically cleans up stale rooms, shares, and other leftovers after a set time, keeping things tidy behind the scenes.\n\nImprovements\n\n- Data cleanup runs on a predictable schedule, so there's less digital clutter without any action needed from players.\n- Behind-the-scenes safeguards ensure real player accounts are protected during cleanup, so you never have to worry about losing your own data.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.21.0",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "obs",
+          "description": "alert on AI fallback rate",
+          "breaking": false,
+          "pr": 358,
+          "commit": "01086ca"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.20.0...v0.21.0",
+      "productNotes": "Improvements\n\n- Linejam now keeps a closer eye on its poem-writing AI helper behind the scenes, so any hiccups get caught and fixed faster, keeping your game sessions running smoothly.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:feat) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.20.0",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "ci",
+          "description": "enforce safe schema migration sequencing",
+          "breaking": false,
+          "pr": 357,
+          "commit": "5e012f9"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.4...v0.20.0",
+      "productNotes": "This release is all behind-the-scenes plumbing to keep Linejam running smoothly, with no visible changes for players this time.\n\nImprovements\n\n- Strengthened our internal safety checks to help prevent data hiccups behind the scenes, so future updates roll out more reliably.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.19.4",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "mobile",
+          "description": "own the visual game viewport",
+          "breaking": false,
+          "pr": 356,
+          "commit": "953abc7"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.3...v0.19.4",
+      "productNotes": "Bug Fixes\n\n- Fixed a bunch of mobile layout glitches where buttons, controls, and text could spill off-screen or get squished — the game now fits properly within your phone's viewport.\n- Cramped screens with larger text sizes no longer crowd out important controls like the submit button or exit options.\n- The lobby and room screens no longer overflow or clip when zoomed or scaled, keeping all buttons reachable.\n- If you already submitted your line, the waiting screen now correctly shows you're waiting instead of losing track of your progress.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.19.3",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "description": "make mobile entry flows viewport safe",
+          "breaking": false,
+          "pr": 355,
+          "commit": "44b0abe"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.2...v0.19.3",
+      "productNotes": "Bug Fixes\n\n- Fixed sign-in, sign-up, and join screens getting cut off or awkward on phones—everything now fits properly on your screen.\n- Squashed a glitch where the header could misbehave during mobile taps and menu interactions.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.19.2",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "description": "recover stale clients across production deploys",
+          "breaking": false,
+          "pr": 353,
+          "commit": "64ee0d5"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.1...v0.19.2",
+      "productNotes": "Bug Fixes\n\n- Fixed an issue where your game could get stuck or act strangely if you were playing right when we rolled out an update behind the scenes — Linejam now smoothly catches you up instead of leaving you on outdated code.\n- Squashed a related snag where your poem draft could be at risk during those same behind-the-scenes updates, so your lines in progress stay safe.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.19.1",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "fail closed on empty coverage",
+          "breaking": false,
+          "pr": 352,
+          "commit": "dca8a7d"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.19.0...v0.19.1",
+      "productNotes": "Bug Fixes\n\n- Tightened up our internal testing checks behind the scenes, helping us catch problems before they ever reach the game you play.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.19.0",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "ops",
+          "description": "declare DigitalOcean topology",
+          "breaking": false,
+          "pr": 351,
+          "commit": "80c1717"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.6...v0.19.0",
+      "productNotes": "Improvements\n\n- Behind the scenes, we strengthened how Linejam's hosting setup is configured and monitored, making the game more reliable for everyone.\n- Added extra checks to catch server hiccups early, so game rounds stay smooth and uninterrupted.\n- Deployment documentation got a refresh, helping keep the game running steadily for players.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:feat, conventional:fix, conventional:test) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.18.6",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "infra",
+          "description": "reconcile Convex environment drift",
+          "breaking": false,
+          "pr": 350,
+          "commit": "050d266"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.5...v0.18.6",
+      "productNotes": "Bug Fixes\n\n- Squashed a behind-the-scenes configuration mismatch that could cause service hiccups, so Linejam runs more reliably.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.18.5",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "reveal",
+          "description": "recover from absent readers",
+          "breaking": false,
+          "pr": 349,
+          "commit": "e0abb0a"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.4...v0.18.5",
+      "productNotes": "Bug Fixes\n\n- Fixed a snag where the poem reveal could get stuck if the person meant to read it had already left the game.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.18.4",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "gameplay",
+          "description": "preserve rematch assignments",
+          "breaking": false,
+          "pr": 348,
+          "commit": "8f5cf76"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.3...v0.18.4",
+      "productNotes": "Bug Fixes\n\n- Fixed a rematch bug where player assignments could get mixed up or lost when starting a new round with the same group.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.18.3",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ai",
+          "description": "budget ghostwriter generations",
+          "breaking": false,
+          "commit": "4d6bed0"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.2...v0.18.3",
+      "productNotes": "Bug Fixes\n\n- Fixed a glitch where the AI ghostwriter could over-generate lines behind the scenes, so it now sticks to sensible limits and stays reliable during play.\n- Cleaned up how bot and ghostwriter turns are handled, reducing the chance of duplicate or conflicting generations in the same round.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.18.2",
+      "date": "2026-07-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "remove unsigned throttle rollout endpoint",
+          "breaking": false,
+          "pr": 346,
+          "commit": "912ae5b"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.1...v0.18.2",
+      "productNotes": "Bug Fixes\n\n- Closed up a leftover backend shortcut that could let guest sessions bypass secure checks, tightening things up behind the scenes to keep your games safe.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.18.1",
+      "date": "2026-07-14",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "privacy",
+          "description": "require explicit successful sharing",
+          "breaking": false,
+          "pr": 344,
+          "commit": "e62e389"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.18.0...v0.18.1",
+      "productNotes": "Bug Fixes\n\n- Your finished poems now stay completely private until you actually choose to share them, closing a gap that could have exposed them too early.\n- Shared poem cards and guest sessions are now more securely verified, so cards and links only work the way they're meant to.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.18.0",
+      "date": "2026-07-11",
+      "changes": [
+        {
+          "type": "feat",
+          "description": "game-screen spine from design lab-001 (mobile-first, theme-agnostic)",
+          "breaking": false,
+          "pr": 338,
+          "commit": "475bee1"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.17.1...v0.18.0",
+      "productNotes": "New Features\n\n- We've refreshed the look and feel of game screens, making everything clearer and even more fun to use on your phone.\n\nBug Fixes\n\n- The entry screen buttons are now perfectly aligned, so they won't be hidden by your phone's home indicator.\n- The \"Done\" button works reliably in the Reveal phase.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.17.1",
+      "date": "2026-07-10",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "themes",
+          "description": "hydration-safe theme state in the picker hook , closes [#418](https://github.com/misty-step/linejam/issues/418)",
+          "breaking": false,
+          "pr": 336,
+          "commit": "3b34e62"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.17.0...v0.17.1",
+      "productNotes": "Bug Fixes\n\n- Fixed a glitch on the theme picker page where returning visitors could briefly see an error or mismatched theme right after the page loaded; your saved theme now loads in smoothly every time.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.17.0",
+      "date": "2026-07-10",
+      "changes": [
+        {
+          "type": "feat",
+          "description": "ten-theme collection + /themes specimen picker (design lab-001 convergence)",
+          "breaking": false,
+          "pr": 333,
+          "commit": "bd1b872"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.8...v0.17.0",
+      "productNotes": "New Features\n\n- We've added ten brand-new visual themes to choose from, each with its own unique style for your poems!\n- Discover all themes easily on the new \"Themes\" page, where you can preview how each one looks with a real poem.\n\nBug Fixes\n\n- Keyboard navigation for selecting themes now works correctly, even if your previously saved theme is no longer available.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.8",
+      "date": "2026-07-10",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "observability",
+          "description": "suppress expected convex throttles",
+          "breaking": false,
+          "pr": 332,
+          "commit": "a11a7a2"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.7...v0.16.8",
+      "productNotes": "Bug Fixes\n\n- Cleaned up behind-the-scenes error reporting so normal traffic slowdowns aren't mistakenly flagged as problems, helping us focus on real issues that affect your game.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.7",
+      "date": "2026-07-10",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ops",
+          "description": "classify production Convex rate limits",
+          "breaking": false,
+          "pr": 331,
+          "commit": "59099ef"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.6...v0.16.7",
+      "productNotes": "Bug Fixes\n\n- Smoothed out a backend hiccup that could mislabel temporary traffic slowdowns, helping the game stay steady during busy moments.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.6",
+      "date": "2026-07-10",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ops",
+          "description": "page repeated production smoke failures",
+          "breaking": false,
+          "pr": 330,
+          "commit": "35a4961"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.5...v0.16.6",
+      "productNotes": "Improvements\n\n- Behind the scenes, we've sharpened our monitoring so real problems get flagged to our team faster, while harmless one-off blips no longer trigger unnecessary noise.\n\nBug Fixes\n\n- Fixed an issue where repeated production hiccups weren't reliably catching our team's attention — now they're routed to get eyes on them right away, keeping the game running smoothly for everyone.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.5",
+      "date": "2026-07-09",
+      "changes": [
+        {
+          "type": "fix",
+          "description": "bound abandonment sweep + gate health on Convex env capabilities (prod incident 2026-07-09)",
+          "breaking": false,
+          "pr": 328,
+          "commit": "9d285e2"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.4...v0.16.5",
+      "productNotes": "Bug Fixes\n\n- Fixed a backstage bug where a big pile of abandoned games could jam up cleanup entirely, so stuck games now get cleared out reliably again.\n- Improved behind-the-scenes monitoring so we'll catch it faster if a key game feature quietly stops working, keeping games running smoothly for you.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.4",
+      "date": "2026-07-09",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "auth",
+          "description": "fail open to guest play",
+          "breaking": false,
+          "pr": 327,
+          "commit": "d9ca6a0"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.3...v0.16.4",
+      "productNotes": "Bug Fixes\n\n- Fixed a snag where a hiccup with our login service could block friends from hosting or joining games as guests — guest play now works no matter what.\n- Players who were already in as guests won't get bumped out even if the login service is running slow behind the scenes.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.3",
+      "date": "2026-07-09",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "responder",
+          "description": "preserve Playwright browser path",
+          "breaking": false,
+          "pr": 326,
+          "commit": "bb4e8bb"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.2...v0.16.3",
+      "productNotes": "Bug Fixes\n\n- Squashed a behind-the-scenes glitch in our automated testing setup that could cause smoke tests to run against the wrong browser — no player-facing impact, but it keeps Linejam more reliable under the hood.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, migration) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found migration signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.2",
+      "date": "2026-07-09",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "declare the Pages release runner",
+          "breaking": false,
+          "pr": 325,
+          "commit": "d1232b5"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.1...v0.16.2",
+      "productNotes": "Bug Fixes\n\n- Fixed a behind-the-scenes hiccup in how updates get published, so new versions of Linejam roll out smoothly and reliably.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:fix, dependency, security) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor found security signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.16.1",
+      "date": "2026-07-09",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "install pnpm before Pages cache lookup",
+          "breaking": false,
+          "pr": 323,
+          "commit": "1e1ed2d"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.16.0...v0.16.1",
+      "productNotes": "Improvements\n\n- Straightened out a hiccup in our deployment pipeline, so site updates go out smoothly and on time.\n- Refreshed under-the-hood libraries that power the app, keeping things running reliably behind the scenes.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:fix, dependency) disagreed with model classification; synthesis proceeded. deterministic floor found user-visible commit signals but model did not; deterministic floor prevented low-significance skip",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.16.0",
+      "date": "2026-07-08",
+      "changes": [
+        {
+          "type": "fix",
+          "description": "clarify core loop submit readiness",
+          "breaking": false,
+          "pr": 310,
+          "commit": "e953882"
+        },
+        {
+          "type": "fix",
+          "scope": "convex",
+          "description": "drop legacy mode columns",
+          "breaking": false,
+          "pr": 298,
+          "commit": "684de32"
+        },
+        {
+          "type": "fix",
+          "scope": "csp",
+          "description": "allow the production Clerk custom domain , closes [#291](https://github.com/misty-step/linejam/issues/291)",
+          "breaking": false,
+          "pr": 299,
+          "commit": "8b8da91"
+        },
+        {
+          "type": "fix",
+          "scope": "deps",
+          "description": "remove unused production dependencies",
+          "breaking": false,
+          "pr": 313,
+          "commit": "415bbf1"
+        },
+        {
+          "type": "fix",
+          "scope": "e2e",
+          "description": "isolate remaining guest session contexts",
+          "breaking": false,
+          "pr": 316,
+          "commit": "866d788"
+        },
+        {
+          "type": "fix",
+          "scope": "e2e",
+          "description": "stabilize guest archive and reveal share , closes [#308](https://github.com/misty-step/linejam/issues/308)",
+          "breaking": false,
+          "pr": 315,
+          "commit": "e7a8091"
+        },
+        {
+          "type": "fix",
+          "scope": "errors",
+          "description": "ConvexError taxonomy so friendly messages survive production",
+          "breaking": false,
+          "pr": 303,
+          "commit": "9a02299"
+        },
+        {
+          "type": "fix",
+          "scope": "evidence",
+          "description": "wrap static theme evidence server to suppress stale Convex/Canary noise",
+          "breaking": false,
+          "commit": "b90c6ae"
+        },
+        {
+          "type": "fix",
+          "scope": "identity",
+          "description": "guest archive access + themed Clerk auth",
+          "breaking": false,
+          "pr": 307,
+          "commit": "d29f6fd"
+        },
+        {
+          "type": "fix",
+          "scope": "releases",
+          "description": "generate site changelog from release content",
+          "breaking": false,
+          "pr": 312,
+          "commit": "15cf3b1"
+        },
+        {
+          "type": "fix",
+          "scope": "ui",
+          "description": "lobby roster collision and sticky-chrome heading overlap , closes [#2](https://github.com/misty-step/linejam/issues/2)",
+          "breaking": false,
+          "pr": 306,
+          "commit": "ebce842"
+        },
+        {
+          "type": "fix",
+          "scope": "ui",
+          "description": "wire themed design tokens",
+          "breaking": false,
+          "commit": "de6597e"
+        },
+        {
+          "type": "feat",
+          "scope": "agent",
+          "description": "add CLI + MCP faces over the Convex core, plus the skill",
+          "breaking": false,
+          "commit": "e3376af"
+        },
+        {
+          "type": "feat",
+          "scope": "artifact",
+          "description": "add poem image and print exports",
+          "breaking": false,
+          "pr": 308,
+          "commit": "23179c1"
+        },
+        {
+          "type": "feat",
+          "scope": "site",
+          "description": "add marketing proof assets",
+          "breaking": false,
+          "pr": 311,
+          "commit": "3e2ab28"
+        },
+        {
+          "type": "feat",
+          "scope": "site",
+          "description": "add public marketing site from the Aesthetic site-kit",
+          "breaking": false,
+          "commit": "7678974"
+        },
+        {
+          "type": "feat",
+          "scope": "stage",
+          "description": "host presentation mode — lobby and reveal as a room-scale stage",
+          "breaking": false,
+          "pr": 309,
+          "commit": "af774e1"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.15.1...v1.16.0",
+      "productNotes": "New Features\n\n- Save or print your finished poem as a keepsake image, ready to share or stick on the fridge.\n- Hosts can now put the lobby and poem reveal up on a big screen or shared table, with an easy QR code join and room-readable text for everyone.\n\nBug Fixes\n\n- A launch-day snag that could leave players stuck on \"Setting up your room...\" when joining or hosting is resolved — rooms open reliably now.\n- Guests who just finished a game were getting dumped on a confusing account page when tapping their poem archive; they now land straight on their own poems.\n\nRelease classification notes\n\nLandmark classification notice: deterministic release signals (conventional:chore, conventional:docs, conventional:feat, conventional:fix, conventional:perf, conventional:test, dependency, migration, security) disagreed with model classification; synthesis proceeded. deterministic floor found migration signals but model did not",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.15.1",
+      "date": "2026-07-04",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "convex",
+          "description": "bound launch reads and live game failures",
+          "breaking": false,
+          "pr": 294,
+          "commit": "c80e449"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.15.0...v1.15.1",
+      "productNotes": "Bug Fixes\n\n- Fixed issues with game loading and stability during live gameplay.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.15.0",
+      "date": "2026-07-04",
+      "changes": [
+        {
+          "type": "feat",
+          "description": "make reveal shareable and teach first writers",
+          "breaking": false,
+          "pr": 292,
+          "commit": "f931819"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.14.0...v1.15.0",
+      "productNotes": "Bug Fixes\n\n- Fixed mobile writing to be fully playable with cleaner room interface.\n\nNew Features\n\n- You can now play one streamlined core game mode (previous Rhyme and Quick modes have been combined).\n- You can now automatically become the host when the original host leaves the room.\n- The room now stays alive and recovers automatically if something goes wrong.\n- You can now see a shared recap of your game session after playing.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.14.0",
+      "date": "2026-07-04",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "security",
+          "description": "harden launch exposure gates",
+          "breaking": false,
+          "pr": 291,
+          "commit": "28ca0ad"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.13.0...v1.14.0",
+      "productNotes": "New Features\n\n- You can now vote for your favorite poem at the end of each game.\n- The room automatically continues with a new host if the current host leaves mid-game.\n\nImprovements\n\n- The mobile writing experience is now much easier to use with a cleaner, more spacious design.\n- Rooms now stay active and self-heal if connection issues occur, so your game won't get stuck.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.13.0",
+      "date": "2026-07-03",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "observability",
+          "description": "report canary health check-ins",
+          "breaking": false,
+          "pr": 289,
+          "commit": "e69e32f"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.12.0...v1.13.0",
+      "productNotes": "New Features\n\n- You can now enjoy a streamlined single game mode that combines the best of our previous play styles.\n- The game now automatically passes host duties to another player when the current host leaves.\n- You can now access a shared recap page to revisit all the poems created during your session.\n\nBug Fixes\n\n- Fixed mobile writing experience to work smoothly on phones and cleaned up the room interface.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.12.0",
+      "date": "2026-07-03",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "ux",
+          "description": "tap-to-copy room code, QR scan-to-join, one-tap help, fix submit error",
+          "breaking": false,
+          "commit": "7f754ff"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.11.0...v1.12.0",
+      "productNotes": "Breaking Changes\n\nGame modes simplified: Linejam now focuses on one core collaborative poetry experience. The separate Rhyme Relay and Quick Jam modes have been removed to streamline gameplay. All rooms now use the same fun, pass-the-poem format you love.\n\nNew Features\n\n- You can now vote for your favorite poem at the end of each game session.\n- You can now view a shared recap hub that shows all the poems created during your session.\n- The game now automatically keeps rooms alive and recovers from connection issues so your poetry sessions never get interrupted.\n- You can now seamlessly continue playing even if the original host leaves the room.\n\nImprovements\n\n- The mobile writing experience now works much better with improved touch controls and less screen clutter.\n\nBug Fixes\n\n- Fixed mobile touch targets to work properly with thumbs on all game screens.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.11.0",
+      "date": "2026-07-03",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "observability",
+          "description": "wire Convex backend failures to Canary",
+          "breaking": false,
+          "commit": "6eb32a4"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.10.0...v1.11.0",
+      "productNotes": "Breaking Changes\n\nWe've streamlined Linejam to focus on what works best! The separate Rhyme Relay and Quick Jam modes have been combined into one awesome core game mode. Your favorite features from both modes are still there—just in one place now.\n\nNew Features\n\n- You can now keep playing even if your game host leaves, as we'll automatically pick a new host from your group.\n- You can now see a shared recap page after each game to relive your best poem moments together.\n- You can now vote for your favorite poem in each round, and we'll crown a room champion at the end.\n\nBug Fixes\n\n- Fixed mobile writing to work smoothly on phones, making it much easier to add your lines on the go.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.10.0",
+      "date": "2026-06-26",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "ai",
+          "description": "multi-bot solo play + evidence-backed config (028 m1)",
+          "breaking": false,
+          "pr": 280,
+          "commit": "3b10a17"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.9.1...v1.10.0",
+      "productNotes": "New Features\n\n- You can now play with just one game mode that's perfectly tuned for collaborative poetry.\n- The room automatically finds a new host when the current host leaves mid-game.\n- Rooms now stay alive and self-heal if something goes wrong during your session.\n- You can now view a shared recap of all the poems created in your game session.\n\nImprovements\n\n- The mobile writing experience is now much easier to use with a cleaner interface.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.9.1",
+      "date": "2026-06-24",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ui",
+          "description": "make the mobile writing surface playable and declutter room chrome",
+          "breaking": false,
+          "pr": 278,
+          "commit": "ff443bc"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.9.0...v1.9.1",
+      "productNotes": "ui: make the mobile writing surface playable and declutter room chrome.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.9.0",
+      "date": "2026-06-23",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "release",
+          "description": "drop pnpm exec step that broke Landmark release",
+          "breaking": false,
+          "pr": 276,
+          "commit": "d431210"
+        },
+        {
+          "type": "feat",
+          "scope": "game",
+          "description": "consolidate to one core mode — delete rhyme + quick",
+          "breaking": false,
+          "pr": 275,
+          "commit": "2eff35b"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.8.0...v1.9.0",
+      "productNotes": "release: drop pnpm exec step that broke Landmark release.\n\ngame: consolidate to one core mode — delete rhyme + quick.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.8.0",
+      "date": "2026-06-22",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "game",
+          "description": "migrate host to a present participant when the host leaves (017)",
+          "breaking": false,
+          "pr": 274,
+          "commit": "2ef5af9"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.7.0...v1.8.0",
+      "productNotes": "game: migrate host to a present participant when the host leaves (017).",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.7.0",
+      "date": "2026-06-21",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "game",
+          "description": "never let the room die — presence, self-heal, abandonment cron (016)",
+          "breaking": false,
+          "pr": 264,
+          "commit": "2b97309"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.6.0...v1.7.0",
+      "productNotes": "game: never let the room die — presence, self-heal, abandonment cron (016).",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.6.0",
+      "date": "2026-06-13",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "mobile",
+          "description": "pass the thumb test on every game surface",
+          "breaking": false,
+          "commit": "2f6c2be"
+        },
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "force esbuild >=0.28.1 to clear GHSA-gv7w-rqvm-qjhr",
+          "breaking": false,
+          "commit": "23c1565"
+        },
+        {
+          "type": "feat",
+          "scope": "game",
+          "description": "make rules data and ship Rhyme Relay + Quick Jam modes",
+          "breaking": false,
+          "commit": "c5b3d36"
+        },
+        {
+          "type": "feat",
+          "scope": "realtime",
+          "description": "make the room unstrandable — rescue, rematch, self-heal",
+          "breaking": false,
+          "commit": "a0e6eec"
+        },
+        {
+          "type": "feat",
+          "scope": "reveal",
+          "description": "stage the ceremony and crown a room favorite",
+          "breaking": false,
+          "commit": "f39c155"
+        },
+        {
+          "type": "feat",
+          "scope": "writing",
+          "description": "engineer tension — round clock, sparks, waiting theater",
+          "breaking": false,
+          "commit": "088bde4"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.5.0...v1.6.0",
+      "productNotes": "mobile: pass the thumb test on every game surface.\n\nsecurity: force esbuild >=0.28.1 to clear GHSA-gv7w-rqvm-qjhr.\n\ngame: make rules data and ship Rhyme Relay + Quick Jam modes.\n\nrealtime: make the room unstrandable — rescue, rematch, self-heal.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.5.0",
+      "date": "2026-06-12",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "sharing",
+          "description": "require explicit public links",
+          "breaking": false,
+          "commit": "0f5da62"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.4.0...v1.5.0",
+      "productNotes": "sharing: require explicit public links.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.4.0",
+      "date": "2026-06-11",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "reveal",
+          "description": "add shared session recap hub",
+          "breaking": false,
+          "commit": "aad40cb"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.3.0...v1.4.0",
+      "productNotes": "reveal: add shared session recap hub.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-06-11",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "observability",
+          "description": "add scrubbed route telemetry",
+          "breaking": false,
+          "commit": "3d31d4c"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.2.0...v1.3.0",
+      "productNotes": "observability: add scrubbed route telemetry.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-06-10",
+      "changes": [
+        {
+          "type": "feat",
+          "description": "add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133)",
+          "breaking": false,
+          "commit": "a7f3f1f"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.1.3...v1.2.0",
+      "productNotes": "add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133).",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.1.3",
+      "date": "2026-04-21",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231)",
+          "breaking": false,
+          "pr": 232,
+          "commit": "082a2f6"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.1.2...v1.1.3",
+      "productNotes": "ci: stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231).",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.1.2",
+      "date": "2026-04-20",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "deps",
+          "description": "patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline",
+          "breaking": false,
+          "pr": 218,
+          "commit": "57740b5"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.1.1...v1.1.2",
+      "productNotes": "deps: patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.1.1",
+      "date": "2026-04-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "deps",
+          "description": "patch dompurify and ajv advisories",
+          "breaking": false,
+          "commit": "dc8f4e2"
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.1.0...v1.1.1",
+      "productNotes": "deps: patch dompurify and ajv advisories.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-04-15",
+      "changes": [
+        {
+          "type": "fix",
+          "scope": "a11y",
+          "description": "use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151)",
+          "breaking": false,
+          "pr": 159,
+          "commit": "25fa44b"
+        },
+        {
+          "type": "fix",
+          "scope": "auth",
+          "description": "show error state with retry on guest auth failure , closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144)",
+          "breaking": false,
+          "pr": 157,
+          "commit": "d44d146"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "pin trufflehog scanner version",
+          "breaking": false,
+          "pr": 195,
+          "commit": "ef2024f"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "settle trufflehog workflow",
+          "breaking": false,
+          "pr": 181,
+          "commit": "5a8a345"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "upgrade Next.js 16.1.6 (CVE), fix Cerberus API key, fix crypto types , closes [hi#severity](https://github.com/hi/issues/severity)",
+          "breaking": false,
+          "pr": 160,
+          "commit": "53366ec"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "use GH_RELEASE_TOKEN for semantic-release",
+          "breaking": false,
+          "commit": "ca98baa"
+        },
+        {
+          "type": "fix",
+          "scope": "game",
+          "description": "add bounds checking to assignment matrix access , closes [#143](https://github.com/misty-step/linejam/issues/143)",
+          "breaking": false,
+          "pr": 156,
+          "commit": "6371989"
+        },
+        {
+          "type": "fix",
+          "scope": "game",
+          "description": "prevent double round advancement via idempotent guard , closes [#142](https://github.com/misty-step/linejam/issues/142)",
+          "breaking": false,
+          "pr": 155,
+          "commit": "a01fca1"
+        },
+        {
+          "type": "fix",
+          "description": "harden canary local dagger qa",
+          "breaking": false,
+          "commit": "01a269b"
+        },
+        {
+          "type": "fix",
+          "scope": "lint",
+          "description": "add coverage/ to ESLint ignores , closes [#130](https://github.com/misty-step/linejam/issues/130)",
+          "breaking": false,
+          "pr": 154,
+          "commit": "94a08bd"
+        },
+        {
+          "type": "fix",
+          "description": "logShare throws ConvexError on invalid poem ID instead of silent return",
+          "breaking": false,
+          "pr": 164,
+          "commit": "6295789"
+        },
+        {
+          "type": "fix",
+          "description": "replace pnpm audit with osv-scanner in dagger",
+          "breaking": false,
+          "commit": "6a76039"
+        },
+        {
+          "type": "fix",
+          "description": "simplify room chrome copy",
+          "breaking": false,
+          "pr": 210,
+          "commit": "eaeac68"
+        },
+        {
+          "type": "fix",
+          "description": "unblock hosted convex deployment flow",
+          "breaking": false,
+          "pr": 208,
+          "commit": "994b59d"
+        },
+        {
+          "type": "feat",
+          "description": "add PostHog analytics + harden Sentry privacy",
+          "breaking": false,
+          "pr": 165,
+          "commit": "94f2ddd"
+        },
+        {
+          "type": "feat",
+          "description": "extract session lifecycle core",
+          "breaking": false,
+          "pr": 213,
+          "commit": "61fe2f9"
+        },
+        {
+          "type": "feat",
+          "description": "improve quality gates, robustness, and test coverage",
+          "breaking": false,
+          "pr": 192,
+          "commit": "439f974"
+        },
+        {
+          "type": "feat",
+          "description": "redesign room chrome as sticky nav",
+          "breaking": false,
+          "pr": 209,
+          "commit": "d88075f"
+        },
+        {
+          "type": "feat",
+          "description": "scaffold qa and demo evidence harness",
+          "breaking": false,
+          "pr": 201,
+          "commit": "2499795"
+        },
+        {
+          "type": "feat",
+          "description": "ship canary-first qa and responder loop",
+          "breaking": false,
+          "pr": 206,
+          "commit": "a8eeb93"
+        },
+        {
+          "type": "chore",
+          "scope": "favorites",
+          "description": "parallelize getMyFavorites query — N+1 to batch , closes [#145](https://github.com/misty-step/linejam/issues/145)",
+          "breaking": false,
+          "pr": 158,
+          "commit": "4e017e2"
+        },
+        {
+          "type": "fix",
+          "scope": "accessibility",
+          "description": "address PR review feedback",
+          "breaking": false,
+          "commit": "a342c85"
+        },
+        {
+          "type": "fix",
+          "description": "add GITLEAKS_LICENSE env var to secret scanning job",
+          "breaking": false,
+          "commit": "c2d8c95"
+        },
+        {
+          "type": "fix",
+          "description": "add missing semantic color tokens to design system",
+          "breaking": false,
+          "commit": "2afd7cf"
+        },
+        {
+          "type": "fix",
+          "description": "add pull-requests write permission to gitleaks job",
+          "breaking": false,
+          "commit": "9315a0b"
+        },
+        {
+          "type": "fix",
+          "description": "address PR review comments for auth and observability",
+          "breaking": false,
+          "commit": "bb9a264"
+        },
+        {
+          "type": "fix",
+          "description": "apply custom gitleaks config in CI and pre-commit hooks",
+          "breaking": false,
+          "commit": "d4de3e7"
+        },
+        {
+          "type": "fix",
+          "scope": "build",
+          "description": "add convex deploy to build script",
+          "breaking": false,
+          "commit": "1fda1da"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "add security audit to quality gates pipeline , closes [#36](https://github.com/misty-step/linejam/issues/36) [#98](https://github.com/misty-step/linejam/issues/98)",
+          "breaking": false,
+          "pr": 108,
+          "commit": "772ecb1"
+        },
+        {
+          "type": "fix",
+          "description": "configure Convex deploy for Vercel builds",
+          "breaking": false,
+          "commit": "60de0fe"
+        },
+        {
+          "type": "fix",
+          "description": "configure coverage badges and repair CI build",
+          "breaking": false,
+          "commit": "b252533"
+        },
+        {
+          "type": "fix",
+          "description": "eliminate race condition in round submission validation",
+          "breaking": false,
+          "pr": 64,
+          "commit": "152c68a"
+        },
+        {
+          "type": "fix",
+          "scope": "error",
+          "description": "consolidate duplicate captureError implementations",
+          "breaking": false,
+          "pr": 72,
+          "commit": "326ab8d"
+        },
+        {
+          "type": "fix",
+          "description": "escape apostrophe in quote",
+          "breaking": false,
+          "commit": "371b919"
+        },
+        {
+          "type": "fix",
+          "description": "externalize Pino packages to resolve build errors",
+          "breaking": false,
+          "commit": "85613b2"
+        },
+        {
+          "type": "fix",
+          "scope": "game",
+          "description": "unify reader assignment algorithm , closes [#89](https://github.com/misty-step/linejam/issues/89) [#89](https://github.com/misty-step/linejam/issues/89) [#89](https://github.com/misty-step/linejam/issues/89)",
+          "breaking": false,
+          "pr": 114,
+          "commit": "c767ac3"
+        },
+        {
+          "type": "fix",
+          "description": "guest token cross-platform compatibility and deployment",
+          "breaking": false,
+          "commit": "f0a4cfb"
+        },
+        {
+          "type": "fix",
+          "description": "harden health endpoint for ci",
+          "breaking": false,
+          "commit": "fde3631"
+        },
+        {
+          "type": "fix",
+          "scope": "hooks",
+          "description": "remove convex deploy from pre-push hooks",
+          "breaking": false,
+          "commit": "0de1ae1"
+        },
+        {
+          "type": "fix",
+          "scope": "logging",
+          "description": "wire structured logger in all catch blocks",
+          "breaking": false,
+          "commit": "6de2615"
+        },
+        {
+          "type": "fix",
+          "description": "make WritingScreen textarea visible with focus states , closes [#1](https://github.com/misty-step/linejam/issues/1)",
+          "breaking": false,
+          "commit": "9fe4ec9"
+        },
+        {
+          "type": "fix",
+          "description": "prevent auto-advancing to new game before poems are read",
+          "breaking": false,
+          "pr": 70,
+          "commit": "d98e84a"
+        },
+        {
+          "type": "fix",
+          "description": "replace browser alert with inline Alert in WritingScreen",
+          "breaking": false,
+          "commit": "2e1f8c1"
+        },
+        {
+          "type": "fix",
+          "description": "replace Node.js crypto with Web Crypto API in Convex runtime",
+          "breaking": false,
+          "commit": "20452ef"
+        },
+        {
+          "type": "fix",
+          "description": "require auth for getRoom query",
+          "breaking": false,
+          "pr": 121,
+          "commit": "acc8037"
+        },
+        {
+          "type": "fix",
+          "description": "resolve CI failures (pnpm version conflict + badge 409)",
+          "breaking": false,
+          "commit": "7802dff"
+        },
+        {
+          "type": "fix",
+          "description": "resolve P1 and P2 code review feedback",
+          "breaking": false,
+          "commit": "9e72e46"
+        },
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "add auth check to getRoundProgress query",
+          "breaking": false,
+          "pr": 117,
+          "commit": "80c03d8"
+        },
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "add length validation to displayName and line text , closes [#83](https://github.com/misty-step/linejam/issues/83) [#83](https://github.com/misty-step/linejam/issues/83) [#83](https://github.com/misty-step/linejam/issues/83)",
+          "breaking": false,
+          "pr": 110,
+          "commit": "2782660"
+        },
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "enforce authorization on poem and favorite queries",
+          "breaking": false,
+          "commit": "28a62e1"
+        },
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "remove legacy guestId fallback to prevent auth bypass",
+          "breaking": false,
+          "pr": 71,
+          "commit": "cbe719b"
+        },
+        {
+          "type": "fix",
+          "scope": "security",
+          "description": "upgrade @sentry/nextjs to fix CVE-2025-65944 (closes [#36](https://github.com/misty-step/linejam/issues/36))",
+          "breaking": false,
+          "pr": 73,
+          "commit": "934f4fe"
+        },
+        {
+          "type": "fix",
+          "scope": "sentry",
+          "description": "add error capture to all catch blocks",
+          "breaking": false,
+          "commit": "9049e64"
+        },
+        {
+          "type": "fix",
+          "scope": "test",
+          "description": "mock convex api in health check test to avoid server-only error",
+          "breaking": false,
+          "commit": "33c051e"
+        },
+        {
+          "type": "fix",
+          "scope": "test",
+          "description": "use node environment for health check test to resolve server-only error",
+          "breaking": false,
+          "commit": "d4fb1cf"
+        },
+        {
+          "type": "fix",
+          "description": "use gh api PATCH for atomic gist badge updates",
+          "breaking": false,
+          "commit": "9ed59b2"
+        },
+        {
+          "type": "fix",
+          "description": "use pnpm for Convex build command",
+          "breaking": false,
+          "commit": "5ae5289"
+        },
+        {
+          "type": "fix",
+          "scope": "ux",
+          "description": "host leave lobby button now closes room",
+          "breaking": false,
+          "pr": 109,
+          "commit": "35abba2"
+        },
+        {
+          "type": "feat",
+          "description": "add Alert component for inline error display",
+          "breaking": false,
+          "commit": "e3a02d6"
+        },
+        {
+          "type": "feat",
+          "description": "add ARIA labels to WritingScreen textarea",
+          "breaking": false,
+          "commit": "3f51907"
+        },
+        {
+          "type": "feat",
+          "description": "add build-time env validation and enhanced health checks",
+          "breaking": false,
+          "commit": "30397e8"
+        },
+        {
+          "type": "feat",
+          "description": "add changelog infrastructure with semantic-release",
+          "breaking": false,
+          "pr": 127,
+          "commit": "c0de3fa"
+        },
+        {
+          "type": "feat",
+          "description": "add error feedback deep module",
+          "breaking": false,
+          "commit": "787bc44"
+        },
+        {
+          "type": "feat",
+          "description": "add error state to Host page",
+          "breaking": false,
+          "commit": "7244c02"
+        },
+        {
+          "type": "feat",
+          "description": "add error state to Lobby component",
+          "breaking": false,
+          "commit": "1b42e6c"
+        },
+        {
+          "type": "feat",
+          "description": "add error state to RevealPhase component",
+          "breaking": false,
+          "commit": "230588a"
+        },
+        {
+          "type": "feat",
+          "description": "add hanko stamp to host badge in lobby",
+          "breaking": false,
+          "commit": "6a6c3ed"
+        },
+        {
+          "type": "feat",
+          "description": "add ink seal stamps to WaitingScreen sealed state",
+          "breaking": false,
+          "commit": "77276d2"
+        },
+        {
+          "type": "feat",
+          "description": "add ink stamp press animation to buttons",
+          "breaking": false,
+          "commit": "dbcc5d5"
+        },
+        {
+          "type": "feat",
+          "description": "add multi-cycle game architecture with schema updates",
+          "breaking": false,
+          "commit": "f34b623"
+        },
+        {
+          "type": "feat",
+          "description": "add observability infrastructure",
+          "breaking": false,
+          "pr": 126,
+          "commit": "5492b0a"
+        },
+        {
+          "type": "feat",
+          "description": "add persimmon tint to shadow design tokens",
+          "breaking": false,
+          "commit": "14b4e9d"
+        },
+        {
+          "type": "feat",
+          "description": "add screen reader live region for validation announcements",
+          "breaking": false,
+          "commit": "59fd5b5"
+        },
+        {
+          "type": "feat",
+          "description": "add smooth shadow crushing animation to buttons",
+          "breaking": false,
+          "commit": "ad028e7"
+        },
+        {
+          "type": "feat",
+          "description": "add stamp animation to submit button on success",
+          "breaking": false,
+          "commit": "81fced4"
+        },
+        {
+          "type": "feat",
+          "description": "add Stamp component for Japanese ink seal graphics",
+          "breaking": false,
+          "commit": "b39d388"
+        },
+        {
+          "type": "feat",
+          "description": "add submission confirmation state machine",
+          "breaking": false,
+          "commit": "693f17d"
+        },
+        {
+          "type": "feat",
+          "description": "add word count guidance text to WritingScreen",
+          "breaking": false,
+          "commit": "cadc70f"
+        },
+        {
+          "type": "feat",
+          "scope": "analytics",
+          "description": "add event tracking for key user actions , closes [#78](https://github.com/misty-step/linejam/issues/78) [#78](https://github.com/misty-step/linejam/issues/78)",
+          "breaking": false,
+          "pr": 82,
+          "commit": "24bad23"
+        },
+        {
+          "type": "feat",
+          "scope": "archive",
+          "description": "redesign archive page with Manuscript Gallery layout",
+          "breaking": false,
+          "pr": 69,
+          "commit": "afbf402"
+        },
+        {
+          "type": "feat",
+          "scope": "auth",
+          "description": "dedicated auth pages with guest migration , closes [#118](https://github.com/misty-step/linejam/issues/118) [#118](https://github.com/misty-step/linejam/issues/118) [#116](https://github.com/misty-step/linejam/issues/116)",
+          "breaking": false,
+          "pr": 119,
+          "commit": "7cbe89a"
+        },
+        {
+          "type": "feat",
+          "description": "configure quality gates with Lefthook and CI",
+          "breaking": false,
+          "commit": "6a9112d"
+        },
+        {
+          "type": "feat",
+          "description": "configure Sentry error tracking with source maps",
+          "breaking": false,
+          "commit": "f1850b3"
+        },
+        {
+          "type": "feat",
+          "description": "create Label component for editorial typography pattern",
+          "breaking": false,
+          "commit": "68b061a"
+        },
+        {
+          "type": "feat",
+          "description": "create LoadingState deep module with preset messages",
+          "breaking": false,
+          "commit": "18463e0"
+        },
+        {
+          "type": "feat",
+          "description": "create ornament component for editorial typography",
+          "breaking": false,
+          "commit": "8ff6da7"
+        },
+        {
+          "type": "feat",
+          "description": "enhance health route with error handling and caching",
+          "breaking": false,
+          "commit": "d53aa73"
+        },
+        {
+          "type": "feat",
+          "description": "implement asymmetric homepage layout with vertical label",
+          "breaking": false,
+          "commit": "96a01d9"
+        },
+        {
+          "type": "feat",
+          "description": "implement comprehensive design system with Tailwind 4",
+          "breaking": false,
+          "commit": "1f64c5e"
+        },
+        {
+          "type": "feat",
+          "description": "Implement comprehensive test coverage automation",
+          "breaking": false,
+          "pr": 8,
+          "commit": "f33770d"
+        },
+        {
+          "type": "feat",
+          "description": "implement core game logic and frontend UI",
+          "breaking": false,
+          "commit": "8052011"
+        },
+        {
+          "type": "feat",
+          "description": "implement crypto-secure 6-char room codes with backward compatibility",
+          "breaking": false,
+          "commit": "8a016fa"
+        },
+        {
+          "type": "feat",
+          "description": "implement server-signed guest tokens with HttpOnly cookies",
+          "breaking": false,
+          "commit": "cc72f34"
+        },
+        {
+          "type": "feat",
+          "description": "implement staggered asymmetric poem reveal",
+          "breaking": false,
+          "commit": "06b159a"
+        },
+        {
+          "type": "feat",
+          "description": "implement structured logging with Pino",
+          "breaking": false,
+          "commit": "16658cf"
+        },
+        {
+          "type": "feat",
+          "description": "implement test helper for expired guest tokens",
+          "breaking": false,
+          "pr": 14,
+          "commit": "10b0b17"
+        },
+        {
+          "type": "feat",
+          "description": "implement Zen Garden design system and reveal ceremony",
+          "breaking": false,
+          "commit": "4e5bc30"
+        },
+        {
+          "type": "feat",
+          "description": "improve poem display animation and layout",
+          "breaking": false,
+          "commit": "46425c2"
+        },
+        {
+          "type": "feat",
+          "scope": "infra",
+          "description": "add deep health check for uptimerobot monitoring",
+          "breaking": false,
+          "commit": "3042c89"
+        },
+        {
+          "type": "feat",
+          "scope": "infra",
+          "description": "add test-error and health check endpoints",
+          "breaking": false,
+          "commit": "72f28b7"
+        },
+        {
+          "type": "feat",
+          "scope": "infra",
+          "description": "configure Dependabot for automated dependency updates",
+          "breaking": false,
+          "pr": 111,
+          "commit": "70d7c36"
+        },
+        {
+          "type": "feat",
+          "scope": "infrastructure",
+          "description": "implement structured logging, analytics, and sentry integration",
+          "breaking": false,
+          "commit": "b19c92e"
+        },
+        {
+          "type": "feat",
+          "description": "initialize Convex with schema for game data model",
+          "breaking": false,
+          "commit": "ca00aa1"
+        },
+        {
+          "type": "feat",
+          "description": "initialize Next.js project with planning docs",
+          "breaking": false,
+          "commit": "c4ba46f"
+        },
+        {
+          "type": "feat",
+          "description": "redesign archive poem with Literary Broadside aesthetic",
+          "breaking": false,
+          "commit": "34b19b0"
+        },
+        {
+          "type": "feat",
+          "description": "redesign home page with Literary Broadside aesthetic",
+          "breaking": false,
+          "commit": "420b717"
+        },
+        {
+          "type": "feat",
+          "description": "reduce room codes from 6 to 4 characters",
+          "breaking": false,
+          "commit": "06c1e4a"
+        },
+        {
+          "type": "feat",
+          "description": "render submission confirmation UI",
+          "breaking": false,
+          "commit": "2a6ce49"
+        },
+        {
+          "type": "feat",
+          "description": "replace footer separators with dagger ornaments",
+          "breaking": false,
+          "commit": "4469d4e"
+        },
+        {
+          "type": "feat",
+          "description": "replace generic loading states with contextual messages",
+          "breaking": false,
+          "commit": "18308f0"
+        },
+        {
+          "type": "feat",
+          "scope": "seo",
+          "description": "add robots.txt, sitemap.xml, and homepage OG image , closes [#76](https://github.com/misty-step/linejam/issues/76) [#76](https://github.com/misty-step/linejam/issues/76)",
+          "breaking": false,
+          "pr": 80,
+          "commit": "f9d34ab"
+        },
+        {
+          "type": "feat",
+          "description": "setup Changesets for version management",
+          "breaking": false,
+          "commit": "d32cd8a"
+        },
+        {
+          "type": "feat",
+          "description": "Share and Export Poems",
+          "breaking": false,
+          "pr": 10,
+          "commit": "10a341b"
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "implement ceremonial WritingScreen redesign with \"Digital Ensō\" concept",
+          "breaking": false,
+          "commit": "198afcd"
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "implement combined stamp hover animation (pulse + wiggle)",
+          "breaking": false,
+          "commit": "d555e70"
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "implement ink spread on hover animation for buttons",
+          "breaking": false,
+          "commit": "1593fdb"
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "implement persimmon glow pulse animation for primary buttons",
+          "breaking": false,
+          "commit": "e3d2aae"
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "implement typewriter character shift animation for buttons",
+          "breaking": false,
+          "commit": "ac31c21"
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "split-view lobby + dark mode QR + conditional header , closes [#faf9f7](https://github.com/misty-step/linejam/issues/faf9f7) [#1c1917](https://github.com/misty-step/linejam/issues/1c1917)",
+          "breaking": false,
+          "commit": "bc9122a"
+        },
+        {
+          "type": "feat",
+          "description": "update placeholder to show required word count",
+          "breaking": false,
+          "pr": 63,
+          "commit": "52562f4"
+        },
+        {
+          "type": "chore",
+          "description": "eliminate N+1 query patterns in game and poems modules",
+          "breaking": false,
+          "pr": 9,
+          "commit": "d4bc813"
+        },
+        {
+          "type": "chore",
+          "description": "parallelize serial database writes in game mutations , closes [#86](https://github.com/misty-step/linejam/issues/86) [#86](https://github.com/misty-step/linejam/issues/86)",
+          "breaking": false,
+          "pr": 116,
+          "commit": "7db8d3b"
+        },
+        {
+          "type": "chore",
+          "description": "Existing localStorage guest IDs will be replaced with",
+          "breaking": false
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v1.0.0...v1.1.0",
+      "productNotes": "a11y: use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151).\n\nauth: show error state with retry on guest auth failure , closes [#144](https://github.com/misty-step/linejam/issues/144) [#144](https://github.com/misty-step/linejam/issues/144).\n\nci: pin trufflehog scanner version.\n\nci: settle trufflehog workflow.",
+      "notesStatus": "legacy"
+    },
+    {
+      "version": "0.1.0",
+      "date": "2025-01-24",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "game",
+          "description": "Real-time collaborative poetry game with 9-round structure",
+          "breaking": false
+        },
+        {
+          "type": "feat",
+          "scope": "ai",
+          "description": "AI players powered by Gemini for solo or small group play",
+          "breaking": false
+        },
+        {
+          "type": "feat",
+          "scope": "themes",
+          "description": "Four premium visual themes (Kenya, Mono, Vintage Paper, Hyper)",
+          "breaking": false
+        },
+        {
+          "type": "feat",
+          "scope": "auth",
+          "description": "Hybrid authentication with Clerk and guest UUID fallback",
+          "breaking": false
+        },
+        {
+          "type": "feat",
+          "scope": "share",
+          "description": "Poem sharing with clipboard copy and analytics tracking",
+          "breaking": false
+        },
+        {
+          "type": "feat",
+          "scope": "help",
+          "description": "Floating help modal explaining gameplay rules",
+          "breaking": false
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "WordSlots genkoyoushi-inspired word count indicator",
+          "breaking": false
+        },
+        {
+          "type": "refactor",
+          "scope": "releases",
+          "description": "Static file-based releases infrastructure",
+          "breaking": false
+        },
+        {
+          "type": "fix",
+          "description": "Ensure proper word counting for multi-space inputs",
+          "breaking": false
+        }
+      ],
+      "productNotes": "Get ready to unleash your inner poet! We're thrilled to announce the launch of Linejam, a brand new real-time collaborative poetry game where you and your friends can create beautiful verses together. Each game consists of 9 rounds, offering plenty of opportunities for creative expression and playful collaboration. If your muse is flying solo, don't fret! You can now play against AI opponents powered by Gemini, making Linejam a fun and engaging experience whether you're a lone wolf or part of a pack.\n\nWe've also added some delightful visual flair to enhance your playing experience. Choose from four premium themes – Kenya, Mono, Vintage Paper, and Hyper – to set the mood and inspire your creativity. And when you've crafted a poem you're proud of, easily share it with the world! A simple click lets you copy your masterpiece to the clipboard, ready to paste and share wherever your heart desires.\n\nNeed a little guidance? We've included a handy floating help modal that clearly explains the game's rules. Plus, our unique word count indicator, inspired by traditional Japanese genkoyoushi paper, helps you keep track of your progress and stay within the flow.\n\nFinally, we've made some behind-the-scenes tweaks to ensure everything runs smoothly, including fixing an issue with word counting to handle those extra spaces. Happy jamming!",
+      "notesStatus": "legacy"
+    }
+  ],
+  "diagnostics": [
+    {
+      "severity": "warning",
+      "message": "v0.27.0: public notes are not recorded. Technical history is retained."
+    },
+    {
+      "severity": "warning",
+      "message": "v0.25.1: public notes are not recorded. Technical history is retained."
+    }
+  ]
+}
