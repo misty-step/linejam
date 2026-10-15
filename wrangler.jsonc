@@ -2,7 +2,10 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "linejam",
   "account_id": "b069014f6a46558ea9146fb6c4ff8f6c",
-  "main": ".open-next/worker.js",
+  // cloudflare/worker.ts routes /backend/* to the Convex-compatible Durable
+  // Object (cloudflare/backend.ts) and everything else to the OpenNext build.
+  "main": "cloudflare/worker.ts",
+  "alias": { "open-next-worker": "./.open-next/worker.js" },
   "compatibility_date": "2026-09-20",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "workers_dev": false,
@@ -13,6 +16,14 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  // One SQLite Durable Object holds the whole backend. A new deployment starts
+  // with writes frozen until an operator imports data or unfreezes it.
+  "durable_objects": {
+    "bindings": [{ "name": "LINEJAM_BACKEND", "class_name": "LinejamBackend" }],
+  },
+  "migrations": [
+    { "tag": "linejam-backend-v1", "new_sqlite_classes": ["LinejamBackend"] },
+  ],
   "env": {
     // Staging: workers.dev URL only. No routes, no custom domains.
     // Backends are development-scoped (dev Convex deployment + Clerk dev
@@ -22,6 +33,11 @@
     "staging": {
       "name": "linejam-staging",
       "workers_dev": true,
+      "durable_objects": {
+        "bindings": [
+          { "name": "LINEJAM_BACKEND", "class_name": "LinejamBackend" },
+        ],
+      },
       "vars": {
         "NEXT_PUBLIC_CONVEX_URL": "https://exuberant-bloodhound-885.convex.cloud",
         "NEXT_PUBLIC_SENTRY_ENABLED": "1",
@@ -40,12 +56,23 @@
       "name": "linejam",
       "workers_dev": false,
       "routes": [{ "pattern": "linejam.mistystep.io", "custom_domain": true }],
+      "durable_objects": {
+        "bindings": [
+          { "name": "LINEJAM_BACKEND", "class_name": "LinejamBackend" },
+        ],
+      },
       "vars": {
         "NEXT_PUBLIC_CONVEX_URL": "https://amiable-bulldog-848.convex.cloud",
         "NEXT_PUBLIC_SENTRY_ENABLED": "1",
         "SENTRY_ORG": "misty-step",
         "SENTRY_PROJECT": "linejam",
         "LINEJAM_DEPLOY_ENVIRONMENT": "production",
+        // Convex runtime env for the Durable Object backend. The backend is
+        // dormant until NEXT_PUBLIC_CONVEX_URL points at /backend.
+        "CONVEX_CLOUD_URL": "https://linejam.mistystep.io/backend",
+        "CONVEX_SITE_URL": "https://linejam.mistystep.io/backend/http",
+        "LINEJAM_SENTRY_ENABLED": "true",
+        "SENTRY_ENVIRONMENT": "production",
       },
       // NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY (Clerk live key) and all server
       // secrets are bound at deploy with `wrangler secret put <NAME>

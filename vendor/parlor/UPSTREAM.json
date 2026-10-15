@@ -7,5 +7,7 @@
     "tsconfig.base.json",
     "LICENSE"
   ],
-  "modifications": []
+  "modifications": [
+    "integrations/cloudflare is vendored from misty-step/parlor 9c510ac85189d45d3848a3fbea34e8273a765ecf (PR #15); its vitest devDependency follows Linejam's version"
+  ]
 }
