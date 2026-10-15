@@ -8,6 +8,6 @@
     "LICENSE"
   ],
   "modifications": [
-    "integrations/cloudflare is vendored from misty-step/parlor 7ea8e08084ac372aadd7c51ddfb5a3fc52ed4557 (PR #15); its vitest devDependency follows Linejam's version"
+    "integrations/cloudflare is vendored from misty-step/parlor 4c0b08a1c89742d8ceb360969004753f638be6ab (PR #15); its vitest devDependency follows Linejam's version"
   ]
 }

@@ -13,6 +13,8 @@
 
 const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
 const INTERNAL_ID_LENGTH = 16;
+/** Convex table numbers are unsigned 32-bit integers; an ID cannot encode more. */
+export const MAX_TABLE_NUMBER = 0xffff_ffff;
 const DECODE = new Map<string, number>(
   Array.from({ length: ALPHABET.length }, (_, index) => [ALPHABET.charAt(index), index]),
 );
@@ -82,7 +84,7 @@ function encodeVint(value: number): number[] {
 }
 
 export function encodeId(tableNumber: number, internalId: Uint8Array): string {
-  if (!Number.isSafeInteger(tableNumber) || tableNumber < 0 || tableNumber > 0xffff_ffff) {
+  if (!Number.isSafeInteger(tableNumber) || tableNumber < 0 || tableNumber > MAX_TABLE_NUMBER) {
     throw new Error(`Invalid table number ${tableNumber}`);
   }
   if (internalId.length !== INTERNAL_ID_LENGTH) throw new Error("Invalid internal ID length");
@@ -107,6 +109,8 @@ export function decodeId(text: string): DecodedId | null {
     if ((byte & 0x80) === 0) break;
   }
   if (bytes.length !== position + INTERNAL_ID_LENGTH + 2) return null;
+  // Five vint bytes can carry more than a table number may hold.
+  if (tableNumber > MAX_TABLE_NUMBER) return null;
   const body = bytes.subarray(0, bytes.length - 2);
   const [sum1, sum2] = fletcher16(body);
   if (bytes[bytes.length - 2] !== sum1 || bytes[bytes.length - 1] !== sum2) return null;

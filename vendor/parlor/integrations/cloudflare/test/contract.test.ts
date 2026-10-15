@@ -21,6 +21,7 @@ import {
 } from "convex/values";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthenticationError } from "../src/auth.js";
+import { decodeId, MAX_TABLE_NUMBER } from "../src/ids.js";
 import { encodeValue } from "../src/keys.js";
 import { planRange } from "../src/query.js";
 import { Runtime, type ConvexApp, type FunctionOutcome } from "../src/runtime.js";
@@ -37,6 +38,7 @@ import {
   type ExpectedTable,
 } from "../src/snapshot.js";
 import { SyncSession } from "../src/sync.js";
+import type { SqlDriver } from "../src/store.js";
 import type { TokenVerifier } from "../src/auth.js";
 import { utf8Length } from "../src/utf8.js";
 import {
@@ -51,7 +53,7 @@ import {
 } from "./helpers.js";
 
 /**
- * Contract regressions for the independent review of the adapter (R1–R11):
+ * Contract regressions for the independent reviews of the adapter (R1–R15):
  * each block pins one promised behavior with concrete inputs and outputs.
  */
 
@@ -60,6 +62,15 @@ type Frame = { readonly type: string; readonly [key: string]: unknown };
 const ref = (module: string, name: string) => anyApi[module]![name]!;
 const wait = (ms = 25) => new Promise((resolve) => setTimeout(resolve, ms));
 const FROZEN = "temporarily read-only for maintenance";
+
+/** Wait until `condition` holds, failing after about two seconds. */
+async function until(condition: () => boolean | Promise<boolean>): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (await condition()) return;
+    await wait(10);
+  }
+  throw new Error("condition never held");
+}
 
 function value(outcome: FunctionOutcome): JSONValue {
   if (!outcome.success) throw new Error(`expected success, got ${outcome.message}`);
@@ -243,11 +254,13 @@ describe("R1: freezing writes is a single-writer barrier", () => {
     });
     const runtime = new Runtime(sqliteDriver(), withModules({ extra: { slow, enqueue } }));
     value((await runtime.mutation("extra:enqueue", {}, null)).outcome);
-    const pass = runtime.runDue(Date.now() + 1000);
+    expect(await runtime.runDue(Date.now() + 1000)).toBe(1);
     await begun;
     const barrier = await freeze(runtime, true);
     open();
-    await pass;
+    // The action ends without recording an outcome; its job is then no longer
+    // running here, so the scheduler sees it as interrupted.
+    await until(() => runtime.runningActions === 0 && runtime.nextWakeTime() !== null);
     expect(runtime.store.ts).toBe(barrier);
     expect(jobs(runtime)).toEqual([{ name: "extra:slow", state: { kind: "inProgress" } }]);
     expect(await counter(runtime, "slow")).toBe(0);
@@ -1072,5 +1085,373 @@ describe("R11: rollback keeps every accepted write", () => {
       "m0",
     ]);
     expect(await counter(target, "before")).toBe(1);
+  });
+});
+
+describe("R12: an import's pending mark commits with the replacement, or neither does", () => {
+  it("keeps data, mappings, receipts, timestamp and maintenance state when the mark cannot be written", async () => {
+    const driver = sqliteDriver();
+    let failMark = false;
+    const faulty: SqlDriver = {
+      transaction: (callback) => driver.transaction(callback),
+      exec: (query, ...bindings) => {
+        if (failMark && query.startsWith("INSERT OR REPLACE INTO cvx_meta")) {
+          if (bindings[0] === "import_pending") {
+            failMark = false;
+            throw new Error("injected import marker write failure");
+          }
+        }
+        return driver.exec(query, ...bindings);
+      },
+    };
+    const runtime = new Runtime(faulty, app);
+    const receipt = { sessionId: "s", requestId: 1 };
+    value((await runtime.mutation("rooms:create", { code: "KEEP" }, null, { receipt })).outcome);
+    const { session, messages, send } = socket(runtime);
+    send({
+      type: "ModifyQuerySet",
+      baseVersion: 0,
+      newVersion: 1,
+      modifications: [
+        { type: "Add", queryId: 0, udfPath: "rooms:byCode", args: [{ code: "KEEP" }] },
+      ],
+    });
+    await wait();
+    await freeze(runtime, true);
+    const state = async () => ({
+      stats: await tableStats(runtime),
+      ts: runtime.store.ts,
+      tables: Object.fromEntries(runtime.store.tableNumbers()),
+      stored: driver.exec("SELECT name, number FROM cvx_tables ORDER BY name"),
+      receipts: driver.exec("SELECT session_id, request_id FROM cvx_receipts"),
+      maintenance: driver.exec(
+        "SELECT key, value FROM cvx_meta WHERE key IN ('import_pending', 'writes_frozen')",
+      ),
+    });
+    const before = await state();
+    const transitions = messages.length;
+    const snapshot = { rooms: 20001, messages: 20002, counters: 20003 };
+
+    failMark = true;
+    await expect(runtime.exclusive(() => beginImport(runtime, snapshot))).rejects.toThrow(
+      "injected import marker write failure",
+    );
+    expect(await state()).toEqual(before);
+    expect(before.maintenance).toEqual([{ key: "writes_frozen", value: "1" }]);
+    await wait();
+    expect(messages.length).toBe(transitions);
+    expect(latest(messages, 0)).toMatchObject({ code: "KEEP" });
+
+    // The same import begins once the write succeeds, and then holds writes frozen.
+    await runtime.exclusive(() => beginImport(runtime, snapshot));
+    expect(importPending(runtime)).toBe(true);
+    await expect(freeze(runtime, false)).rejects.toThrow(MaintenanceStateError);
+    session.close();
+  });
+});
+
+describe("R13: every table number must fit a document ID", () => {
+  it("rejects an unencodable number, or a mapping that leaves no number for a schema table, before changing anything", async () => {
+    const runtime = newRuntime();
+    const receipt = { sessionId: "s", requestId: 1 };
+    value((await runtime.mutation("rooms:create", { code: "KEEP" }, null, { receipt })).outcome);
+    await freeze(runtime, true);
+    const state = async () => ({
+      stats: await tableStats(runtime),
+      ts: runtime.store.ts,
+      tables: Object.fromEntries(runtime.store.tableNumbers()),
+      receipts: runtime.store.driver.exec("SELECT session_id, request_id FROM cvx_receipts"),
+    });
+    const before = await state();
+    const refused: [Record<string, number>, string][] = [
+      [{ rooms: MAX_TABLE_NUMBER + 1 }, "Invalid table number 4294967296 for snapshot table rooms"],
+      [{ rooms: MAX_TABLE_NUMBER }, "No table number is left for table messages"],
+    ];
+    for (const [tables, message] of refused) {
+      expect(() => beginImport(runtime, tables)).toThrow(message);
+      expect(await state()).toEqual(before);
+      expect(importPending(runtime)).toBe(false);
+    }
+
+    // The highest numbers that leave room for the schema's tables work end to end.
+    await runtime.exclusive(() => beginImport(runtime, { rooms: MAX_TABLE_NUMBER - 2 }));
+    expect(userTables(runtime)).toEqual({
+      rooms: MAX_TABLE_NUMBER - 2,
+      messages: MAX_TABLE_NUMBER - 1,
+      counters: MAX_TABLE_NUMBER,
+    });
+    expect((await runtime.exclusive(() => commitImport(runtime, {}))).mismatches).toEqual([]);
+    await freeze(runtime, false);
+    const roomId = value(
+      (await runtime.mutation("rooms:create", { code: "HIGH" }, null)).outcome,
+    ) as string;
+    const messageId = value(
+      (await runtime.mutation("messages:send", { roomId, body: "hi" }, null)).outcome,
+    ) as string;
+    expect([decodeId(roomId)?.tableNumber, decodeId(messageId)?.tableNumber]).toEqual([
+      MAX_TABLE_NUMBER - 2,
+      MAX_TABLE_NUMBER - 1,
+    ]);
+    expect(value((await runtime.query("rooms:normalize", { id: roomId }, null)).outcome)).toEqual({
+      room: roomId,
+      message: null,
+    });
+  });
+});
+
+describe("R14: a running scheduled action never holds up other scheduled work", () => {
+  it("runs later jobs and crons while a scheduled action is held, then records its outcome", async () => {
+    const { open, opened, started, begun } = gate();
+    const slow = internalActionGeneric({
+      args: {},
+      handler: async (ctx) => {
+        started();
+        await opened;
+        await ctx.runMutation(ref("counters", "bump"), { name: "slow" });
+      },
+    });
+    const enqueue = mutationGeneric({
+      args: {},
+      handler: async (ctx) => ctx.scheduler.runAfter(0, ref("extra", "slow"), {}),
+    });
+    const runtime = new Runtime(sqliteDriver(), withModules({ extra: { slow, enqueue } }));
+    value((await runtime.mutation("extra:enqueue", {}, null)).outcome);
+    value(
+      (await runtime.mutation("counters:bumpLater", { name: "healthy", delayMs: 0 }, null)).outcome,
+    );
+    runtime.syncCrons();
+    const now = Date.now() + 61_000;
+
+    // The pass ends with the action still held: its job, the later job and the cron.
+    expect(await runtime.runDue(now)).toBe(3);
+    await begun;
+    const counts = async () => ({
+      healthy: await counter(runtime, "healthy"),
+      cron: await counter(runtime, "cron"),
+      slow: await counter(runtime, "slow"),
+    });
+    expect(await counts()).toEqual({ healthy: 1, cron: 1, slow: 0 });
+    expect(jobs(runtime)).toEqual([
+      { name: "counters:bump", state: { kind: "success" } },
+      { name: "extra:slow", state: { kind: "inProgress" } },
+    ]);
+    // Another pass meanwhile neither reruns the held action nor marks it interrupted.
+    expect(await runtime.runDue(now)).toBe(0);
+    expect(jobs(runtime)[1]).toEqual({ name: "extra:slow", state: { kind: "inProgress" } });
+
+    open();
+    await until(() => jobs(runtime)[1]?.state["kind"] === "success");
+    expect(await counts()).toEqual({ healthy: 1, cron: 1, slow: 1 });
+  });
+
+  it("runs other crons while a cron action is held, skipping that cron's runs until it ends", async () => {
+    const { open, opened, started, begun } = gate();
+    let sweeps = 0;
+    const sweep = internalActionGeneric({
+      args: {},
+      handler: async () => {
+        sweeps += 1;
+        started();
+        await opened;
+      },
+    });
+    const crons = cronJobs();
+    crons.interval("a sweep", { minutes: 1 }, ref("extra", "sweep"), {});
+    crons.interval("b tick", { minutes: 1 }, ref("counters", "bump"), { name: "cron" });
+    const runtime = new Runtime(sqliteDriver(), withModules({ extra: { sweep } }, { crons }));
+    runtime.syncCrons();
+    const start = Date.now();
+
+    expect(await runtime.runDue(start + 61_000)).toBe(2);
+    await begun;
+    expect(await counter(runtime, "cron")).toBe(1);
+    // A minute later the sweep is still going: its run is skipped, the tick runs.
+    expect(await runtime.runDue(start + 122_000)).toBe(1);
+    expect({ sweeps, cron: await counter(runtime, "cron") }).toEqual({ sweeps: 1, cron: 2 });
+
+    open();
+    await until(() => runtime.runningActions === 0);
+    expect(await runtime.runDue(start + 183_000)).toBe(2);
+    await until(() => sweeps === 2 && runtime.runningActions === 0);
+    expect(await counter(runtime, "cron")).toBe(3);
+  });
+
+  it("runs at most 16 scheduled actions at once; the next waits, pending, and starts when one ends", async () => {
+    const { open, opened } = gate();
+    let running = 0;
+    let peak = 0;
+    const held = internalActionGeneric({
+      args: { n: v.number() },
+      handler: async () => {
+        running += 1;
+        peak = Math.max(peak, running);
+        await opened;
+        running -= 1;
+      },
+    });
+    const enqueue = mutationGeneric({
+      args: { count: v.number() },
+      handler: async (ctx, { count }) => {
+        for (let n = 0; n < count; n += 1) {
+          await ctx.scheduler.runAfter(0, ref("extra", "held"), { n });
+        }
+      },
+    });
+    const runtime = new Runtime(sqliteDriver(), withModules({ extra: { held, enqueue } }));
+    value((await runtime.mutation("extra:enqueue", { count: 17 }, null)).outcome);
+    value(
+      (await runtime.mutation("counters:bumpLater", { name: "healthy", delayMs: 0 }, null)).outcome,
+    );
+    const states = () =>
+      jobs(runtime)
+        .filter((job) => job.name === "extra:held")
+        .map((job) => String(job.state["kind"]))
+        .sort();
+
+    // Sixteen actions start and the later mutation job runs; the 17th action waits.
+    expect(await runtime.runDue(Date.now() + 1000)).toBe(17);
+    await until(() => running === 16);
+    expect(states()).toEqual([...Array.from({ length: 16 }, () => "inProgress"), "pending"]);
+    expect(await counter(runtime, "healthy")).toBe(1);
+    // The waiting job does not wake the scheduler; the action that frees a slot does.
+    expect(runtime.nextWakeTime()).toBeNull();
+
+    open();
+    await until(() => states().every((kind) => kind === "success"));
+    expect({ peak, jobs: states().length }).toEqual({ peak: 16, jobs: 17 });
+  });
+});
+
+describe("R15: discarding an unwanted body is bounded in time and bytes", () => {
+  /** A request body the test feeds by hand, recording whether the backend cancelled it. */
+  function upload() {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(streamController) {
+        controller = streamController;
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    return { body, controller, cancelled: () => cancelled };
+  }
+  /** An early 401 that never touches the body: an unsupported Authorization scheme. */
+  const refused = (
+    call: (path: string, init?: RequestInit) => Promise<Response>,
+    body: ReadableStream<Uint8Array>,
+  ) => {
+    // Node requires `duplex` for a streamed body; the DOM RequestInit type omits it.
+    const init = { method: "POST", body, headers: { Authorization: "Basic x" }, duplex: "half" };
+    return call("/api/query", init);
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("answers a refusal one second after a stalled client last sent a byte", async () => {
+    const { call } = await durableObject();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const client = upload();
+    client.controller.enqueue(new Uint8Array([1]));
+    let status: number | "pending" = "pending";
+    const response = refused(call, client.body).then((answer) => {
+      status = answer.status;
+    });
+    await vi.advanceTimersByTimeAsync(999);
+    expect({ status, cancelled: client.cancelled() }).toEqual({
+      status: "pending",
+      cancelled: false,
+    });
+    await vi.advanceTimersByTimeAsync(1);
+    await response;
+    expect({ status, cancelled: client.cancelled() }).toEqual({ status: 401, cancelled: true });
+  });
+
+  it("stops discarding a trickle five seconds after it began", async () => {
+    const { call } = await durableObject();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const client = upload();
+    const drip = () => {
+      if (client.cancelled()) return;
+      client.controller.enqueue(new Uint8Array([1]));
+      setTimeout(drip, 900);
+    };
+    drip();
+    let status: number | "pending" = "pending";
+    const response = refused(call, client.body).then((answer) => {
+      status = answer.status;
+    });
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(status).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+    await response;
+    expect({ status, cancelled: client.cancelled() }).toEqual({ status: 401, cancelled: true });
+  });
+
+  it("cancels a body already past 32 MiB without reading it again", async () => {
+    const { call } = await durableObject();
+    const client = upload();
+    client.controller.enqueue(new Uint8Array(33 * 1024 * 1024));
+    const init = { method: "POST", body: client.body, duplex: "half" };
+    const response = await call("/api/query", init);
+    expect({ status: response.status, cancelled: client.cancelled() }).toEqual({
+      status: 413,
+      cancelled: true,
+    });
+  });
+
+  it("answers at once when the client aborts its upload", async () => {
+    const { call } = await durableObject();
+    const client = upload();
+    client.controller.enqueue(new Uint8Array([1]));
+    const started = Date.now();
+    const response = refused(call, client.body);
+    await wait();
+    client.controller.error(new Error("client went away"));
+    expect((await response).status).toBe(401);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
+  it("drains what an HTTP action left unread after reading part of the body", async () => {
+    const http = httpRouter();
+    http.route({
+      path: "/partial",
+      method: "POST",
+      handler: httpActionGeneric(async (_ctx, request) => {
+        const reader = request.body!.getReader();
+        const first = await reader.read();
+        reader.releaseLock();
+        return new Response(`read ${first.value?.byteLength ?? 0}`);
+      }),
+    });
+    const { call, admin } = await durableObject({ app: withModules({}, { http }) });
+    await admin("freeze", { frozen: false });
+    const chunks = [new Uint8Array(3), new Uint8Array(5)];
+    let outcome = "unread";
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const next = chunks.shift();
+        if (next === undefined) {
+          outcome = "drained";
+          controller.close();
+        } else controller.enqueue(next);
+      },
+      cancel() {
+        outcome = "cancelled";
+      },
+    });
+    const response = await call("/http/partial", {
+      method: "POST",
+      body,
+      duplex: "half",
+    } as RequestInit);
+    expect({ status: response.status, text: await response.text(), body: outcome }).toEqual({
+      status: 200,
+      text: "read 3",
+      body: "drained",
+    });
   });
 });

@@ -69,8 +69,14 @@ export interface ConvexBackendOptions {
 
 const PING_INTERVAL_MS = 15_000;
 const MAX_BODY_BYTES = 8 << 20;
-/** How much of an unwanted request body is read and discarded before it is cancelled. */
+/**
+ * Discarding an unwanted request body is best effort and bounded: it stops,
+ * cancelling the body, once this many bytes have arrived in all, when no
+ * chunk arrives for DISCARD_IDLE_MS, or after DISCARD_TOTAL_MS.
+ */
 const MAX_DISCARD_BYTES = 4 * MAX_BODY_BYTES;
+const DISCARD_IDLE_MS = 1_000;
+const DISCARD_TOTAL_MS = 5_000;
 const MAX_SOCKETS = 5000;
 const STATUS_UDF_FAILED = 560;
 const DO_NAME = "convex";
@@ -104,7 +110,8 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
 /**
  * The body's bytes, counted as they arrive whatever Content-Length says. A
  * body over `limit` is refused with 413 without being buffered, after the
- * rest of it is discarded so that the response reaches the client.
+ * rest of it is discarded (within the discard bounds) so that the response
+ * reaches the client.
  */
 async function readBounded(request: Request, limit: number): Promise<Uint8Array> {
   if (request.body === null) return new Uint8Array();
@@ -134,24 +141,56 @@ async function readBounded(request: Request, limit: number): Promise<Uint8Array>
  * Discard a body nobody read: an early 401 or 404, or an HTTP action that
  * ignored it. workerd reliably delivers a response sent before the body is
  * consumed only once the body has been read; cancelling it is not enough.
+ * A body another reader still holds is left alone.
  */
 async function drainUnreadBody(request: Request): Promise<void> {
-  if (request.body !== null && !request.bodyUsed) await discardRest(request.body.getReader(), 0);
+  const body = request.body;
+  if (body === null || body.locked) return;
+  let reader: ReadableStreamDefaultReader<Uint8Array>;
+  try {
+    reader = body.getReader();
+  } catch {
+    return;
+  }
+  await discardRest(reader, 0);
 }
 
-/** Read and drop the rest of a body, cancelling it past MAX_DISCARD_BYTES in all. */
+const TIMED_OUT = Symbol("timed out");
+
+/** `promise`, or TIMED_OUT if it has not settled within `ms`. */
+async function within<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Read and drop the rest of a body of which `read` bytes have arrived, then
+ * cancel it if it has not ended within the discard bounds. A body already
+ * past MAX_DISCARD_BYTES is cancelled without reading again, and a client
+ * that stalls holds its own response back for at most DISCARD_IDLE_MS
+ * without sending, or DISCARD_TOTAL_MS in all.
+ */
 async function discardRest(reader: ReadableStreamDefaultReader<Uint8Array>, read: number) {
   let total = read;
+  const deadline = Date.now() + DISCARD_TOTAL_MS;
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) return;
-      total += value.byteLength;
-      if (total > MAX_DISCARD_BYTES) {
-        await reader.cancel();
-        return;
-      }
+    while (total <= MAX_DISCARD_BYTES) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      const next = await within(reader.read(), Math.min(DISCARD_IDLE_MS, remaining));
+      if (next === TIMED_OUT) break;
+      if (next.done) return;
+      total += next.value.byteLength;
     }
+    // Not awaited: cancelling must not wait on the client either.
+    reader.cancel().catch(() => undefined);
   } catch {
     // The client went away; nobody is left to answer.
   }

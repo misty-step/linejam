@@ -1,5 +1,5 @@
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
-import { decodeId, newId } from "./ids.js";
+import { decodeId, MAX_TABLE_NUMBER, newId } from "./ids.js";
 import { encodeKey, encodeValue, keySuccessor } from "./keys.js";
 import {
   isSystemTable,
@@ -131,6 +131,21 @@ function nextFloat(value: number): number {
   return view.getFloat64(0);
 }
 
+/**
+ * The number a new table gets beside the numbers already `taken`: its fixed
+ * system number, or one past the highest in use (user tables start at
+ * FIRST_USER_TABLE). Throws when no encodable number is left.
+ */
+function allocateTableNumber(name: string, taken: Iterable<number>): number {
+  const system = SYSTEM_TABLE_NUMBERS[name];
+  if (system !== undefined) return system;
+  if (isSystemTable(name)) throw new Error(`Unknown system table ${name}`);
+  let highest = FIRST_USER_TABLE - 1;
+  for (const number of taken) if (number > highest) highest = number;
+  if (highest >= MAX_TABLE_NUMBER) throw new Error(`No table number is left for table ${name}`);
+  return highest + 1;
+}
+
 export class Store {
   private readonly numbersByName = new Map<string, number>();
   private readonly namesByNumber = new Map<number, string>();
@@ -250,12 +265,7 @@ export class Store {
   ensureTable(name: string): number {
     const existing = this.numbersByName.get(name);
     if (existing !== undefined) return existing;
-    let number = SYSTEM_TABLE_NUMBERS[name];
-    if (number === undefined) {
-      if (isSystemTable(name)) throw new Error(`Unknown system table ${name}`);
-      const highest = Math.max(FIRST_USER_TABLE - 1, ...this.namesByNumber.keys());
-      number = highest + 1;
-    }
+    const number = allocateTableNumber(name, this.namesByNumber.keys());
     this.insertTable(name, number);
     return number;
   }
@@ -435,27 +445,15 @@ export class Store {
 
   /**
    * Replace the whole database with an empty one that uses a snapshot's user
-   * table numbers, ready for `importDocuments`. Everything is validated
-   * before anything changes, and the replacement is one SQLite transaction,
-   * so a rejected snapshot leaves every document, index entry, mapping and
-   * receipt as it was.
+   * table numbers, ready for `importDocuments`. The complete resulting table
+   * mapping, schema tables included, is validated against the ID format
+   * before anything changes. The replacement and `within` (the caller's own
+   * bookkeeping, such as the import-pending mark) commit as one SQLite
+   * transaction, so a rejected snapshot or any failed write leaves every
+   * document, index entry, mapping, receipt and meta key as it was.
    */
-  replaceAll(numbers: ReadonlyMap<string, number>): CommitResult {
-    const reserved = new Set(Object.values(SYSTEM_TABLE_NUMBERS));
-    const owners = new Map<number, string>();
-    for (const [name, number] of numbers) {
-      if (!USER_TABLE_NAME.test(name)) {
-        throw new Error(`Invalid snapshot table name ${JSON.stringify(name)}`);
-      }
-      if (!Number.isSafeInteger(number) || number < 1 || reserved.has(number)) {
-        throw new Error(`Invalid table number ${String(number)} for snapshot table ${name}`);
-      }
-      const owner = owners.get(number);
-      if (owner !== undefined) {
-        throw new Error(`Snapshot tables ${owner} and ${name} share table number ${number}`);
-      }
-      owners.set(number, name);
-    }
+  replaceAll(numbers: ReadonlyMap<string, number>, within?: (ts: bigint) => void): CommitResult {
+    const mapping = this.planReplacement(numbers);
     let ts: bigint;
     try {
       ts = this.driver.transaction(() => {
@@ -463,11 +461,12 @@ export class Store {
         this.driver.exec("DELETE FROM cvx_documents");
         this.driver.exec("DELETE FROM cvx_tables");
         this.driver.exec("DELETE FROM cvx_receipts");
-        this.numbersByName.clear();
-        this.namesByNumber.clear();
-        for (const [name, number] of numbers) this.insertTable(name, number);
-        for (const name of this.schema.tables.keys()) this.ensureTable(name);
-        return this.writeNextTs();
+        for (const [name, number] of mapping) {
+          this.driver.exec("INSERT INTO cvx_tables (name, number) VALUES (?, ?)", name, number);
+        }
+        const next = this.writeNextTs();
+        within?.(next);
+        return next;
       });
     } finally {
       // The in-memory mapping always mirrors what SQLite holds now, whether
@@ -476,6 +475,40 @@ export class Store {
     }
     this.currentTs = ts;
     return { ts, changes: new Map(), tables: new Set(this.numbersByName.keys()), replaced: true };
+  }
+
+  /**
+   * The table mapping a replacement would leave: the snapshot's numbers, plus
+   * a number for every schema table the snapshot lacks. Throws, before
+   * anything changes, when a name or number is invalid, shared or reserved,
+   * or when a number does not fit an ID.
+   */
+  private planReplacement(numbers: ReadonlyMap<string, number>): Map<string, number> {
+    const reserved = new Set(Object.values(SYSTEM_TABLE_NUMBERS));
+    const owners = new Map<number, string>();
+    for (const [name, number] of numbers) {
+      if (!USER_TABLE_NAME.test(name)) {
+        throw new Error(`Invalid snapshot table name ${JSON.stringify(name)}`);
+      }
+      if (
+        !Number.isSafeInteger(number) ||
+        number < 1 ||
+        number > MAX_TABLE_NUMBER ||
+        reserved.has(number)
+      ) {
+        throw new Error(`Invalid table number ${String(number)} for snapshot table ${name}`);
+      }
+      const owner = owners.get(number);
+      if (owner !== undefined) {
+        throw new Error(`Snapshot tables ${owner} and ${name} share table number ${number}`);
+      }
+      owners.set(number, name);
+    }
+    const mapping = new Map(numbers);
+    for (const name of this.schema.tables.keys()) {
+      if (!mapping.has(name)) mapping.set(name, allocateTableNumber(name, mapping.values()));
+    }
+    return mapping;
   }
 
   /** Insert documents verbatim (IDs and creation times preserved); admitted while frozen. */

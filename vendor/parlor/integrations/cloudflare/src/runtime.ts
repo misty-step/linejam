@@ -186,6 +186,11 @@ function journalEndCursor(journal: string | null): string | null {
 const executions = new AsyncLocalStorage<Execution>();
 /** Mutation receipts and finished scheduler records are kept for a week. */
 const RETAIN_FINISHED_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Scheduled actions that may run at once. They run outside the scheduler
+ * pass; a due action finding every slot busy stays pending until one ends.
+ */
+const MAX_SCHEDULED_ACTIONS = 16;
 /** What every refused admission returns while writes are frozen. */
 const FROZEN_OUTCOME: FunctionOutcome = {
   success: false,
@@ -285,6 +290,10 @@ export class Runtime {
   private readonly listeners = new Set<CommitListener>();
   /** Scheduled jobs this instance is executing; any other `inProgress` job was interrupted. */
   private readonly runningJobs = new Set<string>();
+  /** Due scheduled actions left pending because every action slot was busy. */
+  private readonly waitingForSlot = new Set<string>();
+  /** Crons whose action is still running; Convex runs one run of a cron at a time. */
+  private readonly runningCrons = new Set<string>();
   private actionsRunning = 0;
 
   constructor(
@@ -967,11 +976,12 @@ export class Runtime {
 
   /**
    * When the scheduler next has work, in epoch milliseconds: now when a job
-   * was interrupted, else the earliest pending job or cron run.
+   * was interrupted, else the earliest pending job or cron run. Due actions
+   * waiting for a slot do not count; the action that frees one wakes them.
    */
   nextWakeTime(): number | null {
     if (this.interruptedJobs(1).length > 0) return Date.now();
-    const pending = this.duePendingJobs(Number.MAX_SAFE_INTEGER, 1)[0];
+    const pending = this.firstJob("pending", Number.MAX_SAFE_INTEGER, this.waitingForSlot);
     const cronNext = [...this.cronStates().values()].reduce<number | null>(
       (earliest, next) => (earliest === null || next < earliest ? next : earliest),
       null,
@@ -982,8 +992,9 @@ export class Runtime {
     return Math.min(jobTime, cronNext);
   }
 
-  private duePendingJobs(now: number, limit: number): Document[] {
-    return this.jobsInState("pending", now, limit);
+  /** The earliest job in state `kind` scheduled before `before` and not in `skip`. */
+  private firstJob(kind: string, before: number, skip: ReadonlySet<string>): Document | undefined {
+    return this.jobsInState(kind, before, skip.size + 1).find((job) => !skip.has(job._id));
   }
 
   /** `inProgress` jobs this instance is not running: a restart or freeze cut them off. */
@@ -1031,7 +1042,9 @@ export class Runtime {
   /**
    * Run every scheduled function and cron due at `now`. Each job and cron is
    * isolated: one that cannot load or fails is recorded as failed and the
-   * pass moves on. A freeze ends the pass before its next job or cron.
+   * pass moves on. Actions start here but run outside the pass, so a slow
+   * one never holds up later jobs or crons. A freeze ends the pass before
+   * its next job or cron.
    */
   async runDue(now = Date.now()): Promise<number> {
     return this.schedulerPass.run(async () => {
@@ -1042,22 +1055,23 @@ export class Runtime {
       });
       if (!admitted) return 0;
       let ran = 0;
+      // A job still pending after its attempt could not record an outcome or
+      // waits for an action slot; the pass moves on to the next one.
       const attempted = new Set<string>();
       for (;;) {
         const job = await this.exclusive(async () =>
-          this.writesFrozen ? undefined : this.duePendingJobs(now, 1)[0],
+          this.writesFrozen ? undefined : this.firstJob("pending", now, attempted),
         );
-        // A job still pending after its attempt could not record an outcome.
-        if (job === undefined || attempted.has(job._id)) break;
+        if (job === undefined) break;
         attempted.add(job._id);
-        await this.runJob(job);
-        ran += 1;
+        if (await this.runJob(job)) ran += 1;
       }
       return ran + (await this.runDueCrons(now));
     });
   }
 
-  private async runJob(job: Document) {
+  /** Run one due job, or start it if it is an action; false when it must wait for a slot. */
+  private async runJob(job: Document): Promise<boolean> {
     const name = typeof job["name"] === "string" ? job["name"] : "";
     try {
       const args = convexToJson((job["args"] as Value[] | undefined)?.[0] ?? {});
@@ -1071,11 +1085,11 @@ export class Runtime {
           "pending",
           failedState(`Could not load ${name}: ${messageOf(error)}`),
         );
-        return;
+        return true;
       }
       if (resolved === null || resolved.kind === "query") {
         await this.settleJob(job, "pending", failedState(`Function ${name} not found`));
-        return;
+        return true;
       }
       if (resolved.kind === "mutation") {
         // The job's state change commits atomically with the mutation's writes.
@@ -1089,44 +1103,87 @@ export class Runtime {
           },
         });
         // Refused by a freeze, the job stays pending for whichever backend writes next.
-        if (skipped === true || frozen === true || outcome.success) return;
+        if (skipped === true || frozen === true || outcome.success) return true;
         console.error(`parlor-cloudflare: scheduled mutation ${name} failed: ${outcome.message}`);
         await this.settleJob(job, "pending", failedState(outcome.message));
-        return;
+        return true;
+      }
+      if (this.runningJobs.size >= MAX_SCHEDULED_ACTIONS) {
+        this.waitingForSlot.add(job._id);
+        return false;
       }
       this.runningJobs.add(job._id);
+      let started = false;
       try {
-        if (!(await this.settleJob(job, "pending", { kind: "inProgress" }))) return;
-        const outcome = await this.action(name, args, null, "internal");
-        if (!outcome.success)
-          console.error(`parlor-cloudflare: scheduled action ${name} failed: ${outcome.message}`);
-        // If writes froze meanwhile, the job stays inProgress until upkeep,
-        // after the freeze, marks it interrupted.
-        await this.settleJob(
-          job,
-          "inProgress",
-          outcome.success ? { kind: "success" } : failedState(outcome.message),
-        );
+        started = await this.settleJob(job, "pending", { kind: "inProgress" });
       } finally {
-        this.runningJobs.delete(job._id);
+        if (!started) this.runningJobs.delete(job._id);
       }
+      if (started) void this.runScheduledAction(job, name, args);
     } catch (error) {
       console.error(`parlor-cloudflare: scheduled function ${name} could not run`, error);
+    }
+    return true;
+  }
+
+  /**
+   * Run a scheduled action the pass started, then record its outcome. If
+   * writes froze meanwhile, the job stays inProgress until upkeep, after the
+   * freeze, marks it interrupted; it is never retried. Ending frees its slot
+   * and starts a pass for any due action that was waiting for one.
+   */
+  private async runScheduledAction(job: Document, name: string, args: JSONValue) {
+    const release = () => {
+      this.runningJobs.delete(job._id);
+      const waiting = this.waitingForSlot.size > 0;
+      this.waitingForSlot.clear();
+      return waiting;
+    };
+    let waiting = false;
+    try {
+      const outcome = await this.action(name, args, null, "internal");
+      if (!outcome.success)
+        console.error(`parlor-cloudflare: scheduled action ${name} failed: ${outcome.message}`);
+      // The slot frees under the same lock as the outcome's commit, so the
+      // commit's listeners already see it.
+      await this.settleJob(
+        job,
+        "inProgress",
+        outcome.success ? { kind: "success" } : failedState(outcome.message),
+        () => {
+          waiting = release();
+        },
+      );
+    } catch (error) {
+      console.error(
+        `parlor-cloudflare: scheduled action ${name} could not record its outcome`,
+        error,
+      );
+    } finally {
+      if (this.runningJobs.has(job._id)) waiting = release() || waiting;
+    }
+    if (waiting) {
+      void this.runDue().catch((error: unknown) => {
+        console.error("parlor-cloudflare: scheduled work failed", error);
+      });
     }
   }
 
   /**
    * Move a job from state `from` to `state` in its own commit. False when it
-   * is no longer in `from`, or when writes are frozen.
+   * is no longer in `from`, or when writes are frozen. `locked` runs first,
+   * under the same database lock.
    */
   private async settleJob(
     job: Document,
     from: string,
     state: { readonly kind: string; readonly error?: string },
+    locked?: () => void,
   ): Promise<boolean> {
     let moved = false;
     try {
       await this.mutationWithin((transaction) => {
+        locked?.();
         if (jobState(transaction.get(job._id, SCHEDULED_FUNCTIONS_TABLE)) !== from) return;
         transaction.patch(
           job._id,
@@ -1188,21 +1245,33 @@ export class Runtime {
         return true;
       });
       if (!admitted) break;
+      if (this.runningCrons.has(name)) {
+        // At most one run of a cron executes at a time, as on Convex: a run
+        // that comes due while the previous one is still going is skipped.
+        console.warn(`parlor-cloudflare: cron ${name} skipped; its previous run is still going`);
+        continue;
+      }
       ran += 1;
       const target = canonicalizeUdfPath(definition.name);
       const args = (Array.isArray(definition.args) ? definition.args[0] : undefined) ?? {};
       try {
         const resolved = await this.resolve(target);
-        const outcome =
-          resolved?.kind === "mutation"
-            ? (await this.mutation(target, args, null, { visibility: "internal" })).outcome
-            : resolved?.kind === "action"
-              ? await this.action(target, args, null, "internal")
-              : null;
-        if (outcome === null)
+        if (resolved?.kind === "mutation") {
+          const { outcome } = await this.mutation(target, args, null, { visibility: "internal" });
+          if (!outcome.success)
+            console.error(`parlor-cloudflare: cron ${name} failed: ${outcome.message}`);
+        } else if (resolved?.kind === "action") {
+          // The action runs outside the pass, so it never holds up other work.
+          this.runningCrons.add(name);
+          void this.action(target, args, null, "internal")
+            .then((outcome) => {
+              if (!outcome.success)
+                console.error(`parlor-cloudflare: cron ${name} failed: ${outcome.message}`);
+            })
+            .finally(() => this.runningCrons.delete(name));
+        } else {
           console.error(`parlor-cloudflare: cron ${name} targets missing function ${target}`);
-        else if (!outcome.success)
-          console.error(`parlor-cloudflare: cron ${name} failed: ${outcome.message}`);
+        }
       } catch (error) {
         // One cron that cannot load never keeps the others from running.
         console.error(`parlor-cloudflare: cron ${name} could not run: ${messageOf(error)}`);

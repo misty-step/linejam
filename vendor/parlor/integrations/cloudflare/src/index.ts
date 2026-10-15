@@ -2,7 +2,7 @@
  * `@parlor/cloudflare`: run an unchanged Convex app (schema, function modules,
  * crons, HTTP router, auth config) on one SQLite-backed Cloudflare Durable
  * Object that speaks the Convex client protocol. See
- * docs/adr/0001-cloudflare-durable-object-adapter.md for the supported
+ * docs/adr/0002-cloudflare-durable-object-adapter.md for the supported
  * protocol surface and its limits.
  */
 export { createConvexBackend, durableSqlDriver, forwardToBackend } from "./durable.js";

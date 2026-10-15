@@ -19,7 +19,7 @@ use `convex/react` and `convex/browser`.
 1. **Same modules, new host.** Serve the unchanged `convex/` modules, schema,
    crons, HTTP routes and `auth.config.ts` from one SQLite Durable Object, using
    Parlor's `@parlor/cloudflare` adapter. The adapter's protocol contract is
-   Parlor ADR 0001, and the adapter is vendored under
+   Parlor ADR 0002, and the adapter is vendored under
    `vendor/parlor/integrations/cloudflare`. It keeps Convex document IDs,
    transactions, indexes, reactive queries, the scheduler and crons.
 2. **Same Worker, same origin.** `cloudflare/worker.ts` is the Wrangler entry.
@@ -40,7 +40,7 @@ use `convex/react` and `convex/browser`.
 5. **Fail-closed rollout.** A new backend starts with writes frozen. While
    frozen, the object admits no mutation, action, HTTP action, scheduled
    function or cron, and it cannot be unfrozen while an import is pending
-   (Parlor ADR 0001, Operations). Exactly one backend accepts writes at any
+   (Parlor ADR 0002, Operations). Exactly one backend accepts writes at any
    time.
 6. **Cutover steps.**
    1. Deploy with the backend dormant, while the web still uses Convex. This

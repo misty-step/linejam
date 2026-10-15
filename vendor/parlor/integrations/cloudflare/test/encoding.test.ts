@@ -1,6 +1,6 @@
 import { compareValues, type Value } from "convex/values";
 import { describe, expect, it } from "vitest";
-import { decodeId, encodeId, newId } from "../src/ids.js";
+import { decodeId, encodeId, MAX_TABLE_NUMBER, newId } from "../src/ids.js";
 import { encodeKey, keySuccessor, prefixEnd } from "../src/keys.js";
 
 describe("Convex document IDs", () => {
@@ -29,9 +29,35 @@ describe("Convex document IDs", () => {
   });
 
   it("mints fresh IDs that decode to their table", () => {
-    for (const table of [1, 127, 128, 539, 10001, 2 ** 31]) {
+    for (const table of [1, 127, 128, 539, 10001, 2 ** 31, MAX_TABLE_NUMBER]) {
       expect(decodeId(newId(table))?.tableNumber).toBe(table);
     }
+    expect(() => newId(MAX_TABLE_NUMBER + 1)).toThrow("Invalid table number 4294967296");
+  });
+
+  it("rejects an ID whose table number does not fit 32 bits instead of throwing", () => {
+    // A well-formed v6 layout whose five-byte vint encodes 2^32.
+    const body = [0x80, 0x80, 0x80, 0x80, 0x10, ...Array.from({ length: 16 }, () => 7)];
+    let sum1 = 0;
+    let sum2 = 0;
+    for (const byte of body) {
+      sum1 = (sum1 + byte) & 0xff;
+      sum2 = (sum2 + sum1) & 0xff;
+    }
+    let text = "";
+    let buffer = 0;
+    let bits = 0;
+    for (const byte of [...body, sum1, sum2]) {
+      buffer = (buffer << 8) | byte;
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        text += "0123456789abcdefghjkmnpqrstvwxyz".charAt((buffer >> bits) & 31);
+      }
+      buffer &= (1 << bits) - 1;
+    }
+    if (bits > 0) text += "0123456789abcdefghjkmnpqrstvwxyz".charAt((buffer << (5 - bits)) & 31);
+    expect(decodeId(text)).toBeNull();
   });
 });
 

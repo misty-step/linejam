@@ -159,18 +159,21 @@ function requireFrozen(runtime: Runtime) {
 
 /**
  * Replace all data with an empty database that uses the snapshot's table
- * numbers, and mark the import pending. Validation and the replacement
- * happen before this returns, and throw without changing anything; the
- * returned promise refreshes every live subscription (removed rows
- * included) and must be awaited with the database lock held.
+ * numbers, and mark the import pending, in one SQLite transaction: if any
+ * part fails, data, mappings, receipts, timestamp and maintenance state are
+ * all unchanged and nothing is notified. Validation and the replacement
+ * happen before this returns; the returned promise refreshes every live
+ * subscription (removed rows included) and must be awaited with the
+ * database lock held.
  */
 export function beginImport(
   runtime: Runtime,
   tables: Readonly<Record<string, number>>,
 ): Promise<void> {
   requireFrozen(runtime);
-  const commit = runtime.store.replaceAll(new Map(Object.entries(tables)));
-  runtime.store.setMeta(IMPORT_PENDING_KEY, commit.ts.toString());
+  const commit = runtime.store.replaceAll(new Map(Object.entries(tables)), (ts) =>
+    runtime.store.setMeta(IMPORT_PENDING_KEY, ts.toString()),
+  );
   return runtime.notifyLocked(commit);
 }
 
