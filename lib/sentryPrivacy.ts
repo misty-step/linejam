@@ -617,11 +617,36 @@ function matchesRouteTemplate(
   return segments.length === parts.length;
 }
 
+function findRouteTemplate(
+  segments: readonly string[]
+): RouteTemplate | undefined {
+  const exact = `/${segments.join('/')}`;
+  return (
+    ROUTE_TEMPLATES.find((template) => template === exact) ??
+    ROUTE_TEMPLATES.find((template) => matchesRouteTemplate(template, segments))
+  );
+}
+
 /**
- * Map a transaction name to its route template. Accepts the App Router
- * definition (`GET /room/[code]/page` from onRequestError), the browser's
- * parameterized route (`/room/:code`) or a raw path; the result is always a
- * ROUTE_TEMPLATES entry, never input text.
+ * The route an App Router definition names, without its route groups,
+ * parallel slots and final page or route file: `/(auth)/callback/page`
+ * defines `/callback`.
+ */
+function routeDefinitionSegments(segments: readonly string[]): string[] {
+  const route = segments.filter(
+    (segment) => !/^\(.+\)$/.test(segment) && !segment.startsWith('@')
+  );
+  if (route.at(-1) === 'page' || route.at(-1) === 'route') route.pop();
+  return route;
+}
+
+/**
+ * Map a transaction name to its route template. Accepts a raw path, the
+ * browser's parameterized route (`/room/:code`) or the App Router definition
+ * (`GET /room/[code]/page` from onRequestError); the result is always a
+ * ROUTE_TEMPLATES entry, never input text. The path is matched as sent
+ * first, so the raw `/room/page` stays a room; only a path that names no
+ * route is read as a definition.
  */
 function transactionRoute(value: string | null | undefined): TransactionRoute {
   if (!value || value.length > 1_024) return {};
@@ -630,21 +655,10 @@ function transactionRoute(value: string | null | undefined): TransactionRoute {
   const path = (match?.[2] ?? value)
     .split(/[?#]/, 1)[0]
     .replace(/^https?:\/\/[^/]+/, '');
-  const segments = path
-    .split('/')
-    .filter(
-      (segment) =>
-        segment && !/^\(.+\)$/.test(segment) && !segment.startsWith('@')
-    );
-  if (segments.at(-1) === 'page' || segments.at(-1) === 'route') {
-    segments.pop();
-  }
-  const exact = `/${segments.join('/')}`;
+  const segments = path.split('/').filter(Boolean);
   const route =
-    ROUTE_TEMPLATES.find((template) => template === exact) ??
-    ROUTE_TEMPLATES.find((template) =>
-      matchesRouteTemplate(template, segments)
-    );
+    findRouteTemplate(segments) ??
+    findRouteTemplate(routeDefinitionSegments(segments));
   return { method: match?.[1], route };
 }
 

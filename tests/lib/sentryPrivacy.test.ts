@@ -953,6 +953,12 @@ describe('Sentry failure-class grouping', () => {
         `GET ${template}`
       );
       expect(named(`${template}/page`)).toBe(template);
+      // A parameter can be named like a file convention.
+      for (const value of ['page', 'route']) {
+        expect(named(`GET ${template.replace(/\[[^\]]+\]+/g, value)}`)).toBe(
+          `GET ${template}`
+        );
+      }
     }
   );
 
@@ -972,5 +978,42 @@ describe('Sentry failure-class grouping', () => {
     );
     expect(route('/auth/callback')).toBeUndefined();
     expect(route(`/${FORBIDDEN}`)).toBeUndefined();
+  });
+
+  it('keeps a raw room code named page or route on the room route', () => {
+    const route = (transaction: string) => {
+      const event = releaseRouteEvalError({
+        release: 'a'.repeat(40),
+        runtime: 'edge',
+        line: 1,
+      });
+      event.transaction = transaction;
+      const error = beforeSend(event, {});
+      return {
+        error: error?.transaction,
+        fingerprint: error?.fingerprint?.at(-1),
+        tracing: beforeSendTransaction({
+          type: 'transaction',
+          transaction,
+          start_timestamp: 1,
+        })?.transaction,
+      };
+    };
+    const room = {
+      error: 'GET /room/[code]',
+      fingerprint: 'route:/room/[code]',
+      tracing: 'GET /room/[code]',
+    };
+
+    expect(route('GET /room/page')).toEqual(room);
+    expect(route('GET /room/route')).toEqual(room);
+    // The App Router definition, bare and behind a group and a slot.
+    expect(route('GET /room/[code]/page')).toEqual(room);
+    expect(route('GET /(game)/@panel/room/[code]/page')).toEqual(room);
+    expect(route('GET /(auth)/@modal/admin/page')).toEqual({
+      error: undefined,
+      fingerprint: 'route:unknown',
+      tracing: 'GET unknown-route',
+    });
   });
 });
