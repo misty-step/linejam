@@ -15,6 +15,7 @@ import { errorToFeedback } from '@/lib/errorFeedback';
 import { toErrorReportable } from '@/lib/errorCore';
 import { formatRoomCode } from '@/lib/roomCode';
 import { playSound } from '@/lib/audio';
+import { cn } from '@/lib/utils';
 
 export interface RoomAction {
   kind: 'end-game' | 'close-room' | 'leave-room';
@@ -25,6 +26,7 @@ interface RoomChromeProps {
   roomCode: string;
   isLobby: boolean;
   action?: RoomAction;
+  inviteEmphasized?: boolean;
 }
 
 const actionCopy = {
@@ -56,7 +58,12 @@ const iconButton =
 const menuItem =
   'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-3 text-left font-semibold hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
 
-export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
+export function RoomChrome({
+  roomCode,
+  isLobby,
+  action,
+  inviteEmphasized = true,
+}: RoomChromeProps) {
   const [panel, setPanel] = useState<
     'invite' | 'options' | 'help' | 'confirm' | null
   >(null);
@@ -164,7 +171,12 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
               aria-haspopup="dialog"
               aria-expanded={panel === 'invite'}
               aria-controls={panel === 'invite' ? panelId : undefined}
-              className="min-h-11 min-w-0 rounded-lg py-2 text-left text-lg font-bold tracking-wide text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className={cn(
+                'min-h-11 min-w-0 rounded-lg py-2 text-left tracking-wide focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
+                inviteEmphasized
+                  ? 'text-lg font-bold text-primary'
+                  : 'text-base font-semibold text-text-secondary'
+              )}
             >
               {formatRoomCode(roomCode)}
             </button>

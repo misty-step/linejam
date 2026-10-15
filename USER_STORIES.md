@@ -39,10 +39,14 @@ Criteria:
    lines together.
 3. IF a player reconnects mid-game, THEN THE SYSTEM SHALL restore their
    seat without duplicating a contribution.
+4. WHEN every poem is revealed, THE SYSTEM SHALL present the next-round
+   and leave-room actions with the completion state, above the recap
+   list, keep them reachable on a phone while the recap scrolls, and
+   keep the room invitation visually secondary.
 
 No-gos: no generated player lines, extra modes, or rankings.
 
-Evidence: `tests/convex/game.test.ts`, `tests/assignmentMatrix.test.ts`, `tests/convex/gameRules.test.ts`
+Evidence: `tests/convex/game.test.ts`, `tests/assignmentMatrix.test.ts`, `tests/convex/gameRules.test.ts`, `tests/components/RevealPhase.test.tsx`, `tests/components/StickyActionBar.test.tsx`
 
 ## Capability: Keep and share
 

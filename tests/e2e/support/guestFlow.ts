@@ -653,7 +653,7 @@ export class GuestFlowSession {
 
   async startNextRound() {
     await this.hostPage
-      .getByRole('button', { name: 'Play again', exact: true })
+      .getByRole('button', { name: 'Start Next Round', exact: true })
       .click();
     await this.expectRound(1);
     await this.expectWritingUi();

@@ -38,8 +38,6 @@ describe('SessionRecapHub', () => {
     roomCode: 'ABCD',
     playerCount: 2,
     canShare: true,
-    onStartNextRound: vi.fn(),
-    onBackToLobby: vi.fn(),
     poems: [
       {
         // SAFETY: Synthetic Convex document id fixture for SessionRecapHub tests.
@@ -82,8 +80,7 @@ describe('SessionRecapHub', () => {
     localStorage.clear();
   });
 
-  it('renders sorted replay links and continuation controls', async () => {
-    const user = userEvent.setup();
+  it('renders sorted replay links without room-lifecycle controls', () => {
     renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     expect(screen.getByText('2 poems')).toBeInTheDocument();
@@ -97,11 +94,15 @@ describe('SessionRecapHub', () => {
       screen.getByRole('link', { name: /Replay poem 2: Untitled poem/i })
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Play again' }));
-    await user.click(screen.getByRole('button', { name: 'Back to lobby' }));
-
-    expect(defaultProps.onStartNextRound).toHaveBeenCalledTimes(1);
-    expect(defaultProps.onBackToLobby).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole('button', { name: /Start Next Round/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Back to Lobby/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Play again/i })
+    ).not.toBeInTheDocument();
   });
 
   it('discloses recap publication before the share control', () => {
@@ -149,18 +150,7 @@ describe('SessionRecapHub', () => {
     shareClient.nativeShare = nativeShare;
     const user = userEvent.setup();
 
-    renderSessionRecapHub(
-      <SessionRecapHub
-        {...defaultProps}
-        isStartingNextRound
-        error="Could not start a new round."
-      />
-    );
-
-    expect(
-      screen.getByText('Could not start a new round.')
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Starting...' })).toBeDisabled();
+    renderSessionRecapHub(<SessionRecapHub {...defaultProps} />);
 
     await user.click(screen.getByRole('button', { name: 'Share recap' }));
 

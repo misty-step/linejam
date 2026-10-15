@@ -76,6 +76,21 @@ describe('room invitations', () => {
     ).toBeNull();
   });
 
+  it('quiets the invite trigger when post-reveal actions own the hierarchy', () => {
+    render(
+      <ColorModeProvider>
+        <RoomChrome roomCode="ABCD" isLobby={false} inviteEmphasized={false} />
+      </ColorModeProvider>
+    );
+
+    const invite = screen.getByRole('button', {
+      name: /Invite friends to room AB CD/i,
+    });
+    expect(invite).not.toHaveClass('text-primary');
+    expect(invite).not.toHaveClass('text-lg');
+    expect(invite).toHaveClass('text-text-secondary');
+  });
+
   it('copies a usable join link when native share is unavailable', async () => {
     render(<RoomInvite roomCode="ABCD" />);
     await user.click(screen.getByRole('button', { name: 'Share invite' }));
