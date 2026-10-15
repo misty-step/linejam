@@ -1,6 +1,6 @@
 # Disabled Convex backup and unusable anonymous restore path
 
-Date: 2026-10-15 UTC. Status: recovery verification in progress.
+Date: 2026-10-15 UTC. Status: backups restored; alarm acceptance incomplete.
 
 ## Impact and evidence
 
@@ -70,8 +70,20 @@ recovery receipt requires a retained encrypted artifact, a usable independent
 identity, a successful non-production restore with data checks, and an alarm
 receipt. None can be replaced by a green configuration or webhook transport.
 
-Activation, a real backup and restore, and a forced-failure operator receipt
-must be observed before this incident can be called recovered. The existing
+The workflow is active again. Real Actions backup
+[38798868394](https://github.com/misty-step/linejam/actions/runs/38798868394)
+retains encrypted artifact `12002563957`; private R2 readback matched its
+ciphertext hash. Restoring that artifact into a fresh loopback-only anonymous
+backend verified all 22 application tables and 118,964 documents exactly,
+including IDs and creation times. Import took 13.639 seconds; the full drill
+took 26.608 seconds. Plaintext, ephemeral identity and backend were removed.
+
+Intentional pre-export failure
+[38799093465](https://github.com/misty-step/linejam/actions/runs/38799093465)
+reached the existing incident intake, but its pending row without a ticket is
+not an owned operator receipt. The existing Misty Step-to-Powder broker adapter
+refuses this route; no replacement board item or false acknowledgement was
+created. That alarm acceptance remains open in the recovery receipt. The existing
 incident route's handling of a completely missing daily run remains a separate
 liveness limitation; do not claim that failure-drill success detects disablement.
 No application release rollback or production-data mutation was performed.
