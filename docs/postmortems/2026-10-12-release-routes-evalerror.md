@@ -54,13 +54,13 @@ Two classes of error:
 | 2026-09-10 10:40 | LINEJAM-19 is first seen: a server `Error` on the Vercel-era Node runtime, cause unknown. It stays unresolved and is marked ongoing on 2026-09-17.                                                                                               |
 | 2026-10-12 21:43 | PR #549, the Cloudflare cutover, opens.                                                                                                                                                                                                          |
 | 23:40:37         | PR #549 merges as `f17fe8a`.                                                                                                                                                                                                                     |
-| 23:50:53         | [Cloudflare Production run 38324259721](https://github.com/misty-step/linejam/actions/runs/38324259721) starts. It succeeds at 23:58:45.                                                                                                         |
+| 23:50:53         | [Cloudflare Production run 38324259721](https://github.com/misty-step/linejam/actions/runs/38324259721) starts. Its first attempt fails in the deploy step at 23:53:09. A second attempt starts at 23:56:20 and succeeds at 23:58:45.            |
 | 23:57:36         | The first `EvalError` from the release routes reaches Sentry. Sentry's similarity grouping attaches its new hash to LINEJAM-19, so no issue is created and no new-issue alert can fire.                                                          |
 | 2026-10-13 00:00 | A separate browser `EvalError` burst ([LINEJAM-1E](https://misty-step.sentry.io/issues/7788944975/), cause unknown) sends three events in 41 seconds and opens a new issue. Its new-issue alerts fire at 00:01:24. It is not the server failure. |
 | 00:00 to 03:00   | The "High frequency error spike" alert (more than 10 events in an hour) fires twice on LINEJAM-19: once before 01:00 and once after 02:00.                                                                                                       |
 | 2026-10-14 01:43 | The automated triage intake records its first signal of any kind. Both spike alerts above predate it.                                                                                                                                            |
 | 20:27            | An audit finds both routes returning 500.                                                                                                                                                                                                        |
-| 20:31:01         | The spike alert fires a third time on LINEJAM-19. Triage receives it 4 seconds later and routes it to the Powder ticket at 20:34.                                                                                                                |
+| 20:31:01         | The spike alert fires a third time on LINEJAM-19. Its webhook reaches the triage intake at 20:31:04, and triage routes it to the Powder ticket at 20:34.                                                                                         |
 | 21:16:44         | PR #559 merges as `c5802aa`. The routes now read a release catalog that is validated at build time.                                                                                                                                              |
 | 21:28:17         | The last `EvalError` arrives, from the release before the fix.                                                                                                                                                                                   |
 | 21:30:54         | [Cloudflare Production run 38640849063](https://github.com/misty-step/linejam/actions/runs/38640849063) deploys `c5802aa`. It finishes at 21:33:07.                                                                                              |
@@ -100,7 +100,11 @@ It dropped the rest:
   So the transport removed the mechanism, and with it `handled: false`. None of
   the sampled `EvalError` events, on any of the seven Cloudflare releases,
   have a mechanism.
-- **The route.** The route allowlist did not include the release routes.
+- **The route.** `beforeSend` kept no route on any error event: it returned
+  the output of `sanitizeBaseEvent`, which copies no transaction. The route
+  allowlist, `SAFE_ROUTES`, applied only to tracing transactions, through
+  `beforeSendTransaction`. That list also lacked the release routes, but adding
+  them would not have kept a route on an error.
 
 That left Sentry's default grouping only a type and a label. LINEJAM-19 shows
 both ways this collapses distinct failures:
@@ -170,8 +174,8 @@ Node and then on workerd.
 - Sentry opened a separate issue for each class, and none were merged by
   similarity.
 - The stored events contained none of the drill's sentinel text.
-- The unhandled class fired "New Unhandled Exception" 19.6 seconds after the
-  event. Every new issue fired the new-high-priority alert.
+- The unhandled class fired "New Unhandled Exception" about 20 seconds after
+  the event. Every new issue fired the new-high-priority alert.
 - The unhandled class from Node and from workerd joined one issue,
   [LINEJAM-1G](https://misty-step.sentry.io/issues/7793684836/).
 - The handled classes are
