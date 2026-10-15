@@ -10,6 +10,8 @@ import {
 } from "./schema.js";
 import { encodeKey, prefixEnd } from "./keys.js";
 import {
+  FROZEN_MESSAGE,
+  FrozenError,
   Store,
   Transaction,
   type CommitResult,
@@ -184,6 +186,11 @@ function journalEndCursor(journal: string | null): string | null {
 const executions = new AsyncLocalStorage<Execution>();
 /** Mutation receipts and finished scheduler records are kept for a week. */
 const RETAIN_FINISHED_MS = 7 * 24 * 60 * 60 * 1000;
+/** What every refused admission returns while writes are frozen. */
+const FROZEN_OUTCOME: FunctionOutcome = {
+  success: false,
+  message: `Uncaught Error: ${FROZEN_MESSAGE}`,
+};
 
 interface ConvexGlobal {
   syscall(op: string, args: string): string;
@@ -271,9 +278,14 @@ export class Runtime {
   readonly store: Store;
   readonly schema: SchemaModel;
   private readonly mutex = new Mutex();
+  /** Serializes scheduler passes, which release the database lock between jobs. */
+  private readonly schedulerPass = new Mutex();
   private readonly loadedModules = new Map<string, ConvexModule>();
   private router: ConvexHttpRouter | null | undefined = undefined;
   private readonly listeners = new Set<CommitListener>();
+  /** Scheduled jobs this instance is executing; any other `inProgress` job was interrupted. */
+  private readonly runningJobs = new Set<string>();
+  private actionsRunning = 0;
 
   constructor(
     driver: SqlDriver,
@@ -295,8 +307,18 @@ export class Runtime {
     return this.mutex.run(work);
   }
 
+  /**
+   * While frozen, the backend admits no mutation, action, HTTP action,
+   * scheduled function or cron, and commits no write but a snapshot import;
+   * queries and subscriptions keep working.
+   */
   get writesFrozen(): boolean {
-    return this.store.meta("writes_frozen") === "1";
+    return this.store.writesFrozen;
+  }
+
+  /** Actions and HTTP actions executing now. Frozen, they can no longer write. */
+  get runningActions(): number {
+    return this.actionsRunning;
   }
 
   private async loadModule(path: string): Promise<ConvexModule | undefined> {
@@ -476,19 +498,20 @@ export class Runtime {
     args: JSONValue,
     identity: UserIdentity | null,
     options: MutationOptions = {},
-  ): Promise<{ outcome: FunctionOutcome; ts: bigint; skipped?: true }> {
+  ): Promise<{ outcome: FunctionOutcome; ts: bigint; skipped?: true; frozen?: true }> {
     return this.exclusive(async () => {
       const result = await this.mutationLocked(udfPath, args, identity, options);
       if (result.commit !== null) await this.notifyLocked(result.commit);
-      return result.skipped === true
-        ? { outcome: result.outcome, ts: result.ts, skipped: true }
-        : { outcome: result.outcome, ts: result.ts };
+      const { outcome, ts } = result;
+      if (result.frozen === true) return { outcome, ts, frozen: true };
+      return result.skipped === true ? { outcome, ts, skipped: true } : { outcome, ts };
     });
   }
 
   /**
    * `mutation` for callers that hold the database lock. Subscribers are not
    * notified; the caller must pass a non-null `commit` to `notifyLocked`.
+   * `frozen` marks a mutation refused, unrun, by the freeze barrier.
    */
   async mutationLocked(
     udfPath: string,
@@ -500,6 +523,7 @@ export class Runtime {
     ts: bigint;
     commit: CommitResult | null;
     skipped?: true;
+    frozen?: true;
   }> {
     const receipt = options.receipt;
     if (receipt !== undefined) {
@@ -516,16 +540,15 @@ export class Runtime {
         };
       }
     }
-    if (options.visibility !== "internal" && this.writesFrozen) {
-      return {
-        outcome: {
-          success: false,
-          message: "Uncaught Error: This backend is temporarily read-only for maintenance.",
-        },
-        ts: this.store.ts,
-        commit: null,
-      };
-    }
+    // The barrier holds for every caller: clients, actions, the scheduler
+    // and crons alike. `Store.commit` enforces it again at commit time.
+    const refused = {
+      outcome: FROZEN_OUTCOME,
+      ts: this.store.ts,
+      commit: null,
+      frozen: true,
+    } as const;
+    if (this.writesFrozen) return refused;
     const transaction = new Transaction(this.store, true);
     let value: JSONValue;
     try {
@@ -542,17 +565,25 @@ export class Runtime {
     } catch (thrown) {
       return { outcome: this.outcome(thrown), ts: this.store.ts, commit: null };
     }
-    const commit = this.store.commit(transaction.writes, (ts) => {
-      if (receipt === undefined) return;
-      this.store.driver.exec(
-        "INSERT INTO cvx_receipts (session_id, request_id, ts, result, created_at) VALUES (?, ?, ?, ?, ?)",
-        receipt.sessionId,
-        receipt.requestId,
-        ts.toString(),
-        JSON.stringify(value),
-        Date.now(),
-      );
-    });
+    let commit: CommitResult;
+    try {
+      commit = this.store.commit(transaction.writes, {
+        receipt: (ts) => {
+          if (receipt === undefined) return;
+          this.store.driver.exec(
+            "INSERT INTO cvx_receipts (session_id, request_id, ts, result, created_at) VALUES (?, ?, ?, ?, ?)",
+            receipt.sessionId,
+            receipt.requestId,
+            ts.toString(),
+            JSON.stringify(value),
+            Date.now(),
+          );
+        },
+      });
+    } catch (error) {
+      if (error instanceof FrozenError) return refused;
+      throw error;
+    }
     return { outcome: { success: true, value }, ts: commit.ts, commit };
   }
 
@@ -580,12 +611,16 @@ export class Runtime {
     identity: UserIdentity | null,
     visibility: Visibility = "public",
   ): Promise<FunctionOutcome> {
+    if (this.writesFrozen) return FROZEN_OUTCOME;
+    this.actionsRunning += 1;
     try {
       const fn = await this.lookup(udfPath, "action", visibility);
       const value = await this.invoke("action", udfPath, fn, args, null, identity);
       return { success: true, value };
     } catch (thrown) {
       return this.outcome(thrown);
+    } finally {
+      this.actionsRunning -= 1;
     }
   }
 
@@ -604,6 +639,12 @@ export class Runtime {
       ? ((await this.httpRouter())?.lookup(path, method as HttpMethod) ?? null)
       : null;
     if (match === null) return new Response(`No HttpAction routed for ${path}`, { status: 404 });
+    if (this.writesFrozen) {
+      return new Response(JSON.stringify({ code: "Frozen", message: FROZEN_MESSAGE }), {
+        status: 503,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
     const endpoint = match[0] as HttpEndpoint;
     const execution: Execution = {
       runtime: this,
@@ -617,7 +658,12 @@ export class Runtime {
       nextQueryId: 1,
       paginatedQueries: 0,
     };
-    return executions.run(execution, () => endpoint.invokeHttpAction(request));
+    this.actionsRunning += 1;
+    try {
+      return await executions.run(execution, () => endpoint.invokeHttpAction(request));
+    } finally {
+      this.actionsRunning -= 1;
+    }
   }
 
   // ---------------------------------------------------------------- syscalls
@@ -759,10 +805,9 @@ export class Runtime {
       case "1.0/actions/schedule": {
         let jobId = "";
         const name = await this.schedulable(args);
-        const outcome = await this.mutationWithin((transaction) => {
+        await this.mutationWithin((transaction) => {
           jobId = this.scheduleIn(transaction, name, args);
         });
-        if (!outcome) throw syscallError("Scheduling failed");
         return JSON.stringify(jobId);
       }
       case "1.0/actions/cancel_job":
@@ -890,9 +935,10 @@ export class Runtime {
     args: Record<string, unknown>,
   ): string {
     const scheduledTime = Math.max(Date.now(), Math.round(Number(args["ts"]) * 1000));
+    // The SDK sends Convex JSON; store the values it encodes, as Convex does.
     return transaction.insert(SCHEDULED_FUNCTIONS_TABLE, {
       name,
-      args: [args["args"] as Value],
+      args: [jsonToConvex((args["args"] ?? {}) as JSONValue)],
       scheduledTime,
       state: { kind: "pending" },
     });
@@ -901,24 +947,30 @@ export class Runtime {
   private cancelIn(transaction: Transaction, id: string) {
     const job = transaction.get(id, SCHEDULED_FUNCTIONS_TABLE);
     if (job === null) throw syscallError(`Scheduled function ${id} not found`);
-    const state = (job["state"] as { kind?: string } | undefined)?.kind;
+    const state = jobState(job);
     if (state === "pending" || state === "inProgress") {
       transaction.patch(id, { state: { kind: "canceled" }, completedTime: Date.now() });
     }
   }
 
-  /** Run internal bookkeeping writes as their own committed transaction. */
-  private async mutationWithin(work: (transaction: Transaction) => void): Promise<boolean> {
-    return this.exclusive(async () => {
+  /**
+   * Run internal bookkeeping writes as their own committed transaction.
+   * Throws `FrozenError` when there is something to write while frozen.
+   */
+  private async mutationWithin(work: (transaction: Transaction) => void): Promise<void> {
+    await this.exclusive(async () => {
       const transaction = new Transaction(this.store, true);
       work(transaction);
-      await this.commitWritesLocked(transaction.writes);
-      return true;
+      if (transaction.writes.size > 0) await this.commitWritesLocked(transaction.writes);
     });
   }
 
-  /** Earliest pending scheduled function or cron run, in epoch milliseconds. */
+  /**
+   * When the scheduler next has work, in epoch milliseconds: now when a job
+   * was interrupted, else the earliest pending job or cron run.
+   */
   nextWakeTime(): number | null {
+    if (this.interruptedJobs(1).length > 0) return Date.now();
     const pending = this.duePendingJobs(Number.MAX_SAFE_INTEGER, 1)[0];
     const cronNext = [...this.cronStates().values()].reduce<number | null>(
       (earliest, next) => (earliest === null || next < earliest ? next : earliest),
@@ -932,6 +984,13 @@ export class Runtime {
 
   private duePendingJobs(now: number, limit: number): Document[] {
     return this.jobsInState("pending", now, limit);
+  }
+
+  /** `inProgress` jobs this instance is not running: a restart or freeze cut them off. */
+  private interruptedJobs(limit: number): Document[] {
+    return this.jobsInState("inProgress", Number.MAX_SAFE_INTEGER, limit + this.runningJobs.size)
+      .filter((job) => !this.runningJobs.has(job._id))
+      .slice(0, limit);
   }
 
   private jobsInState(kind: string, before: number, limit: number): Document[] {
@@ -948,106 +1007,138 @@ export class Runtime {
   }
 
   /**
-   * Actions that were running when the object restarted cannot resume; mark
-   * them failed, as Convex does, instead of leaving them in progress forever.
+   * Scheduler upkeep (lock held, writes not frozen). Actions cut off by a
+   * restart or a freeze cannot resume, so mark them failed, as Convex does,
+   * instead of leaving them in progress forever. Then drop expired mutation
+   * receipts and week-old finished scheduler records.
    */
-  async recoverInterruptedJobs(): Promise<number> {
-    return this.exclusive(async () => {
-      const interrupted = this.jobsInState("inProgress", Number.MAX_SAFE_INTEGER, 1000);
-      if (interrupted.length === 0) return 0;
-      const transaction = new Transaction(this.store, true);
-      for (const job of interrupted) {
-        transaction.patch(job._id, {
-          state: { kind: "failed", error: "Interrupted by a backend restart" },
-          completedTime: Date.now(),
-        });
-      }
-      await this.commitWritesLocked(transaction.writes);
-      return interrupted.length;
-    });
-  }
-
-  /** Drop expired mutation receipts and week-old finished scheduler records. */
   private async maintenanceLocked(now: number) {
+    const transaction = new Transaction(this.store, true);
+    for (const job of this.interruptedJobs(1000)) {
+      transaction.patch(job._id, {
+        state: { kind: "failed", error: "Interrupted before its outcome was recorded" },
+        completedTime: Date.now(),
+      });
+    }
     const cutoff = now - RETAIN_FINISHED_MS;
     this.store.driver.exec("DELETE FROM cvx_receipts WHERE created_at < ?", cutoff);
-    const finished = ["success", "failed", "canceled"].flatMap((kind) =>
-      this.jobsInState(kind, cutoff, 100),
-    );
-    if (finished.length === 0) return;
-    const transaction = new Transaction(this.store, true);
-    for (const job of finished) transaction.delete(job._id);
-    await this.commitWritesLocked(transaction.writes);
+    for (const kind of ["success", "failed", "canceled"]) {
+      for (const job of this.jobsInState(kind, cutoff, 100)) transaction.delete(job._id);
+    }
+    if (transaction.writes.size > 0) await this.commitWritesLocked(transaction.writes);
   }
 
-  /** Run every scheduled function and cron that is due at `now`. */
+  /**
+   * Run every scheduled function and cron due at `now`. Each job and cron is
+   * isolated: one that cannot load or fails is recorded as failed and the
+   * pass moves on. A freeze ends the pass before its next job or cron.
+   */
   async runDue(now = Date.now()): Promise<number> {
-    await this.exclusive(() => this.maintenanceLocked(now));
-    if (this.writesFrozen) return 0;
-    let ran = 0;
-    for (;;) {
-      const [job] = await this.exclusive(async () => this.duePendingJobs(now, 1));
-      if (job === undefined) break;
-      await this.runJob(job);
-      ran += 1;
-    }
-    ran += await this.runDueCrons(now);
-    return ran;
+    return this.schedulerPass.run(async () => {
+      const admitted = await this.exclusive(async () => {
+        if (this.writesFrozen) return false;
+        await this.maintenanceLocked(now);
+        return true;
+      });
+      if (!admitted) return 0;
+      let ran = 0;
+      const attempted = new Set<string>();
+      for (;;) {
+        const job = await this.exclusive(async () =>
+          this.writesFrozen ? undefined : this.duePendingJobs(now, 1)[0],
+        );
+        // A job still pending after its attempt could not record an outcome.
+        if (job === undefined || attempted.has(job._id)) break;
+        attempted.add(job._id);
+        await this.runJob(job);
+        ran += 1;
+      }
+      return ran + (await this.runDueCrons(now));
+    });
   }
 
   private async runJob(job: Document) {
     const name = typeof job["name"] === "string" ? job["name"] : "";
-    const args = ((job["args"] as Value[] | undefined)?.[0] ?? {}) as Value;
-    const argsJson = convexToJson(args);
-    const resolved = await this.resolve(name);
-    const finish = async (kind: "success" | "failed", reason?: string) => {
-      await this.mutationWithin((transaction) => {
-        const current = transaction.get(job._id, SCHEDULED_FUNCTIONS_TABLE);
-        if (current === null) return;
-        transaction.patch(job._id, {
-          state: reason === undefined ? { kind } : { kind, error: reason },
-          completedTime: Date.now(),
-        });
-      });
-    };
-    if (resolved === null || resolved.kind === "query") {
-      await finish("failed", `Function ${name} not found`);
-      return;
-    }
-    if (resolved.kind === "mutation") {
-      // The job's state change commits atomically with the mutation's writes.
-      const { outcome, skipped } = await this.mutation(name, argsJson, null, {
-        visibility: "internal",
-        before: (transaction) => {
-          const current = transaction.get(job._id, SCHEDULED_FUNCTIONS_TABLE);
-          const state = (current?.["state"] as { kind?: string } | undefined)?.kind;
-          if (state !== "pending") return false;
-          transaction.patch(job._id, { state: { kind: "success" }, completedTime: Date.now() });
-          return true;
-        },
-      });
-      if (skipped === true) return;
-      if (!outcome.success) {
-        console.error(`parlor-cloudflare: scheduled mutation ${name} failed: ${outcome.message}`);
-        await finish("failed", outcome.message);
+    try {
+      const args = convexToJson((job["args"] as Value[] | undefined)?.[0] ?? {});
+      let resolved: Awaited<ReturnType<Runtime["resolve"]>>;
+      try {
+        resolved = await this.resolve(name);
+      } catch (error) {
+        // A module that throws at import fails its own jobs, not the queue.
+        await this.settleJob(
+          job,
+          "pending",
+          failedState(`Could not load ${name}: ${messageOf(error)}`),
+        );
+        return;
       }
-      return;
+      if (resolved === null || resolved.kind === "query") {
+        await this.settleJob(job, "pending", failedState(`Function ${name} not found`));
+        return;
+      }
+      if (resolved.kind === "mutation") {
+        // The job's state change commits atomically with the mutation's writes.
+        const { outcome, skipped, frozen } = await this.mutation(name, args, null, {
+          visibility: "internal",
+          before: (transaction) => {
+            if (jobState(transaction.get(job._id, SCHEDULED_FUNCTIONS_TABLE)) !== "pending")
+              return false;
+            transaction.patch(job._id, { state: { kind: "success" }, completedTime: Date.now() });
+            return true;
+          },
+        });
+        // Refused by a freeze, the job stays pending for whichever backend writes next.
+        if (skipped === true || frozen === true || outcome.success) return;
+        console.error(`parlor-cloudflare: scheduled mutation ${name} failed: ${outcome.message}`);
+        await this.settleJob(job, "pending", failedState(outcome.message));
+        return;
+      }
+      this.runningJobs.add(job._id);
+      try {
+        if (!(await this.settleJob(job, "pending", { kind: "inProgress" }))) return;
+        const outcome = await this.action(name, args, null, "internal");
+        if (!outcome.success)
+          console.error(`parlor-cloudflare: scheduled action ${name} failed: ${outcome.message}`);
+        // If writes froze meanwhile, the job stays inProgress until upkeep,
+        // after the freeze, marks it interrupted.
+        await this.settleJob(
+          job,
+          "inProgress",
+          outcome.success ? { kind: "success" } : failedState(outcome.message),
+        );
+      } finally {
+        this.runningJobs.delete(job._id);
+      }
+    } catch (error) {
+      console.error(`parlor-cloudflare: scheduled function ${name} could not run`, error);
     }
-    let claimed = false;
-    await this.mutationWithin((transaction) => {
-      const current = transaction.get(job._id, SCHEDULED_FUNCTIONS_TABLE);
-      if ((current?.["state"] as { kind?: string } | undefined)?.kind !== "pending") return;
-      transaction.patch(job._id, { state: { kind: "inProgress" } });
-      claimed = true;
-    });
-    if (!claimed) return;
-    const outcome = await this.action(name, argsJson, null, "internal");
-    if (!outcome.success)
-      console.error(`parlor-cloudflare: scheduled action ${name} failed: ${outcome.message}`);
-    await finish(
-      outcome.success ? "success" : "failed",
-      outcome.success ? undefined : outcome.message,
-    );
+  }
+
+  /**
+   * Move a job from state `from` to `state` in its own commit. False when it
+   * is no longer in `from`, or when writes are frozen.
+   */
+  private async settleJob(
+    job: Document,
+    from: string,
+    state: { readonly kind: string; readonly error?: string },
+  ): Promise<boolean> {
+    let moved = false;
+    try {
+      await this.mutationWithin((transaction) => {
+        if (jobState(transaction.get(job._id, SCHEDULED_FUNCTIONS_TABLE)) !== from) return;
+        transaction.patch(
+          job._id,
+          state.kind === "inProgress" ? { state } : { state, completedTime: Date.now() },
+        );
+        moved = true;
+      });
+    } catch (error) {
+      if (error instanceof FrozenError) return false;
+      throw error;
+    }
+    return moved;
   }
 
   // ------------------------------------------------------------------- crons
@@ -1089,25 +1180,48 @@ export class Runtime {
     for (const [name, nextRun] of this.cronStates()) {
       const definition = crons[name];
       if (definition === undefined || nextRun > now) continue;
-      this.store.setMeta(`cron:${name}`, String(nextCronRun(definition.schedule, now)));
-      const target = canonicalizeUdfPath(definition.name);
-      const resolved = await this.resolve(target);
-      const args = (Array.isArray(definition.args) ? definition.args[0] : undefined) ?? {};
-      if (resolved?.kind === "mutation") {
-        const { outcome } = await this.mutation(target, args, null, { visibility: "internal" });
-        if (!outcome.success)
-          console.error(`parlor-cloudflare: cron ${name} failed: ${outcome.message}`);
-      } else if (resolved?.kind === "action") {
-        const outcome = await this.action(target, args, null, "internal");
-        if (!outcome.success)
-          console.error(`parlor-cloudflare: cron ${name} failed: ${outcome.message}`);
-      } else {
-        console.error(`parlor-cloudflare: cron ${name} targets missing function ${target}`);
-      }
+      // Advance first, so a failing cron is not retried in a loop; a freeze
+      // ends the pass before the next cron.
+      const admitted = await this.exclusive(async () => {
+        if (this.writesFrozen) return false;
+        this.store.setMeta(`cron:${name}`, String(nextCronRun(definition.schedule, now)));
+        return true;
+      });
+      if (!admitted) break;
       ran += 1;
+      const target = canonicalizeUdfPath(definition.name);
+      const args = (Array.isArray(definition.args) ? definition.args[0] : undefined) ?? {};
+      try {
+        const resolved = await this.resolve(target);
+        const outcome =
+          resolved?.kind === "mutation"
+            ? (await this.mutation(target, args, null, { visibility: "internal" })).outcome
+            : resolved?.kind === "action"
+              ? await this.action(target, args, null, "internal")
+              : null;
+        if (outcome === null)
+          console.error(`parlor-cloudflare: cron ${name} targets missing function ${target}`);
+        else if (!outcome.success)
+          console.error(`parlor-cloudflare: cron ${name} failed: ${outcome.message}`);
+      } catch (error) {
+        // One cron that cannot load never keeps the others from running.
+        console.error(`parlor-cloudflare: cron ${name} could not run: ${messageOf(error)}`);
+      }
     }
     return ran;
   }
+}
+
+function jobState(job: Document | null): unknown {
+  return (job?.["state"] as { kind?: unknown } | undefined)?.kind;
+}
+
+function failedState(error: string): { readonly kind: "failed"; readonly error: string } {
+  return { kind: "failed", error };
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function intervalMs(schedule: Extract<CronSchedule, { type: "interval" }>): number {

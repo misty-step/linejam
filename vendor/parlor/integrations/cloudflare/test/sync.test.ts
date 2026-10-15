@@ -2,59 +2,13 @@ import { ConvexClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { ConvexError } from "convex/values";
 import { afterEach, describe, expect, it } from "vitest";
-import { AuthenticationError, SyncSession, TokenVerifier, type Runtime } from "../src/index.js";
-import { newRuntime } from "./helpers.js";
-
-const ISSUER = "https://clerk.example.test";
-const AUDIENCE = "convex";
-
-function base64Url(bytes: Uint8Array | string): string {
-  const data = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
-  return Buffer.from(data).toString("base64url");
-}
-
-async function issuer() {
-  const keys = await crypto.subtle.generateKey(
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-      hash: "SHA-256",
-    },
-    true,
-    ["sign", "verify"],
-  );
-  const jwk = {
-    ...(await crypto.subtle.exportKey("jwk", keys.publicKey)),
-    kid: "k1",
-    alg: "RS256",
-    use: "sig",
-  };
-  const fetcher: typeof fetch = async (input) => {
-    const url = input instanceof Request ? input.url : input.toString();
-    if (url === `${ISSUER}/.well-known/openid-configuration`)
-      return Response.json({ jwks_uri: `${ISSUER}/jwks` });
-    if (url === `${ISSUER}/jwks`) return Response.json({ keys: [jwk] });
-    return new Response("not found", { status: 404 });
-  };
-  const sign = async (claims: Record<string, unknown>) => {
-    const header = base64Url(JSON.stringify({ alg: "RS256", kid: "k1", typ: "JWT" }));
-    const payload = base64Url(JSON.stringify(claims));
-    const signature = await crypto.subtle.sign(
-      "RSASSA-PKCS1-v1_5",
-      keys.privateKey,
-      new TextEncoder().encode(`${header}.${payload}`),
-    );
-    return `${header}.${payload}.${base64Url(new Uint8Array(signature))}`;
-  };
-  const verifier = new TokenVerifier(
-    { providers: [{ domain: ISSUER, applicationID: AUDIENCE }] },
-    fetcher,
-  );
-  return { sign, verifier };
-}
-
-const now = () => Math.floor(Date.now() / 1000);
+import {
+  AuthenticationError,
+  SyncSession,
+  type TokenVerifier,
+  type Runtime,
+} from "../src/index.js";
+import { AUDIENCE, ISSUER, base64Url, issuer, newRuntime, nowSeconds as now } from "./helpers.js";
 
 describe("TokenVerifier", () => {
   it("accepts a signed OIDC token and maps Convex identity fields", async () => {

@@ -1,5 +1,5 @@
 import { compareValues, jsonToConvex, type JSONValue, type Value } from "convex/values";
-import { encodeKey, keySuccessor, prefixEnd } from "./keys.js";
+import { encodeValue, keySuccessor, prefixEnd } from "./keys.js";
 import { tableOrDefault, type IndexModel } from "./schema.js";
 import { getField, type Document, type IndexScan, type Order, type Transaction } from "./store.js";
 
@@ -13,6 +13,8 @@ export interface RangeExpression {
 
 export type FilterExpression = Readonly<Record<string, unknown>>;
 
+export type QueryOperator = { readonly filter: FilterExpression } | { readonly limit: number };
+
 export interface SerializedQuery {
   readonly source:
     | { readonly type: "FullTableScan"; readonly tableName: string; readonly order: Order | null }
@@ -23,10 +25,7 @@ export interface SerializedQuery {
         readonly order: Order | null;
       }
     | { readonly type: "Search"; readonly indexName: string };
-  readonly operators: readonly (
-    | { readonly filter: FilterExpression }
-    | { readonly limit: number }
-  )[];
+  readonly operators: readonly QueryOperator[];
 }
 
 function literal(value: unknown): Value | undefined {
@@ -121,8 +120,42 @@ export interface Plan {
   readonly low: string;
   readonly high: string | null;
   readonly order: Order;
-  readonly filters: readonly FilterExpression[];
-  readonly limit: number | null;
+  /** Filter and limit stages, in the order the query applied them. */
+  readonly operators: readonly QueryOperator[];
+}
+
+/**
+ * One execution of a query's operator pipeline. Stages apply in order, as
+ * Convex does: `limit(1).filter(f)` keeps the first document only if it
+ * matches `f`, while `filter(f).limit(1)` keeps the first match.
+ */
+class Pipeline {
+  private readonly passed: number[];
+
+  constructor(private readonly operators: readonly QueryOperator[]) {
+    this.passed = operators.map(() => 0);
+  }
+
+  /** True once a limit stage is full, so no later document can pass. */
+  get exhausted(): boolean {
+    return this.operators.some(
+      (operator, stage) => "limit" in operator && (this.passed[stage] ?? 0) >= operator.limit,
+    );
+  }
+
+  /** Run one document through every stage; true when it reaches the output. */
+  admit(document: Document): boolean {
+    for (const [stage, operator] of this.operators.entries()) {
+      if ("filter" in operator) {
+        if (!isTrue(evaluate(operator.filter, document))) return false;
+        continue;
+      }
+      const passed = this.passed[stage] ?? 0;
+      if (passed >= operator.limit) return false;
+      this.passed[stage] = passed + 1;
+    }
+    return true;
+  }
 }
 
 /** Validate and translate an index range into a half-open key interval. */
@@ -130,7 +163,8 @@ export function planRange(
   index: IndexModel,
   range: readonly RangeExpression[],
 ): { low: string; high: string | null } {
-  const equal: (Value | undefined)[] = [];
+  // Keys are concatenated field encodings; values never sit in an array (see encodeValue).
+  let prefix = "";
   let lower: { value: Value | undefined; inclusive: boolean } | null = null;
   let upper: { value: Value | undefined; inclusive: boolean } | null = null;
   let state: "eq" | "lower" | "upper" | "done" = "eq";
@@ -150,7 +184,7 @@ export function planRange(
           `Incorrect field used in \`withIndex\`, expected "${expected ?? ""}", got "${expression.fieldPath}"`,
         );
       }
-      equal.push(value);
+      prefix += encodeValue(value);
       field += 1;
       continue;
     }
@@ -178,26 +212,25 @@ export function planRange(
       state = state === "eq" ? "upper" : "done";
     }
   }
-  const prefix = encodeKey(equal);
   let low = prefix;
   let high = prefixEnd(prefix);
   if (lower !== null) {
-    const bound = prefix + encodeKey([lower.value]);
+    const bound = prefix + encodeValue(lower.value);
     low = lower.inclusive ? bound : (prefixEnd(bound) ?? bound);
   }
   if (upper !== null) {
-    const bound = prefix + encodeKey([upper.value]);
+    const bound = prefix + encodeValue(upper.value);
     high = upper.inclusive ? prefixEnd(bound) : bound;
   }
   return { low, high };
 }
 
 export function plan(transaction: Transaction, query: SerializedQuery): Plan {
-  const filters: FilterExpression[] = [];
-  let limit: number | null = null;
-  for (const operator of query.operators) {
-    if ("filter" in operator) filters.push(operator.filter);
-    else limit = limit === null ? operator.limit : Math.min(limit, operator.limit);
+  const operators = query.operators;
+  for (const operator of operators) {
+    if ("limit" in operator && (!Number.isSafeInteger(operator.limit) || operator.limit < 0)) {
+      throw new Error(`limit must be a non-negative integer, got ${String(operator.limit)}`);
+    }
   }
   const { source } = query;
   if (source.type === "Search") throw new Error("Search indexes are not supported by this backend");
@@ -206,7 +239,7 @@ export function plan(transaction: Transaction, query: SerializedQuery): Plan {
       (candidate) => candidate.name.endsWith(".by_creation_time"),
     );
     if (index === undefined) throw new Error(`Unknown table ${source.tableName}`);
-    return { index, low: "", high: null, order: source.order ?? "asc", filters, limit };
+    return { index, low: "", high: null, order: source.order ?? "asc", operators };
   }
   const [table] = source.indexName.split(".");
   const index = tableOrDefault(transaction.store.schema, table ?? "").indexes.find(
@@ -219,33 +252,30 @@ export function plan(transaction: Transaction, query: SerializedQuery): Plan {
     );
   }
   const { low, high } = planRange(index, source.range);
-  return { index, low, high, order: source.order ?? "asc", filters, limit };
+  return { index, low, high, order: source.order ?? "asc", operators };
 }
 
 /** Streaming query execution backing `queryStream` / `queryStreamNext`. */
 export class QueryStream {
   private readonly scan: IndexScan;
-  private emitted = 0;
+  private readonly pipeline: Pipeline;
 
-  constructor(
-    private readonly queryPlan: Plan,
-    transaction: Transaction,
-  ) {
+  constructor(queryPlan: Plan, transaction: Transaction) {
     this.scan = transaction.scan(queryPlan.index, queryPlan.low, queryPlan.high, queryPlan.order);
+    this.pipeline = new Pipeline(queryPlan.operators);
   }
 
   next(): Document | null {
-    if (this.queryPlan.limit !== null && this.emitted >= this.queryPlan.limit) {
-      this.scan.finish(false);
-      return null;
-    }
     for (;;) {
+      if (this.pipeline.exhausted) {
+        this.scan.finish(false);
+        return null;
+      }
       const row = this.scan.next();
       if (row === null) return null;
-      if (this.queryPlan.filters.every((filter) => isTrue(evaluate(filter, row.document)))) {
-        this.emitted += 1;
-        if (this.queryPlan.limit !== null && this.emitted >= this.queryPlan.limit)
-          this.scan.finish(false);
+      if (this.pipeline.admit(row.document)) {
+        // Record the read interval now: callers may never ask for more.
+        if (this.pipeline.exhausted) this.scan.finish(false);
         return row.document;
       }
     }
@@ -289,7 +319,9 @@ function cursorFor(queryPlan: Plan, key: string): string {
 /**
  * `paginate()` over one plan: the page after `cursor`, up to `pageSize`
  * documents, or exactly the documents through `endCursor` when it is set (a
- * pinned page, as reactive pagination re-runs it).
+ * pinned page, as reactive pagination re-runs it). Like Convex, each page
+ * runs the operator pipeline afresh from its cursor, so a `limit()` stage
+ * bounds each page and ends pagination once it is full.
  */
 export function paginate(
   transaction: Transaction,
@@ -325,9 +357,21 @@ export function paginate(
   }
   const pageSize = Math.max(1, Math.floor(options.pageSize));
   const scan = transaction.scan(queryPlan.index, low, high, queryPlan.order);
+  const pipeline = new Pipeline(queryPlan.operators);
   const page: Document[] = [];
   let rowsRead = 0;
   for (;;) {
+    if (pipeline.exhausted) {
+      // A full limit stage ends the query: no later row can reach the page.
+      scan.finish(false);
+      return {
+        page,
+        isDone: true,
+        continueCursor: END_CURSOR,
+        splitCursor: null,
+        pageStatus: null,
+      };
+    }
     if (end === null && page.length >= pageSize) {
       // Peek one row so a page that ends exactly at the range end is done.
       const pageEnd = lastKeyOf(scan);
@@ -344,8 +388,7 @@ export function paginate(
     const row = scan.next();
     if (row === null) break;
     rowsRead += 1;
-    if (queryPlan.filters.every((filter) => isTrue(evaluate(filter, row.document))))
-      page.push(row.document);
+    if (pipeline.admit(row.document)) page.push(row.document);
     if (options.maximumRowsRead !== null && rowsRead >= options.maximumRowsRead) {
       scan.finish(false);
       return {

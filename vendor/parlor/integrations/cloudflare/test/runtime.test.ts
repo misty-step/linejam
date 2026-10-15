@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { JSONValue } from "convex/values";
-import { exportPage, tableStats, beginImport, importDocuments } from "../src/snapshot.js";
+import {
+  beginImport,
+  commitImport,
+  exportPage,
+  importDocuments,
+  setWritesFrozen,
+  tableStats,
+} from "../src/snapshot.js";
 import { decodeId } from "../src/ids.js";
 import { newRuntime, sqliteDriver } from "./helpers.js";
 
@@ -162,18 +169,19 @@ describe("Runtime", () => {
     expect(await tableStats(restarted)).toEqual(before);
 
     const target = newRuntime();
-    target.store.setMeta("writes_frozen", "1");
+    target.store.setWritesFrozen(true);
     const tables = Object.fromEntries(
       [...restarted.store.tableNumbers()].filter(([name]) => !name.startsWith("_")),
     );
-    beginImport(target, tables);
+    await beginImport(target, tables);
     for (const table of Object.keys(tables)) {
       await importDocuments(target, table, exportPage(restarted, table, null, 1000).documents);
     }
+    expect((await commitImport(target, before)).mismatches).toEqual([]);
     expect(await tableStats(target)).toEqual(before);
     const blocked = (await target.mutation("rooms:create", { code: "FROZEN" }, null)).outcome;
     expect(blocked.success).toBe(false);
-    target.store.setMeta("writes_frozen", null);
+    setWritesFrozen(target, false);
     const room = value(
       (await target.query("rooms:byCode", { code: "KEEP" }, null)).outcome,
     ) as Record<string, JSONValue>;

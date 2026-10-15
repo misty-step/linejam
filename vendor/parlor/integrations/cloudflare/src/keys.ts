@@ -23,6 +23,24 @@ const TAG = {
 
 const textEncoder = new TextEncoder();
 
+const SIGN_BIT = 0x8000_0000_0000_0000n;
+const ALL_BITS = 0xffff_ffff_ffff_ffffn;
+/** The smallest negative NaN bit pattern: sign set, exponent all ones, payload 1. */
+const FIRST_NEGATIVE_NAN = 0xfff0_0000_0000_0001n;
+
+/**
+ * Map a float's IEEE-754 bits to an unsigned integer that sorts like
+ * `compareValues`: negative NaNs < -Infinity < ... < -0 < +0 < ... <
+ * +Infinity < positive NaNs. `compareValues` orders NaNs of one sign by
+ * their signed bits, which ascend with the payload, so negative NaNs keep
+ * their payload order instead of being complemented like negative numbers.
+ */
+function orderedFloatBits(bits: bigint): bigint {
+  if ((bits & SIGN_BIT) === 0n) return bits | SIGN_BIT;
+  if (bits >= FIRST_NEGATIVE_NAN) return bits - FIRST_NEGATIVE_NAN;
+  return ~bits & ALL_BITS;
+}
+
 /**
  * Escape `0x00` as `0x00 0xff` and terminate with `0x00 0x00`, so the encoding
  * of a string or byte value is never a prefix of another one. That keeps
@@ -50,12 +68,7 @@ function pushValue(out: number[], value: Value | undefined) {
     out.push(TAG.number);
     const view = new DataView(new ArrayBuffer(8));
     view.setFloat64(0, value);
-    const bits = view.getBigUint64(0);
-    const ordered =
-      (bits & 0x8000_0000_0000_0000n) !== 0n
-        ? ~bits & 0xffff_ffff_ffff_ffffn
-        : bits | 0x8000_0000_0000_0000n;
-    view.setBigUint64(0, ordered);
+    view.setBigUint64(0, orderedFloatBits(view.getBigUint64(0)));
     out.push(...new Uint8Array(view.buffer));
   } else if (typeof value === "boolean") {
     out.push(value ? TAG.true : TAG.false);
@@ -91,6 +104,18 @@ function toHex(bytes: readonly number[]): string {
 export function encodeKey(values: readonly (Value | undefined)[]): string {
   const out: number[] = [];
   for (const value of values) pushValue(out, value);
+  return toHex(out);
+}
+
+/**
+ * Encode one value; a key is the concatenation of its fields' encodings.
+ * Build keys from fields with this rather than `encodeKey([...])`: V8 may
+ * canonicalize a NaN's sign and payload when it stores the number in an
+ * array of doubles, and `compareValues` orders NaNs by those bits.
+ */
+export function encodeValue(value: Value | undefined): string {
+  const out: number[] = [];
+  pushValue(out, value);
   return toHex(out);
 }
 

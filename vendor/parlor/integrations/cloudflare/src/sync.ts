@@ -7,6 +7,7 @@ import {
   type UserIdentity,
 } from "./runtime.js";
 import { ReadSet, type CommitResult } from "./store.js";
+import { exceedsUtf8Bytes } from "./utf8.js";
 
 /**
  * Server side of the Convex client sync protocol (`/api/<version>/sync`), as
@@ -54,6 +55,8 @@ type Modification =
 
 const MAX_QUERIES = 512;
 const MAX_MESSAGE_BYTES = 1 << 20;
+/** Actions one connection may have running at once; more are refused, not queued. */
+const MAX_CONCURRENT_ACTIONS = 32;
 
 export function encodeTs(ts: bigint): string {
   const bytes = new Uint8Array(8);
@@ -91,6 +94,7 @@ export class SyncSession {
   private expiryNotified = -1;
   private readonly subscriptions = new Map<number, Subscription>();
   private queue: Promise<void> = Promise.resolve();
+  private actionsRunning = 0;
   private closed = false;
   private readonly unsubscribe: () => void;
 
@@ -102,15 +106,23 @@ export class SyncSession {
     this.unsubscribe = runtime.onCommit((commit) => this.refreshLocked(commit, false));
   }
 
-  /** Process one client frame; frames are handled strictly in order. */
-  receive(frame: string) {
+  /**
+   * Process one client frame. Frames are handled strictly in order, except
+   * that an action runs alongside later frames once admitted, as on Convex.
+   */
+  receive(frame: string | ArrayBuffer) {
     if (this.closed) return;
-    if (frame.length > MAX_MESSAGE_BYTES) {
+    const tooLarge =
+      typeof frame === "string"
+        ? exceedsUtf8Bytes(frame, MAX_MESSAGE_BYTES)
+        : frame.byteLength > MAX_MESSAGE_BYTES;
+    if (tooLarge) {
       this.fatal("Message too large");
       return;
     }
+    const text = typeof frame === "string" ? frame : new TextDecoder().decode(frame);
     this.queue = this.queue
-      .then(() => this.handle(frame))
+      .then(() => this.handle(text))
       .catch((error: unknown) => {
         console.error("parlor-cloudflare: sync message failed", error);
         this.fatal("Internal server error");
@@ -178,7 +190,7 @@ export class SyncSession {
         await this.mutation(message);
         return;
       case "Action":
-        await this.action(message);
+        this.action(message);
         return;
       case "Event":
         return;
@@ -368,23 +380,55 @@ export class SyncSession {
     });
   }
 
-  private async action(message: Record<string, unknown>) {
+  /**
+   * Start an action without holding up later frames. The identity is the
+   * one in force when the frame was processed, as if the action ran then.
+   */
+  private action(message: Record<string, unknown>) {
     const requestId = Number(message["requestId"]);
     const udfPath = typeof message["udfPath"] === "string" ? message["udfPath"] : "";
     const args = (message["args"] as JSONValue[] | undefined)?.[0] ?? {};
-    const outcome = await this.runtime.action(udfPath, args, this.currentIdentity());
-    this.send(
-      outcome.success
-        ? { type: "ActionResponse", requestId, success: true, result: outcome.value, logLines: [] }
-        : {
-            type: "ActionResponse",
-            requestId,
-            success: false,
-            result: outcome.message,
-            logLines: [],
-            ...(outcome.data === undefined ? {} : { errorData: outcome.data }),
-          },
-    );
+    if (this.actionsRunning >= MAX_CONCURRENT_ACTIONS) {
+      this.send({
+        type: "ActionResponse",
+        requestId,
+        success: false,
+        result: `Too many concurrent actions on this connection (limit ${MAX_CONCURRENT_ACTIONS})`,
+        logLines: [],
+      });
+      return;
+    }
+    const identity = this.currentIdentity();
+    this.actionsRunning += 1;
+    void this.runtime
+      .action(udfPath, args, identity)
+      .then((outcome) =>
+        this.send(
+          outcome.success
+            ? {
+                type: "ActionResponse",
+                requestId,
+                success: true,
+                result: outcome.value,
+                logLines: [],
+              }
+            : {
+                type: "ActionResponse",
+                requestId,
+                success: false,
+                result: outcome.message,
+                logLines: [],
+                ...(outcome.data === undefined ? {} : { errorData: outcome.data }),
+              },
+        ),
+      )
+      .catch((error: unknown) => {
+        console.error("parlor-cloudflare: action failed", error);
+        this.fatal("Internal server error");
+      })
+      .finally(() => {
+        this.actionsRunning -= 1;
+      });
   }
 
   /** Re-run invalidated subscriptions after a commit (lock held). */
@@ -392,7 +436,8 @@ export class SyncSession {
     if (this.closed) return;
     const output: Modification[] = [];
     for (const [queryId, subscription] of this.subscriptions) {
-      if (!subscription.reads.overlaps(commit.changes)) continue;
+      // A replaced database invalidates every read, removed rows included.
+      if (!commit.replaced && !subscription.reads.overlaps(commit.changes)) continue;
       const modification = await this.evaluateLocked(queryId, subscription);
       if (modification !== null) output.push(modification);
     }

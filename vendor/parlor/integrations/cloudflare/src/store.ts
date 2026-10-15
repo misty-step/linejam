@@ -1,6 +1,6 @@
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 import { decodeId, newId } from "./ids.js";
-import { encodeKey, keySuccessor } from "./keys.js";
+import { encodeKey, encodeValue, keySuccessor } from "./keys.js";
 import {
   isSystemTable,
   tableOrDefault,
@@ -9,6 +9,7 @@ import {
   SCHEDULED_FUNCTIONS_TABLE,
 } from "./schema.js";
 import { validateValue, ValidationError } from "./validators.js";
+import { utf8Length } from "./utf8.js";
 
 export type SqlValue = string | number | null;
 export type SqlRow = Readonly<Record<string, SqlValue>>;
@@ -74,12 +75,27 @@ export interface CommitResult {
   /** Every old and new index key touched by the commit, by index name. */
   readonly changes: ReadonlyMap<string, readonly string[]>;
   readonly tables: ReadonlySet<string>;
+  /** The whole database was replaced, so every read set is invalid. */
+  readonly replaced: boolean;
 }
 
+export const FROZEN_MESSAGE = "This backend is temporarily read-only for maintenance.";
+
+/** A write reached the database while it was frozen; nothing was committed. */
+export class FrozenError extends Error {
+  constructor() {
+    super(FROZEN_MESSAGE);
+    this.name = "FrozenError";
+  }
+}
+
+const FROZEN_KEY = "writes_frozen";
 const MAX_DOCUMENT_BYTES = 1 << 20;
 const SCAN_PAGE = 128;
 const FIRST_USER_TABLE = 10_001;
 const SYSTEM_TABLE_NUMBERS: Readonly<Record<string, number>> = { [SCHEDULED_FUNCTIONS_TABLE]: 539 };
+/** Convex table names: a letter, then letters, digits or underscores, at most 64 characters. */
+const USER_TABLE_NAME = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 
 export function getField(
   document: Readonly<Record<string, Value | undefined>>,
@@ -95,7 +111,9 @@ export function getField(
 }
 
 export function indexKey(index: IndexModel, document: Document): string {
-  return encodeKey(index.keyFields.map((field) => getField(document, field)));
+  let key = "";
+  for (const field of index.keyFields) key += encodeValue(getField(document, field));
+  return key;
 }
 
 function serialize(document: Document): string {
@@ -177,6 +195,18 @@ export class Store {
   }
 
   /**
+   * While frozen, `commit` refuses every write that is not an admitted
+   * snapshot import, whichever function, scheduler or cron produced it.
+   */
+  get writesFrozen(): boolean {
+    return this.meta(FROZEN_KEY) === "1";
+  }
+
+  setWritesFrozen(frozen: boolean) {
+    this.setMeta(FROZEN_KEY, frozen ? "1" : null);
+  }
+
+  /**
    * Rebuild the stored keys of any index whose definition changed since the
    * last start, so a schema deploy never serves a stale or partial index.
    */
@@ -226,10 +256,14 @@ export class Store {
       const highest = Math.max(FIRST_USER_TABLE - 1, ...this.namesByNumber.keys());
       number = highest + 1;
     }
+    this.insertTable(name, number);
+    return number;
+  }
+
+  private insertTable(name: string, number: number) {
     this.driver.exec("INSERT INTO cvx_tables (name, number) VALUES (?, ?)", name, number);
     this.numbersByName.set(name, number);
     this.namesByNumber.set(number, name);
-    return number;
   }
 
   tableName(number: number): string | undefined {
@@ -320,10 +354,16 @@ export class Store {
 
   /**
    * Atomically apply a transaction's writes, maintain every index, advance
-   * the commit timestamp and run `extra` (for example a mutation receipt).
+   * the commit timestamp and run `receipt` (a mutation receipt) in the same
+   * SQLite transaction. Refused with `FrozenError` while writes are frozen,
+   * unless `admitWhileFrozen` marks an operator snapshot import.
    */
-  commit(writes: ReadonlyMap<string, Document | null>, extra?: (ts: bigint) => void): CommitResult {
-    return this.driver.transaction(() => {
+  commit(
+    writes: ReadonlyMap<string, Document | null>,
+    options: { readonly receipt?: (ts: bigint) => void; readonly admitWhileFrozen?: true } = {},
+  ): CommitResult {
+    const result = this.driver.transaction(() => {
+      if (options.admitWhileFrozen !== true && this.writesFrozen) throw new FrozenError();
       const changes = new Map<string, string[]>();
       const tables = new Set<string>();
       const touch = (index: string, key: string) => {
@@ -377,44 +417,68 @@ export class Store {
           );
         }
       }
-      const wallClock = BigInt(Date.now()) * 1_000_000n;
-      const ts = wallClock > this.currentTs ? wallClock : this.currentTs + 1n;
-      extra?.(ts);
-      this.setMeta("ts", ts.toString());
-      this.currentTs = ts;
-      return { ts, changes, tables };
+      const ts = this.writeNextTs();
+      options.receipt?.(ts);
+      return { ts, changes, tables, replaced: false };
     });
+    this.currentTs = result.ts;
+    return result;
   }
 
-  /** Remove every document, index entry and table mapping (import replace). */
-  clearAll() {
-    this.driver.transaction(() => {
-      this.driver.exec("DELETE FROM cvx_index");
-      this.driver.exec("DELETE FROM cvx_documents");
-      this.driver.exec("DELETE FROM cvx_tables");
-      this.loadTables();
-    });
+  /** Persist the next commit timestamp; the caller's transaction commits it. */
+  private writeNextTs(): bigint {
+    const wallClock = BigInt(Date.now()) * 1_000_000n;
+    const ts = wallClock > this.currentTs ? wallClock : this.currentTs + 1n;
+    this.setMeta("ts", ts.toString());
+    return ts;
   }
 
-  /** Install a snapshot's table numbers before its documents are imported. */
-  adoptTableNumbers(numbers: ReadonlyMap<string, number>) {
-    this.driver.transaction(() => {
-      for (const [name, number] of numbers) {
-        const existingName = this.namesByNumber.get(number);
-        const existingNumber = this.numbersByName.get(name);
-        if (existingNumber === number) continue;
-        if (existingName !== undefined || existingNumber !== undefined) {
-          throw new Error(`Table number conflict for ${name} (${number})`);
-        }
-        this.driver.exec("INSERT INTO cvx_tables (name, number) VALUES (?, ?)", name, number);
-        this.numbersByName.set(name, number);
-        this.namesByNumber.set(number, name);
+  /**
+   * Replace the whole database with an empty one that uses a snapshot's user
+   * table numbers, ready for `importDocuments`. Everything is validated
+   * before anything changes, and the replacement is one SQLite transaction,
+   * so a rejected snapshot leaves every document, index entry, mapping and
+   * receipt as it was.
+   */
+  replaceAll(numbers: ReadonlyMap<string, number>): CommitResult {
+    const reserved = new Set(Object.values(SYSTEM_TABLE_NUMBERS));
+    const owners = new Map<number, string>();
+    for (const [name, number] of numbers) {
+      if (!USER_TABLE_NAME.test(name)) {
+        throw new Error(`Invalid snapshot table name ${JSON.stringify(name)}`);
       }
-      for (const name of this.schema.tables.keys()) this.ensureTable(name);
-    });
+      if (!Number.isSafeInteger(number) || number < 1 || reserved.has(number)) {
+        throw new Error(`Invalid table number ${String(number)} for snapshot table ${name}`);
+      }
+      const owner = owners.get(number);
+      if (owner !== undefined) {
+        throw new Error(`Snapshot tables ${owner} and ${name} share table number ${number}`);
+      }
+      owners.set(number, name);
+    }
+    let ts: bigint;
+    try {
+      ts = this.driver.transaction(() => {
+        this.driver.exec("DELETE FROM cvx_index");
+        this.driver.exec("DELETE FROM cvx_documents");
+        this.driver.exec("DELETE FROM cvx_tables");
+        this.driver.exec("DELETE FROM cvx_receipts");
+        this.numbersByName.clear();
+        this.namesByNumber.clear();
+        for (const [name, number] of numbers) this.insertTable(name, number);
+        for (const name of this.schema.tables.keys()) this.ensureTable(name);
+        return this.writeNextTs();
+      });
+    } finally {
+      // The in-memory mapping always mirrors what SQLite holds now, whether
+      // the replacement committed or rolled back.
+      this.loadTables();
+    }
+    this.currentTs = ts;
+    return { ts, changes: new Map(), tables: new Set(this.numbersByName.keys()), replaced: true };
   }
 
-  /** Insert documents verbatim (IDs and creation times preserved). */
+  /** Insert documents verbatim (IDs and creation times preserved); admitted while frozen. */
   importDocuments(table: string, documents: readonly Document[]): CommitResult {
     const writes = new Map<string, Document | null>();
     for (const document of documents) {
@@ -423,7 +487,7 @@ export class Store {
       }
       writes.set(document._id, document);
     }
-    const result = this.commit(writes);
+    const result = this.commit(writes, { admitWhileFrozen: true });
     for (const document of documents) {
       if (document._creationTime > this.lastCreationTime)
         this.lastCreationTime = document._creationTime;
@@ -579,7 +643,7 @@ export class Transaction {
   }
 
   private checkSize(document: Document) {
-    if (serialize(document).length > MAX_DOCUMENT_BYTES) {
+    if (utf8Length(serialize(document)) > MAX_DOCUMENT_BYTES) {
       throw new Error(`Document ${document._id} is too large (limit ${MAX_DOCUMENT_BYTES} bytes)`);
     }
   }

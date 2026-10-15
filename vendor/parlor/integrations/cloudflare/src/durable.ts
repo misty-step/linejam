@@ -1,7 +1,17 @@
 import type { JSONValue } from "convex/values";
 import { AuthenticationError, TokenVerifier, type AuthConfig } from "./auth.js";
 import { Runtime, type ConvexApp, type FunctionOutcome, type UserIdentity } from "./runtime.js";
-import { beginImport, exportPage, importDocuments, tableStats } from "./snapshot.js";
+import {
+  beginImport,
+  commitImport,
+  exportPage,
+  importDocuments,
+  importPending,
+  MaintenanceStateError,
+  setWritesFrozen,
+  tableStats,
+  type ExpectedTable,
+} from "./snapshot.js";
 import type { SqlDriver, SqlRow, SqlValue } from "./store.js";
 import { SyncSession } from "./sync.js";
 
@@ -78,18 +88,48 @@ function json(body: unknown, status = 200): Response {
 }
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {
-  const length = Number(request.headers.get("Content-Length") ?? "0");
-  if (length > MAX_BODY_BYTES) throw new RequestError(413, "Request body too large");
-  const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) throw new RequestError(413, "Request body too large");
+  const declared = request.headers.get("Content-Length");
+  if (declared !== null && Number(declared) > MAX_BODY_BYTES) {
+    throw new RequestError(413, "Request body too large");
+  }
+  const body = await readBounded(request, MAX_BODY_BYTES);
   try {
-    const parsed: unknown = JSON.parse(text);
+    const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body));
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
       throw new Error("not an object");
     return parsed as Record<string, unknown>;
   } catch {
     throw new RequestError(400, "Request body must be a JSON object");
   }
+}
+
+/**
+ * The body's bytes, read incrementally so a body over `limit` bytes is
+ * refused (and its stream cancelled) before it is buffered, whatever its
+ * Content-Length says.
+ */
+async function readBounded(request: Request, limit: number): Promise<Uint8Array> {
+  if (request.body === null) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel().catch(() => undefined);
+      throw new RequestError(413, "Request body too large");
+    }
+    chunks.push(value);
+  }
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
 }
 
 class RequestError extends Error {
@@ -163,11 +203,12 @@ export class ConvexBackendObject {
       // accepts writes; an operator imports data or unfreezes it explicitly.
       if (this.runtime.store.meta("initialized_at") === null) {
         this.runtime.store.setMeta("initialized_at", String(Date.now()));
-        this.runtime.store.setMeta("writes_frozen", "1");
+        this.runtime.store.setWritesFrozen(true);
       }
       this.runtime.syncCrons();
-      await this.runtime.recoverInterruptedJobs();
       this.runtime.onCommit(() => this.armAlarm());
+      // Jobs a restart interrupted make the alarm due now; once writes are
+      // unfrozen, the scheduler's upkeep marks them failed.
       this.armedAlarm = await state.storage.getAlarm();
       await this.armAlarm();
     });
@@ -249,11 +290,7 @@ export class ConvexBackendObject {
       }
     };
     server.addEventListener("message", (event) => {
-      session.receive(
-        typeof event.data === "string"
-          ? event.data
-          : new TextDecoder().decode(event.data as ArrayBuffer),
-      );
+      session.receive(event.data as string | ArrayBuffer);
     });
     server.addEventListener("close", end);
     server.addEventListener("error", end);
@@ -315,18 +352,38 @@ export class ConvexBackendObject {
     ) {
       return json({ code: "Unauthorized", message: "Admin key required" }, 401);
     }
+    try {
+      return await this.adminRoute(request, route, url);
+    } catch (error) {
+      if (error instanceof MaintenanceStateError)
+        return json({ code: "Conflict", message: error.message }, 409);
+      if (error instanceof RequestError) throw error;
+      // Operator input (snapshot tables, documents) that the store rejected.
+      return json({ code: "BadRequest", message: errorMessage(error) }, 400);
+    }
+  }
+
+  private async adminRoute(request: Request, route: string, url: URL): Promise<Response> {
     const runtime = this.runtime;
     if (request.method === "GET" && route === "status") {
       return json({
         ts: runtime.store.ts.toString(),
         writesFrozen: runtime.writesFrozen,
+        importPending: importPending(runtime),
+        runningActions: runtime.runningActions,
         tables: Object.fromEntries(runtime.store.tableNumbers()),
         sessions: this.sessions.size,
         nextWakeTime: runtime.nextWakeTime(),
       });
     }
     if (request.method === "GET" && route === "stats") {
-      return json(await runtime.exclusive(() => tableStats(runtime)));
+      return json(
+        await runtime.exclusive(async () => ({
+          ts: runtime.store.ts.toString(),
+          writesFrozen: runtime.writesFrozen,
+          tables: await tableStats(runtime),
+        })),
+      );
     }
     if (request.method === "GET" && route === "export") {
       const table = url.searchParams.get("table") ?? "";
@@ -344,19 +401,22 @@ export class ConvexBackendObject {
       return json({ code: "NotFound", message: "Unknown admin route" }, 404);
     const body = await readJson(request);
     if (route === "freeze") {
-      if (typeof body["frozen"] !== "boolean")
-        throw new RequestError(400, "Expected { frozen: boolean }");
-      await runtime.exclusive(async () =>
-        runtime.store.setMeta("writes_frozen", body["frozen"] ? "1" : null),
-      );
+      const frozen = body["frozen"];
+      if (typeof frozen !== "boolean") throw new RequestError(400, "Expected { frozen: boolean }");
+      // Under the lock, so the barrier lands between two transactions: every
+      // write committed before it is in the store, and none is accepted after.
+      const ts = await runtime.exclusive(async () => {
+        setWritesFrozen(runtime, frozen);
+        return runtime.store.ts.toString();
+      });
       await this.armAlarm();
-      return json({ writesFrozen: runtime.writesFrozen, ts: runtime.store.ts.toString() });
+      return json({ writesFrozen: runtime.writesFrozen, ts });
     }
     if (route === "import/begin") {
       const tables = body["tables"];
-      if (typeof tables !== "object" || tables === null)
-        throw new RequestError(400, "Expected { tables }");
-      await runtime.exclusive(async () => beginImport(runtime, tables as Record<string, number>));
+      if (typeof tables !== "object" || tables === null || Array.isArray(tables))
+        throw new RequestError(400, "Expected { tables: { name: number } }");
+      await runtime.exclusive(() => beginImport(runtime, tables as Record<string, number>));
       return json({ tables: Object.fromEntries(runtime.store.tableNumbers()) });
     }
     if (route === "import/documents") {
@@ -370,8 +430,36 @@ export class ConvexBackendObject {
       );
       return json({ imported });
     }
+    if (route === "import/commit") {
+      const tables = body["tables"];
+      if (!isExpectedTables(tables)) {
+        throw new RequestError(400, "Expected { tables: { name: { count, sha256 } } }");
+      }
+      const result = await runtime.exclusive(() => commitImport(runtime, tables));
+      return json(
+        { committed: result.mismatches.length === 0, ...result },
+        result.mismatches.length === 0 ? 200 : 409,
+      );
+    }
     return json({ code: "NotFound", message: "Unknown admin route" }, 404);
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isExpectedTables(value: unknown): value is Record<string, ExpectedTable> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  return Object.values(value as Record<string, unknown>).every((entry) => {
+    const table = entry as Partial<Record<keyof ExpectedTable, unknown>> | null;
+    return (
+      typeof table === "object" &&
+      table !== null &&
+      Number.isSafeInteger(table.count) &&
+      typeof table.sha256 === "string"
+    );
+  });
 }
 
 /**

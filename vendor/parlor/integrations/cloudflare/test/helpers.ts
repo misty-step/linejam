@@ -12,10 +12,117 @@ import {
   actionGeneric,
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
-import { Runtime, type ConvexApp, type SqlDriver } from "../src/index.js";
+import { Runtime, type ConvexApp, type SqlDriver, TokenVerifier } from "../src/index.js";
+import { ConvexBackendObject, type ConvexBackendOptions } from "../src/durable.js";
 import { memorySqlDriver } from "../src/testing.js";
 
 export { memorySqlDriver as sqliteDriver };
+
+export const ISSUER = "https://clerk.example.test";
+export const AUDIENCE = "convex";
+export const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+export function base64Url(bytes: Uint8Array | string): string {
+  const data = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
+  return Buffer.from(data).toString("base64url");
+}
+
+/** A synthetic OIDC issuer: `sign` mints RS256 tokens that `verifier` trusts. */
+export async function issuer() {
+  const keys = await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["sign", "verify"],
+  );
+  const jwk = {
+    ...(await crypto.subtle.exportKey("jwk", keys.publicKey)),
+    kid: "k1",
+    alg: "RS256",
+    use: "sig",
+  };
+  const fetcher: typeof fetch = async (input) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    if (url === `${ISSUER}/.well-known/openid-configuration`)
+      return Response.json({ jwks_uri: `${ISSUER}/jwks` });
+    if (url === `${ISSUER}/jwks`) return Response.json({ keys: [jwk] });
+    return new Response("not found", { status: 404 });
+  };
+  /** Sign claims, or a raw JSON payload (for values JSON.stringify cannot produce). */
+  const sign = async (claims: Record<string, unknown> | string) => {
+    const header = base64Url(JSON.stringify({ alg: "RS256", kid: "k1", typ: "JWT" }));
+    const payload = base64Url(typeof claims === "string" ? claims : JSON.stringify(claims));
+    const signature = await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      keys.privateKey,
+      new TextEncoder().encode(`${header}.${payload}`),
+    );
+    return `${header}.${payload}.${base64Url(new Uint8Array(signature))}`;
+  };
+  const verifier = new TokenVerifier(
+    { providers: [{ domain: ISSUER, applicationID: AUDIENCE }] },
+    fetcher,
+  );
+  return { sign, verifier, fetcher };
+}
+
+export const ADMIN_KEY = "synthetic-admin-key-0123456789abcdef";
+
+/**
+ * The Durable Object class over in-memory SQLite and a fake alarm, as
+ * workerd would host it. `admin` calls an admin route with the admin key.
+ */
+export async function durableObject(
+  options: Partial<ConvexBackendOptions> = {},
+  driver: SqlDriver = memorySqlDriver(),
+) {
+  let ready: Promise<unknown> = Promise.resolve();
+  let alarm: number | null = null;
+  const storage = {
+    sql: {
+      exec: (query: string, ...bindings: (string | number | null)[]) => ({
+        toArray: () => driver.exec(query, ...bindings),
+      }),
+    },
+    transactionSync: <T>(callback: () => T) => driver.transaction(callback),
+    getAlarm: async () => alarm,
+    setAlarm: async (when: number) => {
+      alarm = when;
+    },
+    deleteAlarm: async () => {
+      alarm = null;
+    },
+  };
+  const state = {
+    storage,
+    blockConcurrencyWhile: <T>(callback: () => Promise<T>) => {
+      const result = callback();
+      ready = result;
+      return result;
+    },
+  };
+  const backend = new ConvexBackendObject(
+    state,
+    { ADMIN: ADMIN_KEY },
+    { app, basePath: "/backend", adminKeyBinding: "ADMIN", ...options },
+  );
+  await ready;
+  const call = (path: string, init: RequestInit = {}) =>
+    backend.fetch(new Request(`https://backend.example.test/backend${path}`, init));
+  const admin = async (route: string, body?: unknown) => {
+    const response = await call(`/admin/${route}`, {
+      method: body === undefined ? "GET" : "POST",
+      headers: { Authorization: `Bearer ${ADMIN_KEY}` },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: response.status, body: (await response.json()) as Record<string, any> };
+  };
+  return { backend, call, admin, alarm: () => alarm };
+}
 
 export const schema = defineSchema({
   rooms: defineTable({ code: v.string(), closedAt: v.optional(v.number()) }).index("by_code", [

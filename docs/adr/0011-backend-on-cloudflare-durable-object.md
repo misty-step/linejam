@@ -37,19 +37,58 @@ use `convex/react` and `convex/browser`.
 4. **Proof by the existing suite.** `pnpm test:backend:cloudflare` runs every
    test in `tests/convex` against the adapter, with `convex-test` aliased to
    `@parlor/cloudflare/testing`.
-5. **Fail-closed rollout.** A new backend starts with writes frozen.
+5. **Fail-closed rollout.** A new backend starts with writes frozen. While
+   frozen, the object admits no mutation, action, HTTP action, scheduled
+   function or cron, and it cannot be unfrozen while an import is pending
+   (Parlor ADR 0001, Operations). Exactly one backend accepts writes at any
+   time.
 6. **Cutover steps.**
-   1. Deploy with the backend dormant, while the web still uses Convex.
-   2. Pause `amiable-bulldog-848`, which stops its writers and crons.
-   3. Export a snapshot and import it through the admin routes, which keeps
-      IDs and creation times.
-   4. Require the canonical per-table SHA-256 values of the snapshot and the
-      object to be equal.
-   5. Unfreeze the object.
+   1. Deploy with the backend dormant, while the web still uses Convex. This
+      is the dormant Worker version.
+   2. Pause `amiable-bulldog-848`. New function calls fail and crons are
+      skipped, so Convex accepts no writes.
+   3. Export a snapshot. Import it through the admin routes, which keeps IDs,
+      creation times and table numbers: `import/begin` with the snapshot's
+      table numbers, then `import/documents` for every page.
+   4. Call `import/commit` with the snapshot's canonical per-table counts and
+      SHA-256 values. It succeeds only when the object's values are equal.
+   5. Unfreeze the object. It is now the only writer.
    6. Deploy the build whose `NEXT_PUBLIC_CONVEX_URL` is `/backend`.
-   7. Keep Convex paused and intact as the rollback target. A rollback exports
-      from the object, imports into Convex with `--replace`, unpauses it, and
-      redeploys the previous Worker version, so accepted writes are retained.
+   7. Keep Convex paused and intact as the rollback target.
+
+   If a step before 5 fails, the object stays frozen and Convex is unpaused.
+   Nothing is lost, because the object never accepted a write.
+
+7. **Rollback steps.** The object stops accepting writes before anything is
+   read from it. Convex is unpaused only once its restored data is proven
+   equal to the object's.
+   1. Freeze the object with `POST /backend/admin/freeze {"frozen": true}`.
+      Record the `ts` it returns, which marks the last accepted write. From
+      then on the object refuses every mutation, action, HTTP action,
+      scheduled function and cron, and a running action can no longer write.
+   2. Quiesce. Poll `GET /backend/admin/status` until `runningActions` is 0
+      and `ts` still equals the recorded value. Attempt one public mutation,
+      require the read-only error, then confirm `ts` is unchanged.
+   3. Export every user table with `GET /backend/admin/export`, passing each
+      page's `next` as `after` until it is null. Every page must report the
+      recorded `ts` and `writesFrozen: true`; otherwise go back to step 2. The
+      pages' canonical counts and SHA-256 values must equal
+      `GET /backend/admin/stats`.
+   4. Build a Convex snapshot ZIP from the pages and table numbers. Import it
+      into the still-paused Convex with `convex import --replace-all`.
+   5. Export Convex again. Its canonical per-table counts and SHA-256 values
+      must equal the object's from step 3.
+   6. Unpause Convex, then redeploy the dormant Worker version. Convex is now
+      the only writer.
+
+   If a step before 6 fails, Convex stays paused and the object stays frozen
+   while the step is retried. To abandon the rollback instead, unfreeze the
+   object. That loses nothing, because the object accepted no write after
+   step 1. After step 6 the object stays frozen, so it can only accept writes
+   again through a new cutover. A rollback retains accepted writes only when
+   every check above passes. Pending scheduled functions are not part of a
+   snapshot. Linejam's only one, the abandonment sweep's continuation, is
+   re-derived by that sweep's one-minute cron.
 
 ## Consequences
 

@@ -6,6 +6,12 @@ import type { Document } from "./store.js";
  * Snapshot import/export in the Convex snapshot layout (`_tables` numbers plus
  * one JSON document per line per table), and canonical per-table checksums
  * that can be computed identically from a Convex export ZIP.
+ *
+ * An import is a maintenance state: `beginImport` (writes frozen) replaces
+ * the database and marks the import pending, `importDocuments` loads pages,
+ * and `commitImport` clears the mark only when every table's count and
+ * checksum equal the snapshot's. Writes cannot be unfrozen while an import
+ * is pending, so a partial or mismatched import never accepts writes.
  */
 
 /** JSON with object keys sorted; stable across Convex and this backend. */
@@ -56,15 +62,61 @@ export interface TableStats {
   readonly sha256: string;
 }
 
-const EXPORT_PAGE_LIMIT = 1000;
+/** Count and checksum a table must have; tables absent on one side are empty. */
+export interface ExpectedTable {
+  readonly count: number;
+  readonly sha256: string;
+}
 
+export interface TableMismatch {
+  readonly table: string;
+  readonly expected: ExpectedTable;
+  readonly actual: ExpectedTable;
+}
+
+const EXPORT_PAGE_LIMIT = 1000;
+/** `documentsChecksum([])`: the SHA-256 of no bytes. */
+const EMPTY_TABLE: ExpectedTable = {
+  count: 0,
+  sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+};
+const IMPORT_PENDING_KEY = "import_pending";
+
+/** Refused import or freeze transitions; the admin API reports these as 409. */
+export class MaintenanceStateError extends Error {
+  override readonly name = "MaintenanceStateError";
+}
+
+export function importPending(runtime: Runtime): boolean {
+  return runtime.store.meta(IMPORT_PENDING_KEY) !== null;
+}
+
+/**
+ * Freeze or unfreeze every write path (call with the database lock held).
+ * Unfreezing is refused while an import is pending.
+ */
+export function setWritesFrozen(runtime: Runtime, frozen: boolean) {
+  if (!frozen && importPending(runtime)) {
+    throw new MaintenanceStateError(
+      "An import is pending; commit it with matching checksums before unfreezing writes",
+    );
+  }
+  runtime.store.setWritesFrozen(frozen);
+}
+
+/**
+ * One page of a table's documents in `_id` order, with the commit timestamp
+ * it was read at. An export is consistent only when every page reports the
+ * same `ts` while `writesFrozen` holds (call with the database lock held).
+ */
 export function exportPage(
   runtime: Runtime,
   table: string,
   after: string | null,
   limit: number,
-): { documents: JSONValue[]; next: string | null } {
-  const bounded = Math.max(1, Math.min(EXPORT_PAGE_LIMIT, Math.floor(limit)));
+): { documents: JSONValue[]; next: string | null; ts: string; writesFrozen: boolean } {
+  const requested = Number.isFinite(limit) ? Math.floor(limit) : EXPORT_PAGE_LIMIT;
+  const bounded = Math.max(1, Math.min(EXPORT_PAGE_LIMIT, requested));
   const rows = runtime.store.driver.exec(
     "SELECT id, json FROM cvx_documents WHERE table_name = ? AND id > ? ORDER BY id LIMIT ?",
     table,
@@ -76,6 +128,8 @@ export function exportPage(
   return {
     documents,
     next: rows.length === bounded && last !== undefined ? String(last["id"]) : null,
+    ts: runtime.store.ts.toString(),
+    writesFrozen: runtime.writesFrozen,
   };
 }
 
@@ -97,16 +151,27 @@ export async function tableStats(runtime: Runtime): Promise<Record<string, Table
   return stats;
 }
 
-/** Replace all data: forget every document and adopt the snapshot's table numbers. */
-export function beginImport(runtime: Runtime, tables: Readonly<Record<string, number>>) {
-  if (!runtime.writesFrozen) throw new Error("Freeze writes before importing a snapshot");
-  for (const [name, number] of Object.entries(tables)) {
-    if (name.startsWith("_") || !Number.isSafeInteger(number) || number < 1) {
-      throw new Error(`Invalid snapshot table ${name}=${number}`);
-    }
+function requireFrozen(runtime: Runtime) {
+  if (!runtime.writesFrozen) {
+    throw new MaintenanceStateError("Freeze writes before importing a snapshot");
   }
-  runtime.store.clearAll();
-  runtime.store.adoptTableNumbers(new Map(Object.entries(tables)));
+}
+
+/**
+ * Replace all data with an empty database that uses the snapshot's table
+ * numbers, and mark the import pending. Validation and the replacement
+ * happen before this returns, and throw without changing anything; the
+ * returned promise refreshes every live subscription (removed rows
+ * included) and must be awaited with the database lock held.
+ */
+export function beginImport(
+  runtime: Runtime,
+  tables: Readonly<Record<string, number>>,
+): Promise<void> {
+  requireFrozen(runtime);
+  const commit = runtime.store.replaceAll(new Map(Object.entries(tables)));
+  runtime.store.setMeta(IMPORT_PENDING_KEY, commit.ts.toString());
+  return runtime.notifyLocked(commit);
 }
 
 export async function importDocuments(
@@ -114,7 +179,10 @@ export async function importDocuments(
   table: string,
   documents: readonly JSONValue[],
 ) {
-  if (!runtime.writesFrozen) throw new Error("Freeze writes before importing a snapshot");
+  requireFrozen(runtime);
+  if (!importPending(runtime)) {
+    throw new MaintenanceStateError("Begin an import before loading documents");
+  }
   const decoded = documents.map((document) => {
     const value = jsonToConvex(document) as Document;
     if (typeof value._id !== "string" || typeof value._creationTime !== "number") {
@@ -125,4 +193,32 @@ export async function importDocuments(
   const commit = runtime.store.importDocuments(table, decoded);
   await runtime.notifyLocked(commit);
   return decoded.length;
+}
+
+/**
+ * Finish a pending import when every user table's count and checksum equal
+ * `expected` (the snapshot's own stats). On any mismatch the import stays
+ * pending, so writes stay frozen. Call with the database lock held.
+ */
+export async function commitImport(
+  runtime: Runtime,
+  expected: Readonly<Record<string, ExpectedTable>>,
+): Promise<{ readonly mismatches: TableMismatch[]; readonly tables: Record<string, TableStats> }> {
+  requireFrozen(runtime);
+  if (!importPending(runtime)) throw new MaintenanceStateError("No import is pending");
+  const tables = await tableStats(runtime);
+  const mismatches: TableMismatch[] = [];
+  for (const table of [...new Set([...Object.keys(tables), ...Object.keys(expected)])].sort()) {
+    const have = tables[table] ?? EMPTY_TABLE;
+    const want = expected[table] ?? EMPTY_TABLE;
+    if (have.count !== want.count || have.sha256 !== want.sha256) {
+      mismatches.push({
+        table,
+        expected: { count: want.count, sha256: want.sha256 },
+        actual: { count: have.count, sha256: have.sha256 },
+      });
+    }
+  }
+  if (mismatches.length === 0) runtime.store.setMeta(IMPORT_PENDING_KEY, null);
+  return { mismatches, tables };
 }

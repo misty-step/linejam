@@ -18,8 +18,8 @@ export interface AuthConfig {
 
 export interface VerifiedToken {
   readonly identity: UserIdentity;
-  /** Epoch milliseconds after which the identity must be refreshed, if any. */
-  readonly expiresAt: number | null;
+  /** Epoch milliseconds after which the identity must be refreshed. */
+  readonly expiresAt: number;
 }
 
 export class AuthenticationError extends Error {
@@ -159,9 +159,20 @@ export class TokenVerifier {
     if (algorithm !== expectedAlgorithm)
       throw new AuthenticationError(`Unsupported token algorithm ${String(algorithm)}`);
     const nowSeconds = now / 1000;
+    // Every accepted identity expires: `exp` must be a finite number, and
+    // the other registered times, when present, must be too.
     const exp = claims["exp"];
+    if (typeof exp !== "number" || !Number.isFinite(exp)) {
+      throw new AuthenticationError("Token has no valid expiration time (exp)");
+    }
+    for (const claim of ["nbf", "iat"]) {
+      const value = claims[claim];
+      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+        throw new AuthenticationError(`Token has an invalid ${claim} claim`);
+      }
+    }
     const nbf = claims["nbf"];
-    if (typeof exp === "number" && exp + CLOCK_SKEW_SECONDS < nowSeconds) {
+    if (exp + CLOCK_SKEW_SECONDS < nowSeconds) {
       throw new AuthenticationError("Token expired");
     }
     if (typeof nbf === "number" && nbf - CLOCK_SKEW_SECONDS > nowSeconds) {
@@ -187,10 +198,7 @@ export class TokenVerifier {
       new TextEncoder().encode(`${headerText}.${payloadText}`),
     );
     if (!valid) throw new AuthenticationError("Token signature is invalid");
-    return {
-      identity: identityFromClaims(claims),
-      expiresAt: typeof exp === "number" ? exp * 1000 : null,
-    };
+    return { identity: identityFromClaims(claims), expiresAt: exp * 1000 };
   }
 
   private async jwksUrl(provider: AuthProvider): Promise<string> {
