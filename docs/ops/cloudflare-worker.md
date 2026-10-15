@@ -55,11 +55,25 @@ runtime secrets to the Worker first:
 ```sh
 # NEXT_DEPLOYMENT_ID must be the exact reviewed, merged checkout SHA.
 pnpm build:release:cf
+pnpm test:worker-routes
+pnpm test:worker-images
 pnpm deploy:cf:production
 ```
 
 A bare `wrangler deploy` is not the release path: it omits backend deployment,
 production environment selection, source binding and parity postconditions.
+`test:worker-routes` runs the built artifact in local workerd before deployment,
+using the deployed compatibility settings and `ROUTE_TEMPLATES` inventory. Its
+[pass conditions](../../scripts/qa/worker-route-contracts.ts) cover every route;
+missing conditions fail typecheck. HTML, feeds, images, API responses and the
+disabled preview drill have explicit status/content checks. Runtime error logs
+and streamed render errors fail even when HTTP status is 200. The only accepted
+5xx is `/api/health` reporting `convex: unreachable` with no capability report.
+All outbound fetches are blocked, no runtime credentials are loaded, guest
+session reads use `?existing=1`, and probes use an unknown poem/room. Backend
+fallbacks and Clerk's unauthenticated shell are intentional, not live backend or
+authenticated journey acceptance. The same gate runs in PR CI's existing Worker
+build job, without another build; a failure prevents `merge-gate` and deployment.
 For a bounded local packaging check, `CIRCLE_NODE_TOTAL=2` limits Next's static
 build to one worker; this does not change production runtime or host limits.
 
