@@ -158,40 +158,75 @@ try {
   };
   assert.equal(status.status, 200, `status: ${statusBody.slice(0, 500)}`);
   assert.equal(JSON.parse(statusBody).writesFrozen, false);
+  // Allow the newly-created workers.dev dispatch mapping to settle before
+  // sending simultaneous requests over separate edge connections.
+  await delay(15000);
   receipt.startedAt = Date.now();
+  receipt.clientRequests = [];
+  receipt.concurrency = 4;
   const sessions = [];
   async function burst(count, cookie) {
-    return Promise.all(
-      Array.from({ length: count }, async () => {
-        const start = performance.now();
-        const response = await fetch(`${origin}/api/guest/session`, {
-          headers: cookie ? { cookie } : {},
-          signal: AbortSignal.timeout(30000),
-        });
-        const body = await response.json();
-        if (response.status === 200) {
-          assert.match(body.guestId, /^[a-f0-9-]{36}$/);
-          assert.match(body.token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
-          assert.ok(body.validForMs > 0);
-          if (!cookie) {
-            assert.match(response.headers.get('set-cookie'), /HttpOnly/i);
-            sessions.push({
-              guestId: body.guestId,
-              cookie: response.headers.get('set-cookie').split(';')[0],
+    const results = [];
+    for (let offset = 0; offset < count; offset += receipt.concurrency) {
+      const wave = await Promise.allSettled(
+        Array.from(
+          { length: Math.min(receipt.concurrency, count - offset) },
+          async () => {
+            const start = performance.now();
+            const response = await fetch(`${origin}/api/guest/session`, {
+              headers: cookie ? { cookie } : {},
+              signal: AbortSignal.timeout(30000),
             });
+            const responseMetadata = {
+              url: response.url,
+              status: response.status,
+              contentType: response.headers.get('content-type'),
+              ray: response.headers.get('cf-ray'),
+            };
+            receipt.clientRequests.push(responseMetadata);
+            if (!responseMetadata.contentType?.includes('application/json')) {
+              const text = await response.text();
+              responseMetadata.edgeError =
+                text.match(/(?:Error|error code)\s*(\d{4})/)?.[1] ?? null;
+              throw new Error(
+                `Non-JSON guest response: ${JSON.stringify(responseMetadata)}`
+              );
+            }
+            const body = await response.json();
+            if (response.status === 200) {
+              assert.match(body.guestId, /^[a-f0-9-]{36}$/);
+              assert.match(body.token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+              assert.ok(body.validForMs > 0);
+              if (!cookie) {
+                assert.match(response.headers.get('set-cookie'), /HttpOnly/i);
+                sessions.push({
+                  guestId: body.guestId,
+                  cookie: response.headers.get('set-cookie').split(';')[0],
+                });
+              }
+            } else {
+              assert.equal(response.status, 429);
+              assert.equal(response.headers.get('retry-after'), '600');
+              assert.equal(
+                body.error,
+                'Too many guest sessions. Try again later.'
+              );
+              assert.equal(response.headers.get('set-cookie'), null);
+            }
+            return {
+              status: response.status,
+              durationMs: Math.round(performance.now() - start),
+            };
           }
-        } else {
-          assert.equal(response.status, 429);
-          assert.equal(response.headers.get('retry-after'), '600');
-          assert.equal(body.error, 'Too many guest sessions. Try again later.');
-          assert.equal(response.headers.get('set-cookie'), null);
-        }
-        return {
-          status: response.status,
-          durationMs: Math.round(performance.now() - start),
-        };
-      })
-    );
+        )
+      );
+      results.push(...wave);
+    }
+    // Wait for all owned requests before failing or deleting the Worker.
+    return results.map((result) => {
+      if (result.status === 'rejected') throw result.reason;
+      return result.value;
+    });
   }
   receipt.first = await burst(16);
   assert.ok(receipt.first.every((r) => r.status === 200));
