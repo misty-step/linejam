@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '17 9 * * *'
   workflow_dispatch:
+    inputs:
+      failure_drill:
+        description: 'Fail before export to verify the existing incident route'
+        type: boolean
+        default: false
+        required: false
 
 concurrency:
   group: convex-backup
@@ -31,7 +37,9 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
-      - name: Require production deploy key
+      # Keep the existing fail-closed secret contract. Despite its legacy name,
+      # this secret holds the approved export-capable team access token.
+      - name: Require production export credential
         env:
           CONVEX_DEPLOY_KEY_PROD: ${{ secrets.CONVEX_DEPLOY_KEY_PROD }}
         run: |
@@ -41,6 +49,12 @@ jobs:
             exit 1
           fi
 
+      - name: Exercise backup failure alarm
+        if: ${{ inputs.failure_drill == true }}
+        run: |
+          echo "::error::Intentional Convex backup failure drill; no export or production mutation attempted."
+          exit 1
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -49,7 +63,16 @@ jobs:
           CONVEX_DEPLOY_KEY_PROD: ${{ secrets.CONVEX_DEPLOY_KEY_PROD }}
         run: |
           set -euo pipefail
-          CONVEX_DEPLOY_KEY="$CONVEX_DEPLOY_KEY_PROD" pnpm exec convex export --path linejam-convex-export.zip
+          if [ -f .env ] || [ -f .env.local ]; then
+            echo "::error::Refusing ambient dotenv files for the production backup export."
+            exit 1
+          fi
+          env -u CONVEX_DEPLOY_KEY -u CONVEX_DEPLOYMENT_TOKEN \
+            -u CONVEX_DEPLOYMENT -u CONVEX_DEPLOYMENT_URL \
+            -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY \
+            CONVEX_OVERRIDE_ACCESS_TOKEN="$CONVEX_DEPLOY_KEY_PROD" \
+            pnpm exec convex export \
+              --deployment amiable-bulldog-848 --path linejam-convex-export.zip
 
       - name: Install age
         run: |
@@ -69,7 +92,7 @@ jobs:
           trap cleanup EXIT
           utc_date="$(date -u +%Y-%m-%d)"
           short_sha="${GITHUB_SHA::7}"
-          age -r age1pyuqjlecesessdwrqvk4hvav7ncrvuy0etus7aqrl6lq30r6g4asrskltu \
+          age -r age1fl9l4kgwas3su32nlrpv3sv6rv9ru8x6vjxlhddplzpk2n6fhf2q5fz39u \
             -o "linejam-convex-${utc_date}-${short_sha}.zip.age" \
             "$plaintext"
 
