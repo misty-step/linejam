@@ -881,6 +881,7 @@ describe("R10: size limits count UTF-8 bytes", () => {
     const frames = [
       { frame: JSON.stringify({ type: "Event", padding: "中".repeat(400_000) }), closes: true },
       { frame: new Uint8Array((1 << 20) + 1).buffer, closes: true },
+      { frame: new Blob([new Uint8Array((1 << 20) + 1)]), closes: true },
       { frame: JSON.stringify({ type: "Event", padding: "中".repeat(349_000) }), closes: false },
     ];
     for (const { frame, closes } of frames) {
@@ -900,6 +901,27 @@ describe("R10: size limits count UTF-8 bytes", () => {
     }
   });
 
+  it("decodes binary frames delivered as Blobs, as Workers deliver them", async () => {
+    const runtime = newRuntime();
+    value((await runtime.mutation("rooms:create", { code: "BLOB" }, null)).outcome);
+    const { session, messages, closed } = socket(runtime);
+    const subscribe = {
+      type: "ModifyQuerySet",
+      baseVersion: 0,
+      newVersion: 1,
+      modifications: [
+        { type: "Add", queryId: 0, udfPath: "rooms:byCode", args: [{ code: "BLOB" }] },
+      ],
+    };
+    session.receive(new Blob([JSON.stringify(subscribe)]));
+    await wait();
+    expect({ closed: closed(), room: latest(messages, 0) }).toMatchObject({
+      closed: false,
+      room: { code: "BLOB" },
+    });
+    session.close();
+  });
+
   it("refuses an HTTP body over 8 MiB as it streams in, whatever Content-Length claims", async () => {
     const { call } = await durableObject();
     const request = (padding: string, headers: Record<string, string> = {}) =>
@@ -911,6 +933,46 @@ describe("R10: size limits count UTF-8 bytes", () => {
     expect((await request("中".repeat(3_000_000))).status).toBe(413);
     expect((await request("中".repeat(3_000_000), { "Content-Length": "100" })).status).toBe(413);
     expect((await request("中".repeat(2_000_000))).status).toBe(200);
+  });
+
+  it("reads an unwanted body to its end, up to 32 MiB, so the runtime can deliver the response", async () => {
+    const { call } = await durableObject();
+    /** A streamed body that records whether it was read to its end or cancelled. */
+    const tracked = (bytes: number) => {
+      const chunk = new Uint8Array(64 * 1024).fill(0x61);
+      let sent = 0;
+      let outcome = "unread";
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (sent >= bytes) {
+            outcome = "drained";
+            controller.close();
+            return;
+          }
+          sent += chunk.byteLength;
+          controller.enqueue(chunk);
+        },
+        cancel() {
+          outcome = "cancelled";
+        },
+      });
+      return { body, outcome: () => outcome };
+    };
+    const post = async (path: string, bytes: number, headers: Record<string, string> = {}) => {
+      const { body, outcome } = tracked(bytes);
+      // Node requires `duplex` for a streamed body; the DOM RequestInit type omits it.
+      const init = { method: "POST", body, headers, duplex: "half" };
+      const response = await call(path, init);
+      return { status: response.status, body: outcome() };
+    };
+    const tooLarge = 9 * 1024 * 1024;
+    expect(await post("/api/query", tooLarge, { "Content-Length": String(tooLarge) })).toEqual({
+      status: 413,
+      body: "drained",
+    });
+    expect(await post("/api/query", tooLarge)).toEqual({ status: 413, body: "drained" });
+    expect(await post("/admin/freeze", 1024)).toEqual({ status: 401, body: "drained" });
+    expect(await post("/api/query", 40 * 1024 * 1024)).toEqual({ status: 413, body: "cancelled" });
   });
 
   it("measures documents in UTF-8 bytes", async () => {

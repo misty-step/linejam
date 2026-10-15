@@ -58,6 +58,23 @@ const MAX_MESSAGE_BYTES = 1 << 20;
 /** Actions one connection may have running at once; more are refused, not queued. */
 const MAX_CONCURRENT_ACTIONS = 32;
 
+/**
+ * A client frame as a WebSocket delivers it: text, or binary data. Workers
+ * deliver binary frames as Blobs by default; other hosts use ArrayBuffers.
+ */
+export type ClientFrame = string | ArrayBuffer | Blob;
+
+/** Whether a frame is over `limit` bytes, judged before it is decoded. */
+function frameExceeds(frame: ClientFrame, limit: number): boolean {
+  if (typeof frame === "string") return exceedsUtf8Bytes(frame, limit);
+  return (frame instanceof Blob ? frame.size : frame.byteLength) > limit;
+}
+
+async function frameText(frame: ClientFrame): Promise<string> {
+  if (typeof frame === "string") return frame;
+  return new TextDecoder().decode(frame instanceof Blob ? await frame.arrayBuffer() : frame);
+}
+
 export function encodeTs(ts: bigint): string {
   const bytes = new Uint8Array(8);
   new DataView(bytes.buffer).setBigUint64(0, BigInt.asUintN(64, ts), true);
@@ -110,19 +127,14 @@ export class SyncSession {
    * Process one client frame. Frames are handled strictly in order, except
    * that an action runs alongside later frames once admitted, as on Convex.
    */
-  receive(frame: string | ArrayBuffer) {
+  receive(frame: ClientFrame) {
     if (this.closed) return;
-    const tooLarge =
-      typeof frame === "string"
-        ? exceedsUtf8Bytes(frame, MAX_MESSAGE_BYTES)
-        : frame.byteLength > MAX_MESSAGE_BYTES;
-    if (tooLarge) {
+    if (frameExceeds(frame, MAX_MESSAGE_BYTES)) {
       this.fatal("Message too large");
       return;
     }
-    const text = typeof frame === "string" ? frame : new TextDecoder().decode(frame);
     this.queue = this.queue
-      .then(() => this.handle(text))
+      .then(async () => this.handle(await frameText(frame)))
       .catch((error: unknown) => {
         console.error("parlor-cloudflare: sync message failed", error);
         this.fatal("Internal server error");

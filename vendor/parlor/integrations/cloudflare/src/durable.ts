@@ -13,7 +13,7 @@ import {
   type ExpectedTable,
 } from "./snapshot.js";
 import type { SqlDriver, SqlRow, SqlValue } from "./store.js";
-import { SyncSession } from "./sync.js";
+import { SyncSession, type ClientFrame } from "./sync.js";
 
 /**
  * Cloudflare glue: one SQLite-backed Durable Object hosts the whole Convex
@@ -69,6 +69,8 @@ export interface ConvexBackendOptions {
 
 const PING_INTERVAL_MS = 15_000;
 const MAX_BODY_BYTES = 8 << 20;
+/** How much of an unwanted request body is read and discarded before it is cancelled. */
+const MAX_DISCARD_BYTES = 4 * MAX_BODY_BYTES;
 const MAX_SOCKETS = 5000;
 const STATUS_UDF_FAILED = 560;
 const DO_NAME = "convex";
@@ -88,10 +90,6 @@ function json(body: unknown, status = 200): Response {
 }
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {
-  const declared = request.headers.get("Content-Length");
-  if (declared !== null && Number(declared) > MAX_BODY_BYTES) {
-    throw new RequestError(413, "Request body too large");
-  }
   const body = await readBounded(request, MAX_BODY_BYTES);
   try {
     const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body));
@@ -104,9 +102,9 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
 }
 
 /**
- * The body's bytes, read incrementally so a body over `limit` bytes is
- * refused (and its stream cancelled) before it is buffered, whatever its
- * Content-Length says.
+ * The body's bytes, counted as they arrive whatever Content-Length says. A
+ * body over `limit` is refused with 413 without being buffered, after the
+ * rest of it is discarded so that the response reaches the client.
  */
 async function readBounded(request: Request, limit: number): Promise<Uint8Array> {
   if (request.body === null) return new Uint8Array();
@@ -118,7 +116,7 @@ async function readBounded(request: Request, limit: number): Promise<Uint8Array>
     if (done) break;
     total += value.byteLength;
     if (total > limit) {
-      await reader.cancel().catch(() => undefined);
+      await discardRest(reader, total);
       throw new RequestError(413, "Request body too large");
     }
     chunks.push(value);
@@ -130,6 +128,33 @@ async function readBounded(request: Request, limit: number): Promise<Uint8Array>
     offset += chunk.byteLength;
   }
   return body;
+}
+
+/**
+ * Discard a body nobody read: an early 401 or 404, or an HTTP action that
+ * ignored it. workerd reliably delivers a response sent before the body is
+ * consumed only once the body has been read; cancelling it is not enough.
+ */
+async function drainUnreadBody(request: Request): Promise<void> {
+  if (request.body !== null && !request.bodyUsed) await discardRest(request.body.getReader(), 0);
+}
+
+/** Read and drop the rest of a body, cancelling it past MAX_DISCARD_BYTES in all. */
+async function discardRest(reader: ReadableStreamDefaultReader<Uint8Array>, read: number) {
+  let total = read;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      total += value.byteLength;
+      if (total > MAX_DISCARD_BYTES) {
+        await reader.cancel();
+        return;
+      }
+    }
+  } catch {
+    // The client went away; nobody is left to answer.
+  }
 }
 
 class RequestError extends Error {
@@ -234,6 +259,12 @@ export class ConvexBackendObject {
   }
 
   async fetch(request: Request): Promise<Response> {
+    const response = await this.route(request);
+    await drainUnreadBody(request);
+    return response;
+  }
+
+  private async route(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const basePath = this.basePath;
     if (url.pathname !== basePath && !url.pathname.startsWith(`${basePath}/`)) {
@@ -254,7 +285,12 @@ export class ConvexBackendObject {
       if (path.startsWith("/http/") || path === "/http") {
         const routed = new URL(request.url);
         routed.pathname = path.slice("/http".length) || "/";
-        return await this.runtime.http(new Request(routed.toString(), request), routed.pathname);
+        const forwarded = new Request(routed.toString(), request);
+        try {
+          return await this.runtime.http(forwarded, routed.pathname);
+        } finally {
+          await drainUnreadBody(forwarded);
+        }
       }
       if (path.startsWith("/admin/"))
         return await this.admin(request, path.slice("/admin/".length), url);
@@ -290,7 +326,7 @@ export class ConvexBackendObject {
       }
     };
     server.addEventListener("message", (event) => {
-      session.receive(event.data as string | ArrayBuffer);
+      session.receive(event.data as ClientFrame);
     });
     server.addEventListener("close", end);
     server.addEventListener("error", end);
