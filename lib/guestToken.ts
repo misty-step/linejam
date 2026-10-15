@@ -12,26 +12,16 @@ export interface GuestTokenPayload {
   rateLimitKey?: string;
 }
 
-/**
- * Cached HMAC key to avoid re-importing on every operation
- */
-let keyPromise: Promise<CryptoKey> | null = null;
-
-async function getKey(): Promise<CryptoKey> {
-  if (!keyPromise) {
-    const secret = getServerGuestTokenSecret();
-    // Use TextEncoder for explicit cross-platform compatibility with Convex
-    const keyData = new TextEncoder().encode(secret);
-
-    keyPromise = subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign', 'verify']
-    );
-  }
-  return keyPromise;
+function getKey(): Promise<CryptoKey> {
+  // Keep pending work request-local, including failures during key import.
+  const keyData = new TextEncoder().encode(getServerGuestTokenSecret());
+  return subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign', 'verify']
+  );
 }
 
 /**
