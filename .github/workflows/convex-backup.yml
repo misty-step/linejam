@@ -111,3 +111,16 @@ jobs:
           path: linejam-convex-*.zip.age
           if-no-files-found: error
           retention-days: 30
+
+      # A success check-in means the encrypted artifact has been retained, not
+      # merely that export started. Sentry detects absence even if Actions is disabled.
+      - name: Report backup status to Sentry
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_ENABLED: '1'
+          LINEJAM_DEPLOY_ENVIRONMENT: production
+          NEXT_DEPLOYMENT_ID: ${{ github.sha }}
+          LINEJAM_MONITOR_SLUG: linejam-convex-backup
+          LINEJAM_MONITOR_OUTCOME: ${{ job.status == 'success' && 'success' || 'failure' }}
+        run: node scripts/ops/report-sentry-check-in.mjs

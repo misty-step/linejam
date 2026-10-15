@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import * as Sentry from '@sentry/node';
 import { getSentryRuntimeOptions } from '../../sentry.runtime.mjs';
@@ -10,6 +11,7 @@ import {
 export const SENTRY_MONITOR_SLUGS = Object.freeze({
   previewSmoke: 'linejam-preview-smoke',
   productionSmoke: 'linejam-production-smoke',
+  convexBackup: 'linejam-convex-backup',
 });
 
 // GitHub Actions scheduled workflows are best-effort in two distinct ways.
@@ -28,14 +30,24 @@ export const SENTRY_MONITOR_SLUGS = Object.freeze({
 // `productionSmoke` error event emitted at the second consecutive failing
 // run; the monitor incident is the backstop for the smoke not running or
 // failing for about three consecutive hours.
-const PRODUCTION_SMOKE_MONITOR_CONFIG = Object.freeze({
-  schedule: { type: 'crontab', value: '17 * * * *' },
-  checkinMargin: 60,
-  maxRuntime: 15,
-  timezone: 'UTC',
-  failureIssueThreshold: 3,
-  recoveryThreshold: 1,
-});
+const MONITOR_CONFIGS = new Map(
+  JSON.parse(
+    readFileSync(
+      new URL('../../config/sentry-observability.json', import.meta.url),
+      'utf8'
+    )
+  ).cronMonitors.required.map((monitor) => [
+    monitor.slug,
+    {
+      schedule: { type: 'crontab', value: monitor.schedule },
+      checkinMargin: monitor.checkinMarginMinutes,
+      maxRuntime: monitor.maxRuntimeMinutes,
+      timezone: monitor.timezone,
+      failureIssueThreshold: monitor.failureIssueThreshold,
+      recoveryThreshold: monitor.recoveryThreshold,
+    },
+  ])
+);
 const ALLOWED_MONITOR_SLUGS = new Set(Object.values(SENTRY_MONITOR_SLUGS));
 const PROD_ESCALATION_THRESHOLD = 2;
 const PREVIEW_FAILURE_MESSAGE = 'Linejam preview smoke failed';
@@ -190,6 +202,7 @@ export function planSentryReport({
   }
 
   const transientProductionFailure =
+    monitorSlug === SENTRY_MONITOR_SLUGS.productionSmoke &&
     releaseResolved &&
     outcome === 'failure' &&
     consecutiveFailures < PROD_ESCALATION_THRESHOLD;
@@ -275,7 +288,11 @@ export async function reportSentryWorkflow({
   sdk.init({
     ...runtimeOptions,
     tracesSampleRate: 0,
-    beforeSend: createWorkflowBeforeSend(provenanceSecret),
+    // Backups emit only bounded native check-ins, never exception payloads.
+    beforeSend:
+      monitorSlug === SENTRY_MONITOR_SLUGS.convexBackup
+        ? () => null
+        : createWorkflowBeforeSend(provenanceSecret),
   });
   let eventId;
   if (plan.kind === 'event') {
@@ -288,8 +305,11 @@ export async function reportSentryWorkflow({
       },
     });
   } else {
-    eventId = sdk.captureCheckIn(plan, PRODUCTION_SMOKE_MONITOR_CONFIG);
-    if (plan.status === 'error') {
+    eventId = sdk.captureCheckIn(plan, MONITOR_CONFIGS.get(monitorSlug));
+    if (
+      plan.status === 'error' &&
+      monitorSlug === SENTRY_MONITOR_SLUGS.productionSmoke
+    ) {
       eventId = sdk.captureException(new Error(PRODUCTION_FAILURE_MESSAGE), {
         fingerprint: ['linejam-production-smoke'],
         tags: {

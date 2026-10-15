@@ -6,6 +6,25 @@
   "issueAlerts": {
     "required": [
       {
+        "name": "Linejam scheduled jobs: missed or failed check-in",
+        "enabled": true,
+        "action": {
+          "type": "webhook",
+          "status": "active",
+          "target": "kaylee-alert-intake-2edba9"
+        },
+        "trigger": {
+          "logic": "any-short",
+          "conditionTypes": [
+            "first_seen_event",
+            "regression_event",
+            "reappeared_event"
+          ]
+        },
+        "filterLogic": "any-short",
+        "frequencyMinutes": 5
+      },
+      {
         "name": "Regression Alert",
         "enabled": true,
         "action": {
@@ -70,6 +89,18 @@
         "checkinMarginMinutes": 60,
         "recoveryThreshold": 1,
         "failureIssueThreshold": 3,
+        "environments": ["production"]
+      },
+      {
+        "slug": "linejam-convex-backup",
+        "status": "active",
+        "isMuted": false,
+        "schedule": "17 9 * * *",
+        "timezone": "UTC",
+        "maxRuntimeMinutes": 15,
+        "checkinMarginMinutes": 60,
+        "recoveryThreshold": 1,
+        "failureIssueThreshold": 1,
         "environments": ["production"]
       }
     ],
