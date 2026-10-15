@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '17 9 * * *'
   workflow_dispatch:
+    inputs:
+      failure_drill:
+        description: 'Fail before export to verify the existing incident route'
+        type: boolean
+        default: false
+        required: false
 
 concurrency:
   group: convex-backup
@@ -41,6 +47,12 @@ jobs:
             exit 1
           fi
 
+      - name: Exercise backup failure alarm
+        if: ${{ inputs.failure_drill == true }}
+        run: |
+          echo "::error::Intentional Convex backup failure drill; no export or production mutation attempted."
+          exit 1
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -69,7 +81,7 @@ jobs:
           trap cleanup EXIT
           utc_date="$(date -u +%Y-%m-%d)"
           short_sha="${GITHUB_SHA::7}"
-          age -r age1pyuqjlecesessdwrqvk4hvav7ncrvuy0etus7aqrl6lq30r6g4asrskltu \
+          age -r age1fl9l4kgwas3su32nlrpv3sv6rv9ru8x6vjxlhddplzpk2n6fhf2q5fz39u \
             -o "linejam-convex-${utc_date}-${short_sha}.zip.age" \
             "$plaintext"
 
