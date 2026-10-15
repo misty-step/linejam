@@ -1,6 +1,22 @@
 {
-  "currentVersion": "0.28.0",
+  "currentVersion": "0.28.1",
   "releases": [
+    {
+      "version": "0.28.1",
+      "date": "2026-10-15",
+      "changes": [
+        {
+          "type": "feat",
+          "scope": "changelog",
+          "description": "add a /changelog page linked from the footer (27f85ab)",
+          "breaking": false,
+          "pr": 561
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.28.0...v0.28.1",
+      "productNotes": "New Features\nThe footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
+      "notesStatus": "landmark"
+    },
     {
       "version": "0.28.0",
       "date": "2026-10-14",

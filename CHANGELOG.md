@@ -2,6 +2,10 @@
 
 All notable changes to Linejam.
 
+# [0.28.1](https://github.com/misty-step/linejam/compare/v0.28.0...v0.28.1) (2026-10-15)
+
+- feat(changelog): add a /changelog page linked from the footer (#561) (27f85ab)
+
 # [0.28.0](https://github.com/misty-step/linejam/compare/v0.27.0...v0.28.0) (2026-10-14)
 
 - feat: replace Canary with Sentry (#412) (d8570f5)
