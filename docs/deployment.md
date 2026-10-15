@@ -470,9 +470,23 @@ GitHub Actions artifact is named
 `linejam-convex-<UTC date>-<short SHA>.zip.age` and its retention is 30 days.
 No plaintext export is uploaded. A failed default-branch run uses the existing
 GitHub `workflow_run` incident path described in the
-[observability contract](ops/observability-ci.md#observability-facts). A disabled
-workflow produces no failed run; successful webhook transport alone does not
-prove incident receipt or detect a missing daily backup.
+[observability contract](ops/observability-ci.md#observability-facts).
+The native Sentry Cron Monitor `linejam-convex-backup` independently detects
+absence: it expects the same 09:17 UTC daily slot, allows 60 minutes for Actions
+scheduling and completion, and opens an incident on the first missed or failed
+check-in. The workflow reports `ok` only after the encrypted artifact upload
+succeeds; earlier failures report `error` when the reporter can run, otherwise
+the missing check-in is the backstop. A cancelled run cannot report success.
+Sentry continues watching when the GitHub workflow is disabled or never starts.
+One normal successful backup recovers the monitor. Its schedule and thresholds
+come from `config/sentry-observability.json`, shared with the existing reporter.
+
+The backup detector uses the existing Sentry scheduled-jobs alert
+(`6074705`), alongside production smoke, with its existing Kaylee intake action.
+It does not add a backup scheduler or a parallel notifier. The Sentry monitor
+is owned by the Misty Step team; verify the downstream canonical incident and
+owner, not just an accepted check-in or webhook HTTP 200. The 60-minute margin
+is a detection tolerance, not an extension or proof of the 24-hour RPO.
 
 The workflow owns the public age recipient. Its matching private identity is
 held in mirrodin pass as `workstation/LINEJAM_BACKUP_AGE_IDENTITY`. The old
@@ -540,7 +554,8 @@ and **RTO 30 minutes** (requiring a timed, successful restore drill). Their
 current evidence belongs in the recovery receipt, not an assertion inferred
 from the cron expression. The successful backup and timed non-production
 restore and failure receipt above establish a recovery checkpoint, not a
-sustained daily-run history or proof of missing-run detection.
+sustained daily-run history. Missing-run detection is a separate Sentry
+failure-and-recovery acceptance surface below.
 Historical drill records do not prove current recovery readiness.
 These objectives assume the operator credential plane and a working Convex CLI
 are available; they do not authorize a production import.
@@ -550,6 +565,22 @@ dispatch `Convex Backup` on `master` with `failure_drill=true`. This deliberatel
 fails before export. Verify the completed failed run reaches the existing
 `workflow_run` intake and produces a real operator/incident receipt; an HTTP 200
 or a still-pending alert is not that receipt. Run a normal backup afterward.
+
+To rehearse absence without interrupting daily backups, temporarily shorten
+only the backup Sentry monitor's schedule and margin in an authorized drill,
+seed one explicitly diagnostic check-in, then send nothing for a complete
+expected slot plus its margin. Read back Sentry's generated `missed` check-in,
+the native cron incident, and the existing intake's canonical owned ticket.
+Restore the declared daily schedule and margin even if delivery fails. Dispatch
+a normal `Convex Backup` on `master` with `failure_drill=false`; verify the new
+retained encrypted artifact, its workflow-emitted `ok` check-in, and the same
+monitor's recovered state. Never substitute a manual `ok` for recovery proof.
+Diagnostic check-ins are not backups. Keep exact run/check-in/incident receipts
+with the owning repair work; configuration alone is not acceptance evidence.
+
+Retire this monitor together with the Convex backup only after the migration
+owner confirms Convex is retired. A disabled workflow alone is an incident,
+not authority to mute monitoring or resurrect an already-retired target.
 
 ## Deploy the web application (Cloudflare)
 

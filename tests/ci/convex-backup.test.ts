@@ -39,6 +39,42 @@ function runStep(
 }
 
 describe('Convex backup safety', () => {
+  it('checks in only after encrypted artifact retention, on protected master', () => {
+    const reportIndex = steps.findIndex(
+      (step) => step.name === 'Report backup status to Sentry'
+    );
+    const uploadIndex = steps.findIndex(
+      (step) => step.name === 'Upload encrypted backup'
+    );
+    const manifest = JSON.parse(
+      readFileSync('config/sentry-observability.json', 'utf8')
+    );
+    const monitor = manifest.cronMonitors.required.find(
+      (entry: { slug: string }) => entry.slug === 'linejam-convex-backup'
+    );
+    expect(monitor.schedule).toBe(workflow.on.schedule[0].cron);
+    expect(monitor.failureIssueThreshold).toBe(1);
+    expect(monitor.recoveryThreshold).toBe(1);
+    expect(reportIndex).toBeGreaterThan(uploadIndex);
+    expect(steps[reportIndex]).toMatchObject({
+      if: "always() && github.ref == 'refs/heads/master'",
+      run: 'node scripts/ops/report-sentry-check-in.mjs',
+      env: {
+        LINEJAM_MONITOR_SLUG: 'linejam-convex-backup',
+        LINEJAM_MONITOR_OUTCOME:
+          "${{ job.status == 'success' && 'success' || 'failure' }}",
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        NEXT_DEPLOYMENT_ID: '${{ github.sha }}',
+        NEXT_PUBLIC_SENTRY_DSN: '${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}',
+      },
+    });
+    expect(workflow.jobs.backup.steps[uploadIndex].with).toMatchObject({
+      path: 'linejam-convex-*.zip.age',
+      'if-no-files-found': 'error',
+      'retention-days': 30,
+    });
+  });
+
   it('refuses export without the production key', () => {
     const result = runStep('Require production export credential');
     expect(result.status).toBe(1);

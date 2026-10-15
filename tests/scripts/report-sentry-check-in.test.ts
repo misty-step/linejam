@@ -34,6 +34,54 @@ function sentrySdk() {
 }
 
 describe('Sentry workflow reporting', () => {
+  it.each([
+    ['success', 'ok'],
+    ['failure', 'error'],
+  ])(
+    'reports the first backup %s without smoke suppression or exception payloads',
+    async (outcome, status) => {
+      const sdk = sentrySdk();
+      const result = await reportSentryWorkflow({
+        monitorSlug: SENTRY_MONITOR_SLUGS.convexBackup,
+        outcome,
+        sdk,
+        runtimeOptions: { ...RUNTIME_OPTIONS, environment: 'production' },
+      });
+      expect(result).toMatchObject({ status, eventId: 'check-in-id' });
+      expect(sdk.captureCheckIn).toHaveBeenCalledWith(
+        { kind: 'check_in', monitorSlug: 'linejam-convex-backup', status },
+        {
+          schedule: { type: 'crontab', value: '17 9 * * *' },
+          checkinMargin: 60,
+          maxRuntime: 15,
+          timezone: 'UTC',
+          failureIssueThreshold: 1,
+          recoveryThreshold: 1,
+        }
+      );
+      expect(sdk.captureException).not.toHaveBeenCalled();
+      expect(
+        sdk.init.mock.calls[0][0].beforeSend({
+          extra: { private: 'PROHIBITED' },
+        })
+      ).toBeNull();
+      expect(sdk.flush).toHaveBeenCalledWith(5_000);
+    }
+  );
+
+  it('refuses a non-production backup check-in', async () => {
+    const sdk = sentrySdk();
+    await expect(
+      reportSentryWorkflow({
+        monitorSlug: SENTRY_MONITOR_SLUGS.convexBackup,
+        outcome: 'success',
+        sdk,
+        runtimeOptions: RUNTIME_OPTIONS,
+      })
+    ).rejects.toThrow('only accepts production check-ins');
+    expect(sdk.captureCheckIn).not.toHaveBeenCalled();
+  });
+
   it('keeps the first production smoke failure below the incident threshold', () => {
     expect(
       planSentryReport({
