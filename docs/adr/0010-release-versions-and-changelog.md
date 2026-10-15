@@ -54,8 +54,9 @@ although master had 79 commits since then. The release history explains why:
 7. **Release PR.** CI is dispatched for the exact head of `landmark/release`.
    The merging agent reads the head commit's check runs, not the PR badge,
    checks the version against the included commits and the notes for private
-   data, then squash-merges promptly. A rerun for the same source keeps an open
-   candidate with valid or skipped notes rather than synthesizing again.
+   data, then squash-merges promptly. A rerun for the same source keeps a
+   matching open candidate from this repository, with valid or skipped notes,
+   rather than synthesizing again.
 8. **Publication.** The next green master CI publishes the tag and GitHub
    Release from the merged candidate, without a release commit. Immutable
    releases are enabled for the repository.

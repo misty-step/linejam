@@ -71,9 +71,11 @@ supported full-mode semantic-release hook adapter in `release.config.cjs`:
    every job passed at the exact head, checks the version against the included
    commits and the notes for private data, then squash-merges promptly. There
    is no auto-merge or protection bypass. A rerun for the same source keeps an
-   open candidate with valid or skipped notes instead of synthesizing again and
-   dispatches no new CI, so re-run a failed dispatched CI run directly. An
-   `unavailable` candidate is prepared again.
+   open release PR from this repository whose candidate matches the source and
+   Landmark decision with valid or skipped notes; fork PRs that reuse the branch
+   name are ignored. The rerun does not synthesize again or dispatch new CI, so
+   re-run a failed dispatched CI run directly. An `unavailable` candidate is
+   prepared again.
 4. After the merged candidate passes master CI, full mode verifies Landmark's
    decision still matches the candidate, that only release artifacts changed
    since its analyzed source, and that semantic-release agrees on the previous
@@ -177,9 +179,11 @@ The [MIS-183 attempt 2](https://github.com/misty-step/linejam/actions/runs/36445
 prepared a valid current-source candidate after that binding; its
 [candidate CI](https://github.com/misty-step/linejam/actions/runs/36456022124)
 passed the full merge gate. Neither action published the release. A missing
-key fails preparation unless `.landmark.yml` sets `model.policy: off`; that
-deliberate setting releases with Landmark's `skipped` status and technical
-history only, with no provider request. Malformed release evidence and failed
+key fails preparation unless Landmark's own policy skips synthesis: for
+`model.policy: off` in `.landmark.yml`, a low-significance release, or a
+release over the manifest's token or cost budget. A skip releases with
+Landmark's `skipped` status and technical history only, with no provider
+request. Malformed release evidence and failed
 grounding or integrity checks remain preparation failures, never a policy skip
 or an unavailable-provider candidate. A failed attempted provider call can
 produce a technical-only PR with explicit `unavailable` quality for human

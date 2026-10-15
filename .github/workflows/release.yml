@@ -77,22 +77,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true' && steps.landmark.outputs.released != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # A rerun for the same green source must not synthesize again or
-          # rewrite the open release PR. A newer source, or a candidate whose
-          # provider call failed (`unavailable`), is prepared again.
-          head_sha="$(gh pr list --repo "$GITHUB_REPOSITORY" --head landmark/release \
-            --base master --state open --json headRefOid --jq '.[0].headRefOid // ""')"
-          if [ -n "$head_sha" ] && [ -f .landmark/run/decision.json ] &&
-            gh api "repos/$GITHUB_REPOSITORY/contents/.landmark/release.json?ref=$head_sha" \
-              --jq .content | base64 -d |
-            jq -e --arg sha "$(git rev-parse HEAD)" --slurpfile plan .landmark/run/decision.json \
-              '.sourceSha == $sha and .version == $plan[0].evidence.version and
-                (.quality == "valid" or .quality == "skipped")' >/dev/null; then
-            echo "::notice::Release PR head $head_sha already holds the candidate for this source."
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: pnpm exec tsx scripts/releases/open-candidate.ts
 
       - name: Prepare Landmark artifacts for review
         id: prepare
