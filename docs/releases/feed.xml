@@ -6,7 +6,15 @@
     <description>What&apos;s new in Linejam.</description>
     <language>en-us</language>
     <atom:link href="https://linejam.mistystep.io/releases.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Wed, 14 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Thu, 15 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Linejam v0.28.1</title>
+      <link>https://linejam.mistystep.io/changelog#v0.28.1</link>
+      <guid isPermaLink="false">v0.28.1</guid>
+      <pubDate>Thu, 15 Oct 2026 00:00:00 GMT</pubDate>
+      <description>New Features
+The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.</description>
+    </item>
     <item>
       <title>Linejam v0.28.0</title>
       <link>https://linejam.mistystep.io/changelog#v0.28.0</link>

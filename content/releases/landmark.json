@@ -35,5 +35,30 @@
     "slack": "## Improvements\n- All poems are now written by people in the room—machine-generated lines have been removed.\n- Late joiners see their own waiting character outlined, so it’s clearer who you are before the round starts.\n- The app now runs on a faster hosting setup, making room loading and transitions snappier.\n- Avatars have been refreshed with a new cast of characters.",
     "tag": "v0.28.0",
     "version": "0.28.0"
+  },
+  {
+    "audience": "end-user",
+    "html": "<h2>New Features</h2>\n<ul>\n<li>The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.</li>\n</ul>\n",
+    "markdown": "## New Features\n\n- The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
+    "notes": "## New Features\n\n- The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
+    "plaintext": "New Features\nThe footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
+    "published_at": "2026-10-15T01:18:34.745601215+00:00",
+    "release_url": "https://github.com/misty-step/linejam/releases/tag/v0.28.1",
+    "repository": "misty-step/linejam",
+    "schema_version": "landmark.public-release-notes.v1",
+    "sections": [
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance."
+          }
+        ],
+        "title": "New Features"
+      }
+    ],
+    "slack": "## New Features\n\n- The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
+    "tag": "v0.28.1",
+    "version": "0.28.1"
   }
 ]
