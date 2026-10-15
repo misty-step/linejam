@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { expect, it } from 'vitest';
 import { APP_VERSION } from '@/lib/appVersion';
 
-it('renders both release routes without runtime code generation or source filesystem access', () => {
+it('renders the changelog, its /releases alias and the feed without runtime code generation or source filesystem access', () => {
   const output = execFileSync(
     process.execPath,
     [
@@ -24,12 +24,14 @@ it('renders both release routes without runtime code generation or source filesy
             return nextResolve(specifier, context);
           },
         });
-        const Page = require('./app/releases/page.tsx').default;
+        const Page = require('./app/changelog/page.tsx').default;
+        const Alias = require('./app/releases/page.tsx').default;
         const { GET } = require('./app/releases.xml/route.ts');
         (async () => {
           const response = await GET();
           console.log(JSON.stringify({
             html: renderToStaticMarkup(createElement(Page)),
+            alias: renderToStaticMarkup(createElement(Alias)),
             status: response.status,
             contentType: response.headers.get('Content-Type'),
             feed: await response.text(),
@@ -40,6 +42,8 @@ it('renders both release routes without runtime code generation or source filesy
     { cwd: process.cwd(), encoding: 'utf8' }
   );
   const result = JSON.parse(output);
+  expect(result.alias).toBe(result.html);
+  expect(result.html).toContain('>Changelog</h1>');
   expect(result.html).toContain(
     `Current application version: <strong>v${APP_VERSION}</strong>`
   );
@@ -47,6 +51,14 @@ it('renders both release routes without runtime code generation or source filesy
   expect(result.html).toContain('Version 1.15.1');
   expect(result.html).toContain(
     'Public notes are not recorded for this release. Technical history is available below.'
+  );
+  // Without public notes, v0.27.0's technical history renders open; v0.28.0
+  // has Landmark notes, so its technical history stays collapsed.
+  expect(result.html).toMatch(
+    /id="v0\.27\.0"(?:(?!<article)[\s\S])*<details class="group" open="">/
+  );
+  expect(result.html).toMatch(
+    /id="v0\.28\.0"(?:(?!<article)[\s\S])*<details class="group">/
   );
   expect(result.status).toBe(200);
   expect(result.contentType).toBe('application/xml');

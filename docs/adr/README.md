@@ -23,3 +23,4 @@ Use a four-digit number and record status, context, decision, consequences, and 
 | [0003](./0003-game-state-via-query-not-pointer.md) | Game State via Query, Not Mutable Pointer     | Accepted |
 | [0007](./0007-parallel-database-writes.md)         | Parallel Database Writes for Performance      | Accepted |
 | [0008](./0008-pen-names-write-time-capture.md)     | Pen Names via Write-Time Capture              | Accepted |
+| [0010](./0010-release-versions-and-changelog.md)   | Release Versions, Notes and `/changelog`      | Accepted |

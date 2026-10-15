@@ -63,10 +63,19 @@ const PAGES: PageCase[] = [
     },
   },
   {
+    path: '/changelog',
+    assertVisible: async (page) => {
+      await expect(
+        page.getByRole('heading', { name: /^Changelog$/ })
+      ).toBeVisible();
+    },
+  },
+  {
+    // Alias for existing links; renders the same changelog.
     path: '/releases',
     assertVisible: async (page) => {
       await expect(
-        page.getByRole('heading', { name: /^Releases$/ })
+        page.getByRole('heading', { name: /^Changelog$/ })
       ).toBeVisible();
     },
   },
@@ -207,5 +216,23 @@ for (const { name, contextOptions } of VIEWPORTS) {
         }
       });
     }
+
+    test('home footer link reaches /changelog', async ({ browser }) => {
+      const context = await browser.newContext(contextOptions);
+      await isolateGuestSessionIp(context);
+      const page = await context.newPage();
+      try {
+        await page.goto('/', { waitUntil: 'networkidle' });
+        await page
+          .getByRole('link', { name: /^Changelog · v\d+\.\d+\.\d+$/ })
+          .click();
+        await expect(page).toHaveURL(/\/changelog$/);
+        await expect(
+          page.getByRole('heading', { name: /^Changelog$/ })
+        ).toBeVisible();
+      } finally {
+        await context.close();
+      }
+    });
   });
 }

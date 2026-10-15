@@ -328,6 +328,25 @@ describe('US-004 release preparation', () => {
     );
   });
 
+  it('prepares deterministic notes without a key when Landmark policy skips synthesis', () => {
+    const { root, head, cli } = repo();
+    const result = prepare(root, cli, 'skipped', '');
+    expect(result.status, failureReason(result.stderr)).toBe(0);
+    expect(candidate(root)).toMatchObject({
+      quality: 'skipped',
+      sourceSha: head,
+    });
+    expect(
+      fs.existsSync(path.join(root, 'content/releases/v1.0.1/notes.md'))
+    ).toBe(false);
+    expect(
+      fs.readFileSync(
+        path.join(root, 'content/releases/v1.0.1/changelog.json'),
+        'utf8'
+      )
+    ).toContain('preserve lines on reconnect');
+  });
+
   it.each([
     'ungrounded',
     'degraded',
@@ -371,9 +390,16 @@ describe('US-004 release preparation', () => {
 
   it('rejects a missing provider key, malformed decision, and local CLI failure', () => {
     const missingKey = repo();
-    expect(
-      prepare(missingKey.root, missingKey.cli, 'provider-403', '').status
-    ).not.toBe(0);
+    const missingKeyResult = prepare(
+      missingKey.root,
+      missingKey.cli,
+      'provider-403',
+      ''
+    );
+    expect(missingKeyResult.status).not.toBe(0);
+    expect(failureReason(missingKeyResult.stderr)).toContain(
+      'unless .landmark.yml sets model.policy: off'
+    );
     expect(
       fs.existsSync(path.join(missingKey.root, '.landmark/release.json'))
     ).toBe(false);
@@ -399,6 +425,22 @@ describe('US-004 release preparation', () => {
     ).not.toBe(0);
     expect(
       fs.existsSync(path.join(localFailure.root, '.landmark/release.json'))
+    ).toBe(false);
+
+    // Landmark versions an untagged history from 0.0.0; preparation refuses.
+    const missingBaseline = repo();
+    git(missingBaseline.root, 'tag', '-d', 'v1.0.0');
+    const missingBaselineResult = prepare(
+      missingBaseline.root,
+      missingBaseline.cli,
+      'valid'
+    );
+    expect(missingBaselineResult.status).not.toBe(0);
+    expect(failureReason(missingBaselineResult.stderr)).toContain(
+      'no previous release tag'
+    );
+    expect(
+      fs.existsSync(path.join(missingBaseline.root, '.landmark/release.json'))
     ).toBe(false);
   });
 
@@ -452,6 +494,7 @@ describe('US-004 release preparation', () => {
       await expect(verifyRelease({}, context)).resolves.toBeUndefined();
       const body = await generateNotes({}, context);
       expect(body).toContain('preserve lines on reconnect');
+      expect(body).toContain('<details open>');
       expect(body).not.toContain('skipped');
       const data = candidate(root);
       data.quality = 'ungrounded';

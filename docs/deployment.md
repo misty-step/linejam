@@ -27,7 +27,9 @@ synthesis. The [Release workflow](../.github/workflows/release.yml) owns the
 published Landmark binary revision and checksum pin; consult its current
 action configuration rather than copying a version or hash from this guide.
 `.landmark.yml` sets Linejam's product context, end-user audience, voice,
-and budget.
+and budget. [ADR-0010](adr/0010-release-versions-and-changelog.md) records the
+release unit, baseline, pre-1.0 policy and `/changelog` choices under the
+shared release convention.
 
 `package.json` is the checked-in semantic version; `lib/appVersion.ts` exposes
 that same value to the application and release catalog. It is not a source
@@ -64,7 +66,16 @@ supported full-mode semantic-release hook adapter in `release.config.cjs`:
    workflow against its exact head SHA. The dispatch is bound to the open
    `landmark/release` PR and runs schema sequencing, all E2E/evidence jobs, and
    the same required `merge-gate`; skipped dependencies cannot pass it.
-   Review and merge normally. There is no auto-merge or protection bypass.
+   GitHub leaves dispatched check suites out of the PR's status rollup, so read
+   the head commit's check runs, not the PR badge. The merging agent confirms
+   every job passed at the exact head, checks the version against the included
+   commits and the notes for private data, then squash-merges promptly. There
+   is no auto-merge or protection bypass. A rerun for the same source keeps an
+   open release PR from this repository whose candidate matches the source and
+   Landmark decision with valid or skipped notes; fork PRs that reuse the branch
+   name are ignored. The rerun does not synthesize again or dispatch new CI, so
+   re-run a failed dispatched CI run directly. An `unavailable` candidate is
+   prepared again.
 4. After the merged candidate passes master CI, full mode verifies Landmark's
    decision still matches the candidate, that only release artifacts changed
    since its analyzed source, and that semantic-release agrees on the previous
@@ -116,11 +127,14 @@ notes remain explicitly `missing`. Neither `skipped` nor `unavailable` can
 coexist with public notes for that version. Malformed records, failed grounding
 or integrity checks, and unreconciled public notes fail preparation rather than
 taking the technical-only path. A failed local attempt may have written files;
-discard them. The workflow does not refresh the release PR after failure. The
-release index records `notesStatus: unavailable`; the app, site changelog, and
-RSS feed display the explicit public status with technical history. Missing or
-stale projections are detected by `pnpm releases:check` and the catalog freshness
-test before deployment; the app does not inspect the manifest at runtime.
+discard them. The workflow does not refresh the release PR after failure.
+Whenever a release has no public notes (`skipped`, `unavailable` or `missing`),
+the app's `/changelog`, the site changelog, the RSS feed and the GitHub Release
+show the explicit status with the technical history open, so the deterministic
+history is useful on its own. `/releases` remains an alias of `/changelog`.
+Missing or stale projections are detected by `pnpm releases:check` and the
+catalog freshness test before deployment; the app does not inspect the manifest
+at runtime.
 
 `content/releases/legacy-notes.json` preserves the 39 public entries from the
 old `docs/releases/feed.xml`, with the original feed's SHA-256 and recovered
@@ -164,13 +178,18 @@ pass-env run -f .env.pass -- sh -c 'printf %s "$LINEJAM_RELEASE_OPENROUTER_API_K
 The [MIS-183 attempt 2](https://github.com/misty-step/linejam/actions/runs/36445103936/attempts/2)
 prepared a valid current-source candidate after that binding; its
 [candidate CI](https://github.com/misty-step/linejam/actions/runs/36456022124)
-passed the full merge gate. Neither action published the release. Missing
-configuration, malformed release evidence, and failed grounding or integrity
-checks remain preparation failures, never a policy skip or an
-unavailable-provider candidate. A failed attempted provider call can produce
-a technical-only PR with explicit `unavailable` quality for human review; it
-does not bypass the full PR CI gate, merge review, master CI, or publication
-checks. A deliberate Landmark policy skip remains an explicit `skipped`.
+passed the full merge gate. Neither action published the release. A missing
+key fails preparation unless Landmark's own policy skips synthesis: for
+`model.policy: off` in `.landmark.yml`, a low-significance release, or a
+release over the manifest's token or cost budget. A skip releases with
+Landmark's `skipped` status and technical history only, with no provider
+request. Malformed release evidence and failed
+grounding or integrity checks remain preparation failures, never a policy skip
+or an unavailable-provider candidate. A failed attempted provider call can
+produce a technical-only PR with explicit `unavailable` quality for human
+review; it does not bypass the full PR CI gate, merge review, master CI, or
+publication checks. A deliberate Landmark policy skip remains an explicit
+`skipped`.
 
 If a release PR becomes stale, the next green master run updates it and
 dispatches its full gate again. If tag history and the Landmark decision

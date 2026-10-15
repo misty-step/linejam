@@ -2,14 +2,14 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Linejam Releases</title>
-    <link>https://linejam.mistystep.io/releases</link>
+    <link>https://linejam.mistystep.io/changelog</link>
     <description>What&apos;s new in Linejam.</description>
     <language>en-us</language>
     <atom:link href="https://linejam.mistystep.io/releases.xml" rel="self" type="application/rss+xml"/>
     <lastBuildDate>Wed, 14 Oct 2026 00:00:00 GMT</lastBuildDate>
     <item>
       <title>Linejam v0.28.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.28.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.28.0</link>
       <guid isPermaLink="false">v0.28.0</guid>
       <pubDate>Wed, 14 Oct 2026 00:00:00 GMT</pubDate>
       <description>Improvements
@@ -20,14 +20,18 @@ Avatars have been refreshed with a new cast of characters.</description>
     </item>
     <item>
       <title>Linejam v0.27.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.27.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.27.0</link>
       <guid isPermaLink="false">v0.27.0</guid>
       <pubDate>Sat, 01 Aug 2026 00:00:00 GMT</pubDate>
-      <description>Public notes are not recorded for this release. Technical history is available below.</description>
+      <description>Public notes are not recorded for this release. Technical history is available below.
+
+Technical history:
+- (repo) invoke local commitlint in hook
+- (lobby) ship status board room frame</description>
     </item>
     <item>
       <title>Linejam v0.26.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.26.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.26.0</link>
       <guid isPermaLink="false">v0.26.0</guid>
       <pubDate>Fri, 17 Jul 2026 00:00:00 GMT</pubDate>
       <description>Improvements
@@ -36,14 +40,17 @@ Avatars have been refreshed with a new cast of characters.</description>
     </item>
     <item>
       <title>Linejam v0.25.1</title>
-      <link>https://linejam.mistystep.io/releases#v0.25.1</link>
+      <link>https://linejam.mistystep.io/changelog#v0.25.1</link>
       <guid isPermaLink="false">v0.25.1</guid>
       <pubDate>Fri, 17 Jul 2026 00:00:00 GMT</pubDate>
-      <description>Public notes are not recorded for this release. Technical history is available below.</description>
+      <description>Public notes are not recorded for this release. Technical history is available below.
+
+Technical history:
+- (deps) clear dependabot alerts</description>
     </item>
     <item>
       <title>Linejam v0.25.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.25.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.25.0</link>
       <guid isPermaLink="false">v0.25.0</guid>
       <pubDate>Fri, 17 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -56,7 +63,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v0.24.1</title>
-      <link>https://linejam.mistystep.io/releases#v0.24.1</link>
+      <link>https://linejam.mistystep.io/changelog#v0.24.1</link>
       <guid isPermaLink="false">v0.24.1</guid>
       <pubDate>Fri, 17 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -67,7 +74,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v0.24.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.24.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.24.0</link>
       <guid isPermaLink="false">v0.24.0</guid>
       <pubDate>Thu, 16 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -82,7 +89,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v0.23.1</title>
-      <link>https://linejam.mistystep.io/releases#v0.23.1</link>
+      <link>https://linejam.mistystep.io/changelog#v0.23.1</link>
       <guid isPermaLink="false">v0.23.1</guid>
       <pubDate>Thu, 16 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -91,7 +98,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v0.23.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.23.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.23.0</link>
       <guid isPermaLink="false">v0.23.0</guid>
       <pubDate>Thu, 16 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -104,7 +111,7 @@ Improvements
     </item>
     <item>
       <title>Linejam v0.22.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.22.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.22.0</link>
       <guid isPermaLink="false">v0.22.0</guid>
       <pubDate>Thu, 16 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -118,7 +125,7 @@ Improvements
     </item>
     <item>
       <title>Linejam v0.21.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.21.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.21.0</link>
       <guid isPermaLink="false">v0.21.0</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Improvements
@@ -131,7 +138,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.20.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.20.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.20.0</link>
       <guid isPermaLink="false">v0.20.0</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>This release is all behind-the-scenes plumbing to keep Linejam running smoothly, with no visible changes for players this time.
@@ -146,7 +153,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.19.4</title>
-      <link>https://linejam.mistystep.io/releases#v0.19.4</link>
+      <link>https://linejam.mistystep.io/changelog#v0.19.4</link>
       <guid isPermaLink="false">v0.19.4</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -158,7 +165,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.19.3</title>
-      <link>https://linejam.mistystep.io/releases#v0.19.3</link>
+      <link>https://linejam.mistystep.io/changelog#v0.19.3</link>
       <guid isPermaLink="false">v0.19.3</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -168,7 +175,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.19.2</title>
-      <link>https://linejam.mistystep.io/releases#v0.19.2</link>
+      <link>https://linejam.mistystep.io/changelog#v0.19.2</link>
       <guid isPermaLink="false">v0.19.2</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -178,7 +185,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.19.1</title>
-      <link>https://linejam.mistystep.io/releases#v0.19.1</link>
+      <link>https://linejam.mistystep.io/changelog#v0.19.1</link>
       <guid isPermaLink="false">v0.19.1</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -191,7 +198,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.19.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.19.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.19.0</link>
       <guid isPermaLink="false">v0.19.0</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Improvements
@@ -206,7 +213,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.18.6</title>
-      <link>https://linejam.mistystep.io/releases#v0.18.6</link>
+      <link>https://linejam.mistystep.io/changelog#v0.18.6</link>
       <guid isPermaLink="false">v0.18.6</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -219,7 +226,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.18.5</title>
-      <link>https://linejam.mistystep.io/releases#v0.18.5</link>
+      <link>https://linejam.mistystep.io/changelog#v0.18.5</link>
       <guid isPermaLink="false">v0.18.5</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -228,7 +235,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.18.4</title>
-      <link>https://linejam.mistystep.io/releases#v0.18.4</link>
+      <link>https://linejam.mistystep.io/changelog#v0.18.4</link>
       <guid isPermaLink="false">v0.18.4</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -241,7 +248,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.18.3</title>
-      <link>https://linejam.mistystep.io/releases#v0.18.3</link>
+      <link>https://linejam.mistystep.io/changelog#v0.18.3</link>
       <guid isPermaLink="false">v0.18.3</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -251,7 +258,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.18.2</title>
-      <link>https://linejam.mistystep.io/releases#v0.18.2</link>
+      <link>https://linejam.mistystep.io/changelog#v0.18.2</link>
       <guid isPermaLink="false">v0.18.2</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -264,7 +271,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.18.1</title>
-      <link>https://linejam.mistystep.io/releases#v0.18.1</link>
+      <link>https://linejam.mistystep.io/changelog#v0.18.1</link>
       <guid isPermaLink="false">v0.18.1</guid>
       <pubDate>Tue, 14 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -274,7 +281,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.18.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.18.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.18.0</link>
       <guid isPermaLink="false">v0.18.0</guid>
       <pubDate>Sat, 11 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -288,7 +295,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v0.17.1</title>
-      <link>https://linejam.mistystep.io/releases#v0.17.1</link>
+      <link>https://linejam.mistystep.io/changelog#v0.17.1</link>
       <guid isPermaLink="false">v0.17.1</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -297,7 +304,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v0.17.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.17.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.17.0</link>
       <guid isPermaLink="false">v0.17.0</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -311,7 +318,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v0.16.8</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.8</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.8</link>
       <guid isPermaLink="false">v0.16.8</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -324,7 +331,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.16.7</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.7</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.7</link>
       <guid isPermaLink="false">v0.16.7</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -337,7 +344,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.16.6</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.6</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.6</link>
       <guid isPermaLink="false">v0.16.6</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 GMT</pubDate>
       <description>Improvements
@@ -354,7 +361,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.16.5</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.5</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.5</link>
       <guid isPermaLink="false">v0.16.5</guid>
       <pubDate>Thu, 09 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -364,7 +371,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.16.4</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.4</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.4</link>
       <guid isPermaLink="false">v0.16.4</guid>
       <pubDate>Thu, 09 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -374,7 +381,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.16.3</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.3</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.3</link>
       <guid isPermaLink="false">v0.16.3</guid>
       <pubDate>Thu, 09 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -387,7 +394,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.16.2</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.2</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.2</link>
       <guid isPermaLink="false">v0.16.2</guid>
       <pubDate>Thu, 09 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -400,7 +407,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v0.16.1</title>
-      <link>https://linejam.mistystep.io/releases#v0.16.1</link>
+      <link>https://linejam.mistystep.io/changelog#v0.16.1</link>
       <guid isPermaLink="false">v0.16.1</guid>
       <pubDate>Thu, 09 Jul 2026 00:00:00 GMT</pubDate>
       <description>Improvements
@@ -414,7 +421,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v1.16.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.16.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.16.0</link>
       <guid isPermaLink="false">v1.16.0</guid>
       <pubDate>Wed, 08 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -433,7 +440,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v1.15.1</title>
-      <link>https://linejam.mistystep.io/releases#v1.15.1</link>
+      <link>https://linejam.mistystep.io/changelog#v1.15.1</link>
       <guid isPermaLink="false">v1.15.1</guid>
       <pubDate>Sat, 04 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -442,7 +449,7 @@ Landmark classification notice: deterministic release signals (conventional:chor
     </item>
     <item>
       <title>Linejam v1.15.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.15.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.15.0</link>
       <guid isPermaLink="false">v1.15.0</guid>
       <pubDate>Sat, 04 Jul 2026 00:00:00 GMT</pubDate>
       <description>Bug Fixes
@@ -458,7 +465,7 @@ New Features
     </item>
     <item>
       <title>Linejam v1.14.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.14.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.14.0</link>
       <guid isPermaLink="false">v1.14.0</guid>
       <pubDate>Sat, 04 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -473,7 +480,7 @@ Improvements
     </item>
     <item>
       <title>Linejam v1.13.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.13.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.13.0</link>
       <guid isPermaLink="false">v1.13.0</guid>
       <pubDate>Fri, 03 Jul 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -488,7 +495,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v1.12.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.12.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.12.0</link>
       <guid isPermaLink="false">v1.12.0</guid>
       <pubDate>Fri, 03 Jul 2026 00:00:00 GMT</pubDate>
       <description>Breaking Changes
@@ -512,7 +519,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v1.11.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.11.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.11.0</link>
       <guid isPermaLink="false">v1.11.0</guid>
       <pubDate>Fri, 03 Jul 2026 00:00:00 GMT</pubDate>
       <description>Breaking Changes
@@ -531,7 +538,7 @@ Bug Fixes
     </item>
     <item>
       <title>Linejam v1.10.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.10.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.10.0</link>
       <guid isPermaLink="false">v1.10.0</guid>
       <pubDate>Fri, 26 Jun 2026 00:00:00 GMT</pubDate>
       <description>New Features
@@ -547,14 +554,14 @@ Improvements
     </item>
     <item>
       <title>Linejam v1.9.1</title>
-      <link>https://linejam.mistystep.io/releases#v1.9.1</link>
+      <link>https://linejam.mistystep.io/changelog#v1.9.1</link>
       <guid isPermaLink="false">v1.9.1</guid>
       <pubDate>Wed, 24 Jun 2026 00:00:00 GMT</pubDate>
       <description>ui: make the mobile writing surface playable and declutter room chrome.</description>
     </item>
     <item>
       <title>Linejam v1.9.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.9.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.9.0</link>
       <guid isPermaLink="false">v1.9.0</guid>
       <pubDate>Tue, 23 Jun 2026 00:00:00 GMT</pubDate>
       <description>release: drop pnpm exec step that broke Landmark release.
@@ -563,21 +570,21 @@ game: consolidate to one core mode — delete rhyme + quick.</description>
     </item>
     <item>
       <title>Linejam v1.8.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.8.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.8.0</link>
       <guid isPermaLink="false">v1.8.0</guid>
       <pubDate>Mon, 22 Jun 2026 00:00:00 GMT</pubDate>
       <description>game: migrate host to a present participant when the host leaves (017).</description>
     </item>
     <item>
       <title>Linejam v1.7.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.7.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.7.0</link>
       <guid isPermaLink="false">v1.7.0</guid>
       <pubDate>Sun, 21 Jun 2026 00:00:00 GMT</pubDate>
       <description>game: never let the room die — presence, self-heal, abandonment cron (016).</description>
     </item>
     <item>
       <title>Linejam v1.6.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.6.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.6.0</link>
       <guid isPermaLink="false">v1.6.0</guid>
       <pubDate>Sat, 13 Jun 2026 00:00:00 GMT</pubDate>
       <description>mobile: pass the thumb test on every game surface.
@@ -590,56 +597,56 @@ realtime: make the room unstrandable — rescue, rematch, self-heal.</descriptio
     </item>
     <item>
       <title>Linejam v1.5.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.5.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.5.0</link>
       <guid isPermaLink="false">v1.5.0</guid>
       <pubDate>Fri, 12 Jun 2026 00:00:00 GMT</pubDate>
       <description>sharing: require explicit public links.</description>
     </item>
     <item>
       <title>Linejam v1.4.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.4.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.4.0</link>
       <guid isPermaLink="false">v1.4.0</guid>
       <pubDate>Thu, 11 Jun 2026 00:00:00 GMT</pubDate>
       <description>reveal: add shared session recap hub.</description>
     </item>
     <item>
       <title>Linejam v1.3.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.3.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.3.0</link>
       <guid isPermaLink="false">v1.3.0</guid>
       <pubDate>Thu, 11 Jun 2026 00:00:00 GMT</pubDate>
       <description>observability: add scrubbed route telemetry.</description>
     </item>
     <item>
       <title>Linejam v1.2.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.2.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.2.0</link>
       <guid isPermaLink="false">v1.2.0</guid>
       <pubDate>Wed, 10 Jun 2026 00:00:00 GMT</pubDate>
       <description>add agentic qa harness , closes [#27248473133](https://github.com/misty-step/linejam/issues/27248473133).</description>
     </item>
     <item>
       <title>Linejam v1.1.3</title>
-      <link>https://linejam.mistystep.io/releases#v1.1.3</link>
+      <link>https://linejam.mistystep.io/changelog#v1.1.3</link>
       <guid isPermaLink="false">v1.1.3</guid>
       <pubDate>Tue, 21 Apr 2026 00:00:00 GMT</pubDate>
       <description>ci: stop Dependabot from double-stamping commit scopes , closes [#229](https://github.com/misty-step/linejam/issues/229) [#230](https://github.com/misty-step/linejam/issues/230) [#231](https://github.com/misty-step/linejam/issues/231).</description>
     </item>
     <item>
       <title>Linejam v1.1.2</title>
-      <link>https://linejam.mistystep.io/releases#v1.1.2</link>
+      <link>https://linejam.mistystep.io/changelog#v1.1.2</link>
       <guid isPermaLink="false">v1.1.2</guid>
       <pubDate>Mon, 20 Apr 2026 00:00:00 GMT</pubDate>
       <description>deps: patch Clerk + protobufjs HIGH/CRITICAL advisories and stabilize release pipeline.</description>
     </item>
     <item>
       <title>Linejam v1.1.1</title>
-      <link>https://linejam.mistystep.io/releases#v1.1.1</link>
+      <link>https://linejam.mistystep.io/changelog#v1.1.1</link>
       <guid isPermaLink="false">v1.1.1</guid>
       <pubDate>Wed, 15 Apr 2026 00:00:00 GMT</pubDate>
       <description>deps: patch dompurify and ajv advisories.</description>
     </item>
     <item>
       <title>Linejam v1.1.0</title>
-      <link>https://linejam.mistystep.io/releases#v1.1.0</link>
+      <link>https://linejam.mistystep.io/changelog#v1.1.0</link>
       <guid isPermaLink="false">v1.1.0</guid>
       <pubDate>Wed, 15 Apr 2026 00:00:00 GMT</pubDate>
       <description>a11y: use theme-aware focus ring token instead of hardcoded primary , closes [#151](https://github.com/misty-step/linejam/issues/151).
@@ -652,7 +659,7 @@ ci: settle trufflehog workflow.</description>
     </item>
     <item>
       <title>Linejam v0.1.0</title>
-      <link>https://linejam.mistystep.io/releases#v0.1.0</link>
+      <link>https://linejam.mistystep.io/changelog#v0.1.0</link>
       <guid isPermaLink="false">v0.1.0</guid>
       <pubDate>Fri, 24 Jan 2025 00:00:00 GMT</pubDate>
       <description>Get ready to unleash your inner poet! We&apos;re thrilled to announce the launch of Linejam, a brand new real-time collaborative poetry game where you and your friends can create beautiful verses together. Each game consists of 9 rounds, offering plenty of opportunities for creative expression and playful collaboration. If your muse is flying solo, don&apos;t fret! You can now play against AI opponents powered by Gemini, making Linejam a fun and engaging experience whether you&apos;re a lone wolf or part of a pack.

@@ -23,10 +23,10 @@ export function Footer({ className = '' }: FooterProps) {
       <div className="flex flex-wrap items-center justify-center gap-x-4 px-4 py-3 text-sm text-[var(--color-text-secondary)]">
         <span>© {new Date().getFullYear()} Linejam</span>
         <Link
-          href="/releases"
+          href="/changelog"
           className="inline-flex min-h-11 items-center rounded-[var(--radius-sm)] transition-colors hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2"
         >
-          Releases · v{APP_VERSION}
+          Changelog · v{APP_VERSION}
         </Link>
         <a
           href="https://mistystep.io"

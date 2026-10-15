@@ -1,0 +1,26 @@
+name: PR title
+
+# Squash merges use the PR title as the commit title, and Landmark reads that
+# title to decide the next version. Reject titles that are not Conventional
+# Commits.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  conventional-title:
+    name: conventional-title
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require a Conventional Commit title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^()]+\))?!?: [^ ].*$'
+          if [[ ! "$TITLE" =~ $pattern ]]; then
+            echo "::error::Use a Conventional Commit title, such as 'fix(room): keep lines after a reconnect'."
+            exit 1
+          fi

@@ -120,7 +120,9 @@ export const generateNotes = async (_config, context) => {
   const technical = fs
     .readFileSync(path.join(directory, 'technical.md'), 'utf8')
     .trim();
-  return `${notes}\n\n<details>\n<summary>Technical history</summary>\n\n${technical}\n\n</details>`;
+  // Without public notes, the deterministic technical history is the notes.
+  const open = prepared.quality === 'valid' ? '' : ' open';
+  return `${notes}\n\n<details${open}>\n<summary>Technical history</summary>\n\n${technical}\n\n</details>`;
 };
 
 export const prepare = async (_config, context) => {

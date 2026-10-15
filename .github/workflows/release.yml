@@ -72,9 +72,16 @@ jobs:
           synthesis: 'false'
           healthcheck: 'false'
 
+      - name: Keep the open candidate for this exact source
+        id: existing
+        if: steps.gate.outputs.ready == 'true' && steps.landmark.outputs.released != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec tsx scripts/releases/open-candidate.ts
+
       - name: Prepare Landmark artifacts for review
         id: prepare
-        if: steps.gate.outputs.ready == 'true' && steps.landmark.outputs.released != 'true'
+        if: steps.gate.outputs.ready == 'true' && steps.landmark.outputs.released != 'true' && steps.existing.outputs.current != 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
