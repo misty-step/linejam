@@ -24,15 +24,17 @@ See [local development](docs/local-development.md) for prerequisites, QA and res
 - [Product brief and current direction](project.md)
 - [Identity and interactions](DESIGN.md)
 - [User stories](USER_STORIES.md) and [feature map](features/README.md)
-- [Architecture and Parlor evaluation](docs/ARCHITECTURE.md)
+- [Architecture and Parlor membership boundary](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md) and [testing](docs/testing.md)
 - [CLI/MCP and browser acceptance](docs/agent-faces.md)
 - [Production deployment](docs/deployment.md) and [CI/operations authority](docs/ops/observability-ci.md)
 - [Sharing privacy](docs/sharing-privacy.md), [retention](docs/ops/data-retention.md),
   [schema migrations](docs/convex-migrations.md), and [security](SECURITY.md)
 
-Commands and dependency versions live in `package.json`. Parlor is not installed;
-its repository-local skill is imported guidance, not an integration.
+Commands and dependency versions live in `package.json`. Parlor is the vendored
+room-membership integration pinned in
+[`vendor/parlor/UPSTREAM.json`](vendor/parlor/UPSTREAM.json); see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#parlor-boundary) for membership detail.
 
 [Marketing site](https://misty-step.github.io/linejam/) ·
 [Changelog](https://misty-step.github.io/linejam/changelog.html) ·

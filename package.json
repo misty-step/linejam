@@ -47,6 +47,7 @@
     "test:ui": "vitest --ui",
     "test:ci": "vitest run --coverage && pnpm coverage:check",
     "test:worker-images": "node scripts/qa/worker-images.mjs",
+    "test:worker-routes": "tsx scripts/qa/worker-routes.ts",
     "coverage:check": "node scripts/ci/assert-coverage-summary.mjs",
     "test:watch": "vitest --watch",
     "test:backend:cloudflare": "vitest run --config vitest.cloudflare.config.ts",

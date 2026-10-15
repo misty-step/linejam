@@ -123,7 +123,7 @@ is_production_dotenv() {
   while IFS= read -r line; do
     local value="${line#*=}"
     case "${value,,}" in
-      *dev:*|*preview:*|*project:*|*local*) ;;
+      *dev:*|*preview:*|*project:*|*anonymous:*|*local*) ;;
       *) return 0 ;;
     esac
   done < <(grep -E "^[[:space:]]*(CONVEX_DEPLOY_KEY|CONVEX_DEPLOYMENT_TOKEN|CONVEX_DEPLOYMENT)[[:space:]]*=" "$file" || true)
@@ -138,13 +138,10 @@ if ((target_explicit == 0)); then
   if [[ -n "$deploy_key" ]]; then
     uses_key=1
     resolved_target="deploy-key"
-  else
-    target_args+=(--deployment local)
   fi
 else
   case "${target,,}" in
     local)
-      target_args+=(--deployment local)
       resolved_target="local"
       ;;
     dev)
@@ -223,6 +220,23 @@ elif [[ "$resolved_target" == "production" ]]; then
   env -u CONVEX_DEPLOY_KEY -u CONVEX_DEPLOYMENT_TOKEN -u CONVEX_DEPLOYMENT -u CONVEX_DEPLOYMENT_URL -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY "${command[@]}"
 else
   printf "CONVEX_AGENT_MODE=anonymous\n" > "$controlled_env"
+  if [[ "$resolved_target" == "local" ]]; then
+    # Never inherit cloud selection from dotenv or ambient credentials. Read only
+    # the anonymous name from the project-local config; no admin key is copied.
+    local_name="$(node -e '
+      const fs = require("node:fs");
+      const path = ".convex/local/default/config.json";
+      try {
+        const name = JSON.parse(fs.readFileSync(path, "utf8")).deploymentName;
+        if (typeof name !== "string" || !/^anonymous-[a-z0-9-]+$/.test(name)) throw new Error();
+        process.stdout.write(name);
+      } catch {
+        console.error("A configured anonymous local deployment is required; run CONVEX_AGENT_MODE=anonymous pnpm exec convex init in the isolated drill directory first.");
+        process.exit(1);
+      }
+    ')"
+    printf "CONVEX_DEPLOYMENT=anonymous:%s\n" "$local_name" >> "$controlled_env"
+  fi
   command+=(--env-file "$controlled_env" "$decrypted_path")
   env -u CONVEX_DEPLOY_KEY -u CONVEX_DEPLOYMENT_TOKEN -u CONVEX_DEPLOYMENT -u CONVEX_DEPLOYMENT_URL -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY CONVEX_AGENT_MODE=anonymous "${command[@]}"
 fi

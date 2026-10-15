@@ -136,6 +136,15 @@ completion independently routes failures to Kaylee's alert intake:
   consecutive failed-or-missed check-in threshold. The monitor incident
   therefore pages only when the smoke stops running or keeps failing for
   roughly three consecutive hourly slots.
+- `linejam-convex-backup` covers the daily 09:17 UTC encrypted backup, with a
+  60-minute check-in margin, a one-miss failure threshold and one-success
+  recovery. Its completion check-in follows retained encrypted artifact upload,
+  not merely export start. The backup and production-smoke detectors share
+  Sentry's existing `Linejam scheduled jobs: missed or failed check-in` alert
+  (`6074705`) and its existing Kaylee intake action. Because Sentry owns the
+  expected slot, disabling the GitHub workflow does not silence absence
+  detection. See [backup operations](../deployment.md#backups-and-restore) for
+  the distinct missing-check-in and normal-backup recovery drill.
 - `Production Smoke` owns the player-health job (guest entry and game start,
   US-001/US-002, plus authenticated join). Its downstream
   `Sentry player-health reporting` job owns the monitor check-in. Reporting
