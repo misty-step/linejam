@@ -18,6 +18,7 @@ async function main() {
     config.main && config.assets?.directory,
     'Built Worker and assets must be configured'
   );
+  const alias: Record<string, string> = config.alias ?? {};
   const directory = mkdtempSync(join(tmpdir(), 'linejam-worker-routes-'));
 
   const logs: { level: string; message: string }[] = [];
@@ -33,6 +34,16 @@ async function main() {
       JSON.stringify({
         name: 'linejam-worker-routes',
         main: resolve(config.main),
+        // The entry imports the OpenNext build through an alias and exports
+        // the backend Durable Object, so both carry over from the deployed config.
+        alias: Object.fromEntries(
+          Object.entries(alias).map(([name, target]) => [
+            name,
+            target.startsWith('.') ? resolve(target) : target,
+          ])
+        ),
+        durable_objects: config.durable_objects,
+        migrations: config.migrations,
         compatibility_date: config.compatibility_date,
         compatibility_flags: config.compatibility_flags,
         assets: {
