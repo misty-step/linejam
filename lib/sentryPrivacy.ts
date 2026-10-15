@@ -87,16 +87,48 @@ const SAFE_TRACE_STATUS = {
   unknown_error: true,
 } satisfies Readonly<Record<string, true>>;
 
-const SAFE_ROUTES = {
-  '/': true,
-  '/auth/callback': true,
-  '/host': true,
-  '/join': true,
-  '/api/guest/session': true,
-  '/api/health': true,
-  '/api/internal/sentry-preview-drill': true,
-  '/room/[code]': true,
-} satisfies Readonly<Record<string, true>>;
+/**
+ * The only route names the transport can emit: one template per `app/` page,
+ * route handler and metadata route. Any other name becomes `unknown-route`.
+ * tests/lib/sentryPrivacy.test.ts fails unless this list equals the routes
+ * in `app/`, so a new route cannot report unattributed.
+ */
+export const ROUTE_TEMPLATES = [
+  '/',
+  '/_not-found',
+  '/api/deployment',
+  '/api/guest/session',
+  '/api/health',
+  '/api/internal/sentry-preview-drill',
+  '/callback',
+  '/changelog',
+  '/host',
+  '/join',
+  '/me/poems',
+  '/me/profile',
+  '/opengraph-image',
+  '/poem/[id]',
+  '/poem/[id]/card',
+  '/poem/[id]/opengraph-image',
+  '/recap/[code]',
+  '/recap/[code]/opengraph-image',
+  '/releases',
+  '/releases.xml',
+  '/robots.txt',
+  '/room/[code]',
+  '/sign-in/[[...sign-in]]',
+  '/sign-up/[[...sign-up]]',
+  '/sitemap.xml',
+] as const;
+
+const TRANSACTION_METHOD = /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (.+)$/;
+
+type RouteTemplate = (typeof ROUTE_TEMPLATES)[number];
+
+type TransactionRoute = {
+  method?: string;
+  route?: RouteTemplate;
+};
 
 const SAFE_TRACE_OPERATIONS = {
   browser: true,
@@ -112,12 +144,29 @@ const SAFE_TRACE_OPERATIONS = {
   'ui.action.click': true,
 } satisfies Readonly<Record<string, true>>;
 
+// Mechanism types the installed browser, Node and App Router SDK paths emit.
+// Unknown types are dropped, which also drops `handled: false`.
 const SAFE_MECHANISMS = {
   generic: true,
-  'auto.browser.browserapierrors': true,
+  'auto.browser.browserapierrors.addEventListener': true,
+  'auto.browser.browserapierrors.handleEvent': true,
+  'auto.browser.browserapierrors.requestAnimationFrame': true,
+  'auto.browser.browserapierrors.setInterval': true,
+  'auto.browser.browserapierrors.setTimeout': true,
+  'auto.browser.browserapierrors.xhr.onerror': true,
+  'auto.browser.browserapierrors.xhr.onload': true,
+  'auto.browser.browserapierrors.xhr.onprogress': true,
+  'auto.browser.browserapierrors.xhr.onreadystatechange': true,
   'auto.browser.global_handlers.onerror': true,
   'auto.browser.global_handlers.onunhandledrejection': true,
-  'auto.http.nextjs.on_request_error': true,
+  'auto.function.nextjs.generation_function': true,
+  'auto.function.nextjs.on_request_error': true,
+  'auto.function.nextjs.route_handler': true,
+  'auto.function.nextjs.server_action': true,
+  'auto.function.nextjs.server_component': true,
+  'auto.function.nextjs.wrap_middleware': true,
+  'auto.node.onuncaughtexception': true,
+  'auto.node.onunhandledrejection': true,
 } satisfies Readonly<Record<string, true>>;
 
 const SAFE_ERROR_CLASSES = {
@@ -553,15 +602,68 @@ function sanitizeBaseEvent(event: Event): ErrorEvent {
   return result;
 }
 
-function safeTransactionName(value: string | null | undefined): string {
-  if (!value) return 'unknown-route';
+function matchesRouteTemplate(
+  template: string,
+  segments: readonly string[]
+): boolean {
+  const parts = template.split('/').filter(Boolean);
+  for (const [index, part] of parts.entries()) {
+    if (part.startsWith('[[...')) return true;
+    if (part.startsWith('[...')) return segments.length > index;
+    const segment = segments[index];
+    if (segment === undefined) return false;
+    if (!part.startsWith('[') && part !== segment) return false;
+  }
+  return segments.length === parts.length;
+}
 
-  const match = value.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (.+)$/);
-  const method = match?.[1];
-  let route = match?.[2] || value;
-  route = route.split(/[?#]/, 1)[0].replace(/^https?:\/\/[^/]+/, '');
-  route = route.replace(/^\/room\/[^/]+$/, '/room/[code]');
-  if (!Object.hasOwn(SAFE_ROUTES, route)) route = 'unknown-route';
+function findRouteTemplate(
+  segments: readonly string[]
+): RouteTemplate | undefined {
+  const exact = `/${segments.join('/')}`;
+  return (
+    ROUTE_TEMPLATES.find((template) => template === exact) ??
+    ROUTE_TEMPLATES.find((template) => matchesRouteTemplate(template, segments))
+  );
+}
+
+/**
+ * The route an App Router definition names, without its route groups,
+ * parallel slots and final page or route file: `/(auth)/callback/page`
+ * defines `/callback`.
+ */
+function routeDefinitionSegments(segments: readonly string[]): string[] {
+  const route = segments.filter(
+    (segment) => !/^\(.+\)$/.test(segment) && !segment.startsWith('@')
+  );
+  if (route.at(-1) === 'page' || route.at(-1) === 'route') route.pop();
+  return route;
+}
+
+/**
+ * Map a transaction name to its route template. Accepts a raw path, the
+ * browser's parameterized route (`/room/:code`) or the App Router definition
+ * (`GET /room/[code]/page` from onRequestError); the result is always a
+ * ROUTE_TEMPLATES entry, never input text. The path is matched as sent
+ * first, so the raw `/room/page` stays a room; only a path that names no
+ * route is read as a definition.
+ */
+function transactionRoute(value: string | null | undefined): TransactionRoute {
+  if (!value || value.length > 1_024) return {};
+
+  const match = value.match(TRANSACTION_METHOD);
+  const path = (match?.[2] ?? value)
+    .split(/[?#]/, 1)[0]
+    .replace(/^https?:\/\/[^/]+/, '');
+  const segments = path.split('/').filter(Boolean);
+  const route =
+    findRouteTemplate(segments) ??
+    findRouteTemplate(routeDefinitionSegments(segments));
+  return { method: match?.[1], route };
+}
+
+function safeTransactionName(value: string | null | undefined): string {
+  const { method, route = 'unknown-route' } = transactionRoute(value);
   return method ? `${method} ${route}` : route;
 }
 
@@ -608,11 +710,46 @@ function sanitizeSpans(
 }
 
 /**
+ * Group by failure class as well as Sentry's default input. Redaction can
+ * leave unrelated failures with the same type, message label and frame-free
+ * stack; Sentry then merged them by hash or by similarity (LINEJAM-19, see
+ * docs/postmortems/2026-10-12-release-routes-evalerror.md). Every value here
+ * is closed vocabulary, and Sentry's similarity grouping only merges hybrid
+ * fingerprints that are equal, so two classes can never share an issue.
+ */
+function failureClassFingerprint(
+  exception: NonNullable<ErrorEvent['exception']>,
+  tags: Record<string, string> | undefined,
+  route: RouteTemplate | undefined
+): string[] {
+  const main = exception.values?.at(-1);
+  return [
+    '{{ default }}',
+    `surface:${failureSurface(tags?.runtime)}`,
+    `type:${main?.type ?? 'Error'}`,
+    `mechanism:${main?.mechanism?.type ?? 'none'}`,
+    `operation:${tags?.operation ?? 'none'}`,
+    `failure_code:${tags?.failure_code ?? 'none'}`,
+    `route:${route ?? 'unknown'}`,
+  ];
+}
+
+// The runtime tag names the SDK entrypoint, not the failure class: the
+// /releases EvalError reported as both `edge` and `node` on the Worker.
+function failureSurface(
+  runtime: string | undefined
+): 'browser' | 'server' | 'unknown' {
+  if (runtime === 'browser') return 'browser';
+  return runtime === 'node' || runtime === 'edge' ? 'server' : 'unknown';
+}
+
+/**
  * Hard transport allowlist for error events. Unknown messages are discarded
  * and replaced with a closed-vocabulary redaction label (operation and
  * environment) so scrubbed failures stay attributable without leaking
  * content. Events with neither a retained message nor a redaction label keep
- * the exception value omitted.
+ * the exception value omitted. The route template and failure-class
+ * fingerprint keep distinct failures in distinct issues.
  */
 export function beforeSend(
   event: ErrorEvent,
@@ -628,7 +765,18 @@ export function beforeSend(
   }
 
   const safe = sanitizeBaseEvent(event);
-  return safe.exception ? safe : null;
+  if (!safe.exception) return null;
+
+  const { method, route } = transactionRoute(event.transaction);
+  if (route) {
+    safe.transaction = method ? `${method} ${route}` : route;
+  }
+  safe.fingerprint = failureClassFingerprint(
+    safe.exception,
+    sanitizeTags(event.tags),
+    route
+  );
+  return safe;
 }
 
 /** Transactions use the same privacy boundary and retain only trace topology. */

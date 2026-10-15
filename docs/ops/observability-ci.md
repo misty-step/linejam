@@ -196,6 +196,15 @@ For symbolication, the transport retains only origin-free
 `app:///_next/static/**/*.js` bundle locations, line/column coordinates, and
 validated source-map debug IDs. It drops source origins, query strings,
 fragments, non-static paths, function/module names, and frame-local data.
+Redaction can leave unrelated failures with the same type, message label and
+frame-free stack, so every error event carries a hybrid fingerprint: Sentry's
+default grouping plus surface (browser or server), error class, mechanism,
+operation, failure code and route template. The route is one template per
+`app/` route, or `unknown` when the event's transaction names none; error
+events keep the transaction only when it names a template. Each value is closed
+vocabulary, and Sentry merges hybrid fingerprints only when they are equal, so
+a new failure class opens a new issue instead of joining an ongoing one
+([2026-10-12 postmortem](../postmortems/2026-10-12-release-routes-evalerror.md)).
 `/api/health` reports application health separately from observability ingest,
 so degraded ingest is not proof gameplay is down.
 
@@ -294,7 +303,9 @@ details:
    scheduler or work ledger.
 3. Apply a transport allowlist before enabling ingest. Prove with a forbidden
    sentinel that payloads omit product content, identity, network identifiers,
-   request data, secrets, arbitrary context, and frame locals.
+   request data, secrets, arbitrary context, and frame locals. Redaction removes
+   what Sentry groups on, so fingerprint each error from closed fields and prove
+   in preview that two redacted classes open two issues.
 4. Track each actionable Sentry issue to exactly one owner artifact: a pull
    request or an explicit no-fix postmortem. Retries must be bounded and
    deduplicated durably by Sentry issue ID.
