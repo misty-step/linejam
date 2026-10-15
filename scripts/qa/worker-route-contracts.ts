@@ -93,9 +93,12 @@ export function assertRouteResponse(
     contract.status,
     `${template}: unexpected status`
   );
-  const contentType = response.headers.get('content-type') ?? '';
-  assert(
-    contentType.startsWith(contract.contentType),
+  const contentType = (response.headers.get('content-type') ?? '')
+    .split(';', 1)[0]
+    .trim();
+  assert.equal(
+    contentType,
+    contract.contentType,
     `${template}: unexpected content type`
   );
   if (contract.includes) {

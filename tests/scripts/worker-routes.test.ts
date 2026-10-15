@@ -47,6 +47,9 @@ describe('Worker route release gate', () => {
     ).toThrow();
     expect(() => assertRouteResponse('/', ...response(200, ''))).toThrow();
     expect(() =>
+      assertRouteResponse('/', ...response(200, '</html>', 'text/html-broken'))
+    ).toThrow();
+    expect(() =>
       assertRouteResponse('/releases', ...response(200, '>Changelog</h1>'))
     ).not.toThrow();
   });
@@ -111,6 +114,12 @@ describe('Worker route release gate', () => {
       assertRouteResponse(
         '/opengraph-image',
         ...response(200, 'not PNG', 'image/png')
+      )
+    ).toThrow();
+    expect(() =>
+      assertRouteResponse(
+        '/opengraph-image',
+        ...response(200, 'not PNG', 'image/png; charset=binary')
       )
     ).toThrow();
   });
