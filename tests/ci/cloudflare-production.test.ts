@@ -6,10 +6,10 @@ import manifest from '@/config/convex-env-manifest.json';
 
 const BACKEND_URL = 'https://linejam.mistystep.io/backend';
 // cloudflare/backend.ts derives these from the Worker's own bindings.
-const DERIVED: Record<string, string> = {
-  SENTRY_DSN: 'NEXT_PUBLIC_SENTRY_DSN',
-  SENTRY_RELEASE: 'NEXT_DEPLOYMENT_ID',
-};
+const DERIVED = new Map([
+  ['SENTRY_DSN', 'NEXT_PUBLIC_SENTRY_DSN'],
+  ['SENTRY_RELEASE', 'NEXT_DEPLOYMENT_ID'],
+]);
 
 const release = parse(
   readFileSync('.github/workflows/cloudflare-production.yml', 'utf8')
@@ -44,7 +44,7 @@ describe('Cloudflare Production release (ADR-0011)', () => {
     if (step.run.includes('NEXT_DEPLOYMENT_ID:'))
       bound.add('NEXT_DEPLOYMENT_ID');
     const unbound = manifest.environments.production.required.filter(
-      (name) => !bound.has(DERIVED[name] ?? name)
+      (name) => !bound.has(DERIVED.get(name) ?? name)
     );
     expect(unbound).toEqual([]);
   });
