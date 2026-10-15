@@ -136,7 +136,7 @@ jobs:
         run: ./scripts/ci/dagger-call.sh build-check
 
   worker-images:
-    name: Worker Images
+    name: Worker Routes & Images
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -161,6 +161,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:cf
+      - run: pnpm test:worker-routes
       - run: pnpm test:worker-images
 
   # Additive, secret-free acceptance. The CLI owns a fresh isolated app/backend,
