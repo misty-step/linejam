@@ -994,7 +994,8 @@ export class Runtime {
 
   /** The earliest job in state `kind` scheduled before `before` and not in `skip`. */
   private firstJob(kind: string, before: number, skip: ReadonlySet<string>): Document | undefined {
-    return this.jobsInState(kind, before, skip.size + 1).find((job) => !skip.has(job._id));
+    const row = this.jobRows(kind, before, null, skip.size + 1).find((job) => !skip.has(job.id));
+    return row === undefined ? undefined : (this.store.readDocument(row.id) ?? undefined);
   }
 
   /** `inProgress` jobs this instance is not running: a restart or freeze cut them off. */
@@ -1005,16 +1006,20 @@ export class Runtime {
   }
 
   private jobsInState(kind: string, before: number, limit: number): Document[] {
+    return this.jobRows(kind, before, null, limit)
+      .map((row) => this.store.readDocument(row.id))
+      .filter((document): document is Document => document !== null);
+  }
+
+  /** Index rows of jobs in state `kind` scheduled before `before`, in order after key `after`. */
+  private jobRows(kind: string, before: number, after: string | null, limit: number) {
     const index = this.schema.tables
       .get(SCHEDULED_FUNCTIONS_TABLE)
       ?.indexes.find((candidate) => candidate.name.endsWith(".by_state_time"));
     if (index === undefined) return [];
     const prefix = encodeKey([kind]);
     const high = prefixEnd(prefix + encodeKey([before]));
-    return this.store
-      .scanPage(index.name, prefix, high, "asc", null, limit)
-      .map((row) => this.store.readDocument(row.id))
-      .filter((document): document is Document => document !== null);
+    return this.store.scanPage(index.name, prefix, high, "asc", after, limit);
   }
 
   /**
@@ -1055,16 +1060,20 @@ export class Runtime {
       });
       if (!admitted) return 0;
       let ran = 0;
-      // A job still pending after its attempt could not record an outcome or
-      // waits for an action slot; the pass moves on to the next one.
-      const attempted = new Set<string>();
+      // Jobs are taken in index order, each after the last one taken, so a
+      // job still pending after its attempt (it could not record an outcome,
+      // or waits for an action slot) is not taken again in this pass, and a
+      // backlog costs one index step per job.
+      let after: string | null = null;
       for (;;) {
-        const job = await this.exclusive(async () =>
-          this.writesFrozen ? undefined : this.firstJob("pending", now, attempted),
-        );
-        if (job === undefined) break;
-        attempted.add(job._id);
-        if (await this.runJob(job)) ran += 1;
+        const next = await this.exclusive(async () => {
+          if (this.writesFrozen) return undefined;
+          const [row] = this.jobRows("pending", now, after, 1);
+          return row && { key: row.key, job: this.store.readDocument(row.id) };
+        });
+        if (next === undefined) break;
+        after = next.key;
+        if (next.job !== null && (await this.runJob(next.job))) ran += 1;
       }
       return ran + (await this.runDueCrons(now));
     });
