@@ -86,7 +86,8 @@ exact intake readback confirmed the acknowledged ticket. The backup recovery
 owner claimed that existing incident. The retained legacy broker's missing
 Powder adapter was not bypassed: no replacement item or false acknowledgement
 was created. A normal backup succeeded after the drill. The recovery receipt
-links the owned incident and notification evidence. The existing
+links the owned incident and exact intake acknowledgement. This is not a claim
+that every secondary notification channel has been verified. The existing
 incident route's handling of a completely missing daily run remains a separate
 liveness limitation; do not claim that failure-drill success detects disablement.
 No application release rollback or production-data mutation was performed.
