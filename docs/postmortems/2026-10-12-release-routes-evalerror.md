@@ -182,9 +182,10 @@ Node and then on workerd.
   classes on workerd. Handled events carry no route there, so they group apart
   from their Node counterparts.
 
-**What can still share an issue:** failures with the same type, mechanism,
-operation, failure code, route and label. The transport cannot tell those apart
-without keeping content. Handled server captures on the Worker carry no route,
+**What can still share an issue:** failures with the same surface, type,
+mechanism, operation, failure code, route and label. The transport cannot tell
+those apart without keeping content. Handled server captures on the Worker
+carry no route,
 because the SDK sets no transaction there. They are told apart by the other
 fields only.
 

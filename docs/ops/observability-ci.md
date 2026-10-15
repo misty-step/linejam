@@ -197,10 +197,11 @@ For symbolication, the transport retains only origin-free
 validated source-map debug IDs. It drops source origins, query strings,
 fragments, non-static paths, function/module names, and frame-local data.
 Redaction can leave unrelated failures with the same type, message label and
-frame-free stack, so every error event also carries a route template (one per
-`app/` route; any other name is `unknown-route`) and a hybrid fingerprint:
-Sentry's default grouping plus surface (browser or server), error class,
-mechanism, operation, failure code and route. Each value is closed
+frame-free stack, so every error event carries a hybrid fingerprint: Sentry's
+default grouping plus surface (browser or server), error class, mechanism,
+operation, failure code and route template. The route is one template per
+`app/` route, or `unknown` when the event's transaction names none; error
+events keep the transaction only when it names a template. Each value is closed
 vocabulary, and Sentry merges hybrid fingerprints only when they are equal, so
 a new failure class opens a new issue instead of joining an ongoing one
 ([2026-10-12 postmortem](../postmortems/2026-10-12-release-routes-evalerror.md)).
