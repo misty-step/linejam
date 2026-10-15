@@ -34,6 +34,5 @@ See [local development](docs/local-development.md) for prerequisites, QA and res
 Commands and dependency versions live in `package.json`. Parlor is not installed;
 its repository-local skill is imported guidance, not an integration.
 
-[Marketing site](https://misty-step.github.io/linejam/) ·
-[Changelog](https://misty-step.github.io/linejam/changelog.html) ·
+[Changelog](https://linejam.mistystep.io/changelog) ·
 [MIT license](LICENSE)
