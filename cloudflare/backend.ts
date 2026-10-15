@@ -9,9 +9,13 @@ export const BACKEND_BASE_PATH = '/backend';
 
 // Convex reads these names; the Worker already holds the same values under
 // its web names. This replaces scripts/ci/bootstrap-convex-env.mjs for the
-// Durable Object backend.
-process.env.SENTRY_DSN ??= process.env.NEXT_PUBLIC_SENTRY_DSN;
-process.env.SENTRY_RELEASE ??= process.env.NEXT_DEPLOYMENT_ID;
+// Durable Object backend. Copy only values that exist: assigning undefined
+// to process.env stores the string "undefined", which Sentry then rejects.
+const { NEXT_PUBLIC_SENTRY_DSN, NEXT_DEPLOYMENT_ID } = process.env;
+if (NEXT_PUBLIC_SENTRY_DSN !== undefined)
+  process.env.SENTRY_DSN ??= NEXT_PUBLIC_SENTRY_DSN;
+if (NEXT_DEPLOYMENT_ID !== undefined)
+  process.env.SENTRY_RELEASE ??= NEXT_DEPLOYMENT_ID;
 
 /**
  * Linejam's Convex deployment on one SQLite Durable Object. The function
