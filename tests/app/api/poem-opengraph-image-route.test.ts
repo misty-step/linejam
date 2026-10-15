@@ -66,5 +66,6 @@ describe('GET /poem/[id]/opengraph-image (post-extraction regression)', () => {
 
     const serialized = JSON.stringify(lastImageResponseCall?.element);
     expect(serialized).toContain('Linejam');
+    expect(lastImageResponseCall?.options.status).toBe(404);
   });
 });

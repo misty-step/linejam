@@ -1,0 +1,99 @@
+name: Cloudflare Image Preview
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'app/**/opengraph-image*'
+      - 'app/poem/*/card/**'
+      - 'lib/poemCard/**'
+      - 'scripts/qa/*images*.mjs'
+      - '.github/workflows/cloudflare-image-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Reuse only the existing scoped deploy credential. No production runtime
+    # secrets, backend deploy key, routes, bindings or databases enter the preview.
+    environment: Production
+    env:
+      NEXT_PUBLIC_CONVEX_URL: https://linejam-preview.mistystep.io/backend
+      NEXT_PUBLIC_SENTRY_ENABLED: '1'
+      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: preview
+      GUEST_TOKEN_SECRET: unused-image-preview-build-only-0000000000
+      LINEJAM_DEPLOY_ENVIRONMENT: development
+      NEXT_DEPLOYMENT_ID: ${{ github.event.pull_request.head.sha }}
+      CIRCLE_NODE_TOTAL: '2'
+      WORKER_NAME: linejam-images-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:cf
+      - name: Isolated frontend config
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          import { unstable_readConfig } from 'wrangler';
+          const config = unstable_readConfig({ config: 'wrangler.jsonc' });
+          writeFileSync('image-preview.json', JSON.stringify({
+            name: process.env.WORKER_NAME,
+            account_id: config.account_id,
+            main: config.main,
+            compatibility_date: config.compatibility_date,
+            compatibility_flags: config.compatibility_flags,
+            workers_dev: true,
+            preview_urls: false,
+            routes: [],
+            send_metrics: false,
+            assets: config.assets,
+            vars: {
+              NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
+              NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID,
+              LINEJAM_DEPLOY_ENVIRONMENT: 'development',
+              LINEJAM_SENTRY_ENABLED: 'false'
+            }
+          }));
+          NODE
+      - name: Deploy only the isolated frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          pnpm exec wrangler deploy --config image-preview.json | tee image-preview-deploy.log
+          url="$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const url=readFileSync("image-preview-deploy.log","utf8").match(/https:\/\/linejam-images-\d+\.[a-z0-9-]+\.workers\.dev/); if(!url) process.exit(1); console.log(url[0])')"
+          printf 'IMAGE_PREVIEW_URL=%s\n' "$url" >> "$GITHUB_ENV"
+      - name: Prove owned, spectator, public and revoked images
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/qa/poem-images-preview.mjs
+      - name: Retain synthetic PNGs and source receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: worker-image-preview-${{ github.event.pull_request.head.sha }}
+          path: target/worker-images/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Remove only this preview
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm exec wrangler delete --config image-preview.json --force

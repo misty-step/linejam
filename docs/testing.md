@@ -10,6 +10,7 @@ thresholds live in `vitest.config.ts`.
 pnpm vitest run tests/path/to/file.test.ts # focused Vitest
 pnpm test                                  # all Vitest tests
 pnpm test:ci                               # Vitest coverage + nonzero-total guard
+pnpm build:cf && pnpm test:worker-images    # actual OpenNext bundle in workerd
 pnpm lint
 pnpm typecheck
 pnpm ci:prepush                            # fast local pre-push gate
@@ -107,6 +108,14 @@ Hosted CI remains authoritative for merge.
 
 Unit tests are not acceptance for browser rendering, real scheduling,
 deployment identity, or production health.
+
+`Worker Images` is a required, secret-free merge-gate dependency. It builds
+OpenNext, starts the bundle with Wrangler's local workerd runtime, and checks
+unknown-poem GET/POST denial plus PNG bytes/dimensions for poem, recap and site
+OG routes. The poem fallback must be 404, not 500, and still render the same
+text-free brand image. This catches unsupported edge route modules and broken
+static-font bindings that pass under local Next. It does not prove hosted
+authentication or an owned poem export; those require isolated preview evidence.
 
 ## Test seams
 
