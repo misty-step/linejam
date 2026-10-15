@@ -85,7 +85,7 @@ async function main() {
       logs.push({ level: 'error', message: error.text });
     });
     for (const template of ROUTE_TEMPLATES) {
-      const { path, method } = routeProbe(template);
+      const { path, method, backendUnavailable } = routeProbe(template);
       try {
         const blockedBefore = blockedRequests;
         const response = await worker.fetch(new URL(path, await worker.url), {
@@ -95,7 +95,7 @@ async function main() {
         });
         const bytes = Buffer.from(await response.arrayBuffer());
         assertRouteResponse(template, response, bytes);
-        if (template === '/api/health') {
+        if (backendUnavailable) {
           assert(
             blockedRequests > blockedBefore,
             'Backend isolation must be exercised, not assumed'

@@ -27,10 +27,13 @@ describe('Worker route release gate', () => {
     expect(routeProbe('/api/guest/session')).toEqual({
       path: '/api/guest/session?existing=1',
       method: 'GET',
+      backendUnavailable: false,
     });
     expect(routeProbe('/api/internal/sentry-preview-drill').method).toBe(
       'POST'
     );
+    expect(routeProbe('/api/health').backendUnavailable).toBe(true);
+    expect(routeProbe('/recap/[code]').backendUnavailable).toBe(true);
   });
 
   it('rejects arbitrary 5xx, redirects, wrong media and empty success bodies', () => {

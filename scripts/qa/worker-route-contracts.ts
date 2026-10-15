@@ -11,6 +11,7 @@ type Contract = {
   includes?: string;
   method?: string;
   query?: string;
+  backendUnavailable?: true;
 };
 const html = { status: 200, contentType: 'text/html', includes: '</html>' };
 const png = { status: 200, contentType: 'image/png' };
@@ -26,7 +27,11 @@ export const ROUTE_CONTRACTS = {
     contentType: 'application/json',
     query: '?existing=1', // Never create a guest session or consume a throttle.
   },
-  '/api/health': { status: 503, contentType: 'application/json' },
+  '/api/health': {
+    status: 503,
+    contentType: 'application/json',
+    backendUnavailable: true,
+  },
   '/api/internal/sentry-preview-drill': {
     status: 404,
     contentType: '',
@@ -39,15 +44,25 @@ export const ROUTE_CONTRACTS = {
   '/me/poems': html,
   '/me/profile': html,
   '/opengraph-image': png,
-  '/poem/[id]': html,
+  '/poem/[id]': { ...html, backendUnavailable: true },
   '/poem/[id]/card': {
     status: 404,
     contentType: 'text/plain',
     includes: 'Poem not found or unavailable.',
+    backendUnavailable: true,
   },
-  '/poem/[id]/opengraph-image': { ...png, status: 404 },
-  '/recap/[code]': { ...html, status: 404, includes: 'Page not found' },
-  '/recap/[code]/opengraph-image': png,
+  '/poem/[id]/opengraph-image': {
+    ...png,
+    status: 404,
+    backendUnavailable: true,
+  },
+  '/recap/[code]': {
+    ...html,
+    status: 404,
+    includes: 'Page not found',
+    backendUnavailable: true,
+  },
+  '/recap/[code]/opengraph-image': { ...png, backendUnavailable: true },
   '/releases': { ...html, includes: '>Changelog</h1>' },
   '/releases.xml': {
     status: 200,
@@ -79,6 +94,7 @@ export function routeProbe(template: RouteTemplate) {
   return {
     path: path + (contract.query ?? ''),
     method: contract.method ?? 'GET',
+    backendUnavailable: contract.backendUnavailable ?? false,
   };
 }
 
