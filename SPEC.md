@@ -264,19 +264,26 @@ Criteria:
    integrity checks, THEN THE SYSTEM SHALL reject the candidate.
 4. WHILE a candidate has not passed the existing review and CI gates, THE
    SYSTEM SHALL publish neither its tag nor its GitHub Release.
-5. WHERE a release has only technical history because its notes provider
-   failed, THE SYSTEM SHALL show that status consistently in the application,
-   changelog, feed, release PR, and published release.
+5. WHERE a release has no public notes, THE SYSTEM SHALL show its status and
+   deterministic technical history, open, on `/changelog`, the site changelog,
+   the feed and the GitHub Release, with consistent status in the release PR.
 6. WHEN note generation fails, THE SYSTEM SHALL expose the failure as release
    administration evidence without representing it as a player outage.
 
 Detailed acceptance:
 
-- Readers can open release history and its feed without joining a room. The
-  application shows its current version separately from date-ordered history;
-  historical version numbering is preserved, not silently rewritten to fit the
-  current sequence. Entries offer player-facing notes when available and
-  expandable technical changes with source links.
+- Readers can open `/changelog`, the canonical release history linked from the
+  application footer, without joining a room. `/releases` remains a rendered
+  alias, and `/releases.xml` is the feed. The application shows its current
+  version separately from date-ordered history; historical version numbering
+  is preserved, not silently rewritten to fit the current sequence. Entries
+  offer player-facing notes when available and expandable technical changes
+  with source links. Without public notes, the status and deterministic
+  technical history are shown open on `/changelog`, the site changelog, the
+  feed and the GitHub Release.
+- Public notes are optional enrichment. `model.policy: off` deliberately skips
+  generation without a provider key or provider request; it is not a provider
+  failure and does not prevent a technical-only release.
 - Missing public notes, archived notes, intentionally skipped generation and
   provider-failed notes are distinct states. A provider-failed entry explicitly
   says notes are unavailable and offers technical history; it does not reuse
@@ -286,6 +293,12 @@ Detailed acceptance:
   passing checks; a stale, changed or malformed candidate cannot reuse an
   unrelated pass. Preparation alone publishes no tag or release. Release
   publication is not proof that the player application has been deployed.
+- Preparation refuses when the previous release tag is missing, rather than
+  versioning from an invented baseline. A rerun keeps a matching open candidate
+  from the same repository with valid or intentionally skipped notes when its
+  source revision, version, release tag and previous tag match. Fork PRs are
+  ignored, even when they reuse the release branch name; a nonmatching candidate
+  does not suppress preparation.
 - Optional editorial generation failure is visible to release administration,
   separately from player-service health. Invalid evidence remains a failure,
   rather than being laundered into a technical-only success. All public history

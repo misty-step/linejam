@@ -12,7 +12,7 @@ and decisions in flight; historical issues are context, not an automatic queue.
   and never use destructive Git commands.
 - Work from the operator's current request. Check current code and overlapping
   work before implementation. Kanban owns work in flight, GitHub owns PRs, CI and
-  inbound issues, and Glass owns health. Powder owns priority, not a second queue
+  inbound issues, and Overmind owns health. Powder owns priority, not a second queue
   in this repository.
 - Base branch: `master`. Commits and PR titles use Conventional Commits.
 

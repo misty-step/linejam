@@ -1,7 +1,7 @@
 # Linejam
 
 A pass-the-poem party game for friends in the same room. Play at
-[linejam.mistystep.io](https://linejam.mistystep.io)—no install or account required.
+[App](https://linejam.mistystep.io)—no install or account required.
 
 Each player writes one line per round, seeing only the line before theirs.
 Nine rounds follow `1, 2, 3, 4, 5, 4, 3, 2, 1` words. Then everyone reads the
@@ -24,7 +24,7 @@ See [local development](docs/local-development.md) for prerequisites, QA and res
 - [Product brief and current direction](project.md)
 - [Identity and interactions](DESIGN.md)
 - [Reference specification and user stories](SPEC.md) and [feature map](features/README.md)
-- [Architecture and Parlor evaluation](docs/ARCHITECTURE.md)
+- [Architecture](docs/ARCHITECTURE.md) and Parlor evaluation
 - [Contributing](CONTRIBUTING.md) and [testing](docs/testing.md)
 - [CLI/MCP and browser acceptance](docs/agent-faces.md)
 - [Production deployment](docs/deployment.md) and [CI/operations authority](docs/ops/observability-ci.md)
@@ -34,6 +34,6 @@ See [local development](docs/local-development.md) for prerequisites, QA and res
 Commands and dependency versions live in `package.json`. Parlor is not installed;
 its repository-local skill is imported guidance, not an integration.
 
-[Marketing site](https://misty-step.github.io/linejam/) ·
+[Marketing](https://misty-step.github.io/linejam/) ·
 [Changelog](https://misty-step.github.io/linejam/changelog.html) ·
 [MIT license](LICENSE)

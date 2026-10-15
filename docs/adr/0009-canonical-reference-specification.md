@@ -23,7 +23,7 @@ Existing IDs and numbered walk checkpoints are preserved. Detailed acceptance
 is not falsely certified by the narrower automated walk.
 
 Powder owns priorities, questions and decisions in flight; Kanban owns active
-work; GitHub owns PRs, CI and inbound issues; Glass owns health. README owns
+work; GitHub owns PRs, CI and inbound issues; Overmind owns health. README owns
 application/docs/marketing URLs. Architecture and decision records stay here.
 
 ## Consequences
