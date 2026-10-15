@@ -63,11 +63,15 @@ jobs:
           CONVEX_DEPLOY_KEY_PROD: ${{ secrets.CONVEX_DEPLOY_KEY_PROD }}
         run: |
           set -euo pipefail
+          if [ -f .env ] || [ -f .env.local ]; then
+            echo "::error::Refusing ambient dotenv files for the production backup export."
+            exit 1
+          fi
           env -u CONVEX_DEPLOY_KEY -u CONVEX_DEPLOYMENT_TOKEN \
             -u CONVEX_DEPLOYMENT -u CONVEX_DEPLOYMENT_URL \
             -u CONVEX_SELF_HOSTED_URL -u CONVEX_SELF_HOSTED_ADMIN_KEY \
             CONVEX_OVERRIDE_ACCESS_TOKEN="$CONVEX_DEPLOY_KEY_PROD" \
-            pnpm exec convex export --env-file /dev/null \
+            pnpm exec convex export \
               --deployment amiable-bulldog-848 --path linejam-convex-export.zip
 
       - name: Install age

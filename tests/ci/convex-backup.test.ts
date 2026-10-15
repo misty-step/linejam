@@ -114,8 +114,6 @@ process.stdout.write(JSON.stringify({
           'exec',
           'convex',
           'export',
-          '--env-file',
-          '/dev/null',
           '--deployment',
           'amiable-bulldog-848',
           '--path',
@@ -128,6 +126,30 @@ process.stdout.write(JSON.stringify({
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it.each(['.env', '.env.local'])(
+    'refuses ambient %s before export',
+    (file) => {
+      const directory = mkdtempSync(join(tmpdir(), 'linejam-backup-dotenv-'));
+      try {
+        writeFileSync(
+          join(directory, file),
+          'CONVEX_DEPLOY_KEY=prod:wrong-key\n'
+        );
+        const result = runStep('Export production Convex data', {
+          key: 'synthetic-approved-token',
+          cwd: directory,
+        });
+        expect(result.status).toBe(1);
+        expect(result.stdout.trim()).toBe(
+          '::error::Refusing ambient dotenv files for the production backup export.'
+        );
+        expect(result.stderr).toBe('');
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    }
+  );
 
   it('makes the opt-in alarm drill fail before export', () => {
     expect(workflow.on.workflow_dispatch.inputs.failure_drill.default).toBe(

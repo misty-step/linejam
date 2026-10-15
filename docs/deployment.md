@@ -445,7 +445,7 @@ Actions secret `CONVEX_DEPLOY_KEY_PROD` and retains its fail-closed missing-secr
 guard. Despite that legacy name, the secret must contain the approved
 export-capable **team access token**, not the production deploy key. The export
 passes it only through `CONVEX_OVERRIDE_ACCESS_TOKEN`, clears ambient deployment
-keys and target selectors, ignores dotenv through `--env-file /dev/null`, and
+keys and target selectors, refuses ambient `.env`/`.env.local` files, and
 explicitly selects `--deployment amiable-bulldog-848`. The team token is broader
 than a deploy key; moving or replacing it requires credential-owner authority.
 The workflow encrypts the export before it leaves the runner. The uploaded
