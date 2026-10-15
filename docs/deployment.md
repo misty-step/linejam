@@ -2,14 +2,17 @@
 
 Linejam's production home is `https://linejam.mistystep.io`. The Cloudflare
 frontend release and rollback path is in [the Worker guide](ops/cloudflare-worker.md).
-Hosted Convex remains the realtime backend, Clerk the optional identity
-provider, and Sentry the incident and monitoring platform.
+The realtime backend runs in the same Worker, as the SQLite Durable Object at
+`/backend` ([ADR-0011](adr/0011-backend-on-cloudflare-durable-object.md)).
+Clerk is the optional identity provider and Sentry the incident and monitoring
+platform.
 
 ## Production topology
 
-| Component       | Cloudflare Worker | Source                                | Runtime contract |
-| --------------- | ----------------- | ------------------------------------- | ---------------- |
-| Web application | `linejam`         | `misty-step/linejam`, branch `master` | `/api/health`    |
+| Component       | Cloudflare Worker                          | Source                                | Runtime contract |
+| --------------- | ------------------------------------------ | ------------------------------------- | ---------------- |
+| Web application | `linejam`                                  | `misty-step/linejam`, branch `master` | `/api/health`    |
+| Backend         | `linejam`, Durable Object `LinejamBackend` | the same release                      | `/api/health`    |
 
 The Cloudflare Production workflow releases the exact successful `master` CI
 source to the canonical origin without `www`.

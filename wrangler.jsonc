@@ -62,13 +62,15 @@
         ],
       },
       "vars": {
-        "NEXT_PUBLIC_CONVEX_URL": "https://amiable-bulldog-848.convex.cloud",
+        // The web client and server talk to the Durable Object backend at
+        // /backend (cloudflare/backend.ts). Convex amiable-bulldog-848 stays
+        // paused and intact as the rollback target (ADR-0011, decision 7).
+        "NEXT_PUBLIC_CONVEX_URL": "https://linejam.mistystep.io/backend",
         "NEXT_PUBLIC_SENTRY_ENABLED": "1",
         "SENTRY_ORG": "misty-step",
         "SENTRY_PROJECT": "linejam",
         "LINEJAM_DEPLOY_ENVIRONMENT": "production",
-        // Convex runtime env for the Durable Object backend. The backend is
-        // dormant until NEXT_PUBLIC_CONVEX_URL points at /backend. Values match
+        // Convex runtime env for the Durable Object backend. Values match
         // amiable-bulldog-848's (config/convex-env-manifest.json). It leaves
         // RETENTION_GC_ENABLED unset, so this does too: retention stays dry-run.
         "CONVEX_CLOUD_URL": "https://linejam.mistystep.io/backend",

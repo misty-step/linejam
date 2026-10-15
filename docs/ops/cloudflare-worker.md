@@ -2,10 +2,12 @@
 
 Parent initiative: `K-20261012-infrastructure-gets-simpler-seen-through`.
 
-Move the frontend, origin, DNS and release owner off DigitalOcean. Hosted Convex
-(`amiable-bulldog-848`) remains the database, backend functions and reactive
-WebSocket service; Clerk and Sentry retain their existing interfaces. This is
-not a Cloudflare database migration.
+Move the frontend, origin, DNS and release owner off DigitalOcean. The backend
+(database, functions and reactive WebSocket service) runs in the same Worker, as
+the SQLite Durable Object `LinejamBackend` at `/backend`
+([ADR-0011](../adr/0011-backend-on-cloudflare-durable-object.md)). Hosted Convex
+(`amiable-bulldog-848`) stays paused and intact as its rollback target. Clerk
+and Sentry retain their existing interfaces.
 
 ## Current state and target
 
@@ -40,13 +42,15 @@ this migration. Reuse the production guest and provenance secrets. Keep recovery
 material in pass and transfer through stdin/private temporary files, never argv,
 logs, public comments or source.
 
-The workflow runs the existing hosted Convex wrapper through `build:release:cf`.
-OpenNext runs only `build:check`, avoiding recursive backend deployment.
-Manifest reconciliation
-and the zero-write guest-secret parity probe remain unskippable before Worker
-activation. Runtime secrets are installed with the Worker version through a
-mode-0600 temporary secrets file, removed on exit. The Convex deploy key and
-Sentry upload token are not Worker bindings.
+The workflow builds the Worker with `build:cf`; the backend ships inside it, so
+nothing deploys to Convex. OpenNext runs only `build:check`. Runtime secrets
+are installed with the Worker version through a mode-0600 temporary secrets
+file, removed on exit, and the backend reads the same bindings. A test
+(`tests/ci/cloudflare-production.test.ts`) requires one `/backend` URL for the
+client build, the server and the backend, and a binding for every name the
+production env manifest requires. After activation, `verify-production`
+requires the exact source, a connected backend and the zero-write guest-secret
+parity probe. The Sentry upload token is not a Worker binding.
 
 For an explicitly authorized release outside the workflow, supply the same
 production environment through the existing credential broker and bind the
@@ -54,14 +58,14 @@ runtime secrets to the Worker first:
 
 ```sh
 # NEXT_DEPLOYMENT_ID must be the exact reviewed, merged checkout SHA.
-pnpm build:release:cf
+pnpm build:cf
 pnpm test:worker-routes
 pnpm test:worker-images
 pnpm deploy:cf:production
 ```
 
-A bare `wrangler deploy` is not the release path: it omits backend deployment,
-production environment selection, source binding and parity postconditions.
+A bare `wrangler deploy` is not the release path: it omits production
+environment selection, source binding and parity postconditions.
 `test:worker-routes` runs the built artifact in local workerd before deployment,
 using the deployed compatibility settings and `ROUTE_TEMPLATES` inventory. Its
 [pass conditions](../../scripts/qa/worker-route-contracts.ts) cover every route;
