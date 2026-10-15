@@ -96,6 +96,13 @@ use `convex/react` and `convex/browser`.
 
 - One Worker deploy now ships the web and backend versions together, so they
   cannot skew.
+- The dormant deploy (decision 6, step 1) applies the `LinejamBackend` class
+  migration. Cloudflare cannot roll a Worker back to a version from before a
+  Durable Object class lifecycle change, so from then on every rollback
+  target includes the class. A fault in the dormant deploy is fixed forward
+  through CI, keeping the class exported and bound. The cutover's rollback to
+  the dormant version (decision 7, step 6) is unaffected, because both
+  versions carry the class.
 - Linejam's backend capacity is that of one Durable Object. That is ample for
   party-game write rates, but it is not horizontally scalable.
 - `RETENTION_GC_ENABLED` must match Convex at cutover. Production Convex
