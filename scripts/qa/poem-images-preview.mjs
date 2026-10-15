@@ -57,14 +57,12 @@ async function guest() {
   });
   assert.equal(response.status, 200, 'synthetic preview guest issuer');
   const session = await response.json();
-  assert.equal(typeof session.token, 'string');
+  assert.ok(session.token, 'issuer returned a guest credential');
   return session.token;
 }
-const [host, writer, spectator] = await Promise.all([
-  guest(),
-  guest(),
-  guest(),
-]);
+const host = await guest();
+const writer = await guest();
+const spectator = await guest();
 let room;
 let poemId;
 try {
@@ -96,7 +94,7 @@ try {
       });
     }
   }
-  const reveal = await client.query(api.game.getRevealState, {
+  const reveal = await client.query(api.game.getRevealPhaseState, {
     roomCode: room.code,
     guestToken: host,
   });
