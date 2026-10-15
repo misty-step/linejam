@@ -77,7 +77,7 @@ async function resolveUpstreamMiddleware(): Promise<UpstreamMiddleware> {
 const SERVER_ACTION_ID = /^[a-f0-9]{40,64}$/;
 const STATIC_ASSET =
   /\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)$/i;
-const STATIC_CSP_ROUTES = new Set(['/releases', '/releases.xml']);
+const STATIC_CSP_ROUTES = new Set(['/changelog', '/releases', '/releases.xml']);
 
 function isDocumentRequest(req: NextRequest) {
   const pathname = req.nextUrl.pathname;

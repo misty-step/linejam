@@ -94,10 +94,6 @@ const {
 if (decision.bump === 'none') {
   console.log('Landmark found no release-worthy changes.');
 } else {
-  if (!key)
-    throw new Error(
-      'OPENROUTER_API_KEY is required for Landmark synthesis. Repository or organization secret access must be configured; no fallback notes will be invented.'
-    );
   if (
     !isReleaseVersion(version) ||
     tag !== `v${version}` ||
@@ -111,6 +107,19 @@ if (decision.bump === 'none') {
     }).status === 0
   ) {
     throw new Error(`Refusing to replace the already tagged release ${tag}.`);
+  }
+  // Landmark versions an untagged history from 0.0.0. Linejam has a recorded
+  // baseline (ADR-0010), so a missing previous tag means missing tag history.
+  if (
+    !previousTag.startsWith('v') ||
+    !isReleaseVersion(previousTag.slice(1)) ||
+    spawnSync('git', ['rev-parse', '--verify', `refs/tags/${previousTag}`], {
+      stdio: 'ignore',
+    }).status !== 0
+  ) {
+    throw new Error(
+      'Landmark found no previous release tag. Refusing to version without the recorded baseline; fetch tags or reconcile tag history.'
+    );
   }
   const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], {
     encoding: 'utf8',
@@ -202,7 +211,7 @@ if (decision.bump === 'none') {
       '--version',
       tag,
       '--api-key',
-      key,
+      key ?? '',
       '--api-url',
       'https://openrouter.ai/api/v1/chat/completions',
       '--changelog-file',
@@ -220,6 +229,22 @@ if (decision.bump === 'none') {
     ],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
   );
+  // Paid notes are optional: Landmark's own policy skip (`model.policy: off`
+  // in .landmark.yml, or a low-significance release) needs no key and makes no
+  // provider request. Otherwise Landmark rejects the blank key before any
+  // request, so any other outcome without a key is a configuration error.
+  if (
+    !key &&
+    !(
+      synthesis.status === 0 &&
+      fs.existsSync(qualityPath) &&
+      fs.readFileSync(qualityPath, 'utf8').trim() === 'skipped'
+    )
+  ) {
+    throw new Error(
+      'OPENROUTER_API_KEY is required for Landmark synthesis unless .landmark.yml sets model.policy: off. No release PR was published.'
+    );
+  }
   // At the pinned Landmark revision, only failed provider requests produce
   // per-model "model <id> failed: HTTP NNN" or curl transport errors. Empty,
   // malformed, degraded, or ungrounded responses take different paths. Never

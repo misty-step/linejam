@@ -108,6 +108,12 @@ describe('middleware — document CSP containment', () => {
       }),
       fetchEvent
     ))!;
+    const changelog = (await middleware(
+      new NextRequest('http://localhost:3000/changelog', {
+        headers: { accept: 'text/html' },
+      }),
+      fetchEvent
+    ))!;
     const releases = (await middleware(
       new NextRequest('http://localhost:3000/releases', {
         headers: { accept: 'text/html' },
@@ -122,6 +128,7 @@ describe('middleware — document CSP containment', () => {
     ))!;
 
     const dynamicCsp = dynamic.headers.get('Content-Security-Policy') ?? '';
+    const changelogCsp = changelog.headers.get('Content-Security-Policy') ?? '';
     const releasesCsp = releases.headers.get('Content-Security-Policy') ?? '';
     const xmlCsp = xml.headers.get('Content-Security-Policy') ?? '';
 
@@ -133,8 +140,10 @@ describe('middleware — document CSP containment', () => {
     );
     expect(dynamic.headers.get('x-middleware-request-x-nonce')).toBe(nonce);
     expect(dynamicCsp).not.toContain("script-src 'unsafe-inline'");
+    expect(changelogCsp).toContain("script-src 'self' 'unsafe-inline'");
     expect(releasesCsp).toContain("script-src 'self' 'unsafe-inline'");
     expect(xmlCsp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(changelogCsp).not.toMatch(/script-src[^;]*'nonce-/);
     expect(releasesCsp).not.toMatch(/script-src[^;]*'nonce-/);
     expect(xmlCsp).not.toMatch(/script-src[^;]*'nonce-/);
   });

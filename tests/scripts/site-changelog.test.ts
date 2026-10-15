@@ -55,7 +55,12 @@ describe('release projections', () => {
       'escape <room> names & keep joins safe'
     );
     expect(older?.querySelector('room')).toBeNull();
-    expect(older?.querySelector('details')?.open).toBe(false);
+    // Without public notes, the technical history is shown, not hidden.
+    expect(older?.querySelector('details')?.open).toBe(true);
+    expect(current?.querySelector('details')?.open).toBe(false);
+    expect(
+      template.content.querySelector('.lj-lede a')?.getAttribute('href')
+    ).toBe('https://linejam.mistystep.io/changelog');
   });
 
   it('produces parseable RSS with matching deep links and no nested CDATA corruption', () => {
@@ -72,10 +77,14 @@ describe('release projections', () => {
       catalog.releases[0].productNotes
     );
     expect(items[0].querySelector('link')?.textContent).toBe(
-      'https://linejam.mistystep.io/releases#v0.27.0'
+      'https://linejam.mistystep.io/changelog#v0.27.0'
     );
-    expect(items[1].querySelector('description')?.textContent).not.toContain(
-      'escape <room>'
+    expect(document.querySelector('channel > link')?.textContent).toBe(
+      'https://linejam.mistystep.io/changelog'
+    );
+    // A release without public notes carries its technical history as notes.
+    expect(items[1].querySelector('description')?.textContent).toBe(
+      'Public notes are not recorded for this release. Technical history is available below.\n\nTechnical history:\n- (rooms) escape <room> names & keep joins safe'
     );
   });
 
@@ -100,7 +109,7 @@ describe('release projections', () => {
     expect(section?.querySelector('details')?.textContent).toContain(
       'escape <room> names & keep joins safe'
     );
-    expect(section?.querySelector('details')?.open).toBe(false);
+    expect(section?.querySelector('details')?.open).toBe(true);
     expect(section?.textContent).not.toContain('Landmark skipped');
 
     const xml = new DOMParser().parseFromString(

@@ -53,7 +53,7 @@ function renderReleaseSection(release: ReleaseWithNotes): string {
             <h2>Version ${escapeHtml(release.version.replace(/^v/, ''))}</h2>
 ${bullets ? `            <ul>\n${bullets}\n            </ul>` : ''}
             <p>${escapeHtml(NOTES_STATUS_LABELS[release.notesStatus])}</p>
-            <details>
+            <details${release.productNotes ? '' : ' open'}>
               <summary>Technical history (${release.changes.length} ${release.changes.length === 1 ? 'change' : 'changes'})</summary>
               <ul>
 ${release.changes.map((change) => `                <li>${escapeHtml(`${change.scope ? `(${change.scope}) ` : ''}${change.description}`)}</li>`).join('\n')}
@@ -162,7 +162,7 @@ export function renderSiteChangelogHtml(catalog: ReleaseCatalog): string {
           <h1 id="release-notes-title">Release notes</h1>
           <p class="lj-lede">
             What changed in Linejam. You can also read the
-            <a href="https://linejam.mistystep.io/releases">latest releases in the app</a>.
+            <a href="https://linejam.mistystep.io/changelog">changelog in the app</a>.
           </p>
           <p>Current application version: <strong>v${escapeHtml(catalog.currentVersion)}</strong>.</p>
           <p>Release history is ordered by date. Older version numbers are preserved, not treated as the current version.</p>
