@@ -1,6 +1,6 @@
 # Disabled Convex backup and unusable anonymous restore path
 
-Date: 2026-10-15 UTC. Status: backups restored; alarm acceptance incomplete.
+Date: 2026-10-15 UTC. Status: backup, isolated restore and alarm receipt verified.
 
 ## Impact and evidence
 
@@ -80,10 +80,13 @@ took 26.608 seconds. Plaintext, ephemeral identity and backend were removed.
 
 Intentional pre-export failure
 [38799093465](https://github.com/misty-step/linejam/actions/runs/38799093465)
-reached the existing incident intake, but its pending row without a ticket is
-not an owned operator receipt. The existing Misty Step-to-Powder broker adapter
-refuses this route; no replacement board item or false acknowledgement was
-created. That alarm acceptance remains open in the recovery receipt. The existing
+reached the existing incident intake. The current standalone production-triage
+consumer automatically created and verified its canonical Powder incident;
+exact intake readback confirmed the acknowledged ticket. The backup recovery
+owner claimed that existing incident. The retained legacy broker's missing
+Powder adapter was not bypassed: no replacement item or false acknowledgement
+was created. A normal backup succeeded after the drill. The recovery receipt
+links the owned incident and notification evidence. The existing
 incident route's handling of a completely missing daily run remains a separate
 liveness limitation; do not claim that failure-drill success detects disablement.
 No application release rollback or production-data mutation was performed.

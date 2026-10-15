@@ -434,8 +434,10 @@ anonymous restore verified exact equality of all 22 application tables and
 and the full drill took 26.608 seconds. Production was never an import target.
 The [recovery receipt](https://github.com/misty-step/linejam/issues/564) owns
 the ciphertext/R2 hashes, cleanup proof, and current alarm-delivery status.
-The forced-failure run reached intake but, at this recovery checkpoint, still
-had no owned incident receipt. Backup recovery is not proof of alert delivery.
+The [forced-failure run](https://github.com/misty-step/linejam/actions/runs/38799093465)
+reached the existing intake and the current standalone production-triage
+consumer created and verified its [owned incident receipt](https://powder.mistystep.io/items/prod-triage-58e76f85530a4aed02f61dd408ab099046b42e023e5c861a5119d3e2a7ec7411).
+Exact intake readback confirmed the canonical ticket, not merely HTTP success.
 A [normal recovery backup](https://github.com/misty-step/linejam/actions/runs/38799277651)
 succeeded after the forced failure and retained another encrypted artifact.
 
@@ -537,8 +539,8 @@ The declared recovery objectives are **RPO 24 hours** (requiring daily exports)
 and **RTO 30 minutes** (requiring a timed, successful restore drill). Their
 current evidence belongs in the recovery receipt, not an assertion inferred
 from the cron expression. The successful backup and timed non-production
-restore above establish a recovery checkpoint, not a sustained daily-run
-history; verified failure delivery remains a separate acceptance requirement.
+restore and failure receipt above establish a recovery checkpoint, not a
+sustained daily-run history or proof of missing-run detection.
 Historical drill records do not prove current recovery readiness.
 These objectives assume the operator credential plane and a working Convex CLI
 are available; they do not authorize a production import.
