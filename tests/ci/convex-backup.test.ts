@@ -14,7 +14,11 @@ function runStep(name: string, key = '') {
   if (!step?.run) throw new Error(`Missing shell step: ${name}`);
   return spawnSync('bash', ['-c', step.run], {
     encoding: 'utf8',
-    env: { PATH: process.env.PATH, CONVEX_DEPLOY_KEY_PROD: key },
+    env: {
+      PATH: process.env.PATH,
+      NODE_ENV: 'test',
+      CONVEX_DEPLOY_KEY_PROD: key,
+    },
   });
 }
 
