@@ -1,3 +1,5 @@
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ErrorEvent, Event } from '@sentry/nextjs';
 import {
@@ -536,6 +538,15 @@ describe('Sentry transport privacy boundary', () => {
     expect(sanitized).toEqual({
       type: undefined,
       exception: { values: [{ type: 'Error' }] },
+      fingerprint: [
+        '{{ default }}',
+        'surface:unknown',
+        'type:Error',
+        'mechanism:none',
+        'operation:none',
+        'failure_code:none',
+        'route:unknown',
+      ],
     });
     expect(beforeSend({ type: undefined }, {})).toBeNull();
   });
@@ -635,5 +646,323 @@ describe('Sentry transport privacy boundary', () => {
         prompt: FORBIDDEN,
       })
     ).toBeUndefined();
+  });
+});
+
+// The three classes that shared LINEJAM-19, in the shapes the SDK sends them.
+// docs/postmortems/2026-10-12-release-routes-evalerror.md
+function releaseRouteEvalError(options: {
+  release: string;
+  runtime: 'edge' | 'node';
+  line: number;
+}): ErrorEvent {
+  return {
+    type: undefined,
+    platform: options.runtime === 'edge' ? 'javascript' : 'node',
+    environment: 'production',
+    release: options.release,
+    tags: {
+      runtime: options.runtime,
+      environment: 'production',
+      release: options.release,
+    },
+    // captureRequestError names `${method} ${routePath}` and sets this context.
+    transaction: 'GET /releases/page',
+    contexts: {
+      nextjs: {
+        request_path: `/releases?ref=${FORBIDDEN}`,
+        router_kind: 'App Router',
+        router_path: '/releases/page',
+        route_type: 'render',
+      },
+    },
+    exception: {
+      values: [
+        {
+          type: 'EvalError',
+          value: `Code generation from strings disallowed ${FORBIDDEN}`,
+          mechanism: {
+            type: 'auto.function.nextjs.on_request_error',
+            handled: false,
+          },
+          stacktrace: {
+            frames: [
+              {
+                filename: 'worker.js',
+                function: 'compileSchema',
+                lineno: options.line,
+                colno: 22,
+                in_app: false,
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+}
+
+function legacyServerError(): ErrorEvent {
+  return {
+    type: undefined,
+    platform: 'node',
+    environment: 'production',
+    release: 'd'.repeat(40),
+    tags: { runtime: 'node', environment: 'production' },
+    exception: {
+      values: [
+        {
+          type: 'Error',
+          value: FORBIDDEN,
+          stacktrace: {
+            frames: [
+              {
+                filename: '/workspace/.next/server/chunks/2.js',
+                lineno: 2,
+                colno: 10954,
+                in_app: true,
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+}
+
+function browserRejection(): ErrorEvent {
+  return {
+    type: undefined,
+    platform: 'javascript',
+    environment: 'production',
+    release: 'e'.repeat(40),
+    tags: { runtime: 'browser', environment: 'production' },
+    transaction: `/room/${FORBIDDEN}`,
+    exception: {
+      values: [
+        {
+          type: 'Error',
+          value: FORBIDDEN,
+          mechanism: {
+            type: 'auto.browser.global_handlers.onunhandledrejection',
+            handled: false,
+          },
+          stacktrace: {
+            frames: [
+              {
+                filename: `https://scripts.example/npm/vendor.js?${FORBIDDEN}`,
+                lineno: 41,
+                colno: 51319,
+                in_app: true,
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+}
+
+// Every request surface in app/: pages, route handlers and metadata routes.
+function appRouteTemplates(directory = 'app', prefix = ''): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) {
+      if (entry.name.startsWith('_') || entry.name.startsWith('@')) return [];
+      const segment = /^\(.+\)$/.test(entry.name) ? '' : `/${entry.name}`;
+      return appRouteTemplates(
+        path.join(directory, entry.name),
+        prefix + segment
+      );
+    }
+    const convention = entry.name.match(/^(.+)\.(?:tsx?|jsx?)$/)?.[1];
+    if (convention === 'page' || convention === 'route') return [prefix || '/'];
+    if (convention === 'opengraph-image') return [`${prefix}/opengraph-image`];
+    if (convention === 'robots') return [`${prefix}/robots.txt`];
+    if (convention === 'sitemap') return [`${prefix}/sitemap.xml`];
+    return [];
+  });
+}
+
+describe('Sentry failure-class grouping', () => {
+  it('keeps the redacted LINEJAM-19 classes in distinct issues', () => {
+    const evalError = beforeSend(
+      releaseRouteEvalError({
+        release: 'a'.repeat(40),
+        runtime: 'edge',
+        line: 221693,
+      }),
+      {}
+    );
+    const serverError = beforeSend(legacyServerError(), {});
+    const rejection = beforeSend(browserRejection(), {});
+
+    // Default grouping saw only type, message label and frames. Redaction left
+    // the server error and the browser rejection identical, with no frame
+    // that could contribute, so they shared one hash.
+    const redacted =
+      'Error message redacted for privacy (environment: production)';
+    for (const event of [serverError, rejection]) {
+      expect(event?.exception?.values?.[0]).toMatchObject({
+        type: 'Error',
+        value: redacted,
+      });
+      for (const frame of event?.exception?.values?.[0]?.stacktrace?.frames ??
+        []) {
+        expect(frame).not.toHaveProperty('filename');
+        expect(frame).not.toHaveProperty('function');
+      }
+    }
+
+    expect(evalError).toMatchObject({
+      transaction: 'GET /releases',
+      exception: {
+        values: [
+          {
+            type: 'EvalError',
+            value: redacted,
+            mechanism: {
+              type: 'auto.function.nextjs.on_request_error',
+              handled: false,
+            },
+          },
+        ],
+      },
+    });
+    expect(evalError?.fingerprint).toEqual([
+      '{{ default }}',
+      'surface:server',
+      'type:EvalError',
+      'mechanism:auto.function.nextjs.on_request_error',
+      'operation:none',
+      'failure_code:none',
+      'route:/releases',
+    ]);
+    expect(serverError?.fingerprint).toEqual([
+      '{{ default }}',
+      'surface:server',
+      'type:Error',
+      'mechanism:none',
+      'operation:none',
+      'failure_code:none',
+      'route:unknown',
+    ]);
+    expect(rejection).toMatchObject({ transaction: '/room/[code]' });
+    expect(rejection?.fingerprint).toEqual([
+      '{{ default }}',
+      'surface:browser',
+      'type:Error',
+      'mechanism:auto.browser.global_handlers.onunhandledrejection',
+      'operation:none',
+      'failure_code:none',
+      'route:/room/[code]',
+    ]);
+
+    const serialized = JSON.stringify([evalError, serverError, rejection]);
+    expect(serialized).not.toContain(FORBIDDEN);
+    expect(serialized).not.toContain('scripts.example');
+    expect(serialized).not.toContain('compileSchema');
+    expect(serialized).not.toContain('request_path');
+  });
+
+  it('keeps one issue for one class across releases, bundles and server runtime tags', () => {
+    const first = beforeSend(
+      releaseRouteEvalError({
+        release: 'a'.repeat(40),
+        runtime: 'edge',
+        line: 221693,
+      }),
+      {}
+    );
+    const later = beforeSend(
+      releaseRouteEvalError({
+        release: 'b'.repeat(40),
+        runtime: 'node',
+        line: 225771,
+      }),
+      {}
+    );
+
+    expect(later?.fingerprint).toEqual(first?.fingerprint);
+    expect(later?.exception?.values?.[0]?.value).toBe(
+      first?.exception?.values?.[0]?.value
+    );
+  });
+
+  it('splits classes that differ only in a closed field', () => {
+    const fingerprint = (change: (event: ErrorEvent) => void) => {
+      const event = releaseRouteEvalError({
+        release: 'a'.repeat(40),
+        runtime: 'edge',
+        line: 1,
+      });
+      change(event);
+      return JSON.stringify(beforeSend(event, {})?.fingerprint);
+    };
+
+    const variants = [
+      fingerprint(() => {}),
+      fingerprint((event) => {
+        event.transaction = 'GET /releases.xml/route';
+      }),
+      fingerprint((event) => {
+        event.exception!.values![0]!.type = 'TypeError';
+      }),
+      fingerprint((event) => {
+        event.exception!.values![0]!.mechanism = {
+          type: 'generic',
+          handled: true,
+        };
+      }),
+      fingerprint((event) => {
+        event.tags = { ...event.tags, operation: 'renderRoomPage' };
+      }),
+      fingerprint((event) => {
+        event.tags = { ...event.tags, failure_code: 'unexpected_error' };
+      }),
+      fingerprint((event) => {
+        event.tags = { ...event.tags, runtime: 'browser' };
+      }),
+    ];
+
+    expect(new Set(variants).size).toBe(variants.length);
+  });
+
+  it.each(appRouteTemplates())(
+    'names the app route %s without retaining its parameters',
+    (template) => {
+      const concrete = template
+        .replace(/\[\[\.\.\.[^\]]+\]\]/g, `${FORBIDDEN}/${FORBIDDEN}`)
+        .replace(/\[[^\]]+\]/g, FORBIDDEN);
+      const named = (transaction: string) =>
+        beforeSendTransaction({
+          type: 'transaction',
+          transaction,
+          start_timestamp: 1,
+        })?.transaction;
+
+      expect(named(`GET ${template}`)).toBe(`GET ${template}`);
+      expect(named(`GET ${concrete}?prompt=${FORBIDDEN}`)).toBe(
+        `GET ${template}`
+      );
+      expect(named(`${template}/page`)).toBe(template);
+    }
+  );
+
+  it('maps App Router definitions and parameterized browser routes to their template', () => {
+    const route = (transaction: string) => {
+      const event = browserRejection();
+      event.transaction = transaction;
+      return beforeSend(event, {})?.transaction;
+    };
+
+    expect(route('GET /(auth)/callback/page')).toBe('GET /callback');
+    expect(route('GET /page')).toBe('GET /');
+    expect(route('/room/:code')).toBe('/room/[code]');
+    expect(route('/sign-in/:sign-in*?')).toBe('/sign-in/[[...sign-in]]');
+    expect(route(`https://linejam.mistystep.io/poem/${FORBIDDEN}/card`)).toBe(
+      '/poem/[id]/card'
+    );
+    expect(route('/auth/callback')).toBeUndefined();
+    expect(route(`/${FORBIDDEN}`)).toBeUndefined();
   });
 });
