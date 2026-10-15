@@ -68,9 +68,12 @@
         "SENTRY_PROJECT": "linejam",
         "LINEJAM_DEPLOY_ENVIRONMENT": "production",
         // Convex runtime env for the Durable Object backend. The backend is
-        // dormant until NEXT_PUBLIC_CONVEX_URL points at /backend.
+        // dormant until NEXT_PUBLIC_CONVEX_URL points at /backend. Values match
+        // amiable-bulldog-848's (config/convex-env-manifest.json). It leaves
+        // RETENTION_GC_ENABLED unset, so this does too: retention stays dry-run.
         "CONVEX_CLOUD_URL": "https://linejam.mistystep.io/backend",
         "CONVEX_SITE_URL": "https://linejam.mistystep.io/backend/http",
+        "CLERK_JWT_ISSUER_DOMAIN": "https://clerk.linejam.mistystep.io",
         "LINEJAM_SENTRY_ENABLED": "true",
         "SENTRY_ENVIRONMENT": "production",
       },

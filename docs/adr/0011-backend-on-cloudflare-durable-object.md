@@ -44,7 +44,9 @@ use `convex/react` and `convex/browser`.
    time.
 6. **Cutover steps.**
    1. Deploy with the backend dormant, while the web still uses Convex. This
-      is the dormant Worker version.
+      is the dormant Worker version. Then bind the `LINEJAM_BACKEND_ADMIN_KEY`
+      secret (at least 32 characters, from the approved store). Until it is
+      bound, the admin routes answer 401 to every caller.
    2. Pause `amiable-bulldog-848`. New function calls fail and crons are
       skipped, so Convex accepts no writes.
    3. Export a snapshot. Import it through the admin routes, which keeps IDs,
@@ -96,8 +98,14 @@ use `convex/react` and `convex/browser`.
   cannot skew.
 - Linejam's backend capacity is that of one Durable Object. That is ample for
   party-game write rates, but it is not horizontally scalable.
-- `RETENTION_GC_ENABLED` must be carried over at cutover. While it is unset,
-  retention runs in dry-run mode and deletes nothing.
+- `RETENTION_GC_ENABLED` must match Convex at cutover. Production Convex
+  leaves it unset (read 2026-10-15), so the Worker leaves it unset too and
+  retention keeps running in dry-run mode, deleting nothing.
+- Every other production Convex env value has a Worker counterpart:
+  `CLERK_JWT_ISSUER_DOMAIN`, `LINEJAM_DEPLOY_ENVIRONMENT`,
+  `LINEJAM_SENTRY_ENABLED` and `SENTRY_ENVIRONMENT` are Wrangler vars,
+  `GUEST_TOKEN_SECRET` and `SENTRY_AUTOMATION_PROVENANCE_SECRET` are deploy
+  secrets, and `SENTRY_DSN` and `SENTRY_RELEASE` are aliased (decision 2).
 - A new or changed Convex module needs `node scripts/generate-backend-modules.mjs`.
   `pnpm backend:modules:check` catches a stale map.
 
