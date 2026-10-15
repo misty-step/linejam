@@ -1,0 +1,35 @@
+name: Guest Session Preview
+on:
+  push:
+    branches: [verify/guest-session-t504fd3d9]
+permissions:
+  contents: read
+concurrency:
+  group: guest-session-t504fd3d9
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: Production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build, deploy, exercise and delete owned isolated Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/ci/verify-guest-session-preview.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: guest-session-preview
+          path: guest-session-preview-receipt.json
+          if-no-files-found: warn
+          retention-days: 14
