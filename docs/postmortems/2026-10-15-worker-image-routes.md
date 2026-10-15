@@ -3,7 +3,7 @@
 - Incident confirmed: 2026-10-15.
 - Repair: [PR #569](https://github.com/misty-step/linejam/pull/569).
 - Owner: Linejam image routes and the CI merge gate.
-- Status: repair under review; production recovery must be verified after release.
+- Recovery receipt: PR #569 owns the reviewed source and production probe results.
 
 ## Impact and discovery
 
@@ -62,5 +62,22 @@ Red-to-green proof on Node 22.23.2 / OpenNext 1.20.6:
   rules are unchanged. Unavailable poem OG keeps the text-free brand image
   but explicitly returns 404.
 
-The isolated deployed proof and final production source/probe readbacks
-belong on PR #569. Local checks are not a claim that production recovered.
+## Isolated deployed proof
+
+[Preview run 38781492498](https://github.com/misty-step/linejam/actions/runs/38781492498)
+passed on source `07c3b37a9461fe47706c0e06d5482f877e941c4d` using a temporary
+frontend and the migration lane's synthetic-only backend. A real two-player,
+nine-round game produced an owned light PNG (44,937 bytes, 1200×944), dark
+PNG (45,465 bytes), and public OG (18,067 bytes, 1200×630). Spectator,
+anonymous and tampered credentials returned 404. Private and revoked OG
+bytes matched the unknown-poem branded fallback exactly; public and owned
+full-card bytes matched each other. The PNGs were visually inspected: all
+nine lines and both authors fit in both themes.
+
+The workflow revoked its share, closed its own room and deleted only its
+temporary Worker. A fresh request confirmed that Worker returned 404.
+The temporary deployment helpers were removed after evidence capture;
+the permanent workerd check remains. No production data or runtime secrets
+entered this preview, and no Clerk sign-in or candidate guest-issuer parity
+is claimed. Final production source/probe readbacks belong on PR #569;
+preview success alone is not a claim that production recovered.
