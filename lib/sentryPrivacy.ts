@@ -90,10 +90,10 @@ const SAFE_TRACE_STATUS = {
 /**
  * The only route names the transport can emit: one template per `app/` page,
  * route handler and metadata route. Any other name becomes `unknown-route`.
- * tests/lib/sentryPrivacy.test.ts derives the templates from `app/` and fails
- * when a surface is missing, so a new route cannot report unattributed.
+ * tests/lib/sentryPrivacy.test.ts fails unless this list equals the routes
+ * in `app/`, so a new route cannot report unattributed.
  */
-const ROUTE_TEMPLATES = [
+export const ROUTE_TEMPLATES = [
   '/',
   '/_not-found',
   '/api/deployment',
@@ -720,8 +720,8 @@ function failureClassFingerprint(
   ];
 }
 
-// On the Cloudflare Worker one server failure has reported under both the
-// `edge` and the `node` runtime tag, so only browser/server marks a class.
+// The runtime tag names the SDK entrypoint, not the failure class: the
+// /releases EvalError reported as both `edge` and `node` on the Worker.
 function failureSurface(
   runtime: string | undefined
 ): 'browser' | 'server' | 'unknown' {

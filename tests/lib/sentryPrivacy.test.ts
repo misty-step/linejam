@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ErrorEvent, Event } from '@sentry/nextjs';
 import {
+  ROUTE_TEMPLATES,
   beforeSend,
   beforeSendTransaction,
   sanitizeSentryReporterContext,
@@ -763,7 +764,8 @@ function browserRejection(): ErrorEvent {
   };
 }
 
-// Every request surface in app/: pages, route handlers and metadata routes.
+// Every request surface in app/: pages, route handlers, metadata routes and
+// the root not-found page, which Next serves as /_not-found.
 function appRouteTemplates(directory = 'app', prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     if (entry.isDirectory()) {
@@ -776,6 +778,8 @@ function appRouteTemplates(directory = 'app', prefix = ''): string[] {
     }
     const convention = entry.name.match(/^(.+)\.(?:tsx?|jsx?)$/)?.[1];
     if (convention === 'page' || convention === 'route') return [prefix || '/'];
+    if (convention === 'not-found' && directory === 'app')
+      return ['/_not-found'];
     if (convention === 'opengraph-image') return [`${prefix}/opengraph-image`];
     if (convention === 'robots') return [`${prefix}/robots.txt`];
     if (convention === 'sitemap') return [`${prefix}/sitemap.xml`];
@@ -925,6 +929,10 @@ describe('Sentry failure-class grouping', () => {
     ];
 
     expect(new Set(variants).size).toBe(variants.length);
+  });
+
+  it('allowlists exactly the routes in app/', () => {
+    expect([...ROUTE_TEMPLATES].sort()).toEqual(appRouteTemplates().sort());
   });
 
   it.each(appRouteTemplates())(
