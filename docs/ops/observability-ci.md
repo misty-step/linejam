@@ -302,7 +302,9 @@ details:
    scheduler or work ledger.
 3. Apply a transport allowlist before enabling ingest. Prove with a forbidden
    sentinel that payloads omit product content, identity, network identifiers,
-   request data, secrets, arbitrary context, and frame locals.
+   request data, secrets, arbitrary context, and frame locals. Redaction removes
+   what Sentry groups on, so fingerprint each error from closed fields and prove
+   in preview that two redacted classes open two issues.
 4. Track each actionable Sentry issue to exactly one owner artifact: a pull
    request or an explicit no-fix postmortem. Retries must be bounded and
    deduplicated durably by Sentry issue ID.
