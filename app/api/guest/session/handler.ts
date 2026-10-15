@@ -25,7 +25,6 @@ const checkSignedGuestSessionThrottle = makeFunctionReference<
   { ok: true }
 >('guestSessions:checkSignedGuestSessionThrottle');
 
-let convexClient: ConvexHttpClient | null = null;
 export interface GuestSessionThrottleInput {
   convexUrl: string;
   key: string;
@@ -42,10 +41,10 @@ export interface GuestSessionRoute {
 
 const defaultGuestSessionRouteDependencies: GuestSessionRouteDependencies = {
   async checkThrottle({ convexUrl, key, proof }) {
-    await getConvexClient(convexUrl).mutation(checkSignedGuestSessionThrottle, {
-      key,
-      proof,
-    });
+    // The SDK queues mutations per client. On Workers, sharing that queue
+    // makes one request own another request's I/O and cancellation lifetime.
+    const client = new ConvexHttpClient(convexUrl);
+    await client.mutation(checkSignedGuestSessionThrottle, { key, proof });
   },
 };
 
@@ -303,13 +302,6 @@ async function enforceGuestSessionThrottle(
     }
     throw cause;
   }
-}
-
-function getConvexClient(convexUrl: string) {
-  if (!convexClient || convexClient.url !== convexUrl) {
-    convexClient = new ConvexHttpClient(convexUrl);
-  }
-  return convexClient;
 }
 
 function deriveGuestSessionRateLimitKey(request: NextRequest): string {
