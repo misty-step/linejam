@@ -98,13 +98,4 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         env:
           EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          node --input-type=module <<'NODE'
-          const origin = 'https://linejam.mistystep.io';
-          const response = await fetch(`${origin}/api/health`, { signal: AbortSignal.timeout(20000), redirect: 'error' });
-          const health = await response.json();
-          if (!response.ok || health.status !== 'ok' || health.deployment?.id !== process.env.EXPECTED_SHA || health.convex !== 'connected' || health.env?.guestTokenParity !== true) {
-            throw new Error(`Production readiness failed: ${origin}`);
-          }
-          console.log(`Verified ${origin}: source, Convex connection and guest-secret parity.`);
-          NODE
+        run: node scripts/ci/verify-production.mjs
