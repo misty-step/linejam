@@ -71,7 +71,11 @@ try {
       preview_urls: false,
       send_metrics: false,
       observability: { enabled: true, head_sampling_rate: 1 },
-      assets: { directory: '.open-next/assets', binding: 'ASSETS' },
+      assets: {
+        directory: '.open-next/assets',
+        binding: 'ASSETS',
+        run_worker_first: ['/backend/*'],
+      },
       durable_objects: {
         bindings: [{ name: 'LINEJAM_BACKEND', class_name: 'LinejamBackend' }],
       },
@@ -90,7 +94,7 @@ try {
     }),
     { mode: 0o600 }
   );
-  run(['build:cf'], {
+  run(['build:cf', '--config', config], {
     ...process.env,
     ...vars,
     GUEST_TOKEN_SECRET: guestSecret,
@@ -134,14 +138,26 @@ try {
     body: JSON.stringify({ frozen: false }),
     signal: AbortSignal.timeout(30000),
   });
-  assert.equal(unfreeze.status, 200);
-  assert.equal((await unfreeze.json()).writesFrozen, false);
+  const unfreezeBody = await unfreeze.text();
+  receipt.unfreeze = {
+    status: unfreeze.status,
+    url: unfreeze.url,
+    body: unfreezeBody,
+  };
+  assert.equal(unfreeze.status, 200, `unfreeze: ${unfreezeBody.slice(0, 500)}`);
+  assert.equal(JSON.parse(unfreezeBody).writesFrozen, false);
   const status = await fetch(`${origin}/backend/admin/status`, {
     headers: adminHeaders,
     signal: AbortSignal.timeout(30000),
   });
-  assert.equal(status.status, 200);
-  assert.equal((await status.json()).writesFrozen, false);
+  const statusBody = await status.text();
+  receipt.backendStatus = {
+    status: status.status,
+    url: status.url,
+    body: statusBody,
+  };
+  assert.equal(status.status, 200, `status: ${statusBody.slice(0, 500)}`);
+  assert.equal(JSON.parse(statusBody).writesFrozen, false);
   receipt.startedAt = Date.now();
   const sessions = [];
   async function burst(count, cookie) {
@@ -264,6 +280,7 @@ try {
   }
 } catch (error) {
   receipt.error = error.message;
+  receipt.errorStack = error.stack;
   process.exitCode = 1;
 } finally {
   if (deployed) {
