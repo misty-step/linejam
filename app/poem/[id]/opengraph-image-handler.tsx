@@ -85,6 +85,7 @@ export function createPoemOpenGraphImage(
         {
           ...size,
           fonts: loadedFonts,
+          status: 404,
         }
       );
     }

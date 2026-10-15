@@ -5,7 +5,6 @@ import { designTokens } from '../../../lib/design';
 import { getCardFontPairing, loadCardFonts } from '../../../lib/poemCard/fonts';
 import { getConvexServerUrl } from '@/lib/localMode';
 
-export const runtime = 'edge';
 export const contentType = 'image/png';
 export const size = { width: 1200, height: 630 };
 export const alt = 'Poems written together on Linejam';
