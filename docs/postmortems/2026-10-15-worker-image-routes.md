@@ -51,6 +51,8 @@ configured Worker entry under workerd. It checks actual unknown-poem
 GET/POST rejection and PNG signature/dimensions for poem, site and recap OG
 routes. `Worker Images` is a fail-closed `merge-gate` dependency, including
 on release-PR dispatches. It requires no cloud credentials or hosted data.
+Cloudflare Production also runs it after the release build, before uploading
+that same bundle, so a separate preview build is not the only packaging proof.
 
 Red-to-green proof on Node 22.23.2 / OpenNext 1.20.6:
 

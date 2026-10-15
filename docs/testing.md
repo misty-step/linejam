@@ -116,6 +116,10 @@ OG routes. The poem fallback must be 404, not 500, and still render the same
 text-free brand image. This catches unsupported edge route modules and broken
 static-font bindings that pass under local Next. It does not prove hosted
 authentication or an owned poem export; those require isolated preview evidence.
+Cloudflare Production repeats the same check after its release build and before
+uploading that exact bundle. No runtime credentials are bound to workerd; its
+unknown-ID backend queries are read-only. For a local-mode build, keep the same
+local flags in the environment for both commands.
 
 ## Test seams
 

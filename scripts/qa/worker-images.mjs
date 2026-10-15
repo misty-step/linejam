@@ -11,12 +11,15 @@ const worker = await unstable_dev(config.main, {
   persist: false,
   logLevel: 'error',
   vars: {
-    LINEJAM_LOCAL: '1',
-    NEXT_PUBLIC_LINEJAM_LOCAL: '1',
+    LINEJAM_LOCAL: process.env.LINEJAM_LOCAL ?? '0',
+    NEXT_PUBLIC_LINEJAM_LOCAL: process.env.NEXT_PUBLIC_LINEJAM_LOCAL ?? '0',
     LINEJAM_DEPLOY_ENVIRONMENT: 'development',
-    // No hosted backend or credentials. Unavailable poems must fail closed.
-    NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1:1',
+    // No runtime credentials are bound. Release builds may read the unknown ID
+    // from their baked public backend URL; no requests mutate hosted data.
+    NEXT_PUBLIC_CONVEX_URL:
+      process.env.NEXT_PUBLIC_CONVEX_URL ?? 'http://127.0.0.1:1',
     NEXT_PUBLIC_SENTRY_ENABLED: '0',
+    LINEJAM_SENTRY_ENABLED: 'false',
   },
   experimental: { disableExperimentalWarning: true, watch: false },
 });
