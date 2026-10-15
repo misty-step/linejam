@@ -77,6 +77,7 @@ jobs:
           SENTRY_PROJECT: linejam
         run: |
           pnpm build:release:cf
+          pnpm test:worker-images
           node --input-type=module <<'NODE'
           import { spawnSync } from 'node:child_process';
           import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
