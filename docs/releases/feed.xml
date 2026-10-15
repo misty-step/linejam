@@ -6,7 +6,18 @@
     <description>What&apos;s new in Linejam.</description>
     <language>en-us</language>
     <atom:link href="https://linejam.mistystep.io/releases.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sat, 01 Aug 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Wed, 14 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Linejam v0.28.0</title>
+      <link>https://linejam.mistystep.io/releases#v0.28.0</link>
+      <guid isPermaLink="false">v0.28.0</guid>
+      <pubDate>Wed, 14 Oct 2026 00:00:00 GMT</pubDate>
+      <description>Improvements
+All poems are now written by people in the room—machine-generated lines have been removed.
+Late joiners see their own waiting character outlined, so it’s clearer who you are before the round starts.
+The app now runs on a faster hosting setup, making room loading and transitions snappier.
+Avatars have been refreshed with a new cast of characters.</description>
+    </item>
     <item>
       <title>Linejam v0.27.0</title>
       <link>https://linejam.mistystep.io/releases#v0.27.0</link>

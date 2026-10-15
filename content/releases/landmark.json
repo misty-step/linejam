@@ -1,0 +1,39 @@
+[
+  {
+    "audience": "end-user",
+    "html": "<h2>Improvements</h2>\n<ul>\n<li>All poems are now written by people in the room—machine-generated lines have been removed.</li>\n<li>Late joiners see their own waiting character outlined, so it’s clearer who you are before the round starts.</li>\n<li>The app now runs on a faster hosting setup, making room loading and transitions snappier.</li>\n<li>Avatars have been refreshed with a new cast of characters.</li>\n</ul>\n",
+    "markdown": "## Improvements\n- All poems are now written by people in the room—machine-generated lines have been removed.\n- Late joiners see their own waiting character outlined, so it’s clearer who you are before the round starts.\n- The app now runs on a faster hosting setup, making room loading and transitions snappier.\n- Avatars have been refreshed with a new cast of characters.",
+    "notes": "## Improvements\n- All poems are now written by people in the room—machine-generated lines have been removed.\n- Late joiners see their own waiting character outlined, so it’s clearer who you are before the round starts.\n- The app now runs on a faster hosting setup, making room loading and transitions snappier.\n- Avatars have been refreshed with a new cast of characters.",
+    "plaintext": "Improvements\nAll poems are now written by people in the room—machine-generated lines have been removed.\nLate joiners see their own waiting character outlined, so it’s clearer who you are before the round starts.\nThe app now runs on a faster hosting setup, making room loading and transitions snappier.\nAvatars have been refreshed with a new cast of characters.",
+    "published_at": "2026-10-14T21:33:33.179517643+00:00",
+    "release_url": "https://github.com/misty-step/linejam/releases/tag/v0.28.0",
+    "repository": "misty-step/linejam",
+    "schema_version": "landmark.public-release-notes.v1",
+    "sections": [
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "All poems are now written by people in the room—machine-generated lines have been removed."
+          },
+          {
+            "links": [],
+            "text": "Late joiners see their own waiting character outlined, so it’s clearer who you are before the round starts."
+          },
+          {
+            "links": [],
+            "text": "The app now runs on a faster hosting setup, making room loading and transitions snappier."
+          },
+          {
+            "links": [],
+            "text": "Avatars have been refreshed with a new cast of characters."
+          }
+        ],
+        "title": "Improvements"
+      }
+    ],
+    "slack": "## Improvements\n- All poems are now written by people in the room—machine-generated lines have been removed.\n- Late joiners see their own waiting character outlined, so it’s clearer who you are before the round starts.\n- The app now runs on a faster hosting setup, making room loading and transitions snappier.\n- Avatars have been refreshed with a new cast of characters.",
+    "tag": "v0.28.0",
+    "version": "0.28.0"
+  }
+]
