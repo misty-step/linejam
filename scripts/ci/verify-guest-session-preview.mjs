@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const account = 'b069014f6a46558ea9146fb6c4ff8f6c';
-const name = 'linejam-guest-t504fd3d9';
+// A new hostname avoids stale workers.dev tombstones from a prior deleted run.
+const name = `linejam-guest-${process.env.GITHUB_RUN_ID}`;
 const apiBase = `https://api.cloudflare.com/client/v4/accounts/${account}`;
 const receipt = {
   name,
@@ -112,6 +113,9 @@ try {
     secretsFile,
   ]);
   receipt.deployments = await api(`/workers/scripts/${name}/deployments`);
+  // The control-plane upload is visible before every workers.dev dispatcher.
+  // This is readiness, not a retry of a mutating guest issuance request.
+  await delay(60000);
   let ready = false;
   for (let attempt = 0; attempt < 30; attempt++) {
     const response = await fetch(`${origin}/api/deployment`, {
