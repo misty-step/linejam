@@ -42,6 +42,11 @@ cannot prove that an operator or incident tracker received an actionable alert.
 - Kaylee authorized piping the existing deploy key directly from mirrodin pass
   into the expected Actions secret. Secret-name/update-time readback confirmed
   the destination, without printing or duplicating its value.
+- The migration lane's real export later showed that deploy key lacks
+  `deployment:backups:create`. Kaylee approved the existing team access token
+  in the same backup secret. The export now uses access-token authentication,
+  an explicit production deployment, and no inherited key/target/dotenv
+  selection. The original missing-secret guard and age encryption remain.
 - With no old identity found, Kaylee authorized a new keypair. Its private
   identity was generated directly into mirrodin pass; the workflow owns the
   public recipient. Old-recipient backups may not be restorable. Off-host escrow

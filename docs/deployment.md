@@ -431,17 +431,25 @@ The 2026-10-15 UTC audit found `Convex Backup` manually disabled since
 was on 2026-08-16; the Actions API lists no retained artifacts for that run.
 Read-only provider inspection of the production `amiable-bulldog-848`
 deployment found an empty cloud-backup list and no periodic-backup configuration.
-The approved existing deploy key has since been provisioned into the expected
-Actions secret. The [recovery and drill receipt](https://github.com/misty-step/linejam/issues/564)
+The initially provisioned deploy key was denied `deployment:backups:create`.
+Kaylee approved using the existing team access token from mirrodin pass
+`workstation/CONVEX_API_KEY` in the same backup Actions secret instead; no new
+credential is minted. The [recovery and drill receipt](https://github.com/misty-step/linejam/issues/564)
 owns activation status, real backup/restore results, and failure-delivery proof.
 Do not treat this workflow's configured schedule, a synthetic preflight, or a
 successful webhook transport as evidence of a recoverable daily backup.
 
 The [`Convex Backup` workflow](../.github/workflows/convex-backup.yml) is configured for
 09:17 UTC daily and `workflow_dispatch`. It authenticates only with the GitHub
-Actions secret `CONVEX_DEPLOY_KEY_PROD`, fails closed if that secret is absent,
-exports the production Convex deployment, and encrypts the export before it
-leaves the runner. The uploaded GitHub Actions artifact is named
+Actions secret `CONVEX_DEPLOY_KEY_PROD` and retains its fail-closed missing-secret
+guard. Despite that legacy name, the secret must contain the approved
+export-capable **team access token**, not the production deploy key. The export
+passes it only through `CONVEX_OVERRIDE_ACCESS_TOKEN`, clears ambient deployment
+keys and target selectors, ignores dotenv through `--env-file /dev/null`, and
+explicitly selects `--deployment amiable-bulldog-848`. The team token is broader
+than a deploy key; moving or replacing it requires credential-owner authority.
+The workflow encrypts the export before it leaves the runner. The uploaded
+GitHub Actions artifact is named
 `linejam-convex-backup`; its encrypted file is
 `linejam-convex-<UTC date>-<short SHA>.zip.age` and its retention is 30 days.
 No plaintext export is uploaded. A failed default-branch run uses the existing
