@@ -35,10 +35,7 @@ function event(name = '$pageview'): CaptureResult {
   };
 }
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-  sessionStorage.clear();
-});
+afterEach(() => vi.unstubAllEnvs());
 
 describe('Linejam PostHog transport privacy', () => {
   it('allows only template routes and explicit story/session properties', () => {
@@ -123,9 +120,10 @@ describe('Linejam PostHog transport privacy', () => {
     });
   });
 
-  it('marks explicitly opted-in release probes synthetic in production', () => {
+  it('marks SDK-classified bots synthetic in production', () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_ENVIRONMENT', 'production');
-    sessionStorage.setItem('linejam-analytics-synthetic', '1');
-    expect(sanitizeAnalyticsEvent(event())?.properties.is_synthetic).toBe(true);
+    const bot = event();
+    bot.properties.$browser_type = 'bot';
+    expect(sanitizeAnalyticsEvent(bot)?.properties.is_synthetic).toBe(true);
   });
 });

@@ -32,12 +32,10 @@ export const sanitizeAnalyticsEvent: BeforeSendFn = (event) => {
     app: 'linejam',
     environment: production ? 'production' : 'development',
     release: process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? 'unknown',
-    // Bounded release probes can opt into exclusion even when the SDK's bot
-    // filter requires a normal browser fingerprint to verify real ingestion.
     is_synthetic:
       !production ||
       navigator.webdriver === true ||
-      sessionStorage.getItem('linejam-analytics-synthetic') === '1',
+      input.$browser_type === 'bot',
     distinct_id: input.distinct_id,
     $process_person_profile: false,
     $geoip_disable: true,
@@ -98,5 +96,7 @@ export const linejamPostHogConfig: Partial<PostHogConfig> = {
   store_google: false,
   ip: false,
   respect_dnt: true,
+  // Retain SDK bot classification for exclusion and real synthetic probes.
+  opt_out_useragent_filter: true,
   before_send: sanitizeAnalyticsEvent,
 };
