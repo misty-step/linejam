@@ -2,6 +2,7 @@
 // Copy the native Overmind pattern: one portable command; the caller owns
 // installation, source-bound logs and compute isolation, not a hosted vendor.
 import { spawnSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -67,13 +68,27 @@ export function isolatedEnvironment(environment, source) {
 
 export function runChecks(root, mode, environment = process.env) {
   const plan = checkPlan(mode);
+  // Next and Wrangler discover dotenv files themselves, after our environment
+  // check. Refuse discovery without ever reading the credential-bearing files.
+  if (
+    readdirSync(root).some(
+      (name) =>
+        name === '.env' ||
+        (name.startsWith('.env.') &&
+          !['.env.example', '.env.pass'].includes(name)) ||
+        name.startsWith('.dev.vars')
+    )
+  )
+    throw new Error(
+      'Isolated checks refuse dotenv files. Use a clean checkout.'
+    );
   const identity = spawnSync('git', ['rev-parse', 'HEAD'], {
     cwd: root,
     encoding: 'utf8',
   });
-  if (identity.status !== 0)
-    throw new Error('Cannot identify the candidate source.');
-  const source = identity.stdout.trim();
+  // The existing local Docker checker consumes a source archive without .git.
+  // Its snapshot receipt owns identity there; absence of Git is not a new gate.
+  const source = identity.status === 0 ? identity.stdout.trim() : '';
   const env = isolatedEnvironment(environment, source);
   const toolEnv = { ...env };
   // Unit tests deliberately exercise both local and hosted behavior. As in the
@@ -88,7 +103,9 @@ export function runChecks(root, mode, environment = process.env) {
     'GUEST_TOKEN_SECRET',
   ])
     delete toolEnv[name];
-  console.log(`Linejam native checks: source=${source} mode=${mode}`);
+  console.log(
+    `Linejam native checks: source=${source || 'unversioned (retain caller snapshot)'} mode=${mode}`
+  );
   for (const script of plan) {
     const [name, ...args] = script.split(' ');
     console.log(`\n> pnpm ${script}`);

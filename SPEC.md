@@ -364,8 +364,10 @@ checking a candidate does not require a hosted CI vendor or production access.
 - Full verification uses generated local identities and refuses production
   credentials. It never imports, resets or migrates an existing deployment.
 - A failed command stops verification and returns nonzero. Output identifies
-  the source, mode and commands. The caller retains candidate-bound logs and
-  the existing browser evidence, rather than relying on a vendor's job badge.
+  the mode, commands and source revision when Git metadata is present. For
+  source archives it reports that absence; the existing caller snapshot owns
+  identity. The caller retains candidate-bound logs and browser evidence,
+  rather than relying on a vendor's job badge.
 - Local verification is not deployment, hosted account acceptance or a live
   player-usage measurement. Release publication keeps its existing review and
   integrity requirements.

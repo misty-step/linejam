@@ -160,4 +160,28 @@ describe('portable native checks', () => {
     ).toThrow('refuse CLOUDFLARE_API_TOKEN');
     expect(() => f.calls()).toThrow();
   });
+
+  it('keeps the existing Git-free local source-archive checker working', () => {
+    const f = fixture();
+    rmSync(join(f.root, '.git'), { recursive: true });
+    runChecks(f.root, 'fast', f.env);
+    expect(f.calls()).toEqual(checkPlan('fast'));
+  }, 30000);
+
+  it.each([
+    '.env',
+    '.env.local',
+    '.env.production',
+    '.env.production.local',
+    '.env.test',
+    '.dev.vars',
+    '.dev.vars.production',
+  ])('rejects dotenv discovery through %s before any subprocess', (name) => {
+    const f = fixture();
+    writeFileSync(join(f.root, name), 'CLERK_SECRET_KEY=private-canary');
+    expect(() => runChecks(f.root, 'full', f.env)).toThrow(
+      'refuse dotenv files'
+    );
+    expect(() => f.calls()).toThrow();
+  });
 });
