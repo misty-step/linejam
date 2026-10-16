@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted (2026-10-15). The backend ships dormant. Production cutover follows
-the steps below.
+Accepted (2026-10-15). #566 shipped the backend dormant; the cutover change
+points production at it, following the steps below.
 
 ## Context
 
