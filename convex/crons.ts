@@ -5,12 +5,12 @@ const crons = cronJobs();
 
 /**
  * Close unattended Parlor matches and their app-owned games atomically.
- * Each bounded page schedules its cursor continuation, even if none close.
+ * The action reports success only after all bounded pages have committed.
  */
 crons.interval(
   'close abandoned games',
   { minutes: 1 },
-  internal.abandonment.sweepAbandonedGames,
+  internal.abandonment.runAbandonmentSweep,
   {}
 );
 

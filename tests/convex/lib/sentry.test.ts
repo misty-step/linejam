@@ -271,6 +271,39 @@ describe('closed Convex Sentry transport', () => {
     ).toBeNull();
   });
 
+  it('emits only native check-in fields and never seeds a preview track', async () => {
+    configureSentry();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    const mod = await sentryModule();
+    await mod.sendAbandonmentCheckIn(EVENT_ID, 'ok', 1.25);
+    expect(fetchMock).not.toHaveBeenCalled();
+    process.env.SENTRY_ENVIRONMENT = 'production';
+    await mod.sendAbandonmentCheckIn(EVENT_ID, 'ok', 1.25);
+    const built = envelopePayload(fetchMock.mock.calls[0][1].body);
+    expect(built).toEqual({
+      header: {},
+      item: { type: 'check_in' },
+      payload: {
+        check_in_id: EVENT_ID,
+        monitor_slug: 'linejam-abandonment-sweep',
+        status: 'ok',
+        environment: 'production',
+        release: RELEASE,
+        duration: 1.25,
+        monitor_config: {
+          schedule: { type: 'crontab', value: '* * * * *' },
+          timezone: 'UTC',
+          checkin_margin: 1,
+          max_runtime: 1,
+          failure_issue_threshold: 1,
+          recovery_threshold: 1,
+        },
+      },
+    });
+    expect(JSON.stringify(built)).not.toContain(PROVENANCE_SECRET);
+  });
+
   describe('reporting failures and retries', () => {
     let fetchMock: Mock;
 

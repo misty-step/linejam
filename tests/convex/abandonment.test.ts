@@ -131,7 +131,25 @@ async function seedNativeMatch(
 }
 
 beforeEach(() => vi.useFakeTimers());
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
+function captureCheckIns(unavailable = false) {
+  vi.stubEnv('LINEJAM_SENTRY_ENABLED', 'true');
+  vi.stubEnv('SENTRY_DSN', 'https://public123@sentry.example.test/42');
+  vi.stubEnv('SENTRY_ENVIRONMENT', 'production');
+  vi.stubEnv('SENTRY_RELEASE', 'a'.repeat(40));
+  vi.stubEnv('SENTRY_AUTOMATION_PROVENANCE_SECRET', 'b'.repeat(32));
+  const checkIns: { status: string; check_in_id: string }[] = [];
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    checkIns.push(JSON.parse(String(init.body).split('\n')[2]));
+    return new Response(null, { status: unavailable ? 503 : 200 });
+  });
+  return checkIns;
+}
 
 describe('abandonment', () => {
   it('closes an unattended Parlor match as ABANDONED without inserting or revealing lines', async () => {
@@ -257,17 +275,26 @@ describe('abandonment', () => {
   });
 
   it('continues every sweep page even when the current page abandons nothing', async () => {
+    const checkIns = captureCheckIns();
     const t = setupConvexTest();
-    const stale = await seedNativeMatch(t, { code: 'STLE' });
     const fresh = await seedNativeMatch(t, { fresh: true, code: 'FRSH' });
+    vi.setSystemTime(Date.now() + 1);
+    const stale = await seedNativeMatch(t, { code: 'STLE' });
 
-    const first = await t.mutation(internal.abandonment.sweepAbandonedGames, {
+    const result = await t.action(internal.abandonment.runAbandonmentSweep, {
       limit: 1,
     });
-    expect(first.hasMore).toBe(true);
-    expect(first.continueCursor).toEqual(expect.any(String));
-
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(result).toEqual({
+      scanned: 2,
+      abandoned: 1,
+      hasMore: false,
+      continueCursor: null,
+    });
+    expect(checkIns.map((entry) => entry.status)).toEqual([
+      'in_progress',
+      'ok',
+    ]);
+    expect(checkIns[0].check_in_id).toBe(checkIns[1].check_in_id);
 
     const [staleGame, freshGame, freshMatch] = await t.run(async (ctx) => [
       await ctx.db.get(stale.gameId),
@@ -280,5 +307,56 @@ describe('abandonment', () => {
     expect(await t.run((ctx) => ctx.db.query('lines').collect())).toHaveLength(
       0
     );
+  });
+
+  it('reports a later-page rollback as error, then recovers only after a complete normal sweep', async () => {
+    const checkIns = captureCheckIns();
+    const t = setupConvexTest();
+    const first = await seedNativeMatch(t, { code: 'FRST' });
+    vi.setSystemTime(Date.now() + 1);
+    const second = await seedNativeMatch(t, { code: 'NEXT' });
+    await t.run((ctx) => ctx.db.patch(second.gameId, { roomId: first.roomId }));
+    await expect(
+      t.action(internal.abandonment.runAbandonmentSweep, { limit: 1 })
+    ).rejects.toThrow('Match game not found');
+    expect(checkIns.map((entry) => entry.status)).toEqual([
+      'in_progress',
+      'error',
+    ]);
+    expect(checkIns[0].check_in_id).toBe(checkIns[1].check_in_id);
+    expect(await t.run((ctx) => ctx.db.get(first.gameId))).toMatchObject({
+      status: 'ABANDONED',
+    });
+    expect(await t.run((ctx) => ctx.db.get(second.matchId))).toMatchObject({
+      status: 'active',
+    });
+    await t.run((ctx) =>
+      ctx.db.patch(second.gameId, { roomId: second.roomId })
+    );
+    await t.action(internal.abandonment.runAbandonmentSweep, { limit: 1 });
+    expect(checkIns.map((entry) => entry.status)).toEqual([
+      'in_progress',
+      'error',
+      'in_progress',
+      'ok',
+    ]);
+  });
+
+  it('finishes cleanup with the telemetry sink unavailable', async () => {
+    const checkIns = captureCheckIns(true);
+    const t = setupConvexTest();
+    const { gameId } = await seedNativeMatch(t);
+    await expect(
+      t.action(internal.abandonment.runAbandonmentSweep, {})
+    ).resolves.toMatchObject({ abandoned: 1 });
+    expect(checkIns.map((entry) => entry.status)).toEqual([
+      'in_progress',
+      'in_progress',
+      'ok',
+      'ok',
+    ]);
+    expect(await t.run((ctx) => ctx.db.get(gameId))).toMatchObject({
+      status: 'ABANDONED',
+    });
   });
 });
