@@ -13,7 +13,11 @@ import {
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { Runtime, type ConvexApp, type SqlDriver, TokenVerifier } from "../src/index.js";
-import { ConvexBackendObject, type ConvexBackendOptions } from "../src/durable.js";
+import {
+  ConvexBackendObject,
+  type ConvexBackendOptions,
+  type DurableObjectStorageLike,
+} from "../src/durable.js";
 import { memorySqlDriver } from "../src/testing.js";
 
 export { memorySqlDriver as sqliteDriver };
@@ -72,13 +76,51 @@ export async function issuer() {
 
 export const ADMIN_KEY = "synthetic-admin-key-0123456789abcdef";
 
+/** A bookmark in Cloudflare's shape: lexically ordered hex groups. */
+export const bookmarkAt = (position: number) =>
+  `${position.toString(16).padStart(8, "0")}-0000b26e-00001538-0c3e87bb37b3db5cc52eedb93cd3b96b`;
+
+/**
+ * What a deployed SQLite-backed object adds over local workerd: bookmarks,
+ * a restore staged for the next start, and `abort`. The platform itself
+ * rewrites storage when the object restarts; that half is proven by the
+ * drill on a deployed object, not here.
+ */
+export function pitrPlatform() {
+  let position = 0;
+  const seen = { staged: [] as string[], aborted: [] as string[], times: [] as number[] };
+  return {
+    seen,
+    storage: {
+      getCurrentBookmark: async () => bookmarkAt(++position),
+      getBookmarkForTime: async (time: number) => {
+        seen.times.push(time);
+        return bookmarkAt(time % 0x7fffffff);
+      },
+      onNextSessionRestoreBookmark: async (bookmark: string) => {
+        seen.staged.push(bookmark);
+        return bookmarkAt(++position);
+      },
+    },
+    abort: (reason?: string) => {
+      seen.aborted.push(reason ?? "");
+    },
+  };
+}
+
 /**
  * The Durable Object class over in-memory SQLite and a fake alarm, as
  * workerd would host it. `admin` calls an admin route with the admin key.
+ * `platform` adds what only deployed objects have: point-in-time recovery
+ * methods on the storage, and `abort`.
  */
 export async function durableObject(
   options: Partial<ConvexBackendOptions> = {},
   driver: SqlDriver = memorySqlDriver(),
+  platform: {
+    storage?: Partial<DurableObjectStorageLike>;
+    abort?: (reason?: string) => void;
+  } = {},
 ) {
   let ready: Promise<unknown> = Promise.resolve();
   let alarm: number | null = null;
@@ -96,6 +138,7 @@ export async function durableObject(
     deleteAlarm: async () => {
       alarm = null;
     },
+    ...platform.storage,
   };
   const state = {
     storage,
@@ -104,6 +147,7 @@ export async function durableObject(
       ready = result;
       return result;
     },
+    ...(platform.abort === undefined ? {} : { abort: platform.abort }),
   };
   const backend = new ConvexBackendObject(
     state,

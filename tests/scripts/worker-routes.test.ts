@@ -154,10 +154,10 @@ describe('Worker route release gate', () => {
       readFileSync('.github/workflows/cloudflare-production.yml', 'utf8')
     );
     const command = release.jobs.deploy.steps.find((step: { run?: string }) =>
-      step.run?.includes('pnpm build:release:cf')
+      step.run?.includes('pnpm build:cf')
     ).run;
     expect(command.indexOf('pnpm test:worker-routes')).toBeGreaterThan(
-      command.indexOf('pnpm build:release:cf')
+      command.indexOf('pnpm build:cf')
     );
     expect(command.indexOf('pnpm test:worker-routes')).toBeLessThan(
       command.indexOf("['deploy:cf:production'")

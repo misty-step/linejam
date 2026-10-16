@@ -53,14 +53,13 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: Deploy backend then Cloudflare frontend
+      - name: Build and deploy the Worker (web and backend)
         if: steps.gate.outputs.ready == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-          CONVEX_DEPLOYMENT: prod:amiable-bulldog-848
-          CONVEX_DEPLOYMENT_URL: https://amiable-bulldog-848.convex.cloud
-          NEXT_PUBLIC_CONVEX_URL: https://amiable-bulldog-848.convex.cloud
+          # The backend ships inside the Worker (ADR-0011), so nothing deploys
+          # to Convex. The client bakes this URL; wrangler.jsonc serves the same.
+          NEXT_PUBLIC_CONVEX_URL: https://linejam.mistystep.io/backend
           LINEJAM_DEPLOY_ENVIRONMENT: production
           GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
           NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
@@ -78,7 +77,7 @@ jobs:
           SENTRY_ORG: misty-step
           SENTRY_PROJECT: linejam
         run: |
-          pnpm build:release:cf
+          pnpm build:cf
           pnpm test:worker-routes
           pnpm test:worker-images
           node --input-type=module <<'NODE'

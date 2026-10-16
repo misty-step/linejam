@@ -2,10 +2,12 @@
 
 Parent initiative: `K-20261012-infrastructure-gets-simpler-seen-through`.
 
-Move the frontend, origin, DNS and release owner off DigitalOcean. Hosted Convex
-(`amiable-bulldog-848`) remains the database, backend functions and reactive
-WebSocket service; Clerk and Sentry retain their existing interfaces. This is
-not a Cloudflare database migration.
+Move the frontend, origin, DNS and release owner off DigitalOcean. The backend
+(database, functions and reactive WebSocket service) runs in the same Worker, as
+the SQLite Durable Object `LinejamBackend` at `/backend`
+([ADR-0011](../adr/0011-backend-on-cloudflare-durable-object.md)). Hosted Convex
+(`amiable-bulldog-848`) stays paused and intact as its rollback target. Clerk
+and Sentry retain their existing interfaces.
 
 ## Current state and target
 
@@ -28,7 +30,7 @@ while the new Worker trusts only `cf-connecting-ip`. Never run both build owners
 
 The `Production` GitHub environment must contain production-scoped values for:
 
-- Release only: `CLOUDFLARE_API_TOKEN`, `CONVEX_DEPLOY_KEY`. Reuse the existing
+- Release only: `CLOUDFLARE_API_TOKEN`. Reuse the existing
   `SENTRY_RELEASE_TOKEN` for the build's `SENTRY_AUTH_TOKEN`.
 - Runtime and build: `GUEST_TOKEN_SECRET`, `CLERK_SECRET_KEY`,
   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SENTRY_DSN`,
@@ -40,13 +42,15 @@ this migration. Reuse the production guest and provenance secrets. Keep recovery
 material in pass and transfer through stdin/private temporary files, never argv,
 logs, public comments or source.
 
-The workflow runs the existing hosted Convex wrapper through `build:release:cf`.
-OpenNext runs only `build:check`, avoiding recursive backend deployment.
-Manifest reconciliation
-and the zero-write guest-secret parity probe remain unskippable before Worker
-activation. Runtime secrets are installed with the Worker version through a
-mode-0600 temporary secrets file, removed on exit. The Convex deploy key and
-Sentry upload token are not Worker bindings.
+The workflow builds the Worker with `build:cf`; the backend ships inside it, so
+nothing deploys to Convex. OpenNext runs only `build:check`. Runtime secrets
+are installed with the Worker version through a mode-0600 temporary secrets
+file, removed on exit, and the backend reads the same bindings. A test
+(`tests/ci/cloudflare-production.test.ts`) requires one `/backend` URL for the
+client build, the server and the backend, and a binding for every name the
+production env manifest requires. After activation, `verify-production`
+requires the exact source, a connected backend and the zero-write guest-secret
+parity probe. The Sentry upload token is not a Worker binding.
 
 For an explicitly authorized release outside the workflow, supply the same
 production environment through the existing credential broker and bind the
@@ -54,14 +58,14 @@ runtime secrets to the Worker first:
 
 ```sh
 # NEXT_DEPLOYMENT_ID must be the exact reviewed, merged checkout SHA.
-pnpm build:release:cf
+pnpm build:cf
 pnpm test:worker-routes
 pnpm test:worker-images
 pnpm deploy:cf:production
 ```
 
-A bare `wrangler deploy` is not the release path: it omits backend deployment,
-production environment selection, source binding and parity postconditions.
+A bare `wrangler deploy` is not the release path: it omits production
+environment selection, source binding and parity postconditions.
 `test:worker-routes` runs the built artifact in local workerd before deployment,
 using the deployed compatibility settings and `ROUTE_TEMPLATES` inventory. Its
 [pass conditions](../../scripts/qa/worker-route-contracts.ts) cover every route;
@@ -77,7 +81,13 @@ build job, without another build; a failure prevents `merge-gate` and deployment
 For a bounded local packaging check, `CIRCLE_NODE_TOTAL=2` limits Next's static
 build to one worker; this does not change production runtime or host limits.
 
-## Reversible cutover and acceptance
+## History: the frontend cutover from DigitalOcean
+
+This section records how the frontend left DigitalOcean. It does not describe
+the backend: backend cutover and rollback follow
+[ADR-0011](../adr/0011-backend-on-cloudflare-durable-object.md) decisions 5–7.
+Once the backend serves from `/backend`, the frontend rollback below no longer
+applies, because the retained image talks to the paused Convex deployment.
 
 The initiative's private `do-linejam` evidence owns exact provider/DNS payloads,
 credential references and observed deployment/version IDs. Capture the DO spec

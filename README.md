@@ -36,6 +36,5 @@ room-membership integration pinned in
 [`vendor/parlor/UPSTREAM.json`](vendor/parlor/UPSTREAM.json); see
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#parlor-boundary) for membership detail.
 
-[Marketing](https://misty-step.github.io/linejam/) ·
-[Changelog](https://misty-step.github.io/linejam/changelog.html) ·
+[Changelog](https://linejam.mistystep.io/changelog) ·
 [MIT license](LICENSE)
