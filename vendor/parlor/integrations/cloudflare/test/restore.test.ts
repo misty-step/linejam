@@ -47,6 +47,20 @@ describe("point-in-time restore", () => {
     expect(pitr.seen.aborted).toEqual(["parlor-cloudflare: point-in-time restore"]);
   });
 
+  it("schedules its alarm on every start, even when the storage still holds that time", async () => {
+    const driver = memorySqlDriver();
+    const before = await durableObject({}, driver);
+    expect((await before.admin("freeze", { frozen: false })).status).toBe(200);
+    const due = before.alarm();
+    expect(due).not.toBeNull();
+
+    // A restored object finds the stored alarm time of its target moment, but
+    // the restore scheduled nothing: only a setAlarm call wakes it again.
+    const setAlarm = vi.fn((when: number) => before.storage.setAlarm(when));
+    await durableObject({}, driver, { storage: { ...before.storage, setAlarm } });
+    expect(setAlarm).toHaveBeenCalledWith(due);
+  });
+
   it("restores to a moment by resolving that moment's bookmark", async () => {
     const pitr = pitrPlatform();
     const { admin } = await durableObject({}, memorySqlDriver(), pitr);

@@ -29,7 +29,6 @@ interface SqlCursor {
 export interface DurableObjectStorageLike {
   readonly sql: { exec(query: string, ...bindings: SqlValue[]): SqlCursor };
   transactionSync<T>(callback: () => T): T;
-  getAlarm(): Promise<number | null>;
   setAlarm(scheduledTime: number): Promise<void>;
   deleteAlarm(): Promise<void>;
   /**
@@ -262,7 +261,13 @@ export class ConvexBackendObject {
   private verifier!: TokenVerifier;
   private readonly sessions = new Set<SyncSession>();
   private pinger: ReturnType<typeof setInterval> | null = null;
-  private armedAlarm: number | null = null;
+  /**
+   * The alarm this instance set, or `undefined` until it sets one. A start
+   * never trusts the stored alarm: on a deployed object, a point-in-time
+   * restore brought back the stored alarm time without scheduling it, which
+   * left every cron and job waiting.
+   */
+  private armedAlarm: number | null | undefined = undefined;
   /** Set once a point-in-time restore is staged; the object restarts shortly after. */
   private restarting = false;
   private readonly basePath: string;
@@ -289,7 +294,6 @@ export class ConvexBackendObject {
       this.runtime.onCommit(() => this.armAlarm());
       // Jobs a restart interrupted make the alarm due now; once writes are
       // unfrozen, the scheduler's upkeep marks them failed.
-      this.armedAlarm = await state.storage.getAlarm();
       await this.armAlarm();
     });
   }
