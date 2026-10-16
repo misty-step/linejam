@@ -58,8 +58,9 @@ Production releases and the explicit invitation drain follow
 
 ## Ownership
 
-Current requests authorize work. Linear owns priorities and work status; this
-brief stores accepted direction, not a second backlog or a new-ticket ritual.
+Current requests authorize work. Powder owns priorities, questions and decisions
+in flight; Kanban owns active work. This brief stores accepted direction, not a
+second backlog or a new-ticket ritual. `SPEC.md` owns observable acceptance.
 Old issues and exploration records are context, not outstanding obligations.
 
 Keep operating procedures, privacy/retention rules and recovery contracts near

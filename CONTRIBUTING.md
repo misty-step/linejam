@@ -26,14 +26,17 @@ Work from a current request and check the affected code before implementation.
 Check existing branches, pull requests, and active sessions for overlap; agree
 on ownership when another contributor is working on the same files. Use a
 focused branch and describe the result and verification evidence in its pull
-request. Linear owns current work and priorities; historical issues are
+request. Powder owns priorities, questions and decisions in flight; Kanban owns
+active work, and GitHub owns PRs, CI and inbound issues. Historical issues are
 context, not an automatic queue or a required intake ceremony.
 
 Repository docs own version-bound contracts, accepted decisions, and portable
 procedures. Keep fixtures and shipped assets in the repo; retain raw or
 sensitive run output in approved artifact storage and link sanitized,
 revision-specific conclusions from the work item or PR. Release and runtime
-ledgers keep their existing authority. `project.md` owns the product brief.
+ledgers keep their existing authority. `project.md` owns the product brief;
+`SPEC.md` owns observable behavior and user stories. Update the specification in
+the same PR as a behavior change, and verify its affected acceptance criteria.
 
 ## Local Checks
 
