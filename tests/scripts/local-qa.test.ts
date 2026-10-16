@@ -109,6 +109,7 @@ for (const name of ['mkdir', 'readFile', 'rm', 'stat', 'writeFile']) {
   fs[name] = (file, ...args) => original(remap(file), ...args);
 }
 net.createServer = () => {
+  if (process.env.QA_EXPECT_DIRECT) throw new Error('Same-origin workerd must not start a relay');
   const server = new EventEmitter();
   server.listen = (_address, ready) => { queueMicrotask(ready); return server; };
   server.close = (closed) => { queueMicrotask(closed); return server; };
@@ -141,7 +142,7 @@ function evidence(
   );
 }
 
-function run(setup: LocalQaFixture) {
+function run(setup: LocalQaFixture, env: Record<string, string> = {}) {
   return spawnSync(
     process.execPath,
     ['--import', setup.boundary, 'scripts/local/container.mjs', 'qa'],
@@ -159,6 +160,7 @@ function run(setup: LocalQaFixture) {
         LINEJAM_LOCAL_SITE_PORT: '3211',
         LINEJAM_EVIDENCE_DIR: '/artifacts/qa/evidence',
         LINEJAM_EVIDENCE_RESULT_FILE: '/artifacts/qa/evidence/result.json',
+        ...env,
       },
       encoding: 'utf8',
       timeout: 10_000,
@@ -173,6 +175,21 @@ afterEach(() => {
 });
 
 describe('local QA evidence acceptance', () => {
+  it('uses the same evidence consumer without relays or container mounts for workerd', () => {
+    const setup = fixture();
+    const result = run(setup, {
+      NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1:3333/backend',
+      LINEJAM_LOCAL_ARTIFACTS: join(setup.workspace, 'artifacts'),
+      QA_EXPECT_DIRECT: '1',
+    });
+    expect(result.status).toBe(0);
+    expect(
+      JSON.parse(readFileSync(join(setup.artifacts, 'verdict.json'), 'utf8'))
+        .result
+    ).toBe('PASS');
+    expect(result.stdout + result.stderr).not.toContain(privateValue);
+  });
+
   it('accepts complete clean raw evidence without requiring packaged GIFs or logs', () => {
     const setup = fixture();
     const result = run(setup);

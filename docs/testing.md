@@ -11,6 +11,7 @@ pnpm vitest run tests/path/to/file.test.ts # focused Vitest
 pnpm test                                  # all Vitest tests
 pnpm test:ci                               # Vitest coverage + nonzero-total guard
 pnpm build:cf && pnpm test:worker-images    # actual OpenNext bundle in workerd
+pnpm test:worker-routes --game              # existing guest suite on that build/DO
 pnpm lint
 pnpm typecheck
 pnpm ci:prepush                            # fast local pre-push gate
@@ -37,14 +38,15 @@ check's constituent commands.
 The hosted `merge-gate` remains authoritative for merge. Acceptance surfaces
 are additive, not interchangeable:
 
-| Surface                                     | What it proves                                                                             | What it does not prove                                              |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `pnpm ci:prepush`                           | Fast static/domain/integration checks                                                      | Browser rendering or running backend acceptance                     |
-| Local CLI `check`                           | Containerized checks, coverage, and app build                                              | Guest room flow or hosted-provider auth                             |
-| Local CLI `qa` / hosted `Isolated Guest QA` | Fresh local Convex/app guest flow plus runtime evidence, with no provider secrets          | Clerk sign-in, hosted Convex deployment alignment, or Sentry ingest |
-| Hosted Dagger E2E and QA Evidence           | Existing selector, full auth/browser, and evidence acceptance against configured providers | Secret-free local isolation                                         |
+| Surface                                   | What it proves                                                                             | What it does not prove                              |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| `pnpm ci:prepush`                         | Fast static/domain/integration checks                                                      | Browser rendering or running backend acceptance     |
+| Local CLI `check`                         | Containerized checks, coverage, and app build                                              | Guest room flow or hosted-provider auth             |
+| Local CLI `qa`                            | Legacy local Convex/app guest flow and runtime evidence                                    | Durable Object runtime or hosted-provider behavior  |
+| Hosted `Worker Routes, Images & Guest QA` | One OpenNext build in workerd: route/image checks and guest lifecycle on a fresh SQLite DO | Clerk sign-in, production rollout, or Sentry ingest |
+| Hosted Dagger E2E and QA Evidence         | Existing selector, full auth/browser, and evidence acceptance against configured providers | Secret-free local isolation                         |
 
-The new guest job must finish with `success`; a skipped/cancelled/failed job
+The Worker job must finish with `success`; a skipped/cancelled/failed job
 cannot satisfy the merge gate. Existing full E2E/auth and evidence lanes remain.
 Neither `ci:dagger:all` nor the local CLI is a complete hosted-pipeline mirror.
 
@@ -382,10 +384,42 @@ unrelated data or pruning retained local volumes.
 
 ## Isolated guest QA and retained evidence
 
+CI reuses the Worker route runner and the existing local Playwright/evidence
+consumer, not the legacy Convex container. To reproduce its built-artifact run:
+
+```bash
+export LINEJAM_LOCAL=1 NEXT_PUBLIC_LINEJAM_LOCAL=1 LINEJAM_DEPLOY_ENVIRONMENT=development
+export NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:8787/backend NEXT_PUBLIC_SENTRY_ENABLED=0
+export GUEST_TOKEN_SECRET="$(node -p 'require("node:crypto").randomBytes(32).toString("hex")')"
+export NEXT_TELEMETRY_DISABLED=1
+pnpm install --frozen-lockfile
+pnpm build:cf
+pnpm test:worker-routes
+pnpm test:worker-images
+pnpm exec playwright install chromium
+pnpm test:worker-routes --game
+```
+
+The game mode starts the configured Worker with a fresh, nonpersistent SQLite
+Durable Object and generated runtime-only guest/admin credentials. Anonymous
+admin writes are refused before authenticated local initialization. Only
+same-origin `/backend/*` server fetches re-enter this Worker; all other workerd
+egress is denied. The existing game consumer covers real guest admission,
+validation, reconnect/draft recovery, nine-round reveal, rematch and closed-room
+refusal. Runtime errors, skipped tests and missing evidence still fail the
+existing verdict. The runner disposes workerd on success or failure.
+
+Hosted upload retains only `.qa/worker/receipt.json`,
+`.qa/worker/qa/verdict.json`, and `qa/evidence/*.png` / `qa/evidence/raw-video/*.webm`
+under that same root for 14 days. Raw reports and logs remain private. This is
+isolated candidate-build proof, not production data, Clerk, or live acceptance.
+
+### Legacy Convex development and recovery
+
 The repository-owned runtime needs Node 22+, a local Linux Docker daemon,
 Compose 5.5+, and buildx. Initial image/package/browser installation needs
 download access, but the app/backend guest loop runs without shared-provider
-credentials. The hosted job runs the same command as local acceptance:
+credentials. It remains available for development and rollback-target checks:
 
 ```bash
 node scripts/local/cli.mjs qa --project ci
@@ -394,8 +428,7 @@ node scripts/local/cli.mjs down --project ci # unconditional cleanup, also on fa
 
 The CLI owns fresh-stack preparation, browser execution, and runtime failure
 evidence. `qa` leaves the owned stack available for diagnosis; `down` removes
-containers/network but retains data and evidence. Hosted evidence is uploaded
-before unconditional shutdown and retained for 14 days:
+containers/network but retains data and evidence. Its local evidence paths are:
 
 - `.qa/local/linejam-local-ci/receipt.json`
 - `.qa/local/linejam-local-ci/artifacts/qa/verdict.json` (allowlisted counts and booleans)

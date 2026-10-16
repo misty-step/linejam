@@ -14,7 +14,7 @@ function isLocalOrigin(value: string | undefined, allowContainer: boolean) {
         (allowContainer && url.hostname === 'convex')) &&
       !url.username &&
       !url.password &&
-      url.pathname === '/' &&
+      (url.pathname === '/' || url.pathname === '/backend') &&
       !url.search &&
       !url.hash
     );

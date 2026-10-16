@@ -274,6 +274,11 @@ export async function isolateGuestSessionIp(context: GuestSessionRouteContext) {
 
 export async function closeHostedRoom(page: Page, roomCode: string) {
   await waitForRoomPath(page, 'owned host room before closure', roomCode);
+  // A phase transition replaces RoomChrome; opening its old menu loses the
+  // dialog when the lobby arrives, especially over the hosted backend.
+  await expect(
+    page.getByTestId(E2E_TEST_IDS.lobbyStartGameButton)
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Room options', exact: true }).click();
   await page.getByRole('button', { name: 'Close room', exact: true }).click();
   await expect(

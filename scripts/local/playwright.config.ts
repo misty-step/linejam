@@ -1,5 +1,11 @@
 import { defineConfig } from '@playwright/test';
+import path from 'node:path';
 import base from '../../playwright.config';
+
+const output = path.join(
+  process.env.LINEJAM_LOCAL_ARTIFACTS || '/artifacts',
+  'qa'
+);
 
 export default defineConfig(base, {
   testDir: '../../tests/e2e',
@@ -12,11 +18,11 @@ export default defineConfig(base, {
   tsconfig: '../../tsconfig.json',
   workers: 1,
   retries: 0,
-  outputDir: '/artifacts/qa/test-results',
+  outputDir: path.join(output, 'test-results'),
   reporter: [
     ['line'],
-    ['html', { outputFolder: '/artifacts/qa/report', open: 'never' }],
-    ['json', { outputFile: '/artifacts/qa/results.json' }],
+    ['html', { outputFolder: path.join(output, 'report'), open: 'never' }],
+    ['json', { outputFile: path.join(output, 'results.json') }],
   ],
   use: {
     ...base.use,
