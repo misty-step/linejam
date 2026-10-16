@@ -203,6 +203,20 @@ describe('isolated local mode', () => {
     });
   });
 
+  it('accepts the same-origin Durable Object path without a private transport override', async () => {
+    await withEnv(
+      {
+        ...localEnv,
+        NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1:8787/backend',
+        CONVEX_SERVER_URL: undefined,
+      },
+      async () => {
+        validateEnv();
+        expect(getConvexServerUrl()).toBe('http://127.0.0.1:8787/backend');
+      }
+    );
+  });
+
   it.each([
     { LINEJAM_LOCAL: undefined },
     { NEXT_PUBLIC_LINEJAM_LOCAL: undefined },
@@ -214,6 +228,8 @@ describe('isolated local mode', () => {
     { NEXT_PUBLIC_CONVEX_URL: 'https://shared.convex.cloud' },
     { NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1.external.test:3210' },
     { NEXT_PUBLIC_CONVEX_URL: 'http://user@127.0.0.1:3210' },
+    { NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1:8787/backend/other' },
+    { NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1:8787/backend?remote=1' },
     { CONVEX_SERVER_URL: 'https://shared.convex.cloud' },
   ])('rejects unsafe local configuration %j', async (override) => {
     await withEnv({ ...localEnv, ...override }, async () => {

@@ -12,6 +12,10 @@ import { sourceIdentity } from './identity.mjs';
 
 const command = process.argv[2];
 const redactions = [];
+const qaDirectory = path.join(
+  process.env.LINEJAM_LOCAL_ARTIFACTS || '/artifacts',
+  'qa'
+);
 
 function safe(text) {
   for (const value of redactions)
@@ -179,6 +183,13 @@ async function check() {
 }
 
 async function withQaTransport(action) {
+  // workerd serves the web app and Durable Object at the same loopback origin;
+  // the legacy Compose target still needs its three TCP relays.
+  if (
+    process.env.NEXT_PUBLIC_CONVEX_URL ===
+    `${loopbackUrl(process.env.E2E_BASE_URL)}/backend`
+  )
+    return action();
   const appPort = Number(new URL(loopbackUrl(process.env.E2E_BASE_URL)).port);
   const convexPort = Number(
     new URL(loopbackUrl(process.env.NEXT_PUBLIC_CONVEX_URL)).port
@@ -244,7 +255,10 @@ async function main() {
     return;
   }
   assertLocal();
-  await mkdir('/tmp/linejam-home', { recursive: true, mode: 0o700 });
+  await mkdir(process.env.HOME || '/tmp/linejam-home', {
+    recursive: true,
+    mode: 0o700,
+  });
   if (command === 'app') {
     loopbackUrl(process.env.NEXT_PUBLIC_CONVEX_URL);
     if (process.env.CONVEX_SERVER_URL !== 'http://convex:3210') {
@@ -340,11 +354,14 @@ async function main() {
   }
   if (command === 'check') return check();
   if (command === 'qa') {
-    await mkdir('/artifacts/qa', { recursive: true, mode: 0o700 });
+    await mkdir(qaDirectory, { recursive: true, mode: 0o700 });
     // A previous run's green report, recording, or public verdict is not proof.
-    await rm('/artifacts/qa/verdict.json', { force: true });
-    await rm('/artifacts/qa/results.json', { force: true });
-    await rm('/artifacts/qa/evidence', { recursive: true, force: true });
+    await rm(path.join(qaDirectory, 'verdict.json'), { force: true });
+    await rm(path.join(qaDirectory, 'results.json'), { force: true });
+    await rm(path.join(qaDirectory, 'evidence'), {
+      recursive: true,
+      force: true,
+    });
     const qaVerdict = {
       result: 'FAIL',
       playwright: {
@@ -377,7 +394,7 @@ async function main() {
           );
         }
         console.log(
-          'Running local lifecycle QA; raw output stays in /artifacts/qa/playwright.log.'
+          `Running local lifecycle QA; raw output stays in ${qaDirectory}/playwright.log.`
         );
         let testError = null;
         try {
@@ -388,7 +405,10 @@ async function main() {
               'test',
               '--config=scripts/local/playwright.config.ts',
             ],
-            { logFile: '/artifacts/qa/playwright.log', privateOutput: true }
+            {
+              logFile: path.join(qaDirectory, 'playwright.log'),
+              privateOutput: true,
+            }
           );
         } catch (error) {
           testError = error;
@@ -396,12 +416,12 @@ async function main() {
         let report;
         try {
           report = JSON.parse(
-            await readFile('/artifacts/qa/results.json', 'utf8')
+            await readFile(path.join(qaDirectory, 'results.json'), 'utf8')
           );
         } catch {
           // JSON parse errors can include credential-bearing browser output.
           throw new Error(
-            'Local QA requires valid results.json. Inspect the private /artifacts/qa/ files.'
+            `Local QA requires valid results.json. Inspect the private ${qaDirectory}/ files.`
           );
         }
         const counts = qaVerdict.playwright;
@@ -422,21 +442,24 @@ async function main() {
         let rawEvidence;
         try {
           rawEvidence = JSON.parse(
-            await readFile('/artifacts/qa/evidence/result.json', 'utf8')
+            await readFile(
+              path.join(qaDirectory, 'evidence/result.json'),
+              'utf8'
+            )
           );
         } catch {
           throw new Error(
-            'Local QA requires valid evidence/result.json. Inspect the private /artifacts/qa/ files.'
+            `Local QA requires valid evidence/result.json. Inspect the private ${qaDirectory}/ files.`
           );
         }
         if (!isRecordedEvidenceResult(rawEvidence)) {
           throw new Error(
-            'Local QA requires complete lifecycle evidence in private /artifacts/qa/evidence/result.json.'
+            `Local QA requires complete lifecycle evidence in private ${qaDirectory}/evidence/result.json.`
           );
         }
         const evidence = normalizeEvidenceResult(baseUrl, rawEvidence);
         const artifactErrors = await collectRecordedArtifactErrors({
-          outDir: '/artifacts/qa/evidence',
+          outDir: path.join(qaDirectory, 'evidence'),
           screenshots: evidence.screenshots,
           videoPath: evidence.rawVideoPath,
         });
@@ -460,12 +483,12 @@ async function main() {
         if (testError) throw testError;
         if (!testsPassed) {
           throw new Error(
-            'Local lifecycle QA must execute every selected case without skips, retries, or errors. Inspect private /artifacts/qa/ artifacts.'
+            `Local lifecycle QA must execute every selected case without skips, retries, or errors. Inspect private ${qaDirectory}/ artifacts.`
           );
         }
         if (verdict.result !== 'PASS') {
           throw new Error(
-            `Local QA evidence failed: ${recorded.flowErrors} flow, ${recorded.runtimeErrors} runtime, and ${recorded.artifactErrors} artifact errors. Inspect private /artifacts/qa/evidence/result.json and playwright.log; do not publish raw artifacts.`
+            `Local QA evidence failed: ${recorded.flowErrors} flow, ${recorded.runtimeErrors} runtime, and ${recorded.artifactErrors} artifact errors. Inspect private ${qaDirectory}/evidence/result.json and playwright.log; do not publish raw artifacts.`
           );
         }
       });
@@ -473,7 +496,7 @@ async function main() {
     } finally {
       // This allowlisted receipt is safe to publish; never copy raw report fields.
       await writeFile(
-        '/artifacts/qa/verdict.json',
+        path.join(qaDirectory, 'verdict.json'),
         `${JSON.stringify(qaVerdict, null, 2)}\n`,
         { mode: 0o600 }
       );

@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test';
 import {
   CANONICAL_GUEST_FLOW_LINES,
   GuestFlowSession,
+  closeHostedRoom,
+  isolateGuestSessionIp,
 } from '@/tests/e2e/support/guestFlow';
 
 const REMATCH_GUEST_FLOW_LINES = [
@@ -23,9 +25,7 @@ const REMATCH_GUEST_FLOW_LINES = [
  * Simulates a game session with 2 players (host + guest).
  * Tests room creation, joining, real-time synchronization, and game start.
  *
- * Note: Full 9-round testing requires Convex dev environment with proper
- * GUEST_TOKEN_SECRET configuration. The tests below verify the setup and
- * game initialization which are the most critical user-facing flows.
+ * Runs unchanged against the configured backend, including local workerd/DO.
  */
 
 // Run tests serially since they depend on shared state
@@ -88,6 +88,15 @@ test.describe('Complete Game Flow', () => {
     await activeSession().expectSealEnabled('guest');
   });
 
+  test('reconnect restores the same seat and unsubmitted draft', async () => {
+    const { guestPage } = activeSession();
+    await guestPage.reload();
+    await expect(guestPage.getByTestId('writing-line-input')).toHaveValue(
+      'verse'
+    );
+    await activeSession().expectSealEnabled('guest');
+  });
+
   test('complete 9-round game and reveal poems', async () => {
     await activeSession().playCanonicalGame(CANONICAL_GUEST_FLOW_LINES);
     await activeSession().revealAllPoems(CANONICAL_GUEST_FLOW_LINES);
@@ -97,5 +106,25 @@ test.describe('Complete Game Flow', () => {
     await activeSession().startNextRound();
     await activeSession().playCanonicalGame(REMATCH_GUEST_FLOW_LINES);
     await activeSession().revealAllPoems(REMATCH_GUEST_FLOW_LINES);
+  });
+
+  test('a closed invitation refuses a fresh guest', async ({ browser }) => {
+    const { hostPage, roomCode } = activeSession();
+    await hostPage
+      .getByRole('button', { name: 'Back to lobby', exact: true })
+      .click();
+    await closeHostedRoom(hostPage, roomCode);
+    const context = await browser.newContext();
+    try {
+      await isolateGuestSessionIp(context);
+      const page = await context.newPage();
+      await page.goto(`/join?code=${roomCode}`);
+      await page.getByTestId('join-name-input').fill('Refused Guest');
+      await page.getByTestId('join-room-button').click();
+      await expect(page.getByTestId('join-error-alert')).toBeVisible();
+      await expect(page).toHaveURL(/\/join\?/);
+    } finally {
+      await context.close();
+    }
   });
 });

@@ -1,8 +1,10 @@
 // Verify the built artifact in workerd. Do not rebuild or modify it here: the
 // release workflow deploys these exact bytes after this command succeeds.
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { unstable_readConfig, unstable_startWorker } from 'wrangler';
 import {
@@ -13,6 +15,24 @@ import {
 } from './worker-route-contracts';
 
 async function main() {
+  const game = process.argv.includes('--game');
+  const backend = new URL(
+    process.env.NEXT_PUBLIC_CONVEX_URL || 'http://127.0.0.1:1'
+  );
+  if (game) {
+    assert.equal(process.env.LINEJAM_LOCAL, '1');
+    assert.equal(process.env.NEXT_PUBLIC_LINEJAM_LOCAL, '1');
+    assert.equal(backend.protocol, 'http:');
+    assert.equal(backend.hostname, '127.0.0.1');
+    assert.equal(backend.pathname, '/backend');
+    assert(
+      backend.port &&
+        !backend.username &&
+        !backend.password &&
+        !backend.search &&
+        !backend.hash
+    );
+  }
   const config = unstable_readConfig({ config: 'wrangler.jsonc' });
   assert(
     config.main && config.assets?.directory,
@@ -57,11 +77,14 @@ async function main() {
       LINEJAM_LOCAL: process.env.LINEJAM_LOCAL ?? '0',
       NEXT_PUBLIC_LINEJAM_LOCAL: process.env.NEXT_PUBLIC_LINEJAM_LOCAL ?? '0',
       LINEJAM_DEPLOY_ENVIRONMENT: 'development',
-      NEXT_PUBLIC_CONVEX_URL: 'http://127.0.0.1:1',
+      NEXT_PUBLIC_CONVEX_URL: game ? backend.href : 'http://127.0.0.1:1',
+      CONVEX_CLOUD_URL: game ? backend.href : '',
+      CONVEX_SITE_URL: game ? `${backend.href}/http` : '',
       NEXT_PUBLIC_SENTRY_ENABLED: '0',
       LINEJAM_SENTRY_ENABLED: 'false',
       CLERK_SECRET_KEY: '',
-      GUEST_TOKEN_SECRET: '',
+      GUEST_TOKEN_SECRET: game ? randomBytes(32).toString('hex') : '',
+      LINEJAM_BACKEND_ADMIN_KEY: game ? randomBytes(32).toString('hex') : '',
     };
     worker = await unstable_startWorker({
       config: configPath,
@@ -75,11 +98,27 @@ async function main() {
         remote: false,
         persist: false,
         watch: false,
-        server: { hostname: '127.0.0.1', port: 0 },
+        server: {
+          hostname: '127.0.0.1',
+          port: game ? Number(backend.port) : 0,
+        },
         logLevel: 'error',
         // Native workerd outbound service: no DNS or network request can reach
         // a baked-in production URL. Do not replace with Node's fetch mocking.
-        outboundService: () => {
+        outboundService: async (request: Request) => {
+          if (
+            game &&
+            new URL(request.url).origin === backend.origin &&
+            new URL(request.url).pathname.startsWith('/backend/')
+          ) {
+            assert(worker);
+            return worker.fetch(request.url, {
+              method: request.method,
+              headers: [...request.headers],
+              body: request.body ? await request.arrayBuffer() : undefined,
+              redirect: 'manual',
+            });
+          }
           blockedRequests++;
           return new Response(
             'Worker route gate: backend deliberately unavailable',
@@ -95,7 +134,85 @@ async function main() {
     worker.raw.on('runtimeError', (error: { text: string }) => {
       logs.push({ level: 'error', message: error.text });
     });
-    for (const template of ROUTE_TEMPLATES) {
+    if (game) {
+      const url = new URL('/backend/admin/freeze', await worker.url);
+      const body = JSON.stringify({ frozen: false });
+      const denied = await worker.fetch(url, { method: 'POST', body });
+      assert.equal(
+        denied.status,
+        401,
+        'Anonymous callers cannot enable writes'
+      );
+      const enabled = await worker.fetch(url, {
+        method: 'POST',
+        body,
+        headers: { Authorization: `Bearer ${vars.LINEJAM_BACKEND_ADMIN_KEY}` },
+      });
+      assert.equal(enabled.status, 200);
+      const status = await worker.fetch(
+        new URL('/backend/admin/status', await worker.url),
+        {
+          headers: {
+            Authorization: `Bearer ${vars.LINEJAM_BACKEND_ADMIN_KEY}`,
+          },
+        }
+      );
+      assert.equal(status.status, 200);
+      const state = JSON.parse(await status.text());
+      assert.equal(state.writesFrozen, false);
+      const artifacts = resolve('.qa/worker');
+      mkdirSync(artifacts, { recursive: true });
+      writeFileSync(
+        join(artifacts, 'receipt.json'),
+        JSON.stringify(
+          {
+            source: execFileSync('git', ['rev-parse', 'HEAD'], {
+              encoding: 'utf8',
+            }).trim(),
+            backend: 'LinejamBackend / SQLite Durable Object',
+            origin: backend.origin,
+            persistent: false,
+          },
+          null,
+          2
+        )
+      );
+      const child = spawn(
+        process.execPath,
+        ['scripts/local/container.mjs', 'qa'],
+        {
+          env: {
+            PATH: process.env.PATH,
+            HOME: directory,
+            TMPDIR: process.env.TMPDIR,
+            CI: '1',
+            NODE_ENV: 'test',
+            ...vars,
+            E2E_BASE_URL: backend.origin,
+            LINEJAM_LOCAL_ARTIFACTS: artifacts,
+            LINEJAM_EVIDENCE_DIR: join(artifacts, 'qa/evidence'),
+            LINEJAM_EVIDENCE_RESULT_FILE: join(
+              artifacts,
+              'qa/evidence/result.json'
+            ),
+            PLAYWRIGHT_BROWSERS_PATH:
+              process.env.PLAYWRIGHT_BROWSERS_PATH ||
+              join(homedir(), '.cache/ms-playwright'),
+          },
+          stdio: 'inherit',
+        }
+      );
+      const code = await new Promise((resolve, reject) => {
+        child.once('error', reject);
+        child.once('close', resolve);
+      });
+      assert.equal(
+        code,
+        0,
+        'Existing guest lifecycle and evidence consumer must pass'
+      );
+    }
+    for (const template of game ? [] : ROUTE_TEMPLATES) {
       const { path, method, backendUnavailable } = routeProbe(template);
       try {
         const blockedBefore = blockedRequests;
@@ -127,7 +244,9 @@ async function main() {
   if (failures.length)
     throw new Error(`Worker route gate failed:\n${failures.join('\n')}`);
   console.log(
-    `Worker route gate passed: ${ROUTE_TEMPLATES.length} templates; ${blockedRequests} backend requests isolated; egress disabled.`
+    game
+      ? `Worker guest QA passed: fresh SQLite Durable Object; ${blockedRequests} external requests blocked.`
+      : `Worker route gate passed: ${ROUTE_TEMPLATES.length} templates; ${blockedRequests} backend requests isolated; egress disabled.`
   );
 }
 
