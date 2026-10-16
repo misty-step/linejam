@@ -390,7 +390,8 @@ consumer, not the legacy Convex container. To reproduce its built-artifact run:
 ```bash
 export LINEJAM_LOCAL=1 NEXT_PUBLIC_LINEJAM_LOCAL=1 LINEJAM_DEPLOY_ENVIRONMENT=development
 export NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:8787/backend NEXT_PUBLIC_SENTRY_ENABLED=0
-export GUEST_TOKEN_SECRET=isolated-worker-image-build-only-0000000000 NEXT_TELEMETRY_DISABLED=1
+export GUEST_TOKEN_SECRET="$(node -p 'require("node:crypto").randomBytes(32).toString("hex")')"
+export NEXT_TELEMETRY_DISABLED=1
 pnpm install --frozen-lockfile
 pnpm build:cf
 pnpm test:worker-routes
@@ -403,7 +404,7 @@ The game mode starts the configured Worker with a fresh, nonpersistent SQLite
 Durable Object and generated runtime-only guest/admin credentials. Anonymous
 admin writes are refused before authenticated local initialization. Only
 same-origin `/backend/*` server fetches re-enter this Worker; all other workerd
-egress is denied. The unchanged game consumer covers real guest admission,
+egress is denied. The existing game consumer covers real guest admission,
 validation, reconnect/draft recovery, nine-round reveal, rematch and closed-room
 refusal. Runtime errors, skipped tests and missing evidence still fail the
 existing verdict. The runner disposes workerd on success or failure.
