@@ -1,13 +1,13 @@
 # Postmortem: /releases failed on the Worker, and Sentry filed it under an old issue
 
 - **Incident date:** 2026-10-12 to 2026-10-14.
-- **Status:** Open.
+- **Status:** Closed by [PR #577](https://github.com/misty-step/linejam/pull/577).
   - The detection class is closed by
     [PR #567](https://github.com/misty-step/linejam/pull/567), with its
     regression checks.
-  - The runtime class is closed for the release routes by
-    [PR #559](https://github.com/misty-step/linejam/pull/559). It stays open
-    for every other route, with an owned follow-up.
+  - [PR #559](https://github.com/misty-step/linejam/pull/559) repaired the release
+    routes. PR #577 adds the failing-closed built-Worker route gate and proves
+    it rejects the original eager Ajv loader.
 - **Operational owner:** Linejam production observability.
 - **Tracker:** Powder
   `prod-triage-7793706693634e4ccbbe57d39f4fd545af2657ac77956eda9ea4195b924c9134`;
@@ -192,7 +192,7 @@ those apart without keeping content. Handled server captures on the Worker
 carry no route, because the SDK sets no transaction there. They are told apart
 by the other fields only.
 
-### Runtime: open
+### Runtime: closed by PR #577
 
 PR #559 made the release routes read a catalog that is validated at build time.
 [`tests/lib/releases/runtime.test.ts`](../../tests/lib/releases/runtime.test.ts)
@@ -200,17 +200,44 @@ renders `/changelog`, `/releases` and `/releases.xml` under
 `node --disallow-code-generation-from-strings`, with filesystem imports
 blocked. String code generation therefore cannot return to those three routes.
 
-That does not error-proof the class. Any other route, or a dependency, that
-breaks on workerd still ships green, because nothing in the release path
-renders routes on the Worker. The class stays open until a failing-closed check
-does.
+[PR #577](https://github.com/misty-step/linejam/pull/577) adds
+[`pnpm test:worker-routes`](../../scripts/qa/worker-routes.ts). It runs the built
+OpenNext artifact in workerd with the deployed compatibility settings, before
+`wrangler deploy`, and in PR CI's existing Worker build job. A failure stops
+deployment and the merge gate; it is never a warning or a local limitation.
+
+The gate enumerates `ROUTE_TEMPLATES`, whose existing test keeps it equal to
+`app/`. The [pass-condition map](../../scripts/qa/worker-route-contracts.ts) must
+define every template. Unexpected status/content, streamed rendering errors,
+and Worker/Next/application error logs fail. Native outbound-service isolation
+makes every backend deliberately unavailable, including baked-in public URLs;
+the gate checks that isolation was actually exercised. Only `/api/health` may
+return 5xx, specifically its structured unreachable-backend 503. Missing recap
+and poem responses and unauthenticated account shells have explicit contracts.
+Probes do not create guest sessions or rooms, and load no runtime credentials.
+
+**Regression proof, 2026-10-15.** On Mirrodin with Node 22.23.2, pnpm 10.22.0
+and the frozen unchanged lockfile, scratch branch `proof/worker-ajv-t_f990ddc4`
+restored `loadReleaseCatalog()` into the current changelog (`/releases` alias)
+and feed. The eager Ajv loader was unchanged. `pnpm build:cf` succeeded; the gate
+exited 1 with workerd `EvalError` and HTTP 500 on `/changelog`, `/releases` and
+`/releases.xml`. The same final gate then passed all 25 templates on fixed master
+application source `9e68557f3c439c9111e852d036609256bec70936`. A non-local,
+Sentry-instrumented build with synthetic public endpoints also passed, with
+seven backend requests isolated. PR #577 retains the command/results evidence.
+
+[`tests/scripts/worker-routes.test.ts`](../../tests/scripts/worker-routes.test.ts)
+pins route completeness, backend classification, streaming-error and log
+rejection, and the pre-deploy/PR gate wiring. These checks cover route entry,
+SSR and deliberate dependency fallbacks, not authenticated backend journeys;
+the existing browser/backend acceptance lanes remain responsible for those.
 
 ## Follow-up
 
-1. **Linejam engineering (Kanban `t_f990ddc4`):** make a route failure on the
-   Worker runtime stop the release before production. Prove it by reinstating
-   the pre-#559 loader and showing that the check fails. Link that change and
-   its check here to close this postmortem.
+1. **Completed — Linejam engineering (Kanban `t_f990ddc4`):**
+   [PR #577](https://github.com/misty-step/linejam/pull/577) and its
+   [Worker route gate](../../scripts/qa/worker-routes.ts) close the runtime class,
+   with the failing-before/passing-after proof above (FND-INC-001).
 2. **Powder ticket owner:** after PR #567 is deployed, new events can no longer
    join LINEJAM-19, so the owner may resolve it.
 3. **Powder ticket owner:** watch the browser unhandled rejection of

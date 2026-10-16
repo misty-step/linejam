@@ -874,7 +874,7 @@ async function main() {
     'credential-free local mode'
   );
   requireCondition(
-    Array.isArray(ids) && ids.every((id) => /^US-\d{3}$/.test(id)),
+    Array.isArray(ids) && ids.every((id) => /^US-\d+$/.test(id)),
     'selected story IDs'
   );
   await mkdir('/artifacts/walk', { recursive: true });

@@ -63,12 +63,19 @@ post-test guard rejects Vitest's otherwise threshold-safe `0/0 Unknown%` state.
 
 ## Source-bound story-walk cadence
 
-The [feature map](../features/README.md) connects live stories to owned source
-areas; the repository's
+The [reference specification](../SPEC.md) is the only story catalog. The
+[feature map](../features/README.md) connects its stories to owned source areas;
+the repository's
 [verify skill](../.agents/skills/verify-linejam/SKILL.md) owns how to run and
 inspect a source-bound walk on an isolated Linux runner.
 
 CI and nightly invoke `qa/walk --all` directly to walk **all** live stories.
+`qa/walk --list` reads the same canonical catalog without starting services or
+writing a receipt. Story headings use `### US-<digits> [live|next|later] <title>`
+under `## Capability: <name>`; only `live` stories are selectable. Missing,
+duplicate or malformed stories and empty/nonconsecutive numbered checkpoints
+fail closed, rather than producing an empty passing walk. `USER_STORIES.md` is
+only a compatibility reference, not a second input.
 The runner validates clean exact HEAD/tree, synchronized runtime source identity,
 and observed numbered criteria, and exits nonzero on walk or cleanup failure.
 Its source-bound receipt and sanitized artifacts remain in `target/walk/`.
@@ -76,6 +83,14 @@ CI retains this evidence for 14 days; nightly retains it for 30 days and opens
 or updates one owned issue on failure. A passing walk is not proof of hosted
 Clerk, production rollout, provider health, or physical-phone acceptance. The
 existing `merge-gate` and its auth/E2E lanes are unchanged.
+
+The four numbered checkpoint sets remain stable. Detailed acceptance prose in
+SPEC.md also covers accounts, room lifecycle, draft recovery, accessibility,
+audio, favorites, recap and retention. The existing walk does not exercise all
+of those branches. Run their focused domain/component/browser checks as relevant;
+never promote a checkpoint receipt to a full-spec or production pass. In
+particular, a cancelled recap share currently does not undo publication, unlike
+the staged individual-poem share flow.
 
 US-004 adds a credential-free release-administration path to the existing
 source-bound story walk. In the disposable QA container it prepares a
