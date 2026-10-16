@@ -21,18 +21,20 @@ customElements.define(
       status.setAttribute('role', 'status');
       status.textContent = 'Loading…';
       this.replaceChildren(status);
-      load().then(
-        ({ mount_entry }) => {
+      load()
+        .then(({ mount_entry }) => {
           if (!this.isConnected || this.attempt !== attempt) return;
           this.replaceChildren();
           this.unmount = mount_entry(this, this.getAttribute('view'), () =>
             this.dispatchEvent(new Event('entry-close', { bubbles: true }))
           );
-        },
-        () => {
+        })
+        .catch(() => {
           if (!this.isConnected || this.attempt !== attempt) return;
+          this.dispatchEvent(new Event('entry-error', { bubbles: true }));
           status.setAttribute('role', 'alert');
           status.textContent = 'Could not load this view. ';
+          this.replaceChildren(status);
           const retry = document.createElement('button');
           retry.type = 'button';
           retry.textContent = 'Retry';
@@ -40,8 +42,7 @@ customElements.define(
             once: true,
           });
           status.append(retry);
-        }
-      );
+        });
     }
     disconnectedCallback() {
       this.attempt = undefined;

@@ -113,11 +113,17 @@ test('a refused WASM load is visible and retry loads the real Rust view', async 
   page,
 }) => {
   const home = page.locator('linejam-entry[view="home"]');
+  const reported: string[] = [];
+  page.on('console', (message) => {
+    if (message.text().includes('Rust entry view failed to load'))
+      reported.push(message.text());
+  });
   await page.route('**/entry-wasm/*.wasm', (route) => route.abort('failed'));
   await page.goto('/');
   await expect(home.getByRole('alert')).toContainText(
     'Could not load this view.'
   );
+  expect(reported).toHaveLength(1);
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
   await page.unroute('**/entry-wasm/*.wasm');
   await page.getByRole('button', { name: 'Retry', exact: true }).click();

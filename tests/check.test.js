@@ -65,7 +65,14 @@ if (process.env.FAIL_CHECK === process.argv[2]) process.exit(7);
     { cwd: root }
   );
   const env = Object.fromEntries(
-    ['PATH', 'HOME', 'TMPDIR', 'PNPM_HOME']
+    [
+      'PATH',
+      'HOME',
+      'TMPDIR',
+      'PNPM_HOME',
+      'COREPACK_HOME',
+      'COREPACK_ENABLE_NETWORK',
+    ]
       .filter((name) => process.env[name])
       .map((name) => [name, process.env[name]])
   );
