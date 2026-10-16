@@ -1,5 +1,7 @@
 # Linejam
 
+For every change, load the existing repo skill `verify-linejam`; keep `features/README.md` as the shared navigation map. Retain actual proof in card top-level artifacts and PR How to review. New Hermes profiles enable project skills with `hermes skills trust` after reviewing the checkout.
+
 Shared standard: [Constitution](https://foundations.mistystep.io/) and [Way of working](https://foundations.mistystep.io/way-of-working).
 New code follows the [Misty Step Stack standard](https://foundations.mistystep.io/way-of-working).
 

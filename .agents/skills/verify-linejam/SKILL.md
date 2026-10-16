@@ -13,7 +13,7 @@ On the isolated Linux/amd64 runner or an authorized project VM, install Node 22+
 
 ## Doctor
 
-If setup fails, install missing Linux Docker/Node prerequisites through the host's normal owner, or resolve an existing unsupported user Compose plugin deliberately; never change socket permissions or select a remote daemon. The isolated `scripts/local/cli.mjs` verifies app/backend readiness and matching source snapshots; a health response by itself is not story proof. Check `USER_STORIES.md` and the expected story IDs before a run. `qa/walk --help` reports the selection syntax.
+If setup fails, resolve missing Linux Docker/Node prerequisites through the host's normal owner; never change socket permissions or select a remote daemon. The isolated `scripts/local/cli.mjs` verifies app/backend readiness and matching source snapshots; a health response by itself is not story proof. Check `SPEC.md` and the expected story IDs before a run. `qa/walk --help` reports the selection syntax.
 
 ## Drive
 
@@ -24,5 +24,10 @@ The walk uses separate browser sessions for host, guest, and spectator. Check th
 Read `target/walk/walk-receipt.json`: it binds the run to exact HEAD and tree, enumerates the numbered criteria actually observed, and hashes sanitized artifacts. CI and nightly invoke `qa/walk --all` directly. The runner validates clean source, synchronized runtime identity, and observed criteria, and exits nonzero on walk or cleanup failure. A passing walk is not hosted Clerk, production, physical phone, or provider-outage proof; name such gaps rather than promoting fixture evidence.
 
 ## Cleanup
+
+For each change, run heavy work only on Mirrodin under the card workspace.
+Inspect actual screenshots/video, retain command/exit and candidate/serving
+identity separately, and attach approved media/transcript to card top-level
+`artifacts` and PR How to review. Keep this same feature map for fitness.
 
 The walk always runs the owned local `down` for its project; after a failure, inspect the owned `.qa/local/` private files in place before further cleanup. Raw logs/traces can contain guest credentials, poem text, and room codes: do not upload them or add them to a public PR. Only `target/walk/` is a sanitized portable artifact, and it is ignored by Git. Never reset a state volume you do not own. The parent operator owns VM/worktree teardown, if any.
