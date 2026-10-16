@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   markPostHogReady,
   resetPostHogReady,
@@ -30,6 +30,7 @@ describe('analytics', () => {
   const capturedCalls: Array<Parameters<PostHogCaptureClient['capture']>> = [];
 
   beforeEach(() => {
+    vi.stubGlobal('window', { location: { pathname: '/host' } });
     capturedCalls.length = 0;
     resetCapturedAnalyticsForTests();
     setPostHogClientForTests({
@@ -40,6 +41,7 @@ describe('analytics', () => {
     markPostHogReady();
   });
   afterEach(() => {
+    vi.unstubAllGlobals();
     resetPostHogReady();
     resetCapturedAnalyticsForTests();
   });
@@ -113,6 +115,21 @@ describe('analytics', () => {
     trackRoomInviteShared({ method: 'clipboard', roomCode: 'PRIVATE_CANARY' });
     expect(capturedCalls).toEqual([
       ['room_invite_shared', { method: 'clipboard' }],
+    ]);
+  });
+
+  it('counts initialization and delayed route effects as one pageview per visit', () => {
+    trackPageview();
+    trackPageview();
+    window.location.pathname = '/room/ABCD';
+    trackPageview();
+    trackPageview();
+    window.location.pathname = '/host';
+    trackPageview();
+    expect(capturedCalls).toEqual([
+      ['$pageview', undefined],
+      ['$pageview', undefined],
+      ['$pageview', undefined],
     ]);
   });
 });

@@ -36,6 +36,7 @@ export type PostHogCaptureClient = {
 };
 
 let customPostHogClient: PostHogCaptureClient | null = null;
+let lastPageviewPath: string | null = null;
 
 function safeCapture(
   event: string,
@@ -52,7 +53,11 @@ function safeCapture(
 }
 
 export function trackPageview() {
-  safeCapture('$pageview');
+  const pathname = globalThis.window?.location.pathname;
+  if (!pathname || pathname === lastPageviewPath) return;
+  // Suspense can mount the route effect after init's loaded callback. They
+  // describe the same visit, not two pageviews. A hard reload resets this.
+  if (safeCapture('$pageview')) lastPageviewPath = pathname;
 }
 
 export function setPostHogClientForTests(client: PostHogCaptureClient | null) {
@@ -113,6 +118,7 @@ export function trackArtifactAction(props: ArtifactActionProps) {
 export function resetCapturedAnalyticsForTests() {
   capturedEvents.clear();
   customPostHogClient = null;
+  lastPageviewPath = null;
 }
 
 // Existing non-funnel product signals remain available to focused UI tests
