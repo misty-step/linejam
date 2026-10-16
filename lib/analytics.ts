@@ -21,16 +21,39 @@ export type ArtifactActionProps = RoomCycleEventProps & {
   action: ArtifactAction;
 };
 
+type ShareEventProps = {
+  method: 'clipboard' | 'native-share' | 'download' | 'print';
+  poemCount?: number;
+};
+
 const capturedEvents = new Set<string>();
 
 export type PostHogCaptureClient = {
   capture: (
     event: string,
-    properties?: RoomCycleEventProps | ArtifactActionProps
+    properties?: RoomCycleEventProps | ArtifactActionProps | ShareEventProps
   ) => void;
 };
 
 let customPostHogClient: PostHogCaptureClient | null = null;
+
+function safeCapture(
+  event: string,
+  properties?: RoomCycleEventProps | ArtifactActionProps | ShareEventProps
+): boolean {
+  if (!posthogIsReady()) return false;
+  try {
+    (customPostHogClient ?? posthog).capture(event, properties);
+    return true;
+  } catch {
+    // Analytics is best effort; never reject a successful player operation.
+    return false;
+  }
+}
+
+export function trackPageview() {
+  safeCapture('$pageview');
+}
 
 export function setPostHogClientForTests(client: PostHogCaptureClient | null) {
   customPostHogClient = client;
@@ -53,9 +76,7 @@ function capture(
     'action' in properties ? properties.action : '',
   ].join(':');
   if (capturedEvents.has(key)) return;
-  capturedEvents.add(key);
-  const client = customPostHogClient ?? posthog;
-  client.capture(event, properties);
+  if (safeCapture(event, properties)) capturedEvents.add(key);
 }
 
 export { hashRoomId } from '@/lib/roomIdHash';
@@ -99,29 +120,28 @@ export function resetCapturedAnalyticsForTests() {
 export function trackPoemShared(props: {
   method: 'clipboard' | 'native-share';
 }) {
-  if (!posthogIsReady()) return;
-  posthog.capture('poem_shared', props);
+  safeCapture('poem_shared', { method: props.method });
 }
 
 export function trackPoemImageSaved(props: {
   method: 'native-share' | 'download';
 }) {
-  if (!posthogIsReady()) return;
-  posthog.capture('poem_image_saved', props);
+  safeCapture('poem_image_saved', { method: props.method });
 }
 
 export function trackRecapExported(props: {
   method: 'print';
   poemCount: number;
 }) {
-  if (!posthogIsReady()) return;
-  posthog.capture('recap_exported', props);
+  safeCapture('recap_exported', {
+    method: props.method,
+    poemCount: props.poemCount,
+  });
 }
 
 export function trackRoomInviteShared(props: {
   method: 'clipboard' | 'native-share';
   roomCode: string;
 }) {
-  if (!posthogIsReady()) return;
-  posthog.capture('room_invite_shared', props);
+  safeCapture('room_invite_shared', { method: props.method });
 }

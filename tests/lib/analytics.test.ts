@@ -14,8 +14,12 @@ import {
   trackGameStarted,
   trackLineSubmitted,
   trackLobbyReady,
-  type ArtifactActionProps,
-  type RoomCycleEventProps,
+  trackPageview,
+  trackPoemShared,
+  trackPoemImageSaved,
+  trackRecapExported,
+  trackRoomInviteShared,
+  type PostHogCaptureClient,
 } from '@/lib/analytics';
 const props = {
   roomIdHash: hashRoomId('room-internal-id'),
@@ -23,9 +27,7 @@ const props = {
 };
 
 describe('analytics', () => {
-  const capturedCalls: Array<
-    [string, RoomCycleEventProps | ArtifactActionProps | undefined]
-  > = [];
+  const capturedCalls: Array<Parameters<PostHogCaptureClient['capture']>> = [];
 
   beforeEach(() => {
     capturedCalls.length = 0;
@@ -77,5 +79,40 @@ describe('analytics', () => {
     trackArtifactAction({ ...props, round: 8, action: 'save' });
     trackArtifactAction({ ...props, round: 8, action: 'share' });
     expect(capturedCalls).toHaveLength(3);
+  });
+
+  it('does not capture before SDK readiness', () => {
+    resetPostHogReady();
+    trackGameCreated(props);
+    trackPageview();
+    expect(capturedCalls).toHaveLength(0);
+  });
+
+  it('isolates SDK exceptions on every capture path and recovers on a later action', () => {
+    setPostHogClientForTests({
+      capture: () => {
+        throw new Error('analytics unavailable');
+      },
+    });
+    expect(() => {
+      trackGameCreated(props);
+      trackPageview();
+      trackPoemShared({ method: 'clipboard' });
+      trackPoemImageSaved({ method: 'download' });
+      trackRecapExported({ method: 'print', poemCount: 2 });
+      trackRoomInviteShared({ method: 'clipboard', roomCode: 'SECRET' });
+    }).not.toThrow();
+    setPostHogClientForTests({
+      capture: (name, properties) => capturedCalls.push([name, properties]),
+    });
+    trackGameCreated(props);
+    expect(capturedCalls).toEqual([['game_created', props]]);
+  });
+
+  it('never passes room codes into the SDK', () => {
+    trackRoomInviteShared({ method: 'clipboard', roomCode: 'PRIVATE_CANARY' });
+    expect(capturedCalls).toEqual([
+      ['room_invite_shared', { method: 'clipboard' }],
+    ]);
   });
 });

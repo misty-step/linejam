@@ -662,7 +662,7 @@ function transactionRoute(value: string | null | undefined): TransactionRoute {
   return { method: match?.[1], route };
 }
 
-function safeTransactionName(value: string | null | undefined): string {
+export function safeTransactionName(value: string | null | undefined): string {
   const { method, route = 'unknown-route' } = transactionRoute(value);
   return method ? `${method} ${route}` : route;
 }
