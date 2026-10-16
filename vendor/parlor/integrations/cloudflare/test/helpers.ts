@@ -124,8 +124,7 @@ export async function durableObject(
 ) {
   let ready: Promise<unknown> = Promise.resolve();
   let alarm: number | null = null;
-  // workerd's storage also reports the stored alarm; the object never reads it.
-  const storage: DurableObjectStorageLike & { getAlarm(): Promise<number | null> } = {
+  const storage = {
     sql: {
       exec: (query: string, ...bindings: (string | number | null)[]) => ({
         toArray: () => driver.exec(query, ...bindings),
@@ -166,7 +165,7 @@ export async function durableObject(
     });
     return { status: response.status, body: (await response.json()) as Record<string, any> };
   };
-  return { backend, call, admin, alarm: () => alarm, storage };
+  return { backend, call, admin, alarm: () => alarm };
 }
 
 export const schema = defineSchema({

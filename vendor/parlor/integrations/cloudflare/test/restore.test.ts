@@ -47,18 +47,32 @@ describe("point-in-time restore", () => {
     expect(pitr.seen.aborted).toEqual(["parlor-cloudflare: point-in-time restore"]);
   });
 
-  it("schedules its alarm on every start, even when the storage still holds that time", async () => {
+  it("wakes at once on every start, because a restore brings back the stored alarm unscheduled", async () => {
     const driver = memorySqlDriver();
     const before = await durableObject({}, driver);
     expect((await before.admin("freeze", { frozen: false })).status).toBe(200);
-    const due = before.alarm();
-    expect(due).not.toBeNull();
+    const due = before.alarm()!;
+    expect(due).toBeGreaterThan(Date.now());
 
-    // A restored object finds the stored alarm time of its target moment, but
-    // the restore scheduled nothing: only a setAlarm call wakes it again.
-    const setAlarm = vi.fn((when: number) => before.storage.setAlarm(when));
-    await durableObject({}, driver, { storage: { ...before.storage, setAlarm } });
-    expect(setAlarm).toHaveBeenCalledWith(due);
+    // Deployed storage keeps the stored alarm time apart from the scheduled
+    // alarm, and a setAlarm that repeats the stored time writes nothing, so it
+    // schedules nothing. A restore brings back the stored time, unscheduled.
+    let stored: number | null = due;
+    let scheduled: number | null = null;
+    const after = await durableObject({}, driver, {
+      storage: {
+        setAlarm: async (when: number) => {
+          if (when !== stored) scheduled = stored = when;
+        },
+        deleteAlarm: async () => {
+          if (stored !== null) scheduled = stored = null;
+        },
+      },
+    });
+    expect(scheduled).not.toBeNull();
+    expect(scheduled!).toBeLessThan(due);
+    await after.backend.alarm();
+    expect(scheduled).toBe(due);
   });
 
   it("restores to a moment by resolving that moment's bookmark", async () => {

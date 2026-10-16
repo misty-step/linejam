@@ -262,10 +262,11 @@ export class ConvexBackendObject {
   private readonly sessions = new Set<SyncSession>();
   private pinger: ReturnType<typeof setInterval> | null = null;
   /**
-   * The alarm this instance set, or `undefined` until it sets one. A start
-   * never trusts the stored alarm: on a deployed object, a point-in-time
-   * restore brought back the stored alarm time without scheduling it, which
-   * left every cron and job waiting.
+   * The alarm this instance set, or `undefined` before its first. Each start
+   * wakes the object at once rather than trusting the stored alarm: a
+   * point-in-time restore brings back the stored alarm time without
+   * scheduling it, and storage ignores a setAlarm that repeats the stored
+   * time. The wake re-arms from the database.
    */
   private armedAlarm: number | null | undefined = undefined;
   /** Set once a point-in-time restore is staged; the object restarts shortly after. */
@@ -302,9 +303,10 @@ export class ConvexBackendObject {
   private async armAlarm() {
     const next = this.runtime.writesFrozen ? null : this.runtime.nextWakeTime();
     if (next === this.armedAlarm) return;
+    const starting = this.armedAlarm === undefined;
     this.armedAlarm = next;
     if (next === null) await this.state.storage.deleteAlarm();
-    else await this.state.storage.setAlarm(Math.max(next, Date.now()));
+    else await this.state.storage.setAlarm(starting ? Date.now() : Math.max(next, Date.now()));
   }
 
   async alarm() {
