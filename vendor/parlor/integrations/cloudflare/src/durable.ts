@@ -29,14 +29,22 @@ interface SqlCursor {
 export interface DurableObjectStorageLike {
   readonly sql: { exec(query: string, ...bindings: SqlValue[]): SqlCursor };
   transactionSync<T>(callback: () => T): T;
-  getAlarm(): Promise<number | null>;
   setAlarm(scheduledTime: number): Promise<void>;
   deleteAlarm(): Promise<void>;
+  /**
+   * Point-in-time recovery over the last 30 days. Deployed SQLite-backed
+   * objects have it; local workerd keeps no change log, so it fails there.
+   */
+  getCurrentBookmark?(): Promise<string>;
+  getBookmarkForTime?(timestamp: number): Promise<string>;
+  onNextSessionRestoreBookmark?(bookmark: string): Promise<string>;
 }
 
 export interface DurableObjectStateLike {
   readonly storage: DurableObjectStorageLike;
   blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>;
+  /** Reset the object; the next request starts a fresh instance from storage. */
+  abort?(reason?: string): void;
 }
 
 interface WebSocketLike {
@@ -80,6 +88,12 @@ const DISCARD_TOTAL_MS = 5_000;
 const MAX_SOCKETS = 5000;
 const STATUS_UDF_FAILED = 560;
 const DO_NAME = "convex";
+/** How long a restore waits, refusing every request, before restarting the object. */
+const RESTART_DELAY_MS = 1_000;
+const RESTARTING = "Restarting after a point-in-time restore";
+/** Bookmarks are hex groups such as `0000007b-0000b26e-...`; the CLI checks the same shape. */
+const BOOKMARK = /^[0-9A-Za-z]{1,64}(-[0-9A-Za-z]{1,64}){0,7}$/;
+const PITR_UNAVAILABLE = "Point-in-time recovery is not available on this storage";
 
 export function durableSqlDriver(storage: DurableObjectStorageLike): SqlDriver {
   return {
@@ -200,6 +214,7 @@ class RequestError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code = "BadRequest",
   ) {
     super(message);
   }
@@ -248,7 +263,20 @@ export class ConvexBackendObject {
   private verifier!: TokenVerifier;
   private readonly sessions = new Set<SyncSession>();
   private pinger: ReturnType<typeof setInterval> | null = null;
-  private armedAlarm: number | null = null;
+  /**
+   * The alarm this instance set, or `undefined` before its first. Each start
+   * wakes the object at once rather than trusting the stored alarm: a
+   * point-in-time restore brings back the stored alarm time without
+   * scheduling it, and storage ignores a setAlarm that repeats the stored
+   * time. The wake re-arms from the database.
+   */
+  private armedAlarm: number | null | undefined = undefined;
+  /**
+   * Set under the database lock once a point-in-time restore is staged; the
+   * object restarts shortly after. Writes were frozen when it was set, and
+   * nothing changes data or maintenance state after it (see `maintenance`).
+   */
+  private restarting = false;
   private readonly basePath: string;
 
   constructor(
@@ -273,7 +301,6 @@ export class ConvexBackendObject {
       this.runtime.onCommit(() => this.armAlarm());
       // Jobs a restart interrupted make the alarm due now; once writes are
       // unfrozen, the scheduler's upkeep marks them failed.
-      this.armedAlarm = await state.storage.getAlarm();
       await this.armAlarm();
     });
   }
@@ -282,13 +309,15 @@ export class ConvexBackendObject {
   private async armAlarm() {
     const next = this.runtime.writesFrozen ? null : this.runtime.nextWakeTime();
     if (next === this.armedAlarm) return;
+    const starting = this.armedAlarm === undefined;
     this.armedAlarm = next;
     if (next === null) await this.state.storage.deleteAlarm();
-    else await this.state.storage.setAlarm(Math.max(next, Date.now()));
+    else await this.state.storage.setAlarm(starting ? Date.now() : Math.max(next, Date.now()));
   }
 
   async alarm() {
     this.armedAlarm = null;
+    if (this.restarting) return;
     try {
       await this.runtime.runDue();
     } catch (error) {
@@ -298,7 +327,12 @@ export class ConvexBackendObject {
   }
 
   async fetch(request: Request): Promise<Response> {
-    const response = await this.route(request);
+    // A staged restore discards every write from here on, so accept none.
+    // This turns away later requests; one already past this point is
+    // stopped under the lock instead (`maintenance` and the freeze barrier).
+    const response = this.restarting
+      ? json({ code: "Unavailable", message: RESTARTING }, 503)
+      : await this.route(request);
     await drainUnreadBody(request);
     return response;
   }
@@ -336,7 +370,7 @@ export class ConvexBackendObject {
       return new Response("Not found", { status: 404 });
     } catch (error) {
       if (error instanceof RequestError)
-        return json({ code: "BadRequest", message: error.message }, error.status);
+        return json({ code: error.code, message: error.message }, error.status);
       console.error("parlor-cloudflare: request failed", error);
       return json({ code: "InternalServerError", message: "Internal server error" }, 500);
     }
@@ -472,15 +506,17 @@ export class ConvexBackendObject {
       );
       return json(page);
     }
+    if (request.method === "GET" && route === "bookmark") return this.bookmark(url);
     if (request.method !== "POST")
       return json({ code: "NotFound", message: "Unknown admin route" }, 404);
     const body = await readJson(request);
+    if (route === "restore") return this.restore(body);
     if (route === "freeze") {
       const frozen = body["frozen"];
       if (typeof frozen !== "boolean") throw new RequestError(400, "Expected { frozen: boolean }");
       // Under the lock, so the barrier lands between two transactions: every
       // write committed before it is in the store, and none is accepted after.
-      const ts = await runtime.exclusive(async () => {
+      const ts = await this.maintenance(async () => {
         setWritesFrozen(runtime, frozen);
         return runtime.store.ts.toString();
       });
@@ -491,7 +527,7 @@ export class ConvexBackendObject {
       const tables = body["tables"];
       if (typeof tables !== "object" || tables === null || Array.isArray(tables))
         throw new RequestError(400, "Expected { tables: { name: number } }");
-      await runtime.exclusive(() => beginImport(runtime, tables as Record<string, number>));
+      await this.maintenance(() => beginImport(runtime, tables as Record<string, number>));
       return json({ tables: Object.fromEntries(runtime.store.tableNumbers()) });
     }
     if (route === "import/documents") {
@@ -500,7 +536,7 @@ export class ConvexBackendObject {
       if (typeof table !== "string" || !Array.isArray(documents)) {
         throw new RequestError(400, "Expected { table, documents: [] }");
       }
-      const imported = await runtime.exclusive(() =>
+      const imported = await this.maintenance(() =>
         importDocuments(runtime, table, documents as JSONValue[]),
       );
       return json({ imported });
@@ -510,13 +546,105 @@ export class ConvexBackendObject {
       if (!isExpectedTables(tables)) {
         throw new RequestError(400, "Expected { tables: { name: { count, sha256 } } }");
       }
-      const result = await runtime.exclusive(() => commitImport(runtime, tables));
+      const result = await this.maintenance(() => commitImport(runtime, tables));
       return json(
         { committed: result.mismatches.length === 0, ...result },
         result.mismatches.length === 0 ? 200 : 409,
       );
     }
     return json({ code: "NotFound", message: "Unknown admin route" }, 404);
+  }
+
+  /**
+   * Run a maintenance operation (freeze, import, restore) under the
+   * database lock, unless a restore is staged. A request can pass the
+   * check in `fetch` and then wait for its key check, its body or the lock
+   * while a restore is staged; checking again here, where the restore was
+   * staged, keeps it from unfreezing writes, importing, or replacing the
+   * restore's target. Everything else that writes is held off by the
+   * freeze barrier, which only `freeze` can lift.
+   */
+  private maintenance<T>(work: () => Promise<T>): Promise<T> {
+    return this.runtime.exclusive(async () => {
+      if (this.restarting) throw new RequestError(503, RESTARTING, "Unavailable");
+      return work();
+    });
+  }
+
+  /**
+   * `GET admin/bookmark`: the point-in-time-recovery bookmark for now, taken
+   * under the database lock so it follows exactly the writes up to `ts`, or,
+   * with `?at=<ms>`, the bookmark for that moment of the last 30 days.
+   */
+  private async bookmark(url: URL): Promise<Response> {
+    const storage = this.state.storage;
+    if (storage.getCurrentBookmark === undefined || storage.getBookmarkForTime === undefined)
+      throw new RequestError(501, PITR_UNAVAILABLE);
+    const at = url.searchParams.get("at");
+    if (at !== null) {
+      const time = Number(at);
+      if (!/^\d{1,16}$/.test(at) || !Number.isSafeInteger(time) || time <= 0)
+        throw new RequestError(400, "Expected ?at=<milliseconds since the epoch>");
+      return json({ at: time, bookmark: await storage.getBookmarkForTime(time) });
+    }
+    const runtime = this.runtime;
+    return json(
+      await runtime.exclusive(async () => ({
+        ts: runtime.store.ts.toString(),
+        writesFrozen: runtime.writesFrozen,
+        bookmark: await storage.getCurrentBookmark!(),
+      })),
+    );
+  }
+
+  /**
+   * `POST admin/restore` with `{ bookmark }` or `{ at: <ms> }`: stage a
+   * point-in-time restore of the whole object, data and maintenance state,
+   * then restart it. Writes must already be frozen, so nothing is accepted
+   * between the decision and the restart. The answer (202) carries the
+   * target bookmark and the undo bookmark, which restores the object to just
+   * before this restore; every later request then gets 503 until the object
+   * restarts RESTART_DELAY_MS later and comes back exactly as at the target.
+   * Staging is terminal: a freeze, import or restore request that arrived
+   * before it but reaches the lock after it gets 503 too, so writes stay
+   * frozen and the acknowledged target is the one the platform restores.
+   */
+  private async restore(body: Record<string, unknown>): Promise<Response> {
+    const storage = this.state.storage;
+    if (
+      storage.onNextSessionRestoreBookmark === undefined ||
+      storage.getBookmarkForTime === undefined ||
+      this.state.abort === undefined
+    )
+      throw new RequestError(501, PITR_UNAVAILABLE);
+    const { bookmark, at } = body;
+    const byBookmark = bookmark !== undefined;
+    if (
+      byBookmark === (at !== undefined) ||
+      (byBookmark
+        ? typeof bookmark !== "string" || !BOOKMARK.test(bookmark)
+        : typeof at !== "number" || !Number.isSafeInteger(at) || at <= 0)
+    )
+      throw new RequestError(
+        400,
+        "Expected { bookmark } or { at: <milliseconds since the epoch> }",
+      );
+    const runtime = this.runtime;
+    const staged = await this.maintenance(async () => {
+      if (!runtime.writesFrozen)
+        throw new MaintenanceStateError("Freeze writes before restoring a bookmark");
+      const target = byBookmark
+        ? (bookmark as string)
+        : await storage.getBookmarkForTime!(at as number);
+      const undo = await storage.onNextSessionRestoreBookmark!(target);
+      this.restarting = true;
+      return { bookmark: target, undo };
+    });
+    setTimeout(
+      () => this.state.abort?.("parlor-cloudflare: point-in-time restore"),
+      RESTART_DELAY_MS,
+    );
+    return json({ ...staged, restarting: true }, 202);
   }
 }
 

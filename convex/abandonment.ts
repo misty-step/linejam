@@ -3,11 +3,53 @@ import {
   sweepAbandonedMatches,
   type SweepResult,
 } from '@parlor/convex/abandonment';
-import { v } from 'convex/values';
-import { internalMutation } from './_generated/server';
+import { ConvexError, v } from 'convex/values';
+import { internalAction, internalMutation } from './_generated/server';
 import { internal } from './_generated/api';
 import { abandonRoomMatch } from './lib/sessionLifecycle';
 import { log } from './lib/errors';
+import { sendAbandonmentCheckIn } from './lib/sentry';
+
+/** One action owns completion across every atomic, bounded mutation page. */
+export const runAbandonmentSweep = internalAction({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }): Promise<SweepResult> => {
+    const checkInId = crypto.randomUUID().replaceAll('-', '');
+    const startedAt = Date.now();
+    await sendAbandonmentCheckIn(checkInId, 'in_progress', 0);
+    let scanned = 0;
+    let abandoned = 0;
+    let cursor: string | undefined;
+    try {
+      for (;;) {
+        const page: SweepResult = await ctx.runMutation(
+          internal.abandonment.sweepAbandonedGames,
+          { limit, cursor }
+        );
+        scanned += page.scanned;
+        abandoned += page.abandoned;
+        if (!page.hasMore) break;
+        if (page.continueCursor === null) {
+          throw new ConvexError('Abandonment continuation is missing');
+        }
+        cursor = page.continueCursor;
+      }
+    } catch (error) {
+      await sendAbandonmentCheckIn(
+        checkInId,
+        'error',
+        (Date.now() - startedAt) / 1_000
+      );
+      throw error;
+    }
+    await sendAbandonmentCheckIn(
+      checkInId,
+      'ok',
+      (Date.now() - startedAt) / 1_000
+    );
+    return { scanned, abandoned, hasMore: false, continueCursor: null };
+  },
+});
 
 export const sweepAbandonedGames = internalMutation({
   args: {
@@ -21,24 +63,14 @@ export const sweepAbandonedGames = internalMutation({
       onAbandoned: (envelope) =>
         abandonRoomMatch(ctx, { envelope, closeRoom: true }),
     });
-    // Continue even when this page abandoned nothing: later matches may be idle.
-    if (result.hasMore && result.continueCursor !== null) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.abandonment.sweepAbandonedGames,
-        {
-          limit,
-          cursor: result.continueCursor,
-        }
-      );
-    }
+
     if (result.abandoned > 0) {
       log.warn('Abandonment sweep closed unattended games', {
         abandoned: result.abandoned,
         scanned: result.scanned,
       });
     }
-    // Propagate failures so envelope, poems, closure and scheduling roll back.
+    // Propagate failures so envelope, poems and closure roll back together.
     return result;
   },
 });

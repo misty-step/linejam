@@ -19,6 +19,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sourceIdentity } from '../scripts/local/identity.mjs';
+import { liveStoriesFromSpec } from './spec-stories.mjs';
 
 const root = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 const output = path.join(root, 'target/walk');
@@ -97,28 +98,14 @@ exec ${shellQuote(executable)} \"$@\"
   dockerWrapperDir = scratch;
 }
 
-function storiesAtHead(source) {
-  const headings = [...source.matchAll(/^## (US-\d{3})\b[^\n]*$/gm)];
-  const result = new Map();
-  for (let i = 0; i < headings.length; i++) {
-    const start = headings[i].index;
-    const next = source.indexOf('\n## ', start + 4);
-    const section = source.slice(start, next === -1 ? undefined : next);
-    if (/\bretired\b|\bsuperseded by\b/i.test(section)) continue;
-    result.set(
-      headings[i][1],
-      [
-        ...section.matchAll(/^(\d+)\. (?:WHEN|IF|WHILE|WHERE|THE\b|EACH\b)/gm),
-      ].map((match) => Number(match[1]))
-    );
-  }
-  return result;
-}
-
 function parse(live) {
   const argv = process.argv.slice(2);
   if (argv.length === 1 && argv[0] === '--help') {
-    console.log('usage: qa/walk --all | --stories "US-001 US-002"');
+    console.log('usage: qa/walk --all | --stories "US-001 US-002" | --list');
+    return null;
+  }
+  if (argv.length === 1 && argv[0] === '--list') {
+    console.log([...live.keys()].join('\n'));
     return null;
   }
   if (argv.length === 1 && argv[0] === '--all') return [...live.keys()];
@@ -129,7 +116,7 @@ function parse(live) {
       if (!live.has(id)) throw new Error(`Unknown live story: ${id}`);
     return selected.length ? selected : [...live.keys()];
   }
-  throw new Error('usage: qa/walk --all | --stories "US-001 US-002"');
+  throw new Error('usage: qa/walk --all | --stories "US-001 US-002" | --list');
 }
 
 async function prepareOutput() {
@@ -295,8 +282,8 @@ function validatedCriteria(story, expected) {
 }
 
 async function main() {
-  const source = await readFile(path.join(root, 'USER_STORIES.md'), 'utf8');
-  const live = storiesAtHead(source);
+  const source = await readFile(path.join(root, 'SPEC.md'), 'utf8');
+  const live = liveStoriesFromSpec(source);
   const selected = parse(live);
   if (selected === null) return;
   const head = git('rev-parse', 'HEAD');

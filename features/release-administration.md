@@ -3,13 +3,7 @@
 Stories: US-004
 Source: .github/workflows/release.yml, .env.pass, scripts/releases/**, scripts/generate-releases.ts, lib/releases/**, app/releases/page.tsx, site/changelog.html, docs/releases/feed.xml, qa/release-walk-fixture.mjs, qa/walk-specs.mjs, tests/scripts/release-prepare.test.ts, tests/scripts/site-changelog.test.ts, tests/lib/releases/catalog.test.ts, docs/deployment.md
 
-## Sub-features
-
-A release candidate is prepared from the current protected source, reviewed in a pull request, and published only with matching source and version. If the notes provider fails after supplying reviewable evidence, preparation removes stale editorial notes and builds explicit technical-only history; malformed or ungrounded evidence still fails closed. The public page, static changelog, and feed distinguish unavailable generated notes from reviewed notes.
-
-## How to get to it (user POV)
-
-A maintainer inspects the Release run, its candidate pull request and full CI checks, and the release postmortem. A reader opens `/releases`, `site/changelog.html`, or `docs/releases/feed.xml` to read the history and its notes status. These are release-administration and publication boundaries, not evidence that the player application was deployed.
+Acceptance: [SPEC.md — US-004](../SPEC.md#us-004-live-prepare-a-reviewed-release-when-generated-notes-fail).
 
 ## Driving it
 

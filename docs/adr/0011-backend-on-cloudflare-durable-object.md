@@ -19,7 +19,7 @@ use `convex/react` and `convex/browser`.
 1. **Same modules, new host.** Serve the unchanged `convex/` modules, schema,
    crons, HTTP routes and `auth.config.ts` from one SQLite Durable Object, using
    Parlor's `@parlor/cloudflare` adapter. The adapter's protocol contract is
-   Parlor ADR 0002, and the adapter is vendored under
+   Parlor ADR 0003, and the adapter is vendored under
    `vendor/parlor/integrations/cloudflare`. It keeps Convex document IDs,
    transactions, indexes, reactive queries, the scheduler and crons.
 2. **Same Worker, same origin.** `cloudflare/worker.ts` is the Wrangler entry.
@@ -40,7 +40,7 @@ use `convex/react` and `convex/browser`.
 5. **Fail-closed rollout.** A new backend starts with writes frozen. While
    frozen, the object admits no mutation, action, HTTP action, scheduled
    function or cron, and it cannot be unfrozen while an import is pending
-   (Parlor ADR 0002, Operations). Exactly one backend accepts writes at any
+   (Parlor ADR 0003, Operations). Exactly one backend accepts writes at any
    time.
 6. **Cutover steps.**
    1. Deploy with the backend dormant, while the web still uses Convex. This
@@ -91,6 +91,21 @@ use `convex/react` and `convex/browser`.
    every check above passes. Pending scheduled functions are not part of a
    snapshot. Linejam's only one, the abandonment sweep's continuation, is
    re-derived by that sweep's one-minute cron.
+
+8. **Backups and restore.** The object's backup is Cloudflare's point-in-time
+   history of its storage: 30 days, recorded whether or not anyone asks
+   (Parlor ADR 0003, Backups). Before a risky step, such as a deploy, record
+   `parlor-cloudflare bookmark`. To recover, freeze the object, then run
+   `parlor-cloudflare restore --bookmark <b>`. Without a recorded bookmark,
+   `restore --at <time>` goes back to approximately that time (Parlor ADR
+   0003), so choose a time safely before the damage. The object restarts
+   exactly as it was at the target, including whether writes were frozen, so
+   a restore to a time of normal service resumes serving at once. The command
+   logs an undo bookmark that reverses the restore. A restore discards every
+   write after its target, so it repairs damage; it does not hand writes to
+   another backend (decision 7). The history is deleted with the class, so the
+   cutover's custody export, and any later frozen `export`, are the copies
+   that survive that.
 
 ## Consequences
 
