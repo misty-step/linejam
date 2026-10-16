@@ -102,6 +102,18 @@
         "recoveryThreshold": 1,
         "failureIssueThreshold": 1,
         "environments": ["production"]
+      },
+      {
+        "slug": "linejam-abandonment-sweep",
+        "status": "active",
+        "isMuted": false,
+        "schedule": "* * * * *",
+        "timezone": "UTC",
+        "maxRuntimeMinutes": 1,
+        "checkinMarginMinutes": 1,
+        "recoveryThreshold": 1,
+        "failureIssueThreshold": 1,
+        "environments": ["production"]
       }
     ],
     "forbidden": ["linejam-production-health", "linejam-ai-fallback-rate"]
