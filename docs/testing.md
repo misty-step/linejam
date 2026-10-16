@@ -94,6 +94,11 @@ never promote a checkpoint receipt to a full-spec or production pass. In
 particular, a cancelled recap share currently does not undo publication, unlike
 the staged individual-poem share flow.
 
+The supporting abandonment-monitor and privacy-safe usage criteria stay within
+US-002 and US-001–003 respectively. They do not add walk IDs or numbered
+checkpoints. Use their focused operations/analytics tests; the existing four-story
+walk is not a Sentry delivery or PostHog production-ingest witness.
+
 US-004 adds a credential-free release-administration path to the existing
 source-bound story walk. In the disposable QA container it prepares a
 technical-only candidate from a controlled provider failure, checks stale
