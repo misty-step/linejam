@@ -109,29 +109,37 @@ test('Rust help traps focus, closes by every action and restores scroll and open
   expect(errors).toEqual([]);
 });
 
-test('a refused WASM load is visible and retry loads the real Rust view', async ({
-  page,
-}) => {
-  const home = page.locator('linejam-entry[view="home"]');
-  const reported: string[] = [];
-  page.on('console', (message) => {
-    if (message.text().includes('Rust entry view failed to load'))
-      reported.push(message.text());
+for (const [kind, asset] of [
+  ['WASM', '*.wasm'],
+  ['JavaScript module', 'entry.js*'],
+]) {
+  test(`a refused ${kind} load is visible and retry loads the real Rust view`, async ({
+    page,
+  }) => {
+    const home = page.locator('linejam-entry[view="home"]');
+    const reported: string[] = [];
+    page.on('console', (message) => {
+      if (message.text().includes('Rust entry view failed to load'))
+        reported.push(message.text());
+    });
+    await page.route(`**/entry-wasm/${asset}`, (route) =>
+      route.abort('failed')
+    );
+    await page.goto('/');
+    await expect(home.getByRole('alert')).toContainText(
+      'Could not load this view.'
+    );
+    expect(reported).toHaveLength(1);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
+    await page.unroute(`**/entry-wasm/${asset}`);
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'A little room for words.'
+    );
+    await expect(home.getByRole('alert')).toHaveCount(0);
+    expect(reported).toHaveLength(1);
   });
-  await page.route('**/entry-wasm/*.wasm', (route) => route.abort('failed'));
-  await page.goto('/');
-  await expect(home.getByRole('alert')).toContainText(
-    'Could not load this view.'
-  );
-  expect(reported).toHaveLength(1);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
-  await page.unroute('**/entry-wasm/*.wasm');
-  await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    'A little room for words.'
-  );
-  await expect(home.getByRole('alert')).toHaveCount(0);
-});
+}
 
 test('a delayed detached help cannot lock the page; reattachment and disposal recover', async ({
   page,

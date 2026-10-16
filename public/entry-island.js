@@ -1,12 +1,15 @@
 let entryModule;
+let failures = 0;
 function load() {
-  entryModule ??= import('/entry-wasm/entry.js')
+  // Browsers cache rejected module fetches; retry must use a fresh module URL.
+  entryModule ??= import(`/entry-wasm/entry.js?attempt=${failures}`)
     .then(async (entry) => {
       await entry.default();
       return entry;
     })
     .catch((error) => {
       entryModule = undefined;
+      failures += 1;
       throw error;
     });
   return entryModule;
