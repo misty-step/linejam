@@ -544,8 +544,8 @@ the durable receipt still needs that public, sanitized record.
    A fresh local re-export can be compared with the decrypted backup in memory
    to verify every restored document without logging private contents. Stop the
    backend and securely remove the local database, plaintext, and ephemeral
-   identity after verification. Record the redacted conclusion on the GitHub
-   Issue selected for the drill. The receipt must link the backup workflow run and retained
+   identity after verification. Record the redacted conclusion on the Kanban
+   work item that owns the drill. The receipt must link the backup workflow run and retained
    proof artifact, and name the non-secret target class, backup filename, source
    SHA, observed completion time, and check outcome.
 

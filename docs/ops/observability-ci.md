@@ -145,6 +145,15 @@ completion independently routes failures to Kaylee's alert intake:
   expected slot, disabling the GitHub workflow does not silence absence
   detection. See [backup operations](../deployment.md#backups-and-restore) for
   the distinct missing-check-in and normal-backup recovery drill.
+- `linejam-abandonment-sweep` covers the existing every-minute cleanup cron.
+  One action starts a native check-in, runs the bounded mutation pages through
+  the final cursor, then reports `ok`; any page failure reports `error` and
+  preserves that page's rollback. Sentry detects a missing slot after a
+  one-minute margin, or an unfinished check-in after one minute. One failure
+  opens an incident; one normal complete sweep recovers it. It uses the same
+  scheduled-job alert and Kaylee intake as backups, not another notifier.
+  Check-ins contain no gameplay identifiers or content. Telemetry failures
+  remain bounded and fail-open; preview/local runs do not create monitor tracks.
 - `Production Smoke` owns the player-health job (guest entry and game start,
   US-001/US-002, plus authenticated join). Its downstream
   `Sentry player-health reporting` job owns the monitor check-in. Reporting
@@ -381,7 +390,7 @@ The postmortem record must contain:
 - observed contributing conditions and evidence for any reviewed root-cause
   conclusion;
 - mitigation, recovery proof, residual risk, and separately selected follow-up
-  work in Linear.
+  work in Powder, with execution tracked in Kanban.
 
 Four durable evidence links are required for the seeded serious-incident drill
 and for every serious incident where those artifacts exist:
@@ -401,8 +410,8 @@ auto-merged or auto-deployed.
 
 The bridge Issue and Sentry remain native incident-evidence records. They do
 not create a second current-work queue or authorize follow-on work: current
-requests and Linear own selection and prioritization. Preserve historical
-GitHub follow-up links; do not automatically re-import them into Linear.
+requests and Powder own selection and prioritization; Kanban owns work in flight.
+Preserve historical GitHub follow-up links rather than importing a second queue.
 
 `master` branch protection enforces the `merge-gate` status check, linear
 history, resolved review conversations, and pull-request-only changes. It
