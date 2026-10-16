@@ -21,6 +21,9 @@
 
 # production
 /build
+/.ui-build/
+/target/
+/public/entry-wasm/
 
 # misc
 .DS_Store

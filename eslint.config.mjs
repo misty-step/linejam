@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     // Generated files
     'convex/_generated/**',
+    'public/entry-wasm/**',
+    'target/**',
     'dagger/**',
     'vendor/**',
     // Design-lab artifacts (static sketches, not product code)

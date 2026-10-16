@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import Script from 'next/script';
 import type { Metadata, Viewport } from 'next';
 import { resolveDeploymentId } from '@/lib/deploymentId';
 import './globals.css';
@@ -91,6 +92,11 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
+        <Script
+          type="module"
+          src="/entry-island.js"
+          strategy="afterInteractive"
+        />
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: colorModeInitScript }}

@@ -44,6 +44,8 @@ describe('nextConfig security headers', () => {
         .find((part) => part.startsWith('script-src')) ?? '';
 
     expect(scriptDirective).toContain("'nonce-nonce-for-test'");
+    expect(scriptDirective).toContain("'wasm-unsafe-eval'");
+    expect(scriptDirective).not.toContain("'unsafe-eval'");
     expect(scriptDirective).not.toContain("'unsafe-inline'");
     expect(csp).not.toMatch(/\n/);
   });

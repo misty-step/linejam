@@ -36,6 +36,14 @@ x-source-watch: &source-watch
       - compose.yaml
       - scripts/local/
       - vendor/parlor/
+      - crates/
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - scripts/ui/
+      - components/ui/Avatar.tsx
+      - components/ui/avatarArt.ts
+      - lib/avatars.ts
   - action: rebuild
     path: package.json
   - action: rebuild
@@ -46,6 +54,22 @@ x-source-watch: &source-watch
     path: scripts/local
   - action: rebuild
     path: vendor/parlor
+  - action: rebuild
+    path: crates
+  - action: rebuild
+    path: Cargo.toml
+  - action: rebuild
+    path: Cargo.lock
+  - action: rebuild
+    path: rust-toolchain.toml
+  - action: rebuild
+    path: scripts/ui
+  - action: rebuild
+    path: components/ui/Avatar.tsx
+  - action: rebuild
+    path: components/ui/avatarArt.ts
+  - action: rebuild
+    path: lib/avatars.ts
 
 services:
   convex:

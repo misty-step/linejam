@@ -7,6 +7,7 @@ import {
   checkPlan,
   isolatedEnvironment,
   runChecks,
+  sourceRevision,
 } from '../scripts/check.mjs';
 
 const directories = [];
@@ -83,6 +84,7 @@ afterEach(() => {
 describe('portable native checks', () => {
   it('keeps fast cheap and full on the accepted Worker/DO path, without live mirrors', () => {
     expect(checkPlan('fast')).toEqual([
+      'test:rust',
       'provider-retirement:check',
       'typecheck',
       'lint',
@@ -138,6 +140,7 @@ describe('portable native checks', () => {
       runChecks(f.root, 'fast', { ...f.env, FAIL_CHECK: 'lint' })
     ).toThrow('pnpm lint failed');
     expect(f.calls()).toEqual([
+      'test:rust',
       'provider-retirement:check',
       'typecheck',
       'lint',
@@ -161,12 +164,28 @@ describe('portable native checks', () => {
     expect(() => f.calls()).toThrow();
   });
 
-  it('keeps the existing Git-free local source-archive checker working', () => {
+  it('retains the actual checkout revision without inventing an archive revision', () => {
     const f = fixture();
+    expect(sourceRevision(f.root)).toBe(
+      execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: f.root,
+        encoding: 'utf8',
+      }).trim()
+    );
     rmSync(join(f.root, '.git'), { recursive: true });
-    runChecks(f.root, 'fast', f.env);
-    expect(f.calls()).toEqual(checkPlan('fast'));
-  }, 30000);
+    expect(sourceRevision(f.root)).toBeNull();
+  });
+
+  it.each(['fast', 'full'])(
+    'keeps the Git-free source-archive %s checker working',
+    (mode) => {
+      const f = fixture();
+      rmSync(join(f.root, '.git'), { recursive: true });
+      runChecks(f.root, mode, f.env);
+      expect(f.calls()).toEqual(checkPlan(mode));
+    },
+    30000
+  );
 
   it.each([
     '.env',

@@ -1,12 +1,13 @@
 // Verify the built artifact in workerd. Do not rebuild or modify it here: the
 // release workflow deploys these exact bytes after this command succeeds.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { execFileSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { unstable_readConfig, unstable_startWorker } from 'wrangler';
+import { sourceRevision } from '../check.mjs';
 import {
   ROUTE_TEMPLATES,
   assertRouteResponse,
@@ -166,9 +167,7 @@ async function main() {
         join(artifacts, 'receipt.json'),
         JSON.stringify(
           {
-            source: execFileSync('git', ['rev-parse', 'HEAD'], {
-              encoding: 'utf8',
-            }).trim(),
+            source: sourceRevision(process.cwd()),
             backend: 'LinejamBackend / SQLite Durable Object',
             origin: backend.origin,
             persistent: false,

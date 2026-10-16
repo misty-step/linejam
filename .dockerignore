@@ -1,5 +1,9 @@
 .git
 .next
+.open-next
+.ui-build
+target
+public/entry-wasm
 .evidence
 coverage
 playwright-report

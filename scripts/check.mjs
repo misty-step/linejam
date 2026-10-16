@@ -11,7 +11,7 @@ export function checkPlan(mode) {
   if (mode !== 'fast' && mode !== 'full') {
     throw new Error('Expected --mode fast or full.');
   }
-  const quality = ['provider-retirement:check', 'typecheck', 'lint'];
+  const quality = ['test:rust', 'provider-retirement:check', 'typecheck', 'lint'];
   return mode === 'fast'
     ? [...quality, 'test']
     : [
@@ -66,6 +66,15 @@ export function isolatedEnvironment(environment, source) {
   };
 }
 
+export function sourceRevision(root) {
+  const identity = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  // Source archives have no revision; their caller retains the snapshot identity.
+  return identity.status === 0 ? identity.stdout.trim() : null;
+}
+
 export function runChecks(root, mode, environment = process.env) {
   const plan = checkPlan(mode);
   // Next and Wrangler discover dotenv files themselves, after our environment
@@ -82,13 +91,9 @@ export function runChecks(root, mode, environment = process.env) {
     throw new Error(
       'Isolated checks refuse dotenv files. Use a clean checkout.'
     );
-  const identity = spawnSync('git', ['rev-parse', 'HEAD'], {
-    cwd: root,
-    encoding: 'utf8',
-  });
   // The existing local Docker checker consumes a source archive without .git.
   // Its snapshot receipt owns identity there; absence of Git is not a new gate.
-  const source = identity.status === 0 ? identity.stdout.trim() : '';
+  const source = sourceRevision(root) ?? '';
   const env = isolatedEnvironment(environment, source);
   const toolEnv = { ...env };
   // Unit tests deliberately exercise both local and hosted behavior. As in the

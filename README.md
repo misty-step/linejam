@@ -21,8 +21,9 @@ See [local development](docs/local-development.md) for prerequisites, QA and res
 
 ## Verify a candidate
 
-With the Node runtime required by `package.json`, its exact pnpm pin and the
-frozen lockfile installed, run this in a clean candidate checkout on Mirrodin:
+With the Node runtime required by `package.json`, its exact pnpm pin, the Rust
+toolchain in `rust-toolchain.toml` and both frozen lockfiles installed, run this
+in a clean candidate checkout on Mirrodin:
 
 ```sh
 pnpm check --mode fast
@@ -39,7 +40,8 @@ The caller owns compute isolation; fleet runs stay inside `gha-runners.slice`.
 No production credential or dotenv file is needed. The check refuses live
 credentials and uses a loopback-only backend and generated local identities.
 Retain the command's source-bound output on the native executor. Browser
-evidence is in `.qa/worker/qa/evidence`; private raw logs stay on that executor.
+evidence is in `.qa/worker/qa/evidence`; Rust entry screenshots are alongside it
+in `.qa/worker/qa/entry-ui`. Private raw logs stay on that executor.
 A local pass is not a deployment, hosted Clerk verification or a PostHog usage result.
 This command prepares the native release path; it does not yet replace the
 existing deployer or authorize a second promotion path.
