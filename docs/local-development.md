@@ -24,7 +24,9 @@ The image installs the package manager pinned in this repository:
 the lockfile's **Playwright 1.58.2**, not a moving browser image. Convex is the
 [official backend image](https://github.com/get-convex/convex-backend/tree/main/self-hosted),
 pinned by a verified published multi-platform digest in `compose.yaml`. A source
-commit is not necessarily a published image tag.
+commit is not necessarily a published image tag. The upstream repository moved
+from `get-convex` to `convex`; its current registry namespace serves the same
+pinned artifact, without changing the backend revision or runtime contract.
 
 A daemon permission error is a missing capability, not permission to change
 system groups, socket modes, or another person's services. Use an already

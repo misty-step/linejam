@@ -2,6 +2,7 @@ import {
   signSentryAutomationGroup,
   signSentryAutomationProvenance,
 } from '../../sentry.provenance.mjs';
+import observability from '../../config/sentry-observability.json';
 
 const REQUEST_TIMEOUT_MS = 2_000;
 const MAX_SEND_ATTEMPTS = 2;
@@ -257,6 +258,44 @@ async function sendEnvelope(config: SentryConfig, body: string): Promise<void> {
     }
   }
   console.error('Sentry transport failed');
+}
+
+/** Native check-ins have a closed payload and share the bounded, fail-open sink. */
+export async function sendAbandonmentCheckIn(
+  checkInId: string,
+  status: 'in_progress' | 'ok' | 'error',
+  duration: number
+): Promise<void> {
+  const result = readSentryConfig();
+  if (!result.enabled) {
+    emitDiagnostic(result);
+    return;
+  }
+  // A preview must never create another permanently monitored environment.
+  if (result.config.environment !== 'production') return;
+  const monitor = observability.cronMonitors.required.find(
+    (entry) => entry.slug === 'linejam-abandonment-sweep'
+  )!;
+  const payload = {
+    check_in_id: checkInId,
+    monitor_slug: monitor.slug,
+    status,
+    environment: result.config.environment,
+    release: result.config.release,
+    duration: Math.max(0, Math.min(600, duration)),
+    monitor_config: {
+      schedule: { type: 'crontab', value: monitor.schedule },
+      timezone: monitor.timezone,
+      checkin_margin: monitor.checkinMarginMinutes,
+      max_runtime: monitor.maxRuntimeMinutes,
+      failure_issue_threshold: monitor.failureIssueThreshold,
+      recovery_threshold: monitor.recoveryThreshold,
+    },
+  };
+  await sendEnvelope(
+    result.config,
+    `${JSON.stringify({})}\n${JSON.stringify({ type: 'check_in' })}\n${JSON.stringify(payload)}`
+  );
 }
 
 /** Send one closed backend event. The same event ID is reused by both attempts. */
