@@ -19,6 +19,31 @@ The real Next.js/Convex stack needs Node and local Docker, not cloud credentials
 or a host dotenv file. Ctrl-C stops the owned stack and preserves its data.
 See [local development](docs/local-development.md) for prerequisites, QA and reset.
 
+## Verify a candidate
+
+With the Node runtime required by `package.json`, its exact pnpm pin and the
+frozen lockfile installed, run this in a clean candidate checkout on Mirrodin:
+
+```sh
+pnpm check --mode fast
+pnpm check --mode full
+```
+
+Omitting `--mode` runs full verification. Fast mode runs source quality and unit
+checks; full adds formatting, coverage, Cloudflare backend tests, a Worker build,
+route/image checks and the existing rendered guest lifecycle in workerd with a
+fresh SQLite Durable Object. Full mode needs the lockfile's Playwright Chromium
+(`pnpm exec playwright install chromium`), its system libraries and `ffmpeg`.
+The caller owns compute isolation; fleet runs stay inside `gha-runners.slice`.
+
+No production credential or dotenv file is needed. The check refuses live
+credentials and uses a loopback-only backend and generated local identities.
+Retain the command's source-bound output on the native executor. Browser
+evidence is in `.qa/worker/qa/evidence`; private raw logs stay on that executor.
+A local pass is not a deployment, hosted Clerk verification or a PostHog usage result.
+This command prepares the native release path; it does not yet replace the
+existing deployer or authorize a second promotion path.
+
 ## Project guide
 
 - [Product brief and current direction](project.md)

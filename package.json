@@ -7,6 +7,7 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
+    "check": "node scripts/check.mjs",
     "doctor": "node ./scripts/doctor.mjs",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "pnpm build:parlor",
@@ -65,7 +66,7 @@
     "qa:play-linejam:check": "node ./scripts/qa/check-play-linejam-skill.mjs",
     "qa:play-linejam:result": "node ./scripts/qa/write-play-linejam-result.mjs",
     "qa:play-linejam:scheduled": "node ./scripts/qa/run-scheduled-play.mjs",
-    "ci:fast": "pnpm ci:prepush",
+    "ci:fast": "pnpm check --mode fast",
     "ci:dagger:all": "./scripts/ci/dagger-call.sh all",
     "ci:dagger:all-no-e2e": "./scripts/ci/dagger-call.sh all-no-e2e",
     "ci:dagger:agentic-qa": "./scripts/ci/dagger-call.sh agentic-qa",
@@ -78,7 +79,7 @@
     "ci:dagger:smoke": "./scripts/ci/dagger-call.sh smoke",
     "ci:dagger:typecheck": "./scripts/ci/dagger-call.sh typecheck",
     "ci:dagger:unit-test": "./scripts/ci/dagger-call.sh unit-test",
-    "ci:prepush": "pnpm provider-retirement:check && pnpm typecheck && pnpm lint && pnpm test",
+    "ci:prepush": "pnpm check --mode fast",
     "smoke:run": "node ./scripts/ops/run-smoke.mjs",
     "evidence:guest-flow": "node scripts/evidence/guest-flow.mjs",
     "evidence:static-server": "node scripts/evidence/static-server.mjs",

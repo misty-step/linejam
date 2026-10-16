@@ -352,3 +352,20 @@ Detailed acceptance:
 
 No fabricated notes, automatic review bypass, credential rotation or spending
 increase as an error-handling strategy.
+
+#### Native verification
+
+As a maintainer, I want one verification command on our own machines, so that
+checking a candidate does not require a hosted CI vendor or production access.
+
+- Fast mode checks source quality and unit behavior; full mode also checks
+  coverage, the Cloudflare backend and the built Worker, including rendered
+  guest gameplay, authorization rejection and cleanup in disposable storage.
+- Full verification uses generated local identities and refuses production
+  credentials. It never imports, resets or migrates an existing deployment.
+- A failed command stops verification and returns nonzero. Output identifies
+  the source, mode and commands. The caller retains candidate-bound logs and
+  the existing browser evidence, rather than relying on a vendor's job badge.
+- Local verification is not deployment, hosted account acceptance or a live
+  player-usage measurement. Release publication keeps its existing review and
+  integrity requirements.
