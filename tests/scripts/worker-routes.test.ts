@@ -152,13 +152,28 @@ describe('Worker route release gate', () => {
   it('accepts only the native client-cancel diagnostic, not application or other socket faults', () => {
     const disconnect =
       'kj::getCaughtExceptionAsKj() = rust/cxx/kj-rs-io/ffi.rs:164: disconnected: write(): Connection reset by peer (os error 104)\nstack: /runtime/bin/workerd@57d56c3';
-    expect(() =>
-      assertRuntimeLogs([{ level: 'error', message: disconnect }])
-    ).not.toThrow();
+    for (const message of [
+      disconnect,
+      disconnect.replace(
+        'Connection reset by peer (os error 104)',
+        'Broken pipe (os error 32)'
+      ),
+    ]) {
+      expect(() =>
+        assertRuntimeLogs([{ level: 'error', message }])
+      ).not.toThrow();
+    }
     for (const log of [
       { level: 'fatal', message: disconnect },
       { level: 'error', message: 'Connection reset by peer (os error 104)' },
       { level: 'error', message: disconnect.replace('write()', 'read()') },
+      {
+        level: 'error',
+        message: disconnect.replace(
+          'Connection reset by peer (os error 104)',
+          'No space left on device (os error 28)'
+        ),
+      },
       { level: 'error', message: disconnect + '\nuncaught TypeError' },
       {
         level: 'log',

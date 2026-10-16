@@ -168,7 +168,7 @@ export function assertRuntimeLogs(logs: { level: string; message: string }[]) {
     // native write. This exact workerd peer-disconnect is not an app exception.
     if (
       log.level === 'error' &&
-      /^kj::getCaughtExceptionAsKj\(\) = rust\/cxx\/kj-rs-io\/ffi\.rs:\d+: disconnected: write\(\): Connection reset by peer \(os error 104\)\nstack: [^\n]*\/workerd@[^\n]+$/.test(
+      /^kj::getCaughtExceptionAsKj\(\) = rust\/cxx\/kj-rs-io\/ffi\.rs:\d+: disconnected: write\(\): (?:Connection reset by peer \(os error 104\)|Broken pipe \(os error 32\))\nstack: [^\n]*\/workerd@[^\n]+$/.test(
         log.message
       )
     )
