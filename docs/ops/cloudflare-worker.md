@@ -30,7 +30,7 @@ while the new Worker trusts only `cf-connecting-ip`. Never run both build owners
 
 The `Production` GitHub environment must contain production-scoped values for:
 
-- Release only: `CLOUDFLARE_API_TOKEN`, `CONVEX_DEPLOY_KEY`. Reuse the existing
+- Release only: `CLOUDFLARE_API_TOKEN`. Reuse the existing
   `SENTRY_RELEASE_TOKEN` for the build's `SENTRY_AUTH_TOKEN`.
 - Runtime and build: `GUEST_TOKEN_SECRET`, `CLERK_SECRET_KEY`,
   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SENTRY_DSN`,
@@ -81,7 +81,13 @@ build job, without another build; a failure prevents `merge-gate` and deployment
 For a bounded local packaging check, `CIRCLE_NODE_TOTAL=2` limits Next's static
 build to one worker; this does not change production runtime or host limits.
 
-## Reversible cutover and acceptance
+## History: the frontend cutover from DigitalOcean
+
+This section records how the frontend left DigitalOcean. It does not describe
+the backend: backend cutover and rollback follow
+[ADR-0011](../adr/0011-backend-on-cloudflare-durable-object.md) decisions 5–7.
+Once the backend serves from `/backend`, the frontend rollback below no longer
+applies, because the retained image talks to the paused Convex deployment.
 
 The initiative's private `do-linejam` evidence owns exact provider/DNS payloads,
 credential references and observed deployment/version IDs. Capture the DO spec
