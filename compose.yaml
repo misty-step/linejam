@@ -50,7 +50,7 @@ x-source-watch: &source-watch
 services:
   convex:
     # Verified published multi-platform digest, not a source SHA or moving tag.
-    image: ghcr.io/get-convex/convex-backend@sha256:1f2044e3eac463ac78973b136c0baf72d4ada602611d853d6f99f280e29e0a98
+    image: ghcr.io/convex/convex-backend@sha256:1f2044e3eac463ac78973b136c0baf72d4ada602611d853d6f99f280e29e0a98
     labels: *local-labels
     init: true
     stop_signal: SIGINT
