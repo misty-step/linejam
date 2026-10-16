@@ -1,6 +1,7 @@
 # Linejam
 
 Shared standard: [Constitution](https://foundations.mistystep.io/) and [Way of working](https://foundations.mistystep.io/way-of-working).
+New code follows the [Misty Step Stack standard](https://foundations.mistystep.io/way-of-working).
 
 Run `project-context linejam` before starting work on this project.
 Use `SPEC.md` for observable behavior, `project.md` for the product brief, and
