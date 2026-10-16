@@ -40,6 +40,7 @@ afterEach(() => vi.unstubAllEnvs());
 describe('Linejam PostHog transport privacy', () => {
   it('allows only template routes and explicit story/session properties', () => {
     vi.stubEnv('NEXT_PUBLIC_POSTHOG_ENVIRONMENT', 'production');
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_KEY', 'public-test-token');
     vi.stubEnv('NEXT_PUBLIC_SENTRY_RELEASE', 'source-sha');
     window.history.replaceState(
       {},
@@ -48,6 +49,7 @@ describe('Linejam PostHog transport privacy', () => {
     );
     const output = sanitizeAnalyticsEvent(event('line_submitted'));
     expect(output?.properties).toMatchObject({
+      token: 'public-test-token',
       app: 'linejam',
       environment: 'production',
       release: 'source-sha',

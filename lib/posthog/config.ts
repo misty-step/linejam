@@ -27,6 +27,8 @@ export const sanitizeAnalyticsEvent: BeforeSendFn = (event) => {
   const production =
     process.env.NEXT_PUBLIC_POSTHOG_ENVIRONMENT === 'production';
   const properties: typeof input = {
+    // posthog-js carries its write-only transport token inside properties.
+    token: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     app: 'linejam',
     environment: production ? 'production' : 'development',
     release: process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? 'unknown',
