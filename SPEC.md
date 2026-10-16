@@ -328,7 +328,7 @@ reach the existing owned alert intake, without stopping people from playing.
 
 ## Capability: Measured usage
 
-### US-005 Understand which player stories are used without collecting content
+### Understand which player stories are used without collecting content
 
 As the product owner, I want anonymous pageviews, sessions and story outcomes
 so I can steer the product without reading players' private work.
