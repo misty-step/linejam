@@ -1,5 +1,7 @@
 # Contributing
 
+Shared standard: [Constitution](https://foundations.mistystep.io/) and [Way of working](https://foundations.mistystep.io/way-of-working).
+
 Linejam uses `master` as the base branch and Conventional Commits for commit
 messages.
 

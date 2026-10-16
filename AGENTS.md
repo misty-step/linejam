@@ -1,5 +1,7 @@
 # Linejam
 
+Shared standard: [Constitution](https://foundations.mistystep.io/) and [Way of working](https://foundations.mistystep.io/way-of-working).
+
 Use `project.md` for product constraints and current direction, and `DESIGN.md`
 for the identity and interaction contract. Linear owns current priorities;
 historical issues are context, not an automatic queue.
