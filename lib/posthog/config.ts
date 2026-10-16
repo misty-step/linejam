@@ -32,7 +32,12 @@ export const sanitizeAnalyticsEvent: BeforeSendFn = (event) => {
     app: 'linejam',
     environment: production ? 'production' : 'development',
     release: process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? 'unknown',
-    is_synthetic: !production || navigator.webdriver === true,
+    // Bounded release probes can opt into exclusion even when the SDK's bot
+    // filter requires a normal browser fingerprint to verify real ingestion.
+    is_synthetic:
+      !production ||
+      navigator.webdriver === true ||
+      sessionStorage.getItem('linejam-analytics-synthetic') === '1',
     distinct_id: input.distinct_id,
     $process_person_profile: false,
     $geoip_disable: true,

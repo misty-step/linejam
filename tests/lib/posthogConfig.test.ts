@@ -35,7 +35,10 @@ function event(name = '$pageview'): CaptureResult {
   };
 }
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  sessionStorage.clear();
+});
 
 describe('Linejam PostHog transport privacy', () => {
   it('allows only template routes and explicit story/session properties', () => {
@@ -118,5 +121,11 @@ describe('Linejam PostHog transport privacy', () => {
       ip: false,
       before_send: sanitizeAnalyticsEvent,
     });
+  });
+
+  it('marks explicitly opted-in release probes synthetic in production', () => {
+    vi.stubEnv('NEXT_PUBLIC_POSTHOG_ENVIRONMENT', 'production');
+    sessionStorage.setItem('linejam-analytics-synthetic', '1');
+    expect(sanitizeAnalyticsEvent(event())?.properties.is_synthetic).toBe(true);
   });
 });
