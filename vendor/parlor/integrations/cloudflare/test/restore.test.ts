@@ -1,10 +1,51 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { newId } from "../src/ids.js";
+import { FROZEN_MESSAGE } from "../src/store.js";
 import { memorySqlDriver } from "../src/testing.js";
-import { bookmarkAt, durableObject, pitrPlatform } from "./helpers.js";
+import { ADMIN_KEY, bookmarkAt, durableObject, pitrPlatform } from "./helpers.js";
 
 afterEach(() => {
   vi.useRealTimers();
 });
+
+const UNAVAILABLE = { code: "Unavailable", message: "Restarting after a point-in-time restore" };
+
+/**
+ * A POST whose body ends only when `finish` is called, like a slow upload.
+ * `reading` settles once the backend has begun reading the body, so the
+ * request is past every check made on arrival (the restart check and the
+ * admin key) and will reach the database lock only after `finish`.
+ */
+function slowPost(
+  backend: { fetch(request: Request): Promise<Response> },
+  path: string,
+  body: unknown,
+  withAdminKey = false,
+) {
+  let finish!: () => void;
+  let started!: () => void;
+  const reading = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(JSON.stringify(body)));
+      finish = () => controller.close();
+    },
+    pull() {
+      started();
+    },
+  });
+  const response = backend.fetch(
+    new Request(`https://backend.example.test/backend${path}`, {
+      method: "POST",
+      body: stream,
+      duplex: "half",
+      headers: withAdminKey ? { Authorization: `Bearer ${ADMIN_KEY}` } : {},
+    } as RequestInit),
+  );
+  return { response, reading, finish };
+}
 
 describe("point-in-time restore", () => {
   it("stages a restore only while frozen, answers with the undo bookmark, then refuses everything until it restarts", async () => {
@@ -29,11 +70,7 @@ describe("point-in-time restore", () => {
     expect(pitr.seen.staged).toEqual([target]);
 
     // Nothing is served by the instance whose storage is about to be replaced.
-    const unavailable = {
-      code: "Unavailable",
-      message: "Restarting after a point-in-time restore",
-    };
-    expect(await admin("status")).toEqual({ status: 503, body: unavailable });
+    expect(await admin("status")).toEqual({ status: 503, body: UNAVAILABLE });
     const query = await call("/api/query", {
       method: "POST",
       body: JSON.stringify({ path: "rooms:byCode", args: [{ code: "AAAA" }] }),
@@ -157,5 +194,107 @@ describe("point-in-time restore", () => {
       expect((await call(path, init)).status).toBe(401);
     }
     expect(pitr.seen.staged).toEqual([]);
+  });
+});
+
+/**
+ * Staging a restore is terminal for requests that arrived before it, too:
+ * they passed the restart check in `fetch` and wait on their body (or the
+ * key check, or the lock) while the restore is staged.
+ */
+describe("R20: requests already admitted cannot outlive a staged restore", () => {
+  it("keeps an earlier unfreeze from reopening writes, so an earlier mutation is refused", async () => {
+    const pitr = pitrPlatform();
+    const driver = memorySqlDriver();
+    const { backend, admin } = await durableObject({}, driver, pitr);
+    const unfreeze = slowPost(backend, "/admin/freeze", { frozen: false }, true);
+    const freeze = slowPost(backend, "/admin/freeze", { frozen: true }, true);
+    const write = slowPost(backend, "/api/mutation", {
+      path: "rooms:create",
+      args: [{ code: "LATE" }],
+    });
+    await Promise.all([unfreeze.reading, freeze.reading, write.reading]);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    expect((await admin("restore", { bookmark: bookmarkAt(7) })).status).toBe(202);
+
+    unfreeze.finish();
+    freeze.finish();
+    write.finish();
+    for (const late of [unfreeze, freeze]) {
+      const response = await late.response;
+      expect({ status: response.status, body: await response.json() }).toEqual({
+        status: 503,
+        body: UNAVAILABLE,
+      });
+    }
+    const mutation = await write.response;
+    expect(mutation.status).toBe(560);
+    expect(await mutation.json()).toMatchObject({
+      status: "error",
+      errorMessage: expect.stringContaining(FROZEN_MESSAGE),
+    });
+
+    // The store as the restarted object would find it if the restore did
+    // nothing: still frozen, and without the refused room.
+    const next = await durableObject({}, driver);
+    expect((await next.admin("status")).body).toMatchObject({ writesFrozen: true });
+    const room = await next.call("/api/query", {
+      method: "POST",
+      body: JSON.stringify({ path: "rooms:byCode", args: [{ code: "LATE" }] }),
+    });
+    expect(await room.json()).toMatchObject({ status: "success", value: null });
+  });
+
+  it("keeps the acknowledged target when an earlier restore reaches the lock later", async () => {
+    const pitr = pitrPlatform();
+    const { backend, admin } = await durableObject({}, memorySqlDriver(), pitr);
+    const earlier = slowPost(backend, "/admin/restore", { bookmark: bookmarkAt(8) }, true);
+    await earlier.reading;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const staged = await admin("restore", { bookmark: bookmarkAt(7) });
+    expect(staged.status).toBe(202);
+    expect(staged.body["bookmark"]).toBe(bookmarkAt(7));
+
+    earlier.finish();
+    const refused = await earlier.response;
+    expect({ status: refused.status, body: await refused.json() }).toEqual({
+      status: 503,
+      body: UNAVAILABLE,
+    });
+    expect(pitr.seen.staged).toEqual([bookmarkAt(7)]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(pitr.seen.aborted).toEqual(["parlor-cloudflare: point-in-time restore"]);
+  });
+
+  it("refuses import steps that arrived before the restore", async () => {
+    const pitr = pitrPlatform();
+    const driver = memorySqlDriver();
+    const { backend, admin } = await durableObject({}, driver, pitr);
+    expect((await admin("import/begin", { tables: { rooms: 10001 } })).status).toBe(200);
+    const room = { _id: newId(10001), _creationTime: 1, code: "LATE" };
+    const steps = [
+      slowPost(backend, "/admin/import/begin", { tables: { rooms: 10002 } }, true),
+      slowPost(backend, "/admin/import/documents", { table: "rooms", documents: [room] }, true),
+      slowPost(backend, "/admin/import/commit", { tables: {} }, true),
+    ];
+    await Promise.all(steps.map((step) => step.reading));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    expect((await admin("restore", { bookmark: bookmarkAt(7) })).status).toBe(202);
+
+    for (const step of steps) step.finish();
+    for (const step of steps) {
+      const response = await step.response;
+      expect({ status: response.status, body: await response.json() }).toEqual({
+        status: 503,
+        body: UNAVAILABLE,
+      });
+    }
+
+    // Still the import begun before the restore: pending, same mapping, no rows.
+    const next = await durableObject({}, driver);
+    const status = (await next.admin("status")).body;
+    expect(status).toMatchObject({ writesFrozen: true, importPending: true });
+    expect(status["tables"]).toMatchObject({ rooms: 10001 });
+    expect((await next.admin("export?table=rooms")).body["documents"]).toEqual([]);
   });
 });

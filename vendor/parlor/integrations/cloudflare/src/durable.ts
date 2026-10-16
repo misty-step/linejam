@@ -90,6 +90,7 @@ const STATUS_UDF_FAILED = 560;
 const DO_NAME = "convex";
 /** How long a restore waits, refusing every request, before restarting the object. */
 const RESTART_DELAY_MS = 1_000;
+const RESTARTING = "Restarting after a point-in-time restore";
 /** Bookmarks are hex groups such as `0000007b-0000b26e-...`; the CLI checks the same shape. */
 const BOOKMARK = /^[0-9A-Za-z]{1,64}(-[0-9A-Za-z]{1,64}){0,7}$/;
 const PITR_UNAVAILABLE = "Point-in-time recovery is not available on this storage";
@@ -213,6 +214,7 @@ class RequestError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code = "BadRequest",
   ) {
     super(message);
   }
@@ -269,7 +271,11 @@ export class ConvexBackendObject {
    * time. The wake re-arms from the database.
    */
   private armedAlarm: number | null | undefined = undefined;
-  /** Set once a point-in-time restore is staged; the object restarts shortly after. */
+  /**
+   * Set under the database lock once a point-in-time restore is staged; the
+   * object restarts shortly after. Writes were frozen when it was set, and
+   * nothing changes data or maintenance state after it (see `maintenance`).
+   */
   private restarting = false;
   private readonly basePath: string;
 
@@ -322,8 +328,10 @@ export class ConvexBackendObject {
 
   async fetch(request: Request): Promise<Response> {
     // A staged restore discards every write from here on, so accept none.
+    // This turns away later requests; one already past this point is
+    // stopped under the lock instead (`maintenance` and the freeze barrier).
     const response = this.restarting
-      ? json({ code: "Unavailable", message: "Restarting after a point-in-time restore" }, 503)
+      ? json({ code: "Unavailable", message: RESTARTING }, 503)
       : await this.route(request);
     await drainUnreadBody(request);
     return response;
@@ -362,7 +370,7 @@ export class ConvexBackendObject {
       return new Response("Not found", { status: 404 });
     } catch (error) {
       if (error instanceof RequestError)
-        return json({ code: "BadRequest", message: error.message }, error.status);
+        return json({ code: error.code, message: error.message }, error.status);
       console.error("parlor-cloudflare: request failed", error);
       return json({ code: "InternalServerError", message: "Internal server error" }, 500);
     }
@@ -508,7 +516,7 @@ export class ConvexBackendObject {
       if (typeof frozen !== "boolean") throw new RequestError(400, "Expected { frozen: boolean }");
       // Under the lock, so the barrier lands between two transactions: every
       // write committed before it is in the store, and none is accepted after.
-      const ts = await runtime.exclusive(async () => {
+      const ts = await this.maintenance(async () => {
         setWritesFrozen(runtime, frozen);
         return runtime.store.ts.toString();
       });
@@ -519,7 +527,7 @@ export class ConvexBackendObject {
       const tables = body["tables"];
       if (typeof tables !== "object" || tables === null || Array.isArray(tables))
         throw new RequestError(400, "Expected { tables: { name: number } }");
-      await runtime.exclusive(() => beginImport(runtime, tables as Record<string, number>));
+      await this.maintenance(() => beginImport(runtime, tables as Record<string, number>));
       return json({ tables: Object.fromEntries(runtime.store.tableNumbers()) });
     }
     if (route === "import/documents") {
@@ -528,7 +536,7 @@ export class ConvexBackendObject {
       if (typeof table !== "string" || !Array.isArray(documents)) {
         throw new RequestError(400, "Expected { table, documents: [] }");
       }
-      const imported = await runtime.exclusive(() =>
+      const imported = await this.maintenance(() =>
         importDocuments(runtime, table, documents as JSONValue[]),
       );
       return json({ imported });
@@ -538,13 +546,29 @@ export class ConvexBackendObject {
       if (!isExpectedTables(tables)) {
         throw new RequestError(400, "Expected { tables: { name: { count, sha256 } } }");
       }
-      const result = await runtime.exclusive(() => commitImport(runtime, tables));
+      const result = await this.maintenance(() => commitImport(runtime, tables));
       return json(
         { committed: result.mismatches.length === 0, ...result },
         result.mismatches.length === 0 ? 200 : 409,
       );
     }
     return json({ code: "NotFound", message: "Unknown admin route" }, 404);
+  }
+
+  /**
+   * Run a maintenance operation (freeze, import, restore) under the
+   * database lock, unless a restore is staged. A request can pass the
+   * check in `fetch` and then wait for its key check, its body or the lock
+   * while a restore is staged; checking again here, where the restore was
+   * staged, keeps it from unfreezing writes, importing, or replacing the
+   * restore's target. Everything else that writes is held off by the
+   * freeze barrier, which only `freeze` can lift.
+   */
+  private maintenance<T>(work: () => Promise<T>): Promise<T> {
+    return this.runtime.exclusive(async () => {
+      if (this.restarting) throw new RequestError(503, RESTARTING, "Unavailable");
+      return work();
+    });
   }
 
   /**
@@ -579,8 +603,11 @@ export class ConvexBackendObject {
    * then restart it. Writes must already be frozen, so nothing is accepted
    * between the decision and the restart. The answer (202) carries the
    * target bookmark and the undo bookmark, which restores the object to just
-   * before this restore; every request then gets 503 until the object
+   * before this restore; every later request then gets 503 until the object
    * restarts RESTART_DELAY_MS later and comes back exactly as at the target.
+   * Staging is terminal: a freeze, import or restore request that arrived
+   * before it but reaches the lock after it gets 503 too, so writes stay
+   * frozen and the acknowledged target is the one the platform restores.
    */
   private async restore(body: Record<string, unknown>): Promise<Response> {
     const storage = this.state.storage;
@@ -603,7 +630,7 @@ export class ConvexBackendObject {
         "Expected { bookmark } or { at: <milliseconds since the epoch> }",
       );
     const runtime = this.runtime;
-    const staged = await runtime.exclusive(async () => {
+    const staged = await this.maintenance(async () => {
       if (!runtime.writesFrozen)
         throw new MaintenanceStateError("Freeze writes before restoring a bookmark");
       const target = byBookmark

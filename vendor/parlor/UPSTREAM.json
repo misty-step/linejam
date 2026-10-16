@@ -8,6 +8,6 @@
     "LICENSE"
   ],
   "modifications": [
-    "integrations/cloudflare is vendored from misty-step/parlor a6e77f99105cfe404da550442b43612762c6e84c (PR #27, on master 64718e2 with PR #15) without the operator CLI (src/cli.ts, src/convexZip.ts, src/operator.ts, test/operator.test.ts); its vitest devDependency follows Linejam's version"
+    "integrations/cloudflare is vendored from misty-step/parlor 356856cd706843423f0b34615bc032fd2c489b37 (PR #27, on master 64718e2 with PR #15) without the operator CLI (src/cli.ts, src/convexZip.ts, src/operator.ts, test/operator.test.ts); its vitest devDependency follows Linejam's version"
   ]
 }
